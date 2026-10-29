@@ -80,6 +80,17 @@ class SeededSuite extends munit.CatsEffectSuite:
     }
   }
 
+  test("premises no k meets are not shown to hold together, though a proof makes their group hold: red".tag(Live)) {
+    Ported.run(Projects.elaborated(Seeded.Vacuous.knowledge), Nil,
+      Ported.Lean(List("Whole" -> Seeded.Vacuous.proof), Nil, None), Nil).map { r =>
+      val premises = r.analysis.groups.collectFirst { case (i, ids) if ids.contains(NodeId("kNegative")) => i }
+      assertEquals(premises.flatMap(i => consistent(r.analysis).get(ObligationName.Consistent(i)))
+        .filter(_ == ObligationStatus.Proven), None)
+      val unproven = Ported.unproven(r.analysis)
+      assert(unproven.contains("emptyHoldsIt") && unproven.contains("emptyHoldsNothing"), Ported.table(r.analysis))
+    }
+  }
+
   test("two assumptions pinning n apart are one group, not proven".tag(Live)) {
     Ported.run(Projects.elaborated(Seeded.TwoPins.knowledge), Nil, Ported.Lean(Nil, Nil, None), Nil).map { r =>
       assertEquals(r.analysis.groups.map(_._1), List(0))

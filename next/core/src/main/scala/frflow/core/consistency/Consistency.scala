@@ -8,6 +8,8 @@ import frflow.core.expr.{Expr, Exprs, OutsideFact}
 import frflow.core.name.{NodeId, SourceText, SymbolName}
 import frflow.core.spec.{NodeKind, Range, Written}
 import frflow.core.term.interpret.ToExpr
+import frflow.core.ty.Ty
+import frflow.core.vocab.SymbolType
 import frflow.core.Theory
 
 /** The consistency and vacuity obligations of a theory (owner §15, §18), derived from it alone: no example is read.
@@ -16,7 +18,7 @@ import frflow.core.Theory
   * claim's condition, to be shown possible.
   */
 object Consistency:
-  def of(t: Theory): List[Group] = sharing(t) ++ starts(t)
+  def of(t: Theory): List[Group] = sharing(t) ++ premised(t) ++ starts(t)
 
   /** `inhabited_` of every `always[T]`, claimed or assumed, and `satisfiable_` of every claim's condition. */
   def vacuity(t: Theory): List[Vacuity] = t.nodes.map(_.node).flatMap(n => n.statement.range.toList.flatMap {
@@ -69,9 +71,8 @@ object Consistency:
     */
   private def sharing(t: Theory): List[Group] =
     val bottoms = bottom(t)
-    val pinned = bottoms.flatMap(id => provided(t, id).filter(pins(t, id, _))).toSet
-    val premises = bottoms.filter(id => t.node(id).exists(_.statement.kind == NodeKind.Assumption) &&
-      open(t, id).isEmpty && provided(t, id).nonEmpty && !provided(t, id).exists(pinned))
+    val pinned = pinnedIn(t, bottoms)
+    val premises = premisesOf(t)
     joined(bottoms.map(id => id -> (open(t, id) ++ provided(t, id).filter(pinned)).distinct).filter(_._2.nonEmpty))
       .map { (ids, keys) =>
         val fromOutside = (ids.flatMap(Constrained.of(t, _)).filter(isProvided(t, _)) ++ ids.flatMap(provided(t, _)))
@@ -81,6 +82,33 @@ object Consistency:
         Group.Sharing(ids, opens, universal, witnesses(t, ids, opens),
           premises.filter(p => provided(t, p).forall(universal.contains)))
       }
+
+  private def pinnedIn(t: Theory, bottoms: List[NodeId]): Set[SymbolName] =
+    bottoms.flatMap(id => provided(t, id).filter(pins(t, id, _))).toSet
+
+  /** The assumptions at the bottom about unpinned provided values alone: what the world outside is trusted to give. */
+  private def premisesOf(t: Theory): List[NodeId] =
+    val bottoms = bottom(t)
+    val pinned = pinnedIn(t, bottoms)
+    bottoms.filter(id => t.node(id).exists(_.statement.kind == NodeKind.Assumption) && open(t, id).isEmpty &&
+      provided(t, id).nonEmpty && !provided(t, id).exists(pinned))
+
+  /** The premises joined while they share a provided value, each set with the witnesses derived for its values (a
+    * list none bounds, empty), in the order they are bound.
+    */
+  private def premised(t: Theory): List[Group] =
+    joined(premisesOf(t).map(id => id -> provided(t, id))).map { (ids, values) =>
+      val ws = witnesses(t, ids, values).map {
+        case Witness.Missing(s) if listed(t, s) => Witness.Empty(s)
+        case w                                  => w
+      }
+      Group.Premises(ids, values, ws.sortBy(w => values.indexOf(w.meaningOf)))
+    }
+
+  private def listed(t: Theory, s: SymbolName): Boolean = t.vocabulary.symbol(s).map(_.ty).exists {
+    case SymbolType.Typed(Ty.ListOf(_)) => true
+    case _                              => false
+  }
 
   /** Whether an assumption of the group equates the provided value to a term (`state === stateAfter(history)`): the
     * value is then solved by that equation, like an open one, for every value meeting the group's assumptions is

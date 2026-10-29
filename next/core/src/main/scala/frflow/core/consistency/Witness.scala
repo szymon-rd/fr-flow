@@ -15,9 +15,14 @@ enum Witness:
   case Tested(symbol: SymbolName)
   /** None derived: the developer proves the group consistent, or it shows "consistency not proven". */
   case Missing(symbol: SymbolName)
+  /** A list provided where the code runs that no premise equates or bounds: the empty list, which a premise about
+    * each of its elements meets (keycloak's `freshTokens` of `history`).
+    */
+  case Empty(symbol: SymbolName)
 
   def meaningOf: SymbolName = this match
     case Equation(s, _, _) => s
     case Bound(s, _, _)    => s
     case Tested(s)         => s
     case Missing(s)        => s
+    case Empty(s)          => s

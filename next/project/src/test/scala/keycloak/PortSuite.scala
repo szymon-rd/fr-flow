@@ -111,6 +111,10 @@ class PortSuite extends munit.CatsEffectSuite:
       val whole = a.wholeCheck.map(_.results).getOrElse(fail("the theory's own check is not recorded"))
       assertEquals(whole.collect { case Result(n @ ObligationName.Consistent(_), s, _) => n -> s }.toMap,
         a.groups.map((i, _) => ObligationName.Consistent(i) -> ObligationStatus.Proven).toMap)
+      // What the world gives, freshTokens, holds of some history (the empty one), as every group taking it rests on.
+      val fresh = a.groups.collectFirst { case (i, ids) if ids.contains(NodeId("freshTokens")) => i }
+      assertEquals(fresh.flatMap(i => whole.find(_.name == ObligationName.Consistent(i))).map(_.status),
+        Some(ObligationStatus.Proven))
       // Today's examples that give no value, the store's and the request's, are tried against the claims in Lean
       // too (owner §18), each shown: the request's by the step's code, given what storeKeepsState says of the
       // record that code leaves open.

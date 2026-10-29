@@ -1,6 +1,6 @@
 package whole
 
-import frflow.core.consistency.{Consistency, Group}
+import frflow.core.consistency.{Consistency, Group, Witness}
 import frflow.core.name.{DefName, NodeId, SymbolName}
 import frflow.proof.layout.Lowering
 import frflow.proof.lean.print.Print
@@ -52,4 +52,13 @@ class SeededSuite extends munit.FunSuite:
       s("inner") -> Substitute.Code(DefName("maybe"))))
     val provided = printed(Seeded.Through.knowledge, Prop.ForSome(List(s("holds")), through))
     assert(provided.contains("(Through.maybe k)") && !provided.contains("(k : "), provided)
+  }
+
+  test("the premises over one provided value are asked to hold together, witnessed where a bound or nothing meets") {
+    val vacuous = Consistency.of(Theories.theory(Seeded.Vacuous.knowledge)).collect { case g: Group.Premises => g }
+    assertEquals(vacuous.map(g => (g.statements.map(_.value), g.provided)),
+      List((List("kPositive", "kNegative"), List(s("k")))))
+    val fresh = Consistency.of(Theories.theory(keycloak.knowledge)).collect { case g: Group.Premises => g }
+    assertEquals(fresh.map(g => (g.statements.map(_.value), g.provided, g.witnesses)),
+      List((List("freshTokens"), List(s("history")), List(Witness.Empty(s("history"))))))
   }

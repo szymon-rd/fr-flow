@@ -146,6 +146,7 @@ object Checking:
 
   private def bottom(t: Theory, id: NodeId): List[Checking] = Consistency.of(t).collect {
     case g @ Group.Sharing(ids, _, _, _, _) if ids.contains(id) => Consistent(ids, g.standing)
+    case g @ Group.Premises(ids, _, _) if ids.contains(id)      => Consistent(ids, g.standing)
     case g @ Group.Start(`id`, from)                         => Starts(from, g.standing)
   }
 

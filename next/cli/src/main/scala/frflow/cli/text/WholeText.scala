@@ -32,6 +32,7 @@ object WholeText:
     case Witness.Bound(s, from, _)    => s"${s.value}: at the bound $from sets"
     case Witness.Tested(s)            => s"${s.value}: its tested Scala (evidence, not proof)"
     case Witness.Missing(s)           => s"${s.value}: no witness (prove the group consistent in a proof file)"
+    case Witness.Empty(s)             => s"${s.value}: the empty list"
 
   private def start(s: StartView, st: Style, full: Boolean): List[String] = s.start match
     case None    => List(st.red(s"${s.statement}: nothing says what its store starts with (say it as an assumption)"))

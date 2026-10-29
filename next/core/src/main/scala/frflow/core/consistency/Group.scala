@@ -14,6 +14,11 @@ enum Group:
     */
   case Sharing(statements: List[NodeId], open: List[SymbolName], provided: List[SymbolName], witnesses: List[Witness],
       premises: List[NodeId])
+  /** The premises of the groups over the same provided values, joined: some value of each, meeting what always holds
+    * of it, meets them all together. Without it, premises that contradict each other would make every group taking
+    * them hold for nothing.
+    */
+  case Premises(statements: List[NodeId], provided: List[SymbolName], witnesses: List[Witness])
   /** An `always(stored)` and what the state the store starts in meets (`stored.initially(…)`, an assumption): every
     * such state meets it, the first step of the rule that every state reached does.
     */
@@ -21,4 +26,5 @@ enum Group:
 
   def standing: Standing = this match
     case Sharing(_, _, _, ws, _) => Standing.of(ws)
+    case Premises(_, _, ws)      => Standing.of(ws)
     case Start(_, s)          => s.fold(Standing.Unwitnessed(Nil))(_ => Standing.Witnessed)

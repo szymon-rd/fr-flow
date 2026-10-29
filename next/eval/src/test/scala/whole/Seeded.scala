@@ -125,6 +125,35 @@ theorem consistent_0 : Obl.consistent_0 := by
 end Through.Whole.Proofs
 """
 
+  /** `Through` with a second premise about `k` that contradicts the first (`kNegative`, a part of `kSmall`): every
+    * group taking both would hold for nothing, so their own obligation, that some `k` meets both, must stay red.
+    */
+  object Vacuous:
+    import Through.*
+    val kSmall = Node.claim("k is below one.")(k < (1: Term[BigInt]))
+    val kNegative = Node.assumption("k is negative.")(k < (0: Term[BigInt])).refines(kSmall)
+
+    val knowledge = FrModel("Vacuous")(emptyHoldsNothing, emptyHoldsIt, kSmall, holdsB, holdsA, outerAdds,
+      innerAdds, kPositive, kNegative).implementProvided(k).implementProven(inner)(maybe).implementProven(outer)(
+      through)
+
+    /** The proof the second re-review wrote: the group, vacuously, from premises no `k` meets. */
+    val proof: String = """import FrFlowGen.Vacuous.Whole.Spec
+
+set_option autoImplicit false
+noncomputable section
+open Classical
+
+namespace Vacuous.Whole.Proofs
+
+theorem consistent_0 : Obl.consistent_0 := by
+  intro k hp hn
+  simp [Vacuous.kPositive.claim, Vacuous.kNegative.claim] at hp hn
+  omega
+
+end Vacuous.Whole.Proofs
+"""
+
 final case class Bag(items: List[BigInt]) derives LeanType
 final case class Sack(items: List[BigInt]) derives LeanType
 final case class Box(items: List[BigInt]) derives LeanType

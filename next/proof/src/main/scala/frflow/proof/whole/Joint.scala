@@ -4,13 +4,14 @@ import cats.data.NonEmptyList
 import frflow.core.analysis.{Callees, Constrained, Resolved}
 import frflow.core.analysis.outside.Guards
 import frflow.core.consistency.{Consistency, Defining, Group, Picked, Standing, Witness}
-import frflow.core.expr.{Binder, OutsideFact}
+import frflow.core.expr.{Binder, OutsideFact, Value}
 import frflow.core.graph.Walk
 import frflow.core.name.{DefName, NodeId, SymbolName, VarId}
 import frflow.core.spec.Range
 import frflow.core.term.{Final, Stated, Sym}
 import frflow.core.ty.Ty
-import frflow.proof.obligation.{Discharge, Hyp, Obligation, ObligationName, Prop, Substitute, Supplied}
+import frflow.core.vocab.SymbolType
+import frflow.proof.obligation.{Constant, Discharge, Hyp, Obligation, ObligationName, Prop, Substitute, Supplied}
 
 /** Consistency in Lean (owner §15, §18): the bottom statements and premises hold together (`consistent_<i>`, each
   * group with the witnesses derived for it), and each store's starting state meets what always holds of it
@@ -33,11 +34,21 @@ object Joint:
             (if premises.isEmpty then (if provided.isEmpty then "" else ".")
             else s" as ${names(premises)} ${if premises.size == 1 then "says" else "say"}."))
       }
+    case g @ Group.Premises(_, _, _) => premised(r, g, i)
     case Group.Start(n, start) => start.flatMap(r.theory.node).flatMap(_.statement.outside).collect {
       case OutsideFact.Initially(m, rule) =>
         val state = r.theory.vocabulary.model(m).fold(Ty.Unit)(_.state)
         Obligation(ObligationName.Start(n), Prop.Starts(DefName(n.value), rule, state, within(r, n, state)),
           Discharge.Auto, s"Every state ${m.value} may start in meets ${n.value}.")
+    }
+
+  /** The premises over the same provided values: some value of each meets them all. */
+  private def premised(r: Resolved, g: Group.Premises, i: Int): Option[Obligation] =
+    NonEmptyList.fromList(g.statements).map { ns =>
+      Obligation(ObligationName.Consistent(i), Prop.ForSome(g.provided, Prop.Both(ns.map(Prop.ClaimOf(_,
+        standing(r, g.statements))))), if g.standing == Standing.Witnessed then
+          Discharge.Witnessed(g.witnesses.flatMap(supplied(r, _))) else Discharge.Unwitnessed,
+        s"${names(g.statements)} can hold together: some ${symbols(g.provided)} provided meets each.")
     }
 
   /** What stands for each Definition the group's statements mention that is not open: its proven code or value. */
@@ -66,6 +77,9 @@ object Joint:
   private def supplied(r: Resolved, w: Witness): Option[Supplied] = w match
     case Witness.Equation(s, from, picked) => term(r, s, from, picked)
     case Witness.Bound(s, from, picked)    => term(r, s, from, picked)
+    case Witness.Empty(s)                  => r.theory.vocabulary.symbol(s).map(_.ty).collect {
+        case SymbolType.Typed(ty) => Supplied.Value(Constant(Value.Many(Nil), ty))
+      }
     case Witness.Tested(_) | Witness.Missing(_) => None
 
   private def term(r: Resolved, s: SymbolName, from: NodeId, picked: Picked): Option[Supplied] =
