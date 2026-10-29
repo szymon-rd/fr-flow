@@ -10,7 +10,7 @@ import frflow.core.name.NodeId
 object Witnessed:
   def below(r: Resolved, n: NodeId): Boolean =
     val under = descendants(r, List(n), Set.empty) - n
-    Consistency.of(r.theory).collect { case g @ Group.Sharing(ids, _, _, _) if ids.exists(under) => g.standing }
+    Consistency.of(r.theory).collect { case g @ Group.Sharing(ids, _, _, _, _) if ids.exists(under) => g.standing }
       .forall(_ == Standing.Witnessed)
 
   private def descendants(r: Resolved, todo: List[NodeId], seen: Set[NodeId]): Set[NodeId] = todo match

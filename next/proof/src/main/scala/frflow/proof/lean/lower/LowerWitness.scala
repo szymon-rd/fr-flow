@@ -16,12 +16,18 @@ final class LowerWitness(env: LowerEnv, naming: Naming, props: LowerProp):
     Decl.Theorem(Nil, name, Nil, LExpr.Const(List(Names.builtin("Obl"), name)), Proof.Below(provided(o.goal, met)),
       Break.SameLine)
 
-  /** `fun grants sessions _ => met`, for a statement for every value provided: what always holds of them taken too. */
+  /** `fun grants sessions _ => met`, for a statement for every value provided: what always holds of them taken too,
+    * and what the assumptions about them alone say.
+    */
   private def provided(goal: Prop, met: LExpr): LExpr = goal match
-    case Prop.ForEvery(Nil, _) => met
-    case Prop.ForEvery(ss, _)  => LExpr.Fun(ss.map(s => LBinder.Bare(Names.ident(s.value))) ++
-        props.fromOutsideOf(ss).map(_ => LBinder.Bare(Names.builtin("_"))), met)
-    case _                     => met
+    case Prop.ForEvery(Nil, _)   => met
+    case Prop.ForEvery(ss, body) => LExpr.Fun(ss.map(s => LBinder.Bare(Names.ident(s.value))) ++
+        (props.fromOutsideOf(ss) ++ premises(body)).map(_ => LBinder.Bare(Names.builtin("_"))), met)
+    case _                       => met
+
+  private def premises(body: Prop): List[Prop] = body match
+    case Prop.Implies(hs, _) => hs.map(_.prop)
+    case _                   => Nil
 
   /** Each witness printed in the order solved, every one given before standing for its value in it (R14.6); then in
     * the order the statement binds them.
@@ -41,5 +47,6 @@ final class LowerWitness(env: LowerEnv, naming: Naming, props: LowerProp):
   /** The values the statement binds by `∃`, in order. */
   private def bound(p: Prop): Option[List[SymbolName]] = p match
     case Prop.ForEvery(_, body) => bound(body)
+    case Prop.Implies(_, body)  => bound(body)
     case Prop.ForSome(ss, _)    => Some(ss)
     case _                      => None

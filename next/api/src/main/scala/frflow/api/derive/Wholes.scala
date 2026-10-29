@@ -14,7 +14,7 @@ import frflow.proof.obligation.ObligationName
 private[api] object Wholes:
   def of(a: Analysis): WholeView =
     val groups = Consistency.of(a.decided.theory).zipWithIndex
-    WholeView(groups.collect { case (g @ Group.Sharing(ids, _, _, ws), i) =>
+    WholeView(groups.collect { case (g @ Group.Sharing(ids, _, _, ws, _), i) =>
         val c = check(a, ObligationName.Consistent(i))
         GroupView(ids, ws, standing(g.standing, c.state), c)
       },

@@ -65,6 +65,21 @@ class SeededSuite extends munit.CatsEffectSuite:
     }
   }
 
+  test("a provided value the standing code reaches is universal in its group, given what the world says of it") {
+    val spec = whole(Projects.bare(Projects.elaborated(Seeded.Through.knowledge)))
+    val stated = spec.linesIterator.dropWhile(!_.contains("def consistent_0 ")).slice(1, 2).mkString
+    assert(stated.startsWith("  ∀ (k : Int), (Through.kPositive.claim k) → (∃ (holds : ") &&
+      stated.contains("(Through.through (Through.maybe k))"), stated)
+  }
+
+  test("the re-review's proof choosing k fails: the group is not proven, the roots stay red".tag(Live)) {
+    Ported.run(Projects.elaborated(Seeded.Through.knowledge), Nil,
+      Ported.Lean(List("Whole" -> Seeded.Through.proof), Nil, None), Nil).map { r =>
+      assertEquals(consistent(r.analysis).get(ObligationName.Consistent(0)).filter(_ == ObligationStatus.Proven), None)
+      assert(Ported.unproven(r.analysis).nonEmpty, Ported.table(r.analysis))
+    }
+  }
+
   test("two assumptions pinning n apart are one group, not proven".tag(Live)) {
     Ported.run(Projects.elaborated(Seeded.TwoPins.knowledge), Nil, Ported.Lean(Nil, Nil, None), Nil).map { r =>
       assertEquals(r.analysis.groups.map(_._1), List(0))

@@ -36,7 +36,7 @@ final class Analysis(val valid: Valid, val inputs: Inputs, val computed: Compute
   private lazy val wholeProven: Set[ObligationName] = wholeProof.toList.flatMap(ProofRules.theorems).toSet
   /** The consistency groups by their index, as `consistent_<i>` names them. */
   lazy val groups: List[(Int, List[NodeId])] =
-    Consistency.of(decided.theory).zipWithIndex.collect { case (Group.Sharing(ids, _, _, _), i) => i -> ids }
+    Consistency.of(decided.theory).zipWithIndex.collect { case (Group.Sharing(ids, _, _, _, _), i) => i -> ids }
   lazy val lowering: Lowering = Lowering(decided, terms)
   /** The lowering a node's content prints what its formula means with (`Contents`): variables named by order. */
   lazy val canonical: Lowering = Lowering(decided, terms, canonical = true)

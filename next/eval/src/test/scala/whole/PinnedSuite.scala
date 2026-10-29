@@ -10,7 +10,7 @@ import frflow.core.name.{NodeId, SymbolName}
 class PinnedSuite extends munit.FunSuite:
   private def group(kb: frflow.FrModel, node: String): Group.Sharing =
     Consistency.of(Theories.theory(kb)).collectFirst {
-      case g @ Group.Sharing(ids, _, _, _) if ids.contains(NodeId(node)) => g
+      case g @ Group.Sharing(ids, _, _, _, _) if ids.contains(NodeId(node)) => g
     }.getOrElse(fail(s"no group of $node"))
 
   private def pinnedBy(g: Group.Sharing, s: SymbolName): Option[NodeId] = g.witnesses.collectFirst {

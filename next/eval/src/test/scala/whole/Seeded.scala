@@ -76,7 +76,57 @@ theorem consistent_0 : Obl.consistent_0 := by
 end Hidden.Whole.Proofs
 """
 
+  /** A provided `k` reached only through `outer`'s code, which calls `inner`'s (adding the item only when `k > 0`):
+    * for the `k` the world gives (`kPositive`), `holdsA` and `holdsB` contradict each other at an empty sack, so no
+    * proof may choose `k` to show their group consistent.
+    */
+  object Through:
+    val k = Definition[BigInt]("a value provided where the code runs")
+    val inner = Definition[(Sack, BigInt) => Sack]("puts an item in a sack, if k says so")
+    val outer = Definition[(Sack, BigInt) => Sack]("puts an item in a sack, through inner")
+    val holds = Declaration[(Sack, BigInt) => Boolean]("whether the item is in the sack")
+    val maybe = define { (b: Term[Sack], x: Term[BigInt]) =>
+      when(k > (0: Term[BigInt]))(make[Sack](b.items :+ x)).otherwise(b) }
+    val through = define { (b: Term[Sack], x: Term[BigInt]) => inner(b, x) }
+
+    val emptyHoldsNothing = Node.claim("An empty sack holds nothing.")(
+      forall((x: Term[BigInt]) => !holds(make[Sack](Nil: Term[List[BigInt]]), x)))
+    val emptyHoldsIt = Node.claim("An empty sack holds the item put in it.")(
+      forall((x: Term[BigInt]) => holds(make[Sack](Nil: Term[List[BigInt]]), x)))
+    val holdsB = Node.claim("Holding is being in the sack already.")(
+      forall((b: Term[Sack], x: Term[BigInt]) => holds(b, x) === b.items.contains(x))).refines(emptyHoldsNothing)
+    val holdsA = Node.claim("Holding is being in the sack outer makes.")(
+      forall((b: Term[Sack], x: Term[BigInt]) => holds(b, x) === outer(b, x).items.contains(x))).refines(emptyHoldsIt)
+    val outerAdds = Node.claim("outer's sack holds the item.")(
+      forall((b: Term[Sack], x: Term[BigInt]) => outer(b, x).items.contains(x))).refines(emptyHoldsIt)
+    val innerAdds = Node.claim("inner's sack holds the item.")(
+      forall((b: Term[Sack], x: Term[BigInt]) => inner(b, x).items.contains(x))).refines(outerAdds)
+    val kPositive = Node.assumption("k is positive.")(k > (0: Term[BigInt])).refines(innerAdds)
+
+    val knowledge = FrModel("Through")(emptyHoldsNothing, emptyHoldsIt, holdsB, holdsA, outerAdds, innerAdds,
+      kPositive).implementProvided(k).implementProven(inner)(maybe).implementProven(outer)(through)
+
+    /** The proof the re-review wrote: `k` chosen as 0, where inner adds nothing. */
+    val proof: String = """import FrFlowGen.Through.Whole.Spec
+
+set_option autoImplicit false
+noncomputable section
+open Classical
+
+namespace Through.Whole.Proofs
+
+theorem consistent_0 : Obl.consistent_0 := by
+  refine ⟨fun b x => x ∈ b.items, 0, ?_, ?_⟩
+  · intro b x
+    simp [Through.through, Through.maybe]
+  · intro b x
+    rfl
+
+end Through.Whole.Proofs
+"""
+
 final case class Bag(items: List[BigInt]) derives LeanType
+final case class Sack(items: List[BigInt]) derives LeanType
 final case class Box(items: List[BigInt]) derives LeanType
 
 /** A step over what makers make (`top`, from `holdsIs` and `outerAdds`), `outer` the maker its parts are about: the

@@ -10,7 +10,7 @@ import frflow.core.name.{DefName, NodeId, SymbolName, VarId}
 import frflow.core.spec.Range
 import frflow.core.term.{Final, Stated, Sym}
 import frflow.core.ty.Ty
-import frflow.proof.obligation.{Discharge, Obligation, ObligationName, Prop, Substitute, Supplied}
+import frflow.proof.obligation.{Discharge, Hyp, Obligation, ObligationName, Prop, Substitute, Supplied}
 
 /** Consistency in Lean (owner §15, §18): the bottom statements and premises hold together (`consistent_<i>`, each
   * group with the witnesses derived for it), and each store's starting state meets what always holds of it
@@ -22,12 +22,16 @@ object Joint:
     Consistency.of(r.theory).zipWithIndex.flatMap((g, i) => group(r, g, i))
 
   private def group(r: Resolved, g: Group, i: Int): Option[Obligation] = g match
-    case g @ Group.Sharing(ids, open, provided, _) =>
+    case g @ Group.Sharing(ids, open, provided, _, premises) =>
       NonEmptyList.fromList(ids).map { ns =>
-        val goal = Prop.ForEvery(provided, Prop.ForSome(open, Prop.Both(ns.map(Prop.ClaimOf(_, standing(r, ids))))))
+        val some = Prop.ForSome(open, Prop.Both(ns.map(Prop.ClaimOf(_, standing(r, ids)))))
+        val says = premises.map(p => Hyp(s"h_${p.value}", Prop.ClaimOf(p, standing(r, List(p)))))
+        val goal = Prop.ForEvery(provided, if says.isEmpty then some else Prop.Implies(says, some))
         Obligation(ObligationName.Consistent(i), goal, witnessed(r, g),
           s"${names(ids)} hold together: some meaning of ${symbols(open)} makes each true" +
-            (if provided.isEmpty then "." else s", for every ${symbols(provided)} provided."))
+            (if provided.isEmpty then "." else s", for every ${symbols(provided)} provided") +
+            (if premises.isEmpty then (if provided.isEmpty then "" else ".")
+            else s" as ${names(premises)} ${if premises.size == 1 then "says" else "say"}."))
       }
     case Group.Start(n, start) => start.flatMap(r.theory.node).flatMap(_.statement.outside).collect {
       case OutsideFact.Initially(m, rule) =>

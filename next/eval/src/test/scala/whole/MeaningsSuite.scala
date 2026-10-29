@@ -55,14 +55,14 @@ class MeaningsSuite extends munit.FunSuite:
   }
 
   test("the groups: booked alone; bookedAfter, granted and accepted joined through book's program (it calls granted)") {
-    val groups = Consistency.of(t).collect { case Group.Sharing(ns, open, _, ws) => (ns, open, ws) }
+    val groups = Consistency.of(t).collect { case Group.Sharing(ns, open, _, ws, _) => (ns, open, ws) }
     assertEquals(groups.map(_._1), List(ids("bookedIsStored"),
       ids("bookedAfterIsStored", "acceptedIsAnswered", "grantWhenNoOverlap")))
     assertEquals(Consistency.open(t, NodeId("bookedAfterIsStored")), List(s("bookedAfter"), s("granted")))
   }
 
   test("solved in substitution order: granted by its equation, then bookedAfter and accepted read in book's run") {
-    val ws = Consistency.of(t).collect { case Group.Sharing(ns, _, _, ws) if ns.size == 3 => ws }.flatten
+    val ws = Consistency.of(t).collect { case Group.Sharing(ns, _, _, ws, _) if ns.size == 3 => ws }.flatten
     assertEquals(ws, List(Witness.Equation(s("granted"), NodeId("grantWhenNoOverlap"), Picked.Right(0)),
       Witness.Equation(s("bookedAfter"), NodeId("bookedAfterIsStored"), Picked.Right(0)),
       Witness.Equation(s("accepted"), NodeId("acceptedIsAnswered"), Picked.Right(0))))
@@ -75,7 +75,7 @@ class MeaningsSuite extends munit.FunSuite:
     val kb = FrModel("Rooms")(before).implementProven(book)(rooms.bookIfGranted)
       .implementTested(granted)(_ => (held, request) => rooms.Calendar(held).grants(request))
     val u = Theories.theory(kb)
-    assert(Consistency.of(u).collect { case Group.Sharing(_, _, _, ws) => ws }.flatten
+    assert(Consistency.of(u).collect { case Group.Sharing(_, _, _, ws, _) => ws }.flatten
       .contains(Witness.Missing(s("bookedAfter"))))
   }
 

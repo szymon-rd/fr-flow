@@ -26,7 +26,7 @@ store's index answering from its sessions (today's `storedSession`) keeps `sessi
 answering from that index, for a user enabled there with their roles, keeps `introspectAnswers`, its answers what
 applications accept (`referenceTokens`). -/
 theorem consistent_3 : Obl.consistent_3 := by
-  intro history seed
+  intro history seed _
   obtain ⟨state, hrun⟩ : ∃ st, Keycloak.serverRun.claim st history seed (Keycloak.handle (fun _ after => after)) :=
     ⟨_, rfl⟩
   let lookup : RealmId → String → Option Session := fun realm token =>

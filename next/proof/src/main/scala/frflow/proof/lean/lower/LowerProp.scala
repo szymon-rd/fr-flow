@@ -16,7 +16,8 @@ import frflow.proof.terms.{OpenTerms, TermTable}
   * substitute; the open terms left are bound by `Forall` (or `Exists`) in the order met
   * (the claims it is about, the conclusion, the hypotheses), then the hypotheses `h_<Node>`. A value provided where
   * the code runs comes with what always holds of it (`fromOutside`), wherever it is bound. A Definition with a
-  * meaning of its own (`meant`: proven code, a fixed value, its model) is never bound by `∃`. Today's
+  * meaning of its own (`meant`: proven code, a fixed value, its model, or a value provided where the code runs, which
+  * a statement takes for every value) is never bound by `∃` but where named. Today's
   * `Refinement.claim`, `stated` and `Vocabulary.term`, on values.
   */
 final class LowerProp(table: TermTable, env: LowerEnv, fromOutside: SymbolName => List[LExpr],
