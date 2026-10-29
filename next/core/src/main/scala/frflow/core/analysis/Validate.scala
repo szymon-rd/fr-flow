@@ -6,7 +6,7 @@ import frflow.core.{Elaborated, Failing, Theory}
 import frflow.core.code.Code
 import frflow.core.expr.{Expr, Exprs, PrimOp, Prog, Progs}
 import frflow.core.graph.{Edge, Walk}
-import frflow.core.name.{NodeId, SymbolName}
+import frflow.core.name.{LeanNames, NodeId, SymbolName}
 import frflow.core.spec.NodeKind
 import frflow.core.ty.Ty
 import frflow.core.vocab.DefineForm
@@ -59,8 +59,9 @@ object Validate:
       if p.statement.kind == NodeKind.Design && n.statement.kind != NodeKind.Design
     yield Problem.UnderDesign(n.id, p.id)
 
-  /** Each name declared once, none a name generated Lean binds itself, and no statement mentioning a value with no
-    * Lean type. A model's namespace in Lean is its name capitalized (`Shelf`), and the FrModel's is its name, so
+  /** Each name declared once, none a name generated Lean binds itself (nor a hypothesis's, nor, of a node, one of
+    * the modules laid out beside the nodes' or no plain Lean name), and no statement mentioning a value with no Lean
+    * type. A model's namespace in Lean is its name capitalized (`Shelf`), and the FrModel's is its name, so
     * each is declared there too: a model named as a domain type (`shelf` beside `Shelf`), or a FrModel named as a
     * type or a value (`Booking` beside `Booking`), is declared twice.
     */
@@ -68,7 +69,11 @@ object Validate:
     val v = t.vocabulary
     val names = v.sorts.map(_.name.value) ++ v.types.map(_.typeName.value) ++ v.symbols.map(_.name.value) ++
       v.defines.map(_.name.value) ++ v.models.map(_.name.value.capitalize) :+ t.name.value
-    all(names.filter(Reserved.names).distinct.map(Problem.ReservedName(_)) ++
+    val (nodes, symbols) = (t.nodes.map(_.node.id).toSet, v.symbols.map(_.name).toSet)
+    val hypotheses = v.symbols.map(_.name.value).filter(LeanNames.hypothesisLike(_, nodes, symbols))
+    val modules = t.nodes.map(_.node.id.value).filter(n => LeanNames.Modules(n) || LeanNames.Keywords(n) ||
+      !LeanNames.plain(n))
+    all((names.filter(Reserved.names) ++ hypotheses ++ modules).distinct.map(Problem.ReservedName(_)) ++
       names.diff(names.distinct).distinct.map(Problem.DeclaredTwice(_)) ++
       t.nodes.map(_.node.id).flatMap(id => Constrained.of(t, id).flatMap(s =>
         Constrained.codeOnlyType(t, s).map(Problem.CodeOnlyInStatement(id, s, _)))) ++ Bounded.problems(t))

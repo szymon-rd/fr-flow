@@ -65,6 +65,17 @@ class ValidateSuite extends munit.FunSuite:
       int)), frflow.core.term.Bound[Int]("x", int))(x => l.s.eq(x, x)))).filter(_.productPrefix == "SaidToExist"), Nil)
   }
 
+  test("a value named as a hypothesis (h_<node>, m_…, o_<value>_<i>) and a node named as a module are reserved") {
+    val named = Kb.of(plain("top"), plain("part")).linking(partOf("part", "top")).naming(
+      declaration("h_part", Lang.big), declaration("limit", Lang.big), declaration("o_limit_0", Lang.big),
+      declaration("m_top_limit", Lang.big), declaration("m_limit", Lang.big), declaration("o_limit_x", Lang.big))
+    assertEquals(named.problems.collect { case Problem.ReservedName(n) => n },
+      List("h_part", "o_limit_0", "m_top_limit", "m_limit"))
+    val modules = Kb.of(plain("Whole"), plain("Lemmas"), plain("at")).linking(partOf("Lemmas", "Whole"),
+      partOf("at", "Whole"))
+    assertEquals(modules.problems.collect { case Problem.ReservedName(n) => n }, List("Whole", "Lemmas", "at"))
+  }
+
   test("claims about the same code rest on no circle, siblings or part and whole: neither relies on the other") {
     List(ValueCases.siblings, ValueCases.siblings.linking(partOf("fAboveToo", "fAbove"))).foreach { kb =>
       assertEquals(kb.problems, Nil)

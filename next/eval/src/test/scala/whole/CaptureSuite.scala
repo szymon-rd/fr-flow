@@ -68,3 +68,29 @@ class CaptureSuite extends munit.FunSuite:
       "Node.assumption(\"x\")(rooms.storedBookings.onlyCodeChanges && rooms.storedBookings.atomic)").nonEmpty)
     assert(compileErrors("Node.claim(\"x\")(rooms.storedBookings.atomic)").nonEmpty)
   }
+
+  test("Int and Long compare only: no ordering, no arithmetic, nothing to tell Lean's Int from Scala's") {
+    assertEquals(compileErrors("forall((a: Term[Int], b: Term[Int]) => a === b)"), "")
+    assert(compileErrors("forall((a: Term[Int], b: Term[Int]) => a < b)").nonEmpty)
+    assert(compileErrors("forall((a: Term[Long], b: Term[Long]) => a <= b)").nonEmpty)
+    assert(compileErrors("forall((a: Term[Int], b: Term[Int]) => (a + b) === a)").nonEmpty)
+    assert(compileErrors("forall((a: Term[Long], b: Term[Long]) => (a - b) === a)").nonEmpty)
+  }
+
+  /** A Declaration named as a part's hypothesis, and nodes named as the modules laid out beside them. */
+  private val h_part = Declaration[BigInt]("a number named as a hypothesis")
+  private val top = Node.claim("The number is itself.")(h_part.term === h_part.term)
+  private val part = Node.claim("The number is still itself.")(h_part.term === h_part.term).refines(top)
+  private val Whole = Node.claim("Every number is itself.")(forall((n: Term[BigInt]) => n === n))
+  private val Lemmas = Node.claim("Every number is itself again.")(forall((n: Term[BigInt]) => n === n))
+    .refines(Whole)
+
+  test("a value named as a hypothesis and a node named as a laid-out module are refused, before Lean") {
+    assert(Theories.problems(FrModel("Hyp")(top, part)).contains(Problem.ReservedName("h_part")))
+    assertEquals(Theories.problems(FrModel("Mods")(Whole, Lemmas)).collect { case Problem.ReservedName(n) => n },
+      List("Whole", "Lemmas"))
+    val l = frflow.proof.layout.Layout(frflow.core.name.KbName("K"))
+    val fixed = List(l.types, l.domain, l.models, l.rootImpl, l.whole, l.wholeSpec, l.wholeChecks, l.wholeAudit,
+      l.lemmas, l.wholeProofs).map(_.dotted.split('.')(2))
+    assert(fixed.toSet.subsetOf(frflow.core.name.LeanNames.Modules), fixed)
+  }

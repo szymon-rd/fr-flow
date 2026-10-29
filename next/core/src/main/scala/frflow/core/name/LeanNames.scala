@@ -67,6 +67,20 @@ object LeanNames:
   /** Conjunct `i` of a claim (`conjunct_1`). */
   def conjunct(i: Int): String = s"conjunct_$i"
 
+  /** The modules FrFlow lays out beside the nodes' (`FrFlowGen.<Kb>.Whole`, `Proofs.<Kb>.Lemmas`, …): no node may be
+    * named so, its modules would be theirs.
+    */
+  val Modules: Set[String] = Set("Types", "Domain", "Models", "RootImpl", "Whole", "Lemmas")
+
+  /** Whether a symbol's name is one a hypothesis is given beside the open terms (`h_<node>`, `m_<rule>_<maker>`,
+    * `m_<callee>`, `o_<value>_<i>`), so the two would meet in one `∀`.
+    */
+  def hypothesisLike(name: String, nodes: Set[NodeId], symbols: Set[SymbolName]): Boolean =
+    nodes.exists(n => name == hypothesis(n)) || symbols.exists(s => name == madeByCallee(s)) ||
+      nodes.exists(n => symbols.exists(s => name == madeTaken(n, s))) ||
+      symbols.exists(s => name.startsWith(s"o_${s.value}_") && name.drop(s.value.length + 3).forall(_.isDigit) &&
+        name.length > s.value.length + 3)
+
   /** The prefixes of the obligations named after something (`cover_book`, `made_inRoom`, `start_neverOverlap`). */
   val Cover: String = "cover_"
   val Made: String = "made_"
