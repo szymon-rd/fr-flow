@@ -19,7 +19,7 @@ theorem impl : Obl.impl := by
     have hSaved := hSave s hk ho w
     obtain ⟨⟨⟨hKeeps, _⟩, _⟩, _⟩ := hWrite s hk ho w
     simp only [stepOf, afterSave, saved] at hSaved ⊢
-    rw [hSaved, Lemmas.mem_records]
+    rw [hSaved, Lemmas.aboutRecord_idem, Lemmas.mem_records]
     by_cases hid : r.id_ = about w
     · exact Or.inr ⟨hKeeps r hr, hid⟩
     · exact Or.inl ⟨hr, hid⟩

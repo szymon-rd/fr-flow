@@ -1,7 +1,7 @@
 package crm
 
 /** What crm's port judges (`PortSuite`): each difference from today's in where a node sits and what it assumes, each
-  * node standing apart from today's, and what is not proven, stopped on (the work list's questions).
+  * node standing apart from today's, and what is not proven (nothing, since the step 12 rulings).
   */
 object Judged:
   /** Each difference from today's crm, with why the design makes it. */
@@ -59,25 +59,13 @@ object Judged:
     // The model's Scala tested against it, its runs capped at 200 per implementation (ModelRuns.Runs): SQLite and
     // the in-memory variant; that nothing else changes the database is an outside fact, no Lean of its own.
     "TablesModel" -> List("assumption", "assumed", "", "400"),
-    // Stopped on (the work list's fourth question): what the CRM holds, by induction over its history, rests on
-    // the steps' claims at stores the guard does not reach; and what rests on it, its roots' root_impl with it.
-    "StoreMirrorsRequests" -> List("claim", "open", "open", ""),
-    "SharedCrm" -> List("claim", "waiting", "waiting", ""),
-    "AddedIsFound" -> List("claim", "open", "open", ""),
-    "WritesLeaveOthers" -> List("claim", "open", "open", ""),
-    "ExpiryJob" -> List("claim", "open", "open", ""),
-    // Stopped on (the second question): a root met by doing nothing, and root_impl with the others.
-    "NoCrossTenantRead" -> List("claim", "open", "open", ""))
+    // Today's contracts and invariant, claims (owner §15); today's expectations, roots of their own (owner §22).
+    "ExpiryJob" -> List("claim", "proven", "proven", ""),
+    "AddedIsFound" -> List("claim", "proven", "proven", ""),
+    "WritesLeaveOthers" -> List("claim", "proven", "proven", ""),
+    "NoCrossTenantRead" -> List("claim", "proven", "proven", ""))
 
-  /** What is not proven, stopped on (the work list's questions). */
-  val stopped: Map[String, List[String]] = Map(
-    // The first question: the group of what the CRM holds, the write side and the database's store holds for every
-    // value provided, and no store meets it for every history.
-    "crmRun" -> List("Consistency"), "saveWrite" -> List("Consistency"), "storeEdits" -> List("Consistency"),
-    // The fourth: what the CRM holds rests on crmRun (above), and its steps' claims are not asked of the stores
-    // between (the work list); the roots resting on it, and root_impl of the roots with it.
-    "storeMirrorsRequests" -> List("Check", "Parts"), "sharedCrm" -> List("Check"),
-    "addedIsFound" -> List("Check", "RootImpl"), "writesLeaveOthers" -> List("Check", "RootImpl"),
-    "expiryJob" -> List("Check", "RootImpl"),
-    // The second: a root met by doing nothing (read and deals returning nothing).
-    "noCrossTenantRead" -> List("Check", "Idle", "RootImpl"))
+  /** What is not proven: nothing (step 12 rulings: a provided value an assumption pins is solved by it; the idle
+    * try of the roots together; a step takes what the makers below it make).
+    */
+  val stopped: Map[String, List[String]] = Map.empty

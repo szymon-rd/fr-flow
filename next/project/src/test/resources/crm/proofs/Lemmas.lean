@@ -28,6 +28,10 @@ theorem mem_expiries (s t : CrmStore) (id_ : Int) (e : Expiry) :
       (e ∈ s.expiries ∧ e.record ≠ id_) ∨ (e ∈ t.expiries ∧ e.record = id_) := by
   simp [replaceAbout, aboutRecord]
 
+/-- What a store holds about a record, read about that record again, is the same. -/
+theorem aboutRecord_idem (t : CrmStore) (i : Int) : aboutRecord (aboutRecord t i) i = aboutRecord t i := by
+  simp only [aboutRecord, List.filter_filter, Bool.and_self]
+
 /-- What a write asks is about its own record's rows only: it holds of the replaced store when it holds of the
 store the write led to. -/
 theorem takesEffect_replace (s t : CrmStore) (w : WriteCmd) (h : takesEffect s w t) :

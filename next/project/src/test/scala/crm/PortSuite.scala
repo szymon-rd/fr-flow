@@ -20,7 +20,7 @@ import scala.concurrent.duration.*
 /** Crm ported (owner §14, §21, §22, §40), against today's (`reference/crm`, ARCHITECTURE section 9, equivalence):
   * every difference in where a node sits and what it assumes is listed and judged; checked by Lean and tested
   * (1,000 cases from seed 1), the database's SQLite and its in-memory variant run against its model; each node
-  * stands as today's but where judged or stopped on (the work list's questions); section 9's seeded bugs are caught,
+  * stands as today's but where judged, every consistency group proven; section 9's seeded bugs are caught,
   * the proven code's by Lean refuting what it would claim on a case (`resources/crm/port/Port.lean`); and today's
   * examples hold on the code.
   */
@@ -55,7 +55,8 @@ class PortSuite extends munit.CatsEffectSuite:
   }
 
   private val proofs = List("Lemmas", "writeContract", "saveWrite", "writesTakeEffect", "writesOnlyAsAsked",
-    "recordsKept", "visibility", "sharedCrm", "addedIsFound", "writesLeaveOthers", "expiryJob", "keyedTables",
+    "recordsKept", "visibility", "storeMirrorsRequests", "sharedCrm", "addedIsFound", "writesLeaveOthers",
+    "expiryJob", "keyedTables",
     "oneRowPerKey", "Whole")
   private val lean = Lean(proofs.map(n => n -> Ported.resource(s"crm/proofs/$n.lean")),
     reference.old("Crm", identity) :+ ("FrFlowGen/Port.lean" -> Ported.resource("crm/port/Port.lean")),
@@ -72,7 +73,7 @@ class PortSuite extends munit.CatsEffectSuite:
       ModelCheck(ModelRuns.reportedUnder(model.name), ModelRuns[IO](check, Semantics(elaborated), t).of(_, _))
     }
 
-  test(("checked by Lean and tested, each node stands as today's but where judged or stopped on; the seeded proven " +
+  test(("checked by Lean and tested, each node stands as today's but where judged; consistent; the seeded proven " +
     "bugs refuted").tag(Live)) {
     val examples = written.flatMap(_.elaborated.fold(e => fail(e.toString), identity))
     Ported.run(elaborated, examples, lean, Sqlite.sqlite(elaborated) ++ memory(false)).map { r =>
@@ -83,10 +84,8 @@ class PortSuite extends munit.CatsEffectSuite:
       assertEquals(compared.toMap, Judged.standings, s"crm now:\n${Ported.table(a)}")
       assertEquals(Ported.unproven(a), Judged.stopped)
       val whole = a.wholeCheck.map(_.results).getOrElse(fail("the theory's own check is not recorded"))
-      val run = a.groups.collectFirst { case (i, ids) if ids.contains(NodeId("crmRun")) => i }
       assertEquals(whole.collect { case Result(n @ ObligationName.Consistent(_), s, _) => n -> s }.toMap,
-        a.groups.map((i, _) => ObligationName.Consistent(i) ->
-          (if run.contains(i) then ObligationStatus.Open else ObligationStatus.Proven)).toMap)
+        a.groups.map((i, _) => ObligationName.Consistent(i) -> ObligationStatus.Proven).toMap)
       // The examples giving no value, tried against the claims (owner §18): the purpose's, proven by hand
       // (`Whole.lean`); the write's, the store's and the job's shown; the write side's not, as writeContract says
       // what a write's store holds and not in what order (today's Lean evaluated the code).

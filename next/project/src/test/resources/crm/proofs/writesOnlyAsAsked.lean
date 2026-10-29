@@ -17,7 +17,7 @@ theorem impl : Obl.impl := by
   have hSaved := hSave s hk ho w
   obtain ⟨_, hOnly⟩ := hWrite s hk ho w
   simp only [afterSave, saved] at hSaved ⊢
-  rw [hSaved]
+  rw [hSaved, Lemmas.aboutRecord_idem]
   exact Lemmas.onlyAsked_replace s (write s w) w hOnly
 
 end Crm.writesOnlyAsAsked.Proofs

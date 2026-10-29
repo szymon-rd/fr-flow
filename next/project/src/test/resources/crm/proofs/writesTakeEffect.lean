@@ -17,7 +17,7 @@ theorem impl : Obl.impl := by
   have hSaved := hSave s hk ho w
   obtain ⟨⟨_, hTakes⟩, _⟩ := hWrite s hk ho w
   simp only [afterSave, saved] at hSaved ⊢
-  rw [hSaved]
+  rw [hSaved, Lemmas.aboutRecord_idem]
   exact Lemmas.takesEffect_replace s (write s w) w hTakes
 
 end Crm.writesTakeEffect.Proofs

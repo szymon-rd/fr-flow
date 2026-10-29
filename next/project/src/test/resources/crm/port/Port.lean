@@ -32,6 +32,7 @@ import FrFlowGen.Crm.writesTakeEffect.Spec
 import FrFlowGen.Crm.writesOnlyAsAsked.Spec
 import FrFlowGen.Crm.recordsKept.Spec
 import FrFlowGen.Crm.sharesExpire.Spec
+import FrFlowGen.Crm.oneRowPerKey.Spec
 
 /-! Crm's statements as today's library stated them (`reference/crm`, in namespace `Old` over the port's types),
 against the port's (ARCHITECTURE section 9, equivalence 4). Today's store, shares and expiries were defines of the
@@ -78,19 +79,36 @@ theorem changesShare_eq : Old.changesShare = Crm.changesShare := by
 theorem onlyAsked_eq : Old.onlyAsked = Crm.onlyAsked := by
   funext s w t; simp only [Old.onlyAsked, Crm.onlyAsked, addsRecord_eq, changesShare_eq]
 
-theorem stepOf_eq : Old.stepOf = Crm.stepOf := by
-  funext expire save s e; cases e <;> rfl
+/-- What a save returns holds only the rows about the written record (as `saveWrite` says of the write side). -/
+def onlyRows (save : CrmStore → WriteCmd → CrmStore) : Prop := ∀ s w, aboutRecord (save s w) (about w) = save s w
 
-theorem runOf_eq : Old.runOf = Crm.runOf := by
-  funext expire save es; simp only [Old.runOf, Crm.runOf, stepOf_eq]
+/-- Today's database after a save held what the save returned; the port's holds its rows about the written record,
+as the database's `storeAbout` does: the same, of a save returning only those. -/
+theorem about_eq : Old.about = Crm.about := by
+  funext w; rcases w with ⟨_, ch⟩; cases ch <;> rfl
+
+theorem replaceAbout_eq : Old.replaceAbout = Crm.replaceAbout := by
+  funext s i r; rfl
+
+theorem afterSave_eq (save) (h : onlyRows save) : Old.afterSave save = Crm.afterSave save := by
+  funext s w; simp only [Old.afterSave, Crm.afterSave, h s w, about_eq, replaceAbout_eq]
+
+theorem stepOf_eq (expire save) (h : onlyRows save) : Old.stepOf expire save = Crm.stepOf expire save := by
+  funext s e; cases e with
+  | Wrote w => simp only [Old.stepOf, Crm.stepOf, afterSave_eq save h]
+  | Expired now => rfl
+
+theorem runOf_eq (expire save) (h : onlyRows save) : Old.runOf expire save = Crm.runOf expire save := by
+  funext es; simp only [Old.runOf, Crm.runOf, stepOf_eq expire save h]
 
 -- What the CRM holds: what the history led to (`crmRun`), today's store, shares and expiries.
 
-theorem crmRun (held history expire save) (hk : onePerKey held) (h : Crm.crmRun.claim held history expire save) :
+theorem crmRun (held history expire save) (hk : onePerKey held) (hs : onlyRows save)
+    (h : Crm.crmRun.claim held history expire save) :
     held.records = Old.store history expire save ∧ held.shares = Old.shares history expire save ∧
       held.expiries = Old.expiries history expire save := by
   have e := h hk hk
-  simp only [Old.store, Old.shares, Old.expiries, runOf_eq]
+  simp only [Old.store, Old.shares, Old.expiries, runOf_eq expire save hs]
   rw [← e]
   exact ⟨rfl, rfl, rfl⟩
 
@@ -168,22 +186,25 @@ theorem saveWrite (write save) : Old.SaveWrite.claim write save → Crm.saveWrit
 theorem storeEdits (storeRows) : Old.StoreEdits.claim storeRows → Crm.storeEdits.claim storeRows :=
   fun h id_ t _ _ => h id_ t
 
-theorem writesTakeEffect (save) : Old.WritesTakeEffect.claim save → Crm.writesTakeEffect.claim save := by
+theorem writesTakeEffect (save) (hs : onlyRows save) :
+    Old.WritesTakeEffect.claim save → Crm.writesTakeEffect.claim save := by
   intro h s _ _ w
   have hw := h s w
-  rw [takesEffect_eq] at hw
+  rw [takesEffect_eq, afterSave_eq save hs] at hw
   exact hw
 
-theorem writesOnlyAsAsked (save) : Old.WritesOnlyAsAsked.claim save → Crm.writesOnlyAsAsked.claim save := by
+theorem writesOnlyAsAsked (save) (hs : onlyRows save) :
+    Old.WritesOnlyAsAsked.claim save → Crm.writesOnlyAsAsked.claim save := by
   intro h s _ _ w
   have hw := h s w
-  rw [onlyAsked_eq] at hw
+  rw [onlyAsked_eq, afterSave_eq save hs] at hw
   exact hw
 
-theorem recordsKept (expire save) : Old.RecordsKept.claim expire save → Crm.recordsKept.claim expire save := by
+theorem recordsKept (expire save) (hs : onlyRows save) :
+    Old.RecordsKept.claim expire save → Crm.recordsKept.claim expire save := by
   intro h s _ _ e
   have hw := h s e
-  rw [stepOf_eq] at hw
+  rw [stepOf_eq expire save hs] at hw
   exact hw
 
 theorem sharesExpire (expire) : Old.SharesExpire.claim expire → Crm.sharesExpire.claim expire :=
@@ -220,5 +241,12 @@ theorem carelessWrite :
   have := (h two two_keyed two_keyed (WriteCmd.mk ann (Change.Add (CrmRecord.mk 3 (TenantId.mk "acme") Kind.Deal "Acme deal")))).1.1.1
     globexDeal (by simp [two])
   simp [two, acmeContact, globexDeal] at this
+
+/-- A seeded maker breaking one row per key: a write side handing back every record twice. Its `made_` is false, so
+Lean proves none of it, and the step taking it (`storeMirrorsRequests`, step 12 ruling) rests on it unproven. -/
+theorem duplicatingSave : ¬ Crm.oneRowPerKey.makes_save (fun s _ => { s with records := s.records ++ s.records }) := by
+  intro h
+  have := h two two_keyed two_keyed (WriteCmd.mk ann (Change.Unshare 1 (TenantId.mk "globex")))
+  simp [two, oneRowPerKey, onePerKey, acmeContact, globexDeal] at this
 
 end Port

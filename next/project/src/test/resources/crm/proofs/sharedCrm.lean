@@ -25,4 +25,18 @@ theorem complete : Obl.complete := by
   · rintro ⟨⟨hAsks, _, hHeld⟩, hMay⟩
     exact ⟨⟨hHeld, hAsks⟩, hMay⟩
 
+/-- Some world meets the parts: no event yet, an empty store, the screens returning nothing, and each word as its
+claim says. -/
+theorem feasible : Obl.feasible := by
+  refine ⟨fun u q r => r ∈ results (fun _ _ => []) (fun _ _ => []) u q, fun q r => askMatches q r,
+    fun c r => r.tenant = c ∧ r ∈ (askedIn []).records, fun r => r.tenant, fun a => a.tenant,
+    fun r c => sharedIn [] r.id_ c 0, fun _ _ => [], fun _ _ => [], [], 0, CrmStore.mk [] [] [],
+    by simp [keyedTables, onePerKey], by simp [oneRowPerKey, onePerKey], fun _ => rfl, fun _ => rfl,
+    fun _ _ _ => rfl, fun _ _ => rfl, fun _ _ => rfl, fun _ _ => rfl, ?_, ?_⟩
+  · intro _ _
+    simp [askedIn, sharedNow, sharedIn]
+  · intro _ _ u q r
+    rcases q with ⟨sc, se⟩
+    cases sc <;> simp [results]
+
 end Crm.sharedCrm.Proofs

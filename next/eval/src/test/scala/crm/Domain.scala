@@ -43,9 +43,10 @@ val replaceAbout = define { (s: Term[CrmStore], id: Term[BigInt], rows: Term[Crm
     s.shares.filter(sh => sh.record =!= id) ++ rows.shares, s.expiries.filter(e => e.record =!= id) ++ rows.expiries) }
 
 /** What the database holds after the write side saves a write: what it held, with the rows about the written record
-  * replaced by those it stored.
+  * replaced by those it stored about it, as its `storeAbout` holds them.
   */
-val afterSave = define { (s: Term[CrmStore], w: Term[WriteCmd]) => replaceAbout(s, about(w), save(s, w)) }
+val afterSave = define { (s: Term[CrmStore], w: Term[WriteCmd]) =>
+  replaceAbout(s, about(w), aboutRecord(save(s, w), about(w))) }
 
 /** Whether the store holds a record of that id of the write's author's company. */
 val ownRecord = define { (s: Term[CrmStore], w: Term[WriteCmd], id: Term[BigInt]) =>
