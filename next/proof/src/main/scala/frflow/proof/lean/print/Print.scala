@@ -7,6 +7,7 @@ object Print:
   def expr(e: LExpr): String = e match
     case LExpr.Name(n)            => n.text
     case LExpr.Const(path)        => path.map(_.text).mkString(".")
+    case LExpr.Ctor(d, c)         => s"${d.text}.${c.text}"
     case LExpr.Num(n)             => n.toString
     case LExpr.Str(s)             => Names.string(s)
     case LExpr.App(f, as)         => (f :: as).map(expr).mkString(" ")

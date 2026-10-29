@@ -23,4 +23,4 @@ object Atoms:
       case terms => call(c, terms.map(t => standing(t).getOrElse(LExpr.Name(t))))
 
   /** `Event.Expired`, `Booking.mk`: a constructor, qualified by its type. */
-  def ctor(d: TypeName, c: CtorName): LExpr = const(s"${d.value}.${c.value}")
+  def ctor(d: TypeName, c: CtorName): LExpr = LExpr.Ctor(Names.ident(d.value), Names.ident(c.value))

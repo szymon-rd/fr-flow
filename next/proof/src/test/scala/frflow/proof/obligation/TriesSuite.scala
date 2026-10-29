@@ -16,8 +16,8 @@ class TriesSuite extends munit.FunSuite:
   private def tries(n: String): List[Obligation] = Tries.of(Pair.resolved, table, NodeId(n))
   private def kinds(n: String): List[TryKind] = tries(n).map(_.name).collect { case ObligationName.Tried(k) => k }
   private def lean(n: String, k: TryKind): String =
-    PrintDecl(LowerObligation(frflow.proof.lean.lower.LowerProp(table, frflow.proof.layout.Lowering(Pair.resolved,
-      table).env, _ => Nil))(tries(n).find(_.name == ObligationName.Tried(k)).getOrElse(fail(s"no $k of $n"))))
+    PrintDecl(LowerObligation(frflow.proof.layout.Lowering(Pair.resolved, table).props)(
+      tries(n).find(_.name == ObligationName.Tried(k)).getOrElse(fail(s"no $k of $n"))))
   private val (aboutF, aboutG) = (NodeId("aboutF"), NodeId("aboutG"))
 
   test("needed_C: of a split, each part left out in turn") {
@@ -50,8 +50,7 @@ class TriesSuite extends munit.FunSuite:
     val coded = Pair.withDefinitions
     val ofIt = Tries.of(coded, TermTable.of(coded), NodeId("both")).filter(_.name == ObligationName.Tried(TryKind.Idle))
     assertEquals(ofIt.map(_.discharge), List(Discharge.Attempt(Idle.DefaultHeartbeats)))
-    val printed = PrintDecl(LowerObligation(frflow.proof.lean.lower.LowerProp(TermTable.of(coded),
-      frflow.proof.layout.Lowering(coded, TermTable.of(coded)).env, _ => Nil))(ofIt.head))
+    val printed = PrintDecl(LowerObligation(frflow.proof.layout.Lowering(coded, TermTable.of(coded)).props)(ofIt.head))
     assert(printed.contains("(Test.both.claim (fun (x0 : Int) => False) (fun (x0 : Int) => False))"), printed)
     assertEquals(kinds("aboutF").filter(_ == TryKind.Idle), Nil)
   }

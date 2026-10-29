@@ -7,6 +7,7 @@ object LExprs:
   def identifiers(e: LExpr): Set[String] = e match
     case LExpr.Name(n)         => Set(n.text)
     case LExpr.Const(p)        => p.headOption.map(_.text).toSet
+    case LExpr.Ctor(d, _)      => Set(d.text)
     case LExpr.App(f, as)      => (f :: as).flatMap(identifiers).toSet
     case LExpr.Infix(_, a, b)  => identifiers(a) ++ identifiers(b)
     case LExpr.Prefix(_, a)    => identifiers(a)

@@ -17,12 +17,13 @@ import frflow.proof.terms.{OpenTerms, TermTable}
   * (the claims it is about, the conclusion, the hypotheses), then the hypotheses `h_<Node>`. A value provided where
   * the code runs comes with what always holds of it (`fromOutside`), wherever it is bound. A Definition with a
   * meaning of its own (`meant`: proven code, a fixed value, its model, or a value provided where the code runs, which
-  * a statement takes for every value) is never bound by `∃` but where named. Today's
-  * `Refinement.claim`, `stated` and `Vocabulary.term`, on values.
+  * a statement takes for every value) is never bound by `∃` but where named. Every term is printed in the theory's
+  * `naming`, so no variable takes a name a symbol prints as. Today's `Refinement.claim`, `stated` and
+  * `Vocabulary.term`, on values.
   */
-final class LowerProp(table: TermTable, env: LowerEnv, fromOutside: SymbolName => List[LExpr],
-    meant: SymbolName => Boolean = _ => false):
+final class LowerProp(table: TermTable, env: LowerEnv, naming: Naming, values: LowerProp.Values):
   import Atoms.{call, name}
+  private val (fromOutside, meant) = (values.fromOutside, values.meant)
   private type W[A] = Writer[OpenTerms, A]
   private type Subst = Map[SymbolName, Substitute]
 
@@ -101,7 +102,7 @@ final class LowerProp(table: TermTable, env: LowerEnv, fromOutside: SymbolName =
     case Prop.Implies(hs, c)     => (hs.traverse(h => prop(h.prop, σ)), prop(c, σ)).mapN((xs, y) =>
                                       (xs :+ y).reduceRight(LExpr.Infix(LOp.Arrow, _, _)))
     case Prop.Formula(w, code)   => formula(w, σ ++ code)
-    case Prop.Commutes(c, opens)  => opens.traverse(s => Writer.tell(leaf(s))).as(LowerCommute(env, closedNaming)(c))
+    case Prop.Commutes(c, opens)  => opens.traverse(s => Writer.tell(leaf(s))).as(LowerCommute(env, naming)(c))
     case Prop.Forall(_, _) | Prop.Exists(_, _) => Writer.value(LExpr.Paren(statement(p)))
     case Prop.ForEvery(ss, body) => inner(ss, body, σ, LOp.Arrow)(LExpr.Forall(_, _))
     case Prop.ForSome(ss, body)  => inner(ss, body, σ, LOp.And)(LExpr.Exists(_, _))
@@ -123,7 +124,7 @@ final class LowerProp(table: TermTable, env: LowerEnv, fromOutside: SymbolName =
         .distinct
       val (opens, standing) = mentioned.traverse(x =>
         if σ.contains(x) then symbol(x, σ).map(e => List(x -> e)) else Writer(OpenTerms(Nil, List(x)), Nil)).run
-      Writer(opens, Printed.standing(env, closedNaming, 0, standing.flatten.toMap)(t))
+      Writer(opens, Printed.standing(env, naming, 0, standing.flatten.toMap)(t))
     case Form.Steps(_) => throw IllegalStateException("FrFlow bug: a program's steps as a formula")
 
   /** `f` applied to its open terms: `(Crm.ExpiryJob.claim expire runExpiry)`, or `f` alone over none. */
@@ -168,11 +169,10 @@ final class LowerProp(table: TermTable, env: LowerEnv, fromOutside: SymbolName =
     case other          => xs.zip(ins).collectFirst { case (x, `other`) => LExpr.Name(x) }
       .getOrElse(throw IllegalStateException("FrFlow bug: no input to return unchanged"))
 
-  /** `(K.rule s)`, or `∀ x ∈ s, (K.rule x)` of each element: an `always` at a store's starting state. */
   /** `∀ (s : S), (K.initially s) → (K.rule s)`, or `→ ∀ x ∈ s, (K.rule x)`. */
   private def starts(rule: DefName, initially: DefName, ty: Ty, within: Option[Final[Boolean]]): LExpr =
     val (binders, meets) = within.fold((List(LBinder.Explicit(Names.builtin("s"), LowerType(ty))),
-      call(define(rule), List(name("s")))))(Printed.define(env, closedNaming)(List(Binder(VarId.level(0), "s", ty)), _))
+      call(define(rule), List(name("s")))))(Printed.define(env, naming)(List(Binder(VarId.level(0), "s", ty)), _))
     val named = binders.collect { case LBinder.Explicit(n, _) => LExpr.Const(List(n)) }
     LExpr.Forall(binders, LExpr.Infix(LOp.Arrow, call(define(initially), named), meets))
 
@@ -182,9 +182,7 @@ final class LowerProp(table: TermTable, env: LowerEnv, fromOutside: SymbolName =
       ds.map(d => call(define(d), List(name("x")))).reduceRightOption(LExpr.Infix(LOp.And, _, _))
         .getOrElse(name("True")))
 
-  private def constant(c: Constant): LExpr = LowerValue(env)(c.value, c.ty).runA(closedNaming).value
-
-  private val closedNaming = Naming.over(Set.empty, Set.empty)
+  private def constant(c: Constant): LExpr = LowerValue(env)(c.value, c.ty).runA(naming).value
   private def decl(n: NodeId, d: String): LExpr = LExpr.Const(Names.path(env.kb.value, n.value, d))
   private def define(d: DefName): LExpr = LExpr.Const(List(Names.builtin(env.kb.value), Names.define(d.value)))
 
@@ -193,5 +191,8 @@ final class LowerProp(table: TermTable, env: LowerEnv, fromOutside: SymbolName =
       .toList ++ opens.symbols.map(s => LBinder.Explicit(Names.ident(s.value), LowerType.binder(table.typeOf(s))))
 
 object LowerProp:
+  /** What always holds of a value provided where the code runs, and whether a Definition has a meaning of its own. */
+  final case class Values(fromOutside: SymbolName => List[LExpr], meant: SymbolName => Boolean = _ => false)
+
   /** What a formula is over: the symbols it mentions, in order. */
   def opens(f: Written[Expr]): OpenTerms = OpenTerms(Nil, Exprs.mentions(f.value).symbols)

@@ -52,7 +52,8 @@ class PrinterLawsSuite extends munit.FunSuite:
     val table = TermTable(Map.empty, Map.empty, Map.empty, Map.empty)
     terms.take(20).foreach { t =>
       val formula = Prop.Formula(Written.formula(t, SourceText("")), Map.empty)
-      assertEquals(Print.expr(LowerProp(table, LawsEnv.env, _ => Nil).statement(formula)), printed(t))
+      val props = LowerProp(table, LawsEnv.env, naming, LowerProp.Values(_ => Nil))
+      assertEquals(Print.expr(props.statement(formula)), printed(t))
     }
   }
 

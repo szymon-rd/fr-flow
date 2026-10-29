@@ -7,6 +7,10 @@ enum LExpr:
   case Name(name: LeanName)
   /** A qualified constant (`Crm.sameRows`, `FrFlow.within`, `Event.Expired`, `True`, `()`): each part an identifier. */
   case Const(path: List[LeanName])
+  /** A constructor of a domain type, qualified by it (`Event.Expired`, `Booking.mk`): apart from every other constant,
+    * so a field of one applied is read off its arguments by structure (`LeanTerm.field`), never by its spelling.
+    */
+  case Ctor(data: LeanName, ctor: LeanName)
   case Num(n: BigInt)
   case Str(s: String)
   case App(fn: LExpr, args: List[LExpr])

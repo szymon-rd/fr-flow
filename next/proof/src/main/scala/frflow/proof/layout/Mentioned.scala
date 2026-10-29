@@ -37,6 +37,7 @@ object Mentioned:
   def expr(e: LExpr): List[List[LeanName]] = e match
     case LExpr.Name(n)            => List(List(n))
     case LExpr.Const(p)           => List(p)
+    case LExpr.Ctor(d, c)         => List(List(d, c))
     case LExpr.Num(_) | LExpr.Str(_) | LExpr.By(_) => Nil
     case LExpr.App(f, as)         => (f :: as).flatMap(expr)
     case LExpr.Infix(_, a, b)     => expr(a) ++ expr(b)

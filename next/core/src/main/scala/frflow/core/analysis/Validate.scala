@@ -60,13 +60,14 @@ object Validate:
     yield Problem.UnderDesign(n.id, p.id)
 
   /** Each name declared once, none a name generated Lean binds itself, and no statement mentioning a value with no
-    * Lean type. A model's namespace in Lean is its name capitalized (`Shelf`), so it is declared there too: a model
-    * named as a domain type (`shelf` beside `Shelf`) is declared twice.
+    * Lean type. A model's namespace in Lean is its name capitalized (`Shelf`), and the FrModel's is its name, so
+    * each is declared there too: a model named as a domain type (`shelf` beside `Shelf`), or a FrModel named as a
+    * type or a value (`Booking` beside `Booking`), is declared twice.
     */
   private def vocabulary(t: Theory): ValidatedNec[Problem, Unit] =
     val v = t.vocabulary
     val names = v.sorts.map(_.name.value) ++ v.types.map(_.typeName.value) ++ v.symbols.map(_.name.value) ++
-      v.defines.map(_.name.value) ++ v.models.map(_.name.value.capitalize)
+      v.defines.map(_.name.value) ++ v.models.map(_.name.value.capitalize) :+ t.name.value
     all(names.filter(Reserved.names).distinct.map(Problem.ReservedName(_)) ++
       names.diff(names.distinct).distinct.map(Problem.DeclaredTwice(_)) ++
       t.nodes.map(_.node.id).flatMap(id => Constrained.of(t, id).flatMap(s =>

@@ -1,6 +1,6 @@
 package frflow.proof.layout
 
-import frflow.core.analysis.Resolved
+import frflow.core.analysis.{Reserved, Resolved}
 import frflow.core.code.Code
 import frflow.core.name.{KbName, NodeId, SymbolName}
 import frflow.core.spec.Range
@@ -33,16 +33,20 @@ final class Lowering(val resolved: Resolved, val table: TermTable, canonical: Bo
       case SymbolType.Typed(t) => Ty.errorOf(t).map(s.name -> _)
       case _                   => None).toMap,
     v.models.exists(_.fails.nonEmpty), v.models.map(m => Names.ident(m.name.value)))
-  val naming: Naming = Naming.over(v.symbols.map(_.name.value).toSet,
+  /** A variable takes no name a symbol, a namespace (the FrModel's, a model's) or a name generated Lean writes itself
+    * (`Reserved`) prints as, and no domain type's.
+    */
+  val naming: Naming = Naming.over(v.symbols.map(_.name.value).toSet ++ Reserved.names + kb.value ++
+      v.models.map(_.name.value.capitalize),
     (v.types.map(_.typeName.value) ++ v.sorts.map(_.name.value) :+ "World").toSet).copy(canonical = canonical)
   /** What always holds that a statement takes: on a world, the rules of the stores it reads only (owner §33). */
   def guards(n: NodeId): List[Guard] = Guards.of(resolved.theory, n)
   /** The values provided where the code runs a statement mentions: what always holds of each is a hypothesis. */
   def provided(n: NodeId): List[(SymbolName, Ty)] = Reads.provided(resolved.theory, n)
-  val props: LowerProp = LowerProp(table, env, fromOutside, s => resolved.theory.code.attached.get(s).exists(a =>
-    a.code.proven.nonEmpty || (a.code match
+  val props: LowerProp = LowerProp(table, env, naming, LowerProp.Values(fromOutside,
+    s => resolved.theory.code.attached.get(s).exists(a => a.code.proven.nonEmpty || (a.code match
       case Code.Valued(_) | Code.Modelled(_) | Code.Provided => true
-      case _                                 => false)))
+      case _                                 => false))))
 
   def node(n: NodeId): Boolean = resolved.theory.node(n).nonEmpty
   def isDefine(name: String): Boolean = v.defines.exists(_.name.value == name)
