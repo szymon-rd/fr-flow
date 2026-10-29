@@ -61,6 +61,13 @@ final class Analysis(val valid: Valid, val inputs: Inputs, val computed: Compute
     (Checking.of(t, id).collect { case Checking.TestedOnModel(m, _) => m } ++
       t.node(id).flatMap(_.statement.outside).collect { case OutsideFact.OnlyCodeChanges(m) => m })
       .filter(t.code.implemented.contains).distinct
+  /** What a test report recorded under `id` is of: the nodes resting on a model's Scala, for a model's runs
+    * (`ModelRuns.reportedUnder`); the node itself otherwise.
+    */
+  def reportedFor(id: NodeId): List[NodeId] =
+    val t = decided.theory
+    t.code.implemented.keys.find(ModelRuns.reportedUnder(_) == id)
+      .fold(List(id))(m => t.nodes.map(_.node.id).filter(models(_).contains(m)))
   /** A model's operations' Scala's report, by the model, while current. */
   def testedModel(m: ModelName): Option[TestReport] = tested(ModelRuns.reportedUnder(m))
 

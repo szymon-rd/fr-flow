@@ -97,6 +97,28 @@ class CommandsSuite extends munit.CatsEffectSuite:
     }
   }
 
+  test("check: a model's operations' Scala, tested against it, is said beside the assumption only the code writes it") {
+    Opened.api(Opened.rooms).flatMap(Cli.all(_, Command.Check(None, json = false))).map { (_, text) =>
+      assert(text.contains("+ nothingElseWrites: inRoom and add's Scala tested against storedBookings on 200 runs"),
+        text)
+    }
+  }
+
+  test("check: rooms accepted, its table's Scala then forgetting to add: the nodes resting on it are listed, exit 1") {
+    for
+      ports         <- Opened.ports()
+      _             <- Opened.over(Opened.rooms, ports).flatMap(Cli.accepted)
+      forgets       <- Opened.over(Opened.project(rooms.Forgetting.everyNode), ports)
+      (codes, text) <- Cli.all(forgets, Command.Check(None, json = false))
+    yield
+      assertEquals(codes, List(ExitCode(1)))
+      assert(text.contains("x nothingElseWrites: a generated run differs from the model: from List(), add("), text)
+      assert(text.contains("the Scala holds List() where the model holds List(("), text)
+      val resting = List("storeWhenFree", "answerWhenFree", "neverOverlap", "bookingsOfTheRoom", "roomBookingsApart")
+      assert(resting.forall(n => text.contains(s"o $n: proven\n")), text)
+      assertEquals(text.split("not proven: its code fails a generated case", -1).length - 1, resting.size + 1, text)
+  }
+
   test("check: code failing a claim that changed under it says the claim changed, on the node's line") {
     for
       ports         <- Opened.ports()

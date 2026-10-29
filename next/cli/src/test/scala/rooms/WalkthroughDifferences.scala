@@ -22,6 +22,7 @@ object WalkthroughDifferences:
     "5-misread-overlap" -> List(
       "check bookingsEndAfterStart: - -> +" -> ends.head._2,
       "check neverOverlap: + -> o" -> sharedLemmas,
+      "check nothingElseWrites: none -> +" -> modelRuns,
       "check roomBookingsApart: + -> o" ->
         ("the port states the rule in start and end times (noOverlap, 2.3), so the misread reaches it: back-to-back " +
           "stored bookings, which the table may hold, fail the strict noOverlap, so made_inRoom cannot be proven, as " +
@@ -47,6 +48,7 @@ object WalkthroughDifferences:
         "its formula moved: the port states it with noOverlap (2.3), today's with apart"),
     "6-misread-reaches-the-claim" -> List(
       "check bookingsEndAfterStart: - -> +" -> ends.head._2,
+      "check nothingElseWrites: none -> +" -> modelRuns,
       "status bookingsEndAfterStart: ! -> +" -> (ends.head._2 + "; and it is not back: " + premise),
       ends(1),
       "status oneAtATime: ! -> -" -> premise,
@@ -63,6 +65,9 @@ object WalkthroughDifferences:
     "decided before the claims resting on it, the table's Scala tested against the model under it"
   private def tableGone = "gone: no store behaves as a model (owner §36); what it said of the world outside is " +
     "nothingElseWrites, and that the table does what the model does is the test of its Scala"
+  private def modelRuns = "the table's Scala tested against storedBookings on 200 generated runs, as today's " +
+    "tableMatchesModel said; run again since the rules the runs' states are drawn meeting changed, and said beside " +
+    "the assumption that only the code writes the table"
   private def sharedLemmas = "its proof imports the shared lemmas (Proofs/Rooms/Lemmas.lean), and the lemma relating " +
     "apart to noOverlap no longer holds once noOverlap is strict: the lemmas do not build, so it is not proven (o), " +
     "said as the lemmas' failure, not its own proof's"

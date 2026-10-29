@@ -16,7 +16,12 @@ object Forgetting:
 
   private val dropped = Set("neverOverlap", "nothingElseWrites", "startsEmpty")
 
-  val kb: FrModel = FrModel("Rooms")(rooms.nodes.filterNot(n => dropped(n.head.id.value))*)
+  val kb: FrModel = forgetting(rooms.nodes.filterNot(n => dropped(n.head.id.value)))
+
+  /** Rooms as it is, every node kept, its table's Scala the one that forgets to add (review 11b, R2). */
+  val everyNode: FrModel = forgetting(rooms.nodes)
+
+  private def forgetting(nodes: List[Node]): FrModel = FrModel("Rooms")(nodes*)
     .copy(generators = rooms.generators)
     .implementProven(book)(bookIfGranted)
     .implementTested(granted)(_ => (held, request) => Calendar(held).grants(request))
