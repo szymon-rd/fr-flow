@@ -33,6 +33,7 @@ import FrFlowGen.Crm.writesOnlyAsAsked.Spec
 import FrFlowGen.Crm.recordsKept.Spec
 import FrFlowGen.Crm.sharesExpire.Spec
 import FrFlowGen.Crm.oneRowPerKey.Spec
+import Proofs.Crm.Lemmas
 
 /-! Crm's statements as today's library stated them (`reference/crm`, in namespace `Old` over the port's types),
 against the port's (ARCHITECTURE section 9, equivalence 4). Today's store, shares and expiries were defines of the
@@ -41,7 +42,8 @@ tables hold one row per key (owner §40): each statement about what the CRM hold
 row per key, as the stores the CRM holds do (`keyedTables`); each about every store (a write, a run of the expiry
 job, the database's store) is today's for every store holding one row per key, and today's implies it. The database after a save holds
 the rows the save returned about the written record, as its `storeAbout` does: today's, for a save meeting
-`saveWrite`, proven here to return only those (`onlyRows_of_saveWrite`), along a run keeping one row per key. Today's
+`saveWrite`, proven here to return only those (`onlyRows_of_saveWrite`), along a run whose save and job make one
+row per key (their `made_`, `keeps_of_made`). Today's
 expiry job is stated over today's world (a boundary's), and is listed, not stated here. And the seeded bugs in
 proven code (section 9): code that would stand for `read` or `write` is shown to break the port's claim on a case,
 so Lean proves no such code. -/
@@ -93,9 +95,18 @@ theorem onlyRows_of_saveWrite (save write) (h : Crm.saveWrite.claim save write) 
   intro s hk w
   rw [h s hk hk w, aboutRecord_idem]
 
-/-- Each step of a run keeps one row per key: what the tables' rules' `made_` and `cover_` prove of the code. -/
+/-- Each step of a run keeps one row per key. -/
 def keeps (expire : CrmStore → Int → CrmStore) (save : CrmStore → WriteCmd → CrmStore) : Prop :=
   ∀ s, onePerKey s → ∀ e, onePerKey (Crm.stepOf expire save s e)
+
+/-- A step keeps one row per key where the save and the job make one row per key (their `made_`, proven of the
+code): a save's rows about the written record replace the store's. -/
+theorem keeps_of_made (expire save) (ms : Crm.oneRowPerKey.makes_save save)
+    (me : Crm.oneRowPerKey.makes_expire expire) : keeps expire save := by
+  intro s hs e
+  cases e with
+  | Wrote w => exact Lemmas.replace_onePerKey s (save s w) (about w) hs (ms s hs hs w)
+  | Expired now => exact me s hs hs now
 
 theorem about_eq : Old.about = Crm.about := by
   funext w; rcases w with ⟨_, ch⟩; cases ch <;> rfl
@@ -132,11 +143,12 @@ theorem runOf_eq (expire save) (h : onlyRows save) (hk : keeps expire save) (es)
 -- What the CRM holds: what the history led to (`crmRun`), today's store, shares and expiries.
 
 theorem crmRun (held history expire save write) (hk : onePerKey held) (hw : Crm.saveWrite.claim save write)
-    (hkeep : keeps expire save) (h : Crm.crmRun.claim held history expire save) :
+    (ms : Crm.oneRowPerKey.makes_save save) (me : Crm.oneRowPerKey.makes_expire expire)
+    (h : Crm.crmRun.claim held history expire save) :
     held.records = Old.store history expire save ∧ held.shares = Old.shares history expire save ∧
       held.expiries = Old.expiries history expire save := by
   have e := h hk hk
-  simp only [Old.store, Old.shares, Old.expiries, runOf_eq expire save (onlyRows_of_saveWrite save write hw) hkeep]
+  simp only [Old.store, Old.shares, Old.expiries, runOf_eq expire save (onlyRows_of_saveWrite save write hw) (keeps_of_made expire save ms me)]
   rw [← e]
   exact ⟨rfl, rfl, rfl⟩
 
