@@ -98,8 +98,8 @@ final class LeanTerm(env: LowerEnv, standing: Map[SymbolName, LExpr] = Map.empty
     * it (`Keeping`), and its witness (`Witnessed`), never as a claim of its own.
     */
   def always[A](x: Bound[A])(p: S[A] => S[Boolean]): S[Boolean] = forall(x)(p)
-  /** Lean's model of the world is built on it (the models' instances, the runs one at a time), so it states nothing. */
-  def outside(fact: OutsideFact): S[Boolean] = _ => name("True")
+  /** Never printed: a fact is a whole assumption (the DSL's `Fact`), never stated (Lean's world is built on it). */
+  def outside(fact: OutsideFact): S[Boolean] = _ => throw IllegalStateException(s"FrFlow bug: $fact printed")
   def unchanged(after: S[World], before: S[World]): S[Boolean] = s => Outcomes.unchanged(env, after(s), before(s))
   def construct[F](c: Constructor[F]): S[F] = _ => Atoms.ctor(c.data, c.ctor)
   /** A field of a record made on the spot (`LExpr.Ctor` applied) is its argument, typed by the field. */

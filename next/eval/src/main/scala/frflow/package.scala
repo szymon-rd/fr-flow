@@ -25,7 +25,7 @@ export frflow.dsl.shape.Defines.*
 export frflow.dsl.term.TermSyntax.*
 export frflow.dsl.kb.ValuesSyntax.*
 export frflow.dsl.flow.{Flow, Recorded}
-export frflow.dsl.model.{Clock, Model, StateModel}
+export frflow.dsl.model.{Clock, Fact, Model, StateModel}
 export frflow.dsl.flow.FlowSyntax.*
 export frflow.eval.term.DefSyntax.*
 export frflow.eval.CodeSyntax.*

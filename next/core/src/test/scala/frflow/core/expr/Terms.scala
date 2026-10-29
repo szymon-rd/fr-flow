@@ -13,7 +13,7 @@ import scala.util.Random
   * recorded as it is made, parts left to right, which is the order its IR meets them.
   */
 final class Terms(seed: Long):
-  import Terms.{fnTy, positive, stored}
+  import Terms.{fnTy, positive}
   private val r = Random(seed)
   private val named = mutable.ListBuffer.empty[SymbolName]
   private val called = mutable.ListBuffer.empty[DefName]
@@ -105,7 +105,7 @@ final class Terms(seed: Long):
 
   private def boolLeaf(k: Int): Tm[Boolean] = r.nextInt(3) match
     case 0 => Tm.bool(r.nextBoolean())
-    case 1 => note(modelled, stored.model)(outside(stored))
+    case 1 => Tm.bool(r.nextBoolean()) // a fact about the outside is never a part of a formula: a whole assumption
     case _ => lt(numLeaf(k), numLeaf(k))
 
   private def numLeaf(k: Int): Tm[BigInt] = r.nextInt(3) match

@@ -7,7 +7,7 @@ import frflow.proof.lean.print.Print
 import rooms.Booking
 
 /** The review's probes on the whole pipeline (elaborated, validated, laid out): no false statement prints as a
-  * tautology, and a FrModel named as a record is refused.
+  * tautology, a FrModel named as a record is refused, and a fact about the outside is no part of a formula.
   */
 class CaptureSuite extends munit.FunSuite:
   /** A Declaration named as Lean's `some`, which Lean spells `some_`, beside a binder named `some_`. */
@@ -57,4 +57,14 @@ class CaptureSuite extends munit.FunSuite:
   test("a field of a define's result stays a field: a swapped booking's start is not the start given") {
     val text = lean(notNamedAsRecord)
     assert(text.contains("((Swaps.swapped r s e).start = s)"), text)
+  }
+
+  test("a fact about the outside is said whole by an assumption, and is no part of a formula: it does not compile") {
+    assertEquals(compileErrors("Node.assumption(\"one at a time\")(rooms.storedBookings.atomic)"), "")
+    assert(compileErrors("Node.assumption(\"x\")(!rooms.storedBookings.atomic)").nonEmpty)
+    assert(compileErrors(
+      "Node.assumption(\"x\")(rooms.storedBookings.atomic implies forall((n: Term[BigInt]) => n === n))").nonEmpty)
+    assert(compileErrors(
+      "Node.assumption(\"x\")(rooms.storedBookings.onlyCodeChanges && rooms.storedBookings.atomic)").nonEmpty)
+    assert(compileErrors("Node.claim(\"x\")(rooms.storedBookings.atomic)").nonEmpty)
   }

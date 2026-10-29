@@ -3,6 +3,7 @@ package frflow.dsl.node
 import cats.data.NonEmptyList
 import frflow.core.spec.Statement
 import frflow.dsl.build.{Deferred, Source}
+import frflow.dsl.model.Fact
 import frflow.dsl.term.Term
 import frflow.dsl.vocab.Stating
 
@@ -26,9 +27,13 @@ object Node:
     * model's state; `stored.initially(held => held === Nil)`; `stored.atomic`), what values from
     * outside always meet (`always[Booking](b => …)`), or an outside system's promise.
     */
-  inline def assumption(statement: String)(inline formula: Stating ?=> Term[Boolean]): Node =
+  inline def assumption(statement: String)(inline formula: Stating ?=> (Term[Boolean] | Fact)): Node =
     Nodes.assumption(Head.make(Source.valName, statement, Source.file, Source.offset),
-      () => formula(using Stating.writing), Source.of(Node.writing(formula)))
+      () => formula(using Stating.writing), Source.of(Node.assuming(formula)))
+
+  /** An assumption's formula or fact, written where a statement is being written. */
+  inline def assuming(inline formula: Stating ?=> (Term[Boolean] | Fact)): Term[Boolean] | Fact =
+    formula(using Stating.writing)
 
   /** A statement's formula, written where a statement is being written. */
   inline def writing(inline formula: Stating ?=> Term[Boolean]): Term[Boolean] = formula(using Stating.writing)

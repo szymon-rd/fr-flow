@@ -6,7 +6,7 @@ import frflow.core.name.NodeId
 import frflow.core.spec.{CallForm, FailureClause, Node, Reliance, Statement, Written}
 import frflow.decision.content.{Content, FieldValue}
 import frflow.proof.lean.lower.LowerType
-import frflow.core.expr.{Expr, Exprs}
+import frflow.core.expr.{Expr, Exprs, OutsideFact}
 import frflow.proof.layout.{Lowering, VocabularyModules}
 import frflow.proof.lean.print.{Print, PrintDecl}
 import frflow.proof.lean.term.Printed
@@ -38,12 +38,18 @@ object Contents:
       Some("vocabulary" -> texts(Texts.vocabulary(r.theory, n.id)))).flatten
 
   /** A formula as Lean is given it, then each define it calls, however far, as Lean is given it: `l` canonical, its
-    * variables named by the order they are bound (`Analysis.canonical`).
+    * variables named by the order they are bound (`Analysis.canonical`). A fact about the outside, which Lean is
+    * never given, is the fact as said of its model (`storedBookings.atomic`).
     */
   private def meaning(l: Lowering, f: Written[Expr]): String =
     val defines = l.resolved.theory.vocabulary.closure(Exprs.mentions(f.value).defines)
-    (Print.expr(Printed.formula(l.env, l.naming)(f.term)) :: defines.map(d =>
-      PrintDecl(VocabularyModules.declared(l, d)))).mkString("\n\n")
+    val said = f.value match
+      case Expr.Outside(fact) => fact match
+          case OutsideFact.OnlyCodeChanges(m) => s"${m.value}.onlyCodeChanges"
+          case OutsideFact.Atomic(m)          => s"${m.value}.atomic"
+          case OutsideFact.Initially(m, d)    => s"${m.value}.initially(${d.value})"
+      case _                  => Print.expr(Printed.formula(l.env, l.naming)(f.term))
+    (said :: defines.map(d => PrintDecl(VocabularyModules.declared(l, d)))).mkString("\n\n")
 
   /** How it is checked and how its code stands. */
   private def done(r: Resolved, n: Node): List[(String, FieldValue)] = List(

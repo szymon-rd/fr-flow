@@ -73,17 +73,17 @@ abstract class StateModel[S](description: String)(using named: StateModel.Named,
     s.part[S](world.run(s), name, stateType.ty))(using stateType)
 
   /** Nothing outside the code changes the state (owner §31, §36): which programs change it is derived. */
-  def onlyCodeChanges: Term[Boolean] = fact(declares, OutsideFact.OnlyCodeChanges(name))
+  def onlyCodeChanges: Fact = fact(declares, OutsideFact.OnlyCodeChanges(name))
   /** Runs on the state never interleave: one process running each atomically, or a store serializing them; each run
     * is one step of the world (owner §17, §32).
     */
-  def atomic: Term[Boolean] = fact(declares, OutsideFact.Atomic(name))
+  def atomic: Fact = fact(declares, OutsideFact.Atomic(name))
   /** What the state starts in meets (`stored.initially(held => held === Nil)`): the rule a define named as the
     * assumption's val.
     */
-  inline def initially(inline rule: Term[S] => Term[Boolean]): Term[Boolean] =
+  inline def initially(inline rule: Term[S] => Term[Boolean]): Fact =
     started(Defines.define(rule)(using stateType, LeanType[Boolean]))
-  def started(rule: Definition[S => Boolean]): Term[Boolean] =
+  def started(rule: Definition[S => Boolean]): Fact =
     fact(declares |+| rule.notes.declares, OutsideFact.Initially(name, DefName(rule.name.value)))
 
   /** The operations' plain Scala, made by the FrModel's `start`, as the code runs with it (`running[F](…)`). */
@@ -105,8 +105,8 @@ abstract class StateModel[S](description: String)(using named: StateModel.Named,
     meanings.toList.foldMap(m => Declarations.symbol(Symbol(m.op.name, m.op.described,
       SymbolType.Typed(m.op.leanType.ty), ValueKind.Definition)))
 
-  private def fact(d: Declarations, f: OutsideFact): Term[Boolean] =
-    Term.noted(Notes.of(d))([T[_]] => (s: Sym[T]) => s.outside(f))
+  private def fact(d: Declarations, f: OutsideFact): Fact =
+    Fact(Term.noted(Notes.of(d))([T[_]] => (s: Sym[T]) => s.outside(f)))
 
 object StateModel:
   /** The name of the object a model is written as, read where it is written (`Source.ownerName`). */

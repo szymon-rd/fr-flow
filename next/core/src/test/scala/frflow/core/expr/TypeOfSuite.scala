@@ -36,7 +36,7 @@ class TypeOfSuite extends munit.FunSuite:
   test("the generated terms reach every operation the laws are about") {
     val printed = terms.map(_._1.toString).mkString
     List("Quant(Forall", "Quant(Exists", "Iterate(Forall", "Iterate(Filter", "Pairwise(", "Fold(", "Let(", "If(",
-      "Match(", "SomeP(", "Make(", "Copy(", "Field(", "Call(", "Apply(Sym", "Apply(Fun", "Fun(", "SomeOf(", "Outside(",
+      "Match(", "SomeP(", "Make(", "Copy(", "Field(", "Call(", "Apply(Sym", "Apply(Fun", "Fun(", "SomeOf(",
       "Nodup", "Cons", "Append", "Length", "Lit(Many", "Iterate(Map", "Iterate(FlatMap", "Iterate(Find", "Contains",
       "IsEmpty", "NonEmpty", "Zip", "Prim(Get,", "GetOrElse,", "GetOrElseAt", "Updated", "Incl", "Union", "Prod")
       .foreach(c => assert(printed.contains(c), c))
