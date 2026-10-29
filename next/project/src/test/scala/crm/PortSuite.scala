@@ -87,8 +87,9 @@ class PortSuite extends munit.CatsEffectSuite:
       assertEquals(whole.collect { case Result(n @ ObligationName.Consistent(_), s, _) => n -> s }.toMap,
         a.groups.map((i, _) => ObligationName.Consistent(i) -> ObligationStatus.Proven).toMap)
       // The examples giving no value, tried against the claims (owner §18): the purpose's, proven by hand
-      // (`Whole.lean`); the write's, the store's and the job's shown; the write side's not, as writeContract says
-      // what a write's store holds and not in what order (today's Lean evaluated the code).
+      // (`Whole.lean`); the write's, the store's and the job's shown; the write side's not: given what storeEdits
+      // says of the rows the code leaves open, FrFlow's automation does not decide them within an example's budget
+      // (`ExampleGoals.Heartbeats`; today's Lean evaluated the code).
       val shown = (17 to 22) ++ (26 to 32)
       assertEquals(whole.collect { case Result(ObligationName.Example(i), s, _) => i -> s }.toMap,
         Map(0 -> ObligationStatus.Proven) ++ shown.map(_ -> ObligationStatus.Shown) ++

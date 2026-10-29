@@ -112,10 +112,10 @@ class PortSuite extends munit.CatsEffectSuite:
       assertEquals(whole.collect { case Result(n @ ObligationName.Consistent(_), s, _) => n -> s }.toMap,
         a.groups.map((i, _) => ObligationName.Consistent(i) -> ObligationStatus.Proven).toMap)
       // Today's examples that give no value, the store's and the request's, are tried against the claims in Lean
-      // too (owner §18): the store's shown by storeKeepsState; the request's not, as handleRequest says which
-      // sessions the state holds and not in what order (today's Lean evaluated the code, which runs in Scala here).
+      // too (owner §18), each shown: the request's by the step's code, given what storeKeepsState says of the
+      // record that code leaves open.
       assertEquals(whole.collect { case Result(ObligationName.Example(i), s, _) => i -> s }.toMap,
-        (17 to 19).map(_ -> ObligationStatus.Shown).toMap ++ (20 to 30).map(_ -> ObligationStatus.NotShown).toMap)
+        (17 to 30).map(_ -> ObligationStatus.Shown).toMap)
       r.port match
         case Some(ProverRun.Built(said)) => assert(!said.contains("sorryAx"), said)
         case other                       => fail(s"the claims are not shown equivalent to today's: $other")
