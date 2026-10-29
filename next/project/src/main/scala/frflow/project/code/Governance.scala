@@ -12,7 +12,7 @@ object Governance:
   def of(t: Theory, files: List[RelPath]): Map[NodeId, List[RelPath]] =
     val designs = t.nodes.flatMap(s => declared(s.node.statement).map(s.node.id -> _))
     val modelFiles = t.nodes.map(_.at.file).toSet ++ t.code.attached.values.map(_.writtenIn)
-    val implied = (attachedFiles(t) ++ realizedFiles(t))
+    val implied = (attachedFiles(t) ++ implementedFiles(t))
       .filterNot((_, f) => modelFiles(f) || designs.exists((_, g) => f.isUnder(g)))
     (designs.flatMap((n, g) => under(g, files).map(n -> _)) ++ implied).groupMap(_._1)(_._2)
       .view.mapValues(_.distinct.sorted).toMap
@@ -38,7 +38,9 @@ object Governance:
     case _                              => false
   }
 
-  /** A store's implementations' files, governed by the assumption that it behaves as its model. */
-  private def realizedFiles(t: Theory): List[(NodeId, RelPath)] =
-    t.code.realized.toList.flatMap((b, rs) => rs.toList.flatMap(_.runs.files).flatMap(f =>
-      Outsides.modelled(t, b).map(_ -> f)))
+  /** A model's operations' plain Scala's files, governed by the assumption that only the code changes its state
+    * (what its model tests are reported under).
+    */
+  private def implementedFiles(t: Theory): List[(NodeId, RelPath)] =
+    t.code.implemented.toList.flatMap((m, i) =>
+      Outsides.onlyCodeChanges(t, m).toList.flatMap(n => i.files.map(n -> _)))

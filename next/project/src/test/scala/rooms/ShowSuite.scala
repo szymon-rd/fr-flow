@@ -13,8 +13,8 @@ class ShowSuite extends munit.FunSuite:
       "proven of book's program, bookIfGranted",
       "assumed by the code calling book",
       "rules it uses: bookingsEndAfterStart",
-      "rests on the store behaving as storedBookings: tableMatchesModel",
-      "rests on runs on bookingTable being atomic: oneAtATime",
+      "rests on inRoom and add's Scala, tested against storedBookings",
+      "rests on runs on storedBookings being atomic: oneAtATime",
       "rests on what each Booking from outside meets: bookingsEndAfterStart"))
   }
 
@@ -39,10 +39,9 @@ class ShowSuite extends munit.FunSuite:
       "rests on what each Booking from outside meets: bookingsEndAfterStart"))
   }
 
-  test("the world outside: what the table does, the programs changing it derived, and its runs atomic") {
-    assertEquals(says("tableMatchesModel"), List(
-      "the world outside: bookingTable does what storedBookings does, and nothing outside the code changes it",
-      "the programs changing it, derived: book",
-      "the store's code tested against the model (0 implementations)")) // no adapter here: see WalkthroughSuite
-    assertEquals(says("oneAtATime"), List("the world outside: runs on bookingTable never interleave"))
+  test("the world outside: nothing else writes the table, the programs changing it derived, its runs atomic") {
+    assertEquals(says("nothingElseWrites"), List(
+      "the world outside: nothing outside the code changes storedBookings",
+      "the programs changing it, derived: book"))
+    assertEquals(says("oneAtATime"), List("the world outside: runs on storedBookings never interleave"))
   }

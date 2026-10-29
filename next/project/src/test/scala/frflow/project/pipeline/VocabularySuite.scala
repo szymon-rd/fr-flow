@@ -32,7 +32,7 @@ class VocabularySuite extends munit.FunSuite:
     List(symbol("authorized", authorizedMeans, Ty.FnOf(List(user, resource), Ty.Bool)),
       symbol("grants", grantsMeans, Ty.ListOf(grant)),
       symbol("access", accessMeans, Ty.FnOf(List(user, resource), Ty.Bool))),
-    Nil, Nil, Nil)
+    Nil, Nil)
 
   /** A claim over `access`, whose type names both opaque types. */
   private val accessExactly =

@@ -40,11 +40,13 @@ class ContentsSuite extends munit.FunSuite:
     assert(implementation("storeWhenFree").contains("book: proven program, "), implementation("storeWhenFree"))
   }
 
-  test("the store behaving as its model: the model's operations as Lean is given them") {
-    val model = Contents.of(lowered(Projects.rooms), NodeId("tableMatchesModel")).get("model")
+  test("only the code changing a model's state: the model's operations as Lean is given them, and their Scala") {
+    val contents = Contents.of(lowered(Projects.rooms), NodeId("nothingElseWrites"))
+    val model = contents.get("model")
     assert(model.exists {
       case FieldValue.Texts(lines) => lines.exists(_.contains("namespace StoredBookings")) &&
           lines.exists(_.contains("inRoom"))
       case _                       => false
     }, model)
+    assert(contents.texts("implementations").exists(_.contains("BookingsTable.holding")), contents)
   }

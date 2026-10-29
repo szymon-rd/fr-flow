@@ -6,7 +6,7 @@ import frflow.core.name.NodeId
 import frflow.decision.ledger.{Action, Ledger, Payload, Uncounted}
 import frflow.decision.review.ReviewState
 import frflow.decision.rules.{Command, Refusal}
-import frflow.project.Projects
+import frflow.project.{Projects, Tables}
 import frflow.project.pipeline.Analysis
 import frflow.project.port.{Records, RunCode}
 import frflow.wire.file.Files
@@ -67,7 +67,7 @@ class DecideProgramSuite extends munit.CatsEffectSuite:
     for
       p      <- Projects.inMemory(Map.empty)
       a      <- Projects.analysed(p, Projects.rooms, Projects.roomsExamples)
-      tested <- TestProgram[IO](p.files, RunCode.inline[IO], Nil)(a, None)
+      tested <- TestProgram[IO](p.files, RunCode.inline[IO], Tables.sqlite(Projects.rooms))(a, None)
       ids     = tested._2.subjects.inOrder.map(_.id)
       out    <- ids.traverse(id => DecideProgram(p.ports)(tested._2.subjects,
                   Command.Accept(List(id), "it says what the service must do", Nil, Map.empty), "ann"))

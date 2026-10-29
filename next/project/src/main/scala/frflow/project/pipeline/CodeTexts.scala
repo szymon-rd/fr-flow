@@ -1,8 +1,7 @@
 package frflow.project.pipeline
 
-import cats.syntax.all.*
 import frflow.core.analysis.{Constrained, Resolved}
-import frflow.core.code.{Code, Realizes}
+import frflow.core.code.Code
 import frflow.core.expr.OutsideFact
 import frflow.core.name.NodeId
 import frflow.core.Theory
@@ -12,8 +11,9 @@ import frflow.proof.lean.print.PrintDecl
 import frflow.proof.terms.TermTable
 import frflow.wire.snapshot.Rows
 
-/** The content fields of the code: what gives each Definition a statement mentions its meaning, and of a store said
-  * to behave as its model, the model (as Lean reads it) and the implementations tested against it.
+/** The content fields of the code: what gives each Definition a statement mentions its meaning, and of the
+  * assumption that only the code changes a model's state (what its model tests are reported under), the model as
+  * Lean reads it and its operations' Scala tested against it.
   */
 object CodeTexts:
   /** One line per Definition it mentions that has a meaning, sorted: the define's or the program's source, the plain
@@ -24,21 +24,19 @@ object CodeTexts:
     Option(Constrained.of(t, id).sortBy(_.value).flatMap(s => t.code.attached.get(s).map(a =>
       s"${s.value}: ${coded(t, a.code)}"))).filter(_.nonEmpty).map(_.mkString("\n"))
 
-  /** Of an assumption that a store behaves as its model: the model's operations, as Lean is given them. */
-  def model(r: Resolved, id: NodeId): Option[List[String]] = modelled(r.theory, id).flatMap { (b, m) =>
-    val v = r.theory.vocabulary
-    (v.boundary(b), v.model(m)).mapN { (sig, model) =>
+  /** Of the assumption that only the code changes a model's state: the model's operations, as Lean is given them. */
+  def model(r: Resolved, id: NodeId): Option[List[String]] = modelled(r.theory, id).flatMap(r.theory.vocabulary.model)
+    .map { model =>
       val l = Lowering(r, TermTable.of(r))
-      PrintDecl(LowerModels(l.env, l.naming).model(sig, model)).linesIterator.toList
+      PrintDecl(LowerModels(l.env, l.naming).model(model)).linesIterator.toList
     }
-  }
 
-  /** Of the same assumption: each implementation run against the model, whose it is, and its expression. */
-  def implementations(r: Resolved, id: NodeId): Option[List[String]] = modelled(r.theory, id).flatMap((b, _) =>
-    r.theory.code.realized.get(b).map(_.toList.map(x => s"${whose(x.how)}: ${x.runs.written.value}")))
+  /** Of the same assumption: the Scala of the model's operations tested against it, as written. */
+  def implementations(r: Resolved, id: NodeId): Option[List[String]] = modelled(r.theory, id)
+    .flatMap(r.theory.code.implemented.get).map(i => List(i.written.value))
 
   private def modelled(t: Theory, id: NodeId) = t.node(id).flatMap(_.statement.outside).collect {
-    case OutsideFact.BehavesAs(b, m) => (b, m)
+    case OutsideFact.OnlyCodeChanges(m) => m
   }
 
   private def coded(t: Theory, c: Code): String = c match
@@ -47,7 +45,5 @@ object CodeTexts:
     case Code.Tested(runs, _) => s"Scala, ${runs.written.value}"
     case Code.Valued(v)       => s"the value ${Rows.shown(v)}"
     case Code.Provided        => "provided where the code runs"
-
-  private def whose(r: Realizes): String = r match
-    case Realizes.Own     => "the project's own"
-    case Realizes.Outside => "an outside system's"
+    case Code.Modelled(m)     => s"meant by ${m.value}" +
+      t.code.implemented.get(m).fold("")(i => s", its Scala tested against it: ${i.written.value}")

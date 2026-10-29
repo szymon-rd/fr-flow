@@ -59,7 +59,7 @@ object Texts:
     case Checking.Trusted              => "trusted"
     case Checking.Outside(f)           => outside(f)
     case Checking.ChangedBy(ps)        => s"the programs changing it, derived: ${names(ps.map(_.value))}"
-    case Checking.StoreCodeTested(n)   => s"the store's code tested against the model ($n implementations)"
+    case Checking.TestedOnModel(m, os) => s"rests on ${listed(os.map(_.value))}'s Scala, tested against ${m.value}"
 
   /** What proven code is: `program, bookIfGranted`, `code, free`. */
   private def kind(code: Code): String = code match
@@ -73,17 +73,17 @@ object Texts:
     case Code.Tested(_, _)  => s"tested against $d's Scala on generated cases"
     case Code.Valued(_)     => s"proven of $d's value"
     case Code.Provided      => s"stated for every value of $d provided where the code runs"
+    case Code.Modelled(m)   => s"proven of $d's meaning in ${m.value}"
 
   private def premise(p: Premise): String = p match
-    case Premise.BehavesAs(m)     => s"the store behaving as ${m.value}"
-    case Premise.Atomic(b)        => s"runs on ${b.value} being atomic"
+    case Premise.OnlyCodeChanges(m) => s"nothing outside the code changing ${m.value}"
+    case Premise.Atomic(m)        => s"runs on ${m.value} being atomic"
     case Premise.Initially(m)     => s"the state ${m.value} starts in"
     case Premise.FromOutside(ty)  => s"what each ${typeName(ty)} from outside meets"
 
   private def outside(f: OutsideFact): String = f match
-    case OutsideFact.BehavesAs(b, m)      =>
-      s"the world outside: ${b.value} does what ${m.value} does, and nothing outside the code changes it"
-    case OutsideFact.Atomic(b)            => s"the world outside: runs on ${b.value} never interleave"
+    case OutsideFact.OnlyCodeChanges(m)   => s"the world outside: nothing outside the code changes ${m.value}"
+    case OutsideFact.Atomic(m)            => s"the world outside: runs on ${m.value} never interleave"
     case OutsideFact.Initially(m, _)      => s"the world outside: the state ${m.value} starts in"
 
   private def standing(s: Standing): String = s match
@@ -96,4 +96,8 @@ object Texts:
     case Vacuity.Satisfiable(_, i, _)  => s"condition ${i + 1} can hold"
 
   private def names(ns: List[String]): String = if ns.isEmpty then "none yet" else ns.mkString(", ")
+  /** `inRoom and add`, `a, b and c`. */
+  private def listed(ns: List[String]): String = ns match
+    case init :+ last if init.nonEmpty => s"${init.mkString(", ")} and $last"
+    case _                             => ns.mkString
   private def typeName(ty: Ty): String = Ty.names(ty).headOption.fold(ty.toString)(_.value)

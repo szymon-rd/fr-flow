@@ -27,7 +27,7 @@ class ReadSubjectsSuite extends munit.FunSuite:
   test("rooms: each claim after the assumptions it rests on and the parts above it") {
     val order = Projects.bare(Projects.rooms).subjects.inOrder.map(_.id.value)
     def before(x: String, y: String) = assert(order.indexOf(x) < order.indexOf(y), order)
-    before("tableMatchesModel", "storeWhenFree")
+    before("oneAtATime", "storeWhenFree")
     before("bookingsEndAfterStart", "bookWhenFree")
     before("bookWhenFree", "grantWhenFree")
     before("grantWhenFree", "grantWhenNoOverlap")

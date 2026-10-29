@@ -12,6 +12,7 @@ import frflow.project.port.Records
 import frflow.testing.Seed
 import frflow.testing.report.*
 import frflow.wire.file.Depth
+import rooms.storedBookings
 
 /** Testing before production on rooms in memory: the calendar's Scala tested against each claim on `granted`, the
   * report recorded with its key and not run again while current; the failing cases kept newest first, at most
@@ -45,21 +46,22 @@ class TestProgramSuite extends munit.CatsEffectSuite:
     }
   }
 
-  private val model = NodeId("tableMatchesModel")
+  private val model = NodeId("nothingElseWrites")
 
-  /** The table's assumption tested by the implementations given, as the project's checks (`Tables`) give them. */
+  /** The table's assumption tested by the Scala given, as the project's checks (`Tables`) give it. */
   private def modelled(checks: List[ModelCheck[IO]]) = for
     p   <- Projects.inMemory(Map.empty)
     a   <- Projects.analysed(p, Projects.rooms, Projects.roomsExamples)
     out <- TestProgram[IO](p.files, RunCode.inline[IO], checks)(a, Some(model))
   yield out
 
-  test("a store's implementations are each tested against its model, the reports joined and recorded with the key") {
-    val (outside, own) = (Tables.outside(Projects.rooms).toList, Tables.own(Projects.rooms).toList)
-    (modelled(outside), modelled(own), modelled(outside ++ own)).tupled.map { (o, w, both) =>
+  test("each Scala of a model's operations is tested against it, the reports joined and recorded with the key") {
+    val (sqlite, memory) = (Tables.sqlite(Projects.rooms), Tables.inMemory(Projects.rooms))
+    (modelled(sqlite), modelled(memory), modelled(sqlite ++ memory)).tupled.map { (o, w, both) =>
       val reports = List(o, w, both).map(_._1.toMap.getOrElse(model, fail("not tested")))
       val joined = reports(2)
-      assertEquals(reports.map(r => (r.outcome, r.against)).distinct, List((Outcome.Passed, Against.Model(model, 0))))
+      assertEquals(reports.map(r => (r.outcome, r.against)).distinct, List((Outcome.Passed,
+        Against.Model(model, storedBookings.name))))
       assertEquals(joined.count, Count(reports(0).count.asked + reports(1).count.asked,
         reports(0).count.tried + reports(1).count.tried))
       assertEquals(both._2.inputs.recorded.tests.get(model), Some((TestKeys.of(both._2, model), joined)))
@@ -67,9 +69,9 @@ class TestProgramSuite extends munit.CatsEffectSuite:
     }
   }
 
-  test("a model check is under the assumption that the store behaves as its model; none where no node says it") {
-    assertEquals(Tables.outside(Projects.rooms).map(_.node), Some(model))
-    assertEquals(Tables.outside(Projects.elaborated(Steps.steps)).map(_.node), None)
+  test("a model check is under the assumption that only the code changes the state; none where no Scala is given") {
+    assertEquals(Tables.sqlite(Projects.rooms).map(_.node), List(model))
+    assertEquals(Tables.sqlite(Projects.elaborated(Steps.steps)).map(_.node), Nil)
   }
 
   private def failure(i: Int, deep: Int = 0): Failure =

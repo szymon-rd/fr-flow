@@ -41,18 +41,34 @@ class PortSuite extends munit.CatsEffectSuite:
       "a rule is no part of a step: Lean has it of every world already (2.4, owner §27)"),
     "grantWhenFree" -> ("bookingsOfTheRoom, roomBookingsApart are rules below it, not parts" ->
       "a rule is no part of a step: Lean has it of every room's bookings already (2.4, owner §27)"),
-    "neverOverlap" -> ("assumes +tableMatchesModel -onlyBookingWrites" ->
-      "its cover_book runs on the table's model; who changes the table is derived (owner §27, §31)"),
-    "bookingsOfTheRoom" -> ("assumes +tableMatchesModel +bookingsEndAfterStart" ->
-      "proven by made_inRoom on a world of stored bookings, not inside storeWhenFree's step (2.6)"),
-    "roomBookingsApart" -> ("assumes +tableMatchesModel +bookingsEndAfterStart" ->
-      "proven by made_inRoom on a world of stored bookings, not inside storeWhenFree's step (2.6)"))
+    "tableMatchesModel" -> ("gone" ->
+      ("no store behaves as a model: an operation's meaning is its model's, by op.means (owner §36); what it said of " +
+        "the world outside, that nothing else writes the table, is nothingElseWrites")),
+    "nothingElseWrites" -> ("new" ->
+      ("said of storedBookings (owner §36): nothing outside the code writes its state; the table's Scala is tested " +
+        "against the model under it, as today's 200 runs")),
+    "storeWhenFree" -> ("assumes -tableMatchesModel" ->
+      ("a run rests on its model being atomic alone; the table's Scala tested against the model is said of it " +
+        "(owner §36)")),
+    "answerWhenFree" -> ("assumes -tableMatchesModel" ->
+      ("a run rests on its model being atomic alone; the table's Scala tested against the model is said of it " +
+        "(owner §36)")),
+    "neverOverlap" -> ("assumes +nothingElseWrites -onlyBookingWrites" ->
+      ("its cover_book runs on the table's model, nothing else writing it; who changes the table is derived " +
+        "(owner §27, §31)")),
+    "bookingsOfTheRoom" -> ("assumes +bookingsEndAfterStart" ->
+      ("proven by made_inRoom on a world of stored bookings, not inside storeWhenFree's step (2.6); a model's own " +
+        "operation gives no premise (owner §36)")),
+    "roomBookingsApart" -> ("assumes +bookingsEndAfterStart" ->
+      ("proven by made_inRoom on a world of stored bookings, not inside storeWhenFree's step (2.6); a model's own " +
+        "operation gives no premise (owner §36)")))
 
   /** Where each node differs from today's: gone, rules no longer parts, premises added or dropped. */
   private def differences: Map[String, String] =
     val now = t.nodes.map(_.node.id.value)
     val gone = Reference.nodes.filterNot(now.contains).map(_ -> "gone")
-    val moved = now.flatMap { n =>
+    val added = now.filterNot(Reference.nodes.contains).map(_ -> "new")
+    val moved = now.filter(Reference.nodes.contains).flatMap { n =>
       val id = NodeId(n)
       val (parts, rules) = (t.refinement.parts(id).map(_.value), t.refinement.rules(id).map(_.value))
       val wasParts = Reference.parts(n)
@@ -66,7 +82,7 @@ class PortSuite extends munit.CatsEffectSuite:
         Option.when(added.nonEmpty || dropped.nonEmpty)("assumes " + (added.map("+" + _) ++
           dropped.map("-" + _)).mkString(" "))).flatten.map(n -> _)
     }
-    (gone ++ moved).toMap
+    (gone ++ added ++ moved).toMap
 
   test("every difference from today's rooms in where a node sits and what it assumes is listed and judged") {
     assertEquals(Reference.nodes.size - t.nodes.size, 1)
@@ -87,9 +103,11 @@ class PortSuite extends munit.CatsEffectSuite:
   private val standings: Map[String, List[String]] = Map(
     // Gone: the programs changing a store are derived (owner §31).
     "OnlyBookingWrites" -> Nil,
-    // An assumption about the outside (a store behaving as its model) has no Lean check of its own; its 200 runs
-    // against the model are as today's.
-    "TableMatchesModel" -> List("assumption", "assumed", "", "200"))
+    // Gone: no store behaves as a model (owner §36); what it said of the outside is NothingElseWrites.
+    "TableMatchesModel" -> Nil,
+    // An assumption about the outside has no Lean check of its own; the table's Scala, tested against the model
+    // under it, runs 200 times, as today's.
+    "NothingElseWrites" -> List("assumption", "assumed", "", "200"))
 
   private def resource(path: String): String =
     scala.io.Source.fromResource(path, getClass.getClassLoader)(using scala.io.Codec.UTF8).mkString
@@ -105,7 +123,7 @@ class PortSuite extends munit.CatsEffectSuite:
 
   test("checked by Lean and tested, each node stands as today's but where judged; no statement is weakened".tag(Live)) {
     assert(LeanWorkspace.libraryBuilt._1, LeanWorkspace.libraryBuilt._2)
-    val models = Tables.outside(Projects.rooms).toList
+    val models = Tables.sqlite(Projects.rooms)
     (for
       dir  <- directory
       lake <- Lake.make[IO](dir.resolve("lean"), Command("lake", 30.minutes, Output.Merged))

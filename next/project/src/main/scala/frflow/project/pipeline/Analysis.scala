@@ -51,10 +51,13 @@ final class Analysis(val valid: Valid, val inputs: Inputs, val computed: Compute
   def tested(id: NodeId): Option[TestReport] = currentTests.get(id)
   private lazy val currentTests: Map[NodeId, TestReport] =
     inputs.recorded.tests.collect { case (id, (k, r)) if k == TestKeys.of(this, id) => id -> r }
-  /** A store said to behave as its model, with implementations to test against it (attached, or tested before). */
+  /** The assumption that only the code changes a model's state, its operations' Scala tested against the model
+    * under it (attached, or tested before).
+    */
   def modelled(id: NodeId): Boolean = decided.theory.node(id).flatMap(_.statement.outside).exists {
-    case OutsideFact.BehavesAs(b, _) => decided.theory.code.realized.contains(b) || inputs.recorded.tests.contains(id)
-    case _                           => false
+    case OutsideFact.OnlyCodeChanges(m) =>
+      decided.theory.code.implemented.contains(m) || inputs.recorded.tests.contains(id)
+    case _                              => false
   }
 
   def withRecorded(r: Recorded): Analysis = Analysis(valid, inputs.copy(recorded = r), computed)

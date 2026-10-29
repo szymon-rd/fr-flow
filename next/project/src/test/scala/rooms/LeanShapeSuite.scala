@@ -19,8 +19,8 @@ class LeanShapeSuite extends munit.FunSuite:
   test("bookedIsStored's claim states neverOverlap and bookingsEndAfterStart of now's bookings") {
     val spec = module(a, "bookedIsStored.Spec")
     val claim = spec.linesIterator.dropWhile(!_.contains("def claim")).take(2).mkString("\n")
-    assert(claim.contains("(Rooms.neverOverlap now.bookingTable)"), claim)
-    assert(claim.contains("(∀ b ∈ now.bookingTable, (Rooms.bookingsEndAfterStart b))"), claim)
+    assert(claim.contains("(Rooms.neverOverlap now.storedBookings)"), claim)
+    assert(claim.contains("(∀ b ∈ now.storedBookings, (Rooms.bookingsEndAfterStart b))"), claim)
   }
 
   test("no module imports a rule's own: storeWhenFree's spec imports the rules' defines, not their specs") {
