@@ -1,0 +1,30 @@
+longdef next/core/src/main/scala/frflow/core/expr/Exprs.scala children
+longdef next/core/src/main/scala/frflow/core/expr/Exprs.scala typeOf
+longdef next/core/src/main/scala/frflow/core/expr/Progs.scala map
+longdef next/core/src/main/scala/frflow/core/typing/Local.scala typed
+longdef next/proof/src/main/scala/frflow/proof/layout/Mentioned.scala expr
+longdef next/proof/src/main/scala/frflow/proof/lean/print/Print.scala expr
+package next/cli/src/test/scala/frflow/api
+package next/cli/src/test/scala/rooms/walkthrough
+package next/cli/src/test/scala/rooms/walkthrough/forgets
+package next/cli/src/test/scala/rooms/walkthrough/misread
+package next/cli/src/test/scala/rooms/walkthrough/reaches
+package next/dsl/src/test/scala/frflow/dsl/example
+package next/dsl/src/test/scala/frflow/dsl/node
+package next/dsl/src/test/scala/frflow/dsl/term
+package next/eval/src/main/scala/frflow
+package next/eval/src/test/scala/sharing/audit
+package next/eval/src/test/scala/sharing/housekeeping
+package next/eval/src/test/scala/sharing/http
+package next/eval/src/test/scala/sharing/invitations
+package next/eval/src/test/scala/sharing/ownership
+package next/eval/src/test/scala/sharing/requests
+package next/eval/src/test/scala/sharing/service
+package next/eval/src/test/scala/sharing/store
+package next/eval/src/test/scala/sharing/trash
+package next/project/src/test/scala/auth
+package next/project/src/test/scala/frflow/project/code
+package next/proof/src/test/scala/frflow/proof/reading
+package next/proof/src/test/scala/frflow/proof/verdict
+params next/dsl/src/main/scala/frflow/dsl/vocab/Declaration.scala apply x2
+params next/dsl/src/main/scala/frflow/dsl/vocab/Definition.scala apply x2

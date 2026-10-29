@@ -61,7 +61,7 @@ jobs:
         run: echo "FRFLOW_LAW_SEEDS=$(( GITHUB_RUN_NUMBER * 10000 + 1 )):1500" >> "$GITHUB_ENV"
 
       - name: Budgets
-        run: python3 docs/redesign/tools/budget.py next
+        run: python3 docs/redesign/tools/test_budget.py && python3 docs/redesign/tools/budget.py next
 
       - name: sbt test
         run: sbt test < /dev/null
