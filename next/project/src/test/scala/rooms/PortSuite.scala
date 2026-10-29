@@ -14,7 +14,7 @@ import frflow.project.port.memory.*
 import frflow.project.process.{Command, Output}
 import frflow.project.program.{Analyse, Ports, Project, TestProgram}
 import frflow.proof.lean.ast.{ModuleName, Names}
-import frflow.proof.layout.LeanWorkspace
+import frflow.proof.layout.{Completeness, LeanWorkspace}
 import frflow.proof.verdict.ProverRun
 import frflow.testing.Settings
 import frflow.testing.report.Outcome
@@ -155,6 +155,7 @@ class PortSuite extends munit.CatsEffectSuite:
         val table = now.toList.sortBy(_._1).map((k, v) => (k :: v).mkString("\t")).mkString("\n")
         assertEquals(compared.toMap, standings, s"rooms now:\n$table")
         assert(t.wholeCheck.isDefined, "the theory's own check is recorded")
+        assertEquals(Completeness.of(t.decided, t.modules), Nil)
         val said = port match
           case ProverRun.Built(o) => o
           case other              => fail(s"the claims are not shown equivalent to today's: $other")

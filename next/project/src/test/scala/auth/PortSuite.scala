@@ -4,6 +4,7 @@ import frflow.*
 import frflow.core.expr.Value
 import frflow.core.name.NodeId
 import frflow.eval.run.{Broken, OnCode}
+import frflow.proof.layout.Completeness
 import frflow.project.{Captured, Live, Ported, Projects}
 import frflow.project.Ported.Lean
 import frflow.proof.obligation.ObligationName
@@ -88,6 +89,7 @@ class PortSuite extends munit.CatsEffectSuite:
     .tag(Live)) {
     Ported.run(elaborated, DecisionExamples().elaborated.fold(e => fail(e.toString), identity), lean, Nil).map { r =>
       val a = r.analysis
+      assertEquals(Completeness.of(a.decided, a.modules), Nil)
       val now = t.nodes.map(_.node.id).map(id => id.value.capitalize -> Ported.row(a, id)).toMap
       val compared = (reference.standings.keys ++ now.keys).toList.distinct.sorted
         .filter(k => now.get(k) != reference.standings.get(k)).map(k => k -> now.getOrElse(k, Nil))
