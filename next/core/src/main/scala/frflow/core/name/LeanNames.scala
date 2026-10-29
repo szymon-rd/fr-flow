@@ -31,9 +31,11 @@ object LeanNames:
     else n
 
   /** A define's name, as its `def` and every call of it spell it (always qualified by the FrModel's namespace, so a
-    * name of the prelude is not renamed): a keyword or a name that is not plain escaped.
+    * name of the prelude is not renamed): each of its parts (`Stored.inRoom_of`, a model's, is two) a keyword or a
+    * name that is not plain escaped.
     */
-  def define(n: String): String = if Keywords(n) || !plain(n) then s"«$n»" else n
+  def define(n: String): String =
+    n.split('.').map(p => if Keywords(p) || !plain(p) then s"«$p»" else p).mkString(".")
 
   /** A plain Lean identifier: an ASCII letter, then ASCII letters, digits and `_`. */
   def plain(n: String): Boolean =
@@ -47,8 +49,9 @@ object LeanNames:
 
   /** A program's run on the models (`book_run`). */
   def run(d: DefName): DefName = DefName(s"${d.value}_run")
-  /** What an operation of a model gives, as its model says (`Stored.inRoom_of`). */
-  def of(model: ModelName, op: String): DefName = DefName(s"${model.value.capitalize}.${op}_of")
+  /** What an operation of a model gives, as its model says (`inRoom_of`, in the model's namespace `Stored`). */
+  def ofOp(op: String): String = s"${op}_of"
+  def of(model: ModelName, op: String): DefName = DefName(s"${model.value.capitalize}.${ofOp(op)}")
   /** Call `i` of plain Scala in proven code (`bookIfGranted_call_1`). */
   def call(code: DefName, i: Int): String = s"${code.value}_call_$i"
   /** The hypothesis a statement is taken as (`h_grantWhenFree`). */

@@ -93,6 +93,8 @@ class CaptureLawsSuite extends munit.FunSuite:
   test("two names that once printed the same (a$b and a_b, some and some_) print apart") {
     assertEquals(List("a$b", "a_b", "some", "some_", "__x", "x_x", "by").map(Names.ident(_).text),
       List("«a$b»", "a_b", "some_", "some__", "«__x»", "x_x", "«by»"))
+    assertEquals(List("Stored.inRoom_of", "matches", "a$b", "some").map(Names.define(_).text),
+      List("Stored.inRoom_of", "«matches»", "«a$b»", "some"))
   }
 
   test("a binder named as the FrModel takes another name, so a define's call is not read as its field") {
