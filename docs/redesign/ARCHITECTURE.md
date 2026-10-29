@@ -487,7 +487,9 @@ hold (owner §15, §18).
   statement true. Statements above follow by proven steps, so consistency is carried upward. Each `always` about a
   store, claimed or assumed, gets `start_<node>`. `complete`, the CI gate (4.10), requires every `start_` proven
   (`Warning.StartNotProven` until then); an `always(stored)` with no `initially` assumption has no start to prove it
-  from, so a model holding one is never complete. Every `consistent_<i>` must be proven too (owner §28, below).
+  from, so a model holding one is never complete. Every `consistent_<i>` must be proven too (owner §28, below). A
+  bottom assumption with no open and no provided value is in no group: every word of it has the code's meaning, so
+  it is asked `impl` as a claim is (2.7) and is red until proven (`SeededSuite`'s `Trusted`).
 - **Witnesses**, derived where possible, the group solved in substitution order: `∀ xs, s(xs) = e`, `e` mentioning
   nothing still open, gives `fun xs => e`; a bound gives the bound (one past a strict one); a witnessed value then
   stands for itself in the rest. Proven code is its own witness, once what it leaves open is solved: `bookedAfter`'s
@@ -556,7 +558,9 @@ enum Vacuity:
 ```
 
 `inhabited_<node>`: some value of `T` meets an `always[T]`, claimed or assumed (an assumption no value meets would make
-every statement about `T` hold for nothing). `satisfiable_<i>_<node>`: each condition `A` of a claim's
+every statement about `T` hold for nothing), together with every other `always[T]` on that type, so two that contradict
+show; and an assumption saying what a store starts in gets one too, some state meeting it (`start_` then gives the
+store's rules of it). `satisfiable_<i>_<node>`: each condition `A` of a claim's
 `A implies B`, with what is bound above it (`Conditions`), can hold. The witness search (`testing.search.Witnesses`)
 tries the generators' values first, then small values of each type (`Small`, SmallCheck-style), each judged by the
 evaluator, deterministically, at most 5,000 candidates. A witness found goes to Lean (rooms: `(Booking.mk "" 0 1)`,
