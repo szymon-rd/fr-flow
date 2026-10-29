@@ -56,12 +56,14 @@ object WholeModule:
     Option.when(authored.nonEmpty)(LeanModule(l.layout.wholeAudit, List(l.layout.wholeProofs), Preamble.generated,
       Names.path(l.kb.value, "Whole", "Audit"), Nil, authored))
 
-  /** `Whole/Checks.lean`: each example tried against the claims within its budget, by FrFlow's automation. */
+  /** `Whole/Checks.lean`: each example tried against the claims within its budget, by FrFlow's automation, over the
+    * statements alone (a witness Lean refuses stops no example).
+    */
   def checks(l: Lowering, obligations: List[Obligation]): Option[LeanModule] =
     val tried = obligations.collect { case o @ Obligation(_, _, Discharge.Attempt(h), _) =>
       val name = LowerObligation.name(o.name)
       Decl.Budgeted(h, Decl.Theorem(Nil, name, Nil, LExpr.Const(List(Names.builtin("Obl"), name)),
         Proof.Tactics(List("frflow_auto")), Break.SameLine))
     }
-    Option.when(tried.nonEmpty)(LeanModule(l.layout.wholeChecks, List(l.layout.whole), Preamble.generated,
+    Option.when(tried.nonEmpty)(LeanModule(l.layout.wholeChecks, List(l.layout.wholeSpec), Preamble.generated,
       Names.path(l.kb.value, "Whole", "Checks"), Nil, tried))

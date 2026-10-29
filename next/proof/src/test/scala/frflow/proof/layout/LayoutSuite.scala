@@ -34,6 +34,11 @@ class LayoutSuite extends munit.FunSuite:
       "bookRuns.Impl"))
   }
 
+  test("the examples are tried over the theory's statements alone: a witness Lean refuses stops none of them") {
+    assertEquals(names(module("Whole.Checks").imports), List("Whole.Spec"))
+    assert(names(module("Whole").imports).contains("Whole.Spec"), names(module("Whole").imports))
+  }
+
   test("holds: complete applied by name to the node's open terms and its parts' proofs") {
     assert(Print.module(module("allowsOne.Theorems")).contains("""theorem holds : ∀ (allowed : Int → Prop), """ +
       """∀ (h_allowedPositive : (Test.allowedPositive.claim allowed)), (Test.allowsOne.claim allowed) :=
