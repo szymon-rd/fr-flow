@@ -8,7 +8,8 @@ import frflow.core.name.VarId
 import frflow.core.term.{Stated, Sym}
 import frflow.core.ty.Ty
 import frflow.dsl.build.{Failure, Fault}
-import frflow.dsl.term.{LeanType, Lift, Notes, Recorded, Term}
+import frflow.dsl.term.{LeanType, Lift, Notes, Term}
+import frflow.dsl.run.{Recorded, Worlds}
 import frflow.dsl.vocab.Called
 
 /** A recorded program read into the `Prog` Lean proves and production runs, its terms kept as terms (`Stated`), with
@@ -127,7 +128,9 @@ object ReadRecording:
     private def bound(step: P, t: LeanType[?]): Reading =
       fresh(t.ty).map(x => (rest => Prog.Bind(step, x, rest), valueOf[Any](x, t)))
 
-    private def expr(t: Term[?]): Stated[?] = Stated(t.run)
+    /** A step's term: one reading the world is refused, as a program reads state by its operations (owner §43). */
+    private def expr(t: Term[?]): Stated[?] =
+      if Worlds.reads(t.run) then throw Failure(Fault.WorldRead("a program's step")) else Stated(t.run)
 
     private def typeOf(a: Any): LeanType[?] = a match
       case t: Term[?] => t.leanType

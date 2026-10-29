@@ -1,6 +1,7 @@
-package frflow.dsl.term
+package frflow.dsl.run
 
 import frflow.core.name.ModelName
+import frflow.dsl.term.{LeanType, Term}
 
 /** A program's steps, one case per step, as a `Flow` builds them: what Lean reads once `ReadRecording` has made them
   * `Prog`, and what production folds into its effect (`eval.Running`). Typed as the program's values: a call gives a

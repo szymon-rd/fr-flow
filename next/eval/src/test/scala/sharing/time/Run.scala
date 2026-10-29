@@ -26,7 +26,7 @@ enum Event derives LeanType:
   case Waited(seconds: BigInt)
 
 /** The service as a transition system: each event moves it from one moment to the next; a run is the events so far,
-  * from the start. Claims of every moment the service reaches are stated of `after(events)`.
+  * from the start. Claims of every moment the service reaches are stated of `atEnd(events)`.
   */
 object Run:
   val startedAt = Definition[BigInt]("when the service started, in seconds")
@@ -79,7 +79,7 @@ object Run:
       .on[Event.Waited](d => m.updated(_.now, m.now + d)) }
 
   /** Where the service is after some events: from an empty library, at the time it started. */
-  val after = define { (es: Term[List[Event]]) =>
+  val atEnd = define { (es: Term[List[Event]]) =>
     es.foldLeft(make[Moment](Library(Nil, Nil, Nil, Nil, Nil, Nil, Nil, Nil): Term[Library], startedAt, startedAt,
       Nil: Term[List[Notice]]))((m, e) => step(m, e)) }
 
@@ -96,4 +96,4 @@ object Run:
       "minutes past its last run.")(
     forall((pre: Term[List[Event]], e: Term[Event], post: Term[List[Event]]) => (events === pre ++ (e :: post)) implies
       e.on[Event.Asked](_ => True).on[Event.Housekept.type](True).on[Event.Delivered](_ => True)
-        .on[Event.Waited](d => after(pre).now + d <= after(pre).tidied + housekeepingWithin)))
+        .on[Event.Waited](d => atEnd(pre).now + d <= atEnd(pre).tidied + housekeepingWithin)))

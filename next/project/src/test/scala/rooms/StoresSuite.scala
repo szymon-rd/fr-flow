@@ -80,9 +80,8 @@ class StoresSuite extends munit.FunSuite:
       Projects.rooms.theory.nodes.map(_.node.id).map(id => id.value -> Contents.of(l, id).texts("writers"))
         .filter(_._2.nonEmpty)
     val addsIt = Node.claim("Adding a request stores it at the end.")(
-      forall((request: Term[Booking], before: Term[World]) =>
-        addAnyway(request).from(before) { (_, after) =>
-          storedBookings.in(after) === storedBookings.in(before) :+ request }))
+      forall((request: Term[Booking]) =>
+        storedBookings.in(addAnyway(request).after) === storedBookings.current :+ request))
       .assuming(oneAtATime, bookingsEndAfterStart)
     val adding = withNodes(addsIt).implementProven(addAnyway)(program { (request: Term[Booking]) =>
       addsAnyway(request) })
@@ -94,9 +93,8 @@ class StoresSuite extends munit.FunSuite:
 
   test("a program reading the table and writing the log keeps the log's rule, given both stores' rules") {
     val logsIt = Node.claim("Logging a request adds it to the log.")(
-      forall((request: Term[Booking], before: Term[World]) =>
-        logRequest(request).from(before) { (_, after) =>
-          loggedRequests.in(after) === loggedRequests.in(before) :+ request }))
+      forall((request: Term[Booking]) =>
+        loggedRequests.in(logRequest(request).after) === loggedRequests.current :+ request))
       .assuming(logOneAtATime, oneAtATime, bookingsEndAfterStart)
     // Requests now reach the log from outside: the rule takes what the form sends.
     val loggedEndAfterStart = Node.claim("Every request logged ends after it starts.")(

@@ -7,7 +7,8 @@ import frflow.core.code.Values
 import frflow.core.name.SymbolName
 import frflow.core.vocab.Fails
 import frflow.dsl.flow.{Flow, Terms}
-import frflow.dsl.term.{LeanType, Lift, Recorded, Term}
+import frflow.dsl.term.{LeanType, Lift, Term}
+import frflow.dsl.run.Recorded
 import frflow.dsl.vocab.{Called, Definition, Spot}
 import frflow.eval.flow.Bound
 import frflow.eval.term.Evaluate

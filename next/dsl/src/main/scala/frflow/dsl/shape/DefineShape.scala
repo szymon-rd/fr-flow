@@ -17,6 +17,7 @@ import frflow.dsl.vocab.{Definition, OnTheSpot, Spot}
 trait DefineShape[F]:
   type Lam <: AnyRef
   def types: List[LeanType[?]]
+  def leanType: LeanType[F]
   def body(f: Lam, hints: List[String]): (List[Binder], Term[?])
   def made(name: DefName, f: Lam, hints: List[String], lambda: Deferred[Written[Lambda]]): Definition[F]
 
@@ -24,6 +25,7 @@ object DefineShape:
   given one[A, R](using a: LeanType[A], r: LeanType[R]): DefineShape[A => R] with
     type Lam = Term[A] => Term[R]
     val types: List[LeanType[?]] = List(a)
+    def leanType: LeanType[A => R] = LeanType[A => R]
     def body(f: Lam, hints: List[String]): (List[Binder], Term[?]) =
       val x = binder(0, a, hints)
       (List(x), f(Term.free(x)))
@@ -34,6 +36,7 @@ object DefineShape:
   given two[A, B, R](using a: LeanType[A], b: LeanType[B], r: LeanType[R]): DefineShape[(A, B) => R] with
     type Lam = (Term[A], Term[B]) => Term[R]
     val types: List[LeanType[?]] = List(a, b)
+    def leanType: LeanType[(A, B) => R] = LeanType[(A, B) => R]
     def body(f: Lam, hints: List[String]): (List[Binder], Term[?]) =
       val (x, y) = (binder(0, a, hints), binder(1, b, hints))
       (List(x, y), f(Term.free(x), Term.free(y)))
@@ -45,6 +48,7 @@ object DefineShape:
       : DefineShape[(A, B, C) => R] with
     type Lam = (Term[A], Term[B], Term[C]) => Term[R]
     val types: List[LeanType[?]] = List(a, b, c)
+    def leanType: LeanType[(A, B, C) => R] = LeanType[(A, B, C) => R]
     def body(f: Lam, hints: List[String]): (List[Binder], Term[?]) =
       val (x, y, z) = (binder(0, a, hints), binder(1, b, hints), binder(2, c, hints))
       (List(x, y, z), f(Term.free(x), Term.free(y), Term.free(z)))
@@ -58,6 +62,7 @@ object DefineShape:
       : DefineShape[(A, B, C, D) => R] with
     type Lam = (Term[A], Term[B], Term[C], Term[D]) => Term[R]
     val types: List[LeanType[?]] = List(a, b, c, d)
+    def leanType: LeanType[(A, B, C, D) => R] = LeanType[(A, B, C, D) => R]
     def body(f: Lam, hints: List[String]): (List[Binder], Term[?]) =
       val (w, x, y, z) = (binder(0, a, hints), binder(1, b, hints), binder(2, c, hints), binder(3, d, hints))
       (List(w, x, y, z), f(Term.free(w), Term.free(x), Term.free(y), Term.free(z)))
@@ -72,6 +77,7 @@ object DefineShape:
       r: LeanType[R]): DefineShape[(A, B, C, D, E) => R] with
     type Lam = (Term[A], Term[B], Term[C], Term[D], Term[E]) => Term[R]
     val types: List[LeanType[?]] = List(a, b, c, d, e)
+    def leanType: LeanType[(A, B, C, D, E) => R] = LeanType[(A, B, C, D, E) => R]
     def body(f: Lam, hints: List[String]): (List[Binder], Term[?]) =
       val xs = types.zipWithIndex.map((t, i) => binder(i, t, hints))
       (xs, f(Term.free(xs(0)), Term.free(xs(1)), Term.free(xs(2)), Term.free(xs(3)), Term.free(xs(4))))
@@ -86,6 +92,7 @@ object DefineShape:
       e: LeanType[E], g: LeanType[G], r: LeanType[R]): DefineShape[(A, B, C, D, E, G) => R] with
     type Lam = (Term[A], Term[B], Term[C], Term[D], Term[E], Term[G]) => Term[R]
     val types: List[LeanType[?]] = List(a, b, c, d, e, g)
+    def leanType: LeanType[(A, B, C, D, E, G) => R] = LeanType[(A, B, C, D, E, G) => R]
     def body(f: Lam, hints: List[String]): (List[Binder], Term[?]) =
       val xs = types.zipWithIndex.map((t, i) => binder(i, t, hints))
       (xs, f(Term.free(xs(0)), Term.free(xs(1)), Term.free(xs(2)), Term.free(xs(3)), Term.free(xs(4)),
@@ -102,7 +109,7 @@ object DefineShape:
   def binder(i: Int, t: LeanType[?], hints: List[String]): Binder = Binder(VarId.level(i), hint(i, hints), t.ty)
 
   private def spot[F: LeanType](name: DefName, lambda: Deferred[Written[Lambda]], b: Body[?]): Definition[F] =
-    Definition.onTheSpot(OnTheSpot(name, Code.Proven(name), lambda, Spot.Define(b)))
+    Definition.onTheSpot(OnTheSpot(name, Code.Proven(name), lambda, Spot.Define(b, worldly = false)))
 
   private def bound[A](i: Int, t: LeanType[A], hints: List[String]): Bound[A] = Bound(hint(i, hints), t.ty)
   private def hint(i: Int, hints: List[String]): String = hints.lift(i).getOrElse("x")

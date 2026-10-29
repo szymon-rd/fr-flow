@@ -30,9 +30,9 @@ val noOverlap = define { (a: Term[Booking], b: Term[Booking]) =>
   a.room =!= b.room || a.end <= b.start || b.end <= a.start }
 
 // The purpose: what is booked, and whether a request is accepted. Each is a Declaration, known only by what the
-// statements say of it. A request is a booking asked for; `now` is the world as it stands.
-val booked = Declaration[World => List[Booking]]("the bookings made, as the world stands")
+// statements say of it, read in the world as it stands (owner §41). A request is a booking asked for.
+val booked = Declaration[List[Booking]]("the bookings made, as the world stands")
 
-val bookedAfter = Declaration[(Booking, World) => List[Booking]]("the bookings made once a request is handled")
+val bookedAfter = Declaration[Booking => List[Booking]]("the bookings made once a request is handled")
 
-val accepted = Declaration[(Booking, World) => Boolean]("whether a request is accepted")
+val accepted = Declaration[Booking => Boolean]("whether a request is accepted")

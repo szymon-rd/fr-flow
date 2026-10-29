@@ -11,15 +11,18 @@ import frflow.core.typing.IrCheck
 import frflow.core.vocab.{Define, DefineForm, StateModel, Vocabulary}
 import frflow.dsl.build.{Declarations, Deferred, ElabError}
 import frflow.dsl.node.{Edges, Node}
+import frflow.dsl.vocab.Stating
 
 /** The front end's last phase: the FrModel as written to the `Theory`. Every part's lambdas are called once
-  * on their variables, every error is collected, and the vocabulary is what the parts declare; the code table is
+  * on their variables (a statement's twice: once to read which Declarations change with the World, `Varying`), every
+  * error is collected, and the vocabulary is what the parts declare; the code table is
   * what the FrModel gives each Definition, each operation on a state its model (`Modelled`).
   */
 object Elaborate:
   def apply(kb: FrModel): ValidatedNec[ElabError, Elaborated] =
     val attached = kb.meanings.traverse((id, a) => a.map(id -> _))
-    (kb.nodes.traverse(node), attached).tupled.run.andThen { case (declared, (ns, code)) =>
+    val stating = Stating.varying(Varying.of(kb.nodes))
+    (kb.nodes.traverse(node(stating, _)), attached).tupled.run.andThen { case (declared, (ns, code)) =>
       vocabulary(declared).andThen { (all, v) =>
         Modelled.table(v, code.toMap, kb.operations, kb.writtenIn).map { table =>
           val theory = IrCheck.checked(Theory(kb.name, v, ns.map(_._1), ns.flatMap(_._2), table, kb.writtenIn))
@@ -28,8 +31,8 @@ object Elaborate:
       }
     }
 
-  private def node(n: Node): Deferred[(Sited, List[Edge])] =
-    (n.statement, Edges.of(n.head)).mapN((s, es) => (Sited(Spec(n.head.id, n.head.says, s), n.head.at), es))
+  private def node(stating: Stating, n: Node): Deferred[(Sited, List[Edge])] =
+    (n.statement(stating), Edges.of(n.head)).mapN((s, es) => (Sited(Spec(n.head.id, n.head.says, s), n.head.at), es))
 
   /** Every declaration of the parts, each once by its value (two of one name both kept, for `Validate`), and the
     * defines and models elaborated, each one's own declarations included.

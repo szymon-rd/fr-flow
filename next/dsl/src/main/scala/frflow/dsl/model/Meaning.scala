@@ -5,7 +5,8 @@ import frflow.core.ty.Ty
 import frflow.core.vocab.ModelOp
 import frflow.dsl.flow.ReadRecording
 import frflow.dsl.shape.DefineShape
-import frflow.dsl.term.{LeanType, Notes, Recorded}
+import frflow.dsl.term.{LeanType, Notes}
+import frflow.dsl.run.Recorded
 import frflow.dsl.vocab.Definition
 
 /** One operation's meaning as a model's body gives it (`inRoom.means(room => …)`): the operation, its inputs' types

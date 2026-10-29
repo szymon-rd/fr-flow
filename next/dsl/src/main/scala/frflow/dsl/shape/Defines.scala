@@ -84,7 +84,10 @@ object Defines:
     * developer's val's); its lambda's text and parameter names read where it is written.
     */
   private inline def made[F](inline name: DefName, b: DefineShape[F])(inline body: b.Lam): Definition[F] =
-    named(name)(n => b.made(n, body, Source.of(body).params,
-      Elab.lambda(Site.Define(n), b.types)(() => b.body(body, Source.of(body).params), Source.of(body))))
+    named(name) { n =>
+      val build = () => b.body(body, Source.of(body).params)
+      if Worldly.reads(build) then Worldly.define(n, b.types, build, Source.of(body))(using b.leanType)
+      else b.made(n, body, Source.of(body).params, Elab.lambda(Site.Define(n), b.types)(build, Source.of(body)))
+    }
 
   private def named[A](name: DefName)(f: DefName => A): A = f(name)

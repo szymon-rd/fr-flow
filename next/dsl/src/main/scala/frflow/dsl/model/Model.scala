@@ -2,7 +2,8 @@ package frflow.dsl.model
 
 import frflow.core.name.ModelName
 import frflow.dsl.flow.Flow
-import frflow.dsl.term.{LeanType, Recorded, Term}
+import frflow.dsl.term.{LeanType, Term}
+import frflow.dsl.run.Recorded
 
 /** A model's state, as the meaning of an operation on it reads and writes it (`state.get`, `state.set(…)`,
   * `state.update(…)`, in a `StateModel`'s body): Lean's `get` and `set` in the model's `StateM`.

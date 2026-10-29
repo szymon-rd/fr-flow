@@ -79,11 +79,11 @@ class FormsSuite extends munit.FunSuite:
       tally.means(state.get)""").isEmpty)
   }
 
-  test("a run is written one way (owner §34): `.from(world) { (answer, after) => … }`; no `.answer`, no `.after`") {
-    val w = "forall((r: Term[Booking], now: Term[World]) => "
-    fails(compileErrors(w + "book(r).answer(now) === True)"), "value answer is not a member of")
-    fails(compileErrors(w + "storedBookings.in(book(r).after(now)) === Nil)"), "value after is not a member of")
-    assert(compileErrors(w + "book(r).from(now) { (answer, after) => answer === answer })").isEmpty)
+  test("a run is read in the world a statement holds in (owner §41): `.result` and `.after`; no `.from`, no World") {
+    val w = "forall((r: Term[Booking]) => "
+    fails(compileErrors(w + "book(r).from(r) { (answer, after) => answer === answer })"), "value from is not a member")
+    fails(compileErrors("forall((w: Term[World]) => True)"), "Not found: type World")
+    assert(compileErrors(w + "book(r).result === True && storedBookings.in(book(r).after) === Nil)").isEmpty)
   }
 
   test("one Definition: `define` and `program` make a Definition carrying its meaning; no Def type remains") {
@@ -108,7 +108,7 @@ class FormsSuite extends munit.FunSuite:
     assertEquals(faults(rooms.implementProven(book)(notCode)), List(Fault.NotProvenCode("notCode")))
     assertEquals(faults(rooms.implementTested(free)(_ => (_, _) => true)), List(Fault.MeantWhereWritten("free")))
     val runsItself = Node.claim("The program answers.")(
-      forall((r: Term[Booking], w: Term[World]) => bookIfGranted(r).from(w) { (b, _) => b === b }))
+      forall((r: Term[Booking]) => bookIfGranted(r).result === bookIfGranted(r).result))
     assertEquals(faults(FrModel("R")(runsItself)), List(Fault.ProgramMentioned("bookIfGranted")))
   }
 
@@ -123,7 +123,7 @@ class FormsSuite extends munit.FunSuite:
   }
 
   test("a claim reads as a call of the Definition applied to its leading variables; another is an ordinary mention") {
-    val call = RoomsIr.call(named.statement)
+    val call = RoomsIr.call(named.alone)
     assertEquals(call.definition, SymbolName("granted"))
     assertEquals(call.posted.value.params.map(_.hint), List("held", "request"))
     assertEquals(Exprs.mentions(call.posted.value.body).symbols.toSet,
@@ -131,7 +131,7 @@ class FormsSuite extends munit.FunSuite:
   }
 
   test("a claim mentioning its Definition elsewhere too reads as no call: it is still a claim, checked as a whole") {
-    assertEquals(List(elsewhere, inTurn).map(n => RoomsIr.elaborated(n.statement).call), List(None, None))
+    assertEquals(List(elsewhere, inTurn).map(n => RoomsIr.elaborated(n.alone).call), List(None, None))
   }
 
   test("a chain of implies does not compile without its parentheses; with them, either grouping does") {

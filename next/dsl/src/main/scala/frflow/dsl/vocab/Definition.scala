@@ -1,11 +1,12 @@
 package frflow.dsl.vocab
 
 import frflow.core.name.SymbolName
-import frflow.core.term.{Final, Sym}
+import frflow.core.term.{Final, Sym, World}
 import frflow.core.ty.Ty
 import frflow.core.vocab.{Symbol, SymbolType, ValueKind}
 import frflow.dsl.build.{Declarations, Fault, Source}
 import frflow.dsl.term.{LeanType, Notes, Term}
+import frflow.dsl.run.Worlds
 import scala.annotation.publicInBinary
 import scala.compiletime.summonFrom
 
@@ -24,6 +25,10 @@ final class Definition[A] @publicInBinary private[dsl] (val name: SymbolName, va
     extends Term[A](Definition.called[A](name, described, onTheSpot, t)):
   /** The term as a curried function (`F` the curried type of `A`): what `Functions.app` applies. */
   def curried[F: LeanType]: Term[F] = Term(Definition.called[F](name, described, onTheSpot, t))
+  /** A define whose body reads state, which takes the world as its last input (owner §43). */
+  def readsWorld: Boolean = onTheSpot.exists(_.spot match
+    case Spot.Define(_, worldly) => worldly
+    case _                       => false)
   /** Of a type with no `LeanType`: read only by the code it is provided to. */
   def codeOnly: Boolean = t.codeOnly.nonEmpty
   /** What a code-only Definition declares wherever it is given its meaning: no statement mentions it to. */
@@ -58,15 +63,19 @@ object Definition:
     (spot, t.codeOnly) match
       case (None, Some(scala))                          => Symbols.codeOnly[F](name, means, scala)
       case (None, None)                                 => Symbols.term[F](name, means, ValueKind.Definition, t)
-      case (Some(OnTheSpot(n, _, lambda, Spot.Define(b))), _) =>
+      case (Some(OnTheSpot(n, _, lambda, Spot.Define(b, _))), _) =>
         [T[_]] => (s: Sym[T]) => s.noted(Notes.of(Declarations.define(n, lambda)),
           s.define(b).asInstanceOf[T[F]]) // `b` was built at the curried type of the `define`'s own `F`
       case (Some(OnTheSpot(n, _, _, Spot.Steps(_, _))), _)    =>
         [T[_]] => (s: Sym[T]) => s.noted(Notes.fault(Fault.ProgramMentioned(n.value)), s.param[F](name, t.ty))
 
-  /** The application, saying which Definition it applies and to what (`Called`). */
+  /** The application, saying which Definition it applies and to what (`Called`); of a define reading state, in the
+    * world its caller holds in (owner §43), its last input.
+    */
   private def called[R](d: Definition[?], args: List[Term[?]], t: Term[R]): Term[R] =
-    Called(d.name, args, t.run)(using t.leanType)
+    val applied =
+      if d.readsWorld then Term.app(t.asInstanceOf[Term[World => R]], Worlds.current)(using t.leanType) else t
+    Called(d.name, args, applied.run)(using t.leanType)
 
   extension [A, R](d: Definition[A => R])
     def apply(a: Term[A])(using LeanType[R]): Term[R] =

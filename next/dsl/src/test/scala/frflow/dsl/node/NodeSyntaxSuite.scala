@@ -11,17 +11,17 @@ class NodeSyntaxSuite extends munit.FunSuite:
   private val trusted = Node.assumption("Holds.")(True).leftOpenAbove
 
   test("a claim left open above is one the nodes above do not rely on for the word it fixes") {
-    assertEquals(open.statement.run.toOption.map(_._2.relied), Some(Reliance.LeftOpen))
-    assert(open.statement.run.toOption.exists(_._2 match { case Statement.Claim(_, _) => true; case _ => false }))
+    assertEquals(open.alone.run.toOption.map(_._2.relied), Some(Reliance.LeftOpen))
+    assert(open.alone.run.toOption.exists(_._2 match { case Statement.Claim(_, _) => true; case _ => false }))
   }
 
   test("a claim's and an assumption's formula is kept as the model writes it, which the developer decides") {
-    def written(n: Node) = n.statement.run.toOption.flatMap(_._2.said).map(_.source.value)
+    def written(n: Node) = n.alone.run.toOption.flatMap(_._2.said).map(_.source.value)
     assertEquals(written(Node.claim("Holds.")(True)), Some("True"))
     assertEquals(written(Node.assumption("Holds.")(True || True)), Some("True || True"))
   }
 
   test("an assumption has no nodes relying on it above, so `.leftOpenAbove` on one is a fault on the node") {
-    assertEquals(trusted.statement.run.fold(_.toNonEmptyList.toList.map(_.fault), _ => Nil),
+    assertEquals(trusted.alone.run.fold(_.toNonEmptyList.toList.map(_.fault), _ => Nil),
       List(Fault.NotAClaim("leftOpenAbove")))
   }

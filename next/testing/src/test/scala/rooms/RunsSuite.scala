@@ -20,13 +20,13 @@ class RunsSuite extends munit.FunSuite:
     * Scala value).
     */
   private val answerWhenApart = Node.claim("A request is answered booked exactly when it overlaps no booking stored.")(
-    forall((request: Term[Booking], before: Term[World]) => book(request).from(before) { (booked, _) =>
-      booked === storedBookings.in(before).forall(b => noOverlap(b, request)) }))
+    forall((request: Term[Booking]) =>
+      book(request).result === storedBookings.current.forall(b => noOverlap(b, request))))
   private val storeWhenApart = Node.claim("A request is stored exactly when it overlaps no booking stored.")(
-    forall((request: Term[Booking], before: Term[World]) =>
-      val stored = storedBookings.in(before)
-      book(request).from(before) { (_, after) => storedBookings.in(after) ===
-        when(stored.forall(b => noOverlap(b, request)))(stored :+ request).otherwise(stored) }))
+    forall((request: Term[Booking]) =>
+      val stored = storedBookings.current
+      storedBookings.in(book(request).after) ===
+        when(stored.forall(b => noOverlap(b, request)))(stored :+ request).otherwise(stored)))
 
   private def booking(meaning: Definition[Booking => Flow[Boolean]]) =
     FrModel("Rooms")((rooms.nodes :+ answerWhenApart :+ storeWhenApart)*).copy(generators = rooms.generators,

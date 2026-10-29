@@ -9,7 +9,7 @@ import sharing.ownership.Ownership.{owns, ownersEdit, transfer}
 import sharing.requests.AccessRequests.{approve, ask, decline}
 import sharing.service.Sharing
 import sharing.time.Lifetimes.{gone, inForce, isOpen, isPending, reminderDue}
-import sharing.time.Run.{after, events, housekeepingWithin}
+import sharing.time.Run.{atEnd, events, housekeepingWithin}
 import sharing.trash.Trash.{restore, trash}
 
 // The purpose's branches, one for each part of the service, each refining the purpose: after the words they are
@@ -28,7 +28,7 @@ val invitationsAreOffers = Node.claim("An invitation is an offer from someone wh
   forall((lib: Term[Library], t: Term[BigInt], p: Term[PersonId], what: Term[Target]) =>
     accept(lib, t, p, what) =!= lib implies
       lib.invitations.exists(i => i.to === p && i.what === what && isOpen(i, t))) &&
-  after(events).library.invitations.forall(i => isOpen(i, after(events).now - housekeepingWithin)))
+  atEnd(events).library.invitations.forall(i => isOpen(i, atEnd(events).now - housekeepingWithin)))
   .refines(accessFollowsShares)
 
 /** The branch: what the trash is. */
@@ -38,7 +38,7 @@ val trashUntilGone = Node.claim("Only someone who may edit a document puts it in
     (trash(lib, t, by, d) =!= lib implies mayEdit(lib, t, by, make[Target.Doc](d))) &&
       (restore(lib, t, by, d) =!= lib implies (mayEdit(lib, t, by, make[Target.Doc](d)) &&
         lib.documents.exists(doc => doc.id === d && doc.trashed.isDefined && !gone(doc, t))))) &&
-  after(events).library.documents.forall(doc => !gone(doc, after(events).now - housekeepingWithin)))
+  atEnd(events).library.documents.forall(doc => !gone(doc, atEnd(events).now - housekeepingWithin)))
   .refines(accessFollowsShares)
 
 /** The branch: what an access request is. */
@@ -54,8 +54,8 @@ val accessRequestsAreAsks = Node.claim("An access request is a person's ask for 
     (approve(lib, t, by, p, w) =!= lib implies
       (mayEdit(lib, t, by, w) && lib.requests.exists(r => r.person === p && r.what === w && isPending(r, t)))) &&
       (decline(lib, t, by, p, w) =!= lib implies mayEdit(lib, t, by, w))) &&
-  after(events).library.requests.forall(r => isPending(r, after(events).now - housekeepingWithin) &&
-    (r.reminded || !reminderDue(r, after(events).now - housekeepingWithin))))
+  atEnd(events).library.requests.forall(r => isPending(r, atEnd(events).now - housekeepingWithin) &&
+    (r.reminded || !reminderDue(r, atEnd(events).now - housekeepingWithin))))
   .refines(accessFollowsShares)
 
 /** The branch: what owning a document means. */
@@ -94,12 +94,12 @@ val auditTrail = Node.claim("Every change the service makes is recorded in its l
     "and when, in the same save as the change; so at every moment, every share the library holds was made by a " +
     "request in the log. A share is never seen before its entry is there, and every yes of canView rests on shares " +
     "whose making is logged.")(
-  after(events).library.shares.forall(s => after(events).library.log.exists(e => makes(e, s))) &&
+  atEnd(events).library.shares.forall(s => atEnd(events).library.log.exists(e => makes(e, s))) &&
     forall((p: Term[PersonId], d: Term[DocumentId]) =>
-      mayView(after(events).library, after(events).now, p, make[Target.Doc](d)) implies
-        after(events).library.shares.exists(s => inForce(s, after(events).now) &&
-          reaches(after(events).library, s, p) && covers(after(events).library, s, make[Target.Doc](d)) &&
-          after(events).library.log.exists(e => makes(e, s)))))
+      mayView(atEnd(events).library, atEnd(events).now, p, make[Target.Doc](d)) implies
+        atEnd(events).library.shares.exists(s => inForce(s, atEnd(events).now) &&
+          reaches(atEnd(events).library, s, p) && covers(atEnd(events).library, s, make[Target.Doc](d)) &&
+          atEnd(events).library.log.exists(e => makes(e, s)))))
   .refines(accessFollowsShares)
 
 /** The branch: what a notice is. */
@@ -107,10 +107,10 @@ val noticesFollowChanges = Node.claim("A notice is sent only of a change already
     "notice of a logged change waiting in the outbox is of an entry in the log. A notice leaves the outbox only " +
     "once the mail server has it, and the mail server has each notice once, so a person is told of each event at " +
     "least once and never twice.")(
-  after(events).library.outbox.forall(n => n.about
-    .on[Subject.Logged](e => after(events).library.log.contains(e))
+  atEnd(events).library.outbox.forall(n => n.about
+    .on[Subject.Logged](e => atEnd(events).library.log.contains(e))
     .on[Subject.Reminder](_ => True)
     .on[Subject.Lapsed](_ => True)
     .on[Subject.Ending](_ => True)) &&
-  after(events).mailbox.forall(n => after(events).mailbox.filter(m => m === n).length === 1))
+  atEnd(events).mailbox.forall(n => atEnd(events).mailbox.filter(m => m === n).length === 1))
   .refines(accessFollowsShares)

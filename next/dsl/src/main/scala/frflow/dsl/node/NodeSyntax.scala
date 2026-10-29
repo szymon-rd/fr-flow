@@ -16,7 +16,7 @@ object NodeSyntax:
     def replaces(other: Node | Null): Node = linked(n)(_.copy(replaces = Some(Parent.of(other))))
 
     /** The claim fixes a word the nodes above leave open: they do not rely on it for that word. */
-    def leftOpenAbove: Node = n.copy(statement = n.statement.andThen {
+    def leftOpenAbove: Node = n.copy(statement = st => n.statement(st).andThen {
       case c @ Statement.Claim(_, _) => Deferred.pure(c.copy(reliance = Reliance.LeftOpen))
       case _                         => Deferred.failed(Site.Node(n.head.id), Fault.NotAClaim("leftOpenAbove"))
     })

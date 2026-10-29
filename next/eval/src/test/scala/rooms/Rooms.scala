@@ -19,43 +19,37 @@ val bookingsEndAfterStart = Node.assumption("Every booking ends after it starts.
 
 // The roots: the purpose, over the Declarations.
 val bookWhenFree = Node.claim("A request is booked exactly when its room is free for its whole time.")(
-  forall((request: Term[Booking], now: Term[World]) =>
-    val bookings = booked(now)
-    bookedAfter(request, now) === when(free(bookings, request))(bookings :+ request).otherwise(bookings)))
+  forall((request: Term[Booking]) =>
+    bookedAfter(request) === when(free(booked, request))(booked :+ request).otherwise(booked)))
   .assuming(bookingsEndAfterStart)
 
 val acceptWhenFree = Node.claim("A request is accepted exactly when its room is free for its whole time.")(
-  forall((request: Term[Booking], now: Term[World]) => accepted(request, now) === free(booked(now), request)))
+  forall((request: Term[Booking]) => accepted(request) === free(booked, request)))
   .assuming(bookingsEndAfterStart)
 
 // What each Declaration is, in the code: the table, and booking's run.
-val bookedIsStored = Node.claim("What is booked is what the table holds.")(
-  forall((now: Term[World]) => booked(now) === storedBookings.in(now)))
+val bookedIsStored = Node.claim("What is booked is what the table holds.")(booked === storedBookings.current)
   .refines(bookWhenFree, acceptWhenFree)
 
 val bookedAfterIsStored =
   Node.claim("What is booked once a request is handled is what the table holds after booking it.")(
-    forall((request: Term[Booking], now: Term[World]) =>
-      book(request).from(now) { (_, after) => bookedAfter(request, now) === storedBookings.in(after) }))
+    forall((request: Term[Booking]) => bookedAfter(request) === storedBookings.in(book(request).after)))
   .refines(bookWhenFree)
 
 val acceptedIsAnswered = Node.claim("A request is accepted exactly when booking it answers booked.")(
-  forall((request: Term[Booking], now: Term[World]) =>
-    book(request).from(now) { (answer, _) => accepted(request, now) === answer }))
+  forall((request: Term[Booking]) => accepted(request) === book(request).result))
   .refines(acceptWhenFree)
 
 // What booking stores and what it answers, proven of its code.
 val storeWhenFree = Node.claim("A request is stored exactly when its room is free for its whole time.")(
-  forall((request: Term[Booking], before: Term[World]) =>
-    val stored = storedBookings.in(before)
-    book(request).from(before) { (_, after) =>
-      storedBookings.in(after) === when(free(stored, request))(stored :+ request).otherwise(stored) }))
+  forall((request: Term[Booking]) =>
+    val stored = storedBookings.current
+    storedBookings.in(book(request).after) === when(free(stored, request))(stored :+ request).otherwise(stored)))
   .refines(bookWhenFree)
   .assuming(oneAtATime, bookingsEndAfterStart)
 
 val answerWhenFree = Node.claim("A request is answered booked exactly when its room is free for its whole time.")(
-  forall((request: Term[Booking], before: Term[World]) =>
-    book(request).from(before) { (answer, _) => answer === free(storedBookings.in(before), request) }))
+  forall((request: Term[Booking]) => book(request).result === free(storedBookings.current, request)))
   .refines(acceptWhenFree)
   .assuming(oneAtATime, bookingsEndAfterStart)
 

@@ -26,11 +26,9 @@ class WorldsSuite extends munit.FunSuite:
   private val races = program { (n: Term[BigInt]) => racesIt(n) }
 
   private val putIsKept = Node.claim("A number put is on the shelf after.")(
-    forall((n: Term[BigInt], before: Term[World]) =>
-      putting(n).from(before) { (_, after) => Shelf.kept.in(after).contains(n) }))
+    forall((n: Term[BigInt]) => Shelf.kept.in(putting(n).after).contains(n)))
   private val readSeesPut = Node.claim("What is read holds the number put.")(
-    forall((n: Term[BigInt], before: Term[World]) =>
-      racing(n).from(before) { (read, _) => read.fold(xs => xs.contains(n), ys => ys.contains(n)) }))
+    forall((n: Term[BigInt]) => racing(n).result.fold(xs => xs.contains(n), ys => ys.contains(n))))
 
   private val kb = FrModel("Shelves")((Shelf.knowledge.nodes ++ List(putIsKept, readSeesPut))*)
     .copy(operations = Shelf.knowledge.operations).implementProven(putting)(puts).implementProven(racing)(races)

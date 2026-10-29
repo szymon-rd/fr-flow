@@ -30,16 +30,18 @@ object NotificationsClaims:
       "to the mail server, four at once, each tried three times, a second and then two seconds apart. A notice " +
       "leaves the outbox only once the mail server has it, and only such a notice: one the mail server did not take " +
       "stays, to be sent at the next run. The mailbox of each person sent to is as it was, or holds that notice too. " +
-      "Nothing else in the library changes. When the outbox cannot be read, nothing changes.")(
-    forall((before: Term[World]) => deliver.from(before) { (_, after) =>
-      val (was, is) = (libraryModel.in(before), libraryModel.in(after))
-      let(firstOfEach(was.outbox))(heads =>
-        is === was.updated(_.outbox, was.outbox.filter(n => is.outbox.contains(n))) &&
-          was.outbox.forall(n => is.outbox.contains(n) ||
-            (heads.contains(n) && mailbox(mailerModel.in(after), n.to).contains(n))) &&
-          heads.forall(n => mailbox(mailerModel.in(after), n.to) === mailbox(mailerModel.in(before), n.to) ||
-            mailbox(mailerModel.in(after), n.to) === taken(mailbox(mailerModel.in(before), n.to), n))) }
-      .failing { (_: Term[Failure], after) =>
-        libraryModel.in(after) === libraryModel.in(before) && mailerModel.in(after) === mailerModel.in(before) }))
+      "Nothing else in the library changes. When the outbox cannot be read, nothing changes.") {
+    val after = deliver.failing[Failure].after
+    deliver.failing[Failure].result.fold(
+      _ => libraryModel.in(after) === libraryModel.current && mailerModel.in(after) === mailerModel.current,
+      _ =>
+        val (was, is) = (libraryModel.current, libraryModel.in(after))
+        let(firstOfEach(was.outbox))(heads =>
+          is === was.updated(_.outbox, was.outbox.filter(n => is.outbox.contains(n))) &&
+            was.outbox.forall(n => is.outbox.contains(n) ||
+              (heads.contains(n) && mailbox(mailerModel.in(after), n.to).contains(n))) &&
+            heads.forall(n => mailbox(mailerModel.in(after), n.to) === mailbox(mailerModel.current, n.to) ||
+              mailbox(mailerModel.in(after), n.to) === taken(mailbox(mailerModel.current, n.to), n))))
+  }
     .refines(noticesFollowChanges)
     .assuming(oneTransactionAtATime, mailOneAtATime, clockAlone)

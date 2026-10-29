@@ -17,26 +17,23 @@ val free = define { (bookings: Term[List[Booking]], request: Term[Booking]) =>
   bookings.forall(b => apart(b, request)) }
 
 val bookWhenFree = Node.claim("A request is booked exactly when its room is free for its whole time.")(
-  forall((request: Term[Booking], now: Term[World]) =>
-    val bookings = booked(now)
-    bookedAfter(request, now) === when(free(bookings, request))(bookings :+ request).otherwise(bookings)))
+  forall((request: Term[Booking]) =>
+    bookedAfter(request) === when(free(booked, request))(booked :+ request).otherwise(booked)))
   .assuming(bookingsEndAfterStart)
 
 val acceptWhenFree = Node.claim("A request is accepted exactly when its room is free for its whole time.")(
-  forall((request: Term[Booking], now: Term[World]) => accepted(request, now) === free(booked(now), request)))
+  forall((request: Term[Booking]) => accepted(request) === free(booked, request)))
   .assuming(bookingsEndAfterStart)
 
 val storeWhenFree = Node.claim("A request is stored exactly when its room is free for its whole time.")(
-  forall((request: Term[Booking], before: Term[World]) =>
-    val stored = storedBookings.in(before)
-    book(request).from(before) { (_, after) =>
-      storedBookings.in(after) === when(free(stored, request))(stored :+ request).otherwise(stored) }))
+  forall((request: Term[Booking]) =>
+    val stored = storedBookings.current
+    storedBookings.in(book(request).after) === when(free(stored, request))(stored :+ request).otherwise(stored)))
   .refines(bookWhenFree)
   .assuming(oneAtATime, bookingsEndAfterStart)
 
 val answerWhenFree = Node.claim("A request is answered booked exactly when its room is free for its whole time.")(
-  forall((request: Term[Booking], before: Term[World]) =>
-    book(request).from(before) { (answer, _) => answer === free(storedBookings.in(before), request) }))
+  forall((request: Term[Booking]) => book(request).result === free(storedBookings.current, request)))
   .refines(acceptWhenFree)
   .assuming(oneAtATime, bookingsEndAfterStart)
 

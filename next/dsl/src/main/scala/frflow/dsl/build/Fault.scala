@@ -44,4 +44,12 @@ enum Fault:
   case NotProvenCode(definition: String)
   /** A meaning given to a Definition that has its own where it is written (`define`, `program`). */
   case MeantWhereWritten(definition: String)
+  /** A program's run in a statement (`.result`, `.after`) of a variable bound inside the statement: a run is of the
+    * statement's leading variables, from the world it holds in (owner §41).
+    */
+  case RunInside(program: String)
+  /** The world read where nothing holds one (owner §41, §43): `where` is an `always` rule, a model's `initially`, a
+    * program's step or an operation's meaning, which read state through their own values and operations.
+    */
+  case WorldRead(where: String)
   case Thrown(message: String)

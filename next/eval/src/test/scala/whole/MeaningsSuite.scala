@@ -7,7 +7,7 @@ import frflow.core.consistency.{Consistency, Group, Picked, Vacuity, Witness}
 import frflow.core.name.{NodeId, SymbolName}
 import frflow.core.ty.Ty
 import frflow.proof.obligation.{ObligationName, Required}
-import rooms.{Booking, accepted, book, granted, storedBookings}
+import rooms.{Booking, accepted, book, granted}
 import frflow.core.analysis.outside.Premises
 
 /** What a Declaration is (2.7): a claim at the bottom mentioning one says what it is, with no `impl` and no premise
@@ -45,8 +45,7 @@ class MeaningsSuite extends munit.FunSuite:
 
   test("a premise listed by a claim saying what a Declaration is is not needed") {
     val listing = Node.claim("A request is accepted exactly when booking it answers booked.")(
-      forall((request: Term[Booking], now: Term[World]) =>
-        book(request).from(now) { (answer, _) => accepted(request, now) === answer }))
+      forall((request: Term[Booking]) => accepted(request) === book(request).result))
       .refines(rooms.acceptWhenFree).assuming(rooms.oneAtATime)
     val kb = FrModel("Rooms")((rooms.rooms.nodes.filterNot(_ eq rooms.acceptedIsAnswered) :+ listing)*)
       .copy(generators = rooms.rooms.generators).implementProven(book)(rooms.bookIfGranted)
@@ -66,17 +65,6 @@ class MeaningsSuite extends munit.FunSuite:
     assertEquals(ws, List(Witness.Equation(s("granted"), NodeId("grantWhenNoOverlap"), Picked.Right(0)),
       Witness.Equation(s("bookedAfter"), NodeId("bookedAfterIsStored"), Picked.Right(0)),
       Witness.Equation(s("accepted"), NodeId("acceptedIsAnswered"), Picked.Right(0))))
-  }
-
-  test("a run read for a witness must not fail and must come from the last leading variable") {
-    val before = Node.claim("What is booked once a request is handled, read from another world.")(
-      forall((request: Term[Booking], now: Term[World], other: Term[World]) =>
-        book(request).from(other) { (_, after) => rooms.bookedAfter(request, now) === storedBookings.in(after) }))
-    val kb = FrModel("Rooms")(before).implementProven(book)(rooms.bookIfGranted)
-      .implementTested(granted)(_ => (held, request) => rooms.Calendar(held).grants(request))
-    val u = Theories.theory(kb)
-    assert(Consistency.of(u).collect { case Group.Sharing(_, _, _, ws, _) => ws }.flatten
-      .contains(Witness.Missing(s("bookedAfter"))))
   }
 
   test("an assumption of always is asked start_ of each store holding its values, and inhabited_") {

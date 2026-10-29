@@ -28,6 +28,9 @@ object Faults:
     case Fault.NotAClaim(what)        => s"$what is not a claim: only a claim is left open above"
     case Fault.OutsideStep            => "a program's step is used outside a program"
     case Fault.NotATerm(what)         => s"a program's step gives $what, which is not a term: Lean cannot read it"
+    case Fault.RunInside(p)           => s"a run of $p is of a variable bound inside the statement: a run is of the " +
+        "statement's own variables, from the world it holds in"
+    case Fault.WorldRead(where)       => s"$where reads the world: it reads state through its own values and operations"
 
   /** A fault in what gives a Definition its meaning: its model, its Scala, its proven code. */
   private val meaning: PartialFunction[Fault, String] =

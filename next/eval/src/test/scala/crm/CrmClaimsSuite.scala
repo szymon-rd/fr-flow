@@ -11,7 +11,7 @@ import rooms.RoomsIr
   */
 class CrmClaimsSuite extends munit.FunSuite:
   test("saveWrite reads as a call of `save`, on the left of its equation; `write` on the same inputs is a mention") {
-    val call = RoomsIr.call(saveWrite.statement)
+    val call = RoomsIr.call(saveWrite.alone)
     assertEquals(call.definition, SymbolName("save"))
     assertEquals(call.posted.value.params.map(_.hint), List("s", "w"))
     val mentions = Exprs.mentions(call.posted.value.body)
@@ -19,21 +19,21 @@ class CrmClaimsSuite extends munit.FunSuite:
     assert(mentions.defines.toSet.subsetOf(Set(DefName("aboutRecord"), DefName("about"))), mentions)
   }
 
-  test("expiryJob, a run from the world before: it reads as a run of runExpiry, its post over now, result, before, " +
-    "after, with no failing side") {
-    RoomsIr.call(expiryJob.statement) match
+  test("expiryJob, a run from the world it holds in: it reads as a run of runExpiry, its post over now, result, " +
+    "world, after, with no failing side") {
+    RoomsIr.call(expiryJob.alone) match
       case CallForm.Run(op, post, failure) =>
         assertEquals((op, post.value.params.map(_.hint), failure), (SymbolName("runExpiry"),
-          List("now", "result", "before", "after"), None))
+          List("now", "result", "world", "after"), None))
       case other => fail(other.toString)
   }
 
   test("a claim applying its Definition to its leading variables wherever it mentions it reads as its call: the " +
     "write and read contracts") {
-    assertEquals(List(writeContract, readContract, dealSearch).map(n => RoomsIr.call(n.statement).definition),
+    assertEquals(List(writeContract, readContract, dealSearch).map(n => RoomsIr.call(n.alone).definition),
       List(SymbolName("write"), SymbolName("read"), SymbolName("deals")))
   }
 
   test("a claim relating the screens to what the CRM holds over every record reads as no call") {
-    assertEquals(RoomsIr.elaborated(visibility.statement).call, None)
+    assertEquals(RoomsIr.elaborated(visibility.alone).call, None)
   }

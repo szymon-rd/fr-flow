@@ -1,7 +1,8 @@
 package frflow.dsl.flow
 
 import frflow.core.ty.Ty
-import frflow.dsl.term.{LeanType, Lift, Recorded, Term}
+import frflow.dsl.term.{LeanType, Lift, Term}
+import frflow.dsl.run.Recorded
 import frflow.dsl.term.TermSyntax.*
 import frflow.dsl.vocab.Definition
 

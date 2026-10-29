@@ -16,11 +16,11 @@ class LeanShapeSuite extends munit.FunSuite:
   private def module(on: Analysis, name: String): String =
     on.modules.find(_.name.dotted == s"FrFlowGen.Rooms.$name").map(Print.module).getOrElse(fail(s"no module $name"))
 
-  test("bookedIsStored's claim states neverOverlap and bookingsEndAfterStart of now's bookings") {
+  test("bookedIsStored's claim states neverOverlap and bookingsEndAfterStart of the world's bookings") {
     val spec = module(a, "bookedIsStored.Spec")
     val claim = spec.linesIterator.dropWhile(!_.contains("def claim")).take(2).mkString("\n")
-    assert(claim.contains("(Rooms.neverOverlap now.storedBookings)"), claim)
-    assert(claim.contains("(∀ b ∈ now.storedBookings, (Rooms.bookingsEndAfterStart b))"), claim)
+    assert(claim.contains("(Rooms.neverOverlap world.storedBookings)"), claim)
+    assert(claim.contains("(∀ b ∈ world.storedBookings, (Rooms.bookingsEndAfterStart b))"), claim)
   }
 
   test("no module imports a rule's own: storeWhenFree's spec imports the rules' defines, not their specs") {
@@ -34,7 +34,7 @@ class LeanShapeSuite extends munit.FunSuite:
 
   test("changing what a Declaration is, and nothing else, checks the theory's consistency again") {
     val bookedIsStored = Node.claim("What is booked is what the table holds.")(
-      forall((now: Term[World]) => booked(now) === storedBookings.in(now).filter(b => b.start < b.end)))
+      booked === storedBookings.current.filter(b => b.start < b.end))
       .refines(bookWhenFree, acceptWhenFree)
     val kb = FrModel("Rooms")(rooms.nodes.map(n => if n eq _root_.rooms.bookedIsStored then bookedIsStored else n)*)
       .copy(generators = rooms.generators).implementProven(book)(bookIfGranted)

@@ -43,11 +43,10 @@ val expireOnce = program { (now: Term[BigInt]) =>
 
 val expiryJob = Node.claim("A run of the expiry job at a time leaves the database holding, about each record, what " +
     "sharesExpire's run on what it held gives, logs the run at the end of the event log, and returns that store.")(
-  forall((now: Term[BigInt], before: Term[World]) =>
-    runExpiry(now).from(before) { (result, after) =>
-      sameRows(databaseModel.in(after).store, expire(databaseModel.in(before).store, now)) &&
-        databaseModel.in(after).events === databaseModel.in(before).events :+ make[Event.Expired](now) &&
-        result === expire(databaseModel.in(before).store, now) }))
+  forall((now: Term[BigInt]) =>
+    val (held, left) = (databaseModel.current, databaseModel.in(runExpiry(now).after))
+    sameRows(left.store, expire(held.store, now)) && left.events === held.events :+ make[Event.Expired](now) &&
+      runExpiry(now).result === expire(held.store, now)))
   .assuming(runsOneAtATime, keyedTables)
 
 val expiryJobWiring = Node.design("The expiry job runs every minute, holding the database's lock during a run so no " +

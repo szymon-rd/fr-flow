@@ -85,11 +85,12 @@ object SharingHttp:
       "and changes nothing; a change is made as its operation makes it, recorded in the log and announced in the " +
       "outbox in the same save, and answered done when it may be made and refused otherwise. Handling does not move " +
       "the clock. A request the store fails changes nothing.")(
-    forall((r: Term[Request], before: Term[World]) => handle(r).from(before) { (result, after) =>
-      libraryModel.in(after) === served(libraryModel.in(before), clockModel.in(before), r) &&
-        clockModel.in(after) === clockModel.in(before) && mailerModel.in(after) === mailerModel.in(before) &&
-        result === answerTo(libraryModel.in(before), clockModel.in(before), r) }
-      .failsChangingNothing[Failure]))
+    forall((r: Term[Request]) => handle(r).failing[Failure].result.fold(_ => handle(r).failing[Failure].changesNothing,
+      result =>
+        val after = handle(r).failing[Failure].after
+        libraryModel.in(after) === served(libraryModel.current, clockModel.current, r) &&
+          clockModel.in(after) === clockModel.current && mailerModel.in(after) === mailerModel.current &&
+          result === answerTo(libraryModel.current, clockModel.current, r))))
     .refines(accessFollowsShares)
     .assuming(oneTransactionAtATime, clockAlone)
 

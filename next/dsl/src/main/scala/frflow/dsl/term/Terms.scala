@@ -8,8 +8,8 @@ import frflow.core.term.{Bound, Sym}
   * of `foldLeft`'s, `foldEither`'s and `pairwise`'s).
   */
 object Terms:
-  def forall[A: LeanType](hint: String, p: Term[A] => Term[Boolean]): Term[Boolean] =
-    bound[A, Boolean]([T[_]] => (s: Sym[T]) => s.forall(Bound[A](hint, LeanType[A].ty))(Term.body(s, p)))
+  /** A `forall`, keeping its body as written, so a statement can open it (`Forall`). */
+  def forall[A: LeanType](hint: String, p: Term[A] => Term[Boolean]): Term[Boolean] = Forall(hint, p)
 
   /** `always[T](x => …)`: the rule over every value of `T` that can be made (owner §15). */
   def always[A: LeanType](hint: String, p: Term[A] => Term[Boolean]): Term[Boolean] =

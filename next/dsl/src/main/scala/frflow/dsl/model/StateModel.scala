@@ -5,10 +5,11 @@ import frflow.core.expr.OutsideFact
 import frflow.core.name.{DefName, ModelName}
 import frflow.core.term.{Sym, World}
 import frflow.core.vocab.{Fails, StateModel as Read, Symbol, SymbolType, ValueKind}
-import frflow.dsl.build.{Declarations, Deferred, Site, Source}
+import frflow.dsl.build.{Declarations, Deferred, Fault, Site, Source}
 import frflow.dsl.flow.Flow
 import frflow.dsl.shape.{Defines, Elab}
-import frflow.dsl.term.{LeanType, Notes, Recorded, Reify, Term}
+import frflow.dsl.term.{LeanType, Notes, Reify, Term}
+import frflow.dsl.run.{Recorded, Worlds}
 import frflow.dsl.vocab.Definition
 import scala.annotation.publicInBinary
 import scala.collection.mutable
@@ -16,7 +17,8 @@ import scala.collection.mutable
 /** A model of a state (owner §36), written as an object named as the model:
   * `object storedBookings extends StateModel[List[Booking]]("every booking stored, oldest first")`. Its body gives
   * each operation on the state, a Definition, its meaning over `state` (`inRoom.means(room => state.get.map(…))`);
-  * the state is a field of the World, read in a claim as `storedBookings.in(now)`. The operations' plain Scala is
+  * the state is a field of the World, read in a statement as `storedBookings.current`, in the world it holds in.
+  * The operations' plain Scala is
   * given in the FrModel (`implementTested(ops*)(start, observe)(calls)`) and tested against the model, and bound
   * where the code runs (`storedBookings := table`). What the world outside does with the state is said of it:
   * `onlyCodeChanges`, `initially(…)`, `atomic`. The meanings are kept in the order given, read once when the model is
@@ -68,9 +70,11 @@ abstract class StateModel[S](description: String)(using named: StateModel.Named,
       body: Vector[frflow.core.expr.Binder] => Recorded[?]): Unit =
     meanings += Meaning(op, inputs, params, body)
 
-  /** What `world` holds of the state. */
+  /** What `world` holds of the state (a run's world after: `storedBookings.in(book(request).after)`). */
   def in(world: Term[World]): Term[S] = Term.noted(Notes.of(declares))([T[_]] => (s: Sym[T]) =>
     s.part[S](world.run(s), name, stateType.ty))(using stateType)
+  /** The state in the world a statement holds in (owner §41), or a define reading it (§43). */
+  def current: Term[S] = in(Worlds.current)
 
   /** Nothing outside the code changes the state (owner §31, §36): which programs change it is derived. */
   def onlyCodeChanges: Fact = fact(declares, OutsideFact.OnlyCodeChanges(name))
@@ -84,7 +88,8 @@ abstract class StateModel[S](description: String)(using named: StateModel.Named,
   inline def initially(inline rule: Term[S] => Term[Boolean]): Fact =
     started(Defines.define(rule)(using stateType, LeanType[Boolean]))
   def started(rule: Definition[S => Boolean]): Fact =
-    fact(declares |+| rule.notes.declares, OutsideFact.Initially(name, DefName(rule.name.value)))
+    val f = fact(declares |+| rule.notes.declares, OutsideFact.Initially(name, DefName(rule.name.value)))
+    if rule.readsWorld then Fact(Term.noted(Notes.fault(Fault.WorldRead(s"$name's initially")))(f.term.run)) else f
 
   /** The operations' plain Scala, made by the FrModel's `start`, as the code runs with it (`running[F](…)`). */
   def :=(instance: Any): Implemented = Implemented(name, instance)

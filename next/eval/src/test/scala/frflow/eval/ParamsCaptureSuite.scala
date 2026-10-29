@@ -43,7 +43,7 @@ class ParamsCaptureSuite extends munit.FunSuite:
       .map(m => m.name -> m.decls.map(DoBlocks.decl))
 
   private val keepsOld = Node.claim("Replacing gives the old count.")(
-    forall((x: Term[BigInt], now: Term[World]) => keep(x).from(now) { (old, _) => old === tally.in(now) }))
+    forall((x: Term[BigInt]) => keep(x).result === tally.current))
   private val tallied = FrModel("Tallies")(keepsOld)
     .implementTested(keep)(start = (n: BigInt) => IO(Counter(n)), observe = (t: Counter) => IO(t.n))(t =>
       Tuple1(t.keep))
