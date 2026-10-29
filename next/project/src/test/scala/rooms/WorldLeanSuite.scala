@@ -4,6 +4,8 @@ import frflow.*
 import frflow.core.name.NodeId
 import frflow.project.{Live, Ported, Projects}
 import frflow.proof.lean.print.Print
+import frflow.proof.obligation.ObligationName
+import frflow.proof.verdict.{ObligationStatus, Result}
 import scala.concurrent.duration.*
 
 /** What changes with the World, as Lean is given it (owner §43): a define reading state takes the world last and Lean
@@ -46,9 +48,23 @@ class WorldLeanSuite extends munit.CatsEffectSuite:
     Ported.run(Projects.elaborated(kb), Nil, Ported.Lean(Nil, Nil, None), Nil).map(r =>
       (Ported.row(r.analysis, NodeId(id)).take(3), Ported.table(r.analysis)))
 
-  test("a claim that a Declaration never changes, with nothing to prove it from, is not proven".tag(Live)) {
+  /** Whether Lean proves the theory consistent: some meaning of each Declaration meets every statement (2.8). */
+  private def consistent(kb: FrModel) =
+    Ported.run(Projects.elaborated(kb), Nil, Ported.Lean(Nil, Nil, None), Nil).map(r =>
+      r.analysis.wholeCheck.toList.flatMap(_.results).collect {
+        case Result(ObligationName.Consistent(_), s, _) => s
+      })
+
+  test("a claim that a Declaration never changes, with nothing giving its value, does not make the model proven"
+      .tag(Live)) {
     val fixed = Node.claim("The opening hour never changes.")(opening.isConstant)
-    standing(FrModel("Rooms")(fixed), "fixed").map((row, table) => assertNotEquals(row.lift(2), Some("proven"), table))
+    val nine = Node.claim("The rooms open at nine.")(opening === 9)
+    for
+      alone <- consistent(FrModel("Rooms")(fixed))
+      valued <- consistent(FrModel("Rooms")(fixed, nine))
+    yield
+      assert(alone.exists(_ != ObligationStatus.Proven), alone)
+      assert(valued.nonEmpty && valued.forall(_ == ObligationStatus.Proven), valued)
   }
 
   val store = Definition[BigInt => Flow[Unit]]("a number stored on the shelf")
