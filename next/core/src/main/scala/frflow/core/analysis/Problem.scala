@@ -58,8 +58,9 @@ enum Problem:
     * derives it can be spoken of, and a connection stays as it is.
     */
   case CodeOnlyInStatement(id: NodeId, symbol: SymbolName, scalaType: String)
-  /** A value said to exist (a `forall` under a negation, a Declaration: its consistency) of a type holding a Scala
-    * `Int` or `Long`: Lean's `Int` is unbounded, so it could find one Scala's cannot hold (`Bounded`).
+  /** A value said to exist (a `forall` under a negation or over a condition, a rule of `always`, a Declaration or a
+    * Definition given plain Scala: their consistency) of a type holding a Scala `Int` or `Long`: Lean's `Int` is
+    * unbounded, so it could find one Scala's cannot hold (`Bounded`).
     */
   case SaidToExist(ty: Ty, at: Problem.Place)
   // Declarations and Definitions (owner §15)

@@ -36,7 +36,8 @@ object Problems:
     case Problem.DeclaredTwice(name)        => s"$name is declared twice"
     case Problem.CodeOnlyInStatement(id, s, t) => s"$id speaks of ${s.value}: ${Faults.codeOnly(t)}"
     case Problem.SaidToExist(t, at)         => s"${at.says} is said to exist of ${Values.ty(t)}, which holds a " +
-        "Scala Int or Long: Lean's Int is unbounded, so it could find one Scala cannot hold (use BigInt)"
+        "Scala Int or Long (by the statement, a rule of always, or the theory's consistency): Lean's Int is " +
+        "unbounded, so it could find one Scala cannot hold; use BigInt"
     case Problem.Undefined(d)               => s"nothing gives the Definition ${d.value} a meaning (code, a program, " +
         "or a value)"
     case Problem.DeclarationInCode(c, d)    => s"${c.value} is code and mentions the Declaration ${d.value}: only a " +
