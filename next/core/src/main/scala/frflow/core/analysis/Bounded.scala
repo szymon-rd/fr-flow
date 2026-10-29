@@ -28,9 +28,13 @@ object Bounded:
     case _                        => false
   }
 
-  private def said(t: Theory): List[Problem] = t.nodes.map(_.node).flatMap(n =>
-    n.statement.said.toList.flatMap(f => existing(f.value, Polarity.Positive)).filter(holds(t, _)).distinct
-      .map(Problem.SaidToExist(_, Problem.Place.Variable(n.id))))
+  /** What a statement says exists, in its formula and in the defines it calls, however far (read both ways: a define's
+    * body may stand anywhere).
+    */
+  private def said(t: Theory): List[Problem] = t.nodes.map(_.node).flatMap(n => n.statement.said.toList.flatMap(f =>
+    existing(f.value, Polarity.Positive) ++ t.vocabulary.closure(Exprs.mentions(f.value).defines)
+      .flatMap(d => existing(d.lambda.body, Polarity.Both))).filter(holds(t, _)).distinct
+    .map(Problem.SaidToExist(_, Problem.Place.Variable(n.id))))
 
   /** Each rule of `always[T]` over a `T` holding one, and of `always(stored)` over a state holding one. */
   private def rules(t: Theory): List[Problem] = t.nodes.map(_.node).flatMap(n => n.statement.range.toList.flatMap {

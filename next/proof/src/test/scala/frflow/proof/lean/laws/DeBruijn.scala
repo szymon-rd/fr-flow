@@ -35,6 +35,18 @@ object DeBruijn:
 
   private def go(e: LExpr, scope: List[LeanName]): LExpr = e match
     case LExpr.Name(n)             => index(n, scope)
+    case LExpr.Fun(ps, b)          => bind(ps, b, scope)(LExpr.Fun(_, _))
+    case LExpr.Forall(ps, b)       => bind(ps, b, scope)(LExpr.Forall(_, _))
+    case LExpr.Exists(ps, b)       => bind(ps, b, scope)(LExpr.Exists(_, _))
+    case LExpr.Let(n, t, v, b)     => LExpr.Let(blank, go(t, scope), go(v, scope), go(b, n :: scope))
+    case LExpr.Match(on, arms)     => LExpr.Match(go(on, scope), arms.map((p, b) =>
+        val bound = patternVariables(p)
+        (blanked(p, bound.toSet), go(b, bound.reverse ++ scope))))
+    case LExpr.Do(lines, i)        => LExpr.Do(DoBlocks.block(lines, scope), i)
+    case other                     => around(other, scope)
+
+  /** What binds nothing: each part read in the same scope. */
+  private def around(e: LExpr, scope: List[LeanName]): LExpr = e match
     case LExpr.App(f, as)          => LExpr.App(go(f, scope), as.map(go(_, scope)))
     case LExpr.Infix(op, a, b)     => LExpr.Infix(op, go(a, scope), go(b, scope))
     case LExpr.Prefix(op, a)       => LExpr.Prefix(op, go(a, scope))
@@ -45,16 +57,8 @@ object DeBruijn:
     case LExpr.Update(r, fs)       => LExpr.Update(go(r, scope), fs.map((f, v) => f -> go(v, scope)))
     case LExpr.Typed(x, t)         => LExpr.Typed(go(x, scope), go(t, scope))
     case LExpr.If(c, a, b)         => LExpr.If(go(c, scope), go(a, scope), go(b, scope))
-    case LExpr.Fun(ps, b)          => bind(ps, b, scope)(LExpr.Fun(_, _))
-    case LExpr.Forall(ps, b)       => bind(ps, b, scope)(LExpr.Forall(_, _))
-    case LExpr.Exists(ps, b)       => bind(ps, b, scope)(LExpr.Exists(_, _))
-    case LExpr.Let(n, t, v, b)     => LExpr.Let(blank, go(t, scope), go(v, scope), go(b, n :: scope))
-    case LExpr.Match(on, arms)     => LExpr.Match(go(on, scope), arms.map((p, b) =>
-        val bound = patternVariables(p)
-        (blanked(p, bound.toSet), go(b, bound.reverse ++ scope))))
     case LExpr.Named(f, n, v)      => LExpr.Named(go(f, scope), n, go(v, scope))
     case LExpr.Anonymous(es)       => LExpr.Anonymous(es.map(go(_, scope)))
-    case LExpr.Do(lines, i)        => LExpr.Do(DoBlocks.block(lines, scope), i)
     case other                     => other
 
   private def bind(ps: List[LBinder], body: LExpr, scope: List[LeanName])(make: (List[LBinder], LExpr) => LExpr)

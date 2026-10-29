@@ -24,6 +24,8 @@ class BoundedSuite extends munit.FunSuite:
   private val big = Definition[Tally => Boolean]("whether a tally is big")
   private val bigIsBig = Node.assumption("A tally is big exactly when it is itself.")(
     forall((t: Term[Tally]) => big(t) === (t === t)))
+  private val noneOther = define { (t: Term[Tally]) => !forall((u: Term[Tally]) => u === t) }
+  private val inDefine = Node.claim("A tally has another.")(forall((t: Term[Tally]) => noneOther(t)))
   private val conditioned = Node.claim("A tally equal to another is it.")(
     forall((t: Term[Tally], u: Term[Tally]) => (t === u) implies (u === t)))
 
@@ -44,6 +46,11 @@ class BoundedSuite extends munit.FunSuite:
     val tested = FrModel("Tallies")(bigIsBig).implementTested(big)(_ => (t: Tally) => t.count > 9)
     assertEquals(problems(tested), List(Problem.SaidToExist(Ty.FnOf(List(tally), Ty.Bool),
       Problem.Place.Value("big"))))
+  }
+
+  test("an exists inside a define a statement calls is refused, however the statement reads it") {
+    assertEquals(problems(FrModel("Tallies")(inDefine)),
+      List(Problem.SaidToExist(tally, Problem.Place.Variable(NodeId("inDefine")))))
   }
 
   test("a rule of always over a store's state holding one is refused, its store named") {
