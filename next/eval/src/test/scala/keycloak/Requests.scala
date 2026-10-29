@@ -23,36 +23,36 @@ val account = define { (r: Term[RealmId], u: Term[String]) => accountOf(state.ac
 val stateAfter = define { (hs: Term[List[AuthRequest]]) =>
   hs.foldLeft(make[ServerState](seed, Nil: Term[List[Session]]))((s, q) => step(s, q)) }
 
-val serverRun = Node.assumption("The server's sessions and accounts now are what its requests led to: from the " +
-    "accounts loaded at start and no session, each request handled in turn.")(
-  state === stateAfter(history))
-
 // ============================================================================
 // The server keeps what the history says
 // ============================================================================
-
-val freshTokens = Node.assumption("Every sign-in carries a token no earlier sign-in carried.")(
-  forall((pre: Term[List[AuthRequest]], q: Term[AuthRequest], post: Term[List[AuthRequest]]) =>
-    (history === pre ++ (q :: post)) implies fresh(pre, q)))
 
 val sessionsMirrorSignIns = Node.claim("The server holds a session open in a realm exactly when its user is signed " +
     "in to that realm with its token.")(
   forall((r: Term[RealmId], x: Term[Session]) => sessions(r).contains(x) === (x.realm === r && liveIn(history, x))))
   .refines(onlyTheSignedIn, signedInAreAccepted)
-  .assuming(serverRun, freshTokens)
 
 val accountsAsAdministered = Node.claim("The server holds every user's account as loaded at start, with each " +
     "administrator's change applied in turn.")(
   forall((r: Term[RealmId], u: Term[String]) => account(r, u) === accountOf(accountsAfter(history), r, u)))
   .refines(disabledHaveNoAccess, rolesAsGranted, signedInAreAccepted)
-  .assuming(serverRun)
 
 val oneSignInPerToken = Node.claim("Two sign-ins that still stand never share a token: a token names one session " +
     "at most.")(
   forall((x: Term[Session], y: Term[Session]) =>
     (liveIn(history, x) && liveIn(history, y) && x.token === y.token) implies (x === y)))
   .refines(signedInAreAccepted)
-  .assuming(freshTokens)
+
+// What the history is of: the server's own state, and the tokens it is given (trusted, parts of what rests on them).
+val serverRun = Node.assumption("The server's sessions and accounts now are what its requests led to: from the " +
+    "accounts loaded at start and no session, each request handled in turn.")(
+  state === stateAfter(history))
+  .refines(sessionsMirrorSignIns, accountsAsAdministered)
+
+val freshTokens = Node.assumption("Every sign-in carries a token no earlier sign-in carried.")(
+  forall((pre: Term[List[AuthRequest]], q: Term[AuthRequest], post: Term[List[AuthRequest]]) =>
+    (history === pre ++ (q :: post)) implies fresh(pre, q)))
+  .refines(oneSignInPerToken, sessionsMirrorSignIns)
 
 // ============================================================================
 // Storing the state: the store, outside the proven core

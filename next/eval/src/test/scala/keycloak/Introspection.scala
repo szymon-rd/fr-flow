@@ -19,7 +19,7 @@ val claimsOf = define { (c: Term[Option[Claims]]) =>
 val referenceTokens = Node.claim("A realm's application accepts a token as the server's introspection of it " +
     "answers: a token is a reference to a session the server holds, not a statement the application reads.")(
   forall((r: Term[RealmId], t: Term[String]) => accepted(r, t) === claimsOf(introspect(r, t))))
-  .refines(realmAccess)
+  .refines(onlyTheSignedIn, disabledHaveNoAccess, rolesAsGranted, signedInAreAccepted)
 
 val realmIsolation = Node.claim("No application is ever shown claims of a realm other than its own.")(
   forall((asking: Term[RealmId], t: Term[String]) => introspect(asking, t).forall(c => c.realm === asking)))

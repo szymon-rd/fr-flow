@@ -52,12 +52,12 @@ val rolesIn = define { (a: Term[Option[UserAccount]]) => a.fold(Nil: Term[List[S
 val accounts = Node.claim("A user is enabled when their account in the realm says so, as loaded at start and as " +
     "administrators have set it since.")(
   forall((r: Term[RealmId], u: Term[String]) => enabled(r, u) === isEnabled(accountOf(accountsAfter(history), r, u))))
-  .refines(realmAccess)
+  .refines(disabledHaveNoAccess, signedInAreAccepted)
 
 val accountRoles = Node.claim("A user has the roles their account in the realm gives, as loaded at start and as " +
     "administrators have set it since.")(
   forall((r: Term[RealmId], u: Term[String]) => rolesOf(r, u) === rolesIn(accountOf(accountsAfter(history), r, u))))
-  .refines(realmAccess)
+  .refines(rolesAsGranted, signedInAreAccepted)
 
 // ============================================================================
 // Signing in and out, as the history of requests says it
@@ -84,7 +84,7 @@ val signInHistory = Node.claim("A user is signed in to a realm with a token when
     "came after it.")(
   forall((r: Term[RealmId], u: Term[String], t: Term[String]) =>
     signedIn(r, u, t) === liveIn(history, make[Session](t, r, u))))
-  .refines(realmAccess)
+  .refines(onlyTheSignedIn, signedInAreAccepted)
 
 /** The token a sign-in carries. */
 val tokenOf = define { (q: Term[AuthRequest]) =>

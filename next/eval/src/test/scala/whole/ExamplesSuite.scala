@@ -66,9 +66,10 @@ class ExamplesSuite extends munit.FunSuite:
   }
 
   test("each example's examples elaborate, with no error") {
-    val written = List(rooms.GrantedExamples(), auth.DecisionExamples(), crm.ExpectationsExamples())
+    val written = List(rooms.GrantedExamples(), auth.DecisionExamples(), keycloak.IntrospectExamples(),
+      keycloak.LookupExamples(), keycloak.StoreExamples(), keycloak.RequestExamples(), crm.ExpectationsExamples())
     assertEquals(written.map(_.elaborated.fold(_.iterator.toList, _ => Nil)), List.fill(written.size)(Nil))
-    assertEquals(written.map(_.examples.size), List(2, 5, 1))
+    assertEquals(written.map(_.examples.size), List(2, 5, 12, 5, 3, 11, 1))
   }
 
   test("sharing: today's, with the store's, the mail server's and the clock's runs one at a time, assumptions; the " +
