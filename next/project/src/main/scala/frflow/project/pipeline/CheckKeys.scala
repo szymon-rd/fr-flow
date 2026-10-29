@@ -28,8 +28,12 @@ final class CheckKeys(kb: KbName, modules: List[LeanModule], lean: LeanSources, 
       Option.when(rooted(id))(layout.rootImpl.dotted)
     key(own)
 
-  /** The theory's own: `Whole.lean`, the examples tried beside it, and what they import. */
-  lazy val whole: CheckKey = key(List(layout.whole.dotted, layout.wholeChecks.dotted).filter(generated.contains))
+  /** The theory's own: `Whole.lean`, the examples tried beside it, the audit of the developer's proofs of it (so their
+    * proof file), and what they import.
+    */
+  lazy val whole: CheckKey =
+    key(List(layout.wholeSpec, layout.whole, layout.wholeChecks, layout.wholeAudit).map(_.dotted)
+      .filter(generated.contains))
 
   private def key(start: List[String]): CheckKey =
     val read = closure(start.distinct.sorted)

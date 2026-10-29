@@ -38,14 +38,14 @@ class LeanShapeSuite extends munit.FunSuite:
   }
 
   test("a consistency group over the session table holds for every table meeting it, the witness taking it too") {
-    val whole = module(a, "Whole")
-    assert(whole.contains("∀ (sessions : Sessions), ∀ (o_sessions_0 : (Auth.tokensIssuedOnce sessions)), " +
-      "∃ (signedIn"), whole)
-    assert(whole.contains("fun sessions _ => ⟨"), whole)
+    val stated = module(a, "Whole.Spec")
+    assert(stated.contains("∀ (sessions : Sessions), ∀ (o_sessions_0 : (Auth.tokensIssuedOnce sessions)), " +
+      "∃ (signedIn"), stated)
+    assert(module(a, "Whole").contains("fun sessions _ => ⟨"), module(a, "Whole"))
   }
 
   test("a condition is over what its defines reach: grants, through grantFor") {
-    val whole = module(a, "Whole")
+    val whole = module(a, "Whole.Spec")
     assert(defined(whole, "satisfiable_2_grantLetsIn").contains("∃ (sessions : Sessions) (grants : (List Grant))"),
       defined(whole, "satisfiable_2_grantLetsIn"))
   }

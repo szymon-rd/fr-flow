@@ -24,5 +24,5 @@ object Imports:
       case List(`kb`, n, _) if l.node(NodeId(n))                  => Some(l.layout.ofNode(NodeId(n), NodePart.Spec))
       case `kb` :: m :: _ if l.isModelSpace(m)                    => Some(l.layout.models)
       case c :: _ if l.isModelClass(c) || c == "World"            => Some(l.layout.models)
-      case `kb` :: "Whole" :: _                                   => Some(l.layout.whole)
+      case `kb` :: "Whole" :: _                                   => Some(l.layout.wholeSpec)
       case _                                                      => None

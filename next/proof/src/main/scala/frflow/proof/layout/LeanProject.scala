@@ -13,4 +13,5 @@ object LeanProject:
       : List[LeanModule] =
     val l = Lowering(r, table)
     VocabularyModules.of(l) ++ obligations.flatMap(NodeModules.of(l, _)) ++ RootImplModule.of(l).toList ++
-      Option.when(whole.nonEmpty)(WholeModule.of(l, whole)).toList ++ WholeModule.checks(l, whole).toList
+      (if whole.isEmpty then Nil else WholeModule.of(l, whole)) ++ WholeModule.checks(l, whole).toList ++
+      WholeModule.audit(l, whole).toList
