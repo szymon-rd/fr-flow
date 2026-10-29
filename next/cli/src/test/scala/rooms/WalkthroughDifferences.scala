@@ -22,9 +22,6 @@ object WalkthroughDifferences:
     "5-misread-overlap" -> List(
       "check bookingsEndAfterStart: - -> +" -> ends.head._2,
       "check neverOverlap: + -> o" -> sharedLemmas,
-      "check nothingElseWrites: none -> +" -> ("the table's Scala tested against storedBookings on 200 generated " +
-        "runs, as today's tableMatchesModel was; it is checked again because the rules the runs' states are drawn " +
-        "meeting changed"),
       "check roomBookingsApart: + -> o" ->
         ("the port states the rule in start and end times (noOverlap, 2.3), so the misread reaches it: back-to-back " +
           "stored bookings, which the table may hold, fail the strict noOverlap, so made_inRoom cannot be proven, as " +

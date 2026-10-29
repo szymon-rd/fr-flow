@@ -92,7 +92,9 @@ class PortSuite extends munit.CatsEffectSuite:
   private def row(a: Analysis, id: NodeId): List[String] =
     val n = a.decided.theory.node(id).getOrElse(fail(id.value))
     val status = a.current(id).fold("")(_.status.toString.toLowerCase)
-    val checked = a.tested(id).filter(r => r.outcome match
+    // A model's runs are read by the model: shown, as today's, beside the assumption about the outside.
+    val model = Option.when(n.statement.kind == NodeKind.Assumption)(a.models(id)).toList.flatten
+    val checked = a.tested(id).orElse(model.headOption.flatMap(a.testedModel)).filter(r => r.outcome match
       case Outcome.NotChecked(_) => false
       case _                     => true)
     val standing =
