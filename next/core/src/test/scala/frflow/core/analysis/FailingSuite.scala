@@ -3,7 +3,7 @@ package frflow.core.analysis
 import frflow.core.{Booking, Failing, Lang, Store}
 import frflow.core.Nodes.*
 import frflow.core.expr.{Binder, Expr, Exprs, Prog, Progs, Value}
-import frflow.core.name.{BoundaryName, DefName, NodeId, OpName, SourceText, SymbolName, VarId}
+import frflow.core.name.{DefName, NodeId, SourceText, SymbolName, VarId}
 import frflow.core.spec.{Form, Written}
 import frflow.core.term.{Stated, Sym}
 import frflow.core.ty.Ty
@@ -13,16 +13,16 @@ import frflow.core.vocab.{Define, DefineForm, SymbolType}
   * the parts `impl` may rest on: any, a part about the node's own Definition too.
   */
 class FailingSuite extends munit.FunSuite:
-  private val (store, mail) = (BoundaryName("Store"), BoundaryName("Mail"))
-  private val failing: BoundaryName => Option[Ty] = Map(store -> Ty.Str).get
-  private val call = Prog.Call[Expr](store, OpName("load"), Nil, Ty.Unit)
-  private val mailed = Prog.Call[Expr](mail, OpName("send"), Nil, Ty.Unit)
+  private val (load, send) = (SymbolName("load"), SymbolName("send"))
+  private val failing: SymbolName => Option[Ty] = Map(load -> Ty.Str).get
+  private val call = Prog.Call[Expr](load, Nil, Ty.Unit)
+  private val mailed = Prog.Call[Expr](send, Nil, Ty.Unit)
   private val raise = Prog.Raise[Expr](Expr.Lit(Value.Num(1), Lang.big))
   private val x = Binder(VarId.step(0), "x", Ty.Unit)
   private def caught(p: Prog[Expr], t: Ty) =
     Prog.Catch(p, t, Binder(VarId.step(1), "e", t), Prog.Pure(Expr.Lit(Value.Unit, Ty.Unit)))
 
-  test("a program fails with what it raises and with its failing boundaries' errors, outside a handler of them") {
+  test("a program fails with what it raises and with its failing models' errors, outside a handler of them") {
     assertEquals(List(call, mailed, raise, Prog.Bind(call, x, raise)).map(Progs.failsWith(_, failing)),
       List(List(Ty.Str), Nil, List(Lang.big), List(Ty.Str, Lang.big)))
     assertEquals(List(caught(call, Ty.Str), caught(raise, Lang.big), caught(Prog.Bind(call, x, raise), Ty.Str))
@@ -47,7 +47,7 @@ class FailingSuite extends munit.FunSuite:
     val v = FailureCases.down.theory.vocabulary
     def define(p: Prog[Stated[?]]) = Define(DefName("p"), Written.steps(Nil, p, Ty.Unit, SourceText("p")),
       DefineForm.Flow)
-    val handled = Prog.Catch[Stated[?]](Prog.Call(Store.boundary, OpName("add"), Nil, Ty.Unit), Ty.Str,
+    val handled = Prog.Catch[Stated[?]](Prog.Call(Store.add, Nil, Ty.Unit), Ty.Str,
       Binder(VarId.step(1), "e", Ty.Str), Prog.Pure(Stated([T[_]] => (s: Sym[T]) => s.bool(true))))
     assertEquals((Failing.of(v, define(handled)), Failing.escaping(v, define(handled))), (List(Ty.Str), Nil))
     val thenRaising = define(Prog.Bind(handled, x, Prog.Raise(Stated([T[_]] => (s: Sym[T]) => Lang(s).num(1)))))

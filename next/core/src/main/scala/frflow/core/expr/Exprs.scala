@@ -48,8 +48,8 @@ object Exprs:
     case other                 => Mentions.empty.copy(types = binders(other).flatMap(x => Ty.names(x.ty)).distinct)
 
   private def outside(f: OutsideFact): Mentions = f match
-    case OutsideFact.BehavesAs(b, m)      => Mentions(Nil, Nil, Nil, List(b), List(m))
-    case OutsideFact.Atomic(b)            => Mentions(Nil, Nil, Nil, List(b), Nil)
+    case OutsideFact.OnlyCodeChanges(m)   => Mentions(Nil, Nil, Nil, Nil, List(m))
+    case OutsideFact.Atomic(m)            => Mentions(Nil, Nil, Nil, Nil, List(m))
     case OutsideFact.Initially(m, d)      => Mentions(Nil, List(d), Nil, Nil, List(m))
 
   /** The variables `e` binds itself (not those of its subexpressions). */

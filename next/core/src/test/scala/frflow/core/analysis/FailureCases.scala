@@ -3,7 +3,7 @@ package frflow.core.analysis
 import frflow.core.{Booking, Kb, Lang, Store}
 import frflow.core.Nodes.*
 import frflow.core.expr.{Binder, Prog, Value}
-import frflow.core.name.{DefName, NodeId, OpName, SourceText, VarId}
+import frflow.core.name.{DefName, NodeId, SourceText, VarId}
 import frflow.core.spec.Written
 import frflow.core.term.{Bound, Program, Stated, Sym, World}
 import frflow.core.ty.Ty
@@ -14,7 +14,7 @@ import frflow.core.vocab.{Define, DefineForm, Fails}
   */
 object FailureCases:
   /** The store, any call of which may fail with the string `"down"`. */
-  val down: Kb = Store.kb.declaring(v => v.copy(boundaries = v.boundaries.map(_.copy(fails =
+  val down: Kb = Store.kb.declaring(v => v.copy(models = v.models.map(_.copy(fails =
     Some(Fails(Ty.Str, Value.Str("down")))))))
 
   /** `∀ b before, book(b).from(before).failing { (error: E, after) => true }`. */
@@ -23,14 +23,13 @@ object FailureCases:
       l.s.fails(l.call(l.sym[Booking => Program[Unit]]("book", Store.bookTy), x), w, Bound[Any]("error", e),
         Bound[World]("after", Ty.World))((_, _) => l.truth)))))
 
-  /** The claim of a failing run, resting on the store's model and on one run at a time. */
-  def claiming(kb: Kb, e: Ty): Kb = kb.and(failing(e))
-    .linking(assumes("bookFails", "storeModel"), assumes("bookFails", "oneAtATime"))
+  /** The claim of a failing run, resting on one run at a time. */
+  def claiming(kb: Kb, e: Ty): Kb = kb.and(failing(e)).linking(assumes("bookFails", "oneAtATime"))
 
   /** `book`'s program adding the booking, then raising a number: it may fail with the store's string or the number. */
   private val raising: Kb =
     val b = Binder(VarId.level(0), "b", Booking.ty)
-    val add = Prog.Call(Store.boundary, OpName("add"), List(Stated([T[_]] => (s: Sym[T]) => s.free[Booking](b))),
+    val add = Prog.Call(Store.add, List(Stated([T[_]] => (s: Sym[T]) => s.free[Booking](b))),
       Ty.Unit)
     val steps = Prog.Bind(add, Binder(VarId.step(0), "u", Ty.Unit),
       Prog.Raise(Stated([T[_]] => (s: Sym[T]) => Lang(s).num(1))))
@@ -40,7 +39,7 @@ object FailureCases:
   /** `book`'s program adding the booking in a transaction inside a transaction. */
   private val nested: Kb =
     val b = Binder(VarId.level(0), "b", Booking.ty)
-    val add = Prog.Call(Store.boundary, OpName("add"), List(Stated([T[_]] => (s: Sym[T]) => s.free[Booking](b))),
+    val add = Prog.Call(Store.add, List(Stated([T[_]] => (s: Sym[T]) => s.free[Booking](b))),
       Ty.Unit)
     Store.kb.declaring(v => v.copy(defines = List(Define(DefName("bookIfFree"),
       Written.steps(List(b), Prog.Atomic(Prog.Atomic(add)), Ty.Unit, SourceText("bookIfFree")), DefineForm.Flow))))

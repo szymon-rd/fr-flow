@@ -2,20 +2,20 @@ package frflow.core
 
 import frflow.core.code.Code
 import frflow.core.expr.{Binder, OutsideFact, Prog}
-import frflow.core.name.{BoundaryName, DefName, ModelName, OpName, SourceText, SymbolName, VarId}
+import frflow.core.name.{DefName, ModelName, SourceText, SymbolName, VarId}
 import frflow.core.spec.Written
 import frflow.core.term.{Bound, Program, Stated, Sym, World}
 import frflow.core.ty.Ty
-import frflow.core.vocab.{BoundarySig, Define, DefineForm, ModelOp, OpSig, StateModel}
+import frflow.core.vocab.{Define, DefineForm, ModelOp, StateModel}
 
-/** A store of bookings, its model (an operation adding one), a program `book` calling it, and a claim about its runs,
-  * resting on the store behaving as its model and on runs on it being atomic: a valid theory.
+/** A store of bookings: its operation `add`, a Definition its model gives the meaning (a booking added), a program
+  * `book` calling it, and a claim about its runs, resting on runs on the store being atomic; and the assumption that
+  * nothing outside the code changes it. A valid theory.
   */
 object Store:
-  val boundary: BoundaryName = BoundaryName("Bookings")
   val model: ModelName = ModelName("stored")
   val book: SymbolName = SymbolName("book")
-  private val add = OpName("add")
+  val add: SymbolName = SymbolName("add")
   private val b = Binder(VarId.level(0), "b", Booking.ty)
   private val held = Binder(VarId.level(1), "held", Ty.ListOf(Booking.ty))
 
@@ -23,12 +23,10 @@ object Store:
   private val added: Stated[List[Booking]] =
     Stated([T[_]] => (s: Sym[T]) => s.cons(s.free[Booking](b), s.free[List[Booking]](held)))
 
-  val sig: BoundarySig = BoundarySig(boundary, "Bookings", "the store of bookings",
-    List(OpSig(add, List("b" -> Booking.ty), Ty.Unit)), None)
-  val stateModel: StateModel =
-    StateModel(model, boundary, Ty.ListOf(Booking.ty), List(ModelOp(add, List(b), Prog.Modify(model, held, added))))
+  val stateModel: StateModel = StateModel(model, "the store of bookings", Ty.ListOf(Booking.ty),
+    List(ModelOp(add, List(b), Ty.Unit, Prog.Modify(model, held, added))), None)
   val program: Define = Define(DefName("bookIfFree"),
-    Written.steps(List(b), Prog.Call(boundary, add, List(at[Booking](b)), Ty.Unit), Ty.Unit, SourceText("bookIfFree")),
+    Written.steps(List(b), Prog.Call(add, List(at[Booking](b)), Ty.Unit), Ty.Unit, SourceText("bookIfFree")),
     DefineForm.Flow)
 
   /** Every run of `book` ends. */
@@ -38,12 +36,12 @@ object Store:
         Bound[World]("after", Ty.World))((_, _) => l.truth)))))
 
   val bookTy: Ty = Ty.FnOf(List(Booking.ty), Ty.FlowOf(Ty.Unit, None))
-  val storeModel: spec.Node = Nodes.outside("storeModel")(OutsideFact.BehavesAs(boundary, model))
-  val oneAtATime: spec.Node = Nodes.outside("oneAtATime")(OutsideFact.Atomic(boundary))
+  val onlyCode: spec.Node = Nodes.outside("onlyCode")(OutsideFact.OnlyCodeChanges(model))
+  val oneAtATime: spec.Node = Nodes.outside("oneAtATime")(OutsideFact.Atomic(model))
 
-  val kb: Kb = Kb.of(bookRuns, storeModel, oneAtATime)
-    .declaring(_.copy(types = List(Booking.data), defines = List(program), boundaries = List(sig),
-      models = List(stateModel)))
+  val kb: Kb = Kb.of(bookRuns, onlyCode, oneAtATime)
+    .declaring(_.copy(types = List(Booking.data), defines = List(program)))
+    .modelling(stateModel)
     .naming(Nodes.definition("book", bookTy))
     .coding(book -> Code.ProvenFlow(DefName("bookIfFree")))
-    .linking(Nodes.assumes("bookRuns", "storeModel"), Nodes.assumes("bookRuns", "oneAtATime"))
+    .linking(Nodes.assumes("bookRuns", "oneAtATime"))

@@ -8,7 +8,7 @@ import frflow.core.spec.Statement
 import frflow.core.vocab.{Define, Symbol, SymbolType, Vocabulary}
 
 /** A program's errors, read off its steps, in two senses. The monad's: every error it raises, handles or meets (a
-  * failing boundary's), one type, what its run in Lean is over (`ExceptT E`) and its type says (`Ty.FlowOf`). What
+  * failing model's), one type, what its run in Lean is over (`ExceptT E`) and its type says (`Ty.FlowOf`). What
   * escapes: those it raises or meets outside a handler of that type (`Progs.failsWith`), what a failing run's clause
   * is of. And the theory with each program's monad error in its type: what a front end cannot know where a
   * Definition is written, since its code is given later. Only a proven program has errors; a Definition of a
@@ -18,12 +18,12 @@ object Failing:
   /** The error types a define's steps raise, handle or meet; none of a define that is no program. */
   def of(v: Vocabulary, d: Define): List[Ty] = d.lambda.body match
     case Expr.Do(p, _) =>
-      (Progs.errors(p) ++ Progs.boundaries(p).distinct.flatMap(v.boundary).flatMap(_.failsWith)).distinct
+      (Progs.errors(p) ++ Progs.operations(p).flatMap(v.modelOf).flatMap(_.failsWith)).distinct
     case _             => Nil
 
   /** The error types a define's steps may end in. */
   def escaping(v: Vocabulary, d: Define): List[Ty] = d.lambda.body match
-    case Expr.Do(p, _) => Progs.failsWith(p, v.boundary(_).flatMap(_.failsWith))
+    case Expr.Do(p, _) => Progs.failsWith(p, v.modelOf(_).flatMap(_.failsWith))
     case _             => Nil
 
   /** The error types a run of a program Definition may end in: its proven program's, or its type's without one. */

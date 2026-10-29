@@ -15,7 +15,7 @@ object OutsideCases:
     * there.
     */
   val missing: ProblemCase = ProblemCase(Store.kb.unlinking(assumes("bookRuns", "oneAtATime")),
-    List(Problem.PremiseMissing(id("bookRuns"), Premise.Atomic(Store.boundary), Some(id("oneAtATime")))))
+    List(Problem.PremiseMissing(id("bookRuns"), Premise.Atomic(Store.model), Some(id("oneAtATime")))))
 
   /** `always[Booking]`, and a record holding bookings by room in a map, where no guard reaches them yet. */
   private val byRoom = Ty.MapOf(Ty.Str, Booking.ty)
@@ -28,8 +28,5 @@ object OutsideCases:
     missing,
     ProblemCase(Store.kb.and(plain("unrelated")).linking(assumes("unrelated", "oneAtATime")),
       List(Problem.PremiseNotNeeded(id("unrelated"), id("oneAtATime")))),
-    // The store with no model and nothing assumed of it: `book` calls it, and nothing says what it gives.
-    ProblemCase(Store.kb.without("storeModel").without("oneAtATime").declaring(_.copy(models = Nil)),
-      List(Problem.BoundaryUnchecked(Store.boundary))),
     ProblemCase(unreached, List(Problem.AlwaysNotReached(id("endsAfterStart"), byRoom,
       Problem.Place.Field("byRoom", "Shelf")))))

@@ -1,7 +1,7 @@
 package frflow.core.expr
 
 import frflow.core.{Booking, Lang}
-import frflow.core.name.{BoundaryName, ModelName, OpName, SourceText, SymbolName, VarId}
+import frflow.core.name.{ModelName, SourceText, SymbolName, VarId}
 import frflow.core.spec.Written
 import frflow.core.term.interpret.ToExpr
 import frflow.core.ty.Ty
@@ -78,7 +78,7 @@ class TypeOfSuite extends munit.FunSuite:
       Expr.Pairwise(Expr.ListOf(Nil, Lang.big), x, x, b) -> Ty.Bool,
       Expr.Runs(Expr.Sym(SymbolName("book"), Ty.FlowOf(Ty.Unit, None)), store, false, x, w, b) -> Ty.Bool,
       Expr.Part(store, ModelName("stored"), Ty.ListOf(Booking.ty)) -> Ty.ListOf(Booking.ty),
-      Expr.Do(Prog.Call(BoundaryName("Bookings"), OpName("add"), Nil, Ty.Unit), Ty.FlowOf(Ty.Unit, None)) ->
+      Expr.Do(Prog.Call(SymbolName("add"), Nil, Ty.Unit), Ty.FlowOf(Ty.Unit, None)) ->
         Ty.FlowOf(Ty.Unit, None),
       Expr.Outside(Terms.stored) -> Ty.Bool,
       Expr.Unchanged(store, store) -> Ty.Bool

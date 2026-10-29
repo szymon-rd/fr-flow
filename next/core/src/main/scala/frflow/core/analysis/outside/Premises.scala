@@ -2,7 +2,7 @@ package frflow.core.analysis.outside
 
 import frflow.core.code.Code
 import frflow.core.expr.{Expr, Exprs, Prog, Progs}
-import frflow.core.name.{BoundaryName, DefName, ModelName, NodeId, OpName, SymbolName}
+import frflow.core.name.{DefName, ModelName, NodeId, SymbolName}
 import frflow.core.spec.{Node, NodeKind, Range}
 import frflow.core.ty.Ty
 import frflow.core.vocab.{StateModel, SymbolType}
@@ -12,13 +12,13 @@ import frflow.core.analysis.{Callees, SaysWhat, Scope}
 /** What about the world outside a statement's check rests on (owner §16, §17, §21), derived from the statement and
   * the code, each to be listed by the statement's `.assuming` (owner §15: the one mechanism; `Validate` checks the
   * list, `PremiseMissing`, `PremiseNotNeeded`):
-  * - a claim about a program's runs on a store: the store behaves as its model (nothing outside the code changing
-  *   it), and runs on it are atomic;
-  * - an `always(stored)`: those, and what the state it starts in meets (the rule: every start state meets it, each
-  *   run of a program changing it keeps it, so every state reached does; which programs change it is derived,
-  *   `writers`);
-  * - an `always[T]`: the store facts of every store whose state holds a `T`, and that each store whose operations
-  *   make a `T` behaves as its model (`made_<op>` is proven of the model);
+  * - a claim about a program's runs: runs on the state of each model whose operations it calls are atomic (that the
+  *   operations' plain Scala does what the model says is tested, not assumed);
+  * - an `always(stored)`: that, nothing outside the code changing the state, and what the state it starts in meets
+  *   (the rule: every start state meets it, each run of a program changing it keeps it, so every state reached does;
+  *   which programs change it is derived, `writers`);
+  * - an `always[T]`: the facts of every model whose state holds a `T` (an operation making one is held to it on its
+  *   model, `made_<op>`, which rests on nothing outside);
   * - and, of every claim, what values from outside meet: each assumption of `always[U]` whose guard the claim's Lean
   *   form or its `made_`/`cover_` obligations carry (on a variable it quantifies over, a world, or an input of a
   *   maker or program it is asked of; `Guards.applies` decides, as it does for the guards Lean states). An
@@ -29,41 +29,44 @@ object Premises:
   def of(t: Theory, id: NodeId): List[Premise] =
     t.node(id).filter(n => n.statement.kind == NodeKind.Claim && !SaysWhat.is(t, n.id)).toList.flatMap(n =>
       n.statement.range.toList.flatMap {
-        case Range.Possible     => runs(t, id).flatMap(m => List(Premise.BehavesAs(m.name), Premise.Atomic(m.boundary)))
+        case Range.Possible     => runs(t, id).map(m => Premise.Atomic(m.name))
         case Range.Reached(ms)  => ms.flatMap(t.vocabulary.model).flatMap(reached)
-        case r @ Range.Made(ty) => passed(t, ty) ++ Scope.models(t, r).flatMap(reached) ++
-            Scope.modelMakers(t, r).map((m, _) => Premise.BehavesAs(m.name))
+        case r @ Range.Made(ty) => passed(t, ty) ++ Scope.models(t, r).flatMap(reached)
       } ++ guarded(t, n)).distinct
 
-  /** The programs whose proven code writes `m`'s state, through its boundary. */
+  /** The programs changing `m`'s state (owner §31): those whose proven code calls an operation whose meaning writes
+    * it.
+    */
   def writers(t: Theory, m: StateModel): List[SymbolName] =
     val writing = m.ops.filter(op => Progs.all(op.steps).exists {
       case Prog.Write(_, _) | Prog.Modify(_, _, _) => true
       case _                                       => false
     }).map(_.op).toSet
     t.code.attached.toList.collect {
-      case (s, a) if (a.code match { case Code.ProvenFlow(f) => steps(t, f); case _ => Nil })
-          .exists((b, op) => b == m.boundary && writing(op)) => s
+      case (s, a) if (a.code match { case Code.ProvenFlow(f) => steps(t, f); case _ => Nil }).exists(writing) => s
     }
 
-  /** The boundaries covered code calls: those each proven program calls, through the defines it calls. */
-  def called(t: Theory): List[BoundaryName] = t.code.attached.values.toList.flatMap(a => a.code match
-    case Code.ProvenFlow(f) => steps(t, f).map(_._1)
+  /** The models whose operations covered code calls: those each proven program calls, through the defines it calls.
+    */
+  def called(t: Theory): List[ModelName] = t.code.attached.values.toList.flatMap(a => a.code match
+    case Code.ProvenFlow(f) => steps(t, f).flatMap(t.vocabulary.modelOf).map(_.name)
     case _                  => Nil).distinct
 
-  /** The Definitions with code that no code of another calls: where values enter from outside. */
+  /** The Definitions with code that no code of another calls: where values enter from outside. An operation on a
+    * state is no entry: only programs call it.
+    */
   def entries(t: Theory): List[SymbolName] =
     val called = t.code.attached.values.toList.flatMap(a => a.code match
       case Code.Tested(_, cs) => cs
       case c                  => c.proven.toList.flatMap(d => Callees.calledBy(t, d)))
-    t.code.attached.keys.toList.filterNot(called.contains)
+    t.code.attached.keys.toList.filterNot(s => called.contains(s) || t.vocabulary.modelOf(s).nonEmpty)
 
   private def reached(m: StateModel): List[Premise] =
-    List(Premise.BehavesAs(m.name), Premise.Atomic(m.boundary), Premise.Initially(m.name))
+    List(Premise.OnlyCodeChanges(m.name), Premise.Atomic(m.name), Premise.Initially(m.name))
 
-  /** The models of the stores the programs a claim is checked against call. */
+  /** The models of the operations the programs a claim is checked against call. */
   private def runs(t: Theory, id: NodeId): List[StateModel] =
-    Callees.of(t, id).toList.flatMap(_.calls.boundaries).flatMap(b => t.vocabulary.models.filter(_.boundary == b))
+    Callees.of(t, id).toList.flatMap(_.calls.operations).flatMap(t.vocabulary.modelOf).distinct
 
   /** What `ty`s from outside meet, when values from outside can hold one. */
   private def passed(t: Theory, ty: Ty): List[Premise] =
@@ -111,7 +114,7 @@ object Premises:
     case _                                 => Nil
   }
 
-  /** The boundary operations a program calls, through the defines it calls. */
-  private def steps(t: Theory, d: DefName): List[(BoundaryName, OpName)] =
+  /** The operations on a state a program calls, through the defines it calls. */
+  private def steps(t: Theory, d: DefName): List[SymbolName] =
     t.vocabulary.closure(List(d)).flatMap(x => Exprs.all(x.lambda.body)).collect { case Expr.Do(p, _) => p }
-      .flatMap(Progs.all).collect { case Prog.Call(b, op, _, _) => b -> op }
+      .flatMap(Progs.operations).distinct

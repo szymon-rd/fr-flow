@@ -4,7 +4,7 @@ import cats.kernel.{Eq, Monoid}
 import cats.kernel.laws.discipline.MonoidTests
 import cats.syntax.all.*
 import frflow.core.{Booking, Lang}
-import frflow.core.name.{BoundaryName, DefName, ModelName, OpName, SymbolName, TypeName, VarId}
+import frflow.core.name.{DefName, ModelName, SymbolName, TypeName, VarId}
 import frflow.core.term.interpret.ToExpr
 import frflow.core.ty.Ty
 import org.scalacheck.{Arbitrary, Gen}
@@ -17,8 +17,8 @@ class MentionsSuite extends munit.DisciplineSuite:
     Gen.listOf(Gen.oneOf(pool)).map(_.distinct.map(f))
   private given Arbitrary[Mentions] = Arbitrary(for
     s <- names("a", "b", "c")(SymbolName(_)); d <- names("d", "e")(DefName(_)); t <- names("T", "U")(TypeName(_))
-    b <- names("B", "C")(BoundaryName(_)); m <- names("m", "n")(ModelName(_))
-  yield Mentions(s, d, t, b, m))
+    o <- names("add", "load")(SymbolName(_)); m <- names("m", "n")(ModelName(_))
+  yield Mentions(s, d, t, o, m))
   private given Eq[Mentions] = Eq.fromUniversalEquals
 
   checkAll("Mentions", MonoidTests[Mentions].monoid)
@@ -54,19 +54,19 @@ class MentionsSuite extends munit.DisciplineSuite:
     }
   }
 
-  test("each leaf names what it is about: a symbol, a define, a model's state, a program's store, the outside") {
-    val (m, b, book) = (ModelName("stored"), BoundaryName("Bookings"), SymbolName("book"))
+  test("each leaf names what it is about: a symbol, a define, a model's state, a program's operations, the outside") {
+    val (m, add, book) = (ModelName("stored"), SymbolName("add"), SymbolName("book"))
     val w = Expr.Var(Binder(VarId.level(0), "w", Ty.World))
-    val call = Prog.Call(b, OpName("add"), Nil, Ty.Unit)
+    val call = Prog.Call(add, Nil, Ty.Unit)
     assertEquals(Exprs.mentions(Expr.Sym(book, Booking.ty)), Mentions(List(book), Nil, List(Booking.name), Nil, Nil))
     assertEquals(Exprs.mentions(Expr.Call(DefName("d"), Nil, Ty.Bool)), Mentions(Nil, List(DefName("d")), Nil, Nil,
       Nil))
     assertEquals(Exprs.mentions(Expr.Part(w, m, Ty.ListOf(Booking.ty))), Mentions(Nil, Nil, List(Booking.name), Nil,
       List(m)))
     assertEquals(Exprs.mentions(Expr.Do(Prog.Bind(call, Binder(VarId.step(0), "u", Ty.Unit), Prog.Read(m)),
-      Ty.FlowOf(Ty.Unit, None))), Mentions(Nil, Nil, Nil, List(b), List(m)))
-    assertEquals(Exprs.mentions(Expr.Outside(OutsideFact.Atomic(b))), Mentions(Nil, Nil, Nil, List(b), Nil))
-    assertEquals(Exprs.mentions(Expr.Outside(OutsideFact.BehavesAs(b, m))), Mentions(Nil, Nil, Nil, List(b), List(m)))
+      Ty.FlowOf(Ty.Unit, None))), Mentions(Nil, Nil, Nil, List(add), List(m)))
+    assertEquals(Exprs.mentions(Expr.Outside(OutsideFact.Atomic(m))), Mentions(Nil, Nil, Nil, Nil, List(m)))
+    assertEquals(Exprs.mentions(Expr.Outside(OutsideFact.OnlyCodeChanges(m))), Mentions(Nil, Nil, Nil, Nil, List(m)))
     assertEquals(Exprs.mentions(Expr.Outside(OutsideFact.Initially(m, DefName("empty")))),
       Mentions(Nil, List(DefName("empty")), Nil, Nil, List(m)))
   }

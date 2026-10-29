@@ -58,7 +58,7 @@ object ValueCases:
     ProblemCase(mutual, List(Problem.RestsOnItself(List(id("aboutF"), id("aboutG"))))),
     ProblemCase(Kb.of(root).naming(declaration("get", test))
       .declaring(v => v.copy(sorts = List(Sort(TypeName("World"), "a world")), defines = List(calling("Obl", "get")),
-        boundaries = List(Store.sig.copy(className = "StateM")))),
+        models = List(Store.stateModel.copy(name = frflow.core.name.ModelName("stateM"))))),
       List(Problem.ReservedName("World"), Problem.ReservedName("get"), Problem.ReservedName("Obl"),
         Problem.ReservedName("StateM"))),
     ProblemCase(Kb.of(root).naming(declaration("access", test), declaration("access", test)),

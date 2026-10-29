@@ -1,7 +1,7 @@
 package frflow.core.checking
 
 import frflow.core.analysis.Constrained
-import frflow.core.code.{Code, Realizes}
+import frflow.core.code.Code
 import frflow.core.expr.OutsideFact
 import frflow.core.name.{DefName, NodeId}
 import frflow.core.spec.NodeKind
@@ -11,16 +11,15 @@ import frflow.core.Theory
 final case class Shown(proven: List[DefName], tested: List[Tested], assumed: List[Assumed])
 
 object Shown:
-  /** One function of the statement, the code defining the Definitions it mentions and the implementations of the
-    * store it says behaves as its model: the only place this is decided.
+  /** One function of the statement, the code defining the Definitions it mentions and, of the assumption that only
+    * the code changes a model's state, the operations' plain Scala, tested against the model (its runs are reported
+    * there): the only place this is decided.
     */
   def of(t: Theory, id: NodeId): Shown =
     val attached = Constrained.of(t, id).flatMap(t.code.attached.get).map(_.code)
-    val stores = t.node(id).flatMap(_.statement.outside).collect { case OutsideFact.BehavesAs(b, _) => b }
-    val realized = stores.toList.flatMap(t.code.realized.get).flatMap(_.toList).zipWithIndex
-    Shown(attached.flatMap(_.proven),
-      attached.flatMap(tested) ++ realized.collect { case (r, i) if r.how == Realizes.Own => Tested.Own(i) },
-      promised(t, id) ++ realized.collect { case (r, i) if r.how == Realizes.Outside => Assumed.Outside(i) })
+    val models = t.node(id).flatMap(_.statement.outside).collect { case OutsideFact.OnlyCodeChanges(m) => m }
+      .filter(t.code.implemented.contains)
+    Shown(attached.flatMap(_.proven), attached.flatMap(tested) ++ models.map(Tested.Model(_)), promised(t, id))
 
   private def tested(c: Code) = c match
     case Code.Tested(_, _) => List(Tested.Plain)

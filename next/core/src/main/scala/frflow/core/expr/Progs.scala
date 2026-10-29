@@ -1,7 +1,7 @@
 package frflow.core.expr
 
 import cats.syntax.all.*
-import frflow.core.name.BoundaryName
+import frflow.core.name.SymbolName
 import frflow.core.ty.Ty
 
 /** The essential operations of programs: their sequential reading, their terms, what they mention, whether they may
@@ -38,7 +38,7 @@ object Progs:
   /** The terms the steps compute with. */
   def terms[E](p: Prog[E]): List[E] = all(p).flatMap {
     case Prog.Pure(t)                       => List(t)
-    case Prog.Call(_, _, as, _)             => as
+    case Prog.Call(_, as, _)                => as
     case Prog.Let(_, v, _)                  => List(v)
     case Prog.Loop(xs, _, _)                => List(xs)
     case Prog.Collect(xs, _, _)             => List(xs)
@@ -52,21 +52,22 @@ object Progs:
   }
 
   def mentions[E](p: Prog[E]): Mentions = all(p).foldMap {
-    case Prog.Call(b, _, _, _) => Mentions.empty.copy(boundaries = List(b))
+    case Prog.Call(op, _, _)   => Mentions.empty.copy(operations = List(op))
     case Prog.Read(m)          => Mentions.empty.copy(models = List(m))
     case Prog.Write(m, _)      => Mentions.empty.copy(models = List(m))
     case Prog.Modify(m, _, _)  => Mentions.empty.copy(models = List(m))
     case _                     => Mentions.empty
   }
 
-  def boundaries[E](p: Prog[E]): List[BoundaryName] = mentions(p).boundaries
+  /** The operations on a state the steps call, each once. */
+  def operations[E](p: Prog[E]): List[SymbolName] = mentions(p).operations
 
-  /** The error types the steps may end in, each once: those raised, and those of the failing boundaries called
-    * (`failing`), outside a handler of that type.
+  /** The error types the steps may end in, each once: those raised, and those of the operations called whose
+    * model may fail (`failing`), outside a handler of that type.
     */
-  def failsWith(p: Prog[Expr], failing: BoundaryName => Option[Ty]): List[Ty] =
+  def failsWith(p: Prog[Expr], failing: SymbolName => Option[Ty]): List[Ty] =
     def go(q: Prog[Expr], caught: Set[Ty]): List[Ty] = q match
-      case Prog.Call(b, _, _, _)  => failing(b).filterNot(caught).toList
+      case Prog.Call(op, _, _)    => failing(op).filterNot(caught).toList
       case Prog.Raise(e)          => Option(Exprs.typeOf(e)).filterNot(caught).toList
       case Prog.Catch(a, t, _, h) => go(a, caught + t) ++ go(h, caught)
       case other                  => children(other).flatMap(go(_, caught))
@@ -97,7 +98,7 @@ object Progs:
   def map[E, F](p: Prog[E])(f: E => F): Prog[F] =
     def apply(q: Prog[E]): Prog[F] = q match
       case Prog.Pure(t)                   => Prog.Pure(f(t))
-      case Prog.Call(b, op, as, t)        => Prog.Call(b, op, as.map(f), t)
+      case Prog.Call(op, as, t)           => Prog.Call(op, as.map(f), t)
       case Prog.Bind(a, x, r)             => Prog.Bind(apply(a), x, apply(r))
       case Prog.Let(x, v, r)              => Prog.Let(x, f(v), apply(r))
       case Prog.Loop(xs, x, b)            => Prog.Loop(f(xs), x, apply(b))

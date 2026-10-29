@@ -1,6 +1,6 @@
 package frflow.core.analysis
 
-import frflow.core.name.{BoundaryName, DefName, ModelName, NodeId, SymbolName}
+import frflow.core.name.{DefName, ModelName, NodeId, SymbolName}
 import frflow.core.ty.Ty
 import frflow.core.analysis.outside.Premise
 
@@ -29,35 +29,29 @@ enum Problem:
   case OutsideClaimed(id: NodeId)
   // The world outside (owner §16, §17)
   /** A statement whose check rests on a fact about the outside its `.assuming` does not list (the one mechanism for
-    * a premise, owner §15; `Premises` derives what each needs): a claim about a program's runs on a store needs
-    * `store.behavesAs(stored)` and `store.atomic`; an `always(stored)` those and `stored.initially(…)`; an
-    * `always[T]` what values from outside meet (owner §21:
-    * an assumption of `always` on `T` when the outside passes `T`s in, and each such assumption on the values from
-    * outside its `T`s are made from), the store facts of each store holding a `T`, and the model of each store
-    * operation making one. `by` is the assumption that says it, if one does; when none does, what to say is
+    * a premise, owner §15; `Premises` derives what each needs): a claim about a program's runs needs `stored.atomic` of each
+    * model whose operations it calls; an `always(stored)` that, `stored.onlyCodeChanges` and `stored.initially(…)`;
+    * an `always[T]` what values from outside meet (owner §21: an assumption of `always` on `T` when the outside
+    * passes `T`s in, and each such assumption on the values from outside its `T`s are made from) and the facts of
+    * each model whose state holds a `T`. `by` is the assumption that says it, if one does; when none does, what to say is
     * `needs` (for values from outside, `Node.assumption("…")(always[T](x => …))`).
     */
   case PremiseMissing(id: NodeId, needs: Premise, by: Option[NodeId])
   /** A fact about the outside a statement's `.assuming` lists that its check does not rest on. */
   case PremiseNotNeeded(id: NodeId, premise: NodeId)
-  /** Two worlds said equal (`after === before`) where a boundary may fail: the faults its calls take are part of a
-    * world, so a run that only read through it changes the world; that every model's state is as before is
-    * `unchanged` (`.failsChangingNothing`).
+  /** Two worlds said equal (`after === before`) where a model's operations may fail: the faults their calls take are
+    * part of a world, so a run that only read through it changes the world; that every model's state is as before
+    * is `unchanged` (`.failsChangingNothing`).
     */
   case WorldsEqual(id: NodeId)
-  /** A boundary covered code calls with neither a model it behaves as nor an assumption about what it gives (owner
-    * §30): what the code hands it and what comes back would be checked by nothing. Say what it does with
-    * `boundary.behavesAs(model)`, or what it promises with an assumption mentioning its operations.
-    */
-  case BoundaryUnchecked(boundary: BoundaryName)
   /** An `always` whose type sits, at `at`, inside a map, a set or a function value of type `ty`: no guard reaches it
     * there yet, so the code making or storing it could not be held to it (owner §16; `Unreached`).
     */
   case AlwaysNotReached(always: NodeId, ty: Ty, at: Problem.Place)
   // The vocabulary
   case ReservedName(name: String)
-  /** A name declared twice; a model's Lean namespace (its name capitalized) counts, so one named as its boundary's
-    * class is refused rather than named apart.
+  /** A name declared twice; a model's Lean namespace (its name capitalized) counts, so one named as a declared type
+    * is refused rather than named apart.
     */
   case DeclaredTwice(name: String)
   /** A statement mentioning a value only plain code reads: its Scala type (`scalaType`) has no `LeanType`; one that
@@ -80,7 +74,7 @@ enum Problem:
     * what it may fail with is read off a Definition's code.
     */
   case RunOfNoDefinition(id: NodeId)
-  /** A program whose steps raise, handle or meet errors of two types or more (a failing boundary's among them): its
+  /** A program whose steps raise, handle or meet errors of two types or more (a failing model's among them): its
     * run is over one error (`ExceptT E`).
     */
   case ErrorsDiffer(program: DefName, errors: List[Ty])
@@ -97,7 +91,7 @@ enum Problem:
 
 object Problem:
   /** Where a type sits that an `always` would guard (`Unreached`): a variable a statement quantifies over, a store's
-    * state, a Definition's value, an input or the result of a Definition or a boundary's operation (named by `of`),
+    * state, a Definition's value, an input or the result of a Definition or an operation on a state (named by `of`),
     * a field of a record or of an enum's case (`of`).
     */
   enum Place:

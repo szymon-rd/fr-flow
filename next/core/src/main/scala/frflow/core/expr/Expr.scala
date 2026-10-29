@@ -29,7 +29,7 @@ enum Expr:
   /** `body` of every element with each later one (Lean's `List.Pairwise`). */
   case Pairwise(over: Expr, x: Binder, y: Binder, body: Expr)
   case Prim(op: PrimOp, args: List[Expr], ty: Ty)
-  /** A flow's steps: the body of a `def` over a monad with the boundaries' classes. */
+  /** A flow's steps: the body of a `def` over a monad with the models' classes. */
   case Do(prog: Prog[Expr], ty: Ty)
   /** A run of a program on the models from the world `before`: `post` of what it gives (the result, or the error when
     * `failing`) and the world after.

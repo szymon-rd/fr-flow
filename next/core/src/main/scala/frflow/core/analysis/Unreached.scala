@@ -10,8 +10,8 @@ import frflow.core.analysis.outside.Guards
 
 /** The places a guard of `always[T]` would go but cannot yet (owner §16: an `always` holds wherever FrFlow covers
   * the code): a type holding a `T` (`Scope.holds`) inside a map, a set or a function value, which `Guards` does not
-  * walk. A place is a type a statement quantifies over, a store's state, an input or the result of a Definition or a
-  * store operation, and a field of a domain type. A Definition's own function type is not one (its inputs and result
+  * walk. A place is a type a statement quantifies over, a store's state, an input or the result of a Definition or an
+  * operation on a state, and a field of a domain type. A Definition's own function type is not one (its inputs and result
   * are), nor is a program's result (its `made_` is step 3's).
   */
 object Unreached:
@@ -34,8 +34,8 @@ object Unreached:
           (r -> Place.Result(s.name.value))
       case SymbolType.Typed(x)               => List(x -> Place.Value(s.name.value))
       case _                                 => Nil)
-    val ops = v.boundaries.flatMap(b => b.ops.flatMap(o => o.params.map(_._2 -> Place.Input(o.name.value)) :+
-      (o.result -> Place.Result(o.name.value))))
+    val ops = v.models.flatMap(_.sigs).flatMap(o => o.params.map(_._2 -> Place.Input(o.name.value)) :+
+      (o.result -> Place.Result(o.name.value)))
     val fields = v.types.flatMap {
       case DataType.Product(n, _, fs) => fs.map(f => f.ty -> Place.Field(f.name, n.value))
       case DataType.Sum(_, _, cs)     =>

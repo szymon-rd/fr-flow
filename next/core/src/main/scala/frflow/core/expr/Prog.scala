@@ -1,16 +1,19 @@
 package frflow.core.expr
 
-import frflow.core.name.{BoundaryName, ModelName, OpName}
+import frflow.core.name.{ModelName, SymbolName}
 import frflow.core.ty.Ty
 
-/** A flow's steps, first order: the free monad over the boundaries' operations and the models' state, with errors and
+/** A flow's steps, first order: the free monad over the operations on a state and the models' state, with errors and
   * loops: what the recording of a program gives (`dsl.flow.Recording`). `E` is what a step computes with: the terms
   * themselves (`Stated`, what Lean prints and Scala runs) or their IR (`Expr`, what the analyses read, by
   * `Progs.map`). Concurrent steps hold their branches; their sequential reading is `Progs.sequential`.
   */
 enum Prog[+E]:
   case Pure(result: E)
-  case Call(boundary: BoundaryName, op: OpName, args: List[E], ty: Ty)
+  /** An operation on a state applied (`inRoom(room)`): its Definition, given its meaning by a model
+    * (`Vocabulary.modelOf`), or the scheduler's choice of a race's winner (`Prog.leftWins`).
+    */
+  case Call(op: SymbolName, args: List[E], ty: Ty)
   case Bind(first: Prog[E], x: Binder, rest: Prog[E])
   case Let(x: Binder, value: E, rest: Prog[E])
   case Loop(over: E, x: Binder, body: Prog[E])
@@ -24,7 +27,7 @@ enum Prog[+E]:
   case Catch(body: Prog[E], error: Ty, x: Binder, handler: Prog[E])
   case Par(left: Prog[E], leftResult: Binder, right: Prog[E], rightResult: Binder)
   /** The first of two to finish gives the result (`Left` or `Right`), the other cancelled; read one step at a time
-    * as `reading` (the scheduler's choice of the winner, a call of the `Races` boundary). */
+    * as `reading` (the scheduler's choice of the winner, a call of `Prog.leftWins`). */
   case Race(left: Prog[E], right: Prog[E], reading: Prog[E])
   /** `finalizer` after `body`, whether it gave a result or failed with an error of type `error`; read as `reading`
     * (the finalizer after a result, and before the error is raised again). */
@@ -33,6 +36,11 @@ enum Prog[+E]:
   case Atomic(body: Prog[E])
 
 object Prog:
+  /** The scheduler's choice of a race's winner (`true`: the left), read from the world's `races`; no model gives it,
+    * and no Definition can be named so.
+    */
+  val leftWins: SymbolName = SymbolName("races.leftWins")
+
   /** How a program's terms pair two step results: what `Progs.sequential` reads a concurrent pair as. */
   trait Pairs[E]:
     def pair(a: Binder, b: Binder): E

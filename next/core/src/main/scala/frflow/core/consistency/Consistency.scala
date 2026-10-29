@@ -52,8 +52,9 @@ object Consistency:
   def provided(t: Theory, id: NodeId): List[SymbolName] =
     Constrained.of(t, id).filter(s => t.code.attached.get(s).exists(_.code == Code.Provided))
 
+  /** A value fixed in the model or provided, or an operation its model gives the meaning. */
   private def fixed(c: Code): Boolean = c match
-    case Code.Valued(_) | Code.Provided => true
+    case Code.Valued(_) | Code.Provided | Code.Modelled(_) => true
     case _                              => false
 
   private def sharing(t: Theory): List[Group] =

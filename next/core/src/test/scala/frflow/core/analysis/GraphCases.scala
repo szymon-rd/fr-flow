@@ -9,8 +9,8 @@ import frflow.core.name.NodeId
 object GraphCases:
   private def id(s: String) = NodeId(s)
   private val root = plain("root")
-  private val fact = outside("fact")(OutsideFact.Atomic(Store.boundary))
-  private val saysFact = Lang.formula([T[_]] => (l: Lang[T]) => l.s.outside(OutsideFact.Atomic(Store.boundary)))
+  private val fact = outside("fact")(OutsideFact.Atomic(Store.model))
+  private val saysFact = Lang.formula([T[_]] => (l: Lang[T]) => l.s.outside(OutsideFact.Atomic(Store.model)))
 
   val all: List[ProblemCase] = List(
     ProblemCase(Kb.of(plain("a"), plain("a")), List(Problem.DuplicateId(id("a")))),

@@ -37,16 +37,18 @@ class ValidateSuite extends munit.FunSuite:
     assertEquals(ValueCases.proven.without("stray").problems, Nil)
   }
 
-  test("a boundary is checked by a model it behaves as; that runs on it are atomic alone checks nothing") {
-    assert(!Store.kb.problems.exists(_.isInstanceOf[Problem.BoundaryUnchecked]), Store.kb.problems)
-    val atomicOnly = Store.kb.without("storeModel").declaring(_.copy(models = Nil))
-    assert(atomicOnly.problems.contains(Problem.BoundaryUnchecked(Store.boundary)), atomicOnly.problems)
+  test("an operation on a state is defined by its model, and is no code without a claim; with no model, undefined") {
+    assertEquals(Store.kb.problems, Nil)
+    assertEquals(Store.kb.code.get(Store.add), Some(Code.Modelled(Store.model)))
+    val unmodelled = Store.kb.copy(code = Store.kb.code - Store.add).declaring(_.copy(models = Nil))
+      .unlinking(assumes("bookRuns", "oneAtATime"))
+    assertEquals(unmodelled.problems, List(Problem.Undefined(Store.add)))
   }
 
-  test("a model named as its boundary's class, its namespace in Lean, is declared twice") {
+  test("a model named as a domain type, its namespace in Lean, is declared twice") {
     val clashing = Store.kb.declaring(v => v.copy(models = v.models.map(_.copy(name =
-      frflow.core.name.ModelName("bookings")))))
-    assert(clashing.problems.contains(Problem.DeclaredTwice("Bookings")), clashing.problems)
+      frflow.core.name.ModelName("booking")))))
+    assert(clashing.problems.contains(Problem.DeclaredTwice("Booking")), clashing.problems)
   }
 
   test("claims about the same code rest on no circle, siblings or part and whole: neither relies on the other") {
@@ -77,7 +79,7 @@ class ValidateSuite extends munit.FunSuite:
 
   test("a premise missing that no assumption says names none") {
     assertEquals(Store.kb.without("oneAtATime").problems,
-      List(Problem.PremiseMissing(NodeId("bookRuns"), Premise.Atomic(Store.boundary), None)))
+      List(Problem.PremiseMissing(NodeId("bookRuns"), Premise.Atomic(Store.model), None)))
   }
 
   test("a value only plain code reads needs no statement: it is no code without a claim") {

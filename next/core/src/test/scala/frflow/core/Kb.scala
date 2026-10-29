@@ -5,7 +5,8 @@ import frflow.core.code.{Attachment, Code, CodeTable}
 import frflow.core.graph.Edge
 import frflow.core.name.{KbName, NodeId, RelPath, Span, SymbolName}
 import frflow.core.spec.Node
-import frflow.core.vocab.{Symbol, Vocabulary}
+import frflow.core.ty.Ty
+import frflow.core.vocab.{StateModel, Symbol, Vocabulary}
 
 /** A theory written by hand, as elaboration gives it: its vocabulary, its nodes in order, its edges and its code. */
 final case class Kb(vocabulary: Vocabulary, nodes: List[Node], edges: List[Edge], code: Map[SymbolName, Code]):
@@ -24,11 +25,19 @@ final case class Kb(vocabulary: Vocabulary, nodes: List[Node], edges: List[Edge]
   def coding(more: (SymbolName, Code)*): Kb = copy(code = code ++ more)
   def naming(more: Symbol*): Kb = copy(vocabulary = vocabulary.copy(symbols = vocabulary.symbols ++ more))
   def declaring(f: Vocabulary => Vocabulary): Kb = copy(vocabulary = f(vocabulary))
+  /** Models declared, each operation a Definition its model gives the meaning (as elaboration gives them). */
+  def modelling(ms: StateModel*): Kb = ms.foldLeft(this)((k, m) =>
+    k.declaring(v => v.copy(models = v.models :+ m))
+      .naming(m.ops.map(o => Nodes.definition(o.op.value, Kb.operation(o.params.map(_.ty), o.result)))*)
+      .coding(m.ops.map(o => o.op -> Code.Modelled(m.name))*))
 
 object Kb:
   val file: RelPath = RelPath.fromIdentifiers("src", "Model.scala")
-  val empty: Kb = Kb(Vocabulary(Nil, Nil, Nil, Nil, Nil, Nil), Nil, Nil, Map.empty)
+  val empty: Kb = Kb(Vocabulary(Nil, Nil, Nil, Nil, Nil), Nil, Nil, Map.empty)
   def of(nodes: Node*): Kb = empty.and(nodes*)
+  /** An operation's type: `A => Program[R]`, or `Program[R]` of none. */
+  def operation(ins: List[Ty], result: Ty): Ty =
+    if ins.isEmpty then Ty.FlowOf(result, None) else Ty.FnOf(ins, Ty.FlowOf(result, None))
 
   private def to(e: Edge): NodeId = e match
     case Edge.PartOf(_, w)   => w

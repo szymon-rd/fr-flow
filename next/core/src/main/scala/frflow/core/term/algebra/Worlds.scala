@@ -16,7 +16,7 @@ trait Worlds[T[_]]:
   def fails[R, E](p: T[Program[R]], before: T[World], error: Bound[E], after: Bound[World])(
       post: (T[E], T[World]) => T[Boolean]): T[Boolean]
   /** Every model's state in `after` is its state in `before` (`.failsChangingNothing`): the worlds' faults, which
-    * failing boundaries' calls take, are no model's.
+    * the calls of a failing model's operations take, are no model's.
     */
   def unchanged(after: T[World], before: T[World]): T[Boolean]
   /** A fact about the world outside the code (an assumption's formula): what Lean's model of the world is built on. */

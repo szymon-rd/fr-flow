@@ -23,7 +23,7 @@ object Written:
     Written(Lambda(inputs, e, Exprs.typeOf(e)), source, Form.Term(Stated(body)))
 
   /** A program over its inputs: its recorded steps, their terms over the inputs and the steps' results; the error it
-    * may fail with is read off the steps once the boundaries are known (`failing`).
+    * may fail with is read off the steps once the models are known (`failing`).
     */
   def steps(inputs: List[Binder], p: Prog[Stated[?]], result: Ty, source: SourceText): Written[Lambda] =
     val ir = Progs.map(p)(s => ToExpr.of(s.run, inputs.size))

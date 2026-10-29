@@ -1,10 +1,8 @@
 package frflow.core.code
 
-import cats.data.NonEmptyList
-import frflow.core.name.{BoundaryName, SymbolName}
+import frflow.core.name.{ModelName, SymbolName}
 
 /** What defines each Definition apart from the nodes: at most one attachment per Definition (checked against every
-  * statement mentioning it), and a store's implementations, run against its model.
+  * statement mentioning it), and, per model, the plain Scala of its operations (tested against the model).
   */
-final case class CodeTable(attached: Map[SymbolName, Attachment],
-    realized: Map[BoundaryName, NonEmptyList[Realization]])
+final case class CodeTable(attached: Map[SymbolName, Attachment], implemented: Map[ModelName, Implementation])

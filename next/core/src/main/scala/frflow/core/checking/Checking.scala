@@ -1,10 +1,10 @@
 package frflow.core.checking
 
-import frflow.core.analysis.{Constrained, SaysWhat, Scope}
+import frflow.core.analysis.{Callees, Constrained, SaysWhat, Scope}
 import frflow.core.code.Code
 import frflow.core.consistency.{Consistency, Group, Standing, Vacuity}
 import frflow.core.expr.OutsideFact
-import frflow.core.name.{ModelName, NodeId, OpName, SymbolName}
+import frflow.core.name.{ModelName, NodeId, SymbolName}
 import frflow.core.spec.{CallForms, Range, Statement}
 import frflow.core.ty.Ty
 import frflow.core.Theory
@@ -39,13 +39,17 @@ enum Checking:
   case Rules(rules: List[(NodeId, Boolean)])
   /** Taken as a hypothesis by the proofs of code calling the Definitions it mentions. */
   case AssumedByCallers(definitions: List[SymbolName])
-  /** `always[T]`: met where a value of `ty` is made (each of `makers`' results: proven, or tested at its boundary),
-    * or each store operation's result on its model, `made_<op>`), entering values by the outside facts it rests on; a
+  /** `always[T]`: met where a value of `ty` is made (each of `makers`' results: proven, or tested at its inputs and result,
+    * or each operation's result on its model, `made_<op>`), entering values by the outside facts it rests on; a
     * hypothesis on every value of `ty` in Lean.
     */
-  case WhereMade(ty: Ty, makers: List[SymbolName], models: List[(ModelName, OpName)])
+  case WhereMade(ty: Ty, makers: List[SymbolName], models: List[(ModelName, SymbolName)])
   /** Kept by every run of these programs (`cover_`), from the state the store starts in. */
   case KeptBy(programs: List[SymbolName])
+  /** The plain Scala of the operations its check runs on `model` doing what the model says: tested against the model
+    * on generated runs, not assumed (owner §36).
+    */
+  case TestedOnModel(model: ModelName, operations: List[SymbolName])
   /** A fact about the outside its check rests on, and the assumption saying it. */
   case RestsOn(premise: Premise, assumption: Option[NodeId])
   /** At the bottom: shown consistent with the statements sharing its open values (`consistent`). */
@@ -59,12 +63,10 @@ enum Checking:
   case Trusted
   /** A fact about the world outside the code: a rule of FrFlow's rests on it. */
   case Outside(fact: OutsideFact)
-  /** The programs changing a store, derived from the code (owner §31): every program calling an operation that
-    * changes the model's state.
+  /** The programs changing a model's state, derived from the code (owner §31): every program calling an operation
+    * whose meaning changes it.
     */
   case ChangedBy(programs: List[SymbolName])
-  /** A store behaving as its model: the store's code is tested against the model (`checkedAgainst`). */
-  case StoreCodeTested(implementations: Int)
   /** Nothing checks it yet: no parts, no code. */
   case Unchecked
 
@@ -125,7 +127,22 @@ object Checking:
     }
 
   private def rests(t: Theory, id: NodeId): List[Checking] =
-    Premises.of(t, id).map(p => RestsOn(p, Outsides.assumed(t, id, p)))
+    tested(t, id) ++ Premises.of(t, id).map(p => RestsOn(p, Outsides.assumed(t, id, p)))
+
+  /** The operations on a state whose plain Scala the check runs, by model, each model's in its order: those the code
+    * it is checked against calls, those of the programs keeping its rule, and the operations making its values.
+    */
+  private def tested(t: Theory, id: NodeId): List[Checking] =
+    val ops = t.node(id).flatMap(_.statement.range).toList.flatMap {
+      case Range.Possible     => SaysWhat.checkedAgainst(t, id).toList.flatMap(_.calls.operations)
+      case r @ Range.Made(_)  => keeping(t, id) ++ Scope.modelMakers(t, r).map(_._2.name)
+      case Range.Reached(_)   => keeping(t, id)
+    }
+    t.vocabulary.models.filter(m => t.code.implemented.contains(m.name)).flatMap(m =>
+      Option(m.ops.map(_.op).filter(ops.contains)).filter(_.nonEmpty).map(TestedOnModel(m.name, _)))
+
+  private def keeping(t: Theory, id: NodeId): List[SymbolName] =
+    Scope.of(t, id).flatMap(p => Callees.ofDefinition(t, p).toList.flatMap(_.calls.operations))
 
   private def bottom(t: Theory, id: NodeId): List[Checking] = Consistency.of(t).collect {
     case g @ Group.Sharing(ids, _, _, _) if ids.contains(id) => Consistent(ids, g.standing)
@@ -140,10 +157,9 @@ object Checking:
     Option.when(shown.nonEmpty)(Possible(shown)).toList
 
   private def outside(t: Theory, fact: OutsideFact): List[Checking] = fact match
-    case OutsideFact.BehavesAs(b, m) => List(Outside(fact),
-        ChangedBy(t.vocabulary.model(m).toList.flatMap(Premises.writers(t, _))),
-        StoreCodeTested(t.code.realized.get(b).fold(0)(_.size)))
-    case _                           => List(Outside(fact))
+    case OutsideFact.OnlyCodeChanges(m) =>
+      List(Outside(fact), ChangedBy(t.vocabulary.model(m).toList.flatMap(Premises.writers(t, _))))
+    case _                              => List(Outside(fact))
 
   /** The Definitions it mentions, which code may call (a Declaration is never called). */
   private def callers(t: Theory, id: NodeId): List[Checking] =
