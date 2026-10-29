@@ -55,7 +55,7 @@ object LawModules:
     val chunks = stated.zipWithIndex.grouped(90).toList.zipWithIndex.map((chunk, i) =>
       module(ModuleName(Names.path("FrFlowGen", "Laws", s"$name$i")), List(base),
         chunk.map { case ((t, v), j) => theorem(t, v, j) }))
-    val (_, out) = LeanWorkspace.make(name.toLowerCase).build(module(base, Nil, types) :: chunks)
+    val (_, out) = LeanWorkspace.use(name.toLowerCase)(_.build(module(base, Nil, types) :: chunks))
     (chunks.flatMap(m => proven(m, out)), out)
 
   /** For each theorem of `m`, in order, whether Lake's output has no error inside it. */

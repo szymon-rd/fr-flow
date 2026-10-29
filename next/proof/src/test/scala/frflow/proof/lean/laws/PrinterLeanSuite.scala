@@ -48,7 +48,7 @@ class PrinterLeanSuite extends munit.FunSuite:
       Decl.Def(Nil, n(s"t_$i"), symbols, prop, Printed.formula(LawsEnv.env, naming)(t)))
     val m = LeanModule(ModuleName(Names.path("FrFlowGen", "Laws", "Terms")), List(ModuleName(Names.path("FrFlow"))),
       Preamble.generated, Names.path("Laws"), Nil, types ++ defs)
-    val (built, out) = LeanWorkspace.make("laws").build(List(m))
+    val (built, out) = LeanWorkspace.use("laws")(_.build(List(m)))
     assert(built, out.linesIterator.take(60).mkString("\n") + "\n" + Print.module(m).linesIterator.take(80)
       .mkString("\n"))
   }

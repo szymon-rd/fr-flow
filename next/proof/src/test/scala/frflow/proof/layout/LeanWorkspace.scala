@@ -55,7 +55,18 @@ object LeanWorkspace:
       finally held.release()
     finally channel.close()
 
-  def make(name: String): LeanWorkspace =
+  /** A workspace for `f`, deleted once `f` is done, unless `keep` (`FRFLOW_KEEP_LEAN` set: to read what Lean was
+    * given after a run).
+    */
+  def use[A](name: String, keep: Boolean = sys.env.contains("FRFLOW_KEEP_LEAN"))(f: LeanWorkspace => A): A =
+    val w = make(name)
+    try f(w)
+    finally if !keep then delete(w.dir)
+
+  private def delete(dir: Path): Unit =
+    if Files.exists(dir) then Files.walk(dir).sorted(java.util.Comparator.reverseOrder()).forEach(p => Files.delete(p))
+
+  private def make(name: String): LeanWorkspace =
     val dir = Files.createTempDirectory(s"frflow-$name")
     val w = LeanWorkspace(dir)
     w.write("lakefile.toml", s"""name = "${Names.builtin(name).text}"

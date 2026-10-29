@@ -16,7 +16,7 @@ abstract class LeanBuildSuite(name: String, laid: => Laid, open: List[(String, O
     extends munit.FunSuite:
   override val munitTimeout: scala.concurrent.duration.Duration = scala.concurrent.duration.Duration(20, "minutes")
 
-  protected lazy val built: String = LeanWorkspace.make(name).build(laid.modules)._2
+  protected lazy val built: String = LeanWorkspace.use(name)(_.build(laid.modules)._2)
 
   private def elaboration(m: LeanModule): Elaboration =
     Elaboration(Print.module(m), built, m.name.file.value.stripPrefix("lean/"))

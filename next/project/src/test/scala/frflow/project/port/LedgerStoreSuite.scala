@@ -40,7 +40,8 @@ class LedgerStoreSuite extends munit.CatsEffectSuite:
     }
 
   laws("memory", Resource.eval(MemoryLedger[IO](Ledger.empty)).widen, Set.empty)
-  laws("file", Resource.eval(IO(Files.createTempDirectory("frflow-ledger"))).flatMap(LedgerStore.file[IO]),
+  laws("file", Resource.make(IO(Files.createTempDirectory("frflow-ledger")))(d => IO.blocking(Files.walk(d)
+    .sorted(java.util.Comparator.reverseOrder()).forEach(p => Files.delete(p)))).flatMap(LedgerStore.file[IO]),
     Set(Live))
 
   test("the file is UTF-8; a ledger that does not read is raised, not taken as empty".tag(Live)) {
