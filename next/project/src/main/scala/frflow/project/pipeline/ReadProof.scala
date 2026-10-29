@@ -6,7 +6,7 @@ import frflow.core.checking.Checking
 import frflow.core.name.NodeId
 import frflow.core.spec.{Node, NodeKind}
 import frflow.decision.review.{ProofStanding, Unproven}
-import frflow.proof.obligation.ObligationName
+import frflow.proof.obligation.{Made, ObligationName}
 import frflow.proof.obligation.ObligationName.{Complete, Consistent, Cover, Impl, RootImpl, Start, Tried}
 import frflow.proof.obligation.TryKind.{Clash, Idle, Needed}
 import frflow.proof.verdict.{CheckStatus, ObligationStatus, Result}
@@ -24,7 +24,8 @@ object ReadProof:
     ProofStanding(unproven(a, n, rs), partsMake(a, n.id, rs), codeProven(rs))
 
   private def unproven(a: Analysis, n: Node, rs: List[Result]): List[Unproven] =
-    List(check(a, n), open(rs), nothingBelow(a, n), kept(a, n.id, rs), tests(a, n.id), consistent(a, n.id)).flatten
+    List(check(a, n), open(rs), nothingBelow(a, n), kept(a, n.id, rs), made(a, n.id), tests(a, n.id),
+      consistent(a, n.id)).flatten
 
   private def check(a: Analysis, n: Node): List[Unproven] =
     val proven = a.current(n.id).exists(_.status == CheckStatus.Proven)
@@ -57,6 +58,13 @@ object ReadProof:
   private def kept(a: Analysis, id: NodeId, rs: List[Result]): List[Unproven] =
     Option.when(Scope.of(a.decided.theory, id).exists(op => !status(rs, Cover(op.value)).forall(_ == Proven)))(
       Unproven.Kept(id)).toList
+
+  /** Of a step taking what the makers below it make (`Made.taken`), each rule whose `made_<maker>` is not proven:
+    * the step rests on it (step 12 ruling).
+    */
+  private def made(a: Analysis, id: NodeId): List[Unproven] =
+    Made.taken(a.decided, id).collect { case (rule, op, _) if !a.current(rule).exists(_.results.exists(r =>
+      r.name == ObligationName.Made(op.value) && r.status == Proven)) => Unproven.Kept(rule) }.distinct
 
   /** At the bottom, the group it shares open values with not proven to hold together; of what always holds of a
     * store, the states it starts in not proven to meet it (`start_<node>`); proven from parts, a statement below it

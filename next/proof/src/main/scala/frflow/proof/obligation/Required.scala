@@ -26,10 +26,13 @@ object Required:
       Made.atCalls(r, n))
       .map(o => if authored((n, o.name)) then o.copy(discharge = Discharge.Authored) else o)
 
-  /** `∀ U, C1 → … → Cn → N`, of a node not checked against proven code. */
+  /** `∀ U, C1 → … → Cn → M → N`, of a node not checked against proven code: its parts, and what the makers its parts'
+    * claims are about make (`Made.taken`).
+    */
   def complete(r: Resolved, n: NodeId): Option[Prop] =
     NonEmptyList.fromList(r.theory.refinement.parts(n)).filter(_ => SaysWhat.checkedAgainst(r.theory, n).isEmpty)
-      .map(ps => Prop.over(List(n), Prop.Implies(Hyp.parts(ps.toList), Prop.claim(n))))
+      .map(ps => Prop.over(List(n), Prop.Implies(Hyp.parts(ps.toList) ++ Made.taken(r, n).map(_._3),
+        Prop.claim(n))))
 
   private def completes(r: Resolved, n: NodeId): String =
     s"The parts of ${n.value} (${r.theory.refinement.parts(n).map(_.value).mkString(", ")}) together make it."

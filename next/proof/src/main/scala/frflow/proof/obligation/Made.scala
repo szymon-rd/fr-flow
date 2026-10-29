@@ -1,7 +1,8 @@
 package frflow.proof.obligation
 
 import cats.syntax.all.*
-import frflow.core.analysis.{Callees, Resolved, Scope}
+import frflow.core.analysis.{Callees, Constrained, Resolved, Scope}
+import frflow.core.graph.Walk
 import frflow.core.term.interpret.Guard
 import frflow.core.expr.Expr
 import frflow.core.code.Code
@@ -49,6 +50,36 @@ object Made:
         })
       case _                      => Nil
     }
+
+  /** What a step takes of the makers its parts' claims are about (step 12 ruling): of each statement of
+    * `always[T]` and each such maker, its `made_<maker>` (`m_<rule>_<maker>`), proven of the maker's code, so a
+    * proof over what the makers make in turn (an induction over a history) keeps the rule. A `made_` resting on the
+    * step itself is not taken (a circle).
+    */
+  def taken(r: Resolved, n: NodeId): List[(NodeId, SymbolName, Hyp)] =
+    val about = r.theory.refinement.parts(n).flatMap(Constrained.of(r.theory, _)).toSet
+    val guards = Guards.byAlways(r.theory)
+    guards.flatMap((rule, kept) => r.theory.node(rule).flatMap(_.statement.range).toList.flatMap {
+      case Range.Made(ty) => defines(r, rule, ty).filter((op, _, _) => about(op) && !restsOn(r, rule, op, n))
+          .map((op, _, fn) => (rule, op, Hyp(s"m_${rule.value}_${op.value}",
+            Prop.Makes(rule, op, Making.ofDefine(op, fn, kept, guards.map(_._2)), Map.empty))))
+      case _              => Nil
+    })
+
+  /** The makers `op`'s code calls whose `made_` its own takes (`m_<maker>`). */
+  def callees(r: Resolved, rule: NodeId, op: SymbolName): List[SymbolName] =
+    val called = Callees.ofDefinition(r.theory, op).toList.flatMap(_.calls.symbols).toSet - op
+    r.theory.node(rule).flatMap(_.statement.range).collect { case Range.Made(t) => t }.toList
+      .flatMap(defines(r, rule, _)).map(_._1).filter(called)
+
+  /** Whether `made_<op>` of the rule rests on `n`: what the code relies on, its callees' `made_`, and what those
+    * are proven from in turn.
+    */
+  private def restsOn(r: Resolved, rule: NodeId, op: SymbolName, n: NodeId): Boolean =
+    def relied(x: SymbolName, seen: Set[SymbolName]): List[NodeId] = r.reliedOnBy(x) ++
+      callees(r, rule, x).filterNot(seen).flatMap(c => relied(c, seen + c))
+    Walk.breadthFirst(relied(op, Set(op)), identity)(x =>
+      (r.provenFrom(x) ++ r.theory.refinement.parts(x)).distinct).contains(n)
 
   /** What the Definitions `op`'s proven code calls make meets the rule too, each known by its claims: their own
     * `made_<maker>` (`m_<maker>`, each proven of its own code), so a value one of them returns is known to meet it
