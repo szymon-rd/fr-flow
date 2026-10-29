@@ -98,6 +98,17 @@ class SeededSuite extends munit.CatsEffectSuite:
     }
   }
 
+  test("an assumption with no word at all is proven or red: no list 3 long red, none -1 long proven".tag(Live)) {
+    def unproven(p: Seeded.Pure) = Ported.run(Projects.elaborated(p.knowledge), Nil, Ported.Lean(Nil, Nil, None), Nil)
+      .map(r => Ported.unproven(r.analysis).get("noDouble"))
+    for
+      three <- unproven(Seeded.Pure(3))
+      none  <- unproven(Seeded.Pure(-1))
+    yield
+      assert(three.nonEmpty, three)
+      assertEquals(none, None)
+  }
+
   test("two assumptions pinning n apart are one group, not proven".tag(Live)) {
     Ported.run(Projects.elaborated(Seeded.TwoPins.knowledge), Nil, Ported.Lean(Nil, Nil, None), Nil).map { r =>
       assertEquals(r.analysis.groups.map(_._1), List(0))

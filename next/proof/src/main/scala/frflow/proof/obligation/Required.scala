@@ -62,7 +62,9 @@ object Required:
         else Hyp(Hyp.of(h).name, Prop.ClaimOf(h, code.filter((s, _) => mentions(r, h, s)))))
       val goal = Prop.over(Nil, Prop.Implies(assumed, Prop.ClaimOf(n, code)))
       Obligation(ObligationName.Impl, goal, Discharge.Auto,
-        s"Every result of ${c.standsFor.values.map(_.value).mkString(" and ")} meets ${n.value}" + givenWhat(hyps))
+        (if c.standsFor.isEmpty then s"${n.value} holds"
+          else s"Every result of ${c.standsFor.values.map(_.value).mkString(" and ")} meets ${n.value}") +
+          givenWhat(hyps))
     }
 
   /** What `impl` of a node rests on: the parts it states, or for a leaf what its code relies on. */

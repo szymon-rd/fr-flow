@@ -175,5 +175,18 @@ end Vacuous.Whole.Proofs
     val knowledge = FrModel("Trusted")(emptyHoldsNothing, holdsIs, outerKeeps, outerLong, innerLong)
       .implementProven(inner)(twice).implementProven(outer)(through)
 
+  /** An assumption with no word at all, `∀ xs, xs.length ≠ n`, a part of a root over `holds` (`xs.length = n`):
+    * false for `n = 3` (no try builds a list to refute it), so a step resting on it would hold for nothing, and it
+    * must be proven; true for `n = -1`.
+    */
+  final class Pure(n: BigInt):
+    val holds = Declaration[List[BigInt] => Boolean]("whether a list is n long")
+    val never = Node.claim("No list is held.")(forall((xs: Term[List[BigInt]]) => !holds(xs)))
+    val holdsIs = Node.claim("A list is held when it is n long.")(
+      forall((xs: Term[List[BigInt]]) => holds(xs) === (xs.length === (n: Term[BigInt])))).refines(never)
+    val noDouble = Node.assumption("No list is n long.")(
+      forall((xs: Term[List[BigInt]]) => xs.length =!= (n: Term[BigInt]))).refines(never)
+    val knowledge = FrModel(if n < 0 then "PureTrue" else "PureFalse")(never, holdsIs, noDouble)
+
 final case class Bag(items: List[BigInt]) derives LeanType
 final case class Sack(items: List[BigInt]) derives LeanType

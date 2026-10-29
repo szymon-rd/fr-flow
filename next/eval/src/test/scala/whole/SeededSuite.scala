@@ -69,3 +69,8 @@ class SeededSuite extends munit.FunSuite:
     assertEquals(Consistency.of(r.theory).collect { case g: Group.Sharing => g.statements.map(_.value) },
       List(List("holdsIs")))
   }
+
+  test("an assumption with no word at all is asked to be proven, nothing standing in it") {
+    val r = Theories.resolved(Seeded.Pure(3).knowledge)
+    assertEquals(Required.of(r, Set.empty, NodeId("noDouble")).map(_.name), List(ObligationName.Impl))
+  }
