@@ -4,7 +4,7 @@ import frflow.*
 import frflow.core.expr.Value
 import frflow.core.name.NodeId
 import frflow.eval.run.{Broken, OnCode}
-import frflow.proof.obligation.Completeness
+import frflow.proof.audit.Completeness
 import frflow.project.{Captured, Live, Ported, Projects}
 import frflow.project.Ported.Lean
 import frflow.proof.obligation.ObligationName

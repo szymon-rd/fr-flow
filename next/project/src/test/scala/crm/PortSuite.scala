@@ -5,7 +5,7 @@ import frflow.*
 import frflow.core.name.NodeId
 import frflow.eval.Semantics
 import frflow.eval.run.{Broken, OnCode}
-import frflow.proof.obligation.Completeness
+import frflow.proof.audit.Completeness
 import frflow.project.{Captured, Live, Ported, Projects, Tables as Sqlite}
 import frflow.project.Ported.Lean
 import frflow.project.program.ModelCheck

@@ -1,50 +1,62 @@
-package frflow.proof.obligation
+package frflow.proof.audit
 
-import frflow.core.analysis.Resolved
+import frflow.core.analysis.{Resolve, Resolved}
 import frflow.core.code.Code
 import frflow.core.expr.{Expr, Exprs, Prog, Progs}
 import frflow.core.name.{DefName, LeanNames, ModelName, NodeId, SymbolName, TypeName}
-import frflow.core.spec.Range
+import frflow.core.spec.{NodeKind, Range}
 import frflow.core.ty.Ty
-import frflow.core.vocab.SymbolType
+import frflow.core.vocab.{SymbolType, ValueKind}
 import frflow.proof.layout.{Layout, NodePart}
-import frflow.proof.lean.ast.*
+import frflow.proof.lean.ast.LeanModule
 
 /** An oracle of soundness, computed apart from the obligations' own selection (`Required`, `Made`, `Scope`,
-  * `Guards`, `CallingCode`): every rule of `always` some generated statement takes as a hypothesis is discharged.
-  * From the modules, the rules taken (a rule's define applied where a statement assumes it, left of `→` or as a
-  * hypothesis binder) and the obligations stated (`Obl.<name>` in each rule's `Spec`, `start_<rule>` in the whole
-  * theory's); from the theory read afresh, what each rule needs: of a rule about a store's state (`always(stored)`,
-  * or `always[T]` where the state holds a `T`), `start_<rule>` and `cover_<p>` of each proven program `p` calling an
-  * operation that changes the state; of `always[T]`, `made_<d>` of each proven Definition whose result holds a `T`
-  * (a define's, or a program's run's), `made_<op>` of each operation whose result does, and as many
-  * `made_<code>_call_<i>` as the proven code has calls of code not proven handed a `T`.
+  * `Guards`, `CallingCode`, `Commutation`), from the theory read afresh and the modules' syntax (`Assumed`).
+  *
+  * Every rule of `always` some generated statement takes as a hypothesis is discharged: of a rule about a store's
+  * state (`always(stored)`, or `always[T]` where the state holds a `T`), `start_<rule>` and `cover_<p>` of each
+  * proven program `p` calling an operation that changes the state; of `always[T]`, `made_<d>` of each proven
+  * Definition whose result holds a `T` (a define's, or a program's run's), `made_<op>` of each operation whose result
+  * does, and `made_<code>_call_<i>` at each call `i` of code not proven that proven code hands a `T`.
+  *
+  * Every stated node is asked what its place asks: with parts, `complete` (or `impl`); a claim of proven code (but
+  * one saying what a Declaration is, at the bottom), `impl`, and `commute_<i>` of each parallel step of the proven
+  * programs it mentions.
   */
 object Completeness:
-  /** A discharge a rule taken as a hypothesis needs and the modules do not state. */
-  final case class Missing(rule: NodeId, obligation: String, why: String)
+  /** A discharge a node needs and the modules do not state. */
+  final case class Missing(node: NodeId, obligation: String, why: String)
 
-  def of(r: Resolved, modules: List[LeanModule]): List[Missing] =
+  def of(r: Resolved, modules: List[LeanModule]): List[Missing] = rules(r, modules) ++ nodes(r, modules)
+
+  private def rules(r: Resolved, modules: List[LeanModule]): List[Missing] =
     val t = r.theory
-    val kb = t.name.value
-    val decls = modules.flatMap(_.decls).flatMap(flat)
-    val taken = decls.flatMap(statements).flatMap(e => assumed(e, negative = false)).flatMap {
-      case List(k, rule) if k.text == kb => Some(rule.text)
-      case _                             => None
-    }.toSet
+    val taken = Assumed.taken(modules).collect { case List(k, rule) if k.text == t.name.value => rule.text }.toSet
     val rules = t.nodes.map(_.node).filter(n => n.statement.rule && taken(LeanNames.define(n.id.value)))
-    val (calls, others) = rules.flatMap(n => n.statement.range.toList.flatMap(needs(r, _, n.id))).distinct
-      .partition(_._2.endsWith("_call_"))
-    def names(rule: NodeId, name: String) = stated(modules, Layout(t.name), rule, name)
-    others.filterNot((rule, name, _) => names(rule, name).contains(name)).map(Missing.apply) ++
-      calls.groupBy(c => (c._1, c._2)).toList.sortBy(_._1.toString).flatMap { case ((rule, prefix), cs) =>
-        val have = names(rule, prefix).count(_.startsWith(prefix))
-        Option.when(have < cs.size)(Missing(rule, s"$prefix<i>", s"${cs.head._3}: ${cs.size} calls, $have stated"))
-      }
+    rules.flatMap(n => n.statement.range.toList.flatMap(needs(r, _, n.id))).distinct
+      .filterNot((rule, name, _) => stated(modules, Layout(t.name), rule, name).contains(name)).map(Missing.apply)
 
-  /** Each discharge a rule needs: its obligation's name (a `made_<code>_call_` prefix asked as often as it is
-    * listed), and why.
-    */
+  private def nodes(r: Resolved, modules: List[LeanModule]): List[Missing] =
+    val t = r.theory
+    t.refinement.nodes.filter(_.statement.stated).flatMap { n =>
+      val have = stated(modules, Layout(t.name), n.id, "")
+      val mentioned = Resolve.mentions(t, n.id).symbols.toSet
+      val code = proven(r).filter((s, _) => mentioned(s))
+      val parts = t.refinement.parts(n.id).nonEmpty
+      val saysWhat = !parts && mentioned.exists(s => t.vocabulary.symbol(s).exists(_.kind == ValueKind.Declaration))
+      val impl = n.statement.kind == NodeKind.Claim && code.nonEmpty && !saysWhat
+      val flows = if impl then code.collect { case (_, Code.ProvenFlow(f)) => f }.distinct else Nil
+      val parallel = flows.flatMap(program(r, _)).flatMap(Progs.all).count {
+        case Prog.Par(_, _, _, _) | Prog.ParEach(_, _, _, _) => true
+        case _                                             => false
+      }
+      (Option.when(impl)("impl" -> "it is claimed of proven code").toList ++
+        Option.when(parts && !impl && !have.contains("impl"))("complete" -> "it has parts").toList ++
+        (0 until parallel).map(i => s"commute_$i" -> s"parallel step ${i + 1} of its proven programs"))
+        .filterNot((name, _) => have.contains(name)).map((name, why) => Missing(n.id, name, why))
+    }
+
+  /** Each discharge a rule needs: its obligation's name, and why. */
   private def needs(r: Resolved, range: Range, rule: NodeId): List[(NodeId, String, String)] =
     val t = r.theory
     val ty = range match
@@ -65,8 +77,10 @@ object Completeness:
       .map(d => (rule, s"made_${d.value}", s"${d.value}'s proven code makes it"))
     val ops = t.vocabulary.models.flatMap(_.ops).filter(o => holds(r, ty)(o.result))
       .map(o => (rule, s"made_${o.op.value}", s"the operation ${o.op.value} makes it"))
-    val calls = proven(r).flatMap((_, c) => c.proven.toList).flatMap(d => plainCalls(r, d).filter(_.exists(holds(r,
-      ty))).map(_ => (rule, s"made_${d.value}_call_", s"${d.value} hands one to code not proven")))
+    val calls = proven(r).flatMap((_, c) => c.proven.toList).distinct.flatMap(d => plainCalls(r, d).zipWithIndex
+      .collect { case (tys, i) if tys.exists(holds(r, ty)) =>
+        (rule, s"made_${LeanNames.call(d, i)}", s"${d.value} hands one to code not proven at call ${i + 1}")
+      })
     results ++ ops ++ calls
 
   /** The Definitions with proven code, and their code. */
@@ -96,22 +110,40 @@ object Completeness:
       case _                   => false
     }
 
-  /** The calls of code not proven (plain Scala, an operation on a state) in proven code, through the defines it
-    * calls: each call's arguments' types.
+  /** The calls of code not proven (plain Scala, an operation on a state) in proven code, in the order it makes
+    * them (a call's arguments' before it, a step's terms' before the steps after it), through the defines it calls
+    * (each read where it is called): each call's arguments' types.
     */
   private def plainCalls(r: Resolved, d: DefName): List[List[Ty]] =
     val t = r.theory
     def plain(s: SymbolName) = t.code.attached.get(s).exists(_.code.proven.isEmpty)
-    def in(e: Expr, seen: Set[DefName]): List[List[Ty]] = Exprs.all(e).flatMap {
+    def in(e: Expr, seen: Set[DefName]): List[List[Ty]] = (e match
+      case Expr.Do(p, _) => steps(p, seen)
+      case _             => Exprs.children(e).flatMap(in(_, seen))) ++ (e match
       case Expr.Apply(Expr.Sym(s, _), as, _) if plain(s) => List(as.map(Exprs.typeOf))
-      case Expr.Call(c, _, _) if !seen(c)              => t.vocabulary.define(c).toList.flatMap(x =>
-          in(x.lambda.body, seen + c))
-      case Expr.Do(p, _)                               => Progs.all(p).collect {
-          case Prog.Call(op, as, _) if plain(op) => as.map(Exprs.typeOf)
-        }
-      case _                                           => Nil
-    }
+      case Expr.Call(c, _, _) if !seen(c)              =>
+        t.vocabulary.define(c).toList.flatMap(x => in(x.lambda.body, seen + c))
+      case _                                           => Nil)
+    def steps(p: Prog[Expr], seen: Set[DefName]): List[List[Ty]] =
+      own(p).flatMap(in(_, seen)) ++ (p match
+        case Prog.Call(op, as, _) if plain(op) => List(as.map(Exprs.typeOf))
+        case _                                 => Nil) ++ Progs.children(p).flatMap(steps(_, seen))
     t.vocabulary.define(d).toList.flatMap(x => in(x.lambda.body, Set(d)))
+
+  /** A step's own terms, not its sub-steps'. */
+  private def own(p: Prog[Expr]): List[Expr] = p match
+    case Prog.Pure(t)                    => List(t)
+    case Prog.Call(_, as, _)             => as
+    case Prog.Let(_, v, _)               => List(v)
+    case Prog.Loop(xs, _, _)             => List(xs)
+    case Prog.Collect(xs, _, _)          => List(xs)
+    case Prog.Accumulate(xs, z, _, _, _) => List(xs, z)
+    case Prog.Branch(c, _, _)            => List(c)
+    case Prog.Write(_, s)                => List(s)
+    case Prog.Modify(_, _, s)            => List(s)
+    case Prog.Raise(e)                   => List(e)
+    case Prog.ParEach(xs, _, _, _)       => List(xs)
+    case _                               => Nil
 
   /** Whether a value of `x` holds a `ty`: itself, an element of a list or an option, a side, a component, a field. */
   private def holds(r: Resolved, ty: Ty)(x: Ty): Boolean =
@@ -124,47 +156,7 @@ object Completeness:
       case _                      => false)
     go(x, Set.empty)
 
-  /** What the modules state where the obligation would be: the rule's `Spec`, or the whole theory's for a `start_`. */
-  private def stated(modules: List[LeanModule], l: Layout, rule: NodeId, name: String): List[String] =
-    val in = if name.startsWith("start_") then modules.filter(_.name == l.wholeSpec)
-      else modules.filter(_.name == l.ofNode(rule, NodePart.Spec))
-    in.flatMap(_.decls).flatMap(flat).collect { case Decl.Def(_, n, _, _, _) => n.text }
-
-  private def flat(d: Decl): List[Decl] = d match
-    case Decl.Documented(_, x)  => flat(x)
-    case Decl.Namespace(_, ds)  => ds.flatMap(flat)
-    case Decl.Budgeted(_, x)    => flat(x)
-    case other                  => List(other)
-
-  private def statements(d: Decl): List[LExpr] = d match
-    case Decl.Def(_, _, ps, ty, body)    => hypotheses(ps) ++ List(ty, body)
-    case Decl.Theorem(_, _, ps, s, _, _) => hypotheses(ps) :+ s
-    case _                               => Nil
-
-  /** A declaration's parameters that are hypotheses, each read as assumed (as the left of `→`). */
-  private def hypotheses(ps: List[LBinder]): List[LExpr] = ps.collect { case LBinder.Explicit(_, t) =>
-    LExpr.Infix(LOp.Arrow, t, LExpr.Name(Names.builtin("True"))) }
-
-  /** The constants applied where `e` assumes them: left of `→`, a hypothesis binder's type, under a `¬` turned. */
-  private def assumed(e: LExpr, negative: Boolean): List[List[LeanName]] = e match
-    case LExpr.Const(p) if negative               => List(p)
-    case LExpr.App(f, as)                          => (f :: as).flatMap(assumed(_, negative))
-    case LExpr.Infix(LOp.Arrow, a, b)              => assumed(a, !negative) ++ assumed(b, negative)
-    case LExpr.Infix(_, a, b)                      => assumed(a, negative) ++ assumed(b, negative)
-    case LExpr.Prefix(_, a)                        => assumed(a, !negative)
-    case LExpr.Paren(i)                            => assumed(i, negative)
-    case LExpr.Forall(ps, b)                       => ps.flatMap(binder(_, !negative)) ++ assumed(b, negative)
-    case LExpr.Exists(ps, b)                       => ps.flatMap(binder(_, negative)) ++ assumed(b, negative)
-    case LExpr.Fun(_, b)                           => assumed(b, negative)
-    case LExpr.Match(on, arms)                     =>
-      assumed(on, negative) ++ arms.flatMap(a => assumed(a._2, negative))
-    case LExpr.If(c, a, b)                         => assumed(c, true) ++ assumed(c, false) ++ assumed(a, negative) ++
-        assumed(b, negative)
-    case LExpr.Let(_, _, v, b)                     => assumed(v, negative) ++ assumed(b, negative)
-    case LExpr.Typed(x, _)                         => assumed(x, negative)
-    case _                                         => Nil
-
-  private def binder(b: LBinder, negative: Boolean): List[List[LeanName]] = b match
-    case LBinder.Explicit(_, t) => assumed(t, negative)
-    case LBinder.Member(_, in)  => assumed(in, negative)
-    case _                      => Nil
+  /** What the modules state where the obligation would be: the node's `Spec`, or the whole theory's for a `start_`. */
+  private def stated(modules: List[LeanModule], l: Layout, node: NodeId, name: String): List[String] =
+    Assumed.defs(modules.filter(_.name == (if name.startsWith("start_") then l.wholeSpec
+      else l.ofNode(node, NodePart.Spec))))
