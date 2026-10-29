@@ -28,7 +28,7 @@ class UnreadableSuite extends munit.FunSuite:
       assertEquals(Files.read(f, "{\"version\": 1,").left.map(_.file), Left(f.file))
       assertEquals(Files.read(f, "{}"), Left(Unreadable.NoVersion(f.file)))
       assertEquals(Files.read(f, "{\"version\": \"1\"}"), Left(Unreadable.NoVersion(f.file)))
-      assertEquals(Files.read(f, "{\"version\": 2}"), Left(Unreadable.UnknownVersion(f.file, 2, 1)))
+      assertEquals(Files.read(f, "{\"version\": 9}"), Left(Unreadable.UnknownVersion(f.file, 9, f.version)))
     }
   }
 
@@ -38,7 +38,7 @@ class UnreadableSuite extends munit.FunSuite:
     assertEquals(Files.read(ChecksFile.format, golden("checks.json", "\"status\": \"failed\",", "")),
       Left(Unreadable.BadField(".frflow/checks.json", 1, ".checks.Book.status", "missing")))
     assertEquals(Files.read(TestsFile.format, golden("tests.json", "\"kind\": \"claim\"", "\"kind\": \"rule\"")),
-      Left(Unreadable.BadField(".frflow/tests.json", 1, ".tests.Book.against.kind", "no test target of kind rule")))
+      Left(Unreadable.BadField(".frflow/tests.json", 2, ".tests.Book.against.kind", "no test target of kind rule")))
     assertEquals(Files.read(Snapshot.format, golden("kb.json", "\"cases\": 500", "\"cases\": \"many\"")),
       Left(Unreadable.BadField(".frflow/kb.json", 1, ".nodes[0].body.tested.cases", "not a whole number")))
   }
@@ -64,15 +64,26 @@ class UnreadableSuite extends munit.FunSuite:
   private def nested(depth: Int): Json = (1 to depth).foldLeft(Json.arr())((j, _) => Json.arr(j))
 
   test("a file nested deeper than the codecs may recurse is refused, naming where, without overflowing the stack") {
-    val deep = Json.obj("version" -> Json.fromInt(1), "counterexamples" -> Json.obj("Book" -> nested(5000)))
+    val deep = Json.obj("version" -> Json.fromInt(2), "counterexamples" -> Json.obj("Book" -> nested(5000)))
     val path = ".counterexamples.Book" + "[0]" * (Depth.limit - 1)
     assertEquals(Files.decode(TestsFile.counterexamples, deep),
-      Left(Unreadable.BadField(".frflow/counterexamples.json", 1, path, s"nested deeper than ${Depth.limit}")))
+      Left(Unreadable.BadField(".frflow/counterexamples.json", 2, path, s"nested deeper than ${Depth.limit}")))
     val text = golden("counterexamples.json", "\"kind\": \"str\",", s"\"deep\": ${nested(2000).noSpaces},")
     assertEquals(Files.read(TestsFile.counterexamples, text).left.map {
       case Unreadable.BadField(file, _, _, problem) => s"$file: $problem"
       case other                                    => other.toString
     }, Left(s".frflow/counterexamples.json: nested deeper than ${Depth.limit}"))
+  }
+
+  test("the tests' files of version 1 still read: a step's boundary left unread, a model's runs named by their node") {
+    val tests = Files.read(TestsFile.format, golden("tests.v1.json", "\"version\": 1", "\"version\": 1"))
+      .getOrElse(fail("tests.json of version 1 does not read"))
+    assert(tests.values.exists(_._2.against == frflow.testing.report.Against.Model(NodeId("Store"),
+      frflow.core.name.ModelName("Store"))), tests)
+    val failures = Files.read(TestsFile.counterexamples, golden("counterexamples.v1.json", "\"version\": 1",
+      "\"version\": 1")).getOrElse(fail("counterexamples.json of version 1 does not read"))
+    assertEquals(failures.keySet, Files.read(TestsFile.counterexamples, golden("counterexamples.json", "\"version\"",
+      "\"version\"")).toOption.get.keySet)
   }
 
   test("a document as deep as the limit is not beyond it; one level more is") {

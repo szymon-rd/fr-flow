@@ -1,0 +1,359 @@
+{
+  "version": 1,
+  "tests": {
+    "Book": {
+      "key": "a1b2c3",
+      "asked": 500,
+      "cases": 18,
+      "seed": "42",
+      "against": {
+        "kind": "claim",
+        "node": "Book"
+      },
+      "outcome": {
+        "kind": "failed",
+        "failure": {
+          "kind": "call",
+          "inputs": [
+            {
+              "kind": "many",
+              "elems": [
+                {
+                  "kind": "data",
+                  "ctor": "mk",
+                  "fields": [
+                    {
+                      "kind": "str",
+                      "value": "Oak"
+                    },
+                    {
+                      "kind": "num",
+                      "value": 9
+                    },
+                    {
+                      "kind": "num",
+                      "value": 10
+                    }
+                  ]
+                }
+              ]
+            },
+            {
+              "kind": "data",
+              "ctor": "mk",
+              "fields": [
+                {
+                  "kind": "str",
+                  "value": "Oak"
+                },
+                {
+                  "kind": "num",
+                  "value": 9
+                },
+                {
+                  "kind": "num",
+                  "value": 11
+                }
+              ]
+            }
+          ],
+          "givens": [
+            {
+              "symbol": "rooms",
+              "value": {
+                "kind": "pairs",
+                "entries": [
+                  {
+                    "key": {
+                      "kind": "str",
+                      "value": "Oak"
+                    },
+                    "value": {
+                      "kind": "maybe",
+                      "elem": {
+                        "kind": "num",
+                        "value": 4
+                      }
+                    }
+                  }
+                ]
+              }
+            }
+          ],
+          "broke": {
+            "kind": "always",
+            "node": "NoOverlap"
+          },
+          "from": {
+            "seed": "42",
+            "index": 17,
+            "size": 3
+          }
+        }
+      },
+      "unreached": [
+        {
+          "path": [
+            1
+          ],
+          "reach": {
+            "kind": "premise"
+          }
+        },
+        {
+          "path": [
+            0,
+            2
+          ],
+          "reach": {
+            "kind": "arm",
+            "index": 1
+          }
+        }
+      ],
+      "notes": [
+        {
+          "kind": "given",
+          "type": {
+            "kind": "list",
+            "elem": {
+              "kind": "data",
+              "name": "Booking"
+            }
+          },
+          "says": "bookings on one day"
+        },
+        {
+          "kind": "given",
+          "type": {
+            "kind": "map",
+            "key": {
+              "kind": "str"
+            },
+            "value": {
+              "kind": "num",
+              "num": "int32"
+            }
+          }
+        },
+        {
+          "kind": "never-made",
+          "type": {
+            "kind": "data",
+            "name": "Booking"
+          },
+          "values": [
+            {
+              "kind": "data",
+              "ctor": "mk",
+              "fields": [
+                {
+                  "kind": "str",
+                  "value": "Elm"
+                },
+                {
+                  "kind": "num",
+                  "value": 0
+                },
+                {
+                  "kind": "num",
+                  "value": 1
+                }
+              ]
+            }
+          ]
+        }
+      ]
+    },
+    "Free": {
+      "key": "070809",
+      "asked": 100,
+      "cases": 100,
+      "seed": "1",
+      "against": {
+        "kind": "claim",
+        "node": "Free"
+      },
+      "outcome": {
+        "kind": "not-checked",
+        "error": {
+          "kind": "quantified"
+        }
+      },
+      "unreached": [],
+      "notes": [
+        {
+          "kind": "given",
+          "type": {
+            "kind": "tuple",
+            "elems": [
+              {
+                "kind": "either",
+                "error": {
+                  "kind": "bool"
+                },
+                "value": {
+                  "kind": "unit"
+                }
+              },
+              {
+                "kind": "option",
+                "elem": {
+                  "kind": "set",
+                  "elem": {
+                    "kind": "world"
+                  }
+                }
+              },
+              {
+                "kind": "fn",
+                "params": [
+                  {
+                    "kind": "never"
+                  }
+                ],
+                "result": {
+                  "kind": "str"
+                }
+              }
+            ]
+          }
+        },
+        {
+          "kind": "nothing-to-vary"
+        }
+      ]
+    },
+    "Store": {
+      "key": "d4e5f6",
+      "asked": 200,
+      "cases": 3,
+      "seed": "-7",
+      "against": {
+        "kind": "model",
+        "node": "Store",
+        "realization": 0
+      },
+      "outcome": {
+        "kind": "failed",
+        "failure": {
+          "kind": "run",
+          "start": {
+            "kind": "world",
+            "states": [
+              {
+                "model": "stored",
+                "state": {
+                  "kind": "many",
+                  "elems": []
+                }
+              }
+            ],
+            "faults": [
+              false,
+              true
+            ]
+          },
+          "steps": [
+            {
+              "boundary": "Bookings",
+              "op": "add",
+              "args": [
+                {
+                  "kind": "data",
+                  "ctor": "mk",
+                  "fields": [
+                    {
+                      "kind": "str",
+                      "value": "Oak"
+                    },
+                    {
+                      "kind": "num",
+                      "value": 9
+                    },
+                    {
+                      "kind": "num",
+                      "value": 10
+                    }
+                  ]
+                }
+              ]
+            }
+          ],
+          "difference": {
+            "kind": "call",
+            "step": {
+              "boundary": "Bookings",
+              "op": "list",
+              "args": []
+            },
+            "implementation": {
+              "kind": "gave",
+              "result": {
+                "kind": "many",
+                "elems": []
+              }
+            },
+            "model": {
+              "kind": "gave",
+              "result": {
+                "kind": "many",
+                "elems": [
+                  {
+                    "kind": "data",
+                    "ctor": "mk",
+                    "fields": [
+                      {
+                        "kind": "str",
+                        "value": "Oak"
+                      },
+                      {
+                        "kind": "num",
+                        "value": 9
+                      },
+                      {
+                        "kind": "num",
+                        "value": 10
+                      }
+                    ]
+                  }
+                ]
+              }
+            }
+          },
+          "from": {
+            "seed": "-7",
+            "index": 2,
+            "size": 1
+          }
+        }
+      },
+      "unreached": [
+        {
+          "path": [
+            1
+          ],
+          "reach": {
+            "kind": "called",
+            "op": "remove"
+          }
+        }
+      ],
+      "notes": [
+        {
+          "kind": "given",
+          "type": {
+            "kind": "flow",
+            "result": {
+              "kind": "unit"
+            },
+            "error": {
+              "kind": "sort",
+              "name": "Fault"
+            }
+          }
+        }
+      ]
+    }
+  }
+}

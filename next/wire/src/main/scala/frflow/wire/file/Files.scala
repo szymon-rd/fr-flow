@@ -21,10 +21,11 @@ object Files:
     for
       v <- json.hcursor.downField("version").focus.flatMap(_.asNumber).flatMap(_.toInt)
              .toRight(Unreadable.NoVersion(f.file))
-      _ <- Either.cond(v == f.version, (), Unreadable.UnknownVersion(f.file, v, f.version))
+      d <- (if v == f.version then Some(f.decoder) else f.older.get(v))
+             .toRight(Unreadable.UnknownVersion(f.file, v, f.version))
       _ <- Depth.beyond(json).toLeft(()).leftMap(p =>
              Unreadable.BadField(f.file, v, p, s"nested deeper than ${Depth.limit}"))
-      a <- f.decoder.decodeJson(json).leftMap(e => Unreadable.BadField(f.file, v, field(e), problem(e)))
+      a <- d.decodeJson(json).leftMap(e => Unreadable.BadField(f.file, v, field(e), problem(e)))
     yield a
 
   private def text(j: Json, indent: Int): String =

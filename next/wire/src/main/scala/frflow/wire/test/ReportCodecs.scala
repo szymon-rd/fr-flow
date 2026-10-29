@@ -82,7 +82,17 @@ object ReportCodecs:
     "seed" -> r.seed.asJson, "against" -> r.against.asJson, "outcome" -> r.outcome.asJson,
     "unreached" -> r.unreached.asJson, "notes" -> r.notes.asJson)
 
-  def decode(c: ACursor): Decoder.Result[TestReport] =
+  def decode(c: ACursor): Decoder.Result[TestReport] = decoding(c, summon[Decoder[Against]])
+
+  /** A report of version 1, a model's runs against a store's realization (`"realization"`), no model named: read as
+    * against the model named as its node, which no key now is (it is tested again).
+    */
+  def decodeV1(c: ACursor): Decoder.Result[TestReport] = decoding(c, Tagged.decoder("test target") {
+    case "claim" => _.get[NodeId]("node").map(Against.Claim(_))
+    case "model" => _.get[NodeId]("node").map(n => Against.Model(n, ModelName(n.value)))
+  })
+
+  private def decoding(c: ACursor, against: Decoder[Against]): Decoder.Result[TestReport] =
     ((c.get[Int]("asked"), c.get[Int]("cases")).mapN(Count(_, _)), c.get[Seed]("seed"),
-      c.get[Against]("against"), c.get[Outcome]("outcome"), c.get[List[Target]]("unreached"),
+      c.get("against")(using against), c.get[Outcome]("outcome"), c.get[List[Target]]("unreached"),
       c.get[List[Note]]("notes")).mapN(TestReport(_, _, _, _, _, _))

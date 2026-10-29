@@ -1,5 +1,5 @@
 {
-  "version": 1,
+  "version": 2,
   "tests": {
     "Book": {
       "key": "a1b2c3",

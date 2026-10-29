@@ -10,15 +10,19 @@ import io.circe.{ACursor, Decoder, Encoder, HCursor, Json, JsonObject}
 
 /** The tests' two files, nodes in the order of their ids: `.frflow/tests.json` (not committed), each node's report
   * with the key it is current for (`key` first, then the report's fields); `.frflow/counterexamples.json`
-  * (committed), each node's failing cases, replayed first.
+  * (committed), each node's failing cases, replayed first. Version 2: a model test's step is its operation (no
+  * boundary), and a model's runs name the model (no realization); version 1 is still read.
   */
 object TestsFile:
-  val format: FileFormat[Map[NodeId, (String, TestReport)]] = FileFormat(".frflow/tests.json", 1,
+  val format: FileFormat[Map[NodeId, (String, TestReport)]] = FileFormat(".frflow/tests.json", 2,
     byNode("tests")((k, r) => Json.fromJsonObject(("key" -> k.asJson) +: ReportCodecs.encode(r))),
-    readByNode("tests")(c => (c.get[String]("key"), ReportCodecs.decode(c)).tupled))
+    readByNode("tests")(c => (c.get[String]("key"), ReportCodecs.decode(c)).tupled),
+    Map(1 -> readByNode("tests")(c => (c.get[String]("key"), ReportCodecs.decodeV1(c)).tupled)))
 
-  val counterexamples: FileFormat[Map[NodeId, List[Failure]]] = FileFormat(".frflow/counterexamples.json", 1,
-    byNode("counterexamples")(_.asJson), readByNode("counterexamples")(_.as[List[Failure]]))
+  /** A version 1 step's boundary is left unread: its operation names it. */
+  val counterexamples: FileFormat[Map[NodeId, List[Failure]]] = FileFormat(".frflow/counterexamples.json", 2,
+    byNode("counterexamples")(_.asJson), readByNode("counterexamples")(_.as[List[Failure]]),
+    Map(1 -> readByNode("counterexamples")(_.as[List[Failure]])))
 
   private def byNode[A](name: String)(encode: A => Json): Encoder.AsObject[Map[NodeId, A]] =
     Encoder.AsObject.instance(m => JsonObject(name -> Json.fromFields(m.toList.sortBy(_._1).map((id, a) =>
