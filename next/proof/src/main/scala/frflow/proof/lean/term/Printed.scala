@@ -4,6 +4,7 @@ import frflow.core.expr.Binder
 import frflow.core.name.SymbolName
 import frflow.core.term.{Final, Stated}
 import frflow.core.term.interpret.{Guard, Guarded}
+import frflow.core.ty.Ty
 import frflow.proof.lean.ast.{LBinder, LExpr}
 import frflow.proof.lean.lower.{LowerEnv, LowerType, Naming}
 
@@ -14,9 +15,12 @@ import frflow.proof.lean.lower.{LowerEnv, LowerType, Naming}
 object Printed:
   def formula[A](env: LowerEnv, naming: Naming)(t: Final[A]): LExpr = t[LeanTerm.S](LeanTerm(env))(Scope(0, naming))
 
-  /** A node's claim as its `def claim` states it: every variable with what always holds of it (`Guarded`). */
-  def claim(env: LowerEnv, naming: Naming, guards: List[Guard])(t: Final[Boolean]): LExpr =
-    formula(env, naming)(Guarded.of(t, guards))
+  /** A node's claim as its `def claim` states it: every variable with what always holds of it (`Guarded`), and so each
+    * value provided where the code runs that it mentions (`provided`), a value from outside (owner §21).
+    */
+  def claim(env: LowerEnv, naming: Naming, guards: List[Guard], provided: List[(SymbolName, Ty)])(
+      t: Final[Boolean]): LExpr =
+    formula(env, naming)(Guarded.ofProvided(Guarded.of(t, guards), guards, provided))
 
   /** A term over variables bound outside it: `depth` of them at levels, the rest steps, all named in `naming`. */
   def term(env: LowerEnv, naming: Naming, depth: Int)(t: Stated[?]): LExpr =

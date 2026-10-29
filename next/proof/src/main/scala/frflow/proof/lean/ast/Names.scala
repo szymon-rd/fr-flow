@@ -23,6 +23,9 @@ object Names:
     val t = if s.startsWith("__") then "x" + s.drop(1) else s
     LeanName.unsafe(if Keywords(t) then s"«$t»" else if Prelude(t) then t + "_" else t)
 
+  /** A define's name, as its `def` and every call of it spell it: a keyword escaped (`«matches»`), nothing renamed. */
+  def define(n: String): LeanName = LeanName.unsafe(if Keywords(n) then s"«$n»" else n)
+
   /** A name FrFlow writes itself (`World`, `FrFlow`, `rfl`, `mk`): not escaped. */
   def builtin(n: String): LeanName = LeanName.unsafe(n)
 

@@ -20,8 +20,9 @@ import frflow.core.analysis.{Callees, SaysWhat, Scope}
   * - an `always[T]`: the facts of every model whose state holds a `T` (an operation making one is held to it on its
   *   model, `made_<op>`, which rests on nothing outside);
   * - and, of every claim, what values from outside meet: each assumption of `always[U]` whose guard the claim's Lean
-  *   form or its `made_`/`cover_` obligations carry (on a variable it quantifies over, a world, or an input of a
-  *   maker or program it is asked of; `Guards.applies` decides, as it does for the guards Lean states). An
+  *   form or its `made_`/`cover_` obligations carry (on a variable it quantifies over, a world, an input of a maker
+  *   or program it is asked of, or a value provided where the code runs that it mentions; `Guards.applies` decides,
+  *   as it does for the guards Lean states). An
   *   `always[T]` claim also rests on what `T`s from outside meet when an entry Definition's input or a value
   *   provided where the code runs can hold one, whether or not an assumption says it: no covered code makes those.
   */
@@ -78,7 +79,7 @@ object Premises:
     * `cover_` and `made_` are asked of.
     */
   private def guarded(t: Theory, n: Node): List[Premise] =
-    val values = (Reads.quantified(n) ++ asked(t, n)).filter(_ != Ty.World)
+    val values = (Reads.quantified(n) ++ Reads.provided(t, n.id).map(_._2) ++ asked(t, n)).filter(_ != Ty.World)
     val stores = Option.when(Reads.quantified(n).contains(Ty.World))(Reads.models(t, n.id)).toList.flatten ++
       worlds(t, n)
     t.nodes.map(_.node).filter(a => a.id != n.id && a.statement.kind == NodeKind.Assumption)

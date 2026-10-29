@@ -1,6 +1,6 @@
 package frflow.proof.whole
 
-import frflow.core.analysis.Resolved
+import frflow.core.analysis.{Constrained, Resolved}
 import frflow.core.consistency.{Consistency, Vacuity}
 import frflow.core.name.DefName
 import frflow.proof.obligation.{Constant, Discharge, Obligation, ObligationName, Prop, Supplied}
@@ -20,5 +20,6 @@ object Possible:
         Some(Obligation(ObligationName.Inhabited(n), Prop.Inhabited(DefName(n.value), ty), by,
           s"Some value meets ${n.value}."))
       case Vacuity.Satisfiable(n, i, _) => Consistency.condition(r.theory, n, i).map(c =>
-        Obligation(ObligationName.Satisfiable(n, i), Prop.ForSome(Consistency.opens(r.theory, c), Prop.Formula(c)), by,
+        Obligation(ObligationName.Satisfiable(n, i), Prop.ForSome(Consistency.opens(r.theory, c),
+          Prop.Formula(c, Stands.of(r, Constrained.of(r.theory, n)))), by,
           s"Condition ${i + 1} of ${n.value} can hold."))

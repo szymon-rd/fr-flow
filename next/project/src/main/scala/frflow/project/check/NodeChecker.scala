@@ -37,7 +37,7 @@ final class NodeChecker[F[_]: Monad: Clock](lake: Lake[F], files: ProjectFiles[F
         _             <- proofFile(lean)
         (done, found) <- complete(lean, a)
         impl          <- proven(lean, ObligationName.Impl)
-        holds         <- composed(lean, done)
+        holds         <- composed(lean, done, parts)
         checks        <- checked(lean)
         root          <- rootImpl(lean)
       yield
@@ -94,13 +94,15 @@ final class NodeChecker[F[_]: Monad: Clock](lake: Lake[F], files: ProjectFiles[F
       run(lean.module(NodePart.Impl)).map(r => audited(lean, o, lean.elaborated(NodePart.Impl, r))))
 
   /** `holds`, composed once `complete` is proven, with the axioms it rests on: a composition Lean does not build
-    * fails the check.
+    * fails the check, but while a part is not proven yet (its theorem may be what does not build), the node waits.
     */
-  private def composed(lean: NodeLean, done: List[Result]): Step[List[String]] =
+  private def composed(lean: NodeLean, done: List[Result], parts: List[CheckStatus]): Step[List[String]] =
     if !lean.has(NodePart.Theorems) || !done.forall(_.status == ObligationStatus.Proven) then EitherT.pure(Nil)
     else run(lean.module(NodePart.Theorems)).flatMap { r =>
       val e = lean.elaborated(NodePart.Theorems, r)
       r match
+        case ProverRun.Failed(_) if !parts.forall(_ == CheckStatus.Proven) =>
+          EitherT.leftT(Judged(CheckStatus.Waiting, done, Nil))
         case ProverRun.Failed(_) => EitherT.leftT(Judged(CheckStatus.Failed, done,
           List(Finding.NotProven(e.toList.flatMap(_.diagnostics.filter(_.error))))))
         case _                   => e.flatMap(_.axiomsOf("holds")).fold(

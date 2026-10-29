@@ -16,7 +16,7 @@ class TriesSuite extends munit.FunSuite:
   private def kinds(n: String): List[TryKind] = tries(n).map(_.name).collect { case ObligationName.Tried(k) => k }
   private def lean(n: String, k: TryKind): String =
     PrintDecl(LowerObligation(frflow.proof.lean.lower.LowerProp(table, frflow.proof.layout.Lowering(Pair.resolved,
-      table).env))(tries(n).find(_.name == ObligationName.Tried(k)).getOrElse(fail(s"no $k of $n"))))
+      table).env, _ => Nil))(tries(n).find(_.name == ObligationName.Tried(k)).getOrElse(fail(s"no $k of $n"))))
   private val (aboutF, aboutG) = (NodeId("aboutF"), NodeId("aboutG"))
 
   test("needed_C: of a split, each part left out in turn") {
@@ -46,10 +46,17 @@ class TriesSuite extends munit.FunSuite:
   }
 
   test("idle: a root met by every Definition it names doing nothing, within Lean's default budget") {
-    val idle = tries("both").filter(_.name == ObligationName.Tried(TryKind.Idle))
-    assertEquals(idle.map(_.discharge), List(Discharge.Attempt(Idle.DefaultHeartbeats)))
-    assert(lean("both", TryKind.Idle).contains("(Test.both.claim (fun (x0 : Int) => False) (fun (x0 : Int) => False))"))
+    val coded = Pair.withDefinitions
+    val ofIt = Tries.of(coded, TermTable.of(coded), NodeId("both")).filter(_.name == ObligationName.Tried(TryKind.Idle))
+    assertEquals(ofIt.map(_.discharge), List(Discharge.Attempt(Idle.DefaultHeartbeats)))
+    val printed = PrintDecl(LowerObligation(frflow.proof.lean.lower.LowerProp(TermTable.of(coded),
+      frflow.proof.layout.Lowering(coded, TermTable.of(coded)).env, _ => Nil))(ofIt.head))
+    assert(printed.contains("(Test.both.claim (fun (x0 : Int) => False) (fun (x0 : Int) => False))"), printed)
     assertEquals(kinds("aboutF").filter(_ == TryKind.Idle), Nil)
+  }
+
+  test("idle: none of a root naming only Declarations, which are no code to do nothing") {
+    assertEquals(kinds("both").filter(_ == TryKind.Idle), Nil)
   }
 
   test("every try's name reads back as the try") {
@@ -57,7 +64,7 @@ class TriesSuite extends munit.FunSuite:
       assertEquals(ObligationNames.read(LowerObligation.name(o.name).text), Some(o.name)))
   }
 
-  test("a one-part node's tries, as Mini's allowsOne has them") {
+  test("a one-part node's tries, as Mini's allowsOne, over a Declaration, has them") {
     assertEquals(Tries.of(Mini.resolved, TermTable.of(Mini.resolved), NodeId("allowsOne")).map(_.name),
-      List(TryKind.Vacuous, TryKind.Restates, TryKind.Clash, TryKind.Unsat, TryKind.Idle).map(ObligationName.Tried(_)))
+      List(TryKind.Vacuous, TryKind.Restates, TryKind.Clash, TryKind.Unsat).map(ObligationName.Tried(_)))
   }

@@ -13,30 +13,58 @@ import frflow.proof.terms.{OpenTerms, TermTable}
 
 /** A proposition as a Lean statement: each declaration applied to its open terms, each term replaced by its
   * substitute; the open terms left are bound by `Forall` (or `Exists`) in the order met
-  * (the claims it is about, the conclusion, the hypotheses), then the hypotheses `h_<Node>`. Today's
+  * (the claims it is about, the conclusion, the hypotheses), then the hypotheses `h_<Node>`. A value provided where
+  * the code runs comes with what always holds of it (`fromOutside`), wherever it is bound. Today's
   * `Refinement.claim`, `stated` and `Vocabulary.term`, on values.
   */
-final class LowerProp(table: TermTable, env: LowerEnv):
+final class LowerProp(table: TermTable, env: LowerEnv, fromOutside: SymbolName => List[LExpr]):
   import Atoms.{call, name}
   private type W[A] = Writer[OpenTerms, A]
   private type Subst = Map[SymbolName, Substitute]
 
   def statement(p: Prop): LExpr = p match
-    case Prop.Forall(about, body) => closed(about, body)(LExpr.Forall(_, _))
-    case Prop.Exists(about, body) => closed(about, body)(LExpr.Exists(_, _))
-    case Prop.ForEvery(ss, body)  => named(ss, statement(body))(LExpr.Forall(_, _))
-    case Prop.ForSome(ss, body)   => named(ss, statement(body))(LExpr.Exists(_, _))
+    case Prop.Forall(about, body) => closed(about, body, LOp.Arrow)(LExpr.Forall(_, _))
+    case Prop.Exists(about, body) => closed(about, body, LOp.And)(LExpr.Exists(_, _))
+    case Prop.ForEvery(ss, body)  => named(ss, body, LOp.Arrow, Nil)(LExpr.Forall(_, _))
+    case Prop.ForSome(ss, body)   => named(ss, body, LOp.And, Nil)(LExpr.Exists(_, _))
     case other                   => prop(other, Map.empty).value
 
-  /** `∀`/`∃` exactly `ss`, each at its type; nothing to bind, the body alone. */
-  private def named(ss: List[SymbolName], body: LExpr)(q: (List[LBinder], LExpr) => LExpr): LExpr =
-    if ss.isEmpty then body else q(binders(OpenTerms(Nil, ss)), body)
+  /** `∀`/`∃` `ss`, each at its type, then what the body leaves open beside them and what is bound outside (`outer`):
+    * what the code standing in it is over; nothing to bind, the body alone.
+    */
+  private def named(ss: List[SymbolName], body: Prop, op: LOp, outer: List[SymbolName])(
+      q: (List[LBinder], LExpr) => LExpr): LExpr =
+    val (opens, b) = body match
+      case Prop.ForEvery(ts, inside) =>
+        (OpenTerms.empty, named(ts, inside, LOp.Arrow, outer ++ ss)(LExpr.Forall(_, _)))
+      case Prop.ForSome(ts, inside)  => (OpenTerms.empty, named(ts, inside, LOp.And, outer ++ ss)(LExpr.Exists(_, _)))
+      case Prop.Forall(_, _) | Prop.Exists(_, _) => (OpenTerms.empty, statement(body))
+      case other                     => prop(other, Map.empty).run
+    val all = OpenTerms(if outer.isEmpty then opens.sorts else Nil, (ss ++ opens.symbols.filterNot(outer.contains))
+      .distinct)
+    if all.symbols.isEmpty && all.sorts.isEmpty then b else q(binders(all), hypotheses(all.symbols, b, op))
 
-  private def closed(about: List[NodeId], body: Prop)(q: (List[LBinder], LExpr) => LExpr): LExpr =
+  private def closed(about: List[NodeId], body: Prop, op: LOp)(q: (List[LBinder], LExpr) => LExpr): LExpr =
     val (opens, b) = (about.traverse(n => prop(Prop.claim(n), Map.empty)) *> withHyps(body)).run
     binders(opens) match
       case Nil => b
-      case bs  => q(bs, b)
+      case bs  => q(bs, hypotheses(opens.symbols, b, op))
+
+  /** What always holds of each provided value among `ss`, before the body: each a hypothesis named by
+    * `outsideNames` under `∀` (so a proof applies it by name), conjoined (`∧`) under `∃`.
+    */
+  private def hypotheses(ss: List[SymbolName], body: LExpr, op: LOp): LExpr = op match
+    case LOp.And => fromOutsideOf(ss).foldRight(body)(LExpr.Infix(op, _, _))
+    case _       =>
+      ss.flatMap(s => outsideNames(s).zip(fromOutside(s))).foldRight(body)((nh, b) =>
+        LExpr.Forall(List(LBinder.Explicit(nh._1, nh._2)), b))
+
+  /** What always holds of each provided value among `ss`, in order. */
+  def fromOutsideOf(ss: List[SymbolName]): List[LExpr] = ss.flatMap(fromOutside)
+
+  /** The names of the hypotheses on a provided value, `o_<value>_<i>`, as every statement binding it names them. */
+  def outsideNames(s: SymbolName): List[LeanName] =
+    fromOutside(s).indices.toList.map(i => Names.builtin(s"o_${s.value}_$i"))
 
   /** The open terms a statement binds, in order: what `statement` quantifies over. */
   def opens(p: Prop): OpenTerms = p match
@@ -65,24 +93,30 @@ final class LowerProp(table: TermTable, env: LowerEnv):
     case Prop.False              => Writer.value(name("False"))
     case Prop.Implies(hs, c)     => (hs.traverse(h => prop(h.prop, σ)), prop(c, σ)).mapN((xs, y) =>
                                       (xs :+ y).reduceRight(LExpr.Infix(LOp.Arrow, _, _)))
-    case Prop.Formula(w)         => formula(w)
+    case Prop.Formula(w, code)   => formula(w, σ ++ code)
     case Prop.Commutes(c, opens)  => opens.traverse(s => Writer.tell(leaf(s))).as(LowerCommute(env, closedNaming)(c))
     case Prop.Forall(_, _) | Prop.Exists(_, _) => Writer.value(LExpr.Paren(statement(p)))
-    case Prop.ForEvery(ss, body) => inner(ss, body, σ)(LExpr.Forall(_, _))
-    case Prop.ForSome(ss, body)  => inner(ss, body, σ)(LExpr.Exists(_, _))
+    case Prop.ForEvery(ss, body) => inner(ss, body, σ, LOp.Arrow)(LExpr.Forall(_, _))
+    case Prop.ForSome(ss, body)  => inner(ss, body, σ, LOp.And)(LExpr.Exists(_, _))
 
   /** A statement inside another binding exactly `ss`: the open terms it leaves are the enclosing statement's. */
-  private def inner(ss: List[SymbolName], body: Prop, σ: Subst)(q: (List[LBinder], LExpr) => LExpr): W[LExpr] =
+  private def inner(ss: List[SymbolName], body: Prop, σ: Subst, op: LOp)(q: (List[LBinder], LExpr) => LExpr)
+      : W[LExpr] =
     val (opens, b) = prop(body, σ).run
     val left = OpenTerms((opens.sorts ++ ss.flatMap(leaf(_).sorts)).distinct, opens.symbols.filterNot(ss.contains))
-    Writer(left, if ss.isEmpty then b else LExpr.Paren(q(binders(OpenTerms(Nil, ss)), b)))
+    Writer(left, if ss.isEmpty then b else LExpr.Paren(q(binders(OpenTerms(Nil, ss)), hypotheses(ss, b, op))))
 
-  /** A formula printed from its term (`Printed`), its open terms told: the symbols its IR (`Written.value`, made once
-    * when elaborated) mentions.
+  /** A formula printed from its term (`Printed`), each symbol as `σ` writes it, its open terms told: the symbols its
+    * IR (`Written.value`, made once when elaborated) mentions, through what stands for them.
     */
-  private def formula(w: Written[Expr]): W[LExpr] = w.form match
+  private def formula(w: Written[Expr], σ: Subst): W[LExpr] = w.form match
     case Form.Term(t)  =>
-      Writer(OpenTerms(Nil, Exprs.mentions(w.value).symbols), Printed.formula(env, closedNaming)(t.run))
+      val said = Exprs.mentions(w.value)
+      val mentioned = (said.symbols ++ said.defines.flatMap(table.defines.getOrElse(_, OpenTerms.empty).symbols))
+        .distinct
+      val (opens, standing) = mentioned.traverse(x =>
+        if σ.contains(x) then symbol(x, σ).map(e => List(x -> e)) else Writer(OpenTerms(Nil, List(x)), Nil)).run
+      Writer(opens, Printed.standing(env, closedNaming, 0, standing.flatten.toMap)(t))
     case Form.Steps(_) => throw IllegalStateException("FrFlow bug: a program's steps as a formula")
 
   /** `f` applied to its open terms: `(Crm.ExpiryJob.claim expire runExpiry)`, or `f` alone over none. */
@@ -144,7 +178,7 @@ final class LowerProp(table: TermTable, env: LowerEnv):
 
   private val closedNaming = Naming.over(Set.empty, Set.empty)
   private def decl(n: NodeId, d: String): LExpr = LExpr.Const(Names.path(env.kb.value, n.value, d))
-  private def define(d: DefName): LExpr = LExpr.Const(Names.path(env.kb.value, d.value))
+  private def define(d: DefName): LExpr = LExpr.Const(List(Names.builtin(env.kb.value), Names.define(d.value)))
 
   private def binders(opens: OpenTerms): List[LBinder] =
     Option.when(opens.sorts.nonEmpty)(LBinder.Several(opens.sorts.map(n => Names.ident(n.value)), name("Type")))

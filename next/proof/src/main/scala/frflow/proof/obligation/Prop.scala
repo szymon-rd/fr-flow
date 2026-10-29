@@ -21,8 +21,10 @@ enum Prop:
     */
   case Makes(always: NodeId, maker: SymbolName, formula: Written[Expr], substitute: Map[SymbolName, Substitute])
   case ConjunctOf(node: NodeId, i: Int)
-  /** A formula as written: its term, printed; its IR, for the open terms it mentions. */
-  case Formula(w: Written[Expr])
+  /** A formula as written: its term, printed, with what stands for the Definitions given there (`code`: their proven
+    * code); its IR, for the open terms it mentions.
+    */
+  case Formula(w: Written[Expr], code: Map[SymbolName, Substitute])
   case Implies(hyps: List[Hyp], conclusion: Prop)
   case Iff(left: Prop, right: Prop)
   case Both(props: NonEmptyList[Prop])

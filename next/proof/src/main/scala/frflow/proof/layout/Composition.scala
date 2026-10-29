@@ -72,5 +72,6 @@ final class Composition(l: Lowering):
     val opens = l.props.opens(statement)
     val sorts = opens.sorts.map(s => Names.ident(s.value) -> LExpr.Name(Names.ident(s.value)))
     val symbols = opens.symbols.map(s => Names.ident(s.value) -> l.props.standing(s, σ))
-    val args = sorts ++ symbols ++ hyps.map((h, e) => Names.builtin(h) -> e)
+    val outside = opens.symbols.flatMap(l.props.outsideNames).map(n => n -> LExpr.Name(n))
+    val args = sorts ++ symbols ++ outside ++ hyps.map((h, e) => Names.builtin(h) -> e)
     LExpr.Paren(args.foldLeft(f)((g, a) => LExpr.Named(g, a._1, a._2)))

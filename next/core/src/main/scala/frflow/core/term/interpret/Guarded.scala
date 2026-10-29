@@ -1,6 +1,8 @@
 package frflow.core.term.interpret
 
+import frflow.core.name.SymbolName
 import frflow.core.term.{Bound, Final, Sym}
+import frflow.core.ty.Ty
 
 /** A formula with what always holds as hypotheses: below each `forall`, the guards of its variable's type, in order,
   * imply the body (below an `exists`, they are conjuncts). A transformer (`Forward`, the identity on `T`) that
@@ -22,3 +24,10 @@ final class Guarded[T[_]](s: Sym[T], guards: List[Guard]) extends Forward[T, T]:
 
 object Guarded:
   def of[A](t: Final[A], guards: List[Guard]): Final[A] = [T[_]] => (s: Sym[T]) => t[T](Guarded(s, guards))
+
+  /** A formula over values provided where the code runs, each named with its type: what always holds of each, as
+    * hypotheses of the whole, in order.
+    */
+  def ofProvided(t: Final[Boolean], guards: List[Guard], provided: List[(SymbolName, Ty)]): Final[Boolean] =
+    [T[_]] => (s: Sym[T]) => provided.flatMap((n, ty) => guards.flatMap(_.of[T, Any](ty, s)).map(_(s.param(n, ty))))
+      .foldRight(t[T](s))(s.implies)

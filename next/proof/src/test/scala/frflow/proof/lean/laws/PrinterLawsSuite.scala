@@ -51,8 +51,8 @@ class PrinterLawsSuite extends munit.FunSuite:
   test("an obligation's formula is printed by the term printer, its open terms told") {
     val table = TermTable(Map.empty, Map.empty, Map.empty, Map.empty)
     terms.take(20).foreach { t =>
-      val formula = Prop.Formula(Written.formula(t, SourceText("")))
-      assertEquals(Print.expr(LowerProp(table, LawsEnv.env).statement(formula)), printed(t))
+      val formula = Prop.Formula(Written.formula(t, SourceText("")), Map.empty)
+      assertEquals(Print.expr(LowerProp(table, LawsEnv.env, _ => Nil).statement(formula)), printed(t))
     }
   }
 

@@ -1,5 +1,6 @@
 package frflow.core.consistency
 
+import cats.syntax.all.*
 import frflow.core.analysis.{Callees, Constrained, Scope}
 import frflow.core.analysis.outside.Outsides
 import frflow.core.code.Code
@@ -98,6 +99,10 @@ object Consistency:
     t.node(n).flatMap(_.statement.said).map(f =>
       Written.formula(Conditions.satisfiable(f.term, i), SourceText(s"${f.source.value} (condition ${i + 1})")))
 
-  /** What a condition leaves open, in order: the Definitions and Declarations it mentions, but proven code. */
+  /** What a condition leaves open, in order: the Definitions and Declarations it mentions, through the defines it
+    * calls too, but proven code.
+    */
   def opens(t: Theory, c: Written[Expr]): List[SymbolName] =
-    Exprs.mentions(c.value).symbols.filter(s => t.code.attached.get(s).forall(_.code.proven.isEmpty))
+    val own = Exprs.mentions(c.value)
+    (own |+| t.vocabulary.closure(own.defines).foldMap(d => Exprs.mentions(d.lambda.body))).symbols
+      .filter(s => t.vocabulary.symbol(s).nonEmpty && t.code.attached.get(s).forall(_.code.proven.isEmpty))

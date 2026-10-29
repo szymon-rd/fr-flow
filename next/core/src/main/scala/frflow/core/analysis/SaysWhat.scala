@@ -19,7 +19,8 @@ object SaysWhat:
 
   def is(t: Theory, id: NodeId): Boolean = declarations(t, id).nonEmpty
 
-  /** The proven code a statement is checked against (`impl`): none for a claim saying what a Declaration is, where the
-    * code only stands in it.
+  /** The proven code a claim is checked against (`impl`): none for a claim saying what a Declaration is, where the
+    * code only stands in it, nor for an assumption, which is trusted with the code standing in it.
     */
-  def checkedAgainst(t: Theory, id: NodeId): Option[Callees] = Option.when(!is(t, id))(Callees.of(t, id)).flatten
+  def checkedAgainst(t: Theory, id: NodeId): Option[Callees] =
+    Option.when(!is(t, id) && t.node(id).exists(_.statement.kind == NodeKind.Claim))(Callees.of(t, id)).flatten

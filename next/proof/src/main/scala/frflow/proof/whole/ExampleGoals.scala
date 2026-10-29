@@ -23,8 +23,8 @@ object ExampleGoals:
       val hyps = about.flatMap(Constrained.statements(r.theory, _)).distinct
         .filter(n => r.theory.node(n).exists(s => s.statement.stated && !s.statement.rule))
         .sortBy(r.theory.refinement.parts(_).nonEmpty)
+      val fact = Prop.Formula(e.fact, Stands.of(r, about))
       Obligation(ObligationName.Example(i),
-        Prop.ForEvery(about, NonEmptyList.fromList(hyps).fold(Prop.Formula(e.fact))(hs =>
-          Prop.Implies(Hyp.parts(hs.toList), Prop.Formula(e.fact)))),
+        Prop.ForEvery(about, NonEmptyList.fromList(hyps).fold(fact)(hs => Prop.Implies(Hyp.parts(hs.toList), fact))),
         Discharge.Attempt(Heartbeats), s"${e.name}: what the claims say gives it.")
   }

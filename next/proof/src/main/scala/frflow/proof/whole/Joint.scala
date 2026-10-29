@@ -1,15 +1,13 @@
 package frflow.proof.whole
 
 import cats.data.NonEmptyList
-import frflow.core.analysis.{Callees, Constrained, Resolved}
-import frflow.core.code.Code
+import frflow.core.analysis.{Constrained, Resolved}
 import frflow.core.consistency.{Consistency, Defining, Group, Picked, Standing, Witness}
 import frflow.core.expr.OutsideFact
 import frflow.core.name.{DefName, NodeId, SymbolName}
 import frflow.core.term.Stated
 import frflow.core.ty.Ty
-import frflow.core.vocab.SymbolType
-import frflow.proof.obligation.{Constant, Discharge, Obligation, ObligationName, Prop, Substitute, Supplied}
+import frflow.proof.obligation.{Discharge, Obligation, ObligationName, Prop, Substitute, Supplied}
 
 /** Consistency in Lean (owner §15, §18): the bottom statements and premises hold together (`consistent_<i>`, each
   * group with the witnesses derived for it), and each store's starting state meets what always holds of it
@@ -37,15 +35,7 @@ object Joint:
 
   /** What stands for each Definition the group's statements mention that is not open: its proven code or value. */
   private def standing(r: Resolved, ids: List[NodeId]): Map[SymbolName, Substitute] =
-    ids.flatMap(Constrained.of(r.theory, _)).distinct.flatMap(s => r.theory.code.attached.get(s).map(_.code).collect {
-      case Code.Valued(v)                       => s -> Substitute.Fixed(Constant(v, typeOf(r, s)))
-      case Code.Proven(_) | Code.ProvenFlow(_) =>
-        s -> Callees.ofDefinition(r.theory, s).flatMap(_.standsFor.get(s)).fold(Substitute.Nothing)(Substitute.Code(_))
-    }).toMap
-
-  private def typeOf(r: Resolved, s: SymbolName): Ty = r.theory.vocabulary.symbol(s).map(_.ty).collect {
-    case SymbolType.Typed(t) => t
-  }.getOrElse(Ty.Unit)
+    Stands.of(r, ids.flatMap(Constrained.of(r.theory, _)))
 
   private def witnessed(r: Resolved, g: Group.Sharing): Discharge = g.standing match
     case Standing.Witnessed => Discharge.Witnessed(ordered(r, g))
