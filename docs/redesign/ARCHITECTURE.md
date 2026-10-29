@@ -439,7 +439,8 @@ value already, and its own `claim` is not stated as a fact.
 **A step over what makers make.** `complete` takes, for each maker its parts' claims are about, the `made_` of every
 rule kept of it (proven of the maker's code) as an `m_<rule>_<maker>` hypothesis, as a caller's `made_` already takes
 its callee's `m_<callee>` (`Made.taken`); `holds` and `root_impl` thread the same facts through, and a step whose
-`made_` is not proven is unproven (`Unproven.Kept`), so a maker breaking its rule leaves the step red. A `made_` that
+`made_` is not proven, or the `made_` of a maker it calls in turn (`Made.resting`), is unproven (`Unproven.Kept`),
+so a maker breaking its rule, itself or through its callee, leaves the step red (`SeededSuite`). A `made_` that
 rests on the statement being proven (`Resolve.provenFrom` and parts, from what relies on the maker and its callees)
 is not taken: no circle. crm's `storeMirrorsRequests` is proven so, given `oneRowPerKey` and `keyedTables` of `save`
 and `expire`.
@@ -496,8 +497,15 @@ hold (owner §15, §18).
 - **Pinned provided values.** A provided value that an assumption of the group equates to a term is solved by that
   equation, like an open value; the provided values no assumption pins stay universal (asked of every value).
   keycloak's `state` is solved by `serverRun`, crm's `held` by `crmRun`; auth's session table, which an assumption
-  only bounds, is asked of every value (`PinnedSuite`).
+  only bounds, is asked of every value (`PinnedSuite`). A pinned value joins groups as an open one does, so every
+  statement mentioning it is in one group, which solves it once: two groups never choose it apart, and an
+  assumption whose only value is a pinned one has a group (`SeededSuite`'s `TwoPins` and `Closed`).
   (step 12 ruling)
+- **Code all the way down.** What stands in a group's statements is closed over the code: a Definition with proven
+  code reached only through another's code has its code stand too (`Stands`, `Callees.reaching`), and its open
+  values are the group's. A statement never binds a Definition with a meaning of its own by `∃`: one left over is
+  left unbound, and Lean refuses the statement (fail closed), so no proof chooses the code's meaning (`SeededSuite`'s
+  `Hidden`).
 - **Currency.** The consistency check is current while `Whole.lean` and every module it imports are as checked, the
   specs of the statements it states among them (`CheckKeys.whole`): a statement changed alone checks it again.
 
