@@ -14,7 +14,7 @@ final case class RoomBookings(room: String, bookings: List[Booking]) derives Lea
 
 val granted = Definition[(RoomBookings, Booking) => Boolean]("whether a request is granted, given its room's bookings")
 
-val book = Definition[Booking => Program[Boolean]]("booking a request: whether it was booked")
+val book = Definition[Booking => Flow[Boolean]]("booking a request: whether it was booked")
 
 // Over moments.
 val covers = define { (b: Term[Booking], t: Term[BigInt]) => b.start <= t && t < b.end }

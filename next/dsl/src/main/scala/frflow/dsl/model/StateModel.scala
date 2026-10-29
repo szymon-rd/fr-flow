@@ -3,12 +3,12 @@ package frflow.dsl.model
 import cats.syntax.all.*
 import frflow.core.expr.OutsideFact
 import frflow.core.name.{DefName, ModelName}
-import frflow.core.term.{Program, Sym, World}
+import frflow.core.term.{Sym, World}
 import frflow.core.vocab.{Fails, StateModel as Read, Symbol, SymbolType, ValueKind}
 import frflow.dsl.build.{Declarations, Deferred, Site, Source}
-import frflow.dsl.flow.Recorded
+import frflow.dsl.flow.Flow
 import frflow.dsl.shape.{Defines, Elab}
-import frflow.dsl.term.{LeanType, Notes, Reify, Term}
+import frflow.dsl.term.{LeanType, Notes, Recorded, Reify, Term}
 import frflow.dsl.vocab.Definition
 import scala.annotation.publicInBinary
 import scala.collection.mutable
@@ -26,42 +26,42 @@ import scala.collection.mutable
 abstract class StateModel[S](description: String)(using named: StateModel.Named, val stateType: LeanType[S]):
   val name: ModelName = ModelName(named.name)
   /** The state, as each meaning reads and writes it. */
-  protected val state: Model[Recorded, S] = Model.recorded(name)(using stateType)
+  protected val state: Model[S] = Model(name)(using stateType)
   private val meanings = mutable.ListBuffer.empty[Meaning]
   /** What a call of any of its operations fails with, if one may (`StateModel.failing`). */
   protected def fails: Option[Fails] = None
 
-  extension [R](op: Definition[Program[R]])
-    inline def means[X](inline body: Recorded[X])(using StateModel.Gives[R, X]): Unit = meant(op, Nil, Nil)(_ => body)
-  extension [A, R](op: Definition[A => Program[R]])
-    inline def means[X](inline body: Term[A] => Recorded[X])(using a: LeanType[A], g: StateModel.Gives[R, X]): Unit =
-      meant(op, List(a), Source.of(body).params)(xs => body(Term.free(xs(0))(using a)))
-  extension [A, B, R](op: Definition[(A, B) => Program[R]])
-    inline def means[X](inline body: (Term[A], Term[B]) => Recorded[X])(
-        using a: LeanType[A], b: LeanType[B], g: StateModel.Gives[R, X]): Unit =
-      meant(op, List(a, b), Source.of(body).params)(xs => body(Term.free(xs(0))(using a), Term.free(xs(1))(using b)))
-  extension [A, B, C, R](op: Definition[(A, B, C) => Program[R]])
-    inline def means[X](inline body: (Term[A], Term[B], Term[C]) => Recorded[X])(
-        using a: LeanType[A], b: LeanType[B], c: LeanType[C], g: StateModel.Gives[R, X]): Unit =
+  extension [R](op: Definition[Flow[R]])
+    inline def means(inline body: Flow[R]): Unit = meant(op, Nil, Nil)(_ => body.steps)
+  extension [A, R](op: Definition[A => Flow[R]])
+    inline def means(inline body: Term[A] => Flow[R])(using a: LeanType[A]): Unit =
+      meant(op, List(a), Source.of(body).params)(xs => body(Term.free(xs(0))(using a)).steps)
+  extension [A, B, R](op: Definition[(A, B) => Flow[R]])
+    inline def means(inline body: (Term[A], Term[B]) => Flow[R])(using a: LeanType[A], b: LeanType[B]): Unit =
+      meant(op, List(a, b), Source.of(body).params)(xs =>
+        body(Term.free(xs(0))(using a), Term.free(xs(1))(using b)).steps)
+  extension [A, B, C, R](op: Definition[(A, B, C) => Flow[R]])
+    inline def means(inline body: (Term[A], Term[B], Term[C]) => Flow[R])(
+        using a: LeanType[A], b: LeanType[B], c: LeanType[C]): Unit =
       meant(op, List(a, b, c), Source.of(body).params)(xs =>
-        body(Term.free(xs(0))(using a), Term.free(xs(1))(using b), Term.free(xs(2))(using c)))
-  extension [A, B, C, D, R](op: Definition[(A, B, C, D) => Program[R]])
-    inline def means[X](inline body: (Term[A], Term[B], Term[C], Term[D]) => Recorded[X])(
-        using a: LeanType[A], b: LeanType[B], c: LeanType[C], d: LeanType[D], g: StateModel.Gives[R, X]): Unit =
+        body(Term.free(xs(0))(using a), Term.free(xs(1))(using b), Term.free(xs(2))(using c)).steps)
+  extension [A, B, C, D, R](op: Definition[(A, B, C, D) => Flow[R]])
+    inline def means(inline body: (Term[A], Term[B], Term[C], Term[D]) => Flow[R])(
+        using a: LeanType[A], b: LeanType[B], c: LeanType[C], d: LeanType[D]): Unit =
       meant(op, List(a, b, c, d), Source.of(body).params)(xs => body(Term.free(xs(0))(using a),
-        Term.free(xs(1))(using b), Term.free(xs(2))(using c), Term.free(xs(3))(using d)))
-  extension [A, B, C, D, E, R](op: Definition[(A, B, C, D, E) => Program[R]])
-    inline def means[X](inline body: (Term[A], Term[B], Term[C], Term[D], Term[E]) => Recorded[X])(using a: LeanType[A],
-        b: LeanType[B], c: LeanType[C], d: LeanType[D], e: LeanType[E], g: StateModel.Gives[R, X]): Unit =
+        Term.free(xs(1))(using b), Term.free(xs(2))(using c), Term.free(xs(3))(using d)).steps)
+  extension [A, B, C, D, E, R](op: Definition[(A, B, C, D, E) => Flow[R]])
+    inline def means(inline body: (Term[A], Term[B], Term[C], Term[D], Term[E]) => Flow[R])(using a: LeanType[A],
+        b: LeanType[B], c: LeanType[C], d: LeanType[D], e: LeanType[E]): Unit =
       meant(op, List(a, b, c, d, e), Source.of(body).params)(xs => body(Term.free(xs(0))(using a),
-        Term.free(xs(1))(using b), Term.free(xs(2))(using c), Term.free(xs(3))(using d), Term.free(xs(4))(using e)))
-  extension [A, B, C, D, E, G, R](op: Definition[(A, B, C, D, E, G) => Program[R]])
-    inline def means[X](inline body: (Term[A], Term[B], Term[C], Term[D], Term[E], Term[G]) => Recorded[X])(
-        using a: LeanType[A], b: LeanType[B], c: LeanType[C], d: LeanType[D], e: LeanType[E], h: LeanType[G],
-        g: StateModel.Gives[R, X]): Unit =
+        Term.free(xs(1))(using b), Term.free(xs(2))(using c), Term.free(xs(3))(using d),
+        Term.free(xs(4))(using e)).steps)
+  extension [A, B, C, D, E, G, R](op: Definition[(A, B, C, D, E, G) => Flow[R]])
+    inline def means(inline body: (Term[A], Term[B], Term[C], Term[D], Term[E], Term[G]) => Flow[R])(
+        using a: LeanType[A], b: LeanType[B], c: LeanType[C], d: LeanType[D], e: LeanType[E], h: LeanType[G]): Unit =
       meant(op, List(a, b, c, d, e, h), Source.of(body).params)(xs => body(Term.free(xs(0))(using a),
         Term.free(xs(1))(using b), Term.free(xs(2))(using c), Term.free(xs(3))(using d), Term.free(xs(4))(using e),
-        Term.free(xs(5))(using h)))
+        Term.free(xs(5))(using h)).steps)
 
   /** An operation's meaning, its steps recorded on its parameters' variables when the model is read. */
   @publicInBinary private[model] def meant(op: Definition[?], inputs: List[LeanType[?]], params: List[String])(
@@ -113,12 +113,6 @@ object StateModel:
   final case class Named(name: String)
   object Named:
     inline given here: Named = Named(Source.ownerName)
-
-  /** What a meaning's steps give: a term of the operation's result, or nothing when it gives nothing. */
-  sealed trait Gives[R, X]
-  object Gives:
-    given term[R]: Gives[R, Term[R]] = new Gives[R, Term[R]] {}
-    given nothing: Gives[Unit, Unit] = new Gives[Unit, Unit] {}
 
   /** A model any call of whose operations may fail with `error` (a store that may be down,
     * `Failure.StoreUnavailable`), changing nothing: `object stored extends StateModel.failing[S, E]("…", error)`.

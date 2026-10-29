@@ -7,7 +7,7 @@ import frflow.core.spec.Written
 import frflow.core.term.{Body, Bound, Sym}
 import frflow.dsl.build.Deferred
 import frflow.dsl.term.{LeanType, Term}
-import frflow.dsl.vocab.{Definition, OnTheSpot}
+import frflow.dsl.vocab.{Definition, OnTheSpot, Spot}
 
 /** The shape of a define of type `F`: its lambda over its inputs' terms, the body on the inputs' variables (bound at
   * levels `0 … n-1` outside it: the written lambda, printed as its `def`), and the Definition it makes, carrying its
@@ -102,7 +102,7 @@ object DefineShape:
   def binder(i: Int, t: LeanType[?], hints: List[String]): Binder = Binder(VarId.level(i), hint(i, hints), t.ty)
 
   private def spot[F: LeanType](name: DefName, lambda: Deferred[Written[Lambda]], b: Body[?]): Definition[F] =
-    Definition.onTheSpot(OnTheSpot(name, Code.Proven(name), lambda, Some(b)))
+    Definition.onTheSpot(OnTheSpot(name, Code.Proven(name), lambda, Spot.Define(b)))
 
   private def bound[A](i: Int, t: LeanType[A], hints: List[String]): Bound[A] = Bound(hint(i, hints), t.ty)
   private def hint(i: Int, hints: List[String]): String = hints.lift(i).getOrElse("x")

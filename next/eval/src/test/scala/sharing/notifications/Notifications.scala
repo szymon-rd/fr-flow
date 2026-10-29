@@ -13,7 +13,7 @@ object Notifications:
   val announce = Definition[(Library, Library, Request, Entry) => Library](
     "the library with notices of a change added to its outbox")
   val warn = Definition[(Library, BigInt) => Library]("the library with notices of the shares ending within a day")
-  val deliver = Definition[Program[Unit]](
+  val deliver = Definition[Flow[Unit]](
     "a run of delivery: the oldest notice of each person in the outbox sent to the mail server")
 
   val mailerModel: Mailer.mailerModel.type = Mailer.mailerModel
@@ -81,4 +81,4 @@ object Notifications:
   val firstOfEach = define { (outbox: Term[List[Notice]]) =>
     outbox.filter(n => outbox.find(m => m.to === n.to) === some(n)) }
 
-  val delivery = program { Delivery.run[Recorded] }
+  val delivery = program { Delivery.run }

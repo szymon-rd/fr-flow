@@ -14,7 +14,7 @@ import frflow.proof.lean.laws.DoBlocks
 import frflow.proof.lean.print.Print
 
 /** A count replaced, the old one given; its parameter named `s`, as the back end once named the state beside it. */
-val keep = Definition[BigInt => Program[BigInt]]("the count replaced, the old one given")
+val keep = Definition[BigInt => Flow[BigInt]]("the count replaced, the old one given")
 object tally extends StateModel[BigInt]("a count"):
   keep.means(s => state.get.flatMap(old => state.set(s).map(_ => old)))
 

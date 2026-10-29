@@ -10,8 +10,8 @@ import scala.annotation.publicInBinary
 import scala.compiletime.summonFrom
 
 /** A value code and programs use (owner §15), of any type: a function (`val granted =
-  * Definition[(RoomBookings, Booking) => Boolean]("whether …")`), a program (`Booking => Program[Boolean]`), an
-  * operation on a state (`String => Program[RoomBookings]`), a plain value. Named as its val, `described` by its
+  * Definition[(RoomBookings, Booking) => Boolean]("whether …")`), a program (`Booking => Flow[Boolean]`), an
+  * operation on a state (`String => Flow[RoomBookings]`), a plain value. Named as its val, `described` by its
   * sentence. It gets its meaning once: from the FrModel (`implementProven`, `implementTested`, `implementValue`,
   * `implementProvided`), from a model's body (an operation's, `inRoom.means(…)` in a `StateModel`, its Scala tested
   * against it), or where it is written: `define { … }` and `program { … }` are
@@ -58,10 +58,10 @@ object Definition:
     (spot, t.codeOnly) match
       case (None, Some(scala))                          => Symbols.codeOnly[F](name, means, scala)
       case (None, None)                                 => Symbols.term[F](name, means, ValueKind.Definition, t)
-      case (Some(OnTheSpot(n, _, lambda, Some(b))), _) =>
+      case (Some(OnTheSpot(n, _, lambda, Spot.Define(b))), _) =>
         [T[_]] => (s: Sym[T]) => s.noted(Notes.of(Declarations.define(n, lambda)),
           s.define(b).asInstanceOf[T[F]]) // `b` was built at the curried type of the `define`'s own `F`
-      case (Some(OnTheSpot(n, _, _, None)), _)         =>
+      case (Some(OnTheSpot(n, _, _, Spot.Steps(_, _))), _)    =>
         [T[_]] => (s: Sym[T]) => s.noted(Notes.fault(Fault.ProgramMentioned(n.value)), s.param[F](name, t.ty))
 
   /** The application, saying which Definition it applies and to what (`Called`). */

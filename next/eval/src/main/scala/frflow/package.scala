@@ -7,7 +7,7 @@ package frflow
   * hides it, and the use does not compile (`val from = …` hides `book(request).from(now)`). The names it takes,
   * besides its types: the extensions `refines`, `assuming`, `replaces`, `from`, and `always`, `forall`, `define`,
   * `program`, `when`, `make`, `let`. An `Int` literal is a `Term[BigInt]` where one is expected (`given int`), and an
-  * operation applied a step where a program expects one (`given step`).
+  * operation applied a step where a program expects one (`Flow`'s `given asStep`).
   */
 export frflow.dsl.node.Node
 export frflow.dsl.node.NodeSyntax.*
@@ -19,12 +19,12 @@ export frflow.dsl.example.ExampleSyntax.*
 export frflow.dsl.term.{Data, LeanType, Term}
 export frflow.dsl.vocab.{Declaration, Definition, Opaque}
 export frflow.dsl.vocab.DefinitionSyntax.*
-export frflow.core.term.{Program, World}
+export frflow.core.term.World
 export frflow.dsl.kb.Gens
 export frflow.dsl.shape.Defines.*
 export frflow.dsl.term.TermSyntax.*
 export frflow.dsl.kb.ValuesSyntax.*
-export frflow.dsl.flow.{Flow, Recorded}
+export frflow.dsl.flow.Flow
 export frflow.dsl.model.{Clock, Fact, Model, StateModel}
 export frflow.dsl.flow.FlowSyntax.*
 export frflow.eval.term.DefSyntax.*

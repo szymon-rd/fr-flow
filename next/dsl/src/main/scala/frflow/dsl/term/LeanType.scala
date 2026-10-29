@@ -1,7 +1,7 @@
 package frflow.dsl.term
 
 import cats.syntax.all.*
-import frflow.core.term.{Program, Selector, World}
+import frflow.core.term.{Selector, World}
 import frflow.core.ty.{NumKind, Ty}
 import frflow.dsl.build.Declarations
 import scala.annotation.implicitNotFound
@@ -37,7 +37,7 @@ object LeanType:
   given [A](using a: LeanType[A]): LeanType[List[A]] = of(Ty.ListOf(a.ty), a)
   given option[A](using a: LeanType[A]): LeanType[Option[A]] = of(Ty.OptionOf(a.ty), a)
   given either[A, B](using a: LeanType[A], b: LeanType[B]): LeanType[Either[A, B]] = of(Ty.EitherOf(a.ty, b.ty), a, b)
-  given [R](using r: LeanType[R]): LeanType[Program[R]] = of(Ty.FlowOf(r.ty, None), r)
+
   given [K, V](using k: LeanType[K], v: LeanType[V]): LeanType[Map[K, V]] = of(Ty.MapOf(k.ty, v.ty), k, v)
   given [A, B](using a: LeanType[A], b: LeanType[B]): LeanType[(A, B)] = of(Ty.TupleOf(List(a.ty, b.ty)), a, b)
   /** A case class's or an enum's, derived once where it is declared (`enum Request derives LeanType`: the given in its

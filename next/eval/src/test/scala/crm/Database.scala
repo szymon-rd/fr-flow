@@ -8,12 +8,12 @@ import frflow.*
 // ============================================================================
 
 /** The records, shares and expiries the database holds. */
-val load = Definition[Program[CrmStore]]("the records, shares and expiries the database holds")
+val load = Definition[Flow[CrmStore]]("the records, shares and expiries the database holds")
 /** Holds what a store holds about a record in place of what the database held about it. */
-val storeAbout = Definition[(BigInt, CrmStore) => Program[Unit]](
+val storeAbout = Definition[(BigInt, CrmStore) => Flow[Unit]](
   "what a store holds about a record, held in place of what the database held about it")
 /** Appends an event to the event log. */
-val logEvent = Definition[Event => Program[Unit]]("an event appended to the event log")
+val logEvent = Definition[Event => Flow[Unit]]("an event appended to the event log")
 
 /** What the database holds: the store, and the event log. */
 final case class Tables(store: CrmStore, events: List[Event]) derives LeanType

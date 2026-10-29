@@ -7,8 +7,8 @@ import sharing.domain.*
   * their model, one library given back as it was last saved; and what the world outside does with it.
   */
 object LibraryStore:
-  val load = Definition[Program[Library]]("the library the store holds")
-  val save = Definition[Library => Program[Unit]]("a library held by the store in place of the one it held")
+  val load = Definition[Flow[Library]]("the library the store holds")
+  val save = Definition[Library => Flow[Unit]]("a library held by the store in place of the one it held")
 
   object libraryModel extends StateModel.failing[Library, Failure](
       "where the service keeps the library: in memory, or in a SQLite file; it may be down", Failure.StoreUnavailable):

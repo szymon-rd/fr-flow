@@ -1,6 +1,6 @@
 package frflow.dsl.flow
 
-import frflow.core.term.{Program, Sym, World}
+import frflow.core.term.{Sym, World}
 import frflow.dsl.build.Source
 import frflow.dsl.term.{LeanType, Term}
 
@@ -8,7 +8,7 @@ import frflow.dsl.term.{LeanType, Term}
   * may be added, `.failing { (error: Term[E], after) => … }`: one run, both outcomes, as a match states its cases. A
   * claim's formula so written is read as its post and its failure clause (`spec.CallForms`).
   */
-final class Ran[R](run: Term[Program[R]], before: Term[World], succeeds: Term[Boolean])
+final class Ran[R](run: Term[Flow[R]], before: Term[World], succeeds: Term[Boolean])
     extends Term[Boolean](succeeds.run):
   inline def failing[E: LeanType](inline post: (Term[E], Term[World]) => Term[Boolean]): Term[Boolean] =
     Ran.both(succeeds, RunFrom.fails(run, before, Source.of(post).params)(post))

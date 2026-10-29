@@ -14,7 +14,7 @@ import frflow.testing.report.{Count, Failure}
   * `storedBookings` (`implementTested(inRoom, add)(start, observe)(calls)`), on generated runs of its operations, from
   * states meeting what always holds of the store, whose bookings meet what always holds of them, call by call and then
   * by the state each holds (`ModelRuns`). The rooms FrModel's own Scala is the SQLite table; the variants here are
-  * an in-memory stand-in, two of them with a seeded bug. In production `BookIfGranted` runs on the table's Scala
+  * an in-memory stand-in, two of them with a seeded bug. In production `bookIfGranted` runs on the table's Scala
   * bound (`rooms.running[IO](storedBookings := table)`).
   */
 class StoreModelSuite extends munit.FunSuite:
@@ -81,7 +81,7 @@ class StoreModelSuite extends munit.FunSuite:
     val booked = for
       table  <- BookingsTable.holding(Nil)
       run    <- rooms.running[IO](storedBookings := table)
-      book    = (r: Booking) => BookIfGranted.run[IO](run.term(r))(using run).map(run.value)
+      book    = (r: Booking) => run(bookIfGranted)(r)
       first  <- book(Booking("Oak", 9, 11))
       clash  <- book(Booking("Oak", 10, 12))
       held   <- table.bookings

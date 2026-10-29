@@ -3,9 +3,9 @@ package frflow.dsl.model
 import frflow.core.expr.Binder
 import frflow.core.ty.Ty
 import frflow.core.vocab.ModelOp
-import frflow.dsl.flow.{ReadRecording, Recorded}
+import frflow.dsl.flow.ReadRecording
 import frflow.dsl.shape.DefineShape
-import frflow.dsl.term.{LeanType, Notes}
+import frflow.dsl.term.{LeanType, Notes, Recorded}
 import frflow.dsl.vocab.Definition
 
 /** One operation's meaning as a model's body gives it (`inRoom.means(room => …)`): the operation, its inputs' types
@@ -20,7 +20,7 @@ final case class Meaning(op: Definition[?], inputs: List[LeanType[?]], params: L
     (notes, ModelOp(op.name, xs, Meaning.result(op.leanType.ty), steps))
 
 object Meaning:
-  /** An operation's result: `R` of its type, `A => Program[R]` or `Program[R]`. */
+  /** An operation's result: `R` of its type, `A => Flow[R]` or `Flow[R]`. */
   def result(ty: Ty): Ty = ty match
     case Ty.FnOf(_, Ty.FlowOf(r, _)) => r
     case Ty.FlowOf(r, _)             => r

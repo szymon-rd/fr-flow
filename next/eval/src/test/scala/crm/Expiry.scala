@@ -32,14 +32,14 @@ val sameRows = define { (a: Term[CrmStore], b: Term[CrmStore]) =>
 /** One run of the expiry job at `now`: what the database holds, `expire` on it, the rows of each record stored again
   * if it changed them, and the run logged.
   */
-object ExpireOnce:
-  def run[F[_]](now: Term[BigInt])(using f: Flow[F]): F[Term[CrmStore]] = f.flatMap(load) { s =>
-    val t = expire(s, now)
-    f.flatMap(f.each(idsIn(s) ++ idsIn(t))(id =>
-      f.ifM[Unit](f.pure(aboutRecord(s, id) =!= aboutRecord(t, id)))(storeAbout(id, t), f.pure(()))))(_ =>
-      f.as(logEvent(make[Event.Expired](now)), t)) }
-
-val expireOnce = program { (now: Term[BigInt]) => ExpireOnce.run[Recorded](now) }
+val expireOnce = program { (now: Term[BigInt]) =>
+  for
+    s <- load
+    t  = expire(s, now)
+    _ <- Flow.each(idsIn(s) ++ idsIn(t))(id =>
+           Flow.ifM[Unit](Flow.pure(aboutRecord(s, id) =!= aboutRecord(t, id)))(storeAbout(id, t), Flow.unit))
+    _ <- logEvent(make[Event.Expired](now))
+  yield t }
 
 val expiryJob = Node.claim("A run of the expiry job at a time leaves the database holding, about each record, what " +
     "sharesExpire's run on what it held gives, logs the run at the end of the event log, and returns that store.")(

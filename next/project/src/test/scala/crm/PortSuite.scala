@@ -157,7 +157,7 @@ class PortSuite extends munit.CatsEffectSuite:
     for
       d   <- SqliteDatabase.holding(Tables(from, earlier))
       run <- knowledge.running[IO](databaseModel := d)
-      t   <- ExpireOnce.run[IO](run.term(now))(using run).map(run.value)
+      t   <- run(expireOnce)(now)
       after <- d.tables
       _   <- IO.blocking(d.db.close())
     yield (t, after)

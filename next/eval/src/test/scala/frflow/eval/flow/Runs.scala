@@ -32,7 +32,7 @@ object Runs:
       Fn.as[BigInt](end(Clock.clockModel.name)))
 
   /** The recorded steps of a test program. */
-  def recorded[R](p: Shelved[R]): Prog[Stated[?]] = ReadRecording(p.on(summon[Flow[Recorded]]))._1
+  def recorded[R](p: Shelved[R]): Prog[Stated[?]] = ReadRecording(p.program.steps)._1
 
   /** Production's interpreter, the shelf's and the clock's plain Scala bound. */
   def bound(shelf: PlainShelf, wall: Wall): IO[Running[IO]] =
@@ -45,7 +45,7 @@ object Runs:
       time   <- IO.ref(BigInt(0))
       faults <- IO.ref(p.faults)
       run    <- bound(PlainShelf(shelf, faults), Wall.ticking(time))
-      out    <- p.on[IO](run).map(t => run.value(t): Any).attempt
+      out    <- run.flow(p.program).map(t => run.value(t): Any).attempt
       held   <- shelf.get
       now    <- time.get
     yield (out.leftMap { case r: Raised => r.error.unwrap; case other => throw other }, held, now)

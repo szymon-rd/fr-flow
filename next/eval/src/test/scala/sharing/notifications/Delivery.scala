@@ -13,13 +13,19 @@ object Delivery:
   private val waits: List[BigInt] = List(1, 2)
   private val atOnce = 4
 
-  def run[F[_]](using f: Flow[F]): F[Term[Unit]] = f.flatMap(LibraryStore.load)(lib =>
-    f.as(f.parCollectN(atOnce)(Notifications.firstOfEach(lib.outbox))(n => deliverOne(n)), done))
+  def run: Flow[Unit] =
+    for
+      lib <- LibraryStore.load
+      _   <- Flow.parCollectN(atOnce)(Notifications.firstOfEach(lib.outbox))(n => deliverOne(n))
+    yield done
 
-  private def deliverOne[F[_]](n: Term[Notice])(using f: Flow[F]): F[Term[Unit]] =
-    f.flatMap(f.attempt[Failure, Unit](f.as(f.retry[Failure, Unit](Clock.sleep, waits)(Mailer.send(n)), done)))(
-      sent => f.as(f.cond(sent.isRight)(f.void(f.attempt[Failure, Unit](f.as(taken(n), done))), f.unit), done))
+  private def deliverOne(n: Term[Notice]): Flow[Unit] =
+    for
+      sent <- Flow.retry[Failure, Unit](Clock.sleep, waits)(Flow.step(Mailer.send(n))).as(done).attempt[Failure]
+      _    <- Flow.when(sent.isRight)(taken(n).as(done).attempt[Failure].void)
+    yield done
 
   /** The notice taken out of the outbox, in one transaction. */
-  private def taken[F[_]](n: Term[Notice])(using f: Flow[F]): F[Unit] = f.atomically(
-    f.flatMap(LibraryStore.load)(l => LibraryStore.save(l.updated(_.outbox, l.outbox.filter(m => m =!= n)))))
+  private def taken(n: Term[Notice]): Flow[Unit] =
+    LibraryStore.load.flatMap(l => Flow.step(LibraryStore.save(l.updated(_.outbox, l.outbox.filter(m => m =!= n)))))
+      .atomically

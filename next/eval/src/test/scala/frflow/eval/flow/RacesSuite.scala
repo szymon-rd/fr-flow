@@ -16,12 +16,11 @@ class RacesSuite extends munit.FunSuite:
   private val semantics = Semantics(elaborated)
 
   /** Put 1 then read, raced against put 2 then read. */
-  private def raced[F[_]](f: Flow[F]): F[Term[Either[List[BigInt], List[BigInt]]]] =
-    val s = Shelf.On[F](using f)
-    f.race(f.flatMap(s.put(1))(_ => s.items), f.flatMap(s.put(2))(_ => s.items))
+  private val raced: Flow[Either[List[BigInt], List[BigInt]]] =
+    Shelf.putting(1).flatMap(_ => Shelf.held).race(Shelf.putting(2).flatMap(_ => Shelf.held))
 
   private def onModels(races: Option[List[Boolean]]): (Either[Any, Any], List[BigInt], List[Boolean]) =
-    val prog = ReadRecording(raced[Recorded](summon[Flow[Recorded]]))._1
+    val prog = ReadRecording(raced.steps)._1
     val start = Map(Shelf.kept.name -> ScalaValue(List.empty[BigInt]),
       Clock.clockModel.name -> ScalaValue(BigInt(0))) ++
       races.map(Races.model -> ScalaValue(_))

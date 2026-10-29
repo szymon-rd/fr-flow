@@ -6,8 +6,8 @@ import frflow.*
   * their plain Scala (`PlainShelf`, `Wall`).
   */
 object Shelf:
-  val items = Definition[Program[List[BigInt]]]("the numbers on the shelf, oldest first")
-  val put = Definition[BigInt => Program[Unit]]("a number put on the shelf")
+  val items = Definition[Flow[List[BigInt]]]("the numbers on the shelf, oldest first")
+  val put = Definition[BigInt => Flow[Unit]]("a number put on the shelf")
 
   object kept extends StateModel.failing[List[BigInt], Trouble]("the numbers on the shelf, oldest first",
       Trouble.Down):
@@ -21,15 +21,8 @@ object Shelf:
     .implementTested(items, put)(start = PlainShelf.holding, observe = _.held)(s => (s.items, s.put))
     .implementTested(Clock.now, Clock.sleep)(start = Wall.at, observe = _.time)(c => (c.now, c.sleep))
 
-  /** The shelf's operations as a program calls them, over its effect. */
-  final class On[F[_]](using f: Flow[F]):
-    def items: F[Term[List[BigInt]]] = f.step(Shelf.items)
-    def put(n: Term[BigInt]): F[Unit] = f.run(Shelf.put(n))
-
-  /** The clock's operations as a program calls them. */
-  final class Ticking[F[_]](using f: Flow[F]):
-    def now: F[Term[BigInt]] = f.step(Clock.now)
-    def sleep(seconds: Term[BigInt]): F[Unit] = f.run(Clock.sleep(seconds))
-
-  /** The two, as a program's steps on `f`. */
-  def on[F[_]](f: Flow[F]): (On[F], Ticking[F]) = (On[F](using f), Ticking[F](using f))
+  /** The shelf's and the clock's operations as a program's steps. */
+  def held: Flow[List[BigInt]] = Flow.step(items)
+  def putting(n: Term[BigInt]): Flow[Unit] = Flow.step(put(n))
+  def now: Flow[BigInt] = Flow.step(Clock.now)
+  def sleeping(seconds: Term[BigInt]): Flow[Unit] = Flow.step(Clock.sleep(seconds))

@@ -10,23 +10,21 @@ import frflow.proof.obligation.Obligations
 import frflow.proof.terms.TermTable
 
 /** A log of the requests: a second state, its operation, its model and a rule about it, beside rooms. */
-val writeLog = Definition[Booking => Program[Unit]]("a request written at the end of the log")
+val writeLog = Definition[Booking => Flow[Unit]]("a request written at the end of the log")
 
 object loggedRequests extends StateModel[List[Booking]]("every request logged, oldest first"):
   writeLog.means(request => state.update(logged => logged :+ request))
 
 /** A second program changing the table: the request added, granted or not. */
-object AddAnyway:
-  def run[F[_]](request: Term[Booking])(using f: Flow[F]): F[Term[Unit]] = f.as(f.run(add(request)), (): Term[Unit])
+def addsAnyway(request: Term[Booking]): Flow[Unit] = Flow.step(add(request)).as(Flow.done)
 
-val addAnyway = Definition[Booking => Program[Unit]]("adding a request, granted or not")
+val addAnyway = Definition[Booking => Flow[Unit]]("adding a request, granted or not")
 
 /** A program reading the table and writing the log: the request's room read, the request logged. */
-object LogRequest:
-  def run[F[_]](request: Term[Booking])(using f: Flow[F]): F[Term[Unit]] =
-    f.flatMap(f.step(inRoom(request.room)))(_ => f.as(f.run(writeLog(request)), (): Term[Unit]))
+def logsRequest(request: Term[Booking]): Flow[Unit] =
+  Flow.step(inRoom(request.room)).flatMap(_ => Flow.step(writeLog(request)).as(Flow.done))
 
-val logRequest = Definition[Booking => Program[Unit]]("logging a request, once its room is read")
+val logRequest = Definition[Booking => Flow[Unit]]("logging a request, once its room is read")
 
 /** The log's nodes beside rooms: what the log does, its two facts, and a rule about it. */
 object Logged:
@@ -87,7 +85,7 @@ class StoresSuite extends munit.FunSuite:
           storedBookings.in(after) === storedBookings.in(before) :+ request }))
       .assuming(oneAtATime, bookingsEndAfterStart)
     val adding = withNodes(addsIt).implementProven(addAnyway)(program { (request: Term[Booking]) =>
-      AddAnyway.run[Recorded](request) })
+      addsAnyway(request) })
     assertEquals(whole.Theories.problems(adding), Nil)
     assertEquals(writers(withNodes()), List("neverOverlap" -> List("book"), "bookingsEndAfterStart" -> List("book")))
     assertEquals(writers(adding), List("neverOverlap" -> List("book", "addAnyway"),
@@ -106,7 +104,7 @@ class StoresSuite extends munit.FunSuite:
       .assuming(logOnlyCode, logOneAtATime, logStartsEmpty, bookingsEndAfterStart)
     val nodes = List(logOnlyCode, logOneAtATime, logStartsEmpty, loggedEndAfterStart, logsIt)
     val m = withNodes(nodes*).implementProven(logRequest)(program { (request: Term[Booking]) =>
-      LogRequest.run[Recorded](request) })
+      logsRequest(request) })
     assertEquals(whole.Theories.problems(m), Nil)
     val kept = lean(Projects.bare(Projects.elaborated(m)), NodeId("loggedEndAfterStart"))
     val keeps = kept.linesIterator.dropWhile(!_.contains("def keeps_logRequest")).take(2).mkString("\n")

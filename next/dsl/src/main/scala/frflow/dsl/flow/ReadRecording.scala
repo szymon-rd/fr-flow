@@ -8,7 +8,7 @@ import frflow.core.name.VarId
 import frflow.core.term.{Stated, Sym}
 import frflow.core.ty.Ty
 import frflow.dsl.build.{Failure, Fault}
-import frflow.dsl.term.{LeanType, Notes, Term}
+import frflow.dsl.term.{LeanType, Lift, Notes, Recorded, Term}
 import frflow.dsl.vocab.Called
 
 /** A recorded program read into the `Prog` Lean proves and production runs, its terms kept as terms (`Stated`), with
@@ -83,7 +83,7 @@ object ReadRecording:
       yield out
 
     /** The body once per element, the element bound to a fresh variable of the list's element type. */
-    private def each[X](xs: Term[List[X]], t: LeanType[X], body: Term[X] => Recorded[Unit]): Reading =
+    private def each[X](xs: Term[List[X]], t: LeanType[X], body: Term[X] => Recorded[?]): Reading =
       for x <- fresh(t.ty); (pb, _) <- whole(body(Term.free(x)(using t)))
           out <- bound(Prog.Loop(expr(xs), x, pb), LeanType[Unit])
       yield out
@@ -118,7 +118,7 @@ object ReadRecording:
           out <- bound(Prog.Race(pl, pr, reading), t)
       yield out
 
-    private def guard[A](body: Recorded[A], err: Ty, fin: Recorded[Unit]): Reading =
+    private def guard[A](body: Recorded[A], err: Ty, fin: Recorded[?]): Reading =
       for (pb, t) <- whole(body); (pf, _) <- whole(fin); reading <- guarded(pb, t.ty, err, pf)
           out <- bound(Prog.Guard(pb, err, pf, reading), t)
       yield out
@@ -155,12 +155,12 @@ object ReadRecording:
     case Prog.Let(x, v, rest)  => Prog.Let(x, v, injected(rest, side, ty))
     case other                 => other // a sub-program's steps end in `Pure` (`whole`), or raise
 
-  /** A step's result as the next step receives it: the unit, or the variable bound to it as a term of its type. The
-    * recording hands each step's result to the program's next function (`Recorded.Bind`), which forgot its type:
-    * the one cast of the reading, of a value made here of the type the step was recorded with.
+  /** A step's result as the next step receives it: the unit's term, or the variable bound to it as a term of its
+    * type. The recording hands each step's result to the program's next function (`Recorded.Bind`), which forgot its
+    * type: the one cast of the reading, of a term made here of the type the step was recorded with.
     */
   private def valueOf[X](x: Binder, t: LeanType[?]): X =
-    (if x.ty == Ty.Unit then () else Term.free(x)(using t)).asInstanceOf[X]
+    (if x.ty == Ty.Unit then Lift.constant(()) else Term.free(x)(using t)).asInstanceOf[X]
 
   private def fresh(ty: Ty): State[Seen, Binder] =
     State(s => (s.copy(next = s.next + 1), Binder(VarId.step(s.next), if ty == Ty.Unit then "_$u" else "r", ty)))

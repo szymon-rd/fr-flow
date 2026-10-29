@@ -8,7 +8,7 @@ import sharing.domain.*
   * deliveries change two mailboxes.
   */
 object Mailer:
-  val send = Definition[Notice => Program[Unit]]("a notice given to the mail server to deliver")
+  val send = Definition[Notice => Flow[Unit]]("a notice given to the mail server to deliver")
 
   /** A person's mailbox: the notices delivered to them, oldest first. */
   val mailbox = define { (boxes: Term[List[Mailbox]], p: Term[PersonId]) =>

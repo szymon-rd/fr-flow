@@ -6,7 +6,6 @@ import frflow.core.code.{Code, Values}
 import frflow.core.expr.Exprs
 import frflow.core.name.{DefName, NodeId, SymbolName}
 import frflow.dsl.build.Fault
-import frflow.dsl.flow.Recorded
 import whole.Theories
 
 /** The owner's core forms where they refuse (owner-decisions.md §15, §19, §21): exactly three kinds of nodes, two
@@ -76,7 +75,7 @@ class FormsSuite extends munit.FunSuite:
     fails(compileErrors("""object counted extends StateModel[BigInt]("s"):
       granted.means(n => state.get)"""), "value means is not a member of")
     assert(compileErrors("""object counted extends StateModel[BigInt]("s"):
-      val tally = Definition[Program[BigInt]]("a count")
+      val tally = Definition[Flow[BigInt]]("a count")
       tally.means(state.get)""").isEmpty)
   }
 
@@ -89,22 +88,23 @@ class FormsSuite extends munit.FunSuite:
 
   test("one Definition: `define` and `program` make a Definition carrying its meaning; no Def type remains") {
     val d: Definition[(Booking, BigInt) => Boolean] = covers
-    val p: Definition[Booking => Program[Boolean]] = bookIfGranted
+    val p: Definition[Booking => Flow[Boolean]] = bookIfGranted
     assertEquals((d.onTheSpot.map(_.code), p.onTheSpot.map(_.code)),
       (Some(Code.Proven(DefName("covers"))), Some(Code.ProvenFlow(DefName("bookIfGranted")))))
     fails(compileErrors("val one: Def1[Booking, Boolean] = ???"), "Not found: type Def1")
     fails(compileErrors("val more: Steps[Booking, Boolean] = ???"), "Not found: type Steps")
+    fails(compileErrors("val program: Program[Boolean] = ???"), "Not found: type Program")
   }
 
   test("a program takes up to six inputs, each a variable of its recorded steps, named as written") {
     val six = program { (a: Term[BigInt], b: Term[BigInt], c: Term[BigInt], d: Term[BigInt], e: Term[BigInt],
-        g: Term[BigInt]) => Flow[Recorded].pure(a + b + c + d + e + g) }
+        g: Term[BigInt]) => Flow.pure(a + b + c + d + e + g) }
     assertEquals(RoomsIr.lambda(six).value.params.map(_.hint), List("a", "b", "c", "d", "e", "g"))
   }
 
   test("a meaning is given once: proven code is a define or a program, and one written on the spot takes no other") {
     def faults(kb: FrModel) = kb.elaborated.fold(_.iterator.map(_.fault).toList, _ => Nil)
-    val notCode = Definition[Booking => Program[Boolean]]("a program nothing gives a meaning")
+    val notCode = Definition[Booking => Flow[Boolean]]("a program nothing gives a meaning")
     assertEquals(faults(rooms.implementProven(book)(notCode)), List(Fault.NotProvenCode("notCode")))
     assertEquals(faults(rooms.implementTested(free)(_ => (_, _) => true)), List(Fault.MeantWhereWritten("free")))
     val runsItself = Node.claim("The program answers.")(

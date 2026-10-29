@@ -1,6 +1,6 @@
 package frflow.dsl.kb
 
-import frflow.core.term.Program
+import frflow.dsl.flow.Flow
 import frflow.dsl.vocab.Definition as Defined
 import scala.quoted.*
 
@@ -29,10 +29,10 @@ object TestedMacro:
       case AppliedType(_, List(a)) => a
       case other                   => report.errorAndAbort(s"FrFlow: ${other.show} is no Definition")
 
-  /** An operation's shape: `Op1[A, R]` of `A => Program[R]`; `NotAnOperation[T]` of any other type. */
+  /** An operation's shape: `Op1[A, R]` of `A => Flow[R]`; `NotAnOperation[T]` of any other type. */
   private def shape(using Quotes)(t: quotes.reflect.TypeRepr): quotes.reflect.TypeRepr =
     import quotes.reflect.*
-    val program = TypeRepr.of[Program].typeSymbol
+    val program = TypeRepr.of[Flow].typeSymbol
     def result(r: TypeRepr): Option[TypeRepr] = r.dealias match
       case AppliedType(c, List(x)) if c.typeSymbol == program => Some(x)
       case _                                                    => None

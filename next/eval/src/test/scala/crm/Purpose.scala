@@ -87,5 +87,5 @@ val storeRows = Definition[(BigInt, CrmStore) => CrmStore]("the database storing
   "record in place of what it held about it; it returns the rows about the record, read back")
 val expire = Definition[(CrmStore, BigInt) => CrmStore](
   "a run of the expiry job at a time (in seconds) on a store: the store it leads to")
-val runExpiry = Definition[BigInt => Program[CrmStore]](
+val runExpiry = Definition[BigInt => Flow[CrmStore]](
   "a run of the expiry job at a time (in seconds), on the database: the store it computes; the database holds it after")

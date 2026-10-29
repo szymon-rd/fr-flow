@@ -13,19 +13,17 @@ import frflow.testing.report.Failure
   */
 class WorldsSuite extends munit.FunSuite:
   /** Puts a number on the shelf, saying it did, or that it could not when the shelf is down. */
-  private final class Puts[F[_]](s: Shelf.On[F])(using f: Flow[F]):
-    def run(n: Term[BigInt]): F[Term[Boolean]] =
-      f.handle[Trouble, Term[Boolean]](f.as(s.put(n), True))(_ => f.pure(False))
+  private def putsIt(n: Term[BigInt]): Flow[Boolean] =
+    Shelf.putting(n).as(True).handle[Trouble](_ => Flow.pure(False))
 
   /** Reads the shelf after putting a number, raced against reading it. */
-  private final class Races_[F[_]](s: Shelf.On[F])(using f: Flow[F]):
-    def run(n: Term[BigInt]): F[Term[Either[List[BigInt], List[BigInt]]]] =
-      f.race(f.flatMap(s.put(n))(_ => s.items), s.items)
+  private def racesIt(n: Term[BigInt]): Flow[Either[List[BigInt], List[BigInt]]] =
+    Shelf.putting(n).flatMap(_ => Shelf.held).race(Shelf.held)
 
-  private val putting = Definition[BigInt => Program[Boolean]]("putting a number on the shelf")
-  private val racing = Definition[BigInt => Program[Either[List[BigInt], List[BigInt]]]]("reading, raced")
-  private val puts = program { (n: Term[BigInt]) => Puts(Shelf.On[Recorded]).run(n) }
-  private val races = program { (n: Term[BigInt]) => Races_(Shelf.On[Recorded]).run(n) }
+  private val putting = Definition[BigInt => Flow[Boolean]]("putting a number on the shelf")
+  private val racing = Definition[BigInt => Flow[Either[List[BigInt], List[BigInt]]]]("reading, raced")
+  private val puts = program { (n: Term[BigInt]) => putsIt(n) }
+  private val races = program { (n: Term[BigInt]) => racesIt(n) }
 
   private val putIsKept = Node.claim("A number put is on the shelf after.")(
     forall((n: Term[BigInt], before: Term[World]) =>

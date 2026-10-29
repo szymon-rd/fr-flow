@@ -22,7 +22,7 @@ import sharing.trash.Trash
 
 /** The handling of a request and its claim. */
 object SharingHttp:
-  val handle = Definition[Request => Program[Answer]](
+  val handle = Definition[Request => Flow[Answer]](
     "a request handled on the store and the clock: the answer, the store left holding the change")
 
   /** The library a request leads to at a moment: the operation's change for a change; the same library for a
@@ -96,10 +96,10 @@ object SharingHttp:
   /** The handling, one transaction: the time, the library, the one the request leaves kept when it differs, the
     * answer.
     */
-  object Handling:
-    def run[F[_]](r: Term[Request])(using f: Flow[F]): F[Term[Answer]] =
-      f.atomically(f.flatMap(Clock.now)(t => f.flatMap(LibraryStore.load) { lib =>
-        val next = served(lib, t, r)
-        f.as(f.cond(next =!= lib)(LibraryStore.save(next), f.unit), answerTo(lib, t, r)) }))
-
-  val handleRequest = program { (r: Term[Request]) => Handling.run[Recorded](r) }
+  val handleRequest = program { (r: Term[Request]) =>
+    (for
+      t   <- Clock.now
+      lib <- LibraryStore.load
+      next = served(lib, t, r)
+      _   <- Flow.when(next =!= lib)(LibraryStore.save(next))
+    yield answerTo(lib, t, r)).atomically }

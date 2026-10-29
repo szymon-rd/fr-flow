@@ -58,8 +58,8 @@ class ModelRunsSuite extends munit.FunSuite:
 
 object ModelRunsSuite:
   /** A counter, bumped by a number: only a positive bump counts. */
-  val bump = Definition[BigInt => Program[Unit]]("the counter bumped by a number, when it is positive")
+  val bump = Definition[BigInt => Flow[Unit]]("the counter bumped by a number, when it is positive")
 
   /** The counter as the proofs see it. */
   object counted extends StateModel[BigInt]("the count so far"):
-    bump.means(by => state.get.flatMap(n => Flow[Recorded].cond(by > 0)(state.set(n + by), Flow[Recorded].unit)))
+    bump.means(by => state.get.flatMap(n => Flow.cond(by > 0)(state.set(n + by), Flow.unit)))

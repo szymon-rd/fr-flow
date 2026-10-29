@@ -6,8 +6,8 @@ import frflow.core.expr.{Binder, Expr, Lambda}
 import frflow.core.name.SourceText
 import frflow.core.spec.Written
 import frflow.dsl.build.{AsWritten, Declarations, Deferred, ElabError, Failure, Fault, Site}
-import frflow.dsl.flow.{ReadRecording, Recorded}
-import frflow.dsl.term.{LeanType, Notes, Term}
+import frflow.dsl.flow.ReadRecording
+import frflow.dsl.term.{LeanType, Notes, Recorded, Term}
 
 /** The developer's formulas and lambdas, built once, as parts written at `at`, where their faults are placed: each
   * kept as its term with the IR the analyses read (`Written`). A lambda's inputs are bound at levels `0 … n-1` and its
@@ -28,11 +28,11 @@ object Elab:
     }
 
   /** A program's lambda: its body the steps recorded on its inputs' variables, bound at levels `0 … n-1`. */
-  def program[R](at: Site, inputs: List[LeanType[?]], r: LeanType[R])(body: Vector[Binder] => Recorded[Term[R]],
+  def program[R](at: Site, inputs: List[LeanType[?]], r: LeanType[R])(body: List[Term[?]] => Recorded[?],
       written: AsWritten): Deferred[Written[Lambda]] =
     made(at, inputs) { () =>
       val xs = inputs.zipWithIndex.map((t, i) => DefineShape.binder(i, t, written.params))
-      val (prog, notes) = ReadRecording(body(xs.toVector))
+      val (prog, notes) = ReadRecording.steps(body(xs.zip(inputs).map((x, t) => Term.free(x)(using t))))
       (notes |+| Notes.of(r.declares), Written.steps(xs, prog, r.ty, SourceText(written.text)))
     }
 

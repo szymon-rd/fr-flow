@@ -14,10 +14,7 @@ import frflow.testing.report.{Failure, Outcome}
   */
 class RunsSuite extends munit.FunSuite:
   /** A booking program that adds every request, granted or not, and says it booked it. */
-  private object AddsAll:
-    def run[F[_]](request: Term[Booking])(using f: Flow[F]): F[Term[Boolean]] = f.as(f.run(add(request)), True)
-
-  private val addsAll = program { (request: Term[Booking]) => AddsAll.run[Recorded](request) }
+  private val addsAll = program { (request: Term[Booking]) => Flow.step(add(request)).as(True) }
 
   /** What booking answers and stores, in start and end times (rooms' own say "free", over every moment, which has no
     * Scala value).
@@ -31,7 +28,7 @@ class RunsSuite extends munit.FunSuite:
       book(request).from(before) { (_, after) => storedBookings.in(after) ===
         when(stored.forall(b => noOverlap(b, request)))(stored :+ request).otherwise(stored) }))
 
-  private def booking(meaning: Definition[Booking => Program[Boolean]]) =
+  private def booking(meaning: Definition[Booking => Flow[Boolean]]) =
     FrModel("Rooms")((rooms.nodes :+ answerWhenApart :+ storeWhenApart)*).copy(generators = rooms.generators,
       operations = rooms.operations)
       .implementProven(book)(meaning)

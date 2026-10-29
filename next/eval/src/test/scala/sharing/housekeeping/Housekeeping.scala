@@ -14,7 +14,7 @@ import sharing.time.Lifetimes.{gone, inForce, isOpen}
   */
 object Housekeeping:
   val tidy = Definition[(Library, BigInt) => Library]("the library tidied at a moment")
-  val housekeep = Definition[Program[Unit]]("a run of housekeeping on the store, at the time the clock gives")
+  val housekeep = Definition[Flow[Unit]]("a run of housekeeping on the store, at the time the clock gives")
 
   /** Whether a share is of a document gone at a moment. */
   val ofGone = define { (lib: Term[Library], t: Term[BigInt], s: Term[Share]) =>
@@ -33,11 +33,10 @@ object Housekeeping:
       when(next =!= lib)(Audit.record(next, t, Change.Housekept)).otherwise(lib)) }
 
   /** One run, one transaction: the time, the library, the library housekeeping leaves saved when it changed. */
-  object HousekeepingRun:
-    def run[F[_]](using f: Flow[F]): F[Term[Unit]] =
-      f.atomically(f.flatMap(Clock.now)(t => f.flatMap(LibraryStore.load) { lib =>
-        val next = Notifications.warn(AccessRequests.chase(Audit.forget(tidy(lib, t), t), t), t)
-        f.as(f.cond(next =!= lib)(LibraryStore.save(Audit.record(next, t, Change.Housekept)), f.unit),
-          (): Term[Unit]) }))
-
-  val housekeeping = program { HousekeepingRun.run[Recorded] }
+  val housekeeping = program {
+    (for
+      t   <- Clock.now
+      lib <- LibraryStore.load
+      next = Notifications.warn(AccessRequests.chase(Audit.forget(tidy(lib, t), t), t), t)
+      _   <- Flow.when(next =!= lib)(LibraryStore.save(Audit.record(next, t, Change.Housekept)))
+    yield Flow.done).atomically }

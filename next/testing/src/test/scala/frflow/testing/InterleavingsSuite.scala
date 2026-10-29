@@ -34,7 +34,6 @@ class InterleavingsSuite extends munit.FunSuite:
 
   test("the interleaved runs catch branches that share state outside a transaction, where one order does not") {
     val sharing = Shelved[(List[BigInt], List[BigInt])]("both put, then read", Nil, (Right(()), Nil, BigInt(0)))(
-      [F[_]] => (s: Shelf.On[F], _: Shelf.Ticking[F], f: Flow[F]) =>
-        f.parTupled(f.flatMap(s.put(1))(_ => s.items), f.flatMap(s.put(2))(_ => s.items)))
+      Flow.parTupled(Shelf.putting(1).flatMap(_ => Shelf.held), Shelf.putting(2).flatMap(_ => Shelf.held)))
     assert(interleaved(sharing, 5).distinct.size > 1, "every interleaving gave one answer")
   }
