@@ -18,7 +18,9 @@ import frflow.core.Theory
   * claim's condition, to be shown possible.
   */
 object Consistency:
-  def of(t: Theory): List[Group] = sharing(t) ++ premised(t) ++ starts(t)
+  def of(t: Theory): List[Group] =
+    val r = read(t)
+    sharing(t, r) ++ premised(t, r) ++ starts(t)
 
   /** `inhabited_` of every `always[T]`, claimed or assumed, with every other rule on its type (`meets`), and of every
     * assumption saying what a store's state starts in; `satisfiable_` of every claim's condition. Reported, not gated
@@ -82,35 +84,38 @@ object Consistency:
     * assumption whose only value is a pinned one has a group too. Each other value provided is universal, with the
     * assumptions at the bottom about such values alone as premises: what the world outside is trusted to give.
     */
-  private def sharing(t: Theory): List[Group] =
-    val bottoms = bottom(t)
-    val pinned = pinnedIn(t, bottoms)
-    val premises = premisesOf(t)
-    joined(bottoms.map(id => id -> (open(t, id) ++ provided(t, id).filter(pinned)).distinct).filter(_._2.nonEmpty))
+  private def sharing(t: Theory, r: Read): List[Group] =
+    joined(r.ids.map(id => id -> (r.open(id) ++ r.provided(id).filter(r.pinned)).distinct).filter(_._2.nonEmpty))
       .map { (ids, keys) =>
-        val fromOutside = (ids.flatMap(Constrained.of(t, _)).filter(isProvided(t, _)) ++ ids.flatMap(provided(t, _)))
+        val fromOutside = (ids.flatMap(Constrained.of(t, _)).filter(isProvided(t, _)) ++ ids.flatMap(r.provided))
           .distinct
-        val opens = keys.filterNot(pinned) ++ fromOutside.filter(pinned)
-        val universal = fromOutside.filterNot(pinned)
+        val opens = keys.filterNot(r.pinned) ++ fromOutside.filter(r.pinned)
+        val universal = fromOutside.filterNot(r.pinned)
         Group.Sharing(ids, opens, universal, witnesses(t, ids, opens),
-          premises.filter(p => provided(t, p).forall(universal.contains)))
+          r.premises.filter(p => r.provided(p).forall(universal.contains)))
       }
 
-  private def pinnedIn(t: Theory, bottoms: List[NodeId]): Set[SymbolName] =
-    bottoms.flatMap(id => provided(t, id).filter(pins(t, id, _))).toSet
+  /** The bottom statements as consistency reads them, each once: what each leaves open and takes provided, the
+    * provided values an assumption pins, and the premises: the assumptions at the bottom about unpinned provided
+    * values alone, what the world outside is trusted to give.
+    */
+  private final case class Read(ids: List[NodeId], open: Map[NodeId, List[SymbolName]],
+      provided: Map[NodeId, List[SymbolName]], pinned: Set[SymbolName], premises: List[NodeId])
 
-  /** The assumptions at the bottom about unpinned provided values alone: what the world outside is trusted to give. */
-  private def premisesOf(t: Theory): List[NodeId] =
-    val bottoms = bottom(t)
-    val pinned = pinnedIn(t, bottoms)
-    bottoms.filter(id => t.node(id).exists(_.statement.kind == NodeKind.Assumption) && open(t, id).isEmpty &&
-      provided(t, id).nonEmpty && !provided(t, id).exists(pinned))
+  private def read(t: Theory): Read =
+    val ids = bottom(t)
+    val words = ids.map(id => id -> Callees.reaching(t, Constrained.of(t, id))).toMap
+    val opens = words.view.mapValues(_.filter(isOpen(t, _))).toMap
+    val outside = words.view.mapValues(_.filter(isProvided(t, _))).toMap
+    val pinned = ids.flatMap(id => outside(id).filter(pins(t, id, _))).toSet
+    Read(ids, opens, outside, pinned, ids.filter(id => t.node(id).exists(_.statement.kind == NodeKind.Assumption) &&
+      opens(id).isEmpty && outside(id).nonEmpty && !outside(id).exists(pinned)))
 
   /** The premises joined while they share a provided value, each set with the witnesses derived for its values (a
     * list none bounds, empty), in the order they are bound.
     */
-  private def premised(t: Theory): List[Group] =
-    joined(premisesOf(t).map(id => id -> provided(t, id))).map { (ids, values) =>
+  private def premised(t: Theory, r: Read): List[Group] =
+    joined(r.premises.map(id => id -> r.provided(id))).map { (ids, values) =>
       val ws = witnesses(t, ids, values).map {
         case Witness.Missing(s) if listed(t, s) => Witness.Empty(s)
         case w                                  => w
