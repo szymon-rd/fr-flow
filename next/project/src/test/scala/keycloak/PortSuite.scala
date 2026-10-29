@@ -12,8 +12,9 @@ import scala.concurrent.duration.*
 
 /** Keycloak ported (owner §14, §21, §40), against today's (`reference/keycloak`, ARCHITECTURE section 9,
   * equivalence): every difference in where a node sits and what it assumes is listed and judged; checked by Lean and
-  * tested (1,000 cases from seed 1, as today), each node stands as today's but where judged; the consistency groups
-  * proven but the one stopped on (the server's run, below); section 9's seeded bugs are caught; today's examples
+  * tested (1,000 cases from seed 1, as today), each node stands as today's but where judged; every consistency group
+  * proven (owner §28, §39; the server's run with the state it holds solved by `serverRun`, the step 12 ruling on
+  * provided values an assumption pins); section 9's seeded bugs are caught; today's examples
   * hold on the code; and no statement is weakened: each claim as today stated it is proven equivalent to the port's
   * (`resources/keycloak/port/Port.lean`).
   */
@@ -90,12 +91,6 @@ class PortSuite extends munit.CatsEffectSuite:
     "AnswersNameASession" -> List("claim", "tested", "proven", "1000"),
     "RealmIsolation" -> List("claim", "tested", "proven", "1000"))
 
-  /** What is not proven of the server's run, stopped on (the work list's first question): the group of the state,
-    * the step and the store is asked to hold for every value provided, and no step meets it for every state.
-    */
-  private val stopped: Map[String, List[String]] =
-    List("serverRun", "handleRequest", "storeKeepsState").map(_ -> List("Consistency")).toMap
-
   private val proofs = List("Lemmas", "sessionsMirrorSignIns", "accountsAsAdministered", "oneSignInPerToken",
     "onlyTheSignedIn", "signedInAreAccepted", "Whole")
   private val lean = Lean(proofs.map(n => n -> Ported.resource(s"keycloak/proofs/$n.lean")),
@@ -103,8 +98,8 @@ class PortSuite extends munit.CatsEffectSuite:
     Some("FrFlowGen.Port"))
   private val written = List(IntrospectExamples(), LookupExamples(), StoreExamples(), RequestExamples())
 
-  test(("checked by Lean and tested, each node stands as today's but where judged; consistent but the server's " +
-    "run; nothing weakened").tag(Live)) {
+  test("checked by Lean and tested, each node stands as today's but where judged; consistent; nothing weakened"
+    .tag(Live)) {
     val examples = written.flatMap(_.elaborated.fold(e => fail(e.toString), identity))
     Ported.run(elaborated, examples, lean, Nil).map { r =>
       val a = r.analysis
@@ -112,12 +107,10 @@ class PortSuite extends munit.CatsEffectSuite:
       val compared = (reference.standings.keys ++ now.keys).toList.distinct.sorted
         .filter(k => now.get(k) != reference.standings.get(k)).map(k => k -> now.getOrElse(k, Nil))
       assertEquals(compared.toMap, standings, s"keycloak now:\n${Ported.table(a)}")
-      assertEquals(Ported.unproven(a), stopped)
+      assertEquals(Ported.unproven(a), Map.empty[String, List[String]])
       val whole = a.wholeCheck.map(_.results).getOrElse(fail("the theory's own check is not recorded"))
-      val run = a.groups.collectFirst { case (i, ids) if ids.contains(NodeId("serverRun")) => i }
       assertEquals(whole.collect { case Result(n @ ObligationName.Consistent(_), s, _) => n -> s }.toMap,
-        a.groups.map((i, _) => ObligationName.Consistent(i) ->
-          (if run.contains(i) then ObligationStatus.Open else ObligationStatus.Proven)).toMap)
+        a.groups.map((i, _) => ObligationName.Consistent(i) -> ObligationStatus.Proven).toMap)
       // Today's examples that give no value, the store's and the request's, are tried against the claims in Lean
       // too (owner §18): the store's shown by storeKeepsState; the request's not, as handleRequest says which
       // sessions the state holds and not in what order (today's Lean evaluated the code, which runs in Scala here).

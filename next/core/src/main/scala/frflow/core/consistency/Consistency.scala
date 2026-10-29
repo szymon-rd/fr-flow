@@ -60,8 +60,21 @@ object Consistency:
 
   private def sharing(t: Theory): List[Group] =
     joined(bottom(t).map(id => id -> open(t, id)).filter(_._2.nonEmpty)).map { (ids, opens) =>
-      Group.Sharing(ids, opens, ids.flatMap(provided(t, _)).distinct, witnesses(t, ids, opens))
+      val fromOutside = ids.flatMap(provided(t, _)).distinct
+      val pinned = fromOutside.filter(p => ids.exists(pins(t, _, p)))
+      Group.Sharing(ids, opens ++ pinned, fromOutside.filterNot(pinned.contains), witnesses(t, ids, opens ++ pinned))
     }
+
+  /** Whether an assumption of the group equates the provided value to a term (`state === stateAfter(history)`): the
+    * value is then solved by that equation, like an open one, for every value meeting the group's assumptions is
+    * that term's (step 12 ruling); a provided value nothing pins stays universal.
+    */
+  private def pins(t: Theory, id: NodeId, p: SymbolName): Boolean =
+    t.node(id).filter(_.statement.kind == NodeKind.Assumption).flatMap(_.statement.said).exists(f =>
+      Equations(Nil, _ => Nil).defining(id, f.value, p).exists {
+        case Witness.Equation(_, _, _) => true
+        case _                         => false
+      })
 
   /** Statements joined while they share an open value, in the model's order. */
   private def joined(xs: List[(NodeId, List[SymbolName])]): List[(List[NodeId], List[SymbolName])] =

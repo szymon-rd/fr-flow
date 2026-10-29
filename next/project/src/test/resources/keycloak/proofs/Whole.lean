@@ -65,4 +65,12 @@ theorem consistent_4 : Obl.consistent_4 := by
         exact congrArg some (hone y hy (hyt.trans ht.symm))
     simp [answer, hf, he]
 
+/-- The server's run holds together with the step and the store (step 12 ruling: the state the server holds is
+solved by `serverRun`, the history replayed): a store that keeps what it is given, the state the history leads to by
+`handle` over it, and the step's code meets `handleRequest` as its own proof shows. -/
+theorem consistent_3 : Obl.consistent_3 := by
+  intro history seed
+  refine ⟨fun _ after => after, _, rfl, ?_, fun _ _ => rfl⟩
+  frflow_auto
+
 end Keycloak.Whole.Proofs
