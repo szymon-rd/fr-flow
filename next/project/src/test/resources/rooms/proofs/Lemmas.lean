@@ -15,13 +15,13 @@ namespace Rooms.Lemmas
 exactly when granted. -/
 theorem run_eq (granted : RoomBookings → Booking → Prop) (request : Booking) (w : World) :
     bookIfGranted_run granted request w =
-      (granted ⟨request.room, w.bookingTable.filter (fun b => decide (b.room = request.room))⟩ request,
-       if granted ⟨request.room, w.bookingTable.filter (fun b => decide (b.room = request.room))⟩ request
-       then { w with bookingTable := w.bookingTable ++ [request] } else w) := by
-  by_cases h : granted ⟨request.room, w.bookingTable.filter (fun b => decide (b.room = request.room))⟩ request <;>
+      (granted ⟨request.room, w.storedBookings.filter (fun b => decide (b.room = request.room))⟩ request,
+       if granted ⟨request.room, w.storedBookings.filter (fun b => decide (b.room = request.room))⟩ request
+       then { w with storedBookings := w.storedBookings ++ [request] } else w) := by
+  by_cases h : granted ⟨request.room, w.storedBookings.filter (fun b => decide (b.room = request.room))⟩ request <;>
     simp [bookIfGranted_run, bookIfGranted, FrFlow.runOn_bind, FrFlow.runOn_pure, FrFlow.runOn_within,
-      FrFlow.runOn_get, FrFlow.runOn_set, FrFlow.runOn_map, FrFlow.runOn_ite, BookingTable.inRoom_onWorld,
-      BookingTable.add_onWorld, StoredBookings.inRoom, StoredBookings.add, h]
+      FrFlow.runOn_get, FrFlow.runOn_set, FrFlow.runOn_map, FrFlow.runOn_ite, StoredBookings.Ops.inRoom_onWorld,
+      StoredBookings.Ops.add_onWorld, StoredBookings.inRoom, StoredBookings.add, h]
 
 /-- Bookings that end after they start and share no moment do not overlap, in start and end times. -/
 theorem apart_noOverlap (a b : Booking) (ha : bookingsEndAfterStart a) (hb : bookingsEndAfterStart b)

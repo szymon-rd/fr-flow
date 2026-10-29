@@ -1,7 +1,7 @@
 package rooms
 
 import cats.effect.IO
-import java.sql.{Connection, DriverManager, PreparedStatement}
+import java.sql.{Connection, PreparedStatement}
 
 /** The bookings in SQLite, a row each, read back in the order they were added: the table's operations' plain Scala,
   * tested against `storedBookings` (`Knowledge.scala`). One connection, its calls one at a time.
@@ -29,9 +29,11 @@ final class BookingsTable private (conn: Connection):
       .map(r => Booking(r.getString(1), BigInt(r.getString(2)), BigInt(r.getString(3)))).toList
 
 object BookingsTable:
-  /** A table in a file, or `:memory:`. */
+  /** A table in a file, or `:memory:`: through SQLite's driver itself, not `DriverManager`, which finds drivers by
+    * the calling thread's class loader.
+    */
   def open(path: String): IO[BookingsTable] = IO.blocking {
-    val conn = DriverManager.getConnection(s"jdbc:sqlite:$path")
+    val conn = org.sqlite.JDBC().connect(s"jdbc:sqlite:$path", java.util.Properties())
     val _ = conn.createStatement().executeUpdate("create table if not exists bookings " +
       "(id integer primary key, room text not null, starts text not null, ends text not null)")
     BookingsTable(conn)

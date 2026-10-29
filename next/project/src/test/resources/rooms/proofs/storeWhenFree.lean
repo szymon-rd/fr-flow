@@ -13,12 +13,12 @@ namespace Rooms.storeWhenFree.Proofs
 theorem impl : Obl.impl := by
   intro granted h request hr before hno hv
   rw [Lemmas.run_eq]
-  have hg := Lemmas.granted_free granted h request hr before.bookingTable hno hv
-  by_cases hf : free before.bookingTable request
-  · have hy : granted ⟨request.room, before.bookingTable.filter (fun b => decide (b.room = request.room))⟩ request :=
+  have hg := Lemmas.granted_free granted h request hr before.storedBookings hno hv
+  by_cases hf : free before.storedBookings request
+  · have hy : granted ⟨request.room, before.storedBookings.filter (fun b => decide (b.room = request.room))⟩ request :=
       hg ▸ hf
     simp [hy, hf]
-  · have hn : ¬granted ⟨request.room, before.bookingTable.filter (fun b => decide (b.room = request.room))⟩ request :=
+  · have hn : ¬granted ⟨request.room, before.storedBookings.filter (fun b => decide (b.room = request.room))⟩ request :=
       hg ▸ hf
     simp [hn, hf]
 

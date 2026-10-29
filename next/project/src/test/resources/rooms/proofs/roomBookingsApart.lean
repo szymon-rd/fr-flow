@@ -12,10 +12,10 @@ namespace Rooms.roomBookingsApart.Proofs
 
 theorem made_inRoom : Obl.made_inRoom := by
   intro room w hno hv
-  have : StoredBookings.inRoom_of room w.bookingTable =
-      ⟨room, w.bookingTable.filter (fun b => decide (b.room = room))⟩ := by
+  have : StoredBookings.inRoom_of room w.storedBookings =
+      ⟨room, w.storedBookings.filter (fun b => decide (b.room = room))⟩ := by
     simp [StoredBookings.inRoom_of, StoredBookings.inRoom]
   rw [this]
-  exact Lemmas.room_apart w.bookingTable room hno hv
+  exact Lemmas.room_apart w.storedBookings room hno hv
 
 end Rooms.roomBookingsApart.Proofs

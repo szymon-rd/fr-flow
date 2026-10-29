@@ -13,6 +13,6 @@ namespace Rooms.answerWhenFree.Proofs
 theorem impl : Obl.impl := by
   intro granted h request hr before hno hv
   rw [Lemmas.run_eq]
-  exact Lemmas.granted_free granted h request hr before.bookingTable hno hv
+  exact Lemmas.granted_free granted h request hr before.storedBookings hno hv
 
 end Rooms.answerWhenFree.Proofs
