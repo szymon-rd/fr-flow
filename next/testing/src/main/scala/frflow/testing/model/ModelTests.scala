@@ -9,8 +9,8 @@ import frflow.core.name.{ModelName, SourceText, SymbolName}
 import frflow.core.term.Stated
 import frflow.core.vocab.{Fails, StateModel, Vocabulary}
 import frflow.dsl.model.StateModel as Written
-import frflow.eval.flow.World
-import frflow.eval.{Bound, Raised, ScalaValue, Semantics}
+import frflow.eval.flow.{Bound, World}
+import frflow.eval.{Raised, ScalaValue, Semantics}
 
 /** A model's operations' plain Scala compared with the model on one run of its operations (`Step`s): each call on
   * both, in turn, up to the first they do differently (`Ran`: a result, an error of the program's, anything else

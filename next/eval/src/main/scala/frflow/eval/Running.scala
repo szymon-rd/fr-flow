@@ -10,6 +10,7 @@ import frflow.core.vocab.Fails
 import frflow.dsl.flow.{Flow, Terms}
 import frflow.dsl.term.{LeanType, Lift, Term}
 import frflow.dsl.vocab.Called
+import frflow.eval.flow.Bound
 import frflow.eval.term.Evaluate
 
 /** Production's interpreter of programs: each step run in `F`, a term evaluated where a step needs its value (a

@@ -25,6 +25,10 @@ object Faults:
     case Fault.NotAClaim(what)        => s"$what is not a claim: only a claim is left open above"
     case Fault.OutsideStep            => "a program's step is used outside a program"
     case Fault.NotATerm(what)         => s"a program's step gives $what, which is not a term: Lean cannot read it"
+    case other                        => meaning(other)
+
+  /** A fault in what gives a Definition its meaning: its model, its Scala, its proven code. */
+  private def meaning(f: Fault): String = f match
     case Fault.NotAnOperation(what)   => s"a program's step $what applies no Definition: a step is an operation on a " +
         "state applied (inRoom(request.room))"
     case Fault.NotOneModel(ds)        => s"implementTested is given ${ds.mkString(", ")}, which are not operations " +

@@ -9,6 +9,7 @@ import frflow.dsl.flow.{Flow, Terms}
 import frflow.dsl.kb.FrModel
 import frflow.dsl.model.Implemented
 import frflow.dsl.vocab.Definition
+import frflow.eval.flow.Bound
 import frflow.eval.run.Wiring
 
 /** `knowledge.code(d)(grants := …)` and `knowledge.running[F](…)` in production: a Definition's code, built as its

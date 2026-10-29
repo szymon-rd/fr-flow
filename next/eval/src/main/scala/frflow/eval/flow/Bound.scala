@@ -1,4 +1,4 @@
-package frflow.eval
+package frflow.eval.flow
 
 import cats.MonadThrow
 import frflow.core.Theory
@@ -6,6 +6,7 @@ import frflow.core.code.Implementation
 import frflow.core.name.SymbolName
 import frflow.core.vocab.Fails
 import frflow.dsl.model.Implemented
+import frflow.eval.{Fn, ScalaValue}
 
 /** An operation's plain Scala as the code runs with it (owner §36): its function of plain values, its result in `F`,
   * and what a call fails with when its model may fail.

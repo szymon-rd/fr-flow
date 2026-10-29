@@ -8,7 +8,7 @@ import frflow.core.expr.Prog
 import frflow.core.name.ModelName
 import frflow.core.term.Stated
 import frflow.dsl.flow.ReadRecording
-import frflow.eval.{Bound, Env, Faults, Fn, Literals, Raised, Running, ScalaValue, Semantics}
+import frflow.eval.{Env, Faults, Fn, Literals, Raised, Running, ScalaValue, Semantics}
 
 /** A test program's two runs, each from an empty shelf at time 0 with the program's faults: its recording's `Prog` on
   * the models (`FlowInterpreter`, as Lean reads it), and the program itself in production (`Running`) on the plain

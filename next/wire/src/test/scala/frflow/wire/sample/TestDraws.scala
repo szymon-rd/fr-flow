@@ -60,7 +60,8 @@ object TestDraws:
       .map(Failure.Call(_, _, _, _)),
     Gen.zip(value(2), few(step), difference, drawn).map(Failure.Run(_, _, _, _)))
 
-  val against: Gen[Against] = Gen.oneOf(node.map(Against.Claim(_)), Gen.zip(node, word).map((n, m) => Against.Model(n, ModelName(m))))
+  val against: Gen[Against] = Gen.oneOf(node.map(Against.Claim(_)),
+    Gen.zip(node, word).map((n, m) => Against.Model(n, ModelName(m))))
 
   val outcome: Gen[Outcome] = Gen.oneOf(Gen.const(Outcome.Passed), failure.map(Outcome.Failed(_)),
     evalError.map(Outcome.NotChecked(_)))

@@ -23,5 +23,5 @@ object OnDisk:
     yield Ports(ProjectFiles.make[IO](dir), ledger, git, keys)
 
   def api(p: Project, ports: Ports[IO], lake: Lake[IO], version: String): IO[FrFlowApi[IO]] =
-    Memory.api(Session[IO](p, ports, _ => IO.pure(lake), Session.Run(Settings(1000, Seed(1)), Some("ann"), keyed = true),
-      version))
+    Memory.api(Session[IO](p, ports, _ => IO.pure(lake),
+      Session.Run(Settings(1000, Seed(1)), Some("ann"), keyed = true), version))
