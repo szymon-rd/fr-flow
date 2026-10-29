@@ -33,3 +33,12 @@ class HandedLeanSuite extends LeanBuildSuite("handed", Laid(Handed.resolved, Map
     n    <- List("endsAfterStart", "fromOutside")
     call <- List("spotCode_call_0", "definitionCode_call_0", "eachCode_call_1")
   yield n -> ObligationName.Made(call))
+
+/** The rows read back from a store the job writes as it goes (review 11b, R1): after a loop's earlier iterations put
+  * the key, or a failed body put it twice, what `storeAbout` is handed is not proven to hold each key once.
+  */
+class ReuseLeanSuite extends LeanBuildSuite("reuse", Laid(Reuse.resolved(Reuse.inLoop), Map.empty, Nil),
+  List("onePerKey", "rowsFromOutside").map(_ -> ObligationName.Made("expireIt_call_1")))
+
+class HandledReuseLeanSuite extends LeanBuildSuite("handled-reuse", Laid(Reuse.resolved(Reuse.inHandler), Map.empty,
+  Nil), List("onePerKey", "rowsFromOutside").map(_ -> ObligationName.Made("expireIt_call_3")))

@@ -12,8 +12,9 @@ import frflow.core.vocab.Define
   * terms (`Calls`); a bind's result for every value of its type, a `let` substituted, a branch below its condition,
   * a loop's body for each element, a failure's handler for every error, a concurrent step as one step at a time.
   * Nothing is assumed of a value the program binds but where it is (an element of its list) and, of an operation's
-  * result, the rules `made_<op>` proves of it on its model, `guards`, while no step before it on the path has written
-  * that model's state (`made_<op>` is of a state meeting what always holds of it).
+  * result, the rules `made_<op>` proves of it on its model, `guards`, while no step that may run before it has written
+  * that model's state (`made_<op>` is of a state meeting what always holds of it): the steps before it on the path,
+  * a loop's body in its earlier iterations, a failed body before its handler.
   */
 final class CallSites[T[_]](s: Sym[T], covered: Covered, guards: List[Guard]):
   private type Env = Map[VarId, T[Any]]
@@ -50,13 +51,15 @@ final class CallSites[T[_]](s: Sym[T], covered: Covered, guards: List[Guard]):
     case Prog.Accumulate(over, init, acc, x, body) =>
       val (o, i) = (term(over, env), term(init, env))
       o.calls ++ i.calls ++ AtCall.under(s, Bound[Any](acc.hint, acc.ty), None)(a =>
-        bound(x, in(o), env + (acc.id -> a), written)(body))
+        bound(x, in(o), env + (acc.id -> a), written ++ writes(body))(body))
     case Prog.Read(_)                     => Nil
     case Prog.Write(_, state)             => term(state, env).calls
     case Prog.Modify(_, x, next)          =>
       AtCall.under(s, Bound[Any](x.hint, x.ty), None)(v => term(next, env + (x.id -> v)).calls)
     case Prog.Raise(error)                => term(error, env).calls
-    case Prog.Catch(body, _, x, handler)  => steps(body, env, written) ++ bound(x, None, env, written)(handler)
+    case Prog.Catch(body, _, x, handler)  =>
+      // The handler runs after what the body did before it failed.
+      steps(body, env, written) ++ bound(x, None, env, written ++ writes(body))(handler)
     case _                                => Nil
 
   private def term(e: Stated[?], env: Env): Calling[T, Any] = Calls.of(s, covered, env)(e)
@@ -64,7 +67,8 @@ final class CallSites[T[_]](s: Sym[T], covered: Covered, guards: List[Guard]):
   private def each(over: Stated[?], x: Binder, body: Prog[Stated[?]])(env: Env, written: Set[ModelName])
       : List[AtCall[T]] =
     val o = term(over, env)
-    o.calls ++ bound(x, in(o), env, written)(body)
+    // Each element's body runs after the earlier elements' did: what they write is written before it.
+    o.calls ++ bound(x, in(o), env, written ++ writes(body))(body)
 
   private def in(xs: Calling[T, Any]): Option[T[Any] => T[Boolean]] =
     // What a loop runs over is a list, as the recording reads it.

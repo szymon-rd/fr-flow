@@ -5,7 +5,7 @@ import frflow.core.analysis.{Resolved, Scope}
 import frflow.core.name.NodeId
 import frflow.core.ty.Ty
 import frflow.proof.layout.{Broken, Mini, Programs, ProgramsProject}
-import frflow.proof.layout.calls.{Handed, Rows}
+import frflow.proof.layout.calls.{Handed, Reuse, Rows}
 import frflow.proof.layout.failing.Failing
 import frflow.proof.lean.print.Print
 import frflow.proof.terms.TermTable
@@ -68,6 +68,15 @@ class RequiredSuite extends munit.FunSuite:
     val branch = AlwaysSuite().declared(frflow.proof.layout.Laid(Rows.resolved(Rows.viaBranch), Map.empty, Nil),
       Rows.resolved(Rows.viaBranch))
     assert(branch.contains("(∀ (r : (List Int)), (List.Nodup r))"), branch)
+  }
+
+  test("an operation's result is not trusted after a write that may run before it: a loop's, a failed body's") {
+    List(Reuse.inLoop -> "makes_expireIt_call_1", Reuse.inHandler -> "makes_expireIt_call_3").foreach { (steps, at) =>
+      val declared = AlwaysSuite().declared(frflow.proof.layout.Laid(Reuse.resolved(steps), Map.empty, Nil),
+        Reuse.resolved(steps))
+      val stated = declared.linesIterator.dropWhile(!_.contains(at)).drop(1).next()
+      assert(stated.contains("(∀ (r : (List Int)), (List.Nodup r))"), stated)
+    }
   }
 
   test("made_ at the call, crm-shaped: what the job hands storeAbout holds each key once, below the job's branch") {
