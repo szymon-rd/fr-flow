@@ -93,13 +93,13 @@ lazy val nextDsl = nextModule("dsl", cats).dependsOn(nextCore)
 /** Obligations, the Lean AST, the one term printer, lowering, layout, reading Lean's output, the judges. */
 lazy val nextProof = nextModule("proof", cats).dependsOn(nextCore % "compile->compile;test->test")
 
+/** The SQLite driver rooms' table is kept in, for the tests that run rooms (eval's and every module's after it). */
+val roomsTable = "org.xerial" % "sqlite-jdbc" % "3.46.1.3" % Test
+
 // next-eval (step 4)
 /** The Scala meaning of terms and of plain code: the evaluator, examples, the values a call reads, recorded programs
   * run on models, production's interpreter of programs; the facade `frflow.*`, and the examples written in it. Its
   * tests read core's generated terms and proof's printer (Lean decides each term as the evaluator does). */
-/** The SQLite driver rooms' table is kept in, for the tests that run rooms (eval's and every module's after it). */
-val roomsTable = "org.xerial" % "sqlite-jdbc" % "3.46.1.3" % Test
-
 lazy val nextEval = nextModule("eval", cats, catsEffectKernel, catsEffectStd, catsEffect % Test, roomsTable)
   .dependsOn(nextDsl, nextProof % "test->test")
 
