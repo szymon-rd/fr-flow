@@ -2,7 +2,7 @@ package frflow.proof.lean.laws
 
 import frflow.core.{Booking, Lang}
 import frflow.core.analysis.Reserved
-import frflow.core.expr.{Expr, Exprs, Renamed, Terms, Tm}
+import frflow.core.expr.{Expr, Exprs, LawSeeds, Renamed, Terms, Tm}
 import frflow.core.name.{DefName, KbName, SymbolName}
 import frflow.core.term.{Body, Bound, Final, Sym}
 import frflow.core.term.interpret.ToExpr
@@ -23,7 +23,7 @@ class CaptureLawsSuite extends munit.FunSuite:
   private val types = Set(Booking.name.value, MoreTerms.eventName.value, "World")
   private val symbols = (Renamed.symbols.keySet ++ Renamed.symbols.values).toSet
   private val naming = Naming.over(symbols ++ Reserved.names + LawsEnv.env.kb.value, types)
-  private val terms: List[Final[Boolean]] = (1L to 300L).toList.flatMap(seed =>
+  private val terms: List[Final[Boolean]] = LawSeeds(300).flatMap(seed =>
     List(Tm.closed(Terms(seed).bool(3, 0)), MoreTerms(seed).formula).map(Renamed.of(_, seed)))
 
   private def printed(env: LowerEnv, n: Naming)(t: Final[Boolean]): String = Print.expr(Printed.formula(env, n)(t))

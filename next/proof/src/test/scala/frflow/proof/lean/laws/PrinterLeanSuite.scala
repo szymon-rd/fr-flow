@@ -1,7 +1,7 @@
 package frflow.proof.lean.laws
 
 import frflow.core.Booking
-import frflow.core.expr.{Terms, Tm}
+import frflow.core.expr.{LawSeeds, Terms, Tm}
 import frflow.core.term.Final
 import frflow.proof.layout.{LeanTag, LeanWorkspace}
 import frflow.proof.lean.ast.*
@@ -17,7 +17,7 @@ class PrinterLeanSuite extends munit.FunSuite:
   override val munitTimeout: scala.concurrent.duration.Duration = scala.concurrent.duration.Duration(20, "minutes")
   private val naming = Naming.over(Set.empty, Set(Booking.name.value, MoreTerms.eventName.value, "World"))
   private val terms: List[Final[Boolean]] =
-    (1L to 300L).toList.flatMap(seed => List(Tm.closed(Terms(seed).bool(3, 0)), MoreTerms(seed).formula))
+    LawSeeds(300).flatMap(seed => List(Tm.closed(Terms(seed).bool(3, 0)), MoreTerms(seed).formula))
 
   private def n(s: String): LeanName = Names.builtin(s)
   private def x(s: String, t: LExpr): LBinder = LBinder.Explicit(Names.ident(s), t)

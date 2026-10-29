@@ -1,7 +1,7 @@
 package frflow.proof.lean.laws
 
 import frflow.core.Booking
-import frflow.core.expr.{Terms, Tm}
+import frflow.core.expr.{LawSeeds, Terms, Tm}
 import frflow.core.name.SourceText
 import frflow.core.spec.Written
 import frflow.core.term.Final
@@ -20,7 +20,7 @@ import frflow.proof.terms.TermTable
 class PrinterLawsSuite extends munit.FunSuite:
   private val naming = Naming.over(Set.empty, Set(Booking.name.value, MoreTerms.eventName.value, "World"))
   private val terms: List[Final[Boolean]] =
-    (1L to 300L).toList.flatMap(seed => List(Tm.closed(Terms(seed).bool(3, 0)), MoreTerms(seed).formula))
+    LawSeeds(300).flatMap(seed => List(Tm.closed(Terms(seed).bool(3, 0)), MoreTerms(seed).formula))
   private def printed(t: Final[Boolean]): String = Print.expr(Printed.formula(LawsEnv.env, naming)(t))
   private val term = LeanTerm(LawsEnv.env)
 

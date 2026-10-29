@@ -1,0 +1,70 @@
+# FrFlow's CI: the budgets, `sbt test`, and the suites that run Lean end to end (tagged `Lean`, left out of
+# `sbt test`: build.sbt's `Lean` configuration). Every push and pull request runs them on the laws' usual seeds;
+# the nightly run draws the laws' terms from seeds no other run uses (`FRFLOW_LAW_SEEDS`, `from:count`).
+name: CI
+
+on:
+  push:
+  pull_request:
+  schedule:
+    - cron: "17 3 * * *"
+  workflow_dispatch:
+
+concurrency:
+  group: ci-${{ github.ref }}-${{ github.event_name }}
+  cancel-in-progress: true
+
+jobs:
+  test:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 150
+    env:
+      SBT_OPTS: "-Xmx6g -Xss8m"
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "21"
+          cache: sbt
+
+      - uses: sbt/setup-sbt@v1
+
+      - name: Every Lean project names one toolchain
+        run: |
+          versions=$(find . -name lean-toolchain -not -path '*/.lake/*' -not -path '*/target/*' -exec cat {} + | sort -u)
+          echo "$versions"
+          test "$(echo "$versions" | wc -l)" -eq 1
+
+      - name: Cache the Lean toolchain (elan)
+        uses: actions/cache@v4
+        with:
+          path: ~/.elan
+          key: elan-${{ runner.os }}-${{ hashFiles('**/lean-toolchain') }}
+
+      - name: Install elan and the toolchain
+        run: |
+          if [ ! -x "$HOME/.elan/bin/elan" ]; then
+            curl -sSfL https://raw.githubusercontent.com/leanprover/elan/master/elan-init.sh \
+              | sh -s -- -y --no-modify-path --default-toolchain none
+          fi
+          echo "$HOME/.elan/bin" >> "$GITHUB_PATH"
+          "$HOME/.elan/bin/elan" toolchain install "$(cat next/proof/lean/lean-toolchain)"
+          "$HOME/.elan/bin/elan" default "$(cat next/proof/lean/lean-toolchain)"
+
+      - name: Lean and Lake
+        run: lean --version && lake --version
+
+      - name: Nightly seeds
+        if: github.event_name == 'schedule'
+        run: echo "FRFLOW_LAW_SEEDS=$(( GITHUB_RUN_NUMBER * 10000 + 1 )):1500" >> "$GITHUB_ENV"
+
+      - name: Budgets
+        run: python3 docs/redesign/tools/budget.py next
+
+      - name: sbt test
+        run: sbt test < /dev/null
+
+      - name: The suites that run Lean
+        run: sbt next-proof/Lean/test next-eval/Lean/test next-project/Lean/test next-api/Lean/test next-cli/Lean/test < /dev/null

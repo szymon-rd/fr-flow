@@ -2,7 +2,7 @@ package frflow.eval.term
 
 import frflow.core.code.Values
 import frflow.core.name.SymbolName
-import frflow.core.expr.{Expr, Exprs, Terms, Tm}
+import frflow.core.expr.{Expr, Exprs, LawSeeds, Terms, Tm}
 import frflow.core.term.Final
 import frflow.core.term.interpret.ToExpr
 import frflow.core.ty.Ty
@@ -21,7 +21,7 @@ import frflow.proof.lean.laws.MoreTerms
 class LeanDecidesSuite extends munit.FunSuite:
   override val munitTimeout: scala.concurrent.duration.Duration = scala.concurrent.duration.Duration(20, "minutes")
   private val generated: List[Final[Boolean]] =
-    (1L to 600L).toList.flatMap(seed => List(Tm.closed(Terms(seed).bool(3, 0)), MoreTerms(seed).formula))
+    LawSeeds(600).flatMap(seed => List(Tm.closed(Terms(seed).bool(3, 0)), MoreTerms(seed).formula))
   private val programs = Values(Closed.programs.map((p, f) => SymbolName(p) -> (() => f)))
   /** Each closed term with a Scala value, and that value. */
   private val decided: List[(Final[Boolean], Boolean)] =
