@@ -26,7 +26,7 @@ object Projects:
   val library: LeanLibrary = LeanLibrary("lean", "the library under test")
   val project: Project = Project(List(sources), settings, library)
 
-  /** The build's base directory, the one holding `build.sbt` above these tests' classes, wherever the tests run from. */
+  /** The build's base directory: the one holding `build.sbt` above these tests' classes, wherever they run from. */
   lazy val base: Path = Iterator.iterate(Path.of(getClass.getProtectionDomain.getCodeSource.getLocation.toURI))(
     _.getParent).takeWhile(_ != null).find(d => Files.exists(d.resolve("build.sbt")))
     .getOrElse(throw IllegalStateException("no build.sbt above the tests' classes"))
