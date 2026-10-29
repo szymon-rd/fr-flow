@@ -489,7 +489,9 @@ hold (owner §15, §18).
   (`Warning.StartNotProven` until then); an `always(stored)` with no `initially` assumption has no start to prove it
   from, so a model holding one is never complete. Every `consistent_<i>` must be proven too (owner §28, below). A
   bottom assumption with no open and no provided value is in no group: every word of it has the code's meaning, so
-  it is asked `impl` as a claim is (2.7) and is red until proven (`SeededSuite`'s `Trusted`).
+  it is asked `impl` as a claim is (2.7) and is red until proven (`SeededSuite`'s `Trusted`). One with no word at all
+  (`∀ xs, xs.length ≠ 3`) says nothing of the world, so nothing justifies trusting it: it is asked to be proven, with
+  nothing standing in it, and is red until it is (`SeededSuite`'s `Pure`).
 - **Witnesses**, derived where possible, the group solved in substitution order: `∀ xs, s(xs) = e`, `e` mentioning
   nothing still open, gives `fun xs => e`; a bound gives the bound (one past a strict one); a witnessed value then
   stands for itself in the rest. Proven code is its own witness, once what it leaves open is solved: `bookedAfter`'s
