@@ -1,20 +1,24 @@
 #!/usr/bin/env python3
-"""Mutants of FrFlow's obligation selection: each a small, plausible bug in `Required`, `Made`, `Guards`, `Scope`
-or `CallingCode` that leaves Lean proving less than the statements assume. For each, the source is changed, the
-example suites run (`CompletenessSuite` on rooms, auth, crm and keycloak, and the obligations' own suites), and the
-mutant is killed when one of them goes red. The source is restored after each, whatever happens.
+"""Mutants of FrFlow's obligations: each a small, plausible bug that leaves Lean proving less than the statements
+assume. Of the selection (`Required`, `Made`, `Guards`, `Scope`, `CallingCode`), an obligation gone: the example
+suites run (`CompletenessSuite` and `ObligationNamesSuite` on rooms, auth, crm and keycloak, and the obligations'
+own suites). Of what an obligation says (`Keeping`, `Making`, `CallSites`), its statement weakened, its name kept:
+the Lean suites of seeded bugs run, each expecting the bug's obligation to stay unproven. A mutant is killed when one
+of its suites goes red. The source is restored after each, whatever happens.
 
     python3 bin/mutants.py            # every mutant, then the suites unchanged (they must pass)
     python3 bin/mutants.py cover made  # only the mutants whose names start so
 
 Run from the repository's root, with no sbt server running in it. Each mutant takes about a minute (sbt starts,
-recompiles the file, runs the suites).
+recompiles the file, runs the suites); one checked by Lean, a few minutes.
 """
 import pathlib, re, subprocess, sys
 
 ROOT = pathlib.Path(__file__).resolve().parent.parent
 OBLIGATION = "next/proof/src/main/scala/frflow/proof/obligation/"
-SUITES = ["next-project/testOnly frflow.project.CompletenessSuite",
+TERMS = "next/proof/src/main/scala/frflow/proof/terms/"
+BROKEN = ["next-proof/Lean/testOnly frflow.proof.layout.BrokenLeanSuite"]
+SUITES = ["next-project/testOnly frflow.project.CompletenessSuite frflow.project.ObligationNamesSuite",
           "next-eval/testOnly whole.RulesSuite whole.CaptureSuite",
           "next-proof/testOnly frflow.proof.obligation.RequiredSuite frflow.proof.obligation.AlwaysSuite"]
 
@@ -40,6 +44,16 @@ MUTANTS = [
      "case Range.Made(ty)    => Nil", "an always[T] is about no store, even one whose state holds a T"),
     ("calls", "next/proof/src/main/scala/frflow/proof/terms/CallingCode.scala",
      "(define).map(_.tys)", "(define).map(_.tys).take(1)", "CallingCode reads only the first call of plain Scala"),
+    ("keeping-before", TERMS + "Keeping.scala", "after)((_, w) =>\n            holds(s, kept, w))",
+     "after)((_, _) =>\n            holds(s, kept, before))",
+     "cover_ states the rule of the world a run starts from, not of the one it leaves", BROKEN),
+    ("making-tautology", TERMS + "Making.scala", "kept.of[T, Any](result, s).fold(s.bool(true))(_(made(s, args)))",
+     "kept.of[T, Any](result, s).fold(s.bool(true))(k => s.implies(k(made(s, args)), k(made(s, args))))",
+     "made_ states that what a maker makes meets the rule if it does", BROKEN),
+    ("calls-bound", TERMS + "CallSites.scala", "bound(x, made(first, written), env, written ++ writes(first))(rest)",
+     "bound(x, made(first, written).orElse(guarded(x.ty)), env, written ++ writes(first))(rest)",
+     "made_ at a call assumes the rules of every value a step binds, not only of an operation's result",
+     ["next-proof/Lean/testOnly frflow.proof.layout.calls.RowsViaBranchLeanSuite"]),
 ]
 
 
@@ -50,14 +64,14 @@ def sbt(commands):
     return run.returncode, red, run.stdout
 
 
-def mutant(name, path, text, mutated, bug):
+def mutant(name, path, text, mutated, bug, suites=SUITES):
     file = ROOT / path
     source = file.read_text()
     if source.count(text) != 1:
         return f"{name}: not applied, the text is not in {path} once"
     try:
         file.write_text(source.replace(text, mutated))
-        code, red, out = sbt(SUITES)
+        code, red, out = sbt(suites)
     finally:
         file.write_text(source)
     if code == 0:
@@ -71,7 +85,7 @@ def mutant(name, path, text, mutated, bug):
 def main(names):
     chosen = [m for m in MUTANTS if not names or any(m[0].startswith(n) for n in names)]
     results = [mutant(*m) for m in chosen]
-    code, red, _ = sbt(SUITES)
+    code, red, _ = sbt(SUITES + sorted({s for m in chosen if len(m) > 5 for s in m[5]}))
     results.append("unchanged: the suites pass" if code == 0 else f"unchanged: RED ({', '.join(red)})")
     print("\n".join(results))
     return 0 if code == 0 and all(": killed (" in r for r in results[:-1]) else 1
