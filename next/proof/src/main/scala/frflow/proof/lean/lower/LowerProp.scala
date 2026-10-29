@@ -177,8 +177,10 @@ final class LowerProp(table: TermTable, env: LowerEnv, fromOutside: SymbolName =
     LExpr.Forall(binders, LExpr.Infix(LOp.Arrow, call(define(initially), named), meets))
 
   /** `∃ (x : T), (K.rule x)`. */
-  private def inhabited(d: DefName, ty: Ty): LExpr =
-    LExpr.Exists(List(LBinder.Explicit(Names.builtin("x"), LowerType(ty))), call(define(d), List(name("x"))))
+  private def inhabited(ds: List[DefName], ty: Ty): LExpr =
+    LExpr.Exists(List(LBinder.Explicit(Names.builtin("x"), LowerType(ty))),
+      ds.map(d => call(define(d), List(name("x")))).reduceRightOption(LExpr.Infix(LOp.And, _, _))
+        .getOrElse(name("True")))
 
   private def constant(c: Constant): LExpr = LowerValue(env)(c.value, c.ty).runA(closedNaming).value
 

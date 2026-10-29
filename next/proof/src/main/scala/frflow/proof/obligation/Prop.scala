@@ -42,8 +42,8 @@ enum Prop:
     * guard places it, over the state (level 0).
     */
   case Starts(rule: DefName, initially: DefName, state: Ty, within: Option[Final[Boolean]])
-  /** Some value of `ty` meets an `always[T]`'s rule. */
-  case Inhabited(rule: DefName, ty: Ty)
+  /** Some value of `ty` meets every rule given together: the `always[T]`s on it, or what a store starts in. */
+  case Inhabited(rules: List[DefName], ty: Ty)
   /** A parallel step's two orders give the same run, for every value of the Definitions the program calls. */
   case Commutes(c: Commutation, opens: List[SymbolName])
 

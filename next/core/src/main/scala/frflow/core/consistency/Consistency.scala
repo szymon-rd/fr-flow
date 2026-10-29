@@ -5,7 +5,7 @@ import frflow.core.analysis.{Callees, Constrained, Scope}
 import frflow.core.analysis.outside.Outsides
 import frflow.core.code.Code
 import frflow.core.expr.{Expr, Exprs, OutsideFact}
-import frflow.core.name.{NodeId, SourceText, SymbolName}
+import frflow.core.name.{DefName, NodeId, SourceText, SymbolName}
 import frflow.core.spec.{NodeKind, Range, Written}
 import frflow.core.term.interpret.ToExpr
 import frflow.core.ty.Ty
@@ -20,14 +20,27 @@ import frflow.core.Theory
 object Consistency:
   def of(t: Theory): List[Group] = sharing(t) ++ premised(t) ++ starts(t)
 
-  /** `inhabited_` of every `always[T]`, claimed or assumed, and `satisfiable_` of every claim's condition. */
+  /** `inhabited_` of every `always[T]`, claimed or assumed, with every other rule on its type (`meets`), and of every
+    * assumption saying what a store's state starts in; `satisfiable_` of every claim's condition. Reported, not gated
+    * (2.9).
+    */
   def vacuity(t: Theory): List[Vacuity] = t.nodes.map(_.node).flatMap(n => n.statement.range.toList.flatMap {
     case Range.Made(ty)                                       => List(Vacuity.Inhabited(n.id, ty))
     case Range.Possible if n.statement.kind == NodeKind.Claim =>
       n.statement.said.toList.flatMap(f => Conditions.of(f.term, ToExpr).zipWithIndex.map((c, i) =>
         Vacuity.Satisfiable(n.id, i, c.over.map(_.ty))))
     case _                                                   => Nil
-  })
+  }) ++ Outsides.all(t).collect { case (id, OutsideFact.Initially(m, _)) => id -> m }.distinctBy(_._1)
+    .flatMap((id, m) => t.vocabulary.model(m).map(model => Vacuity.Inhabited(id, model.state)))
+
+  /** What the value an `inhabited_` asks for meets: every `always[T]` on its type together, so two that contradict
+    * show; or, of an assumption saying what a store starts in, that.
+    */
+  def meets(t: Theory, n: NodeId, ty: Ty): List[DefName] =
+    t.node(n).flatMap(_.statement.outside).collect { case OutsideFact.Initially(_, rule) => List(rule) }
+      .getOrElse(t.nodes.map(_.node).collect {
+        case x if x.statement.range.contains(Range.Made(ty)) => DefName(x.id.value)
+      })
 
   /** The statements no proven step gives: Lean states them, about every possible value, with no parts. The claims
     * among them and the assumptions beside them (an outside system's promise) are the bottom of the theory.

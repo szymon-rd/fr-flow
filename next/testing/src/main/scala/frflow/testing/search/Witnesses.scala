@@ -21,7 +21,7 @@ final class Witnesses(semantics: Semantics, t: Theory, drawn: Ty => List[Value])
 
   def of(v: Vacuity): Option[List[(Value, Ty)]] = v match
     case Vacuity.Inhabited(n, ty)        =>
-      candidates(ty).find(x => holds(n, x, ty)).map(x => List(x -> ty))
+      candidates(ty).find(x => Consistency.meets(t, n, ty).forall(holds(_, x, ty))).map(x => List(x -> ty))
     case Vacuity.Satisfiable(n, i, over) => Consistency.condition(t, n, i).flatMap { c =>
       val opens = Consistency.opens(t, c)
       val types = opens.map(typeOf) ++ over
@@ -31,9 +31,9 @@ final class Witnesses(semantics: Semantics, t: Theory, drawn: Ty => List[Value])
 
   private def candidates(ty: Ty): List[Value] = (drawn(ty) ++ small.of(ty)).distinct
 
-  /** `always[T]`'s rule, its define named as the node, at `x`. */
-  private def holds(n: NodeId, x: Value, ty: Ty): Boolean =
-    t.vocabulary.define(DefName(n.value)).exists(d =>
+  /** A rule's define (an `always[T]`'s, named as its node, or a store's start), at `x`. */
+  private def holds(rule: DefName, x: Value, ty: Ty): Boolean =
+    t.vocabulary.define(rule).exists(d =>
       semantics.lambda(d.written).run(Env.of(Values.none), List(semantics.literal(x, ty))).exists(Fn.bool))
 
   /** The condition's predicate, the open values bound, applied to the variables' values; a candidate the predicate
