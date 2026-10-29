@@ -4,20 +4,32 @@ import cats.effect.kernel.Async
 import cats.effect.std.Mutex
 import cats.syntax.all.*
 import frflow.core.code.Values
+import frflow.core.name.SymbolName
+import frflow.core.term.Program
 import frflow.core.vocab.Fails
 import frflow.dsl.flow.{Flow, Terms}
 import frflow.dsl.term.{LeanType, Lift, Term}
+import frflow.dsl.vocab.Called
 import frflow.eval.term.Evaluate
 
 /** Production's interpreter of programs: each step run in `F`, a term evaluated where a step needs its value (a
-  * condition, a list, an adapter's argument) by the evaluator (`Evaluate`), each value made a term again (a
-  * constant); a raised error carries its value and type (`Raised`). Nothing here checks a call: code is checked by
-  * proofs and tests before production. Made only by `make`, and reached by the developer as
-  * `knowledge.running[F](…)` (`CodeSyntax`), typed `Flow[F] & Terms`.
+  * condition, a list, an operation's argument) by the evaluator (`Evaluate`), each value made a term again (a
+  * constant); an operation's call its Scala bound (`Bound`); a raised error carries its value and type (`Raised`).
+  * Nothing here checks a call: code is checked by proofs and tests before production. Made only by `make`, and
+  * reached by the developer as `knowledge.running[F](…)` (`CodeSyntax`), typed `Flow[F] & Terms`.
   */
-final class Running[F[_]] private (values: Values, literals: Literals, lock: Mutex[F])(using F: Async[F])
-    extends Flow[F], Terms:
+final class Running[F[_]] private (values: Values, literals: Literals, operations: Map[SymbolName, Bound[F]],
+    lock: Mutex[F])(using F: Async[F]) extends Flow[F], Terms:
   def pure[A](a: A): F[A] = F.pure(a)
+  /** An operation's call: each argument's value, the Scala bound for it, its result a term; a failing model's
+    * operation's failure its error (`fail`).
+    */
+  def step[R: LeanType](op: Term[Program[R]]): F[Term[R]] = F.defer(Called.of(op).fold(
+    F.raiseError[Term[R]](IllegalArgumentException("FrFlow: a step applies no operation")))((name, args) =>
+      operations.get(name).fold(F.raiseError[Term[R]](IllegalArgumentException(
+        s"FrFlow: ${name.value} has no Scala bound where the program runs")))(b =>
+        F.delay(args.map(value(_))).flatMap(vs => Bound.failures(b.fails, fail)(F.defer(b.call(vs))))
+          .map(r => term(r.asInstanceOf[R])))))
   def flatMap[A, B](fa: F[A])(f: A => F[B]): F[B] = F.flatMap(fa)(f)
   def tailRecM[A, B](a: A)(f: A => F[Either[A, B]]): F[B] = F.tailRecM(a)(f)
 
@@ -52,14 +64,14 @@ final class Running[F[_]] private (values: Values, literals: Literals, lock: Mut
 
   def value[A](t: Term[A]): A = Evaluate.of(t.run)(Env.of(values)).fold(e => throw NotEvaluated(e), identity)
   def term[A: LeanType](a: A): Term[A] = Lift.constant(a)
-  /** A failing boundary's error for an adapter's failure; a program's error raised inside the call passes as it is. */
+  /** A failing model's error for its Scala's failure; a program's error raised inside the call passes as it is. */
   def fail(fails: Fails, cause: Throwable): Throwable = cause match
     case r: Raised => r
     case other     => new Raised(literals(fails.error, fails.ty), fails.ty, Some(other))
 
 object Running:
-  /** A program's interpreter over the values it is given, its boundaries' errors made by `literals`, with the one
-    * lock its transactions take.
+  /** A program's interpreter over the values it is given and the operations' Scala bound, its models' errors made
+    * by `literals`, with the one lock its transactions take.
     */
-  def make[F[_]: Async](values: Values, literals: Literals): F[Running[F]] =
-    Mutex[F].map(new Running(values, literals, _))
+  def make[F[_]: Async](values: Values, literals: Literals, operations: Map[SymbolName, Bound[F]]): F[Running[F]] =
+    Mutex[F].map(new Running(values, literals, operations, _))

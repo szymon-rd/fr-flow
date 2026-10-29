@@ -4,6 +4,7 @@ import frflow.core.expr.{Side, Value}
 import frflow.core.name.CtorName
 import frflow.core.term.World
 import frflow.core.ty.{NumKind, Ty}
+import frflow.dsl.model.Clock
 import frflow.eval.flow.{Shelf, Trouble}
 
 /** Constants as Scala holds them (`Literals`) and back (`Reflect`): the law `Reflect(Literals(v, t), t) == v` on a
@@ -15,7 +16,7 @@ class LiteralsSuite extends munit.FunSuite:
   private val big = Ty.Num(NumKind.Big)
   private def n(i: Int): Value = Value.Num(i)
   private val trouble = Ty.Data(frflow.core.name.TypeName("Trouble"))
-  private val world = Value.World(List(Shelf.kept.name -> Value.Many(List(n(1))), Shelf.ticks.name -> n(0)),
+  private val world = Value.World(List(Shelf.kept.name -> Value.Many(List(n(1))), Clock.clockModel.name -> n(0)),
     List(true, false))
 
   private val constants: List[(Value, Ty)] = List(
@@ -38,7 +39,7 @@ class LiteralsSuite extends munit.FunSuite:
     assertEquals(literals(Value.Many(List(n(0), n(2))), Ty.SetOf(big)).unwrap, Set(BigInt(0), BigInt(2)))
     assertEquals(literals(Value.Data(CtorName("TooBig"), List(n(3))), trouble).unwrap, Trouble.TooBig(3))
     val w = Fn.as[World](literals(world, Ty.World))
-    assertEquals((w.state(Shelf.kept.name), w.state(Shelf.ticks.name), w.state(Faults.model)),
+    assertEquals((w.state(Shelf.kept.name), w.state(Clock.clockModel.name), w.state(Faults.model)),
       (Some(List(BigInt(1))), Some(BigInt(0)), Some(List(true, false))))
   }
 

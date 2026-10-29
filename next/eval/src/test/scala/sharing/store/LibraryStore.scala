@@ -3,27 +3,21 @@ package sharing.store
 import frflow.*
 import sharing.domain.*
 
-/** Where the library is kept, as proven code sees it: it gives the library it holds, and holds a new one. */
-trait LibraryStore[F[_], T[_]] derives BoundaryOps:
-  def load: F[T[Library]]
-  def save(library: T[Library]): F[Unit]
-
-/** The store as the proofs see it: one library, given back as it was last saved. */
-final class Kept[F[_]](state: Model[F, Library]) extends LibraryStore[F, Term]:
-  def load: F[Term[Library]] = state.get
-  def save(library: Term[Library]): F[Unit] = state.set(library)
-
-/** The store's boundary, its model, and what it is decided to do. */
+/** Where the library is kept, as proven code sees it: its two operations, the library it holds and a new one held, and
+  * their model, one library given back as it was last saved; and what the world outside does with it.
+  */
 object LibraryStore:
-  val store = Boundary.failing[LibraryStore, Failure](
-    "where the service keeps the library: in memory, or in a SQLite file; it may be down", Failure.StoreUnavailable)
+  val load = Definition[Program[Library]]("the library the store holds")
+  val save = Definition[Library => Program[Unit]]("a library held by the store in place of the one it held")
 
-  val libraryModel = store.model("the library the store holds")(Kept(_))
+  object libraryModel extends StateModel.failing[Library, Failure](
+      "where the service keeps the library: in memory, or in a SQLite file; it may be down", Failure.StoreUnavailable):
+    load.means(state.get)
+    save.means(library => state.set(library))
 
-  val libraryKept = Node.assumption("The store gives the library it holds, and after a save holds the library saved, " +
-      "in place of the one it held; any call may fail because the store is down, and then changes nothing.")(
-    store.behavesAs(libraryModel))
+  val libraryKept = Node.assumption("Nothing but the service's programs changes the library the store holds.")(
+    libraryModel.onlyCodeChanges)
 
   val oneTransactionAtATime = Node.assumption("Each request, each run of housekeeping and each notice's removal from " +
       "the outbox is one transaction on the store: no step of another comes between two of its steps.")(
-    store.atomic)
+    libraryModel.atomic)

@@ -5,23 +5,25 @@ import cats.effect.unsafe.implicits.global
 import frflow.*
 import frflow.core.code.Values
 import frflow.core.name.ModelName
-import frflow.dsl.flow.{ReadRecording, Recorded}
+import frflow.dsl.flow.ReadRecording
 import frflow.eval.{Env, Fn, Races, ScalaValue, Semantics}
 
 /** A race whose sides differ, on the models: read as Lean reads it, the world's choice of the winner then only the
-  * winner's steps (`races.leftWins`): the left when the world says nothing, either as its races say.
+  * winner's steps (`Prog.leftWins`): the left when the world says nothing, either as its races say.
   */
 class RacesSuite extends munit.FunSuite:
   private val elaborated = Shelf.knowledge.elaborated.fold(es => throw AssertionError(es.iterator.mkString), identity)
   private val semantics = Semantics(elaborated)
 
   /** Put 1 then read, raced against put 2 then read. */
-  private def raced[F[_]](s: Shelf[F, Term], f: Flow[F]): F[Term[Either[List[BigInt], List[BigInt]]]] =
+  private def raced[F[_]](f: Flow[F]): F[Term[Either[List[BigInt], List[BigInt]]]] =
+    val s = Shelf.On[F](using f)
     f.race(f.flatMap(s.put(1))(_ => s.items), f.flatMap(s.put(2))(_ => s.items))
 
   private def onModels(races: Option[List[Boolean]]): (Either[Any, Any], List[BigInt], List[Boolean]) =
-    val prog = ReadRecording(raced[Recorded](Shelf.shelf.recording, summon[Flow[Recorded]]))._1
-    val start = Map(Shelf.kept.name -> ScalaValue(List.empty[BigInt]), Shelf.ticks.name -> ScalaValue(BigInt(0))) ++
+    val prog = ReadRecording(raced[Recorded](summon[Flow[Recorded]]))._1
+    val start = Map(Shelf.kept.name -> ScalaValue(List.empty[BigInt]),
+      Clock.clockModel.name -> ScalaValue(BigInt(0))) ++
       races.map(Races.model -> ScalaValue(_))
     val run = for
       states <- Ref.of[IO, Map[ModelName, ScalaValue]](start)
@@ -41,7 +43,7 @@ class RacesSuite extends munit.FunSuite:
     assertEquals(onModels(Some(List(true))), (Left(List(BigInt(1))), List(BigInt(1)), Nil))
   }
 
-  test("races is reserved: no model or boundary may take its name") {
+  test("races is reserved: no model may take its name") {
     assert(frflow.core.analysis.Reserved.names("races"))
     assertEquals(List(Races.model.value).map(frflow.core.analysis.Reserved.names), List(true))
   }

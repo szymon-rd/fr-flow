@@ -5,8 +5,8 @@ import sharing.*
 import sharing.domain.*
 import sharing.notifications.Mailer.{mailbox, taken}
 import sharing.notifications.Notifications.*
-import sharing.store.LibraryStore.{libraryKept, libraryModel, oneTransactionAtATime}
-import sharing.time.ClockKept.{clockAlone, clockKept}
+import sharing.store.LibraryStore.{libraryModel, oneTransactionAtATime}
+import sharing.time.ClockKept.clockAlone
 
 /** Notifications's claims: what its code is proven to do, each refining a branch or the purpose. */
 object NotificationsClaims:
@@ -42,4 +42,4 @@ object NotificationsClaims:
       .failing { (_: Term[Failure], after) =>
         libraryModel.in(after) === libraryModel.in(before) && mailerModel.in(after) === mailerModel.in(before) }))
     .refines(noticesFollowChanges)
-    .assuming(libraryKept, oneTransactionAtATime, mailerKept, mailOneAtATime, clockKept, clockAlone)
+    .assuming(oneTransactionAtATime, mailOneAtATime, clockAlone)

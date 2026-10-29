@@ -7,6 +7,7 @@ import frflow.core.example.Given
 import frflow.dsl.example.Binding
 import frflow.dsl.flow.{Flow, Terms}
 import frflow.dsl.kb.FrModel
+import frflow.dsl.model.Implemented
 import frflow.dsl.vocab.Definition
 import frflow.eval.run.Wiring
 
@@ -23,9 +24,16 @@ object CodeSyntax:
       CodeSyntax.values(kb, bindings).get(d.name).fold(throw IllegalArgumentException(
         s"FrFlow: ${d.name.value} has no meaning in ${kb.name.value} and is given none"))(v => Fn.as[F](ScalaValue(v)))
 
-    /** What a program and its lifted adapters run with in production: `Running` over the values given. */
-    def running[F[_]](bindings: Binding*)(using F: Async[F]): F[Flow[F] & Terms] =
-      F.defer(F.widen(Running.make[F](CodeSyntax.values(kb, bindings), Literals(elaborated(kb)))))
+    /** What a program runs with in production: `Running` over the values given, each model's operations their Scala
+      * of the value given (`storedBookings := table`).
+      */
+    def running[F[_]](bindings: (Binding | Implemented)*)(using F: Async[F]): F[Flow[F] & Terms] =
+      F.defer {
+        val e = elaborated(kb)
+        val values = CodeSyntax.values(kb, bindings.collect { case b: Binding => b })
+        F.widen(Running.make[F](values, Literals(e), Bound.of[F](e.theory, bindings.toList.collect {
+          case i: Implemented => i })))
+      }
 
   /** Every Definition's meaning, and the values given, which win. */
   private def values(kb: FrModel, bindings: Seq[Binding]): Values =

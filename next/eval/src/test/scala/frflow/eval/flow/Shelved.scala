@@ -7,4 +7,8 @@ import frflow.*
   * time 0: its outcome (`Left` its error), the shelf, the time.
   */
 final case class Shelved[R](name: String, faults: List[Boolean], expected: (Either[Any, Any], List[BigInt], BigInt))(
-    val program: [F[_]] => (Shelf[F, Term], Clock[F, Term], Flow[F]) => F[Term[R]])
+    val program: [F[_]] => (Shelf.On[F], Shelf.Ticking[F], Flow[F]) => F[Term[R]]):
+  /** The program on `f`, the shelf's and the clock's operations its steps. */
+  def on[F[_]](f: Flow[F]): F[Term[R]] =
+    val (shelf, clock) = Shelf.on(f)
+    program[F](shelf, clock, f)

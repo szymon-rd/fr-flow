@@ -20,7 +20,7 @@ import scala.util.Random
 class TermLawsSuite extends munit.FunSuite:
   private val env = Env.of(Values.none)
   private val terms = (1L to 300L).map(seed => Generated.formula(seed, 3)).toList
-  private val semantics = Semantics(Elaborated(Theory(KbName("Laws"), Vocabulary(Nil, Nil, Nil, Nil, Nil, Nil), Nil,
+  private val semantics = Semantics(Elaborated(Theory(KbName("Laws"), Vocabulary(Nil, Nil, Nil, Nil, Nil), Nil,
     Nil, CodeTable(Map.empty, Map.empty)), Map.empty, Nil))
 
   test("a written lambda run on arguments, as examples run it, gives the term's value on them as constants") {

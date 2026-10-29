@@ -6,8 +6,7 @@ import sharing.audit.Audit
 import sharing.domain.*
 import sharing.notifications.Notifications
 import sharing.requests.AccessRequests
-import sharing.store.LibraryStore.store
-import sharing.time.ClockKept.clock
+import sharing.store.LibraryStore
 import sharing.time.Lifetimes.{gone, inForce, isOpen}
 
 /** Housekeeping: the job that tidies the library. Access never waits for it (the meaning reads the clock); it removes
@@ -34,10 +33,11 @@ object Housekeeping:
       when(next =!= lib)(Audit.record(next, t, Change.Housekept)).otherwise(lib)) }
 
   /** One run, one transaction: the time, the library, the library housekeeping leaves saved when it changed. */
-  final class HousekeepingRun[F[_]](store: sharing.store.LibraryStore[F, Term], clock: Clock[F, Term])(
-      using f: Flow[F]):
-    def run: F[Term[Unit]] = f.atomically(f.flatMap(clock.now)(t => f.flatMap(store.load) { lib =>
-      val next = Notifications.warn(AccessRequests.chase(Audit.forget(tidy(lib, t), t), t), t)
-      f.as(f.cond(next =!= lib)(store.save(Audit.record(next, t, Change.Housekept)), f.unit), (): Term[Unit]) }))
+  object HousekeepingRun:
+    def run[F[_]](using f: Flow[F]): F[Term[Unit]] =
+      f.atomically(f.flatMap(Clock.now)(t => f.flatMap(LibraryStore.load) { lib =>
+        val next = Notifications.warn(AccessRequests.chase(Audit.forget(tidy(lib, t), t), t), t)
+        f.as(f.cond(next =!= lib)(LibraryStore.save(Audit.record(next, t, Change.Housekept)), f.unit),
+          (): Term[Unit]) }))
 
-  val housekeeping = program { HousekeepingRun(store.recording, clock.recording).run }
+  val housekeeping = program { HousekeepingRun.run[Recorded] }

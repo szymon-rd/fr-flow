@@ -1,10 +1,11 @@
 package frflow.eval
 
 import frflow.core.expr.Value
-import frflow.core.name.{BoundaryName, ModelName, OpName}
+import frflow.core.expr.Prog
+import frflow.core.name.{ModelName, SymbolName}
 import frflow.core.ty.Ty
 
-/** The scheduler's choices of the races' winners, as a recorded race reads them (`races.leftWins`, `true`: the left
+/** The scheduler's choices of the races' winners, as a recorded race reads them (`Prog.leftWins`, `true`: the left
   * wins), held beside the models' states under a name no model takes (`races` is reserved). None left, the left wins.
   */
 object Races:
@@ -27,7 +28,7 @@ object Races:
   def typeOf(m: ModelName): Option[Ty] = Option.when(m == model)(Ty.ListOf(Ty.Bool))
 
   /** Whether a call is a race's reading asking for its winner. */
-  def asks(b: BoundaryName, op: OpName): Boolean = b.value == "races" && op.value == "leftWins"
+  def asks(op: SymbolName): Boolean = op == Prog.leftWins
 
   /** Whether the next race's left wins, and the states with that choice taken. */
   def next(states: Map[ModelName, ScalaValue]): (Map[ModelName, ScalaValue], Boolean) =

@@ -11,8 +11,8 @@ import sharing.ownership.Ownership
 import sharing.requests.AccessRequests
 import sharing.service.Sharing
 import sharing.store.LibraryStore
-import sharing.store.LibraryStore.{libraryKept, libraryModel, oneTransactionAtATime, store}
-import sharing.time.ClockKept.{clock, clockAlone, clockKept, clockModel}
+import sharing.store.LibraryStore.{libraryModel, oneTransactionAtATime}
+import sharing.time.ClockKept.{clockAlone, clockModel}
 import sharing.time.Lifetimes.{isOpen, isPending}
 import sharing.trash.Trash
 
@@ -91,14 +91,15 @@ object SharingHttp:
         result === answerTo(libraryModel.in(before), clockModel.in(before), r) }
       .failsChangingNothing[Failure]))
     .refines(accessFollowsShares)
-    .assuming(libraryKept, oneTransactionAtATime, clockKept, clockAlone)
+    .assuming(oneTransactionAtATime, clockAlone)
 
   /** The handling, one transaction: the time, the library, the one the request leaves kept when it differs, the
     * answer.
     */
-  final class Handling[F[_]](store: LibraryStore[F, Term], clock: Clock[F, Term])(using f: Flow[F]):
-    def run(r: Term[Request]): F[Term[Answer]] = f.atomically(f.flatMap(clock.now)(t => f.flatMap(store.load) { lib =>
-      val next = served(lib, t, r)
-      f.as(f.cond(next =!= lib)(store.save(next), f.unit), answerTo(lib, t, r)) }))
+  object Handling:
+    def run[F[_]](r: Term[Request])(using f: Flow[F]): F[Term[Answer]] =
+      f.atomically(f.flatMap(Clock.now)(t => f.flatMap(LibraryStore.load) { lib =>
+        val next = served(lib, t, r)
+        f.as(f.cond(next =!= lib)(LibraryStore.save(next), f.unit), answerTo(lib, t, r)) }))
 
-  val handleRequest = program { (r: Term[Request]) => Handling(store.recording, clock.recording).run(r) }
+  val handleRequest = program { (r: Term[Request]) => Handling.run[Recorded](r) }

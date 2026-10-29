@@ -97,14 +97,18 @@ lazy val nextProof = nextModule("proof", cats).dependsOn(nextCore % "compile->co
 /** The Scala meaning of terms and of plain code: the evaluator, examples, the values a call reads, recorded programs
   * run on models, production's interpreter of programs; the facade `frflow.*`, and the examples written in it. Its
   * tests read core's generated terms and proof's printer (Lean decides each term as the evaluator does). */
-lazy val nextEval = nextModule("eval", cats, catsEffectKernel, catsEffectStd, catsEffect % Test)
+/** The SQLite driver rooms' table is kept in, for the tests that run rooms (eval's and every module's after it). */
+val roomsTable = "org.xerial" % "sqlite-jdbc" % "3.46.1.3" % Test
+
+lazy val nextEval = nextModule("eval", cats, catsEffectKernel, catsEffectStd, catsEffect % Test, roomsTable)
   .dependsOn(nextDsl, nextProof % "test->test")
 
 // next-testing (step 5)
 /** Generators and what draws them, property tests of plain code against its claims, model tests of implementations,
   * interleavings, the searches for witnesses and refutations, and the examples' runner (an sbt test framework, so
   * `sbt test` runs a project's `FrFlowExamples`). Its tests read the examples written in eval's tests. */
-lazy val nextTesting = nextModule("testing", cats, catsEffect, "org.scala-sbt" % "test-interface" % "1.0", munitEffect)
+lazy val nextTesting = nextModule("testing", cats, catsEffect, roomsTable, "org.scala-sbt" % "test-interface" % "1.0",
+    munitEffect)
   .settings(libraryDependencies ++= lawTests :+ "org.typelevel" %% "cats-laws" % "2.13.0" % Test,
     testFrameworks += TestFramework("frflow.testing.examples.ExamplesFramework"))
   .dependsOn(nextEval % "compile->compile;test->test")
@@ -122,14 +126,14 @@ lazy val nextWire = nextModule("wire", cats, circe, circeParser)
 /** The imperative shell: the algebras of the project's files, Lean, git, the keys and the ledger's store, each with its
   * live and in-memory interpreters; the analysis of a project (contents, fingerprints, standings), and the programs
   * (check, status, decide, export) over them. Its tests read the examples written in eval's tests. */
-lazy val nextProject = nextModule("project", (Seq(cats, catsEffect, munitEffect) ++ fs2)*)
+lazy val nextProject = nextModule("project", (Seq(cats, catsEffect, munitEffect, roomsTable) ++ fs2)*)
   .dependsOn(nextProof, nextTesting % "compile->compile;test->test", nextDecision, nextWire)
 
 // next-api (step 9)
 /** The API front ends call: three algebras (`Reading`, `Deciding`, `Proving`) over a project, the views they return
   * (`api.view`, `api.node`: front ends see nothing else), and the live and in-memory interpreters. Its tests read the
   * shell's projects in memory. */
-lazy val nextApi = nextModule("api", (Seq(cats, catsEffect, munitEffect) ++ fs2)*)
+lazy val nextApi = nextModule("api", (Seq(cats, catsEffect, munitEffect, roomsTable) ++ fs2)*)
   .settings(libraryDependencies ++= lawTests)
   .dependsOn(nextProject % "compile->compile;test->test")
 
@@ -137,7 +141,7 @@ lazy val nextApi = nextModule("api", (Seq(cats, catsEffect, munitEffect) ++ fs2)
 /** The command line a project's main object extends (`FrFlowApp`, the composition root): its commands, colors, the
   * interactive review, and `init`; layers on top add their commands (`CliExtension`). Its tests read the API's.
   */
-lazy val nextCli = nextModule("cli", cats, catsEffect, decline, munitEffect)
+lazy val nextCli = nextModule("cli", cats, catsEffect, roomsTable, decline, munitEffect)
   .settings(forkedAtRoot)
   .dependsOn(nextApi % "compile->compile;test->test")
 
@@ -147,14 +151,15 @@ def forkedAtRoot: Seq[Setting[?]] = Seq(run / fork := true, run / baseDirectory 
 /** The web view (`serve`): the page, and routes onto the API, over http4s on localhost; layers on top add routes and
   * a script (`WebExtension`). The CLI does not depend on it.
   */
-lazy val nextWeb = nextModule("web", (Seq(catsEffect, circe, munitEffect) ++ http4s)*)
+lazy val nextWeb = nextModule("web", (Seq(catsEffect, circe, munitEffect, roomsTable) ++ http4s)*)
   .dependsOn(nextApi % "compile->compile;test->test")
 
 /** A layer on top for an AI agent building the system: the conversation a project starts from, the developer's
   * requests and the agent's answers, its queue, `context`, their commands and web panels. It proposes and asks;
   * deciding stays the developer's.
   */
-lazy val nextAgent = nextModule("agent", (Seq(cats, catsEffect, circe, circeParser, decline, munitEffect) ++ http4s)*)
+lazy val nextAgent = nextModule("agent",
+    (Seq(cats, catsEffect, circe, circeParser, decline, munitEffect, roomsTable) ++ http4s)*)
   .settings(forkedAtRoot)
   .dependsOn(nextCli % "compile->compile;test->test", nextWeb % "compile->compile;test->test")
 

@@ -7,13 +7,12 @@ import frflow.*
 // calendar. A claim of `always` is a rule below the statement it serves, no part of its step (2.4).
 
 // The world outside: the table, the service's procedures, the booking form.
-val tableMatchesModel =
-  Node.assumption("The table gives a room's bookings in the order they were added, and adds one at the end.")(
-    bookingTable.behavesAs(storedBookings))
+val nothingElseWrites = Node.assumption("Nothing but the booking code changes the table.")(
+  storedBookings.onlyCodeChanges)
 
 val startsEmpty = Node.assumption("The table starts empty.")(storedBookings.initially(stored => stored === Nil))
 
-val oneAtATime = Node.assumption("Bookings are processed one at a time.")(bookingTable.atomic)
+val oneAtATime = Node.assumption("Bookings are processed one at a time.")(storedBookings.atomic)
 
 val bookingsEndAfterStart = Node.assumption("Every booking ends after it starts.")(
   always[Booking](b => b.start < b.end))
@@ -52,19 +51,19 @@ val storeWhenFree = Node.claim("A request is stored exactly when its room is fre
     book(request).from(before) { (_, after) =>
       storedBookings.in(after) === when(free(stored, request))(stored :+ request).otherwise(stored) }))
   .refines(bookWhenFree)
-  .assuming(tableMatchesModel, oneAtATime, bookingsEndAfterStart)
+  .assuming(oneAtATime, bookingsEndAfterStart)
 
 val answerWhenFree = Node.claim("A request is answered booked exactly when its room is free for its whole time.")(
   forall((request: Term[Booking], before: Term[World]) =>
     book(request).from(before) { (answer, _) => answer === free(storedBookings.in(before), request) }))
   .refines(acceptWhenFree)
-  .assuming(tableMatchesModel, oneAtATime, bookingsEndAfterStart)
+  .assuming(oneAtATime, bookingsEndAfterStart)
 
 // What the table always holds: a rule below both roots, every world they are about holding it, kept by booking.
 val neverOverlap = Node.claim("The bookings stored never overlap.")(
   always(storedBookings)(stored => stored.pairwise(apart)))
   .refines(bookWhenFree, acceptWhenFree)
-  .assuming(tableMatchesModel, oneAtATime, startsEmpty, bookingsEndAfterStart)
+  .assuming(nothingElseWrites, oneAtATime, startsEmpty, bookingsEndAfterStart)
 
 // What booking's code calls: the calendar, given a room's bookings.
 val grantWhenFree = Node.claim("A request is granted exactly when its room is free for its whole time.")(
@@ -77,12 +76,12 @@ val grantWhenFree = Node.claim("A request is granted exactly when its room is fr
 val bookingsOfTheRoom = Node.claim("A room's bookings are all of that room.")(
   always[RoomBookings](held => held.bookings.forall(b => b.room === held.room)))
   .refines(grantWhenFree)
-  .assuming(tableMatchesModel, bookingsEndAfterStart)
+  .assuming(bookingsEndAfterStart)
 
 val roomBookingsApart = Node.claim("A room's bookings never overlap.")(
   always[RoomBookings](held => held.bookings.pairwise(noOverlap)))
   .refines(grantWhenFree)
-  .assuming(tableMatchesModel, bookingsEndAfterStart)
+  .assuming(bookingsEndAfterStart)
 
 val grantWhenNoOverlap = Node.claim("A request is granted exactly when it overlaps no booking of its room.")(
   forall((held: Term[RoomBookings], request: Term[Booking]) =>

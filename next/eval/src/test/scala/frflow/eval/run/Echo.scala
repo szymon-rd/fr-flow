@@ -32,5 +32,5 @@ object Echo:
   def theory(code: AnyRef): Theory =
     val attached = Attachment(Code.Tested(ScalaCode(Impl(1, _ => code), SourceText("…"), Nil), Nil), here)
     val node = Node(claim, "Echo returns its input.", Statement.Claim(formula, Reliance.Relied))
-    Theory(KbName("Echo"), Vocabulary(Nil, Nil, List(echo), Nil, Nil, Nil), List(Sited(node, Span(here, 0))), Nil,
+    Theory(KbName("Echo"), Vocabulary(Nil, Nil, List(echo), Nil, Nil), List(Sited(node, Span(here, 0))), Nil,
       CodeTable(Map(op -> attached), Map.empty))

@@ -5,8 +5,8 @@ import sharing.*
 import sharing.domain.*
 import sharing.housekeeping.Housekeeping.*
 import sharing.notifications.Notifications.mailerModel
-import sharing.store.LibraryStore.{libraryKept, libraryModel, oneTransactionAtATime}
-import sharing.time.ClockKept.{clockAlone, clockKept, clockModel}
+import sharing.store.LibraryStore.{libraryModel, oneTransactionAtATime}
+import sharing.time.ClockKept.{clockAlone, clockModel}
 import sharing.time.Lifetimes.{gone, inForce, isOpen}
 
 /** Housekeeping's claims: what its code is proven to do, each refining a branch or the purpose. */
@@ -29,4 +29,4 @@ object HousekeepingClaims:
       .failsChangingNothing[Failure]))
     .refines(sharing.time.Deadlines.trashPurgedOnTime, sharing.time.Deadlines.invitationsLapseOnTime,
       sharing.time.Deadlines.requestsAnsweredOnTime)
-    .assuming(libraryKept, oneTransactionAtATime, clockKept, clockAlone)
+    .assuming(oneTransactionAtATime, clockAlone)

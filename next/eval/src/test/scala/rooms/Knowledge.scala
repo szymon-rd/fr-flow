@@ -6,7 +6,7 @@ import frflow.core.example.Gen
 
 // The FrModel: the roots first, then what each Declaration is, what booking does, what always holds, the calendar's
 // claims and the world outside; and what gives each Definition its meaning: `book` the proven program, `granted`
-// the calendar's Scala.
+// the calendar's Scala, `inRoom` and `add` the SQLite table's (their meaning in Lean is `storedBookings`').
 
 // The tests' cases: rooms, requests, and a room's bookings laid end to end.
 val roomNames: Gen[String] = Gen.oneOf("Oak", "Elm")
@@ -31,9 +31,10 @@ yield RoomBookings(room, bookings)
 
 val rooms = FrModel("Rooms")(bookWhenFree, acceptWhenFree, bookedIsStored, bookedAfterIsStored, acceptedIsAnswered,
   storeWhenFree, answerWhenFree, neverOverlap, grantWhenFree, bookingsOfTheRoom, roomBookingsApart, grantWhenNoOverlap,
-  tableMatchesModel, oneAtATime, startsEmpty, bookingsEndAfterStart)
+  nothingElseWrites, oneAtATime, startsEmpty, bookingsEndAfterStart)
   .implementProven(book)(bookIfGranted)
   .implementTested(granted)(_ => (held, request) => Calendar(held).grants(request))
+  .implementTested(inRoom, add)(start = BookingsTable.holding, observe = _.bookings)(t => (t.inRoom, t.add))
   .withGenerator(roomNames.describedAs("Oak or Elm"))
   .withGenerator(requests.describedAs("requests for Oak or Elm that end after they start"))
   .withGenerator(roomBookings.describedAs("a room's bookings, laid end to end, some back to back"))

@@ -2,9 +2,11 @@ package frflow.eval
 
 import cats.effect.IO
 import cats.effect.unsafe.implicits.global
+import cats.syntax.all.*
 import frflow.core.code.Values
-import frflow.dsl.flow.{Clock, Flow}
-import frflow.eval.flow.{PlainShelf, Shelf, Trouble}
+import frflow.dsl.flow.Flow
+import frflow.dsl.model.Clock
+import frflow.eval.flow.{PlainShelf, Runs, Shelf, Trouble, Wall}
 import java.io.IOException
 import frflow.dsl.term.{Lift, Term}
 import frflow.dsl.term.TermSyntax.*
@@ -17,7 +19,7 @@ class RunningSuite extends munit.FunSuite:
   private def n(i: Int): Term[BigInt] = Lift.constant(BigInt(i))
   private val literals = Literals(Shelf.knowledge.elaborated.fold(es => throw AssertionError(es.iterator.mkString),
     identity))
-  private def running: IO[Running[IO]] = Running.make[IO](Values.none, literals)
+  private def running: IO[Running[IO]] = Running.make[IO](Values.none, literals, Map.empty)
 
   /** The branch a condition picks, both its programs at once. */
   private def program[F[_]](f: Flow[F]): F[Term[(BigInt, BigInt)]] =
@@ -94,38 +96,34 @@ class RunningSuite extends munit.FunSuite:
     assertEquals(ran.unsafeRunSync().left.toOption.collect { case r: Raised => r.error.unwrap }, Some("no"))
   }
 
-  /** A clock whose every call throws, as an adapter on a failing service does. */
+  /** A clock whose every call throws, as Scala calling a failing service does. */
   private val broken = IOException("no clock")
-  private object Stopped extends Clock[IO, cats.Id]:
-    def now: IO[BigInt] = IO.raiseError(broken)
-    def sleep(seconds: BigInt): IO[Unit] = IO.raiseError(broken)
 
-  test("lifted: a failing boundary's adapter failure is the boundary's error, its cause kept") {
-    val ran = for
-      run    <- running
-      shelf  <- IO.ref(List.empty[BigInt])
-      faults <- IO.ref(List(true))
-      out    <- Shelf.shelf.lifted(PlainShelf(shelf, faults), run).items.attempt
-    yield out
+  /** The shelf's Scala, `faults` its calls' failures, and the clock's, `wall`, bound. */
+  private def bound(faults: List[Boolean], wall: Wall): IO[Running[IO]] =
+    (IO.ref(List.empty[BigInt]), IO.ref(faults)).flatMapN((s, f) => Runs.bound(PlainShelf(s, f), wall))
+  private val ticking = Wall.ticking(cats.effect.Ref.unsafe[IO, BigInt](BigInt(0)))
+
+  test("an operation's call runs its Scala bound: a failing model's Scala's failure is its error, its cause kept") {
+    val ran = bound(List(true), ticking).flatMap(run => run.step(Shelf.items).attempt)
     ran.unsafeRunSync() match
       case Left(r: Raised) => assertEquals((r.error.unwrap, r.ty, r.cause.map(_.getMessage)),
           (Trouble.Down, summon[frflow.dsl.term.LeanType[Trouble]].ty, Some("the shelf is down")))
-      case other           => fail(s"not the boundary's error: $other")
+      case other           => fail(s"not the model's error: $other")
   }
 
-  test("lifted: a boundary that may not fail lets its adapter's exception escape unchanged") {
-    val ran = running.flatMap(run => Shelf.clock.lifted(Stopped, run).now.attempt)
+  test("a model that may not fail lets its Scala's exception escape unchanged") {
+    val ran = bound(Nil, Wall.stopped(broken)).flatMap(run => run.step(Clock.now).attempt)
     assertEquals(ran.unsafeRunSync().left.toOption, Some(broken))
   }
 
-  test("lifted: an argument with no value fails in F, not where the call is built, and is no boundary error") {
+  test("an argument with no value fails in F, not where the call is built, and is no model's error") {
     val unbound = frflow.dsl.vocab.Definition[BigInt]("a value nothing gives")
-    val ran = for
-      run    <- running
-      shelf  <- IO.ref(List.empty[BigInt])
-      faults <- IO.ref(List.empty[Boolean])
-      put     = Shelf.shelf.lifted(PlainShelf(shelf, faults), run).put(unbound)
-      out    <- put.attempt
-    yield out
+    val ran = bound(Nil, ticking).flatMap(run => run.run(Shelf.put(unbound)).attempt)
     assert(ran.unsafeRunSync().left.exists(_.isInstanceOf[NotEvaluated]))
+  }
+
+  test("an operation with no Scala bound where the program runs fails in F, saying so") {
+    val ran = running.flatMap(run => run.step(Shelf.items).attempt).unsafeRunSync()
+    assert(ran.left.exists(_.getMessage == "FrFlow: items has no Scala bound where the program runs"), ran)
   }

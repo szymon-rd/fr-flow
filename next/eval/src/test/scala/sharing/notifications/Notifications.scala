@@ -4,8 +4,6 @@ import frflow.*
 import sharing.*
 import sharing.domain.*
 import sharing.requests.AccessRequests
-import sharing.store.LibraryStore.store
-import sharing.time.ClockKept.clock
 
 /** Notifications: a change that concerns someone puts a notice of it in the outbox, in the same save as the change;
   * delivery sends the outbox to the mail server, a notice leaving the outbox only once the mail server has it. The
@@ -18,17 +16,13 @@ object Notifications:
   val deliver = Definition[Program[Unit]](
     "a run of delivery: the oldest notice of each person in the outbox sent to the mail server")
 
-  val mailer = Boundary.failing[Mailer, Failure]("the mail server the service sends notices to; it may be down",
-    Failure.MailerUnavailable)
-  val mailerModel = mailer.model("each person's mailbox at the mail server")(Mailboxes(_))
+  val mailerModel: Mailer.mailerModel.type = Mailer.mailerModel
 
-  val mailerKept = Node.assumption("The mail server delivers a notice it is given into the mailbox of the person it " +
-      "is to, after the ones delivered there before, and one it has already delivered is not delivered again; any " +
-      "call may fail because it is down, and then delivers nothing.")(
-    mailer.behavesAs(mailerModel))
+  val mailerKept = Node.assumption("Nothing but the service's deliveries changes the mailboxes at the mail server.")(
+    mailerModel.onlyCodeChanges)
 
   val mailOneAtATime = Node.assumption("The mail server takes one notice at a time: two deliveries never interleave.")(
-    mailer.atomic)
+    mailerModel.atomic)
 
   /** The notices a change made by a request tells of, logged as `e`, on the library `lib` it was made on: the person
     * invited; the person who sent an invitation now accepted; the owner of a document asked for; the person whose
@@ -87,4 +81,4 @@ object Notifications:
   val firstOfEach = define { (outbox: Term[List[Notice]]) =>
     outbox.filter(n => outbox.find(m => m.to === n.to) === some(n)) }
 
-  val delivery = program { Delivery(store.recording, mailer.recording, clock.recording).run }
+  val delivery = program { Delivery.run[Recorded] }

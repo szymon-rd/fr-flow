@@ -1,25 +1,20 @@
 package frflow.eval
 
-import cats.effect.{IO, Ref}
+import cats.effect.IO
 import cats.effect.unsafe.implicits.global
 import frflow.*
-import rooms.{BookIfGranted, Booking, BookingTable, RoomBookings}
+import rooms.{BookIfGranted, Booking, BookingsTable, storedBookings}
 
-/** A program in production as the developer runs it: `knowledge.running[F]()`, its conditions evaluated over every
-  * Definition's meaning (rooms' `granted`, plain Scala), its adapter plain Scala lifted (`BoundaryOps.lifted`).
+/** A program in production as the developer runs it: `knowledge.running[F](storedBookings := table)`, its conditions
+  * evaluated over every Definition's meaning (rooms' `granted`, plain Scala), its operations' Scala bound (the SQLite
+  * table, in memory).
   */
 class CodeSyntaxSuite extends munit.FunSuite:
-  /** A table in memory, plain Scala over plain values. */
-  private final class Memory(held: Ref[IO, List[Booking]]) extends BookingTable[IO, cats.Id]:
-    def inRoom(room: String): IO[RoomBookings] = held.get.map(bs => RoomBookings(room, bs.filter(_.room == room)))
-    def add(booking: Booking): IO[Unit] = held.update(_ :+ booking)
-
   private def booked(requests: List[Booking]): (List[Boolean], List[Booking]) = (for
-    run    <- rooms.rooms.running[IO]()
-    held   <- IO.ref(List(Booking("Oak", 9, 10)))
-    table   = rooms.bookingTable.lifted(Memory(held), run)
-    asked  <- IO.parTraverseN(1)(requests)(r => BookIfGranted[IO](table)(using run).run(run.term(r)).map(run.value))
-    stored <- held.get
+    table  <- BookingsTable.holding(List(Booking("Oak", 9, 10)))
+    run    <- rooms.rooms.running[IO](storedBookings := table)
+    asked  <- IO.parTraverseN(1)(requests)(r => BookIfGranted.run[IO](run.term(r))(using run).map(run.value))
+    stored <- table.bookings
   yield (asked, stored)).unsafeRunSync()
 
   test("rooms' book in production: a free room's request booked, one that overlaps refused") {

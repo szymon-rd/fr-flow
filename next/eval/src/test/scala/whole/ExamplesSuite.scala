@@ -31,8 +31,9 @@ class ExamplesSuite extends munit.FunSuite:
   }
 
   test("rooms: today's nodes, named as today's, but onlyBookingWrites: the programs changing a store are derived " +
-    "(owner §31)") {
-    assertEquals(ids(rooms.rooms), renamed(Today.rooms, Set("onlyBookingWrites"), Set.empty))
+    "(owner §31); and the table's model is no assumption, nothing but the code changing it is (owner §36)") {
+    assertEquals(ids(rooms.rooms), renamed(Today.rooms, Set("onlyBookingWrites", "tableMatchesModel"),
+      Set("nothingElseWrites")))
     assertEquals(kinds(rooms.rooms), Map("claim" -> 12, "assumption" -> 4))
   }
 
@@ -92,9 +93,12 @@ class ExamplesSuite extends munit.FunSuite:
   }
 
   /** Each program Definition's error once resolved: what its code may fail with (`Failing`), read off its steps. */
+  /** Each program's error, by its Definition (the operations on a state aside). */
   private def errors(kb: FrModel): Map[String, Option[Ty]] =
-    Theories.resolved(kb).theory.vocabulary.symbols.collect {
-      case Symbol(n, _, SymbolType.Typed(ty), _) if Ty.resultOf(ty).isInstanceOf[Ty.FlowOf] => n.value -> Ty.errorOf(ty)
+    val v = Theories.resolved(kb).theory.vocabulary
+    v.symbols.collect {
+      case Symbol(n, _, SymbolType.Typed(ty), _) if Ty.resultOf(ty).isInstanceOf[Ty.FlowOf] && v.modelOf(n).isEmpty =>
+        n.value -> Ty.errorOf(ty)
     }.toMap
 
   test("each program's type says what it may fail with: sharing's, over the store and the mail server that may be " +

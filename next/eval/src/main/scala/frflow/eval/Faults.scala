@@ -2,7 +2,7 @@ package frflow.eval
 
 import frflow.core.name.ModelName
 
-/** The faults a failing boundary's calls take in turn (Lean's `faults` field of the world, `true`: that call fails),
+/** The faults the calls of a failing model's operations take in turn (Lean's `faults` field of the world, `true`: that call fails),
   * held beside the models' states under a name no model takes (`faults` is reserved).
   */
 object Faults:

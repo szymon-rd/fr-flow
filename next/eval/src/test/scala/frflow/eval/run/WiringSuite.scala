@@ -26,7 +26,7 @@ class WiringSuite extends munit.FunSuite:
   private def claim(id: String, s: SymbolName) = Sited(Node(NodeId(id), s"$id returns its input.",
     Statement.Claim(formula(s), Reliance.Relied)), Span(here, 0))
   private val calling = Code.Tested(ScalaCode(Impl(1, _ => (s: String) => s), SourceText("…"), Nil), List(inner))
-  private val theory = Theory(KbName("Wiring"), Vocabulary(Nil, Nil, List(op(outer), op(inner)), List(same), Nil, Nil),
+  private val theory = Theory(KbName("Wiring"), Vocabulary(Nil, Nil, List(op(outer), op(inner)), List(same), Nil),
     List(claim("Outer", outer), claim("Inner", inner)), Nil, CodeTable(Map(
       outer -> Attachment(calling, here), inner -> Attachment(Code.Proven(DefName("same")), here)), Map.empty))
   private val wiring = Wiring(Semantics(Elaborated(theory, Map.empty, Nil)), theory)

@@ -11,7 +11,8 @@ import frflow.core.ty.Ty
 import frflow.eval.{Env, Fn, Raised, ScalaValue, Semantics}
 
 /** A recorded program's `Prog` run in Scala, its terms by the evaluator, against a `World`: on the models (flow
-  * examples, and the model each implementation is tested against), or on the adapters (the interleavings tests).
+  * examples, and the model each implementation is tested against), or on the operations' Scala (the interleavings
+  * tests).
   * A program's error is raised in `F` as `Raised` (its value and type), caught by a handler of its type;
   * `Scheduling` says how concurrent steps run.
   */
@@ -29,7 +30,7 @@ final class FlowInterpreter[F[_]](semantics: Semantics, world: World[F], schedul
     case Prog.Let(x, v, rest)      => value(v, env).flatMap(a => prog(rest, env.bind(x.id, a)))
     case br @ Prog.Branch(c, a, b) => value(c, env).flatMap(v =>
         branched(br, Fn.bool(v)) *> (if Fn.bool(v) then prog(a, env) else prog(b, env)))
-    case Prog.Call(b, op, as, _)   => as.traverse(value(_, env)).flatMap(world.call(b, op, _))
+    case Prog.Call(op, as, _)      => as.traverse(value(_, env)).flatMap(world.call(op, _))
     case Prog.Read(m)              => world.read(m)
     case Prog.Write(m, s)          => value(s, env).flatMap(world.write(m, _)).as(unit)
     case Prog.Modify(m, x, next)   =>

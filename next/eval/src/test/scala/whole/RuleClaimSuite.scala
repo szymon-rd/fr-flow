@@ -18,7 +18,7 @@ class RuleClaimSuite extends munit.FunSuite:
   private val grantedAlone = Node.claim("A room with no bookings grants a request for it.")(
     always[Booking](b => granted(make[RoomBookings](b.room, Nil: Term[List[Booking]]), b)))
     .refines(rooms.grantWhenFree)
-    .assuming(rooms.tableMatchesModel, rooms.oneAtATime, rooms.startsEmpty, rooms.bookingsEndAfterStart)
+    .assuming(rooms.nothingElseWrites, rooms.oneAtATime, rooms.startsEmpty, rooms.bookingsEndAfterStart)
   private val kb = FrModel("Rooms")((rooms.rooms.nodes :+ grantedAlone)*).copy(generators = rooms.rooms.generators)
     .implementProven(rooms.book)(rooms.bookIfGranted)
     .implementTested(granted)(_ => (held, request) => rooms.Calendar(held).grants(request))

@@ -8,7 +8,7 @@ import frflow.proof.obligation.AlwaysSuite
 import java.nio.file.{Files, Path}
 
 /** Rooms' Lean as the port prints it, byte for byte (`next/proof/src/test/resources/rooms`, owner §25: one type,
-  * `Booking`): the boundary, its model and `World`; booking's run on the models; and every `keeps_` and `makes_` the
+  * `Booking`): the table's model, its class and `World`; booking's run on the models; and every `keeps_` and `makes_` the
   * obligations declare. With `FRFLOW_GOLDEN` set, they are written there instead.
   */
 class RoomsGoldensSuite extends munit.FunSuite:
@@ -27,8 +27,8 @@ class RoomsGoldensSuite extends munit.FunSuite:
       assertNoDiff(printed, scala.io.Source.fromResource(s"rooms/$path", getClass.getClassLoader)(
         using scala.io.Codec.UTF8).mkString)
 
-  test("Boundaries.lean: the table's class, its model, World, the instance and its lemmas") {
-    same("Boundaries.lean", module(layout.boundaries))
+  test("Models.lean: the table's operations' class, their meanings, World, the instance and its lemmas") {
+    same("Models.lean", module(layout.models))
   }
 
   test("Domain/Def_bookIfGranted_run.lean: booking's run on the models, of a Booking") {

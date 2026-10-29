@@ -62,11 +62,22 @@ class FormsSuite extends munit.FunSuite:
     assert(compileErrors("Node.assumption(\"s\")(always[Booking](b => b.start < b.end))").isEmpty)
   }
 
-  test("the store's facts (owner §31, §32): the programs changing it are derived, runs are atomic on the boundary") {
+  test("the facts said of a model (owner §31, §32, §36): the programs changing it are derived; there is no boundary") {
     fails(compileErrors("storedBookings.writtenOnlyBy(book)"), "value writtenOnlyBy is not a member of")
     fails(compileErrors("storedBookings.changedOneRunAtATime"), "value changedOneRunAtATime is not a member of")
-    assert(compileErrors("""Node.assumption("s")(bookingTable.atomic)""").isEmpty)
-    assert(compileErrors("""Node.assumption("s")(bookingTable.behavesAs(storedBookings))""").isEmpty)
+    fails(compileErrors("storedBookings.behavesAs(storedBookings)"), "value behavesAs is not a member of")
+    fails(compileErrors("""Boundary[Plain]("s")"""), "Not found: Boundary")
+    fails(compileErrors("trait Table[F[_], T[_]] derives BoundaryOps"), "BoundaryOps")
+    assert(compileErrors("""Node.assumption("s")(storedBookings.atomic)""").isEmpty)
+    assert(compileErrors("""Node.assumption("s")(storedBookings.onlyCodeChanges)""").isEmpty)
+  }
+
+  test("a model gives operations on a state their meaning: `means` of a Definition that is no operation is refused") {
+    fails(compileErrors("""object counted extends StateModel[BigInt]("s"):
+      granted.means(n => state.get)"""), "value means is not a member of")
+    assert(compileErrors("""object counted extends StateModel[BigInt]("s"):
+      val tally = Definition[Program[BigInt]]("a count")
+      tally.means(state.get)""").isEmpty)
   }
 
   test("a run is written one way (owner §34): `.from(world) { (answer, after) => … }`; no `.answer`, no `.after`") {
@@ -108,7 +119,7 @@ class FormsSuite extends munit.FunSuite:
 
   test("only a Definition takes a meaning: code for a Declaration does not compile") {
     fails(compileErrors("""auth.knowledge.implementTested(auth.authorized)(_ => (_, _) => true)"""),
-      "Required: frflow.dsl.vocab.Definition[F]")
+      "Required: frflow.dsl.vocab.Definition[?]")
   }
 
   test("a claim reads as a call of the Definition applied to its leading variables; another is an ordinary mention") {

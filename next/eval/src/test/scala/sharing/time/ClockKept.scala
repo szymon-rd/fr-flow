@@ -2,19 +2,14 @@ package sharing.time
 
 import frflow.*
 
-/** FrFlow's clock as the service's programs see it: its model a count of seconds only sleeps move. */
+/** FrFlow's clock as the service's programs see it (`Clock.now`, `Clock.sleep`): its model a count of seconds only
+  * sleeps move, and what the world outside does with it.
+  */
 object ClockKept:
-  val clock: Boundary[Clock] = Boundary[Clock]("the server's clock, in seconds")
+  val clockModel: Clock.clockModel.type = Clock.clockModel
 
-  /** The clock as the proofs see it: the time now, moved on by a sleep. */
-  final class Ticks[F[_]: Flow](state: Model[F, BigInt]) extends Clock[F, Term]:
-    def now: F[Term[BigInt]] = state.get
-    def sleep(seconds: Term[BigInt]): F[Unit] = state.get.flatMap(t => state.set(t + seconds))
-
-  val clockModel = clock.model("the time now, in seconds")(Ticks(_))
-
-  val clockKept = Node.assumption("The clock gives the time now, in seconds; a sleep moves it on by the time asked.")(
-    clock.behavesAs(clockModel))
+  val clockKept = Node.assumption("Nothing but the service's programs moves the clock: only their sleeps.")(
+    clockModel.onlyCodeChanges)
 
   val clockAlone = Node.assumption("Nothing but a program's own sleeps moves the clock while it runs.")(
-    clock.atomic)
+    clockModel.atomic)
