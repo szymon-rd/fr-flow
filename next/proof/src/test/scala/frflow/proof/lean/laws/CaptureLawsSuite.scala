@@ -7,7 +7,7 @@ import frflow.core.name.{DefName, KbName, SymbolName}
 import frflow.core.term.{Body, Bound, Final, Sym}
 import frflow.core.term.interpret.ToExpr
 import frflow.core.ty.Ty
-import frflow.core.typing.{IrCheck, Local}
+import frflow.core.typing.{IrCheck, IrContext, Local}
 import frflow.proof.lean.ast.{LExpr, Names}
 import frflow.proof.lean.lower.{LowerEnv, Naming}
 import frflow.proof.lean.print.Print
@@ -62,7 +62,7 @@ class CaptureLawsSuite extends munit.FunSuite:
   }
 
   test("every renamed term's IR is well formed: each variable bound at its type, each node typed by its parts") {
-    val check = IrCheck(Local(LawsEnv.env.data, d => Option.when(d == Terms.positive.name)(Terms.fnTy)))
+    val check = IrCheck(Local(IrContext.open(LawsEnv.env.data, d => Option.when(d == Terms.positive.name)(Terms.fnTy))))
     terms.foreach(t => assertEquals(check(ToExpr.of(t)).toEither.map(_ => ()), Right(()), ToExpr.of(t)))
   }
 

@@ -1,19 +1,23 @@
 package frflow.core.typing
 
-import frflow.core.expr.{Expr, Exprs, Iteration, Pattern, PrimOp, Side}
-import frflow.core.name.{CtorName, DefName, TypeName}
+import frflow.core.expr.{Expr, Exprs, Iteration, OutsideFact, Pattern, PrimOp, Prog, Side, Value}
+import frflow.core.name.{CtorName, TypeName}
 import frflow.core.term.Selector
 import frflow.core.ty.{DataType, Ty}
 
-/** Whether one node of the IR is typed as its parts are (their types as `Exprs.typeOf` reads them): a call and an
-  * application by the function's parameters, a record by its constructor's fields, a match by its patterns, an
-  * operator by its operands. Over the domain's types (`data`) and the defines' types (`defines`).
+/** Whether one node of the IR is typed as its parts are (their types as `Exprs.typeOf` reads them): a constant by
+  * its value, a symbol by the vocabulary, a call (of a define known) and an application by the function's
+  * parameters, a record by its constructor's fields, a match by its patterns, an operator by its operands; a
+  * program's step by the operation's signature and the model's state. A fact about the outside is no part of a term.
   */
-final class Local(data: TypeName => Option[DataType], defines: DefName => Option[Ty]):
+final class Local(ctx: IrContext):
   private def ty(e: Expr): Ty = Exprs.typeOf(e)
+  private def data(n: TypeName): Option[DataType] = ctx.data(n)
 
   def typed(e: Expr): Boolean = e match
-    case Expr.Call(d, as, t)          => defines(d).forall(applies(_, as, t))
+    case Expr.Lit(v, t)               => fits(v, t)
+    case Expr.Sym(n, t)               => ctx.symbols(n, t)
+    case Expr.Call(d, as, t)          => ctx.defines(d).exists(applies(_, as, t))
     case Expr.Apply(f, as, t)         => as.nonEmpty && applies(ty(f), as, t)
     case Expr.Fun(l)                  => ty(l.body) == l.result
     case Expr.Quant(_, _, b)          => ty(b) == Ty.Bool
@@ -35,7 +39,49 @@ final class Local(data: TypeName => Option[DataType], defines: DefName => Option
     case Expr.Runs(_, w, _, _, a, b)  => ty(w) == Ty.World && a.ty == Ty.World && ty(b) == Ty.Bool
     case Expr.Part(w, _, _)           => ty(w) == Ty.World
     case Expr.Unchanged(a, b)         => ty(a) == Ty.World && ty(b) == Ty.World
-    case _                            => true
+    case Expr.Outside(_)              => false
+    case Expr.Var(_) | Expr.Tuple(_) | Expr.SomeOf(_) | Expr.Do(_, _) => true // their type is their parts'
+
+  /** A program's step typed by what it calls or changes: an operation's arguments and result, a model's state, a
+    * branch's condition, what a loop or a handler binds.
+    */
+  def step(p: Prog[Expr]): Boolean = p match
+    case Prog.Call(op, as, t) if op == Prog.leftWins => as.isEmpty && t == Ty.Bool
+    case Prog.Call(op, as, t)               => ctx.operations(op).exists(s => s.params.map(_._2) == as.map(ty) &&
+        s.result == t)
+    case Prog.Read(m)                       => ctx.states(m).nonEmpty
+    case Prog.Write(m, s)                   => ctx.states(m).contains(ty(s))
+    case Prog.Modify(m, x, n)               => ctx.states(m).exists(st => x.ty == st && ty(n) == st)
+    case Prog.Branch(c, _, _)               => ty(c) == Ty.Bool
+    case Prog.Loop(o, x, _)                 => Ty.elementOf(ty(o)).contains(x.ty)
+    case Prog.Collect(o, x, _)              => Ty.elementOf(ty(o)).contains(x.ty)
+    case Prog.ParEach(o, x, _, _)           => Ty.elementOf(ty(o)).contains(x.ty)
+    case Prog.Accumulate(o, z, acc, x, _)   => Ty.elementOf(ty(o)).contains(x.ty) && ty(z) == acc.ty
+    case Prog.Catch(_, error, x, _)         => x.ty == error
+    case _                                  => true
+
+  /** A fact about the outside, said whole: of a model known, its initial rule a define on the model's state. */
+  def fact(f: OutsideFact): Boolean = f match
+    case OutsideFact.OnlyCodeChanges(m) => ctx.states(m).nonEmpty
+    case OutsideFact.Atomic(m)          => ctx.states(m).nonEmpty
+    case OutsideFact.Initially(m, d)    => ctx.states(m).exists(s => ctx.defines(d).contains(Ty.FnOf(List(s), Ty.Bool)))
+
+  /** A constant's value of its type, each part of its part's type. */
+  private def fits(v: Value, t: Ty): Boolean = (v, t) match
+    case (Value.Bool(_), Ty.Bool)                 => true
+    case (Value.Num(n), Ty.Num(k))                => k.holds(n)
+    case (Value.Str(_), Ty.Str)                   => true
+    case (Value.Unit, Ty.Unit)                    => true
+    case (Value.Data(c, fs), Ty.Data(n))          => fields(n, c).exists(ts => ts.size == fs.size &&
+        fs.zip(ts).forall(fits(_, _)))
+    case (Value.Many(es), Ty.ListOf(a))           => es.forall(fits(_, a))
+    case (Value.Many(es), Ty.SetOf(a))            => es.forall(fits(_, a))
+    case (Value.Maybe(e), Ty.OptionOf(a))         => e.forall(fits(_, a))
+    case (Value.Pairs(es), Ty.MapOf(k, w))        => es.forall((a, b) => fits(a, k) && fits(b, w))
+    case (Value.Tuple(es), Ty.TupleOf(ts))        => es.size == ts.size && es.zip(ts).forall(fits(_, _))
+    case (Value.Inject(s, e), Ty.EitherOf(l, r))  => fits(e, if s == Side.Error then l else r)
+    case (Value.World(_, _), Ty.World)            => true
+    case _                                        => false
 
   /** A branch that only raises, as a value or a program: it takes the other branch's type (`Ty.join`). */
   private def raises(t: Ty): Boolean = t match

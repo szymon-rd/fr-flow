@@ -24,7 +24,7 @@ class ImplSuite extends munit.FunSuite:
   private def sited(id: NodeId, s: Statement) = Sited(Node(id, s"${id.value} holds.", s), here)
   private val holds = [T[_]] => (s: Sym[T]) => s.bool(true)
   /** Nothing outside the code changes the database's tables. */
-  private val kept = [T[_]] => (s: Sym[T]) => s.outside(OutsideFact.OnlyCodeChanges(ModelName("tables")))
+  private val kept = [T[_]] => (s: Sym[T]) => s.outside(OutsideFact.OnlyCodeChanges(ModelName("databaseModel")))
   /** Runs on the database are atomic: what a run of the job rests on (its operations are the model's). */
   private val oneRun = [T[_]] => (s: Sym[T]) => s.outside(OutsideFact.Atomic(ModelName("databaseModel")))
   private val (runExpiry, expire) = (SymbolName("runExpiry"), SymbolName("expire"))
@@ -35,11 +35,12 @@ class ImplSuite extends munit.FunSuite:
   private def claimed(f: Written[Expr]) = Statement.Claim(f, Reliance.Relied)
 
   private val theory = Theory(KbName("Crm"),
-    Vocabulary(Nil, Nil, List(
+    Vocabulary(Nil, ExpiryIr.data.values.toList, List(
       Symbol(expire, "what expiring leaves", SymbolType.Typed(expireType), ValueKind.Definition),
       Symbol(runExpiry, "a run of the expiry job", SymbolType.Typed(runType), ValueKind.Definition)),
       List(Define(DefName("expireOnce"), ExpiryIr.expireOnce, DefineForm.Flow),
-      Define(DefName("expireOnce_run"), ExpiryIr.expireOnce, DefineForm.RunOf(DefName("expireOnce")))),
+      Define(DefName("expireOnce_run"), ExpiryIr.expireOnce, DefineForm.RunOf(DefName("expireOnce"))),
+    ) ++ ExpiryIr.called.map((d, l) => Define(d, l, DefineForm.Function)),
       List(CrmModels.model)),
     List(sited(root, claimed(Written.formula(holds, SourceText("…")))),
       sited(job, claimed(about(runExpiry, runType))), sited(shares, claimed(about(expire, expireType))),

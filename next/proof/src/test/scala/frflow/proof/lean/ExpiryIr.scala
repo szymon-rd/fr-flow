@@ -22,7 +22,7 @@ object ExpiryIr:
   private val big = Ty.Num(NumKind.Big)
   private def v(i: Int, hint: String, t: Ty) = Binder(VarId.level(i), hint, t)
 
-  private val data: Map[TypeName, DataType] = Map(
+  val data: Map[TypeName, DataType] = Map(
     TypeName("Tables") -> DataType.Product(TypeName("Tables"), "Tables",
       List(Field("store", store), Field("events", Ty.ListOf(event)))),
     TypeName("Event") -> DataType.Sum(TypeName("Event"), "Event",
@@ -60,6 +60,17 @@ object ExpiryIr:
     SourceText("…"))
 
   private def term[A](t: [T[_]] => Sym[T] => T[A]): Stated[?] = Stated(t)
+
+  /** The defines the job's steps and the model's operations call, typed as they call them (their bodies are no
+    * concern of this fixture's): the ids two stores differ in, a store's record about an id, the store with it.
+    */
+  val called: List[(DefName, Written[Lambda])] =
+    def stub[A](params: List[Ty], result: [T[_]] => Sym[T] => T[A]) = Written.lambda(params.zipWithIndex.map((t, i) =>
+      v(i, s"x$i", t)), result, SourceText("…"))
+    val someStore = [T[_]] => (s: Sym[T]) => s.free[Any](v(0, "x0", store))
+    List(DefName("changedIds") -> stub(List(store, store), [T[_]] => (s: Sym[T]) => s.nil[Any](big)),
+      DefName("aboutRecord") -> stub(List(store, big), someStore),
+      DefName("replaceAbout") -> stub(List(store, big, store), someStore))
   private def call(op: String, args: Stated[?]*) =
     Prog.Call(SymbolName(op), args.toList, Ty.Unit)
 
