@@ -3,7 +3,7 @@ package frflow.wire.test
 import cats.syntax.all.*
 import frflow.core.example.Given
 import frflow.core.expr.Value
-import frflow.core.name.{BoundaryName, OpName}
+import frflow.core.name.SymbolName
 import frflow.eval.run.Broken
 import frflow.testing.Seed
 import frflow.testing.model.{Difference, Ran, Step}
@@ -30,9 +30,9 @@ object FailureCodecs:
     (c.get[Seed]("seed"), c.get[Int]("index"), c.get[Int]("size")).mapN(Drawn(_, _, _)))
 
   given Encoder[Step] = Encoder.instance(s =>
-    Json.obj("boundary" -> s.boundary.asJson, "op" -> s.op.asJson, "args" -> s.args.asJson))
+    Json.obj("op" -> s.op.asJson, "args" -> s.args.asJson))
   given Decoder[Step] = Decoder.instance(c =>
-    (c.get[BoundaryName]("boundary"), c.get[OpName]("op"), c.get[List[Value]]("args")).mapN(Step(_, _, _)))
+    (c.get[SymbolName]("op"), c.get[List[Value]]("args")).mapN(Step(_, _)))
 
   given Encoder[Ran] = Encoder.instance {
     case Ran.Gave(v)   => Tagged("gave", "result" -> v.asJson)

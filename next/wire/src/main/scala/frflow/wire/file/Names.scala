@@ -1,6 +1,6 @@
 package frflow.wire.file
 
-import frflow.core.name.{BoundaryName, CtorName, DefName, ModelName, NodeId, OpName, SymbolName, TypeName}
+import frflow.core.name.{CtorName, DefName, ModelName, NodeId, SymbolName, TypeName}
 import io.circe.{Codec, Decoder, Encoder}
 
 /** The IR's names, each written as its text. */
@@ -14,5 +14,3 @@ object Names:
   given Codec[ModelName] = text(ModelName(_))(_.value)
   given Codec[CtorName] = text(CtorName(_))(_.value)
   given Codec[TypeName] = text(TypeName(_))(_.value)
-  given Codec[BoundaryName] = text(BoundaryName(_))(_.value)
-  given Codec[OpName] = text(OpName(_))(_.value)

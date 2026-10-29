@@ -53,12 +53,11 @@ object Rows:
     case Value.World(ss, fs) => ss.map((m, s) => s"${m.value}: ${shown(s)}").mkString("World(", ", ", s"; faults $fs)")
 
   private def tested(t: Tested): String = t match
-    case Tested.Plain     => "plain"
-    case Tested.Own(i)    => s"own $i"
+    case Tested.Plain    => "plain"
+    case Tested.Model(m) => s"model ${m.value}"
 
   private def assumed(a: Assumed): String = a match
     case Assumed.Assumption => "assumption"
-    case Assumed.Outside(i) => s"outside $i"
 
   private def code(c: OnCode): String = c match
     case OnCode.Holds           => "holds"
@@ -106,4 +105,4 @@ object Rows:
 
   private def against(a: Against): String = a match
     case Against.Claim(n)    => s"claim ${n.value}"
-    case Against.Model(n, i) => s"model ${n.value} realization $i"
+    case Against.Model(n, m) => s"model ${n.value} of ${m.value}"

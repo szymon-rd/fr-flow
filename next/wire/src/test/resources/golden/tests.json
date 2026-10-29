@@ -232,7 +232,7 @@
       "against": {
         "kind": "model",
         "node": "Store",
-        "realization": 0
+        "model": "stored"
       },
       "outcome": {
         "kind": "failed",
@@ -256,7 +256,6 @@
           },
           "steps": [
             {
-              "boundary": "Bookings",
               "op": "add",
               "args": [
                 {
@@ -283,7 +282,6 @@
           "difference": {
             "kind": "call",
             "step": {
-              "boundary": "Bookings",
               "op": "list",
               "args": []
             },

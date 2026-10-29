@@ -2,7 +2,7 @@ package frflow.wire.sample
 
 import frflow.core.example.Given
 import frflow.core.expr.{Side, Value}
-import frflow.core.name.{BoundaryName, CtorName, ModelName, NodeId, OpName, SymbolName, TypeName}
+import frflow.core.name.{CtorName, ModelName, NodeId, SymbolName, TypeName}
 import frflow.core.ty.{NumKind, Ty}
 import frflow.eval.EvalError
 import frflow.eval.run.Broken
@@ -21,9 +21,9 @@ object TestSamples:
     Broken.Always(NodeId("NoOverlap")), Drawn(Seed(42), 17, 3))
 
   private def run(d: Difference) = Failure.Run(Value.World(List(ModelName("stored") -> Value.Many(Nil)),
-    List(false, true)), List(Step(BoundaryName("Bookings"), OpName("add"), List(booking("Oak", 9, 10)))),
+    List(false, true)), List(Step(SymbolName("add"), List(booking("Oak", 9, 10)))),
     d, Drawn(Seed(-7), 2, 1))
-  private val answered = run(Difference.Call(Step(BoundaryName("Bookings"), OpName("list"), Nil),
+  private val answered = run(Difference.Call(Step(SymbolName("list"), Nil),
     Ran.Gave(Value.Many(Nil)), Ran.Gave(Value.Many(List(booking("Oak", 9, 10))))))
 
   private val failed = TestReport(Count(500, 18), Seed(42), Against.Claim(NodeId("Book")), Outcome.Failed(call),
@@ -32,8 +32,8 @@ object TestSamples:
       Note.Given(Made(Ty.MapOf(Ty.Str, Ty.Num(NumKind.Int32)), None)),
       Note.NeverMade(Ty.Data(TypeName("Booking")), List(booking("Elm", 0, 1)))))
 
-  private val modelled = TestReport(Count(200, 3), Seed(-7), Against.Model(NodeId("Store"), 0),
-    Outcome.Failed(answered), List(Target(Position(List(1)), Reach.Called(OpName("remove")))),
+  private val modelled = TestReport(Count(200, 3), Seed(-7), Against.Model(NodeId("Store"), ModelName("stored")),
+    Outcome.Failed(answered), List(Target(Position(List(1)), Reach.Called(SymbolName("remove")))),
     List(Note.Given(Made(Ty.FlowOf(Ty.Unit, Some(Ty.Sort(TypeName("Fault")))), None))))
 
   private val passed = TestReport(Count(100, 100), Seed(1), Against.Claim(NodeId("Free")),
@@ -50,5 +50,5 @@ object TestSamples:
 
   val counterexamples: Map[NodeId, List[Failure]] = Map(NodeId("Book") -> List(call, threw),
     NodeId("Store") -> List(run(Difference.State(Value.Many(Nil), Value.Many(List(Value.Str("x"))))),
-      run(Difference.Call(Step(BoundaryName("Bookings"), OpName("add"), Nil), Ran.Threw("closed"),
+      run(Difference.Call(Step(SymbolName("add"), Nil), Ran.Threw("closed"),
         Ran.Failed(Value.Str("down")))), run(Difference.NotRun("closed"))))

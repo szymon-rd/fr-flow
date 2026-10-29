@@ -2,7 +2,7 @@ package frflow.wire.sample
 
 import frflow.core.example.Given
 import frflow.core.expr.{Side, Value}
-import frflow.core.name.{BoundaryName, CtorName, DefName, ModelName, NodeId, OpName, SymbolName, TypeName}
+import frflow.core.name.{CtorName, DefName, ModelName, NodeId, SymbolName, TypeName}
 import frflow.core.ty.{NumKind, Ty}
 import frflow.eval.EvalError
 import frflow.eval.run.Broken
@@ -48,7 +48,7 @@ object TestDraws:
 
   val drawn: Gen[Drawn] = Gen.zip(Arbitrary.arbitrary[Long].map(Seed(_)), small, small).map(Drawn(_, _, _))
   val step: Gen[Step] =
-    Gen.zip(word, word, few(value(1))).map((b, o, args) => Step(BoundaryName(b), OpName(o), args))
+    Gen.zip(word, few(value(1))).map((o, args) => Step(SymbolName(o), args))
 
   val ran: Gen[Ran] = Gen.oneOf(value(1).map(Ran.Gave(_)), value(1).map(Ran.Failed(_)), text.map(Ran.Threw(_)))
 
@@ -60,13 +60,14 @@ object TestDraws:
       .map(Failure.Call(_, _, _, _)),
     Gen.zip(value(2), few(step), difference, drawn).map(Failure.Run(_, _, _, _)))
 
-  val against: Gen[Against] = Gen.oneOf(node.map(Against.Claim(_)), Gen.zip(node, small).map(Against.Model(_, _)))
+  val against: Gen[Against] = Gen.oneOf(node.map(Against.Claim(_)), Gen.zip(node, word).map((n, m) => Against.Model(n, ModelName(m))))
 
   val outcome: Gen[Outcome] = Gen.oneOf(Gen.const(Outcome.Passed), failure.map(Outcome.Failed(_)),
     evalError.map(Outcome.NotChecked(_)))
 
   val reach: Gen[Reach] = Gen.oneOf(Gen.oneOf(Reach.Premise, Reach.NonEmpty), small.map(Reach.Side(_)),
-    Arbitrary.arbitrary[Boolean].map(Reach.Branch(_)), small.map(Reach.Arm(_)), word.map(o => Reach.Called(OpName(o))))
+    Arbitrary.arbitrary[Boolean].map(Reach.Branch(_)), small.map(Reach.Arm(_)),
+    word.map(o => Reach.Called(SymbolName(o))))
 
   val target: Gen[Target] = Gen.zip(few(small).map(Position(_)), reach).map(Target(_, _))
 

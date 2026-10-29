@@ -30,8 +30,8 @@ class RowsSuite extends munit.FunSuite:
   }
 
   test("a test report becomes its row: cases, seed, what was tested, whether one failed") {
-    val report = TestReport(Count(500, 500), Seed(42), Against.Model(NodeId("Store"), 1), Outcome.Passed, Nil, Nil)
-    assertEquals(Rows.test(report), TestRow(500, "42", "model Store realization 1", false))
+    val report = TestReport(Count(500, 500), Seed(42), Against.Model(NodeId("Store"), ModelName("stored")), Outcome.Passed, Nil, Nil)
+    assertEquals(Rows.test(report), TestRow(500, "42", "model Store of stored", false))
   }
 
   test("an obligation is named as Lean names it, with its status as written today") {

@@ -1,7 +1,7 @@
 package frflow.wire.test
 
 import cats.syntax.all.*
-import frflow.core.name.{NodeId, OpName}
+import frflow.core.name.{ModelName, NodeId, SymbolName}
 import frflow.core.expr.Value
 import frflow.core.ty.Ty
 import frflow.eval.EvalError
@@ -23,12 +23,12 @@ import io.circe.{ACursor, Decoder, Encoder, Json, JsonObject}
 object ReportCodecs:
   given Encoder[Against] = Encoder.instance {
     case Against.Claim(n)    => Tagged("claim", "node" -> n.asJson)
-    case Against.Model(n, i) => Tagged("model", "node" -> n.asJson, "realization" -> i.asJson)
+    case Against.Model(n, m) => Tagged("model", "node" -> n.asJson, "model" -> m.asJson)
   }
 
   given Decoder[Against] = Tagged.decoder("test target") {
     case "claim" => _.get[NodeId]("node").map(Against.Claim(_))
-    case "model" => c => (c.get[NodeId]("node"), c.get[Int]("realization")).mapN(Against.Model(_, _))
+    case "model" => c => (c.get[NodeId]("node"), c.get[ModelName]("model")).mapN(Against.Model(_, _))
   }
 
   given Encoder[Outcome] = Encoder.instance {
@@ -58,7 +58,7 @@ object ReportCodecs:
     case "branch"    => _.get[Boolean]("held").map(Reach.Branch(_))
     case "arm"       => _.get[Int]("index").map(Reach.Arm(_))
     case "non-empty" => _ => Right(Reach.NonEmpty)
-    case "called"    => _.get[OpName]("op").map(Reach.Called(_))
+    case "called"    => _.get[SymbolName]("op").map(Reach.Called(_))
   }
 
   given Encoder[Target] = Encoder.instance(t => Json.obj("path" -> t.at.path.asJson, "reach" -> t.reach.asJson))

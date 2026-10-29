@@ -140,7 +140,6 @@
         },
         "steps": [
           {
-            "boundary": "Bookings",
             "op": "add",
             "args": [
               {
@@ -206,7 +205,6 @@
         },
         "steps": [
           {
-            "boundary": "Bookings",
             "op": "add",
             "args": [
               {
@@ -233,7 +231,6 @@
         "difference": {
           "kind": "call",
           "step": {
-            "boundary": "Bookings",
             "op": "add",
             "args": []
           },
@@ -275,7 +272,6 @@
         },
         "steps": [
           {
-            "boundary": "Bookings",
             "op": "add",
             "args": [
               {
