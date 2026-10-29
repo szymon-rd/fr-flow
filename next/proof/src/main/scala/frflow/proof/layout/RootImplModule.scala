@@ -2,7 +2,7 @@ package frflow.proof.layout
 
 import cats.data.NonEmptyList
 import frflow.core.analysis.{Callees, Resolved}
-import frflow.core.name.{NodeId, SymbolName}
+import frflow.core.name.{LeanNames, NodeId, SymbolName}
 import frflow.core.spec.Range
 import frflow.proof.lean.ast.*
 import frflow.proof.obligation.{Hyp, Prop, Substitute}
@@ -30,7 +30,7 @@ object RootImplModule:
     NonEmptyList.fromList(roots(l)).map { rs =>
       val statements = rs.map(n => n -> statement(l, c, σ, n))
       val proofs = statements.map((n, s) => Params.lambda(Params.of(l.props.statement(s),
-        c.trusted(n).map(x => s"h_${x.value}")), c.proven(n, σ)))
+        c.trusted(n).map(x => LeanNames.hypothesis(x))), c.proven(n, σ)))
       val stated = if rs.size == 1 then statements.head._2 else Prop.Both(statements.map(_._2))
       val proof = if rs.size == 1 then proofs.head else LExpr.Anonymous(proofs.toList)
       val name = Names.builtin("root_impl")
@@ -44,7 +44,7 @@ object RootImplModule:
   /** `∀ U, h_T₁ → … → root[σ]`: over every open term the composition names. */
   private def statement(l: Lowering, c: Composition, σ: Map[SymbolName, Substitute], n: NodeId): Prop =
     val extra = c.involved(n).flatMap(p => l.props.opens(p).symbols).distinct.filterNot(σ.contains)
-    val trusted = c.trusted(n).map(x => Hyp(s"h_${x.value}", Prop.ClaimOf(x, σ)))
+    val trusted = c.trusted(n).map(x => Hyp(LeanNames.hypothesis(x), Prop.ClaimOf(x, σ)))
     Prop.Forall(Nil, Prop.ForEvery(extra, Prop.Implies(trusted, Prop.ClaimOf(n, σ))))
 
   /** Each Definition with proven code, standing as that code. */

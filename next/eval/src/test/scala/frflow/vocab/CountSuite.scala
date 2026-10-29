@@ -3,7 +3,8 @@ package frflow.vocab
 import frflow.*
 import frflow.core.code.Values
 import frflow.core.expr.{Expr, Iteration, PrimOp}
-import frflow.core.term.interpret.PartialEval
+import frflow.core.name.SymbolName
+import frflow.core.expr.Renamed
 import frflow.dsl.term.Lift
 import frflow.eval.Env
 import frflow.eval.term.Evaluate
@@ -23,7 +24,7 @@ class CountSuite extends munit.FunSuite:
 
   test("a transformer over an interpreter that knows `count` runs its meaning: the same value, not its own") {
     val counting = Counting()
-    assertEquals(PartialEval.of(big.run, counting)(env), Right(BigInt(2)))
+    assertEquals(big.run(Renamed(counting, identity, (s: SymbolName) => s))(env), Right(BigInt(2)))
     assertEquals(counting.calls.get, 0)
   }
 

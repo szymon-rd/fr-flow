@@ -1,6 +1,6 @@
 package frflow.wire.check
 
-import frflow.core.name.NodeId
+import frflow.core.name.{LeanNames, NodeId}
 import frflow.proof.lean.lower.LowerObligation
 import frflow.proof.obligation.{ObligationName, TryKind}
 import io.circe.{Codec, Decoder, Encoder}
@@ -22,11 +22,11 @@ object ObligationNames:
     .orElse(after("restates_", s).flatMap(numbered).map((i, p) => TryKind.RestatesConjunct(NodeId(p), i)))
 
   def obligation(s: String): Option[ObligationName] = fixed.get(s).orElse(tryKind(s).map(ObligationName.Tried(_)))
-    .orElse(after("cover_", s).map(ObligationName.Cover(_)))
-    .orElse(after("made_", s).map(ObligationName.Made(_)))
+    .orElse(after(LeanNames.Cover, s).map(ObligationName.Cover(_)))
+    .orElse(after(LeanNames.Made, s).map(ObligationName.Made(_)))
     .orElse(after("commute_", s).flatMap(_.toIntOption).map(ObligationName.Commute(_)))
     .orElse(after("consistent_", s).flatMap(_.toIntOption).map(ObligationName.Consistent(_)))
-    .orElse(after("start_", s).map(n => ObligationName.Start(NodeId(n))))
+    .orElse(after(LeanNames.Start, s).map(n => ObligationName.Start(NodeId(n))))
     .orElse(after("inhabited_", s).map(n => ObligationName.Inhabited(NodeId(n))))
     .orElse(after("satisfiable_", s).flatMap(numbered).map((i, n) => ObligationName.Satisfiable(NodeId(n), i - 1)))
     .orElse(after("example_", s).flatMap(_.toIntOption).map(ObligationName.Example(_)))

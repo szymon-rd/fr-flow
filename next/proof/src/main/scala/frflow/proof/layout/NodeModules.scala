@@ -1,7 +1,7 @@
 package frflow.proof.layout
 
 import frflow.core.analysis.Resolved
-import frflow.core.name.NodeId
+import frflow.core.name.{LeanNames, NodeId}
 import frflow.proof.lean.ast.*
 import frflow.proof.lean.lower.{Atoms, LowerKeeps, LowerObligation, LowerType}
 import frflow.proof.lean.term.{LeanTerm, Printed, Scope}
@@ -40,7 +40,7 @@ object NodeModules:
     val indices = o.tried.map(_.name).collect { case ObligationName.Tried(TryKind.RestatesConjunct(_, i)) => i }
     val conjuncts = said.toList.flatMap(f => Conjoined.of(f.term, LeanTerm(l.env)).zipWithIndex.collect {
       case (c, i) if indices.contains(i + 1) =>
-        Decl.Def(defs, Names.builtin(s"conjunct_${i + 1}"), params, Atoms.name("Prop"), c(Scope(0, l.naming)))
+        Decl.Def(defs, Names.builtin(LeanNames.conjunct(i + 1)), params, Atoms.name("Prop"), c(Scope(0, l.naming)))
     })
     val declared = o.required.flatMap(x => kept(x.goal)).flatMap(lowered(l, _))
     val obligations = (o.required ++ o.tried).map(LowerObligation(l.props)(_))

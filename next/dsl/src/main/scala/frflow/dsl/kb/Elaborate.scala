@@ -5,7 +5,7 @@ import cats.syntax.all.*
 import frflow.core.{Elaborated, Sited, Theory}
 import frflow.core.expr.Lambda
 import frflow.core.graph.Edge
-import frflow.core.name.{DefName, ModelName}
+import frflow.core.name.{DefName, LeanNames, ModelName}
 import frflow.core.spec.{Form, Node as Spec, Written}
 import frflow.core.typing.IrCheck
 import frflow.core.vocab.{Define, DefineForm, StateModel, Vocabulary}
@@ -59,4 +59,4 @@ object Elaborate:
   private def define(n: DefName, w: Written[Lambda]): List[Define] = w.form match
     case Form.Term(_)  => List(Define(n, w, DefineForm.Function))
     case Form.Steps(_) =>
-      List(Define(n, w, DefineForm.Flow), Define(DefName(s"${n.value}_run"), w, DefineForm.RunOf(n)))
+      List(Define(n, w, DefineForm.Flow), Define(LeanNames.run(n), w, DefineForm.RunOf(n)))

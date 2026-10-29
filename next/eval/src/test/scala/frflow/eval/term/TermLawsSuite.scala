@@ -6,7 +6,6 @@ import frflow.core.{Elaborated, Theory}
 import frflow.core.expr.{Binder, Exprs}
 import frflow.core.name.{KbName, SourceText, VarId}
 import frflow.core.spec.Written
-import frflow.core.term.interpret.{Hypotheses, PartialEval, ToExpr}
 import frflow.core.ty.Ty
 import frflow.core.vocab.Vocabulary
 import frflow.dsl.term.Lift
@@ -14,8 +13,8 @@ import frflow.eval.{Env, ScalaValue, Semantics}
 import scala.util.Random
 
 /** The laws of the term interpreters, on generated terms that use every algebra: the examples' path (a written lambda,
-  * its inputs bound at their levels) means what the evaluator gives the same term over constants; constant folding
-  * keeps every value; the IR the analyses read is typed as the term is.
+  * its inputs bound at their levels) means what the evaluator gives the same term over constants; the IR the analyses
+  * read is typed as the term is.
   */
 class TermLawsSuite extends munit.FunSuite:
   private val env = Env.of(Values.none)
@@ -44,18 +43,6 @@ class TermLawsSuite extends munit.FunSuite:
     assertEquals(Evaluate.get(m, Run.pure(BigInt(1)))(env), Right(Some(BigInt(4))))
   }
 
-  test("constant folding keeps every term's value") {
-    terms.foreach(t => assertEquals(PartialEval.of(t.run, Evaluate)(env), Evaluate.of(t.run)(env), t.expr))
-  }
-
-  test("on the printer's laws' terms too (maps, sets, options, eithers, sums, runs), closed: folding keeps values") {
-    val programs = Env.of(Values(Closed.programs.map((p, f) => frflow.core.name.SymbolName(p) -> (() => f))))
-    val more = (1L to 300L).toList.flatMap(seed => List(frflow.core.expr.Tm.closed(frflow.core.expr.Terms(seed)
-      .bool(3, 0)), frflow.proof.lean.laws.MoreTerms(seed).formula)).map(Closed.of)
-    more.foreach(t => assertEquals(PartialEval.of(t, Evaluate)(programs), Evaluate.of(t)(programs), ToExpr.of(t)))
-    assert(more.count(t => Evaluate.of(t)(programs).isRight) > 250)
-  }
-
   test("the IR of every term is typed as the term: a formula's is Bool") {
     terms.foreach(t => assertEquals(Exprs.typeOf(t.expr), Ty.Bool, t.expr))
   }
@@ -65,18 +52,6 @@ class TermLawsSuite extends munit.FunSuite:
     List("Match(", "Fold(", "Let(", "Make(", "Copy(", "Call(", "Iterate(", "NoneP", "Outcome(", "Pairwise(", "Nodup")
       .foreach(c =>
       assert(printed.contains(c), c))
-  }
-
-  test("constant folding removes what is known: `1 < 2 && p` is `p`, `1 = 1 || p` is true") {
-    val p = Slots.sound(Lift.constant(Slot("Oak", 1, 2)))
-    assertEquals(PartialEval.of(((1: Term[BigInt]) < 2 && p).run, ToExpr)(0), p.expr)
-    assertEquals(PartialEval.of(((1: Term[BigInt]) === 1 || p).run, ToExpr)(0), Lift.constant(true).expr)
-  }
-
-  test("`h1 implies (h2 implies c)` is split into its two hypotheses and its conclusion") {
-    val (h1, h2, c) = (Generated.formula(1, 1), Generated.formula(2, 1), Generated.formula(3, 1))
-    val (hs, conclusion) = Hypotheses.of((h1 implies (h2 implies c)).run, ToExpr)
-    assertEquals((hs.map(_(0)), conclusion(0)), (List(h1.expr, h2.expr), c.expr))
   }
 
   test("`implies` binds last: `a && b implies c` is `(a && b) implies c`") {

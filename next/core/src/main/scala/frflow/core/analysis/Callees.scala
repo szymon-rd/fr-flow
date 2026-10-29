@@ -4,7 +4,7 @@ import cats.syntax.all.*
 import frflow.core.code.Code
 import frflow.core.expr.{Exprs, Mentions}
 import frflow.core.graph.Walk
-import frflow.core.name.{DefName, NodeId, SymbolName}
+import frflow.core.name.{DefName, LeanNames, NodeId, SymbolName}
 import frflow.core.Theory
 
 /** The proven code of the Definitions a statement mentions: what stands for each when the statement is asked of the
@@ -21,7 +21,7 @@ object Callees:
   /** One Definition's proven code. */
   def ofDefinition(t: Theory, op: SymbolName): Option[Callees] =
     t.code.attached.get(op).map(_.code).flatMap {
-      case Code.ProvenFlow(f) => Some(Callees(Map(op -> DefName(s"${f.value}_run")), calls(t, f)))
+      case Code.ProvenFlow(f) => Some(Callees(Map(op -> LeanNames.run(f)), calls(t, f)))
       case c                  => c.proven.map(d => Callees(Map(op -> d), calls(t, d)))
     }
 

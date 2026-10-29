@@ -1,7 +1,7 @@
 package frflow.proof.lean.lower
 
 import cats.syntax.all.*
-import frflow.core.name.{DefName, SymbolName}
+import frflow.core.name.{DefName, LeanNames, SymbolName}
 import frflow.core.ty.Ty
 import frflow.core.vocab.{Define, OpSig, StateModel}
 import frflow.proof.lean.ast.*
@@ -46,7 +46,7 @@ final class LowerModels(env: LowerEnv, naming: Naming):
       LowerModels.params(o).map(LExpr.Name(_)))
     val ran = LExpr.App(LExpr.Dot(LExpr.Paren(op), "run'"), List(LExpr.Name(s)))
     Decl.Namespace(List(LowerModels.space(m)), List(Decl.Def(List(Attr.FrflowDefs),
-      Names.ident(s"${o.name.value}_of"), o.params.map((p, t) => typed(Names.ident(p), t)) :+ typed(s, m.state),
+      Names.ident(LeanNames.ofOp(o.name.value)), o.params.map((p, t) => typed(Names.ident(p), t)) :+ typed(s, m.state),
       LowerType(o.result), LExpr.App(const("Id.run"), List(LExpr.Paren(ran))))))
 
   private def classOf(m: StateModel): Decl =

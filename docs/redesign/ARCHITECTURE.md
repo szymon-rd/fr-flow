@@ -923,12 +923,12 @@ operation computes only what it reads, each stage once.
 ### 4.2 Terms in tagless-final style
 
 Terms follow Kiselyov's course (owner §5; "Typed Tagless Final Interpreters", LNCS 7470, cited as §n; Carette,
-Kiselyov, Shan, JFP 2009, CKS). **The language is its algebras** (§2.1, §3.2): fifteen over a representation `T[_]`,
-bundled by `Sym`; a term is a polymorphic function, the same value for every interpreter:
+Kiselyov, Shan, JFP 2009, CKS). **The language is its algebras** (§2.1, §3.2): seventeen over a representation
+`T[_]`, bundled by `Sym`; a term is a polymorphic function, the same value for every interpreter:
 
 ```scala
-trait Sym[T[_]] extends Logic[T], Equality[T], Arith[T], Constants[T], Lists[T], Options[T], Eithers[T],
-    Quantifiers[T], Records[T], Sums[T], Functions[T], Named[T], Variables[T], Worlds[T], Annotations[T]:
+trait Sym[T[_]] extends Logic[T], Equality[T], Arith[T], Constants[T], Lists[T], Options[T], Maps[T], Sets[T],
+    Eithers[T], Quantifiers[T], Records[T], Sums[T], Functions[T], Named[T], Variables[T], Worlds[T], Annotations[T]:
   def extension[E[_[_]]](key: Ext[E]): Option[E[T]] = None
 ```
 
@@ -937,7 +937,7 @@ type Final[A] = [T[_]] => Sym[T] => T[A]
 ```
 
 The algebras: `Logic`, `Equality`, `Arith`, `Constants`, `Lists` (with `foldLeft`, `pairwise`, `nodup`), `Options`,
-`Eithers`, `Quantifiers` (`forall`, `exists`, `always`), `Records`, `Sums` (an eliminator, one `When` per case),
+`Maps`, `Sets`, `Eithers`, `Quantifiers` (`forall`, `exists`, `always`), `Records`, `Sums` (an eliminator, one `When` per case),
 `Functions` (`lam`, `app`, `let`), `Named` (`param`, `define`), `Variables`, `Annotations` (`noted`) and `Worlds` (a
 model's state, a program's `runs` and `fails`, `outside`). Object types are host types (`T[Boolean]`,
 `T[List[Booking]]`), so no interpreter tags a value. **Interpreters** (§3.2), one printer and one evaluator:
@@ -948,18 +948,25 @@ model's state, a program's `runs` and `fails`, `outside`). Object types are host
 | `eval.term.Evaluate` | `Env => Either[EvalError, A]` | every term's Scala value, the only evaluator |
 | `core.term.interpret.ToExpr` | `Int => Expr` | the IR, for the analyses only |
 | `Collect` | `List[Annotation]` | what a term declares, and faults |
-| `Hypotheses[T]` | `Split[T, A]` | `h1 implies (h2 implies c)` as Lean's `intro` |
-| `PartialEval[T]` | `Known[T, A]` | simplification before printing (CKS §4) |
 | `Opened[T]` | `Opening => T[A]` | a claim read as a call, as its post |
 | `Guarded[T]` | a transformer of `forall`, `exists` | each `always[T]` as a hypothesis |
+| `Retyped[T]` | a transformer of `param` | each symbol at its resolved type (a program's error) |
+| `AtValue[T]` | `Option[T[Any]] => T[A]` | a rule read at one value (a guard, the world a run ends in) |
+| `proof.terms.Calls[T]` | the calls a term makes, in order | each call of plain Scala on its path (`made_<code>_call_<i>`) |
 | `Forward[T, U]` | a transformer's base | forwarding what a transformer leaves alone |
 
-`Defining` and `Conditions` (in `core.consistency`) are transformers too. There is no duplicating interpreter and no
-typechecker: both exist for terms read from text (§2.3), and FrFlow's never are.
+`Defining` and `Conditions` (in `core.consistency`), `Conjoined` and `CallSites` (in `proof.terms`) and the tests'
+`Watching` are transformers too. There is no duplicating interpreter. The IR has a checker, `core.typing.IrCheck`
+(every variable bound around it at its binder's type, no level bound twice on a path, every node typed as its parts
+are), run on every formula and define after elaboration and after `Resolve` types the programs' errors, and in the
+laws: an ill-formed IR is a FrFlow bug where it is made, not in Lean.
 
 **Binders are host functions** (HOAS, §3.2). The evaluator applies one to the value, `ToExpr` to the variable at its
 depth (`VarId.level`), and `LeanTerm` names it by the developer's name, or with the first free number when that is
-taken (`x_1`). Nothing is numbered before an interpreter binds it.
+taken (`x_1`), never a name a symbol, the FrModel's or a model's namespace, or a name generated Lean writes itself is
+spelled as (`Naming` reserves them as Lean spells them). `core.name.LeanNames` holds every name convention generated
+Lean uses, and spells a model's names injectively (`some` is `some_`, `some_` is `some__`, `a$b` is `«a$b»`), so two
+names never meet in Lean. Nothing is numbered before an interpreter binds it.
 
 **The user's `Term[A]` is closed and concrete**: it holds `run: Final[A]` and nothing else; `b.start` is `Selectable`
 over derived selectors; `==` on terms does not compile, saying to write `===`; `T[_]` appears neither in user code nor
@@ -988,27 +995,31 @@ outside the core found by a typed key (`Count` in the tests, via `Sym.extension`
 core).
 
 **What is not compositional** (§2.4, §3.3) reads the initial form (the "what changed" view, the refutation's hint,
-the layout, `CallForms`, where a witness sits) or passes context (`LeanTerm`'s scope, `Opened`, `Guarded`,
-`Hypotheses`, `PartialEval`, which folds what is known: `1 < 2 && p` is `p`). The code fingerprint hashes source, not
-terms.
+the layout, `CallForms`, where a witness sits) or passes context (`LeanTerm`'s scope, `Opened`, `Guarded`, `Calls`).
+A field of a record made on the spot prints as its argument, read off the constructor (`LExpr.Ctor`), never off the
+spelling of a call. The code fingerprint hashes source, not terms.
 
 **Syntax and laws.** `implies` is alphanumeric, so it binds last; a macro refuses `a implies b implies c` without
-parentheses. On 300 generated terms (`TermLawsSuite`): a written lambda gives the evaluator's value, folding keeps
-values, the IR is typed as the term; the printer's text reads back and prints the same (`PrinterLawsSuite`). Step 3
-shows that each generated term elaborates in Lean; step 4, with the evaluator, adds the law that Lean decides each
-generated term as the evaluator does.
+parentheses. On 300 generated terms (`TermLawsSuite`, `TypeOfSuite`): a written lambda gives the evaluator's value,
+the IR is typed as the term and well formed (`IrCheck`); the printer's text reads back and prints the same
+(`PrinterLawsSuite`), and, every binder and symbol named adversarially (Lean's keywords and prelude names, their
+mangled forms, the FrModel's and the types' names, the symbols' own: `Renamed`), reads as it does with its variables
+named afresh, up to de Bruijn indices, every symbol its IR mentions free as often (`CaptureLawsSuite`). Step 3 shows
+that each generated term elaborates in Lean; step 4, with the evaluator, adds the law that Lean decides each generated
+term as the evaluator does. `FRFLOW_LAW_SEEDS` (`from:count`) draws the laws' terms from other seeds (CI's nightly).
 
 ### 4.3 The IR
 
 `core.expr.Expr`, made only by `ToExpr`, is a simply typed lambda calculus with data, containers and quantifiers; every
-node carries what its type needs (`Exprs.typeOf` is total). A binder's id is its level; a recorded step is numbered
+node carries what its type needs (`Exprs.typeOf` is total, and `typing.IrCheck` checks each node against its parts). A binder's id is its level; a recorded step is numbered
 negative, apart from every level (`VarId`). One operator per meaning (`Contains` of a list, option or set is one
 `PrimOp`); every operation with a body is `Expr.Iterate`. `Mentions`, a monoid, says what an expression mentions.
 `Prog[E]` is a program's steps, first order, generic in what a step holds (`Prog[Stated[?]]` for back ends, `Prog[Expr]`
 for analyses): a free monad over the operations on a state and the models' state, with errors, loops and concurrent
 steps (`Par`, `ParEach`, `Race`, `Guard`, `Atomic`). `Written(value, source, form)` keeps the term or steps (what back
 ends read), their IR (what analyses read) and the Scala as written (what the developer decides); only its three makers
-build it, so `value` is always `form`'s IR. The IR is never printed or run.
+build it, so `value` is always `form`'s IR (`failing` only refines a program's IR's type by the error it may fail
+with, the steps unchanged). The IR is never printed or run.
 
 ### 4.4 Programs over Definitions
 
@@ -1414,10 +1425,13 @@ Concrete `IO` appears only in the web server, the CLI's `main` and the terminal;
 
 State, each piece named: `FrModel.elaborated` (a `lazy val`), `Running`'s lock, and a recording's reading's
 `State`. Atomics and locks are allowed only in `eval.Running` and `FlowInterpreter.concurrent`, `ThreadLocal` nowhere.
-Casts are in fourteen named places (`Guards`, `Keeping`, `Making`, `Definition.called`, `Term.bound`, `eval.Fn`,
-`ReadRecording`, `Running.handle`, `ValuesSyntax.apply`, `Defining`, `Conditions`, `AtValue`, `Written.term`, and the
-`call` an operation's Scala is reached by), each typed by what was read before it. No interpreter of terms casts but
-`Evaluate`, through `Fn.as`, where it reads untyped given values; no unchecked type test is left outside `Fn`.
+Casts are in twenty files, fifty in all (step 12b's count): in `core`, `Guards`, `AtValue`, `Defining`, `Conditions`
+and `Written` (`term`, `retyped`); in `dsl`, `Term.bound`, `Definition.called`, `ValuesSyntax.apply`, `ReadRecording`,
+`kb.Calls` and `kb.Tested` (the `call` an operation's Scala is reached by); in `proof`, `Calls`, `CallSites`, `Making`
+and `Keeping`; in `eval`, `Fn`, `Evaluate`, `Running.handle` and `flow.Bound`; in `testing`, `ModelTests`. Each is
+typed by what was read before it: the transformers that build terms from a type known only at run time (a guard, a
+call site, a witness) work at `T[Any]` and cast to the term's type. Neither the printer (`LeanTerm`) nor `ToExpr`
+casts; `Evaluate` casts where it reads untyped given values (`Fn.as`); no unchecked type test is left outside `Fn`.
 
 ## 8. What is removed from today's library, and why
 

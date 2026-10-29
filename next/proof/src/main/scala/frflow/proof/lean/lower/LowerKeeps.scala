@@ -1,7 +1,7 @@
 package frflow.proof.lean.lower
 
 import frflow.core.expr.{Expr, Exprs}
-import frflow.core.name.{NodeId, SymbolName}
+import frflow.core.name.{LeanNames, NodeId, SymbolName}
 import frflow.core.spec.{Form, Written}
 import frflow.core.ty.Ty
 import frflow.proof.lean.ast.*
@@ -15,8 +15,8 @@ import frflow.proof.terms.TermTable
   * code is asked it (`cover_<op>`, `Prop.Keeps`; `made_<maker>`, `Prop.Makes`).
   */
 final class LowerKeeps(env: LowerEnv, table: TermTable, naming: Naming):
-  def apply(k: Prop.Keeps): Decl = declared(k.always, s"keeps_${k.op.value}", k.formula)
-  def makes(m: Prop.Makes): Decl = declared(m.always, s"makes_${m.maker.value}", m.formula)
+  def apply(k: Prop.Keeps): Decl = declared(k.always, LeanNames.keeps(k.op.value), k.formula)
+  def makes(m: Prop.Makes): Decl = declared(m.always, LeanNames.makes(m.maker.value), m.formula)
 
   private def declared(always: NodeId, name: String, formula: Written[Expr]): Decl =
     val params = LowerProp.opens(formula).symbols.map(s =>

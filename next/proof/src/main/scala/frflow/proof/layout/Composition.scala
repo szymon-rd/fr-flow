@@ -1,7 +1,7 @@
 package frflow.proof.layout
 
 import frflow.core.analysis.SaysWhat
-import frflow.core.name.{NodeId, SymbolName}
+import frflow.core.name.{LeanNames, NodeId, SymbolName}
 import frflow.proof.lean.ast.*
 import frflow.proof.obligation.{Hyp, Made, ObligationName, Prop, Required, Substitute}
 
@@ -41,13 +41,13 @@ final class Composition(l: Lowering):
   def holdsProof(n: NodeId, complete: LExpr, statement: Prop): LExpr =
     val names = Params.of(l.props.statement(holds(n)), Nil)
     Params.lambda(names, applied(complete, statement, Map.empty,
-      parts(n).map(p => s"h_${p.value}" -> below(p)) ++ Made.taken(l.resolved, n).map(m => m._3.name -> name(m._3))))
+      parts(n).map(p => LeanNames.hypothesis(p) -> below(p)) ++ Made.taken(l.resolved, n).map(m => m._3.name -> name(m._3))))
 
   /** A part's proof inside `holds`: its hypothesis, or its own `holds` applied to its leaves'. */
   private def below(p: NodeId): LExpr =
-    if !composed(p) then LExpr.Name(Names.builtin(s"h_${p.value}"))
+    if !composed(p) then LExpr.Name(Names.builtin(LeanNames.hypothesis(p)))
     else applied(theorem(p, "Theorems", "holds"), holds(p), Map.empty,
-      leaves(p).map(x => s"h_${x.value}" -> LExpr.Name(Names.builtin(s"h_${x.value}"))) ++
+      leaves(p).map(x => LeanNames.hypothesis(x) -> LExpr.Name(Names.builtin(LeanNames.hypothesis(x)))) ++
         made(p).map(m => m._3.name -> name(m._3)))
 
   private def name(h: Hyp): LExpr = LExpr.Name(Names.builtin(h.name))
@@ -78,21 +78,21 @@ final class Composition(l: Lowering):
     * and to what its callees make.
     */
   private def madeProof(rule: NodeId, op: SymbolName, σ: Subst): LExpr =
-    madeGoal(rule, op).fold(LExpr.Name(Names.builtin(s"m_${rule.value}_${op.value}")))(goal =>
-      applied(theorem(rule, "Checks", s"made_${op.value}"), goal, σ,
-        l.resolved.reliedOnBy(op).map(h => s"h_${h.value}" -> proven(h, σ)) ++
-          Made.callees(l.resolved, rule, op).map(c => s"m_${c.value}" -> madeProof(rule, c, σ))))
+    madeGoal(rule, op).fold(LExpr.Name(Names.builtin(LeanNames.madeTaken(rule, op))))(goal =>
+      applied(theorem(rule, "Checks", LeanNames.Made + op.value), goal, σ,
+        l.resolved.reliedOnBy(op).map(h => LeanNames.hypothesis(h) -> proven(h, σ)) ++
+          Made.callees(l.resolved, rule, op).map(c => LeanNames.madeByCallee(c) -> madeProof(rule, c, σ))))
 
   /** A proof of `n`'s claim under `σ`, from the hypotheses `h_<T>` of what it trusts. */
   def proven(n: NodeId, σ: Subst): LExpr =
     if coded(n) then implGoal(n).fold(hypothesis(n))(goal => applied(theorem(n, "Impl", "impl"), goal, σ,
-      Required.hypotheses(l.resolved, n).map(h => s"h_${h.value}" -> proven(h, σ))))
+      Required.hypotheses(l.resolved, n).map(h => LeanNames.hypothesis(h) -> proven(h, σ))))
     else if composed(n) then applied(theorem(n, "Theorems", "holds"), holds(n), σ,
-      leaves(n).map(x => s"h_${x.value}" -> proven(x, σ)) ++ made(n).map(m => m._3.name -> madeProof(m._1, m._2, σ)))
+      leaves(n).map(x => LeanNames.hypothesis(x) -> proven(x, σ)) ++ made(n).map(m => m._3.name -> madeProof(m._1, m._2, σ)))
     else hypothesis(n)
 
   private def implGoal(n: NodeId): Option[Prop] = Required.impl(l.resolved, n).headOption.map(_.goal)
-  private def hypothesis(n: NodeId): LExpr = LExpr.Name(Names.builtin(s"h_${n.value}"))
+  private def hypothesis(n: NodeId): LExpr = LExpr.Name(Names.builtin(LeanNames.hypothesis(n)))
   private def theorem(n: NodeId, module: String, name: String): LExpr =
     LExpr.Const(Names.path(l.kb.value, n.value, module, name))
 

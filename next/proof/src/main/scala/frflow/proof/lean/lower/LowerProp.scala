@@ -3,7 +3,7 @@ package frflow.proof.lean.lower
 import cats.data.Writer
 import cats.syntax.all.*
 import frflow.core.expr.{Binder, Expr, Exprs}
-import frflow.core.name.{DefName, NodeId, SymbolName, TypeName, VarId}
+import frflow.core.name.{DefName, LeanNames, NodeId, SymbolName, TypeName, VarId}
 import frflow.core.spec.{Form, Written}
 import frflow.core.term.Final
 import frflow.core.ty.Ty
@@ -72,7 +72,7 @@ final class LowerProp(table: TermTable, env: LowerEnv, naming: Naming, values: L
 
   /** The names of the hypotheses on a provided value, `o_<value>_<i>`, as every statement binding it names them. */
   def outsideNames(s: SymbolName): List[LeanName] =
-    fromOutside(s).indices.toList.map(i => Names.builtin(s"o_${s.value}_$i"))
+    fromOutside(s).indices.toList.map(i => Names.builtin(LeanNames.outside(s, i)))
 
   /** The open terms a statement binds, in order: what `statement` quantifies over. */
   def opens(p: Prop): OpenTerms = p match
@@ -90,9 +90,9 @@ final class LowerProp(table: TermTable, env: LowerEnv, naming: Naming, values: L
 
   def prop(p: Prop, σ: Subst): W[LExpr] = p match
     case Prop.ClaimOf(n, more)   => applied(decl(n, "claim"), table.claims.getOrElse(n, OpenTerms.empty), σ ++ more)
-    case Prop.Keeps(i, op, f, m) => applied(decl(i, s"keeps_${op.value}"), LowerProp.opens(f), σ ++ m)
-    case Prop.Makes(i, op, f, m) => applied(decl(i, s"makes_${op.value}"), LowerProp.opens(f), σ ++ m)
-    case Prop.ConjunctOf(n, i)   => applied(decl(n, s"conjunct_$i"), table.claims.getOrElse(n, OpenTerms.empty), σ)
+    case Prop.Keeps(i, op, f, m) => applied(decl(i, LeanNames.keeps(op.value)), LowerProp.opens(f), σ ++ m)
+    case Prop.Makes(i, op, f, m) => applied(decl(i, LeanNames.makes(op.value)), LowerProp.opens(f), σ ++ m)
+    case Prop.ConjunctOf(n, i)   => applied(decl(n, LeanNames.conjunct(i)), table.claims.getOrElse(n, OpenTerms.empty), σ)
     case Prop.Starts(d, i, ty, w) => Writer.value(starts(d, i, ty, w))
     case Prop.Inhabited(d, ty)   => Writer.value(inhabited(d, ty))
     case Prop.Iff(a, b)          => (prop(a, σ), prop(b, σ)).mapN((x, y) => LExpr.Paren(LExpr.Infix(LOp.Iff, x, y)))

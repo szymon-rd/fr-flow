@@ -1,5 +1,6 @@
 package frflow.proof.lean.lower
 
+import frflow.core.name.LeanNames
 import frflow.proof.lean.ast.*
 import frflow.proof.lean.lower.Atoms
 import frflow.proof.obligation.{Obligation, ObligationName, TryKind}
@@ -18,11 +19,11 @@ object LowerObligation:
     case ObligationName.Feasible      => "feasible"
     case ObligationName.Impl          => "impl"
     case ObligationName.RootImpl      => "root_impl"
-    case ObligationName.Cover(op)     => s"cover_$op"
-    case ObligationName.Made(m)       => s"made_$m"
+    case ObligationName.Cover(op)     => LeanNames.Cover + op
+    case ObligationName.Made(m)       => LeanNames.Made + m
     case ObligationName.Commute(i)    => s"commute_$i"
     case ObligationName.Consistent(i) => s"consistent_$i"
-    case ObligationName.Start(n)      => s"start_${n.value}"
+    case ObligationName.Start(n)      => LeanNames.Start + n.value
     case ObligationName.Inhabited(n)  => s"inhabited_${n.value}"
     case ObligationName.Satisfiable(n, i) => s"satisfiable_${i + 1}_${n.value}"
     case ObligationName.Example(i)    => s"example_$i"
