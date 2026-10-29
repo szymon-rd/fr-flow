@@ -121,11 +121,12 @@ adds a use), measured with grep on 3aa8cd7 and checked on e0fa3d9. "Tests only" 
 3. `Node.claim(statement)(forall((a, b) => op(a, b) === …))`. The call reading (`CallForms`, its post by `Opened`)
    is derived, never a kind; a claim reading as no call is checked as a whole; another Definition on the same inputs
    is an ordinary mention (2.7; `FormsSuite`, `CrmClaimsSuite`).
-4. `forall((now, before) => runExpiry(now).from(before) { (result, after) => … })`, a model's state read as
-   `databaseModel.in(before)`. The post is over today's four inputs, so crm's Lean prints byte for byte (`ExpiryJob`).
+4. `forall(now => … databaseModel.in(runExpiry(now).after) … runExpiry(now).result …)`, a model's state read as
+   `databaseModel.current` in the world the statement holds in (owner §41). The post is over today's four inputs, the
+   world's binder named `world`, so crm's Lean prints as before but that name (`ExpiryJob`).
 5. `show` and review show the reason from the ledger (`Says.reason`); the texts go into each example's first
    decisions' reasons when the owner decides them (owner §2).
-6. There is no boundary (owner §36). Each operation on a state is a Definition of type `A => Program[R]` (rooms'
+6. There is no boundary (owner §36). Each operation on a state is a Definition of type `A => Flow[R]` (rooms'
    `inRoom`, `add`), and the model gives each its meaning over the state:
    `object storedBookings extends StateModel[List[Booking]](means)` with `inRoom.means(room => …)` and
    `add.means(booking => …)`. The model is not an assumption: the operations' plain Scala is tested against it (note
@@ -166,10 +167,9 @@ adds a use), measured with grep on 3aa8cd7 and checked on e0fa3d9. "Tests only" 
     `example("…"): (… implies …) is true`, checked against the claims in Lean (`example_<i>`).
 17. A cheaper check meant for run time (owner §2); its Lean obligation `check` (post implies check) goes with it (8).
 18. On a claim only; on an assumption it is `Fault.NotAClaim`.
-19. `.failsChangingNothing[E]` sits on the run in the formula (`Ran`). `.onFailure` becomes the failing side of the
-    claim's own run, one formula for both outcomes:
-    `handle(r).from(before) { (answer, after) => … }.failing { (error: Term[E], after) => … }`
-    (`SharingClaimsSuite`).
+19. A run read as failing gives both outcomes, one formula for them (owner §41): `handle(r).failing[E].result`, an
+    `Either[E, R]`, folded over the error and the answer, `handle(r).failing[E].after` the world either leaves, and
+    `handle(r).failing[E].changesNothing` today's `.failsChangingNothing` (`SharingClaimsSuite`).
 20. On the operations, in the FrModel: `implementTested(inRoom, add)(start = BookingsTable.holding,
     observe = _.bookings)(t => (t.inRoom, t.add))`, `start` making the Scala hold a state of the model, `observe`
     reading it back, the last giving each operation's Scala. Generated sequences of calls (`Runs`) are run on both,
@@ -219,8 +219,8 @@ adds a use), measured with grep on 3aa8cd7 and checked on e0fa3d9. "Tests only" 
 
 | Feature | In the rebuild | Use | Rebuild |
 |---|---|---|---|
-| `trait Database { def load: Flow[CrmStore] }`, `Boundary[T]` | one Definition per operation (`load: Program[CrmStore]`) | crm 1, sharing 1+2 | change, note 1 |
-| a program as a `Flow[A]` value | a class over `F[_]: Flow` | crm, sharing | change, note 2 |
+| `trait Database { def load: Flow[CrmStore] }`, `Boundary[T]` | one Definition per operation (`load: Flow[CrmStore]`) | crm 1, sharing 1+2 | change, note 1 |
+| a program as a `Flow[A]` value | a `Flow[R]`, a `for` comprehension (owner §42) | crm, sharing | keep, note 2 |
 | implementations returning `Flow.effect(x)(f)` | plain Scala over plain values, one function per operation | crm 9, sharing 5 | change, note 3 |
 | `StateModel[S]`, `state.get/set/update` | `StateModel[S]`, `op.means(…)` over `Model[F, S]` | crm 1, sharing 2 | keep, note 4 |
 | `for`, `flatMap`, `map`, `pure`, `*>`, `as`, `void`, `<*`, `flatTap`, `tupled`, `sequence` | cats syntax on any `F[_]: Flow` | crm, sharing | keep, note 5 |
@@ -238,11 +238,11 @@ adds a use), measured with grep on 3aa8cd7 and checked on e0fa3d9. "Tests only" 
 | `Flow.every(period)(job)` | a scheduler over a program | sharing 2 | keep |
 | `FaultPlan`, `World(…)`, `Failed(…)` in examples | values in an example's fact | crm 10, sharing 3+8 | change, note 13 |
 
-1. `val load = Definition[Program[CrmStore]](means)`, `storeAbout`, `logEvent` likewise: one Definition per operation,
+1. `val load = Definition[Flow[CrmStore]](means)`, `storeAbout`, `logEvent` likewise: one Definition per operation,
    given its meaning by `databaseModel` (owner §36). The examples' boundaries are rewritten so.
-2. `object ExpireOnce { def run[F[_]](now: Term[BigInt])(using f: Flow[F]) }`: its values are `Term`s and its effect is
-   abstract (owner §2, C); it calls `load`, `storeAbout(id, t)` as any Definition (`Flow.step`), and
-   `program { (now: Term[BigInt]) => ExpireOnce.run[Recorded](now) }` records it for Lean.
+2. `val expireOnce = program { (now: Term[BigInt]) => for s <- load … yield t }`: one `Flow` (owner §42), its values
+   `Term`s; it calls `load`, `storeAbout(id, t)` as any Definition (`Flow.step`); Lean reads its steps, production
+   folds them (`run(expireOnce)(now)`).
 3. Each operation's Scala is a plain function (`(BigInt, CrmStore) => IO[Unit]`), given by the FrModel's
    `implementTested(ops*)(start, observe)(calls)`; `Running` evaluates the arguments and calls it; `Flow.effect` goes.
 4. A model gives each operation its meaning over its state (`Model.recorded`), read into `vocab.StateModel`: the same
@@ -260,7 +260,7 @@ adds a use), measured with grep on 3aa8cd7 and checked on e0fa3d9. "Tests only" 
    13).
 10. Read as the scheduler's choice; kept by the owner, tested, used in sharing (step 13).
 11. A `Mutex` in production.
-12. FrFlow's own Definitions `now: Program[BigInt]` and `sleep: BigInt => Program[Unit]`, with their `StateModel`
+12. FrFlow's own Definitions `now: Flow[BigInt]` and `sleep: BigInt => Flow[Unit]`, with their `StateModel`
     (`clockModel`); `FakeClock` is Scala for tests, `SystemClock` for production (owner §36).
 13. Written in the example's fact (a world made, a run's outcome stated); `RunExample` and `RunEnd` go.
 

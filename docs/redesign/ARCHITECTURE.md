@@ -41,7 +41,7 @@ Appendix B lists the seventeen measured problems and where each is addressed.
    phase pure.
 3. **Tagless-final terms**: one printer (Lean) and one evaluator (Scala); the IR read only by analyses; the user
    writes a closed `Term[A]`.
-4. **Tagless programs over Definitions**: what FrFlow cannot see is a Definition given plain Scala, a stateful one given
+4. **Programs over Definitions**: what FrFlow cannot see is a Definition given plain Scala, a stateful one given
    its meaning in Lean by a state model (owner §36); programs are recorded for Lean and run in `IO` in production.
 5. **No run-time checking**: Lean and property-based tests, before production only.
 6. **No ambient state**: plain code is given its values; a variable is named by the interpreter that binds it.
@@ -149,8 +149,25 @@ The message a Declaration in code gets (`dsl/frflow/dsl/vocab/Stating.scala`):
 ```scala
 @implicitNotFound("FrFlow: a Declaration is used only in statements (Node.claim, Node.assumption, an example); " +
   "code, defines and programs use Definitions")
-sealed trait Stating
+final class Stating private (val varies: Set[SymbolName], val closing: Boolean)
 ```
+
+**What changes with the World** (owner §41, §43). A statement holds in every reachable world, and what changes with the
+world is read in the current one without being passed it: a model's state (`storedBookings.current`), a program's run
+(`book(request).result`, the world it leaves `book(request).after`, read with `storedBookings.in(…)`), a Declaration, a
+define reading state. There is no marker. Every Declaration may change with the World; `kb.Varying` reads off the
+statements which ones Lean must take as functions of the world: those a statement reads beside something that changes
+(state, a run, a define reading state, or another such Declaration), until no statement adds one. Each of those takes
+the world as its last input (`booked : World → List Booking`, `accepted : Booking → World → Prop`); a Declaration no
+statement reads so is the same in every world whatever it is, so Lean is given it as a value (auth's `access`, crm's
+`finds`), which is the same meaning with nothing to tell the worlds apart. A define changes with the World exactly when
+its body reads state (`shape.Worldly`, read off the body): it takes the world last, and each call is read in its
+caller's world; an `always` rule, an `initially`, a program's step and an operation's meaning read state through their
+own values and operations, so a world read there is refused (`Fault.WorldRead`). `d.isConstant` says a Declaration is
+the same in every world: of one that changes, `∀ w1 w2, d … w1 = d … w2`; of one that does not, `d = d`. It is written
+as an assumption (`Node.assumption("The opening hour never changes.")(openingHour.isConstant)`) and may be claimed.
+`Stating` carries the Declarations that change, so each is applied to the current world where it is written; the
+statements are read once open (`Stating.probing`) to find them, then elaborated and closed (4.5).
 
 A **Definition** is a value code and programs use, of any type (a function, a program, an operation on a state, a plain
 value). It is a `Term` and gets its meaning exactly once, in the FrModel or where it is written:
@@ -185,7 +202,7 @@ boundary: everything FrFlow cannot see inside is a Definition given plain Scala,
 or calls an outside system. Three shapes:
 
 - **A function**, `granted` (`(RoomBookings, Booking) => Boolean`): tested against every claim mentioning it.
-- **An operation on a state**, of type `A => Program[R]` (rooms' `inRoom` and `add`): its meaning in Lean is given by
+- **An operation on a state**, of type `A => Flow[R]` (rooms' `inRoom` and `add`): its meaning in Lean is given by
   a `StateModel[S]`, `object storedBookings extends StateModel[List[Booking]](…)` with `inRoom.means(room => …)` and
   `add.means(booking => …)`, each over the model's state, a field of the World; programs call it as any Definition,
   `inRoom(request.room)`; its plain Scala is tested against the model on generated sequences of calls (3.8). The
@@ -194,7 +211,7 @@ or calls an outside system. Three shapes:
   `lookup` with `sessionLookup`, crm's `fetch` with `recordsByQuery`). Lean takes it as unknown with the assumptions as
   hypotheses; its Scala is tested against them where a case can be evaluated, trusted otherwise (`show` says which).
   An operation on a state with no `StateModel` is the same case: its assumptions are written as runs
-  (`op(x).from(now) { (r, after) => … }`), and Lean takes it as an unknown run that leaves each model's field as it was.
+  (`op(x).result`, `op(x).after`), and Lean takes it as an unknown run that leaves each model's field as it was.
 
 Every Definition must have a meaning (`Problem.Undefined`), so nothing FrFlow cannot see goes unchecked; this replaces
 owner §30's "a boundary must have a model or an assumption".
@@ -243,7 +260,8 @@ Checked before production only:
   (`cover_<op>`) from every start (`start_<node>`); that this covers every reached state rests on three store facts
   (2.6): nothing outside the code changes it, it starts as `initially` says, and runs on it are atomic; that its plain
   Scala does what the model does is tested (3.8). A world is one a run starts from or one the statement quantifies over
-  (`forall((now: Term[World]) => …)`, as rooms' roots do): each comes with what always holds of the stores' states in it.
+  (every statement reading the world quantifies over the world it holds in, 2.2, as rooms' roots do): each comes with
+  what always holds of the stores' states in it.
 - **An assumption of `always`** is a rule as a claim of `always` is (2.4, 2.6): the same hypothesis, the same `cover_`,
   `made_` and `start_` asked of the code and the start, and `inhabited_`; only its own truth for values from outside is
   trusted, not proven.
@@ -457,10 +475,13 @@ code. Nothing is proven of the code from it, and it lists no premise (2.6). It i
 
 **A claim read as a call.** Where a claim applies one Definition to exactly its leading `forall` variables (alone, or
 one side of its equation) and mentions it nowhere else, `CallForms` reads it as a call; a program's claim
-`forall((request, before) => book(request).from(before) { (booked, after) => … })` reads as a run, with a failure
-clause where it states one (`.failing { (error, after) => … }`, `.failsChangingNothing[E]`). Another Definition on the
-same variables is an ordinary mention. A program's error is part of its type from step 3b (`Ty.FlowOf(result, error)`,
-4.4): a run's post is asked of its `Except.ok` results, its failure clause of the others.
+`forall(request => storedBookings.in(book(request).after) === …)` reads as a run (closed, 4.5, as `∀ request world,
+match book request world with | (result, after) => …`), with a failure clause where it reads the run as failing
+(`p.failing[E].result`, an `Either[E, R]`: closed as both outcomes, `runs ∧ fails`, the `Either`'s `Right` the result
+of a run that succeeds and its `Left` the error of one that fails; `p.failing[E].changesNothing`). Another Definition
+on the same variables is an ordinary mention. A program's error is part of its type from step 3b
+(`Ty.FlowOf(result, error)`, 4.4): a run's post is asked of its `Except.ok` results, its failure clause of the others;
+`p.result` of a program that can fail is of the runs that succeed.
 
 ```scala
 enum CallForm:
@@ -496,7 +517,7 @@ hold (owner §15, §18).
   nothing still open, gives `fun xs => e`; a bound gives the bound (one past a strict one); a witnessed value then
   stands for itself in the rest. Proven code is its own witness, once what it leaves open is solved: `bookedAfter`'s
   witness, the table after `book` runs, waits for `granted`'s, which `grantWhenNoOverlap`'s equation gives. An
-  equation read through a run (`book(request).from(now) { (_, after) => bookedAfter(request, now) === … }`) gives its
+  equation read through a run (`bookedAfter(request) === storedBookings.in(book(request).after)`) gives its
   witness over the run's outcome. `Equations.defining` reads the shape off the IR; `Defining` builds the term.
 - **Pinned provided values.** A provided value that an assumption of the group equates to a term is solved by that
   equation, like an open value; the provided values no assumption pins stay universal (asked of every value).
@@ -618,7 +639,7 @@ final case class RoomBookings(room: String, bookings: List[Booking]) derives Lea
 
 val granted = Definition[(RoomBookings, Booking) => Boolean]("whether a request is granted, given its room's bookings")
 
-val book = Definition[Booking => Program[Boolean]]("booking a request: whether it was booked")
+val book = Definition[Booking => Flow[Boolean]]("booking a request: whether it was booked")
 
 // Over moments.
 val covers = define { (b: Term[Booking], t: Term[BigInt]) => b.start <= t && t < b.end }
@@ -634,12 +655,12 @@ val noOverlap = define { (a: Term[Booking], b: Term[Booking]) =>
   a.room =!= b.room || a.end <= b.start || b.end <= a.start }
 
 // The purpose: what is booked, and whether a request is accepted. Each is a Declaration, known only by what the
-// statements say of it. A request is a booking asked for; `now` is the world as it stands.
-val booked = Declaration[World => List[Booking]]("the bookings made, as the world stands")
+// statements say of it, read in the world as it stands (owner §41). A request is a booking asked for.
+val booked = Declaration[List[Booking]]("the bookings made, as the world stands")
 
-val bookedAfter = Declaration[(Booking, World) => List[Booking]]("the bookings made once a request is handled")
+val bookedAfter = Declaration[Booking => List[Booking]]("the bookings made once a request is handled")
 
-val accepted = Declaration[(Booking, World) => Boolean]("whether a request is accepted")
+val accepted = Declaration[Booking => Boolean]("whether a request is accepted")
 ```
 
 `granted` (2.2) is given its meaning by plain Scala, `book` by a proven program. A `Booking` is both what comes from
@@ -650,8 +671,8 @@ use without it says "Plain is not a domain type yet: add derives LeanType to its
 
 ```scala
 /** The table's two operations: a room's bookings as it gives them, and a booking added. */
-val inRoom = Definition[String => Program[RoomBookings]]("a room's bookings, as the SQLite table gives them")
-val add = Definition[Booking => Program[Unit]]("a booking added to the SQLite table")
+val inRoom = Definition[String => Flow[RoomBookings]]("a room's bookings, as the SQLite table gives them")
+val add = Definition[Booking => Flow[Unit]]("a booking added to the SQLite table")
 
 /** The bookings stored, as the proofs see them: every booking, oldest first. */
 object storedBookings extends StateModel[List[Booking]]("every booking stored, oldest first"):
@@ -659,19 +680,19 @@ object storedBookings extends StateModel[List[Booking]]("every booking stored, o
   add.means(booking => state.update(stored => stored :+ booking))
 
 /** The program `book` is: the room's bookings read, the request added when granted, in one transaction. */
-object BookIfGranted:
-  def run[F[_]](request: Term[Booking])(using f: Flow[F]): F[Term[Boolean]] = f.atomically(
-    f.flatMap(inRoom(request.room)) { held =>
-      val booked = granted(held, request)
-      f.as(f.cond(booked)(add(request), f.unit), booked) })
-
-val bookIfGranted = program { (request: Term[Booking]) => BookIfGranted.run[Recorded](request) }
+val bookIfGranted = program { (request: Term[Booking]) =>
+  (for
+    held  <- inRoom(request.room)
+    booked = granted(held, request)
+    _     <- Flow.when(booked)(add(request))
+  yield booked).atomically }
 ```
 
 There is no boundary (owner §36). `inRoom` and `add` are Definitions, separate ones (owner: "A for now"), and the
-model gives each its meaning over its state (`Model[F, S]`: `get`, `set`, `update`); `storedBookings.in(world)` reads
-the state in a world. A program calls an operation as any Definition: `inRoom(request.room)` is a step of `F` where a
-step is expected (`Flow.step`, given implicitly). Lean sees what it saw with a boundary: a class with the operations
+model gives each its meaning over its state (`Model[S]`: `get`, `set`, `update`, each a `Flow`);
+`storedBookings.current` reads the state in the world a statement holds in, `storedBookings.in(book(request).after)`
+in the world a run leaves. A program is one `Flow[R]` (owner §42), written as a `for` comprehension: an operation
+applied, `inRoom(request.room)`, is a step where one is expected (`Flow.step`, given implicitly). Lean sees what it saw with a boundary: a class with the operations
 named as the Definitions, the model's operations as `do` blocks, `World`, and the instance on `StateM World`
 (`next/proof/src/test/resources/rooms/Models.lean`, the module `Models`, each class `<Model>.Ops`). The program's
 run on the models is `bookIfGranted_run`.
@@ -691,34 +712,31 @@ that `book` is the one program changing the table; that the table's Scala does w
 
 ```scala
 val bookWhenFree = Node.claim("A request is booked exactly when its room is free for its whole time.")(
-  forall((request: Term[Booking], now: Term[World]) =>
-    val bookings = booked(now)
-    bookedAfter(request, now) === when(free(bookings, request))(bookings :+ request).otherwise(bookings)))
+  forall((request: Term[Booking]) =>
+    bookedAfter(request) === when(free(booked, request))(booked :+ request).otherwise(booked)))
   .assuming(bookingsEndAfterStart)
 
 val acceptWhenFree = Node.claim("A request is accepted exactly when its room is free for its whole time.")(
-  forall((request: Term[Booking], now: Term[World]) => accepted(request, now) === free(booked(now), request)))
+  forall((request: Term[Booking]) => accepted(request) === free(booked, request)))
   .assuming(bookingsEndAfterStart)
 
 // What each Declaration is, in the code: the table, and booking's run.
-val bookedIsStored = Node.claim("What is booked is what the table holds.")(
-  forall((now: Term[World]) => booked(now) === storedBookings.in(now)))
+val bookedIsStored = Node.claim("What is booked is what the table holds.")(booked === storedBookings.current)
   .refines(bookWhenFree, acceptWhenFree)
 
 val bookedAfterIsStored =
   Node.claim("What is booked once a request is handled is what the table holds after booking it.")(
-    forall((request: Term[Booking], now: Term[World]) =>
-      book(request).from(now) { (_, after) => bookedAfter(request, now) === storedBookings.in(after) }))
+    forall((request: Term[Booking]) => bookedAfter(request) === storedBookings.in(book(request).after)))
   .refines(bookWhenFree)
 
 val acceptedIsAnswered = Node.claim("A request is accepted exactly when booking it answers booked.")(
-  forall((request: Term[Booking], now: Term[World]) =>
-    book(request).from(now) { (answer, _) => accepted(request, now) === answer }))
+  forall((request: Term[Booking]) => accepted(request) === book(request).result))
   .refines(acceptWhenFree)
 ```
 
-Each root is one equation over a request and the world as it stands, `now`, which comes with what always holds of the
-table (2.3). Neither mentions code: the three claims below them say what each Declaration is in terms of the code
+Each root is one equation over a request, holding in every world as it stands, which comes with what always holds of
+the table (2.3); the three Declarations change with the World, since `bookedIsStored` reads `booked` beside the table
+and the roots read the others beside `booked` (2.2), so Lean has `∀ request world, bookedAfter request world = …`. Neither mentions code: the three claims below them say what each Declaration is in terms of the code
 (2.7), and booking's two claims are proven of its program. `when(c)(a).otherwise(b)` is Lean's `if`. The roots list
 `bookingsEndAfterStart`: the purpose holds for bookings that end after they start (owner §25).
 
@@ -726,16 +744,14 @@ table (2.3). Neither mentions code: the three claims below them say what each De
 
 ```scala
 val storeWhenFree = Node.claim("A request is stored exactly when its room is free for its whole time.")(
-  forall((request: Term[Booking], before: Term[World]) =>
-    val stored = storedBookings.in(before)
-    book(request).from(before) { (_, after) =>
-      storedBookings.in(after) === when(free(stored, request))(stored :+ request).otherwise(stored) }))
+  forall((request: Term[Booking]) =>
+    val stored = storedBookings.current
+    storedBookings.in(book(request).after) === when(free(stored, request))(stored :+ request).otherwise(stored)))
   .refines(bookWhenFree)
   .assuming(oneAtATime, bookingsEndAfterStart)
 
 val answerWhenFree = Node.claim("A request is answered booked exactly when its room is free for its whole time.")(
-  forall((request: Term[Booking], before: Term[World]) =>
-    book(request).from(before) { (answer, _) => answer === free(storedBookings.in(before), request) }))
+  forall((request: Term[Booking]) => book(request).result === free(storedBookings.current, request)))
   .refines(acceptWhenFree)
   .assuming(oneAtATime, bookingsEndAfterStart)
 ```
@@ -828,8 +844,9 @@ final state that does (`Difference.State`), on 200 runs by default. It is one fo
 or an outside system's vendor (owner §36), so `checkedAgainst` and `implementedBy` are gone. `StoreModelSuite` runs the
 same test on an in-memory stand-in and its seeded variants (`ModelTests.of(storedBookings)(start, observe)(calls)`): on
 200 runs the stand-in agrees; one that forgets the room filter is found at `inRoom`, one that forgets to add by its
-state. The suite also runs `BookIfGranted` in `IO` over `eval.Running` with the table's Scala bound
-(`rooms.running[IO](storedBookings := table)`), as production does: a free request is booked, a clash is not.
+state. The suite also runs `bookIfGranted` in `IO` over `eval.Running` with the table's Scala bound
+(`run <- rooms.running[IO](storedBookings := table)`, then `run(bookIfGranted)(request)`), as production does: a free
+request is booked, a clash is not.
 
 ### 3.9 What check and show say
 
@@ -951,6 +968,7 @@ model's state, a program's `runs` and `fails`, `outside`). Object types are host
 | `Opened[T]` | `Opening => T[A]` | a claim read as a call, as its post |
 | `Guarded[T]` | a transformer of `forall`, `exists` | each `always[T]` as a hypothesis |
 | `Retyped[T]` | a transformer of `param` | each symbol at its resolved type (a program's error) |
+| `Substituted[T]` | a transformer of `free` | a statement closed over its world and runs (4.5), a define over its world |
 | `AtValue[T]` | `Option[T[Any]] => T[A]` | a rule read at one value (a guard, the world a run ends in) |
 | `proof.terms.Calls[T]` | the calls a term makes, in order | each call of plain Scala on its path (`made_<code>_call_<i>`) |
 | `Forward[T, U]` | a transformer's base | forwarding what a transformer leaves alone |
@@ -1024,35 +1042,44 @@ with, the steps unchanged). The IR is never printed or run.
 ### 4.4 Programs over Definitions
 
 There is no boundary (owner §36). A program calls Definitions: functions, defines, and operations on a state
-(`A => Program[R]`), each given its Lean meaning by a `StateModel` (2.2, 3.2). A program is a class or object over its
-effect asking only for `Flow[F]` (`dsl/frflow/dsl/flow/Flow.scala`, excerpt):
+(`A => Flow[R]`), each given its Lean meaning by a `StateModel` (2.2, 3.2). A program is one type, `Flow[R]` (owner
+§42), written as a plain `for` comprehension over its steps, its values terms (`dsl/frflow/dsl/flow/Flow.scala`,
+excerpt); the steps are an initial encoding, `run.Recorded`, which Lean reads and production folds:
 
 ```scala
-trait Flow[F[_]] extends Monad[F]:
+final class Flow[A](val steps: Recorded[Term[A]]):
+  def flatMap[B](f: Term[A] => Flow[B]): Flow[B]
+  def map[B](f: Term[A] => Term[B]): Flow[B]
+  def atomically: Flow[A]
+  def handle[E: LeanType](handler: Term[E] => Flow[A]): Flow[A]
+
+object Flow:
   /** An operation on a state, applied: a step (given implicitly where a step is expected). */
-  def step[R](op: Term[Program[R]]): F[Term[R]]
-  /** One of two programs by a condition at hand. */
-  def cond[A](c: Term[Boolean])(ifTrue: => F[A], ifFalse: => F[A]): F[A]
-  def each[X: LeanType](xs: Term[List[X]])(body: Term[X] => F[Unit]): F[Unit]
-  def raise[E, A](error: Term[E]): F[A]
-  def handle[E: LeanType, A](fa: F[A])(handler: Term[E] => F[A]): F[A]
+  def step[R](op: Term[Flow[R]])(using LeanType[R]): Flow[R]
+  /** One of two programs by a condition at hand; `when(c)(fa)`, the program or nothing. */
+  def cond[A](c: Term[Boolean])(ifTrue: => Flow[A], ifFalse: => Flow[A]): Flow[A]
+  def each[X: LeanType](xs: Term[List[X]])(body: Term[X] => Flow[Unit]): Flow[Unit]
+  def raise[E, A](error: Term[E]): Flow[A]
 ```
 
-`Flow.scala` also has `guarantee`, `race`, `parTupled` and `atomically`, and `ifM`, `bracket` and `timeout` made of
-them; `RecordingSuite` records each as the step Lean reads (with `each`, `raise` and `handle`). Every combinator is kept
+`Flow.scala` also has `guarantee`, `race`, `parTupled` (`(a, b).parTupled`) and `ifM`, `bracket`, `attempt` and
+`timeout` made of them; `RecordingSuite` records each as the step Lean reads (with `each`, `raise` and `handle`). A
+`for` with an alias (`booked = granted(held, request)`) reads as Scala 3.8's `for` reads it, a `val` in the body of the
+step before, so no step is added; the user never sees `F[_]` or an interpreter. Every combinator is kept
 (owner §2) and given a use in an example. `collect`, `fold`, `parCollect` and `attempt` (today's `traverse`, `foldM`,
 `parTraverse`, `attempt`) are kept as step 2 added them, and today's `retry` and `parTraverseN`'s limit as
 `retry(sleep, waits)` (a fold of the waits over `handle` and the clock's `sleep`, as today) and `parCollectN(n)`
-(`Prog.ParEach` with its limit). The clock is FrFlow's own two Definitions, `now: Program[BigInt]` and
-`sleep: BigInt => Program[Unit]`, with their `StateModel` (`clockModel`: a count of seconds only sleeps move); `timeout`
-takes `now`, and `retry` `sleep`. `F` has three interpreters:
+(`Prog.ParEach` with its limit). The clock is FrFlow's own two Definitions, `now: Flow[BigInt]` and
+`sleep: BigInt => Flow[Unit]`, with their `StateModel` (`clockModel`: a count of seconds only sleeps move); `timeout`
+takes `now`, and `retry` `sleep`. A program's steps have three readings:
 
-- **Lean's**: `Recording`, a pure `Flow[Recorded]`, where an operation applied is a recorded call (`Prog.Call` of the
-  model and the operation). `program { … }` reads the recording into `Prog[Stated[?]]` (`ReadRecording`, steps
-  numbered in its own `State`); Lean prints a `do` block over `[Monad m]` and each model's class, run on the models'
-  instance on `StateM World`. A bound term is shared as Lean's `let`.
+- **Lean's**: the steps as recorded, where an operation applied is a recorded call (`Prog.Call` of the model and the
+  operation). `program { … }` reads them into `Prog[Stated[?]]` (`ReadRecording`, steps numbered in its own
+  `State`); Lean prints a `do` block over `[Monad m]` and each model's class, run on the models' instance on
+  `StateM World`. A bound term is shared as Lean's `let`.
 - **Production's**: `eval.Running` for any `F: Async`, reached through `knowledge.running[F](bindings*)`, each model's
-  Scala bound (`storedBookings := table`): a condition evaluated by `Evaluate`, `atomically` under one `Mutex`. An
+  Scala bound (`storedBookings := table`), a fold of the steps into `F` (`run(bookIfGranted)(request)` runs a program's
+  Definition on its inputs' values, `Spot.Steps`): a condition evaluated by `Evaluate`, `atomically` under one `Mutex`. An
   operation's Scala is plain Scala over plain values (`String => IO[RoomBookings]`, from the FrModel's
   `implementTested(ops*)(start, observe)(calls)`); `Running` evaluates each argument, calls it and makes the result a
   term again. For a model whose operations may fail (`StateModel.failing[S, E](means, error)`), an implementation's
@@ -1075,7 +1102,7 @@ operation's model with its Scala tested against it, or plain Scala known only by
 where a case can be evaluated. What proven code hands to plain Scala meets the rules on its type
 (`made_<code>_call_<i>`, 2.3), a Lean obligation only (owner §37). `BoundaryUnchecked`, `behavesAs`, `AssumedModel`
 and a boundary's call written in a statement are gone: an operation is a Definition, so a statement runs it as it runs
-a program, `add(b).from(now) { (_, after) => … }`.
+a program, `storedBookings.in(add(b).after)`.
 
 **A program's error type** (step 3b, before step 4). `Ty.FlowOf(result, error: Option[Ty])`. A program's error has two
 senses, both read off its recording (`core.Failing`). The monad's: every error it raises, handles or meets (a failing
@@ -1095,14 +1122,25 @@ World)`, on the models' instance on `ExceptT e (StateM World)` (one per error), 
 reserved); `f_run` is `FrFlow.runOnE (ε := e)`, a run's post matches `Except.ok` (`| _ => True` for the rest, sound when
 nothing escapes), `cover_` holds of the world a failed run leaves too when an error escapes (both arms, `runs ∧ fails`,
 `FrFlow.outcome` unfolded), `made_` of ok results, and `commute_` reads the error from the type.
-`.failsChangingNothing[E]` says every model's state is as before (`Worlds.unchanged(after, before)`, `Expr.Unchanged`;
+`p.failing[E].changesNothing` says every model's state is as before (`Worlds.unchanged(after, before)`, `Expr.Unchanged`;
 in Lean one equation per model's field, the faults left out), and `===` between worlds is refused where an operation may
 fail (`WorldsEqual`): it would compare the faults the calls took.
 
 ### 4.5 The front end: nodes, names, errors
 
-A DSL node is `Node(head: Head, statement: Deferred[Statement])`: the head as written (id, sentence, position, links),
-the statement built when elaborated. `Source.valName`, read at compile time, names nodes, values, types and models: one
+A DSL node is `Node(head: Head, statement: Stating => Deferred[Statement])`: the head as written (id, sentence,
+position, links), the statement built when elaborated, once the FrModel knows which Declarations change with the World
+(`kb.Varying`, 2.2).
+
+**A statement closed over its world** (owner §41, `node.Closing`). The world a statement holds in is a variable free
+while it is written (`run.Worlds.current`, `VarId.world`), as is each run it reads (`p.result`, `p.after`: a
+`RunNote`, its outcome and world after `VarId.ran` of the run's IR). The statement's leading `forall`s keep their
+bodies (`term.Forall`), so the closing opens them on free variables (`VarId.opened`), and, where what is below reads
+the world, binds it right below them and each run right below it, by `Substituted`: `forall(request => … book(request)
+.after …)` is `∀ request, ∀ world, runs (book request) world (result, after) …`, the IR and Lean the explicit form had,
+the world's binder named `world`. So `CallForms`, the guards (2.3), `Opened` and every analysis read it as before. A
+statement reading no world is as written. A run is of the statement's leading variables (`Fault.RunInside` otherwise),
+from the world it holds in; a statement needing two arbitrary worlds is `isConstant`'s only (2.2). `Source.valName`, read at compile time, names nodes, values, types and models: one
 name in code, reports and Lean. Today's `Node` fields each have a place: `why` is the decision's reason, parents are
 edges, `post` and `op` are derived from the formula, `file` and `at` are a `Sited(node, at: Span)`; `kept`, `runCheck`,
 `ideaSection` and `enforce` are gone.
@@ -1407,8 +1445,8 @@ program called as code (`knowledge.code(program)`, `d.fn`) gives `NotEvaluated(S
 
 ### 7.2 Effects: where F[_] is used, and why
 
-`core`, `proof`, `decision`, `Evaluate` and the generators have no effect type; `dsl` has `Flow[F[_]]` but runs
-nothing. Each `F[_]` pays for itself:
+`core`, `proof`, `decision`, `Evaluate` and the generators have no effect type; `dsl`'s `Flow[R]` is data (its steps)
+and runs nothing. Each `F[_]` pays for itself:
 
 | Algebra or program | Why over `F[_]` | Second interpreter or law |
 |---|---|---|
@@ -1420,7 +1458,7 @@ nothing. Each `F[_]` pays for itself:
 | `RunCode[F]` | running the developer's code, which may block or throw | in the effect's own steps; live on the blocking pool |
 | `ReadInputs`, `RunScala`, `CheckProgram`, `NodeChecker`, `DecideProgram` | programs | ask only `Monad`, `Parallel`, `Clock`, `RunCode` |
 | `FrFlowApi[F]` | the CLI, web and agent suites | in memory; `preview` shows what `decide` records |
-| `Flow[F]` | a program read by Lean, run in production | `Recording`, `Running`; agree on the models |
+| `Running[F]` | a program's steps folded into the developer's effect | `FlowInterpreter` on the models; they agree |
 
 Concrete `IO` appears only in the web server, the CLI's `main` and the terminal; in production the developer picks
 `F`.
@@ -1429,10 +1467,13 @@ Concrete `IO` appears only in the web server, the CLI's `main` and the terminal;
 
 State, each piece named: `FrModel.elaborated` (a `lazy val`), `Running`'s lock, and a recording's reading's
 `State`. Atomics and locks are allowed only in `eval.Running` and `FlowInterpreter.concurrent`, `ThreadLocal` nowhere.
-Casts are in twenty files, fifty in all (step 12b's count): in `core`, `Guards`, `AtValue`, `Defining`, `Conditions`
-and `Written` (`term`, `retyped`); in `dsl`, `Term.bound`, `Definition.called`, `ValuesSyntax.apply`, `ReadRecording`,
-`kb.Calls` and `kb.Tested` (the `call` an operation's Scala is reached by); in `proof`, `Calls`, `CallSites`, `Making`
-and `Keeping`; in `eval`, `Fn`, `Evaluate`, `Running.handle` and `flow.Bound`; in `testing`, `ModelTests`. Each is
+Casts are in twenty-five files, sixty-seven in all (step 13b's count): in `core`, `Guards`, `AtValue`, `Defining`,
+`Conditions`, `Substituted` and `Written` (`term`, `retyped`); in `dsl`, `Term.bound`, `Definition.called`,
+`ValuesSyntax.apply`, `ReadRecording`, `kb.Calls` and `kb.Tested` (the `call` an operation's Scala is reached by),
+`Declaration.applied` (a Declaration applied, typed by its extension), `shape.Defines.in` and `shape.Worldly` (a
+program's and a world-reading define's inputs), and `node.Closing` (a statement closed over its world and runs); in
+`proof`, `Calls`, `CallSites`, `Making` and `Keeping`; in `eval`, `Fn`, `Evaluate`, `Running` (a program's steps
+folded, each case's result at its case's type) and `flow.Bound`; in `testing`, `ModelTests`. Each is
 typed by what was read before it: the transformers that build terms from a type known only at run time (a guard, a
 call site, a witness) work at `T[Any]` and cast to the term's type. Neither the printer (`LeanTerm`) nor `ToExpr`
 casts; `Evaluate` casts where it reads untyped given values (`Fn.as`); no unchecked type test is left outside `Fn`.
