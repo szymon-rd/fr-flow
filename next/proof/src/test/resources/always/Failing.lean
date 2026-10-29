@@ -26,6 +26,41 @@ namespace Test.endsAfterStart
 
 end Test.endsAfterStart
 
+namespace Test.endsAfterStart
+
+@[frflow_defs] def makes_fileIt_call_0 : Prop :=
+  (∀ (b : Booking), ((b.start < b.«end») → ((b.start < b.«end») → (b.start < b.«end»))))
+
+end Test.endsAfterStart
+
+namespace Test.endsAfterStart
+
+@[frflow_defs] def makes_fileBoth_call_0 : Prop :=
+  (∀ (b : Booking), ((b.start < b.«end») → ((b.start < b.«end») → (b.start < b.«end»))))
+
+end Test.endsAfterStart
+
+namespace Test.endsAfterStart
+
+@[frflow_defs] def makes_fileBoth_call_1 : Prop :=
+  (∀ (b : Booking), ((b.start < b.«end») → ((b.start < b.«end») → (∀ (u : Unit), (b.start < b.«end»)))))
+
+end Test.endsAfterStart
+
+namespace Test.endsAfterStart
+
+@[frflow_defs] def makes_spoilIt_call_0 : Prop :=
+  (∀ (b : Booking), ((b.start < b.«end») → ((b.start < b.«end») → (b.start < b.«end»))))
+
+end Test.endsAfterStart
+
+namespace Test.endsAfterStart
+
+@[frflow_defs] def makes_spoilIt_call_1 : Prop :=
+  (∀ (b : Booking), ((b.start < b.«end») → ((b.start < b.«end») → (∀ (e : String), ((b.«end» : Int) < (b.start : Int))))))
+
+end Test.endsAfterStart
+
 namespace Test.fromOutside
 
 @[frflow_defs] def keeps_file (file : Booking → (World → ((Except String Unit) × World))) : Prop :=
@@ -51,5 +86,40 @@ namespace Test.fromOutside
 
 @[frflow_defs] def makes_check (check : Booking → (World → ((Except String Booking) × World))) : Prop :=
   (∀ (b : Booking), ((b.start < b.«end») → ((b.start < b.«end») → (∀ (before : World), (match (check b before) with | (Except.ok result, after) => (result.start < result.«end») | _ => True)))))
+
+end Test.fromOutside
+
+namespace Test.fromOutside
+
+@[frflow_defs] def makes_fileIt_call_0 : Prop :=
+  (∀ (b : Booking), ((b.start < b.«end») → ((b.start < b.«end») → (b.start < b.«end»))))
+
+end Test.fromOutside
+
+namespace Test.fromOutside
+
+@[frflow_defs] def makes_fileBoth_call_0 : Prop :=
+  (∀ (b : Booking), ((b.start < b.«end») → ((b.start < b.«end») → (b.start < b.«end»))))
+
+end Test.fromOutside
+
+namespace Test.fromOutside
+
+@[frflow_defs] def makes_fileBoth_call_1 : Prop :=
+  (∀ (b : Booking), ((b.start < b.«end») → ((b.start < b.«end») → (∀ (u : Unit), (b.start < b.«end»)))))
+
+end Test.fromOutside
+
+namespace Test.fromOutside
+
+@[frflow_defs] def makes_spoilIt_call_0 : Prop :=
+  (∀ (b : Booking), ((b.start < b.«end») → ((b.start < b.«end») → (b.start < b.«end»))))
+
+end Test.fromOutside
+
+namespace Test.fromOutside
+
+@[frflow_defs] def makes_spoilIt_call_1 : Prop :=
+  (∀ (b : Booking), ((b.start < b.«end») → ((b.start < b.«end») → (∀ (e : String), ((b.«end» : Int) < (b.start : Int))))))
 
 end Test.fromOutside

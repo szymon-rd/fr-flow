@@ -5,6 +5,7 @@ import frflow.core.analysis.{Resolved, Scope}
 import frflow.core.name.NodeId
 import frflow.core.ty.Ty
 import frflow.proof.layout.{Broken, Mini, Programs, ProgramsProject}
+import frflow.proof.layout.calls.Rows
 import frflow.proof.layout.failing.Failing
 import frflow.proof.lean.print.Print
 import frflow.proof.terms.TermTable
@@ -41,8 +42,28 @@ class RequiredSuite extends munit.FunSuite:
   }
 
   test("cover_: an always kept by each program writing a store it is about, and by no other program") {
-    assertEquals(names(Mini.resolved, "endsAfterStart").map(_._1), List(ObligationName.Cover("book")))
+    assertEquals(names(Mini.resolved, "endsAfterStart").map(_._1).filter(_.isInstanceOf[ObligationName.Cover]),
+      List(ObligationName.Cover("book")))
     assert(!names(Programs.resolved, "endsAfterStart").exists(_._1.isInstanceOf[ObligationName.Cover]))
+  }
+
+  test("made_ at the call: what proven code hands an operation on a state meets the rule, at every call (owner §37)") {
+    assertEquals(names(Mini.resolved, "endsAfterStart").map(_._1).filterNot(_.isInstanceOf[ObligationName.Cover]),
+      List(ObligationName.Made("bookIfFree_call_0")))
+    assertEquals(names(Broken.resolved, "endsAfterStart").map(_._1).collect { case ObligationName.Made(m)
+      if m.contains("_call_") => m }, List("fileBack_call_0", "putBoth_call_0", "putBoth_call_1"))
+    // Programs calls no plain Scala: none is asked.
+    assert(!names(Programs.resolved, "endsAfterStart").exists(n => n._1.toString.contains("_call_")))
+  }
+
+  test("made_ at the call, crm-shaped: what the job hands storeAbout holds each key once, below the job's branch") {
+    List(Rows.once, Rows.duplicates).foreach(steps =>
+      assertEquals(names(Rows.resolved(steps), "onePerKey"), List(ObligationName.Made("expireIt_call_0") ->
+        Discharge.Auto)))
+    val declared = AlwaysSuite().declared(frflow.proof.layout.Laid(Rows.resolved(Rows.once), Map.empty, Nil),
+      Rows.resolved(Rows.once))
+    // Below the branch the store is called on: the rows not holding the key.
+    assert(declared.contains("makes_expireIt_call_0") && declared.contains("(¬"), declared)
   }
 
   test("made_: of a define making what the always is about, and of a program whose run gives one") {
@@ -99,7 +120,7 @@ class RequiredSuite extends munit.FunSuite:
   test("an assumption of always is kept by the covered code making or storing its values, as a claim is") {
     assertEquals(names(Programs.resolved, "fromOutside").map(_._1),
       names(Programs.resolved, "endsAfterStart").map(_._1))
-    assertEquals(names(Mini.resolved, "fromTheForm").map(_._1), List(ObligationName.Cover("book")))
+    assertEquals(names(Mini.resolved, "fromTheForm").map(_._1), names(Mini.resolved, "endsAfterStart").map(_._1))
   }
 
   test("every op with proven code where an always must hold gets its cover_ or its made_") {

@@ -11,7 +11,7 @@ import frflow.core.name.{DefName, NodeId, SymbolName}
 import frflow.core.spec.{CallForm, Range, Written}
 import frflow.core.ty.Ty
 import frflow.core.vocab.SymbolType
-import frflow.proof.terms.{Commutation, Keeping, Making}
+import frflow.proof.terms.{CallingCode, Commutation, Keeping, Making}
 import frflow.core.analysis.outside.{Guards, Reads}
 
 /** What must hold of a node, each read off its statement, its place and the code (owner §15), in today's order:
@@ -23,8 +23,8 @@ object Required:
   /** Each proven by FrFlow's automation, or by the theorem of its name in the node's proof file (`authored`). */
   def of(r: Resolved, authored: Set[(NodeId, ObligationName)], n: NodeId): List[Obligation] =
     (complete(r, n).map(Obligation(ObligationName.Complete, _, Discharge.Auto, completes(r, n))).toList ++
-      feasible(r, authored, n) ++ impl(r, n) ++ commutes(r, n) ++ keeps(r, n) ++ made(r, n)).map(o =>
-      if authored((n, o.name)) then o.copy(discharge = Discharge.Authored) else o)
+      feasible(r, authored, n) ++ impl(r, n) ++ commutes(r, n) ++ keeps(r, n) ++ made(r, n) ++ atCalls(r, n))
+      .map(o => if authored((n, o.name)) then o.copy(discharge = Discharge.Authored) else o)
 
   /** `∀ U, C1 → … → Cn → N`, of a node not checked against proven code. */
   def complete(r: Resolved, n: NodeId): Option[Prop] =
@@ -131,6 +131,24 @@ object Required:
       case (kept, range @ Range.Made(ty)) =>
         byDefines(r, n, ty, (kept, guards.map(_._2))) ++ byPrograms(r, n, ty, kept) ++ byModels(r, n, range, kept)
       case _ => Nil
+    }
+
+  /** `made_<code>_call_<i>` of an `always[T]` (owner §37): of each proven define or program calling a Definition given
+    * plain Scala, at call `i` (numbered across its calls of plain Scala), the rule of each argument it reaches, on
+    * every path to the call (`CallingCode`), given what the code relies on. Asked at every call, never left to
+    * `cover_`.
+    */
+  def atCalls(r: Resolved, n: NodeId): List[Obligation] =
+    (Guards.byAlways(r.theory).toMap.get(n), r.theory.node(n).flatMap(_.statement.range)).tupled.toList.flatMap {
+      case (kept, Range.Made(ty)) => CallingCode.of(r.theory).flatMap(c => c.calls.zipWithIndex.collect {
+          case (tys, i) if tys.exists(Guards.applies(r.theory, ty, _)) =>
+            val at = s"${c.code.value}_call_$i"
+            val hyps = r.reliedOnBy(c.definition)
+            Obligation(ObligationName.Made(at), Prop.over(Nil, Prop.Implies(Hyp.parts(hyps),
+              Prop.Makes(n, SymbolName(at), c.formula(i, kept), Map.empty))), Discharge.Auto,
+              s"What ${c.code.value} hands plain Scala at call ${i + 1} meets ${n.value}" + givenWhat(hyps))
+        })
+      case _                      => Nil
     }
 
   private type Guarding = (Guard, List[Guard])
