@@ -27,6 +27,7 @@ Shown possible
   bookingsOfTheRoom admits a value of RoomBookings: proven
   roomBookingsApart admits a value of RoomBookings: proven
   bookingsEndAfterStart admits a value of Booking: proven
+  startsEmpty admits a value of List[Booking]: proven
 
 Examples
   + back to back: granted  Lean: shown

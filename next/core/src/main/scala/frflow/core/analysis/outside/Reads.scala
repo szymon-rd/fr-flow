@@ -1,10 +1,12 @@
 package frflow.core.analysis.outside
 
 import cats.syntax.all.*
+import frflow.core.code.Code
 import frflow.core.expr.{Expr, Exprs, Quantifier}
 import frflow.core.name.{ModelName, NodeId, SymbolName}
 import frflow.core.spec.{Node, Range}
 import frflow.core.ty.Ty
+import frflow.core.vocab.SymbolType
 import frflow.core.Theory
 import frflow.core.analysis.{Callees, Constrained, Resolve, SaysWhat, Scope}
 
@@ -31,7 +33,7 @@ object Reads:
 
   private def guarded(t: Theory, id: NodeId, rule: NodeId): Boolean =
     (t.node(id), t.node(rule).flatMap(_.statement.range)).tupled.exists { (n, r) =>
-      val over = quantified(n)
+      val over = quantified(n) ++ provided(t, id).map(_._2)
       val worlds = over.contains(Ty.World) && Scope.models(t, r).map(_.name).exists(models(t, id).contains)
       worlds || (r match
         case Range.Made(ty) => over.exists(x => x != Ty.World && Guards.applies(t, ty, x))
@@ -46,6 +48,13 @@ object Reads:
   def quantified(n: Node): List[Ty] = n.statement.said.toList.flatMap(f => Exprs.all(f.value).collect {
     case Expr.Quant(Quantifier.Forall | Quantifier.Exists, xs, _) => xs.map(_.ty)
   }.flatten)
+
+  /** The values provided where the code runs that a statement mentions, through its defines, with their types: values
+    * from outside (owner §21), each with what always holds of its type as a hypothesis, as a variable has.
+    */
+  def provided(t: Theory, id: NodeId): List[(SymbolName, Ty)] =
+    Constrained.of(t, id).filter(s => t.code.attached.get(s).exists(_.code == Code.Provided)).flatMap(s =>
+      t.vocabulary.symbol(s).map(_.ty).collect { case SymbolType.Typed(ty) => s -> ty })
 
   private def direct(t: Theory, id: NodeId): List[ModelName] =
     Resolve.mentions(t, id).models ++

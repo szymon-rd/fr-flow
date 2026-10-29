@@ -27,14 +27,14 @@ class StoreReviewSuite extends munit.CatsEffectSuite:
       Authorship("ann", Instant.EPOCH, None), Reason("it says what the service must do", Nil), unread.bound(x))))
 
   test("the calendar's code is the files it refers to, not the file of its own parameters (where it is attached)") {
-    val files = attached.code.scala.toList.flatMap(_.files)
+    val files = attached.code.scala.toList.flatMap(_.files.map(_.path))
     assertEquals(files.map(_.toString.split('/').last), List("Calendar.scala"))
     assert(!files.contains(attached.writtenIn), files)
   }
 
   test("rooms with the log's nodes added keeps the calendar's claim accepted; a change to the calendar brings it " +
     "back") {
-    val calendar = attached.code.scala.toList.flatMap(_.files).head
+    val calendar = attached.code.scala.toList.flatMap(_.files).head.path
     val model = Projects.elaborated(Logged.withNodes()).theory.code.attached(SymbolName("granted")).writtenIn
     def state(s: Subjects, l: Ledger) = Reading(s, l).standings.get(grant).map(st => st.state -> st.causes)
     for

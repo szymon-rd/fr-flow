@@ -11,8 +11,11 @@ object ProofRules:
   val AllowedCommands: Set[String] =
     Set("import", "set_option", "open", "namespace", "end", "section", "noncomputable", "theorem")
   val AllowedOptions: List[String] = List("maxHeartbeats", "maxRecDepth", "autoImplicit", "linter.")
-  /** Only what states things: the domain, the nodes' specs, FrFlow's kernel, Lean's own, the shared lemmas. */
-  val AllowedImports: Regex = List("""FrFlowGen\.\w+\.Domain""", """FrFlowGen\.\w+\.\w+\.Spec""", """FrFlow(\..*)?""",
+  /** Only what states things: the domain, the nodes' specs, what is asked of the theory as a whole, FrFlow's kernel,
+    * Lean's own, the shared lemmas.
+    */
+  val AllowedImports: Regex = List("""FrFlowGen\.\w+\.Domain""", """FrFlowGen\.\w+\.\w+\.Spec""",
+    """FrFlowGen\.\w+\.Whole\.Spec""", """FrFlow(\..*)?""",
     """Std(\..*)?""", """Init(\..*)?""", """Proofs\.\w+\.Lemmas""").mkString("|").r
 
   /** The obligations the file's theorems prove, by name. */

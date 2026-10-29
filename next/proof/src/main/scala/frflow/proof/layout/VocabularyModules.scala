@@ -64,7 +64,7 @@ object VocabularyModules:
     case (DefineForm.Flow, Form.Steps(p))      => flow(l, d, p)
     case (_, Form.Term(t))                     =>
       val (bs, body) = Printed.define(l.env, l.naming)(d.lambda.params, t.run)
-      Decl.Def(List(Attr.FrflowDefs), Names.builtin(d.name.value), openBinders(l, d) ++ bs,
+      Decl.Def(List(Attr.FrflowDefs), Names.define(d.name.value), openBinders(l, d) ++ bs,
         LowerType(d.lambda.result), body)
     case (_, Form.Steps(_))                    =>
       throw IllegalStateException(s"FrFlow bug: ${d.name.value}'s steps are not a program's")
@@ -79,7 +79,7 @@ object VocabularyModules:
     val (bs, lines) = (inputs.traverse(x => Naming.bind(x).map(LBinder.Explicit(_, LowerType(x.ty)))),
       LowerProg(l.env, inputs.size).block(p)).tupled.runA(named).value
     val body = if bs.isEmpty then LExpr.Do(lines, 4) else LExpr.Fun(bs, LExpr.Do(lines, 4))
-    Decl.Def(List(Attr.FrflowDefs), Names.builtin(d.name.value), monad(l, d, m) ++ openBinders(l, d),
+    Decl.Def(List(Attr.FrflowDefs), Names.define(d.name.value), monad(l, d, m) ++ openBinders(l, d),
       LowerType.declaration(inputs.map(_.ty), LExpr.App(LExpr.Name(m), List(LowerType(result)))), body)
 
   /** The monad a program is over: any, with the errors it raises or handles and the classes of the models whose

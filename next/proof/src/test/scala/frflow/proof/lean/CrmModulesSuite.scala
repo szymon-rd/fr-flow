@@ -7,6 +7,7 @@ import frflow.proof.lean.ast.*
 import frflow.proof.lean.lower.{LowerModels, LowerObligation, LowerProp}
 import frflow.proof.lean.print.*
 import frflow.proof.obligation.*
+import frflow.proof.obligation.tried.Tries
 import L.*
 
 /** Four modules of `examples/crm/lean/FrFlowGen/Crm` (copied into the resources) print byte for byte from their AST;
@@ -55,7 +56,7 @@ class CrmModulesSuite extends munit.FunSuite:
   private val claim = Decl.Def(defs, nm("claim"), List(x("expire", expireType), x("runExpiry", runType)), n("Prop"),
     LExpr.Forall(List(x("x0", n("Int")), x("x1", world)),
       app(par(app(c("Crm.ExpiryJob.post"), n("expire"))), n("x0"), run("1"), n("x1"), run("2"))))
-  private val obligations = LowerObligation(LowerProp(ExpiryIr.table, ExpiryIr.env))
+  private val obligations = LowerObligation(LowerProp(ExpiryIr.table, ExpiryIr.env, _ => Nil))
   private val byCode = Map(SymbolName("runExpiry") -> Substitute.Code(ExpiryIr.expireOnceRun))
   private val impl = obligations(Obligation(ObligationName.Impl,
     Prop.over(Nil, Prop.Implies(List(Hyp.of(ExpiryIr.sharesExpire)), Prop.ClaimOf(ExpiryIr.expiryJob, byCode))),

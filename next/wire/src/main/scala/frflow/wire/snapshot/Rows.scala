@@ -71,6 +71,7 @@ object Rows:
     case Witness.Bound(s, from, _)    => s"${s.value}: the bound of ${from.value}"
     case Witness.Tested(s)            => s"${s.value}: tested Scala (evidence)"
     case Witness.Missing(s)           => s"${s.value}: none"
+    case Witness.Empty(s)             => s"${s.value}: the empty list"
 
   private def standing(s: Standing): String = s match
     case Standing.Witnessed    => "witnessed"

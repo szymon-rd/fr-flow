@@ -43,9 +43,10 @@ val replaceAbout = define { (s: Term[CrmStore], id: Term[BigInt], rows: Term[Crm
     s.shares.filter(sh => sh.record =!= id) ++ rows.shares, s.expiries.filter(e => e.record =!= id) ++ rows.expiries) }
 
 /** What the database holds after the write side saves a write: what it held, with the rows about the written record
-  * replaced by those it stored.
+  * replaced by those it stored about it, as its `storeAbout` holds them.
   */
-val afterSave = define { (s: Term[CrmStore], w: Term[WriteCmd]) => replaceAbout(s, about(w), save(s, w)) }
+val afterSave = define { (s: Term[CrmStore], w: Term[WriteCmd]) =>
+  replaceAbout(s, about(w), aboutRecord(save(s, w), about(w))) }
 
 /** Whether the store holds a record of that id of the write's author's company. */
 val ownRecord = define { (s: Term[CrmStore], w: Term[WriteCmd], id: Term[BigInt]) =>
@@ -112,3 +113,8 @@ val stepOf = define { (s: Term[CrmStore], e: Term[Event]) =>
 val runOf = define { (es: Term[List[Event]]) =>
   es.foldLeft(make[CrmStore](Nil: Term[List[CrmRecord]], Nil: Term[List[Share]], Nil: Term[List[Expiry]]))(
     (s, e) => stepOf(s, e)) }
+
+/** Whether a store holds one row per key: a record by its id, a share and an expiry by record and company. */
+val onePerKey = define { (s: Term[CrmStore]) =>
+  s.records.pairwise((a, b) => a.id =!= b.id) && s.shares.pairwise((a, b) => a =!= b) &&
+    s.expiries.pairwise((a, b) => !(a.record === b.record && a.to === b.to)) }

@@ -22,7 +22,7 @@ class KeycloakSuite extends munit.FunSuite:
 
   test("the plain code is tested against its contracts: introspection, and the store's index and writes") {
     assertEquals(Tested.nodes(knowledge).sorted,
-      List("answersNameASession", "introspect", "realmIsolation", "sessionLookup", "storeKeepsState"))
+      List("answersNameASession", "introspectAnswers", "realmIsolation", "sessionLookup", "storeKeepsState"))
     Tested.nodes(knowledge).foreach(n =>
       assertEquals(Tested.passes(knowledge, n).count.tried, 1000, n))
   }
@@ -31,7 +31,7 @@ class KeycloakSuite extends munit.FunSuite:
     val leaky = with_((lookUp, accountOf) => (r, t) =>
       lookUp(r, t).flatMap(x => accountOf(r, x.user).map(a => Claims(r, x.user, a.roles))),
       (q, after) => SessionDb.holding(after).storeAfter(q, after))
-    assertEquals(Tested.failure(leaky, "introspect").broke, Broken.Post)
+    assertEquals(Tested.failure(leaky, "introspectAnswers").broke, Broken.Post)
   }
 
   test("a store that drops the sessions it is given fails a generated case of storeKeepsState") {

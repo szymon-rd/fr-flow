@@ -3,6 +3,8 @@ package frflow.proof.obligation
 import frflow.core.{Kb, Lang}
 import frflow.core.Nodes.*
 import frflow.core.analysis.{Resolve, Resolved, Validate}
+import frflow.core.code.Code
+import frflow.core.name.SymbolName
 import frflow.core.ty.Ty
 
 /** Two Declarations and the claims that try every try: `both` (`f 1 ∧ g 2`) split into one part per conjunct (each
@@ -26,3 +28,9 @@ object Pair:
 
   lazy val resolved: Resolved = Resolve(Validate(kb.elaborated).fold(ps => throw IllegalStateException(ps.toString),
     identity))
+
+  /** The same claims over two Definitions provided where the code runs: what a root's idle try does nothing with. */
+  lazy val withDefinitions: Resolved = Resolve(Validate(Kb.of(kb.nodes*).linking(kb.edges*)
+    .naming(definition("f", test), definition("g", test))
+    .coding(SymbolName("f") -> Code.Provided, SymbolName("g") -> Code.Provided).elaborated)
+    .fold(ps => throw IllegalStateException(ps.toString), identity))

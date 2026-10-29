@@ -43,15 +43,17 @@ class ExamplesSuite extends munit.FunSuite:
   }
 
   test("keycloak: today's, but the definition of four open types; the definition of `enabled` and `rolesOf` is two " +
-    "claims") {
-    assertEquals(ids(keycloak.knowledge), renamed(Today.keycloak, Set("identities"), Set("accountRoles")))
+    "claims; the claim on `introspect` named apart from it (owner §40)") {
+    assertEquals(ids(keycloak.knowledge), renamed(Today.keycloak, Set("identities", "introspect"),
+      Set("accountRoles", "introspectAnswers")))
   }
 
-  test("crm: today's, with the root's two general expectations and the read contract's one claims of their own " +
-    "(its scenario an example); two definitions of two words each are four claims; runs on the database one at a " +
-    "time, an assumption") {
+  test("crm: today's, with the root's two general expectations claims of their own (its scenario an example, and the " +
+    "read contract's, owner §40); two definitions of two words each are four claims; runs on the database one at a " +
+    "time, an assumption; the tables' one row per key a claim, with what the stores from outside meet and what the " +
+    "database starts with (owner §40, 2.6)") {
     assertEquals(ids(crm.knowledge), renamed(Today.crm, Set.empty, Set("addedIsFound", "writesLeaveOthers",
-      "acmeNeverSeesGlobex", "ownership", "searchesAsk", "runsOneAtATime")))
+      "ownership", "searchesAsk", "runsOneAtATime", "keyedTables", "tablesStartEmpty", "oneRowPerKey")))
   }
 
   test("crm: the purpose and its two general expectations are roots (owner §22), each expectation proven from what " +
@@ -65,9 +67,12 @@ class ExamplesSuite extends munit.FunSuite:
   }
 
   test("each example's examples elaborate, with no error") {
-    val written = List(rooms.GrantedExamples(), auth.DecisionExamples(), crm.ExpectationsExamples())
+    val written = List(rooms.GrantedExamples(), auth.DecisionExamples(), keycloak.IntrospectExamples(),
+      keycloak.LookupExamples(), keycloak.StoreExamples(), keycloak.RequestExamples(), crm.ExpectationsExamples(),
+      crm.QueryExamples(), crm.ReadExamples(), crm.DealExamples(), crm.WriteExamples(), crm.SaveExamples(),
+      crm.StoreExamples(), crm.ExpireExamples())
     assertEquals(written.map(_.elaborated.fold(_.iterator.toList, _ => Nil)), List.fill(written.size)(Nil))
-    assertEquals(written.map(_.examples.size), List(2, 5, 1))
+    assertEquals(written.map(_.examples.size), List(2, 5, 12, 5, 3, 11, 1, 3, 9, 4, 6, 3, 3, 4))
   }
 
   test("sharing: today's, with the store's, the mail server's and the clock's runs one at a time, assumptions; the " +

@@ -57,7 +57,8 @@ class ScalaTokensSuite extends munit.FunSuite:
   }
 
   test("the fingerprint names each file, a missing one too, in the order of their paths") {
-    val (a, b) = (RelPath.fromIdentifiers("src", "A.scala"), RelPath.fromIdentifiers("src", "B.scala"))
+    val (a, b) = (Governed.Whole(RelPath.fromIdentifiers("src", "A.scala")),
+      Governed.Whole(RelPath.fromIdentifiers("src", "B.scala")))
     val now = CodeFingerprints.of(List(b -> None, a -> Some(src)))
     assertEquals(now.files, List("src/A.scala", "src/B.scala"))
     assertEquals(now, CodeFingerprints.of(List(a -> Some(src.replace("// the total, in cents", "")), b -> None)))

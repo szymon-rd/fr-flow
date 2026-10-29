@@ -18,7 +18,7 @@ final class LeanTerm(env: LowerEnv, standing: Map[SymbolName, LExpr] = Map.empty
   import LExpr.{Infix, Paren}
   private type S[A] = LeanTerm.S[A]
   private val constants = LowerValue(env)
-  private lazy val outcomes = Outcomes(env, standing)
+  private lazy val (outcomes, byName) = (Outcomes(env, standing), standing.map((n, e) => Names.ident(n.value) -> e))
 
   def bool(b: Boolean): S[Boolean] = _ => name(if b then "True" else "False")
   def and(a: S[Boolean], b: S[Boolean]): S[Boolean] = infix(LOp.And, a, b)
@@ -121,9 +121,9 @@ final class LeanTerm(env: LowerEnv, standing: Map[SymbolName, LExpr] = Map.empty
   def let[A, B](v: S[A], x: Bound[A])(b: S[A] => S[B]): S[B] = s =>
     val (n, body) = bound(x, s, b)
     Paren(LExpr.Let(n, LowerType(x.ty), v(s), body))
-  /** A Declaration's or Definition's name; or what stands for it (a witness already given, R14.6). */
+  /** A value's name or what stands for it (a witness given before, R14.6); a define on its open terms so written. */
   def param[A](n: SymbolName, ty: Ty): S[A] = _ => standing.getOrElse(n, LExpr.Name(Names.ident(n.value)))
-  def define[F](d: Body[F]): S[F] = _ => Atoms.define(env, d.name)
+  def define[F](d: Body[F]): S[F] = _ => Atoms.define(env, d.name, byName.get)
   def free[A](x: Binder): S[A] = s => LExpr.Name(s.named(x))
   def part[V](w: S[World], model: ModelName, ty: Ty): S[V] = s => LExpr.Dot(w(s), env.modelField(model).text)
   /** `(match (runExpiry now before) with | (result, after) => post)`: the run's pair taken apart; of a program that

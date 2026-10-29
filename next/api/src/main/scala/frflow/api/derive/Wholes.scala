@@ -14,16 +14,22 @@ import frflow.proof.obligation.ObligationName
 private[api] object Wholes:
   def of(a: Analysis): WholeView =
     val groups = Consistency.of(a.decided.theory).zipWithIndex
-    WholeView(groups.collect { case (g @ Group.Sharing(ids, _, _, ws), i) =>
-        val c = check(a, ObligationName.Consistent(i))
-        GroupView(ids, ws, standing(g.standing, c.state), c)
-      },
+    WholeView(groups.flatMap(group(a, _, _)),
       groups.collect { case (Group.Start(n, start), _) => StartView(n, start, check(a, ObligationName.Start(n))) },
       Consistency.vacuity(a.decided.theory).map(v => v -> check(a, possible(v))),
       a.computed.examples.zipWithIndex.map { case ((e, onCode), i) =>
         ExampleView(e.name, if e.givens.nonEmpty then OnClaims.ScalaOnly
           else OnClaims.Lean(check(a, ObligationName.Example(i))), onCode)
       })
+
+  /** A group of statements or of premises, with Lean's check of it; none of a start. */
+  private def group(a: Analysis, g: Group, i: Int): Option[GroupView] =
+    val c = check(a, ObligationName.Consistent(i))
+    (g match
+      case Group.Sharing(ids, _, _, ws, _) => Some(ids -> ws)
+      case Group.Premises(ids, _, ws)      => Some(ids -> ws)
+      case Group.Start(_, _)               => None)
+      .map((ids, ws) => GroupView(ids, ws, standing(g.standing, c.state), c))
 
   /** `status` says it of each group Lean has not checked witnesses for, and each start not proven. */
   def warnings(w: WholeView): List[Warning] =

@@ -1,6 +1,6 @@
 package frflow.core.code
 
-import frflow.core.name.{RelPath, SourceText, SymbolName}
+import frflow.core.name.{SourceText, SymbolName}
 
 /** The plain Scala of a model's operations (`implementTested(ops*)(start, observe)(calls)`), whoever wrote it (owner
   * §36): the operations, in the order `calls` gives their functions; the Scala itself (`Implementation.Scala`); the
@@ -9,7 +9,7 @@ import frflow.core.name.{RelPath, SourceText, SymbolName}
   * A handle on Scala: never compared or printed.
   */
 final class Implementation(val ops: List[SymbolName], val scala: Implementation.Scala, val effect: AnyRef,
-    val written: SourceText, val files: List[RelPath])
+    val written: SourceText, val files: List[CodeFile])
 
 object Implementation:
   /** How the Scala is made holding a state of the model (`start`), how its state is read back (`observe`), and each

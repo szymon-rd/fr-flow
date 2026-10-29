@@ -19,7 +19,7 @@ val claimsOf = define { (c: Term[Option[Claims]]) =>
 val referenceTokens = Node.claim("A realm's application accepts a token as the server's introspection of it " +
     "answers: a token is a reference to a session the server holds, not a statement the application reads.")(
   forall((r: Term[RealmId], t: Term[String]) => accepted(r, t) === claimsOf(introspect(r, t))))
-  .refines(realmAccess)
+  .refines(onlyTheSignedIn, disabledHaveNoAccess, rolesAsGranted, signedInAreAccepted)
 
 val realmIsolation = Node.claim("No application is ever shown claims of a realm other than its own.")(
   forall((asking: Term[RealmId], t: Term[String]) => introspect(asking, t).forall(c => c.realm === asking)))
@@ -35,20 +35,18 @@ val answersNameASession = Node.claim("An introspection answers only with the rea
 val onlyOne = define { (ss: Term[List[Session]], x: Term[Session]) =>
   ss.forall(y => (y.token === x.token) implies (y === x)) }
 
-/** The claim on `introspect`, in an object of its own: named `introspect` too, it would hide the Definition. */
-object Introspection:
-  val introspect = Node.claim("An introspection names the realm asking, and a user enabled there with their " +
-      "roles, only for a session that realm holds under the token; and it names that session's user whenever the " +
-      "user is enabled and the token names no other session there.")(
-    forall((realm: Term[RealmId], token: Term[String]) =>
-      keycloak.introspect(realm, token).forall(c => c.realm === realm &&
-        sessions(c.realm).contains(make[Session](token, c.realm, c.user)) &&
-        isEnabled(account(realm, c.user)) && c.roles === rolesIn(account(realm, c.user))) &&
-      sessions(realm).forall(x =>
-        (x.token === token && isEnabled(account(realm, x.user)) && onlyOne(sessions(realm), x)) implies
-          (keycloak.introspect(realm, token) ===
-            some(make[Claims](realm, x.user, rolesIn(account(realm, x.user))))))))
-    .refines(answersNameASession, disabledHaveNoAccess, rolesAsGranted, signedInAreAccepted, realmIsolation)
+/** The claim on `introspect` (owner §40: named apart from the Definition). */
+val introspectAnswers = Node.claim("An introspection names the realm asking, and a user enabled there with their " +
+    "roles, only for a session that realm holds under the token; and it names that session's user whenever the " +
+    "user is enabled and the token names no other session there.")(
+  forall((realm: Term[RealmId], token: Term[String]) =>
+    introspect(realm, token).forall(c => c.realm === realm &&
+      sessions(c.realm).contains(make[Session](token, c.realm, c.user)) &&
+      isEnabled(account(realm, c.user)) && c.roles === rolesIn(account(realm, c.user))) &&
+    sessions(realm).forall(x =>
+      (x.token === token && isEnabled(account(realm, x.user)) && onlyOne(sessions(realm), x)) implies
+        (introspect(realm, token) === some(make[Claims](realm, x.user, rolesIn(account(realm, x.user))))))))
+  .refines(answersNameASession, disabledHaveNoAccess, rolesAsGranted, signedInAreAccepted, realmIsolation)
 
 // ============================================================================
 // Looking up a session: the store, outside the proven core

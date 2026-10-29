@@ -436,6 +436,16 @@ under the root's two expectations and 16 of sharing's parts, sound hypotheses al
 Neither `impl` nor `complete` takes a rule (an `always`, claimed or assumed) as a hypothesis: Lean has its rule on every
 value already, and its own `claim` is not stated as a fact.
 
+**A step over what makers make.** `complete` takes, for each maker its parts' claims are about, the `made_` of every
+rule kept of it (proven of the maker's code) as an `m_<rule>_<maker>` hypothesis, as a caller's `made_` already takes
+its callee's `m_<callee>` (`Made.taken`); `holds` and `root_impl` thread the same facts through, and a step whose
+`made_` is not proven, or the `made_` of a maker it calls in turn (`Made.resting`), is unproven (`Unproven.Kept`),
+so a maker breaking its rule, itself or through its callee, leaves the step red (`SeededSuite`). A `made_` that
+rests on the statement being proven (`Resolve.provenFrom` and parts, from what relies on the maker and its callees)
+is not taken: no circle. crm's `storeMirrorsRequests` is proven so, given `oneRowPerKey` and `keyedTables` of `save`
+and `expire`.
+(step 12 ruling)
+
 **What a Declaration is.** A root may be stated over Declarations alone (owner §14), and the claims at the bottom
 then say what each is in terms of the code: rooms' `bookedAfterIsStored` says what is booked once a request is handled
 is what the table holds after `book` runs. Such a claim (no parts, mentioning a Declaration) is never asked `impl`,
@@ -477,13 +487,38 @@ hold (owner §15, §18).
   statement true. Statements above follow by proven steps, so consistency is carried upward. Each `always` about a
   store, claimed or assumed, gets `start_<node>`. `complete`, the CI gate (4.10), requires every `start_` proven
   (`Warning.StartNotProven` until then); an `always(stored)` with no `initially` assumption has no start to prove it
-  from, so a model holding one is never complete. Every `consistent_<i>` must be proven too (owner §28, below).
+  from, so a model holding one is never complete. Every `consistent_<i>` must be proven too (owner §28, below). A
+  bottom assumption with no open and no provided value is in no group: every word of it has the code's meaning, so
+  it is asked `impl` as a claim is (2.7) and is red until proven (`SeededSuite`'s `Trusted`). One with no word at all
+  (`∀ xs, xs.length ≠ 3`) says nothing of the world, so nothing justifies trusting it: it is asked to be proven, with
+  nothing standing in it, and is red until it is (`SeededSuite`'s `Pure`).
 - **Witnesses**, derived where possible, the group solved in substitution order: `∀ xs, s(xs) = e`, `e` mentioning
   nothing still open, gives `fun xs => e`; a bound gives the bound (one past a strict one); a witnessed value then
   stands for itself in the rest. Proven code is its own witness, once what it leaves open is solved: `bookedAfter`'s
   witness, the table after `book` runs, waits for `granted`'s, which `grantWhenNoOverlap`'s equation gives. An
   equation read through a run (`book(request).from(now) { (_, after) => bookedAfter(request, now) === … }`) gives its
   witness over the run's outcome. `Equations.defining` reads the shape off the IR; `Defining` builds the term.
+- **Pinned provided values.** A provided value that an assumption of the group equates to a term is solved by that
+  equation, like an open value; the provided values no assumption pins stay universal (asked of every value).
+  keycloak's `state` is solved by `serverRun`, crm's `held` by `crmRun`; auth's session table, which an assumption
+  only bounds, is asked of every value (`PinnedSuite`). A pinned value joins groups as an open one does, so every
+  statement mentioning it is in one group, which solves it once: two groups never choose it apart, and an
+  assumption whose only value is a pinned one has a group (`SeededSuite`'s `TwoPins` and `Closed`).
+  (step 12 ruling)
+- **Code all the way down.** What stands in a group's statements is closed over the code: a Definition with proven
+  code reached only through another's code has its code stand too (`Stands`, `Callees.reaching`), and its open
+  values are the group's. A value provided where the code runs that the standing code reaches is the group's too:
+  universal, as a mentioned one is, given what the assumptions at the bottom about such values alone say (the
+  group's `premises`, what the world outside is trusted to give: `∀ k, kPositive k → ∃ …`), and the premises over the
+  same provided values have a `consistent_<i>` of their own, some value meeting them all (`Group.Premises`, a list
+  none bounds witnessed empty, keycloak's `history`), gating every group taking them (`SeededSuite`'s `Vacuous`).
+  A consistency statement never binds by `∃` a Definition with a meaning of its own (proven code, a fixed value, a
+  model's operation, an unpinned provided value): one left over is left unbound, and Lean refuses the statement
+  (fail closed), so no proof chooses the code's meaning or the world's value (`SeededSuite`'s `Hidden` and
+  `Through`). A `feasible` statement
+  (`∃ U, C1 ∧ … ∧ Cn`, 4.7) does bind them by `∃`, soundly: it shows only that an authored `complete`, proven for
+  every meaning of `U` (code and provided values among them), does not rest on parts no meaning meets; whether the
+  parts hold of the real code is their own checks' (`impl`) and their groups' here.
 - **Currency.** The consistency check is current while `Whole.lean` and every module it imports are as checked, the
   specs of the statements it states among them (`CheckKeys.whole`): a statement changed alone checks it again.
 
@@ -525,7 +560,9 @@ enum Vacuity:
 ```
 
 `inhabited_<node>`: some value of `T` meets an `always[T]`, claimed or assumed (an assumption no value meets would make
-every statement about `T` hold for nothing). `satisfiable_<i>_<node>`: each condition `A` of a claim's
+every statement about `T` hold for nothing), together with every other `always[T]` on that type, so two that contradict
+show; and an assumption saying what a store starts in gets one too, some state meeting it (`start_` then gives the
+store's rules of it). `satisfiable_<i>_<node>`: each condition `A` of a claim's
 `A implies B`, with what is bound above it (`Conditions`), can hold. The witness search (`testing.search.Witnesses`)
 tries the generators' values first, then small values of each type (`Small`, SmallCheck-style), each judged by the
 evaluator, deterministically, at most 5,000 candidates. A witness found goes to Lean (rooms: `(Booking.mk "" 0 1)`,
@@ -534,6 +571,13 @@ evaluator, deterministically, at most 5,000 candidates. A witness found goes to 
 `none` may not elaborate. Examples may serve as witnesses but are never required. Vacuity is reported, not gated:
 `status` shows each `inhabited_` and `satisfiable_` shown or not shown, and `complete` does not wait for them. This is
 vacuity only; consistency gates the proof (2.8).
+
+**The idle try, of the roots together.** `idle` asks whether a root is met by doing nothing; it is asked of the roots
+naming the same Definitions together: the purpose is met by doing nothing only when every root naming those
+Definitions is. A safety root alone met by doing nothing is not a defect: crm's `noCrossTenantRead`, with
+`addedIsFound` and `writesLeaveOthers`, passes the try; a model whose roots are all met by doing nothing still fails
+it. The other roots are stated as their formulas, not imported (no import circle).
+(step 12 ruling)
 
 ### 2.10 Examples as tests
 

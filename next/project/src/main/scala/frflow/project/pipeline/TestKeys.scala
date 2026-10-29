@@ -4,7 +4,7 @@ import frflow.core.example.Gen
 import frflow.core.analysis.outside.Guards
 import frflow.core.name.{ModelName, NodeId}
 import frflow.decision.content.Sha
-import frflow.project.code.CodeFingerprints
+import frflow.project.code.{CodeFingerprints, Governance}
 import frflow.testing.model.ModelRuns
 
 /** What a node's test report depends on: the node as decided (its content: its formula, how its code is written),
@@ -28,7 +28,8 @@ object TestKeys:
     val t = a.decided.theory
     val scala = t.code.implemented.get(m)
     keyed(a, CodeTexts.lean(a.decided, m).toList.flatten ++ scala.map(_.written.value) ++
-      scala.map(i => CodeFingerprints.of(i.files.map(f => f -> a.inputs.sources.get(f))).fingerprint.sha) ++
+      scala.map(i => CodeFingerprints.of(i.files.flatMap(Governance.governed(t, _)).map(f =>
+        f -> a.inputs.sources.get(f.path))).fingerprint.sha) ++
       Guards.reading(t, List(m)).map(_._1).distinct.map(n => Contents.of(a.canonical, n).ref))
 
   private def keyed(a: Analysis, parts: List[String]): String =

@@ -3,6 +3,7 @@ package frflow.core.analysis
 import cats.syntax.all.*
 import frflow.core.code.Code
 import frflow.core.expr.{Exprs, Mentions}
+import frflow.core.graph.Walk
 import frflow.core.name.{DefName, NodeId, SymbolName}
 import frflow.core.Theory
 
@@ -23,6 +24,12 @@ object Callees:
       case Code.ProvenFlow(f) => Some(Callees(Map(op -> DefName(s"${f.value}_run")), calls(t, f)))
       case c                  => c.proven.map(d => Callees(Map(op -> d), calls(t, d)))
     }
+
+  /** `ss` and every Definition the proven code standing for them reaches, through the code standing for each
+    * Definition it calls in turn: what a statement asked of the code is about, all the way down.
+    */
+  def reaching(t: Theory, ss: List[SymbolName]): List[SymbolName] =
+    Walk.breadthFirst(ss, identity)(s => ofDefinition(t, s).toList.flatMap(_.calls.symbols))
 
   /** The Definitions a define calls, through the defines it calls. */
   def calledBy(t: Theory, d: DefName): List[SymbolName] = calls(t, d).symbols

@@ -38,14 +38,12 @@ error: check: level 4 of 4: bookWhenFree, acceptWhenFree
   needed_storeWhenFree: not shown
   clash: not shown
   unsat: not shown
-  idle: not shown
 + acceptWhenFree: proven
   needed_bookedIsStored: not shown
   needed_acceptedIsAnswered: not shown
   needed_answerWhenFree: not shown
   clash: not shown
   unsat: not shown
-  idle: not shown
 + nothingElseWrites: inRoom and add's Scala tested against storedBookings on 200 runs
   note: the generator given for String: Oak or Elm
   note: the generator given for Booking: requests for Oak or Elm that end after they start
@@ -69,6 +67,7 @@ Shown possible
   bookingsOfTheRoom admits a value of RoomBookings: proven
   roomBookingsApart admits a value of RoomBookings: proven
   bookingsEndAfterStart admits a value of Booking: proven
+  startsEmpty admits a value of List[Booking]: proven
 
 Examples
   + a gap between them: granted  Lean: shown

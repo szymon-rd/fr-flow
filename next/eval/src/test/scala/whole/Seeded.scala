@@ -1,0 +1,192 @@
+package whole
+
+import frflow.*
+
+/** Seeded models from the step 12 review, each a bug FrFlow must not let through. */
+object Seeded:
+  /** Two assumptions pinning the provided `n` apart (`n = 0` through `d1`, `n = 1` through `d2`): one group, since
+    * they must hold together, and no witness meets it.
+    */
+  object TwoPins:
+    val n = Definition[BigInt]("a value provided where the code runs")
+    val d1 = Declaration[BigInt => BigInt]("one reading of n")
+    val d2 = Declaration[BigInt => BigInt]("another reading of n")
+
+    val five = Node.claim("n is five.")(n === (5: Term[BigInt]))
+    val nIsD1 = Node.assumption("n is d1.")(n === d1(0)).refines(five)
+    val d1IsZero = Node.assumption("d1 is zero.")(forall((x: Term[BigInt]) => d1(x) === (0: Term[BigInt])))
+      .refines(five)
+    val nIsD2 = Node.assumption("n is d2.")(n === d2(0)).refines(five)
+    val d2IsOne = Node.assumption("d2 is one.")(forall((x: Term[BigInt]) => d2(x) === (1: Term[BigInt])))
+      .refines(five)
+
+    val knowledge = FrModel("TwoPins")(five, nIsD1, d1IsZero, nIsD2, d2IsOne).implementProvided(n)
+
+  /** Assumptions with no open value, each pinning the provided `n` apart: a group of their own. */
+  object Closed:
+    val n = Definition[BigInt]("a value provided where the code runs")
+    val five = Node.claim("n is five.")(n === (5: Term[BigInt]))
+    val nIsZero = Node.assumption("n is zero.")(n === (0: Term[BigInt])).refines(five)
+    val nIsOne = Node.assumption("n is one.")(n === (1: Term[BigInt])).refines(five)
+    val knowledge = FrModel("Closed")(five, nIsZero, nIsOne).implementProvided(n)
+
+  /** `inner`'s code reached only through `outer`'s: with the real code `holdsIs` and `holdsOne` contradict each
+    * other (`twice` leaves the bag two long and holding the item), so no proof may show their group consistent.
+    */
+  object Hidden:
+    val inner = Definition[(Bag, BigInt) => Bag]("puts an item in a bag")
+    val outer = Definition[(Bag, BigInt) => Bag]("puts an item in a bag, through inner")
+    val holds = Declaration[(Bag, BigInt) => Boolean]("whether putting the item in the bag leaves it there")
+    val twice = define { (b: Term[Bag], x: Term[BigInt]) => make[Bag](b.items :+ x :+ x) }
+    val through = define { (b: Term[Bag], x: Term[BigInt]) => inner(b, x) }
+
+    val purpose = Node.claim("Putting an item in a bag never leaves it there.")(
+      forall((b: Term[Bag], x: Term[BigInt]) => !holds(b, x)))
+    val seen = Node.claim("What holds is in the bag.")(
+      forall((b: Term[Bag], x: Term[BigInt]) => holds(b, x) implies outer(b, x).items.contains(x)))
+    val holdsIs = Node.claim("Holding is being in the bag outer makes.")(
+      forall((b: Term[Bag], x: Term[BigInt]) => holds(b, x) === outer(b, x).items.contains(x))).refines(seen)
+    val holdsOne = Node.claim("Holding is the bag outer makes holding one item.")(
+      forall((b: Term[Bag], x: Term[BigInt]) => holds(b, x) === (outer(b, x).items.length === (1: Term[BigInt]))))
+      .refines(purpose)
+    val outerLong = Node.claim("outer's bag holds two items or more.")(
+      forall((b: Term[Bag], x: Term[BigInt]) => outer(b, x).items.length >= (2: Term[BigInt]))).refines(purpose)
+    val innerLong = Node.claim("inner's bag holds two items or more.")(
+      forall((b: Term[Bag], x: Term[BigInt]) => inner(b, x).items.length >= (2: Term[BigInt]))).refines(outerLong)
+
+    val knowledge = FrModel("Hidden")(purpose, seen, holdsIs, holdsOne, outerLong, innerLong)
+      .implementProven(inner)(twice).implementProven(outer)(through)
+
+    /** The proof the review wrote: `inner` chosen as a bag of the item alone, `holds` as always. */
+    val proof: String = """import FrFlowGen.Hidden.Whole.Spec
+
+set_option autoImplicit false
+noncomputable section
+open Classical
+
+namespace Hidden.Whole.Proofs
+
+theorem consistent_0 : Obl.consistent_0 := by
+  refine ⟨fun _ _ => True, fun _ x => Bag.mk [x], ?_, ?_⟩
+  · intro b x
+    simp [Hidden.through]
+  · intro b x
+    simp [Hidden.through]
+
+end Hidden.Whole.Proofs
+"""
+
+  /** A provided `k` reached only through `outer`'s code, which calls `inner`'s (adding the item only when `k > 0`):
+    * for the `k` the world gives (`kPositive`), `holdsA` and `holdsB` contradict each other at an empty sack, so no
+    * proof may choose `k` to show their group consistent.
+    */
+  object Through:
+    val k = Definition[BigInt]("a value provided where the code runs")
+    val inner = Definition[(Sack, BigInt) => Sack]("puts an item in a sack, if k says so")
+    val outer = Definition[(Sack, BigInt) => Sack]("puts an item in a sack, through inner")
+    val holds = Declaration[(Sack, BigInt) => Boolean]("whether the item is in the sack")
+    val maybe = define { (b: Term[Sack], x: Term[BigInt]) =>
+      when(k > (0: Term[BigInt]))(make[Sack](b.items :+ x)).otherwise(b) }
+    val through = define { (b: Term[Sack], x: Term[BigInt]) => inner(b, x) }
+
+    val emptyHoldsNothing = Node.claim("An empty sack holds nothing.")(
+      forall((x: Term[BigInt]) => !holds(make[Sack](Nil: Term[List[BigInt]]), x)))
+    val emptyHoldsIt = Node.claim("An empty sack holds the item put in it.")(
+      forall((x: Term[BigInt]) => holds(make[Sack](Nil: Term[List[BigInt]]), x)))
+    val holdsB = Node.claim("Holding is being in the sack already.")(
+      forall((b: Term[Sack], x: Term[BigInt]) => holds(b, x) === b.items.contains(x))).refines(emptyHoldsNothing)
+    val holdsA = Node.claim("Holding is being in the sack outer makes.")(
+      forall((b: Term[Sack], x: Term[BigInt]) => holds(b, x) === outer(b, x).items.contains(x))).refines(emptyHoldsIt)
+    val outerAdds = Node.claim("outer's sack holds the item.")(
+      forall((b: Term[Sack], x: Term[BigInt]) => outer(b, x).items.contains(x))).refines(emptyHoldsIt)
+    val innerAdds = Node.claim("inner's sack holds the item.")(
+      forall((b: Term[Sack], x: Term[BigInt]) => inner(b, x).items.contains(x))).refines(outerAdds)
+    val kPositive = Node.assumption("k is positive.")(k > (0: Term[BigInt])).refines(innerAdds)
+
+    val knowledge = FrModel("Through")(emptyHoldsNothing, emptyHoldsIt, holdsB, holdsA, outerAdds, innerAdds,
+      kPositive).implementProvided(k).implementProven(inner)(maybe).implementProven(outer)(through)
+
+    /** The proof the re-review wrote: `k` chosen as 0, where inner adds nothing. */
+    val proof: String = """import FrFlowGen.Through.Whole.Spec
+
+set_option autoImplicit false
+noncomputable section
+open Classical
+
+namespace Through.Whole.Proofs
+
+theorem consistent_0 : Obl.consistent_0 := by
+  refine ⟨fun b x => x ∈ b.items, 0, ?_, ?_⟩
+  · intro b x
+    simp [Through.through, Through.maybe]
+  · intro b x
+    rfl
+
+end Through.Whole.Proofs
+"""
+
+  /** `Through` with a second premise about `k` that contradicts the first (`kNegative`, a part of `kSmall`): every
+    * group taking both would hold for nothing, so their own obligation, that some `k` meets both, must stay red.
+    */
+  object Vacuous:
+    import Through.*
+    val kSmall = Node.claim("k is below one.")(k < (1: Term[BigInt]))
+    val kNegative = Node.assumption("k is negative.")(k < (0: Term[BigInt])).refines(kSmall)
+
+    val knowledge = FrModel("Vacuous")(emptyHoldsNothing, emptyHoldsIt, kSmall, holdsB, holdsA, outerAdds,
+      innerAdds, kPositive, kNegative).implementProvided(k).implementProven(inner)(maybe).implementProven(outer)(
+      through)
+
+    /** The proof the second re-review wrote: the group, vacuously, from premises no `k` meets. */
+    val proof: String = """import FrFlowGen.Vacuous.Whole.Spec
+
+set_option autoImplicit false
+noncomputable section
+open Classical
+
+namespace Vacuous.Whole.Proofs
+
+theorem consistent_0 : Obl.consistent_0 := by
+  intro k hp hn
+  simp [Vacuous.kPositive.claim, Vacuous.kNegative.claim] at hp hn
+  omega
+
+end Vacuous.Whole.Proofs
+"""
+
+  /** An assumption every word of which the code gives a meaning (`outerKeeps`, of `outer`'s code through `inner`'s),
+    * false of the code: it must be proven of the code as a claim is, and stays red, as `emptyHoldsNothing` does.
+    */
+  object Trusted:
+    import Hidden.{holds, inner, outer, through, twice}
+    val emptyHoldsNothing = Node.claim("An empty bag holds nothing put in it.")(
+      forall((x: Term[BigInt]) => !holds(make[Bag](Nil: Term[List[BigInt]]), x)))
+    val holdsIs = Node.claim("Holding is being in the bag outer makes.")(
+      forall((b: Term[Bag], x: Term[BigInt]) => holds(b, x) === outer(b, x).items.contains(x)))
+      .refines(emptyHoldsNothing)
+    val outerKeeps = Node.assumption("outer leaves the bag as it was.")(
+      forall((b: Term[Bag], x: Term[BigInt]) => outer(b, x).items === b.items)).refines(emptyHoldsNothing)
+
+    val outerLong = Node.claim("outer's bag holds two more items.")(forall((b: Term[Bag], x: Term[BigInt]) =>
+      outer(b, x).items.length === b.items.length + (2: Term[BigInt])))
+    val innerLong = Node.claim("inner's bag holds two more items.")(forall((b: Term[Bag], x: Term[BigInt]) =>
+      inner(b, x).items.length === b.items.length + (2: Term[BigInt]))).refines(outerLong)
+
+    val knowledge = FrModel("Trusted")(emptyHoldsNothing, holdsIs, outerKeeps, outerLong, innerLong)
+      .implementProven(inner)(twice).implementProven(outer)(through)
+
+  /** An assumption with no word at all, `∀ xs, xs.length ≠ n`, a part of a root over `holds` (`xs.length = n`):
+    * false for `n = 3` (no try builds a list to refute it), so a step resting on it would hold for nothing, and it
+    * must be proven; true for `n = -1`.
+    */
+  final class Pure(n: BigInt):
+    val holds = Declaration[List[BigInt] => Boolean]("whether a list is n long")
+    val never = Node.claim("No list is held.")(forall((xs: Term[List[BigInt]]) => !holds(xs)))
+    val holdsIs = Node.claim("A list is held when it is n long.")(
+      forall((xs: Term[List[BigInt]]) => holds(xs) === (xs.length === (n: Term[BigInt])))).refines(never)
+    val noDouble = Node.assumption("No list is n long.")(
+      forall((xs: Term[List[BigInt]]) => xs.length =!= (n: Term[BigInt]))).refines(never)
+    val knowledge = FrModel(if n < 0 then "PureTrue" else "PureFalse")(never, holdsIs, noDouble)
+
+final case class Bag(items: List[BigInt]) derives LeanType
+final case class Sack(items: List[BigInt]) derives LeanType

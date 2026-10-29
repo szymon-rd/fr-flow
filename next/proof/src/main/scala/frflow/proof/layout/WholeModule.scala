@@ -7,16 +7,21 @@ import frflow.proof.lean.lower.{LowerObligation, LowerProp, LowerWitness}
 import frflow.proof.obligation.{Discharge, Obligation}
 import frflow.proof.terms.TermTable
 
-/** `Whole.lean`: what is asked of the theory as a whole (`Joint`, `ExampleGoals`), each statement in `namespace
-  * Obl`, and the theorem of each one FrFlow's witnesses meet (`frflow_witness`) or its automation proves
-  * (`frflow_auto`), each with its axioms audited. A statement nothing witnesses is stated only: it shows
-  * "consistency not proven" (or "not shown") until the developer's proof file proves it; an example is a try, in the
-  * checks module beside it.
+/** What is asked of the theory as a whole (`Joint`, `ExampleGoals`): `Whole/Spec.lean`, each statement in `namespace
+  * Obl`; and `Whole.lean`, the theorem of each one FrFlow's witnesses meet (`frflow_witness`) or its automation
+  * proves (`frflow_auto`), each with its axioms audited. A statement nothing witnesses is stated only: it shows
+  * "consistency not proven" (or "not shown") until the developer's proof file (`Proofs/<Model>/Whole.lean`, which
+  * imports the statements alone, so a witness Lean refuses there stops none of its proofs) proves it; an example is a
+  * try, in the checks module beside it.
   */
 final class WholeModule(props: LowerProp, witness: LowerWitness):
-  def of(kb: KbName, imports: List[ModuleName], obligations: List[Obligation]): LeanModule =
-    LeanModule(Layout(kb).whole, imports, Preamble.generated, Names.path(kb.value, "Whole"), Nil,
-      obligations.map(LowerObligation(props)(_)) ++ obligations.collect {
+  def statements(kb: KbName, obligations: List[Obligation]): LeanModule =
+    LeanModule(Layout(kb).wholeSpec, Nil, Preamble.generated, Names.path(kb.value, "Whole"), Nil,
+      obligations.map(LowerObligation(props)(_)))
+
+  def of(kb: KbName, obligations: List[Obligation]): LeanModule =
+    LeanModule(Layout(kb).whole, Nil, Preamble.generated, Names.path(kb.value, "Whole"), Nil,
+      obligations.collect {
         case o @ Obligation(_, _, Discharge.Witnessed(by), _) => List(witness(o, by), audit(kb, o))
         case o @ Obligation(n, _, Discharge.Auto, _)          =>
           val name = LowerObligation.name(n)
@@ -29,19 +34,36 @@ final class WholeModule(props: LowerProp, witness: LowerWitness):
     Decl.PrintAxioms(Names.path(kb.value, "Whole", LowerObligation.name(o.name).text))
 
 object WholeModule:
-  /** Over the FrModel's lowering environment, importing what its statements name. */
-  def of(r: Resolved, table: TermTable, obligations: List[Obligation]): LeanModule =
+  /** Over the FrModel's lowering environment, importing what its statements name: the statements, and FrFlow's own
+    * theorems of them.
+    */
+  def of(r: Resolved, table: TermTable, obligations: List[Obligation]): List[LeanModule] =
     of(Lowering(r, table), obligations)
 
-  def of(l: Lowering, obligations: List[Obligation]): LeanModule =
-    Imports.onto(l, WholeModule(l.props, LowerWitness(l.env, l.naming, l.props)).of(l.kb, Nil, obligations))
+  def of(l: Lowering, obligations: List[Obligation]): List[LeanModule] =
+    val made = WholeModule(l.props, LowerWitness(l.env, l.naming, l.props))
+    val whole = Imports.onto(l, made.of(l.kb, obligations))
+    List(Imports.onto(l, made.statements(l.kb, obligations)),
+      whole.copy(imports = (l.layout.wholeSpec :: whole.imports).distinct))
 
-  /** `Whole/Checks.lean`: each example tried against the claims within its budget, by FrFlow's automation. */
+  /** `Whole/Audit.lean`: what each of the developer's proofs of the theory's obligations rests on (`#print axioms`,
+    * which a proof file may not hold).
+    */
+  def audit(l: Lowering, obligations: List[Obligation]): Option[LeanModule] =
+    val authored = obligations.collect { case o @ Obligation(_, _, Discharge.Authored, _) =>
+      Decl.PrintAxioms(Names.path(l.kb.value, "Whole", "Proofs", LowerObligation.name(o.name).text))
+    }
+    Option.when(authored.nonEmpty)(LeanModule(l.layout.wholeAudit, List(l.layout.wholeProofs), Preamble.generated,
+      Names.path(l.kb.value, "Whole", "Audit"), Nil, authored))
+
+  /** `Whole/Checks.lean`: each example tried against the claims within its budget, by FrFlow's automation, over the
+    * statements alone (a witness Lean refuses stops no example).
+    */
   def checks(l: Lowering, obligations: List[Obligation]): Option[LeanModule] =
     val tried = obligations.collect { case o @ Obligation(_, _, Discharge.Attempt(h), _) =>
       val name = LowerObligation.name(o.name)
       Decl.Budgeted(h, Decl.Theorem(Nil, name, Nil, LExpr.Const(List(Names.builtin("Obl"), name)),
         Proof.Tactics(List("frflow_auto")), Break.SameLine))
     }
-    Option.when(tried.nonEmpty)(LeanModule(l.layout.wholeChecks, List(l.layout.whole), Preamble.generated,
+    Option.when(tried.nonEmpty)(LeanModule(l.layout.wholeChecks, List(l.layout.wholeSpec), Preamble.generated,
       Names.path(l.kb.value, "Whole", "Checks"), Nil, tried))

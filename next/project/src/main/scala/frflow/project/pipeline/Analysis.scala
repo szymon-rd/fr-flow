@@ -8,10 +8,10 @@ import frflow.core.name.{ModelName, NodeId}
 import frflow.decision.content.CodeNow
 import frflow.decision.review.{Reading, Standing, Subjects}
 import frflow.project.code.{CodeFingerprints, Governance}
-import frflow.proof.layout.{LeanProject, Lowering, RootImplModule}
+import frflow.proof.layout.{Layout, LeanProject, Lowering, RootImplModule}
 import frflow.proof.lean.ast.LeanModule
-import frflow.proof.obligation.{NodeObligations, Obligation, ObligationName, Obligations}
-import frflow.proof.reading.ProofRules
+import frflow.proof.obligation.{Discharge, NodeObligations, Obligation, ObligationName, Obligations}
+import frflow.proof.reading.{ProofFile, ProofRules}
 import frflow.proof.terms.TermTable
 import frflow.proof.verdict.{CheckKey, NodeCheck, WholeCheck}
 import frflow.proof.whole.{ExampleGoals, Joint, Possible}
@@ -23,12 +23,28 @@ final class Analysis(val valid: Valid, val inputs: Inputs, val computed: Compute
   lazy val decided: Resolved = Resolve(valid)
   lazy val terms: TermTable = TermTable.of(decided)
   lazy val obligations: List[NodeObligations] = Obligations.of(decided, terms, authored)
-  /** What is asked of the theory as a whole: consistency and vacuity, with the witnesses found, and the examples. */
+  /** What is asked of the theory as a whole: consistency and vacuity, with the witnesses found, and the examples; each
+    * the developer's proof file (`Proofs/<Model>/Whole.lean`) proves, authored (owner §39).
+    */
   lazy val whole: List[Obligation] =
-    Joint.of(decided) ++ Possible.of(decided, computed.found) ++ ExampleGoals.of(decided, computed.examples.map(_._1))
-  /** The consistency groups by their index, as `consistent_<i>` names them. */
+    (Joint.of(decided) ++ Possible.of(decided, computed.found) ++ ExampleGoals.of(decided, computed.examples.map(_._1)))
+      .map(o => if wholeProven(o.name) then o.copy(discharge = Discharge.Authored) else o)
+  /** The developer's proof file of the theory's own obligations, if there is one. */
+  lazy val wholeProof: Option[ProofFile] = inputs.lean.proofs.collectFirst {
+    case (id, f) if Layout(decided.theory.name).proofs(id) == Layout(decided.theory.name).wholeProofs => f
+  }
+  private lazy val wholeProven: Set[ObligationName] = wholeProof.toList.flatMap(ProofRules.theorems).toSet
+  /** The consistency groups by their index, as `consistent_<i>` names them: of premises, with every group taking
+    * them, which rests on them.
+    */
   lazy val groups: List[(Int, List[NodeId])] =
-    Consistency.of(decided.theory).zipWithIndex.collect { case (Group.Sharing(ids, _, _, _), i) => i -> ids }
+    val all = Consistency.of(decided.theory).zipWithIndex
+    all.collect {
+      case (Group.Sharing(ids, _, _, _, _), i) => i -> ids
+      case (Group.Premises(ps, _, _), i)       => i -> (ps ++ all.collect {
+          case (Group.Sharing(ids, _, _, _, qs), _) if qs.exists(ps.contains) => ids
+        }.flatten).distinct
+    }
   lazy val lowering: Lowering = Lowering(decided, terms)
   /** The lowering a node's content prints what its formula means with (`Contents`): variables named by order. */
   lazy val canonical: Lowering = Lowering(decided, terms, canonical = true)
@@ -39,7 +55,7 @@ final class Analysis(val valid: Valid, val inputs: Inputs, val computed: Compute
   private lazy val nodeKeys: Map[NodeId, CheckKey] = obligations.map(o => o.node -> keys.node(o.node)).toMap
   /** Each node's governed code now: the files it governs, fingerprinted. */
   lazy val governed: Map[NodeId, CodeNow] = Governance.of(decided.theory, inputs.sources.keys.toList).map((id, fs) =>
-    id -> CodeFingerprints.of(fs.map(f => f -> inputs.sources.get(f))))
+    id -> CodeFingerprints.of(fs.map(f => f -> inputs.sources.get(f.path))))
   lazy val subjects: Subjects = ReadSubjects(this)
   lazy val reading: Reading = Reading(subjects, inputs.ledger.counting)
   lazy val standings: Map[NodeId, Standing] = reading.standings

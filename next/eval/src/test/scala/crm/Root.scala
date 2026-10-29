@@ -94,7 +94,6 @@ val sharing = Node.claim("A record is shared with a company now when the last sh
   forall((r: Term[CrmRecord], c: Term[TenantId]) => sharedWith(r, c) === sharedIn(history, r.id, c, clock)))
   .refines(sharedCrm)
 
-val crmRun = Node.assumption("What the CRM holds now, its records, their shares and the shares' expiries, is what " +
-    "its history led to: from empty, each write saved by the write side, the rows about its record replaced by " +
-    "those it stored, and each run of the expiry job, in turn.")(
-  held === runOf(history))
+val keyedTables = Node.assumption("The database's tables hold one row per key, by their keys: a record by its id, a " +
+    "share and an expiry by record and company.")(
+  always[CrmStore](s => onePerKey(s)))
