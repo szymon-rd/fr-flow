@@ -35,7 +35,8 @@ object CheckText:
     tests.map(_.outcome) match
       case Some(TestOutcome.Failed(f)) => Tested.failed(f, Cause.movedUnderCode(n.review.standing.causes))
       case _ if !proven(n)             => Findings.check(n.proof.state)
-      case Some(TestOutcome.Passed)    => (if n.proof.state == CheckState.Proven then "proven; its code" else "its code") +
+      case Some(TestOutcome.Passed)    =>
+        (if n.proof.state == CheckState.Proven then "proven; its code" else "its code") +
           s" tested on ${tests.fold(0)(_.cases.tried)} cases"
       case _                           => if n.proof.state == CheckState.Proven then "proven" else "nothing to prove"
 
