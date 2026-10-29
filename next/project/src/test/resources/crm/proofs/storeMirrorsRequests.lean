@@ -261,4 +261,35 @@ theorem complete : Obl.complete := by
   rw [hHeld]
   exact ⟨fun r => propext (hRecords r), fun id_ c => propext (hShared id_ c clock)⟩
 
+/-- The parts hold together of the code: an empty CRM, no history, the job's code and the write side's, each meeting
+its contract as `writeContract`, `saveWrite` and `sharesExpire` say. -/
+theorem feasible : Obl.feasible := by
+  refine ⟨CrmStore.mk [] [] [], [], 0, expireCode, saved (fun id_ t => aboutRecord t id_) applyWrite,
+    by simp [keyedTables, onePerKey], by simp [oneRowPerKey, onePerKey], fun _ _ => rfl, ?_, ?_, ?_,
+    fun _ _ _ _ => ⟨⟨rfl, rfl⟩, rfl⟩⟩
+  · intro s hk ho w
+    obtain ⟨⟨_, hTakes⟩, _⟩ := applyWrite_contract s hk ho w
+    simp only [afterSave, saved]
+    rw [aboutRecord_idem]
+    exact takesEffect_replace s (applyWrite s w) w hTakes
+  · intro s hk ho w
+    obtain ⟨_, hOnly⟩ := applyWrite_contract s hk ho w
+    simp only [afterSave, saved]
+    rw [aboutRecord_idem]
+    exact onlyAsked_replace s (applyWrite s w) w hOnly
+  · intro s hk ho e r hr
+    cases e with
+    | Wrote w =>
+      obtain ⟨⟨⟨hKeeps, _⟩, _⟩, _⟩ := applyWrite_contract s hk ho w
+      simp only [stepOf, afterSave, saved]
+      rw [aboutRecord_idem, mem_records]
+      by_cases hid : r.id_ = about w
+      · exact Or.inr ⟨hKeeps r hr, hid⟩
+      · exact Or.inl ⟨hr, hid⟩
+    | Expired now =>
+      simp only [stepOf]
+      obtain ⟨⟨hRecords, _⟩, _⟩ : endsDueAt s now (expireCode s now) := ⟨⟨rfl, rfl⟩, rfl⟩
+      rw [hRecords]
+      exact hr
+
 end Crm.storeMirrorsRequests.Proofs

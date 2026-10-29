@@ -20,4 +20,9 @@ theorem complete : Obl.complete := by
   simp only [Keycloak.account, Keycloak.stateAfter, Keycloak.accountsAfter]
   rw [h]
 
+/-- The parts hold together of the code: no request, the server's step over a store keeping what it is given. -/
+theorem feasible : Obl.feasible := by
+  refine ⟨[], _, [], Keycloak.handle (fun _ after => after), rfl, ?_⟩
+  frflow_auto
+
 end Keycloak.accountsAsAdministered.Proofs

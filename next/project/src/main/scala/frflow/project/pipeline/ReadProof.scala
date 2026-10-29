@@ -59,12 +59,14 @@ object ReadProof:
     Option.when(Scope.of(a.decided.theory, id).exists(op => !status(rs, Cover(op.value)).forall(_ == Proven)))(
       Unproven.Kept(id)).toList
 
-  /** Of a step taking what the makers below it make (`Made.taken`), each rule whose `made_<maker>` is not proven:
-    * the step rests on it (step 12 ruling).
+  /** Of a step taking what the makers below it make (`Made.taken`), each rule whose `made_<maker>` is not proven, or
+    * the `made_` of a maker it calls, which that `made_` takes (`Made.resting`): the step rests on each (step 12
+    * ruling), so a maker breaking the rule through its callee leaves the step unproven too.
     */
   private def made(a: Analysis, id: NodeId): List[Unproven] =
-    Made.taken(a.decided, id).collect { case (rule, op, _) if !a.current(rule).exists(_.results.exists(r =>
-      r.name == ObligationName.Made(op.value) && r.status == Proven)) => Unproven.Kept(rule) }.distinct
+    Made.taken(a.decided, id).collect { case (rule, op, _) if Made.resting(a.decided, rule, op).exists(m =>
+      !a.current(rule).exists(_.results.exists(r => r.name == ObligationName.Made(m.value) && r.status == Proven))) =>
+      Unproven.Kept(rule) }.distinct
 
   /** At the bottom, the group it shares open values with not proven to hold together; of what always holds of a
     * store, the states it starts in not proven to meet it (`start_<node>`); proven from parts, a statement below it

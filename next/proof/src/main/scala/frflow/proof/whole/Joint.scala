@@ -1,10 +1,11 @@
 package frflow.proof.whole
 
 import cats.data.NonEmptyList
-import frflow.core.analysis.{Constrained, Resolved}
+import frflow.core.analysis.{Callees, Constrained, Resolved}
 import frflow.core.analysis.outside.Guards
 import frflow.core.consistency.{Consistency, Defining, Group, Picked, Standing, Witness}
 import frflow.core.expr.{Binder, OutsideFact}
+import frflow.core.graph.Walk
 import frflow.core.name.{DefName, NodeId, SymbolName, VarId}
 import frflow.core.spec.Range
 import frflow.core.term.{Final, Stated, Sym}
@@ -43,11 +44,15 @@ object Joint:
     case Standing.Witnessed => Discharge.Witnessed(ordered(r, g))
     case _                  => Discharge.Unwitnessed
 
-  /** The witnesses in solving order, each proven code the statements mention given as its define just before the
-    * first witness that may mention it: once every value it leaves open is solved.
+  /** The witnesses in solving order, each proven code the statements mention or that code reaches given as its
+    * define just before the first witness that may mention it: once every value it leaves open is solved, and after
+    * the code standing for each Definition it calls.
     */
   private def ordered(r: Resolved, g: Group.Sharing): List[Supplied] =
-    val code = standing(r, g.statements).toList.sortBy(_._1.value).collect { case (s, Substitute.Code(d)) => (s, d) }
+    val stands = standing(r, g.statements).collect { case (s, Substitute.Code(d)) => (s, d) }
+    val code = Walk.postorder(stands.keys.toList.sortBy(_.value), identity)(s =>
+      Callees.ofDefinition(r.theory, s).toList.flatMap(_.calls.symbols).filter(stands.contains))
+      .flatMap(s => stands.get(s).map(s -> _))
     g.witnesses.foldLeft((List.empty[Supplied], List.empty[SymbolName])) { case ((out, solved), w) =>
       val ready = code.filter((s, d) =>
         !out.contains(Supplied.Code(s, d)) && Consistency.reach(r.theory, s).forall(solved.contains))

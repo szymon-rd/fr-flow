@@ -36,15 +36,15 @@ object Consistency:
   }
 
   /** What a statement leaves open: the Declarations it mentions, and the Definitions no proof or fixed value gives
-    * a meaning (plain Scala, tested; or none), its own and those the proven code standing in it leaves open
-    * (`bookedAfterIsStored` mentions `book`, whose program calls `granted`).
+    * a meaning (plain Scala, tested; or none), its own and those the proven code standing in it leaves open, through
+    * the proven code that code calls (`bookedAfterIsStored` mentions `book`, whose program calls `granted`).
     */
   def open(t: Theory, id: NodeId): List[SymbolName] =
-    (Constrained.of(t, id) ++ Callees.of(t, id).toList.flatMap(_.calls.symbols)).distinct.filter(isOpen(t, _))
+    Callees.reaching(t, Constrained.of(t, id)).filter(isOpen(t, _))
 
-  /** What a proven Definition's code leaves open; nothing of any other. */
+  /** What a proven Definition's code leaves open, through the proven code it calls; nothing of any other. */
   def reach(t: Theory, s: SymbolName): List[SymbolName] =
-    Callees.ofDefinition(t, s).toList.flatMap(_.calls.symbols).filter(isOpen(t, _))
+    Callees.reaching(t, List(s)).filter(x => x != s && isOpen(t, x))
 
   private def isOpen(t: Theory, s: SymbolName): Boolean = t.vocabulary.symbol(s).nonEmpty &&
     (Constrained.isDeclaration(t, s) || t.code.attached.get(s).forall(a => a.code.proven.isEmpty && !fixed(a.code)))
@@ -58,12 +58,19 @@ object Consistency:
     case Code.Valued(_) | Code.Provided | Code.Modelled(_) => true
     case _                              => false
 
+  /** Joined by open values and by the provided values an assumption pins: every statement mentioning a pinned value
+    * is in its group, which solves it once (two groups choosing it apart would not show they hold together), and an
+    * assumption whose only value is a pinned one has a group too.
+    */
   private def sharing(t: Theory): List[Group] =
-    joined(bottom(t).map(id => id -> open(t, id)).filter(_._2.nonEmpty)).map { (ids, opens) =>
-      val fromOutside = ids.flatMap(provided(t, _)).distinct
-      val pinned = fromOutside.filter(p => ids.exists(pins(t, _, p)))
-      Group.Sharing(ids, opens ++ pinned, fromOutside.filterNot(pinned.contains), witnesses(t, ids, opens ++ pinned))
-    }
+    val bottoms = bottom(t)
+    val pinned = bottoms.flatMap(id => provided(t, id).filter(pins(t, id, _))).toSet
+    joined(bottoms.map(id => id -> (open(t, id) ++ provided(t, id).filter(pinned)).distinct).filter(_._2.nonEmpty))
+      .map { (ids, keys) =>
+        val fromOutside = ids.flatMap(provided(t, _)).distinct
+        val opens = keys.filterNot(pinned) ++ fromOutside.filter(pinned)
+        Group.Sharing(ids, opens, fromOutside.filterNot(pinned), witnesses(t, ids, opens))
+      }
 
   /** Whether an assumption of the group equates the provided value to a term (`state === stateAfter(history)`): the
     * value is then solved by that equation, like an open one, for every value meeting the group's assumptions is

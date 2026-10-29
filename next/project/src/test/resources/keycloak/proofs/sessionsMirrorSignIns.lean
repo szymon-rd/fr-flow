@@ -75,4 +75,10 @@ theorem complete : Obl.complete := by
   rw [hmem x]
   exact ⟨fun ⟨a, b⟩ => ⟨b, a⟩, fun ⟨a, b⟩ => ⟨b, a⟩⟩
 
+/-- The parts hold together of the code: no request, the server's step over a store keeping what it is given. -/
+theorem feasible : Obl.feasible := by
+  refine ⟨[], _, [], Keycloak.handle (fun _ after => after), rfl, ?_, ?_⟩
+  · frflow_auto
+  · frflow_auto
+
 end Keycloak.sessionsMirrorSignIns.Proofs

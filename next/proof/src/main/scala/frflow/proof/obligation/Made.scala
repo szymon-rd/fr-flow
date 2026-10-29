@@ -72,6 +72,12 @@ object Made:
     r.theory.node(rule).flatMap(_.statement.range).collect { case Range.Made(t) => t }.toList
       .flatMap(defines(r, rule, _)).map(_._1).filter(called)
 
+  /** `op` and each maker whose `made_` its own takes (`m_<maker>`), through theirs in turn: every `made_` a step
+    * taking `m_<rule>_<op>` rests on, each proven given the next.
+    */
+  def resting(r: Resolved, rule: NodeId, op: SymbolName): List[SymbolName] =
+    Walk.breadthFirst(List(op), identity)(callees(r, rule, _))
+
   /** Whether `made_<op>` of the rule rests on `n`: what the code relies on, its callees' `made_`, and what those
     * are proven from in turn.
     */

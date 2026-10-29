@@ -15,10 +15,12 @@ import frflow.proof.terms.{OpenTerms, TermTable}
 /** A proposition as a Lean statement: each declaration applied to its open terms, each term replaced by its
   * substitute; the open terms left are bound by `Forall` (or `Exists`) in the order met
   * (the claims it is about, the conclusion, the hypotheses), then the hypotheses `h_<Node>`. A value provided where
-  * the code runs comes with what always holds of it (`fromOutside`), wherever it is bound. Today's
+  * the code runs comes with what always holds of it (`fromOutside`), wherever it is bound. A Definition with a
+  * meaning of its own (`meant`: proven code, a fixed value, its model) is never bound by `∃`. Today's
   * `Refinement.claim`, `stated` and `Vocabulary.term`, on values.
   */
-final class LowerProp(table: TermTable, env: LowerEnv, fromOutside: SymbolName => List[LExpr]):
+final class LowerProp(table: TermTable, env: LowerEnv, fromOutside: SymbolName => List[LExpr],
+    meant: SymbolName => Boolean = _ => false):
   import Atoms.{call, name}
   private type W[A] = Writer[OpenTerms, A]
   private type Subst = Map[SymbolName, Substitute]
@@ -31,7 +33,10 @@ final class LowerProp(table: TermTable, env: LowerEnv, fromOutside: SymbolName =
     case other                   => prop(other, Map.empty).value
 
   /** `∀`/`∃` `ss`, each at its type, then what the body leaves open beside them and what is bound outside (`outer`):
-    * what the code standing in it is over; nothing to bind, the body alone.
+    * what the code standing in it is over; nothing to bind, the body alone. Under `∃` a Definition with a meaning of
+    * its own left in the body is not bound: a proof would choose its meaning, not its code's (a consistency
+    * statement must have the code stand in it, `Stands`), so it is left unbound and Lean refuses the statement, a
+    * FrFlow bug failing closed. Under `∀` it is bound: the statement holds of every meaning, its code's among them.
     */
   private def named(ss: List[SymbolName], body: Prop, op: LOp, outer: List[SymbolName])(
       q: (List[LBinder], LExpr) => LExpr): LExpr =
@@ -41,8 +46,8 @@ final class LowerProp(table: TermTable, env: LowerEnv, fromOutside: SymbolName =
       case Prop.ForSome(ts, inside)  => (OpenTerms.empty, named(ts, inside, LOp.And, outer ++ ss)(LExpr.Exists(_, _)))
       case Prop.Forall(_, _) | Prop.Exists(_, _) => (OpenTerms.empty, statement(body))
       case other                     => prop(other, Map.empty).run
-    val all = OpenTerms(if outer.isEmpty then opens.sorts else Nil, (ss ++ opens.symbols.filterNot(outer.contains))
-      .distinct)
+    val left = opens.symbols.filterNot(s => outer.contains(s) || (op == LOp.And && meant(s)))
+    val all = OpenTerms(if outer.isEmpty then opens.sorts else Nil, (ss ++ left).distinct)
     if all.symbols.isEmpty && all.sorts.isEmpty then b else q(binders(all), hypotheses(all.symbols, b, op))
 
   private def closed(about: List[NodeId], body: Prop, op: LOp)(q: (List[LBinder], LExpr) => LExpr): LExpr =

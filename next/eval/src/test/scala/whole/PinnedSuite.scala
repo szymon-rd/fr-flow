@@ -25,10 +25,11 @@ class PinnedSuite extends munit.FunSuite:
       List("record" -> "storeKeepsState", "state" -> "serverRun"))
   }
 
-  test("crm: what the CRM holds is solved by crmRun; the history stays universal") {
+  test("crm: what the CRM holds is solved by crmRun, with every statement mentioning it; history and clock universal") {
     val g = group(crm.knowledge, "crmRun")
-    assertEquals((g.open, g.provided), (List(SymbolName("storeRows"), SymbolName("held")),
-      List(SymbolName("history"))))
+    assertEquals((g.open, g.provided), (List("finds", "fetch", "storeRows", "held").map(SymbolName(_)),
+      List(SymbolName("history"), SymbolName("clock"))))
+    assert(g.statements.contains(NodeId("recordsByQuery")), g)
     assertEquals(pinnedBy(g, SymbolName("held")).map(_.value), Some("crmRun"))
   }
 

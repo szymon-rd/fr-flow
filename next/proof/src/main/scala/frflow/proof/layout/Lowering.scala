@@ -39,7 +39,10 @@ final class Lowering(val resolved: Resolved, val table: TermTable, canonical: Bo
   def guards(n: NodeId): List[Guard] = Guards.of(resolved.theory, n)
   /** The values provided where the code runs a statement mentions: what always holds of each is a hypothesis. */
   def provided(n: NodeId): List[(SymbolName, Ty)] = Reads.provided(resolved.theory, n)
-  val props: LowerProp = LowerProp(table, env, fromOutside)
+  val props: LowerProp = LowerProp(table, env, fromOutside, s => resolved.theory.code.attached.get(s).exists(a =>
+    a.code.proven.nonEmpty || (a.code match
+      case Code.Valued(_) | Code.Modelled(_) => true
+      case _                                 => false)))
 
   def node(n: NodeId): Boolean = resolved.theory.node(n).nonEmpty
   def isDefine(name: String): Boolean = v.defines.exists(_.name.value == name)
