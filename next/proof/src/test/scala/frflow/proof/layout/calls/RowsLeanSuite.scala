@@ -14,3 +14,22 @@ class RowsLeanSuite extends LeanBuildSuite("rows", Laid(Rows.resolved(Rows.once)
   */
 class RowsBugLeanSuite extends LeanBuildSuite("rows-bug", Laid(Rows.resolved(Rows.duplicates), Map.empty, Nil),
   List("onePerKey", "rowsFromOutside").map(_ -> ObligationName.Made("expireIt_call_0")))
+
+/** The same bug through a branch's result and through a loop's element (review 11b, B1): nothing is assumed of a
+  * value the job binds, so neither is proven.
+  */
+class RowsViaBranchLeanSuite extends LeanBuildSuite("rows-via-branch", Laid(Rows.resolved(Rows.viaBranch), Map.empty,
+  Nil), List("onePerKey", "rowsFromOutside").map(_ -> ObligationName.Made("expireIt_call_0")))
+
+class RowsViaLoopLeanSuite extends LeanBuildSuite("rows-via-loop", Laid(Rows.resolved(Rows.viaLoop), Map.empty, Nil),
+  List("onePerKey", "rowsFromOutside").map(_ -> ObligationName.Made("expireIt_call_0")))
+
+/** `Handed` built by Lean (review 11b, B1 and B2): what proven code hands plain Scala through a define written on the
+  * spot, through another Definition's proven code, and from a tested function's result, is not proven to meet the
+  * rule; `helper`'s own call, of an input from outside, is.
+  */
+class HandedLeanSuite extends LeanBuildSuite("handed", Laid(Handed.resolved, Map.empty, Nil),
+  for
+    n    <- List("endsAfterStart", "fromOutside")
+    call <- List("spotCode_call_0", "definitionCode_call_0", "eachCode_call_1")
+  yield n -> ObligationName.Made(call))

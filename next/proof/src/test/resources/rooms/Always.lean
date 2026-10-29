@@ -15,14 +15,14 @@ end Rooms.bookingsOfTheRoom
 namespace Rooms.bookingsOfTheRoom
 
 @[frflow_defs] def makes_bookIfGranted_call_1 : Prop :=
-  (∀ (request : Booking), ((Rooms.bookingsEndAfterStart request) → (∀ (r : RoomBookings), ((Rooms.bookingsOfTheRoom r) → ((Rooms.roomBookingsApart r) → ((∀ b ∈ r.bookings, (Rooms.bookingsEndAfterStart b)) → (Rooms.bookingsOfTheRoom r)))))))
+  (∀ (request : Booking), ((Rooms.bookingsEndAfterStart request) → (∀ (r : RoomBookings), ((((Rooms.bookingsOfTheRoom r) ∧ (Rooms.roomBookingsApart r)) ∧ (∀ b ∈ r.bookings, (Rooms.bookingsEndAfterStart b))) → (Rooms.bookingsOfTheRoom r)))))
 
 end Rooms.bookingsOfTheRoom
 
 namespace Rooms.bookingsOfTheRoom
 
 @[frflow_defs] def makes_bookIfGranted_call_3 : Prop :=
-  (∀ (request : Booking), ((Rooms.bookingsEndAfterStart request) → (∀ (r : RoomBookings), ((Rooms.bookingsOfTheRoom r) → ((Rooms.roomBookingsApart r) → ((∀ b ∈ r.bookings, (Rooms.bookingsEndAfterStart b)) → (∀ (x_u : Unit), (Rooms.bookingsOfTheRoom r))))))))
+  (∀ (request : Booking), ((Rooms.bookingsEndAfterStart request) → (∀ (r : RoomBookings), ((((Rooms.bookingsOfTheRoom r) ∧ (Rooms.roomBookingsApart r)) ∧ (∀ b ∈ r.bookings, (Rooms.bookingsEndAfterStart b))) → (∀ (x_u : Unit), (Rooms.bookingsOfTheRoom r))))))
 
 end Rooms.bookingsOfTheRoom
 
@@ -36,14 +36,14 @@ end Rooms.roomBookingsApart
 namespace Rooms.roomBookingsApart
 
 @[frflow_defs] def makes_bookIfGranted_call_1 : Prop :=
-  (∀ (request : Booking), ((Rooms.bookingsEndAfterStart request) → (∀ (r : RoomBookings), ((Rooms.bookingsOfTheRoom r) → ((Rooms.roomBookingsApart r) → ((∀ b ∈ r.bookings, (Rooms.bookingsEndAfterStart b)) → (Rooms.roomBookingsApart r)))))))
+  (∀ (request : Booking), ((Rooms.bookingsEndAfterStart request) → (∀ (r : RoomBookings), ((((Rooms.bookingsOfTheRoom r) ∧ (Rooms.roomBookingsApart r)) ∧ (∀ b ∈ r.bookings, (Rooms.bookingsEndAfterStart b))) → (Rooms.roomBookingsApart r)))))
 
 end Rooms.roomBookingsApart
 
 namespace Rooms.roomBookingsApart
 
 @[frflow_defs] def makes_bookIfGranted_call_3 : Prop :=
-  (∀ (request : Booking), ((Rooms.bookingsEndAfterStart request) → (∀ (r : RoomBookings), ((Rooms.bookingsOfTheRoom r) → ((Rooms.roomBookingsApart r) → ((∀ b ∈ r.bookings, (Rooms.bookingsEndAfterStart b)) → (∀ (x_u : Unit), (Rooms.roomBookingsApart r))))))))
+  (∀ (request : Booking), ((Rooms.bookingsEndAfterStart request) → (∀ (r : RoomBookings), ((((Rooms.bookingsOfTheRoom r) ∧ (Rooms.roomBookingsApart r)) ∧ (∀ b ∈ r.bookings, (Rooms.bookingsEndAfterStart b))) → (∀ (x_u : Unit), (Rooms.roomBookingsApart r))))))
 
 end Rooms.roomBookingsApart
 
@@ -64,20 +64,20 @@ end Rooms.bookingsEndAfterStart
 namespace Rooms.bookingsEndAfterStart
 
 @[frflow_defs] def makes_bookIfGranted_call_1 : Prop :=
-  (∀ (request : Booking), ((Rooms.bookingsEndAfterStart request) → (∀ (r : RoomBookings), ((Rooms.bookingsOfTheRoom r) → ((Rooms.roomBookingsApart r) → ((∀ b ∈ r.bookings, (Rooms.bookingsEndAfterStart b)) → ((∀ b ∈ r.bookings, (Rooms.bookingsEndAfterStart b)) ∧ (Rooms.bookingsEndAfterStart request))))))))
+  (∀ (request : Booking), ((Rooms.bookingsEndAfterStart request) → (∀ (r : RoomBookings), ((((Rooms.bookingsOfTheRoom r) ∧ (Rooms.roomBookingsApart r)) ∧ (∀ b ∈ r.bookings, (Rooms.bookingsEndAfterStart b))) → ((∀ b ∈ r.bookings, (Rooms.bookingsEndAfterStart b)) ∧ (Rooms.bookingsEndAfterStart request))))))
 
 end Rooms.bookingsEndAfterStart
 
 namespace Rooms.bookingsEndAfterStart
 
 @[frflow_defs] def makes_bookIfGranted_call_2 (granted : RoomBookings → Booking → Prop) : Prop :=
-  (∀ (request : Booking), ((Rooms.bookingsEndAfterStart request) → (∀ (r : RoomBookings), ((Rooms.bookingsOfTheRoom r) → ((Rooms.roomBookingsApart r) → ((∀ b ∈ r.bookings, (Rooms.bookingsEndAfterStart b)) → ((granted r request) → (Rooms.bookingsEndAfterStart request))))))))
+  (∀ (request : Booking), ((Rooms.bookingsEndAfterStart request) → (∀ (r : RoomBookings), ((((Rooms.bookingsOfTheRoom r) ∧ (Rooms.roomBookingsApart r)) ∧ (∀ b ∈ r.bookings, (Rooms.bookingsEndAfterStart b))) → ((granted r request) → (Rooms.bookingsEndAfterStart request))))))
 
 end Rooms.bookingsEndAfterStart
 
 namespace Rooms.bookingsEndAfterStart
 
 @[frflow_defs] def makes_bookIfGranted_call_3 : Prop :=
-  (∀ (request : Booking), ((Rooms.bookingsEndAfterStart request) → (∀ (r : RoomBookings), ((Rooms.bookingsOfTheRoom r) → ((Rooms.roomBookingsApart r) → ((∀ b ∈ r.bookings, (Rooms.bookingsEndAfterStart b)) → (∀ (x_u : Unit), ((∀ b ∈ r.bookings, (Rooms.bookingsEndAfterStart b)) ∧ (Rooms.bookingsEndAfterStart request)))))))))
+  (∀ (request : Booking), ((Rooms.bookingsEndAfterStart request) → (∀ (r : RoomBookings), ((((Rooms.bookingsOfTheRoom r) ∧ (Rooms.roomBookingsApart r)) ∧ (∀ b ∈ r.bookings, (Rooms.bookingsEndAfterStart b))) → (∀ (x_u : Unit), ((∀ b ∈ r.bookings, (Rooms.bookingsEndAfterStart b)) ∧ (Rooms.bookingsEndAfterStart request)))))))
 
 end Rooms.bookingsEndAfterStart

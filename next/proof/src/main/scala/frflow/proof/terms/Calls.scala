@@ -1,52 +1,28 @@
 package frflow.proof.terms
 
 import frflow.core.expr.Binder
-import frflow.core.name.{ModelName, SymbolName, VarId}
+import frflow.core.name.{DefName, ModelName, SymbolName, VarId}
+import frflow.core.spec.Form
 import frflow.core.term.*
-import frflow.core.term.interpret.{Forward, Guard}
+import frflow.core.term.interpret.Forward
 import frflow.core.ty.Ty
+import frflow.core.vocab.Define
 
-/** A call proven code makes of a Definition given plain Scala (owner §37): its arguments' types, and what it states of
-  * them given a rule, on the path to it (`stated`: the rule's guard of each argument it reaches, below each condition
-  * and quantifier on the way).
+/** A term read for the calls it makes of Definitions given plain Scala, each variable bound outside it as `env` gives
+  * it: every operation reads its operands' calls, in order, a branch's below its condition, a body's below its binder
+  * (an element of the list, the option's value, any value, no rule assumed of it). A Definition whose proven code is a
+  * define, and a define written on the spot, are read in place on the arguments they are given (`covered.proven`,
+  * `define`), so what proven code hands on through them is checked where it reaches plain Scala; `inlining` holds the
+  * defines being read, each read once on a path.
   */
-final case class AtCall[T[_]](tys: List[Ty], stated: Guard => T[Boolean])
-
-object AtCall:
-  /** A call of these arguments: the rule of each one it reaches, all of them. */
-  def of[T[_]](s: Sym[T], args: List[(Ty, T[Any])]): AtCall[T] = AtCall(args.map(_._1), g =>
-    args.flatMap((ty, v) => g.of[T, Any](ty, s).map(_(v))).reduceOption(s.and).getOrElse(s.bool(true)))
-
-  /** Each call below a condition. */
-  def when[T[_]](s: Sym[T], c: T[Boolean])(calls: List[AtCall[T]]): List[AtCall[T]] =
-    calls.map(a => AtCall(a.tys, g => s.implies(c, a.stated(g))))
-
-  /** Each call below a binder, for every value of it (meeting `ctx`, when given): its calls read once on a variable
-    * no term binds, for their number and types, then each one under the binder.
-    */
-  def under[T[_], A](s: Sym[T], x: Bound[A], ctx: Option[T[A] => T[Boolean]])(body: T[A] => List[AtCall[T]])
-      : List[AtCall[T]] =
-    val probe = body(s.free[A](Binder(VarId.step(Int.MaxValue), x.hint, x.ty)))
-    probe.indices.toList.map(j => AtCall(probe(j).tys, g => s.forall(x)(v =>
-      ctx.fold(body(v)(j).stated(g))(c => s.implies(c(v), body(v)(j).stated(g))))))
-
-/** A term as `base` reads it, with the calls of plain Scala in it, in order; and, while a Definition given plain Scala
-  * is applied one argument at a time, the arguments so far and the types still to come.
-  */
-final case class Calling[T[_], A](t: T[A], calls: List[AtCall[T]], applying: Option[(List[(Ty, T[Any])], List[Ty])])
-
-/** A term read for the calls it makes of Definitions given plain Scala (`scala`), each variable bound outside it as
-  * `env` gives it: every operation reads its operands' calls, in order, a branch's below its condition, a body's
-  * below its binder (an element of the list, the option's value, any value).
-  */
-final class Calls[T[_]](s: Sym[T], scala: Set[SymbolName], env: Map[VarId, T[Any]])
+final class Calls[T[_]](s: Sym[T], covered: Covered, env: Map[VarId, T[Any]], inlining: Set[DefName])
     extends Forward[T, [a] =>> Calling[T, a]]:
   private type C[A] = Calling[T, A]
   protected def base: Sym[T] = s
-  protected def fwd[A](t: T[A]): C[A] = Calling(t, Nil, None)
+  protected def fwd[A](t: T[A]): C[A] = Calling.of(t, Nil)
   protected def bwd[A](u: C[A]): T[A] = u.t
 
-  private def kept[A](t: T[A], parts: C[?]*): C[A] = Calling(t, parts.toList.flatMap(_.calls), None)
+  private def kept[A](t: T[A], parts: C[?]*): C[A] = Calling.of(t, parts.toList.flatMap(_.calls))
   private def plus[A](c: C[A], more: List[AtCall[T]]): C[A] = c.copy(calls = c.calls ++ more)
   private def in[A](xs: C[List[A]]): Option[T[A] => T[Boolean]] = Some(v => s.contains(xs.t, v))
   private def over[A, B](x: Bound[A], ctx: Option[T[A] => T[Boolean]])(p: C[A] => C[B]): List[AtCall[T]] =
@@ -56,8 +32,8 @@ final class Calls[T[_]](s: Sym[T], scala: Set[SymbolName], env: Map[VarId, T[Any
   override def or(a: C[Boolean], b: C[Boolean]): C[Boolean] = kept(s.or(a.t, b.t), a, b)
   override def not(a: C[Boolean]): C[Boolean] = kept(s.not(a.t), a)
   override def implies(a: C[Boolean], b: C[Boolean]): C[Boolean] = kept(s.implies(a.t, b.t), a, b)
-  override def cond[A](c: C[Boolean], t: C[A], e: C[A]): C[A] = Calling(s.cond(c.t, t.t, e.t),
-    c.calls ++ AtCall.when(s, c.t)(t.calls) ++ AtCall.when(s, s.not(c.t))(e.calls), None)
+  override def cond[A](c: C[Boolean], t: C[A], e: C[A]): C[A] = Calling.of(s.cond(c.t, t.t, e.t),
+    c.calls ++ AtCall.when(s, c.t)(t.calls) ++ AtCall.when(s, s.not(c.t))(e.calls))
   override def eq[A](a: C[A], b: C[A]): C[Boolean] = kept(s.eq(a.t, b.t), a, b)
   override def add(a: C[BigInt], b: C[BigInt]): C[BigInt] = kept(s.add(a.t, b.t), a, b)
   override def sub(a: C[BigInt], b: C[BigInt]): C[BigInt] = kept(s.sub(a.t, b.t), a, b)
@@ -123,12 +99,24 @@ final class Calls[T[_]](s: Sym[T], scala: Set[SymbolName], env: Map[VarId, T[Any
   override def pair[A, B](a: C[A], b: C[B]): C[(A, B)] = kept(s.pair(a.t, b.t), a, b)
   override def cases[S, R](v: C[S], arms: List[When[C, S, ?, R]], ty: Ty): C[R] =
     plus(kept(super.cases(v, arms, ty).t, v), arms.flatMap(w => arm(w)))
-  override def lam[A, B](x: Bound[A])(f: C[A] => C[B]): C[A => B] = plus(fwd(s.lam(x)(body(f))), over(x, None)(f))
+  /** A lambda: its calls for every value of its input, and its body, read on what it is applied to. */
+  override def lam[A, B](x: Bound[A])(f: C[A] => C[B]): C[A => B] =
+    // A term of `A` is one of `Any` to every interpreter: the type parameter is Scala's only.
+    Calling(s.lam(x)(body(f)), over(x, None)(f), None, Some(a => f(a.asInstanceOf[C[A]]).asInstanceOf[C[Any]]))
   override def let[A, B](v: C[A], x: Bound[A])(b: C[A] => C[B]): C[B] =
-    plus(kept(s.let(v.t, x)(body(b)), v), b(fwd(v.t)).calls)
-  override def param[A](name: SymbolName, ty: Ty): C[A] = Calling(s.param(name, ty), Nil, (ty, scala(name)) match
-    case (Ty.FnOf(ins, _), true) => Some((Nil, ins))
-    case _                       => None)
+    plus(kept(s.let(v.t, x)(body(b)), v), b(v.copy(calls = Nil)).calls)
+  /** A define written on the spot: its body, read on its arguments where it is applied. */
+  override def define[F](d: Body[F]): C[F] =
+    if inlining(d.name) then fwd(s.define(d))
+    else Calling(s.define(d), Nil, None, d.body[[a] =>> Calling[T, a]](Calls(s, covered, Map.empty, inlining + d.name))
+      .body)
+  /** A Definition given plain Scala, or whose proven code is a define, about to be applied. */
+  override def param[A](name: SymbolName, ty: Ty): C[A] = Calling(s.param(name, ty), Nil, ty match
+    case Ty.FnOf(ins, _) if covered.scala(name) => Some(Calling.Pending(None, Nil, ins))
+    case Ty.FnOf(ins, _)                       => covered.proven.get(name).filterNot(d => inlining(d.name))
+        .map(d => Calling.Pending(Some(d), Nil, ins))
+    case _                                     => None, None)
+  // `env` holds the value the binder was bound to, of its type `A`.
   override def free[A](x: Binder): C[A] = fwd(env.get(x.id).fold(s.free[A](x))(_.asInstanceOf[T[A]]))
   override def part[S](w: C[World], model: ModelName, ty: Ty): C[S] = kept(s.part(w.t, model, ty), w)
   override def runs[R](p: C[Program[R]], before: C[World], result: Bound[R], after: Bound[World])(
@@ -143,20 +131,36 @@ final class Calls[T[_]](s: Sym[T], scala: Set[SymbolName], env: Map[VarId, T[Any
     kept(s.unchanged(after.t, before.t), after, before)
   override def noted[A](n: Annotation, t: C[A]): C[A] = t.copy(t = s.noted(n, t.t))
 
-  /** A Definition given plain Scala applied: a call, once its last argument is given. */
+  /** Once its last argument is given: a Definition given plain Scala, a call; one whose proven code is a define, its
+    * code's calls on these arguments. A lambda applied: its body's calls on the argument.
+    */
   override def app[A, B](f: C[A => B], a: C[A]): C[B] =
-    val (applied, calls) = (s.app(f.t, a.t), f.calls ++ a.calls)
-    f.applying match
-      case Some((args, ty :: rest)) =>
-        val sofar = args :+ (ty -> a.t.asInstanceOf[T[Any]])
-        if rest.isEmpty then Calling(applied, calls :+ AtCall.of(s, sofar), None)
-        else Calling(applied, calls, Some((sofar, rest)))
-      case _                        => Calling(applied, calls, None)
+    val applied = s.app(f.t, a.t)
+    (f.pending, f.body) match
+      case (Some(Calling.Pending(proven, args, ty :: rest)), _) =>
+        val sofar = args :+ (ty -> widen(a.t))
+        if rest.nonEmpty then Calling(applied, f.calls ++ a.calls, Some(Calling.Pending(proven, sofar, rest)), None)
+        else Calling.of(applied, f.calls ++ a.calls ++ proven.fold(List(AtCall.of(s, sofar)))(inlined(_, sofar)))
+      case (_, Some(h))                                         =>
+        val r = h(a.copy(t = widen(a.t)))
+        Calling(applied, a.calls ++ r.calls, r.pending, r.body)
+      case _                                                    => Calling.of(applied, f.calls ++ a.calls)
+
+  /** A define's calls, its inputs bound to the arguments. */
+  private def inlined(d: Define, args: List[(Ty, T[Any])]): List[AtCall[T]] = d.written.form match
+    case Form.Term(term) => Calls.of(s, covered, d.lambda.params.map(_.id).zip(args.map(_._2)).toMap,
+        inlining + d.name)(term).calls
+    case Form.Steps(_)   => Nil
+
+  // A term of `A` is one of `Any` to every interpreter: the type parameter is Scala's only.
+  private def widen[A](t: T[A]): T[Any] = t.asInstanceOf[T[Any]]
 
   /** A match arm's calls, for every value of its case. */
   private def arm[S, X, R](w: When[C, S, X, R]): List[AtCall[T]] = over(w.x, None)(w.body)
 
 object Calls:
   /** A term in final form read over `s` for its calls. */
-  def of[T[_]](s: Sym[T], scala: Set[SymbolName], env: Map[VarId, T[Any]])(t: Stated[?]): Calling[T, Any] =
-    t.run.asInstanceOf[Final[Any]][[a] =>> Calling[T, a]](Calls(s, scala, env))
+  def of[T[_]](s: Sym[T], covered: Covered, env: Map[VarId, T[Any]], inlining: Set[DefName] = Set.empty)(
+      t: Stated[?]): Calling[T, Any] =
+    // A stated term's `run` is a term of its own type, whatever that is: read as one of `Any`.
+    t.run.asInstanceOf[Final[Any]][[a] =>> Calling[T, a]](Calls(s, covered, env, inlining))

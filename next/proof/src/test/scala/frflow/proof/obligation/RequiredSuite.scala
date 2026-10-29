@@ -5,7 +5,7 @@ import frflow.core.analysis.{Resolved, Scope}
 import frflow.core.name.NodeId
 import frflow.core.ty.Ty
 import frflow.proof.layout.{Broken, Mini, Programs, ProgramsProject}
-import frflow.proof.layout.calls.Rows
+import frflow.proof.layout.calls.{Handed, Rows}
 import frflow.proof.layout.failing.Failing
 import frflow.proof.lean.print.Print
 import frflow.proof.terms.TermTable
@@ -54,6 +54,20 @@ class RequiredSuite extends munit.FunSuite:
       if m.contains("_call_") => m }, List("fileBack_call_0", "putBoth_call_0", "putBoth_call_1"))
     // Programs calls no plain Scala: none is asked.
     assert(!names(Programs.resolved, "endsAfterStart").exists(n => n._1.toString.contains("_call_")))
+  }
+
+  test("made_ at the call reads through proven code, and assumes nothing of what the code binds (review 11b)") {
+    val declared = AlwaysSuite().declared(frflow.proof.layout.Laid(Handed.resolved, Map.empty, Nil), Handed.resolved)
+    // Through a define on the spot and another Definition's code: the swapped booking reaches `ok`.
+    val swapped = "((b.«end» : Int) < (b.start : Int))"
+    List("spotCode", "definitionCode").foreach(c => assert(declared.linesIterator.dropWhile(l =>
+      !l.contains(s"makes_${c}_call_0")).drop(1).next().contains(swapped), c))
+    // Of each booking a tested function gives: that it is one of them, nothing more.
+    assert(declared.contains("(∀ (x : Booking), ((x ∈ (twice b)) → (x.start < x.«end»)))"), declared)
+    // Of a branch's result: nothing (the seeded duplicate, not assumed away).
+    val branch = AlwaysSuite().declared(frflow.proof.layout.Laid(Rows.resolved(Rows.viaBranch), Map.empty, Nil),
+      Rows.resolved(Rows.viaBranch))
+    assert(branch.contains("(∀ (r : (List Int)), (List.Nodup r))"), branch)
   }
 
   test("made_ at the call, crm-shaped: what the job hands storeAbout holds each key once, below the job's branch") {

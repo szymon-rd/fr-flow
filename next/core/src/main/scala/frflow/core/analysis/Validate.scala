@@ -4,7 +4,7 @@ import cats.data.{NonEmptyChain, Validated, ValidatedNec}
 import cats.syntax.all.*
 import frflow.core.{Elaborated, Failing, Theory}
 import frflow.core.code.Code
-import frflow.core.expr.{Expr, Exprs, PrimOp, Progs}
+import frflow.core.expr.{Expr, Exprs, PrimOp, Prog, Progs}
 import frflow.core.graph.{Edge, Walk}
 import frflow.core.name.{NodeId, SymbolName}
 import frflow.core.spec.NodeKind
@@ -113,7 +113,18 @@ object Validate:
       case Expr.Do(p, _) => Progs.nestsAtomic(p)
       case _             => false)).map(d => Problem.NestedAtomic(d.name))
     all(unclaimed.map(Problem.CodeWithoutClaim(_)) ++ Resolve.circles(t).map(Problem.RestsOnItself(_)) ++ runs ++
-      differing ++ clauses ++ nested)
+      differing ++ clauses ++ nested ++ steps(t))
+
+  /** A program's step calling a Definition that is no model's operation (another program, or one given plain Scala):
+    * what it is handed would reach code no `made_` at the call covers, so it waits for its form (step 12).
+    */
+  private def steps(t: Theory): List[Problem] = t.vocabulary.defines.filter(_.form == DefineForm.Flow).flatMap(d =>
+    d.lambda.body match
+      case Expr.Do(p, _) => Progs.all(p).collect {
+          case Prog.Call(op, _, _) if op != Prog.leftWins && t.vocabulary.modelOf(op).isEmpty =>
+            Problem.StepNotOperation(d.name, op)
+        }.distinct
+      case _             => Nil)
 
   /** A failing run's clause on a program that cannot fail, or of another type than it fails with. */
   private def failingClause(t: Theory, id: NodeId, op: SymbolName, clause: Ty): Option[Problem] =

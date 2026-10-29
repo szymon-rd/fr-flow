@@ -42,7 +42,8 @@ class ValidateSuite extends munit.FunSuite:
     assertEquals(Store.kb.code.get(Store.add), Some(Code.Modelled(Store.model)))
     val unmodelled = Store.kb.copy(code = Store.kb.code - Store.add).declaring(_.copy(models = Nil))
       .unlinking(assumes("bookRuns", "oneAtATime"))
-    assertEquals(unmodelled.problems, List(Problem.Undefined(Store.add)))
+    assertEquals(unmodelled.problems, List(Problem.StepNotOperation(frflow.core.name.DefName("bookIfFree"),
+      Store.add), Problem.Undefined(Store.add)))
   }
 
   test("a model named as a domain type, its namespace in Lean, is declared twice") {

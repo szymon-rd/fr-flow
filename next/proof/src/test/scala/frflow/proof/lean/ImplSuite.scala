@@ -25,6 +25,8 @@ class ImplSuite extends munit.FunSuite:
   private val holds = [T[_]] => (s: Sym[T]) => s.bool(true)
   /** Nothing outside the code changes the database's tables. */
   private val kept = [T[_]] => (s: Sym[T]) => s.outside(OutsideFact.OnlyCodeChanges(ModelName("tables")))
+  /** Runs on the database are atomic: what a run of the job rests on (its operations are the model's). */
+  private val oneRun = [T[_]] => (s: Sym[T]) => s.outside(OutsideFact.Atomic(ModelName("databaseModel")))
   private val (runExpiry, expire) = (SymbolName("runExpiry"), SymbolName("expire"))
   private val (runType, expireType) = (Ty.FnOf(List(big), Ty.FlowOf(store, None)), Ty.FnOf(List(store, big), store))
   /** A formula mentioning `op` (all `impl` reads of it: the Definition it constrains). */
@@ -37,11 +39,13 @@ class ImplSuite extends munit.FunSuite:
       Symbol(expire, "what expiring leaves", SymbolType.Typed(expireType), ValueKind.Definition),
       Symbol(runExpiry, "a run of the expiry job", SymbolType.Typed(runType), ValueKind.Definition)),
       List(Define(DefName("expireOnce"), ExpiryIr.expireOnce, DefineForm.Flow),
-      Define(DefName("expireOnce_run"), ExpiryIr.expireOnce, DefineForm.RunOf(DefName("expireOnce")))), Nil),
+      Define(DefName("expireOnce_run"), ExpiryIr.expireOnce, DefineForm.RunOf(DefName("expireOnce")))),
+      List(CrmModels.model)),
     List(sited(root, claimed(Written.formula(holds, SourceText("…")))),
       sited(job, claimed(about(runExpiry, runType))), sited(shares, claimed(about(expire, expireType))),
-      sited(NodeId("DatabaseKept"), Statement.Assumption(Written.formula(kept, SourceText("…"))))),
-    List(Edge.PartOf(job, root), Edge.PartOf(shares, root)),
+      sited(NodeId("DatabaseKept"), Statement.Assumption(Written.formula(kept, SourceText("…")))),
+      sited(NodeId("OneRun"), Statement.Assumption(Written.formula(oneRun, SourceText("…"))))),
+    List(Edge.PartOf(job, root), Edge.PartOf(shares, root), Edge.Assumes(job, NodeId("OneRun"))),
     CodeTable(Map(runExpiry -> Attachment(Code.ProvenFlow(DefName("expireOnce")), here.file),
       expire -> Attachment(Code.Provided, here.file)), Map.empty)) // `expire`'s meaning is not this test's
 

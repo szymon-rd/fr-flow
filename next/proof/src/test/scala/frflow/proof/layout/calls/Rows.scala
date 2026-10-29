@@ -68,3 +68,13 @@ object Rows:
 
   /** What `once` does, the duplicate stored. */
   val duplicates: Prog[Stated[?]] = store
+
+  private val (r, x) = (step(0, "r", keys), step(1, "x", keys))
+  /** The duplicate stored through a branch's result: the rows with the key added, whichever way it goes. */
+  val viaBranch: Prog[Stated[?]] = Prog.Bind(Prog.Branch(term([T[_]] => (s: Sym[T]) =>
+    s.contains(s.free[List[BigInt]](rows), s.free[BigInt](key))), Prog.Pure(added), Prog.Pure(added)), r,
+    Prog.Call(SymbolName("storeAbout"), List(v[BigInt](key), v[List[BigInt]](r)), Ty.Unit))
+  /** The duplicate stored through a loop over a list the job builds: the rows with the key added, alone. */
+  val viaLoop: Prog[Stated[?]] = Prog.Loop(term([T[_]] => (s: Sym[T]) =>
+    s.cons(added.run[T](s), s.nil[List[BigInt]](keys))), x,
+    Prog.Call(SymbolName("storeAbout"), List(v[BigInt](key), v[List[BigInt]](x)), Ty.Unit))

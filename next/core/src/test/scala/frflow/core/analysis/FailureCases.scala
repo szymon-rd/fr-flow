@@ -44,6 +44,14 @@ object FailureCases:
     Store.kb.declaring(v => v.copy(defines = List(Define(DefName("bookIfFree"),
       Written.steps(List(b), Prog.Atomic(Prog.Atomic(add)), Ty.Unit, SourceText("bookIfFree")), DefineForm.Flow))))
 
+  /** `book`'s program running a program as a step (`book` itself): no model's operation. */
+  private val stepping: Kb =
+    val b = Binder(VarId.level(0), "b", Booking.ty)
+    val again = Prog.Call(Store.book, List(Stated([T[_]] => (s: Sym[T]) => s.free[Booking](b))), Ty.Unit)
+    Store.kb.declaring(v => v.copy(defines = List(Define(DefName("bookIfFree"),
+      Written.steps(List(b), again, Ty.Unit, SourceText("bookIfFree")), DefineForm.Flow))))
+      .unlinking(assumes("bookRuns", "oneAtATime"))
+
   /** `∀ before, before = before`, a claim of worlds equal, where the store may be down. */
   val sameWorld = claim("sameWorld")(Lang.formula([T[_]] => (l: Lang[T]) =>
     l.forall[World]("before", Ty.World)(w => l.s.eq(w, w))))
@@ -58,6 +66,7 @@ object FailureCases:
     ProblemCase(down.and(sameWorld), List(Problem.WorldsEqual(NodeId("sameWorld")))),
     ProblemCase(raising, List(Problem.ErrorsDiffer(DefName("bookIfFree"), List(Lang.big, Ty.Str)))),
     ProblemCase(nested, List(Problem.NestedAtomic(DefName("bookIfFree")))),
+    ProblemCase(stepping, List(Problem.StepNotOperation(DefName("bookIfFree"), Store.book))),
     ProblemCase(claiming(down, Lang.big),
       List(Problem.FailingDiffers(NodeId("bookFails"), Store.book, Lang.big, Ty.Str))),
     ProblemCase(claiming(Store.kb, Ty.Str), List(Problem.NeverFails(NodeId("bookFails"), Store.book))))

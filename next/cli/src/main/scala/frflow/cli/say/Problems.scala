@@ -51,6 +51,8 @@ object Problems:
         s"fails with ${Values.ty(e)}"
     case Problem.NeverFails(id, s)          => s"$id speaks of a failing run of ${s.value}, which cannot fail"
     case Problem.NestedAtomic(prog)         => s"${prog.value} runs a transaction inside a transaction"
+    case Problem.StepNotOperation(prog, d)  => s"${prog.value} runs ${d.value} as a step, which is no model's " +
+        "operation: a program's steps call operations on a state"
 
   private def premise(p: Premise): String = p match
     case Premise.OnlyCodeChanges(m) => s"nothing outside the code changing ${m.value} (${m.value}.onlyCodeChanges)"

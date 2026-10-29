@@ -88,6 +88,11 @@ enum Problem:
     * under one lock, which is not reentrant, so the inner one would wait on the outer for ever.
     */
   case NestedAtomic(program: DefName)
+  /** A program's step calling a Definition that is no model's operation: only an operation on a state is a step
+    * (owner §36); what it hands another program or plain Scala this way is not checked at the call (§37), until step
+    * 12 gives such a call its form.
+    */
+  case StepNotOperation(program: DefName, called: SymbolName)
 
 object Problem:
   /** Where a type sits that an `always` would guard (`Unreached`): a variable a statement quantifies over, a store's
