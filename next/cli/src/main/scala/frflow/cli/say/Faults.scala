@@ -11,6 +11,7 @@ object Faults:
     case Site.Node(id)    => s"node $id"
     case Site.Define(d)   => s"the define ${d.value}"
     case Site.Meaning(s)  => s"the meaning given ${s.value}"
+    case Site.Model(m)    => s"the model ${m.value}"
     case Site.Example(n)  => s"the example \"$n\""
 
   def fault(f: Fault): String = f match
@@ -24,6 +25,15 @@ object Faults:
     case Fault.NotAClaim(what)        => s"$what is not a claim: only a claim is left open above"
     case Fault.OutsideStep            => "a program's step is used outside a program"
     case Fault.NotATerm(what)         => s"a program's step gives $what, which is not a term: Lean cannot read it"
+    case Fault.NotAnOperation(what)   => s"a program's step $what applies no Definition: a step is an operation on a " +
+        "state applied (inRoom(request.room))"
+    case Fault.NotOneModel(ds)        => s"implementTested is given ${ds.mkString(", ")}, which are not operations " +
+        "one model gives a meaning"
+    case Fault.OperationsMissing(m, ds) => s"the Scala of $m's operations is given without ${ds.mkString(", ")}: " +
+        "give each one"
+    case Fault.ModelledElsewhere(d)   => s"$d is an operation on a state, its meaning its model's: give its Scala " +
+        "with implementTested"
+    case Fault.MeantByTwo(d, ms)      => s"$d is given a meaning by two models (${ms.mkString(", ")})"
     case Fault.ProgramMentioned(p)    => s"the program $p is mentioned in a statement: it is the meaning " +
         "implementProven gives the Definition; speak of the Definition"
     case Fault.NotProvenCode(d)       => s"implementProven is given $d, which is not a define or a program"

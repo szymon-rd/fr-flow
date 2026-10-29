@@ -13,8 +13,8 @@ class ViewsSuite extends munit.CatsEffectSuite:
   private val (nonNegative, sameAbove) = (NodeId("nonNegative"), NodeId("sameAbove"))
   private val color = Style(color = true, unicode = true, width = None)
 
-  private def shown(p: Project[IO], cs: Command*) = Opened.api(p).flatMap(Cli.all(_, cs*)).map(_._2)
-  private def moved(p: Project[IO], cs: Command*) = Opened.ports().flatMap(ports =>
+  private def shown(p: Project, cs: Command*) = Opened.api(p).flatMap(Cli.all(_, cs*)).map(_._2)
+  private def moved(p: Project, cs: Command*) = Opened.ports().flatMap(ports =>
     Opened.over(Opened.before, ports).flatMap(Cli.accepted) >> Opened.over(p, ports)).flatMap(Cli.all(_, cs*))
     .map(_._2)
 

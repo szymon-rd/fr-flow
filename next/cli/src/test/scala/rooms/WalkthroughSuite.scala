@@ -1,15 +1,15 @@
 package rooms
 
-import cats.effect.{IO, Ref, Resource}
+import cats.effect.{IO, Resource}
 import cats.syntax.all.*
-import frflow.api.{Adapter, FrFlowApi, OnDisk, Opened, Project}
+import frflow.api.{FrFlowApi, OnDisk, Opened, Project}
 import frflow.cli.{Cli, Scripted}
 import frflow.cli.command.Command
 import frflow.core.example.Example
 import frflow.cli.text.Depth
 import frflow.core.name.{NodeId, RelPath}
 import frflow.dsl.kb.FrModel
-import frflow.project.{Live, Projects, Tables}
+import frflow.project.{Live, Projects}
 import frflow.project.port.{Lake, LeanLibrary}
 import frflow.project.process.{Command as Process, Output}
 import frflow.proof.layout.LeanWorkspace
@@ -27,11 +27,8 @@ class WalkthroughSuite extends munit.CatsEffectSuite:
   private val directory: Resource[IO, Path] = Resource.make(IO.blocking(Files.createTempDirectory("frflow-walk")))(
     d => IO.blocking(Files.walk(d).sorted(java.util.Comparator.reverseOrder()).forEach(p => Files.delete(p))))
 
-  private val adapter: Adapter[IO] = Adapter(storedBookings.checkedAgainst(
-    start = (bs: List[Booking]) => Ref[IO].of(bs).map(Tables(_)), observe = (t: Tables) => t.bookings))
-
-  private def project(kb: FrModel, examples: List[Example]): Project[IO] =
-    Project(Projects.elaborated(kb), examples, List(adapter), List(Projects.sources), LeanWorkspace.library)
+  private def project(kb: FrModel, examples: List[Example]): Project =
+    Project(Projects.elaborated(kb), examples, List(Projects.sources), LeanWorkspace.library)
 
   private def examples(e: frflow.dsl.example.FrFlowExamples): List[Example] =
     e.elaborated.fold(es => throw AssertionError(es.toString), identity)

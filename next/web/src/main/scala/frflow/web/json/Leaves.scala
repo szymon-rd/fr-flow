@@ -18,8 +18,6 @@ object Leaves:
   given Encoder[DefName] = Encoder.encodeString.contramap(_.value)
   given Encoder[TypeName] = Encoder.encodeString.contramap(_.value)
   given Encoder[ModelName] = Encoder.encodeString.contramap(_.value)
-  given Encoder[BoundaryName] = Encoder.encodeString.contramap(_.value)
-  given Encoder[OpName] = Encoder.encodeString.contramap(_.value)
   given Encoder[Value] = Encoder.encodeString.contramap(value)
   given Encoder[Ty] = Encoder.encodeString.contramap(ty)
 

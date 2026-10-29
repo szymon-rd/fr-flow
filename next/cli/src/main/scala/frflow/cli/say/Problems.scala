@@ -28,8 +28,6 @@ object Problems:
     case Problem.PremiseNotNeeded(id, p)    => s"$id assumes $p, which its check does not rest on"
     case Problem.WorldsEqual(id)            => s"$id says two worlds are equal where a store may fail: say " +
         "`unchanged` (.failsChangingNothing) instead"
-    case Problem.BoundaryUnchecked(b)       => s"code calls ${b.value}, which has no model and no assumption about " +
-        s"it: say what it does (${b.value}.behavesAs(model)) or what it promises (an assumption about its operations)"
     case Problem.AlwaysNotReached(a, t, at) => s"the always $a is about ${Values.ty(t)} inside ${at.says}, where no " +
         "check reaches it yet"
 
@@ -55,8 +53,8 @@ object Problems:
     case Problem.NestedAtomic(prog)         => s"${prog.value} runs a transaction inside a transaction"
 
   private def premise(p: Premise): String = p match
-    case Premise.BehavesAs(m)     => s"${m.value} behaving as its model (store.behavesAs)"
-    case Premise.Atomic(b)        => s"runs on ${b.value} being atomic (${b.value}.atomic)"
-    case Premise.Initially(m)     => s"what ${m.value} starts with (initially)"
+    case Premise.OnlyCodeChanges(m) => s"nothing outside the code changing ${m.value} (${m.value}.onlyCodeChanges)"
+    case Premise.Atomic(m)        => s"runs on ${m.value} being atomic (${m.value}.atomic)"
+    case Premise.Initially(m)     => s"what ${m.value} starts with (${m.value}.initially)"
     case Premise.FromOutside(t)   => s"what the values of ${Values.ty(t)} from outside meet (an assumption of " +
         s"always[${Values.ty(t)}])"

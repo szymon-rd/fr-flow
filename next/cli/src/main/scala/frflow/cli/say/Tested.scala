@@ -23,8 +23,8 @@ object Tested:
 
   def head(t: TestView): String = t.against match
     case Against.Claim(n)    => s"tested on ${t.cases.tried} generated cases (seed ${t.cases.seed}) against $n"
-    case Against.Model(n, i) => s"tested on ${t.cases.tried} generated runs (seed ${t.cases.seed}) against the model " +
-        s"$n says (implementation ${i + 1})"
+    case Against.Model(_, m) => s"tested on ${t.cases.tried} generated runs (seed ${t.cases.seed}) against the model " +
+        s"${m.value}"
 
   def outcome(o: TestOutcome, movedUnderCode: Boolean): String = o match
     case TestOutcome.Passed        => "every case meets it"
@@ -67,17 +67,17 @@ object Tested:
     case OnCode.Threw(m)        => s"the code threw: $m"
 
   private def difference(d: Difference): String = d match
-    case Difference.Call(s, impl, model) => s"at ${step(s)} the implementation ${ran(impl)}, the model ${ran(model)}"
+    case Difference.Call(s, impl, model) => s"at ${step(s)} the Scala ${ran(impl)}, the model ${ran(model)}"
     case Difference.State(impl, model)   =>
-      s"the implementation holds ${Values.value(impl)} where the model holds ${Values.value(model)}"
-    case Difference.NotRun(m)            => s"the implementation was not made or not read back: $m"
+      s"the Scala holds ${Values.value(impl)} where the model holds ${Values.value(model)}"
+    case Difference.NotRun(m)            => s"the Scala was not made or not read back: $m"
 
   private def ran(r: Ran): String = r match
     case Ran.Gave(v)   => s"gave ${Values.value(v)}"
     case Ran.Failed(e) => s"failed with ${Values.value(e)}"
     case Ran.Threw(m)  => s"threw $m"
 
-  private def step(s: Step): String = s"${s.boundary.value}.${s.op.value}(${Values.all(s.args)})"
+  private def step(s: Step): String = s"${s.op.value}(${Values.all(s.args)})"
   private def drawn(d: Drawn): String = s"seed ${d.seed}, case ${d.index}, size ${d.size}"
 
   private def shortfall(c: Cases): Option[String] =

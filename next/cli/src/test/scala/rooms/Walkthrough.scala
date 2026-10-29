@@ -1,6 +1,5 @@
 package rooms
 
-import cats.effect.IO
 import frflow.api.Project
 import frflow.core.example.Example
 import frflow.dsl.example.FrFlowExamples
@@ -20,8 +19,8 @@ object Walkthrough:
     "neverOverlap", "roomBookingsApart").map(n => n -> resource(s"rooms/proofs/$n.lean"))
 
   /** Rooms as accepted, then each change on its own: the step's name in `reference/rooms/walkthrough`. */
-  def steps(project: (FrModel, List[Example]) => Project[IO], examples: FrFlowExamples => List[Example])
-      : List[(String, Project[IO])] =
+  def steps(project: (FrModel, List[Example]) => Project, examples: FrFlowExamples => List[Example])
+      : List[(String, Project)] =
     val granted = examples(GrantedExamples())
     List("base" -> project(rooms, granted),
       "4-code-forgets-the-next-booking" -> project(walkthrough.forgets.forgets, granted),

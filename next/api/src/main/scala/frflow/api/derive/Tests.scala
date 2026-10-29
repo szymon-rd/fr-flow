@@ -12,7 +12,7 @@ private[api] object Tests:
 
   private def against(a: On): Against = a match
     case On.Claim(n)    => Against.Claim(n)
-    case On.Model(n, i) => Against.Model(n, i)
+    case On.Model(n, m) => Against.Model(n, m)
 
   private def outcome(o: Outcome): TestOutcome = o match
     case Outcome.Passed        => TestOutcome.Passed
@@ -24,7 +24,7 @@ private[api] object Tests:
     case Failure.Run(s, steps, d, from)    => FailedCase.Run(s, steps.map(step), difference(d), drawn(from))
 
   private def drawn(d: From): Drawn = Drawn(d.seed.value, d.index, d.size)
-  private def step(s: Called): Step = Step(s.boundary, s.op, s.args)
+  private def step(s: Called): Step = Step(s.op, s.args)
 
   private def difference(d: Diff): Difference = d match
     case Diff.Call(s, impl, model) => Difference.Call(step(s), ran(impl), ran(model))

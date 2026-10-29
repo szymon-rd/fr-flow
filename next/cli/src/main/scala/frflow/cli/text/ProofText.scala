@@ -36,10 +36,9 @@ object ProofText:
     pieces ++ tests
 
   private def tested(t: Piece): String = t match
-    case Piece.Plain  => "plain Scala, tested against it on generated cases: tested, not proven"
-    case Piece.Own(i) => s"implementation ${i + 1}, the project's own, tested against the model"
+    case Piece.Plain    => "plain Scala, tested against it on generated cases: tested, not proven"
+    case Piece.Model(m) => s"the plain Scala of ${m.value}'s operations, tested against the model on generated runs: " +
+        "tested, not proven"
 
   private def assumed(a: Assumed): String = a match
-    case Assumed.Assumption => "an outside system's promise: assumed, its adapter tested against it"
-    case Assumed.Outside(i) => s"implementation ${i + 1}, an outside system, checked against the model (the model " +
-        "stays assumed)"
+    case Assumed.Assumption => "an outside system's promise: assumed, its Scala tested against it"

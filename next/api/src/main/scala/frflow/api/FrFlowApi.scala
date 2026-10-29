@@ -17,14 +17,14 @@ object FrFlowApi:
   /** The project at `root`, held for the life of the resource (the ledger's lock, one `lake` build at a time), run as
     * `env` says: `FRFLOW_LAKE`, `FRFLOW_KEY`, `FRFLOW_SEED`, `FRFLOW_AS`, and `HOME` for the default key.
     */
-  def make[F[_]: Async: Parallel](p: Project[F], root: Path, env: Map[String, String]): Resource[F, FrFlowApi[F]] =
-    Live.make(p, root, env)
+  def make[F[_]: Async: Parallel](p: Project, root: Path, env: Map[String, String]): Resource[F, FrFlowApi[F]] =
+    Live.make[F](p, root, env)
 
   /** The project in memory: its files as given, an empty ledger, a repository with no commit, a key made for the run
     * (listed in the committed deciders' list under `decider`, when given), and Lean as `lean` says.
     */
-  def inMemory[F[_]: Async: Parallel](p: Project[F], files: Map[RelPath, String], decider: Option[String], lean: Lean)
-      : F[FrFlowApi[F]] = Memory.make(p, files, decider, lean)
+  def inMemory[F[_]: Async: Parallel](p: Project, files: Map[RelPath, String], decider: Option[String], lean: Lean)
+      : F[FrFlowApi[F]] = Memory.make[F](p, files, decider, lean)
 
   /** The first deciders' list of the project at `root`: the developer's key (as `env` names it, as `make` reads it)
     * listed under `name` and sealed by it, written to `.frflow/deciders` unless a list is there; no key raises

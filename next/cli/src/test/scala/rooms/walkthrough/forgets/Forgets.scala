@@ -14,6 +14,7 @@ final class Calendar(held: RoomBookings):
     val endsInTime = before.forall(_.end <= request.start)
     request.room != held.room || endsInTime
 
-val forgets = FrModel("Rooms")(rooms.walkthrough.nodes()*).copy(generators = rooms.rooms.generators)
+val forgets = FrModel("Rooms")(rooms.walkthrough.nodes()*)
+  .copy(generators = rooms.rooms.generators, operations = rooms.rooms.operations)
   .implementProven(book)(bookIfGranted)
   .implementTested(granted)(_ => (held, request) => Calendar(held).grants(request))

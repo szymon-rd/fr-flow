@@ -18,8 +18,8 @@ import frflow.testing.{Seed, Settings}
 private[api] object Memory:
   val Tests: Settings = Settings(200, Seed(1))
 
-  def make[F[_]: Async: Parallel](p: Project[F], files: Map[RelPath, String], decider: Option[String], lean: Lean)
-      : F[FrFlowApi[F]] = ports(files, decider).flatMap(ps => api(Session(p, ps, ScriptedLean[F](lean), run)))
+  def make[F[_]: Async: Parallel](p: Project, files: Map[RelPath, String], decider: Option[String], lean: Lean)
+      : F[FrFlowApi[F]] = ports(files, decider).flatMap(ps => api(Session[F](p, ps, ScriptedLean[F](lean), run)))
 
   val run: Session.Run = Session.Run(Tests, None, keyed = true)
 

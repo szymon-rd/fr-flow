@@ -46,8 +46,8 @@ private[api] final class NodeViews(a: Analysis):
   def code(id: NodeId): Option[CodeView] =
     val coded = Constrained.of(r.theory, id).exists(r.theory.code.attached.contains)
     val modelled = r.theory.node(id).flatMap(_.statement.outside).exists {
-      case OutsideFact.BehavesAs(b, _) => r.theory.code.realized.contains(b)
-      case _                           => false
+      case OutsideFact.OnlyCodeChanges(m) => r.theory.code.implemented.contains(m)
+      case _                              => false
     }
     Option.when(coded || modelled)(CodeView(Shown.of(r.theory, id), a.tested(id).map(Tests.of)))
 

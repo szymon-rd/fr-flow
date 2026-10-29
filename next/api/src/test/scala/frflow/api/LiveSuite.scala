@@ -18,7 +18,7 @@ class LiveSuite extends munit.CatsEffectSuite:
   private def env(d: Path) = Map("HOME" -> d.toString, "FRFLOW_KEY" -> d.resolve("no.key").toString)
 
   dir.test("on disk: the view warns of no key, render writes the Lean, who decides stops on the key".tag(Live)) {
-    d => FrFlowApi.make(Opened.before, d, env(d)).use { api =>
+    d => FrFlowApi.make[IO](Opened.before, d, env(d)).use { api =>
       for
         view     <- api.reading.view
         rendered <- api.proving.render
@@ -31,7 +31,7 @@ class LiveSuite extends munit.CatsEffectSuite:
   }
 
   dir.test("with an empty env there is no key: none is read from the real home; who decides stops".tag(Live)) {
-    d => FrFlowApi.make(Opened.before, d, Map.empty).use { api =>
+    d => FrFlowApi.make[IO](Opened.before, d, Map.empty).use { api =>
       for
         view <- api.reading.view
         who  <- api.deciding.developer(None).attempt
@@ -43,7 +43,7 @@ class LiveSuite extends munit.CatsEffectSuite:
 
   dir.test("Lean, with the library a project requires, shows an implication's condition can hold".tag(Live)) { d =>
     assert(LeanWorkspace.libraryBuilt._1, LeanWorkspace.libraryBuilt._2)
-    FrFlowApi.make(Opened.before.copy(library = LeanWorkspace.library), d, env(d)).use { api =>
+    FrFlowApi.make[IO](Opened.before.copy(library = LeanWorkspace.library), d, env(d)).use { api =>
       Opened.checked(api.proving.check(None)).map { v =>
         val possible = v.whole.possible.collect { case (Vacuity.Satisfiable(n, _, _), o) => n.value -> o.state }
         assertEquals(possible, List("sameAbove" -> ObligationState.Proven), v.whole.possible.toString)

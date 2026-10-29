@@ -18,12 +18,12 @@ import frflow.testing.Settings
   * project afresh (its files may have moved), the shell's errors raised as `Stop`s; the developer's code runs on the
   * blocking pool (`RunCode`).
   */
-private[api] final class Session[F[_]: Async: Parallel](val project: Project[F], val ports: Ports[F],
+private[api] final class Session[F[_]: Async: Parallel](val project: Project, val ports: Ports[F],
     val lean: Analysis => F[Lake[F]], val run: Session.Run, version: String = Session.InMemory):
   val code: RunCode[F] = RunCode.make[F]
   val library: LeanLibrary = LeanLibrary(Session.library(project), version)
-  def models: List[ModelCheck[F]] =
-    project.adapters.flatMap(ModelTests.of(_, Semantics(project.model), project.model.theory))
+  /** Each model's operations' Scala the FrModel gives, tested against the model. */
+  def models: List[ModelCheck[F]] = ModelCheck.of[F](Semantics(project.model), project.model.theory)
 
   def analysis: F[Analysis] =
     Analyse(ports, code, Sources(project.sources, run.tests, library))(project.model, project.examples)
@@ -51,7 +51,7 @@ private[api] object Session:
   val InMemory: String = "in memory"
 
   /** FrFlow's Lean library as `lakefile.toml` names it. */
-  def library(p: Project[?]): String = p.library.toString.replace('\\', '/')
+  def library(p: Project): String = p.library.toString.replace('\\', '/')
 
   /** How it runs: the tests' cases and seed, who decides when no one is named (`FRFLOW_AS`), and whether there is a
     * key to decide with.

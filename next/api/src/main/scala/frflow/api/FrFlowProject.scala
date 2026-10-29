@@ -10,6 +10,6 @@ import java.nio.file.Path
   * build put them, hence `IO`); its directory, as the environment gives it; and the layers on top it uses.
   */
 trait FrFlowProject:
-  def project: IO[Either[NonEmptyChain[ElabError], Project[IO]]]
+  def project: IO[Either[NonEmptyChain[ElabError], Project]]
   def directory(env: Map[String, String]): Path
   def extensions: List[Extension]

@@ -20,29 +20,29 @@ object Opened:
   val sources: RelPath = Projects.sources
   val lean: Lean = Lean.Proving(Set.empty, Set.empty)
 
-  def project(kb: FrModel, examples: List[Example] = Nil): Project[IO] =
-    Project(Projects.elaborated(kb), examples, Nil, List(sources), Path.of("../../lean"))
+  def project(kb: FrModel, examples: List[Example] = Nil): Project =
+    Project(Projects.elaborated(kb), examples, List(sources), Path.of("../../lean"))
 
-  lazy val rooms: Project[IO] =
-    Project(Projects.rooms, Projects.roomsExamples, Nil, List(sources), Path.of("../../lean"))
+  lazy val rooms: Project =
+    Project(Projects.rooms, Projects.roomsExamples, List(sources), Path.of("../../lean"))
 
-  lazy val before: Project[IO] = project(Shelf.Before.kb)
-  lazy val after: Project[IO] = project(Shelf.After.kb)
-  lazy val trusted: Project[IO] = project(Shelf.Trusted.kb)
-  lazy val lone: Project[IO] = project(Shelf.Lone.kb)
+  lazy val before: Project = project(Shelf.Before.kb)
+  lazy val after: Project = project(Shelf.After.kb)
+  lazy val trusted: Project = project(Shelf.Trusted.kb)
+  lazy val lone: Project = project(Shelf.Lone.kb)
 
-  def api(p: Project[IO], decider: Option[String] = Some("ann"), lean: Lean = lean): IO[FrFlowApi[IO]] =
-    FrFlowApi.inMemory(p, Map.empty, decider, lean)
+  def api(p: Project, decider: Option[String] = Some("ann"), lean: Lean = lean): IO[FrFlowApi[IO]] =
+    FrFlowApi.inMemory[IO](p, Map.empty, decider, lean)
 
   def ports(files: Map[RelPath, String] = Map.empty, decider: Option[String] = Some("ann")): IO[Ports[IO]] =
     Memory.ports[IO](files, decider)
 
-  def session(p: Project[IO], ports: Ports[IO], lean: Lean = lean): Session[IO] =
-    Session(p, ports, ScriptedLean[IO](lean), Memory.run)
+  def session(p: Project, ports: Ports[IO], lean: Lean = lean): Session[IO] =
+    Session[IO](p, ports, ScriptedLean[IO](lean), Memory.run)
 
-  def over(p: Project[IO], ports: Ports[IO], lean: Lean = lean): IO[FrFlowApi[IO]] = Memory.api(session(p, ports, lean))
+  def over(p: Project, ports: Ports[IO], lean: Lean = lean): IO[FrFlowApi[IO]] = Memory.api(session(p, ports, lean))
 
-  def analysis(p: Project[IO], ports: Ports[IO]): IO[Analysis] = session(p, ports).analysis
+  def analysis(p: Project, ports: Ports[IO]): IO[Analysis] = session(p, ports).analysis
 
   /** Every node checked (its code tested: untested code is not accepted), then accepted at once, parents first. */
   def acceptAll(api: FrFlowApi[IO]): IO[Unit] = checked(api.proving.check(None)).flatMap(v =>

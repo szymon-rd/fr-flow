@@ -24,7 +24,7 @@ class ReviewSuite extends munit.CatsEffectSuite:
     api.reading.view.map(_.node(id).map(n => n.review.standing.state -> n.review.decisions.binding.map(_.action)))
 
   /** Every node accepted; then the model as `p` has it, over the same ledger. */
-  private def moved(p: frflow.api.Project[IO]) =
+  private def moved(p: frflow.api.Project) =
     Opened.ports().flatMap(ports => Opened.over(Opened.before, ports).flatMap(Cli.accepted) >> Opened.over(p, ports))
 
   test("review: a layer's key instead of a decision, then the node it skipped is not offered again") {

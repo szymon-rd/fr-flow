@@ -18,7 +18,7 @@ import java.nio.file.Path
   * are made relative to the project's directory (`Relocate`).
   */
 private[api] object Live:
-  def make[F[_]: Async: Parallel](p: Project[F], root: Path, env: Map[String, String]): Resource[F, FrFlowApi[F]] =
+  def make[F[_]: Async: Parallel](p: Project, root: Path, env: Map[String, String]): Resource[F, FrFlowApi[F]] =
     given Processes[F] = Processes.forAsync[F]
     val git = Git.make[F](root)
     for
@@ -33,6 +33,6 @@ private[api] object Live:
       ports   = Ports(ProjectFiles.make[F](root), ledger, git, keys)
       built  <- Resource.eval(Async[F].delay(Path.of(sys.props.getOrElse("frflow.sources", ""))))
       moved   = p.copy(model = Relocate(p.model, built, root))
-      api    <- Resource.eval(Memory.api(Session(moved, ports, _ => lake.pure[F],
+      api    <- Resource.eval(Memory.api(Session[F](moved, ports, _ => lake.pure[F],
                   Session.Run(config.tests, env.get("FRFLOW_AS"), keyed), lib.version)))
     yield api
