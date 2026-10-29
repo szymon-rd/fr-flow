@@ -48,13 +48,13 @@ final class Renamed[T[_]](protected val base: Sym[T], hint: String => String, sy
       post: (T[E], T[World]) => T[Boolean]): T[Boolean] = base.fails(p, before, b(error), b(after))(post)
 
 object Renamed:
-  /** Lean's keywords and prelude names, their mangled forms, the laws' types, models, fields and FrModel, and names a
-    * Scala lambda gives (`x$1`).
+  /** Lean's keywords and prelude names, their mangled forms, the laws' types, models, fields and FrModel, names a
+    * Scala lambda gives (`x$1`), and the names the back end binds itself (`s`, `w`, `x0`, `k`, `y`, `m`, `init`).
     */
   val pool: Vector[String] = Vector("by", "at", "fun", "end", "match", "λ", "some", "none", "id", "max", "List", "True",
     "decide", "some_", "some__", "x", "x_1", "x_2", "by_1", "id_", "a_b", "a$b", "__x", "x_x", "n", "n_1", "Booking",
     "Event", "stored", "Laws", "World", "Prop", "Int", "positive", "room", "start", "Except", "pure", "x$1", "_$1",
-    "max_", "k", "xs", "slot")
+    "max_", "k", "xs", "slot", "s", "w", "x0", "y", "m", "init")
 
   /** The laws' symbols renamed, each to a name a binder may also be given (`k` is `some`, whose Lean is `some_`). */
   val symbols: Map[String, String] = Map("p" -> "x_1", "k" -> "some", "xs" -> "by", "o" -> "id", "slot" -> "a$b",

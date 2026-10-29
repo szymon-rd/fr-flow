@@ -19,12 +19,15 @@ final class LowerFaults(env: LowerEnv, naming: Naming):
       val suffix = if i == 0 then "_onWorldE" else s"_onWorldE$i"
       val over = models.filter(_.failsWith.forall(_ == e))
       over.map(instance(e, _)) ++ over.flatMap(m => m.sigs.map(o =>
-        LowerModels.lemma((m, o), suffix, LExpr.App(monad(e), List(LowerType(o.result))), onWorld(e, m, o))))
+        LowerModels.lemma((m, o), suffix, LExpr.App(monad(e), List(LowerType(o.result))), naming)(onWorld(e, m, o, _))))
     }
 
   private def instance(e: Ty, m: StateModel): Decl =
     Decl.Instance(LExpr.App(LExpr.Name(LowerModels.className(m)), List(LExpr.Paren(monad(e)))),
-      m.sigs.map(o => InstanceField(Names.ident(o.name.value), LowerModels.params(o), onWorld(e, m, o))))
+      m.sigs.map { o =>
+        val ps = LowerModels.params(naming, o)
+        InstanceField(Names.ident(o.name.value), ps, onWorld(e, m, o, ps))
+      })
 
   /** `ExceptT E (StateM World)`. */
   private def monad(e: Ty): LExpr =
@@ -33,8 +36,8 @@ final class LowerFaults(env: LowerEnv, naming: Naming):
   /** `FrFlow.failing (fun w => w.faults) (fun w s => { w with faults := s }) error (on the world)`, or
     * `ExceptT.lift (on the world)`.
     */
-  private def onWorld(e: Ty, m: StateModel, o: OpSig): LExpr =
-    val within = LExpr.Paren(LowerModels.onWorld(env, m, o))
+  private def onWorld(e: Ty, m: StateModel, o: OpSig, names: List[LeanName]): LExpr =
+    val within = LExpr.Paren(LowerModels.onWorld(env, m, o, names))
     m.fails.filter(_.ty == e).fold(LExpr.App(const("ExceptT.lift"), List(within))) { f =>
       val (w, fs) = (Names.builtin("w"), Names.builtin("s"))
       val get = LExpr.Fun(List(LBinder.Bare(w)), LExpr.Dot(LExpr.Name(w), LowerFaults.field.text))

@@ -67,7 +67,6 @@ final class LowerProp(table: TermTable, env: LowerEnv, naming: Naming, values: L
       ss.flatMap(s => outsideNames(s).zip(fromOutside(s))).foldRight(body)((nh, b) =>
         LExpr.Forall(List(LBinder.Explicit(nh._1, nh._2)), b))
 
-  /** What always holds of each provided value among `ss`, in order. */
   def fromOutsideOf(ss: List[SymbolName]): List[LExpr] = ss.flatMap(fromOutside)
 
   /** The names of the hypotheses on a provided value, `o_<value>_<i>`, as every statement binding it names them. */
@@ -151,14 +150,13 @@ final class LowerProp(table: TermTable, env: LowerEnv, naming: Naming, values: L
     case Some(Substitute.Nothing) => Writer.value(nothing(table.typeOf(s)))
     case None                     => Writer.tell(leaf(s)).as(LExpr.Name(Names.ident(s.value)))
 
-  /** A symbol left open, and the opaque types its type names. */
   private def leaf(s: SymbolName): OpenTerms =
     OpenTerms(Ty.parts(table.typeOf(s)).collect { case Ty.Sort(n) => n }.distinct, List(s))
 
   /** `fun (x0 : A) (x1 : B) => []`: a Definition doing nothing (`Substitute.canDoNothing` holds of its type). */
   private def nothing(t: Ty): LExpr = t match
     case Ty.FnOf(ins, r) =>
-      val xs = ins.indices.map(i => Names.builtin(s"x$i")).toList
+      val xs = ins.indices.toList.traverse(i => Naming.helper(s"x$i", Set.empty)).runA(naming).value
       LExpr.Paren(LExpr.Fun(xs.zip(ins).map((x, ty) => LBinder.Explicit(x, LowerType(ty))), nothingOf(r, ins, xs)))
     case _ => throw IllegalStateException("FrFlow bug: doing nothing for a Definition that is not a function")
 
@@ -172,15 +170,17 @@ final class LowerProp(table: TermTable, env: LowerEnv, naming: Naming, values: L
 
   /** `∀ (s : S), (K.initially s) → (K.rule s)`, or `→ ∀ x ∈ s, (K.rule x)`. */
   private def starts(rule: DefName, initially: DefName, ty: Ty, within: Option[Final[Boolean]]): LExpr =
-    val (binders, meets) = within.fold((List(LBinder.Explicit(Names.builtin("s"), LowerType(ty))),
-      call(define(rule), List(name("s")))))(Printed.define(env, naming)(List(Binder(VarId.level(0), "s", ty)), _))
+    val s = Naming.helper("s", Set.empty).runA(naming).value
+    val (binders, meets) = within.fold((List(LBinder.Explicit(s, LowerType(ty))), call(define(rule),
+      List(LExpr.Name(s)))))(Printed.define(env, naming)(List(Binder(VarId.level(0), "s", ty)), _))
     val named = binders.collect { case LBinder.Explicit(n, _) => LExpr.Const(List(n)) }
     LExpr.Forall(binders, LExpr.Infix(LOp.Arrow, call(define(initially), named), meets))
 
   /** `∃ (x : T), (K.rule x)`. */
   private def inhabited(ds: List[DefName], ty: Ty): LExpr =
-    LExpr.Exists(List(LBinder.Explicit(Names.builtin("x"), LowerType(ty))),
-      ds.map(d => call(define(d), List(name("x")))).reduceRightOption(LExpr.Infix(LOp.And, _, _))
+    val x = Naming.helper("x", Set.empty).runA(naming).value
+    LExpr.Exists(List(LBinder.Explicit(x, LowerType(ty))),
+      ds.map(d => call(define(d), List(LExpr.Name(x)))).reduceRightOption(LExpr.Infix(LOp.And, _, _))
         .getOrElse(name("True")))
 
   private def constant(c: Constant): LExpr = LowerValue(env)(c.value, c.ty).runA(naming).value

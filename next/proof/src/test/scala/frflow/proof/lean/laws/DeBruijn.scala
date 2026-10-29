@@ -11,10 +11,24 @@ import frflow.proof.lean.ast.*
 object DeBruijn:
   def apply(e: LExpr): LExpr = go(e, Nil)
 
+  /** An expression with the names bound around it (a declaration's parameters, a block's earlier steps). */
+  def under(e: LExpr, scope: List[LeanName]): LExpr = go(e, scope)
+
+  /** The binders in turn, each type read where the binder stands: blanked, and the scope after them. */
+  def binders(ps: List[LBinder], scope: List[LeanName]): (List[LBinder], List[LeanName]) =
+    ps.foldLeft((List.empty[LBinder], scope)) { case ((done, sc), p) => p match
+      case LBinder.Explicit(n, t) => (done :+ LBinder.Explicit(blank, go(t, sc)), n :: sc)
+      case LBinder.Bare(n)        => (done :+ LBinder.Bare(blank), n :: sc)
+      case LBinder.Member(n, in)  => (done :+ LBinder.Member(blank, go(in, sc)), n :: sc)
+      case LBinder.Several(ns, t) => (done :+ LBinder.Several(ns.map(_ => blank), go(t, sc)), ns.reverse ++ sc)
+      case LBinder.Implicit(n, t) => (done :+ LBinder.Implicit(blank, go(t, sc)), n :: sc)
+      case LBinder.Instance(c)    => (done :+ LBinder.Instance(go(c, sc)), sc)
+    }
+
   /** The names left free, in order met, each as often as it occurs. */
   def free(e: LExpr): List[String] = names(apply(e)).filterNot(_.startsWith("#"))
 
-  private val blank = LeanName.unsafe("_")
+  private[laws] val blank = LeanName.unsafe("_")
   private def index(n: LeanName, scope: List[LeanName]): LExpr =
     val i = scope.indexOf(n)
     LExpr.Name(if i < 0 then n else LeanName.unsafe(s"#$i"))
@@ -38,18 +52,14 @@ object DeBruijn:
     case LExpr.Match(on, arms)     => LExpr.Match(go(on, scope), arms.map((p, b) =>
         val bound = patternVariables(p)
         (blanked(p, bound.toSet), go(b, bound.reverse ++ scope))))
+    case LExpr.Named(f, n, v)      => LExpr.Named(go(f, scope), n, go(v, scope))
+    case LExpr.Anonymous(es)       => LExpr.Anonymous(es.map(go(_, scope)))
+    case LExpr.Do(lines, i)        => LExpr.Do(DoBlocks.block(lines, scope), i)
     case other                     => other
 
-  /** The binders in turn, each type (and a membership binder's list) read where the binder stands. */
   private def bind(ps: List[LBinder], body: LExpr, scope: List[LeanName])(make: (List[LBinder], LExpr) => LExpr)
       : LExpr =
-    val (out, inner) = ps.foldLeft((List.empty[LBinder], scope)) { case ((done, sc), p) => p match
-      case LBinder.Explicit(n, t) => (done :+ LBinder.Explicit(blank, go(t, sc)), n :: sc)
-      case LBinder.Bare(n)        => (done :+ LBinder.Bare(blank), n :: sc)
-      case LBinder.Member(n, in)  => (done :+ LBinder.Member(blank, go(in, sc)), n :: sc)
-      case LBinder.Several(ns, t) => (done :+ LBinder.Several(ns.map(_ => blank), go(t, sc)), ns.reverse ++ sc)
-      case other                  => (done :+ other, sc)
-    }
+    val (out, inner) = binders(ps, scope)
     make(out, go(body, inner))
 
   /** A pattern's variables, in order: a constructor's arguments, a pair's components, `_`. */

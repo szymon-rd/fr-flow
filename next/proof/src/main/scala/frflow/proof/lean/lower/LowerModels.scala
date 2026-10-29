@@ -1,7 +1,8 @@
 package frflow.proof.lean.lower
 
 import cats.syntax.all.*
-import frflow.core.name.{DefName, LeanNames, SymbolName}
+import frflow.core.expr.Binder
+import frflow.core.name.{DefName, LeanNames, SymbolName, VarId}
 import frflow.core.ty.Ty
 import frflow.core.vocab.{Define, OpSig, StateModel}
 import frflow.proof.lean.ast.*
@@ -41,12 +42,13 @@ final class LowerModels(env: LowerEnv, naming: Naming):
     * room).run' s)`: an operation's result on its model's state, which `made_<op>` is stated of.
     */
   def resultOf(m: StateModel, o: OpSig): Decl =
-    val s = Names.builtin("s")
-    val op = LExpr.App(LExpr.Const(List(LowerModels.space(m), Names.ident(o.name.value))),
-      LowerModels.params(o).map(LExpr.Name(_)))
+    val inputs = o.params.zipWithIndex.map { case ((p, t), i) => Binder(VarId.level(i), p, t) }
+    val (n, names) = inputs.traverse(Naming.bind).run(naming).value
+    val s = Naming.helper("s", Set.empty).runA(n).value // apart from the parameters' names
+    val op = LExpr.App(LExpr.Const(List(LowerModels.space(m), Names.ident(o.name.value))), names.map(LExpr.Name(_)))
     val ran = LExpr.App(LExpr.Dot(LExpr.Paren(op), "run'"), List(LExpr.Name(s)))
     Decl.Namespace(List(LowerModels.space(m)), List(Decl.Def(List(Attr.FrflowDefs),
-      Names.ident(LeanNames.ofOp(o.name.value)), o.params.map((p, t) => typed(Names.ident(p), t)) :+ typed(s, m.state),
+      Names.ident(LeanNames.ofOp(o.name.value)), inputs.zip(names).map((x, a) => typed(a, x.ty)) :+ typed(s, m.state),
       LowerType(o.result), LExpr.App(const("Id.run"), List(LExpr.Paren(ran))))))
 
   private def classOf(m: StateModel): Decl =
@@ -75,11 +77,14 @@ final class LowerModels(env: LowerEnv, naming: Naming):
   private def instance(m: StateModel): Decl =
     Decl.Instance(LExpr.App(LExpr.Name(LowerModels.className(m)),
       List(LExpr.Paren(LExpr.App(name("StateM"), List(name("World")))))),
-      m.sigs.map(o => InstanceField(Names.ident(o.name.value), LowerModels.params(o), LowerModels.onWorld(env, m, o))))
+      m.sigs.map { o =>
+        val ps = LowerModels.params(naming, o)
+        InstanceField(Names.ident(o.name.value), ps, LowerModels.onWorld(env, m, o, ps))
+      })
 
   private def lemmas(m: StateModel): List[Decl] =
-    m.sigs.map(o => LowerModels.lemma((m, o), "_onWorld", LowerModels.stateM(name("World"), o.result),
-      LowerModels.onWorld(env, m, o)))
+    m.sigs.map(o => LowerModels.lemma((m, o), "_onWorld", LowerModels.stateM(name("World"), o.result), naming)(
+      LowerModels.onWorld(env, m, o, _)))
 
   private def pairWithWorld(r: Ty): LExpr = LExpr.Paren(LExpr.Infix(LOp.Times, LowerType(r), name("World")))
   private def typed(n: LeanName, t: Ty): LBinder = LBinder.Explicit(n, LowerType.binder(t))
@@ -90,23 +95,32 @@ object LowerModels:
   /** `FrFlow.within (fun w => w.f) (fun w s => { w with f := s }) (Model.op args)`: the model's operation on its
     * part of the world.
     */
-  def onWorld(env: LowerEnv, m: StateModel, o: OpSig): LExpr =
+  def onWorld(env: LowerEnv, m: StateModel, o: OpSig, names: List[LeanName]): LExpr =
     val (w, s, field) = (Names.builtin("w"), Names.builtin("s"), env.modelField(m.name))
     val get = LExpr.Fun(List(LBinder.Bare(w)), LExpr.Dot(LExpr.Name(w), field.text))
     val update = LExpr.Update(LExpr.Name(w), List(field -> LExpr.Name(s)))
     val set = LExpr.Fun(List(LBinder.Bare(w), LBinder.Bare(s)), update)
-    val op = LExpr.App(LExpr.Const(List(space(m), Names.ident(o.name.value))), params(o).map(LExpr.Name(_)))
+    val op = LExpr.App(LExpr.Const(List(space(m), Names.ident(o.name.value))), names.map(LExpr.Name(_)))
     LExpr.App(const("FrFlow.within"), List(LExpr.Paren(get), LExpr.Paren(set), LExpr.Paren(op)))
 
   /** `@[frflow_defs] theorem Class.op_<suffix> (params) : ((Class.op args) : monad) = value := rfl`. */
-  def lemma(op: (StateModel, OpSig), suffix: String, monad: LExpr, value: LExpr): Decl =
+  def lemma(op: (StateModel, OpSig), suffix: String, monad: LExpr, naming: Naming)(value: List[LeanName] => LExpr)
+      : Decl =
     val (m, o) = op
-    val own = LExpr.App(const(s"${className(m).text}.${o.name.value}"), params(o).map(LExpr.Name(_)))
-    Decl.Theorem(List(Attr.FrflowDefs), Names.builtin(s"${className(m).text}.${o.name.value}$suffix"),
-      o.params.map((p, t) => LBinder.Explicit(Names.ident(p), LowerType.binder(t))),
-      LExpr.Infix(LOp.Eq, LExpr.Typed(LExpr.Paren(own), monad), value), Proof.Rfl, Break.NextLine)
+    val names = params(naming, o)
+    val own = LExpr.App(LExpr.Const(List(className(m), Names.ident(o.name.value))),
+      names.map(LExpr.Name(_)))
+    Decl.Theorem(List(Attr.FrflowDefs),
+      Names.builtin(s"${className(m).text}.${LeanNames.ident(o.name.value + suffix)}"),
+      names.zip(o.params).map((n, p) => LBinder.Explicit(n, LowerType.binder(p._2))),
+      LExpr.Infix(LOp.Eq, LExpr.Typed(LExpr.Paren(own), monad), value(names)), Proof.Rfl, Break.NextLine)
 
-  def params(o: OpSig): List[LeanName] = o.params.map(p => Names.ident(p._1))
+  /** An operation's parameters' names, bound as every variable is (`Naming`): apart from every symbol, namespace and
+    * name generated Lean writes itself.
+    */
+  def params(naming: Naming, o: OpSig): List[LeanName] =
+    o.params.zipWithIndex.map { case ((p, t), i) => Binder(VarId.level(i), p, t) }.traverse(Naming.bind)
+      .runA(naming).value
   def space(m: StateModel): LeanName = Names.ident(m.name.value.capitalize)
   /** The class of a model's operations, in its namespace (`StoredBookings.Ops`): its methods are named as the
     * Definitions, beside the meanings' `do` blocks of the same names in the namespace.
