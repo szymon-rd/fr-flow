@@ -378,3 +378,14 @@ state or a program's `.result`/`.after`), which FrFlow reads off the code. Progr
 (`Node.assumption("The opening hour never changes.")(openingHour.isConstant)`) and, like any formula, may also be
 claimed where the code shows it. Built as step 13b.
 
+## 44. `isConstant` on any value: no next step changes it (owner)
+The owner: "We may want to keep various values constant. How now, with World, would you say that a value stays
+constant?", then, of `closed(room) implies bookingsOf(room).isConstant`: "It is not constant overall but stays for
+some kind of continuous moment", and "Keep isConstant". `t.isConstant` applies to any value, not only a Declaration.
+In a statement (which holds in every reachable world) it means that no run of any program from the current world
+changes `t`: `∀ w ∈ Reach, cond(w) → t(after(p, w)) = t(w)` for every program `p` (TLA+ `□[cond ⇒ t′ = t]`); the
+condition is read in the world before the step. Over a stretch of steps where the condition holds, `t` stays the same;
+with no condition it is the same in every reachable world (∃c ∀w ∈ Reach, t(w) = c). It is proven by one obligation
+per program that changes what `t` reads; a new such program brings the statement back for review. Of a Declaration,
+which no code gives a value, it is an assumption.
+
