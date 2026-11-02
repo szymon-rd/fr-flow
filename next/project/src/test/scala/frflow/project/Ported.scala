@@ -73,6 +73,23 @@ object Ported:
   def provided(e: Elaborated): Set[String] =
     e.theory.code.attached.collect { case (s, a) if a.code == frflow.core.code.Code.Provided => s.value }.toSet
 
+  /** How a value provided where the code runs stands under owner §45 D ("the clock and histories that crm, keycloak
+    * and auth read as provided values are modelled as part of the World"): done only where none is `Stopped`.
+    */
+  enum OnD:
+    /** Configuration, fixed for the run: not "now" or a history, which D names; stays provided. */
+    case Configuration(why: String)
+    /** "Now" or the history so far, the World's under D, not moved: the step stops on a design point (`on`), D not
+      * done for it.
+      */
+    case Stopped(on: String, why: String)
+    /** A question put to the owner, with the builder's view: D names the value, the builder would keep it. */
+    case ForOwner(question: String)
+
+  /** The values D is not done for: each stopped one, with the point it waits on. */
+  def stoppedOnD(judged: Map[String, OnD]): Map[String, String] =
+    judged.collect { case (v, OnD.Stopped(on, _)) => v -> on }
+
   /** A resource's text, from the test class path. */
   def resource(path: String): String =
     scala.io.Source.fromResource(path, getClass.getClassLoader)(using scala.io.Codec.UTF8).mkString

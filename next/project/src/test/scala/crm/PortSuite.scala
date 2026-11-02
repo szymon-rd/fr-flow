@@ -51,8 +51,9 @@ class PortSuite extends munit.CatsEffectSuite:
     }
     (gone ++ added ++ moved).groupMapReduce(_._1)(_._2)(_ + "; " + _)
 
-  test("every value provided where the code runs is judged under owner §45 D") {
+  test("every value provided where the code runs stands under owner §45 D: the clock stopped on G1, the rest on G2") {
     assertEquals(Ported.provided(elaborated), Judged.provided.keySet)
+    assertEquals(Ported.stoppedOnD(Judged.provided), Map("history" -> "G2", "held" -> "G2", "clock" -> "G1"))
   }
 
   test("every difference from today's crm in where a node sits and what it assumes is listed and judged") {
