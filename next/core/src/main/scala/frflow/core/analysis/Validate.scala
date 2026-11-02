@@ -121,15 +121,12 @@ object Validate:
       case Expr.Do(p, _) => Progs.nestsAtomic(p)
       case _             => false)).map(d => Problem.NestedAtomic(d.name))
     all(unclaimed.map(Problem.CodeWithoutClaim(_)) ++ Resolve.circles(t).map(Problem.RestsOnItself(_)) ++ runs ++
-      differing ++ clauses ++ nested ++ steps(t) ++
-      (if refusesProvidedBesideWorld then providedBesideWorld(t) else Nil))
+      differing ++ clauses ++ nested ++ steps(t) ++ providedBesideWorld(t))
 
-  /** Whether `providedBesideWorld` refuses: off until the clock and histories crm, keycloak and auth read as provided
-    * values are part of the World (owner §45 D). TODO(step 13): model them as state models, then turn this on.
+  /** Each statement reading the World and a value provided where the code runs (owner §45 D): none of the four
+    * ports has one (`whole.ProvidedSuite`); crm's, keycloak's and auth's histories and clock become state models in
+    * step 13.
     */
-  val refusesProvidedBesideWorld: Boolean = false
-
-  /** Each statement reading the World and a value provided where the code runs (owner §45 D). */
   def providedBesideWorld(t: Theory): List[Problem] = t.nodes.map(_.node).flatMap(n =>
     if !n.statement.said.exists(f => Exprs.all(f.value).exists {
         case Expr.Quant(_, xs, _) => xs.exists(_.ty == Ty.World)

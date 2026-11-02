@@ -12,25 +12,20 @@ import frflow.core.analysis.outside.{Premise, Premises}
   * made from are valid; and every problem of a theory is reported at once.
   */
 class ValidateSuite extends munit.FunSuite:
-  private val cases = GraphCases.all ++ OutsideCases.all ++ ValueCases.all ++ FailureCases.all
+  /** A statement reading the World and a value provided where the code runs (owner §45 D). */
+  private val provided: ProblemCase =
+    val reads = claim("readsBoth")(Lang.formula([T[_]] => (l: Lang[T]) =>
+      l.forall[frflow.core.term.World]("w", frflow.core.ty.Ty.World)(w =>
+        l.s.and(l.s.eq(w, w), l.s.eq(l.sym[BigInt]("limit", Lang.big), l.sym[BigInt]("limit", Lang.big))))))
+    ProblemCase(Kb.of(reads).naming(definition("limit", Lang.big)).coding(SymbolName("limit") -> Code.Provided),
+      List(Problem.ProvidedBesideWorld(NodeId("readsBoth"), SymbolName("limit"))))
+  private val cases = GraphCases.all ++ OutsideCases.all ++ ValueCases.all ++ FailureCases.all :+ provided
 
   private inline def caseNames[A](using m: Mirror.SumOf[A]): List[String] =
     constValueTuple[m.MirroredElemLabels].toList.map(_.toString)
 
   test("every case of Problem has a theory that triggers it") {
-    assertEquals((cases.map(_.name) :+ "ProvidedBesideWorld").sorted, caseNames[Problem].sorted)
-  }
-
-  test("ProvidedBesideWorld: a statement reading the World and a value provided where the code runs; off until " +
-    "step 13 (owner §45 D)") {
-    val limit = SymbolName("limit")
-    val reads = claim("readsBoth")(Lang.formula([T[_]] => (l: Lang[T]) =>
-      l.forall[frflow.core.term.World]("w", frflow.core.ty.Ty.World)(w =>
-        l.s.and(l.s.eq(w, w), l.s.eq(l.sym[BigInt]("limit", Lang.big), l.sym[BigInt]("limit", Lang.big))))))
-    val kb = Kb.of(reads).naming(definition("limit", Lang.big)).coding(limit -> Code.Provided)
-    assertEquals(Validate.providedBesideWorld(kb.theory),
-      List(Problem.ProvidedBesideWorld(NodeId("readsBoth"), limit)))
-    assert(!Validate.refusesProvidedBesideWorld && !kb.problems.exists(_.productPrefix == "ProvidedBesideWorld"))
+    assertEquals(cases.map(_.name).sorted, caseNames[Problem].sorted)
   }
 
   cases.foreach { c =>

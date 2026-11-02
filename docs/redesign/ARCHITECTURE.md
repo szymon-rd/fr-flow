@@ -184,8 +184,8 @@ What a statement may say, so that its Lean meaning is the one written wherever i
   would say nothing of the runs that fail, and a program that always fails would meet it. Today a run read so is
   `p.failing[E]`; owner §45 B declares the error in the Definition's type instead (stopped on its Scala spelling, 10.2).
 - **A value provided where the code runs is not read beside the World** (owner §45 D, `Problem.ProvidedBesideWorld`):
-  it is the same in every world. The check is written and off (`Validate.refusesProvidedBesideWorld`) until step 13
-  models crm's, keycloak's and auth's clock and histories as state models.
+  it is the same in every world. No port reads one so (`whole.ProvidedSuite`): crm's, keycloak's and auth's clock and
+  histories, provided, are read beside no world; step 13 makes them state models, part of the World.
 
 **`isConstant`** (owner §44, §45 A). `t.isConstant`, of any value `t` read in a statement, says that no run of any
 program from the world the statement holds in changes `t`, whatever the run's outcome: TLA+'s `□[c ⇒ t′ = t]`, where
