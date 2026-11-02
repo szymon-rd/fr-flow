@@ -97,7 +97,7 @@ object Definitions:
   val inTrash = Node.claim("A document is in the trash when it was put there and not restored since.")(
     forall((lib: Term[Library], d: Term[DocumentId]) =>
       sharing.inTrash(lib, d) === lib.documents.exists(doc => doc.id === d && doc.trashed.isDefined)))
-    .refines(accessFollowsShares)
+    .refines(accessFollowsShares, sharing.invitationsAreOffers)
 
 val ownersShare = Node.claim("An owner's share of a document is a share of it with the document's owner in person.")(
   forall((lib: Term[Library], what: Term[Target], withWhom: Term[Grantee]) =>

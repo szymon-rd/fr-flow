@@ -22,8 +22,8 @@ import sharing.trash.Trash
 
 /** The handling of a request and its claim. */
 object SharingHttp:
-  val handle = Definition[Request => Flow[Answer]](
-    "a request handled on the store and the clock: the answer, the store left holding the change").failsWith[Failure]
+  val handle = Definition[Request => Flow[Option[Answer]]]("a request handled on the store and the clock, within the " +
+    "service's time limit: the answer when given in time, the store left holding the change").failsWith[Failure]
 
   /** The library a request leads to at a moment: the operation's change for a change; the same library for a
     * question.
@@ -83,24 +83,26 @@ object SharingHttp:
   val handleContract = Node.claim("A request is answered at the time the clock gives, from the library the store " +
       "holds, and leaves the store holding the library it leads to: a question is answered with the person's access " +
       "and changes nothing; a change is made as its operation makes it, recorded in the log and announced in the " +
-      "outbox in the same save, and answered done when it may be made and refused otherwise. Handling does not move " +
-      "the clock. A request the store fails changes nothing.")(
+      "outbox in the same save, and answered done when it may be made and refused otherwise; an answer past the " +
+      "time limit is not given. Handling does not move the clock. A request the store fails changes nothing.")(
     forall((r: Term[Request]) => handle(r).result.fold(_ => handle(r).changesNothing,
       result =>
         val after = handle(r).after
         libraryModel.in(after) === served(libraryModel.current, clockModel.current, r) &&
           clockModel.in(after) === clockModel.current && mailerModel.in(after) === mailerModel.current &&
-          result === answerTo(libraryModel.current, clockModel.current, r))))
+          result.forall(a => a === answerTo(libraryModel.current, clockModel.current, r)))))
     .refines(accessFollowsShares)
     .assuming(oneTransactionAtATime, clockAlone)
 
-  /** The handling, one transaction: the time, the library, the one the request leaves kept when it differs, the
-    * answer.
+  /** How long a request may take, in seconds: past it, it is answered 503. */
+  val limit: BigInt = 5
+
+  /** The handling, one transaction, within the time limit: the time and the library read at once, the library the
+    * request leaves kept when it differs, the answer.
     */
   val handleRequest = program { (r: Term[Request]) =>
     (for
-      t   <- Clock.now
-      lib <- LibraryStore.load
-      next = served(lib, t, r)
-      _   <- Flow.when(next =!= lib)(LibraryStore.save(next))
-    yield answerTo(lib, t, r)).atomically }
+      read <- Flow.parTupled(Flow.step(Clock.now), Flow.step(LibraryStore.load))
+      next  = served(read._2, read._1, r)
+      _    <- Flow.when(next =!= read._2)(LibraryStore.save(next))
+    yield answerTo(read._2, read._1, r)).atomically.timeout(Clock.now, limit) }

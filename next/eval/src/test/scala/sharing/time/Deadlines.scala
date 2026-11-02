@@ -14,13 +14,11 @@ object Deadlines:
     atEnd(events).library.documents.forall(doc =>
       doc.trashed.forall(at => atEnd(events).now < at + trashKeeps + housekeepingWithin)))
     .refines(sharing.trashUntilGone)
-    .assuming(clockNeverGoesBack, housekeepingOnTime)
 
   val invitationsLapseOnTime = Node.claim("While housekeeping runs at least every two minutes, no invitation stays " +
       "pending longer than 7 days and two minutes after it was sent.")(
     atEnd(events).library.invitations.forall(i => atEnd(events).now < i.sent + invitationLasts + housekeepingWithin))
     .refines(sharing.invitationsAreOffers)
-    .assuming(clockNeverGoesBack, housekeepingOnTime)
 
   val requestsAnsweredOnTime = Node.claim("While housekeeping runs at least every two minutes, no access request " +
       "stays pending longer than 7 days and two minutes after it was made, and none goes more than 48 hours and two " +
@@ -28,7 +26,6 @@ object Deadlines:
     atEnd(events).library.requests.forall(r => atEnd(events).now < r.asked + requestLasts + housekeepingWithin &&
       (r.reminded || atEnd(events).now < r.asked + remindAfter + housekeepingWithin)))
     .refines(sharing.accessRequestsAreAsks)
-    .assuming(clockNeverGoesBack, housekeepingOnTime)
 
   val endedStaysEnded = Node.claim("What has ended stays ended: time in the service never goes back, so a share once " +
       "ended, an invitation once lapsed and a document once gone stay so for the rest of the run.")(
@@ -39,4 +36,3 @@ object Deadlines:
         forall((i: Term[Invitation]) => !isOpen(i, t) implies !isOpen(i, u)) &&
         forall((doc: Term[Document]) => gone(doc, t) implies gone(doc, u)))))
     .refines(sharing.housekeepingClearsOnlyTheEnded)
-    .assuming(clockNeverGoesBack)

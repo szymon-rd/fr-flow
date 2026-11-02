@@ -76,10 +76,12 @@ class ExamplesSuite extends munit.FunSuite:
   }
 
   test("sharing: today's, with the store's, the mail server's and the clock's runs one at a time, assumptions; the " +
-    "definitions of two words each are a claim per word, today's id kept for the first") {
+    "definitions of two words each are a claim per word, today's id kept for the first; the pool of connections a " +
+    "run of delivery takes from and gives back (its bracket), its model's assumptions and its claim") {
     assertEquals(ids(sharing.knowledge), renamed(Today.sharing, Set.empty, Set(
-      "oneTransactionAtATime", "mailOneAtATime", "clockAlone", "editPermission", "reminderTime")))
-    assertEquals(kinds(sharing.knowledge), Map("claim" -> 52, "assumption" -> 8, "design" -> 3))
+      "oneTransactionAtATime", "mailOneAtATime", "clockAlone", "editPermission", "reminderTime", "deliveryGivesBack",
+      "poolKept", "poolOneAtATime")))
+    assertEquals(kinds(sharing.knowledge), Map("claim" -> 53, "assumption" -> 10, "design" -> 3))
   }
 
   test("the five examples are valid as written") {
@@ -137,5 +139,5 @@ class ExamplesSuite extends munit.FunSuite:
       "trashUntilGone", "housekeepingClearsOnlyTheEnded", "accessRequestsAreAsks", "ownersKeepTheirDocuments",
       "auditTrail", "noticesFollowChanges", "trashPurgedOnTime", "invitationsLapseOnTime", "requestsAnsweredOnTime",
       "endedStaysEnded"))
-    assertEquals(parts.size, 34)
+    assertEquals(parts.size, 42)
   }

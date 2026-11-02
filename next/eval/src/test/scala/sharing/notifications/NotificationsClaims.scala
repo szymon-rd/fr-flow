@@ -44,4 +44,10 @@ object NotificationsClaims:
               mailbox(mailerModel.in(after), n.to) === taken(mailbox(mailerModel.current, n.to), n))))
   }
     .refines(noticesFollowChanges)
-    .assuming(oneTransactionAtATime, mailOneAtATime, clockAlone)
+    .assuming(oneTransactionAtATime, mailOneAtATime, clockAlone, Pool.poolOneAtATime)
+
+  val deliveryGivesBack = Node.claim("A run of delivery gives back the connection it takes from the pool, whether it " +
+      "ends well or fails: as many connections are in use after it as before.")(
+    Pool.poolModel.in(deliver.after) === Pool.poolModel.current)
+    .refines(noticesFollowChanges)
+    .assuming(oneTransactionAtATime, mailOneAtATime, clockAlone, Pool.poolOneAtATime)

@@ -10,6 +10,7 @@ import sharing.invitations.Invitations
 import sharing.invitations.InvitationsClaims
 import sharing.notifications.Notifications
 import sharing.notifications.NotificationsClaims
+import sharing.notifications.Pool
 import sharing.ownership.Ownership
 import sharing.ownership.OwnershipClaims
 import sharing.requests.AccessRequests
@@ -18,7 +19,7 @@ import sharing.service.Sharing
 import sharing.service.SharingClaims
 import sharing.store.{LibraryStore, Transactions}
 import sharing.time.LifetimesClaims
-import sharing.time.{ClockKept, Deadlines, Lifetimes, Run}
+import sharing.time.{ClockKept, Deadlines, Lifetimes, Run, Schedule}
 import sharing.trash.Trash
 import sharing.trash.TrashClaims
 
@@ -51,15 +52,16 @@ val knowledge = FrModel("Sharing")(
   AccessRequestsClaims.approveContract, AccessRequestsClaims.declineContract, AccessRequestsClaims.chaseContract,
   OwnershipClaims.transferContract, AuditClaims.recordContract, AuditClaims.forgetContract,
   NotificationsClaims.announceContract, NotificationsClaims.warnContract, HousekeepingClaims.tidyContract,
-  HousekeepingClaims.housekeepingJob, NotificationsClaims.deliveryJob, LifetimesClaims.invitationLifetime,
-  LifetimesClaims.trashLifetime, LifetimesClaims.requestLifetime, LifetimesClaims.reminderTime,
+  HousekeepingClaims.housekeepingJob, NotificationsClaims.deliveryJob, NotificationsClaims.deliveryGivesBack,
+  LifetimesClaims.invitationLifetime, LifetimesClaims.trashLifetime, LifetimesClaims.requestLifetime,
+  LifetimesClaims.reminderTime,
   Run.housekeepingPeriod, LifetimesClaims.inForceContract, LifetimesClaims.isOpenContract,
   LifetimesClaims.goneContract, LifetimesClaims.pendingContract, LifetimesClaims.reminderDueContract,
   Deadlines.trashPurgedOnTime, Deadlines.invitationsLapseOnTime, Deadlines.requestsAnsweredOnTime,
-  Deadlines.endedStaysEnded, Run.clockNeverGoesBack, Run.housekeepingOnTime, LibraryStore.libraryKept,
+  Deadlines.endedStaysEnded, Schedule.clockNeverGoesBack, Schedule.housekeepingOnTime, LibraryStore.libraryKept,
   LibraryStore.oneTransactionAtATime, Transactions.transactions, Notifications.mailerKept,
-  Notifications.mailOneAtATime, ClockKept.clockKept, ClockKept.clockAlone, SharingHttp.handleContract, serverWiring,
-  domainTypes)
+  Notifications.mailOneAtATime, Pool.poolKept, Pool.poolOneAtATime, ClockKept.clockKept, ClockKept.clockAlone,
+  SharingHttp.handleContract, serverWiring, domainTypes)
   .implementProven(reaches)(reachesCode)
   .implementProven(covers)(coversCode)
   .implementProven(mayView)(mayViewCode)
