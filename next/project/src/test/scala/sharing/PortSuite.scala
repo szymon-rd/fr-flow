@@ -52,7 +52,7 @@ class PortSuite extends munit.CatsEffectSuite:
   private val proofs = List("Lemmas", "canViewContract", "canEditContract", "housekeepingClearsOnlyTheEnded",
     "ownersKeepTheirDocuments", "trashUntilGone", "invitationsAreOffers", "accessRequestsAreAsks", "endedStaysEnded",
     "trashPurgedOnTime", "invitationsLapseOnTime", "requestsAnsweredOnTime", "auditTrail", "noticesFollowChanges",
-    "accessFollowsShares", "handleContract", "housekeepingJob", "deliveryJob", "deliveryGivesBack")
+    "accessFollowsShares", "handleContract", "housekeepingJob", "deliveryJob", "deliveryGivesBack", "Whole")
   private val lean = Lean(proofs.map(n => n -> Ported.resource(s"sharing/proofs/$n.lean")),
     reference.old("Sharing", Judged.oldOverNew) :+ ("FrFlowGen/Port.lean" -> Ported.resource("sharing/port/Port.lean")),
     Some("FrFlowGen.Port"))

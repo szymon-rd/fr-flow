@@ -58,8 +58,18 @@ object Judged:
     List("DeliveryJob", "DeliveryGivesBack").map(_ -> List("claim", "open", "open", "")).toMap ++
     List("NoticesFollowChanges", "AccessFollowsShares").map(_ -> List("claim", "waiting", "waiting", "")).toMap
 
-  /** What is not proven, each for a design point the step stops on. */
-  val stopped: Map[String, List[String]] = Map.empty
+  /** What is not proven, each for a reason: delivery's sends at once, branches calling the mail server, which may
+    * fail, are not shown to commute (`commute_0`): FrFlow states it from every world, its faults included, and the
+    * one list of faults the branches take in turn makes two orders differ whenever the branches fail differently
+    * (one notice's sends all fail, another's do not), so the obligation is false as stated; how commutation reads
+    * a failing model is a design point the step stops on (today's library stated it for a world in which no call
+    * fails). What rests on delivery waits for it. And the purpose is met by doing nothing (`Idle`, the roots
+    * together): today's purpose is stated over the words the code defines (canView, mayView, share, …), so a service
+    * that lets nobody see or change anything meets it; what each word is, the claims below it say (crm's ruling
+    * for a safety root, step 12), and sharing has no other root.
+    */
+  val stopped: Map[String, List[String]] = Map("deliveryJob" -> List("Check"), "deliveryGivesBack" -> List("Check"),
+    "noticesFollowChanges" -> List("Check"), "accessFollowsShares" -> List("Check", "Idle"))
 
   /** Each value provided where the code runs, judged under owner §45 D. */
   val provided: Map[String, String] = Map(
