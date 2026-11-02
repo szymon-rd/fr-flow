@@ -48,7 +48,7 @@ object Findings:
   /** What Lean proved of a try: the node says something it should not. */
   def tried(t: TryView): String = t match
     case TryView.Needed(part)              => s"not needed: Lean proves it without $part"
-    case TryView.Vacuous                   => "it holds vacuously: nothing it speaks of can be"
+    case TryView.Vacuous                   => "it holds whatever what it speaks of means: it says nothing"
     case TryView.Restates                  => "it restates its part"
     case TryView.Clash                     => "its parts clash: together they prove anything"
     case TryView.Unsat                     => "it cannot hold"

@@ -7,8 +7,11 @@ accessExactly needed_accessNeedsGrant
 accessExactly needed_grantLetsIn
 accessExactly clash
 accessExactly unsat
+grantTable vacuous
 grantTable unsat
+sessionTable vacuous
 sessionTable unsat
+requests vacuous
 requests unsat
 tokenNamesHolder complete
 tokenNamesHolder vacuous
@@ -25,6 +28,7 @@ grantLetsIn vacuous
 grantLetsIn restates
 grantLetsIn clash
 grantLetsIn unsat
+decisionContract vacuous
 decisionContract unsat
 Whole consistent_0
 Whole consistent_1

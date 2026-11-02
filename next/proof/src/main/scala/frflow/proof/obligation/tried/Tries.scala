@@ -2,6 +2,7 @@ package frflow.proof.obligation.tried
 
 import frflow.core.analysis.Resolved
 import frflow.core.name.NodeId
+import frflow.core.spec.NodeKind
 import frflow.proof.obligation.{Discharge, Obligation, ObligationName, Prop, TryKind}
 import frflow.proof.terms.TermTable
 
@@ -16,7 +17,15 @@ object Tries:
     */
   def of(r: Resolved, table: TermTable, n: NodeId): List[Obligation] =
     if r.theory.node(n).exists(_.statement.rule) then Nil
-    else (Splits.of(r, n) ++ List(unsat(n))).map(tried) ++ Idle.of(r, table, n)
+    else (Splits.of(r, n) ++ says(r, n) ++ List(unsat(n))).map(tried) ++ Idle.of(r, table, n)
+
+  /** Of a claim with no parts, the tautology try (`vacuous`): it holds whatever what it speaks of means, so it says
+    * nothing (semantics review, finding 7: `accepted r = accepted r`, or `∀ w, ∃ c, opening w = c`).
+    */
+  private def says(r: Resolved, n: NodeId): List[(TryKind, Prop, String)] =
+    r.theory.node(n).filter(x => x.statement.kind == NodeKind.Claim && x.statement.stated &&
+      r.theory.refinement.parts(n).isEmpty).toList.map(_ =>
+      (TryKind.Vacuous, Prop.over(List(n), Prop.claim(n)), s"${n.value} holds whatever what it speaks of means."))
 
   private def tried(k: TryKind, p: Prop, doc: String) =
     Obligation(ObligationName.Tried(k), p, Discharge.Attempt(Heartbeats), doc)

@@ -10,8 +10,11 @@ acceptWhenFree needed_acceptedIsAnswered
 acceptWhenFree needed_answerWhenFree
 acceptWhenFree clash
 acceptWhenFree unsat
+bookedIsStored vacuous
 bookedIsStored unsat
+bookedAfterIsStored vacuous
 bookedAfterIsStored unsat
+acceptedIsAnswered vacuous
 acceptedIsAnswered unsat
 storeWhenFree impl
 storeWhenFree vacuous
@@ -35,6 +38,7 @@ bookingsOfTheRoom made_bookIfGranted_call_3
 roomBookingsApart made_inRoom
 roomBookingsApart made_bookIfGranted_call_1
 roomBookingsApart made_bookIfGranted_call_3
+grantWhenNoOverlap vacuous
 grantWhenNoOverlap unsat
 bookingsEndAfterStart cover_book
 bookingsEndAfterStart made_inRoom

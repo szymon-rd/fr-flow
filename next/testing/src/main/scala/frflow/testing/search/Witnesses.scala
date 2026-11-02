@@ -3,12 +3,13 @@ package frflow.testing.search
 import frflow.core.code.Values
 import frflow.core.consistency.{Conditions, Consistency, Vacuity}
 import frflow.core.expr.Value
-import frflow.core.name.{DefName, NodeId, SymbolName}
+import frflow.core.name.{DefName, ModelName, NodeId, SymbolName}
+import frflow.core.spec.Range
 import frflow.core.term.Stated
 import frflow.core.ty.Ty
 import frflow.core.vocab.SymbolType
 import frflow.core.Theory
-import frflow.eval.run.Wiring
+import frflow.eval.run.{Made, Wiring}
 import frflow.eval.{Env, Fn, NotEvaluated, ScalaValue, Semantics}
 
 /** The values that show what always holds possible and each condition able to hold (owner §18), found by a search:
@@ -25,11 +26,27 @@ final class Witnesses(semantics: Semantics, t: Theory, drawn: Ty => List[Value])
     case Vacuity.Satisfiable(n, i, over) => Consistency.condition(t, n, i).flatMap { c =>
       val opens = Consistency.opens(t, c)
       val types = opens.map(typeOf) ++ over
-      combinations(types.map(candidates)).take(Witnesses.Budget)
+      combinations(opens.map(typeOf).map(candidates) ++ over.map(ruled)).take(Witnesses.Budget)
         .find(vs => satisfies(n, i, opens, vs.zip(types).map(semantics.literal))).map(_.zip(types))
     }
 
   private def candidates(ty: Ty): List[Value] = (drawn(ty) ++ small.of(ty)).distinct
+
+  /** A condition's variable comes with what always holds of it, as Lean states it (`Consistency.condition`): its
+    * candidates meet every `always[T]` on what they hold (`Made`), and a world each `always(stored)` on its state.
+    */
+  private def ruled(ty: Ty): List[Value] =
+    val env = Env.of(Values.none)
+    candidates(ty).filter(x => made.forall(!_.breaks(List(semantics.literal(x, ty)), List(ty), env)) &&
+      (ty != Ty.World || reached.forall((m, rule) => x match
+        case Value.World(states, _) => states.collectFirst { case (`m`, s) => s }.forall(s =>
+            t.vocabulary.model(m).forall(model => holds(rule, s, model.state)))
+        case _                      => true)))
+
+  private lazy val made = Made.of(semantics, t)
+  /** Each `always(stored)`, its rule's define, by the models it is about. */
+  private lazy val reached: List[(ModelName, DefName)] = t.nodes.map(_.node).flatMap(n =>
+    n.statement.range.toList.collect { case Range.Reached(ms) => ms.map(_ -> DefName(n.id.value)) }.flatten)
 
   /** A rule's define (an `always[T]`'s, named as its node, or a store's start), at `x`. */
   private def holds(rule: DefName, x: Value, ty: Ty): Boolean =

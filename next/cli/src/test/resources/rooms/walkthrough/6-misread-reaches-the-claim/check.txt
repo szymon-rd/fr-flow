@@ -3,10 +3,13 @@ error: check: level 2 of 4: grantWhenFree
 error: check: level 3 of 4: storeWhenFree, answerWhenFree
 error: check: level 4 of 4: bookWhenFree, acceptWhenFree
 + bookedIsStored: proven
+  vacuous: not shown
   unsat: not shown
 + bookedAfterIsStored: proven
+  vacuous: not shown
   unsat: not shown
 + acceptedIsAnswered: proven
+  vacuous: not shown
   unsat: not shown
 + neverOverlap: proven
 + bookingsOfTheRoom: proven

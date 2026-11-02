@@ -3,6 +3,7 @@ error: check: level 2 of 4: grantWhenFree
 error: check: level 3 of 4: storeWhenFree, answerWhenFree
 error: check: level 4 of 4: bookWhenFree, acceptWhenFree
 x grantWhenNoOverlap: fails a generated case: (("Elm", List(("Elm", 0, 5))), ("Elm", 0, 1)): its result breaks the claim (seed 1, case 11, size 1)
+  vacuous: not shown
   unsat: not shown
   not proven: its code fails a generated case
   note: the generator given for String: Oak or Elm

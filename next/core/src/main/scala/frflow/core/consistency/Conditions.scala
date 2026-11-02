@@ -2,12 +2,13 @@ package frflow.core.consistency
 
 import frflow.core.expr.Binder
 import frflow.core.name.VarId
-import frflow.core.term.{Annotation, Bound, Final, Sym}
+import frflow.core.term.{Annotation, Bound, Final, Program, Sym, World}
 import frflow.core.term.interpret.Forward
 
 /** The conditions of a claim (owner §18, vacuity): of each `A implies B` in its logical structure, `A`, with the
   * antecedents above it, over the variables bound above it (`forall`, `always` and `exists` bind one; a list's `all`
-  * and an option's `forall` one more, with its membership). What is below any other operation is not looked into. A
+  * and an option's `forall` one more, with its membership; a run, of its outcome). What is below any other operation
+  * is not looked into. A
   * transformer whose bodies are run once on a placeholder to learn their conditions' shapes, and again on the
   * variables each condition is asked of.
   */
@@ -44,6 +45,29 @@ final class Conditions[T[_]](s: Sym[T]) extends Forward[T, [a] =>> Found[T, a]]:
 
   override def optionAll[A](o: F[Option[A]], x: Bound[A])(p: F[A] => F[Boolean]): F[Boolean] =
     bound(x, s.optionAll(o.whole, x)(v => p(fwd(v)).whole), v => s.eq(o.whole, s.some(v)))(p)
+
+  /** Below a run, each condition of what follows it, of the run that gives its outcome: that the run succeeds and
+    * the condition holds of what it gives, `¬ runs(p, ¬ A)` (a run is a function of its world: no variable of its
+    * own to choose).
+    */
+  override def runs[R](p: F[Program[R]], before: F[World], result: Bound[R], after: Bound[World])(
+      post: (F[R], F[World]) => F[Boolean]): F[Boolean] =
+    val whole = s.runs(p.whole, before.whole, result, after)((r, w) => post(fwd(r), fwd(w)).whole)
+    ran(whole, post, result, after)((i, vs) => s.not(s.runs(p.whole, before.whole, result, after)((r, w) =>
+      s.not(post(fwd(r), fwd(w)).conditions(i).at(vs)))))
+
+  /** The same of a failing run: that it fails and the condition holds of its error. */
+  override def fails[R, E](p: F[Program[R]], before: F[World], error: Bound[E], after: Bound[World])(
+      post: (F[E], F[World]) => F[Boolean]): F[Boolean] =
+    val whole = s.fails(p.whole, before.whole, error, after)((e, w) => post(fwd(e), fwd(w)).whole)
+    ran(whole, post, error, after)((i, vs) => s.not(s.fails(p.whole, before.whole, error, after)((e, w) =>
+      s.not(post(fwd(e), fwd(w)).conditions(i).at(vs)))))
+
+  private def ran[O](whole: T[Boolean], post: (F[O], F[World]) => F[Boolean], outcome: Bound[O],
+      after: Bound[World])(at: (Int, List[T[Any]]) => T[Boolean]): F[Boolean] =
+    val shapes = post(fwd(s.free[O](Conditions.placeholder(outcome))),
+      fwd(s.free[World](Conditions.placeholder(after)))).conditions
+    Found(whole, shapes.indices.toList.map(i => Condition[T](shapes(i).over, vs => at(i, vs))))
 
   /** The conditions below a binder of `x`, each over `x` too, and saying `x` is where it ranges (`in`). */
   private def bound[A, R](x: Bound[A], whole: T[R], in: T[A] => T[Boolean])(p: F[A] => F[Boolean]): F[R] =

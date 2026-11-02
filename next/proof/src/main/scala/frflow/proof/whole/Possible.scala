@@ -22,7 +22,12 @@ object Possible:
           if !meets.contains(DefName(n.value)) then s"Some state meets what ${n.value} says the store starts in."
           else if meets.size > 1 then s"Some value meets ${meets.map(_.value).mkString(", ")} together."
           else s"Some value meets ${n.value}."))
-      case Vacuity.Satisfiable(n, i, _) => Consistency.condition(r.theory, n, i).map(c =>
-        Obligation(ObligationName.Satisfiable(n, i), Prop.ForSome(Consistency.opens(r.theory, c),
-          Prop.Formula(c, Stands.of(r, Constrained.of(r.theory, n)))), by,
-          s"Condition ${i + 1} of ${n.value} can hold."))
+      case Vacuity.Satisfiable(n, i, _) => Consistency.condition(r.theory, n, i).map { c =>
+        val opens = Consistency.opens(r.theory, c)
+        val declared = opens.exists(Constrained.isDeclaration(r.theory, _))
+        Obligation(ObligationName.Satisfiable(n, i), Prop.ForSome(opens,
+          Prop.Formula(c, Stands.of(r, Constrained.of(r.theory, n)))), if declared then Discharge.Unwitnessed else by,
+          s"Condition ${i + 1} of ${n.value} can hold." + (if !declared then "" else
+            " It is about Declarations: a witness would choose what they mean, whatever the claims say, so it is not " +
+            "shown by one."))
+      }

@@ -42,10 +42,14 @@ rolesAsGranted needed_accountsAsAdministered
 rolesAsGranted needed_introspectAnswers
 rolesAsGranted clash
 rolesAsGranted unsat
+accounts vacuous
 accounts unsat
+accountRoles vacuous
 accountRoles unsat
+signInHistory vacuous
 signInHistory unsat
 serverRun unsat
+referenceTokens vacuous
 referenceTokens unsat
 realmIsolation complete
 realmIsolation vacuous
@@ -75,8 +79,10 @@ oneSignInPerToken clash
 oneSignInPerToken unsat
 freshTokens unsat
 handleRequest impl
+handleRequest vacuous
 handleRequest unsat
 storeKeepsState unsat
+introspectAnswers vacuous
 introspectAnswers unsat
 sessionLookup unsat
 Whole consistent_0

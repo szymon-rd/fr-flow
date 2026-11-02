@@ -2,12 +2,12 @@ package frflow.core.consistency
 
 import cats.syntax.all.*
 import frflow.core.analysis.{Callees, Constrained, Scope}
-import frflow.core.analysis.outside.Outsides
+import frflow.core.analysis.outside.{Guards, Outsides}
 import frflow.core.code.Code
 import frflow.core.expr.{Expr, Exprs, OutsideFact}
 import frflow.core.name.{DefName, NodeId, SourceText, SymbolName}
 import frflow.core.spec.{NodeKind, Range, Written}
-import frflow.core.term.interpret.ToExpr
+import frflow.core.term.interpret.{Guarded, ToExpr}
 import frflow.core.ty.Ty
 import frflow.core.vocab.SymbolType
 import frflow.core.Theory
@@ -170,10 +170,13 @@ object Consistency:
         case (id, OutsideFact.Initially(s, _)) if s == m.name => id
       }))))
 
-  /** `∃ xs, A`: the `i`-th condition of `n`'s claim with the variables above it, written as the claim is. */
+  /** `∃ xs, A`: the `i`-th condition of `n`'s claim with the variables above it, written as the claim is, each
+    * variable with what always holds of it, as the claim's own (`Guards`): a value code can make, a world meeting the
+    * rules of the stores it reads.
+    */
   def condition(t: Theory, n: NodeId, i: Int): Option[Written[Expr]] =
-    t.node(n).flatMap(_.statement.said).map(f =>
-      Written.formula(Conditions.satisfiable(f.term, i), SourceText(s"${f.source.value} (condition ${i + 1})")))
+    t.node(n).flatMap(_.statement.said).map(f => Written.formula(Guarded.of(Conditions.satisfiable(f.term, i),
+      Guards.of(t, n)), SourceText(s"${f.source.value} (condition ${i + 1})")))
 
   /** What a condition leaves open, in order: the Definitions and Declarations it mentions, through the defines it
     * calls too, but proven code.

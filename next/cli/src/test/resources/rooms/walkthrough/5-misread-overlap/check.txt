@@ -12,6 +12,7 @@ o roomBookingsApart: open
     Proofs/Rooms/Lemmas.lean:38: omega could not prove the goal:
   not proven: its check is not proven
 + grantWhenNoOverlap: proven; its code tested on 1001 cases
+  vacuous: not shown
   unsat: not shown
   note: the generator given for String: Oak or Elm
   note: the generator given for Booking: requests for Oak or Elm that end after they start

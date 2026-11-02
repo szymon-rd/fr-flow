@@ -41,9 +41,15 @@ class TriesSuite extends munit.FunSuite:
 
   test("clash and unsat: fatal, each asked of every split and every node") {
     assert(kinds("both").contains(TryKind.Clash) && kinds("same").contains(TryKind.Clash))
-    assertEquals(kinds("aboutF"), List(TryKind.Unsat))
+    assertEquals(kinds("aboutF"), List(TryKind.Vacuous, TryKind.Unsat))
     assert(TryKind.Clash.fatal && TryKind.Unsat.fatal && !TryKind.Vacuous.fatal)
     assert(lean("aboutF", TryKind.Unsat).contains("∀ (f : Int → Prop), ¬ (Test.aboutF.claim f)"))
+  }
+
+  test("vacuous of a claim with no parts: a tautology, holding whatever what it speaks of means (review finding 7)") {
+    assert(lean("aboutF", TryKind.Vacuous).contains("∀ (f : Int → Prop), (Test.aboutF.claim f)"),
+      lean("aboutF", TryKind.Vacuous))
+    assertEquals(tries("aboutF").headOption.map(_.doc), Some("aboutF holds whatever what it speaks of means."))
   }
 
   test("idle: a root met by every Definition it names doing nothing, within Lean's default budget") {
