@@ -13,35 +13,26 @@ open Classical
 namespace Sharing.deliveryJob.Proofs
 open Sharing
 
-/-- A notice's delivery computed on the models, as far as the faults it takes say. -/
-local macro "body_simp" : tactic => `(tactic| (try simp only [FrFlow.runOnE_bind, FrFlow.runOnE_pure,
-  FrFlow.runOnE_lift, FrFlow.runOnE_failing, FrFlow.runOnE_tryCatch, FrFlow.runOnE_ite, MailerModel.Ops.send_onWorldE,
-  ClockModel.Ops.sleep_onWorldE, LibraryModel.Ops.load_onWorldE, LibraryModel.Ops.save_onWorldE, FrFlow.runOn_within,
-  MailerModel.send, ClockModel.sleep, LibraryModel.load, LibraryModel.save, FrFlow.runOn_get, FrFlow.runOn_set,
-  FrFlow.runOn_modify, FrFlow.runOn_bind, FrFlow.runOn_pure]))
 
-/-- The mailbox of a notice's person once the mail server takes it. -/
-def W (s : World) (x : Notice) : List Mailbox := withMailbox s.mailerModel x.to (taken (mailbox s.mailerModel x.to) x)
-
-/-- What a run of delivery keeps once it has sent `done`, from the library `lib` and the mailboxes `boxes` it began
-with: the library is it, some of its outbox kept; each notice of the outbox is still there, or was sent and the
-mail server has it; the mailbox of no one sent to has changed, and that of each one sent to is as it was or holds
-their notice. -/
-def D (lib : Library) (boxes : List Mailbox) (done : List Notice) (s : World) : Prop :=
-  (∃ keep : Notice → Bool, s.libraryModel = { lib with outbox := lib.outbox.filter keep }) ∧
-  (∀ n ∈ lib.outbox, n ∈ s.libraryModel.outbox ∨ (n ∈ done ∧ n ∈ mailbox s.mailerModel n.to)) ∧
-  (∀ p, (∀ n ∈ done, n.to ≠ p) → mailbox s.mailerModel p = mailbox boxes p) ∧
-  (∀ n ∈ done, mailbox s.mailerModel n.to = mailbox boxes n.to ∨
-    mailbox s.mailerModel n.to = taken (mailbox boxes n.to) n)
-
-/-- A notice's delivery keeps `D`: it leaves the library as it was or its outbox without the notice, the mail server
+/-- A notice's delivery keeps what a run of delivery keeps once it has sent `done` (from the library `lib` and
+the mailboxes `boxes` it began with: the library is it, some of its outbox kept; each notice of the outbox is still
+there, or was sent and the mail server has it; no one's mailbox not sent to has changed, and each one's sent to is as
+it was or holds their notice): it leaves the library as it was or its outbox without the notice, the mail server
 having it, and the mailboxes as they were or the notice's person's with it taken. -/
 theorem kept (lib : Library) (boxes : List Mailbox) (done rest : List Notice) (x : Notice) (s s' : World)
-    (hsplit : done ++ x :: rest = firstOfEach lib.outbox) (hD : D lib boxes done s)
-    (eff : (s'.libraryModel = s.libraryModel ∧ (s'.mailerModel = s.mailerModel ∨ s'.mailerModel = W s x)) ∨
+    (hsplit : done ++ x :: rest = firstOfEach lib.outbox) (hD : ((∃ keep : Notice → Bool, s.libraryModel = { lib with outbox := lib.outbox.filter keep }) ∧
+      (∀ n ∈ lib.outbox, n ∈ s.libraryModel.outbox ∨ (n ∈ done ∧ n ∈ mailbox s.mailerModel n.to)) ∧
+      (∀ p, (∀ n ∈ done, n.to ≠ p) → mailbox s.mailerModel p = mailbox boxes p) ∧
+      (∀ n ∈ done, mailbox s.mailerModel n.to = mailbox boxes n.to ∨
+        mailbox s.mailerModel n.to = taken (mailbox boxes n.to) n)))
+    (eff : (s'.libraryModel = s.libraryModel ∧ (s'.mailerModel = s.mailerModel ∨ s'.mailerModel = withMailbox s.mailerModel x.to (taken (mailbox s.mailerModel x.to) x))) ∨
       (s'.libraryModel = { s.libraryModel with outbox := s.libraryModel.outbox.filter (fun m => decide ¬ m = x) } ∧
-        s'.mailerModel = W s x)) :
-    D lib boxes (done ++ [x]) s' := by
+        s'.mailerModel = withMailbox s.mailerModel x.to (taken (mailbox s.mailerModel x.to) x))) :
+    ((∃ keep : Notice → Bool, s'.libraryModel = { lib with outbox := lib.outbox.filter keep }) ∧
+      (∀ n ∈ lib.outbox, n ∈ s'.libraryModel.outbox ∨ (n ∈ (done ++ [x]) ∧ n ∈ mailbox s'.mailerModel n.to)) ∧
+      (∀ p, (∀ n ∈ (done ++ [x]), n.to ≠ p) → mailbox s'.mailerModel p = mailbox boxes p) ∧
+      (∀ n ∈ (done ++ [x]), mailbox s'.mailerModel n.to = mailbox boxes n.to ∨
+        mailbox s'.mailerModel n.to = taken (mailbox boxes n.to) n)) := by
   obtain ⟨⟨keep, hk⟩, h2, h3, h4⟩ := hD
   have hx : x ∈ firstOfEach lib.outbox := hsplit ▸ List.mem_append_right _ List.mem_cons_self
   have same : ∀ n ∈ done, n.to = x.to → n = x := fun n hn h =>
@@ -54,13 +45,13 @@ theorem kept (lib : Library) (boxes : List Mailbox) (done rest : List Notice) (x
       subst this
       exact h4 n hn
     · exact Or.inl (h3 x.to (fun n hn he => hin ⟨n, hn, he⟩))
-  have hW : ∀ p, mailbox (W s x) p = if p = x.to then taken (mailbox s.mailerModel x.to) x
+  have hW : ∀ p, mailbox (withMailbox s.mailerModel x.to (taken (mailbox s.mailerModel x.to) x)) p = if p = x.to then taken (mailbox s.mailerModel x.to) x
       else mailbox s.mailerModel p := fun p => Lemmas.mailbox_with _ _ _ _
   -- what a mailbox becomes: each person's as it was, but the notice's person's, its notice taken
   have boxOf : ∀ p, mailbox s'.mailerModel p = mailbox s.mailerModel p ∨
       (p = x.to ∧ mailbox s'.mailerModel p = taken (mailbox s.mailerModel x.to) x) := by
     intro p
-    have hm : s'.mailerModel = s.mailerModel ∨ s'.mailerModel = W s x := by
+    have hm : s'.mailerModel = s.mailerModel ∨ s'.mailerModel = withMailbox s.mailerModel x.to (taken (mailbox s.mailerModel x.to) x) := by
       rcases eff with ⟨_, hm⟩ | ⟨_, hm⟩
       · exact hm
       · exact Or.inr hm
@@ -129,20 +120,38 @@ theorem impl : Obl.impl := by
     PoolModel.give, LibraryModel.load, ClockModel.sleep, FrFlow.runOn_get, FrFlow.runOn_set, FrFlow.runOn_modify,
     FrFlow.runOn_bind, FrFlow.runOn_pure, FrFlow.runOn_map]
   all_goals first
-    | (simp (config := { contextual := true }) [Lemmas.filter_mem_self]; done)
+    | (simp (config := { contextual := true }) [Lemmas.filter_mem_self, Lemmas.library_eta]; done)
     | (generalize hres : FrFlow.runOnE (List.mapM _ _) _ = res
-       obtain ⟨bs, hbs, hinv⟩ : ∃ bs, res.1 = .ok bs ∧ D lib boxes (firstOfEach lib.outbox) res.2 := by
+       obtain ⟨bs, hbs, hinv⟩ : ∃ bs, res.1 = .ok bs ∧
+           ((∃ keep : Notice → Bool, (res.2 : World).libraryModel = { lib with outbox := lib.outbox.filter keep }) ∧
+           (∀ n ∈ lib.outbox, n ∈ (res.2 : World).libraryModel.outbox ∨ (n ∈ firstOfEach lib.outbox ∧ n ∈ mailbox (res.2 : World).mailerModel n.to)) ∧
+           (∀ p, (∀ n ∈ firstOfEach lib.outbox, n.to ≠ p) → mailbox (res.2 : World).mailerModel p = mailbox boxes p) ∧
+           (∀ n ∈ firstOfEach lib.outbox, mailbox (res.2 : World).mailerModel n.to = mailbox boxes n.to ∨
+             mailbox (res.2 : World).mailerModel n.to = taken (mailbox boxes n.to) n)) := by
          rw [← hres]
-         refine Lemmas.mapM_along _ (D lib boxes) _ ?_ _ ⟨⟨fun _ => true, by rw [List.filter_eq_self.2 (fun _ _ => rfl)]⟩, fun n hn => Or.inl hn,
+         refine Lemmas.mapM_along _ (fun (done : List Notice) (s : World) =>
+           ((∃ keep : Notice → Bool, s.libraryModel = { lib with outbox := lib.outbox.filter keep }) ∧
+           (∀ n ∈ lib.outbox, n ∈ s.libraryModel.outbox ∨ (n ∈ done ∧ n ∈ mailbox s.mailerModel n.to)) ∧
+           (∀ p, (∀ n ∈ done, n.to ≠ p) → mailbox s.mailerModel p = mailbox boxes p) ∧
+           (∀ n ∈ done, mailbox s.mailerModel n.to = mailbox boxes n.to ∨
+             mailbox s.mailerModel n.to = taken (mailbox boxes n.to) n))) _ ?_ _ ⟨⟨fun _ => true, by rw [List.filter_eq_self.2 (fun _ _ => rfl)]⟩, fun n hn => Or.inl hn,
            fun _ _ => rfl, fun _ hn => absurd hn List.not_mem_nil⟩
          intro done x rest s hsplit hD
          refine ⟨?_, kept lib boxes done rest x s _ hsplit hD ?_⟩
          · rcases s with ⟨l, c, b, p, fs, rs⟩
-           iterate 5 (all_goals (try (rcases fs with _ | ⟨_ | _, fs⟩)); all_goals body_simp)
+           iterate 5 (all_goals (try (rcases fs with _ | ⟨_ | _, fs⟩)); all_goals (try simp only [FrFlow.runOnE_bind, FrFlow.runOnE_pure,
+  FrFlow.runOnE_lift, FrFlow.runOnE_failing, FrFlow.runOnE_tryCatch, FrFlow.runOnE_ite, MailerModel.Ops.send_onWorldE,
+  ClockModel.Ops.sleep_onWorldE, LibraryModel.Ops.load_onWorldE, LibraryModel.Ops.save_onWorldE, FrFlow.runOn_within,
+  MailerModel.send, ClockModel.sleep, LibraryModel.load, LibraryModel.save, FrFlow.runOn_get, FrFlow.runOn_set,
+  FrFlow.runOn_modify, FrFlow.runOn_bind, FrFlow.runOn_pure]))
            all_goals simp
          · rcases s with ⟨l, c, b, p, fs, rs⟩
-           iterate 5 (all_goals (try (rcases fs with _ | ⟨_ | _, fs⟩)); all_goals body_simp)
-           all_goals simp [W]
+           iterate 5 (all_goals (try (rcases fs with _ | ⟨_ | _, fs⟩)); all_goals (try simp only [FrFlow.runOnE_bind, FrFlow.runOnE_pure,
+  FrFlow.runOnE_lift, FrFlow.runOnE_failing, FrFlow.runOnE_tryCatch, FrFlow.runOnE_ite, MailerModel.Ops.send_onWorldE,
+  ClockModel.Ops.sleep_onWorldE, LibraryModel.Ops.load_onWorldE, LibraryModel.Ops.save_onWorldE, FrFlow.runOn_within,
+  MailerModel.send, ClockModel.sleep, LibraryModel.load, LibraryModel.save, FrFlow.runOn_get, FrFlow.runOn_set,
+  FrFlow.runOn_modify, FrFlow.runOn_bind, FrFlow.runOn_pure]))
+           all_goals simp
        rcases res with ⟨o, s'⟩
        simp only at hbs hinv
        subst hbs

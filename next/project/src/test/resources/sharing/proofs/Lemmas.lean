@@ -14,18 +14,11 @@ namespace Sharing.Lemmas
 theorem changed {α : Type} {c : Prop} {inst : Decidable c} {a b : α} (h : ¬ (@ite α c inst a b = b)) : c :=
   Classical.byContradiction fun hn => h (ite_eq_right hn)
 
-/-- What clockNeverGoesBack asks of an event: a wait is of no time or more. -/
-def forward : Event → Prop
-  | Event.Waited d => (0 : Int) ≤ d
-  | _ => True
-
-section Answered
-variable (mayEdit : Library → Int → PersonId → Target → Prop) (ownedBy : Library → Target → Grantee → Prop)
-  (isOpen : Invitation → Int → Prop) (gone : Document → Int → Prop) (isPending : AccessRequest → Int → Prop)
-
 /-- A request served: as it was, or what its operation left, recorded and announced, which changes the documents,
 the invitations, the requests and the shares no more. -/
-theorem served_cases (lib : Library) (t : Int) (r : Request) :
+theorem served_cases (mayEdit : Library → Int → PersonId → Target → Prop) (ownedBy : Library → Target → Grantee → Prop)
+    (isOpen : Invitation → Int → Prop) (gone : Document → Int → Prop) (isPending : AccessRequest → Int → Prop)
+    (lib : Library) (t : Int) (r : Request) :
     servedByCode mayEdit ownedBy isOpen gone isPending lib t r = lib ∨
       ((servedByCode mayEdit ownedBy isOpen gone isPending lib t r).documents =
           (answered mayEdit ownedBy isOpen gone isPending lib t r).documents ∧
@@ -41,7 +34,9 @@ theorem served_cases (lib : Library) (t : Int) (r : Request) :
   · exact Or.inl rfl
 
 /-- A document a request leaves is out of the trash, put there now, or in it since a time the library held. -/
-theorem answered_documents (lib : Library) (t : Int) (r : Request) :
+theorem answered_documents (mayEdit : Library → Int → PersonId → Target → Prop) (ownedBy : Library → Target → Grantee → Prop)
+    (isOpen : Invitation → Int → Prop) (gone : Document → Int → Prop) (isPending : AccessRequest → Int → Prop)
+    (lib : Library) (t : Int) (r : Request) :
     ∀ doc ∈ (answered mayEdit ownedBy isOpen gone isPending lib t r).documents,
       doc.trashed = none ∨ doc.trashed = some t ∨ ∃ x ∈ lib.documents, x.trashed = doc.trashed := by
   intro doc hd
@@ -54,7 +49,9 @@ theorem answered_documents (lib : Library) (t : Int) (r : Request) :
     | simp_all
 
 /-- An invitation a request leaves is one the library held, or one sent now. -/
-theorem answered_invitations (lib : Library) (t : Int) (r : Request) :
+theorem answered_invitations (mayEdit : Library → Int → PersonId → Target → Prop) (ownedBy : Library → Target → Grantee → Prop)
+    (isOpen : Invitation → Int → Prop) (gone : Document → Int → Prop) (isPending : AccessRequest → Int → Prop)
+    (lib : Library) (t : Int) (r : Request) :
     ∀ i ∈ (answered mayEdit ownedBy isOpen gone isPending lib t r).invitations, i ∈ lib.invitations ∨ i.sent = t := by
   intro i hi
   cases r <;> simp only [answered, shareCode, unshareCode, moveCode, inviteCode, acceptCode, withdrawCode, trashCode,
@@ -63,7 +60,9 @@ theorem answered_invitations (lib : Library) (t : Int) (r : Request) :
   all_goals rcases hi with rfl | ⟨h, _⟩ <;> simp_all
 
 /-- A request for access a request leaves is one the library held, or one made now and not reminded. -/
-theorem answered_requests (lib : Library) (t : Int) (r : Request) :
+theorem answered_requests (mayEdit : Library → Int → PersonId → Target → Prop) (ownedBy : Library → Target → Grantee → Prop)
+    (isOpen : Invitation → Int → Prop) (gone : Document → Int → Prop) (isPending : AccessRequest → Int → Prop)
+    (lib : Library) (t : Int) (r : Request) :
     ∀ q ∈ (answered mayEdit ownedBy isOpen gone isPending lib t r).requests,
       q ∈ lib.requests ∨ (q.asked = t ∧ ¬ q.reminded) := by
   intro q hq
@@ -74,7 +73,9 @@ theorem answered_requests (lib : Library) (t : Int) (r : Request) :
 
 /-- A request that changes the library is recorded at the end of the log, and announced in the outbox, in the same
 step; one that does not leaves the library as it was. -/
-theorem served_logged (lib : Library) (t : Int) (r : Request) :
+theorem served_logged (mayEdit : Library → Int → PersonId → Target → Prop) (ownedBy : Library → Target → Grantee → Prop)
+    (isOpen : Invitation → Int → Prop) (gone : Document → Int → Prop) (isPending : AccessRequest → Int → Prop)
+    (lib : Library) (t : Int) (r : Request) :
     servedByCode mayEdit ownedBy isOpen gone isPending lib t r = lib ∨
       ((servedByCode mayEdit ownedBy isOpen gone isPending lib t r).shares =
           (answered mayEdit ownedBy isOpen gone isPending lib t r).shares ∧
@@ -91,19 +92,25 @@ theorem served_logged (lib : Library) (t : Int) (r : Request) :
   · exact Or.inl rfl
 
 /-- The operations leave the log alone. -/
-theorem answered_log (lib : Library) (t : Int) (r : Request) :
+theorem answered_log (mayEdit : Library → Int → PersonId → Target → Prop) (ownedBy : Library → Target → Grantee → Prop)
+    (isOpen : Invitation → Int → Prop) (gone : Document → Int → Prop) (isPending : AccessRequest → Int → Prop)
+    (lib : Library) (t : Int) (r : Request) :
     (answered mayEdit ownedBy isOpen gone isPending lib t r).log = lib.log := by
   cases r <;> simp only [answered, shareCode, unshareCode, moveCode, inviteCode, acceptCode, withdrawCode, trashCode,
     restoreCode, askCode, approveCode, declineCode, transferCode, granted] <;> (try split) <;> (try split) <;> rfl
 
 /-- The operations leave the outbox alone. -/
-theorem answered_outbox (lib : Library) (t : Int) (r : Request) :
+theorem answered_outbox (mayEdit : Library → Int → PersonId → Target → Prop) (ownedBy : Library → Target → Grantee → Prop)
+    (isOpen : Invitation → Int → Prop) (gone : Document → Int → Prop) (isPending : AccessRequest → Int → Prop)
+    (lib : Library) (t : Int) (r : Request) :
     (answered mayEdit ownedBy isOpen gone isPending lib t r).outbox = lib.outbox := by
   cases r <;> simp only [answered, shareCode, unshareCode, moveCode, inviteCode, acceptCode, withdrawCode, trashCode,
     restoreCode, askCode, approveCode, declineCode, transferCode, granted] <;> (try split) <;> (try split) <;> rfl
 
 /-- A share a request leaves is one the library held, or one the request made (as its log entry says). -/
-theorem answered_shares (lib : Library) (t : Int) (r : Request) (n : Int) :
+theorem answered_shares (mayEdit : Library → Int → PersonId → Target → Prop) (ownedBy : Library → Target → Grantee → Prop)
+    (isOpen : Invitation → Int → Prop) (gone : Document → Int → Prop) (isPending : AccessRequest → Int → Prop)
+    (lib : Library) (t : Int) (r : Request) (n : Int) :
     ∀ s ∈ (answered mayEdit ownedBy isOpen gone isPending lib t r).shares,
       s ∈ lib.shares ∨ makes (Entry.mk n t (Change.Made r)) s := by
   intro s hs
@@ -115,8 +122,6 @@ theorem answered_shares (lib : Library) (t : Int) (r : Request) (n : Int) :
   all_goals rename_i hq _
   all_goals have := List.find?_some hq
   all_goals simp_all
-
-end Answered
 
 /-- What a run of housekeeping leaves of the documents, the invitations and the requests is what tidying and chasing
 leave of them: forgetting old entries, telling of ending shares and recording the run touch none of them. -/
@@ -240,7 +245,7 @@ theorem firstOfEach_one (o : List Notice) (a b : Notice) (ha : a ∈ firstOfEach
   exact Option.some.inj (ha2.symm.trans hb.2)
 
 /-- A list filtered by membership in itself is itself, however membership is decided. -/
-@[simp] theorem filter_mem_self {α : Type} (l : List α) {d : ∀ n, Decidable (n ∈ l)} :
+theorem filter_mem_self {α : Type} (l : List α) {d : ∀ n, Decidable (n ∈ l)} :
     l.filter (fun n => @decide (n ∈ l) (d n)) = l :=
   List.filter_eq_self.2 (fun a ha => @decide_eq_true _ (d a) ha)
 
@@ -259,7 +264,7 @@ theorem mem_taken (ns : List Notice) (n : Notice) : n ∈ taken ns n := by
   by_cases h : n ∈ ns <;> simp [h]
 
 /-- A library rebuilt from its fields is itself. -/
-@[simp] theorem library_eta (l : Library) :
+theorem library_eta (l : Library) :
     Library.mk l.documents l.folders l.teams l.shares l.invitations l.requests l.log l.outbox = l := rfl
 
 end Sharing.Lemmas

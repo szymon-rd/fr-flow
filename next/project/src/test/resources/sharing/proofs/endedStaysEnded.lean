@@ -17,10 +17,10 @@ theorem impl : Obl.impl := by
   refine ⟨fun pre post hev => ?_, fun t u htu => ⟨⟨fun s hs hu => ?_, fun i hi hu => ?_⟩, fun doc hd => ?_⟩⟩
   · subst hev
     unfold atEnd
-    exact FrFlow.along_when _ (fun _ e => Lemmas.forward e)
+    exact FrFlow.along_when _ (fun _ e => match e with | Event.Waited d => (0 : Int) ≤ d | _ => True)
       (fun (a b : Moment) => a.now ≤ b.now) _ (fun _ => Int.le_refl _) (fun _ _ _ h1 h2 => Int.le_trans h1 h2)
-      (fun m e ok => by cases e <;> simp [step, Lemmas.forward] at ok ⊢ <;> (try split) <;> (try simp) <;> omega)
-      pre post (fun p e q h => by have := hBack p e q h; cases e <;> simp_all [Lemmas.forward])
+      (fun m e ok => by cases e <;> simp [step] at ok ⊢ <;> (try split) <;> (try simp) <;> omega)
+      pre post (fun p e q h => by have := hBack p e q h; cases e <;> simp_all)
   · apply hs
     intro e he
     have := hu e he

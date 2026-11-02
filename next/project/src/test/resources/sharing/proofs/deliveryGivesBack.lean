@@ -11,12 +11,6 @@ open Classical
 namespace Sharing.deliveryGivesBack.Proofs
 open Sharing
 
-/-- A notice's delivery computed on the models, as far as the faults it takes say. -/
-local macro "body_simp" : tactic => `(tactic| (try simp only [FrFlow.runOnE_bind, FrFlow.runOnE_pure,
-  FrFlow.runOnE_lift, FrFlow.runOnE_failing, FrFlow.runOnE_tryCatch, FrFlow.runOnE_ite, MailerModel.Ops.send_onWorldE,
-  ClockModel.Ops.sleep_onWorldE, LibraryModel.Ops.load_onWorldE, LibraryModel.Ops.save_onWorldE, FrFlow.runOn_within,
-  MailerModel.send, ClockModel.sleep, LibraryModel.load, LibraryModel.save, FrFlow.runOn_get, FrFlow.runOn_set,
-  FrFlow.runOn_modify, FrFlow.runOn_bind, FrFlow.runOn_pure]))
 
 theorem impl : Obl.impl := by
   unfold Obl.impl
@@ -39,7 +33,11 @@ theorem impl : Obl.impl := by
          rcases s with ⟨l, c, b, p, fs, rs⟩
          simp only at hs
          subst hs
-         iterate 5 (all_goals (try (rcases fs with _ | ⟨_ | _, fs⟩)); all_goals body_simp)
+         iterate 5 (all_goals (try (rcases fs with _ | ⟨_ | _, fs⟩)); all_goals (try simp only [FrFlow.runOnE_bind, FrFlow.runOnE_pure,
+  FrFlow.runOnE_lift, FrFlow.runOnE_failing, FrFlow.runOnE_tryCatch, FrFlow.runOnE_ite, MailerModel.Ops.send_onWorldE,
+  ClockModel.Ops.sleep_onWorldE, LibraryModel.Ops.load_onWorldE, LibraryModel.Ops.save_onWorldE, FrFlow.runOn_within,
+  MailerModel.send, ClockModel.sleep, LibraryModel.load, LibraryModel.save, FrFlow.runOn_get, FrFlow.runOn_set,
+  FrFlow.runOn_modify, FrFlow.runOn_bind, FrFlow.runOn_pure]))
          all_goals simp
        rcases res with ⟨o, s'⟩
        simp only at hbs hinv
