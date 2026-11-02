@@ -95,6 +95,17 @@ class SecondReviewSuite extends munit.FunSuite:
     }, Theories.problems(kb))
   }
 
+  test("re-review RS1: a failing program of four inputs is read with both outcomes, its result an Either") {
+    val four = Definition[(BigInt, BigInt, BigInt, BigInt) => Flow[Unit]]("four numbers stored").failsWith[Trouble]
+    val each = Node.claim("Storing four numbers ends one way or the other.")(
+      forall((a: Term[BigInt], b: Term[BigInt], c: Term[BigInt], d: Term[BigInt]) =>
+        val result: Term[Either[Trouble, Unit]] = four(a, b, c, d).result
+        result.fold(_ => True, _ => True)))
+    val said = Theories.theory(FrModel("Shelves")(each)).nodes.map(_.node).flatMap(_.statement.said).map(_.value)
+    assertEquals(said.flatMap(frflow.core.expr.Exprs.all).collect { case r: frflow.core.expr.Expr.Runs => r.failing },
+      List(false, true))
+  }
+
 object SecondReviewSuite:
   /** A model whose state a program writes without an operation (the second review's `Direct.scala`). */
   val addD = Definition[BigInt => Flow[Unit]]("a number added to the jar")

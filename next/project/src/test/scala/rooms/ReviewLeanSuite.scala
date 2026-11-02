@@ -119,3 +119,43 @@ class ReviewLeanSuite extends munit.CatsEffectSuite:
     standing(rooms1(wNeg, gGrant.refines(wNeg)), "wNeg").map((row, table) =>
       assertEquals(row.lift(2), Some("proven"), table))
   }
+
+  // The re-review's RB1: a define a rule calls, lowered twice, its statements' copy guarded.
+  @annotation.nowarn("msg=unused") private val allEnd = define { (n: Term[BigInt]) =>
+    forall((b: Term[Booking]) => b.start < b.end) }
+  private val endsRule = Node.assumption("Bookings end after they start.")(
+    always[Booking](b => b.start < b.end && (allEnd(0) || True)))
+  private val someNot = Node.claim("Some booking ends before it starts.")(!allEnd(0))
+
+  test("re-review RB1: a statement calls the guarded copy of a define a rule calls; the rule, the plain one") {
+    val kb = FrModel("Rooms")(endsRule, someNot)
+    assert(module(kb, "someNot.Spec").contains("Rooms.allEnd_guarded"), module(kb, "someNot.Spec"))
+    val rule = module(kb, "Domain.Def_endsRule")
+    assert(rule.contains("Rooms.allEnd ") && !rule.contains("allEnd_guarded"), rule)
+    val twin = module(kb, "Domain.Def_allEnd_guarded")
+    assert(twin.contains("Rooms.endsRule"), twin)
+  }
+
+  test("re-review RB1: the probe N3, !allEnd(0) beside a rule calling allEnd, is not proven".tag(Live)) {
+    standing(FrModel("Rooms")(endsRule, someNot), "someNot").map((row, table) =>
+      assertNotEquals(row.lift(2), Some("proven"), table))
+  }
+
+  private val unique = define { (a: Term[Account]) =>
+    forall((o: Term[Account]) => (o.id === a.id) implies (o === a)) }
+  private val accountsUnique = Node.assumption("Every account is the only one of its id.")(
+    always[Account](a => unique(a)))
+  private val noneUnique = Node.claim("No account is the only one of its id.")(
+    forall((a: Term[Account]) => unique(a) implies False)).assuming(accountsUnique)
+
+  test("re-review RB1: a uniqueness rule's define read in a claim is its guarded copy, each other account guarded") {
+    val kb = FrModel("Accounts")(accountsUnique, noneUnique)
+    assert(module(kb, "noneUnique.Spec").contains("Accounts.unique_guarded"), module(kb, "noneUnique.Spec"))
+    val twin = module(kb, "Domain.Def_unique_guarded")
+    assert(twin.contains("Accounts.accountsUnique"), twin)
+    assert(!module(kb, "Domain.Def_unique").contains("accountsUnique"), module(kb, "Domain.Def_unique"))
+  }
+
+/** An account of the re-review's uniqueness shape: its id, and a name two accounts of one id may differ in. */
+final case class Account(id: BigInt, name: String) derives LeanType
+
