@@ -414,3 +414,15 @@ then `Either[StoreDown, Unit]`, and `p.failing[E]` goes. There is one `Flow` (§
 against what the code raises. A value read in the world before a run is written `t.current` (`.in(world)` names
 another).
 
+## 47. Time as Cats Effect models it (owner)
+Asked whether time may pass outside programs (step 13's G1), the owner answered "Yeah, see how Cats does that". Time
+follows Cats Effect's model (Clock, Temporal, TestControl): the clock's Definitions read the current time from the
+clock model's state (`now`, monotonic: never goes backwards, built into the model rather than assumed); steps of code
+take no time of their own; time advances as an outside step of the clock model, `elapse(d)` with `d ≥ 0`, which the
+world takes between runs (as `TestControl.advance`), and every rule and `isConstant` must survive it. In Lean the world
+may advance the clock by any amount ≥ 0 at any step of a run and by ≥ d at `sleep(d)` (sound against real runtimes;
+the virtual clock's exact d is one case); `timeout(d)` fires when the elapsed time passes d, both outcomes proven. A
+schedule (e.g. housekeeping at least once an hour) is a trusted fact restricting outside steps. Generated model runs
+interleave program runs with `elapse` steps on a virtual clock. With it, crm's clock and sharing's now move into the
+World (§45 D).
+
