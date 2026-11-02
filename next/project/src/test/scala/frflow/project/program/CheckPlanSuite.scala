@@ -22,3 +22,12 @@ class CheckPlanSuite extends munit.FunSuite:
         CheckPlan.below(a, n).contains(p))))
     }
   }
+
+  test("sharing: what its code relies on goes round (claims about callees mentioning what housekeeping's code " +
+    "calls); every node is still checked after each of its parts") {
+    val a = Projects.bare(Projects.elaborated(sharing.knowledge))
+    val level = CheckPlan.levels(a, None).zipWithIndex.flatMap((ns, i) => ns.map(_ -> i)).toMap
+    val late = level.keys.toList.flatMap(n => a.decided.theory.refinement.parts(n).filter(level.contains)
+      .filterNot(p => level(p) < level(n)).map(n.value -> _.value))
+    assertEquals(late, Nil)
+  }

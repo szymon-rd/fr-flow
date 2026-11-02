@@ -5,7 +5,7 @@ import frflow.core.analysis.{Callees, Resolved}
 import frflow.core.name.{LeanNames, NodeId, SymbolName}
 import frflow.core.spec.Range
 import frflow.proof.lean.ast.*
-import frflow.proof.obligation.{Hyp, Prop, Substitute}
+import frflow.proof.obligation.{Fixed, Hyp, Prop, Substitute}
 import frflow.proof.terms.TermTable
 
 /** `RootImpl.lean`: `root_impl`, each root resting on proven code holds of that code (every Definition with proven
@@ -47,8 +47,11 @@ object RootImplModule:
     val trusted = c.trusted(n).map(x => Hyp(LeanNames.hypothesis(x), Prop.ClaimOf(x, σ)))
     Prop.Forall(Nil, Prop.ForEvery(extra, Prop.Implies(trusted, Prop.ClaimOf(n, σ))))
 
-  /** Each Definition with proven code, standing as that code. */
+  /** Each Definition with proven code, standing as that code; each with a fixed value, as that value (as `impl`
+    * states it, `Fixed`).
+    */
   private def code(l: Lowering): Map[SymbolName, Substitute] =
     val t = l.resolved.theory
     t.code.attached.keys.toList.flatMap(s =>
-      Callees.ofDefinition(t, s).flatMap(_.standsFor.get(s)).map(s -> Substitute.Code(_))).toMap
+      Callees.ofDefinition(t, s).flatMap(_.standsFor.get(s)).map(s -> Substitute.Code(_))).toMap ++
+      Fixed.of(l.resolved, t.code.attached.keys)

@@ -9,7 +9,7 @@ import frflow.core.term.Sym
 import frflow.core.term.interpret.Guard
 import frflow.proof.lean.ast.{LExpr, Names}
 import frflow.proof.lean.term.Printed
-import frflow.proof.lean.lower.{LowerEnv, LowerModels, LowerProp, LowerRaces, Naming}
+import frflow.proof.lean.lower.{LowerEnv, LowerModels, LowerFaults, LowerProp, Naming}
 import frflow.core.ty.Ty
 import frflow.core.vocab.SymbolType
 import frflow.proof.terms.TermTable
@@ -29,14 +29,14 @@ final class Lowering(val resolved: Resolved, val table: TermTable, canonical: Bo
   val ruleSide: RuleSide = RuleSide.of(resolved)
   val env: LowerEnv = LowerEnv(kb, d => table.defines.get(d).toList.flatMap(_.symbols.map(s => Names.ident(s.value))),
     m => Names.ident(m.value),
-    op => if op == Prog.leftWins then LowerRaces.leftWins else LExpr.Const(v.modelOf(op).fold(
+    op => if op == Prog.leftWins then LowerFaults.leftWins else LExpr.Const(v.modelOf(op).fold(
       List(Names.builtin(op.value)))(m => List(LowerModels.className(m), Names.ident(op.value)))),
     v.dataType, m => v.model(m).map(_.state),
     v.symbols.flatMap(s => s.ty match
       case SymbolType.Typed(t) => Ty.errorOf(t).map(s.name -> _)
       case _                   => None).toMap,
     v.models.exists(_.fails.nonEmpty), v.models.map(m => Names.ident(m.name.value)), ruleSide.twice,
-    racing = LowerRaces.racing(v))
+    racing = LowerFaults.racing(v))
   /** A variable takes no name a symbol, a namespace (the FrModel's, a model's) or a name generated Lean writes itself
     * (`Reserved`) prints as, and no domain type's.
     */
