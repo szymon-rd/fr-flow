@@ -16,9 +16,10 @@ import frflow.proof.layout.Fixture.*
   * … }`); `check` gives the booking it is given or raises (sharing's shape: a failed run changes nothing,
   * `.failsChangingNothing[String]`), its result a booking (`made_check`, of the runs that succeed); `spoil` puts a
   * booking and, when the shelf is down, puts it backwards and fails: what it leaves when it fails breaks
-  * `endsAfterStart`, so its `cover_` must not be proven; `fileTwice` puts the booking twice at once, which commutes
-  * whichever call fails (`commute_0`, through `FrFlow.runOnE`). `fileWrong` says a failed run of `file` holds the
-  * booking: false, so its `impl` must not be proven.
+  * `endsAfterStart`, so its `cover_` must not be proven; `fileTwice` puts the booking twice at once, which does not
+  * commute when each call's failure is the world's choice for it (`commute_0`, each branch its own faults, through
+  * `FrFlow.runOnE`): one failing while the other lands, the two orders leave two worlds. `fileWrong` says a failed run
+  * of `file` holds the booking: false, so its `impl` must not be proven.
   */
 object Failing:
   private val shelf = ModelName("shelved")
