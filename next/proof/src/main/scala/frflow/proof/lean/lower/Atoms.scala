@@ -17,7 +17,7 @@ object Atoms:
 
   /** The same, each open term written as what stands for it, if anything does (`standing`). */
   def define(env: LowerEnv, d: DefName, standing: LeanName => Option[LExpr]): LExpr =
-    val c = LExpr.Const(List(Names.builtin(env.kb.value), Names.define(d.value)))
+    val c = LExpr.Const(List(Names.builtin(env.kb.value), Names.define(env.calls(d).value)))
     env.openTerms(d) match
       case Nil   => c
       case terms => call(c, terms.map(t => standing(t).getOrElse(LExpr.Name(t))))

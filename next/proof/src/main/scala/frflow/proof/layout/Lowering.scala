@@ -24,6 +24,8 @@ final class Lowering(val resolved: Resolved, val table: TermTable, canonical: Bo
   private val v = resolved.theory.vocabulary
   val kb: KbName = resolved.theory.name
   val layout: Layout = Layout(kb)
+  /** The defines a rule calls, and those of them lowered twice (`RuleSide`). */
+  val ruleSide: RuleSide = RuleSide.of(resolved)
   val env: LowerEnv = LowerEnv(kb, d => table.defines.get(d).toList.flatMap(_.symbols.map(s => Names.ident(s.value))),
     m => Names.ident(m.value),
     op => LExpr.Const(v.modelOf(op).fold(List(Names.builtin(op.value)))(m =>
@@ -32,7 +34,7 @@ final class Lowering(val resolved: Resolved, val table: TermTable, canonical: Bo
     v.symbols.flatMap(s => s.ty match
       case SymbolType.Typed(t) => Ty.errorOf(t).map(s.name -> _)
       case _                   => None).toMap,
-    v.models.exists(_.fails.nonEmpty), v.models.map(m => Names.ident(m.name.value)))
+    v.models.exists(_.fails.nonEmpty), v.models.map(m => Names.ident(m.name.value)), ruleSide.twice)
   /** A variable takes no name a symbol, a namespace (the FrModel's, a model's) or a name generated Lean writes itself
     * (`Reserved`) prints as, and no domain type's.
     */
@@ -49,7 +51,8 @@ final class Lowering(val resolved: Resolved, val table: TermTable, canonical: Bo
       case _                                 => false))))
 
   def node(n: NodeId): Boolean = resolved.theory.node(n).nonEmpty
-  def isDefine(name: String): Boolean = v.defines.exists(_.name.value == name)
+  def isDefine(name: String): Boolean = v.defines.exists(d => d.name.value == name ||
+    ruleSide.twice(d.name) && LowerEnv.guarded(d.name).value == name)
   def isModelSpace(name: String): Boolean = v.models.exists(_.name.value.capitalize == name)
   def isModelClass(name: String): Boolean = v.models.exists(LowerModels.className(_).text == name)
 

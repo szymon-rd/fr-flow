@@ -9,7 +9,7 @@ import frflow.core.term.interpret.{Guard, Guarded}
 import frflow.core.ty.{DataType, Ty}
 import frflow.core.vocab.{Define, DefineForm}
 import frflow.proof.lean.ast.*
-import frflow.proof.lean.lower.{Atoms, LowerModels, LowerProg, LowerType, Naming}
+import frflow.proof.lean.lower.{Atoms, LowerEnv, LowerModels, LowerProg, LowerType, Naming}
 import frflow.proof.lean.term.Printed
 
 /** The modules of the vocabulary: `Types` (the domain's types, each after those its fields name), a `Def_` module per
@@ -24,7 +24,8 @@ object VocabularyModules:
 
   def of(l: Lowering): List[LeanModule] =
     val v = l.resolved.theory.vocabulary
-    (types(l) :: models(l) :: v.defines.map(define(l, _))) :+ domain(l)
+    (types(l) :: models(l) :: v.defines.map(define(l, _))) ++ v.defines.filter(d => l.ruleSide.twice(d.name))
+      .map(guardedTwin(l, _)) :+ domain(l)
 
   private def module(l: Lowering, name: ModuleName, decls: List[Decl]): LeanModule =
     Imports.onto(l, LeanModule(name, Nil, Preamble.generated, Names.path(l.kb.value), Nil, decls))
@@ -54,11 +55,30 @@ object VocabularyModules:
     module(l, l.layout.models, lowered.decls(v.models, errors) ++ results)
 
   private def domain(l: Lowering): LeanModule =
-    val defines = l.resolved.theory.vocabulary.defines.map(d => l.layout.define(d.name))
+    val defines = l.resolved.theory.vocabulary.defines.map(d => l.layout.define(d.name)) ++
+      l.ruleSide.twice.toList.sortBy(_.value).map(d => l.layout.define(LowerEnv.guarded(d)))
     LeanModule(l.layout.domain, l.layout.types :: defines, Preamble.generated, Names.path(l.kb.value), Nil, Nil)
 
   private def define(l: Lowering, d: Define): LeanModule =
     module(l, l.layout.define(d.name), List(declared(l, d), Decl.MatchEqns))
+
+  /** A define a rule calls, as statements call it (`RuleSide`): every value rule's guard on its `forall`s, and the
+    * defines it calls as statements call them.
+    */
+  private def guardedTwin(l: Lowering, d: Define): LeanModule = d.written.form match
+    case Form.Term(t) =>
+      val (bs, body) = Printed.define(l.env, l.naming)(d.lambda.params, Guarded.of(t.run, valueRules(l)))
+      module(l, l.layout.define(LowerEnv.guarded(d.name)), List(Decl.Def(List(Attr.FrflowDefs),
+        Names.define(LowerEnv.guarded(d.name).value), openBinders(l, d) ++ bs, LowerType(d.lambda.result), body),
+        Decl.MatchEqns))
+    case Form.Steps(_) => throw IllegalStateException(s"FrFlow bug: ${d.name.value}'s steps lowered twice")
+
+  private def valueRules(l: Lowering): List[Guard] = Guards.byAlways(l.resolved.theory).collect {
+    case (rule, g) if l.resolved.theory.node(rule).flatMap(_.statement.range).exists {
+          case Range.Made(ty) => ty != Ty.World
+          case _              => false
+        } => g
+  }
 
   /** A define as Lean is given it: a program generic in its monad, a run of one, or a term's `def`. */
   def declared(l: Lowering, d: Define): Decl = (d.form, d.written.form) match
@@ -66,7 +86,8 @@ object VocabularyModules:
       LowerModels(l.env, l.naming).run(d, flow, opens(l, d).map(s => s -> l.table.typeOf(s)))
     case (DefineForm.Flow, Form.Steps(p))      => flow(l, d, p)
     case (_, Form.Term(t))                     =>
-      val (bs, body) = Printed.define(l.env, l.naming)(d.lambda.params, Guarded.of(t.run, guards(l, d)))
+      val env = if l.ruleSide.defines(d.name) then l.env.copy(ruleSide = true) else l.env
+      val (bs, body) = Printed.define(env, l.naming)(d.lambda.params, Guarded.of(t.run, guards(l, d)))
       Decl.Def(List(Attr.FrflowDefs), Names.define(d.name.value), openBinders(l, d) ++ bs,
         LowerType(d.lambda.result), body)
     case (_, Form.Steps(_))                    =>

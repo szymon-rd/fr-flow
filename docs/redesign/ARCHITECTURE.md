@@ -209,7 +209,7 @@ such program adds its equation, so the statement's meaning changes and it comes 
 proves the equations. It rests on the models `t` reads changing only by code and one run at a time
 (`onlyCodeChanges`, `atomic`, derived, `Premise`). Of a Declaration, which no code gives a value, it is an assumption
 (`d.isConstant`, each input: `∀ x…, (d x…).isConstant`); claimed, it is proven from parts tying `d` to the code's
-values, as any claim about a Declaration is, and from nothing else. Two idioms: "a booking once made is never removed",
+values, as any claim about a Declaration is; with no program it says nothing (the `vacuous` try shows it). Two idioms: "a booking once made is never removed",
 `forall(b => stored.contains(b) implies stored.contains(b).isConstant)`; "a count never goes down",
 `forall(n => n <= count implies (n <= count).isConstant)`. It is refused where no step keeps it
 (`Fault.ConstantInside`): under `!` or `||`, left of `implies`, in a condition, of a run, under an inner `forall` (its
@@ -222,8 +222,10 @@ rule (a value's or a store's), an `initially`, a program's step and an operation
 own values and operations, so a world read there is refused (`Fault.WorldRead`), and an example, a closed fact about
 the code, reads no world (`Fault.WorldRead` of an example). A define's body is a value: an `always` (`AlwaysInside`)
 or a run (`RunInside`) written in it is refused. Its `forall`s come with what always holds of their variables, as a
-statement's do (`Guarded`, 2.3), so a define read inline means what it does named; but by the rules that call it,
-which would be about themselves: a rule's own define takes none, and a define a rule calls every other rule's guard.
+statement's do (`Guarded`, 2.3), so a define read inline means what it does named. A rule's own define takes no
+guard, nor does what a rule calls, as a rule reads it (it would be about itself); a define a rule calls whose
+quantifiers a value rule guards (or that calls one) is lowered twice (`layout.RuleSide`): as written for the rules,
+and `<d>_guarded`, every value rule's guard on its `forall`s, for the statements and the defines they call.
 A program writes a model's state only through the model's operations (`Problem.WritesState`), so which programs
 change a state is read off the operations they call; and an assumed rule about a model's state needs an assumption of
 what the state starts in (`Problem.NoStart`). `Stating` carries
