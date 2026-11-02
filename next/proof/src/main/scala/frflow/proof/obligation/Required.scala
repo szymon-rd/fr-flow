@@ -51,15 +51,17 @@ object Required:
     * (today's words). `H` is every part the node states (a design states nothing), the same code put in each where
     * it mentions the Definition: a part about a Definition the code calls, or about the node's own Definitions and
     * Declarations (sound: each part is checked against the same code, and `Validate` refuses a circle). A leaf's is
-    * what its code relies on, as written: the statements about what the code calls (`Resolved.reliesOn`).
+    * what its code relies on, as written: the statements about what the code calls (`Resolved.reliesOn`). A fixed
+    * value the claim or its code reads stands as that value (2.7), in the claim and in each part reading it.
     */
   def impl(r: Resolved, n: NodeId): List[Obligation] =
     SaysWhat.checkedAgainst(r.theory, n).toList.map { c =>
-      val code = c.standsFor.view.mapValues(Substitute.Code(_)).toMap
       val hyps = hypotheses(r, n)
+      val fixed = Fixed.of(r, (n :: hyps).flatMap(Constrained.of(r.theory, _)) ++ c.standsFor.keys)
+      val code = c.standsFor.view.mapValues(Substitute.Code(_)).toMap ++ fixed
       val parts = r.theory.refinement.parts(n).toSet
       val assumed = hyps.map(h => if !parts(h) then Hyp.of(h)
-        else Hyp(Hyp.of(h).name, Prop.ClaimOf(h, code.filter((s, _) => mentions(r, h, s)))))
+        else Hyp(Hyp.of(h).name, Prop.ClaimOf(h, code.filter((s, _) => fixed.contains(s) || mentions(r, h, s)))))
       val goal = Prop.over(Nil, Prop.Implies(assumed, Prop.ClaimOf(n, code)))
       Obligation(ObligationName.Impl, goal, Discharge.Auto,
         (if c.standsFor.isEmpty then s"${n.value} holds"

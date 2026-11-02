@@ -9,7 +9,7 @@ import frflow.core.term.interpret.{Guard, Guarded}
 import frflow.core.ty.{DataType, Ty}
 import frflow.core.vocab.{Define, DefineForm}
 import frflow.proof.lean.ast.*
-import frflow.proof.lean.lower.{Atoms, LowerEnv, LowerModels, LowerProg, LowerType, Naming}
+import frflow.proof.lean.lower.{Atoms, LowerEnv, LowerModels, LowerProg, LowerRaces, LowerType, Naming}
 import frflow.proof.lean.term.Printed
 
 /** The modules of the vocabulary: `Types` (the domain's types, each after those its fields name), a `Def_` module per
@@ -135,7 +135,8 @@ object VocabularyModules:
     LBinder.Implicit(m, LExpr.Infix(LOp.Arrow, name("Type"), name("Type"))) ::
       LBinder.Instance(LExpr.App(name("Monad"), List(LExpr.Name(m)))) ::
       errors.map(e => LBinder.Instance(LExpr.App(name("MonadExceptOf"), List(LowerType(e), LExpr.Name(m))))) ++
-      classes.map(c => LBinder.Instance(LExpr.App(LExpr.Name(c), List(LExpr.Name(m)))))
+      classes.map(c => LBinder.Instance(LExpr.App(LExpr.Name(c), List(LExpr.Name(m))))) ++
+      Option.when(LowerRaces.races(ir))(LowerRaces.binder(m))
 
   private def opens(l: Lowering, d: Define) = l.table.defines.get(d.name).toList.flatMap(_.symbols)
 

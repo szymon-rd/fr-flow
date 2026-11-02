@@ -19,7 +19,7 @@ final class LowerModels(env: LowerEnv, naming: Naming):
 
   def decls(models: List[StateModel], errors: List[Ty]): List[Decl] =
     models.map(classOf) ++ models.map(model) ++ List(world(models)) ++ models.map(instance) ++
-      models.flatMap(lemmas) ++ faults.decls(models, errors)
+      models.flatMap(lemmas) ++ faults.decls(models, errors) ++ (if env.racing then LowerRaces.decls else Nil)
 
   /** `def f_run (open terms) : A → World → (R × World) := fun a w => (FrFlow.runOn ((K.f open terms) a) w)`; of a
     * program that may fail with `E`, `… → World → ((Except E R) × World) := fun a w => (FrFlow.runOnE (ε := E) … w)`.
@@ -68,11 +68,14 @@ final class LowerModels(env: LowerEnv, naming: Naming):
         LowerType.declaration(op.params.map(_.ty), LowerModels.stateM(LowerType(m.state), op.result)), body)
     })
 
-  /** The models' states, and the faults when a model's operations may fail (`true`: that call fails, in order). */
+  /** The models' states, the faults when a model's operations may fail (`true`: that call fails, in order), and the
+    * races' winners when a program races (`true`: the left wins, in order).
+    */
   private def world(models: List[StateModel]): Decl =
     val failing = Option.when(models.exists(_.fails.nonEmpty))(LowerFaults.field -> LowerFaults.listOfBool)
+    val racing = Option.when(env.racing)(LowerRaces.field -> LowerFaults.listOfBool)
     Decl.Documented("The models' states: what proven flows run on.", Decl.Structure(Names.builtin("World"),
-      models.map(m => env.modelField(m.name) -> LowerType(m.state)) ++ failing))
+      models.map(m => env.modelField(m.name) -> LowerType(m.state)) ++ failing ++ racing))
 
   private def instance(m: StateModel): Decl =
     Decl.Instance(LExpr.App(LExpr.Name(LowerModels.className(m)),

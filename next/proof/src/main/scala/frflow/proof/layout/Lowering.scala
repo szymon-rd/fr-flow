@@ -2,13 +2,14 @@ package frflow.proof.layout
 
 import frflow.core.analysis.{Reserved, Resolved}
 import frflow.core.code.Code
+import frflow.core.expr.Prog
 import frflow.core.name.{KbName, NodeId, SymbolName}
 import frflow.core.spec.Range
 import frflow.core.term.Sym
 import frflow.core.term.interpret.Guard
 import frflow.proof.lean.ast.{LExpr, Names}
 import frflow.proof.lean.term.Printed
-import frflow.proof.lean.lower.{LowerEnv, LowerModels, LowerProp, Naming}
+import frflow.proof.lean.lower.{LowerEnv, LowerModels, LowerProp, LowerRaces, Naming}
 import frflow.core.ty.Ty
 import frflow.core.vocab.SymbolType
 import frflow.proof.terms.TermTable
@@ -28,13 +29,14 @@ final class Lowering(val resolved: Resolved, val table: TermTable, canonical: Bo
   val ruleSide: RuleSide = RuleSide.of(resolved)
   val env: LowerEnv = LowerEnv(kb, d => table.defines.get(d).toList.flatMap(_.symbols.map(s => Names.ident(s.value))),
     m => Names.ident(m.value),
-    op => LExpr.Const(v.modelOf(op).fold(List(Names.builtin(op.value)))(m =>
-      List(LowerModels.className(m), Names.ident(op.value)))),
+    op => if op == Prog.leftWins then LowerRaces.leftWins else LExpr.Const(v.modelOf(op).fold(
+      List(Names.builtin(op.value)))(m => List(LowerModels.className(m), Names.ident(op.value)))),
     v.dataType, m => v.model(m).map(_.state),
     v.symbols.flatMap(s => s.ty match
       case SymbolType.Typed(t) => Ty.errorOf(t).map(s.name -> _)
       case _                   => None).toMap,
-    v.models.exists(_.fails.nonEmpty), v.models.map(m => Names.ident(m.name.value)), ruleSide.twice)
+    v.models.exists(_.fails.nonEmpty), v.models.map(m => Names.ident(m.name.value)), ruleSide.twice,
+    racing = LowerRaces.racing(v))
   /** A variable takes no name a symbol, a namespace (the FrModel's, a model's) or a name generated Lean writes itself
     * (`Reserved`) prints as, and no domain type's.
     */

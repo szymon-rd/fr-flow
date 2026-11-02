@@ -150,7 +150,7 @@ object ReadRecording:
   private def guarded(body: P, ty: Ty, err: Ty, fin: P): State[Seen, P] =
     for x <- fresh(ty); e <- fresh(err); u <- fresh(Ty.Unit); v <- fresh(Ty.Unit)
     yield Prog.Bind(Prog.Catch(body, err, e, Prog.Bind(fin, u, Prog.Raise(variable(e)))), x,
-      Prog.Bind(fin, v, Prog.Pure(variable(x))))
+      Prog.Bind(fin, v, Prog.Pure(if ty == Ty.Unit then unit else variable(x))))
 
   private def injected(p: P, side: Side, ty: Ty): P = p match
     case Prog.Pure(e)          => Prog.Pure(inject(e, side, ty))
