@@ -122,8 +122,9 @@ object Validate:
       .flatMap((op, ty) => failingClause(t, n.id, op, ty)))
     val runs = t.nodes.map(_.node).filter(_.statement.said.exists(f => Failing.runsNoDefinition(f.value)))
       .map(n => Problem.RunOfNoDefinition(n.id)) ++ t.nodes.map(_.node).flatMap(n => n.statement.said.toList
-        .flatMap(f => Failing.plainly(f.value)).filter(Failing.escapingOf(t, _).nonEmpty)
-        .map(Problem.SucceedingOnly(n.id, _)))
+        .flatMap(f => Failing.plainly(f.value)).filter(Failing.declared(t, _).nonEmpty)
+        .map(Problem.SucceedingOnly(n.id, _))) ++
+      Failing.undeclared(t).map((op, declared, raised) => Problem.FailsWithDiffers(op, declared, raised))
     val nested = t.vocabulary.defines.filter(d => d.form == DefineForm.Flow && (d.lambda.body match
       case Expr.Do(p, _) => Progs.nestsAtomic(p)
       case _             => false)).map(d => Problem.NestedAtomic(d.name))

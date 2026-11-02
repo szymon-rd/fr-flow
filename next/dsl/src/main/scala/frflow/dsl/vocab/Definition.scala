@@ -5,6 +5,7 @@ import frflow.core.term.{Final, Sym, World}
 import frflow.core.ty.Ty
 import frflow.core.vocab.{Symbol, SymbolType, ValueKind}
 import frflow.dsl.build.{Declarations, Fault, Source}
+import frflow.dsl.flow.{Flow, Run}
 import frflow.dsl.term.{LeanType, Notes, Term}
 import frflow.dsl.run.Worlds
 import scala.annotation.publicInBinary
@@ -20,7 +21,7 @@ import scala.compiletime.summonFrom
   * checked against them. Of a type with no `LeanType` (a connection), it is code-only: provided where the code runs
   * and read there (`env(d)`), never mentioned in a statement (`CodeOnlyInStatement`).
   */
-final class Definition[A] @publicInBinary private[dsl] (val name: SymbolName, val described: String,
+class Definition[A] @publicInBinary private[dsl] (val name: SymbolName, val described: String,
     val onTheSpot: Option[OnTheSpot])(using t: LeanType[A])
     extends Term[A](Definition.called[A](name, described, onTheSpot, t)):
   /** The term as a curried function (`F` the curried type of `A`): what `Functions.app` applies. */
@@ -31,12 +32,29 @@ final class Definition[A] @publicInBinary private[dsl] (val name: SymbolName, va
     case _                       => false)
   /** Of a type with no `LeanType`: read only by the code it is provided to. */
   def codeOnly: Boolean = t.codeOnly.nonEmpty
+  /** A program that can fail with an `E` (owner §46): its run read in a statement is a `Run`, its `result` an
+    * `Either[E, R]` and its `after` the world either outcome leaves. FrFlow checks the error against what the code
+    * raises (`Problem.FailsWithDiffers`).
+    */
+  def failsWith[E](using e: LeanType[E]): Definition.Fails[A, E] =
+    Definition.Fails[A, E](name, described, onTheSpot, LeanType.of[A](Ty.failing(t.ty, Some(e.ty)), t, e))
   /** What a code-only Definition declares wherever it is given its meaning: no statement mentions it to. */
   private[dsl] def declares: Declarations =
     t.codeOnly.fold(Declarations.none)(scala =>
       Declarations.symbol(Symbol(name, described, SymbolType.CodeOnly(scala), ValueKind.Definition)))
 
 object Definition:
+  /** A Definition of a program that can fail with an `E` (`failsWith`). Of one with no inputs, its run's outcome and
+    * world after are its own (`housekeep.result`); applied, it is a `Run`.
+    */
+  final class Fails[A, E] @publicInBinary private[dsl] (name: SymbolName, described: String,
+      onTheSpot: Option[OnTheSpot], t: LeanType[A])(using val error: LeanType[E])
+      extends Definition[A](name, described, onTheSpot)(using t):
+    def result[R](using ev: A <:< Flow[R], r: LeanType[R]): Term[Either[E, R]] = run[R].result
+    def after[R](using ev: A <:< Flow[R], r: LeanType[R]): Term[World] = run[R].after
+    def changesNothing[R](using ev: A <:< Flow[R], r: LeanType[R]): Term[Boolean] = run[R].changesNothing
+    private def run[R](using A <:< Flow[R], LeanType[R]): Run[E, R] = Run[E, R](this.asInstanceOf[Term[Flow[R]]])
+
   /** A Definition of a domain type; of a type with no `LeanType`, a code-only one, whose term has no type of its own
     * (one `apply`: two overloads differing only in what they are given are ambiguous to Scala).
     */
@@ -76,6 +94,16 @@ object Definition:
     val applied =
       if d.readsWorld then Term.app(t.asInstanceOf[Term[World => R]], Worlds.current)(using t.leanType) else t
     Called(d.name, args, applied.run)(using t.leanType)
+
+  extension [A, R, E](d: Fails[A => Flow[R], E])
+    def apply(a: Term[A])(using LeanType[R]): Run[E, R] = Run(Definition.apply(d: Definition[A => Flow[R]])(a))(
+      using d.error)
+  extension [A, B, R, E](d: Fails[(A, B) => Flow[R], E])
+    def apply(a: Term[A], b: Term[B])(using LeanType[A], LeanType[B], LeanType[R]): Run[E, R] =
+      Run(Definition.apply(d: Definition[(A, B) => Flow[R]])(a, b))(using d.error)
+  extension [A, B, C, R, E](d: Fails[(A, B, C) => Flow[R], E])
+    def apply(a: Term[A], b: Term[B], c: Term[C])(using LeanType[A], LeanType[B], LeanType[C], LeanType[R])
+        : Run[E, R] = Run(Definition.apply(d: Definition[(A, B, C) => Flow[R]])(a, b, c))(using d.error)
 
   extension [A, R](d: Definition[A => R])
     def apply(a: Term[A])(using LeanType[R]): Term[R] =

@@ -26,6 +26,14 @@ object Failing:
     case Expr.Do(p, _) => Progs.failsWith(p, v.modelOf(_).flatMap(_.failsWith))
     case _             => Nil
 
+  /** Each program Definition whose proven code may end in errors other than the one its type declares
+    * (`failsWith`), with the declared error and those its code may end in (one ending in two is `ErrorsDiffer`'s).
+    */
+  def undeclared(t: Theory): List[(SymbolName, Option[Ty], List[Ty])] = t.code.attached.toList.flatMap((op, _) =>
+    proven(t, op).map(d => (op, declared(t, op).headOption, escaping(t.vocabulary, d)))).collect {
+      case (op, declared, raised) if raised != declared.toList && raised.size <= 1 => (op, declared, raised)
+    }.sortBy(_._1.value)
+
   /** The error types a run of a program Definition may end in: its proven program's, or its type's without one. */
   def escapingOf(t: Theory, op: SymbolName): List[Ty] = proven(t, op).fold(declared(t, op))(escaping(t.vocabulary, _))
 
@@ -36,7 +44,8 @@ object Failing:
     case Code.ProvenFlow(f) => f
   }.flatMap(t.vocabulary.define)
 
-  private def declared(t: Theory, op: SymbolName): List[Ty] = t.vocabulary.symbol(op).map(_.ty).toList.flatMap {
+  /** The error a program Definition's type declares (`failsWith`, owner §46). */
+  def declared(t: Theory, op: SymbolName): List[Ty] = t.vocabulary.symbol(op).map(_.ty).toList.flatMap {
     case SymbolType.Typed(ty) => Ty.errorOf(ty).toList
     case _                    => Nil
   }

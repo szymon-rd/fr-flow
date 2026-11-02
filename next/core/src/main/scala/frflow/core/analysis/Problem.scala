@@ -89,11 +89,15 @@ enum Problem:
     * a handler of its type).
     */
   case NeverFails(id: NodeId, program: SymbolName)
-  /** A run of a program that can fail, read plainly (`.result`, `.after`): it would say nothing of the runs that fail,
-    * and a program that always fails would meet it (semantics review, finding 3). Read it with both outcomes
-    * (`.failing[E]`) until the error is declared in the Definition's type (owner §45 B).
+  /** A run of a program declared to fail (`failsWith`), read plainly: it would say nothing of the runs that fail, and a
+    * program that always fails would meet it (semantics review, finding 3). The DSL reads such a run with both
+    * outcomes by its type (owner §46, `Run`), so only a theory built otherwise can have it.
     */
   case SucceedingOnly(id: NodeId, program: SymbolName)
+  /** A program whose code may end in errors other than the one its Definition declares (`failsWith[E]`, owner §46):
+    * one raising an error on a Definition declaring none, or declaring one its code never ends in, or another.
+    */
+  case FailsWithDiffers(program: SymbolName, declared: Option[Ty], raised: List[Ty])
   /** A value provided where the code runs (`implementProvided`), read beside the World: it is the same in every
     * world, so a "now" it stands for is no world's (owner §45 D): model it as part of the World, a state model.
     */

@@ -60,7 +60,11 @@ object Problems:
     case Problem.WritesState(p, m)          => s"${p.value} writes ${m.value}'s state in its own steps: only an " +
         s"operation of ${m.value} writes it; call one"
     case Problem.SucceedingOnly(id, s)      => s"$id reads a run of ${s.value} plainly, but it can fail: read so, it " +
-        s"says nothing of the runs that fail; read it with both outcomes, ${s.value}(…).failing[E]"
+        "says nothing of the runs that fail"
+    case Problem.FailsWithDiffers(s, d, r)  =>
+      s"${s.value} is declared to fail with ${d.fold("nothing")(Values.ty)}, " +
+        s"but its code may end in ${if r.isEmpty then "no error" else r.map(Values.ty).mkString(", ")}: declare " +
+        s"what it raises, ${s.value}.failsWith[E]"
     case Problem.NestedAtomic(prog)         => s"${prog.value} runs a transaction inside a transaction"
     case Problem.StepNotOperation(prog, d)  => s"${prog.value} runs ${d.value} as a step, which is no model's " +
         "operation: a program's steps call operations on a state"
