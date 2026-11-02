@@ -5,7 +5,7 @@ import Proofs.Sharing.Lemmas
 that changes the library is recorded in the same step, so a share it makes comes with its entry, and the entries
 before stay (the operations leave the log alone, announcing touches only the outbox); housekeeping only removes
 shares, forgets no entry explaining a share it keeps, and adds an entry; delivery and waiting change neither. A yes
-of viewing rests on a share held, which has its entry. -/
+of viewing, what permission says it is, rests on a share held, which has its entry. -/
 
 set_option autoImplicit false
 noncomputable section
@@ -16,7 +16,7 @@ open Sharing
 
 theorem impl : Obl.impl := by
   unfold Obl.impl
-  intro events startedAt _ _ _ _ _ _
+  intro events mayView startedAt _ _ _ hPerm _ _ _
   let step := fun m e => Sharing.step (mayEditCode inForceCode reachesCode coversCode) ownedByCode (isOpenCode 604800)
     (goneCode 2592000) (isPendingCode 604800) (reminderDueCode 172800) inForceCode m e
   let inv : Moment → Prop := fun m => ∀ s ∈ m.library.shares, ∃ e ∈ m.library.log, makes e s
@@ -58,7 +58,8 @@ theorem impl : Obl.impl := by
     (Moment.mk (Library.mk [] [] [] [] [] [] [] []) startedAt startedAt []) (by simp [inv]) kept events
     (fun _ _ _ _ => trivial)
   refine ⟨h, fun p d hv => ?_⟩
-  simp only [mayViewCode] at hv
+  unfold Sharing.permission.claim at hPerm
+  rw [hPerm] at hv
   obtain ⟨s, hs, hv⟩ := hv
   exact ⟨s, hs, hv, h s hs⟩
 

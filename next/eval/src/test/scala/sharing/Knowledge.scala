@@ -44,7 +44,8 @@ val domainTypes = Node.design("People, teams, documents, folders, shares, invita
 
 /** Sharing's nodes, in today's order. */
 val nodes: List[Node] = List(
-  reach, cover, permission, editPermission, Definitions.inTrash, ownersShare, accessFollowsShares,
+  reach, cover, permission, editPermission, Definitions.inTrash, ownersShare, whoMayEdit, whatIsTrashed,
+  accessFollowsShares,
   sharing.invitationsAreOffers, sharing.trashUntilGone, sharing.housekeepingClearsOnlyTheEnded,
   sharing.accessRequestsAreAsks, sharing.ownersKeepTheirDocuments, sharing.auditTrail, sharing.noticesFollowChanges,
   SharingClaims.accessContract, SharingClaims.canViewContract, SharingClaims.canEditContract,
@@ -77,7 +78,6 @@ def withCode(kb: FrModel): FrModel = models(lifetimes(programs(operations(words(
 private def words(kb: FrModel): FrModel = kb
   .implementProven(reaches)(reachesCode)
   .implementProven(covers)(coversCode)
-  .implementProven(mayView)(mayViewCode)
   .implementProven(mayEdit)(mayEditCode)
   .implementProven(inTrash)(inTrashCode)
   .implementProven(ownedBy)(ownedByCode)

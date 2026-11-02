@@ -5,18 +5,23 @@ import sharing.domain.*
 import sharing.time.Lifetimes.inForce
 
 // The vocabulary sharing's purpose is stated in: what a share reaches and covers, and what that lets a person do. The
-// words the purpose leaves open are Definitions code uses, each given its meaning by a define here (the same body as
-// the claim of its equation in `Root.scala`).
+// purpose's own words are Declarations (owner §14, §27): whether a person may view or edit a document, and whether a
+// document is in the trash, each said by a claim at the bottom in terms of the code (`Root.scala`). The code's words
+// are Definitions, each given its meaning by a define here (the same body as the claim of its equation).
+
+val mayView = Declaration[(Library, BigInt, PersonId, Target) => Boolean](
+  "whether a person may view a document or folder at a moment")
+val allowedToEdit = Declaration[(Library, BigInt, PersonId, Target) => Boolean](
+  "whether a person may edit a document or folder at a moment")
+val inTheTrash = Declaration[(Library, DocumentId) => Boolean]("whether a document is in the trash")
 
 val reaches = Definition[(Library, Share, PersonId) => Boolean](
   "whether a share reaches a person: it is with them, or with a team they are in")
 val covers = Definition[(Library, Share, Target) => Boolean](
   "whether a share covers a document or a folder: it is a share of it, or of a folder around it")
-val mayView = Definition[(Library, BigInt, PersonId, Target) => Boolean](
-  "whether a person may view a document or folder at a moment")
 val mayEdit = Definition[(Library, BigInt, PersonId, Target) => Boolean](
-  "whether a person may edit a document or folder at a moment")
-val inTrash = Definition[(Library, DocumentId) => Boolean]("whether a document is in the trash")
+  "whether the code lets a person edit a document or folder at a moment")
+val inTrash = Definition[(Library, DocumentId) => Boolean]("whether the code holds a document in the trash")
 val ownedBy = Definition[(Library, Target, Grantee) => Boolean](
   "whether a share of a document or folder with someone is the owner's share of their own document")
 
@@ -32,9 +37,6 @@ val coversCode = define { (lib: Term[Library], s: Term[Share], t: Term[Target]) 
       .on[Target.Doc](d => lib.documents.exists(doc => doc.id === d && doc.folders.contains(f)))
       .on[Target.InFolder](g =>
         g === f || lib.folders.exists(folder => folder.id === g && folder.folders.contains(f)))) }
-
-val mayViewCode = define { (lib: Term[Library], t: Term[BigInt], p: Term[PersonId], x: Term[Target]) =>
-  lib.shares.exists(s => inForce(s, t) && reaches(lib, s, p) && covers(lib, s, x)) }
 
 val mayEditCode = define { (lib: Term[Library], t: Term[BigInt], p: Term[PersonId], x: Term[Target]) =>
   lib.shares.exists(s => inForce(s, t) && reaches(lib, s, p) && covers(lib, s, x) && s.level === Level.Edit) }

@@ -6,9 +6,19 @@ package sharing
 object Judged:
   /** Each difference from today's sharing, with why the design makes it. */
   val differences: Map[String, (String, String)] = Map(
-    "accessFollowsShares" -> ("reach, cover, permission, editPermission, inTrash, ownersShare are parts" ->
-      ("today's definitions fixed the purpose's words; a definition is a claim, an equation proven of the define " +
-        "giving the Definition its meaning (owner §15), a part of the purpose it is stated in (2.7)")),
+    "accessFollowsShares" -> (("reach, cover, permission, editPermission, inTrash, ownersShare, whoMayEdit, " +
+      "whatIsTrashed are parts") ->
+      ("the purpose is stated over Declarations, as rooms' and auth's are (owner §14, §27, the step 13 review's Idle " +
+        "ruling): may view, may edit, is in the trash; the claims at the bottom saying what each is in terms of the " +
+        "code (permission, whoMayEdit, whatIsTrashed, the code standing in them, 2.7), and the claims on the code's " +
+        "own words (reach, cover, editPermission, inTrash, ownersShare: equations proven of the defines giving the " +
+        "Definitions the code calls their meaning, owner §15), are parts of the purpose they are stated for")),
+    "whoMayEdit" -> ("new" -> ("the purpose's \"may edit\", a Declaration, said in terms of the code: today's " +
+      "permission's second word, which the code calls as its own Definition (mayEdit, editPermission)")),
+    "whatIsTrashed" -> ("new" -> ("the purpose's \"is in the trash\", a Declaration, said in terms of the code: " +
+      "today's inTrash, which the code calls as its own Definition (inTrash)")),
+    "auditTrail" -> ("permission is a part" -> ("the branch says what a yes of viewing rests on, over the purpose's " +
+      "\"may view\", a Declaration: the claim saying what it is is a part of it")),
     "editPermission" -> ("new" -> "today's permission defined two words, mayView and mayEdit: a claim per word"),
     "reminderTime" -> ("new" ->
       "today's requestLifetime defined two durations, requestLasts and remindAfter: a claim per value"),
@@ -22,10 +32,9 @@ object Judged:
     "poolKept" -> ("new" -> ("nothing but the service's programs changes the pool's count, the onlyCodeChanges a " +
       "model's state rests on (owner §36)")),
     "deliveryGivesBack" -> ("new" -> ("the kept combinators' use (owner §2, ARCHITECTURE 9, step 13): a run of " +
-      "delivery takes a connection from the pool and gives it back whatever happens (bracket, so guarantee); " +
-      "this claim says so of its runs, both outcomes")),
-    "noticesFollowChanges" -> ("deliveryGivesBack is a part" ->
-      "the delivery's new claim, below the branch about notices its run serves"),
+      "delivery takes a connection from the pool and gives it back whatever happens (bracket, so guarantee), even " +
+      "when its sends run out of time (race); a root of its own (owner §11): no branch about notices makes it, the " +
+      "pool's count saying nothing of notices (the step 13 review's S7)")),
     "handleContract" -> ("assumes +oneTransactionAtATime +clockAlone" -> runs),
     "housekeepingJob" -> ("assumes +oneTransactionAtATime +clockAlone" -> runs),
     "deliveryJob" -> ("assumes +oneTransactionAtATime +mailOneAtATime +clockAlone +poolOneAtATime" -> runs))
@@ -37,48 +46,62 @@ object Judged:
   /** Where each node stands apart from today, each for a reason the design gives. */
   val standings: Map[String, List[String]] =
     // A contract is a claim (owner §15), proven of its code as today; a definition fixing a word is a claim, an
-    // equation proven of the define giving the Definition its meaning, or a fixed value's (owner §15, 2.7).
+    // equation proven of the define giving the Definition its meaning, or a fixed value's (owner §15, 2.7); the
+    // purpose's Declarations each said by a claim at the bottom (whoMayEdit, whatIsTrashed, permission), its group
+    // witnessed (`Whole.lean`); delivery's runs proven under the race's reading, its sends commuting with each
+    // branch given its own faults (the step 13 review's B1 and G3), and the pool given back.
     List("AcceptContract", "AccessContract", "AnnounceContract", "ApproveContract", "AskContract", "CanEditContract",
       "CanViewContract", "ChaseContract", "DeclineContract", "ForgetContract", "GoneContract", "HandleContract",
       "HousekeepingJob", "InForceContract", "InviteContract", "IsOpenContract", "MoveContract", "PendingContract",
       "RecordContract", "ReminderDueContract", "RestoreContract", "ShareContract", "TidyContract", "TransferContract",
       "TrashContract", "UnshareContract", "WarnContract", "WithdrawContract", "Cover", "EditPermission",
       "HousekeepingPeriod", "InTrash", "InvitationLifetime", "OwnersShare", "Permission", "Reach", "ReminderTime",
-      "RequestLifetime", "TrashLifetime").map(_ -> List("claim", "proven", "proven", "")).toMap ++
+      "RequestLifetime", "TrashLifetime", "WhoMayEdit", "WhatIsTrashed", "DeliveryJob", "DeliveryGivesBack")
+      .map(_ -> List("claim", "proven", "proven", "")).toMap ++
     // Each model's runs one at a time, an assumption of the model (owner §32, §36); nothing to check of it.
     List("ClockAlone", "MailOneAtATime", "OneTransactionAtATime", "PoolOneAtATime")
       .map(_ -> List("assumption", "assumed", "", "")).toMap ++
     // That nothing but the code changes a model's state (owner §36), with the model's Scala tested against it on
-    // generated runs, 200 per implementation (ModelRuns.Runs): the store, the mail server, the clock and the pool in
-    // memory; today's ran its SQLite store too (1,200 runs), which is not ported (its in-memory store is).
-    List("ClockKept", "LibraryKept", "MailerKept", "PoolKept").map(_ -> List("assumption", "assumed", "", "200"))
-      .toMap ++
-    // Delivery's runs are proven of its code, but its sends at once, branches calling the mail server that may
-    // fail, are not shown to commute (commute_0): stopped on a design point (`stopped`). What rests on them waits.
-    List("DeliveryJob", "DeliveryGivesBack").map(_ -> List("claim", "open", "open", "")).toMap ++
-    List("NoticesFollowChanges", "AccessFollowsShares").map(_ -> List("claim", "waiting", "waiting", "")).toMap
+    // generated runs as today, from seed 1: the clock's and the mail server's 1,000, the store's 1,200 (in memory
+    // 1,000, in SQLite 200, today's store ported), the pool's 1,000; their check is the model's, not Lean's.
+    Map("ClockKept" -> List("assumption", "assumed", "", "1000"), "LibraryKept" ->
+      List("assumption", "assumed", "", "1200"), "MailerKept" -> List("assumption", "assumed", "", "1000"),
+      "PoolKept" -> List("assumption", "assumed", "", "1000"))
 
-  /** What is not proven, each for a reason: delivery's sends at once, branches calling the mail server, which may
-    * fail, are not shown to commute (`commute_0`): FrFlow states it from every world, its faults included, and the
-    * one list of faults the branches take in turn makes two orders differ whenever the branches fail differently
-    * (one notice's sends all fail, another's do not), so the obligation is false as stated; how commutation reads
-    * a failing model is a design point the step stops on (today's library stated it for a world in which no call
-    * fails). What rests on delivery waits for it. And the purpose is met by doing nothing (`Idle`, the roots
-    * together): today's purpose is stated over the words the code defines (canView, mayView, share, …), so a service
-    * that lets nobody see or change anything meets it; what each word is, the claims below it say (crm's ruling
-    * for a safety root, step 12), and sharing has no other root.
+  /** What is not proven: nothing. Delivery's sends commute, each branch given its own faults (G3), and its runs are
+    * proven under the race's reading (B1); the purpose, over its Declarations, is not met by doing nothing (the idle
+    * try fails: what the Declarations are, the claims at the bottom say in terms of the code).
     */
-  val stopped: Map[String, List[String]] = Map("deliveryJob" -> List("Check"), "deliveryGivesBack" -> List("Check"),
-    "noticesFollowChanges" -> List("Check"), "accessFollowsShares" -> List("Check", "Idle"))
+  val stopped: Map[String, List[String]] = Map.empty
 
-  /** Each value provided where the code runs, judged under owner §45 D. */
-  val provided: Map[String, String] = Map(
-    "events" -> ("the run's history so far, which the deadlines and the branches read as the service's moment " +
-      "(atEnd): the World's under §45 D; not moved, as the deadlines rest on time passing between runs and on " +
-      "housekeeping's schedule (housekeepingOnTime), which the World cannot say: its clock moves only by the " +
-      "programs' sleeps, a wait outside them has no step, and an assumed rule about a state is asked cover_ of " +
-      "every program (a design point); read beside no World, as today's run"),
-    "startedAt" -> "when the service started: configuration, fixed for the run, the start of its history")
+  /** Each value provided where the code runs, under owner §45 D. */
+  val provided: Map[String, frflow.project.Ported.OnD] = Map(
+    "events" -> frflow.project.Ported.OnD.Stopped("G1", "the run's history so far, which the deadlines and the " +
+      "branches read as the service's moment (atEnd): the World's under §45 D, not moved: the deadlines rest on time " +
+      "passing between runs and on housekeeping's schedule (housekeepingOnTime), which the World cannot say (its " +
+      "clock moves only by the programs' sleeps, a wait outside them has no step, and an assumed rule about a state " +
+      "is asked cover_ of every program): waits for the owner (G1, an outside step of the clock)"),
+    "startedAt" -> frflow.project.Ported.OnD.Configuration(
+      "when the service started: fixed for the run, the start of its history"))
+
+  /** Each node not stated against today's in `Port.lean`, with why (the step 13 review's S1). */
+  val unstated: Map[String, String] =
+    val run = "today's statement reads today's run (`Run.after`), of today's programs over today's boundaries' " +
+      "world (`Boundaries.lean`, its clock a record of its own, `ClockState`), which the port's types do not have; " +
+      "the port's reads the history's last moment (`atEnd`) and the code"
+    List("accessRequestsAreAsks", "auditTrail", "endedStaysEnded", "housekeepingOnTime", "invitationsAreOffers",
+      "invitationsLapseOnTime", "noticesFollowChanges", "requestsAnsweredOnTime", "trashPurgedOnTime",
+      "trashUntilGone").map(_ -> run).toMap ++
+    List("deliveryJob", "handleContract", "housekeepingJob").map(_ -> ("today's program is stated over today's " +
+      "boundaries' world, which the port's types do not have; the port's over the models' World (owner §36)")).toMap ++
+    Map("accessFollowsShares" -> ("today's purpose's module imports today's programs over today's boundaries' " +
+      "world, so it is not built over the port's types; the port's states it over the Declarations, each of which " +
+      "today's word meets the port's claim of (`permission_today`, `whoMayEdit_today`, `whatIsTrashed_today`)")) ++
+    List("clockKept", "libraryKept", "mailerKept").map(_ -> ("today's assumption is of a boundary's model in " +
+      "today's world; the port's of the model's state in the World (owner §36)")).toMap ++
+    List("oneTransactionAtATime", "mailOneAtATime", "clockAlone", "poolOneAtATime", "poolKept", "deliveryGivesBack")
+      .map(_ -> "new: no statement of today's to state it against").toMap ++
+    List("domainTypes", "serverWiring", "transactions").map(_ -> "a design: it states nothing").toMap
 
   /** Today's Lean over the port's types. */
   def oldOverNew(text: String): String = text

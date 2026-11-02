@@ -10,9 +10,10 @@ import sharing.service.Sharing
 import sharing.time.Lifetimes.{gone, inForce, isOpen}
 import sharing.trash.Trash
 
-// Sharing's nodes in the three kinds (owner §15), each named as today's: the purpose, and the claim of each word's
-// equation, proven of the define in `Purpose.scala` that gives the Definition its meaning (as today's contracts and
-// their code).
+// Sharing's nodes in the three kinds (owner §15), each named as today's: the purpose, over its Declarations; the
+// claims at the bottom saying what each Declaration is, the code standing in them (2.7); and the claim of each of the
+// code's words' equation, proven of the define in `Purpose.scala` that gives the Definition its meaning (as today's
+// contracts and their code).
 
 // ============================================================================
 // The purpose: no clock and no durations in it
@@ -23,34 +24,34 @@ val accessFollowsShares = Node.claim("At any moment, a person can view a documen
     "shared, offered or kept changes only at the hand of someone who may edit it, of a person taking up an open " +
     "invitation, or of housekeeping clearing away what has ended.")(
   forall((lib: Term[Library], t: Term[BigInt], p: Term[PersonId], d: Term[DocumentId]) =>
-    Sharing.canView(lib, t, p, d) === (!inTrash(lib, d) && mayView(lib, t, p, make[Target.Doc](d))) &&
-      Sharing.canEdit(lib, t, p, d) === (!inTrash(lib, d) && mayEdit(lib, t, p, make[Target.Doc](d)))) &&
+    Sharing.canView(lib, t, p, d) === (!inTheTrash(lib, d) && mayView(lib, t, p, make[Target.Doc](d))) &&
+      Sharing.canEdit(lib, t, p, d) === (!inTheTrash(lib, d) && allowedToEdit(lib, t, p, make[Target.Doc](d)))) &&
   forall((lib: Term[Library], t: Term[BigInt], by: Term[PersonId], s: Term[Share]) =>
-    Sharing.share(lib, t, by, s) =!= lib implies mayEdit(lib, t, by, s.what)) &&
+    Sharing.share(lib, t, by, s) =!= lib implies allowedToEdit(lib, t, by, s.what)) &&
   forall((lib: Term[Library], t: Term[BigInt], by: Term[PersonId], what: Term[Target], withWhom: Term[Grantee]) =>
-    Sharing.unshare(lib, t, by, what, withWhom) =!= lib implies mayEdit(lib, t, by, what)) &&
+    Sharing.unshare(lib, t, by, what, withWhom) =!= lib implies allowedToEdit(lib, t, by, what)) &&
   forall((lib: Term[Library], t: Term[BigInt], by: Term[PersonId], d: Term[DocumentId], into: Term[Option[FolderId]]) =>
-    Sharing.move(lib, t, by, d, into) =!= lib implies (mayEdit(lib, t, by, make[Target.Doc](d)) &&
-      into.forall(f => mayEdit(lib, t, by, make[Target.InFolder](f))))) &&
+    Sharing.move(lib, t, by, d, into) =!= lib implies (allowedToEdit(lib, t, by, make[Target.Doc](d)) &&
+      into.forall(f => allowedToEdit(lib, t, by, make[Target.InFolder](f))))) &&
   forall((lib: Term[Library], t: Term[BigInt], by: Term[PersonId], to: Term[PersonId], what: Term[Target]) =>
-    (Invitations.withdraw(lib, t, by, to, what) =!= lib implies mayEdit(lib, t, by, what)) &&
+    (Invitations.withdraw(lib, t, by, to, what) =!= lib implies allowedToEdit(lib, t, by, what)) &&
       forall((level: Term[Level]) =>
-        Invitations.invite(lib, t, by, to, what, level) =!= lib implies mayEdit(lib, t, by, what))) &&
+        Invitations.invite(lib, t, by, to, what, level) =!= lib implies allowedToEdit(lib, t, by, what))) &&
   forall((lib: Term[Library], t: Term[BigInt], p: Term[PersonId], what: Term[Target]) =>
     Invitations.accept(lib, t, p, what) =!= lib implies
       lib.invitations.exists(i => i.to === p && i.what === what && isOpen(i, t))) &&
   forall((lib: Term[Library], t: Term[BigInt], by: Term[PersonId], d: Term[DocumentId]) =>
-    (Trash.trash(lib, t, by, d) =!= lib implies mayEdit(lib, t, by, make[Target.Doc](d))) &&
-      (Trash.restore(lib, t, by, d) =!= lib implies mayEdit(lib, t, by, make[Target.Doc](d)))) &&
+    (Trash.trash(lib, t, by, d) =!= lib implies allowedToEdit(lib, t, by, make[Target.Doc](d))) &&
+      (Trash.restore(lib, t, by, d) =!= lib implies allowedToEdit(lib, t, by, make[Target.Doc](d)))) &&
   forall((lib: Term[Library], t: Term[BigInt], p: Term[PersonId], w: Term[Target], level: Term[Level]) =>
     AccessRequests.ask(lib, t, p, w, level).shares === lib.shares &&
       AccessRequests.ask(lib, t, p, w, level).invitations === lib.invitations &&
       AccessRequests.ask(lib, t, p, w, level).documents === lib.documents) &&
   forall((lib: Term[Library], t: Term[BigInt], by: Term[PersonId], p: Term[PersonId], w: Term[Target]) =>
-    (AccessRequests.approve(lib, t, by, p, w) =!= lib implies mayEdit(lib, t, by, w)) &&
-      (AccessRequests.decline(lib, t, by, p, w) =!= lib implies mayEdit(lib, t, by, w))) &&
+    (AccessRequests.approve(lib, t, by, p, w) =!= lib implies allowedToEdit(lib, t, by, w)) &&
+      (AccessRequests.decline(lib, t, by, p, w) =!= lib implies allowedToEdit(lib, t, by, w))) &&
   forall((lib: Term[Library], t: Term[BigInt], by: Term[PersonId], d: Term[DocumentId], to: Term[PersonId]) =>
-    Ownership.transfer(lib, t, by, d, to) =!= lib implies mayEdit(lib, t, by, make[Target.Doc](d))) &&
+    Ownership.transfer(lib, t, by, d, to) =!= lib implies allowedToEdit(lib, t, by, make[Target.Doc](d))) &&
   forall((lib: Term[Library], t: Term[BigInt]) =>
     lib.shares.forall(s => Housekeeping.tidy(lib, t).shares.contains(s) || !inForce(s, t) ||
       lib.documents.exists(doc => gone(doc, t) && s.what === make[Target.Doc](doc.id))) &&
@@ -77,24 +78,38 @@ val cover = Node.claim("A share of a document covers that document; a share of a
           g === f || lib.folders.exists(folder => folder.id === g && folder.folders.contains(f))))))
   .refines(accessFollowsShares)
 
-/** What a person may view: today's `permission`, its first word. */
+/** What a person may view: today's `permission`, its first word; a Declaration, said in terms of the code. */
 val permission = Node.claim("A person may view a document or folder when a share in force reaches them and covers " +
     "it.")(
   forall((lib: Term[Library], t: Term[BigInt], p: Term[PersonId], x: Term[Target]) =>
     mayView(lib, t, p, x) === lib.shares.exists(s => inForce(s, t) && reaches(lib, s, p) && covers(lib, s, x))))
+  .refines(accessFollowsShares, sharing.auditTrail)
+
+/** What a person may edit, as the purpose says it: today's `permission`, its second word, in terms of the code. */
+val whoMayEdit = Node.claim("A person may edit a document or folder when a share in force that reaches them and " +
+    "covers it is an edit share.")(
+  forall((lib: Term[Library], t: Term[BigInt], p: Term[PersonId], x: Term[Target]) =>
+    allowedToEdit(lib, t, p, x) ===
+      lib.shares.exists(s => inForce(s, t) && reaches(lib, s, p) && covers(lib, s, x) && s.level === Level.Edit)))
   .refines(accessFollowsShares)
 
-/** What a person may edit: today's `permission`, its second word. */
-val editPermission = Node.claim("A person may edit a document or folder when a share in force that reaches them and " +
-    "covers it is an edit share.")(
+/** What is in the trash, as the purpose says it: today's `inTrash`, in terms of the code. */
+val whatIsTrashed = Node.claim("A document is in the trash when it was put there and not restored since.")(
+  forall((lib: Term[Library], d: Term[DocumentId]) =>
+    inTheTrash(lib, d) === lib.documents.exists(doc => doc.id === d && doc.trashed.isDefined)))
+  .refines(accessFollowsShares)
+
+/** What the code lets a person edit: the code's word for today's `permission`'s second, which the code calls. */
+val editPermission = Node.claim("The code lets a person edit a document or folder when a share in force that " +
+    "reaches them and covers it is an edit share.")(
   forall((lib: Term[Library], t: Term[BigInt], p: Term[PersonId], x: Term[Target]) =>
     mayEdit(lib, t, p, x) ===
       lib.shares.exists(s => inForce(s, t) && reaches(lib, s, p) && covers(lib, s, x) && s.level === Level.Edit)))
   .refines(accessFollowsShares)
 
-/** The claim on `inTrash`, in an object of its own: named as its word, it would hide the Definition. */
+/** The claim on the code's `inTrash`, in an object of its own: named as its word, it would hide the Definition. */
 object Definitions:
-  val inTrash = Node.claim("A document is in the trash when it was put there and not restored since.")(
+  val inTrash = Node.claim("The code holds a document in the trash when it was put there and not restored since.")(
     forall((lib: Term[Library], d: Term[DocumentId]) =>
       sharing.inTrash(lib, d) === lib.documents.exists(doc => doc.id === d && doc.trashed.isDefined)))
     .refines(accessFollowsShares, sharing.invitationsAreOffers)

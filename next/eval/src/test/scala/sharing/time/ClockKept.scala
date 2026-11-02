@@ -8,8 +8,10 @@ import frflow.*
 object ClockKept:
   val clockModel: Clock.clockModel.type = Clock.clockModel
 
-  val clockKept = Node.assumption("Nothing but the service's programs moves the clock: only their sleeps.")(
+  val clockKept = Node.assumption("The clock as the service's programs see it is moved by nothing but their own " +
+      "sleeps: a model of the programs' time, not of the time outside (which passes between runs, and is not said).")(
     clockModel.onlyCodeChanges)
 
-  val clockAlone = Node.assumption("Nothing but a program's own sleeps moves the clock while it runs.")(
+  val clockAlone = Node.assumption("The clock as the programs see it moves, while one runs, only by that program's " +
+      "own sleeps: no other run's sleeps come between its steps.")(
     clockModel.atomic)

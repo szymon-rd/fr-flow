@@ -13,7 +13,7 @@ open Sharing
 
 theorem impl : Obl.impl := by
   unfold Obl.impl
-  intro inForce reaches covers inTrash mayView _ _ _ _ _
+  intro inForce reaches covers inTrash _ _ _ _
   intro r w
   rcases w with ⟨lib, clock, boxes, pool, faults, races⟩
   rcases faults with _ | ⟨_ | _, _ | ⟨_ | _, fs⟩⟩

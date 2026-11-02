@@ -36,5 +36,3 @@ final case class Notice(to: PersonId, about: Subject) derives LeanType
 enum Failure derives LeanType:
   case StoreUnavailable, MailerUnavailable
 
-/** A person's mailbox at the mail server: the notices delivered to them, oldest first. */
-final case class Mailbox(person: PersonId, notices: List[Notice]) derives LeanType

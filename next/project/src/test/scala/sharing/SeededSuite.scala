@@ -18,7 +18,8 @@ import scala.concurrent.duration.*
 /** Section 9's seeded bugs of sharing, after the port: plain Scala access that forgets the end of shares, found by a
   * generated case of accessContract as today; and the fault sweep, each program's runs on the store and the mail
   * server in memory with each call of theirs failing in turn, as production runs them (`Running`): a run that fails
-  * changes nothing, and one that does not does what today's examples say. The interleavings are `RacesSuite`'s.
+  * changes nothing, and one that does not does what today's examples say; today's flow examples are run so too.
+  * The interleavings are `InterleavingsSuite`'s.
   */
 class SeededSuite extends munit.CatsEffectSuite:
   /** Today's seeded access: the shares with the person or a team of theirs, of the document or a folder around it,
@@ -54,10 +55,17 @@ class SeededSuite extends munit.CatsEffectSuite:
     * faults given: what a program gives (its error on the left), and the library and mailboxes after.
     */
   private def ran[A](lib: Library, at: BigInt, store: List[Boolean], mail: List[Boolean])(
-      f: (frflow.eval.Running[IO]) => IO[A]): IO[(Either[Throwable, A], Library, List[Mailbox])] =
+      f: (frflow.eval.Running[IO]) => IO[A]): IO[(Either[Throwable, A], Library, Map[PersonId, List[Notice]])] =
+    timed((lib, at), store, mail)(f).map((out, l, b, _) => (out, l, b))
+
+  /** The same, from mailboxes `boxes`, and the clock after too. */
+  private def timed[A](from: (Library, BigInt), store: List[Boolean], mail: List[Boolean],
+      boxes: Map[PersonId, List[Notice]] = Map.empty)(f: (frflow.eval.Running[IO]) => IO[A])
+      : IO[(Either[Throwable, A], Library, Map[PersonId, List[Notice]], BigInt)] =
+    val (lib, at) = from
     for
       s   <- MemoryLibraryStore.holding(lib)
-      m   <- MemoryMailer.holding(Nil)
+      m   <- MemoryMailer.holding(boxes)
       w   <- clock(at)
       p   <- MemoryPool.holding(0)
       run <- knowledge.running[IO](LibraryStore.libraryModel := s, Mailer.mailerModel := m,
@@ -67,9 +75,10 @@ class SeededSuite extends munit.CatsEffectSuite:
       l   <- s.library
       b   <- m.boxes
       n   <- p.count
+      t   <- w.time
     yield
       assertEquals(n, BigInt(0), "a connection is left taken")
-      (out, l, b)
+      (out, l, b, t)
 
   private val shareWithBob = Request.Share(ann, Target.Doc(plan), Grantee.Person(bob), Level.View, None)
   private val bobViewsPlan = Share(Target.Doc(plan), Grantee.Person(bob), Level.View, None)
@@ -114,7 +123,56 @@ class SeededSuite extends munit.CatsEffectSuite:
       never  <- ran(start, now, Nil, List(true, true, true))(job)
       read   <- ran(start, now, List(true), Nil)(job)
     yield
-      List(ok, second).foreach(r => assertEquals((r._2.outbox, r._3), (Nil, List(Mailbox(cat, List(catTold))))))
-      assertEquals((never._1.isRight, never._2, never._3), (true, start, Nil))
+      List(ok, second).foreach(r => assertEquals((r._2.outbox, r._3), (Nil, Map(cat -> List(catTold)))))
+      assertEquals((never._1.isRight, never._2, never._3), (true, start, Map.empty[PersonId, List[Notice]]))
       assert(read._1.isLeft && read._2 == start && read._3.isEmpty, read)
+  }
+
+  // Today's flow examples (20, of handle, housekeeping and delivery) are run in production's interpreter: those the
+  // sweep above does not run, here.
+
+  test("today's examples of handle: Bob's team views the Q3 report and nothing changes; Bob may not share the plan, " +
+    "refused, the store keeps the library; Cat has no access to the plan") {
+    val handle = (r: Request) => (run: frflow.eval.Running[IO]) => run(SharingHttp.handleRequest)(r)
+    for
+      views   <- ran(library, now, Nil, Nil)(handle(Request.Access(bob, q3Report)))
+      refused <- ran(library, now, Nil, Nil)(handle(Request.Share(bob, Target.Doc(plan), Grantee.Person(bob),
+                   Level.Edit, None)))
+      cat     <- ran(library, now, Nil, Nil)(handle(Request.Access(sharing.Demo.cat, plan)))
+    yield
+      assertEquals(views._1.map(_.map(_.toString)), Right(Some("Access(Some(View))")))
+      assertEquals(refused._1.map(_.map(_.toString)), Right(Some("Refused")))
+      assertEquals(cat._1.map(_.map(_.toString)), Right(Some("Access(None)")))
+      List(views, refused, cat).foreach(r => assertEquals(r._2, library))
+  }
+
+  test("today's example of housekeeping: nothing has ended yet, nothing to log") {
+    val start = library.copy(shares = bobViewsPlanForAnHour :: library.shares)
+    ran(start, now, Nil, Nil)(run => run(Housekeeping.housekeeping)).map(r => assertEquals((r._1.isRight, r._2),
+      (true, start)))
+  }
+
+  private val bobTold = Notice(bob, Subject.Logged(Entry(1, now, Change.Made(Request.Approve(ann, bob,
+    Target.Doc(plan))))))
+  private val catAgain = Notice(cat, Subject.Logged(Entry(2, now, Change.Made(Request.Share(ann, Target.Doc(plan),
+    Grantee.Person(cat), Level.View, None)))))
+
+  test("today's examples of delivery: Cat's first and Bob's go at once, Cat's second waits; down once, delivered a " +
+    "second later; down three times, three seconds on; delivered but the store failed, the notice stays; sent " +
+    "again after that, not delivered twice") {
+    val job = (run: frflow.eval.Running[IO]) => run(Notifications.delivery)
+    val one = library.copy(outbox = List(catTold))
+    for
+      both    <- timed((library.copy(outbox = List(catTold, bobTold, catAgain)), now), Nil, Nil)(job)
+      once    <- timed((one, now), Nil, List(true))(job)
+      thrice  <- timed((one, now), Nil, List(true, true, true))(job)
+      stays   <- timed((one, now), List(false, false, true), Nil)(job)
+      again   <- timed((one, now), Nil, Nil, Map(cat -> List(catTold)))(job)
+    yield
+      assertEquals((both._2.outbox, both._3), (List(catAgain), Map(cat -> List(catTold), bob -> List(bobTold))))
+      assertEquals((once._2.outbox, once._3, once._4), (Nil, Map(cat -> List(catTold)), now + 1))
+      assertEquals((thrice._2.outbox, thrice._3, thrice._4), (List(catTold), Map.empty[PersonId, List[Notice]],
+        now + 3))
+      assertEquals((stays._1.isRight, stays._2.outbox, stays._3), (true, List(catTold), Map(cat -> List(catTold))))
+      assertEquals((again._2.outbox, again._3), (Nil, Map(cat -> List(catTold))))
   }

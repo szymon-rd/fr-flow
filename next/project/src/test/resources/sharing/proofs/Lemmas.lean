@@ -215,21 +215,9 @@ theorem mapM_along {ε α β σ : Type} (f : α → ExceptT ε (StateM σ) β) (
       · exact ⟨b' :: bs', rfl, by simpa [FrFlow.runOnE_pure] using h2⟩
 
 /-- A person's mailbox once a notice is given to the mail server: theirs, the notice taken; anyone else's as it was. -/
-theorem mailbox_with (boxes : List Mailbox) (q p : PersonId) (ns : List Notice) :
+theorem mailbox_with (boxes : PersonId → Option (List Notice)) (q p : PersonId) (ns : List Notice) :
     mailbox (withMailbox boxes q ns) p = if p = q then ns else mailbox boxes p := by
-  by_cases h : p = q
-  · subst h; simp [mailbox, withMailbox]
-  · have keep : List.find? (fun b => decide (b.person = p)) (List.filter (fun b => decide ¬b.person = q) boxes) =
-        List.find? (fun b => decide (b.person = p)) boxes := by
-      induction boxes with
-      | nil => rfl
-      | cons b bs ih =>
-        by_cases hb : b.person = q
-        · have hp : ¬ b.person = p := fun e => h (e ▸ hb)
-          rw [List.filter_cons_of_neg (by simpa using hb), ih, List.find?_cons_of_neg (by simpa using hp)]
-        · rw [List.filter_cons_of_pos (by simpa using hb), List.find?_cons, List.find?_cons, ih]
-    have hq : ¬ q = p := fun e => h e.symm
-    simp only [mailbox, withMailbox, List.find?_cons, hq, decide_false, h, ↓reduceIte, keep]
+  by_cases h : p = q <;> simp [mailbox, withMailbox, h]
 
 /-- Taking a notice twice is taking it once. -/
 theorem taken_taken (ns : List Notice) (n : Notice) : taken (taken ns n) n = taken ns n := by
@@ -266,5 +254,59 @@ theorem mem_taken (ns : List Notice) (n : Notice) : n ∈ taken ns n := by
 /-- A library rebuilt from its fields is itself. -/
 theorem library_eta (l : Library) :
     Library.mk l.documents l.folders l.teams l.shares l.invitations l.requests l.log l.outbox = l := rfl
+
+/-- What a branch of delivery does, given its faults: whatever the world, it takes its notice out of the outbox or
+not, gives it to the mail server or not, and moves the clock by its sleeps, as the faults alone decide. -/
+theorem commute_split (b₁ b₂ : ExceptT Failure (StateM World) Unit) (n₁ n₂ : Notice) (hto : n₁.to ≠ n₂.to)
+    (f₁ r₁ f₂ r₂ : List Bool)
+    (hb₁ : ∃ (rm sent : Bool) (sleeps : List Int) (rest : List Bool),
+      ∀ (lib : Library) (c : Int) (mail : PersonId → Option (List Notice)) (pool : Int) (rs : List Bool),
+        FrFlow.runOnE b₁ (World.mk lib c mail pool f₁ rs) = (.ok (), World.mk
+          (if rm then { lib with outbox := lib.outbox.filter (fun m => decide ¬ m = n₁) } else lib) (sleeps.foldl (· + ·) c)
+          (if sent then withMailbox mail n₁.to (taken (mailbox mail n₁.to) n₁) else mail) pool rest rs))
+    (hb₂ : ∃ (rm sent : Bool) (sleeps : List Int) (rest : List Bool),
+      ∀ (lib : Library) (c : Int) (mail : PersonId → Option (List Notice)) (pool : Int) (rs : List Bool),
+        FrFlow.runOnE b₂ (World.mk lib c mail pool f₂ rs) = (.ok (), World.mk
+          (if rm then { lib with outbox := lib.outbox.filter (fun m => decide ¬ m = n₂) } else lib) (sleeps.foldl (· + ·) c)
+          (if sent then withMailbox mail n₂.to (taken (mailbox mail n₂.to) n₂) else mail) pool rest rs))
+    (w : World) :
+    FrFlow.sameModels (fun w => { w with faults := [], races := [] })
+      (FrFlow.runOnE (do
+        modify (fun w => { w with faults := f₁, races := r₁ })
+        let one ← b₁
+        modify (fun w => { w with faults := f₂, races := r₂ })
+        let two ← b₂
+        pure (one, two)) w)
+      (FrFlow.runOnE (do
+        modify (fun w => { w with faults := f₂, races := r₂ })
+        let two ← b₂
+        modify (fun w => { w with faults := f₁, races := r₁ })
+        let one ← b₁
+        pure (one, two)) w) := by
+  obtain ⟨rm₁, sent₁, d₁, rest₁, h₁⟩ := hb₁
+  obtain ⟨rm₂, sent₂, d₂, rest₂, h₂⟩ := hb₂
+  rcases w with ⟨lib, c, mail, pool, fs, rs⟩
+  simp only [FrFlow.runOnE_bind, FrFlow.runOnE_modify, FrFlow.runOnE_pure, h₁, h₂, FrFlow.sameModels]
+  have hm : ∀ (m : PersonId → Option (List Notice)) (q p : PersonId) (ns : List Notice), q ≠ p →
+      mailbox (withMailbox m q ns) p = mailbox m p := by
+    intro m q p ns h
+    simp [mailbox, withMailbox, Ne.symm h]
+  refine ⟨trivial, ?_⟩
+  simp only [World.mk.injEq, and_true]
+  have hsum : ∀ (l : List Int) (x : Int), l.foldl (· + ·) x = x + l.sum := by
+    intro l
+    induction l with
+    | nil => intro x; simp
+    | cons y ys ih => intro x; simp only [List.foldl_cons, List.sum_cons, ih]; omega
+  refine ⟨?_, by rw [hsum, hsum, hsum, hsum]; omega, ?_⟩
+  · cases rm₁ <;> cases rm₂ <;> simp only [Bool.false_eq_true, ↓reduceIte, List.filter_filter]
+    congr 2
+    funext m
+    exact Bool.and_comm _ _
+  · cases sent₁ <;> cases sent₂ <;> simp only [Bool.false_eq_true, ↓reduceIte]
+    rw [hm _ _ _ _ hto, hm _ _ _ _ (Ne.symm hto)]
+    funext k
+    simp only [withMailbox]
+    by_cases k₁ : k = n₁.to <;> by_cases k₂ : k = n₂.to <;> simp_all
 
 end Sharing.Lemmas

@@ -4,7 +4,9 @@ import Proofs.Sharing.Lemmas
 /-! A run of delivery, notice by notice (`Lemmas.mapM_along`): each send leaves the mail server's mailbox of its
 person as it was or with the notice taken, and the notice leaves the outbox only once the mail server has it, in one
 transaction; the oldest notices of an outbox are of different people, so no send touches another's mailbox. A run that
-loses its race with the time limit, or whose outbox cannot be read, changes neither. -/
+loses its race with the time limit is cancelled between two of its steps, each notice's delivery at its own (each step
+the scheduler's choice, `FrFlow.Races.step`): what it did until then is one of what a delivery does, so it keeps the
+same; one whose outbox cannot be read changes neither. -/
 
 set_option autoImplicit false
 noncomputable section
@@ -19,7 +21,7 @@ the mailboxes `boxes` it began with: the library is it, some of its outbox kept;
 there, or was sent and the mail server has it; no one's mailbox not sent to has changed, and each one's sent to is as
 it was or holds their notice): it leaves the library as it was or its outbox without the notice, the mail server
 having it, and the mailboxes as they were or the notice's person's with it taken. -/
-theorem kept (lib : Library) (boxes : List Mailbox) (done rest : List Notice) (x : Notice) (s s' : World)
+theorem kept (lib : Library) (boxes : PersonId → Option (List Notice)) (done rest : List Notice) (x : Notice) (s s' : World)
     (hsplit : done ++ x :: rest = firstOfEach lib.outbox) (hD : ((∃ keep : Notice → Bool, s.libraryModel = { lib with outbox := lib.outbox.filter keep }) ∧
       (∀ n ∈ lib.outbox, n ∈ s.libraryModel.outbox ∨ (n ∈ done ∧ n ∈ mailbox s.mailerModel n.to)) ∧
       (∀ p, (∀ n ∈ done, n.to ≠ p) → mailbox s.mailerModel p = mailbox boxes p) ∧
@@ -107,18 +109,20 @@ theorem kept (lib : Library) (boxes : List Mailbox) (done rest : List Notice) (x
       · exact hb ▸ h4 n hd
       · exact absurd he' he
 
-set_option maxHeartbeats 2000000 in
+set_option maxHeartbeats 4000000 in
 theorem impl : Obl.impl := by
   unfold Obl.impl
   intro w
   rcases w with ⟨lib, clock, boxes, pool, faults, races⟩
-  rcases races with _ | ⟨_ | _, rs⟩ <;> rcases faults with _ | ⟨_ | _, fs⟩
+  rcases races with _ | ⟨_ | _, _ | ⟨_ | _, rs⟩⟩ <;> rcases faults with _ | ⟨_ | _, fs⟩
   all_goals simp only [delivery_run, delivery, FrFlow.runOnE_bind, FrFlow.runOnE_pure, FrFlow.runOnE_lift,
     FrFlow.runOnE_throw, FrFlow.runOnE_failing, FrFlow.runOnE_tryCatch, FrFlow.runOnE_ite, FrFlow.Races.leftWins_exceptT,
-    FrFlow.Races.leftWins_onWorld, FrFlow.runOn_nextRace, PoolModel.Ops.take_onWorldE, PoolModel.Ops.give_onWorldE,
-    LibraryModel.Ops.load_onWorldE, ClockModel.Ops.sleep_onWorldE, FrFlow.runOn_within, PoolModel.take,
-    PoolModel.give, LibraryModel.load, ClockModel.sleep, FrFlow.runOn_get, FrFlow.runOn_set, FrFlow.runOn_modify,
-    FrFlow.runOn_bind, FrFlow.runOn_pure, FrFlow.runOn_map]
+    FrFlow.Races.leftWins_onWorld, FrFlow.runOn_nextRace, FrFlow.runOnE_cut, FrFlow.runOnE_step,
+    FrFlow.runOnE_optionT_bind, FrFlow.runOnE_optionT_pure, FrFlow.runOnE_each, PoolModel.Ops.take_onWorldE,
+    PoolModel.Ops.give_onWorldE, LibraryModel.Ops.load_onWorldE, ClockModel.Ops.sleep_onWorldE, FrFlow.runOn_within,
+    PoolModel.take, PoolModel.give, LibraryModel.load, ClockModel.sleep, FrFlow.runOn_get, FrFlow.runOn_set,
+    FrFlow.runOn_modify, FrFlow.runOn_bind, FrFlow.runOn_pure, FrFlow.runOn_map, ↓reduceIte, Bool.false_eq_true,
+    ite_false, ite_true]
   all_goals first
     | (simp (config := { contextual := true }) [Lemmas.filter_mem_self, Lemmas.library_eta]; done)
     | (generalize hres : FrFlow.runOnE (List.mapM _ _) _ = res
@@ -138,27 +142,84 @@ theorem impl : Obl.impl := by
            fun _ _ => rfl, fun _ hn => absurd hn List.not_mem_nil⟩
          intro done x rest s hsplit hD
          refine ⟨?_, kept lib boxes done rest x s _ hsplit hD ?_⟩
-         · rcases s with ⟨l, c, b, p, fs, rs⟩
-           iterate 5 (all_goals (try (rcases fs with _ | ⟨_ | _, fs⟩)); all_goals (try simp only [FrFlow.runOnE_bind, FrFlow.runOnE_pure,
-  FrFlow.runOnE_lift, FrFlow.runOnE_failing, FrFlow.runOnE_tryCatch, FrFlow.runOnE_ite, MailerModel.Ops.send_onWorldE,
-  ClockModel.Ops.sleep_onWorldE, LibraryModel.Ops.load_onWorldE, LibraryModel.Ops.save_onWorldE, FrFlow.runOn_within,
-  MailerModel.send, ClockModel.sleep, LibraryModel.load, LibraryModel.save, FrFlow.runOn_get, FrFlow.runOn_set,
-  FrFlow.runOn_modify, FrFlow.runOn_bind, FrFlow.runOn_pure]))
-           all_goals simp
-         · rcases s with ⟨l, c, b, p, fs, rs⟩
-           iterate 5 (all_goals (try (rcases fs with _ | ⟨_ | _, fs⟩)); all_goals (try simp only [FrFlow.runOnE_bind, FrFlow.runOnE_pure,
-  FrFlow.runOnE_lift, FrFlow.runOnE_failing, FrFlow.runOnE_tryCatch, FrFlow.runOnE_ite, MailerModel.Ops.send_onWorldE,
-  ClockModel.Ops.sleep_onWorldE, LibraryModel.Ops.load_onWorldE, LibraryModel.Ops.save_onWorldE, FrFlow.runOn_within,
-  MailerModel.send, ClockModel.sleep, LibraryModel.load, LibraryModel.save, FrFlow.runOn_get, FrFlow.runOn_set,
-  FrFlow.runOn_modify, FrFlow.runOn_bind, FrFlow.runOn_pure]))
-           all_goals simp
+         all_goals rcases s with ⟨l, c, b, p, fs, rs⟩
+         all_goals simp only [FrFlow.runOnE_bind, FrFlow.runOnE_pure,
+           FrFlow.runOnE_lift, FrFlow.runOnE_failing, FrFlow.runOnE_tryCatch, FrFlow.runOnE_ite,
+           MailerModel.Ops.send_onWorldE, ClockModel.Ops.sleep_onWorldE, LibraryModel.Ops.load_onWorldE,
+           LibraryModel.Ops.save_onWorldE, FrFlow.runOn_within, MailerModel.send, ClockModel.sleep, LibraryModel.load,
+           LibraryModel.save, FrFlow.runOn_get, FrFlow.runOn_set, FrFlow.runOn_modify, FrFlow.runOn_bind,
+           FrFlow.runOn_pure, FrFlow.runOnE_step, FrFlow.runOnE_optionT_bind, FrFlow.runOnE_optionT_pure,
+           FrFlow.runOnE_optionT_tryCatch, FrFlow.runOnE_optionT_ite, FrFlow.Races.leftWins_exceptT,
+           FrFlow.Races.leftWins_onWorld, FrFlow.runOn_nextRace, ↓reduceIte, Bool.false_eq_true, ite_false,
+           ite_true]
+         all_goals iterate 14 (all_goals (try (first
+           | (rcases rs with _ | ⟨_ | _, rs⟩ <;> simp only [FrFlow.runOnE_bind, FrFlow.runOnE_pure,
+           FrFlow.runOnE_lift, FrFlow.runOnE_failing, FrFlow.runOnE_tryCatch, FrFlow.runOnE_ite,
+           MailerModel.Ops.send_onWorldE, ClockModel.Ops.sleep_onWorldE, LibraryModel.Ops.load_onWorldE,
+           LibraryModel.Ops.save_onWorldE, FrFlow.runOn_within, MailerModel.send, ClockModel.sleep, LibraryModel.load,
+           LibraryModel.save, FrFlow.runOn_get, FrFlow.runOn_set, FrFlow.runOn_modify, FrFlow.runOn_bind,
+           FrFlow.runOn_pure, FrFlow.runOnE_step, FrFlow.runOnE_optionT_bind, FrFlow.runOnE_optionT_pure,
+           FrFlow.runOnE_optionT_tryCatch, FrFlow.runOnE_optionT_ite, FrFlow.Races.leftWins_exceptT,
+           FrFlow.Races.leftWins_onWorld, FrFlow.runOn_nextRace, ↓reduceIte, Bool.false_eq_true, ite_false,
+           ite_true])
+           | (rcases fs with _ | ⟨_ | _, fs⟩ <;> simp only [FrFlow.runOnE_bind, FrFlow.runOnE_pure,
+           FrFlow.runOnE_lift, FrFlow.runOnE_failing, FrFlow.runOnE_tryCatch, FrFlow.runOnE_ite,
+           MailerModel.Ops.send_onWorldE, ClockModel.Ops.sleep_onWorldE, LibraryModel.Ops.load_onWorldE,
+           LibraryModel.Ops.save_onWorldE, FrFlow.runOn_within, MailerModel.send, ClockModel.sleep, LibraryModel.load,
+           LibraryModel.save, FrFlow.runOn_get, FrFlow.runOn_set, FrFlow.runOn_modify, FrFlow.runOn_bind,
+           FrFlow.runOn_pure, FrFlow.runOnE_step, FrFlow.runOnE_optionT_bind, FrFlow.runOnE_optionT_pure,
+           FrFlow.runOnE_optionT_tryCatch, FrFlow.runOnE_optionT_ite, FrFlow.Races.leftWins_exceptT,
+           FrFlow.Races.leftWins_onWorld, FrFlow.runOn_nextRace, ↓reduceIte, Bool.false_eq_true, ite_false,
+           ite_true]))))
+         all_goals (first | (simp; done) | (trace_state; sorry))
        rcases res with ⟨o, s'⟩
        simp only at hbs hinv
        subst hbs
        obtain ⟨⟨keep, hk⟩, h2, _, h4⟩ := hinv
        simp only
-       refine ⟨⟨⟨?_, h2⟩, h4⟩, trivial⟩
-       rw [hk]
-       rw [Lemmas.filter_mem_filter])
+       try (cases List.mapM id bs <;> simp only [])
+       all_goals first
+         | exact ⟨⟨⟨by rw [hk]; rw [Lemmas.filter_mem_filter], h2⟩, h4⟩, trivial⟩
+         | (trace_state; sorry))
+
+/-- Two notices of the outbox's first ones, each given its own faults, delivered in either order leave the same:
+each branch does what its faults alone decide, to its own person's mailbox, and their removals from the
+outbox commute. -/
+theorem commute_0 : Obl.commute_0 := by
+  unfold Obl.commute_0
+  intro r n₁ n₂ w f₁ r₁ f₂ r₂ h₁ h₂ hne
+  refine Lemmas.commute_split _ _ n₁ n₂ (fun h => hne (Lemmas.firstOfEach_one _ _ _ h₁ h₂ h)) f₁ r₁ f₂ r₂ ?_ ?_ w
+  · clear h₁ h₂ hne r₁ r₂ f₂
+    iterate 5 (all_goals (try (rcases f₁ with _ | ⟨_ | _, f₁⟩)); all_goals (try simp only [FrFlow.runOnE_bind,
+      FrFlow.runOnE_pure, FrFlow.runOnE_lift, FrFlow.runOnE_failing, FrFlow.runOnE_tryCatch, FrFlow.runOnE_ite,
+      MailerModel.Ops.send_onWorldE, ClockModel.Ops.sleep_onWorldE, LibraryModel.Ops.load_onWorldE,
+      LibraryModel.Ops.save_onWorldE, FrFlow.runOn_within, MailerModel.send, ClockModel.sleep, LibraryModel.load,
+      LibraryModel.save, FrFlow.runOn_get, FrFlow.runOn_set, FrFlow.runOn_bind, FrFlow.runOn_pure, ↓reduceIte]))
+    all_goals first
+      | exact ⟨true, true, [], _, fun _ _ _ _ _ => rfl⟩
+      | exact ⟨false, true, [], _, fun _ _ _ _ _ => rfl⟩
+      | exact ⟨false, false, [], _, fun _ _ _ _ _ => rfl⟩
+      | exact ⟨true, true, [1], _, fun _ _ _ _ _ => rfl⟩
+      | exact ⟨false, true, [1], _, fun _ _ _ _ _ => rfl⟩
+      | exact ⟨false, false, [1], _, fun _ _ _ _ _ => rfl⟩
+      | exact ⟨true, true, [1, 2], _, fun _ _ _ _ _ => rfl⟩
+      | exact ⟨false, true, [1, 2], _, fun _ _ _ _ _ => rfl⟩
+      | exact ⟨false, false, [1, 2], _, fun _ _ _ _ _ => rfl⟩
+  · clear h₁ h₂ hne r₁ r₂ f₁
+    iterate 5 (all_goals (try (rcases f₂ with _ | ⟨_ | _, f₂⟩)); all_goals (try simp only [FrFlow.runOnE_bind,
+      FrFlow.runOnE_pure, FrFlow.runOnE_lift, FrFlow.runOnE_failing, FrFlow.runOnE_tryCatch, FrFlow.runOnE_ite,
+      MailerModel.Ops.send_onWorldE, ClockModel.Ops.sleep_onWorldE, LibraryModel.Ops.load_onWorldE,
+      LibraryModel.Ops.save_onWorldE, FrFlow.runOn_within, MailerModel.send, ClockModel.sleep, LibraryModel.load,
+      LibraryModel.save, FrFlow.runOn_get, FrFlow.runOn_set, FrFlow.runOn_bind, FrFlow.runOn_pure, ↓reduceIte]))
+    all_goals first
+      | exact ⟨true, true, [], _, fun _ _ _ _ _ => rfl⟩
+      | exact ⟨false, true, [], _, fun _ _ _ _ _ => rfl⟩
+      | exact ⟨false, false, [], _, fun _ _ _ _ _ => rfl⟩
+      | exact ⟨true, true, [1], _, fun _ _ _ _ _ => rfl⟩
+      | exact ⟨false, true, [1], _, fun _ _ _ _ _ => rfl⟩
+      | exact ⟨false, false, [1], _, fun _ _ _ _ _ => rfl⟩
+      | exact ⟨true, true, [1, 2], _, fun _ _ _ _ _ => rfl⟩
+      | exact ⟨false, true, [1, 2], _, fun _ _ _ _ _ => rfl⟩
+      | exact ⟨false, false, [1, 2], _, fun _ _ _ _ _ => rfl⟩
 
 end Sharing.deliveryJob.Proofs

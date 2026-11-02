@@ -15,7 +15,7 @@ open Sharing
 
 theorem impl : Obl.impl := by
   unfold Obl.impl
-  intro events startedAt reaches covers _ _ _ _ _ _ _ _ _
+  intro events startedAt reaches covers _ _ _ _ _ _ _ _
   let step := fun m e => Sharing.step (mayEditCode inForceCode reaches covers) ownedByCode (isOpenCode 604800)
     (goneCode 2592000) (isPendingCode 604800) (reminderDueCode 172800) inForceCode m e
   let inv : Moment → Prop := fun m => (∀ n ∈ m.library.outbox, ∀ e, n.about = Subject.Logged e → e ∈ m.library.log) ∧

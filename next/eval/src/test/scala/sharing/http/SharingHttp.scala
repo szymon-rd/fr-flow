@@ -84,7 +84,9 @@ object SharingHttp:
       "holds, and leaves the store holding the library it leads to: a question is answered with the person's access " +
       "and changes nothing; a change is made as its operation makes it, recorded in the log and announced in the " +
       "outbox in the same save, and answered done when it may be made and refused otherwise; an answer past the " +
-      "time limit is not given. Handling does not move the clock. A request the store fails changes nothing.")(
+      "time limit is not given. Handling does not move the clock. A request the store fails changes nothing. (The " +
+      "clock as the programs see it moves only by their sleeps, and handling sleeps not: so the time limit is never " +
+      "shown to pass, and that part says nothing yet; time passing outside the programs would make it bite.)")(
     forall((r: Term[Request]) => handle(r).result.fold(_ => handle(r).changesNothing,
       result =>
         val after = handle(r).after

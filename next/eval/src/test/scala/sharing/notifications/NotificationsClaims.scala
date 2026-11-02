@@ -46,8 +46,10 @@ object NotificationsClaims:
     .refines(noticesFollowChanges)
     .assuming(oneTransactionAtATime, mailOneAtATime, clockAlone, Pool.poolOneAtATime)
 
-  val deliveryGivesBack = Node.claim("A run of delivery gives back the connection it takes from the pool, whether it " +
-      "ends well or fails: as many connections are in use after it as before.")(
+  /** A root of its own (owner §11): what the kept combinators' bracket is for, which no branch about notices makes. */
+  val deliveryGivesBack = Node.claim("No connection to the mail server is ever kept: a run of delivery gives back " +
+      "the connection it takes from the pool, whether it ends well, fails or runs out of time, so as many " +
+      "connections " +
+      "are in use after it as before.")(
     Pool.poolModel.in(deliver.after) === Pool.poolModel.current)
-    .refines(noticesFollowChanges)
     .assuming(oneTransactionAtATime, mailOneAtATime, clockAlone, Pool.poolOneAtATime)
