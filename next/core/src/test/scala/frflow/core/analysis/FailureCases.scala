@@ -7,7 +7,7 @@ import frflow.core.name.{DefName, NodeId, SourceText, VarId}
 import frflow.core.spec.Written
 import frflow.core.term.{Bound, Program, Stated, Sym, World}
 import frflow.core.ty.Ty
-import frflow.core.vocab.{Define, DefineForm, Fails}
+import frflow.core.vocab.{Define, DefineForm, Fails, SymbolType}
 
 /** One theory per problem of a program's error, each the store's valid theory with one change: the store may be down
   * (each call failing with `"down"`), a claim states what a failing run of `book` meets.
@@ -16,8 +16,12 @@ object FailureCases:
   /** The store, any call of which may fail with the string `"down"`; `book`'s run read with both outcomes, as a
     * program that can fail must be (`SucceedingOnly`).
     */
-  val down: Kb = Store.kb.without("bookRuns").and(bothOutcomes).linking(assumes("bookRuns", "oneAtATime"))
-    .declaring(v => v.copy(models = v.models.map(_.copy(fails = Some(Fails(Ty.Str, Value.Str("down")))))))
+  val down: Kb = failsWith(Store.kb.without("bookRuns").and(bothOutcomes).linking(assumes("bookRuns", "oneAtATime"))
+    .declaring(v => v.copy(models = v.models.map(_.copy(fails = Some(Fails(Ty.Str, Value.Str("down"))))))), Ty.Str)
+
+  /** `book` declared to fail with `e` (owner §46, `.failsWith[E]`). */
+  def failsWith(kb: Kb, e: Ty): Kb = kb.declaring(v => v.copy(symbols = v.symbols.map(s =>
+    if s.name == Store.book then s.copy(ty = SymbolType.Typed(Ty.failing(Store.bookTy, Some(e)))) else s)))
 
   /** `∀ b before`, `book(b)`'s runs from `before` that succeed and those that fail. */
   private def bothOutcomes: frflow.core.spec.Node = claim("bookRuns")(Lang.formula([T[_]] => (l: Lang[T]) =>
@@ -26,9 +30,12 @@ object FailureCases:
       l.s.and(l.s.runs(run, w, Bound[Unit]("r", Ty.Unit), Bound[World]("after", Ty.World))((_, _) => l.truth),
         l.s.fails(run, w, Bound[Any]("error", Ty.Str), Bound[World]("after", Ty.World))((_, _) => l.truth))))))
 
-  /** `book`'s run read plainly, where it can fail: of the runs that succeed only. */
-  val plainly: Kb = Store.kb.declaring(v => v.copy(models = v.models.map(_.copy(fails =
+  /** The store that may be down, `book`'s failing not declared, its run read plainly. */
+  val undeclared: Kb = Store.kb.declaring(v => v.copy(models = v.models.map(_.copy(fails =
     Some(Fails(Ty.Str, Value.Str("down")))))))
+
+  /** `book` declared to fail, its run read plainly: of the runs that succeed only (a theory the DSL cannot write). */
+  val plainly: Kb = failsWith(undeclared, Ty.Str)
 
   /** `∀ b before, book(b).from(before).failing { (error: E, after) => true }`. */
   def failing(e: Ty): frflow.core.spec.Node = claim("bookFails")(Lang.formula([T[_]] => (l: Lang[T]) =>
@@ -98,5 +105,6 @@ object FailureCases:
       List(Problem.FailingDiffers(NodeId("bookFails"), Store.book, Lang.big, Ty.Str))),
     ProblemCase(claiming(Store.kb, Ty.Str), List(Problem.NeverFails(NodeId("bookFails"), Store.book))),
     ProblemCase(plainly, List(Problem.SucceedingOnly(NodeId("bookRuns"), Store.book))),
+    ProblemCase(undeclared, List(Problem.FailsWithDiffers(Store.book, None, List(Ty.Str)))),
     ProblemCase(writing, List(Problem.WritesState(DefName("bookIfFree"), Store.model))),
     ProblemCase(unstarted, List(Problem.NoStart(NodeId("endsAfterStart"), Store.model))))

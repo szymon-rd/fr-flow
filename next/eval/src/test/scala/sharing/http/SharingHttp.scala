@@ -23,7 +23,7 @@ import sharing.trash.Trash
 /** The handling of a request and its claim. */
 object SharingHttp:
   val handle = Definition[Request => Flow[Answer]](
-    "a request handled on the store and the clock: the answer, the store left holding the change")
+    "a request handled on the store and the clock: the answer, the store left holding the change").failsWith[Failure]
 
   /** The library a request leads to at a moment: the operation's change for a change; the same library for a
     * question.
@@ -85,9 +85,9 @@ object SharingHttp:
       "and changes nothing; a change is made as its operation makes it, recorded in the log and announced in the " +
       "outbox in the same save, and answered done when it may be made and refused otherwise. Handling does not move " +
       "the clock. A request the store fails changes nothing.")(
-    forall((r: Term[Request]) => handle(r).failing[Failure].result.fold(_ => handle(r).failing[Failure].changesNothing,
+    forall((r: Term[Request]) => handle(r).result.fold(_ => handle(r).changesNothing,
       result =>
-        val after = handle(r).failing[Failure].after
+        val after = handle(r).after
         libraryModel.in(after) === served(libraryModel.current, clockModel.current, r) &&
           clockModel.in(after) === clockModel.current && mailerModel.in(after) === mailerModel.current &&
           result === answerTo(libraryModel.current, clockModel.current, r))))

@@ -14,7 +14,7 @@ object Notifications:
     "the library with notices of a change added to its outbox")
   val warn = Definition[(Library, BigInt) => Library]("the library with notices of the shares ending within a day")
   val deliver = Definition[Flow[Unit]](
-    "a run of delivery: the oldest notice of each person in the outbox sent to the mail server")
+    "a run of delivery: the oldest notice of each person in the outbox sent to the mail server").failsWith[Failure]
 
   val mailerModel: Mailer.mailerModel.type = Mailer.mailerModel
 

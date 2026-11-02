@@ -23,7 +23,7 @@ class SecondReviewSuite extends munit.FunSuite:
       .implementProven(book)(bookIfGranted)
       .implementTested(granted)(_ => (held, request) => Calendar(held).grants(request))
       .implementTested(inRoom, add)(start = BookingsTable.holding, observe = _.bookings)(t => (t.inRoom, t.add))
-  private val store = Definition[BigInt => Flow[Unit]]("a number stored on the shelf")
+  private val store = Definition[BigInt => Flow[Unit]]("a number stored on the shelf").failsWith[Trouble]
   private val shelfOnly = Node.assumption("Nothing but the programs change the shelf.")(Shelf.kept.onlyCodeChanges)
 
   private val ofRoomD = define { (room: Term[String]) => storedBookings.current.filter(b => b.room === room) }

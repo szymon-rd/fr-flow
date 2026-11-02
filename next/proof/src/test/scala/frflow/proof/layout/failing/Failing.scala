@@ -40,7 +40,7 @@ object Failing:
   private val pair = Ty.TupleOf(List(Ty.Unit, Ty.Unit))
   private val twice = Prog.Par(put(v(b)), step(0, "u", Ty.Unit), put(v(b)), step(1, "u2", Ty.Unit))
 
-  private def program(out: Ty): Ty = fn(Booking.ty, Ty.FlowOf(out, None))
+  private def program(out: Ty): Ty = fn(Booking.ty, Ty.FlowOf(out, Some(Ty.Str))) // each declared to fail (owner §46)
   private def run[T[_], R](l: Lang[T], name: String, out: Ty, x: T[Booking]): T[Program[R]] =
     l.call(l.sym[Booking => Program[R]](name, program(out)), x)
   private def shelved[T[_]](l: Lang[T], w: T[World]): T[List[Booking]] =

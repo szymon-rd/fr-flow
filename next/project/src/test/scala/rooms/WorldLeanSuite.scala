@@ -62,7 +62,7 @@ class WorldLeanSuite extends munit.CatsEffectSuite:
       assert(valued.nonEmpty && valued.forall(_ == ObligationStatus.Proven), valued))
   }
 
-  val store = Definition[BigInt => Flow[Unit]]("a number stored on the shelf")
+  val store = Definition[BigInt => Flow[Unit]]("a number stored on the shelf").failsWith[frflow.eval.flow.Trouble]
   val storeCode = program { (n: Term[BigInt]) => Flow.step(frflow.eval.flow.Shelf.put(n)) }
   val oneShelf = Node.assumption("One at a time.")(frflow.eval.flow.Shelf.kept.atomic)
   val nothingElse = Node.assumption("Nothing but the programs change the shelf.")(
@@ -73,11 +73,11 @@ class WorldLeanSuite extends munit.CatsEffectSuite:
   test("a run read as failing: Lean proves what a failed run leaves, and not a false one".tag(Live)) {
     import frflow.eval.flow.{Shelf, Trouble}
     val kept = Node.claim("A store that fails leaves the shelf as it was.")(
-      forall((n: Term[BigInt]) => store(n).failing[Trouble].result.fold(
-        _ => Shelf.kept.in(store(n).failing[Trouble].after) === Shelf.kept.current, _ => n === n)))
+      forall((n: Term[BigInt]) => store(n).result.fold(
+        _ => Shelf.kept.in(store(n).after) === Shelf.kept.current, _ => n === n)))
     val twice = Node.claim("A store that fails leaves the shelf holding the number twice more.")(
-      forall((n: Term[BigInt]) => store(n).failing[Trouble].result.fold(
-        _ => Shelf.kept.in(store(n).failing[Trouble].after) === Shelf.kept.current :+ n :+ n, _ => n === n)))
+      forall((n: Term[BigInt]) => store(n).result.fold(
+        _ => Shelf.kept.in(store(n).after) === Shelf.kept.current :+ n :+ n, _ => n === n)))
     for
       (k, kt) <- standing(failingRun(kept), "kept")
       (t, tt) <- standing(failingRun(twice), "twice")

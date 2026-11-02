@@ -23,14 +23,14 @@ class ReviewLeanSuite extends munit.CatsEffectSuite:
   private def module(kb: FrModel, name: String): String = Projects.bare(Projects.elaborated(kb)).modules
     .find(_.name.dotted == s"FrFlowGen.${kb.name.value}.$name").map(Print.module).getOrElse(fail(s"no $name"))
 
-  val store = Definition[BigInt => Flow[Unit]]("a number stored on the shelf")
+  val store = Definition[BigInt => Flow[Unit]]("a number stored on the shelf").failsWith[Trouble]
   val storeCode = program { (n: Term[BigInt]) => Flow.step(Shelf.put(n)) }
   val oneShelf = Node.assumption("One at a time.")(Shelf.kept.atomic)
   val nothingElse = Node.assumption("Nothing but the programs change the shelf.")(Shelf.kept.onlyCodeChanges)
   /** What a failed store leaves: the program's claim, beside the one about constancy. */
   val failedKeeps = Node.claim("A store that fails leaves the shelf as it was.")(
-    forall((n: Term[BigInt]) => store(n).failing[Trouble].result.fold(
-      _ => Shelf.kept.in(store(n).failing[Trouble].after) === Shelf.kept.current, _ => n === n))).assuming(oneShelf)
+    forall((n: Term[BigInt]) => store(n).result.fold(
+      _ => Shelf.kept.in(store(n).after) === Shelf.kept.current, _ => n === n))).assuming(oneShelf)
   private def shelf(c: frflow.dsl.node.Node): FrModel = FrModel("Shelves")(c.assuming(oneShelf, nothingElse),
     failedKeeps, nothingElse, oneShelf).implementProven(store)(storeCode)
 

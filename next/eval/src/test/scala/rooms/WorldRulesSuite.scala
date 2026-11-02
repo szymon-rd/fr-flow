@@ -49,21 +49,23 @@ class WorldRulesSuite extends munit.FunSuite:
       List(Fault.RuleOverChanging("opening", "startsOpen", "openingAssumed")))
   }
 
-  val store = Definition[BigInt => Flow[Unit]]("a number stored on the shelf")
+  val store = Definition[BigInt => Flow[Unit]]("a number stored on the shelf").failsWith[Trouble]
   val storeCode = program { (n: Term[BigInt]) => Flow.step(Shelf.put(n)) }
   private def shelf(c: frflow.dsl.node.Node): FrModel = FrModel("Shelves")(c).implementProven(store)(storeCode)
 
-  test("a run read both as failing and plainly in one statement is refused: the plain reading says nothing failing") {
+  test("a run of a program declared to fail is read one way, with both outcomes, its result and its world after") {
     val mixed = Node.claim("A store that fails leaves the shelf holding the number twice more.")(
-      forall((n: Term[BigInt]) => store(n).failing[Trouble].result.fold(
+      forall((n: Term[BigInt]) => store(n).result.fold(
         _ => Shelf.kept.in(store(n).after) === Shelf.kept.current :+ n :+ n, _ => n === n)))
-    assertEquals(faults(shelf(mixed)), List(Fault.ReadTwoWays("store")))
+    assertEquals(faults(shelf(mixed)), Nil)
+    assertEquals(Exprs.all(formula(shelf(mixed), "mixed")).collect { case r: Expr.Runs => r.failing },
+      List(false, true))
   }
 
   test("a run read as failing states its failing side: the world a failed run leaves, beside the one it succeeds in") {
     val failed = Node.claim("A store that fails leaves the shelf as it was.")(
-      forall((n: Term[BigInt]) => store(n).failing[Trouble].result.fold(
-        _ => Shelf.kept.in(store(n).failing[Trouble].after) === Shelf.kept.current, _ => n === n)))
+      forall((n: Term[BigInt]) => store(n).result.fold(
+        _ => Shelf.kept.in(store(n).after) === Shelf.kept.current, _ => n === n)))
     formula(shelf(failed), "failed") match
       case Expr.Quant(_, _, Expr.Quant(_, _, Expr.Prim(_, List(ok: Expr.Runs, err: Expr.Runs), _))) =>
         assertEquals((ok.failing, err.failing), (false, true))

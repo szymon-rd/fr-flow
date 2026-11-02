@@ -31,8 +31,8 @@ object NotificationsClaims:
       "leaves the outbox only once the mail server has it, and only such a notice: one the mail server did not take " +
       "stays, to be sent at the next run. The mailbox of each person sent to is as it was, or holds that notice too. " +
       "Nothing else in the library changes. When the outbox cannot be read, nothing changes.") {
-    val after = deliver.failing[Failure].after
-    deliver.failing[Failure].result.fold(
+    val after = deliver.after
+    deliver.result.fold(
       _ => libraryModel.in(after) === libraryModel.current && mailerModel.in(after) === mailerModel.current,
       _ =>
         val (was, is) = (libraryModel.current, libraryModel.in(after))

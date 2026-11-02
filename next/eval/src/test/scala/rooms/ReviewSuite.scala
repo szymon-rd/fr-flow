@@ -118,7 +118,7 @@ class ReviewSuite extends munit.FunSuite:
     assert(compileErrors("define((x: Term[String]) => ofRoom(x).isConstant)").contains("used only in statements"))
   }
 
-  val store = Definition[BigInt => Flow[Unit]]("a number stored on the shelf")
+  val store = Definition[BigInt => Flow[Unit]]("a number stored on the shelf").failsWith[Trouble]
   val storeCode = program { (n: Term[BigInt]) => Flow.step(Shelf.put(n)) }
   val shelfOnly = Node.assumption("Nothing but the programs change the shelf.")(Shelf.kept.onlyCodeChanges)
   val shelfOne = Node.assumption("One at a time.")(Shelf.kept.atomic)
@@ -126,8 +126,8 @@ class ReviewSuite extends munit.FunSuite:
   test("owner §44, §45 A: isConstant is one equation per program that changes what it reads, both outcomes") {
     val stays = Node.claim("The shelf stays as it is.")(Shelf.kept.current.isConstant).assuming(shelfOnly, shelfOne)
     val mentioned = Node.claim("Storing a number keeps it.")(
-      forall((n: Term[BigInt]) => store(n).failing[Trouble].result.fold(_ => True,
-        _ => Shelf.kept.in(store(n).failing[Trouble].after).contains(n)))).assuming(shelfOne)
+      forall((n: Term[BigInt]) => store(n).result.fold(_ => True,
+        _ => Shelf.kept.in(store(n).after).contains(n)))).assuming(shelfOne)
     val kb = FrModel("Shelves")(stays, mentioned, shelfOnly, shelfOne).implementProven(store)(storeCode)
     val programs = Exprs.all(formula(kb, "stays")).collect { case r: Expr.Runs => r.run -> r.failing }.collect {
       case (Expr.Apply(Expr.Sym(n, _), _, _), failing) => n -> failing
@@ -152,19 +152,24 @@ class ReviewSuite extends munit.FunSuite:
     assertEquals(faults(FrModel("Rooms")(rule)), Nil)
   }
 
-  test("finding 3: a plain reading of a program that can fail is refused; read with both outcomes it is not") {
+  test("finding 3, owner §46: a program that can fail declares it, and its run is read with both outcomes") {
     val neverStores = program { (n: Term[BigInt]) => Flow.raise[Trouble, Unit](make[Trouble.TooBig](n)) }
+    val undeclared = Definition[BigInt => Flow[Unit]]("a number stored on the shelf, failing undeclared")
     val puts = Node.claim("Storing a number puts it on the shelf.")(
+      forall((n: Term[BigInt]) => Shelf.kept.in(undeclared(n).after) === Shelf.kept.current :+ n))
+    assertEquals(Theories.problems(FrModel("Shelves")(puts, shelfOnly).implementProven(undeclared)(neverStores)),
+      List(Problem.FailsWithDiffers(SymbolName("undeclared"), None, List(summon[LeanType[Trouble]].ty))))
+    val putsDeclared = Node.claim("Storing a number puts it on the shelf.")(
       forall((n: Term[BigInt]) => Shelf.kept.in(store(n).after) === Shelf.kept.current :+ n))
-    assertEquals(Theories.problems(FrModel("Shelves")(puts, shelfOnly).implementProven(store)(neverStores)),
-      List(Problem.SucceedingOnly(NodeId("puts"), SymbolName("store"))))
-    val both = Node.claim("A store that fails leaves the shelf as it was.")(
-      forall((n: Term[BigInt]) => store(n).failing[Trouble].result.fold(
-        _ => Shelf.kept.in(store(n).failing[Trouble].after) === Shelf.kept.current, _ => n === n)))
-    assert(!Theories.problems(FrModel("Shelves")(both, shelfOnly).implementProven(store)(neverStores)).exists {
-      case Problem.SucceedingOnly(_, _) => true
-      case _                            => false
-    })
+    val runs = Exprs.all(formula(FrModel("Shelves")(putsDeclared, shelfOnly).implementProven(store)(neverStores),
+      "putsDeclared")).collect { case r: Expr.Runs => r.failing }
+    assertEquals(runs, List(false, true))
+    val never = program { (n: Term[BigInt]) => Flow.step(Shelf.put(n)).handle[Trouble](_ => Flow.unit) }
+    val neverProblems = Theories.problems(FrModel("Shelves")(putsDeclared, shelfOnly).implementProven(store)(never))
+    assert(neverProblems.contains(Problem.FailsWithDiffers(SymbolName("store"), Some(summon[LeanType[Trouble]].ty),
+      Nil)), neverProblems)
+    val result: Term[Either[Trouble, Unit]] = store(5).result
+    assert(Term.exprOf(result).nonEmpty)
   }
 
   test("finding 8, owner §45 D: no port reads a value provided where the code runs beside the World") {

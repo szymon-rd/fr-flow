@@ -23,8 +23,8 @@ object HousekeepingClaims:
       "old log entries forgotten, its access requests chased and the shares ending in a day told of, at the time the " +
       "clock gives, and, when that changed it, recorded in the log; it does not move the clock. A run that fails " +
       "changes nothing, and the next minute's run tries again.")(
-    housekeep.failing[Failure].result.fold(_ => housekeep.failing[Failure].changesNothing, _ =>
-      val after = housekeep.failing[Failure].after
+    housekeep.result.fold(_ => housekeep.changesNothing, _ =>
+      val after = housekeep.after
       libraryModel.in(after) === housekeptAt(libraryModel.current, clockModel.current) &&
         clockModel.in(after) === clockModel.current && mailerModel.in(after) === mailerModel.current))
     .refines(sharing.time.Deadlines.trashPurgedOnTime, sharing.time.Deadlines.invitationsLapseOnTime,

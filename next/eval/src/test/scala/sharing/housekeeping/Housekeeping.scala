@@ -15,6 +15,7 @@ import sharing.time.Lifetimes.{gone, inForce, isOpen}
 object Housekeeping:
   val tidy = Definition[(Library, BigInt) => Library]("the library tidied at a moment")
   val housekeep = Definition[Flow[Unit]]("a run of housekeeping on the store, at the time the clock gives")
+    .failsWith[Failure]
 
   /** Whether a share is of a document gone at a moment. */
   val ofGone = define { (lib: Term[Library], t: Term[BigInt], s: Term[Share]) =>
