@@ -406,3 +406,11 @@ all five:
 - E. FrFlow states safety properties. "Eventually" (liveness) and sequencing two runs in one statement are out of
   scope for now, and the docs say so.
 
+## 46. `.failsWith[E]` on the Definition; `.current` (owner)
+Scala cannot have both `Flow[R]` and `Flow[E, R]`. Asked for the spelling of §45 B, with the recommendation "declare
+the error on the Definition", and whether `.current` is fine for the world before a run, the owner answered "Ok". A
+program that can fail is declared `Definition[Time => Flow[Unit]]("…").failsWith[StoreDown]`; `expire(now).result` is
+then `Either[StoreDown, Unit]`, and `p.failing[E]` goes. There is one `Flow` (§42); FrFlow checks the declared error
+against what the code raises. A value read in the world before a run is written `t.current` (`.in(world)` names
+another).
+
