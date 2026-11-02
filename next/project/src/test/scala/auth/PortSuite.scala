@@ -41,6 +41,19 @@ class PortSuite extends munit.CatsEffectSuite:
     "decisionContract" -> ("assumes +tokensIssuedOnce" ->
       "its Lean takes what always holds of the session table, a value from outside (2.6, owner §21)"))
 
+  /** Each value provided where the code runs, judged under owner §45 D: "now" and the history so far, in statements
+    * about the state over time, are the World's; the rest stays provided.
+    */
+  private val provided: Map[String, String] = Map("grants" -> table, "sessions" -> table)
+
+  private def table = "the table as a decision reads it, now: but no statement of auth is about the state over time " +
+    "(each holds of one decision, with no run, isConstant or history), so the value provided is the World's at " +
+    "that moment (the 13b review's single-world equivalence); stays provided"
+
+  test("every value provided where the code runs is judged under owner §45 D") {
+    assertEquals(Ported.provided(elaborated), provided.keySet)
+  }
+
   private def differences: Map[String, String] =
     val now = t.nodes.map(_.node.id.value)
     val gone = reference.nodes.filterNot(now.contains).map(_ -> "gone")

@@ -65,6 +65,22 @@ object Judged:
     "WritesLeaveOthers" -> List("claim", "proven", "proven", ""),
     "NoCrossTenantRead" -> List("claim", "proven", "proven", ""))
 
+  /** Each value provided where the code runs, judged under owner §45 D: one standing for "now" or the history so
+    * far in statements about the state over time is the World's (a model's state); configuration stays provided.
+    * Crm's three are "now" and the history; each stays provided this step, read beside no World (ProvidedBesideWorld
+    * holds), for the reasons given: the step is stopped on them.
+    */
+  val provided: Map[String, String] = Map(
+    "history" -> ("the history so far, read by the roots and the claims saying what added and sharedWith are: the " +
+      "World's event log (databaseModel's events) under §45 D; not moved, as the write side is a pure function, so " +
+      "no run logs a write, and held beside it moves with it"),
+    "held" -> ("what the CRM holds now: the World's store (databaseModel's) under §45 D; not moved, as the " +
+      "database's search fetch is plain Scala reading it, which beside the World is an operation on a state known " +
+      "only by its assumptions (recordsByQuery, owner §39), the step-12 stub not built (StepNotOperation)"),
+    "clock" -> ("the time now: the World's clock under §45 D; not moved, as the World's clock moves only by the " +
+      "programs' sleeps (clockModel, owner §36) and no crm program sleeps: time passing outside the programs has no " +
+      "step in the World (a design point)"))
+
   /** What is not proven: nothing (step 12 rulings: a provided value an assumption pins is solved by it; the idle
     * try of the roots together; a step takes what the makers below it make).
     */

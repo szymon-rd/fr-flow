@@ -49,6 +49,23 @@ class PortSuite extends munit.CatsEffectSuite:
     "the steps they are used in (2.7), with today's introspect, renamed (owner §40)"
   private def renamed = "today's introspect, which refined and kept it, renamed (owner §40)"
 
+  /** Each value provided where the code runs, judged under owner §45 D: "now" and the history so far, in statements
+    * about the state over time, are the World's; configuration stays provided. Keycloak's history and state stay
+    * provided this step, read beside no World, for the reason given: the step is stopped on them.
+    */
+  private val provided: Map[String, String] = Map(
+    "seed" -> "the accounts as loaded at start: configuration, fixed for the run; stays provided",
+    "history" -> ("the requests handled so far, read by statements about what came before (signInHistory, " +
+      "oneSignInPerToken, freshTokens): the World's under §45 D; not moved, as the server has no model (its step is " +
+      "a pure function, its store's record and lookup plain Scala known by assumptions): moving it needs a model " +
+      "and a program per request, lookup and introspect reading the World as operations known only by their " +
+      "assumptions (sessionLookup, owner §39), the step-12 stub not built (StepNotOperation)"),
+    "state" -> "the server's state now, which serverRun pins to the history: as the history")
+
+  test("every value provided where the code runs is judged under owner §45 D") {
+    assertEquals(Ported.provided(elaborated), provided.keySet)
+  }
+
   private def differences: Map[String, String] =
     val now = t.nodes.map(_.node.id.value)
     val gone = reference.nodes.filterNot(now.contains).map(_ -> "gone")

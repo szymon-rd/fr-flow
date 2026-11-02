@@ -35,10 +35,40 @@ object Judged:
     "node transactions said so of the store, and the boundaries' runs were taken as steps"
 
   /** Where each node stands apart from today, each for a reason the design gives. */
-  val standings: Map[String, List[String]] = Map.empty
+  val standings: Map[String, List[String]] =
+    // A contract is a claim (owner §15), proven of its code as today; a definition fixing a word is a claim, an
+    // equation proven of the define giving the Definition its meaning, or a fixed value's (owner §15, 2.7).
+    List("AcceptContract", "AccessContract", "AnnounceContract", "ApproveContract", "AskContract", "CanEditContract",
+      "CanViewContract", "ChaseContract", "DeclineContract", "ForgetContract", "GoneContract", "HandleContract",
+      "HousekeepingJob", "InForceContract", "InviteContract", "IsOpenContract", "MoveContract", "PendingContract",
+      "RecordContract", "ReminderDueContract", "RestoreContract", "ShareContract", "TidyContract", "TransferContract",
+      "TrashContract", "UnshareContract", "WarnContract", "WithdrawContract", "Cover", "EditPermission",
+      "HousekeepingPeriod", "InTrash", "InvitationLifetime", "OwnersShare", "Permission", "Reach", "ReminderTime",
+      "RequestLifetime", "TrashLifetime").map(_ -> List("claim", "proven", "proven", "")).toMap ++
+    // Each model's runs one at a time, an assumption of the model (owner §32, §36); nothing to check of it.
+    List("ClockAlone", "MailOneAtATime", "OneTransactionAtATime", "PoolOneAtATime")
+      .map(_ -> List("assumption", "assumed", "", "")).toMap ++
+    // That nothing but the code changes a model's state (owner §36), with the model's Scala tested against it on
+    // generated runs, 200 per implementation (ModelRuns.Runs): the store, the mail server, the clock and the pool in
+    // memory; today's ran its SQLite store too (1,200 runs), which is not ported (its in-memory store is).
+    List("ClockKept", "LibraryKept", "MailerKept", "PoolKept").map(_ -> List("assumption", "assumed", "", "200"))
+      .toMap ++
+    // Delivery's runs are proven of its code, but its sends at once, branches calling the mail server that may
+    // fail, are not shown to commute (commute_0): stopped on a design point (`stopped`). What rests on them waits.
+    List("DeliveryJob", "DeliveryGivesBack").map(_ -> List("claim", "open", "open", "")).toMap ++
+    List("NoticesFollowChanges", "AccessFollowsShares").map(_ -> List("claim", "waiting", "waiting", "")).toMap
 
   /** What is not proven, each for a design point the step stops on. */
   val stopped: Map[String, List[String]] = Map.empty
+
+  /** Each value provided where the code runs, judged under owner §45 D. */
+  val provided: Map[String, String] = Map(
+    "events" -> ("the run's history so far, which the deadlines and the branches read as the service's moment " +
+      "(atEnd): the World's under §45 D; not moved, as the deadlines rest on time passing between runs and on " +
+      "housekeeping's schedule (housekeepingOnTime), which the World cannot say: its clock moves only by the " +
+      "programs' sleeps, a wait outside them has no step, and an assumed rule about a state is asked cover_ of " +
+      "every program (a design point); read beside no World, as today's run"),
+    "startedAt" -> "when the service started: configuration, fixed for the run, the start of its history")
 
   /** Today's Lean over the port's types. */
   def oldOverNew(text: String): String = text

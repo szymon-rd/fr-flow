@@ -71,13 +71,19 @@ val knowledge: FrModel = withCode(FrModel("Sharing")(nodes*)).implementProven(Sh
 /** `kb` with the code of every Definition of sharing but `access`: the proven code of the words, the operations and
   * the programs, the fixed lifetimes, the run's history provided, and each model's Scala.
   */
-def withCode(kb: FrModel): FrModel = kb
+def withCode(kb: FrModel): FrModel = models(lifetimes(programs(operations(words(kb)))))
+
+/** The purpose's words' proven code. */
+private def words(kb: FrModel): FrModel = kb
   .implementProven(reaches)(reachesCode)
   .implementProven(covers)(coversCode)
   .implementProven(mayView)(mayViewCode)
   .implementProven(mayEdit)(mayEditCode)
   .implementProven(inTrash)(inTrashCode)
   .implementProven(ownedBy)(ownedByCode)
+
+/** The operations' proven code, but access's. */
+private def operations(kb: FrModel): FrModel = kb
   .implementProven(Sharing.canView)(Sharing.canViewCode)
   .implementProven(Sharing.canEdit)(Sharing.canEditCode)
   .implementProven(Sharing.share)(Sharing.shareCode)
@@ -97,20 +103,29 @@ def withCode(kb: FrModel): FrModel = kb
   .implementProven(Audit.forget)(Audit.forgetCode)
   .implementProven(Notifications.announce)(Notifications.announceCode)
   .implementProven(Notifications.warn)(Notifications.warnCode)
+
+/** The three programs' proven code, and tidying's. */
+private def programs(kb: FrModel): FrModel = kb
   .implementProven(Notifications.deliver)(Notifications.delivery)
   .implementProven(Housekeeping.tidy)(Housekeeping.tidyCode)
   .implementProven(Housekeeping.housekeep)(Housekeeping.housekeeping)
+  .implementProven(SharingHttp.handle)(SharingHttp.handleRequest)
+
+/** The lifetimes' proven code, and their fixed durations. */
+private def lifetimes(kb: FrModel): FrModel = kb
   .implementProven(Lifetimes.inForce)(Lifetimes.inForceCode)
   .implementProven(Lifetimes.isOpen)(Lifetimes.isOpenCode)
   .implementProven(Lifetimes.gone)(Lifetimes.goneCode)
   .implementProven(Lifetimes.isPending)(Lifetimes.isPendingCode)
   .implementProven(Lifetimes.reminderDue)(Lifetimes.reminderDueCode)
-  .implementProven(SharingHttp.handle)(SharingHttp.handleRequest)
   .implementValue(Lifetimes.invitationLasts)(BigInt(7 * 86400))
   .implementValue(Lifetimes.trashKeeps)(BigInt(30 * 86400))
   .implementValue(Lifetimes.requestLasts)(BigInt(7 * 86400))
   .implementValue(Lifetimes.remindAfter)(BigInt(2 * 86400))
   .implementValue(Run.housekeepingWithin)(BigInt(120))
+
+/** The run's history, provided; each model's Scala. */
+private def models(kb: FrModel): FrModel = kb
   .implementProvided(Run.startedAt, Run.events)
   .implementTested(LibraryStore.load, LibraryStore.save)(start = MemoryLibraryStore.holding, observe = _.library)(
     s => (s.load, s.save))
