@@ -98,6 +98,15 @@ enum Problem:
     * world, so a "now" it stands for is no world's (owner §45 D): model it as part of the World, a state model.
     */
   case ProvidedBesideWorld(id: NodeId, provided: SymbolName)
+  /** An assumed rule about a model's state (`always[T]` of a type its state holds, or `always(stored)`) where no
+    * assumption says what the state starts in (`initially`): nothing shows the start meets it (`start_`). A claimed
+    * rule lists the missing premise instead (`PremiseMissing`).
+    */
+  case NoStart(rule: NodeId, model: ModelName)
+  /** A program writing a model's state in its own steps, not through an operation: only an operation's meaning
+    * writes its model's state, so which programs change it is read off the operations they call.
+    */
+  case WritesState(program: DefName, model: ModelName)
   /** A program with a transaction inside a transaction (`atomically` within `atomically`): production runs each
     * under one lock, which is not reentrant, so the inner one would wait on the outer for ever.
     */

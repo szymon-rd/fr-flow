@@ -4,7 +4,7 @@ import cats.data.{NonEmptyChain, Validated, ValidatedNec}
 import cats.syntax.all.*
 import frflow.core.{Elaborated, Failing, Theory}
 import frflow.core.code.Code
-import frflow.core.expr.{Expr, Exprs, PrimOp, Prog, Progs}
+import frflow.core.expr.{Expr, Exprs, OutsideFact, PrimOp, Prog, Progs}
 import frflow.core.graph.{Edge, Walk}
 import frflow.core.name.{LeanNames, NodeId, SymbolName}
 import frflow.core.spec.NodeKind
@@ -87,7 +87,14 @@ object Validate:
     val unneeded = t.nodes.map(_.node.id).flatMap(id => Outsides.premises(t, id).filter(p =>
       t.node(p).exists(n => Outsides.aboutOutside(n) && !Premises.of(t, id).exists(Outsides.saysOf(n, _))))
       .map(Problem.PremiseNotNeeded(id, _)))
-    all(missing ++ unneeded ++ worldsEqual(t) ++ Unreached.of(t))
+    all(missing ++ unneeded ++ worldsEqual(t) ++ Unreached.of(t) ++ noStart(t))
+
+  /** Each assumed rule about a model's state with no assumption saying what the state starts in. */
+  private def noStart(t: Theory): List[Problem] =
+    val started = Outsides.all(t).collect { case (_, OutsideFact.Initially(m, _)) => m }.toSet
+    t.nodes.map(_.node).filter(n => n.statement.kind == NodeKind.Assumption && n.statement.rule).flatMap(n =>
+      n.statement.range.toList.flatMap(Scope.models(t, _)).map(_.name).filterNot(started)
+        .map(Problem.NoStart(n.id, _)))
 
   /** An equation of worlds in a statement, where the worlds hold faults (a model's operations may fail). */
   private def worldsEqual(t: Theory): List[Problem] =
@@ -121,7 +128,16 @@ object Validate:
       case Expr.Do(p, _) => Progs.nestsAtomic(p)
       case _             => false)).map(d => Problem.NestedAtomic(d.name))
     all(unclaimed.map(Problem.CodeWithoutClaim(_)) ++ Resolve.circles(t).map(Problem.RestsOnItself(_)) ++ runs ++
-      differing ++ clauses ++ nested ++ steps(t) ++ providedBesideWorld(t))
+      differing ++ clauses ++ nested ++ steps(t) ++ providedBesideWorld(t) ++ writes(t))
+
+  /** A program writing a model's state in its own steps, through the defines it calls (owner §36: an operation's). */
+  private def writes(t: Theory): List[Problem] = t.vocabulary.defines.filter(_.form == DefineForm.Flow).flatMap(d =>
+    d.lambda.body match
+      case Expr.Do(p, _) => Progs.all(p).collect {
+          case Prog.Write(m, _)     => Problem.WritesState(d.name, m)
+          case Prog.Modify(m, _, _) => Problem.WritesState(d.name, m)
+        }.distinct
+      case _             => Nil)
 
   /** Each statement reading the World and a value provided where the code runs (owner §45 D): none of the four
     * ports has one (`rooms.ReviewSuite`); crm's, keycloak's and auth's histories and clock become state models in

@@ -55,6 +55,10 @@ object Problems:
     case Problem.NeverFails(id, s)          => s"$id speaks of a failing run of ${s.value}, which cannot fail"
     case Problem.ProvidedBesideWorld(id, s) => s"$id reads ${s.value}, provided where the code runs, beside the " +
         "World: it is the same in every world; model it as a state"
+    case Problem.NoStart(r, m)              => s"the rule $r is assumed of ${m.value}'s state, but nothing says what " +
+        s"that state starts in: assume ${m.value}.initially(…)"
+    case Problem.WritesState(p, m)          => s"${p.value} writes ${m.value}'s state in its own steps: only an " +
+        s"operation of ${m.value} writes it; call one"
     case Problem.SucceedingOnly(id, s)      => s"$id reads a run of ${s.value} plainly, but it can fail: read so, it " +
         s"says nothing of the runs that fail; read it with both outcomes, ${s.value}(…).failing[E]"
     case Problem.NestedAtomic(prog)         => s"${prog.value} runs a transaction inside a transaction"

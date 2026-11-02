@@ -65,6 +65,20 @@ object FailureCases:
       Written.steps(List(b), again, Ty.Unit, SourceText("bookIfFree")), DefineForm.Flow))))
       .unlinking(assumes("bookRuns", "oneAtATime"))
 
+  /** `book`'s program clearing the store's state in its own steps, not through an operation. */
+  private val writing: Kb =
+    val b = Binder(VarId.level(0), "b", Booking.ty)
+    val held = Binder(VarId.step(0), "held", Ty.ListOf(Booking.ty))
+    val cleared = Prog.Modify(Store.model, held, Stated([T[_]] => (s: Sym[T]) => s.nil[Booking](Booking.ty)))
+    Store.kb.declaring(v => v.copy(defines = List(Define(DefName("bookIfFree"),
+      Written.steps(List(b), cleared, Ty.Unit, SourceText("bookIfFree")), DefineForm.Flow))))
+      .unlinking(assumes("bookRuns", "oneAtATime"))
+
+  /** An assumption of `always[Booking]`, which the store's state holds, with nothing saying what it starts in. */
+  private val unstarted: Kb = Store.kb.and(assumption("endsAfterStart")(Lang.formula([T[_]] => (l: Lang[T]) =>
+    l.s.always(Bound[Booking]("b", Booking.ty))(x => l.s.lt(l.s.field(x, Booking.start), l.s.field(x, Booking.end))))))
+    .declaring(v => v.copy(types = List(Booking.data))).linking(assumes("bookRuns", "endsAfterStart"))
+
   /** `∀ before, before = before`, a claim of worlds equal, where the store may be down. */
   val sameWorld = claim("sameWorld")(Lang.formula([T[_]] => (l: Lang[T]) =>
     l.forall[World]("before", Ty.World)(w => l.s.eq(w, w))))
@@ -83,4 +97,6 @@ object FailureCases:
     ProblemCase(claiming(down, Lang.big),
       List(Problem.FailingDiffers(NodeId("bookFails"), Store.book, Lang.big, Ty.Str))),
     ProblemCase(claiming(Store.kb, Ty.Str), List(Problem.NeverFails(NodeId("bookFails"), Store.book))),
-    ProblemCase(plainly, List(Problem.SucceedingOnly(NodeId("bookRuns"), Store.book))))
+    ProblemCase(plainly, List(Problem.SucceedingOnly(NodeId("bookRuns"), Store.book))),
+    ProblemCase(writing, List(Problem.WritesState(DefName("bookIfFree"), Store.model))),
+    ProblemCase(unstarted, List(Problem.NoStart(NodeId("endsAfterStart"), Store.model))))

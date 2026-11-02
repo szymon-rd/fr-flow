@@ -14,7 +14,7 @@ object Forgetting:
     def add(booking: Booking): IO[Unit] = IO(booking).void
     def bookings: IO[List[Booking]] = held.get
 
-  private val dropped = Set("neverOverlap", "nothingElseWrites", "startsEmpty")
+  private val dropped = Set("neverOverlap", "nothingElseWrites")
 
   val kb: FrModel = forgetting(rooms.nodes.filterNot(n => dropped(n.head.id.value)))
 
