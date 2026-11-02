@@ -1,6 +1,7 @@
 package frflow.project.pipeline
 
 import frflow.core.analysis.{Constrained, Scope}
+import frflow.core.analysis.outside.Reads
 import frflow.core.graph.Walk
 import frflow.core.checking.Checking
 import frflow.core.name.NodeId
@@ -54,10 +55,17 @@ object ReadProof:
     val leaf = n.statement.kind == NodeKind.Claim && t.refinement.parts(n.id).isEmpty && !checked
     Option.when(leaf)(Unproven.NothingBelow).toList
 
-  /** Of an `always`, each program keeping it whose `cover_<op>` is not proven. */
+  /** Of an `always`, each program keeping it whose `cover_<op>` is not proven; of a statement taking a rule as a
+    * hypothesis (`Reads.takes`), each such rule: its step rests on the rule holding where it starts, as it rests on
+    * what the makers below it make (`made`).
+    */
   private def kept(a: Analysis, id: NodeId, rs: List[Result]): List[Unproven] =
-    Option.when(Scope.of(a.decided.theory, id).exists(op => !status(rs, Cover(op.value)).forall(_ == Proven)))(
-      Unproven.Kept(id)).toList
+    val t = a.decided.theory
+    def open(rule: NodeId, results: List[Result]) =
+      Scope.of(t, rule).exists(op => !status(results, Cover(op.value)).forall(_ == Proven))
+    val taken = t.nodes.map(_.node).filter(r => r.id != id && r.statement.rule && Reads.takes(t, id, r.id))
+      .filter(r => open(r.id, a.current(r.id).toList.flatMap(_.results)))
+    (Option.when(open(id, rs))(Unproven.Kept(id)).toList ++ taken.map(r => Unproven.Kept(r.id))).distinct
 
   /** Of a step taking what the makers below it make (`Made.taken`), each rule whose `made_<maker>` is not proven, or
     * the `made_` of a maker it calls, which that `made_` takes (`Made.resting`): the step rests on each (step 12

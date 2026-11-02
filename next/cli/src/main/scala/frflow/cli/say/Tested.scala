@@ -71,6 +71,7 @@ object Tested:
     case OnCode.Abstract(ds)    => s"it speaks of Declarations (${ds.map(_.value).mkString(", ")}): checked against " +
         "the claims only"
     case OnCode.Threw(m)        => s"the code threw: $m"
+    case OnCode.BreaksRule(r)   => s"a value it gives breaks the rule ${r.value}: no code is given one"
 
   private def difference(d: Difference): String = d match
     case Difference.Call(s, impl, model) => s"at ${step(s)} the Scala ${ran(impl)}, the model ${ran(model)}"

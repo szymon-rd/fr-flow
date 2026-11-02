@@ -27,6 +27,7 @@ object ExampleEvent:
   def said(v: Verdict): String = v match
     case Verdict.Ran(OnCode.Holds)             => "holds of the code"
     case Verdict.Ran(OnCode.Fails)             => "the code does not meet it"
+    case Verdict.Ran(OnCode.BreaksRule(r))     => s"a value it gives breaks the rule ${r.value}: no code is given one"
     case Verdict.Ran(other)                    => s"the code could not evaluate it ($other): a fault of its wiring"
     case Verdict.LeanOnly(OnCode.Abstract(ds)) =>
       s"about ${ds.map(_.value).mkString(", ")}, which have no code: checked against the claims in Lean only"

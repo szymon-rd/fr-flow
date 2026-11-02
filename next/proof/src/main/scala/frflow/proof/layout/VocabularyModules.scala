@@ -2,7 +2,10 @@ package frflow.proof.layout
 
 import cats.syntax.all.*
 import frflow.core.expr.{Expr, Progs}
-import frflow.core.spec.Form
+import frflow.core.analysis.outside.Guards
+import frflow.core.name.DefName
+import frflow.core.spec.{Form, Range}
+import frflow.core.term.interpret.{Guard, Guarded}
 import frflow.core.ty.{DataType, Ty}
 import frflow.core.vocab.{Define, DefineForm}
 import frflow.proof.lean.ast.*
@@ -63,13 +66,28 @@ object VocabularyModules:
       LowerModels(l.env, l.naming).run(d, flow, opens(l, d).map(s => s -> l.table.typeOf(s)))
     case (DefineForm.Flow, Form.Steps(p))      => flow(l, d, p)
     case (_, Form.Term(t))                     =>
-      val (bs, body) = Printed.define(l.env, l.naming)(d.lambda.params, t.run)
+      val (bs, body) = Printed.define(l.env, l.naming)(d.lambda.params, Guarded.of(t.run, guards(l, d)))
       Decl.Def(List(Attr.FrflowDefs), Names.define(d.name.value), openBinders(l, d) ++ bs,
         LowerType(d.lambda.result), body)
     case (_, Form.Steps(_))                    =>
       throw IllegalStateException(s"FrFlow bug: ${d.name.value}'s steps are not a program's")
 
-  /** A program, generic in its monad: `{m : Type → Type} [Monad m] [MonadExceptOf E m] [Bookings m] (open terms) :
+  /** What a define's `forall`s come with, as a statement's do (semantics review, finding 5): each value rule
+    * (`always[T]`) on its variable's type, but those of rules that call the define, which would be about themselves.
+    * So a define read inline means what it does named. A rule's own define is the rule, guarded by none.
+    */
+  private def guards(l: Lowering, d: Define): List[Guard] =
+    val t = l.resolved.theory
+    val rules = Guards.byAlways(t).map(_._1)
+    if rules.exists(r => DefName(r.value) == d.name) then Nil
+    else Guards.byAlways(t).collect {
+      case (rule, g) if t.node(rule).flatMap(_.statement.range).exists {
+            case Range.Made(ty) => ty != Ty.World
+            case _              => false
+          } && !t.vocabulary.closure(List(DefName(rule.value))).exists(_.name == d.name) => g
+    }
+
+  /** A program, generic in its monad:`{m : Type → Type} [Monad m] [MonadExceptOf E m] [Bookings m] (open terms) :
     * A → m R := fun (a : A) => do …`, the monad's name taken by no symbol (`Naming.helper`).
     */
   private def flow(l: Lowering, d: Define, p: frflow.core.expr.Prog[frflow.core.term.Stated[?]]): Decl =

@@ -20,6 +20,12 @@ final case class Made(always: NodeId, ty: Ty, rule: Applied, fields: (ScalaValue
 
   def holds(v: ScalaValue, env: Env): Boolean = rule.run(env, List(v)).exists(Fn.bool)
 
+  /** Whether one of `values` (`types` theirs) breaks the rule: the rule evaluated on it is false (one it cannot be
+    * evaluated on breaks nothing here: Lean judges it).
+    */
+  def breaks(values: List[ScalaValue], types: List[Ty], env: Env): Boolean =
+    values.zip(types).flatMap(of).exists(v => rule.run(env, List(v)).exists(r => !Fn.bool(r)))
+
   /** The values of `ty` in `v` (of type `t`). */
   private def of(v: ScalaValue, t: Ty): List[ScalaValue] = t match
     case `ty`              => List(v)
