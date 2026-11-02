@@ -5,6 +5,7 @@ import frflow.core.name.NodeId
 import frflow.eval.flow.{Shelf, Trouble}
 import frflow.project.{Live, Ported, Projects}
 import frflow.proof.lean.print.Print
+import frflow.proof.obligation.ObligationName
 import scala.concurrent.duration.*
 
 /** The semantics review's probes that Lean proved (scratchpad semantics-review.md), now not proven, and the new
@@ -75,4 +76,46 @@ class ReviewLeanSuite extends munit.CatsEffectSuite:
   test("finding 13: a rule over a Declaration that does not change with the World is built and stated".tag(Live)) {
     standing(FrModel("Rooms")(startsOpen, nine), "nine").map((row, table) =>
       assertEquals(row.lift(1), Some("proven"), table))
+  }
+
+  private val gAtomic = Node.assumption("One at a time.")(storedBookings.atomic)
+  private val gOnly = Node.assumption("Only code.")(storedBookings.onlyCodeChanges)
+  private val gStart = Node.assumption("Starts empty.")(storedBookings.initially(s => s === Nil))
+  private val gGrant = Node.claim("Granted when no overlap.")(
+    forall((held: Term[RoomBookings], request: Term[Booking]) =>
+      granted(held, request) === held.bookings.forall(b => noOverlap(b, request)))).assuming(ends)
+  private def rooms1(ns: frflow.dsl.node.Node*): FrModel =
+    FrModel("Rooms")((ns.toList ++ List(gStart, gAtomic, gOnly, ends))*)
+      .implementProven(book)(bookIfGranted)
+      .implementTested(granted)(_ => (held, request) => Calendar(held).grants(request))
+      .implementTested(inRoom, add)(start = BookingsTable.holding, observe = _.bookings)(t => (t.inRoom, t.add))
+  private val ofRoomD = define { (room: Term[String]) => storedBookings.current.filter(b => b.room === room) }
+
+  test("second review S1: conditions below book's run build in Lean, its code calling the tested calendar"
+      .tag(Live)) {
+    val j2 = Node.claim("A request answered booked is stored.")(
+      forall((r: Term[Booking]) => book(r).result implies storedBookings.in(book(r).after).contains(r)))
+      .assuming(gAtomic, ends)
+    val j = Node.claim("A free request is answered booked.")(
+      forall((r: Term[Booking]) => free(storedBookings.current, r) implies book(r).result))
+      .assuming(gAtomic, ends)
+    Ported.run(Projects.elaborated(rooms1(j2, j, gGrant.refines(j2, j))), Nil, Ported.Lean(Nil, Nil, None), Nil)
+      .map { r =>
+        val satisfiable = r.analysis.wholeCheck.toList.flatMap(_.results).filter(_.name match
+          case ObligationName.Satisfiable(_, _) => true
+          case _                                => false)
+        assertEquals(satisfiable.map(_.name).toSet, Set(ObligationName.Satisfiable(NodeId("j2"), 0),
+          ObligationName.Satisfiable(NodeId("j"), 0)))
+        assert(satisfiable.forall(_.messages.forall(!_.error)), satisfiable)
+      }
+  }
+
+  test("second review B1: the semantics review's W, its world named before the run, is proven".tag(Live)) {
+    val wNeg = Node.claim("Once booked, the request was not among its room's bookings.")(
+      forall((r: Term[Booking]) => book(r).result implies !ofRoomD(r.room).current.contains(r)))
+      .assuming(gAtomic, ends)
+    val claim = module(rooms1(wNeg, gGrant.refines(wNeg)), "wNeg.Spec")
+    assert(claim.contains("(Rooms.ofRoomD r.room world)"), claim)
+    standing(rooms1(wNeg, gGrant.refines(wNeg)), "wNeg").map((row, table) =>
+      assertEquals(row.lift(2), Some("proven"), table))
   }

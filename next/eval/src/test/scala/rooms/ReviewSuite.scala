@@ -62,8 +62,14 @@ class ReviewSuite extends munit.FunSuite:
     def readAt(id: String) = Exprs.all(formula(withCode(after, before), id)).collect {
       case Expr.Call(d, args, _) if d.value == "ofRoom" => args.last
     }
-    assert(readAt("after").forall { case Expr.Var(x) => x.hint == "after"; case _ => false }, readAt("after"))
-    assert(readAt("before").forall { case Expr.Var(x) => x.hint == "world"; case _ => false }, readAt("before"))
+    assert(readAt("after").nonEmpty && readAt("after").forall {
+      case Expr.Var(x) => x.hint == "after"
+      case _           => false
+    }, readAt("after"))
+    assert(readAt("before").nonEmpty && readAt("before").forall {
+      case Expr.Var(x) => x.hint == "world"
+      case _           => false
+    }, readAt("before"))
     val declared = Node.claim("An accepted request is booked after it is handled.")(
       forall((r: Term[Booking]) => accepted(r) implies storedBookings.in(book(r).after).contains(r)))
     assertEquals(faults(withCode(declared, acceptedIsAnswered)), List(Fault.WorldUnnamed(List("accepted"))))

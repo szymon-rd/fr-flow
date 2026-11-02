@@ -1,7 +1,7 @@
 package rooms
 
 import frflow.*
-import frflow.core.expr.{Expr, Exprs}
+import frflow.core.expr.{Expr, Exprs, PrimOp}
 import frflow.core.name.SymbolName
 import frflow.core.ty.{NumKind, Ty}
 import frflow.core.vocab.SymbolType
@@ -67,8 +67,15 @@ class WorldRulesSuite extends munit.FunSuite:
     formula(shelf(failed), "failed") match
       case Expr.Quant(_, _, Expr.Quant(_, _, Expr.Prim(_, List(ok: Expr.Runs, err: Expr.Runs), _))) =>
         assertEquals((ok.failing, err.failing), (false, true))
-        assert(Exprs.all(err.post).exists { case Expr.Part(Expr.Var(a), _, _) => a == err.after; case _ => false },
-          err.post)
+        // Each side's post is its branch as written (the second review's S3, S4): the failing side the equation of
+        // the worlds, the succeeding side `n = n`; no `fold` of a constructor, nor a post made vacuous.
+        err.post match
+          case Expr.Prim(PrimOp.Eq, List(Expr.Part(Expr.Var(a), _, _), Expr.Part(Expr.Var(w), _, _)), _) =>
+            assertEquals((a, w.ty), (err.after, Ty.World))
+          case other => fail(other.toString)
+        ok.post match
+          case Expr.Prim(PrimOp.Eq, List(Expr.Var(x), Expr.Var(y)), _) => assertEquals(x, y)
+          case other => fail(other.toString)
       case other => fail(other.toString)
   }
 
