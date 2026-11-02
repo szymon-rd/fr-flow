@@ -41,16 +41,15 @@ class PortSuite extends munit.CatsEffectSuite:
     "decisionContract" -> ("assumes +tokensIssuedOnce" ->
       "its Lean takes what always holds of the session table, a value from outside (2.6, owner §21)"))
 
-  /** Each value provided where the code runs, under owner §45 D, which names auth: its tables put to the owner. */
-  private val provided: Map[String, Ported.OnD] = Map("grants" -> Ported.OnD.ForOwner(table),
-    "sessions" -> Ported.OnD.ForOwner(table))
+  /** Each value provided where the code runs, under owner §45 D, which names auth: its tables stay provided (§48). */
+  private val provided: Map[String, Ported.OnD] = Map("grants" -> Ported.OnD.Ruled("§48", table),
+    "sessions" -> Ported.OnD.Ruled("§48", table))
 
-  private def table = "auth's tables read in one moment: keep provided? The builder's view: yes. The table as a " +
-    "decision reads it, now; but no statement of auth is about the state over time (each holds of one decision, " +
-    "with no run, isConstant or history), so the value provided is the World's at that moment (the 13b review's " +
-    "single-world equivalence)"
+  private def table = "auth's tables read in one moment stay provided: no statement of auth is about the state over " +
+    "time (each holds of one decision, with no run, isConstant or history), so the value provided is the World's at " +
+    "that moment; were one to compare two moments, they would move into the World then"
 
-  test("every value provided where the code runs stands under owner §45 D: the tables a question for the owner") {
+  test("every value provided where the code runs stands under owner §45 D: the tables stay provided (owner §48)") {
     assertEquals(Ported.provided(elaborated), provided.keySet)
     assertEquals(Ported.stoppedOnD(provided), Map.empty)
   }

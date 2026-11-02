@@ -83,8 +83,8 @@ object Ported:
       * done for it.
       */
     case Stopped(on: String, why: String)
-    /** A question put to the owner, with the builder's view: D names the value, the builder would keep it. */
-    case ForOwner(question: String)
+    /** D names the value, and the owner ruled it stays provided (`by`, a decision of his). */
+    case Ruled(by: String, why: String)
 
   /** The values D is not done for: each stopped one, with the point it waits on. */
   def stoppedOnD(judged: Map[String, OnD]): Map[String, String] =
