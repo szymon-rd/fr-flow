@@ -27,10 +27,11 @@ final class ModelRuns[F[_]: MonadThrow: Ref.Make](check: ModelTests.Check, seman
   private val model = check.model
   private val typing = Typing(semantics, t.vocabulary)
   private val always = Always.of(semantics, t)
-  private val ops: List[SymbolName] = model.ops.map(_.op)
+  private val ops: List[SymbolName] = model.operations
   private val branches: Map[SymbolName, List[Prog[Stated[?]]]] = model.ops.map(o =>
     o.op -> Progs.all(o.steps).collect { case b @ Prog.Branch(_, _, _) => b }).toMap
   private val node: NodeId = ModelRuns.reportedUnder(model.name)
+  private val checked = check.copy(assumptions = AssumedRuns.of(semantics, t))
 
   def of(plan: Plan, draw: Draw): F[TestReport] =
     val runs = plan.settings.cases.min(most)
@@ -63,7 +64,7 @@ final class ModelRuns[F[_]: MonadThrow: Ref.Make](check: ModelTests.Check, seman
           .map((small, run, why) => Failure.Run(small, run, why, from)))))
 
   private def differs(hits: Ref[F, Hits])(s: Value, steps: List[Step]): F[Option[Difference]] =
-    ModelTests.run(check, semantics, t.vocabulary, branched(hits))(typing.literal(s, model.state), steps)
+    ModelTests.run(checked, semantics, t.vocabulary, branched(hits))(typing.literal(s, model.state), steps)
 
   private def branched(hits: Ref[F, Hits])(op: SymbolName, p: Prog[Stated[?]], held: Boolean): F[Unit] =
     val at = (ops.indexOf(op), branches.getOrElse(op, Nil).indexWhere(_ eq p))
@@ -72,7 +73,10 @@ final class ModelRuns[F[_]: MonadThrow: Ref.Make](check: ModelTests.Check, seman
 
   /** The operations a run called: up to the call done differently, or all of them. */
   private def called(steps: List[Step], d: Option[Difference]): Hits =
-    val upTo = d.collect { case Difference.Call(st, _, _) => steps.indexOf(st) + 1 }.getOrElse(steps.size)
+    val upTo = d.collect {
+      case Difference.Call(st, _, _)    => steps.indexOf(st) + 1
+      case Difference.Assumed(st, _, _) => steps.indexOf(st) + 1
+    }.getOrElse(steps.size)
     steps.take(upTo).foldMap(st => Hits.of(Target(Position(List(ops.indexOf(st.op))), Reach.Called(st.op))))
 
   /** A state meeting every `always(stored)` about the model, then a run of its operations. */

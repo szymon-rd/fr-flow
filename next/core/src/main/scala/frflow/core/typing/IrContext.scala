@@ -19,10 +19,10 @@ object IrContext:
       case Nil => defined.lambda.result
       case ps  => Ty.FnOf(ps.map(_.ty), defined.lambda.result)),
     (n, t) => v.symbol(n).exists(s => s.ty == SymbolType.Typed(t) || codeOnly(s.ty)) || meaning(v, n).contains(t),
-    op => v.modelOf(op).flatMap(_.op(op)).map(_.sig), m => v.model(m).map(_.state))
+    op => v.modelOf(op).flatMap(_.sigOf(op)), m => v.model(m).map(_.state))
 
   private def meaning(v: Vocabulary, op: SymbolName): Option[Ty] =
-    v.modelOf(op).flatMap(m => m.op(op).map(o => Ty.FnOf(o.params.map(_.ty) :+ m.state, o.result)))
+    v.modelOf(op).flatMap(m => m.sigOf(op).map(o => Ty.FnOf(o.params.map(_._2) :+ m.state, o.result)))
 
   /** A value only plain code reads: no Lean type to check it at; a statement mentioning it is refused by `Validate`
     * (`CodeOnlyInStatement`), which runs after this check.

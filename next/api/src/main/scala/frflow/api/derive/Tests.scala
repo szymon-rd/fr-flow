@@ -31,6 +31,7 @@ private[api] object Tests:
 
   private def difference(d: Diff): Difference = d match
     case Diff.Call(s, impl, model) => Difference.Call(step(s), ran(impl), ran(model))
+    case Diff.Assumed(s, impl, ns) => Difference.Assumed(step(s), ran(impl), ns)
     case Diff.State(impl, model)   => Difference.State(impl, model)
     case Diff.NotRun(message)      => Difference.NotRun(message)
 

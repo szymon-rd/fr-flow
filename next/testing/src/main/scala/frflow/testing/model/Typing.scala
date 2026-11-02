@@ -9,7 +9,7 @@ import frflow.eval.{ScalaValue, Semantics}
   * result by the operation's result.
   */
 final class Typing(semantics: Semantics, v: Vocabulary):
-  private def sig(s: Step): Option[OpSig] = v.modelOf(s.op).flatMap(_.op(s.op)).map(_.sig)
+  private def sig(s: Step): Option[OpSig] = v.modelOf(s.op).flatMap(_.sigOf(s.op))
 
   def params(s: Step): List[Ty] = sig(s).fold(Nil)(_.params.map(_._2))
 

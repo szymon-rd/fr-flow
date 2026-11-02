@@ -125,6 +125,14 @@ enum Problem:
     * 12 gives such a call its form.
     */
   case StepNotOperation(program: DefName, called: SymbolName)
+  /** An operation known only by assumptions (G2) of a model a rule is about, no assumption saying what its runs leave:
+    * no program calling it could be shown to keep the rule (`cover_`).
+    */
+  case LeavesUnsaid(operation: SymbolName, model: ModelName)
+  /** An operation known only by assumptions of a model whose operations may fail: a failing call is the world's
+    * choice, which a run known only by assumptions does not take.
+    */
+  case AssumedFailing(operation: SymbolName, model: ModelName)
 
 object Problem:
   /** Where a type sits that an `always` would guard (`Unreached`): a variable a statement quantifies over, a store's

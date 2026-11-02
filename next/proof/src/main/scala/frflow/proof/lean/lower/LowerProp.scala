@@ -189,7 +189,7 @@ final class LowerProp(table: TermTable, env: LowerEnv, naming: Naming, values: L
 
   private def binders(opens: OpenTerms): List[LBinder] =
     Option.when(opens.sorts.nonEmpty)(LBinder.Several(opens.sorts.map(n => Names.ident(n.value)), name("Type")))
-      .toList ++ opens.symbols.map(s => LBinder.Explicit(Names.ident(s.value), LowerType.binder(table.typeOf(s))))
+      .toList ++ opens.symbols.map(s => LBinder.Explicit(Names.ident(s.value), env.openType(s, table.typeOf(s))))
 
 object LowerProp:
   /** What always holds of a value provided where the code runs, and whether a Definition has a meaning of its own. */

@@ -75,6 +75,8 @@ object Tested:
 
   private def difference(d: Difference): String = d match
     case Difference.Call(s, impl, model) => s"at ${step(s)} the Scala ${ran(impl)}, the model ${ran(model)}"
+    case Difference.Assumed(s, impl, ns) => s"at ${step(s)} the Scala ${ran(impl)}, " + (if ns.isEmpty then
+        "which nothing assumed of it covers" else s"breaking ${ns.map(_.value).mkString(", ")}")
     case Difference.State(impl, model)   =>
       s"the Scala holds ${Values.value(impl)} where the model holds ${Values.value(model)}"
     case Difference.NotRun(m)            => s"the Scala was not made or not read back: $m"

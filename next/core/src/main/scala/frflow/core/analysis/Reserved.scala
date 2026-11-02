@@ -7,6 +7,6 @@ package frflow.core.analysis
   * define or model named so would be captured.
   */
 object Reserved:
-  val names: Set[String] = Set("World", "faults", "races", "Obl", "StateM", "Except", "ExceptT", "Id", "Monad",
-    "MonadExceptOf", "pure", "get", "set", "modify", "throwThe", "tryCatchThe", "frflow_defs", "frflow_witness",
+  val names: Set[String] = Set("World", "faults", "races", "onState", "Obl", "StateM", "Except", "ExceptT", "Id",
+    "Monad", "MonadExceptOf", "pure", "get", "set", "modify", "throwThe", "tryCatchThe", "frflow_defs", "frflow_witness",
     "frflow_auto", "frflow_intro", "frflow_match_eqns")

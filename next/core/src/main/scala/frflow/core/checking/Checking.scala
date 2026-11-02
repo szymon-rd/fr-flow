@@ -139,7 +139,7 @@ object Checking:
       case Range.Reached(_)   => keeping(t, id)
     }
     t.vocabulary.models.filter(m => t.code.implemented.contains(m.name)).flatMap(m =>
-      Option(m.ops.map(_.op).filter(ops.contains)).filter(_.nonEmpty).map(TestedOnModel(m.name, _)))
+      Option(m.operations.filter(ops.contains)).filter(_.nonEmpty).map(TestedOnModel(m.name, _)))
 
   private def keeping(t: Theory, id: NodeId): List[SymbolName] =
     Scope.of(t, id).flatMap(p => Callees.ofDefinition(t, p).toList.flatMap(_.calls.operations))

@@ -12,7 +12,7 @@ import java.util.SplittableRandom
 final class Runs(draw: Draw, typing: Typing):
   /** A run of 1 to `size` calls, if its arguments can be drawn. */
   def of(model: StateModel, size: Int, random: SplittableRandom): Option[List[Step]] =
-    val ops = model.sigs
+    val ops = model.allSigs
     Option.when(ops.nonEmpty)(List.fill(1 + random.nextInt(size.max(1)))(ops(random.nextInt(ops.size))))
       .flatMap { chosen =>
         draw.all(chosen.flatMap(_.params.map(_._2)), size, random).map { args =>

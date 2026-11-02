@@ -42,13 +42,13 @@ object Premises:
     .flatMap(m => List(Premise.OnlyCodeChanges(m), Premise.Atomic(m)))
 
   /** The programs changing `m`'s state (owner §31): those whose proven code calls an operation whose meaning writes
-    * it.
+    * it, or one known only by assumptions (which may leave any state).
     */
   def writers(t: Theory, m: StateModel): List[SymbolName] =
-    val writing = m.ops.filter(op => Progs.all(op.steps).exists {
+    val writing = (m.ops.filter(op => Progs.all(op.steps).exists {
       case Prog.Write(_, _) | Prog.Modify(_, _, _) => true
       case _                                       => false
-    }).map(_.op).toSet
+    }).map(_.op) ++ m.assumed.map(_.name)).toSet
     t.code.attached.toList.collect {
       case (s, a) if (a.code match { case Code.ProvenFlow(f) => steps(t, f); case _ => Nil }).exists(writing) => s
     }

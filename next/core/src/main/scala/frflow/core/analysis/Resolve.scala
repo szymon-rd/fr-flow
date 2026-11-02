@@ -26,10 +26,12 @@ object Resolve:
     own |+| t.vocabulary.closure(own.defines).foldMap(d => Exprs.mentions(d.lambda.body))
 
   /** The statements constraining what the code calls, the code's own Definitions excepted, and those saying what a
-    * Declaration is (nothing is proven of the code from them).
+    * Declaration is (nothing is proven of the code from them). An operation known only by assumptions is called as a
+    * step: what is assumed of it is what a step calling it rests on (G2).
     */
   def constrainingCalled(t: Theory, code: Option[Callees]): List[NodeId] = code.toList.flatMap { c =>
-    val called = c.calls.symbols.filterNot(c.standsFor.contains).filter(Constrained.isFunction(t, _))
+    val called = (c.calls.symbols.filterNot(c.standsFor.contains).filter(Constrained.isFunction(t, _)) ++
+      c.calls.operations.filter(t.vocabulary.isAssumed)).distinct
     called.flatMap(Constrained.statements(t, _)).distinct.filterNot(SaysWhat.is(t, _))
   }
 

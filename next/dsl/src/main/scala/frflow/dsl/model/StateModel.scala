@@ -30,6 +30,7 @@ abstract class StateModel[S](description: String)(using named: StateModel.Named,
   /** The state, as each meaning reads and writes it. */
   protected val state: Model[S] = Model(name)(using stateType)
   private val meanings = mutable.ListBuffer.empty[Meaning]
+  private val unmeant = mutable.ListBuffer.empty[Definition[?]]
   /** What a call of any of its operations fails with, if one may (`StateModel.failing`). */
   protected def fails: Option[Fails] = None
 
@@ -65,6 +66,14 @@ abstract class StateModel[S](description: String)(using named: StateModel.Named,
         Term.free(xs(1))(using b), Term.free(xs(2))(using c), Term.free(xs(3))(using d), Term.free(xs(4))(using e),
         Term.free(xs(5))(using h)).steps)
 
+  extension (op: Definition[?])
+    /** The operation known only by the assumptions about it (G2, owner §36: "the assumed case"), given no steps: on
+      * this model's state it may give any result and leave any state but what those assumptions say
+      * (`forall((q: Term[Search]) => fetch(q).result === …)`). Its Scala is given with the others' and tested against
+      * them where a run can be evaluated.
+      */
+    def assumed: Unit = unmeant += op
+
   /** An operation's meaning, its steps recorded on its parameters' variables when the model is read. */
   @publicInBinary private[model] def meant(op: Definition[?], inputs: List[LeanType[?]], params: List[String])(
       body: Vector[frflow.core.expr.Binder] => Recorded[?]): Unit =
@@ -97,18 +106,22 @@ abstract class StateModel[S](description: String)(using named: StateModel.Named,
   /** The model as the vocabulary holds it: each operation's steps over the state, read once. */
   lazy val model: Deferred[Read] = Elab.recorded(Site.Model(name)) { () =>
     val read = meanings.toList.map(_.read)
-    (read.foldMap(_._1), Read(name, description, stateType.ty, read.map(_._2), fails))
+    val known = unmeant.toList.map(Meaning.assumed)
+    (read.foldMap(_._1) |+| known.foldMap(_._1), Read(name, description, stateType.ty, read.map(_._2), fails,
+      known.flatMap(_._2)))
   }
 
   /** What mentioning the model declares: the model, its state's type, its operations and their types. */
-  def declares: Declarations = itself |+| meanings.toList.foldMap(_.op.leanType.declares)
+  def declares: Declarations = itself |+| operations.foldMap(_.leanType.declares)
 
   /** The model, its state's type and its operations, their types aside (what a type of the operations' may declare
     * in turn, as the clock's do).
     */
   @publicInBinary private[model] def itself: Declarations = Declarations.model(name, model) |+| stateType.declares |+|
-    meanings.toList.foldMap(m => Declarations.symbol(Symbol(m.op.name, m.op.described,
-      SymbolType.Typed(m.op.leanType.ty), ValueKind.Definition)))
+    operations.foldMap(op => Declarations.symbol(Symbol(op.name, op.described, SymbolType.Typed(op.leanType.ty),
+      ValueKind.Definition)))
+
+  private def operations: List[Definition[?]] = meanings.toList.map(_.op) ++ unmeant.toList
 
   private def fact(d: Declarations, f: OutsideFact): Fact =
     Fact(Term.noted(Notes.of(d))([T[_]] => (s: Sym[T]) => s.outside(f)))

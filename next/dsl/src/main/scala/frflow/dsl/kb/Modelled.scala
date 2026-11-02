@@ -21,7 +21,7 @@ object Modelled:
   /** Each operation's meaning, its model's, written where its Scala is given (or the FrModel, with none). */
   private def operations(v: Vocabulary, attached: Map[SymbolName, Attachment], written: List[Operations],
       kb: Option[RelPath]): ValidatedNec[ElabError, List[(SymbolName, Attachment)]] =
-    v.models.flatMap(m => m.ops.map(o => o.op -> m.name)).groupMap(_._1)(_._2).toList.traverse { (op, ms) =>
+    v.models.flatMap(m => m.operations.map(_ -> m.name)).groupMap(_._1)(_._2).toList.traverse { (op, ms) =>
       val at = written.find(_.definitions.contains(op)).map(_.writtenIn).orElse(kb)
       if ms.distinct.size > 1 then ElabError(Site.Meaning(op), Fault.MeantByTwo(op.value, ms.map(_.value))).invalidNec
       else if attached.contains(op) then ElabError(Site.Meaning(op), Fault.ModelledElsewhere(op.value)).invalidNec
@@ -32,7 +32,7 @@ object Modelled:
   private def implemented(v: Vocabulary, o: Operations): ValidatedNec[ElabError, (ModelName, Implementation)] =
     o.definitions.map(v.modelOf).distinct match
       case List(Some(m)) =>
-        val missing = m.ops.map(_.op).filterNot(o.definitions.contains)
+        val missing = m.operations.filterNot(o.definitions.contains)
         if missing.isEmpty then (m.name -> o.implementation).validNec
         else ElabError(Site.Model(m.name), Fault.OperationsMissing(m.name.value, missing.map(_.value))).invalidNec
       case _             =>

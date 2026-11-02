@@ -26,10 +26,12 @@ object Callees:
     }
 
   /** `ss` and every Definition the proven code standing for them reaches, through the code standing for each
-    * Definition it calls in turn: what a statement asked of the code is about, all the way down.
+    * Definition it calls in turn: what a statement asked of the code is about, all the way down; an operation known
+    * only by assumptions a program calls among them (G2), which the program leaves open as plain Scala.
     */
   def reaching(t: Theory, ss: List[SymbolName]): List[SymbolName] =
-    Walk.breadthFirst(ss, identity)(s => ofDefinition(t, s).toList.flatMap(_.calls.symbols))
+    Walk.breadthFirst(ss, identity)(s => ofDefinition(t, s).toList.flatMap(c =>
+      c.calls.symbols ++ c.calls.operations.filter(t.vocabulary.isAssumed)))
 
   /** The Definitions a define calls, through the defines it calls. */
   def calledBy(t: Theory, d: DefName): List[SymbolName] = calls(t, d).symbols

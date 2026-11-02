@@ -34,7 +34,7 @@ object Unreached:
           (r -> Place.Result(s.name.value))
       case SymbolType.Typed(x)               => List(x -> Place.Value(s.name.value))
       case _                                 => Nil)
-    val ops = v.models.flatMap(_.sigs).flatMap(o => o.params.map(_._2 -> Place.Input(o.name.value)) :+
+    val ops = v.models.flatMap(_.allSigs).flatMap(o => o.params.map(_._2 -> Place.Input(o.name.value)) :+
       (o.result -> Place.Result(o.name.value)))
     val fields = v.types.flatMap {
       case DataType.Product(n, _, fs) => fs.map(f => f.ty -> Place.Field(f.name, n.value))

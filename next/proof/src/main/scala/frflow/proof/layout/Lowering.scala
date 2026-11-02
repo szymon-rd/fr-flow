@@ -36,7 +36,7 @@ final class Lowering(val resolved: Resolved, val table: TermTable, canonical: Bo
       case SymbolType.Typed(t) => Ty.errorOf(t).map(s.name -> _)
       case _                   => None).toMap,
     v.models.exists(_.fails.nonEmpty), v.models.map(m => Names.ident(m.name.value)), ruleSide.twice,
-    racing = LowerFaults.racing(v))
+    racing = LowerFaults.racing(v), assumed = v.models.flatMap(m => m.assumed.map(_.name -> m.name)).toMap)
   /** A variable takes no name a symbol, a namespace (the FrModel's, a model's) or a name generated Lean writes itself
     * (`Reserved`) prints as, and no domain type's.
     */

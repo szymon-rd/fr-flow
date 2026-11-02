@@ -104,8 +104,8 @@ final class LowerProg(env: LowerEnv, depth: Int, cut: Boolean = false):
   private def step(p: P): L[LExpr] = p match
     case Prog.Pure(t)              => term(t).map(x => LExpr.App(name("pure"), List(x)))
     case Prog.Call(op, as, _) if cut && op != frflow.core.expr.Prog.leftWins =>
-      as.traverse(term).map(xs => LExpr.App(LowerFaults.cutStep, List(LExpr.Paren(LExpr.App(env.operation(op), xs)))))
-    case Prog.Call(op, as, _)      => as.traverse(term).map(LExpr.App(env.operation(op), _))
+      as.traverse(term).map(xs => LExpr.App(LowerFaults.cutStep, List(LExpr.Paren(env.step(op, xs)))))
+    case Prog.Call(op, as, _)      => as.traverse(term).map(env.step(op, _))
     case Prog.Read(_)              => State.pure(name("get"))
     case Prog.Write(_, s)          => term(s).map(x => LExpr.App(name("set"), List(x)))
     case Prog.Modify(_, x, next)   => (Naming.bind(x), term(next)).mapN(modify)

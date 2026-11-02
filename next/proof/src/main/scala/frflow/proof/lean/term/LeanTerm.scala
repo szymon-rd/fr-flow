@@ -121,7 +121,7 @@ final class LeanTerm(env: LowerEnv, standing: Map[SymbolName, LExpr] = Map.empty
     val (n, body) = bound(x, s, b)
     Paren(LExpr.Let(n, LowerType(x.ty), v(s), body))
   /** A value's name or what stands for it (a witness given before, R14.6); a define on its open terms so written. */
-  def param[A](n: SymbolName, ty: Ty): S[A] = _ => standing.getOrElse(n, LExpr.Name(Names.ident(n.value)))
+  def param[A](n: SymbolName, ty: Ty): S[A] = _ => env.run(n, standing.getOrElse(n, LExpr.Name(Names.ident(n.value))))
   def define[F](d: Body[F]): S[F] = _ => Atoms.define(env, d.name, byName.get)
   def free[A](x: Binder): S[A] = s => LExpr.Name(s.named(x))
   def part[V](w: S[World], model: ModelName, ty: Ty): S[V] = s => LExpr.Dot(w(s), env.modelField(model).text)

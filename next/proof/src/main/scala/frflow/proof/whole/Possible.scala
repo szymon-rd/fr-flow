@@ -37,7 +37,8 @@ object Possible:
       : Option[String] =
     val mentioned = Constrained.of(r.theory, n)
     val reached = Callees.reaching(r.theory, mentioned).filter(s => !opens.contains(s) && !mentioned.contains(s) &&
-      r.theory.vocabulary.modelOf(s).isEmpty && r.theory.code.attached.get(s).forall(_.code.proven.isEmpty))
+      (r.theory.vocabulary.modelOf(s).isEmpty || r.theory.vocabulary.isAssumed(s)) &&
+      r.theory.code.attached.get(s).forall(_.code.proven.isEmpty))
     if opens.exists(Constrained.isDeclaration(r.theory, _)) then
       Some("It is about Declarations: a witness would choose what they mean, whatever the claims say, so it is not " +
         "shown by one.")

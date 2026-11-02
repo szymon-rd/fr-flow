@@ -16,8 +16,11 @@ final case class Covered(scala: Set[SymbolName], proven: Map[SymbolName, Define]
     operations: Map[SymbolName, Covered.Operation])
 
 object Covered:
-  /** An operation on a state: its model, its inputs' types, whether its meaning writes the state. */
-  final case class Operation(model: ModelName, inputs: List[Ty], writes: Boolean)
+  /** An operation on a state: its model, its inputs' types, whether its meaning writes the state, and whether it is
+    * known only by assumptions (G2: it may write its state, and its result is a value from outside, which no
+    * `made_<op>` covers).
+    */
+  final case class Operation(model: ModelName, inputs: List[Ty], writes: Boolean, assumed: Boolean = false)
 
   def of(t: Theory): Covered = Covered(
     t.code.attached.collect { case (d, a) if a.code.scala.nonEmpty => d }.toSet,
@@ -25,4 +28,5 @@ object Covered:
       case Code.Proven(c) => t.vocabulary.define(c).map(d -> _)
       case _              => None).toMap,
     t.vocabulary.models.flatMap(m => m.ops.map(o => o.op -> Operation(m.name, o.params.map(_.ty),
-      Progs.all(o.steps).exists { case Prog.Write(_, _) | Prog.Modify(_, _, _) => true; case _ => false }))).toMap)
+      Progs.all(o.steps).exists { case Prog.Write(_, _) | Prog.Modify(_, _, _) => true; case _ => false })) ++
+      m.assumed.map(o => o.name -> Operation(m.name, o.params.map(_._2), true, assumed = true))).toMap)

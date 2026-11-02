@@ -52,7 +52,7 @@ private[api] final class NodeViews(a: Analysis):
     Option.when(coded || models.nonEmpty)(CodeView(Shown.of(r.theory, id), tests.map(Tests.of(_, operations))))
 
   /** A model's operations, in the order its meanings are given. */
-  private def operations(m: ModelName): List[SymbolName] = r.theory.vocabulary.model(m).toList.flatMap(_.ops.map(_.op))
+  private def operations(m: ModelName): List[SymbolName] = r.theory.vocabulary.model(m).toList.flatMap(_.operations)
 
   def review(id: NodeId): ReviewView =
     val subject = a.subjects.get(id)

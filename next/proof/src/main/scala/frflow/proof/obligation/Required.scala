@@ -69,8 +69,12 @@ object Required:
           givenWhat(hyps))
     }
 
-  /** What `impl` of a node rests on: the parts it states, or for a leaf what its code relies on. */
-  def hypotheses(r: Resolved, n: NodeId): List[NodeId] = r.provenFrom(n)
+  /** What `impl` of a node rests on: the parts it states, or for a leaf what its code relies on; and always what is
+    * assumed of an operation known only by assumptions its code calls (G2): what such a step does is nothing else.
+    */
+  def hypotheses(r: Resolved, n: NodeId): List[NodeId] =
+    (r.provenFrom(n) ++ r.reliesOn(n).filter(h => Constrained.of(r.theory, h).exists(r.theory.vocabulary.isAssumed)))
+      .distinct
 
   private def mentions(r: Resolved, n: NodeId, s: SymbolName): Boolean = Constrained.of(r.theory, n).contains(s)
 
@@ -84,7 +88,7 @@ object Required:
     */
   def keeps(r: Resolved, n: NodeId): List[Obligation] =
     val stores = r.theory.node(n).flatMap(_.statement.range).toList.flatMap(Scope.models(r.theory, _))
-      .flatMap(_.ops.map(_.op))
+      .flatMap(_.operations)
     val writers = Scope.of(r.theory, n).filter(op =>
       Callees.ofDefinition(r.theory, op).exists(_.calls.operations.exists(stores.contains)))
     // The rule kept, and every rule taken, on the stores the program reads only (owner §33): another store's part of

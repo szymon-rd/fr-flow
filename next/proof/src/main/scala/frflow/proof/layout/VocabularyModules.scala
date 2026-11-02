@@ -144,4 +144,4 @@ object VocabularyModules:
   private def openBinders(l: Lowering, d: Define): List[LBinder] =
     val sorts = l.table.defines.get(d.name).toList.flatMap(_.sorts)
     sorts.map(s => LBinder.Implicit(Names.ident(s.value), name("Type"))) ++
-      opens(l, d).map(s => LBinder.Explicit(Names.ident(s.value), LowerType.binder(l.table.typeOf(s))))
+      opens(l, d).map(s => LBinder.Explicit(Names.ident(s.value), l.env.openType(s, l.table.typeOf(s))))

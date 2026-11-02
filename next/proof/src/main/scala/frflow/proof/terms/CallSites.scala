@@ -76,7 +76,8 @@ final class CallSites[T[_]](s: Sym[T], covered: Covered, guards: List[Guard]):
 
   /** Of an operation's result on a state no step before has written: the rules on its type `made_<op>` proves. */
   private def made(first: Prog[Stated[?]], written: Set[ModelName]): Option[T[Any] => T[Boolean]] = first match
-    case Prog.Call(op, _, ty) if covered.operations.get(op).exists(o => !written(o.model)) => guarded(Ty.yields(ty))
+    case Prog.Call(op, _, ty) if covered.operations.get(op).exists(o => !o.assumed && !written(o.model)) =>
+      guarded(Ty.yields(ty))
     case _                                                                                 => None
 
   private def guarded(ty: Ty): Option[T[Any] => T[Boolean]] =

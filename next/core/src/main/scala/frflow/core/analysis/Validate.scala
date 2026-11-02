@@ -128,7 +128,7 @@ object Validate:
         .map(Problem.SucceedingOnly(n.id, _))) ++
       Failing.undeclared(t).map((op, declared, raised) => Problem.FailsWithDiffers(op, declared, raised))
     all(unclaimed.map(Problem.CodeWithoutClaim(_)) ++ Resolve.circles(t).map(Problem.RestsOnItself(_)) ++ runs ++
-      differing ++ clauses ++ held(t) ++ steps(t) ++ providedBesideWorld(t) ++ writes(t))
+      differing ++ clauses ++ held(t) ++ steps(t) ++ providedBesideWorld(t) ++ writes(t) ++ Assumed.problems(t))
 
   /** A transaction inside a transaction, and a race's side holding what its loser's reading does not read. */
   private def held(t: Theory): List[Problem] = t.vocabulary.defines.filter(_.form == DefineForm.Flow).flatMap(d =>

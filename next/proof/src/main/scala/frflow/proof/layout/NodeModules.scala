@@ -3,7 +3,7 @@ package frflow.proof.layout
 import frflow.core.analysis.Resolved
 import frflow.core.name.{LeanNames, NodeId}
 import frflow.proof.lean.ast.*
-import frflow.proof.lean.lower.{Atoms, LowerKeeps, LowerObligation, LowerType}
+import frflow.proof.lean.lower.{Atoms, LowerKeeps, LowerObligation}
 import frflow.proof.lean.term.{LeanTerm, Printed, Scope}
 import frflow.proof.obligation.*
 import frflow.proof.terms.{Conjoined, TermTable}
@@ -50,7 +50,7 @@ object NodeModules:
   private def claimParams(l: Lowering, n: NodeId): List[LBinder] =
     val terms = l.table.claims.getOrElse(n, frflow.proof.terms.OpenTerms.empty)
     Option.when(terms.sorts.nonEmpty)(LBinder.Several(terms.sorts.map(s => Names.ident(s.value)), Atoms.name("Type")))
-      .toList ++ terms.symbols.map(s => LBinder.Explicit(Names.ident(s.value), LowerType.binder(l.table.typeOf(s))))
+      .toList ++ terms.symbols.map(s => LBinder.Explicit(Names.ident(s.value), l.env.openType(s, l.table.typeOf(s))))
 
   /** What `cover_` and `made_` state: the `keeps_<op>` and `makes_<maker>` the statement applies. */
   private def kept(p: Prop): List[Prop] = p match

@@ -19,7 +19,7 @@ object Scope:
   def of(t: Theory, always: NodeId): List[SymbolName] =
     t.node(always).flatMap(_.statement.range).collect {
       case r @ (Range.Made(_) | Range.Reached(_)) =>
-        val stores = models(t, r).flatMap(_.ops.map(_.op)).toSet
+        val stores = models(t, r).flatMap(_.operations).toSet
         val ops = t.vocabulary.symbols.map(_.name).filter(Constrained.isFunction(t, _))
           .filterNot(s => Constrained.isDeclaration(t, s) || t.vocabulary.modelOf(s).nonEmpty)
         ops.filter(op => makes(t, r, op) || calls(t, stores, op))

@@ -41,5 +41,6 @@ object SaysWhat:
     n.statement.kind == NodeKind.Assumption && n.statement.range.contains(Range.Possible) && !n.statement.rule &&
       n.statement.said.nonEmpty && words.forall(s => !Constrained.isDeclaration(t, s) &&
         t.code.attached.get(s).exists(a => a.code.proven.nonEmpty || (a.code match
-          case Code.Valued(_) | Code.Modelled(_) => true
-          case _                                 => false)))
+          case Code.Valued(_)   => true
+          case Code.Modelled(_) => !t.vocabulary.isAssumed(s)
+          case _                => false)))

@@ -101,7 +101,7 @@ object Completeness:
       case Prog.Write(s, _)     => stores.contains(s) && s == m.name
       case Prog.Modify(s, _, _) => stores.contains(s) && s == m.name
       case _                    => false
-    }).map(_.op)).toSet
+    }).map(_.op) ++ Option.when(stores.contains(m.name))(m.assumed.map(_.name)).toList.flatten).toSet
     Progs.all(p).exists {
       case Prog.Call(op, _, _) => writing(op)
       case _                   => false

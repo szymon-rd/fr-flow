@@ -3,7 +3,7 @@ package frflow.wire.test
 import cats.syntax.all.*
 import frflow.core.example.Given
 import frflow.core.expr.Value
-import frflow.core.name.SymbolName
+import frflow.core.name.{NodeId, SymbolName}
 import frflow.eval.run.Broken
 import frflow.testing.Seed
 import frflow.testing.model.{Difference, Ran, Step}
@@ -49,6 +49,8 @@ object FailureCodecs:
   given Encoder[Difference] = Encoder.instance {
     case Difference.Call(s, i, m)   => Tagged("call", "step" -> s.asJson, "implementation" -> i.asJson,
                                          "model" -> m.asJson)
+    case Difference.Assumed(s, i, b) => Tagged("assumed", "step" -> s.asJson, "implementation" -> i.asJson,
+                                         "broken" -> b.asJson)
     case Difference.State(i, m)     => Tagged("state", "implementation" -> i.asJson, "model" -> m.asJson)
     case Difference.NotRun(message) => Tagged("not-run", "message" -> message.asJson)
   }
@@ -56,6 +58,8 @@ object FailureCodecs:
   given Decoder[Difference] = Tagged.decoder("difference") {
     case "call"    => c => (c.get[Step]("step"), c.get[Ran]("implementation"), c.get[Ran]("model"))
                        .mapN(Difference.Call(_, _, _))
+    case "assumed" => c => (c.get[Step]("step"), c.get[Ran]("implementation"), c.get[List[NodeId]]("broken"))
+                       .mapN(Difference.Assumed(_, _, _))
     case "state"   => c => (c.get[Value]("implementation"), c.get[Value]("model")).mapN(Difference.State(_, _))
     case "not-run" => _.get[String]("message").map(Difference.NotRun(_))
   }

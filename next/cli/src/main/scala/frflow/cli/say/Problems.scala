@@ -71,6 +71,10 @@ object Problems:
         "finalizer: a loser is read cancelled between its steps, and what those do then is not"
     case Problem.StepNotOperation(prog, d)  => s"${prog.value} runs ${d.value} as a step, which is no model's " +
         "operation: a program's steps call operations on a state"
+    case Problem.LeavesUnsaid(op, m)        => s"${op.value} is known only by assumptions, and a rule is about " +
+        s"${m.value}'s state: an assumption must say what its runs leave (${op.value}(…).after)"
+    case Problem.AssumedFailing(op, m)      => s"${op.value} is known only by assumptions, but ${m.value}'s " +
+        "operations may fail: give it its steps (means), or keep it on a model that does not fail"
 
   private def premise(p: Premise): String = p match
     case Premise.OnlyCodeChanges(m) => s"nothing outside the code changing ${m.value} (${m.value}.onlyCodeChanges)"

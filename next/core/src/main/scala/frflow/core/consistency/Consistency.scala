@@ -63,8 +63,10 @@ object Consistency:
   def reach(t: Theory, s: SymbolName): List[SymbolName] =
     Callees.reaching(t, List(s)).filter(x => x != s && isOpen(t, x))
 
+  /** An operation known only by assumptions (G2) is open: its model gives it no meaning, the assumptions are all. */
   private def isOpen(t: Theory, s: SymbolName): Boolean = t.vocabulary.symbol(s).nonEmpty &&
-    (Constrained.isDeclaration(t, s) || t.code.attached.get(s).forall(a => a.code.proven.isEmpty && !fixed(a.code)))
+    (Constrained.isDeclaration(t, s) || t.vocabulary.isAssumed(s) ||
+      t.code.attached.get(s).forall(a => a.code.proven.isEmpty && !fixed(a.code)))
 
   /** What a statement takes for every value code is given: the Definitions provided where the code runs, its own and
     * those the proven code standing in it reaches, through the code that code calls.

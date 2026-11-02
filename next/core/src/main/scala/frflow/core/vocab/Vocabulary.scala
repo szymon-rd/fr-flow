@@ -15,7 +15,9 @@ final case class Vocabulary(sorts: List[Sort], types: List[DataType], symbols: L
   def dataType(n: TypeName): Option[DataType] = types.find(_.typeName == n)
   def model(n: ModelName): Option[StateModel] = models.find(_.name == n)
   /** The model giving `op` its meaning, when `op` is an operation on a state. */
-  def modelOf(op: SymbolName): Option[StateModel] = models.find(_.op(op).nonEmpty)
+  def modelOf(op: SymbolName): Option[StateModel] = models.find(_.sigOf(op).nonEmpty)
+  /** Whether `op` is an operation on a state known only by assumptions (G2). */
+  def isAssumed(op: SymbolName): Boolean = models.exists(_.isAssumed(op))
 
   /** `ds` and every define they call, each once, callers first. */
   def closure(ds: List[DefName]): List[Define] =
