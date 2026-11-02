@@ -389,3 +389,20 @@ with no condition it is the same in every reachable world (∃c ∀w ∈ Reach, 
 per program that changes what `t` reads; a new such program brings the statement back for review. Of a Declaration,
 which no code gives a value, it is an assumption.
 
+## 45. The statement language after the semantics review (owner)
+A review of the statement language found statements whose Lean meaning depended on where they were written
+(scratchpad semantics-review.md). Asked for decisions A to E with recommendations, the owner answered "Go", accepting
+all five:
+- A. `isConstant` has one meaning everywhere: no run of any program from the current world (where its condition
+  holds, read before the step) changes the value, over both outcomes of a run. Constancy in every world follows from
+  it and the start. This reads §44 with one meaning.
+- B. A program that can fail declares its error in its Definition's type, `A => Flow[E, R]`; its `.result` is then
+  `Either[E, R]`, so a statement about it covers both outcomes. A program that cannot fail is `A => Flow[R]`. FrFlow
+  checks the declared error against what the code raises.
+- C. An `always` rule may not read a Declaration that changes with the World; it is refused, rather than licensed by
+  an `isConstant` assumption.
+- D. The clock and histories that crm, keycloak and auth read as provided values are modelled as part of the World
+  (state models); a provided value is refused in a statement that reads the World. Done with step 13.
+- E. FrFlow states safety properties. "Eventually" (liveness) and sequencing two runs in one statement are out of
+  scope for now, and the docs say so.
+
