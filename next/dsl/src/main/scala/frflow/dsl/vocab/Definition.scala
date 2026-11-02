@@ -104,6 +104,18 @@ object Definition:
   extension [A, B, C, R, E](d: Fails[(A, B, C) => Flow[R], E])
     def apply(a: Term[A], b: Term[B], c: Term[C])(using LeanType[A], LeanType[B], LeanType[C], LeanType[R])
         : Run[E, R] = Run(Definition.apply(d: Definition[(A, B, C) => Flow[R]])(a, b, c))(using d.error)
+  extension [A, B, C, D, R, E](d: Fails[(A, B, C, D) => Flow[R], E])
+    def apply(a: Term[A], b: Term[B], c: Term[C], e: Term[D])(
+        using LeanType[A], LeanType[B], LeanType[C], LeanType[D], LeanType[R]): Run[E, R] =
+      Run(Definition.apply(d: Definition[(A, B, C, D) => Flow[R]])(a, b, c, e))(using d.error)
+  extension [A, B, C, D, G, R, E](d: Fails[(A, B, C, D, G) => Flow[R], E])
+    def apply(a: Term[A], b: Term[B], c: Term[C], e: Term[D], f: Term[G])(
+        using LeanType[A], LeanType[B], LeanType[C], LeanType[D], LeanType[G], LeanType[R]): Run[E, R] =
+      Run(Definition.apply(d: Definition[(A, B, C, D, G) => Flow[R]])(a, b, c, e, f))(using d.error)
+  extension [A, B, C, D, G, H, R, E](d: Fails[(A, B, C, D, G, H) => Flow[R], E])
+    def apply(a: Term[A], b: Term[B], c: Term[C], e: Term[D], f: Term[G], g: Term[H])(
+        using LeanType[A], LeanType[B], LeanType[C], LeanType[D], LeanType[G], LeanType[H], LeanType[R]): Run[E, R] =
+      Run(Definition.apply(d: Definition[(A, B, C, D, G, H) => Flow[R]])(a, b, c, e, f, g))(using d.error)
 
   extension [A, R](d: Definition[A => R])
     def apply(a: Term[A])(using LeanType[R]): Term[R] =

@@ -27,4 +27,4 @@ package next/project/src/test/scala/frflow/project/code
 package next/proof/src/test/scala/frflow/proof/reading
 package next/proof/src/test/scala/frflow/proof/verdict
 params next/dsl/src/main/scala/frflow/dsl/vocab/Declaration.scala apply x2
-params next/dsl/src/main/scala/frflow/dsl/vocab/Definition.scala apply x2
+params next/dsl/src/main/scala/frflow/dsl/vocab/Definition.scala apply x4
