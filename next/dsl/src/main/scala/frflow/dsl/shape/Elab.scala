@@ -2,13 +2,15 @@ package frflow.dsl.shape
 
 import cats.data.{NonEmptyChain, Validated, ValidatedNec}
 import cats.syntax.all.*
-import frflow.core.expr.{Binder, Expr, Lambda}
+import frflow.core.expr.{Binder, Expr, Exprs, Lambda, Quantifier}
 import frflow.core.name.SourceText
 import frflow.core.spec.Written
 import frflow.dsl.build.{AsWritten, Declarations, Deferred, ElabError, Failure, Fault, Site}
 import frflow.dsl.flow.ReadRecording
 import frflow.dsl.term.{LeanType, Notes, Term}
-import frflow.dsl.run.Recorded
+import frflow.core.term.interpret.Collect
+import frflow.dsl.run.{Recorded, RunNote}
+import frflow.dsl.vocab.Called
 
 /** The developer's formulas and lambdas, built once, as parts written at `at`, where their faults are placed: each
   * kept as its term with the IR the analyses read (`Written`). A lambda's inputs are bound at levels `0 … n-1` and its
@@ -25,8 +27,20 @@ object Elab:
       : Deferred[Written[Lambda]] =
     made(at, types) { () =>
       val (xs, t) = build()
-      (t.notes, Written.lambda(xs, t.run, SourceText(written.text)))
+      (t.notes, Written.lambda(xs, valued(t).run, SourceText(written.text)))
     }
+
+  /** A define's body is a value: no rule (`always`, a node's whole formula) and no run (a statement's, of its own
+    * variables) is written in it.
+    */
+  private def valued[A](t: Term[A]): Term[A] =
+    Collect.of(t.run).collectFirst { case r: RunNote => r }.foreach(r =>
+      throw Failure(Fault.RunInside(Called.of(r.program).fold("a program")(_._1.value))))
+    if Term.exprOf(t).exists(e => Exprs.all(e).exists {
+        case Expr.Quant(Quantifier.Always, _, _) => true
+        case _                                   => false
+      }) then throw Failure(Fault.AlwaysInside)
+    t
 
   /** A program's lambda: its body the steps recorded on its inputs' variables, bound at levels `0 … n-1`. */
   def program[R](at: Site, inputs: List[LeanType[?]], r: LeanType[R])(body: List[Term[?]] => Recorded[?],

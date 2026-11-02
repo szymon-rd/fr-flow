@@ -69,10 +69,15 @@ enum Fault:
     * holds in, so the two are alternatives, not one after the other; a sequence is a program that does both.
     */
   case AfterOfTwo(first: String, second: String)
-  /** What reads the world without naming it (a Declaration, a define reading state) in a statement that reads a run's
-    * world after: it would read the world before the run. Named, it says which: `t.current`, `t.in(p.after)`.
+  /** What reads the world without naming it (a Declaration, a define reading state) in a statement that reads a run
+    * (its result or its world after): it would read the world before the run. Named, it says which: `t.current`,
+    * `t.in(p.after)`.
     */
   case WorldUnnamed(values: List[String])
+  /** `t.in(w)` where `t` reads no world unnamed (`m.current`, `t.current`: read in the world before already) or holds
+    * a run's outcome: `w` would change nothing `t` reads, and a run `w` reads would be dropped.
+    */
+  case InNamed(what: String)
   /** `isConstant` where it says nothing a step can keep (owner §45 A): `where` is under `!`, `||`, left of `implies`,
     * a condition, a define, a rule, a model's `initially`, a program, an example, or of a run.
     */

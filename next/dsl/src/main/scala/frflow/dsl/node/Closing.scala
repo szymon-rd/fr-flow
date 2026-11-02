@@ -4,7 +4,7 @@ import cats.syntax.all.*
 import frflow.core.expr.{Binder, Expr, Exprs, PrimOp, Quantifier}
 import frflow.core.name.VarId
 import frflow.core.term.{Bound, Final, Program, Sym, World}
-import frflow.core.term.interpret.{Collect, Substituted}
+import frflow.core.term.interpret.{Collect, Sided, Substituted}
 import frflow.core.ty.Ty
 import frflow.dsl.build.Fault
 import frflow.dsl.run.{RunNote, Worlds}
@@ -19,7 +19,7 @@ import frflow.dsl.vocab.Called
   * Refused where its reading would not be the one written: an `always` inside it (`Fault.AlwaysInside`), one
   * program's run read both as failing and plainly (`ReadTwoWays`: the plain reading is of the runs that succeed),
   * the worlds after two runs (`AfterOfTwo`: both are from the one world, not one after the other), the world read
-  * without being named beside a world after (`WorldUnnamed`: it would be the world before), and `isConstant` where
+  * without being named beside a run (`WorldUnnamed`: it would be the world before the run), and `isConstant` where
   * no step keeps it (`ConstantInside`).
   */
 object Closing:
@@ -47,35 +47,37 @@ object Closing:
 
   private def closed(opened: List[(Binder, Forall[?])], body: Term[Boolean], runs: List[RunNote]): Final[Boolean] =
     [T[_]] => (s: Sym[T]) =>
+      type Sides = Map[Binder, Either[T[Any], T[Any]]]
       def lead(xs: List[(Binder, Forall[?])], env: Map[Binder, T[Any]]): T[Boolean] = xs match
         case (x, f) :: rest =>
           s.noted(Notes.of(f.bound.declares), s.forall(Bound[Any](f.hint, x.ty))(v => lead(rest, env + (x -> v))))
         case Nil            =>
-          s.forall(Bound[World](Worlds.binder.hint, Ty.World))(w => ran(runs, env ++ Worlds.as(any(w))))
-      def ran(rs: List[RunNote], env: Map[Binder, T[Any]]): T[Boolean] = rs match
-        case r :: rest => run(s, r, env)((o, a) => ran(rest, env + (r.outcome -> o) + (r.after -> a)))
-        case Nil       => body.run(Substituted(s, env))
+          s.forall(Bound[World](Worlds.binder.hint, Ty.World))(w => ran(runs, env ++ Worlds.as(any(w)), Map.empty))
+      def ran(rs: List[RunNote], env: Map[Binder, T[Any]], sides: Sides): T[Boolean] = rs match
+        case r :: rest => run(s, r, env)((o, a) => o match
+            case Left(v)     => ran(rest, env + (r.outcome -> v) + (r.after -> a), sides)
+            case Right(side) => ran(rest, env + (r.after -> a), sides + (r.outcome -> side)))
+        case Nil       => body.run(Sided(s, env, sides)).t
       lead(opened, Map.empty)
 
   /** A run from the current world, its outcome and the world after given `post`; read as failing, both outcomes,
-    * each its side of the `Either` the statement reads.
+    * each its side of the `Either` the statement reads (`Right` of what a run that succeeds gives, `Left` of the
+    * error of one that fails), so a `fold` of it is the side's branch (`Sided`).
     */
-  private def run[T[_]](s: Sym[T], r: RunNote, env: Map[Binder, T[Any]])(post: (T[Any], T[Any]) => T[Boolean])
-      : T[Boolean] =
+  private def run[T[_]](s: Sym[T], r: RunNote, env: Map[Binder, T[Any]])(
+      post: (Either[T[Any], Either[T[Any], T[Any]]], T[Any]) => T[Boolean]): T[Boolean] =
     val p = r.program.run(Substituted(s, env)).asInstanceOf[T[Program[Any]]] // a `Term[Flow[R]]`: `Program[R]`'s
     val before = env(Worlds.binder).asInstanceOf[T[World]]
     val after = Bound[World]("after", Ty.World)
     r.error match
       case None    =>
-        s.runs[Any](p, before, Bound[Any]("result", r.outcomeType), after)((o, a) => post(o, any(a)))
+        s.runs[Any](p, before, Bound[Any]("result", r.outcomeType), after)((o, a) => post(Left(o), any(a)))
       case Some(e) =>
         val result = r.outcomeType match
           case Ty.EitherOf(_, v) => v
           case other             => other
-        s.and(s.runs[Any](p, before, Bound[Any]("result", result), after)((o, a) =>
-            post(any(s.right[Any, Any](o, r.outcomeType)), any(a))),
-          s.fails[Any, Any](p, before, Bound[Any]("error", e), after)((o, a) =>
-            post(any(s.left[Any, Any](o, r.outcomeType)), any(a))))
+        s.and(s.runs[Any](p, before, Bound[Any]("result", result), after)((o, a) => post(Right(Right(o)), any(a))),
+          s.fails[Any, Any](p, before, Bound[Any]("error", e), after)((o, a) => post(Right(Left(o)), any(a))))
 
   private def any[T[_], A](t: T[A]): T[Any] = t.asInstanceOf[T[Any]]
 
@@ -100,10 +102,12 @@ object Closing:
       case a :: b :: _ => Left(Fault.AfterOfTwo(program(a), program(b)))
       case _           => Right(())
 
-  /** Beside a world after, every world read named: unnamed, a value would read the world before the run. */
+  /** Beside a run, every world read named: unnamed, a value would read the world before the run, whatever the
+    * statement reads of it (its result, or its world after).
+    */
   private def named(runs: List[RunNote], e: Expr): Either[Fault, Unit] =
     val unnamed = Worlds.unnamed(e)
-    Either.cond(unnamed.isEmpty || !runs.exists(after(_, e)), (), Fault.WorldUnnamed(unnamed))
+    Either.cond(unnamed.isEmpty || runs.isEmpty, (), Fault.WorldUnnamed(unnamed))
 
   private def after(r: RunNote, e: Expr): Boolean = Exprs.all(e).contains(Expr.Var(r.after))
 

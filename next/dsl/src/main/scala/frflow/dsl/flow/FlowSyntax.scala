@@ -36,7 +36,8 @@ object FlowSyntax:
 
   extension [A](t: Term[A])
     /** What `t` reads of the world, read in `world` (`ofRoom(room).in(book(request).after)`). */
-    def in(world: Term[World]): Term[A] = Worlds.within(t, world)
+    def in(world: Term[World])(using st: Stating): Term[A] =
+      if st.closing then Worlds.in(t, world) else Worlds.within(t, world)
     /** What `t` reads of the world, read in the world the statement holds in, named: before any run it reads. */
     def current: Term[A] = Worlds.within(t, Worlds.now)
     /** That no run of any program from the world the statement holds in changes `t`, whatever its outcome (owner

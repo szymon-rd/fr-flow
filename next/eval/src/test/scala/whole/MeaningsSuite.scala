@@ -45,7 +45,7 @@ class MeaningsSuite extends munit.FunSuite:
 
   test("a premise listed by a claim saying what a Declaration is is not needed") {
     val listing = Node.claim("A request is accepted exactly when booking it answers booked.")(
-      forall((request: Term[Booking]) => accepted(request) === book(request).result))
+      forall((request: Term[Booking]) => accepted(request).current === book(request).result))
       .refines(rooms.acceptWhenFree).assuming(rooms.oneAtATime)
     val kb = FrModel("Rooms")((rooms.rooms.nodes.filterNot(_ eq rooms.acceptedIsAnswered) :+ listing)*)
       .copy(generators = rooms.rooms.generators).implementProven(book)(rooms.bookIfGranted)

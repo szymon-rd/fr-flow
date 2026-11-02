@@ -100,7 +100,7 @@ Why it holds (the reason it was decided with)
   it says what the service must do  (accepted by ann, <when>)
 
 Formally (as written in Scala)
-  forall((request: Term[Booking]) => accepted(request) === book(request).result)
+  forall((request: Term[Booking]) => accepted(request).current === book(request).result)
 
 [s]kip [v]iew [q]uit: s
 

@@ -37,7 +37,7 @@ val bookedAfterIsStored =
   .refines(bookWhenFree)
 
 val acceptedIsAnswered = Node.claim("A request is accepted exactly when booking it answers booked.")(
-  forall((request: Term[Booking]) => accepted(request) === book(request).result))
+  forall((request: Term[Booking]) => accepted(request).current === book(request).result))
   .refines(acceptWhenFree)
 
 // What booking stores and what it answers, proven of its code.

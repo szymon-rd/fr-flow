@@ -40,7 +40,9 @@ object Faults:
     case Fault.AfterOfTwo(a, b)       => s"the worlds after a run of $a and a run of $b are read in one statement: " +
         "both runs are from the world it holds in, not one after the other; write a program that does both"
     case Fault.WorldUnnamed(vs)       => s"${vs.mkString(", ")} read the world without naming it in a statement " +
-        "that reads a run's world after: name it, t.current before the run or t.in(p.after) after it"
+        "that reads a run: name it, t.current before the run or t.in(p.after) after it"
+    case Fault.InNamed(what)          => s".in(…) $what: it reads no world it could read in another; .in reads in " +
+        "a world after only what reads the world unnamed (a Declaration, a define reading state)"
     case Fault.ConstantInside(where)  => s"isConstant $where: it says that no run changes a value, so it is stated, " +
         "or under a condition (c implies t.isConstant), only"
 
