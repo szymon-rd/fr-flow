@@ -1,7 +1,7 @@
 package frflow.dsl.node
 
 import cats.syntax.all.*
-import frflow.core.expr.Binder
+import frflow.core.expr.{Binder, Expr, Exprs, PrimOp, Quantifier}
 import frflow.core.name.VarId
 import frflow.core.term.{Bound, Final, Program, Sym, World}
 import frflow.core.term.interpret.{Collect, Substituted}
@@ -15,16 +15,27 @@ import frflow.dsl.vocab.Called
   * what is below them reads the current world, that world bound right below them, `∀ x…, ∀ world, …`, and each run
   * it reads (`p.result`, `p.after`) bound right below it, a run of the program from that world
   * (`Worlds.runs`); a run read as failing, both its outcomes (`runs ∧ fails`). A statement reading no world is as
-  * written. So the statement holds in every reachable world, as one quantifying over a world explicitly did. One
-  * program's run read both as failing and plainly is refused (`Fault.ReadTwoWays`): the plain reading is of the runs
-  * that succeed, so on the failing side it would say nothing.
+  * written. So the statement holds in every reachable world, as one quantifying over a world explicitly did.
+  * Refused where its reading would not be the one written: an `always` inside it (`Fault.AlwaysInside`), one
+  * program's run read both as failing and plainly (`ReadTwoWays`: the plain reading is of the runs that succeed),
+  * the worlds after two runs (`AfterOfTwo`: both are from the one world, not one after the other), the world read
+  * without being named beside a world after (`WorldUnnamed`: it would be the world before), and `isConstant` where
+  * no step keeps it (`ConstantInside`).
   */
 object Closing:
   def of(t: Term[Boolean]): Either[Fault, Term[Boolean]] =
     val (opened, body) = open(t, Nil)
     val runs = Collect.of(body.run).collect { case r: RunNote => r }.distinctBy(r => (r.key, r.error))
-    oneReading(runs).as(
+    val written = Term.exprOf(t).toList
+    val read = Term.exprOf(body).toList
+    (written.traverse_(alwaysWhole) *> written.traverse_(constants) *> oneReading(runs) *>
+      read.traverse_(afterOfOne(runs, _)) *> read.traverse_(named(runs, _))).as(
       if runs.isEmpty && !Worlds.reads(body).contains(true) then t else Term(closed(opened, body, runs)))
+
+  /** What is below the leading `forall`s, on their variables free: a statement read open, to learn what it reads
+    * (`kb.Varying`); its runs, of those variables, read as they are where it is closed.
+    */
+  def opened(t: Term[Boolean]): Term[Boolean] = open(t, Nil)._2
 
   /** The leading `forall`s' bodies on free variables (`VarId.opened`), and what is below them. */
   private def open(t: Term[Boolean], opened: List[(Binder, Forall[?])]): (List[(Binder, Forall[?])], Term[Boolean]) =
@@ -40,7 +51,7 @@ object Closing:
         case (x, f) :: rest =>
           s.noted(Notes.of(f.bound.declares), s.forall(Bound[Any](f.hint, x.ty))(v => lead(rest, env + (x -> v))))
         case Nil            =>
-          s.forall(Bound[World](Worlds.binder.hint, Ty.World))(w => ran(runs, env + (Worlds.binder -> any(w))))
+          s.forall(Bound[World](Worlds.binder.hint, Ty.World))(w => ran(runs, env ++ Worlds.as(any(w))))
       def ran(rs: List[RunNote], env: Map[Binder, T[Any]]): T[Boolean] = rs match
         case r :: rest => run(s, r, env)((o, a) => ran(rest, env + (r.outcome -> o) + (r.after -> a)))
         case Nil       => body.run(Substituted(s, env))
@@ -68,7 +79,53 @@ object Closing:
 
   private def any[T[_], A](t: T[A]): T[Any] = t.asInstanceOf[T[Any]]
 
+  /** An `always` only as the whole formula: anywhere else it is no rule, and would range over every value. */
+  private def alwaysWhole(e: Expr): Either[Fault, Unit] =
+    val inside = e match
+      case Expr.Quant(Quantifier.Always, _, body) => body
+      case other                                  => other
+    Either.cond(!Exprs.all(inside).exists {
+      case Expr.Quant(Quantifier.Always, _, _) => true
+      case _                                   => false
+    }, (), Fault.AlwaysInside)
+
   /** Each program's run read one way in a statement: as failing everywhere, or nowhere. */
   private def oneReading(runs: List[RunNote]): Either[Fault, Unit] =
     runs.groupBy(_.key).collectFirst { case (_, rs) if rs.size > 1 => rs.head }
-      .map(r => Fault.ReadTwoWays(Called.of(r.program).fold("a program")(_._1.value))).toLeft(())
+      .map(r => Fault.ReadTwoWays(program(r))).toLeft(())
+
+  /** The world after one run at most: two runs are from the one world, not one after the other (owner §45 E). */
+  private def afterOfOne(runs: List[RunNote], e: Expr): Either[Fault, Unit] =
+    runs.filter(r => after(r, e)).distinctBy(_.key) match
+      case a :: b :: _ => Left(Fault.AfterOfTwo(program(a), program(b)))
+      case _           => Right(())
+
+  /** Beside a world after, every world read named: unnamed, a value would read the world before the run. */
+  private def named(runs: List[RunNote], e: Expr): Either[Fault, Unit] =
+    val unnamed = Worlds.unnamed(e)
+    Either.cond(unnamed.isEmpty || !runs.exists(after(_, e)), (), Fault.WorldUnnamed(unnamed))
+
+  private def after(r: RunNote, e: Expr): Boolean = Exprs.all(e).contains(Expr.Var(r.after))
+
+  private def program(r: RunNote): String = Called.of(r.program).fold("a program")(_._1.value)
+
+  /** `isConstant` where a step keeps it: the formula, a conjunct, what `implies` gives, a `forall`'s body, a
+    * branch; not of a run (owner §45 A).
+    */
+  private def constants(e: Expr): Either[Fault, Unit] =
+    def inside(x: Expr, where: String) = Either.cond(!Exprs.all(x).exists(constant), (), Fault.ConstantInside(where))
+    e match
+      case Expr.Constant(_, _, v)                   =>
+        Either.cond(!Exprs.all(v).exists { case Expr.Var(x) => VarId.isRan(x.id); case _ => false }, (),
+          Fault.ConstantInside("of a run"))
+      case Expr.Prim(PrimOp.And, as, _)             => as.traverse_(constants)
+      case Expr.Prim(PrimOp.Implies, List(a, b), _) => inside(a, "left of implies") *> constants(b)
+      case Expr.Prim(PrimOp.Not, _, _)              => inside(e, "under !")
+      case Expr.Prim(PrimOp.Or, _, _)               => inside(e, "under ||")
+      case Expr.Quant(Quantifier.Forall, _, b)      => constants(b)
+      case Expr.If(c, a, b)                         => inside(c, "in a condition") *> constants(a) *> constants(b)
+      case other                                    => inside(other, "inside a value")
+
+  private def constant(e: Expr): Boolean = e match
+    case Expr.Constant(_, _, _) => true
+    case _                      => false

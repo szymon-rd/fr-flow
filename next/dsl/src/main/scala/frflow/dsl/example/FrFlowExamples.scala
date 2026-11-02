@@ -2,6 +2,7 @@ package frflow.dsl.example
 
 import cats.data.ValidatedNec
 import cats.syntax.all.*
+import frflow.core.expr.{Expr, Exprs}
 import frflow.core.example.Example as Elaborated
 import frflow.dsl.build.{ElabError, Site, Source}
 import frflow.dsl.kb.FrModel
@@ -40,8 +41,13 @@ abstract class FrFlowExamples(val knowledge: FrModel):
     * (a model's state, a run, a Declaration that changes) is refused.
     */
   protected def worldless(fact: Term[Boolean]): Term[Boolean] =
+    val constant = Term.exprOf(fact).exists(e => Exprs.all(e).exists {
+      case Expr.Constant(_, _, _) => true
+      case _                      => false
+    })
     if Worlds.reads(fact).contains(false) then fact
-    else Term.noted(Notes.fault(Fault.WorldRead("an example")))(fact.run)
+    else Term.noted(Notes.fault(if constant then Fault.ConstantInside("in an example") else
+      Fault.WorldRead("an example")))(fact.run)
 
   protected def register(e: Example): Unit = written += e
 

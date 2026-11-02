@@ -1,12 +1,12 @@
 package frflow.dsl.shape
 
 import frflow.core.code.Code
-import frflow.core.expr.Binder
+import frflow.core.expr.{Binder, Expr, Exprs}
 import frflow.core.name.{DefName, VarId}
 import frflow.core.term.{Body, Bound, Final, Sym}
 import frflow.core.term.interpret.Substituted
 import frflow.core.ty.Ty
-import frflow.dsl.build.{AsWritten, Site}
+import frflow.dsl.build.{AsWritten, Fault, Site}
 import frflow.dsl.term.{LeanType, Term}
 import frflow.dsl.run.Worlds
 import frflow.dsl.vocab.{Definition, OnTheSpot, Spot}
@@ -33,17 +33,26 @@ object Worldly:
     val (xs, t) = build()
     val world = Binder(VarId.level(types.size), Worlds.binder.hint, Ty.World)
     val over: Final[Any] = [T[_]] => (s: Sym[T]) =>
-      t.run(Substituted(s, Map(Worlds.binder -> s.free[Any](world)))).asInstanceOf[T[Any]]
-    val lambda = Elab.lambda(Site.Define(name), types)(
-      () => (xs :+ world, Term(over)(using t.leanType.asInstanceOf[LeanType[Any]])), written)
+      t.run(Substituted(s, Worlds.as(s.free[Any](world)))).asInstanceOf[T[Any]]
+    val lambda = Elab.lambda(Site.Define(name), types)(() => (xs :+ world, unconstant(Term(over)(
+      using t.leanType.asInstanceOf[LeanType[Any]]))), written)
     val curried = (types.map(_.ty) :+ Ty.World).foldRight(t.leanType.ty)((a, r) => Ty.FnOf(List(a), r))
     Definition.onTheSpot[F](OnTheSpot(name, Code.Proven(name), lambda,
-      Spot.Define(Body(name, curried, lams(xs.map(x => x -> x) :+ (Worlds.binder -> world), t)), worldly = true)))
+      Spot.Define(Body(name, curried, lams(xs, world, t)), worldly = true)))
+
+  /** A define's body is a value, which no step changes or keeps: `isConstant` is a statement's (owner §45 A). */
+  private def unconstant[A](t: Term[A]): Term[A] =
+    if Term.exprOf(t).exists(e => Exprs.all(e).exists {
+        case Expr.Constant(_, _, _) => true
+        case _                      => false
+      }) then throw Failure(Fault.ConstantInside("in a define"))
+    else t
 
   /** `fun x… world => body`, each input and the world bound to the variable the body was built over. */
-  private def lams(bs: List[(Binder, Binder)], t: Term[?]): Final[Any] = [T[_]] => (s: Sym[T]) =>
-    def over(left: List[(Binder, Binder)], env: Map[Binder, T[Any]]): T[Any] = left match
-      case (id, b) :: rest =>
-        s.lam[Any, Any](Bound[Any](b.hint, b.ty))(v => over(rest, env + (id -> v))).asInstanceOf[T[Any]]
-      case Nil             => t.run(Substituted(s, env)).asInstanceOf[T[Any]]
-    over(bs, Map.empty)
+  private def lams(xs: List[Binder], world: Binder, t: Term[?]): Final[Any] = [T[_]] => (s: Sym[T]) =>
+    def over(left: List[Binder], env: Map[Binder, T[Any]]): T[Any] = left match
+      case b :: rest =>
+        s.lam[Any, Any](Bound[Any](b.hint, b.ty))(v => over(rest, env + (b -> v))).asInstanceOf[T[Any]]
+      case Nil       => s.lam[Any, Any](Bound[Any](world.hint, world.ty))(w =>
+          t.run(Substituted(s, env ++ Worlds.as(w))).asInstanceOf[T[Any]]).asInstanceOf[T[Any]]
+    over(xs, Map.empty)

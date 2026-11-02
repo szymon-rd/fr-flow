@@ -74,7 +74,7 @@ abstract class StateModel[S](description: String)(using named: StateModel.Named,
   def in(world: Term[World]): Term[S] = Term.noted(Notes.of(declares))([T[_]] => (s: Sym[T]) =>
     s.part[S](world.run(s), name, stateType.ty))(using stateType)
   /** The state in the world a statement holds in (owner §41), or a define reading it (§43). */
-  def current: Term[S] = in(Worlds.current)
+  def current: Term[S] = in(Worlds.now)
 
   /** Nothing outside the code changes the state (owner §31, §36): which programs change it is derived. */
   def onlyCodeChanges: Fact = fact(declares, OutsideFact.OnlyCodeChanges(name))

@@ -118,6 +118,8 @@ object ToExpr extends Sym[ToExpr.IR]:
       post: (IR[R], IR[World]) => IR[Boolean]): IR[Boolean] = run(false, result, after)(p, before)(post)
   def fails[R, E](p: IR[Program[R]], before: IR[World], error: Bound[E], after: Bound[World])(
       post: (IR[E], IR[World]) => IR[Boolean]): IR[Boolean] = run(true, error, after)(p, before)(post)
+  def constant[A](before: IR[World], at: Bound[World])(value: IR[World] => IR[A]): IR[Boolean] = d =>
+    Expr.Constant(before(d), binder(at, d), value(variable(binder(at, d)))(d + 1))
   def noted[A](n: Annotation, t: IR[A]): IR[A] = t
 
   private val big = Ty.Num(NumKind.Big)

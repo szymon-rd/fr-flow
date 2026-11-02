@@ -5,7 +5,8 @@ import frflow.core.term.{Sym, World}
 import frflow.dsl.build.Fault
 import frflow.dsl.run.{RunNote, Worlds}
 import frflow.dsl.term.{LeanType, Notes, Term}
-import frflow.dsl.vocab.Called
+import frflow.dsl.vocab.{Called, Stating}
+import scala.annotation.unused
 
 
 /** The combinators as programs write them on a pair, `(a, b).parTupled`; and, in a statement, a program's run from
@@ -31,7 +32,18 @@ object FlowSyntax:
     def result: Term[Either[E, R]] = FlowSyntax.part[Either[E, R]](run, Some(LeanType[E]), outcome = true)
     def after: Term[World] = FlowSyntax.part[World](run, Some(LeanType[E]), outcome = false)
     /** Every model's state after the run is its state before (the faults its failing calls take are no model's). */
-    def changesNothing: Term[Boolean] = Term.both(after, Worlds.current)([T[_]] => (s: Sym[T]) => s.unchanged)
+    def changesNothing: Term[Boolean] = Term.both(after, Worlds.now)([T[_]] => (s: Sym[T]) => s.unchanged)
+
+  extension [A](t: Term[A])
+    /** What `t` reads of the world, read in `world` (`ofRoom(room).in(book(request).after)`). */
+    def in(world: Term[World]): Term[A] = Worlds.within(t, world)
+    /** What `t` reads of the world, read in the world the statement holds in, named: before any run it reads. */
+    def current: Term[A] = Worlds.within(t, Worlds.now)
+    /** That no run of any program from the world the statement holds in changes `t`, whatever its outcome (owner
+      * §44, §45 A): of a stretch of steps where a condition holds, `c implies t.isConstant`, `t` stays the same.
+      * Proven of each program that changes what `t` reads; of a Declaration, assumed.
+      */
+    def isConstant(using @unused st: Stating): Term[Boolean] = Worlds.constant(t)
 
   /** The run's outcome or world after, a variable its note names until the statement is closed; of a program
     * applied to a variable bound inside the statement, a fault.

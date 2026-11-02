@@ -7,7 +7,7 @@ import frflow.core.spec.{Node, NodeKind, Range}
 import frflow.core.ty.Ty
 import frflow.core.vocab.{StateModel, SymbolType}
 import frflow.core.Theory
-import frflow.core.analysis.{Callees, SaysWhat, Scope}
+import frflow.core.analysis.{Callees, Constancy, SaysWhat, Scope}
 
 /** What about the world outside a statement's check rests on (owner §16, §17, §21), derived from the statement and
   * the code, each to be listed by the statement's `.assuming` (owner §15: the one mechanism; `Validate` checks the
@@ -33,7 +33,13 @@ object Premises:
         case Range.Possible     => runs(t, id).map(m => Premise.Atomic(m.name))
         case Range.Reached(ms)  => ms.flatMap(t.vocabulary.model).flatMap(reached)
         case r @ Range.Made(ty) => passed(t, ty) ++ Scope.models(t, r).flatMap(reached)
-      } ++ guarded(t, n)).distinct
+      } ++ guarded(t, n) ++ constant(n)).distinct
+
+  /** An `isConstant` claim: no run changes the models it reads, read as no step changing them, rests on nothing
+    * outside the code changing them, and on each run being one step (owner §44).
+    */
+  private def constant(n: Node): List[Premise] = n.statement.said.toList.flatMap(Constancy.models)
+    .flatMap(m => List(Premise.OnlyCodeChanges(m), Premise.Atomic(m)))
 
   /** The programs changing `m`'s state (owner §31): those whose proven code calls an operation whose meaning writes
     * it.

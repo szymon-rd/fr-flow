@@ -56,8 +56,25 @@ enum Fault:
     * failing everywhere in the statement, or nowhere.
     */
   case ReadTwoWays(program: String)
-  /** A Declaration a rule (`always`) reads, with no assumption that it never changes: a rule holds of values, not of
-    * a moment (owner §43).
+  /** A Declaration a rule (`always`) reads that changes with the World (owner §45 C): a rule holds of values, in no
+    * world, so what it reads is the same in every world; `beside` is a statement reading it beside the World.
     */
-  case RuleOverChanging(declaration: String, rule: String)
+  case RuleOverChanging(declaration: String, rule: String, beside: String)
+  /** An `always` that is not a node's whole formula (under a `forall`, `!`, `implies`, `||`, in a define): only a
+    * node's formula is a rule, every value or world it ranges over meeting what always holds; anywhere else it would
+    * range over every value Lean has, made or not.
+    */
+  case AlwaysInside
+  /** The world after two different runs read in one statement (owner §45 E): each run is from the world the statement
+    * holds in, so the two are alternatives, not one after the other; a sequence is a program that does both.
+    */
+  case AfterOfTwo(first: String, second: String)
+  /** What reads the world without naming it (a Declaration, a define reading state) in a statement that reads a run's
+    * world after: it would read the world before the run. Named, it says which: `t.current`, `t.in(p.after)`.
+    */
+  case WorldUnnamed(values: List[String])
+  /** `isConstant` where it says nothing a step can keep (owner §45 A): `where` is under `!`, `||`, left of `implies`,
+    * a condition, a define, a rule, a model's `initially`, a program, an example, or of a run.
+    */
+  case ConstantInside(where: String)
   case Thrown(message: String)

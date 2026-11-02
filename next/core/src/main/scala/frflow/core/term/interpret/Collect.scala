@@ -82,4 +82,5 @@ object Collect extends Sym[Collect.N]:
       post: (N[E], N[World]) => N[Boolean]): N[Boolean] = p ++ before ++ post(Nil, Nil)
   def outside(fact: OutsideFact): N[Boolean] = Nil
   def unchanged(after: N[World], before: N[World]): N[Boolean] = after ++ before
+  def constant[A](before: N[World], at: Bound[World])(value: N[World] => N[A]): N[Boolean] = before ++ value(Nil)
   def noted[A](n: Annotation, t: N[A]): N[A] = n :: t

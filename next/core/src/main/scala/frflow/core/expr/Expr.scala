@@ -41,3 +41,7 @@ enum Expr:
   case Outside(fact: OutsideFact)
   /** Every model's state in `after` is its state in `before`, the faults aside (`Worlds.unchanged`). */
   case Unchanged(after: Expr, before: Expr)
+  /** That no run of any program from `before` changes `value`, read in the world `at` (`Worlds.constant`): as
+    * written, before the FrModel states it per program (`analysis.Constancy`).
+    */
+  case Constant(before: Expr, at: Binder, value: Expr)

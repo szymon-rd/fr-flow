@@ -19,5 +19,10 @@ trait Worlds[T[_]]:
     * the calls of a failing model's operations take, are no model's.
     */
   def unchanged(after: T[World], before: T[World]): T[Boolean]
+  /** That no run of any program from `before` changes `value`, a value read in a world (`at`), whatever the run's
+    * outcome (owner §44, §45 A: `t.isConstant`). As written only: the FrModel states it as one equation per program
+    * that changes what `value` reads (`analysis.Constancy`), so no back end reads it.
+    */
+  def constant[A](before: T[World], at: Bound[World])(value: T[World] => T[A]): T[Boolean]
   /** A fact about the world outside the code (an assumption's formula): what Lean's model of the world is built on. */
   def outside(fact: OutsideFact): T[Boolean]

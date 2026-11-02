@@ -91,6 +91,8 @@ trait Forward[T[_], U[_]] extends Sym[U]:
     fwd(base.fails(bwd(p), bwd(before), error, after)((e, w) => bwd(post(fwd(e), fwd(w)))))
   def outside(fact: OutsideFact): U[Boolean] = fwd(base.outside(fact))
   def unchanged(after: U[World], before: U[World]): U[Boolean] = fwd(base.unchanged(bwd(after), bwd(before)))
+  def constant[A](before: U[World], at: Bound[World])(value: U[World] => U[A]): U[Boolean] =
+    fwd(base.constant(bwd(before), at)(body(value)))
   /** A note passes through; a transformer whose representation holds more than `T` keeps it (overrides this). */
   def noted[A](n: Annotation, t: U[A]): U[A] = fwd(base.noted(n, bwd(t)))
 

@@ -94,13 +94,12 @@ final class LeanTerm(env: LowerEnv, standing: Map[SymbolName, LExpr] = Map.empty
       LExpr.App(const("Except.ok"), List(LExpr.Name(y))) -> onRight)))
   def forall[A](x: Bound[A])(p: S[A] => S[Boolean]): S[Boolean] = quantified(x, p)(LExpr.Forall(_, _))
   def exists[A](x: Bound[A])(p: S[A] => S[Boolean]): S[Boolean] = quantified(x, p)(LExpr.Exists(_, _))
-  /** Printed as the `∀` it narrows: Lean states an `always` only as the hypotheses it gives (`Guarded`), what keeps
-    * it (`Keeping`), and its witness (`Witnessed`), never as a claim of its own.
-    */
+  /** Printed as the `∀` it narrows: Lean states an `always` only as its hypotheses (`Guarded`), what keeps it. */
   def always[A](x: Bound[A])(p: S[A] => S[Boolean]): S[Boolean] = forall(x)(p)
-  /** Never printed: a fact is a whole assumption (the DSL's `Fact`), never stated (Lean's world is built on it). */
+  /** Never printed: a fact is a whole assumption (`Fact`); `isConstant` is stated per program first (`Constancy`). */
   def outside(fact: OutsideFact): S[Boolean] = _ => throw IllegalStateException(s"FrFlow bug: $fact printed")
   def unchanged(after: S[World], before: S[World]): S[Boolean] = s => Outcomes.unchanged(env, after(s), before(s))
+  def constant[A](w: S[World], at: Bound[World])(v: S[World] => S[A]): S[Boolean] = _ => sys.error("FrFlow bug")
   def construct[F](c: Constructor[F]): S[F] = _ => Atoms.ctor(c.data, c.ctor)
   /** A field of a record made on the spot (`LExpr.Ctor` applied) is its argument, typed by the field. */
   def field[R, F](r: S[R], sel: Selector[R, F]): S[F] = s => r(s) match

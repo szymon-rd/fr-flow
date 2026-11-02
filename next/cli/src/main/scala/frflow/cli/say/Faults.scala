@@ -33,8 +33,16 @@ object Faults:
     case Fault.WorldRead(where)       => s"$where reads the world: it reads state through its own values and operations"
     case Fault.ReadTwoWays(p)         => s"a run of $p is read both as failing and plainly: read it as failing " +
         "everywhere in the statement, or nowhere"
-    case Fault.RuleOverChanging(d, r) => s"the rule $r reads $d: a rule holds of values, not of a moment: say it " +
-        s"never changes with $d.isConstant, an assumption"
+    case Fault.RuleOverChanging(d, r, b) => s"the rule $r reads $d, which changes with the World ($b reads it " +
+        "beside the World): a rule holds of values, in no world"
+    case Fault.AlwaysInside           => "always is a node's whole formula: inside another (under forall, !, " +
+        "implies, ||, or in a define) it would range over every value Lean has; use forall there"
+    case Fault.AfterOfTwo(a, b)       => s"the worlds after a run of $a and a run of $b are read in one statement: " +
+        "both runs are from the world it holds in, not one after the other; write a program that does both"
+    case Fault.WorldUnnamed(vs)       => s"${vs.mkString(", ")} read the world without naming it in a statement " +
+        "that reads a run's world after: name it, t.current before the run or t.in(p.after) after it"
+    case Fault.ConstantInside(where)  => s"isConstant $where: it says that no run changes a value, so it is stated, " +
+        "or under a condition (c implies t.isConstant), only"
 
   /** A fault in what gives a Definition its meaning: its model, its Scala, its proven code. */
   private val meaning: PartialFunction[Fault, String] =

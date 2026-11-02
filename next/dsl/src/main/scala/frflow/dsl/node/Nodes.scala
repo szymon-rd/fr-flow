@@ -30,7 +30,7 @@ object Nodes:
 
   /** The formula over the world it holds in (`Closing`), once what changes with the World is known. */
   private def closed(st: Stating, t: Term[Boolean]): Term[Boolean] =
-    if st.closing then Closing.of(t).fold(refused, identity) else t
+    if st.closing then Closing.of(t).fold(refused, identity) else Closing.opened(t)
 
   /** A statement refused where it is closed: its fault alone (read open, its leading variables are another's). */
   private def refused(f: Fault): Term[Boolean] =

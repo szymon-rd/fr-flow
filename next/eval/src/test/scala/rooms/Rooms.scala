@@ -33,7 +33,7 @@ val bookedIsStored = Node.claim("What is booked is what the table holds.")(booke
 
 val bookedAfterIsStored =
   Node.claim("What is booked once a request is handled is what the table holds after booking it.")(
-    forall((request: Term[Booking]) => bookedAfter(request) === storedBookings.in(book(request).after)))
+    forall((request: Term[Booking]) => bookedAfter(request).current === storedBookings.in(book(request).after)))
   .refines(bookWhenFree)
 
 val acceptedIsAnswered = Node.claim("A request is accepted exactly when booking it answers booked.")(

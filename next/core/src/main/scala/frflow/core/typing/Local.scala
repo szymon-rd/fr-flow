@@ -39,6 +39,7 @@ final class Local(ctx: IrContext):
     case Expr.Runs(_, w, _, _, a, b)  => ty(w) == Ty.World && a.ty == Ty.World && ty(b) == Ty.Bool
     case Expr.Part(w, _, _)           => ty(w) == Ty.World
     case Expr.Unchanged(a, b)         => ty(a) == Ty.World && ty(b) == Ty.World
+    case Expr.Constant(w, a, _)       => ty(w) == Ty.World && a.ty == Ty.World
     case Expr.Outside(_)              => false
     case Expr.Var(_) | Expr.Tuple(_) | Expr.SomeOf(_) | Expr.Do(_, _) => true // their type is their parts'
 

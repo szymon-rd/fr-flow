@@ -49,6 +49,7 @@ final class IrCheck(local: Local):
       case Expr.Pairwise(on, x, y, b)       => List(on -> scope, b -> under(List(x, y)))
       case Expr.Match(on, arms, _)          => (on -> scope) :: arms.map(a => a.body -> under(a.pattern.binders))
       case Expr.Runs(r, w, _, o, a, b)      => List(r -> scope, w -> scope, b -> under(List(o, a)))
+      case Expr.Constant(w, a, v)           => List(w -> scope, v -> under(List(a)))
       case Expr.Do(_, _)                    => Nil // its steps in order (`prog`)
       case other                            => Exprs.children(other).map(_ -> scope)
 

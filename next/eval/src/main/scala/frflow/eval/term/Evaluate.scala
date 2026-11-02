@@ -42,6 +42,9 @@ class Evaluate extends Sym[Run], RunLists, RunContainers:
   /** Every model's state as before, the faults and the races aside (a world may hold them, `Faults`, `Races`). */
   def unchanged(after: Run[World], before: Run[World]): Run[Boolean] =
     map2(after, before)((a, b) => states(a) == states(b))
+  /** Never run: it is about every run of every program, which Lean is asked (`isConstant`). */
+  def constant[A](before: Run[World], at: Bound[World])(value: Run[World] => Run[A]): Run[Boolean] =
+    _ => Left(EvalError.Quantified)
   /** The numbers a quantifier over numbers ranges over in a search (`Env.numbers`); none elsewhere. */
   private def watched[A](x: Bound[A], env: Env): Option[List[A]] = x.ty match
     case Ty.Num(_) if env.numbers.nonEmpty => Some(env.numbers.map(_.asInstanceOf[A])) // a number's type is BigInt
