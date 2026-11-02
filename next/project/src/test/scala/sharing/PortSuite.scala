@@ -57,6 +57,11 @@ class PortSuite extends munit.CatsEffectSuite:
     assert(spec.contains("(Sharing.isOpenContract.claim (Sharing.isOpenCode 604800) 604800)"), spec)
   }
 
+  test("today's tests that need today's server or scheduler are listed, each deferred with why and to when") {
+    assertEquals(Judged.deferred.size, 6)
+    assert(Judged.deferred.values.forall(_.contains("with ")), Judged.deferred)
+  }
+
   test("every node is stated against today's in Port.lean, or listed with why it is not") {
     val legacy = Map("canView" -> "canViewContract", "canEdit" -> "canEditContract", "inForce" -> "inForceContract",
       "isOpen" -> "isOpenContract", "gone" -> "goneContract", "pending" -> "pendingContract",

@@ -84,6 +84,25 @@ object Judged:
     "startedAt" -> frflow.project.Ported.OnD.Configuration(
       "when the service started: fixed for the run, the start of its history"))
 
+  /** Today's tests not ported, each deferred with why and to when (the step 13 review's S4): they need today's
+    * server and scheduler (its HTTP routes, its codec, its wall-clock scheduler), which `next` does not have.
+    */
+  val deferred: Map[String, String] = Map(
+    "the scheduler: runs keeping to its assumption meet every deadline; adversarial delays break housekeepingOnTime" ->
+      ("the evidence for housekeepingOnTime, kept as an assumption: needs today's scheduler on a fake clock, and " +
+        "time passing between runs in the World (G1); with G1's outside step, or the server, whichever comes first"),
+    "the black-box oracle: 400 generated requests, waits and runs of housekeeping, on the memory store and SQLite" ->
+      "needs today's server and its codec; with the server's port (step 14's documents and examples or later)",
+    "many clients at once: serializable results in commit order, every notice delivered once or waiting" ->
+      ("needs today's server; the transactions and the delivery's interleavings are tested on the models " +
+        "(InterleavingsSuite) and proven (commute_0); with the server's port"),
+    "a scripted session: reminded and declined, retried and delivered once, a 503 changing nothing, a yes explained" ->
+      ("needs today's server and its routes; its pieces run in production's interpreter here (SeededSuite); with " +
+        "the server's port"),
+    "the codec: routes read, refused with a reason, no other route" -> "today's server's own; with the server's port",
+    "the server's own answers: 400 with the reason, 404, 503 past the time limit, 500 on an internal error" ->
+      "today's server's own; with the server's port")
+
   /** Each node not stated against today's in `Port.lean`, with why (the step 13 review's S1). */
   val unstated: Map[String, String] =
     val run = "today's statement reads today's run (`Run.after`), of today's programs over today's boundaries' " +
