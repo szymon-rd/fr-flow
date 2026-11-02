@@ -161,6 +161,11 @@ class ReviewSuite extends munit.FunSuite:
     })
   }
 
+  test("finding 8, owner §45 D: no port reads a value provided where the code runs beside the World") {
+    List(rooms, auth.knowledge, crm.knowledge, keycloak.knowledge).foreach(kb =>
+      assertEquals(frflow.core.analysis.Validate.providedBesideWorld(Theories.theory(kb)), Nil, kb.name.value))
+  }
+
   test("finding 10: an example whose value breaks a rule on its type is refused, not judged on the code") {
     class Overlapping extends FrFlowExamples(rooms):
       example("overlapping held: granted"):

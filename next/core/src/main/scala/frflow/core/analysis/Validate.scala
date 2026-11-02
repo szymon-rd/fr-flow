@@ -124,7 +124,7 @@ object Validate:
       differing ++ clauses ++ nested ++ steps(t) ++ providedBesideWorld(t))
 
   /** Each statement reading the World and a value provided where the code runs (owner §45 D): none of the four
-    * ports has one (`whole.ProvidedSuite`); crm's, keycloak's and auth's histories and clock become state models in
+    * ports has one (`rooms.ReviewSuite`); crm's, keycloak's and auth's histories and clock become state models in
     * step 13.
     */
   def providedBesideWorld(t: Theory): List[Problem] = t.nodes.map(_.node).flatMap(n =>
