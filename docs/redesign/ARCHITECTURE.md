@@ -152,28 +152,66 @@ The message a Declaration in code gets (`dsl/frflow/dsl/vocab/Stating.scala`):
 final class Stating private (val varies: Set[SymbolName], val closing: Boolean)
 ```
 
-**What changes with the World** (owner §41, §43). A statement holds in every reachable world, and what changes with
-the world is read in the current one without being passed it: a model's state (`storedBookings.current`), a program's
-run (`book(request).result`, the world it leaves `book(request).after`, read with `storedBookings.in(…)`), a
-Declaration, a define reading state. There is no marker. Every Declaration may change with the World; `kb.Varying`
-reads off the statements which ones Lean must take as functions of the world: those a statement reads beside something
-that changes (state, a run, a define reading state, `isConstant`, or another such Declaration), until no statement adds
-one. Each of those takes the world as its last input (`booked : World → List Booking`, `accepted : Booking → World →
-Prop`); a Declaration no statement reads so is the same in every world whatever it is, so Lean is given it as a value
+**What changes with the World** (owner §41, §43, §45). A statement holds in every world meeting what always holds
+(the reachable worlds are among them: `cover_` and `start_` show it, 2.3), and what changes with the world is read in
+the current one: a model's state (`storedBookings.current`), a program's run (`book(request).result`, the world it
+leaves `book(request).after`, read with `storedBookings.in(…)`), a Declaration, a define reading state. There is no
+marker. Every Declaration may change with the World; `kb.Varying` reads off the statements which ones Lean must take as
+functions of the world: those a statement reads beside something that changes (state, a run, a define reading state,
+`isConstant`, or another such Declaration), until no statement adds one. Each statement is read for this with its
+leading variables open, so a run of them counts (rooms' `acceptedIsAnswered` alone makes `accepted` change with the
+World). Each of those takes the world as its last input (`booked : World → List Booking`, `accepted : Booking → World
+→ Prop`); a Declaration no statement reads so is the same in every world whatever it is, so Lean is given it as a value
 (auth's `access`, crm's `finds`). This is sound for statements each read in one world: a constant witness is a
-function's, and the function's value at any reachable world is a constant one, so consistency is the same; and a proof
-is uniform in the Declaration, so one of `parts d → c d` is one of `parts (d w) → c (d w)`. It fails only where a
-statement reads two worlds or none, so those make it explicit: `d.isConstant`, `∀ w1 w2, d … w1 = d … w2`, reads the
-World, so it makes `d` change with it (claimed, it is proven from its parts; assumed, it is a reviewed fact); and a rule
-(`always`), which holds of values in no world, reads its Declarations as values, each of which an `isConstant`
-assumption must say never changes (`Fault.RuleOverChanging` otherwise; Lean's reading of it as a value rests on that
-assumption, which is then `d = d`). A define changes with the World exactly when its body reads state
-(`shape.Worldly`, read off the body): it takes the world last, and each call is read in its caller's world; an `always`
+function's, and the function's value at any world is a constant one, so consistency is the same; and a proof is
+uniform in the Declaration, so one of `parts d → c d` is one of `parts (d w) → c (d w)`. A Declaration, like every
+value read without naming its world, is read in the world before any run the statement reads.
+
+What a statement may say, so that its Lean meaning is the one written wherever it is written (semantics review, owner
+§45); each refusal is a `Fault` where the statement is closed (4.5):
+
+- **`always` is a node's whole formula** (`Fault.AlwaysInside`). Nested, it would range over every value Lean has,
+  made or not, the opposite of a nested `forall`, which ranges over every value that can be made.
+- **A rule reads no Declaration that changes with the World** (owner §45 C, `Fault.RuleOverChanging`, naming a
+  statement reading it beside the World). A rule holds of values, in no world, so a Declaration it reads is a value.
+- **Beside a run's world after, every world read is named** (`Fault.WorldUnnamed`): `t.current` reads `t` in the world
+  before the run, `t.in(p.after)` after it (`ofRoom(room).in(book(r).after)`, `bookedAfter(request).current`). Read
+  unnamed, a Declaration or a define reading state would be read before the run while the statement reads as after it.
+- **The world after one run at most** (owner §45 E, `Fault.AfterOfTwo`). Every run a statement reads is from the world
+  it holds in, so two are alternatives, not a sequence; a sequence is a program that does both. FrFlow states safety
+  properties: "eventually" (liveness) and sequencing two runs in one statement are out of scope for now.
+- **A run of a program that can fail is read with both outcomes** (`Problem.SucceedingOnly`): read plainly, a statement
+  would say nothing of the runs that fail, and a program that always fails would meet it. Today a run read so is
+  `p.failing[E]`; owner §45 B declares the error in the Definition's type instead (stopped on its Scala spelling, 10.2).
+- **A value provided where the code runs is not read beside the World** (owner §45 D, `Problem.ProvidedBesideWorld`):
+  it is the same in every world. The check is written and off (`Validate.refusesProvidedBesideWorld`) until step 13
+  models crm's, keycloak's and auth's clock and histories as state models.
+
+**`isConstant`** (owner §44, §45 A). `t.isConstant`, of any value `t` read in a statement, says that no run of any
+program from the world the statement holds in changes `t`, whatever the run's outcome: TLA+'s `□[c ⇒ t′ = t]`, where
+`c` is what implies it (`closed(room) implies bookingsOf(room).isConstant`), read in the world before the step. Over a
+stretch of steps where `c` holds, `t` stays the same; with no condition, `t` is the same in every reachable world given
+one start, a consequence of this and `initially`, not a second meaning. `analysis.Constancy` states it per program:
+one equation `∀ x…, match p x… world with | (_, after) => t after = t world` (a program that may fail, of both its
+runs) for each program that changes what `t` reads (its proven code writes a model `t` reads, through the defines it
+calls; one with no proven code, or every one where `t` reads a Declaration of the World, may change anything). A new
+such program adds its equation, so the statement's meaning changes and it comes back to review; the code's `impl`
+proves the equations. It rests on the models `t` reads changing only by code and one run at a time
+(`onlyCodeChanges`, `atomic`, derived, `Premise`). Of a Declaration, which no code gives a value, it is an assumption
+(`d.isConstant`, each input: `∀ x…, (d x…).isConstant`). Two idioms: "a booking once made is never removed",
+`forall(b => stored.contains(b) implies stored.contains(b).isConstant)`; "a count never goes down",
+`forall(n => n <= count implies (n <= count).isConstant)`. It is refused where no step keeps it
+(`Fault.ConstantInside`): under `!` or `||`, left of `implies`, in a condition, of a run, in a define, an example; a
+rule, an `initially` and a program's step read no world (`WorldRead`), and code has no `Stating` for it.
+
+A define changes with the World exactly when its body reads state (`shape.Worldly`, read off the body): it takes the
+world last, and each call is read in its caller's world, or in the world it names (`ofRoom(room).in(w)`); an `always`
 rule (a value's or a store's), an `initially`, a program's step and an operation's meaning read state through their
 own values and operations, so a world read there is refused (`Fault.WorldRead`), and an example, a closed fact about
-the code, reads no world (`Fault.WorldRead` of an example). `Stating` carries the Declarations that change, so each is
-applied to the current world where it is written; the statements are read once open (`Stating.probing`) to find them,
-then elaborated and closed (4.5).
+the code, reads no world (`Fault.WorldRead` of an example). A define's `forall`s come with what always holds of their
+variables, as a statement's do (`Guarded`, 2.3), so a define read inline means what it does named. `Stating` carries
+the Declarations that change, so each is applied to the current world where it is written; the statements are read
+once open (`Stating.probing`) to find them, then elaborated and closed (4.5).
 
 A **Definition** is a value code and programs use, of any type (a function, a program, an operation on a state, a plain
 value). It is a `Term` and gets its meaning exactly once, in the FrModel or where it is written:
@@ -267,7 +305,9 @@ Checked before production only:
   (2.6): nothing outside the code changes it, it starts as `initially` says, and runs on it are atomic; that its plain
   Scala does what the model does is tested (3.8). A world is one a run starts from or one the statement quantifies over
   (every statement reading the world quantifies over the world it holds in, 2.2, as rooms' roots do): each comes with
-  what always holds of the stores' states in it.
+  what always holds of the stores' states in it. A `cover_` not proven leaves red the rule and every statement taking
+  it as a hypothesis (`Reads.takes`, `ReadProof.kept`), as a `made_` not proven does the steps over what it makes:
+  rooms' `storeWhenFree` takes `neverOverlap` on its world.
 - **An assumption of `always`** is a rule as a claim of `always` is (2.4, 2.6): the same hypothesis, the same `cover_`,
   `made_` and `start_` asked of the code and the start, and `inhabited_`; only its own truth for values from outside is
   trusted, not proven.
@@ -487,7 +527,8 @@ match book request world with | (result, after) => …`), with a failure clause 
 of a run that succeeds and its `Left` the error of one that fails; `p.failing[E].changesNothing`). Another Definition
 on the same variables is an ordinary mention. A program's error is part of its type from step 3b
 (`Ty.FlowOf(result, error)`, 4.4): a run's post is asked of its `Except.ok` results, its failure clause of the others;
-`p.result` of a program that can fail is of the runs that succeed.
+a plain `p.result` of a program that can fail would be of the runs that succeed only, so it is refused
+(`Problem.SucceedingOnly`, 2.2).
 
 ```scala
 enum CallForm:
@@ -523,7 +564,7 @@ hold (owner §15, §18).
   nothing still open, gives `fun xs => e`; a bound gives the bound (one past a strict one); a witnessed value then
   stands for itself in the rest. Proven code is its own witness, once what it leaves open is solved: `bookedAfter`'s
   witness, the table after `book` runs, waits for `granted`'s, which `grantWhenNoOverlap`'s equation gives. An
-  equation read through a run (`bookedAfter(request) === storedBookings.in(book(request).after)`) gives its
+  equation read through a run (`bookedAfter(request).current === storedBookings.in(book(request).after)`) gives its
   witness over the run's outcome. `Equations.defining` reads the shape off the IR; `Defining` builds the term.
 - **Pinned provided values.** A provided value that an assumption of the group equates to a term is solved by that
   equation, like an open value; the provided values no assumption pins stay universal (asked of every value).
@@ -590,14 +631,19 @@ enum Vacuity:
 every statement about `T` hold for nothing), together with every other `always[T]` on that type, so two that contradict
 show; and an assumption saying what a store starts in gets one too, some state meeting it (`start_` then gives the
 store's rules of it). `satisfiable_<i>_<node>`: each condition `A` of a claim's
-`A implies B`, with what is bound above it (`Conditions`), can hold. The witness search (`testing.search.Witnesses`)
-tries the generators' values first, then small values of each type (`Small`, SmallCheck-style), each judged by the
-evaluator, deterministically, at most 5,000 candidates. A witness found goes to Lean (rooms: `(Booking.mk "" 0 1)`,
+`A implies B`, with what is bound above it (`Conditions`), can hold, each variable with what always holds of it as
+the claim's own (`Guards`: a value code can make, a world meeting its stores' rules); below a run, of the run that
+gives what it reads (`¬ runs(p, ¬ A)`: the run succeeds and `A` holds). A condition about a Declaration is not shown
+by a witness, which would choose what the Declaration means whatever the claims say: it is stated, not witnessed. The
+witness search (`testing.search.Witnesses`) tries the generators' values first, then small values of each type
+(`Small`, SmallCheck-style), each meeting the rules on its type and judged by the evaluator, deterministically, at
+most 5,000 candidates. A witness found goes to Lean (rooms: `(Booking.mk "" 0 1)`,
 `(RoomBookings.mk "" [])`); a condition no candidate meets is "not shown". Lean is given each constant typed at its root
 (`(2 : Int)`, `([] : (List Int))`): an untyped numeral defaults to `Nat`, where `0 - 1 = 0`, and an untyped `[]` or
 `none` may not elaborate. Examples may serve as witnesses but are never required. Vacuity is reported, not gated:
 `status` shows each `inhabited_` and `satisfiable_` shown or not shown, and `complete` does not wait for them. This is
-vacuity only; consistency gates the proof (2.8).
+vacuity only; consistency gates the proof (2.8). A claim with no parts is also tried as a tautology (`vacuous`: it
+holds whatever what it speaks of means, `∀ r, accepted r = accepted r`); shown, it says nothing, and `show` says so.
 
 **The idle try, of the roots together.** `idle` asks whether a root is met by doing nothing; it is asked of the roots
 naming the same Definitions together: the purpose is met by doing nothing only when every root naming those
@@ -622,7 +668,11 @@ class GrantedExamples extends FrFlowExamples(rooms):
 An example is a closed fact (`core.example.Example(name, givens, fact)`); `example(name, d := v)` sets provided
 Definitions. Checked against the code (`ExampleRun`: `OnCode.Holds`, `Fails`, `NotEvaluated`, or `Abstract` for a fact
 about Declarations) and against the claims in Lean (`example_<i>`, a try met by `frflow_auto`); one that sets values is
-shown "checked in Scala only". Nothing depends on examples: the theory and its Lean are the same without them.
+shown "checked in Scala only". A value an example writes that breaks a rule on its type (an `always[T]`, evaluated
+on each `T` the value holds, `Made.breaks`) is no value the code is ever given, so the example is refused
+(`OnCode.BreaksRule`) rather than judged: on such a value the code is neither right nor wrong (semantics review,
+finding 10). An example reads no world and states no `isConstant` (2.2). Nothing depends on examples: the theory and
+its Lean are the same without them.
 
 ## 3. How a project reads: rooms end to end
 
@@ -732,7 +782,7 @@ val bookedIsStored = Node.claim("What is booked is what the table holds.")(booke
 
 val bookedAfterIsStored =
   Node.claim("What is booked once a request is handled is what the table holds after booking it.")(
-    forall((request: Term[Booking]) => bookedAfter(request) === storedBookings.in(book(request).after)))
+    forall((request: Term[Booking]) => bookedAfter(request).current === storedBookings.in(book(request).after)))
   .refines(bookWhenFree)
 
 val acceptedIsAnswered = Node.claim("A request is accepted exactly when booking it answers booked.")(
@@ -744,7 +794,8 @@ Each root is one equation over a request, holding in every world as it stands, w
 table (2.3); the three Declarations change with the World, since `bookedIsStored` reads `booked` beside the table and
 the roots read the others beside `booked` (2.2), so Lean has `∀ request world, bookedAfter request world = …`. Neither
 mentions code: the three claims below them say what each Declaration is in terms of the code (2.7), and booking's two
-claims are proven of its program. `when(c)(a).otherwise(b)` is Lean's `if`. The roots list `bookingsEndAfterStart`: the
+claims are proven of its program. `bookedAfterIsStored` reads the table after `book`'s run, so it names the world it
+reads `bookedAfter` in, the one before the run (`.current`, 2.2); `acceptedIsAnswered` reads no world after. `when(c)(a).otherwise(b)` is Lean's `if`. The roots list `bookingsEndAfterStart`: the
 purpose holds for bookings that end after they start (owner §25).
 
 ### 3.5 What booking does, and what the table always holds
@@ -963,7 +1014,8 @@ type Final[A] = [T[_]] => Sym[T] => T[A]
 The algebras: `Logic`, `Equality`, `Arith`, `Constants`, `Lists` (with `foldLeft`, `pairwise`, `nodup`), `Options`,
 `Maps`, `Sets`, `Eithers`, `Quantifiers` (`forall`, `exists`, `always`), `Records`, `Sums` (an eliminator, one `When` per case),
 `Functions` (`lam`, `app`, `let`), `Named` (`param`, `define`), `Variables`, `Annotations` (`noted`) and `Worlds` (a
-model's state, a program's `runs` and `fails`, `outside`). Object types are host types (`T[Boolean]`,
+model's state, a program's `runs` and `fails`, `outside`, and `constant`, `isConstant` as written, which the FrModel
+states per program before any back end reads it: `analysis.Constancy`, 2.2). Object types are host types (`T[Boolean]`,
 `T[List[Booking]]`), so no interpreter tags a value. **Interpreters** (§3.2), one printer and one evaluator:
 
 | Interpreter | Representation | Used for |
@@ -1139,14 +1191,21 @@ position, links), the statement built when elaborated, once the FrModel knows wh
 (`kb.Varying`, 2.2).
 
 **A statement closed over its world** (owner §41, `node.Closing`). The world a statement holds in is a variable free
-while it is written (`run.Worlds.current`, `VarId.world`), as is each run it reads (`p.result`, `p.after`: a `RunNote`,
+while it is written, read unnamed (`run.Worlds.current`, `VarId.world`: a Declaration, a define reading state) or
+named (`Worlds.now`, `VarId.named`: `m.current`, `t.current`; `t.in(w)` substitutes `w` for the unnamed one), as is
+each run it reads (`p.result`, `p.after`: a `RunNote`,
 its outcome and world after `VarId.ran` of the run's IR). The statement's leading `forall`s keep their bodies
 (`term.Forall`), so the closing opens them on free variables (`VarId.opened`), and, where what is below reads the world,
 binds it right below them and each run right below it, by `Substituted`: `forall(request => … book(request).after …)`
 is `∀ request, ∀ world, runs (book request) world (result, after) …`, the IR and Lean the explicit form had, the world's
 binder named `world`. So `CallForms`, the guards (2.3), `Opened` and every analysis read it as before. A statement
 reading no world is as written. A run is of the statement's leading variables (`Fault.RunInside` otherwise), from the
-world it holds in; a statement needing two arbitrary worlds is `isConstant`'s only (2.2).
+world it holds in. Closing refuses what would read otherwise than written (2.2): an `always` inside the formula
+(`AlwaysInside`), a run read both ways (`ReadTwoWays`), the worlds after two runs (`AfterOfTwo`), an unnamed world read
+beside a world after (`WorldUnnamed`), `isConstant` where no step keeps it (`ConstantInside`). While what changes with
+the World is read off (`Stating.probing`), a statement is read with its leading `forall`s open, so its runs are read
+as they are once closed (`Closing.opened`); `isConstant` is then stated per program (`analysis.Constancy`) once the
+vocabulary is known, before validation.
 
 `Source.valName`, read at compile time, names nodes, values, types and models: one name in code, reports and Lean.
 Today's `Node` fields each have a place: `why` is the decision's reason, parents are edges, `post` and `op` are derived
@@ -1672,6 +1731,13 @@ review functions, 8's (the port interpreters, `NodeChecker`, the lexer's passes,
 
 In order of value; none blocks a step.
 
+- **Owner §45 B: the Scala spelling of a program that can fail.** §45 B writes it `A => Flow[E, R]` beside
+  `A => Flow[R]`; Scala has no two types of one name, so the two cannot both be `Flow`. Until the owner chooses, a
+  run of a program that can fail is read with both outcomes as today (`p.failing[E]`), and a plain reading of one is
+  refused (`Problem.SucceedingOnly`, 2.2). Proposals, the first recommended: `A => Flow[R]` and `A => Failing[E, R]`
+  (a second class, `Failing[E, R] <: Flow[Either[E, R]]` in shape, its `.result` an `Either[E, R]`); one class
+  `Flow[E, R]`, a program that cannot fail `Flow[Nothing, R]` (every program's type changes); or an infix type
+  `A => (Flow[R] raises E)`.
 - **Step 11: the README's forms.** `implementTested`'s `start` and `observe` could say their roles (`startFrom`,
   `readBack`); introduce `World` where first used; warn when a node reached by an edge is missing from the `FrModel`
   list, or collect the list. (Settled by today's rooms: a `RoomBookings` names its room, `bookingsOfTheRoom` says so,
@@ -1806,6 +1872,8 @@ The decisions are in `owner-decisions.md`; the right column says where this docu
 | 41 | The World implicit in statements; `.result`, `.after` replace `.from` | 2.2, 2.7, 3, 4.5 |
 | 42 | One `Flow`: a program is a `Flow[R]`, a `for` comprehension; no `Program` | 3.2, 4.4, 7.2 |
 | 43 | No marker for what changes: read off the statements and the defines' bodies; `d.isConstant` | 2.2, 3.4 |
+| 44 | `isConstant` on any value: no next step changes it, one equation per program | 2.2, 4.2, 4.5 |
+| 45 | One `isConstant`; error in the type (open, 10.2); no worldly rule; D at step 13; safety only | 2.2, 2.7, 10.2 |
 
 ## Appendix B. Today's library, and where each problem is addressed
 
