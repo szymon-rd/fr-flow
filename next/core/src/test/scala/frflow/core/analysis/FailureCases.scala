@@ -13,8 +13,21 @@ import frflow.core.vocab.{Define, DefineForm, Fails}
   * (each call failing with `"down"`), a claim states what a failing run of `book` meets.
   */
 object FailureCases:
-  /** The store, any call of which may fail with the string `"down"`. */
-  val down: Kb = Store.kb.declaring(v => v.copy(models = v.models.map(_.copy(fails =
+  /** The store, any call of which may fail with the string `"down"`; `book`'s run read with both outcomes, as a
+    * program that can fail must be (`SucceedingOnly`).
+    */
+  val down: Kb = Store.kb.without("bookRuns").and(bothOutcomes).linking(assumes("bookRuns", "oneAtATime"))
+    .declaring(v => v.copy(models = v.models.map(_.copy(fails = Some(Fails(Ty.Str, Value.Str("down")))))))
+
+  /** `∀ b before`, `book(b)`'s runs from `before` that succeed and those that fail. */
+  private def bothOutcomes: frflow.core.spec.Node = claim("bookRuns")(Lang.formula([T[_]] => (l: Lang[T]) =>
+    l.forall[Booking]("b", Booking.ty)(x => l.forall[World]("before", Ty.World)(w =>
+      val run = l.call(l.sym[Booking => Program[Unit]]("book", Store.bookTy), x)
+      l.s.and(l.s.runs(run, w, Bound[Unit]("r", Ty.Unit), Bound[World]("after", Ty.World))((_, _) => l.truth),
+        l.s.fails(run, w, Bound[Any]("error", Ty.Str), Bound[World]("after", Ty.World))((_, _) => l.truth))))))
+
+  /** `book`'s run read plainly, where it can fail: of the runs that succeed only. */
+  val plainly: Kb = Store.kb.declaring(v => v.copy(models = v.models.map(_.copy(fails =
     Some(Fails(Ty.Str, Value.Str("down")))))))
 
   /** `∀ b before, book(b).from(before).failing { (error: E, after) => true }`. */
@@ -69,4 +82,5 @@ object FailureCases:
     ProblemCase(stepping, List(Problem.StepNotOperation(DefName("bookIfFree"), Store.book))),
     ProblemCase(claiming(down, Lang.big),
       List(Problem.FailingDiffers(NodeId("bookFails"), Store.book, Lang.big, Ty.Str))),
-    ProblemCase(claiming(Store.kb, Ty.Str), List(Problem.NeverFails(NodeId("bookFails"), Store.book))))
+    ProblemCase(claiming(Store.kb, Ty.Str), List(Problem.NeverFails(NodeId("bookFails"), Store.book))),
+    ProblemCase(plainly, List(Problem.SucceedingOnly(NodeId("bookRuns"), Store.book))))

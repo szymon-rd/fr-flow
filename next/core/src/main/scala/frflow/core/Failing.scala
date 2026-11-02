@@ -70,6 +70,11 @@ object Failing:
     case Expr.Runs(run, _, true, error, _, _) => program(run).map(_ -> error.ty)
   }.flatten.distinct
 
+  /** The programs a formula reads a run of plainly only: of the runs that succeed, with no failing side beside. */
+  def plainly(formula: Expr): List[SymbolName] =
+    val runs = Exprs.all(formula).collect { case Expr.Runs(run, _, failing, _, _, _) => (run, failing) }
+    runs.collect { case (run, false) if !runs.contains((run, true)) => program(run) }.flatten.distinct
+
   /** Whether a formula runs a program that is no Definition applied to its inputs (a define's result, a variable):
     * what such a run may fail with is no Definition's type, so Lean could not be told how to match it.
     */

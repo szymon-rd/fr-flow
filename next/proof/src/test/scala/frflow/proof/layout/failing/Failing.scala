@@ -77,8 +77,8 @@ object Failing:
   private val facts = storeFacts(shelf)
   private val runClaims = List(claim("fileRuns")(fileRuns), claim("fileWrong")(fileWrong),
     claim("checkRuns")(checkRuns),
-    claim("spoilRuns")(runs[Booking, Unit]("spoil", Booking.ty, Ty.Unit)),
-    claim("twiceRuns")(runs[Booking, (Unit, Unit)]("fileTwice", Booking.ty, pair)))
+    claim("spoilRuns")(bothRuns[Booking, Unit]("spoil", Booking.ty, Ty.Unit, Ty.Str)),
+    claim("twiceRuns")(bothRuns[Booking, (Unit, Unit)]("fileTwice", Booking.ty, pair, Ty.Str)))
 
   val kb: Kb = Kb.of((List(endsAfterStart, fromOutside("fromOutside")) ++ runClaims ++ facts)*)
     .modelling(model)

@@ -57,7 +57,7 @@ class FailingSuite extends munit.FunSuite:
   }
 
   test("a program handling every error it meets runs over it, and a failing run's clause on it is refused") {
-    val careful = FailureCases.down.declaring(v => v.copy(defines = v.defines.map(d => d.copy(written =
+    val careful = FailureCases.plainly.declaring(v => v.copy(defines = v.defines.map(d => d.copy(written =
       Written.steps(d.lambda.params, Prog.Catch(steps(d), Ty.Str, Binder(VarId.step(1), "e", Ty.Str),
         Prog.Pure(Stated([T[_]] => (s: Sym[T]) => s.bool(true)))), Ty.Unit, d.written.source)))))
     val r = Resolve(Validate(careful.elaborated).toOption.get)

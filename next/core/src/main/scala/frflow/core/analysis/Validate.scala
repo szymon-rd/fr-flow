@@ -10,7 +10,7 @@ import frflow.core.name.{LeanNames, NodeId, SymbolName}
 import frflow.core.spec.NodeKind
 import frflow.core.ty.Ty
 import frflow.core.vocab.DefineForm
-import frflow.core.analysis.outside.{Outsides, Premises}
+import frflow.core.analysis.outside.{Outsides, Premises, Reads}
 
 /** The structure rules (docs/DAG.md §2) as one pure function: every problem at once, or the theory as `Valid`. */
 object Validate:
@@ -114,12 +114,29 @@ object Validate:
     val clauses = t.nodes.map(_.node).flatMap(n => n.statement.said.toList.flatMap(f => Failing.clauses(f.value))
       .flatMap((op, ty) => failingClause(t, n.id, op, ty)))
     val runs = t.nodes.map(_.node).filter(_.statement.said.exists(f => Failing.runsNoDefinition(f.value)))
-      .map(n => Problem.RunOfNoDefinition(n.id))
+      .map(n => Problem.RunOfNoDefinition(n.id)) ++ t.nodes.map(_.node).flatMap(n => n.statement.said.toList
+        .flatMap(f => Failing.plainly(f.value)).filter(Failing.escapingOf(t, _).nonEmpty)
+        .map(Problem.SucceedingOnly(n.id, _)))
     val nested = t.vocabulary.defines.filter(d => d.form == DefineForm.Flow && (d.lambda.body match
       case Expr.Do(p, _) => Progs.nestsAtomic(p)
       case _             => false)).map(d => Problem.NestedAtomic(d.name))
     all(unclaimed.map(Problem.CodeWithoutClaim(_)) ++ Resolve.circles(t).map(Problem.RestsOnItself(_)) ++ runs ++
-      differing ++ clauses ++ nested ++ steps(t))
+      differing ++ clauses ++ nested ++ steps(t) ++
+      (if refusesProvidedBesideWorld then providedBesideWorld(t) else Nil))
+
+  /** Whether `providedBesideWorld` refuses: off until the clock and histories crm, keycloak and auth read as provided
+    * values are part of the World (owner §45 D). TODO(step 13): model them as state models, then turn this on.
+    */
+  val refusesProvidedBesideWorld: Boolean = false
+
+  /** Each statement reading the World and a value provided where the code runs (owner §45 D). */
+  def providedBesideWorld(t: Theory): List[Problem] = t.nodes.map(_.node).flatMap(n =>
+    if !n.statement.said.exists(f => Exprs.all(f.value).exists {
+        case Expr.Quant(_, xs, _) => xs.exists(_.ty == Ty.World)
+        case Expr.Runs(_, _, _, _, _, _) => true
+        case _                    => false
+      }) then Nil
+    else Reads.provided(t, n.id).map((s, _) => Problem.ProvidedBesideWorld(n.id, s)))
 
   /** A program's step calling a Definition that is no model's operation (another program, or one given plain Scala):
     * what it is handed would reach code no `made_` at the call covers, so it waits for its form (step 12).

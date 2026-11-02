@@ -18,7 +18,19 @@ class ValidateSuite extends munit.FunSuite:
     constValueTuple[m.MirroredElemLabels].toList.map(_.toString)
 
   test("every case of Problem has a theory that triggers it") {
-    assertEquals(cases.map(_.name).sorted, caseNames[Problem].sorted)
+    assertEquals((cases.map(_.name) :+ "ProvidedBesideWorld").sorted, caseNames[Problem].sorted)
+  }
+
+  test("ProvidedBesideWorld: a statement reading the World and a value provided where the code runs; off until " +
+    "step 13 (owner §45 D)") {
+    val limit = SymbolName("limit")
+    val reads = claim("readsBoth")(Lang.formula([T[_]] => (l: Lang[T]) =>
+      l.forall[frflow.core.term.World]("w", frflow.core.ty.Ty.World)(w =>
+        l.s.and(l.s.eq(w, w), l.s.eq(l.sym[BigInt]("limit", Lang.big), l.sym[BigInt]("limit", Lang.big))))))
+    val kb = Kb.of(reads).naming(definition("limit", Lang.big)).coding(limit -> Code.Provided)
+    assertEquals(Validate.providedBesideWorld(kb.theory),
+      List(Problem.ProvidedBesideWorld(NodeId("readsBoth"), limit)))
+    assert(!Validate.refusesProvidedBesideWorld && !kb.problems.exists(_.productPrefix == "ProvidedBesideWorld"))
   }
 
   cases.foreach { c =>

@@ -62,6 +62,15 @@ object Fixture:
       l.call(l.sym[I => Program[R]](name, fn(in, Ty.FlowOf(out, None))), i), w, Bound[R]("r", out),
       Bound[World]("after", Ty.World))((_, _) => l.truth))))
 
+  /** The same of a program that may fail with `error`, of both its outcomes (a plain reading would be of the runs
+    * that succeed only: `SucceedingOnly`).
+    */
+  def bothRuns[I, R](name: String, in: Ty, out: Ty, error: Ty): Final[Boolean] = Lang.formula([T[_]] =>
+    (l: Lang[T]) => l.forall[I]("i", in)(i => l.forall[World]("before", Ty.World)(w =>
+      val p = l.call(l.sym[I => Program[R]](name, fn(in, Ty.FlowOf(out, None))), i)
+      l.s.and(l.s.runs(p, w, Bound[R]("r", out), Bound[World]("after", Ty.World))((_, _) => l.truth),
+        l.s.fails(p, w, Bound[Any]("error", error), Bound[World]("after", Ty.World))((_, _) => l.truth)))))
+
   /** The same of a program with no inputs. */
   def runsAlone[R](name: String, out: Ty): Final[Boolean] = Lang.formula([T[_]] => (l: Lang[T]) =>
     l.forall[World]("before", Ty.World)(w => l.s.runs(l.sym[Program[R]](name, Ty.FlowOf(out, None)), w,
