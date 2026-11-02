@@ -378,3 +378,31 @@ state or a program's `.result`/`.after`), which FrFlow reads off the code. Progr
 (`Node.assumption("The opening hour never changes.")(openingHour.isConstant)`) and, like any formula, may also be
 claimed where the code shows it. Built as step 13b.
 
+## 44. `isConstant` on any value: no next step changes it (owner)
+The owner: "We may want to keep various values constant. How now, with World, would you say that a value stays
+constant?", then, of `closed(room) implies bookingsOf(room).isConstant`: "It is not constant overall but stays for
+some kind of continuous moment", and "Keep isConstant". `t.isConstant` applies to any value, not only a Declaration.
+In a statement (which holds in every reachable world) it means that no run of any program from the current world
+changes `t`: `∀ w ∈ Reach, cond(w) → t(after(p, w)) = t(w)` for every program `p` (TLA+ `□[cond ⇒ t′ = t]`); the
+condition is read in the world before the step. Over a stretch of steps where the condition holds, `t` stays the same;
+with no condition it is the same in every reachable world (∃c ∀w ∈ Reach, t(w) = c). It is proven by one obligation
+per program that changes what `t` reads; a new such program brings the statement back for review. Of a Declaration,
+which no code gives a value, it is an assumption.
+
+## 45. The statement language after the semantics review (owner)
+A review of the statement language found statements whose Lean meaning depended on where they were written
+(scratchpad semantics-review.md). Asked for decisions A to E with recommendations, the owner answered "Go", accepting
+all five:
+- A. `isConstant` has one meaning everywhere: no run of any program from the current world (where its condition
+  holds, read before the step) changes the value, over both outcomes of a run. Constancy in every world follows from
+  it and the start. This reads §44 with one meaning.
+- B. A program that can fail declares its error in its Definition's type, `A => Flow[E, R]`; its `.result` is then
+  `Either[E, R]`, so a statement about it covers both outcomes. A program that cannot fail is `A => Flow[R]`. FrFlow
+  checks the declared error against what the code raises.
+- C. An `always` rule may not read a Declaration that changes with the World; it is refused, rather than licensed by
+  an `isConstant` assumption.
+- D. The clock and histories that crm, keycloak and auth read as provided values are modelled as part of the World
+  (state models); a provided value is refused in a statement that reads the World. Done with step 13.
+- E. FrFlow states safety properties. "Eventually" (liveness) and sequencing two runs in one statement are out of
+  scope for now, and the docs say so.
+
