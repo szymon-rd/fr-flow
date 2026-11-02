@@ -185,9 +185,14 @@ What a statement may say, so that its Lean meaning is the one written wherever i
 - **The world after one run at most** (owner §45 E, `Fault.AfterOfTwo`). Every run a statement reads is from the world
   it holds in, so two are alternatives, not a sequence; a sequence is a program that does both. FrFlow states safety
   properties: "eventually" (liveness) and sequencing two runs in one statement are out of scope for now.
-- **A run of a program that can fail is read with both outcomes** (`Problem.SucceedingOnly`): read plainly, a statement
-  would say nothing of the runs that fail, and a program that always fails would meet it. Today a run read so is
-  `p.failing[E]`; owner §45 B declares the error in the Definition's type instead (stopped on its Scala spelling, 10.2).
+- **A program that can fail says so on its Definition, and its run is read with both outcomes** (owner §45 B, §46):
+  `Definition[Time => Flow[Unit]]("…").failsWith[StoreDown]` (`Definition.Fails`). Applied in a statement it is a
+  `Run`, whose `result` is an `Either[StoreDown, Unit]` and whose `after` is the world either outcome leaves (`runs ∧
+  fails`), so a statement about it says what a failing run does; read plainly, it would say nothing of the runs that
+  fail, and a program that always fails would meet it, which the type no longer allows (`Problem.SucceedingOnly` stays
+  for a theory built otherwise). FrFlow checks the declared error against what the proven code may end in
+  (`Problem.FailsWithDiffers`: code raising on a Definition declaring nothing, declaring an error it never ends in, or
+  another). There is one `Flow` (§42).
 - **A value provided where the code runs is not read beside the World** (owner §45 D, `Problem.ProvidedBesideWorld`):
   it is the same in every world. No port reads one so (`rooms.ReviewSuite`): crm's, keycloak's and auth's clock and
   histories, provided, are read beside no world; step 13 makes them state models, part of the World.
@@ -534,13 +539,12 @@ code. Nothing is proven of the code from it, and it lists no premise (2.6). It i
 **A claim read as a call.** Where a claim applies one Definition to exactly its leading `forall` variables (alone, or
 one side of its equation) and mentions it nowhere else, `CallForms` reads it as a call; a program's claim
 `forall(request => storedBookings.in(book(request).after) === …)` reads as a run (closed, 4.5, as `∀ request world,
-match book request world with | (result, after) => …`), with a failure clause where it reads the run as failing
-(`p.failing[E].result`, an `Either[E, R]`: closed as both outcomes, `runs ∧ fails`, the `Either`'s `Right` the result
-of a run that succeeds and its `Left` the error of one that fails; `p.failing[E].changesNothing`). Another Definition
-on the same variables is an ordinary mention. A program's error is part of its type from step 3b
-(`Ty.FlowOf(result, error)`, 4.4): a run's post is asked of its `Except.ok` results, its failure clause of the others;
-a plain `p.result` of a program that can fail would be of the runs that succeed only, so it is refused
-(`Problem.SucceedingOnly`, 2.2).
+match book request world with | (result, after) => …`), with a failure clause where the program is declared to fail
+(`.failsWith[E]`, owner §46: `p.result` is an `Either[E, R]`, closed as both outcomes, `runs ∧ fails`, the `Either`'s
+`Right` the result of a run that succeeds and its `Left` the error of one that fails, each side's post its branch as
+written; `p.changesNothing`). Another Definition on the same variables is an ordinary mention. A program's error is
+part of its type (`Ty.FlowOf(result, error)`, 4.4), declared where the Definition is written and checked against its
+code (`FailsWithDiffers`, 2.2): a run's post is asked of its `Except.ok` results, its failure clause of the others.
 
 ```scala
 enum CallForm:
@@ -1195,8 +1199,9 @@ World)`, on the models' instance on `ExceptT e (StateM World)` (one per error), 
 reserved); `f_run` is `FrFlow.runOnE (ε := e)`, a run's post matches `Except.ok` (`| _ => True` for the rest, sound when
 nothing escapes), `cover_` holds of the world a failed run leaves too when an error escapes (both arms, `runs ∧ fails`,
 `FrFlow.outcome` unfolded), `made_` of ok results, and `commute_` reads the error from the type.
-`p.failing[E].changesNothing` says every model's state is as before (`Worlds.unchanged(after, before)`,
-`Expr.Unchanged`; in Lean one equation per model's field, the faults left out), and `===` between worlds is refused
+`p.changesNothing`, of a program declared to fail, says every model's state is as before
+(`Worlds.unchanged(after, before)`, `Expr.Unchanged`; in Lean one equation per model's field, the faults left out),
+and `===` between worlds is refused
 where an operation may fail (`WorldsEqual`): it would compare the faults the calls took.
 
 ### 4.5 The front end: nodes, names, errors
@@ -1749,13 +1754,8 @@ review functions, 8's (the port interpreters, `NodeChecker`, the lexer's passes,
 
 In order of value; none blocks a step.
 
-- **Owner §45 B: the Scala spelling of a program that can fail.** §45 B writes it `A => Flow[E, R]` beside
-  `A => Flow[R]`; Scala has no two types of one name, so the two cannot both be `Flow`. Until the owner chooses, a
-  run of a program that can fail is read with both outcomes as today (`p.failing[E]`), and a plain reading of one is
-  refused (`Problem.SucceedingOnly`, 2.2). Proposals, the first recommended: `A => Flow[R]` and `A => Failing[E, R]`
-  (a second class, `Failing[E, R] <: Flow[Either[E, R]]` in shape, its `.result` an `Either[E, R]`); one class
-  `Flow[E, R]`, a program that cannot fail `Flow[Nothing, R]` (every program's type changes); or an infix type
-  `A => (Flow[R] raises E)`.
+- **Settled (owner §46): the spelling of a program that can fail.** `Flow[R]` and `Flow[E, R]` cannot both be types,
+  so the error is declared on the Definition, `.failsWith[E]` (2.2); `.current` names the world before a run.
 - **Step 11: the README's forms.** `implementTested`'s `start` and `observe` could say their roles (`startFrom`,
   `readBack`); introduce `World` where first used; warn when a node reached by an edge is missing from the `FrModel`
   list, or collect the list. (Settled by today's rooms: a `RoomBookings` names its room, `bookingsOfTheRoom` says so,
@@ -1891,7 +1891,8 @@ The decisions are in `owner-decisions.md`; the right column says where this docu
 | 42 | One `Flow`: a program is a `Flow[R]`, a `for` comprehension; no `Program` | 3.2, 4.4, 7.2 |
 | 43 | No marker for what changes: read off the statements and the defines' bodies; `d.isConstant` | 2.2, 3.4 |
 | 44 | `isConstant` on any value: no next step changes it, one equation per program | 2.2, 4.2, 4.5 |
-| 45 | One `isConstant`; error in the type (open, 10.2); no worldly rule; D at step 13; safety only | 2.2, 2.7, 10.2 |
+| 45 | One `isConstant`; error in the type (§46); no worldly rule; D at step 13; safety only | 2.2, 2.7, 10.2 |
+| 46 | A program that can fail: `.failsWith[E]` on its Definition, `p.result` an `Either`; `.current` | 2.2, 2.7, 4.4 |
 
 ## Appendix B. Today's library, and where each problem is addressed
 

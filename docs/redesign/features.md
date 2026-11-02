@@ -167,9 +167,10 @@ adds a use), measured with grep on 3aa8cd7 and checked on e0fa3d9. "Tests only" 
     `example("…"): (… implies …) is true`, checked against the claims in Lean (`example_<i>`).
 17. A cheaper check meant for run time (owner §2); its Lean obligation `check` (post implies check) goes with it (8).
 18. On a claim only; on an assumption it is `Fault.NotAClaim`.
-19. A run read as failing gives both outcomes, one formula for them (owner §41): `handle(r).failing[E].result`, an
-    `Either[E, R]`, folded over the error and the answer, `handle(r).failing[E].after` the world either leaves, and
-    `handle(r).failing[E].changesNothing` today's `.failsChangingNothing` (`SharingClaimsSuite`).
+19. A program that can fail is declared so, `Definition[Request => Flow[Answer]]("…").failsWith[Failure]` (owner
+    §46), and its run gives both outcomes, one formula for them (owner §41): `handle(r).result`, an `Either[E, R]`,
+    folded over the error and the answer, `handle(r).after` the world either leaves, and `handle(r).changesNothing`
+    today's `.failsChangingNothing` (`SharingClaimsSuite`). The declared error is checked against the code.
 20. On the operations, in the FrModel: `implementTested(inRoom, add)(start = BookingsTable.holding,
     observe = _.bookings)(t => (t.inRoom, t.add))`, `start` making the Scala hold a state of the model, `observe`
     reading it back, the last giving each operation's Scala. Generated sequences of calls (`Runs`) are run on both,
