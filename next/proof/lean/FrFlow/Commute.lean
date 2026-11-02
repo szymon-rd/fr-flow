@@ -11,6 +11,12 @@ step by step, any order of whole branches gives what the written one gives.
 
 namespace FrFlow
 
+/-- Two runs alike but for the world's choices left in them (`forget` sets them aside): the same result, and the same
+models' states. How `commute_i` compares two orders where each branch is given its own faults and races: a run of
+the branches in either order on one list of choices takes a part of it per branch, so given those parts each, the
+other order's run is the written order's on one list again, the parts in its order. -/
+@[frflow_defs] def sameModels {σ α : Type} (forget : σ → σ) (a b : α × σ) : Prop := a.1 = b.1 ∧ forget a.2 = forget b.2
+
 /-- `x` and `y` commute: from every state, `x` then `y` and `y` then `x` give the same results and the same state. -/
 def Commute {σ α β : Type} (x : StateM σ α) (y : StateM σ β) : Prop :=
   ∀ s, runOn (do let a ← x; let b ← y; pure (a, b)) s = runOn (do let b ← y; let a ← x; pure (a, b)) s

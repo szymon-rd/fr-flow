@@ -132,6 +132,9 @@ def failing {σ ε α : Type} (faults : σ → List Bool) (rest : σ → List Bo
   generalize x s = p
   rcases p with ⟨r, s'⟩
   cases r <;> rfl
+/-- The world's choices set as a branch begins (`commute_i`). -/
+@[frflow_defs] theorem runOnE_modify {σ ε : Type} (f : σ → σ) (s : σ) :
+    runOnE (modify f : ExceptT ε (StateM σ) PUnit) s = (.ok ⟨⟩, f s) := rfl
 /-- A step of a boundary that never fails, in a flow that may. -/
 @[frflow_defs] theorem runOnE_lift {σ ε α : Type} (x : StateM σ α) (s : σ) :
     runOnE (ExceptT.lift x : ExceptT ε (StateM σ) α) s = (.ok (runOn x s).1, (runOn x s).2) := rfl
