@@ -426,3 +426,8 @@ schedule (e.g. housekeeping at least once an hour) is a trusted fact restricting
 interleave program runs with `elapse` steps on a virtual clock. With it, crm's clock and sharing's now move into the
 World (§45 D).
 
+## 48. Auth's tables stay provided (owner)
+Asked whether auth's grants and sessions tables, which §45 D names, should move into the World, with the
+recommendation to keep them provided since no auth statement reads two moments, the owner answered "Yes". They stay
+provided values; were a statement about auth ever to compare two moments, they would move into the World then.
+
