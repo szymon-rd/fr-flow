@@ -2,7 +2,7 @@ package frflow.project.program
 
 import cats.effect.Ref
 import cats.MonadThrow
-import frflow.core.name.NodeId
+import frflow.core.name.{ModelName, NodeId}
 import frflow.core.Theory
 import frflow.eval.Semantics
 import frflow.testing.{Draw, Plan}
@@ -17,7 +17,12 @@ final case class ModelCheck[F[_]](node: NodeId, run: (Plan, Draw) => F[TestRepor
 object ModelCheck:
   /** One per model whose operations the FrModel gives Scala, reported by the model (`ModelRuns.reportedUnder`). */
   def of[F[_]: MonadThrow: Ref.Make](semantics: Semantics, t: Theory): List[ModelCheck[F]] =
+    counted(semantics, t, _ => ModelRuns.Runs)
+
+  /** The same, each model run at most `most` times (a port giving today's counts). */
+  def counted[F[_]: MonadThrow: Ref.Make](semantics: Semantics, t: Theory, most: ModelName => Int)
+      : List[ModelCheck[F]] =
     t.code.implemented.toList.sortBy(_._1.value).flatMap((m, impl) => t.vocabulary.model(m).map { model =>
       val check = ModelTests.Check(model, impl)
-      ModelCheck(ModelRuns.reportedUnder(m), ModelRuns[F](check, semantics, t).of(_, _))
+      ModelCheck(ModelRuns.reportedUnder(m), ModelRuns[F](check, semantics, t, most(m)).of(_, _))
     })

@@ -14,13 +14,15 @@ import frflow.testing.derive.Always
 import frflow.testing.report.*
 
 /** A model's operations' plain Scala tested against the model (`implementTested(ops*)(start, observe)(calls)`,
-  * whoever wrote it, owner §36): at most `ModelRuns.Runs` runs of its operations (`Runs`), each from a state of the
+  * whoever wrote it, owner §36): at most `most` runs of its operations (`ModelRuns.Runs` unless a port gives today's
+  * count), each from a state of the
   * model drawn by its type and meeting every `always(stored)` about it, on the Scala and on the model
   * (`ModelTests.run`). Run `i` is drawn from `(seed, i)` at its size; a run that cannot be drawn is not tried, and the
   * shortfall said. The first run that differs is shrunk (`RunShrink`). What the runs reach is counted: each operation
   * called, each branch of the model's steps taken both ways. Reported by the model (`reportedUnder`).
   */
-final class ModelRuns[F[_]: MonadThrow: Ref.Make](check: ModelTests.Check, semantics: Semantics, t: Theory):
+final class ModelRuns[F[_]: MonadThrow: Ref.Make](check: ModelTests.Check, semantics: Semantics, t: Theory,
+    most: Int = ModelRuns.Runs):
   private type Tried = Either[Drawn, (Value, List[Step], Drawn)]
   private val model = check.model
   private val typing = Typing(semantics, t.vocabulary)
@@ -31,7 +33,7 @@ final class ModelRuns[F[_]: MonadThrow: Ref.Make](check: ModelTests.Check, seman
   private val node: NodeId = ModelRuns.reportedUnder(model.name)
 
   def of(plan: Plan, draw: Draw): F[TestReport] =
-    val runs = plan.settings.cases.min(ModelRuns.Runs)
+    val runs = plan.settings.cases.min(most)
     val replayed: List[Tried] = plan.replay.collect { case Failure.Run(start, steps, _, from) =>
       Right((start, steps, from)) }
     val drawn: List[Tried] = (0 until runs).toList.map(i => Left(Drawn(plan.settings.seed, i, Seed.sizeOf(i, runs))))
