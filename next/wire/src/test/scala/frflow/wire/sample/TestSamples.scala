@@ -51,4 +51,5 @@ object TestSamples:
   val counterexamples: Map[NodeId, List[Failure]] = Map(NodeId("Book") -> List(call, threw),
     NodeId("Store") -> List(run(Difference.State(Value.Many(Nil), Value.Many(List(Value.Str("x"))))),
       run(Difference.Call(Step(SymbolName("add"), Nil), Ran.Threw("closed"),
-        Ran.Failed(Value.Str("down")))), run(Difference.NotRun("closed"))))
+        Ran.Failed(Value.Str("down")))), run(Difference.NotRun("closed")),
+      run(Difference.Assumed(Step(SymbolName("peek"), Nil), Ran.Gave(Value.Many(Nil)), List(NodeId("peekGives"))))))

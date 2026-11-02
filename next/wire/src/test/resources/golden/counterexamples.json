@@ -304,6 +304,72 @@
           "index": 2,
           "size": 1
         }
+      },
+      {
+        "kind": "run",
+        "start": {
+          "kind": "world",
+          "states": [
+            {
+              "model": "stored",
+              "state": {
+                "kind": "many",
+                "elems": []
+              }
+            }
+          ],
+          "faults": [
+            false,
+            true
+          ]
+        },
+        "steps": [
+          {
+            "op": "add",
+            "args": [
+              {
+                "kind": "data",
+                "ctor": "mk",
+                "fields": [
+                  {
+                    "kind": "str",
+                    "value": "Oak"
+                  },
+                  {
+                    "kind": "num",
+                    "value": 9
+                  },
+                  {
+                    "kind": "num",
+                    "value": 10
+                  }
+                ]
+              }
+            ]
+          }
+        ],
+        "difference": {
+          "kind": "assumed",
+          "step": {
+            "op": "peek",
+            "args": []
+          },
+          "implementation": {
+            "kind": "gave",
+            "result": {
+              "kind": "many",
+              "elems": []
+            }
+          },
+          "broken": [
+            "peekGives"
+          ]
+        },
+        "from": {
+          "seed": "-7",
+          "index": 2,
+          "size": 1
+        }
       }
     ]
   }

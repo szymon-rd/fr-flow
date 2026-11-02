@@ -19,7 +19,8 @@ class ValidateSuite extends munit.FunSuite:
         l.s.and(l.s.eq(w, w), l.s.eq(l.sym[BigInt]("limit", Lang.big), l.sym[BigInt]("limit", Lang.big))))))
     ProblemCase(Kb.of(reads).naming(definition("limit", Lang.big)).coding(SymbolName("limit") -> Code.Provided),
       List(Problem.ProvidedBesideWorld(NodeId("readsBoth"), SymbolName("limit"))))
-  private val cases = GraphCases.all ++ OutsideCases.all ++ ValueCases.all ++ FailureCases.all :+ provided
+  private val cases = GraphCases.all ++ OutsideCases.all ++ ValueCases.all ++ FailureCases.all ++ AssumedCases.all :+
+    provided
 
   private inline def caseNames[A](using m: Mirror.SumOf[A]): List[String] =
     constValueTuple[m.MirroredElemLabels].toList.map(_.toString)
@@ -57,6 +58,12 @@ class ValidateSuite extends munit.FunSuite:
       .unlinking(assumes("bookRuns", "oneAtATime"))
     assertEquals(unmodelled.problems, List(Problem.StepNotOperation(frflow.core.name.DefName("bookIfFree"),
       Store.add), Problem.Undefined(Store.add)))
+  }
+
+  test("an operation known only by assumptions (G2): one said to leave the world as it was is valid beside a rule " +
+    "about its store; with nothing assumed of it, undefined") {
+    assertEquals(AssumedCases.saidWhatItLeaves.problems, Nil)
+    assertEquals(AssumedCases.unsaid.problems, List(Problem.Undefined(AssumedCases.peek)))
   }
 
   test("a model named as a domain type, its namespace in Lean, is declared twice") {
