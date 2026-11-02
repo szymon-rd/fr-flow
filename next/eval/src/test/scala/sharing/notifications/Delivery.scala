@@ -21,7 +21,8 @@ object Delivery:
     Flow.bracket[Failure, Unit, Unit](Flow.step(Pool.take))(_ =>
       sendAll.race(Flow.step(Clock.sleep(limit))).void)(_ => Flow.step(Pool.give))
 
-  private def sendAll: Flow[Unit] =
+  /** The sends, four at once: the branches the interleavings run at once. */
+  private[sharing] def sendAll: Flow[Unit] =
     for
       lib <- LibraryStore.load
       _   <- Flow.parCollectN(atOnce)(Notifications.firstOfEach(lib.outbox))(n => deliverOne(n))

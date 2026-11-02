@@ -10,14 +10,15 @@ import sharing.invitations.Invitations
 import sharing.invitations.InvitationsClaims
 import sharing.notifications.Notifications
 import sharing.notifications.NotificationsClaims
-import sharing.notifications.Pool
+import sharing.notifications.{Mailer, MemoryMailer, MemoryPool, Pool}
+import frflow.eval.flow.Wall
 import sharing.ownership.Ownership
 import sharing.ownership.OwnershipClaims
 import sharing.requests.AccessRequests
 import sharing.requests.AccessRequestsClaims
 import sharing.service.Sharing
 import sharing.service.SharingClaims
-import sharing.store.{LibraryStore, Transactions}
+import sharing.store.{LibraryStore, MemoryLibraryStore, Transactions}
 import sharing.time.LifetimesClaims
 import sharing.time.{ClockKept, Deadlines, Lifetimes, Run, Schedule}
 import sharing.trash.Trash
@@ -41,7 +42,8 @@ val domainTypes = Node.design("People, teams, documents, folders, shares, invita
     "keeps its log and its outbox with it.")(
   "src/main/scala/sharing/domain", "src/main/scala/sharing/Demo.scala").refines(accessFollowsShares)
 
-val knowledge = FrModel("Sharing")(
+/** Sharing's nodes, in today's order. */
+val nodes: List[Node] = List(
   reach, cover, permission, editPermission, Definitions.inTrash, ownersShare, accessFollowsShares,
   sharing.invitationsAreOffers, sharing.trashUntilGone, sharing.housekeepingClearsOnlyTheEnded,
   sharing.accessRequestsAreAsks, sharing.ownersKeepTheirDocuments, sharing.auditTrail, sharing.noticesFollowChanges,
@@ -62,13 +64,20 @@ val knowledge = FrModel("Sharing")(
   LibraryStore.oneTransactionAtATime, Transactions.transactions, Notifications.mailerKept,
   Notifications.mailOneAtATime, Pool.poolKept, Pool.poolOneAtATime, ClockKept.clockKept, ClockKept.clockAlone,
   SharingHttp.handleContract, serverWiring, domainTypes)
+
+/** Sharing: its nodes, and the code of every Definition. */
+val knowledge: FrModel = withCode(FrModel("Sharing")(nodes*)).implementProven(Sharing.access)(Sharing.accessCode)
+
+/** `kb` with the code of every Definition of sharing but `access`: the proven code of the words, the operations and
+  * the programs, the fixed lifetimes, the run's history provided, and each model's Scala.
+  */
+def withCode(kb: FrModel): FrModel = kb
   .implementProven(reaches)(reachesCode)
   .implementProven(covers)(coversCode)
   .implementProven(mayView)(mayViewCode)
   .implementProven(mayEdit)(mayEditCode)
   .implementProven(inTrash)(inTrashCode)
   .implementProven(ownedBy)(ownedByCode)
-  .implementProven(Sharing.access)(Sharing.accessCode)
   .implementProven(Sharing.canView)(Sharing.canViewCode)
   .implementProven(Sharing.canEdit)(Sharing.canEditCode)
   .implementProven(Sharing.share)(Sharing.shareCode)
@@ -103,3 +112,8 @@ val knowledge = FrModel("Sharing")(
   .implementValue(Lifetimes.remindAfter)(BigInt(2 * 86400))
   .implementValue(Run.housekeepingWithin)(BigInt(120))
   .implementProvided(Run.startedAt, Run.events)
+  .implementTested(LibraryStore.load, LibraryStore.save)(start = MemoryLibraryStore.holding, observe = _.library)(
+    s => (s.load, s.save))
+  .implementTested(Mailer.send)(start = MemoryMailer.holding, observe = _.boxes)(m => Tuple1(m.send))
+  .implementTested(Clock.now, Clock.sleep)(start = Wall.at, observe = _.time)(c => (c.now, c.sleep))
+  .implementTested(Pool.take, Pool.give)(start = MemoryPool.holding, observe = _.count)(p => (p.take, p.give))
