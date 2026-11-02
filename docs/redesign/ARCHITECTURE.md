@@ -194,8 +194,17 @@ What a statement may say, so that its Lean meaning is the one written wherever i
   (`Problem.FailsWithDiffers`: code raising on a Definition declaring nothing, declaring an error it never ends in, or
   another). There is one `Flow` (§42).
 - **A value provided where the code runs is not read beside the World** (owner §45 D, `Problem.ProvidedBesideWorld`):
-  it is the same in every world. No port reads one so (`rooms.ReviewSuite`): crm's, keycloak's and auth's clock and
-  histories, provided, are read beside no world; step 13 makes them state models, part of the World.
+  it is the same in every world. No port reads one so (`rooms.ReviewSuite`). Owner §45 D, that "now" and the
+  histories the ports read as provided values are part of the World, **is not done**: each port's
+  `Judged.provided` says how each of its provided values stands (`Ported.OnD`), the suites pinning which are open.
+  Crm's clock and sharing's history and "now" wait on G1, time passing between runs (the World's clock moves only by
+  the programs' sleeps, so a wait outside a program has no step, and a schedule assumed of the run would be asked
+  `cover_` of every program), put to the owner with a proposal: an outside step of a model (the clock's `elapse`,
+  taken by the world between runs, never going back, the schedule an assumption restricting it). Crm's history and
+  what it holds and keycloak's history and state wait on G2, programs calling operations known only by their
+  assumptions (4.4), whose form is ruled but not yet built. Auth's two tables, read in one moment only (no statement of auth reads two worlds), are a
+  question to the owner, the builder's view that they stay provided. Configuration fixed for the run (keycloak's
+  seed, sharing's start) is not "now" or a history and stays provided.
 
 **`isConstant`** (owner §44, §45 A). `t.isConstant`, of any value `t` read in a statement, says that no run of any
 program from the world the statement holds in changes `t`, whatever the run's outcome: TLA+'s `□[c ⇒ t′ = t]`, where
@@ -1167,13 +1176,44 @@ takes `now`, and `retry` `sleep`. A program's steps have three readings:
   cancellation is never mapped, and a model that cannot fail lets its implementation's exceptions escape as they are.
   Nothing is checked.
 - **Scala tests'**: the recorded `Prog` run by `eval.flow.FlowInterpreter` against a `World`: the models (examples,
-  model tests) or the implementations (interleavings). A sequential run takes a race's winner from the world (a reserved
-  `races : List Bool`, held like `faults`, read by `races.leftWins`), one of the scheduler's choices Lean leaves open.
+  model tests) or the implementations (interleavings). A sequential run takes the scheduler's choices from the world (a
+  reserved `races : List Bool`, held like `faults`, read by `races.leftWins`), choices Lean leaves open.
+
+**A race** (step 13 review, B1). In production `l.race(r)` runs both sides at once and cancels the loser when the
+winner finishes, at whatever step it has reached: what its steps did until then stays. So a race is read, by Lean and
+by the sequential runs alike, as the scheduler's choice of the winner (`races.leftWins`), then the loser's steps until
+the scheduler cancels it (`Prog.Cut`: before each of the loser's steps the world says whether it is cancelled there,
+the next of the same `races`, `true` when none is left), then the winner's (`ReadRecording.raced`). A step is an
+operation's call, all or nothing (an operation's Scala cancelled part way has done all or nothing, part of its model's
+atomicity, 2.6), or a transaction, which production never cancels part way (`atomically` is uncancelable, as the
+concurrent tests' scheduling is). A traverse at once in the loser has each branch cancelled at its own step, read in
+turn, and what follows it dropped when one was (`FrFlow.Races.each`); a race, a pair at once or a finalizer
+(`guarantee`, `bracket`) inside a race's side is refused (`RaceSideHolds`): what they do when cancelled is not read.
+In Lean the loser is `FrFlow.Races.cut (do …)`, its block in `OptionT`, each step `FrFlow.Races.step (…)` (the choice,
+then the step), the rest dropped once a step gives nothing; `frflow_defs` unfolds it step by step. The loser's steps
+are read before the winner's, as a pair's branches are read in turn (their order inside is not compared). Equations of
+worlds are refused where a program races, as where a model may fail (`WorldsEqual`): the choices a run takes are part
+of the world it leaves. The review's probe (`whole.RaceProbe`: two adds raced against a sleep, "when the sleep wins
+the box is as it was") stays unproven, as it is false of production's run (`RaceProbeSuite`, `RacesLeanSuite`), and
+sharing's delivery is interleaved whole with sends slower than its limit (`InterleavingsSuite`): every run ends where
+the reading allows, some half done. `timeout` is read as written (`now`, the steps, `now`): the clock's model moves
+only by sleeps, so where the steps do not sleep the limit is never past in Lean and its `none` side says nothing yet;
+G1's outside step would make it bite.
 
 `StateModel` reads each operation's `means` into `vocab.StateModel` (`ModelOp` per operation); `LowerModels` prints the
 models, `World` and each program's run on them (`f_run`). `FlowAgreementSuite` (step 4) states the law that a
 program's recording run on the models gives what `Running` gives on the models' instances, a failing implementation
 included.
+
+**An operation known only by its assumptions** (G2, ruled within owner §36, "a Definition known only by assumptions is
+the assumed case"; not yet built). An operation of a `StateModel` with no `means` is opaque in Lean: a constant of its
+model's state monad, run on its own field of the World through `within`, so it touches only its field by
+construction; what is assumed of it (its runs' results and what it leaves, `forall(q => fetch(q).result === …)`) is a
+hypothesis of every step that calls it; its Scala is tested against those assumptions where a case evaluates, as a
+model's Scala is tested against its model. It is an operation's meaning left open, not a model kind (§35's
+`AssumedModel` stays removed). Built, crm's searches become programs calling the database's `fetch`, and keycloak's
+server programs over its session store, so their histories and what they hold move into the World (owner §45 D);
+until then `Validate` refuses such a step (`StepNotOperation`) and those values stay provided, stopped on G2.
 
 **Nothing FrFlow cannot see goes unchecked** (owner §36, superseding §30's and §35's boundary wording). Every
 Definition has a meaning (`Problem.Undefined`): proven code, a value, plain Scala tested against its claims, an
@@ -1201,6 +1241,17 @@ World)`, on the models' instance on `ExceptT e (StateM World)` (one per error), 
 reserved); `f_run` is `FrFlow.runOnE (ε := e)`, a run's post matches `Except.ok` (`| _ => True` for the rest, sound when
 nothing escapes), `cover_` holds of the world a failed run leaves too when an error escapes (both arms, `runs ∧ fails`,
 `FrFlow.outcome` unfolded), `made_` of ok results, and `commute_` reads the error from the type.
+
+**Commutation under the world's choices** (step 13 review, G3). A call's failure is the world's choice for that call,
+and so is a race's winner and where a loser is cancelled; with one list of them, the order of a pair's branches would
+decide which calls fail, and `commute_i` would be false as stated. Where the world holds choices (`faults`, `races`),
+`commute_i` gives each branch its own lists, set as the branch begins in either order (`modify`), and compares the two
+orders' results and models' states, the choices left aside (`FrFlow.sameModels`). That suffices: a run of the branches
+in either order on one list takes a part of it per branch (each branch reads only the choices it takes); given those
+parts each, the other order gives the same, which is the written order's run on one list again, the parts in its
+order; and every post is proven of every list. Today's form (`w.faults = []`) is not used: it justified reordering
+only runs in which no call fails. Sharing's delivery's sends commute so (`Lemmas.commute_split`: each branch does what
+its faults alone decide, to its own person's mailbox, the mail server's model a map by person as today's).
 `p.changesNothing`, of a program declared to fail, says every model's state is as before
 (`Worlds.unchanged(after, before)`, `Expr.Unchanged`; in Lean one equation per model's field, the faults left out),
 and `===` between worlds is refused
@@ -1295,6 +1346,9 @@ term, a define's body once as its `def`. Lowering gives only the structure aroun
 `LowerObligation`, `LowerValue`, `LowerModels`, `LowerKeeps` (what `cover_` and `made_` declare), `LowerWitness`.
 `Print` is a fold that decides nothing. `LeanProject` lays out node, root, vocabulary, whole-theory and refutation
 modules. `proof.reading` and `proof.verdict` hold today's proof-file rules one case each, Lean's output and the judges.
+The check judges the nodes level by level (`CheckPlan.byLevel`), each above its parts: a node's status reads only its
+parts' (`CheckProgram.parts`), so where what the code relies on goes round (sharing's housekeeping and the claims on
+what it calls), a second pass raises each node above its parts, and no node is judged before a part of it.
 The Lean library gains only `frflow_witness`; examples are tries met by `frflow_auto`. FrFlow writes the project's
 `lean/lakefile.toml` and `lean-toolchain`. A proof file is read only at `lean/Proofs/<Model>/<Node>.lean`, directly in
 that directory; any other `.lean` under `lean/Proofs/` is a stray, which `review` lists and `check` refuses to run
