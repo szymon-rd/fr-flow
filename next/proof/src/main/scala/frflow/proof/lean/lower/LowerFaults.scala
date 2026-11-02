@@ -60,7 +60,16 @@ object LowerFaults:
     * when some program races; on `ExceptT E (StateM World)` it is lifted (the library's instance).
     */
   val leftWins: LExpr = const("FrFlow.Races.leftWins")
-  /** The world's field of the races' winners, which no model's field takes (`Reserved`). */
+  /** A race's loser until the scheduler cancels it (`Prog.Cut`): `FrFlow.Races.cut (do …)`, the block in `OptionT`,
+    * each of its steps `FrFlow.Races.step (…)`, the scheduler's choice first (`true`: it is cancelled before it).
+    */
+  val cut: LExpr = const("FrFlow.Races.cut")
+  val cutStep: LExpr = const("FrFlow.Races.step")
+  /** A loser's traverse at once: each branch cancelled at its own step, what follows dropped when one was. */
+  val cutEach: LExpr = const("FrFlow.Races.each")
+  /** The world's field of the scheduler's choices (the races' winners, and where their losers are cancelled), which
+    * no model's field takes (`Reserved`).
+    */
   val racesField: LeanName = Names.builtin("races")
 
   /** Whether some program of the vocabulary races two branches. */

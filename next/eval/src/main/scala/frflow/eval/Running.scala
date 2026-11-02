@@ -19,7 +19,7 @@ import frflow.eval.term.Evaluate
   * error carries its value and type (`Raised`). Nothing here checks a call: code is checked by proofs and tests
   * before production. Made only by `make`, and reached by the developer as `knowledge.running[F](…)` (`CodeSyntax`):
   * `run(bookIfGranted)(request)` runs a program's Definition on its inputs' values, `run.flow(f)` a program written
-  * in plain code.
+  * in plain code. A race's loser is cancelled between its steps: a transaction is never cancelled part way.
   */
 final class Running[F[_]] private (values: Values, literals: Literals, operations: Map[SymbolName, Bound[F]],
     lock: Mutex[F])(using F: Async[F]) extends Terms:
@@ -58,7 +58,7 @@ final class Running[F[_]] private (values: Values, literals: Literals, operation
     case Recorded.Race(l, rt, ty)           => F.race(of(l), of(rt)).map(e => term(e.bimap(value, value))(using ty))
     case Recorded.Par(l, rt, ty)            =>
       F.both(of(l), of(rt)).map((a, b) => term((value(a), value(b)))(using ty))
-    case Recorded.Atomic(body)              => lock.lock.surround(of(body))
+    case Recorded.Atomic(body)              => F.uncancelable(_ => lock.lock.surround(of(body)))
     case Recorded.Read(m, _)                => unmodelled(m.value)
     case Recorded.Write(m, _)               => unmodelled(m.value)
     case loop                               => looped(loop)

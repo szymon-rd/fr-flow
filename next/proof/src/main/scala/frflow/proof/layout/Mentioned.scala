@@ -67,3 +67,4 @@ object Mentioned:
     case DoLine.Branch(c, a, b)            => expr(c) ++ (a ++ b).flatMap(line)
     case DoLine.TryCatch(_, e, b, _, h)    => expr(e) ++ (b ++ h).flatMap(line)
     case DoLine.Traverse(_, head, _, b)    => expr(head) ++ b.flatMap(line)
+    case DoLine.Given(_, head, b)          => expr(head) ++ b.flatMap(line)

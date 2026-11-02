@@ -96,9 +96,11 @@ object Validate:
       n.statement.range.toList.flatMap(Scope.models(t, _)).map(_.name).filterNot(started)
         .map(Problem.NoStart(n.id, _)))
 
-  /** An equation of worlds in a statement, where the worlds hold faults (a model's operations may fail). */
+  /** An equation of worlds in a statement, where the worlds hold faults (a model's operations may fail) or the
+    * scheduler's choices (a program races): what a run takes of them is part of the world it leaves.
+    */
   private def worldsEqual(t: Theory): List[Problem] =
-    if !t.vocabulary.models.exists(_.fails.nonEmpty) then Nil
+    if !t.vocabulary.models.exists(_.fails.nonEmpty) && !programs(t).exists(Progs.races) then Nil
     else t.nodes.map(_.node).filter(n => n.statement.exprs.flatMap(Exprs.all).exists {
       case Expr.Prim(PrimOp.Eq, a :: _, _) => Exprs.typeOf(a) == Ty.World
       case _                               => false
@@ -125,11 +127,21 @@ object Validate:
         .flatMap(f => Failing.plainly(f.value)).filter(Failing.declared(t, _).nonEmpty)
         .map(Problem.SucceedingOnly(n.id, _))) ++
       Failing.undeclared(t).map((op, declared, raised) => Problem.FailsWithDiffers(op, declared, raised))
-    val nested = t.vocabulary.defines.filter(d => d.form == DefineForm.Flow && (d.lambda.body match
-      case Expr.Do(p, _) => Progs.nestsAtomic(p)
-      case _             => false)).map(d => Problem.NestedAtomic(d.name))
     all(unclaimed.map(Problem.CodeWithoutClaim(_)) ++ Resolve.circles(t).map(Problem.RestsOnItself(_)) ++ runs ++
-      differing ++ clauses ++ nested ++ steps(t) ++ providedBesideWorld(t) ++ writes(t))
+      differing ++ clauses ++ held(t) ++ steps(t) ++ providedBesideWorld(t) ++ writes(t))
+
+  /** A transaction inside a transaction, and a race's side holding what its loser's reading does not read. */
+  private def held(t: Theory): List[Problem] = t.vocabulary.defines.filter(_.form == DefineForm.Flow).flatMap(d =>
+    d.lambda.body match
+      case Expr.Do(p, _) => Option.when(Progs.nestsAtomic(p))(Problem.NestedAtomic(d.name)).toList ++
+          Option.when(Progs.holdsInSide(p))(Problem.RaceSideHolds(d.name)).toList
+      case _             => Nil)
+
+  /** Every program's steps. */
+  private def programs(t: Theory): List[Prog[Expr]] = t.vocabulary.defines.filter(_.form == DefineForm.Flow)
+    .flatMap(d => d.lambda.body match
+      case Expr.Do(p, _) => List(p)
+      case _             => Nil)
 
   /** A program writing a model's state in its own steps, through the defines it calls (owner §36: an operation's). */
   private def writes(t: Theory): List[Problem] = t.vocabulary.defines.filter(_.form == DefineForm.Flow).flatMap(d =>
@@ -140,9 +152,9 @@ object Validate:
         }.distinct
       case _             => Nil)
 
-  /** Each statement reading the World and a value provided where the code runs (owner §45 D): none of the four
-    * ports has one (`rooms.ReviewSuite`); crm's, keycloak's and auth's histories and clock become state models in
-    * step 13.
+  /** Each statement reading the World and a value provided where the code runs (owner §45 D): none of the ports has
+    * one (`rooms.ReviewSuite`); which of their provided values are "now" or a history, not yet the World's, each
+    * port's `Judged.provided` says (ARCHITECTURE 2.2).
     */
   def providedBesideWorld(t: Theory): List[Problem] = t.nodes.map(_.node).flatMap(n =>
     if !n.statement.said.exists(f => Exprs.all(f.value).exists {

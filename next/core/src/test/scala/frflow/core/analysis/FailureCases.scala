@@ -64,6 +64,21 @@ object FailureCases:
     Store.kb.declaring(v => v.copy(defines = List(Define(DefName("bookIfFree"),
       Written.steps(List(b), Prog.Atomic(Prog.Atomic(add)), Ty.Unit, SourceText("bookIfFree")), DefineForm.Flow))))
 
+  /** `book`'s program racing an add against a race of two adds: a race inside a race's side. */
+  private val racingRace: Kb =
+    val b = Binder(VarId.level(0), "b", Booking.ty)
+    val add = Prog.Call(Store.add, List(Stated([T[_]] => (s: Sym[T]) => s.free[Booking](b))), Ty.Unit)
+    Store.kb.declaring(v => v.copy(defines = List(Define(DefName("bookIfFree"),
+      Written.steps(List(b), Prog.Race(add, Prog.Race(add, add, add), add), Ty.Unit, SourceText("bookIfFree")),
+      DefineForm.Flow))))
+
+  /** `book`'s program racing two adds: the world holds the scheduler's choices. */
+  val racing: Kb =
+    val b = Binder(VarId.level(0), "b", Booking.ty)
+    val add = Prog.Call(Store.add, List(Stated([T[_]] => (s: Sym[T]) => s.free[Booking](b))), Ty.Unit)
+    Store.kb.declaring(v => v.copy(defines = List(Define(DefName("bookIfFree"),
+      Written.steps(List(b), Prog.Race(add, add, add), Ty.Unit, SourceText("bookIfFree")), DefineForm.Flow))))
+
   /** `book`'s program running a program as a step (`book` itself): no model's operation. */
   private val stepping: Kb =
     val b = Binder(VarId.level(0), "b", Booking.ty)
@@ -100,6 +115,7 @@ object FailureCases:
     ProblemCase(down.and(sameWorld), List(Problem.WorldsEqual(NodeId("sameWorld")))),
     ProblemCase(raising, List(Problem.ErrorsDiffer(DefName("bookIfFree"), List(Lang.big, Ty.Str)))),
     ProblemCase(nested, List(Problem.NestedAtomic(DefName("bookIfFree")))),
+    ProblemCase(racingRace, List(Problem.RaceSideHolds(DefName("bookIfFree")))),
     ProblemCase(stepping, List(Problem.StepNotOperation(DefName("bookIfFree"), Store.book))),
     ProblemCase(claiming(down, Lang.big),
       List(Problem.FailingDiffers(NodeId("bookFails"), Store.book, Lang.big, Ty.Str))),

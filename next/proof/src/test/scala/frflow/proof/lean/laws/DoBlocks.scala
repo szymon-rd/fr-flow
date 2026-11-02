@@ -29,6 +29,8 @@ object DoBlocks:
         x.map(_ => blank), block(h, bound(x, sc))), bound(n, sc))
     case DoLine.Traverse(n, head, ps, b) => (DoLine.Traverse(n.map(_ => blank), under(head, sc), ps.map(_ => blank),
         block(b, ps.reverse ++ sc)), bound(n, sc))
+    case DoLine.Given(n, head, b)       =>
+      (DoLine.Given(n.map(_ => blank), under(head, sc), block(b, sc)), bound(n, sc))
 
   /** A declaration with its variables nameless. */
   def decl(d: Decl): Decl = d match

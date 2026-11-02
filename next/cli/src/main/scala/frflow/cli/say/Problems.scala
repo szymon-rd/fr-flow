@@ -26,7 +26,8 @@ object Problems:
     case Problem.PremiseMissing(id, n, by)  => s"$id rests on ${premise(n)}, which its .assuming does not list" +
         by.fold(" (no assumption says it yet)")(b => s" (add .assuming($b))")
     case Problem.PremiseNotNeeded(id, p)    => s"$id assumes $p, which its check does not rest on"
-    case Problem.WorldsEqual(id)            => s"$id says two worlds are equal where a store may fail: say " +
+    case Problem.WorldsEqual(id)            => s"$id says two worlds are equal where a store may fail or a program " +
+        "races: say " +
         "`unchanged` (.failsChangingNothing) instead"
     case Problem.AlwaysNotReached(a, t, at) => s"the always $a is about ${Values.ty(t)} inside ${at.says}, where no " +
         "check reaches it yet"
@@ -66,6 +67,8 @@ object Problems:
         s"but its code may end in ${if r.isEmpty then "no error" else r.map(Values.ty).mkString(", ")}: declare " +
         s"what it raises, ${s.value}.failsWith[E]"
     case Problem.NestedAtomic(prog)         => s"${prog.value} runs a transaction inside a transaction"
+    case Problem.RaceSideHolds(prog)        => s"${prog.value} races a side holding a race, a pair at once or a " +
+        "finalizer: a loser is read cancelled between its steps, and what those do then is not"
     case Problem.StepNotOperation(prog, d)  => s"${prog.value} runs ${d.value} as a step, which is no model's " +
         "operation: a program's steps call operations on a state"
 

@@ -105,6 +105,7 @@ object IrCheck:
     case Prog.Race(l, r, reading)         => (Nil, List(l, r, reading).map(Nil -> _))
     case Prog.Guard(b, _, f, reading)     => (Nil, List(b, f, reading).map(Nil -> _))
     case Prog.Atomic(b)                   => (Nil, List(Nil -> b))
+    case Prog.Cut(b)                      => (Nil, List(Nil -> b))
 
   /** The theory, or a FrFlow bug naming the problems with its IR. */
   def checked(t: Theory): Theory = theory(t) match

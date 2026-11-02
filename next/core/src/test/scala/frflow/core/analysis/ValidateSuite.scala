@@ -28,6 +28,12 @@ class ValidateSuite extends munit.FunSuite:
     assertEquals(cases.map(_.name).sorted, caseNames[Problem].sorted)
   }
 
+  test("worlds said equal where a program races: the scheduler's choices are the world's too") {
+    assertEquals(FailureCases.racing.problems, Nil)
+    assertEquals(FailureCases.racing.and(FailureCases.sameWorld).problems,
+      List(Problem.WorldsEqual(NodeId("sameWorld"))))
+  }
+
   cases.foreach { c =>
     test(s"${c.name}: reported, and nothing else") {
       assertEquals(c.kb.problems, c.expected)

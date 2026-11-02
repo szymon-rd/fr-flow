@@ -10,15 +10,18 @@ import frflow.proof.lean.term.Printed
 
 /** A flow's steps as the lines of a `do` block, as today's `LeanPrinter.block`: the steps' structure here, each term
   * printed from itself (`Printed`) in the scope the steps' variables are named in, below `depth` inputs. A concurrent
-  * step is its sequential reading (`Progs.sequential`), bound as a whole; its commutation is `commute_i`'s.
+  * step is its sequential reading (`Progs.sequential`), bound as a whole; its commutation is `commute_i`'s. A race's
+  * loser (`Prog.Cut`) is `FrFlow.Races.cut (do …)`, its steps in `OptionT` (`cut`): each call, and each transaction
+  * whole, `FrFlow.Races.step (…)`, the scheduler's choice of whether it is cancelled before it.
   */
-final class LowerProg(env: LowerEnv, depth: Int):
+final class LowerProg(env: LowerEnv, depth: Int, cut: Boolean = false):
   import Atoms.name
   private type L[A] = State[Naming, A]
   private type P = Prog[Stated[?]]
 
   def block(p: P): L[List[DoLine]] = p match
     case Prog.Pure(t)                => term(t).map(x => List(DoLine.Step(LExpr.App(name("pure"), List(x)))))
+    case Given(g)                    => g(None).map(List(_))
     case Prog.Atomic(body)           => block(body)
     case Prog.Bind(Prog.Bind(a, x, r), y, rest) if y.wildcard => block(Prog.Bind(a, x, Prog.Bind(r, y, rest)))
     case Prog.Bind(Prog.Let(x, v, r), y, rest) if y.wildcard  => block(Prog.Let(x, v, Prog.Bind(r, y, rest)))
@@ -40,6 +43,13 @@ final class LowerProg(env: LowerEnv, depth: Int):
     */
   private def bound(first: P, x: Binder): L[List[DoLine]] =
     val one = Progs.sequential(first)
+    first match
+      case Given(g) =>
+        (if x.wildcard then State.pure(Some(Names.builtin("_"))) else Naming.bind(x).map(Some(_))).flatMap(g)
+          .map(List(_))
+      case _        => bound(first, one, x)
+
+  private def bound(first: P, one: P, x: Binder): L[List[DoLine]] =
     if x.wildcard then dropped(one)
     else if one != first then Naming.bind(x).flatMap(n => block(one).map(b => List(DoLine.BindBlock(Some(n), b))))
     else named(first, x)
@@ -76,9 +86,25 @@ final class LowerProg(env: LowerEnv, depth: Int):
         (b, n, h) => DoLine.TryCatch(lead, LowerType(error), b, n, h))
     case other => block(other).map(DoLine.BindBlock(lead, _))
 
+  /** A step whose block is given to a function, after a binding or none: a race's loser, and in it a transaction,
+    * and a traverse at once, each branch cancelled at its own step (`FrFlow.Races.each`).
+    */
+  private object Given:
+    def unapply(p: P): Option[Option[LeanName] => L[DoLine]] = p match
+      case Prog.Cut(body)           => Some(lead => LowerProg(env, depth, cut = true).block(body)
+          .map(DoLine.Given(lead, LowerFaults.cut, _)))
+      case Prog.Atomic(body) if cut => Some(lead => LowerProg(env, depth).block(body)
+          .map(DoLine.Given(lead, LowerFaults.cutStep, _)))
+      case Prog.ParEach(xs, x, body, _) if cut => Some(lead =>
+          (term(xs), Naming.bind(x), block(body)).mapN((r, n, b) =>
+            DoLine.Traverse(lead, LExpr.App(LowerFaults.cutEach, List(LExpr.Paren(r))), List(n), b)))
+      case _                        => None
+
   /** One step, on a line of its own. */
   private def step(p: P): L[LExpr] = p match
     case Prog.Pure(t)              => term(t).map(x => LExpr.App(name("pure"), List(x)))
+    case Prog.Call(op, as, _) if cut && op != frflow.core.expr.Prog.leftWins =>
+      as.traverse(term).map(xs => LExpr.App(LowerFaults.cutStep, List(LExpr.Paren(LExpr.App(env.operation(op), xs)))))
     case Prog.Call(op, as, _)      => as.traverse(term).map(LExpr.App(env.operation(op), _))
     case Prog.Read(_)              => State.pure(name("get"))
     case Prog.Write(_, s)          => term(s).map(x => LExpr.App(name("set"), List(x)))

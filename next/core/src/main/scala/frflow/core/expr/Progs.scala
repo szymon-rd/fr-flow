@@ -29,6 +29,7 @@ object Progs:
     case Prog.Par(l, _, r, _)            => List(l, r)
     case Prog.ParEach(_, _, b, _)        => List(b)
     case Prog.Atomic(b)                  => List(b)
+    case Prog.Cut(b)                     => List(b)
     case Prog.Race(_, _, reading)        => List(reading)
     case Prog.Guard(_, _, _, reading)    => List(reading)
     case _                               => Nil
@@ -82,11 +83,35 @@ object Progs:
     case _                 => false
   }
 
-  /** The parallel steps (`parTupled`, `parTraverse`), in order: each gives a `commute_i` obligation. */
-  def parallel[E](p: Prog[E]): List[Prog[E]] = all(p).filter {
-    case Prog.Par(_, _, _, _) | Prog.ParEach(_, _, _, _) => true
-    case _                                             => false
+  /** Whether the steps race two branches. */
+  def races[E](p: Prog[E]): Boolean = all(p).exists {
+    case Prog.Race(_, _, _) => true
+    case _                  => false
   }
+
+  /** Whether a race's side holds a race, a pair at once (`parTupled`) or a finalizer (`guarantee`, `bracket`): its
+    * loser is read cancelled between two of its steps (each branch of a traverse at once at its own), and neither a
+    * finalizer run then nor a race or a pair in it is read.
+    */
+  def holdsInSide[E](p: Prog[E]): Boolean = all(p).exists {
+    case Prog.Race(l, r, _) => List(l, r).exists(side => all(side).exists {
+        case Prog.Race(_, _, _) | Prog.Guard(_, _, _, _) | Prog.Par(_, _, _, _) => true
+        case _                                                                => false
+      })
+    case _                  => false
+  }
+
+  /** The parallel steps (`parTupled`, `parTraverse`), in order: each gives a `commute_i` obligation. A race's
+    * loser cut off (`Cut`) is that side again, whose parallel steps the winner's reading of it holds.
+    */
+  def parallel[E](p: Prog[E]): List[Prog[E]] =
+    def uncut(q: Prog[E]): List[Prog[E]] = q :: (q match
+      case Prog.Cut(_) => Nil
+      case _           => children(q).flatMap(uncut))
+    uncut(p).filter {
+      case Prog.Par(_, _, _, _) | Prog.ParEach(_, _, _, _) => true
+      case _                                             => false
+    }
 
   /** The error types raised or handled, read off the IR. */
   def errors(p: Prog[Expr]): List[Ty] = all(p).collect {
@@ -115,4 +140,5 @@ object Progs:
       case Prog.Guard(b, t, fin, reading) => Prog.Guard(apply(b), t, apply(fin), apply(reading))
       case Prog.ParEach(xs, x, b, n)      => Prog.ParEach(f(xs), x, apply(b), n)
       case Prog.Atomic(b)                 => Prog.Atomic(apply(b))
+      case Prog.Cut(b)                    => Prog.Cut(apply(b))
     apply(p)

@@ -87,4 +87,4 @@ object Commutation:
     case Prog.Atomic(b)                 => resultOf(v, b)
     case Prog.Race(_, _, r)             => resultOf(v, r)
     case Prog.Guard(_, _, _, r)         => resultOf(v, r)
-    case Prog.Loop(_, _, _) | Prog.Write(_, _) | Prog.Modify(_, _, _) => Ty.Unit
+    case Prog.Loop(_, _, _) | Prog.Write(_, _) | Prog.Modify(_, _, _) | Prog.Cut(_) => Ty.Unit

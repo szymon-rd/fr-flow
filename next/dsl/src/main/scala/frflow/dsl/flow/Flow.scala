@@ -33,7 +33,9 @@ final class Flow[A](val steps: Recorded[Term[A]]):
   def race[B: LeanType](other: Flow[B])(using LeanType[A]): Flow[Either[A, B]] =
     Flow(Recorded.Race(steps, other.steps, LeanType[Either[A, B]]))
   /** The result when this took at most `seconds` by the clock (`now`), none when it took longer. It does not cancel:
-    * it runs to its end either way, and only the clock's own sleeps count.
+    * it runs to its end either way, and only the clock's own sleeps count. Read in Lean as written (`now`, the steps,
+    * `now` again, compared): the clock's model moves only by sleeps, so where the steps do not sleep the limit is never
+    * past there and the `none` side is never reached; time passing outside the programs would make it bite.
     */
   def timeout(now: Definition[Flow[BigInt]], seconds: Term[BigInt])(using LeanType[A]): Flow[Option[A]] =
     Flow.step(now).flatMap(start =>

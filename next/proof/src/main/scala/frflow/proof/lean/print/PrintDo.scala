@@ -18,6 +18,8 @@ object PrintDo:
       val head = s"$ind${lead.fold("")(n => s"let ${n.text} ← ")}tryCatchThe ${expr(e)} (do"
       (head :: closed(block(body, ind + "    "))) ++
         closed(s"$ind  (fun ${x.fold("_")(_.text)} => do" :: block(handler, ind + "    "))
+    case DoLine.Given(lead, head, body) =>
+      s"$ind${lead.fold("")(n => s"let ${n.text} ← ")}${expr(head)} (do" :: closed(block(body, ind + "    "))
     case DoLine.Traverse(lead, head, ps, body) =>
       s"$ind${lead.fold("")(n => s"let ${n.text} ← ")}${expr(head)} fun ${ps.map(_.text).mkString(" ")} => do" ::
         block(body, ind + "  ")

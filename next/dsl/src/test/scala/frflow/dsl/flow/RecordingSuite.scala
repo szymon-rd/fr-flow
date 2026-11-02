@@ -27,9 +27,20 @@ class RecordingSuite extends munit.FunSuite:
     assertEquals(steps(store.load.race(store.load)), "race(load; pure, load; pure); pure")
   }
 
-  test("race is read as the scheduler's choice of the winner") {
-    val raced = read(store.load.race(store.load))
-    assert(shape(Progs.sequential(firstStep(raced))).startsWith("races.leftWins; if("))
+  test("race is read as the scheduler's choice of the winner, the loser's steps until it is cancelled, the winner's") {
+    val raced = read(store.load.race(store.save(n(1))))
+    assertEquals(shape(Progs.sequential(firstStep(raced))),
+      "races.leftWins; if(cut(save; pure); load; pure | cut(load; pure); save; pure)")
+  }
+
+  test("a guarded body giving nothing ends in the unit, not in a variable of its result") {
+    val guarded = Progs.sequential(firstStep(read(store.save(n(1)).guarantee[String](store.save(n(2))))))
+    def last(p: P): P = p match
+      case Prog.Bind(_, _, rest) => last(rest)
+      case other                 => other
+    last(guarded) match
+      case Prog.Pure(t) => assertEquals(ToExpr.of(t.run), Expr.Lit(frflow.core.expr.Value.Unit, Ty.Unit))
+      case other        => fail(other.toString)
   }
 
   test("guarantee and bracket: the finalizer held with the body") {
@@ -166,4 +177,5 @@ class RecordingSuite extends munit.FunSuite:
     case Prog.Collect(_, _, b)  => s"collect(${shape(b)})"
     case Prog.Accumulate(_, _, _, _, b) => s"fold(${shape(b)})"
     case Prog.ParEach(_, _, b, _) => s"parCollect(${shape(b)})"
+    case Prog.Cut(b)            => s"cut(${shape(b)})"
     case other                  => other.productPrefix

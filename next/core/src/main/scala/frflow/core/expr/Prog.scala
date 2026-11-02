@@ -27,8 +27,14 @@ enum Prog[+E]:
   case Catch(body: Prog[E], error: Ty, x: Binder, handler: Prog[E])
   case Par(left: Prog[E], leftResult: Binder, right: Prog[E], rightResult: Binder)
   /** The first of two to finish gives the result (`Left` or `Right`), the other cancelled; read one step at a time
-    * as `reading` (the scheduler's choice of the winner, a call of `Prog.leftWins`). */
+    * as `reading`: the scheduler's choice of the winner (a call of `Prog.leftWins`), the loser's steps until it is
+    * cancelled (`Cut`), then the winner's. */
   case Race(left: Prog[E], right: Prog[E], reading: Prog[E])
+  /** A race's loser until it is cancelled: before each of its steps (an operation's call, a transaction) the
+    * scheduler says whether it is cancelled there (`Prog.leftWins` again: `true`, it is, as when the world says
+    * nothing); once it is, the rest is dropped, what its steps so far did kept. Gives the unit; an error it raises
+    * before it is cancelled is raised (it finished first). */
+  case Cut(body: Prog[E])
   /** `finalizer` after `body`, whether it gave a result or failed with an error of type `error`; read as `reading`
     * (the finalizer after a result, and before the error is raised again). */
   case Guard(body: Prog[E], error: Ty, finalizer: Prog[E], reading: Prog[E])
@@ -36,8 +42,8 @@ enum Prog[+E]:
   case Atomic(body: Prog[E])
 
 object Prog:
-  /** The scheduler's choice of a race's winner (`true`: the left), read from the world's `races`; no model gives it,
-    * and no Definition can be named so.
+  /** The scheduler's choice of a race's winner (`true`: the left), and of whether a loser is cancelled before its
+    * next step (`true`: it is), read from the world's `races`; no model gives it, and no Definition can be named so.
     */
   val leftWins: SymbolName = SymbolName("races.leftWins")
 

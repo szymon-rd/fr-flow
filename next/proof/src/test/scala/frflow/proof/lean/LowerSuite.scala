@@ -58,4 +58,7 @@ class LowerSuite extends munit.FunSuite:
   test("a world: each model's state, in its structure") {
     assertEquals(lowered(Value.World(List(ModelName("stored") -> Value.Many(List(Mini.booking))), Nil), Ty.World),
       "(World.mk [(Booking.mk \"\" 0 1)])")
+    val racing = Print.expr(LowerValue(env.copy(racing = true))(Value.World(List(ModelName("stored") ->
+      Value.Many(List(Mini.booking))), Nil), Ty.World).runA(Naming.over(Set.empty, Set.empty)).value)
+    assertEquals(racing, "(World.mk [(Booking.mk \"\" 0 1)] ([] : (List Bool)))")
   }

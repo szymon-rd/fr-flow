@@ -39,9 +39,9 @@ enum Problem:
   case PremiseMissing(id: NodeId, needs: Premise, by: Option[NodeId])
   /** A fact about the outside a statement's `.assuming` lists that its check does not rest on. */
   case PremiseNotNeeded(id: NodeId, premise: NodeId)
-  /** Two worlds said equal (`after === before`) where a model's operations may fail: the faults their calls take are
-    * part of a world, so a run that only read through it changes the world; that every model's state is as before
-    * is `unchanged` (`.failsChangingNothing`).
+  /** Two worlds said equal (`after === before`) where a model's operations may fail or a program races: the faults
+    * their calls take and the scheduler's choices are part of a world, so a run that only read through it changes
+    * the world; that every model's state is as before is `unchanged` (`.failsChangingNothing`).
     */
   case WorldsEqual(id: NodeId)
   /** An `always` whose type sits, at `at`, inside a map, a set or a function value of type `ty`: no guard reaches it
@@ -115,6 +115,11 @@ enum Problem:
     * under one lock, which is not reentrant, so the inner one would wait on the outer for ever.
     */
   case NestedAtomic(program: DefName)
+  /** A program racing a side that holds a race, a pair at once (`parTupled`) or a finalizer (`guarantee`, `bracket`):
+    * the loser is read cancelled between two of its steps, what they did kept, and neither a finalizer run then nor a
+    * race or a pair inside it is read.
+    */
+  case RaceSideHolds(program: DefName)
   /** A program's step calling a Definition that is no model's operation: only an operation on a state is a step
     * (owner §36); what it hands another program or plain Scala this way is not checked at the call (§37), until step
     * 12 gives such a call its form.

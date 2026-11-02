@@ -46,10 +46,7 @@ object Completeness:
       val saysWhat = !parts && mentioned.exists(s => t.vocabulary.symbol(s).exists(_.kind == ValueKind.Declaration))
       val impl = n.statement.kind == NodeKind.Claim && code.nonEmpty && !saysWhat
       val flows = if impl then code.collect { case (_, Code.ProvenFlow(f)) => f }.distinct else Nil
-      val parallel = flows.flatMap(program(r, _)).flatMap(Progs.all).count {
-        case Prog.Par(_, _, _, _) | Prog.ParEach(_, _, _, _) => true
-        case _                                             => false
-      }
+      val parallel = flows.flatMap(program(r, _)).map(Progs.parallel(_).size).sum
       (Option.when(impl)("impl" -> "it is claimed of proven code").toList ++
         Option.when(parts && !impl && !have.contains("impl"))("complete" -> "it has parts").toList ++
         (0 until parallel).map(i => s"commute_$i" -> s"parallel step ${i + 1} of its proven programs"))

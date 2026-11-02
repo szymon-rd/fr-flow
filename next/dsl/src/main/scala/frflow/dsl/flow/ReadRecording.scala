@@ -141,10 +141,14 @@ object ReadRecording:
       case ()         => unit
       case other      => throw Failure(Fault.NotATerm(other.getClass.getSimpleName))
 
-  /** The scheduler's choice of the winner (`Prog.leftWins`), then the winner's steps. */
-  private def raced(left: P, right: P, ty: Ty): State[Seen, P] = fresh(Ty.Bool).map(w =>
-    Prog.Bind(Prog.Call(Prog.leftWins, Nil, Ty.Bool), w,
-      Prog.Branch(variable(w), injected(left, Side.Error, ty), injected(right, Side.Value, ty))))
+  /** The scheduler's choice of the winner (`Prog.leftWins`), the loser's steps until it is cancelled (`Prog.Cut`,
+    * what they did kept: the loser runs until the winner finishes), then the winner's.
+    */
+  private def raced(left: P, right: P, ty: Ty): State[Seen, P] =
+    for w <- fresh(Ty.Bool); u <- fresh(Ty.Unit); v <- fresh(Ty.Unit)
+    yield Prog.Bind(Prog.Call(Prog.leftWins, Nil, Ty.Bool), w, Prog.Branch(variable(w),
+      Prog.Bind(Prog.Cut(right), u, injected(left, Side.Error, ty)),
+      Prog.Bind(Prog.Cut(left), v, injected(right, Side.Value, ty))))
 
   /** The finalizer after a result, and before an error of type `err` is raised again. */
   private def guarded(body: P, ty: Ty, err: Ty, fin: P): State[Seen, P] =
