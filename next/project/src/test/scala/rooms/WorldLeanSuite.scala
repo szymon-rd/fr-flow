@@ -32,9 +32,9 @@ class WorldLeanSuite extends munit.CatsEffectSuite:
     assert(claim.contains("(Rooms.ofRoom room world)"), claim)
   }
 
-  test("isConstant of a Declaration changing with the World: the same in every two worlds") {
+  test("isConstant of a Declaration changing with the World, with no program to change it: nothing to keep") {
     val fixed = spec("openingFixed")
-    assert(fixed.contains("(∀ (w1 : World), (∀ (w2 : World), ((opening w1) = (opening w2))))"), fixed)
+    assert(fixed.contains("(∀ (world : World), True)"), fixed)
   }
 
   test("Lean proves the claim about the define reading state, its world bound below the room".tag(Live)) {
@@ -55,16 +55,11 @@ class WorldLeanSuite extends munit.CatsEffectSuite:
         case Result(ObligationName.Consistent(_), s, _) => s
       })
 
-  test("a claim that a Declaration never changes, with nothing giving its value, does not make the model proven"
-      .tag(Live)) {
+  test("a claim that no run changes a Declaration is consistent with one giving its value (owner §44)".tag(Live)) {
     val fixed = Node.claim("The opening hour never changes.")(opening.isConstant)
     val nine = Node.claim("The rooms open at nine.")(opening === 9)
-    for
-      alone <- consistent(FrModel("Rooms")(fixed))
-      valued <- consistent(FrModel("Rooms")(fixed, nine))
-    yield
-      assert(alone.exists(_ != ObligationStatus.Proven), alone)
-      assert(valued.nonEmpty && valued.forall(_ == ObligationStatus.Proven), valued)
+    consistent(FrModel("Rooms")(fixed, nine)).map(valued =>
+      assert(valued.nonEmpty && valued.forall(_ == ObligationStatus.Proven), valued))
   }
 
   val store = Definition[BigInt => Flow[Unit]]("a number stored on the shelf")

@@ -35,19 +35,18 @@ class WorldRulesSuite extends munit.FunSuite:
   val bookedOpen = Node.claim("Every booking held starts once the rooms are open.")(
     storedBookings.current.forall(b => opening <= b.start))
 
-  test("isConstant reads the World: claimed alone, the Declaration is a function of it, the same in every two") {
+  test("isConstant reads the World: claimed alone, the Declaration is a function of it, with no program to change it") {
     assertEquals(typeOf(FrModel("Rooms")(openingFixed), "opening"), Some(Ty.FnOf(List(Ty.World), hour)))
-    assertEquals(worlds(formula(FrModel("Rooms")(openingFixed), "openingFixed")), 2)
+    assertEquals(worlds(formula(FrModel("Rooms")(openingFixed), "openingFixed")), 1)
   }
 
-  test("a rule reads its Declarations as values: refused unless an assumption says each never changes") {
-    assertEquals(faults(FrModel("Rooms")(startsOpen)), List(Fault.RuleOverChanging("opening", "startsOpen")))
-    assertEquals(faults(FrModel("Rooms")(startsOpen, openingFixed)),
-      List(Fault.RuleOverChanging("opening", "startsOpen")))
-    val assumed = FrModel("Rooms")(startsOpen, openingAssumed, bookedOpen)
-    assertEquals(faults(assumed), Nil)
-    assertEquals(typeOf(assumed, "opening"), Some(hour))
-    assertEquals(worlds(formula(assumed, "openingAssumed")), 0)
+  test("a rule reads Declarations that do not change with the World: one that does is refused, constant or not") {
+    assertEquals(faults(FrModel("Rooms")(startsOpen)), Nil)
+    assertEquals(typeOf(FrModel("Rooms")(startsOpen), "opening"), Some(hour))
+    assertEquals(faults(FrModel("Rooms")(startsOpen, bookedOpen)),
+      List(Fault.RuleOverChanging("opening", "startsOpen", "bookedOpen")))
+    assertEquals(faults(FrModel("Rooms")(startsOpen, openingAssumed)),
+      List(Fault.RuleOverChanging("opening", "startsOpen", "openingAssumed")))
   }
 
   val store = Definition[BigInt => Flow[Unit]]("a number stored on the shelf")

@@ -11,7 +11,7 @@ import whole.Theories
 /** The World implicit in statements (owner §41, §43): a statement holds in every reachable world, reading what
   * changes
   * with it in the current one; which Declarations change with it is read off the statements, as is which defines;
-  * `isConstant` says one is the same in every world.
+  * `isConstant` says no run of a program changes one.
   */
 class WorldSuite extends munit.FunSuite:
   private def typeOf(kb: FrModel, n: String): Option[Ty] =
@@ -42,15 +42,19 @@ class WorldSuite extends munit.FunSuite:
     assert(grant.statement.said.exists(f => !quantified(f.value).contains(Ty.World)))
   }
 
-  test("isConstant: of a Declaration changing with the World, the same in every two worlds; of another, itself") {
+  test("isConstant of a Declaration: in the world the statement holds in, no run of a program changing it") {
     val holds = Node.claim("What is booked is what the table holds.")(booked === storedBookings.current)
     val fixed = Node.assumption("What is booked never changes.")(booked.isConstant)
-    val kb = FrModel("Rooms")(holds, fixed)
-    val worlds = Theories.theory(kb).nodes.map(_.node).find(_.id.value == "fixed").flatMap(_.statement.said)
-      .map(f => Exprs.all(f.value).collect { case Expr.Quant(_, List(x), _) if x.ty == Ty.World => x }.size)
-    assertEquals(worlds, Some(2))
-    val alone = RoomsIr.formula(Node.assumption("What is booked never changes.")(booked.isConstant).alone)
-    assert(Exprs.all(alone).forall { case Expr.Quant(_, _, _) => false; case _ => true }, alone)
+    val kb = FrModel("Rooms")(holds, fixed, answerWhenFree, oneAtATime, bookingsEndAfterStart)
+      .implementProven(book)(bookIfGranted)
+      .implementTested(granted)(_ => (held, request) => Calendar(held).grants(request))
+      .implementTested(inRoom, add)(start = BookingsTable.holding, observe = _.bookings)(t => (t.inRoom, t.add))
+    val said = Theories.theory(kb).nodes.map(_.node).find(_.id.value == "fixed").flatMap(_.statement.said)
+      .getOrElse(fail("no fixed"))
+    assertEquals(Exprs.all(said.value).collect { case Expr.Quant(_, List(x), _) if x.ty == Ty.World => x }.size, 1)
+    assertEquals(Exprs.all(said.value).collect { case r: Expr.Runs => r.run }.collect {
+      case Expr.Apply(Expr.Sym(p, _), _, _) => p.value
+    }, List("book"))
   }
 
   test("a define reading state changes with the World: it takes the world last, its calls read it where they are") {
