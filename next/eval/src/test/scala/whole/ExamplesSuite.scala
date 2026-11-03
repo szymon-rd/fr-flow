@@ -54,11 +54,11 @@ class ExamplesSuite extends munit.FunSuite:
     "read contract's, owner §40); two definitions of two words each are four claims; runs on the database one at a " +
     "time, an assumption; the tables' one row per key a claim, with what the stores from outside meet and what the " +
     "database starts with (owner §40, 2.6); what the CRM holds the World's (owner §45 D): storing the rows about a " +
-    "record the model's, no assumption, the search known only by what is assumed of it, the clock's runs one at a " +
-    "time") {
+    "record the model's, no assumption, the search known only by what is assumed of it; the clock the World's time " +
+    "(owner §47), no assumption") {
     assertEquals(ids(crm.knowledge), renamed(Today.crm, Set("storeEdits"), Set("addedIsFound", "writesLeaveOthers",
-      "ownership", "searchesAsk", "runsOneAtATime", "keyedTables", "tablesStartEmpty", "oneRowPerKey", "searchKeeps",
-      "clockOneAtATime")))
+      "ownership", "searchesAsk", "runsOneAtATime", "keyedTables", "tablesStartEmpty", "oneRowPerKey",
+      "searchKeeps")))
   }
 
   test("crm: the purpose and its two general expectations are roots (owner §22), each expectation proven from what " +

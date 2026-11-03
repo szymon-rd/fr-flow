@@ -36,5 +36,5 @@ def withCode(kb: FrModel): FrModel = kb
 val knowledge = withCode(FrModel("Crm")(sharedCrm, addedIsFound, writesLeaveOthers, companies, ownership, searches,
   searchesAsk, adding, sharing, crmRun, storeMirrorsRequests, visibility, noCrossTenantRead, searchesMatch,
   recordsByQuery, searchKeeps, readContract, dealSearch, readSideWiring, writesTakeEffect, writesOnlyAsAsked,
-  recordsKept, writeContract, saveWrite, writeSideWiring, sharesExpire, tablesModel, runsOneAtATime, clockOneAtATime,
+  recordsKept, writeContract, saveWrite, writeSideWiring, sharesExpire, tablesModel, runsOneAtATime,
   expiryJob, expiryJobWiring, keyedTables, tablesStartEmpty, oneRowPerKey, httpApi))

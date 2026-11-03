@@ -17,8 +17,6 @@ object Judged:
     "tablesStartEmpty" -> ("new" -> ("what the database starts with, which a rule of its state rests on (2.6, " +
       "Problem.NoStart)")),
     "runsOneAtATime" -> ("new" -> "runs on the database never interleave, an assumption of the model (owner §32)"),
-    "clockOneAtATime" -> ("new" -> ("a search reads the clock once, between two runs on it: the clock's model's " +
-      "runs atomic, which a claim about a run reading it rests on (owner §32, §36)")),
     "searchKeeps" -> ("new" -> ("what the database's search leaves, known only by what is assumed of it (G2): " +
       "nothing changed; the database's rules need it (Problem.LeavesUnsaid)")),
     "storeEdits" -> ("gone" -> ("storing the rows about a record is the database model's operation now, its " +
@@ -30,7 +28,7 @@ object Judged:
     "sharedCrm" -> ("companies, ownership, searches, searchesAsk, adding, sharing are parts; assumes +keyedTables" ->
       (words + "; and " + keyed + ", the words read in the World (searches reads the screens' runs)")),
     "storeMirrorsRequests" -> ("assumes +keyedTables" -> keyed),
-    "visibility" -> ("noCrossTenantRead no part; assumes +keyedTables +runsOneAtATime +clockOneAtATime" ->
+    "visibility" -> ("noCrossTenantRead no part; assumes +keyedTables +runsOneAtATime" ->
       ("noCrossTenantRead is a root (owner §40); visibility follows from searchesMatch and the code. And " + runs)),
     "saveWrite" -> ("assumes +runsOneAtATime +keyedTables" -> ("the write side is a program over the database now " +
       "(owner §45 D): its claim says what a run leaves and gives, which rests on the database's runs being atomic " +
@@ -42,7 +40,7 @@ object Judged:
         "over applyWrite: a rule reads values, not a Definition left open), proven of the write's code: the write " +
         "side's run, saveWrite, no part of it; and " + keyed))) ++
     List("dealSearch", "readContract", "noCrossTenantRead", "searchesMatch").map(_ ->
-      ("assumes +keyedTables +runsOneAtATime +clockOneAtATime" -> runs)) ++
+      ("assumes +keyedTables +runsOneAtATime" -> runs)) ++
     List("writeContract", "sharesExpire").map(_ -> ("assumes +keyedTables" -> keyed))
 
   private def words = "today's definitions of the purpose's words are claims saying what each Declaration is, " +
@@ -50,8 +48,9 @@ object Judged:
   private def keyed = "its Lean takes what always holds of every store, the tables' one row per key, which values " +
     "from outside meet by keyedTables (2.6, owner §40)"
   private def runs = "a screen is a program over the database and the clock now (owner §45 D): a claim about its " +
-    "runs " +
-    "rests on the database's and the clock's runs being atomic (2.6); and " + keyed
+    "runs rests on the database's runs being atomic (2.6); the clock's time is the World's, which the world moves on " +
+    "between runs and at each of its steps (owner §47), so a run of a search reads the world's time and needs no " +
+    "atomic of it; and " + keyed
 
   /** Where each node stands apart from today, each for a reason the design gives. */
   val standings: Map[String, List[String]] = Map(
@@ -96,10 +95,12 @@ object Judged:
     "WritesLeaveOthers" -> List("claim", "proven", "proven", ""),
     "NoCrossTenantRead" -> List("claim", "proven", "proven", ""))
 
-  /** None now: the history and what the CRM holds are the database's, the World's (owner §45 D, by G2); the clock is
-    * the clock model's (the coordinator's ruling: §47's form, without `elapse`, which a later step adds). Time passing
-    * between runs has no step in the World yet: no crm program moves the clock, so each statement holds at whatever
-    * time a world holds, and none relates two times; that waits on the step building `elapse` (G1, owner §47).
+  /** None (owner §45 D done): the history and what the CRM holds are the database's, the World's (by G2); the clock
+    * is the clock model's, the World's time, which the world moves on between runs (`elapse`) and at each of the
+    * clock's steps in a run (owner §47). Every rule of crm is about the database's state alone, so time passing keeps
+    * each by construction (`elapse` writes the clock only, and asks `cover_elapse` of no crm rule); the statements
+    * reading the clock (`sharing`, the screens' claims) hold at whatever time a world holds, and a search reads the
+    * world's time, its run's first look at the clock.
     */
   val provided: Map[String, frflow.project.Ported.OnD] = Map.empty
 
