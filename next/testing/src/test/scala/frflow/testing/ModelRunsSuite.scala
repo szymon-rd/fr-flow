@@ -76,7 +76,36 @@ class ModelRunsSuite extends munit.FunSuite:
       case other => fail(s"not found at once: $other")
   }
 
+  test("two calls at once of an operation known only by assumptions, on Scala that reads, pauses and writes: no " +
+      "order of them on the Scala itself gives it (R-S1)") {
+    val tallies = FrModel("Tallies")(Node.assumption("Nothing but the code tallies.")(ModelRunsSuite.tallied
+      .onlyCodeChanges), ModelRunsSuite.tallyAdds)
+    val t = tallies.elaborated.fold(es => fail(es.toString), identity)
+    val m = t.theory.vocabulary.models.head
+    def check(at: BigInt => IO[Unisolated | Memory]) = ModelTests.Check(m, ModelTests.of(ModelRunsSuite.tallied)(
+      start = at, observe = (x: Unisolated | Memory) => x match
+        case u: Unisolated => u.held.get
+        case a: Memory     => a.held.get)(x => Tuple1((by: BigInt) => x match
+        case u: Unisolated => u.bump(by)
+        case a: Memory     => a.bump(by))))
+    def ran(c: ModelTests.Check) = ModelRuns[IO](c, Semantics(t), t.theory).of(Plan(Settings(20, Seed(1)), Nil),
+      Derive.of(t, Nil)).unsafeRunSync().outcome
+    ran(check(n => Ref[IO].of(n).map(Unisolated(_)))) match
+      case Outcome.Failed(Failure.Run(_, steps, d @ Difference.AtOnce(_, _, _), _)) => assertEquals(steps.size, 2, d)
+      case other => fail(s"not found at once: $other")
+    assertEquals(ran(check(n => Ref[IO].of(n).map(Memory(_)))), Outcome.Passed)
+  }
+
 object ModelRunsSuite:
+  /** A tally, known only by what is assumed of it: a positive number adds to it. */
+  val tally = Definition[BigInt => Flow[Unit]]("the tally bumped by a number, when it is positive")
+
+  object tallied extends StateModel[BigInt]("the tally so far"):
+    tally.assumed
+
+  val tallyAdds = Node.assumption("A tally adds a positive number, and nothing else.")(forall((by: Term[BigInt]) =>
+    tallied.in(tally(by).after) === when(by > 0)(tallied.current + by).otherwise(tallied.current)))
+
   /** A counter, bumped by a number: only a positive bump counts. */
   val bump = Definition[BigInt => Flow[Unit]]("the counter bumped by a number, when it is positive")
 
