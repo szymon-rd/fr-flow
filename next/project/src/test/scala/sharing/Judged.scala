@@ -68,9 +68,10 @@ object Judged:
       List("assumption", "assumed", "", "1200"), "MailerKept" -> List("assumption", "assumed", "", "1000"),
       "PoolKept" -> List("assumption", "assumed", "", "1000"))
 
-  /** What is not proven: nothing. Delivery's sends commute, each branch given its own faults (G3), and its runs are
-    * proven under the race's reading (B1); the purpose, over its Declarations, is not met by doing nothing (the idle
-    * try fails: what the Declarations are, the claims at the bottom say in terms of the code).
+  /** What is not proven: nothing. Delivery's steps at once commute two by two, each given its own faults (G3,
+    * the step 13 re-review's RB1 and RB2), and its runs are proven under the race's reading (B1); the purpose, over
+    * its Declarations, is not met by doing nothing (the idle try fails: what the Declarations are, the claims at the
+    * bottom say in terms of the code).
     */
   val stopped: Map[String, List[String]] = Map.empty
 
@@ -95,7 +96,7 @@ object Judged:
       "needs today's server and its codec; with the server's port (step 14's documents and examples or later)",
     "many clients at once: serializable results in commit order, every notice delivered once or waiting" ->
       ("needs today's server; the transactions and the delivery's interleavings are tested on the models " +
-        "(InterleavingsSuite) and proven (commute_0); with the server's port"),
+        "(InterleavingsSuite) and proven (commute_0 to commute_6); with the server's port"),
     "a scripted session: reminded and declined, retried and delivered once, a 503 changing nothing, a yes explained" ->
       ("needs today's server and its routes; its pieces run in production's interpreter here (SeededSuite); with " +
         "the server's port"),

@@ -69,6 +69,8 @@ object Problems:
     case Problem.NestedAtomic(prog)         => s"${prog.value} runs a transaction inside a transaction"
     case Problem.RaceSideHolds(prog)        => s"${prog.value} races a side holding a race, a pair at once or a " +
         "finalizer: a loser is read cancelled between its steps, and what those do then is not"
+    case Problem.FailsBeside(prog)          => s"${prog.value} runs steps at once one of which may fail beside one " +
+        "that may fail or changes a model's state: cancelled by the error, what that one did until then is not read"
     case Problem.StepNotOperation(prog, d)  => s"${prog.value} runs ${d.value} as a step, which is no model's " +
         "operation: a program's steps call operations on a state"
     case Problem.LeavesUnsaid(op, m)        => s"${op.value} is known only by assumptions, and a rule is about " +

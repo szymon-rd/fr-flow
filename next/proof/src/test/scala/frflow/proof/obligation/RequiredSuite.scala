@@ -1,10 +1,9 @@
 package frflow.proof.obligation
 
-import frflow.core.Lang
 import frflow.core.analysis.{Resolved, Scope}
 import frflow.core.name.NodeId
 import frflow.core.ty.Ty
-import frflow.proof.layout.{Broken, Mini, Programs, ProgramsProject}
+import frflow.proof.layout.{Broken, Laid, Mini, Programs}
 import frflow.proof.layout.calls.{Handed, Reuse, Rows}
 import frflow.proof.layout.failing.Failing
 import frflow.proof.lean.print.Print
@@ -51,7 +50,7 @@ class RequiredSuite extends munit.FunSuite:
     assertEquals(names(Mini.resolved, "endsAfterStart").map(_._1).filterNot(_.isInstanceOf[ObligationName.Cover]),
       List(ObligationName.Made("bookIfFree_call_0")))
     assertEquals(names(Broken.resolved, "endsAfterStart").map(_._1).collect { case ObligationName.Made(m)
-      if m.contains("_call_") => m }, List("fileBack_call_0", "putBoth_call_0", "putBoth_call_1"))
+      if m.contains("_call_") => m }, List("fileBack_call_0", "putEvery_call_0", "putBoth_call_0", "putBoth_call_1"))
     // Programs calls no plain Scala: none is asked.
     assert(!names(Programs.resolved, "endsAfterStart").exists(n => n._1.toString.contains("_call_")))
   }
@@ -110,33 +109,33 @@ class RequiredSuite extends munit.FunSuite:
     assertEquals(Made.of(Mini.resolved, NodeId("endsAfterStart")), Nil) // `add` gives no booking
   }
 
-  test("commute_: a pair at once and a traverse at once, each in either order") {
-    def commutes(n: String) = Required.commutes(Programs.resolved, NodeId(n))
-    assertEquals(commutes("pairRuns").map(_.name), List(ObligationName.Commute(0)))
-    assertEquals(commutes("eachRuns").map(_.name), List(ObligationName.Commute(0)))
-    assertEquals(commutes("fetchRuns"), Nil)
-    val each = commutes("eachRuns").head.goal match
+  test("commute_: steps at once touching no model in common ask nothing; one pair per step of each side") {
+    def commutes(r: Resolved, n: String) = Required.commutes(r, NodeId(n))
+    assertEquals(List("pairRuns", "eachRuns", "fetchRuns").flatMap(commutes(Programs.resolved, _)), Nil)
+    List("countRuns", "putRuns", "countEachRuns", "putEachRuns").foreach(n =>
+      assertEquals(commutes(Broken.resolved, n).map(_.name), List(ObligationName.Commute(0)), n))
+    val each = commutes(Broken.resolved, "putEachRuns").head.goal match
       case Prop.Forall(_, Prop.Commutes(c, _)) => c
       case other                                => fail(s"not a commutation: $other")
     assertEquals((each.apart.map(a => (a.one.hint, a.two.hint)), each.result),
-      (Some(("x_one", "x_two")), Ty.TupleOf(List(Lang.big, Lang.big))))
+      (Some(("x_one", "x_two")), Ty.TupleOf(List(Ty.Unit, Ty.Unit))))
   }
 
-  test("commute_ of steps at once on a store: reading it twice, adding to it twice") {
-    assertEquals(Required.commutes(Broken.resolved, NodeId("countRuns")).map(_.name), List(ObligationName.Commute(0)))
-    assertEquals(Required.commutes(Broken.resolved, NodeId("putRuns")).map(_.name), List(ObligationName.Commute(0)))
-  }
-
-  test("commute_ in Lean: both orders run on the models from every world") {
-    val spec = ProgramsProject.modules.find(_.name.dotted == "FrFlowGen.Test.pairRuns.Spec").map(Print.module)
+  test("commute_ in Lean: both orders of the two steps run on the models from every world") {
+    val spec = Laid(Broken.resolved, Map.empty, Nil).modules.find(_.name.dotted.endsWith(".putRuns.Spec"))
+      .map(Print.module)
     val expected = """@[frflow_defs] def commute_0 : Prop :=
-      |  ∀ (n : Int) (w : World), FrFlow.runOn ((do
-      |        let a ← pure n
-      |        let c ← pure (n + (1 : Int))
-      |        pure (a, c)) : StateM World (Int × Int)) w = FrFlow.runOn ((do
-      |        let c ← pure (n + (1 : Int))
-      |        let a ← pure n
-      |        pure (a, c)) : StateM World (Int × Int)) w""".stripMargin
+      |  ∀ (b : Booking) (w : World), FrFlow.runOn ((do
+      |        let one ← (do
+      |            Shelved.Ops.put b)
+      |        let two ← (do
+      |            Shelved.Ops.put (Booking.mk b.room b.start (b.«end» + (1 : Int))))
+      |        pure (one, two)) : StateM World (Unit × Unit)) w = FrFlow.runOn ((do
+      |        let two ← (do
+      |            Shelved.Ops.put (Booking.mk b.room b.start (b.«end» + (1 : Int))))
+      |        let one ← (do
+      |            Shelved.Ops.put b)
+      |        pure (one, two)) : StateM World (Unit × Unit)) w""".stripMargin
     assert(spec.exists(_.contains(expected)), spec.getOrElse("no module"))
   }
 

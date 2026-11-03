@@ -33,6 +33,7 @@ private[api] object Tests:
     case Diff.Call(s, impl, model) => Difference.Call(step(s), ran(impl), ran(model))
     case Diff.Assumed(s, impl, ns) => Difference.Assumed(step(s), ran(impl), ns)
     case Diff.State(impl, model)   => Difference.State(impl, model)
+    case Diff.AtOnce(ss, impl, at) => Difference.AtOnce(ss.map(step), impl.map(ran), at)
     case Diff.NotRun(message)      => Difference.NotRun(message)
 
   private def ran(r: Did): Ran = r match

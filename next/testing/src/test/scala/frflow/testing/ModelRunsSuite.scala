@@ -8,9 +8,10 @@ import frflow.core.name.SymbolName
 import frflow.core.ty.Ty
 import frflow.eval.Semantics
 import frflow.testing.derive.Derive
-import frflow.testing.model.{ModelRuns, ModelTests}
-import frflow.testing.report.{Count, Outcome, Position, Reach, Target}
+import frflow.testing.model.{Difference, ModelRuns, ModelTests, Typing}
+import frflow.testing.report.{Count, Failure, Outcome, Position, Reach, Target}
 import java.util.SplittableRandom
+import scala.concurrent.duration.*
 
 /** What model runs count: a run that cannot be drawn is not tried, and a branch of the model's steps a run set
   * never takes one way is said.
@@ -24,12 +25,20 @@ class ModelRunsSuite extends munit.FunSuite:
   private final class Memory(val held: Ref[IO, BigInt]):
     def bump(by: BigInt): IO[Unit] = if by > 0 then held.update(_ + by) else IO.unit
 
-  private def tested(draw: Draw, settings: Settings = Settings.default) =
-    val impl = ModelTests.of(ModelRunsSuite.counted)(start = (n: BigInt) => Ref[IO].of(n).map(Memory(_)),
-      observe = (m: Memory) => m.held.get)(m => Tuple1(m.bump))
-    val model = e.theory.vocabulary.models.head
-    ModelRuns[IO](ModelTests.Check(model, impl), Semantics(e), e.theory).of(Plan(settings, Nil), draw)
-      .unsafeRunSync()
+  /** The counter read, then written back bumped a while later: each call alone does what the model does. */
+  private final class Unisolated(val held: Ref[IO, BigInt]):
+    def bump(by: BigInt): IO[Unit] =
+      if by > 0 then held.get.flatMap(n => IO.sleep(10.millis) *> held.set(n + by)) else IO.unit
+
+  private val model = e.theory.vocabulary.models.head
+  private val atomic = ModelTests.Check(model, ModelTests.of(ModelRunsSuite.counted)(
+    start = (n: BigInt) => Ref[IO].of(n).map(Memory(_)), observe = (m: Memory) => m.held.get)(m => Tuple1(m.bump)))
+  private val unisolated = ModelTests.Check(model, ModelTests.of(ModelRunsSuite.counted)(
+    start = (n: BigInt) => Ref[IO].of(n).map(Unisolated(_)), observe = (m: Unisolated) => m.held.get)(m =>
+      Tuple1(m.bump)))
+
+  private def tested(draw: Draw, settings: Settings = Settings.default, check: ModelTests.Check = atomic) =
+    ModelRuns[IO](check, Semantics(e), e.theory).of(Plan(settings, Nil), draw).unsafeRunSync()
 
   test("a run that cannot be drawn is not tried: 200 runs by default, none tried, every part unreached") {
     val nothing = new Draw:
@@ -54,6 +63,17 @@ class ModelRunsSuite extends munit.FunSuite:
   test("fewer cases asked than the runs a model test is given: that many runs") {
     val r = tested(Derive.of(e, Nil), Settings(50, Seed(1)))
     assertEquals(r.count, Count(50, 50))
+  }
+
+  test("two calls at once on Scala that reads, pauses and writes lose one: no order of them on the model gives it") {
+    val r = tested(Derive.of(e, Nil), Settings(20, Seed(1)), unisolated)
+    r.outcome match
+      case Outcome.Failed(Failure.Run(start, steps, d @ Difference.AtOnce(_, _, _), _)) =>
+        assertEquals(steps.size, 2, d)
+        val inTurn = ModelTests.run(unisolated, Semantics(e), e.theory.vocabulary, (_, _, _) => IO.unit)(
+          Typing(Semantics(e), e.theory.vocabulary).literal(start, model.state), steps).unsafeRunSync()
+        assertEquals(inTurn, None, "the calls in turn agree with the model")
+      case other => fail(s"not found at once: $other")
   }
 
 object ModelRunsSuite:

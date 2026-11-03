@@ -52,6 +52,8 @@ object FailureCodecs:
     case Difference.Assumed(s, i, b) => Tagged("assumed", "step" -> s.asJson, "implementation" -> i.asJson,
                                          "broken" -> b.asJson)
     case Difference.State(i, m)     => Tagged("state", "implementation" -> i.asJson, "model" -> m.asJson)
+    case Difference.AtOnce(ss, i, s) => Tagged("at-once", "steps" -> ss.asJson, "implementation" -> i.asJson,
+                                          "state" -> s.asJson)
     case Difference.NotRun(message) => Tagged("not-run", "message" -> message.asJson)
   }
 
@@ -61,6 +63,8 @@ object FailureCodecs:
     case "assumed" => c => (c.get[Step]("step"), c.get[Ran]("implementation"), c.get[List[NodeId]]("broken"))
                        .mapN(Difference.Assumed(_, _, _))
     case "state"   => c => (c.get[Value]("implementation"), c.get[Value]("model")).mapN(Difference.State(_, _))
+    case "at-once" => c => (c.get[List[Step]]("steps"), c.get[List[Ran]]("implementation"), c.get[Value]("state"))
+                       .mapN(Difference.AtOnce(_, _, _))
     case "not-run" => _.get[String]("message").map(Difference.NotRun(_))
   }
 

@@ -15,7 +15,7 @@ end Test.endsAfterStart
 namespace Test.endsAfterStart
 
 @[frflow_defs] def keeps_fileTwice (fileTwice : Booking → (World → ((Except String (Unit × Unit)) × World))) : Prop :=
-  (∀ (i : Booking), ((i.start < i.«end») → ((i.start < i.«end») → (∀ (before : World), ((∀ b ∈ before.shelved, (b.start < b.«end»)) → ((∀ b ∈ before.shelved, (b.start < b.«end»)) → ((match (fileTwice i before) with | (Except.ok result, after) => (∀ b ∈ after.shelved, (b.start < b.«end»)) | _ => True) ∧ (match (fileTwice i before) with | (Except.error error, after) => (∀ b ∈ after.shelved, (b.start < b.«end»)) | _ => True))))))))
+  (∀ (i : Booking), ((i.start < i.«end») → ((i.start < i.«end») → (∀ (before : World), ((∀ b ∈ before.shelved, (b.start < b.«end»)) → ((∀ b ∈ before.shelved, (b.start < b.«end»)) → (match (fileTwice i before) with | (Except.ok result, after) => (∀ b ∈ after.shelved, (b.start < b.«end»)) | _ => True)))))))
 
 end Test.endsAfterStart
 
@@ -78,7 +78,7 @@ end Test.fromOutside
 namespace Test.fromOutside
 
 @[frflow_defs] def keeps_fileTwice (fileTwice : Booking → (World → ((Except String (Unit × Unit)) × World))) : Prop :=
-  (∀ (i : Booking), ((i.start < i.«end») → ((i.start < i.«end») → (∀ (before : World), ((∀ b ∈ before.shelved, (b.start < b.«end»)) → ((∀ b ∈ before.shelved, (b.start < b.«end»)) → ((match (fileTwice i before) with | (Except.ok result, after) => (∀ b ∈ after.shelved, (b.start < b.«end»)) | _ => True) ∧ (match (fileTwice i before) with | (Except.error error, after) => (∀ b ∈ after.shelved, (b.start < b.«end»)) | _ => True))))))))
+  (∀ (i : Booking), ((i.start < i.«end») → ((i.start < i.«end») → (∀ (before : World), ((∀ b ∈ before.shelved, (b.start < b.«end»)) → ((∀ b ∈ before.shelved, (b.start < b.«end»)) → (match (fileTwice i before) with | (Except.ok result, after) => (∀ b ∈ after.shelved, (b.start < b.«end»)) | _ => True)))))))
 
 end Test.fromOutside
 

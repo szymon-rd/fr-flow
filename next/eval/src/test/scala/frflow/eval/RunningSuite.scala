@@ -95,6 +95,39 @@ class RunningSuite extends munit.FunSuite:
     assertEquals(ran.unsafeRunSync(), (Left(BigInt(1)), true))
   }
 
+  private val twoMarks = Definition[Flow[Unit]]("a mark made twice, a while apart")
+  private val mark = Definition[Flow[Unit]]("a mark made")
+  private val pause = Definition[Flow[Unit]]("a while")
+  private def soon = Flow.step(slowly)
+  /** The marks a race's loser made, `soon` winning while it runs, and the winner. */
+  private def lost(loser: Flow[Unit], ops: (IO[Unit], IO[Unit]) => List[(Definition[?], List[Any] => IO[Any])]) =
+    (for
+      marks <- IO.ref(0)
+      made   = marks.update(_ + 1)
+      run   <- binding((slowly -> ((_: List[Any]) => IO.sleep(20.millis).as(BigInt(2)))) ::
+        ops(made, IO.sleep(80.millis))*)
+      won   <- run.flow(soon.race(loser)).map(run.value)
+      n     <- marks.get
+    yield (won, n)).unsafeRunSync()
+
+  test("an operation's call is never cancelled part way: a race's loser inside one finishes it (RS1)") {
+    assertEquals(lost(Flow.step(twoMarks), (made, wait) => List(twoMarks -> (_ => made *> wait *> made))),
+      (Left(BigInt(2)), 2))
+  }
+
+  test("a transaction is never cancelled part way: a race's loser inside one finishes it, step after step") {
+    val marks = Flow.step(mark).flatMap(_ => Flow.step(pause)).flatMap(_ => Flow.step(mark)).atomically
+    assertEquals(lost(marks, (made, wait) => List(mark -> (_ => made), pause -> (_ => wait))), (Left(BigInt(2)), 2))
+  }
+
+  test("the clock's wait is cancelled inside: a race won beside a long wait does not wait for it") {
+    val ran = for
+      run   <- binding(slowly -> (_ => IO.sleep(20.millis).as(BigInt(2))), Clock.sleep -> (_ => IO.sleep(10.seconds)))
+      timed <- run.flow(soon.race(Flow.step(Clock.sleep(n(10))))).timed
+    yield timed._1
+    assert(ran.unsafeRunSync() < 5.seconds)
+  }
+
   test("an error of another type passes the handler by, still the program's error") {
     val p = Flow.raise[String, BigInt](Lift.constant("no")).handle[BigInt](_ => Flow.pure(n(7)))
     val ran = running.flatMap(run => run.flow(p).attempt)

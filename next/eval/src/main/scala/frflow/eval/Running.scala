@@ -7,6 +7,7 @@ import frflow.core.code.Values
 import frflow.core.name.SymbolName
 import frflow.core.vocab.Fails
 import frflow.dsl.flow.{Flow, Terms}
+import frflow.dsl.model.Clock
 import frflow.dsl.term.{LeanType, Lift, Term}
 import frflow.dsl.run.Recorded
 import frflow.dsl.vocab.{Called, Definition, Spot}
@@ -19,7 +20,8 @@ import frflow.eval.term.Evaluate
   * error carries its value and type (`Raised`). Nothing here checks a call: code is checked by proofs and tests
   * before production. Made only by `make`, and reached by the developer as `knowledge.running[F](…)` (`CodeSyntax`):
   * `run(bookIfGranted)(request)` runs a program's Definition on its inputs' values, `run.flow(f)` a program written
-  * in plain code. A race's loser is cancelled between its steps: a transaction is never cancelled part way.
+  * in plain code. A race's loser is cancelled between its steps: an operation's call and a transaction are never
+  * cancelled part way, as Lean reads them (each all or nothing).
   */
 final class Running[F[_]] private (values: Values, literals: Literals, operations: Map[SymbolName, Bound[F]],
     lock: Mutex[F])(using F: Async[F]) extends Terms:
@@ -82,15 +84,20 @@ final class Running[F[_]] private (values: Values, literals: Literals, operation
   private def unmodelled[A](model: String): F[A] = F.raiseError(IllegalStateException(
     s"FrFlow bug: a program in production reads $model's state, which only its operations' meanings do"))
 
-  /** An operation's call: each argument's value, the Scala bound for it, its result a term; a failing model's
-    * operation's failure its error (`fail`).
+  /** An operation's call: each argument's value, the Scala bound for it, uncancelable (a race's loser is cancelled
+    * before or after it, never inside), its result a term; a failing model's operation's failure its error (`fail`).
+    * The clock's wait is the one call cancelled inside: what it has done then is time passing (owner §47), and a
+    * race won beside a long wait does not wait for it.
     */
   private def step[R: LeanType](op: Term[?]): F[Term[R]] = F.defer(Called.of(op).fold(
     F.raiseError[Term[R]](IllegalArgumentException("FrFlow: a step applies no operation")))((name, args) =>
       operations.get(name).fold(F.raiseError[Term[R]](IllegalArgumentException(
         s"FrFlow: ${name.value} has no Scala bound where the program runs")))(b =>
-        F.delay(args.map(value(_))).flatMap(vs => Bound.failures(b.fails, fail)(F.defer(b.call(vs))))
+        F.delay(args.map(value(_))).flatMap(vs => whole(name)(Bound.failures(b.fails, fail)(F.defer(b.call(vs)))))
           .map(r => term(r.asInstanceOf[R])))))
+
+  private def whole[A](op: SymbolName)(call: F[A]): F[A] =
+    if op == Clock.sleep.name then call else F.uncancelable(_ => call)
 
   def value[A](t: Term[A]): A = Evaluate.of(t.run)(Env.of(values)).fold(e => throw NotEvaluated(e), identity)
   def term[A: LeanType](a: A): Term[A] = Lift.constant(a)

@@ -14,7 +14,8 @@ enum OutsideFact:
     */
   case OnlyCodeChanges(model: ModelName)
   /** Runs on the state never interleave: one process with `atomically`, or a store serializing them (owner §17,
-    * §32, §36: each run is one step of the world).
+    * §32, §36: each run is one step of the world); and each call of the model's operations is one step against
+    * calls at once, which the model tests check of its Scala.
     */
   case Atomic(model: ModelName)
   /** What the model's state meets when the service starts (`stored.initially(held => held === Nil)`): its rule a

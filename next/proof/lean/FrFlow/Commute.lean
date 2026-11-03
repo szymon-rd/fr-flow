@@ -1,20 +1,28 @@
 import FrFlow.Flow
 
 /-!
-Branches at once. A flow's `parTupled` and `parTraverse` are read as their branches in turn; the
-proof is asked that the branches commute (`commute_i`): either order gives the same results and
-the same state. These lemmas are what such proofs, by hand or by automation, are made of: two
-steps on parts of the state that neither reads nor writes of the other commute; reads commute;
-commuting is symmetric; and a commuting pair can be swapped inside any flow around it, so that,
-step by step, any order of whole branches gives what the written one gives.
+Steps at once. A flow's `parTupled`, `parTraverse` and `race` are read as their sides in turn;
+production interleaves the sides' steps (each operation's call, each transaction whole). The proof
+is asked that every step of one side commutes with every step of the other that touches a model in
+common (`commute_i`, one per pair): either order gives the same results and the same models. Then,
+swapped two at a time (`Commute.swap`), every interleaving gives what the reading's order gives.
+These lemmas are what such proofs, by hand or by automation, are made of: two steps on parts of the
+state that neither reads nor writes of the other commute; reads commute; commuting is symmetric.
 -/
 
 namespace FrFlow
 
+/-- A step of a flow that may fail, run to its own outcome: its failure is its side's, and what runs beside it runs
+on. How `commute_i` runs each of two steps at once where the program may fail. -/
+def caught {σ ε α : Type} (x : ExceptT ε (StateM σ) α) : StateM σ (Except ε α) := x.run
+
+@[frflow_defs] theorem runOn_caught {σ ε α : Type} (x : ExceptT ε (StateM σ) α) (s : σ) :
+    runOn (caught x) s = runOnE x s := rfl
+
 /-- Two runs alike but for the world's choices left in them (`forget` sets them aside): the same result, and the same
-models' states. How `commute_i` compares two orders where each branch is given its own faults and races: a run of
-the branches in either order on one list of choices takes a part of it per branch, so given those parts each, the
-other order's run is the written order's on one list again, the parts in its order. -/
+models' states. How `commute_i` compares two orders where each step is given its own faults and races: a run of
+the steps in either order on one list of choices takes a part of it per step, so given those parts each, the other
+order's run is the reading's on one list again, the parts in its order. -/
 @[frflow_defs] def sameModels {σ α : Type} (forget : σ → σ) (a b : α × σ) : Prop := a.1 = b.1 ∧ forget a.2 = forget b.2
 
 /-- `x` and `y` commute: from every state, `x` then `y` and `y` then `x` give the same results and the same state. -/

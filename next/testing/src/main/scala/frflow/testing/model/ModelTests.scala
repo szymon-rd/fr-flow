@@ -26,12 +26,8 @@ final class ModelTests[F[_]: MonadThrow](implemented: World[F], models: World[F]
     run.foldM(Option.empty[Difference])((found, s) => found.fold(differs(s))(d => d.some.pure[F]))
 
   private def differs(s: Step): F[Option[Difference]] =
-    val args = typing.args(s)
-    assumed(s, args).getOrElse((ran(implemented, s, args), ran(models, s, args)).tupled.map((a, m) =>
-      Option.unless(a == m)(Difference.Call(s, a, m))))
-
-  private def ran(w: World[F], s: Step, args: List[ScalaValue]): F[Ran] = w.call(s.op, args).attempt.map(
-    ModelTests.ran(typing, s))
+    assumed(s, typing.args(s)).getOrElse((ModelTests.ran(implemented, typing)(s), ModelTests.ran(models, typing)(s))
+      .tupled.map((a, m) => Option.unless(a == m)(Difference.Call(s, a, m))))
 
 object ModelTests:
   /** A model and the Scala of its operations, tested against it, and what is assumed of those of its operations known
@@ -46,7 +42,7 @@ object ModelTests:
     def none[F[_]]: Assumed[F] = (_, _) => None
 
   /** What a call did, as data. */
-  def ran(typing: Typing, s: Step)(r: Either[Throwable, ScalaValue]): Ran = r match
+  def outcome(typing: Typing, s: Step)(r: Either[Throwable, ScalaValue]): Ran = r match
     case Right(v)        => Ran.Gave(typing.result(s, v))
     case Left(r: Raised) => Ran.Failed(typing.reflect(r.error, r.ty))
     case Left(e)         => Ran.Threw(String.valueOf(e.getMessage))
@@ -69,16 +65,14 @@ object ModelTests:
       branched: (SymbolName, Prog[Stated[?]], Boolean) => F[Unit])(held: ScalaValue, steps: List[Step])
       : F[Option[Difference]] =
     val typing = Typing(semantics, v)
-    val scala = check.implementation.scala
     // The casts below are of values in the implementation's effect, checked first to be `F`.
     val ran = if check.implementation.effect ne MonadThrow[F] then
       Option[Difference](Difference.NotRun("the operations' Scala runs in another effect than its tests")).pure[F]
     else for
-      made    <- MonadThrow[F].unit.map(_ => scala.start(held.unwrap).asInstanceOf[F[Any]]).flatten
-      ops      = Bound.bind[F](check.implementation, made, check.model.fails)
+      made    <- started(check, held)
       states  <- Ref.of[F, Map[ModelName, ScalaValue]](Map(check.model.name -> held))
       models   = World.watched(semantics, v, states, branched)
-      scala    = World.implemented(ops, failed(semantics))
+      scala    = implemented(check, semantics, made)
       found   <- ModelTests(scala, models, typing, assumed(check, made, (scala, states), typing))
         .firstDifference(steps)
       ended   <- found.fold(atEnd(check, made, models, typing))(d => d.some.pure[F])
@@ -97,9 +91,21 @@ object ModelTests:
       after  <- observe()
       _      <- on._2.update(_.updated(m, ScalaValue(after)))
     yield result match
-      case Left(e)  => Some(Difference.Assumed(s, ran(typing, s)(Left(e)), Nil))
+      case Left(e)  => Some(Difference.Assumed(s, outcome(typing, s)(Left(e)), Nil))
       case Right(v) => Option(check.assumptions.broken(s.op, m)(args, v, (before, after))).filter(_.nonEmpty)
-          .map(Difference.Assumed(s, ran(typing, s)(Right(v)), _)))
+          .map(Difference.Assumed(s, outcome(typing, s)(Right(v)), _)))
+
+  /** What a call did, on the Scala or on the model. */
+  private[model] def ran[F[_]: MonadThrow](w: World[F], typing: Typing)(s: Step): F[Ran] =
+    w.call(s.op, typing.args(s)).attempt.map(outcome(typing, s))
+
+  /** The Scala made holding `held` (`start`), in the effect the caller checked it is in. */
+  private[model] def started[F[_]: MonadThrow](check: Check, held: ScalaValue): F[Any] =
+    MonadThrow[F].unit.map(_ => check.implementation.scala.start(held.unwrap).asInstanceOf[F[Any]]).flatten
+
+  /** The calls on the Scala `start` made, each failure of a failing model's its error. */
+  private[model] def implemented[F[_]: MonadThrow](check: Check, semantics: Semantics, made: Any): World[F] =
+    World.implemented(Bound.bind[F](check.implementation, made, check.model.fails), failed(semantics))
 
   private def atEnd[F[_]: MonadThrow](check: Check, made: Any, models: World[F], typing: Typing)
       : F[Option[Difference]] =

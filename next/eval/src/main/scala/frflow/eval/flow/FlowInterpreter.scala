@@ -38,7 +38,8 @@ final class FlowInterpreter[F[_]](semantics: Semantics, world: World[F], schedul
       case br @ Prog.Branch(c, a, b) => value(c, env).flatMap(v =>
           branched(br, Fn.bool(v)) *> (if Fn.bool(v) then prog(a, env) else prog(b, env)))
       case Prog.Call(op, _, _) if op == Prog.leftWins => world.call(op, Nil)
-      case Prog.Call(op, as, _)      => unlessCancelled(cut)(as.traverse(value(_, env)).flatMap(world.call(op, _)))
+      case Prog.Call(op, as, _)      =>
+        unlessCancelled(cut)(as.traverse(value(_, env)).flatMap(vs => scheduling.call(op)(world.call(op, vs))))
       case Prog.Cut(body)            =>
         val mine = Cancelled()
         steps(body, env, Some(mine)).as(unit).recover { case c: Cancelled if c eq mine => unit }

@@ -88,7 +88,9 @@ abstract class StateModel[S](description: String)(using named: StateModel.Named,
   /** Nothing outside the code changes the state (owner §31, §36): which programs change it is derived. */
   def onlyCodeChanges: Fact = fact(declares, OutsideFact.OnlyCodeChanges(name))
   /** Runs on the state never interleave: one process running each atomically, or a store serializing them; each run
-    * is one step of the world (owner §17, §32).
+    * is one step of the world (owner §17, §32). So is each call of its operations against calls at once: its Scala
+    * keeps two calls at once apart (one update of the state, or a store serializing them), which the model tests
+    * check, running two calls at once against the model's orders of them.
     */
   def atomic: Fact = fact(declares, OutsideFact.Atomic(name))
   /** What the state starts in meets (`stored.initially(held => held === Nil)`): the rule a define named as the

@@ -101,18 +101,6 @@ object Progs:
     case _                  => false
   }
 
-  /** The parallel steps (`parTupled`, `parTraverse`), in order: each gives a `commute_i` obligation. A race's
-    * loser cut off (`Cut`) is that side again, whose parallel steps the winner's reading of it holds.
-    */
-  def parallel[E](p: Prog[E]): List[Prog[E]] =
-    def uncut(q: Prog[E]): List[Prog[E]] = q :: (q match
-      case Prog.Cut(_) => Nil
-      case _           => children(q).flatMap(uncut))
-    uncut(p).filter {
-      case Prog.Par(_, _, _, _) | Prog.ParEach(_, _, _, _) => true
-      case _                                             => false
-    }
-
   /** The error types raised or handled, read off the IR. */
   def errors(p: Prog[Expr]): List[Ty] = all(p).collect {
     case Prog.Raise(e)          => Exprs.typeOf(e)
