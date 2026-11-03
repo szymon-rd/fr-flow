@@ -118,9 +118,10 @@ class TypeOfSuite extends munit.FunSuite:
       assertEquals(errs(e), List(IrError.Mistyped(e)), e))
     assertEquals(List(Expr.Sym(limit, Lang.big), Expr.Lit(Value.Num(BigInt(2).pow(40)), Ty.Num(NumKind.Int64)))
       .flatMap(errs), Nil)
-    List(Prog.Call(add, List(b), Ty.Unit), Prog.Call(SymbolName("remove"), List(n), Ty.Unit),
-      Prog.Write(counter, b), Prog.Read(ModelName("nowhere"))).foreach(p =>
+    List(Prog.Call(add, List(b), Ty.Unit), Prog.Write(counter, b), Prog.Read(ModelName("nowhere"))).foreach(p =>
       assertEquals(errs(Expr.Do(p, flow)), List(IrError.MistypedStep(p)), p))
+    // a call of what no model gives an operation is Validate's to refuse (StepNotOperation, R-N3), no type error
+    assertEquals(errs(Expr.Do(Prog.Call(SymbolName("remove"), List(n), Ty.Unit), flow)), Nil)
     assertEquals(errs(Expr.Do(Prog.Bind(Prog.Call(add, List(n), Ty.Unit), Binder(VarId.level(0), "u", Ty.Unit),
       Prog.Write(counter, n)), flow)), Nil)
     val y = Binder(VarId.level(0), "y", Lang.big)

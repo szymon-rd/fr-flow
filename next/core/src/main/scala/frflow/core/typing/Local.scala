@@ -49,7 +49,9 @@ final class Local(ctx: IrContext):
     */
   def step(p: Prog[Expr]): Boolean = p match
     case Prog.Call(op, as, t) if op == Prog.leftWins => as.isEmpty && t == Ty.Bool
-    case Prog.Call(op, as, t)               => ctx.operations(op).exists(s => s.params.map(_._2) == as.map(ty) &&
+    // a call of what no model gives an operation (another program) is no mistyped step: `Validate` refuses it as
+    // a Problem (`StepNotOperation`, the step 13c re-review's R-N3)
+    case Prog.Call(op, as, t)               => ctx.operations(op).forall(s => s.params.map(_._2) == as.map(ty) &&
         s.result == t)
     case Prog.Read(m)                       => ctx.states(m).nonEmpty
     case Prog.Write(m, s)                   => ctx.states(m).contains(ty(s))
