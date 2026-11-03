@@ -63,14 +63,14 @@ class SeededSuite extends munit.CatsEffectSuite:
   private def timed[A](from: (Library, BigInt), store: List[Boolean], mail: List[Boolean],
       boxes: Map[PersonId, List[Notice]] = Map.empty)(f: (frflow.eval.Running[IO]) => IO[A])
       : IO[(Either[Throwable, A], Library, Map[PersonId, List[Notice]], BigInt)] =
-    val (lib, at) = from
     for
-      s   <- MemoryLibraryStore.holding(lib)
+      s   <- MemoryLibraryStore.holding(from._1)
       m   <- MemoryMailer.holding(boxes)
-      w   <- clock(at)
+      w   <- clock(from._2)
       p   <- MemoryPool.holding(0)
+      h   <- sharing.time.Housekept.at(from._2)
       run <- knowledge.running[IO](LibraryStore.libraryModel := s, Mailer.mailerModel := m,
-               Clock.clockModel := w, Pool.poolModel := p)
+               Clock.clockModel := w, Pool.poolModel := p, sharing.time.ClockKept.housekeptModel := h)
       _   <- s.failing(store) *> m.failing(mail)
       out <- f(run).attempt
       l   <- s.library
