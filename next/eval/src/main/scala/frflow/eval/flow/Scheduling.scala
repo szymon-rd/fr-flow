@@ -3,6 +3,8 @@ package frflow.eval.flow
 import cats.Monad
 import cats.effect.kernel.Async
 import cats.syntax.all.*
+import frflow.core.name.SymbolName
+import frflow.dsl.model.Clock
 
 /** How a recorded program's concurrent steps run in Scala: one after the other, as Lean reads them (the models), or
   * at once (the operations' Scala, the interleavings tests).
@@ -16,6 +18,8 @@ trait Scheduling[F[_]]:
   /** `body` with its finalizer, or the reading Lean proves of it (`Prog.Guard`). */
   def guard[A](body: F[A], finalizer: F[Unit], reading: F[A]): F[A]
   def atomically[A](fa: F[A]): F[A]
+  /** An operation's call. */
+  def call[A](op: SymbolName)(fa: F[A]): F[A]
 
 object Scheduling:
   /** Steps one after the other, as Lean reads them: a pair's left then right, a race read as the world's choice of
@@ -29,9 +33,11 @@ object Scheduling:
     def race[A, B](fa: F[A], fb: F[B], reading: F[Either[A, B]]): F[Either[A, B]] = reading
     def guard[A](body: F[A], finalizer: F[Unit], reading: F[A]): F[A] = reading
     def atomically[A](fa: F[A]): F[A] = fa
+    def call[A](op: SymbolName)(fa: F[A]): F[A] = fa
 
-  /** Branches at once, a race's loser cancelled (its finalizers run), `atomically` under `lock` and never cancelled
-    * part way: a transaction is one step, as an operation's call is (cancelled, it did all or nothing, 2.6).
+  /** Branches at once, a race's loser cancelled (its finalizers run), `atomically` under `lock`: a transaction and an
+    * operation's call each one step, never cancelled part way, as production runs them (`Running`), but the clock's
+    * wait.
     */
   def concurrent[F[_]](lock: [A] => F[A] => F[A])(using F: Async[F]): Scheduling[F] = new Scheduling[F]:
     def both[A, B](fa: F[A], fb: F[B]): F[(A, B)] = F.both(fa, fb)
@@ -40,3 +46,4 @@ object Scheduling:
     def race[A, B](fa: F[A], fb: F[B], reading: F[Either[A, B]]): F[Either[A, B]] = F.race(fa, fb)
     def guard[A](body: F[A], finalizer: F[Unit], reading: F[A]): F[A] = F.guarantee(body, finalizer)
     def atomically[A](fa: F[A]): F[A] = F.uncancelable(_ => lock(fa))
+    def call[A](op: SymbolName)(fa: F[A]): F[A] = if op == Clock.sleep.name then fa else F.uncancelable(_ => fa)
