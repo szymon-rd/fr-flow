@@ -9,6 +9,8 @@ import frflow.project.Projects
   * behaving as its model, the model as Lean is given it.
   */
 class ContentsSuite extends munit.FunSuite:
+  // Four examples analysed and lowered, crm's and sharing's with their models: beside the other suites, near 30 s.
+  override val munitTimeout: scala.concurrent.duration.Duration = scala.concurrent.duration.Duration(2, "minutes")
   private def lowered(e: Elaborated) = Projects.bare(e).canonical
   private val examples = List(Projects.rooms, Projects.elaborated(auth.knowledge), Projects.elaborated(crm.knowledge),
     Projects.elaborated(sharing.knowledge))
