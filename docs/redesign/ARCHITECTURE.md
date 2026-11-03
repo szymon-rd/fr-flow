@@ -202,7 +202,11 @@ What a statement may say, so that its Lean meaning is the one written wherever i
   pinning which are open. Time passing (owner §47) is built (step 13d, "Time" in 4.4): crm's clock is the World's
   time, which the world moves on between runs and at each of the clock's steps; sharing's history and "now" are the
   World's, what its store, its mail server and its clock hold and when housekeeping last ran, its deadlines statements
-  of every moment proven from rules time passing keeps. Auth's two tables, read in one moment only, stay provided
+  of every moment proven from rules time passing keeps, its scheduler's tests run on a virtual clock (`ScheduleSuite`).
+  One `cover_` stops (sharing's `Judged.stopped`): a program's `cover_` puts in the program's own code but leaves what
+  it calls opaque, given only what the program relies on, so housekeeping keeping `nothingEndedAtHousekeeping` cannot
+  be shown (what "gone", "open" and "pending" mean, their contracts, housekeeping does not rely on); proposed to the
+  owner: a `cover_` puts in the code of what the program calls, as `impl` does (2.7). Auth's two tables, read in one moment only, stay provided
   (owner §48). Configuration fixed for the run (keycloak's seed, sharing's start) is not "now" or a history and stays
   provided.
 

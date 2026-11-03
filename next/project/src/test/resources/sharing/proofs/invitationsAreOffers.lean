@@ -15,11 +15,11 @@ open Sharing
 
 theorem impl : Obl.impl := by
   unfold Obl.impl
-  intro reaches covers inTrash events startedAt inForce hTrash _ _ _ _ _ hLapse
+  intro inForce reaches covers inTrash ownedBy hTrash _ _ _ _ _ hLapse world g1 g2 g3
   refine ⟨⟨fun lib t by_ to what => ⟨fun h => Lemmas.changed h, fun level => ⟨fun h => Lemmas.changed h,
     fun p d => ?_⟩⟩, fun lib t p what h => ?_⟩, fun i hi => ?_⟩
-  · have key : ∀ X, accessCode inTrash inForceCode { lib with invitations := X } t p d =
-        accessCode inTrash inForceCode lib t p d := by
+  · have key : ∀ X, accessCode inTrash inForce { lib with invitations := X } t p d =
+        accessCode inTrash inForce lib t p d := by
       intro X
       have ht := hTrash
       unfold Sharing.inTrash.claim at ht
@@ -34,7 +34,7 @@ theorem impl : Obl.impl := by
     · exact absurd rfl h
     · next i heq =>
       exact ⟨i, List.mem_of_find?_eq_some heq, by simpa using List.find?_some heq⟩
-  · have := hLapse i hi
+  · have := hLapse world g1 g2 g3 i hi
     simp only [isOpenCode]
     omega
 
