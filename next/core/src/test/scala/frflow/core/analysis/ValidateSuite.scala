@@ -3,7 +3,7 @@ package frflow.core.analysis
 import frflow.core.{Booking, Kb, Lang, Store}
 import frflow.core.Nodes.*
 import frflow.core.code.Code
-import frflow.core.name.{NodeId, SymbolName}
+import frflow.core.name.{DefName, NodeId, SymbolName}
 import scala.compiletime.constValueTuple
 import scala.deriving.Mirror
 import frflow.core.analysis.outside.{Premise, Premises}
@@ -36,6 +36,11 @@ class ValidateSuite extends munit.FunSuite:
 
   test("a side at once that may fail beside one that neither fails nor changes a model: cut short, it did nothing") {
     assertEquals(FailureCases.beside(changing = false).problems, Nil)
+  }
+
+  test("a traverse at once whose body may let an error out is refused; one handling it is not") {
+    assertEquals(FailureCases.traversing(caught = false).problems, List(Problem.FailsBeside(DefName("bookIfFree"))))
+    assertEquals(FailureCases.traversing(caught = true).problems, Nil)
   }
 
   cases.foreach { c =>

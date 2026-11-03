@@ -87,6 +87,21 @@ object FailureCases:
       Prog.Bind(both, Binder(VarId.step(3), "_$u", Ty.TupleOf(List(Ty.Unit, Ty.Unit))), Prog.Pure(unit)), Ty.Unit,
       SourceText("bookIfFree")), DefineForm.Flow))))
 
+  /** `book`'s program adding each booking of a list at once, the add's error handled (`caught`, `book` then declared
+    * to fail with nothing) or not: on the store that may be down, one element's error, not handled, cancels the
+    * others at whatever step each has reached.
+    */
+  def traversing(caught: Boolean): Kb =
+    val b = Binder(VarId.level(0), "b", Booking.ty)
+    val x = Binder(VarId.step(0), "x", Booking.ty)
+    val add = Prog.Call(Store.add, List(Stated([T[_]] => (s: Sym[T]) => s.free[Booking](x))), Ty.Unit)
+    val unit = Stated([T[_]] => (s: Sym[T]) => s.lit((), Value.Unit, Ty.Unit))
+    val body = if caught then Prog.Catch(add, Ty.Str, Binder(VarId.step(1), "e", Ty.Str), Prog.Pure(unit)) else add
+    val each = Prog.ParEach(Stated([T[_]] => (s: Sym[T]) => s.nil[Booking](Booking.ty)), x, body, None)
+    val steps = Prog.Bind(each, Binder(VarId.step(2), "_$u", Ty.ListOf(Ty.Unit)), Prog.Pure(unit))
+    (if caught then undeclared else down).declaring(v => v.copy(defines = List(Define(DefName("bookIfFree"),
+      Written.steps(List(b), steps, Ty.Unit, SourceText("bookIfFree")), DefineForm.Flow))))
+
   /** `book`'s program racing two adds: the world holds the scheduler's choices. */
   val racing: Kb =
     val b = Binder(VarId.level(0), "b", Booking.ty)

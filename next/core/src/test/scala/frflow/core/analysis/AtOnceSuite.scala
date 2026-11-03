@@ -46,3 +46,9 @@ class AtOnceSuite extends munit.FunSuite:
     assertEquals(AtOnce.all(v, Prog.Bind(both(add(b), add(c)), Binder(VarId.step(4), "p", Ty.Unit), each)).map(_._1),
       List(0, 1, 1, 1))
   }
+
+  test("a race is a concurrent step of the program, its sides' pairs asked, nested in a pair too") {
+    val race = Prog.Race(add(b), add(c), Prog.Pure(Expr.Var(b)))
+    assertEquals(AtOnce.all(v, race), List(0 -> (0 -> 0)))
+    assertEquals(AtOnce.all(v, both(race, call(put))), List(1 -> (0 -> 0)))
+  }
