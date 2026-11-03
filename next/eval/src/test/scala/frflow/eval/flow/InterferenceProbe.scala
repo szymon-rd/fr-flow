@@ -28,10 +28,10 @@ object InterferenceProbe:
     def get: IO[BigInt] = IO.sleep(reading) *> r.get
     def value: IO[BigInt] = r.get
   object A:
-    /** A set lands at once and returns after 50 ms; a read waits 10 ms first (RB1's). */
-    def holding(n: BigInt): IO[A] = Ref[IO].of(n).map(A(_, 10.millis, Duration.Zero, 50.millis))
-    /** A read is at once; a set lands after 20 ms (RB2's: two reads before either set). */
-    def slowSets(n: BigInt): IO[A] = Ref[IO].of(n).map(A(_, Duration.Zero, 20.millis, Duration.Zero))
+    /** A set lands at once and returns after half a second; a read waits 10 ms first (RB1's). */
+    def holding(n: BigInt): IO[A] = Ref[IO].of(n).map(A(_, 10.millis, Duration.Zero, 500.millis))
+    /** A read is at once; a set lands after 200 ms (RB2's: two reads before either set). */
+    def slowSets(n: BigInt): IO[A] = Ref[IO].of(n).map(A(_, Duration.Zero, 200.millis, Duration.Zero))
 
   /** b: a set lands at once; the wait takes a second. */
   final class B(r: Ref[IO, BigInt]):
