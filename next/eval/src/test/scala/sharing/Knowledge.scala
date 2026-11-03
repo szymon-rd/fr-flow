@@ -130,5 +130,6 @@ private def models(kb: FrModel): FrModel = kb
   .implementTested(LibraryStore.load, LibraryStore.save)(start = MemoryLibraryStore.holding, observe = _.library)(
     s => (s.load, s.save))
   .implementTested(Mailer.send)(start = MemoryMailer.holding, observe = _.boxes)(m => Tuple1(m.send))
-  .implementTested(Clock.now, Clock.sleep)(start = Wall.at, observe = _.time)(c => (c.now, c.sleep))
+  .implementTested(Clock.now, Clock.sleep, Clock.elapse)(start = Wall.at, observe = _.time)(c =>
+      (c.now, c.sleep, c.elapse))
   .implementTested(Pool.take, Pool.give)(start = MemoryPool.holding, observe = _.count)(p => (p.take, p.give))

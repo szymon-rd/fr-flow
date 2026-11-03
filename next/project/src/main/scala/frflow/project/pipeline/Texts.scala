@@ -82,11 +82,13 @@ object Texts:
     case Premise.Atomic(m)        => s"runs on ${m.value} being atomic"
     case Premise.Initially(m)     => s"the state ${m.value} starts in"
     case Premise.FromOutside(ty)  => s"what each ${typeName(ty)} from outside meets"
+    case Premise.Schedule(m, by)  => s"where the world moves ${m.value}'s time (${by.value})"
 
   private def outside(f: OutsideFact): String = f match
     case OutsideFact.OnlyCodeChanges(m)   => s"the world outside: nothing but the code changes ${m.value}"
     case OutsideFact.Atomic(m)            => s"the world outside: runs on ${m.value} never interleave"
     case OutsideFact.Initially(m, _)      => s"the world outside: the state ${m.value} starts in"
+    case OutsideFact.Schedule(m, _, _)    => s"the world outside: where the world moves ${m.value}'s time"
 
   private def standing(s: Standing): String = s match
     case Standing.Witnessed      => "witnessed, for Lean to check"

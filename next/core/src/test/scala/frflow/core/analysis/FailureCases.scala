@@ -140,7 +140,12 @@ object FailureCases:
     l.forall[Program[Unit]]("p", Ty.FlowOf(Ty.Unit, None))(p => l.forall[World]("before", Ty.World)(w =>
       l.s.runs(p, w, Bound[Unit]("r", Ty.Unit), Bound[World]("after", Ty.World))((_, _) => l.truth)))))
 
+  /** A program calling the world's own step on a state: the store's `add` read as a clock's `elapse` (owner §47). */
+  private val elapsing: Kb = Store.kb.declaring(v => v.copy(models = v.models.map(_.copy(timed =
+    Some(frflow.core.vocab.Timed(Store.add, Store.add, Store.add)))))).unlinking(assumes("bookRuns", "oneAtATime"))
+
   val all: List[ProblemCase] = List(
+    ProblemCase(elapsing, List(Problem.OutsideStepCalled(DefName("bookIfFree"), Store.add))),
     ProblemCase(Kb.of(anyProgram), List(Problem.RunOfNoDefinition(NodeId("anyRuns")))),
     ProblemCase(down.and(sameWorld), List(Problem.WorldsEqual(NodeId("sameWorld")))),
     ProblemCase(raising, List(Problem.ErrorsDiffer(DefName("bookIfFree"), List(Lang.big, Ty.Str)))),

@@ -128,7 +128,7 @@ object LowerFaults:
     val (get, put) = field(env.modelField(c.model))
     val reachOn = LExpr.App(const("FrFlow.Clock.reach"), List(get, put, c.allows))
     val monad = LExpr.App(name("StateM"), List(name("World")))
-    val (d, w) = (Names.builtin("d"), Names.builtin("w"))
+    val (d, w) = (Names.builtin("x"), Names.builtin("w"))
     val elapse = LExpr.App(LExpr.Const(List(Names.builtin(s"${LowerModels.space(c.model).text}.Ops"),
       Names.ident(c.timed.elapse.value))), List(LExpr.Name(d)))
     List(Decl.Instance(LExpr.App(const("FrFlow.Waits"), List(LExpr.Paren(monad))),

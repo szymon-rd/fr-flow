@@ -26,6 +26,7 @@ object RaceProbe:
   def fast(start: BigInt): IO[Wall] = Ref[IO].of(start).map(t => new Wall:
     def now: IO[BigInt] = t.get
     def sleep(seconds: BigInt): IO[Unit] = IO.sleep((seconds * 10).toLong.millis) *> t.update(_ + seconds)
+    def elapse(seconds: BigInt): IO[Unit] = t.update(_ + seconds.max(0))
     def time: IO[BigInt] = t.get)
 
   val racer = Definition[Flow[Either[Unit, Unit]]]("two adds raced against a second's sleep")
@@ -50,7 +51,8 @@ object RaceProbe:
   private def boxes(root: Node) = FrModel("Boxes")(root, boxOnly, boxOne, clockOnly, clockOne)
     .implementProven(racer)(racerCode)
     .implementTested(addN)(start = SlowBox.holding, observe = _.numbers)(b => Tuple1(b.add))
-    .implementTested(Clock.now, Clock.sleep)(start = Wall.at, observe = _.time)(c => (c.now, c.sleep))
+    .implementTested(Clock.now, Clock.sleep, Clock.elapse)(start = Wall.at, observe = _.time)(c =>
+      (c.now, c.sleep, c.elapse))
 
   /** The probe as the review wrote it. */
   val knowledge = boxes(limitWinsUntouched)

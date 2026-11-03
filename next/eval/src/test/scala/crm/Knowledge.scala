@@ -22,7 +22,8 @@ private val tablesAsRun = Gens.derived[List[Event]].map(History.tables).describe
 def withCode(kb: FrModel): FrModel = kb
   .implementTested(load, storeAbout, logEvent, fetch)(start = SqliteDatabase.holding, observe = _.tables)(d =>
     (d.load, d.storeAbout, d.logEvent, d.fetch))
-  .implementTested(Clock.now, Clock.sleep)(start = Wall.at, observe = _.time)(c => (c.now, c.sleep))
+  .implementTested(Clock.now, Clock.sleep, Clock.elapse)(start = Wall.at, observe = _.time)(c =>
+      (c.now, c.sleep, c.elapse))
   .implementProven(read)(search)
   .implementProven(deals)(dealsOf)
   .implementProven(write)(applyWrite)

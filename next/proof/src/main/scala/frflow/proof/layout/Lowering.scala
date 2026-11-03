@@ -44,7 +44,7 @@ final class Lowering(val resolved: Resolved, val table: TermTable, canonical: Bo
 
   /** Where the schedules let the world move the clock's time (owner §47): `fun w t => rule t w.other ∧ …`. */
   private def allows(clock: ModelName): LExpr =
-    val (w, t) = (Names.builtin("w"), Names.builtin("t"))
+    val (w, t) = (Names.builtin("w"), Names.builtin("s"))
     val rules = Outsides.schedules(resolved.theory, clock).map((_, f) => LExpr.Paren(LExpr.App(
       Atoms.define(unclocked, f.rule), LExpr.Name(t) :: f.over.map(o => LExpr.Dot(LExpr.Name(w), Names.ident(
         o.value).text)))))
