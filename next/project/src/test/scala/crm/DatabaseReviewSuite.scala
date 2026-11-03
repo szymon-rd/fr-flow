@@ -16,8 +16,8 @@ import java.time.Instant
   * for review, and editing a node beside it does not.
   */
 class DatabaseReviewSuite extends munit.CatsEffectSuite:
-  // Three analyses of crm, each resolving its code: on CI's two cores, beside the other suites, about half a minute.
-  override val munitIOTimeout: scala.concurrent.duration.Duration = scala.concurrent.duration.Duration(2, "minutes")
+  // Three analyses of crm, each resolving its code and its models: alone, over a minute; beside the other suites, more.
+  override val munitIOTimeout: scala.concurrent.duration.Duration = scala.concurrent.duration.Duration(5, "minutes")
   private val node = NodeId("tablesModel")
   private val elaborated = Projects.elaborated(knowledge)
   private val file = elaborated.theory.code.implemented(databaseModel.name).files.map(_.path)
