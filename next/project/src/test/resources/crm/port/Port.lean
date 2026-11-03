@@ -54,8 +54,8 @@ port states each in every world meeting the database's rules (`Rules`: what it h
 row per key), today's values read in it: what the CRM holds is the database's store, the history its event log, the
 clock the clock model's time, and a screen's or the database's search's result its run's from the world. Of the read
 side, the root and what the CRM holds, each claim is today's in every such world. Of a write and the job's store,
-stated of every store, today's implies the port's of every store with one row per key, the write side's and the job's
-being today's code (`saved storedAbout`, `expireCode`). Today's write side was a function of a store; the port's runs
+the port's claim is today's of every store with one row per key (the stores the port's rules allow), the write side's
+and the job's being today's code (`saved storedAbout`, `expireCode`). Today's write side was a function of a store; the port's runs
 on the database: its claim gives today's of the store the database holds, and says what it leaves too. Today's expiry
 job is stated over today's world (a boundary's), and is listed, not stated here. And the seeded bugs in proven code
 (section 9): code that would stand for `read` or `write`, or for the write side, is shown to break the port's claim
@@ -287,41 +287,49 @@ theorem sharedCrm (finds : Account → Ask → CrmRecord → World → Prop) (as
         (fun c r => added c r w) (fun r => owner r w) (fun a => companyOf a w) (fun r c => sharedWith r c w) :=
   ⟨fun h w hw u q r => h u q r w hw.1 hw.2.1 hw.2.2, fun h u q r w h1 h2 h3 => h w ⟨h1, h2, h3⟩ u q r⟩
 
--- The write side and the expiry job: today's implies the port's, of every store with one row per key, the stores
--- the CRM makes and holds, today's write side and job being today's code.
+-- The write side and the expiry job: the port's, of every store with one row per key (the stores the CRM makes and
+-- holds), exactly today's of those stores, today's write side and job being today's code. Each is stated of a store
+-- the port's rules allow, so it says nothing of a store holding two rows under one key, which no world holds.
 
 theorem writeContract (write : CrmStore → WriteCmd → CrmStore) :
-    Old.WriteContract.claim write → Crm.writeContract.claim write := by
-  intro h s _ _ w
-  have hw := h s w
-  simp only [Old.WriteContract.post, takesEffect_eq, onlyAsked_eq, ne_eq] at hw
-  exact hw
+    Crm.writeContract.claim write ↔
+      ∀ s, keyedTables s → oneRowPerKey s → ∀ w, Old.WriteContract.post s w (write s w) := by
+  simp only [Crm.writeContract.claim, Old.WriteContract.post, takesEffect_eq, onlyAsked_eq, ne_eq]
 
-theorem writesTakeEffect : Old.WritesTakeEffect.claim todaysSave → Crm.writesTakeEffect.claim := by
-  intro h s _ _ w
-  have hw := h s w
-  rw [takesEffect_eq, afterSave_eq] at hw
-  exact hw
+theorem writesTakeEffect : Crm.writesTakeEffect.claim ↔
+    ∀ s, keyedTables s → oneRowPerKey s → ∀ w, Old.takesEffect s w (Old.afterSave todaysSave s w) := by
+  simp only [Crm.writesTakeEffect.claim, takesEffect_eq, afterSave_eq]
 
-theorem writesOnlyAsAsked : Old.WritesOnlyAsAsked.claim todaysSave → Crm.writesOnlyAsAsked.claim := by
-  intro h s _ _ w
-  have hw := h s w
-  rw [onlyAsked_eq, afterSave_eq] at hw
-  exact hw
+theorem writesOnlyAsAsked : Crm.writesOnlyAsAsked.claim ↔
+    ∀ s, keyedTables s → oneRowPerKey s → ∀ w, Old.onlyAsked s w (Old.afterSave todaysSave s w) := by
+  simp only [Crm.writesOnlyAsAsked.claim, onlyAsked_eq, afterSave_eq]
 
-/-- A write's step is today's; a run of the job keeps the records today's job's store holds. -/
-theorem recordsKept : Old.RecordsKept.claim Old.expireCode todaysSave → Crm.recordsKept.claim := by
-  intro h s _ _ e r hr
-  cases e with
-  | Wrote w =>
-    have hw := h s (Event.Wrote w) r hr
-    simp only [Old.stepOf, afterSave_eq] at hw
-    exact hw
-  | Expired now => exact ((Runs.jobDone_mem s now).1 r).2 hr
+/-- A write's step is today's; a run of the job keeps the records, as today's job's store does. -/
+theorem recordsKept : Crm.recordsKept.claim ↔ ∀ s, keyedTables s → oneRowPerKey s →
+    ∀ e, ∀ r ∈ s.records, r ∈ (Old.stepOf Old.expireCode todaysSave s e).records := by
+  constructor
+  · intro h s h1 h2 e r hr
+    cases e with
+    | Wrote w =>
+      have hw := h s h1 h2 (Event.Wrote w) r hr
+      simp only [Crm.stepOf] at hw
+      simp only [Old.stepOf, afterSave_eq]
+      exact hw
+    | Expired now =>
+      simp only [Old.stepOf, expireCode_eq, Crm.expireCode]
+      exact hr
+  · intro h s h1 h2 e r hr
+    cases e with
+    | Wrote w =>
+      have hw := h s h1 h2 (Event.Wrote w) r hr
+      simp only [Old.stepOf, afterSave_eq] at hw
+      exact hw
+    | Expired now => exact ((Runs.jobDone_mem s now).1 r).2 hr
 
 theorem sharesExpire (expire : CrmStore → Int → CrmStore) :
-    Old.SharesExpire.claim expire → Crm.sharesExpire.claim expire :=
-  fun h s _ _ now => h s now
+    Crm.sharesExpire.claim expire ↔
+      ∀ s, keyedTables s → oneRowPerKey s → ∀ now, Old.SharesExpire.post s now (expire s now) :=
+  ⟨fun h s h1 h2 now => h s h1 h2 now, fun h s h1 h2 now => h s h1 h2 now⟩
 
 /-- The write side, of the store the database holds: today's claim of it, the port's run giving those rows. -/
 theorem saveWrite (save : WriteCmd → World → CrmStore × World) (h : Crm.saveWrite.claim save) :
