@@ -18,6 +18,7 @@ ROOT = pathlib.Path(__file__).resolve().parent.parent
 OBLIGATION = "next/proof/src/main/scala/frflow/proof/obligation/"
 TERMS = "next/proof/src/main/scala/frflow/proof/terms/"
 BROKEN = ["next-proof/Lean/testOnly frflow.proof.layout.BrokenLeanSuite"]
+ASSUMED = ["next-project/testOnly frflow.project.assumed.RefusedSuite"]
 SUITES = ["next-project/testOnly frflow.project.CompletenessSuite frflow.project.ObligationNamesSuite",
           "next-eval/testOnly whole.RulesSuite whole.CaptureSuite",
           "next-proof/testOnly frflow.proof.obligation.RequiredSuite frflow.proof.obligation.AlwaysSuite"]
@@ -51,7 +52,7 @@ MUTANTS = [
      "kept.of[T, Any](result, s).fold(s.bool(true))(k => s.implies(k(made(s, args)), k(made(s, args))))",
      "made_ states that what a maker makes meets the rule if it does", BROKEN),
     ("calls-bound", TERMS + "CallSites.scala", "bound(x, made(first, written), env, written ++ writes(first))(rest)",
-     "bound(x, made(first, written).orElse(guarded(x.ty)), env, written ++ writes(first))(rest)",
+     "bound(x, made(first, written).orElse(guarded(x.ty, guards)), env, written ++ writes(first))(rest)",
      "made_ at a call assumes the rules of every value a step binds, not only of an operation's result",
      ["next-proof/Lean/testOnly frflow.proof.layout.calls.RowsViaBranchLeanSuite"]),
     ("atonce-pairs", "next/core/src/main/scala/frflow/core/analysis/AtOnce.scala",
@@ -70,7 +71,7 @@ MUTANTS = [
      "a traverse at once whose body may let an error out is not refused, though the error cancels the others",
      ["next-core/testOnly frflow.core.analysis.ValidateSuite"]),
     ("model-at-once", "next/testing/src/main/scala/frflow/testing/model/ModelRuns.scala",
-     "case (None, first :: second :: _) =>", "case (None, first :: second :: _) if first.op.value.isEmpty =>",
+     "case (None, first :: second :: _) if !List(", "case (None, first :: second :: _) if first.op.value.isEmpty && !List(",
      "the model tests call the Scala in turn only: a call that reads, pauses and writes is taken as atomic",
      ["next-testing/testOnly frflow.testing.ModelRunsSuite"]),
     ("scheduling-call", "next/eval/src/main/scala/frflow/eval/flow/Scheduling.scala",
@@ -87,6 +88,35 @@ MUTANTS = [
      "F.uncancelable(_ => lock.lock.surround(of(body)))", "lock.lock.surround(of(body))",
      "production cancels a transaction part way, which Lean reads as one step",
      ["next-eval/testOnly frflow.eval.RunningSuite"]),
+    ("assumed-claims", "next/core/src/main/scala/frflow/core/analysis/Resolve.scala",
+     "filter(t.vocabulary.isAssumed).flatMap(Constrained.assumptions(t, _))\n    (called",
+     "filter(t.vocabulary.isAssumed).flatMap(Constrained.statements(t, _))\n    (called",
+     "code calling an operation known only by assumptions takes a claim about it as given (step 13c review, B3)",
+     ASSUMED),
+    ("assumed-hypotheses", "next/core/src/main/scala/frflow/core/analysis/Resolve.scala",
+     "(reliesOn(t, id).filter(about) ++ direct)", "(Nil.filter(about) ++ direct)",
+     "a step with parts over code calling an operation known only by assumptions takes nothing of it (the review's "
+     "N3)", ["next-project/testOnly crm.LeanShapeSuite"]),
+    ("assumed-models", OBLIGATION + "Required.scala", "SaysWhat.checkedAgainst(r.theory, n).orElse(ofModels(r, n))",
+     "SaysWhat.checkedAgainst(r.theory, n)", "a claim about operations on a state alone is asked nothing, so proven",
+     ASSUMED),
+    ("assumed-makes", "next/core/src/main/scala/frflow/core/analysis/refused/Assumed.scala",
+     "      beside ++ made\n", "      beside ++ made.take(0)\n",
+     "a claim of always covers what an operation known only by assumptions gives (the review's B2)", ASSUMED),
+    ("assumed-beside", "next/core/src/main/scala/frflow/core/analysis/refused/Assumed.scala",
+     "      beside ++ made\n", "      beside.take(0) ++ made\n",
+     "what is assumed of an operation known only by assumptions reads another model (the review's B1)", ASSUMED),
+    ("assumed-outside", TERMS + "CallSites.scala", "if o.assumed then guarded(Ty.yields(ty), outside)",
+     "if o.assumed then guarded(Ty.yields(ty), guards)",
+     "a result from outside handed on carries a claim's rule (the review's R5)", ASSUMED),
+    ("assumed-twice", "next/testing/src/main/scala/frflow/testing/model/AssumedCall.scala",
+     "if gave.distinct.size > 1 || after != left then", "if gave.isEmpty && after != left then",
+     "the model tests take an operation known only by assumptions to be a function of its state unchecked (S1)",
+     ["next-testing/testOnly frflow.testing.AssumedModelSuite"]),
+    ("assumed-untested", "next/core/src/main/scala/frflow/core/checking/Assumed.scala",
+     ".distinct.filterNot(run.contains)", ".distinct.filterNot(run.contains).take(0)",
+     "an assumption the generated runs cannot evaluate is trusted silently (S3)",
+     ["next-project/testOnly frflow.project.assumed.UntestedSuite"]),
 ]
 
 
