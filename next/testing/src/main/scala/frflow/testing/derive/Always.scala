@@ -14,8 +14,11 @@ final case class Always(made: List[Made], stored: Map[ModelName, List[Applied]],
     values: Values = Values.none, generated: Set[ModelName] = Set.empty):
   /** Whether a state of model `m` meets every `always(stored)` about it, the Definitions it calls run as the code
     * runs (`values`, their proven code by the evaluator); a rule with no Scala value does not, but one quantifying
-    * over a type (keycloak's one sign-in per token), which Scala cannot check, is left to the state's generator
-    * where the FrModel gives one (`generated`); with none, the state is not drawn (rooms' bookings apart).
+    * over a type (keycloak's one sign-in per token), which Scala cannot check, is accepted unchecked where the FrModel
+    * gives the state a generator (`generated`): so a state drawn otherwise (fresh, seeded or pooled, as a draw takes
+    * the generator's value only some of the time) or shrunk to may break it, and a run from it then tests the Scala
+    * on a state no world reaches, stricter than the proofs, never weaker. With no generator the state is not drawn
+    * (rooms' bookings apart).
     */
   def keeps(m: ModelName, state: ScalaValue): Boolean =
     stored.getOrElse(m, Nil).forall(_.run(Env.of(values), List(state)).fold(e =>

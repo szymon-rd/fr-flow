@@ -280,9 +280,10 @@ or calls an outside system. Three shapes:
   operations of one system are separate Definitions, not a trait (owner §36: "A for now").
 - **A Definition known only by assumptions**: plain Scala with assumptions saying what is trusted of it (keycloak's
   `lookup` with `sessionLookup`, crm's `fetch` with `recordsByQuery`). Lean takes it as unknown with the assumptions as
-  hypotheses; its Scala is tested against them where a case can be evaluated, trusted otherwise (`show` says which).
-  An operation on a state with no `StateModel` is the same case: its assumptions are written as runs
-  (`op(x).result`, `op(x).after`), and Lean takes it as an unknown run that leaves each model's field as it was.
+  hypotheses; its Scala is tested against them where a case can be evaluated, trusted otherwise (`show`, `check` and
+  `status` say "trusted, not tested", `Assumed.untested`). An operation on a state with no `StateModel` is the same
+  case: its assumptions are written as runs (`op(x).result`, `op(x).after`), and Lean takes it as an unknown run that
+  leaves each model's field as it was.
 
 Every Definition must have a meaning (`Problem.Undefined`), so nothing FrFlow cannot see goes unchecked; this replaces
 owner §30's "a boundary must have a model or an assumption".
@@ -368,7 +369,9 @@ code's inputs with their guards, and the rules of the states the code reads (own
 It is asked at every call, and never left to `cover_` where a model stores the argument, so it is one rule; Lean meets
 it at once where the argument is an input. A result of a Definition known only by assumptions is a value from outside:
 the rules hold of it only through an assumption of `always` on its type, which the code's checks then list
-(`Premise.FromOutside`, 2.6). A modelled operation's result is guarded by its `made_<op>`, a tested function's by the
+(`Premise.FromOutside`, 2.6), and a claim of `always` whose guard reaches it is refused (`AssumedMakes`, the step 13c
+review's B2: no `made_` is asked of it, so the claim's guard on it would be trusted unproven); at a call, such a
+result carries the assumptions' guards only (`CallSites`). A modelled operation's result is guarded by its `made_<op>`, a tested function's by the
 test of its result (`Made`).
 
 It is a Lean obligation only: nothing is checked when the code runs (owner §2, §37: "With proof yes, but not at
@@ -640,6 +643,13 @@ enum Witness:
   of promises that are not equations is proven (keycloak's `sessionLookup`, crm's `recordsByQuery`, with today's
   `storedSession` and `storedMatching` as witnesses); an agent may write it, Lean checks it, and the developer decides
   the nodes as usual (owner §39).
+- **Of an operation known only by assumptions** (4.4), a group binds the operation, a function of its own model's
+  state and its inputs, and a witness is one such function. What is assumed of it reads its own model only
+  (`ReadsBeside`): said of another model's state, it would be said of every state of that model beside every one of
+  its own, and could hold only of an operation that says nothing (the step 13c review's B1: keycloak's draw, said to
+  be fresh against the store's log, held only of an API handing on no sign-in, as its first witness did). A witness
+  should show what it is assumed to do can be done: keycloak's hands on a sign-in each time, its token longer than
+  any it is shown (`drawn_signs_in`).
 - **The contradiction search** (`unsat`, `clash`) is an early refuter only; consistency is never inferred from it.
 
 ### 2.9 Vacuity
@@ -1228,7 +1238,9 @@ each call of the model's operations is one step against calls at once as well as
 update of the state, or a store serializing them). That is checked, not only assumed: the model tests run two calls of
 each run at once on the Scala and compare what each gave and the state it then held with the model's two orders of them
 (`CallsAtOnce`, 3.8), so Scala that reads the state, pauses and writes it back, which passes every run in turn, fails
-them (the re-review's P8, `ModelRunsSuite`). No lock per model is taken in `Running`, which would cost delivery its
+them (the re-review's P8, `ModelRunsSuite`). Where one of the two is of an operation known only by assumptions, the
+model has no answer to put in an order, and the pair is not tried: that its calls are one step each is assumed
+(`atomic`), not tested. No lock per model is taken in `Running`, which would cost delivery its
 sends at once. Two adjacent steps of two sides that commute can be swapped without changing either's result or the
 models after (`Commute.swap`), and what a step does depends only on the models and the values its side gave it. Swapped
 two at a time, each side's steps keep their order, so every interleaving becomes the reading's order (the first side's
@@ -1262,12 +1274,29 @@ q).after) === databaseModel.current`) is a hypothesis of every obligation of a p
 consistency is asked (a hand witness, owner §39). Its Scala is tested against those assumptions on the model's
 generated runs, the model given the state the Scala left (`Difference.Assumed`), as a model's Scala is tested against
 its model. It is an operation's meaning left open, not a model kind (§35's `AssumedModel` stays removed). Where a
-rule is about its store and nothing says what its runs leave, it is refused (`LeavesUnsaid`), and where its model may
-fail (`AssumedFailing`). Crm's screens are programs calling the database's `fetch` (`recordsByQuery`, `searchKeeps`)
+rule is about its store and nothing says what its runs leave, it is refused (`LeavesUnsaid`, which checks only that
+some assumption reads the world it leaves: one saying nothing of it passes, and `cover_` stays unproven), and where its
+model may fail (`AssumedFailing`). It is a function of its model's state and its inputs (Lean's binder,
+`A → StateM S R`): two calls from one state give one result and leave one state, so a program may rely on two lookups
+agreeing, and the model tests call its Scala again on the Scala made holding the state before each call, which must
+give and leave the same (`Difference.Twice`: a lookup flipping a coin is found). What is assumed of it reads its own
+model only (`ReadsBeside`, 2.8): what it needs of another is handed to it as an input, as keycloak's draw is shown the
+requests the store has logged (`nextRequest(handled)`, `drawnTokens` fresh against them, tested on the inbox's runs).
+Only its assumptions are taken of it (`Constrained.assumptions`): a claim about it is proven from them (`impl`, as any
+claim about operations on a state alone is, of the models' meanings), never a hypothesis of code calling it, so no
+proof takes as given what it is to show (the review's B3); the circles `Validate` refuses are walked along what each
+`complete` and `impl` takes (`Resolve.below`). Its results are values from outside (owner §37, `AssumedMakes`, 2.3).
+An assumption about it that its model's runs cannot evaluate (not read as a run of it, or its post with no Scala
+value) is trusted, not tested, and `show`, `check` and `status` say so (`Checking.TrustedUntested`,
+`Assumed.Untested`, `Warning.TrustedUntested`). Crm's screens are programs calling the database's `fetch` (`recordsByQuery`, `searchKeeps`)
 and reading the clock, its write side and expiry job programs over the database; keycloak's server programs over its
 store, whose storing and index are assumed (`storeLogs`, `lookupKeeps`): so their histories and what they hold are
 the World's (owner §45 D), the rules of what each holds (crm's `crmRun`, `oneRowPerKey`; keycloak's `serverRun`,
-`freshTokens`, `oneSignInPerToken`) claims proven of the code that changes it.
+`freshTokens`, `oneSignInPerToken`) claims proven of the code that changes it. Keycloak's server reads the log
+(`logged`) and hands it to the draw, whose freshness against it is what `freshTokens` is kept by: the two ways the
+review suggested do not fit the library, an assumed `always(serverStore)` being held to `cover_` by the code changing
+the store (so it would need the same fact of the draw) and a rule tying the inbox's state to the store's being of two
+models, which `always(stored)` is not.
 
 **Nothing FrFlow cannot see goes unchecked** (owner §36, superseding §30's and §35's boundary wording). Every
 Definition has a meaning (`Problem.Undefined`): proven code, a value, plain Scala tested against its claims, an
