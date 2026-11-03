@@ -20,9 +20,9 @@ import scala.concurrent.duration.*
 /** Section 9's interleavings of sharing, over the recorded program: delivery's sends, its branches at once, each call
   * of the models after a random pause, `Interleavings.Runs` times from each start, as today's examples of the job
   * were run; the outbox and the mailboxes every interleaving leaves are the one order's. And a whole run of delivery
-  * whose time limit passes before its sends end (each send slower than a share of the limit): its sends cancelled
-  * part way, every run leaves what the reading Lean proves allows (the loser cut off between two of its steps,
-  * `Prog.Cut`), some of them a delivery half done.
+  * whose time limit passes before its sends end (a send slower than the limit): its sends cut off part way, every
+  * run leaves what the reading Lean proves allows (the loser cut off between two of its steps, `Prog.Cut`), some of
+  * them a delivery half done, and a send begun finishes, as a call is never cancelled part way.
   */
 class InterleavingsSuite extends munit.CatsEffectSuite:
   private val elaborated = Projects.elaborated(knowledge)
@@ -58,26 +58,35 @@ class InterleavingsSuite extends munit.CatsEffectSuite:
       Fn.as[Map[PersonId, List[Notice]]](m(Mailer.mailerModel.name)))
 
   /** Delivery on the models, its steps at once, Cat's send taking 10 ms and Bob's 60, a second of sleep a millisecond
-    * (the limit 30 ms): Cat's delivered, Bob's cancelled mid-send; each
-    * call of a model one at a time, as the models' atomic assumptions say (`mailOneAtATime`, …).
+    * (the limit 30 ms): Cat's delivered; Bob's, begun before the limit passes, finishes, and the loser is cut after
+    * it, before its removal from the outbox. Each call of a model one at a time, as the models' atomic assumptions say
+    * (`mailOneAtATime`, …). With the end, the notices whose sends began.
     */
-  private def slowly(outbox: List[Notice], random: Random[IO]): IO[(List[Notice], Map[PersonId, List[Notice]])] =
+  private def slowly(outbox: List[Notice], random: Random[IO])
+      : IO[((List[Notice], Map[PersonId, List[Notice]]), List[Notice])] =
     for
       states <- Ref[IO].of(start(outbox))
+      begun  <- Ref[IO].of(List.empty[Notice])
       one    <- Mutex[IO]
       models  = World.models(semantics, elaborated.theory.vocabulary, states)
-      world   = new World[IO]:
-                  def call(op: SymbolName, args: List[ScalaValue]): IO[ScalaValue] =
-                    (if op == Mailer.send.name then random.betweenLong(0, 4).flatMap(ms => IO.sleep((ms +
-                       (if Fn.as[Notice](args.head).to == cat then 10 else 60)).millis))
-                     else if op == Clock.sleep.name then IO.sleep(Fn.as[BigInt](args.head).toLong.millis)
-                     else IO.unit) *> one.lock.surround(models.call(op, args))
-                  def read(m: ModelName): IO[ScalaValue] = models.read(m)
-                  def write(m: ModelName, s: ScalaValue): IO[Unit] = models.write(m, s)
-      run    <- FlowInterpreter.concurrent(semantics, world)
+      run    <- FlowInterpreter.concurrent(semantics, paced(models, one, begun, random))
       _      <- run.prog(ReadRecording(Delivery.run.steps)._1, Env.of(Values.none))
       after  <- states.get
-    yield end(after)
+      sent   <- begun.get
+    yield (end(after), sent)
+
+  /** The models, each call one at a time after its pause, each send noted to `begun` as it begins. */
+  private def paced(models: World[IO], one: Mutex[IO], begun: Ref[IO, List[Notice]], random: Random[IO]): World[IO] =
+    new World[IO]:
+      def call(op: SymbolName, args: List[ScalaValue]): IO[ScalaValue] =
+        (if op == Mailer.send.name then
+           val n = Fn.as[Notice](args.head)
+           begun.update(_ :+ n) *> random.betweenLong(0, 4).flatMap(ms =>
+             IO.sleep((ms + (if n.to == cat then 10 else 60)).millis))
+         else if op == Clock.sleep.name then IO.sleep(Fn.as[BigInt](args.head).toLong.millis)
+         else IO.unit) *> one.lock.surround(models.call(op, args))
+      def read(m: ModelName): IO[ScalaValue] = models.read(m)
+      def write(m: ModelName, s: ScalaValue): IO[Unit] = models.write(m, s)
 
   /** Every end the reading allows: delivery on the models, read in turn, for each list of the scheduler's choices. */
   private def read(outbox: List[Notice]): IO[Set[(List[Notice], Map[PersonId, List[Notice]])]] =
@@ -92,12 +101,23 @@ class InterleavingsSuite extends munit.CatsEffectSuite:
     val outbox = List(catTold, bobTold, catAgain)
     for
       random  <- Random.scalaUtilRandomSeedLong[IO](13)
-      ran     <- slowly(outbox, random).replicateA(24)
+      ran     <- slowly(outbox, random).map(_._1).replicateA(24)
       allowed <- read(outbox)
     yield
       assert(ran.forall(allowed), ran.filterNot(allowed).distinct.mkString("\n"))
       val (full, untouched) = ((List(catAgain), Map(cat -> List(catTold), bob -> List(bobTold))), (outbox, Map.empty))
       assert(ran.exists(e => e != full && e != untouched), s"no run was cut off half done: ${ran.distinct}")
+  }
+
+  test("a send begun when delivery's time limit passes is not cancelled part way: it finishes, its notice delivered") {
+    for
+      random <- Random.scalaUtilRandomSeedLong[IO](17)
+      ran    <- slowly(List(catTold, bobTold, catAgain), random).replicateA(8)
+    yield
+      assert(ran.forall((_, sent) => sent.contains(bobTold)), "Bob's send did not begin")
+      ran.foreach { case ((_, boxes), sent) =>
+        assertEquals(sent.filterNot(n => boxes.getOrElse(n.to, Nil).contains(n)), Nil, boxes)
+      }
   }
 
   test("Cat's notice delivered, its branches at once: every interleaving delivers it once") {
