@@ -20,8 +20,8 @@ class ExamplesRunnerSuite extends munit.FunSuite:
     assert(verdicts(auth.DecisionExamples()).forall(_._2 == Verdict.Ran(OnCode.Holds)))
   }
 
-  test("crm's example reads the history it does not give: no Scala value, checked in Lean only, so skipped") {
-    val run = events(classOf[crm.ExpectationsExamples].getName)
+  test("an example reading a provided value it does not give: no Scala value, checked in Lean only, so skipped") {
+    val run = events(classOf[OpenExamples].getName)
     assertEquals(run.map(_.status()), List(Status.Skipped))
   }
 

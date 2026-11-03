@@ -20,9 +20,11 @@ class OnCodeSuite extends munit.FunSuite:
     }
   }
 
-  test("crm's example reads the history it does not give: no Scala value, it is checked in Lean only") {
-    assertEquals(onCode(crm.ExpectationsExamples()).map(_._2),
-      List(OnCode.NotEvaluated(frflow.eval.EvalError.Unbound(crm.history.name))))
+  test("an example reading a provided value it does not give: no Scala value, it is checked in Lean only") {
+    val open = new FrFlowExamples(auth.knowledge):
+      example("no session is open"):
+        auth.sessions is auth.Sessions(Nil)
+    assertEquals(onCode(open).map(_._2), List(OnCode.NotEvaluated(frflow.eval.EvalError.Unbound(auth.sessions.name))))
   }
 
   test("an example the code does not meet fails on it") {

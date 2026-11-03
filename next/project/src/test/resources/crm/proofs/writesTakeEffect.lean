@@ -1,23 +1,15 @@
 import FrFlowGen.Crm.writesTakeEffect.Spec
 import Proofs.Crm.Lemmas
 
-/-! What a write asks takes effect (today's proof): the write leads to a store holding what was asked
-(`writeContract`), and the write side stores that store's rows about the written record (`saveWrite`); what was
-asked is about those rows only. -/
+/-! A write's code does what was asked (`applyWrite_contract`), and what the write side holds about the written record is what it leads to (`takesEffect_replace`). -/
 
 set_option autoImplicit false
 noncomputable section
 open Classical
 
 namespace Crm.writesTakeEffect.Proofs
-open Crm
+open Crm Crm.Lemmas
 
-theorem impl : Obl.impl := by
-  intro storeRows write hWrite hSave s hk ho w
-  have hSaved := hSave s hk ho w
-  obtain ⟨⟨_, hTakes⟩, _⟩ := hWrite s hk ho w
-  simp only [afterSave, saved] at hSaved ⊢
-  rw [hSaved, Lemmas.aboutRecord_idem]
-  exact Lemmas.takesEffect_replace s (write s w) w hTakes
+theorem complete : Obl.complete := fun _ _ _ _ => Runs.writes_take_effect
 
 end Crm.writesTakeEffect.Proofs

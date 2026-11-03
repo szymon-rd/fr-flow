@@ -1,7 +1,6 @@
 package crm
 
-import frflow.core.expr.Exprs
-import frflow.core.name.{DefName, SymbolName}
+import frflow.core.name.SymbolName
 import frflow.core.spec.CallForm
 import rooms.RoomsIr
 
@@ -10,13 +9,13 @@ import rooms.RoomsIr
   * a run from the world before. (Their Lean, byte for byte as today's, is `next-proof`'s.)
   */
 class CrmClaimsSuite extends munit.FunSuite:
-  test("saveWrite reads as a call of `save`, on the left of its equation; `write` on the same inputs is a mention") {
-    val call = RoomsIr.call(saveWrite.alone)
-    assertEquals(call.definition, SymbolName("save"))
-    assertEquals(call.posted.value.params.map(_.hint), List("s", "w"))
-    val mentions = Exprs.mentions(call.posted.value.body)
-    assert(mentions.symbols.contains(SymbolName("write")), mentions)
-    assert(mentions.defines.toSet.subsetOf(Set(DefName("aboutRecord"), DefName("about"))), mentions)
+  test("saveWrite, a run from the world it holds in: it reads as a run of save, its post over w, result, world, " +
+    "after, with no failing side") {
+    RoomsIr.call(saveWrite.alone) match
+      case CallForm.Run(op, post, failure) =>
+        assertEquals((op, post.value.params.map(_.hint), failure), (SymbolName("save"),
+          List("w", "result", "world", "after"), None))
+      case other => fail(other.toString)
   }
 
   test("expiryJob, a run from the world it holds in: it reads as a run of runExpiry, its post over now, result, " +

@@ -1,7 +1,8 @@
 package crm
 
 /** What crm's port judges (`PortSuite`): each difference from today's in where a node sits and what it assumes, each
-  * node standing apart from today's, and what is not proven (nothing, since the step 12 rulings).
+  * node standing apart from today's, how each value provided where the code ran stands under owner §45 D, and what is
+  * not proven (nothing).
   */
 object Judged:
   /** Each difference from today's crm, with why the design makes it. */
@@ -13,24 +14,44 @@ object Judged:
     "keyedTables" -> ("new" -> ("the tables hold one row per key (owner §40): what the stores from outside meet, " +
       "the assumption of always[CrmStore] the claim needs (2.6)")),
     "oneRowPerKey" -> ("new" -> "the claim of always[CrmStore] owner §40 asks: every store the CRM makes meets it"),
-    "tablesStartEmpty" -> ("new" -> ("what the database starts with, which a claim of always[CrmStore] rests on " +
-      "as the database's state holds a store (2.6)")),
-    "runsOneAtATime" -> ("new" -> "runs on the database never interleave, an assumption of the model (owner §36)"),
-    "sharedCrm" -> ("companies, ownership, searches, searchesAsk, adding, sharing are parts" -> words),
-    "storeMirrorsRequests" -> ("crmRun is a part; assumes +keyedTables" ->
-      ("what the CRM holds, trusted, is an assumption, a part of the claim resting on it (owner §21); today's was a " +
-        "definition. And " + keyed)),
-    "visibility" -> ("noCrossTenantRead no part; assumes +keyedTables" ->
-      ("noCrossTenantRead is a root (owner §40); visibility follows from searchesMatch and the code. And " + keyed)),
+    "tablesStartEmpty" -> ("new" -> ("what the database starts with, which a rule of its state rests on (2.6, " +
+      "Problem.NoStart)")),
+    "runsOneAtATime" -> ("new" -> "runs on the database never interleave, an assumption of the model (owner §32)"),
+    "clockOneAtATime" -> ("new" -> ("a search reads the clock once, between two runs on it: the clock's model's " +
+      "runs atomic, which a claim about a run reading it rests on (owner §32, §36)")),
+    "searchKeeps" -> ("new" -> ("what the database's search leaves, known only by what is assumed of it (G2): " +
+      "nothing changed; the database's rules need it (Problem.LeavesUnsaid)")),
+    "storeEdits" -> ("gone" -> ("storing the rows about a record is the database model's operation now, its " +
+      "meaning the model's (storeAbout.means), its Scala tested against it, the write side a program over it")),
+    "crmRun" -> ("assumes +tablesModel +runsOneAtATime +tablesStartEmpty +keyedTables" ->
+      ("today's definition over a provided store and history is a rule of the database's state, the World's " +
+        "(owner §45 D), proven of the code that changes it (cover_): it rests on what the database starts with, " +
+        "nothing but the code changing it, and its runs one at a time (2.6); and " + keyed)),
+    "sharedCrm" -> ("companies, ownership, searches, searchesAsk, adding, sharing are parts; assumes +keyedTables" ->
+      (words + "; and " + keyed + ", the words read in the World (searches reads the screens' runs)")),
+    "storeMirrorsRequests" -> ("assumes +keyedTables" -> keyed),
+    "visibility" -> ("noCrossTenantRead no part; assumes +keyedTables +runsOneAtATime +clockOneAtATime" ->
+      ("noCrossTenantRead is a root (owner §40); visibility follows from searchesMatch and the code. And " + runs)),
+    "saveWrite" -> ("assumes +runsOneAtATime +keyedTables" -> ("the write side is a program over the database now " +
+      "(owner §45 D): its claim says what a run leaves and gives, which rests on the database's runs being atomic " +
+      "(2.6); and " + keyed)),
     "expiryJob" -> ("assumes +runsOneAtATime +keyedTables" ->
       ("a claim about a program's runs rests on the model's runs being atomic (2.6); and " + keyed))) ++
-    List("dealSearch", "readContract", "searchesMatch", "noCrossTenantRead", "writesTakeEffect", "writesOnlyAsAsked",
-      "recordsKept", "writeContract", "saveWrite", "sharesExpire").map(_ -> ("assumes +keyedTables" -> keyed))
+    List("writesTakeEffect", "writesOnlyAsAsked", "recordsKept").map(_ -> ("saveWrite no part; assumes +keyedTables" ->
+      ("what the database holds after the write side saves a write is what the write's code leads to (afterSave " +
+        "over applyWrite: a rule reads values, not a Definition left open), proven of the write's code: the write " +
+        "side's run, saveWrite, no part of it; and " + keyed))) ++
+    List("dealSearch", "readContract", "noCrossTenantRead", "searchesMatch").map(_ ->
+      ("assumes +keyedTables +runsOneAtATime +clockOneAtATime" -> runs)) ++
+    List("writeContract", "sharesExpire").map(_ -> ("assumes +keyedTables" -> keyed))
 
   private def words = "today's definitions of the purpose's words are claims saying what each Declaration is, " +
     "parts of the purpose they are stated in (2.7)"
   private def keyed = "its Lean takes what always holds of every store, the tables' one row per key, which values " +
     "from outside meet by keyedTables (2.6, owner §40)"
+  private def runs = "a screen is a program over the database and the clock now (owner §45 D): a claim about its " +
+    "runs " +
+    "rests on the database's and the clock's runs being atomic (2.6); and " + keyed
 
   /** Where each node stands apart from today, each for a reason the design gives. */
   val standings: Map[String, List[String]] = Map(
@@ -42,8 +63,17 @@ object Judged:
     "Searches" -> List("claim", "proven", "proven", ""),
     "SearchesAsk" -> List("claim", "proven", "proven", ""),
     "Sharing" -> List("claim", "proven", "proven", ""),
-    // Today's definition of what the CRM holds: trusted, an assumption (owner §21).
-    "CrmRun" -> List("assumption", "assumed", "proven", ""),
+    // Today's definition of what the CRM holds, over provided values: a rule of the database's state now, the
+    // World's (owner §45 D), proven of the code that changes it (cover_, start_).
+    "CrmRun" -> List("claim", "proven", "proven", ""),
+    // Gone: storing the rows about a record is the database model's operation, its meaning the model's.
+    "StoreEdits" -> Nil,
+    // The database's search, an operation known only by what is assumed of it (G2): its Scala tested against it on
+    // the database's generated runs, reported beside tablesModel; and what it leaves, assumed as well.
+    "RecordsByQuery" -> List("assumption", "assumed", "proven", ""),
+    "SearchKeeps" -> List("assumption", "assumed", "proven", ""),
+    // The clock's runs one at a time, an assumption of its model (owner §32, §36).
+    "ClockOneAtATime" -> List("assumption", "assumed", "", ""),
     // A contract or an invariant is a claim (owner §15).
     "DealSearch" -> List("claim", "proven", "proven", ""),
     "ReadContract" -> List("claim", "proven", "proven", ""),
@@ -56,28 +86,22 @@ object Judged:
     "OneRowPerKey" -> List("claim", "proven", "proven", ""),
     "RunsOneAtATime" -> List("assumption", "assumed", "", ""),
     "TablesStartEmpty" -> List("assumption", "assumed", "", ""),
-    // The model's Scala tested against it, its runs capped at 200 per implementation (ModelRuns.Runs): SQLite and
-    // the in-memory variant; that nothing else changes the database is an outside fact, no Lean of its own.
-    "TablesModel" -> List("assumption", "assumed", "", "400"),
+    // The model's Scala tested against it and against what is assumed of its search, today's 1,000 runs per
+    // implementation: SQLite and the in-memory variant; that nothing else changes the database is an outside fact,
+    // no Lean of its own.
+    "TablesModel" -> List("assumption", "assumed", "", "2000"),
     // Today's contracts and invariant, claims (owner §15); today's expectations, roots of their own (owner §22).
     "ExpiryJob" -> List("claim", "proven", "proven", ""),
     "AddedIsFound" -> List("claim", "proven", "proven", ""),
     "WritesLeaveOthers" -> List("claim", "proven", "proven", ""),
     "NoCrossTenantRead" -> List("claim", "proven", "proven", ""))
 
-  /** Each value provided where the code runs, under owner §45 D: crm's three are "now" and the history, the World's
-    * under D; each stays provided, read beside no World (ProvidedBesideWorld holds), the step stopped on it.
+  /** None now: the history and what the CRM holds are the database's, the World's (owner §45 D, by G2); the clock is
+    * the clock model's (the coordinator's ruling: §47's form, without `elapse`, which a later step adds). Time passing
+    * between runs has no step in the World yet: no crm program moves the clock, so each statement holds at whatever
+    * time a world holds, and none relates two times; that waits on the step building `elapse` (G1, owner §47).
     */
-  val provided: Map[String, frflow.project.Ported.OnD] = Map(
-    "history" -> frflow.project.Ported.OnD.Stopped("G2", "the history so far, read by the roots and the claims " +
-      "saying what added and sharedWith are: the World's event log (databaseModel's events) under §45 D; not moved, " +
-      "as the write side is a pure function, so no run logs a write, and held beside it moves with it"),
-    "held" -> frflow.project.Ported.OnD.Stopped("G2", "what the CRM holds now: the World's store (databaseModel's) " +
-      "under §45 D; not moved, as the database's search fetch is plain Scala reading it, which beside the World is " +
-      "an operation on a state known only by its assumptions (recordsByQuery, owner §39): G2's form"),
-    "clock" -> frflow.project.Ported.OnD.Stopped("G1", "the time now: the World's clock under §45 D; not moved, as " +
-      "the World's clock moves only by the programs' sleeps (clockModel, owner §36) and no crm program sleeps: time " +
-      "passing outside the programs has no step in the World; waits for the owner (G1)"))
+  val provided: Map[String, frflow.project.Ported.OnD] = Map.empty
 
   /** What is not proven: nothing (step 12 rulings: a provided value an assumption pins is solved by it; the idle
     * try of the roots together; a step takes what the makers below it make).

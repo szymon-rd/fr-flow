@@ -3,8 +3,8 @@ package crm
 import java.sql.{Connection, PreparedStatement, ResultSet}
 import scala.util.Using
 
-/** The CRM's records, shares, expiries and event log in SQLite: the plain Scala behind `fetch`, `storeRows` and the
-  * database model's operations, tested against `recordsByQuery`, `storeEdits` and `databaseModel`. Its tables have
+/** The CRM's records, shares, expiries and event log in SQLite: the plain Scala behind the database model's
+  * operations, tested against `databaseModel` and what is assumed of its search (`recordsByQuery`). Its tables have
   * one row per key (their keys unique), as `keyedTables` trusts, each read in the order its rows were stored. One
   * connection, its calls one at a time.
   */

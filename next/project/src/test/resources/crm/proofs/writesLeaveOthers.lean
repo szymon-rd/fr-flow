@@ -4,7 +4,7 @@ import Proofs.Crm.Lemmas
 /-! A write of one company leaves what anyone finds of another's records as the history before it entitled them
 to (today's expectation): it neither adds a record of the other company nor takes one back, and changes none of its
 shares, since a share names a record by its id and no two records added have one id (`askedIn_unique`); what a
-search finds is what the CRM holds (`visibility`, `storeMirrorsRequests`). -/
+search finds is what the CRM holds (`Runs.screened`, `storeMirrorsRequests`). -/
 
 set_option autoImplicit false
 noncomputable section
@@ -70,15 +70,23 @@ theorem shares_other_write (es : List Event) (w : WriteCmd) (r : CrmRecord) (c :
     · exact Iff.rfl
 
 theorem impl : Obl.impl := by
-  intro history clock fetch held hk ho hM hV es w u q r hWrite
+  intro fetch hM _ hR hK es w u q r world h1 h2 h3
+  have hs := Runs.screened fetch hR hK u q world ⟨h1, h2, h3⟩ r
+  obtain ⟨hRec, hShared⟩ := hM world h1 h2 h3
+  revert hs
+  generalize search_run fetch u q.search world = p1
+  generalize dealsOf_run fetch u q.search world = p2
+  rcases p1 with ⟨r1, a1⟩
+  rcases p2 with ⟨r2, a2⟩
+  intro hs hWrite
   obtain ⟨hHistory, hOther⟩ := hWrite
-  obtain ⟨hRec, hShared⟩ := hM hk ho
-  rw [hV hk ho u q r]
+  simp only at hs ⊢
+  rw [propext hs]
   simp only [mayRead]
   rw [hRec r, hShared r.id_ u.tenant, hHistory]
   apply propext
   by_cases hAdded : r ∈ (askedIn es).records
-  · rw [records_other_write es w r hOther, shares_other_write es w r u.tenant clock hOther hAdded]
+  · rw [records_other_write es w r hOther, shares_other_write es w r u.tenant world.clockModel hOther hAdded]
     constructor
     · rintro ⟨⟨hHeld, hAsks⟩, hMay⟩
       exact ⟨⟨hAsks, hHeld⟩, hMay⟩

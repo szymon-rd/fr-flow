@@ -47,15 +47,18 @@ class ExamplesSuite extends munit.FunSuite:
     "operations' assumptions, its rules' premises, its loaded accounts kept, the requests handed to it (owner §45 D)") {
     assertEquals(ids(keycloak.knowledge), renamed(Today.keycloak, Set("identities", "introspect"),
       Set("accountRoles", "introspectAnswers", "storeLogs", "lookupKeeps", "drawnTokens", "storeOnlyCode",
-        "storeOneAtATime", "storeStarts", "loadedKept", "answersWhatItStores")))
+        "storeOneAtATime", "storeStarts", "loadedKept", "answersWhatItStores", "handedOneAtATime")))
   }
 
   test("crm: today's, with the root's two general expectations claims of their own (its scenario an example, and the " +
     "read contract's, owner §40); two definitions of two words each are four claims; runs on the database one at a " +
     "time, an assumption; the tables' one row per key a claim, with what the stores from outside meet and what the " +
-    "database starts with (owner §40, 2.6)") {
-    assertEquals(ids(crm.knowledge), renamed(Today.crm, Set.empty, Set("addedIsFound", "writesLeaveOthers",
-      "ownership", "searchesAsk", "runsOneAtATime", "keyedTables", "tablesStartEmpty", "oneRowPerKey")))
+    "database starts with (owner §40, 2.6); what the CRM holds the World's (owner §45 D): storing the rows about a " +
+    "record the model's, no assumption, the search known only by what is assumed of it, the clock's runs one at a " +
+    "time") {
+    assertEquals(ids(crm.knowledge), renamed(Today.crm, Set("storeEdits"), Set("addedIsFound", "writesLeaveOthers",
+      "ownership", "searchesAsk", "runsOneAtATime", "keyedTables", "tablesStartEmpty", "oneRowPerKey", "searchKeeps",
+      "clockOneAtATime")))
   }
 
   test("crm: the purpose and its two general expectations are roots (owner §22), each expectation proven from what " +
@@ -70,11 +73,9 @@ class ExamplesSuite extends munit.FunSuite:
 
   test("each example's examples elaborate, with no error") {
     val written = List(rooms.GrantedExamples(), auth.DecisionExamples(), keycloak.RequestExamples(),
-      crm.ExpectationsExamples(),
-      crm.QueryExamples(), crm.ReadExamples(), crm.DealExamples(), crm.WriteExamples(), crm.SaveExamples(),
-      crm.StoreExamples(), crm.ExpireExamples())
+      crm.WriteExamples(), crm.ExpireExamples())
     assertEquals(written.map(_.elaborated.fold(_.iterator.toList, _ => Nil)), List.fill(written.size)(Nil))
-    assertEquals(written.map(_.examples.size), List(2, 5, 11, 1, 3, 9, 4, 6, 3, 3, 4))
+    assertEquals(written.map(_.examples.size), List(2, 5, 11, 6, 4))
   }
 
   test("sharing: today's, with the store's, the mail server's and the clock's runs one at a time, assumptions; the " +
@@ -112,11 +113,12 @@ class ExamplesSuite extends munit.FunSuite:
     }.toMap
 
   test("each program's type says what it may fail with: sharing's, over the store and the mail server that may be " +
-    "down, their failure; rooms' and crm's nothing") {
+    "down, their failure; rooms' and crm's (the screens, the write side, the expiry job) nothing") {
     val failure = frflow.dsl.term.LeanType[sharing.domain.Failure].ty
     assertEquals(errors(sharing.knowledge), Map("handle" -> Some(failure), "housekeep" -> Some(failure),
       "deliver" -> Some(failure)))
-    assertEquals((errors(rooms.rooms), errors(crm.knowledge)), (Map("book" -> None), Map("runExpiry" -> None)))
+    assertEquals((errors(rooms.rooms), errors(crm.knowledge)), (Map("book" -> None),
+      Map("read" -> None, "deals" -> None, "save" -> None, "runExpiry" -> None)))
   }
 
   /** The parts of a node proven of code (`impl`) that are not about what the code calls: about its own Definitions
@@ -132,8 +134,13 @@ class ExamplesSuite extends munit.FunSuite:
       if !Constrained.of(t, part).exists(op => c.calls.symbols.contains(op) && !c.standsFor.contains(op))
     yield n.value -> part.value
 
-  test("crm: only the records kept by the expiry job rest on a part not about what its code calls") {
-    assertEquals(notAboutCallees(crm.knowledge), List("recordsKept" -> "sharesExpire"))
+  test("crm: the roots and the read side's claims, each about the screens' runs, rest on parts about those runs, " +
+    "not read as calls of what the code calls") {
+    assertEquals(notAboutCallees(crm.knowledge), List("addedIsFound" -> "storeMirrorsRequests",
+      "addedIsFound" -> "visibility", "writesLeaveOthers" -> "storeMirrorsRequests",
+      "writesLeaveOthers" -> "visibility",
+      "visibility" -> "searchesMatch", "noCrossTenantRead" -> "readContract", "noCrossTenantRead" -> "dealSearch",
+      "searchesMatch" -> "readContract", "searchesMatch" -> "dealSearch"))
   }
 
   test("sharing: its branches rest on the claims on their own operations' code, not on what that code calls") {

@@ -9,8 +9,8 @@ import frflow.proof.obligation.{ObligationName, TryKind}
 
 /** What crm's Lean says of the tables' one row per key (owner §40, 2.6): a store's starting state meets the rule at
   * each store it holds, as the rule's guard places it (the database's tables hold one, a field of its state); a
-  * store whose state is a list meets it at each element, and an `always(stored)` at the state itself; and a
-  * maker is asked the rule given what the makers its code calls make (their `made_`).
+  * store whose state is a list meets it at each element, and an `always(stored)` at the state itself; and what a
+  * program hands an operation is asked the rule at the call (`made_<program>_call_<i>`).
   */
 class LeanShapeSuite extends munit.FunSuite:
   private def start(on: Analysis, kb: String, node: String): String =
@@ -30,12 +30,14 @@ class LeanShapeSuite extends munit.FunSuite:
     assert(each.startsWith("∀ (s : (List Booking)), (Rooms.startsEmpty s) → (∀ "), each)
   }
 
-  test("what the write side makes is asked given what the write it calls makes: its made_, a hypothesis (owner §37)") {
+  test("what the write side hands the database is asked of the write's code it calls: made_ at the call (owner §37)") {
     val spec = Projects.bare(Projects.elaborated(knowledge)).modules
       .find(_.name.dotted == "FrFlowGen.Crm.oneRowPerKey.Spec").map(Print.module).getOrElse(fail("no spec"))
-    val saved = spec.linesIterator.dropWhile(!_.contains("def made_save ")).slice(1, 2).mkString
-    assert(saved.contains("(m_write : (Crm.oneRowPerKey.makes_write write))") &&
-      saved.contains("(Crm.oneRowPerKey.makes_save (Crm.saved storeRows write))"), saved)
+    def body(d: String) = spec.linesIterator.dropWhile(!_.contains(s"def $d ")).slice(1, 2).mkString.trim
+    assertEquals(body("made_saved_call_1"), "Crm.oneRowPerKey.makes_saved_call_1")
+    val made = body("makes_saved_call_1")
+    assert(made.endsWith("(Crm.oneRowPerKey (Crm.applyWrite r w)))))"), made)
+    assertEquals(body("made_save"), "(Crm.oneRowPerKey.makes_save Crm.saved_run)")
   }
 
   test("a step over what makers make takes their made_ (step 12 ruling), and rests on it: unproven, the step is red") {
@@ -43,17 +45,17 @@ class LeanShapeSuite extends munit.FunSuite:
     val spec = a.modules.find(_.name.dotted == "FrFlowGen.Crm.storeMirrorsRequests.Spec").map(Print.module)
       .getOrElse(fail("no spec"))
     val complete = spec.linesIterator.dropWhile(!_.contains("def complete ")).slice(1, 2).mkString
-    assert(List("keyedTables", "oneRowPerKey").forall(r => List("save", "expire").forall(m =>
-      complete.contains(s"(m_${r}_$m : (Crm.$r.makes_$m $m))"))), complete)
+    assert(List("keyedTables", "oneRowPerKey").forall(r => complete.contains(s"(m_${r}_expire : (Crm.$r.makes_expire " +
+      "expire))")), complete)
     val node = a.decided.theory.node(NodeId("storeMirrorsRequests")).getOrElse(fail("no node"))
     val unproven = ReadProof.of(a, node).unproven
     assert(unproven.contains(Unproven.Kept(NodeId("keyedTables"))) &&
       unproven.contains(Unproven.Kept(NodeId("oneRowPerKey"))), unproven)
   }
 
-  test("the idle try of a safety root is asked with the roots naming its Definitions (step 12 ruling)") {
-    val tried = Projects.bare(Projects.elaborated(knowledge)).obligations.filter(_.node == NodeId("noCrossTenantRead"))
-      .flatMap(_.tried).filter(_.name == ObligationName.Tried(TryKind.Idle)).map(_.doc)
-    assertEquals(tried, List("noCrossTenantRead, addedIsFound, writesLeaveOthers are together met by doing nothing " +
-      "(deals, read: returning nothing)."))
+  test("the idle try is asked where the Definitions a claim speaks of are functions: the job's expire; the roots, " +
+    "over the screens' runs, programs now, are asked none") {
+    val tried = Projects.bare(Projects.elaborated(knowledge)).obligations
+      .filter(_.tried.exists(_.name == ObligationName.Tried(TryKind.Idle))).map(_.node.value)
+    assertEquals(tried, List("expiryJob"))
   }

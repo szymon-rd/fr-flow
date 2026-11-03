@@ -1,29 +1,31 @@
 package crm
 
 import cats.effect.IO
+import cats.syntax.all.*
 import frflow.*
 import frflow.core.name.NodeId
-import frflow.eval.Semantics
-import frflow.eval.run.{Broken, OnCode}
+import frflow.eval.{Running, Semantics}
+import frflow.eval.flow.Wall
+import frflow.eval.run.OnCode
 import frflow.proof.audit.Completeness
-import frflow.project.{Captured, Live, Ported, Projects, Tables as Sqlite}
+import frflow.project.{Captured, Live, Ported, Projects}
 import frflow.project.Ported.Lean
 import frflow.project.program.ModelCheck
 import frflow.proof.obligation.ObligationName
 import frflow.proof.verdict.{ObligationStatus, ProverRun, Result}
-import frflow.testing.{Plan, Settings}
-import frflow.testing.derive.Derive
 import frflow.testing.model.{ModelRuns, ModelTests}
 import frflow.testing.ported.Tested
-import frflow.testing.report.Outcome
 import scala.concurrent.duration.*
 
-/** Crm ported (owner §14, §21, §22, §40), against today's (`reference/crm`, ARCHITECTURE section 9, equivalence):
-  * every difference in where a node sits and what it assumes is listed and judged; checked by Lean and tested
-  * (1,000 cases from seed 1), the database's SQLite and its in-memory variant run against its model; each node
-  * stands as today's but where judged, every consistency group proven; section 9's seeded bugs are caught,
-  * the proven code's by Lean refuting what it would claim on a case (`resources/crm/port/Port.lean`); and today's
-  * examples hold on the code.
+/** Crm ported (owner §14, §21, §22, §40), against today's (`reference/crm`, ARCHITECTURE section 9, equivalence),
+  * what it holds, its history and its clock the World's (owner §45 D): the database a model whose search is known only
+  * by what is assumed of it (G2), the screens, the write side and the expiry job programs over it and the clock. Every
+  * difference in where a node sits and what it assumes is listed and judged; checked by Lean and tested (the
+  * database's SQLite and its in-memory variant against its model and what is assumed of its search, today's 1,000 runs
+  * from seed 1 each), each node stands as today's but where judged, every consistency group proven (hand proofs,
+  * owner §39); each claim as today stated it proven equivalent to the port's in every world meeting the database's
+  * rules, or implying it, and section 9's seeded bugs in proven code refuted on a case (`resources/crm/port/Port.lean`;
+  * the database's are `testing`'s `CrmSuite`); and today's examples hold on the code, those of runs run on SQLite.
   */
 class PortSuite extends munit.CatsEffectSuite:
   override val munitIOTimeout: Duration = 60.minutes
@@ -51,38 +53,41 @@ class PortSuite extends munit.CatsEffectSuite:
     }
     (gone ++ added ++ moved).groupMapReduce(_._1)(_._2)(_ + "; " + _)
 
-  test("every value provided where the code runs stands under owner §45 D: the clock stopped on G1, the rest on G2") {
-    assertEquals(Ported.provided(elaborated), Judged.provided.keySet)
-    assertEquals(Ported.stoppedOnD(Judged.provided), Map("history" -> "G2", "held" -> "G2", "clock" -> "G1"))
+  test("nothing is provided where the code runs: the history, what the CRM holds and the clock are the World's") {
+    assertEquals(Ported.provided(elaborated), Set.empty[String])
+    assertEquals(Ported.stoppedOnD(Judged.provided), Map.empty)
   }
 
   test("every difference from today's crm in where a node sits and what it assumes is listed and judged") {
     assertEquals(differences, Judged.differences.view.mapValues(_._1).toMap)
   }
 
-  private val proofs = List("Lemmas", "writeContract", "saveWrite", "writesTakeEffect", "writesOnlyAsAsked",
-    "recordsKept", "visibility", "storeMirrorsRequests", "sharedCrm", "addedIsFound", "writesLeaveOthers",
-    "expiryJob", "keyedTables",
-    "oneRowPerKey", "Whole")
+  private val proofs = List("Lemmas", "readContract", "dealSearch", "searchesMatch", "visibility",
+    "noCrossTenantRead", "writeContract", "saveWrite", "writesTakeEffect", "writesOnlyAsAsked", "recordsKept",
+    "expiryJob", "crmRun", "keyedTables", "oneRowPerKey", "storeMirrorsRequests", "sharedCrm", "addedIsFound",
+    "writesLeaveOthers", "Whole")
   private val lean = Lean(proofs.map(n => n -> Ported.resource(s"crm/proofs/$n.lean")),
     reference.old("Crm", identity) :+ ("FrFlowGen/Port.lean" -> Ported.resource("crm/port/Port.lean")),
     Some("FrFlowGen.Port"))
-  private val written = List(ExpectationsExamples(), QueryExamples(), ReadExamples(), DealExamples(),
-    WriteExamples(), SaveExamples(), StoreExamples(), ExpireExamples())
+  private val written = List(WriteExamples(), ExpireExamples())
 
-  /** The database's in-memory variant, run against its model as SQLite is; `keepsShares`, the seeded bug. */
-  private def memory(keepsShares: Boolean): List[ModelCheck[IO]] =
-    t.vocabulary.model(databaseModel.name).toList.map { model =>
+  /** The database's Scala, SQLite and its in-memory variant, run against its model and what is assumed of its search,
+    * today's 1,000 runs from seed 1 each; the clock's, the tests' wall clock, the model runs' default.
+    */
+  private def models: List[ModelCheck[IO]] =
+    val semantics = Semantics(elaborated)
+    val memory = t.vocabulary.model(databaseModel.name).toList.map { model =>
       val check = ModelTests.Check(model, ModelTests.of(databaseModel)(
-        start = (tables: Tables) => MemoryDatabase.holding(tables, keepsShares),
-        observe = (d: MemoryDatabase) => d.tables)(d => (d.load, d.storeAbout, d.logEvent)))
-      ModelCheck(ModelRuns.reportedUnder(model.name), ModelRuns[IO](check, Semantics(elaborated), t).of(_, _))
+        start = (tables: Tables) => MemoryDatabase.holding(tables),
+        observe = (d: MemoryDatabase) => d.tables)(d => (d.load, d.storeAbout, d.logEvent, d.fetch)))
+      ModelCheck(ModelRuns.reportedUnder(model.name), ModelRuns[IO](check, semantics, t, 1000).of(_, _))
     }
+    ModelCheck.counted[IO](semantics, t, m => if m == databaseModel.name then 1000 else ModelRuns.Runs) ++ memory
 
   test(("checked by Lean and tested, each node stands as today's but where judged; consistent; the seeded proven " +
     "bugs refuted").tag(Live)) {
     val examples = written.flatMap(_.elaborated.fold(e => fail(e.toString), identity))
-    Ported.run(elaborated, examples, lean, Sqlite.sqlite(elaborated) ++ memory(false)).map { r =>
+    Ported.run(elaborated, examples, lean, models).map { r =>
       val a = r.analysis
       assertEquals(Completeness.of(a.decided, a.modules), Nil)
       val now = t.nodes.map(_.node.id).map(id => id.value.capitalize -> Ported.row(a, id)).toMap
@@ -93,57 +98,57 @@ class PortSuite extends munit.CatsEffectSuite:
       val whole = a.wholeCheck.map(_.results).getOrElse(fail("the theory's own check is not recorded"))
       assertEquals(whole.collect { case Result(n @ ObligationName.Consistent(_), s, _) => n -> s }.toMap,
         a.groups.map((i, _) => ObligationName.Consistent(i) -> ObligationStatus.Proven).toMap)
-      // The examples giving no value, tried against the claims (owner §18): the purpose's, proven by hand
-      // (`Whole.lean`); the write's, the store's and the job's shown; the write side's not: given what storeEdits
-      // says of the rows the code leaves open, FrFlow's automation does not decide them within an example's budget
-      // (`ExampleGoals.Heartbeats`; today's Lean evaluated the code).
-      val shown = (17 to 22) ++ (26 to 32)
+      // The examples, tried against the claims (owner §18): today's of a write shown; of the job's store, which
+      // FrFlow's automation does not decide within an example's budget, proven by hand (`Whole.lean`).
       assertEquals(whole.collect { case Result(ObligationName.Example(i), s, _) => i -> s }.toMap,
-        Map(0 -> ObligationStatus.Proven) ++ shown.map(_ -> ObligationStatus.Shown) ++
-          (23 to 25).map(_ -> ObligationStatus.NotShown))
+        ((0 to 5).map(_ -> ObligationStatus.Shown) ++ (6 to 9).map(_ -> ObligationStatus.Proven)).toMap)
       r.port match
         case Some(ProverRun.Built(said)) => assert(!said.contains("sorryAx"), said)
         case other                       => fail(s"the seeded bugs are not refuted: $other")
     }
   }
 
-  /** Crm with the database's search and store given other code. */
-  private def with_(fetched: (CrmStore, Search) => List[CrmRecord],
-      stored: (BigInt, CrmStore) => CrmStore = (id, s) => Db.using(CrmStore(Nil, Nil, Nil))(_.storeAbout(id, s)))
-      : FrModel =
-    FrModel("Crm")(knowledge.nodes*).copy(generators = knowledge.generators)
-      .implementProvided(history, held, clock)
-      .implementTested(fetch)(env => (_, q) => fetched(env(held), q))
-      .implementTested(storeRows)(_ => stored)
-      .implementProven(read)(search).implementProven(deals)(dealsOf).implementProven(write)(applyWrite)
-      .implementProven(save)(saved).implementProven(expire)(expireCode).implementProven(runExpiry)(expireOnce)
+  /** A run of the code as production runs it, on SQLite holding the tables, the clock at the time given. */
+  private def on[A](from: (Tables, BigInt))(f: Running[IO] => IO[A]): IO[A] =
+    for
+      d   <- SqliteDatabase.holding(from._1)
+      w   <- Wall.at(from._2)
+      run <- knowledge.running[IO](databaseModel := d, Clock.clockModel := w)
+      a   <- f(run).guarantee(IO.blocking(d.db.close()))
+    yield a
 
-  test("SQL WHERE dropped: a search returning every stored record fails a generated case of recordsByQuery") {
-    val all = with_((store, q) => Db.using(store, _ => ("", Nil))(_.recordsMatching(q)))
-    assertEquals(Tested.failure(all, "recordsByQuery").broke, Broken.Post)
+  /** Each example of a run: whether the run gives what it says, as it says. */
+  private def held[I, O](xs: List[RunExample[I, O]])(f: (Running[IO], I) => IO[O]): IO[List[Boolean]] =
+    xs.traverse(x => on(x.from)(f(_, x.inputs)).map(got => (got == x.gives) == x.holds))
+
+  test("today's examples hold on the code: the database's search's, the screens', the write side's, the storing's") {
+    for
+      q  <- queries.traverse(x => SqliteDatabase.holding(x.from._1).flatMap(_.fetch(x.inputs._1, x.inputs._2))
+              .map(got => (got == x.gives) == x.holds))
+      r  <- held(reads)((run, q) => run(search)(q._1, q._2))
+      d  <- held(dealRuns)((run, q) => run(dealsOf)(q._1, q._2))
+      s  <- held(saves)((run, w) => run(saved)(w))
+      st <- stores.traverse(x => SqliteDatabase.holding(x.from._1).flatMap(db =>
+              db.storeAbout(x.inputs._1, x.inputs._2) *> db.tables.map(t => (t.store == x.gives) == x.holds)))
+    yield assertEquals(List(q, r, d, s, st).map(v => v.count(identity) -> v.size), List(3 -> 3, 8 -> 8, 4 -> 4,
+      3 -> 3, 3 -> 3))
   }
 
-  test("SQL with LIMIT 2: right on the examples, it fails a generated case of recordsByQuery") {
-    val limit2 = (q: Search) =>
-      val (where, args) = Db.selecting(q)
-      (s"where seq in (select seq from records $where order by seq limit 2)", args)
-    assertEquals(Tested.onCode(QueryExamples()), List.fill(3)(OnCode.Holds))
-    val dropping = with_((store, q) => Db.using(store, limit2)(_.recordsMatching(q)))
-    assertEquals(Tested.failure(dropping, "recordsByQuery").broke, Broken.Post)
+  test("today's examples of a write and of the expiry job's store hold on the code") {
+    assertEquals(written.map(Tested.onCode), List(6, 4).map(List.fill(_)(OnCode.Holds)))
   }
 
-  test("dropping database: a store that stores nothing fails a generated case of storeEdits") {
-    val nothing = with_((store, q) => Db.using(store)(_.recordsMatching(q)), (_, _) => CrmStore(Nil, Nil, Nil))
-    assertEquals(Tested.failure(nothing, "storeEdits").broke, Broken.Post)
-  }
-
-  test("an in-memory store that keeps a record's old shares is found by generated runs against the model") {
-    val run = memory(keepsShares = true).head.run(Plan(Settings.default, Nil), Derive.of(elaborated, Nil))
-    run.map(r => assert(r.outcome.isInstanceOf[Outcome.Failed], r.outcome))
-  }
-
-  test("today's examples hold on the code: the database's, the screens', the write side's and the job's") {
-    assertEquals(written.tail.map(Tested.onCode), List(3, 9, 4, 6, 3, 3, 4).map(List.fill(_)(OnCode.Holds)))
+  test("today's acmeNeverSeesGlobex and the root's expectation hold on the code") {
+    val everything = Search.Everything
+    import ExpectationsExamples.*
+    for
+      acme  <- on(acmeNeverSeesGlobex)(_(search)(Account("ann@acme", TenantId("acme")), everything))
+      found <- expected.traverse((u, at, _) => on(tables -> at)(_(search)(u, everything)))
+    yield
+      assert(acme.nonEmpty && acme.forall(r => r.tenant != TenantId("globex") ||
+        acmeNeverSeesGlobex._1.store.shares.contains(Share(r.id, TenantId("acme")))), acme)
+      assertEquals(found, expected.map(_._3))
+      assert(!found(2).contains(annContact))
   }
 
   /** Today's examples of the expiry job, each a run on SQLite from the tables given: the store it returns, and the
@@ -181,9 +186,4 @@ class PortSuite extends munit.CatsEffectSuite:
       // A run that stores nothing leaves an ended share in the database; one is never left out of the log.
       assertNotEquals(ended._2, Tables(globexUntil100, earlier :+ Event.Expired(150)))
       assertNotEquals(ended._2, Tables(initechOnly, earlier))
-  }
-
-  test("the code is tested with today's seed and cases: the database's search and store, 1,000 cases from seed 1") {
-    assertEquals(Tested.nodes(knowledge).map(n => n -> Tested.passes(knowledge, n, written).seed.value).toMap,
-      Map("recordsByQuery" -> 1L, "storeEdits" -> 1L))
   }

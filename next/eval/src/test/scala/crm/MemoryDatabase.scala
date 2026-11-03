@@ -16,6 +16,11 @@ final class MemoryDatabase private (held: Ref[IO, Tables], keepsShares: Boolean)
       s.expiries.filterNot(_.record == id) ++ t.expiries.filter(_.record == id)))
   }
   def logEvent(e: Event): IO[Unit] = held.update(h => h.copy(events = h.events :+ e))
+  def fetch(@annotation.unused user: Account, query: Search): IO[List[CrmRecord]] =
+    held.get.map(_.store.records.filter(r => query match
+      case Search.ById(id)   => r.id == id
+      case Search.OfKind(k)  => r.kind == k
+      case Search.Everything => true))
   def tables: IO[Tables] = held.get
 
 object MemoryDatabase:

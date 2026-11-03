@@ -1,10 +1,7 @@
 import FrFlowGen.Crm.keyedTables.Spec
 import Proofs.Crm.Lemmas
 
-/-! What the CRM makes holds one row per key (owner §40): a write adds a record only under an id no record has, and
-replaces the one share, and the one time, of its record with its company (`applyWrite_onePerKey`); a run of the
-expiry job stores, record by record, rows of a store with one row per key (`sharesExpire`: the same records, some
-of the shares and expiries) over what the database held (`stored_onePerKey`). -/
+/-! Every store the CRM makes and holds has one row per key: a write's (`applyWrite_onePerKey`), the rows the write side gives and leaves (`Runs.saved_onePerKey`), the job's store and what it leaves (`Runs.expired_onePerKey`); the screens change nothing. -/
 
 set_option autoImplicit false
 noncomputable section
@@ -13,26 +10,54 @@ open Classical
 namespace Crm.keyedTables.Proofs
 open Crm Crm.Lemmas
 
-theorem made_write : Obl.made_write := by
-  intro s hk _ w
-  exact applyWrite_onePerKey s w hk
+theorem cover_read : Obl.cover_read := by
+  intro fetch hR hK u q w h1 h2 h3
+  have he := (Runs.searched fetch hR hK u q w ⟨h1, h2, h3⟩).1
+  revert he
+  generalize search_run fetch u q w = p
+  rcases p with ⟨res, aft⟩
+  intro he
+  simp only at he ⊢
+  rw [he]; exact h2
+
+theorem cover_deals : Obl.cover_deals := by
+  intro fetch hR hK u q w h1 h2 h3
+  have he := (Runs.dealt fetch hR hK u q w ⟨h1, h2, h3⟩).1
+  revert he
+  generalize dealsOf_run fetch u q w = p
+  rcases p with ⟨res, aft⟩
+  intro he
+  simp only at he ⊢
+  rw [he]; exact h2
+
+theorem cover_save : Obl.cover_save := by
+  intro c w _ h2 _
+  have he := Runs.saved_onePerKey c w h2
+  revert he
+  generalize saved_run c w = p
+  rcases p with ⟨res, aft⟩
+  exact id
 
 theorem cover_runExpiry : Obl.cover_runExpiry := by
-  intro expire held history save runExpiry _ _ _ _ hX _ now w
-  rcases w with ⟨⟨s, es⟩⟩
-  intro hk _
-  have ht : onePerKey (expire s now) := endsDueAt_onePerKey s now _ (hX s hk hk now) hk
-  simp only [expireOnce_run, expireOnce, FrFlow.runOn_bind, FrFlow.runOn_pure, DatabaseModel.Ops.load_onWorld,
-    DatabaseModel.Ops.storeAbout_onWorld, DatabaseModel.Ops.logEvent_onWorld, FrFlow.runOn_within,
-    DatabaseModel.load, DatabaseModel.storeAbout, DatabaseModel.logEvent, FrFlow.runOn_get, FrFlow.runOn_set]
-  rw [loop _ _ (fun x i => if ¬aboutRecord s i = aboutRecord (expire s now) i then World.mk (Tables.mk
-      (replaceAbout x.databaseModel.store i (aboutRecord (expire s now) i)) x.databaseModel.events) else x) (by
-    intro i x
-    by_cases hc : ¬aboutRecord s i = aboutRecord (expire s now) i
-    · simp only [hc, not_false_eq_true, ↓reduceIte, FrFlow.runOn_bind, FrFlow.runOn_pure, FrFlow.runOn_within,
-        FrFlow.runOn_get, FrFlow.runOn_set]
-    · simp only [hc, ↓reduceIte, FrFlow.runOn_pure])]
-  rw [fold_world _ (fun i => ¬aboutRecord s i = aboutRecord (expire s now) i)]
-  exact stored_onePerKey _ _ s (expire s now) hk ht
+  intro expire _ hX _ now w _ h2 _
+  have he := Runs.expired_onePerKey expire hX now w h2
+  revert he
+  generalize expireOnce_run expire now w = p
+  rcases p with ⟨res, aft⟩
+  exact id
+
+theorem made_write : Obl.made_write := fun s hk _ c => applyWrite_onePerKey s c hk
+
+theorem made_saved_call_1 : Obl.made_saved_call_1 := fun c s h => applyWrite_onePerKey s c h.1
+
+theorem made_save : Obl.made_save := by
+  intro c w _ h2 _
+  rw [Runs.saved_run_eq]
+  exact aboutRecord_onePerKey _ _ (applyWrite_onePerKey _ c h2)
+
+theorem made_runExpiry : Obl.made_runExpiry := by
+  intro expire _ _ _ mX now w _ h2 h3
+  rw [Runs.expireOnce_run_eq]
+  exact mX _ h2 h3 now
 
 end Crm.keyedTables.Proofs

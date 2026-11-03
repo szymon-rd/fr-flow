@@ -9,17 +9,17 @@ import frflow.*
 val storeMirrorsRequests = Node.claim("The CRM holds exactly the records its users added, and holds a share of a " +
     "record as current exactly when the record's company shared it so.")(
   forall((r: Term[CrmRecord]) => held.records.contains(r) === askedIn(history).records.contains(r)) &&
-    forall((id: Term[BigInt], c: Term[TenantId]) => sharedNow(id, c) === sharedIn(history, id, c, clock)))
+    forall((id: Term[BigInt], c: Term[TenantId]) => sharedNow(held, clock, id, c) === sharedIn(history, id, c, clock)))
   .refines(sharedCrm, addedIsFound, writesLeaveOthers)
   .assuming(keyedTables)
 
-// What the history is of: what the CRM holds now (trusted, a part of what rests on it).
-val crmRun = Node.assumption("What the CRM holds now, its records, their shares and the shares' expiries, is what " +
+// What the history is of: what the database holds (a rule of its state, kept by the code that changes it).
+val crmRun = Node.claim("What the CRM holds now, its records, their shares and the shares' expiries, is what " +
     "its history led to: from empty, each write saved by the write side, the rows about its record replaced by " +
     "those it stored, and each run of the expiry job, in turn.")(
-  held === runOf(history))
+  always(databaseModel)(t => t.store === runOf(t.events)))
   .refines(storeMirrorsRequests)
-
+  .assuming(tablesModel, runsOneAtATime, tablesStartEmpty, keyedTables)
 
 // ============================================================================
 // Writing records: what a write does, and what it never does
@@ -55,35 +55,23 @@ val writeContract = Node.claim("A write keeps every record, leaves the records o
   .refines(writesTakeEffect, writesOnlyAsAsked, recordsKept)
   .assuming(keyedTables)
 
-/** A write: the change, when its author's company may make it; otherwise nothing changes. */
-val applyWrite = define { (s: Term[CrmStore], w: Term[WriteCmd]) =>
-  val noExpiries: Term[List[Expiry]] = Nil
-  val othersOf = (id: Term[BigInt], to: Term[TenantId]) => s.expiries.filter(e => !(e.record === id && e.to === to))
-  w.change
-    .on[Change.Add](r => when(r.tenant === w.by.tenant && !s.records.exists(x => x.id === r.id))(
-      make[CrmStore](s.records :+ r, s.shares, s.expiries)).otherwise(s))
-    .on[Change.ShareWith]((id, to, until) => when(ownRecord(s, w, id))(make[CrmStore](s.records,
-      s.shares.filter(sh => sh =!= make[Share](id, to)) :+ make[Share](id, to),
-      othersOf(id, to) ++ until.fold(noExpiries)(u => make[Expiry](id, to, u) :: noExpiries))).otherwise(s))
-    .on[Change.Unshare]((id, to) => when(ownRecord(s, w, id))(make[CrmStore](s.records,
-      s.shares.filter(sh => sh =!= make[Share](id, to)), othersOf(id, to))).otherwise(s)) }
+val saveWrite = Node.claim("Saving a write leaves the database holding, about the written record, what the store the " +
+    "write leads to holds about it, logs the write at the end of the event log, and returns those rows.")(
+  forall((w: Term[WriteCmd]) =>
+    databaseModel.in(save(w).after) === make[Tables](afterSave(held, w), history :+ make[Event.Wrote](w)) &&
+      save(w).result === aboutRecord(afterSave(held, w), about(w))))
+  .assuming(runsOneAtATime, keyedTables)
 
-val saveWrite = Node.claim("Saving a write stores, and returns as read back, what the store the write leads to " +
-    "holds about the written record.")(
-  forall((s: Term[CrmStore], w: Term[WriteCmd]) => save(s, w) === aboutRecord(write(s, w), about(w))))
-  .refines(writesTakeEffect, writesOnlyAsAsked, recordsKept)
-  .assuming(keyedTables)
-
-/** The write side: apply the write, store the rows about its record, return them as read back. */
-val saved = define { (s: Term[CrmStore], w: Term[WriteCmd]) => storeRows(about(w), write(s, w)) }
-
-// ============================================================================
-// The database storing the rows about one record
-// ============================================================================
-
-val storeEdits = Node.assumption("Storing what a store holds about one record replaces what the database holds " +
-    "about it, and nothing else; read back, the rows about it are what the store holds about it.")(
-  forall((id: Term[BigInt], t: Term[CrmStore]) => storeRows(id, t) === aboutRecord(t, id)))
+/** The write side: the write applied to the store the database holds, the rows about its record stored, the write
+  * logged; the rows returned.
+  */
+val saved = program { (w: Term[WriteCmd]) =>
+  for
+    s <- load
+    t  = applyWrite(s, w)
+    _ <- storeAbout(about(w), t)
+    _ <- logEvent(make[Event.Wrote](w))
+  yield aboutRecord(t, about(w)) }
 
 val writeSideWiring = Node.design("The write side saves each write on the store loaded from the database, one " +
     "write at a time, and logs it in the event log.")(

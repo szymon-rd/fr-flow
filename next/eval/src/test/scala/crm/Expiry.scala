@@ -12,18 +12,9 @@ val sharesExpire = Node.claim("A run of the expiry job at a time removes exactly
   .refines(storeMirrorsRequests, recordsKept)
   .assuming(keyedTables)
 
-/** A run: the shares that have not ended, and the expiries of those. */
-val expireCode = define { (s: Term[CrmStore], now: Term[BigInt]) =>
-  make[CrmStore](s.records, s.shares.filter(sh => !ended(sh, s, now)),
-    s.expiries.filter(e => !ended(make[Share](e.record, e.to), s, now))) }
-
 // ============================================================================
 // The job on the database: a program, proven on the database's model
 // ============================================================================
-
-/** The ids of the records a store holds anything about: its records, their shares and their expiries. */
-val idsIn = define { (s: Term[CrmStore]) =>
-  s.records.map(r => r.id) ++ s.shares.map(sh => sh.record) ++ s.expiries.map(e => e.record) }
 
 /** Whether two stores hold the same rows about every record, in the same order for each. */
 val sameRows = define { (a: Term[CrmStore], b: Term[CrmStore]) =>

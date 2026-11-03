@@ -1,19 +1,19 @@
 import FrFlowGen.Crm.saveWrite.Spec
 import Proofs.Crm.Lemmas
 
-/-! The write side stores the rows the write's store has about its record: the database reads them back as stored
-(`storeEdits`), of a store with one row per key, as a write keeps it (`applyWrite_onePerKey`). -/
+/-! The write side's run (`Runs.saved_run_eq`): the rows the write leads to about its record held in place of the database's, the write logged, those rows given, which are what the database then holds about it (`about_replace`). -/
 
 set_option autoImplicit false
 noncomputable section
 open Classical
 
 namespace Crm.saveWrite.Proofs
-open Crm
+open Crm Crm.Lemmas
 
 theorem impl : Obl.impl := by
-  intro storeRows hEdits s hk _ w
-  have hw := Lemmas.applyWrite_onePerKey s w hk
-  exact hEdits (about w) (applyWrite s w) hw hw
+  intro c world _ _ _
+  rw [Runs.saved_run_eq]
+  refine ⟨rfl, ?_⟩
+  simp only [afterSave, about_replace, ite_true]
 
 end Crm.saveWrite.Proofs

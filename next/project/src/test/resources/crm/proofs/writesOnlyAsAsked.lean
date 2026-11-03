@@ -1,23 +1,15 @@
 import FrFlowGen.Crm.writesOnlyAsAsked.Spec
 import Proofs.Crm.Lemmas
 
-/-! A write changes nothing it did not ask (today's proof): the write leads to a store that changes nothing it did
-not ask (`writeContract`), and the write side stores only that store's rows about the written record
-(`saveWrite`): every other row is the one the database held. -/
+/-! A write's code changes nothing it was not asked (`applyWrite_contract`), and what the write side holds is the store with its record's rows replaced by those (`onlyAsked_replace`). -/
 
 set_option autoImplicit false
 noncomputable section
 open Classical
 
 namespace Crm.writesOnlyAsAsked.Proofs
-open Crm
+open Crm Crm.Lemmas
 
-theorem impl : Obl.impl := by
-  intro storeRows write hWrite hSave s hk ho w
-  have hSaved := hSave s hk ho w
-  obtain ⟨_, hOnly⟩ := hWrite s hk ho w
-  simp only [afterSave, saved] at hSaved ⊢
-  rw [hSaved, Lemmas.aboutRecord_idem]
-  exact Lemmas.onlyAsked_replace s (write s w) w hOnly
+theorem complete : Obl.complete := fun _ _ _ _ => Runs.writes_only_as_asked
 
 end Crm.writesOnlyAsAsked.Proofs

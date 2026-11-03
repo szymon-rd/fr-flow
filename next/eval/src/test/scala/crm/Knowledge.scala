@@ -2,6 +2,7 @@ package crm
 
 import cats.syntax.all.*
 import frflow.*
+import frflow.eval.flow.Wall
 
 val httpApi = Node.design("The HTTP API answers searches through the records screen and the sales screen, and " +
     "writes through the write side; who calls is the account in the request's headers.")(
@@ -14,16 +15,14 @@ private val tableStores = (for
 yield CrmStore(rs.distinctBy(_.id), ss.distinctBy(s => (s.record, s.to)), es.distinctBy(e => (e.record, e.to))))
   .describedAs("stores with one row per key, as the tables hold them")
 
-val knowledge = FrModel("Crm")(sharedCrm, addedIsFound, writesLeaveOthers, companies, ownership, searches,
-  searchesAsk, adding, sharing, crmRun, storeMirrorsRequests, visibility, noCrossTenantRead, searchesMatch,
-  recordsByQuery, readContract, dealSearch, readSideWiring, writesTakeEffect, writesOnlyAsAsked,
-  recordsKept, writeContract, saveWrite, storeEdits, writeSideWiring, sharesExpire, tablesModel, runsOneAtATime,
-  expiryJob, expiryJobWiring, keyedTables, tablesStartEmpty, oneRowPerKey, httpApi)
-  .implementProvided(history, held, clock)
-  .implementTested(fetch)(env => (_, q) => Db.using(env(held))(_.recordsMatching(q)))
-  .implementTested(storeRows)(_ => (id, t) => Db.using(CrmStore(Nil, Nil, Nil))(_.storeAbout(id, t)))
-  .implementTested(load, storeAbout, logEvent)(start = SqliteDatabase.holding, observe = _.tables)(d =>
-    (d.load, d.storeAbout, d.logEvent))
+/** The tables as the CRM's history leaves them: some events, each saved or run in turn from the empty tables. */
+private val tablesAsRun = Gens.derived[List[Event]].map(History.tables).describedAs("tables as their history left them")
+
+/** The FrModel's code, apart from its nodes: a variant keeps all but one. */
+def withCode(kb: FrModel): FrModel = kb
+  .implementTested(load, storeAbout, logEvent, fetch)(start = SqliteDatabase.holding, observe = _.tables)(d =>
+    (d.load, d.storeAbout, d.logEvent, d.fetch))
+  .implementTested(Clock.now, Clock.sleep)(start = Wall.at, observe = _.time)(c => (c.now, c.sleep))
   .implementProven(read)(search)
   .implementProven(deals)(dealsOf)
   .implementProven(write)(applyWrite)
@@ -31,3 +30,10 @@ val knowledge = FrModel("Crm")(sharedCrm, addedIsFound, writesLeaveOthers, compa
   .implementProven(expire)(expireCode)
   .implementProven(runExpiry)(expireOnce)
   .withGenerator(tableStores)
+  .withGenerator(tablesAsRun)
+
+val knowledge = withCode(FrModel("Crm")(sharedCrm, addedIsFound, writesLeaveOthers, companies, ownership, searches,
+  searchesAsk, adding, sharing, crmRun, storeMirrorsRequests, visibility, noCrossTenantRead, searchesMatch,
+  recordsByQuery, searchKeeps, readContract, dealSearch, readSideWiring, writesTakeEffect, writesOnlyAsAsked,
+  recordsKept, writeContract, saveWrite, writeSideWiring, sharesExpire, tablesModel, runsOneAtATime, clockOneAtATime,
+  expiryJob, expiryJobWiring, keyedTables, tablesStartEmpty, oneRowPerKey, httpApi))

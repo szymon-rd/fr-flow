@@ -32,6 +32,11 @@ val askedIn = define { (es: Term[List[Event]]) =>
 val sharedIn = define { (es: Term[List[Event]], id: Term[BigInt], c: Term[TenantId], now: Term[BigInt]) =>
   askedIn(es).grants.exists(g => g.record === id && g.to === c && g.until.forall(t => now < t)) }
 
+// The tables hold one row per key (owner §40): what the stores from outside meet
+val keyedTables = Node.assumption("The database's tables hold one row per key, by their keys: a record by its id, a " +
+    "share and an expiry by record and company.")(
+  always[CrmStore](s => onePerKey(s)))
+
 // ============================================================================
 // Two roots of their own (owner §22): what a user can count on, each proven from what a search returns and what
 // the CRM holds (`visibility`, `storeMirrorsRequests`)
@@ -43,6 +48,7 @@ val addedIsFound = Node.claim("A record a user adds to their company, under an i
     (history === pre ++ (make[Event.Wrote](make[WriteCmd](u, make[Change.Add](r))) :: post) &&
       r.tenant === u.tenant && !askedIn(pre).records.exists(x => x.id === r.id)) implies
       askMatches(q, r).implies(results(u, q).contains(r))))
+  .assuming(keyedTables, runsOneAtATime, clockOneAtATime)
 
 val writesLeaveOthers = Node.claim("Nothing a user writes changes what anyone finds of another company's records: " +
     "after the write, a search finds of them what the history before it entitled it to.")(
@@ -50,6 +56,7 @@ val writesLeaveOthers = Node.claim("Nothing a user writes changes what anyone fi
     (history === es :+ make[Event.Wrote](w) && r.tenant =!= w.by.tenant) implies
       (results(u, q).contains(r) === (askMatches(q, r) && askedIn(es).records.contains(r) &&
         (r.tenant === u.tenant || sharedIn(es, r.id, u.tenant, clock))))))
+  .assuming(keyedTables, runsOneAtATime, clockOneAtATime)
 
 // ============================================================================
 // The root: what a user's search finds, of what users asked
@@ -59,6 +66,7 @@ val sharedCrm = Node.claim("A user's search finds a record exactly when it asks 
     "record's company added it, and it is of the user's company or currently shared with it by its own.")(
   forall((u: Term[Account], q: Term[Ask], r: Term[CrmRecord]) => finds(u, q, r) ===
     (asksFor(q, r) && added(owner(r), r) && (owner(r) === companyOf(u) || sharedWith(r, companyOf(u))))))
+  .assuming(keyedTables)
 
 // ============================================================================
 // The purpose's words, each one equation
@@ -74,7 +82,7 @@ val ownership = Node.claim("A record, a contact or a deal, belongs to the compan
 
 val searches = Node.claim("A user searches by id, by kind or for everything, on the records screen or on the sales " +
     "screen, and finds what the search returns.")(
-  forall((u: Term[Account], q: Term[Ask], r: Term[CrmRecord]) => finds(u, q, r) === results(u, q).contains(r)))
+  forall((u: Term[Account], q: Term[Ask], r: Term[CrmRecord]) => finds(u, q, r).current === results(u, q).contains(r)))
   .refines(sharedCrm)
 
 val searchesAsk = Node.claim("A search on the records screen asks for what it matches, on the sales screen for the " +
@@ -93,7 +101,3 @@ val sharing = Node.claim("A record is shared with a company now when the last sh
     "expiry job since has reached that share's time.")(
   forall((r: Term[CrmRecord], c: Term[TenantId]) => sharedWith(r, c) === sharedIn(history, r.id, c, clock)))
   .refines(sharedCrm)
-
-val keyedTables = Node.assumption("The database's tables hold one row per key, by their keys: a record by its id, a " +
-    "share and an expiry by record and company.")(
-  always[CrmStore](s => onePerKey(s)))

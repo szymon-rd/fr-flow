@@ -1,6 +1,6 @@
 package frflow.project.pipeline
 
-import frflow.core.analysis.{Callees, Constrained, SaysWhat}
+import frflow.core.analysis.{Constrained, SaysWhat}
 import frflow.core.name.NodeId
 import frflow.project.Projects
 import frflow.proof.obligation.ObligationName
@@ -17,10 +17,13 @@ class CheckedAgainstSuite extends munit.FunSuite:
     assertEquals(saying.filter(Testable.of(t, _)), Nil)
   }
 
-  test("an assumption mentioning proven code is asked no impl: crm's crmRun") {
+  test("an assumption is asked no impl, the code standing in it trusted with it: crm's keyedTables, a rule of the " +
+    "stores asked of what the code makes and of the programs keeping it (made_, cover_)") {
     val a = Projects.bare(Projects.elaborated(crm.knowledge))
     val t = a.decided.theory
-    assert(Callees.of(t, NodeId("crmRun")).nonEmpty)
-    assertEquals(SaysWhat.checkedAgainst(t, NodeId("crmRun")), None)
-    assert(!a.obligations.filter(_.node == NodeId("crmRun")).flatMap(_.required).exists(_.name == ObligationName.Impl))
+    assertEquals(SaysWhat.checkedAgainst(t, NodeId("keyedTables")), None)
+    val asked = a.obligations.filter(_.node == NodeId("keyedTables")).flatMap(_.required).map(_.name)
+    assert(!asked.contains(ObligationName.Impl) && asked.exists(n =>
+      frflow.proof.lean.lower.LowerObligation.name(n).text.startsWith("cover_")),
+      asked)
   }
