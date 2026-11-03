@@ -517,28 +517,29 @@ theorem fetch_run_eq (fetch : Account → Search → StateM Tables (List CrmReco
       ((FrFlow.runOn (fetch u q) w.databaseModel).1,
         { w with databaseModel := (FrFlow.runOn (fetch u q) w.databaseModel).2 }) := rfl
 
-/-- The records screen's run: what the search returns, of the user's company or shared with it at the clock's time,
-by the store the database holds; the World as the search left it. -/
+/-- The records screen's run: what the search returns, of the user's company or shared with it at the clock's time
+(its first look at the clock, the world's time), by the store the database holds; the World as the search left it,
+the time moved on by the world's tick after its look (owner §47). -/
 theorem search_run_eq (fetch : Account → Search → StateM Tables (List CrmRecord)) (u : Account) (q : Search)
     (w : World) : search_run fetch u q w =
       ((FrFlow.runOn (fetch u q) w.databaseModel).1.filter
           (fun r => decide (mayRead w.databaseModel.store w.clockModel u r)),
-        { w with databaseModel := (FrFlow.runOn (fetch u q) w.databaseModel).2 }) := by
+        { (FrFlow.Clock.ticked (fun w => w.ticks) (fun w s => { w with ticks := s }) (fun w => w.clockModel)
+          (fun w s => { w with clockModel := s }) (fun w s => True) w) with databaseModel := (FrFlow.runOn (fetch u q) w.databaseModel).2 }) := by
   simp only [search_run, search, FrFlow.runOn_bind, FrFlow.runOn_pure, ClockModel.Ops.now_onWorld,
     DatabaseModel.Ops.load_onWorld, DatabaseModel.Ops.onState_onWorld, FrFlow.runOn_within, ClockModel.now,
-    DatabaseModel.load, FrFlow.runOn_get]
-  congr
+    DatabaseModel.load, FrFlow.runOn_get, FrFlow.runOn_tick, World.ticked_databaseModel]
 
 /-- The sales screen's run: the records screen's, deals only. -/
 theorem dealsOf_run_eq (fetch : Account → Search → StateM Tables (List CrmRecord)) (u : Account) (q : Search)
     (w : World) : dealsOf_run fetch u q w =
       (((FrFlow.runOn (fetch u q) w.databaseModel).1.filter
           (fun r => decide (mayRead w.databaseModel.store w.clockModel u r))).filter (fun r => decide (r.kind = Kind.Deal)),
-        { w with databaseModel := (FrFlow.runOn (fetch u q) w.databaseModel).2 }) := by
+        { (FrFlow.Clock.ticked (fun w => w.ticks) (fun w s => { w with ticks := s }) (fun w => w.clockModel)
+          (fun w s => { w with clockModel := s }) (fun w s => True) w) with databaseModel := (FrFlow.runOn (fetch u q) w.databaseModel).2 }) := by
   simp only [dealsOf_run, dealsOf, FrFlow.runOn_bind, FrFlow.runOn_pure, ClockModel.Ops.now_onWorld,
     DatabaseModel.Ops.load_onWorld, DatabaseModel.Ops.onState_onWorld, FrFlow.runOn_within, ClockModel.now,
-    DatabaseModel.load, FrFlow.runOn_get]
-  congr
+    DatabaseModel.load, FrFlow.runOn_get, FrFlow.runOn_tick, World.ticked_databaseModel]
 
 /-- What the database's search gives and leaves, of a world meeting the rules, by what is assumed of it: exactly the
 stored records that match, the tables as they were. -/
@@ -552,22 +553,22 @@ theorem fetched (fetch : Account → Search → StateM Tables (List CrmRecord)) 
   simp only at hr hk
   exact ⟨hk, fun r => ⟨fun h => hr.1 r h, fun ⟨h1, h2⟩ => hr.2 r h1 h2⟩⟩
 
-/-- The records screen, of a world meeting the rules: the World as it was; exactly the stored records that match and
-the user may read. -/
+/-- The records screen, of a world meeting the rules: what the database holds as it was (the time moved on only);
+exactly the stored records that match and the user may read. -/
 theorem searched (fetch : Account → Search → StateM Tables (List CrmRecord)) (hR : recordsByQuery.claim fetch)
     (hK : searchKeeps.claim fetch) (u : Account) (q : Search) (w : World) (hw : crmRun w.databaseModel ∧ keyedTables w.databaseModel.store ∧ oneRowPerKey w.databaseModel.store) :
-    (search_run fetch u q w).2 = w ∧ ∀ r, r ∈ (search_run fetch u q w).1 ↔
+    (search_run fetch u q w).2.databaseModel = w.databaseModel ∧ ∀ r, r ∈ (search_run fetch u q w).1 ↔
       (r ∈ w.databaseModel.store.records ∧ «matches» q r) ∧ mayRead w.databaseModel.store w.clockModel u r := by
   obtain ⟨hk, hr⟩ := fetched fetch hR hK u q w hw
   rw [search_run_eq, hk]
   refine ⟨rfl, fun r => ?_⟩
   simp only [List.mem_filter, decide_eq_true_eq, hr]
 
-/-- The sales screen, of a world meeting the rules: the World as it was; exactly the stored deals that match and the
-user may read. -/
+/-- The sales screen, of a world meeting the rules: what the database holds as it was (the time moved on only);
+exactly the stored deals that match and the user may read. -/
 theorem dealt (fetch : Account → Search → StateM Tables (List CrmRecord)) (hR : recordsByQuery.claim fetch)
     (hK : searchKeeps.claim fetch) (u : Account) (q : Search) (w : World) (hw : crmRun w.databaseModel ∧ keyedTables w.databaseModel.store ∧ oneRowPerKey w.databaseModel.store) :
-    (dealsOf_run fetch u q w).2 = w ∧ ∀ r, r ∈ (dealsOf_run fetch u q w).1 ↔
+    (dealsOf_run fetch u q w).2.databaseModel = w.databaseModel ∧ ∀ r, r ∈ (dealsOf_run fetch u q w).1 ↔
       (((r ∈ w.databaseModel.store.records ∧ r.kind = Kind.Deal) ∧ «matches» q r) ∧
         mayRead w.databaseModel.store w.clockModel u r) := by
   obtain ⟨hk, hr⟩ := fetched fetch hR hK u q w hw

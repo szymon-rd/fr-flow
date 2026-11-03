@@ -71,8 +71,6 @@ object Judged:
     // the database's generated runs, reported beside tablesModel; and what it leaves, assumed as well.
     "RecordsByQuery" -> List("assumption", "assumed", "proven", ""),
     "SearchKeeps" -> List("assumption", "assumed", "proven", ""),
-    // The clock's runs one at a time, an assumption of its model (owner §32, §36).
-    "ClockOneAtATime" -> List("assumption", "assumed", "", ""),
     // A contract or an invariant is a claim (owner §15).
     "DealSearch" -> List("claim", "proven", "proven", ""),
     "ReadContract" -> List("claim", "proven", "proven", ""),

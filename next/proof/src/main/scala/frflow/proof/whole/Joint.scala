@@ -2,11 +2,11 @@ package frflow.proof.whole
 
 import cats.data.NonEmptyList
 import frflow.core.analysis.{Callees, Constrained, Resolved}
-import frflow.core.analysis.outside.Guards
+import frflow.core.analysis.outside.{Guards, Outsides}
 import frflow.core.consistency.{Consistency, Defining, Group, Picked, Standing, Witness}
 import frflow.core.expr.{Binder, OutsideFact, Value}
 import frflow.core.graph.Walk
-import frflow.core.name.{DefName, LeanNames, NodeId, SymbolName, VarId}
+import frflow.core.name.{DefName, LeanNames, ModelName, NodeId, SymbolName, VarId}
 import frflow.core.spec.Range
 import frflow.core.term.{Final, Stated, Sym}
 import frflow.core.ty.Ty
@@ -38,9 +38,23 @@ object Joint:
     case Group.Start(n, start) => start.flatMap(r.theory.node).flatMap(_.statement.outside).collect {
       case OutsideFact.Initially(m, rule) =>
         val state = r.theory.vocabulary.model(m).fold(Ty.Unit)(_.state)
-        Obligation(ObligationName.Start(n), Prop.Starts(DefName(n.value), rule, state, within(r, n, state)),
-          Discharge.Auto, s"Every state ${m.value} may start in meets ${n.value}.")
+        reached(r, n).filter(_.size > 1).fold(
+          Obligation(ObligationName.Start(n), Prop.Starts(DefName(n.value), List(rule -> state),
+            within(r, n, state)), Discharge.Auto, s"Every state ${m.value} may start in meets ${n.value}.")) { ms =>
+          Obligation(ObligationName.Start(n), Prop.Starts(DefName(n.value), ms.flatMap(started(r, _)), None),
+            Discharge.Auto, s"Every state ${ms.map(_.value).mkString(" and ")} may start in together meets " +
+              s"${n.value}.")
+        }
     }
+
+  /** The models a rule of the world reads, in the order it reads them: several where it relates them. */
+  private def reached(r: Resolved, n: NodeId): Option[List[ModelName]] =
+    r.theory.node(n).flatMap(_.statement.range).collect { case Range.Reached(ms) => ms }
+
+  /** What a model's state starts in meets, by its `initially`, with the state's type. */
+  private def started(r: Resolved, m: ModelName): Option[(DefName, Ty)] = Outsides.all(r.theory).collectFirst {
+    case (_, OutsideFact.Initially(s, rule)) if s == m => rule -> r.theory.vocabulary.model(m).fold(Ty.Unit)(_.state)
+  }
 
   /** The premises over the same provided values: some value of each meets them all. */
   private def premised(r: Resolved, g: Group.Premises, i: Int): Option[Obligation] =
