@@ -11,6 +11,7 @@ import frflow.project.program.ModelCheck
 import frflow.proof.obligation.ObligationName
 import frflow.proof.verdict.{ObligationStatus, ProverRun, Result}
 import frflow.testing.model.{ModelRuns, ModelTests}
+import whole.Theories
 import scala.concurrent.duration.*
 
 /** Keycloak ported (owner §14, §21, §40), against today's (`reference/keycloak`, ARCHITECTURE section 9,
@@ -30,6 +31,11 @@ class PortSuite extends munit.CatsEffectSuite:
   test("nothing is provided where the code runs: the history, the state and the accounts as loaded are the World's") {
     assertEquals(Ported.provided(elaborated), Set.empty[String])
     assertEquals(Ported.stoppedOnD(Judged.provided), Map.empty)
+  }
+
+  test("what is assumed of the draw reads only what it is shown, and the inbox's runs evaluate it: tested") {
+    assertEquals(Theories.problems(knowledge), Nil)
+    assertEquals(t.nodes.map(_.node.id).filter(id => frflow.core.checking.Assumed.untested(t, id).nonEmpty), Nil)
   }
 
   private def differences: Map[String, String] =
