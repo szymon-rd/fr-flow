@@ -92,15 +92,15 @@ final class LowerModels(env: LowerEnv, naming: Naming):
         LowerType.declaration(op.params.map(_.ty), LowerModels.stateM(LowerType(m.state), op.result)), body)
     })
 
-  /** The models' states, the faults when a model's operations may fail (`true`: that call fails, in order), the
-    * races' winners when a program races (`true`: the left wins, in order), and the time the world lets pass at each
-    * of the clock's steps when the World has the clock (owner §47).
-    */
   /** The World's fields, in order. */
   private def fields(models: List[StateModel]): List[LeanName] = world(models) match
     case Decl.Documented(_, Decl.Structure(_, fs)) => fs.map(_._1)
     case _                                         => Nil
 
+  /** The models' states, the faults when a model's operations may fail (`true`: that call fails, in order), the
+    * races' winners when a program races (`true`: the left wins, in order), and the time the world lets pass at each
+    * of the clock's steps when the World has the clock (owner §47).
+    */
   private def world(models: List[StateModel]): Decl =
     val failing = Option.when(models.exists(_.fails.nonEmpty))(LowerFaults.field -> LowerFaults.listOfBool)
     val racing = Option.when(env.racing)(LowerFaults.racesField -> LowerFaults.listOfBool)
