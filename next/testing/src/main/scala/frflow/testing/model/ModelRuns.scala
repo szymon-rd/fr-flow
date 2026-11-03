@@ -1,7 +1,7 @@
 package frflow.testing.model
 
 import cats.MonadThrow
-import cats.effect.kernel.Ref
+import cats.effect.kernel.{Concurrent, Ref}
 import cats.syntax.all.*
 import frflow.core.example.Gen
 import frflow.core.expr.{Prog, Progs, Value}
@@ -15,13 +15,14 @@ import frflow.testing.report.*
 
 /** A model's operations' plain Scala tested against the model (`implementTested(ops*)(start, observe)(calls)`,
   * whoever wrote it, owner §36): at most `most` runs of its operations (`ModelRuns.Runs` unless a port gives today's
-  * count), each from a state of the
-  * model drawn by its type and meeting every `always(stored)` about it, on the Scala and on the model
-  * (`ModelTests.run`). Run `i` is drawn from `(seed, i)` at its size; a run that cannot be drawn is not tried, and the
-  * shortfall said. The first run that differs is shrunk (`RunShrink`). What the runs reach is counted: each operation
-  * called, each branch of the model's steps taken both ways. Reported by the model (`reportedUnder`).
+  * count), each from a state of the model drawn by its type and meeting every `always(stored)` about it, on the
+  * Scala and on the model (`ModelTests.run`), then its first two calls at once on the Scala, against the model's two
+  * orders of them (`CallsAtOnce`, the model's `atomic`). Run `i` is drawn from `(seed, i)` at its size; a run that
+  * cannot be drawn is not tried, and the shortfall said. The first run that differs is shrunk (`RunShrink`). What
+  * the runs reach is counted: each operation called, each branch of the model's steps taken both ways. Reported by
+  * the model (`reportedUnder`).
   */
-final class ModelRuns[F[_]: MonadThrow: Ref.Make](check: ModelTests.Check, semantics: Semantics, t: Theory,
+final class ModelRuns[F[_]: Concurrent](check: ModelTests.Check, semantics: Semantics, t: Theory,
     most: Int = ModelRuns.Runs):
   private type Tried = Either[Drawn, (Value, List[Step], Drawn)]
   private val model = check.model
@@ -62,8 +63,13 @@ final class ModelRuns[F[_]: MonadThrow: Ref.Make](check: ModelTests.Check, seman
         RunShrink(typing, always, model, t.vocabulary).smallest(differs(hits), s, steps, d)
           .map((small, run, why) => Failure.Run(small, run, why, from)))))
 
+  /** The run in turn, then its first two calls at once (`CallsAtOnce`). */
   private def differs(hits: Ref[F, Hits])(s: Value, steps: List[Step]): F[Option[Difference]] =
-    ModelTests.run(check, semantics, t.vocabulary, branched(hits))(typing.literal(s, model.state), steps)
+    val held = typing.literal(s, model.state)
+    ModelTests.run(check, semantics, t.vocabulary, branched(hits))(held, steps).flatMap(found => (found, steps) match
+      case (None, first :: second :: _) =>
+        CallsAtOnce(check, semantics, t.vocabulary, branched(hits)).of(held, first, second)
+      case _ => found.pure[F])
 
   private def branched(hits: Ref[F, Hits])(op: SymbolName, p: Prog[Stated[?]], held: Boolean): F[Unit] =
     val at = (ops.indexOf(op), branches.getOrElse(op, Nil).indexWhere(_ eq p))

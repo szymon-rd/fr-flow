@@ -77,6 +77,8 @@ object Tested:
     case Difference.Call(s, impl, model) => s"at ${step(s)} the Scala ${ran(impl)}, the model ${ran(model)}"
     case Difference.State(impl, model)   =>
       s"the Scala holds ${Values.value(impl)} where the model holds ${Values.value(model)}"
+    case Difference.AtOnce(ss, impl, at) => s"${ss.map(step).mkString(" and ")} at once: the Scala " +
+        s"${impl.map(ran).mkString(" and ")}, then held ${Values.value(at)}, which no order of them gives on the model"
     case Difference.NotRun(m)            => s"the Scala was not made or not read back: $m"
 
   private def ran(r: Ran): String = r match

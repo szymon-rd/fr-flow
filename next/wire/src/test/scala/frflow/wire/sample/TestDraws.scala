@@ -53,7 +53,8 @@ object TestDraws:
   val ran: Gen[Ran] = Gen.oneOf(value(1).map(Ran.Gave(_)), value(1).map(Ran.Failed(_)), text.map(Ran.Threw(_)))
 
   val difference: Gen[Difference] = Gen.oneOf(Gen.zip(step, ran, ran).map(Difference.Call(_, _, _)),
-    Gen.zip(value(1), value(1)).map(Difference.State(_, _)), text.map(Difference.NotRun(_)))
+    Gen.zip(value(1), value(1)).map(Difference.State(_, _)),
+    Gen.zip(few(step), few(ran), value(1)).map(Difference.AtOnce(_, _, _)), text.map(Difference.NotRun(_)))
 
   val failure: Gen[Failure] = Gen.oneOf(
     Gen.zip(few(value(2)), few(Gen.zip(word.map(SymbolName(_)), value(1)).map(Given(_, _))), broken, drawn)
