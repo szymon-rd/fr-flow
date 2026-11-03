@@ -12,7 +12,7 @@ object ObligationNames:
   private val fixed: Map[String, ObligationName] = Map("complete" -> Complete, "feasible" -> Feasible,
     "impl" -> Impl, "root_impl" -> RootImpl, "vacuous" -> Tried(TryKind.Vacuous),
     "restates" -> Tried(TryKind.Restates), "clash" -> Tried(TryKind.Clash), "unsat" -> Tried(TryKind.Unsat),
-    "idle" -> Tried(TryKind.Idle))
+    "idle" -> Tried(TryKind.Idle), "frozen" -> Tried(TryKind.Frozen))
 
   private val Indexed = """([a-z]+)_(\d+)""".r
   private val IndexedNode = """([a-z]+)_(\d+)_(.+)""".r

@@ -202,11 +202,12 @@ What a statement may say, so that its Lean meaning is the one written wherever i
   pinning which are open. Time passing (owner §47) is built (step 13d, "Time" in 4.4): crm's clock is the World's
   time, which the world moves on between runs and at each of the clock's steps; sharing's history and "now" are the
   World's, what its store, its mail server and its clock hold and when housekeeping last ran, its deadlines statements
-  of every moment proven from rules time passing keeps, each `cover_` with the code of what the program calls put in
-  (2.7: housekeeping keeping `nothingEndedAtHousekeeping` reads what "gone", "open" and "pending" mean as their code),
-  its scheduler's tests run on a virtual clock (`ScheduleSuite`). Auth's two tables, read in one moment only, stay
-  provided (owner §48). Configuration fixed for the run (keycloak's seed, sharing's start) is not "now" or a history and stays
-  provided.
+  of every moment over rules of the World, each `cover_` with the code of what the program calls put in (2.7:
+  housekeeping keeping `nothingEndedAtHousekeeping` reads what "gone", "open" and "pending" mean as their code), its
+  scheduler's tests run on a virtual clock (`ScheduleSuite`). The rule of housekeeping running beside the other
+  programs (`housekeptLately`) is stopped, with what takes it as given, an open point for the owner (4.4, "Time").
+  Auth's two tables, read in one moment only, stay provided (owner §48). Configuration fixed for the run (keycloak's
+  seed, sharing's start) is not "now" or a history and stays provided.
 
 **`isConstant`** (owner §44, §45 A). `t.isConstant`, of any value `t` read in a statement, says that no run of any
 program from the world the statement holds in changes `t`, whatever the run's outcome: TLA+'s `□[c ⇒ t′ = t]`, where
@@ -436,11 +437,11 @@ from outside meet is said differently, with `always` on their type (below).
 | `stored.onlyCodeChanges` | nothing outside the code changes the model's state | every reached state is one a run of the code leaves |
 | `stored.initially(held => …)` | what the state's start meets | `start_<node>`: `∀ s, initially s → A s` |
 | `stored.atomic` | runs on the state never interleave; each call is one step against calls at once | each run is one step of the world |
-| `clockModel.schedule(other)((now, o) => …)` | the world moves the clock's time only to a time the rule allows, given `other`'s state then (owner §47) | the clock's every move is taken where it allows (4.4, "Time") |
+| `clockModel.schedule(other)((now, o) => …)` | between runs the world moves the clock's time only to a time the rule allows, given `other`'s state then (owner §47) | `elapse` is taken where it allows; inside a run the time moves freely (4.4, "Time") |
 
 All are said of the `StateModel` (owner §36: there is no boundary). The clock (`Clock.clockModel`) needs neither
 `onlyCodeChanges` nor `atomic`: its time is the World's by construction, moved by code's waits and by the world alone,
-and moved at every step of a run, so runs at once need nothing of it; a check on it rests on its schedules instead
+and moved freely at every step of a run, so runs at once need nothing of it; a check on it rests on its schedules instead
 (`Premise.Schedule`), and on its `initially` where a rule reads it. That the plain Scala does what the model
 says is not assumed: it is tested on generated sequences of calls (3.8), so today's `behavesAs` is gone, its two
 meanings now that test and `onlyCodeChanges`. Which programs change a state is not written: FrFlow derives it from the
@@ -1301,17 +1302,31 @@ by less than nothing (`vocab.Timed` marks it). Steps of code take no time of the
   at the clock beside one does not commute, and `commute_i` refuses the pair. This is Lean's reading only: production
   and the Scala tests run the waits as written. The other reading the re-review offered, leaving waits out of the
   reduction, was not taken: sound too, but a wait would then say nothing of the time it took, and a race lost to a wait
-  (a cancelling time limit) could not be said to have taken its seconds.
-- **Where the schedules allow.** A schedule is a trusted fact restricting the world's steps (2.6):
+  (a cancelling time limit) could not be said to have taken its seconds. Waits in sequence inside one side of a step at
+  once are read so too, each from the same start: delivery's retry waits of a second and then two in one branch are
+  read as two seconds at least, not three. This is sound (it allows more runs, and the tick after the start covers the
+  rest) but loses a lower bound a statement could want (the step 13d review's S3).
+- **Where the schedules allow.** A schedule is a trusted fact restricting the outside steps (2.6, owner §47):
   `clockModel.schedule(lastRun)((now, ran) => now <= ran + 120)`, an `OutsideFact.Schedule(model, over, rule)`, its rule
   a define over the time reached and the states of the models it names (no world, no other Definition: Lean reads it in
-  the clock's instance, `allows`). Every move of the world's (an `elapse`, a tick, a wait's end) is taken only where
-  every schedule allows the time it reaches (`FrFlow.Clock.move`); a move they do not allow is not taken, as no run the
-  facts trust makes it (sharing: housekeeping runs every minute, a run of delivery holds the store at most its limit,
-  so the time never passes two minutes after housekeeping's last run). Read where the time is looked at, the world's
-  moves between two looks counted at the second, a schedule is sound for bounds that only grow, as sharing's does
-  (when housekeeping last ran only moves on). A check whose Lean takes the clock rests on each schedule of it
-  (`Premise.Schedule`), listed by `.assuming`.
+  the clock's instance, `allows`). It restricts the world's own step between runs only: an `elapse` is taken only where
+  every schedule allows the time it reaches (`FrFlow.Clock.move`). Inside a run the world moves the time freely: a tick
+  by any amount, a wait by at least its seconds, never less (`LowerEnv.Clock.inside`, `fun _ _ => True`). A run sees the
+  World as it leaves it, not as the runs at once beside it change it, and those runs may keep a schedule true while
+  this one is in progress (the step 13d review's B1: a five minutes' wait under sharing's schedule takes five minutes,
+  `Lapse.quick` stays unproven). A check whose Lean takes the clock rests on each schedule of it (`Premise.Schedule`),
+  listed by `.assuming`. A schedule that lets no time pass from the start is warned of: its `frozen` try (`∀` start, `¬`
+  a move by `d > 0`) shown, as vacuity is (`TimeLeanSuite`, `Frozen`).
+- **Who moves the time.** Every program calling any of the clock's operations, `now` too, changes the clock's state
+  (`Premises.writers`): the world moves the time after each of its looks. So an `isConstant` reading the clock is asked
+  an equation for each such run (the step 13d review's B2: `Extend.stays` stays unproven).
+- **Open (for the owner): deadlines kept by a program running beside the others.** A rule bounding the time by another
+  model's state, kept true by a program that runs concurrently with the rest (sharing's `housekeptLately`, `now <= ran +
+  120`, housekeeping run every minute beside requests and delivery), cannot be shown when runs are read one after
+  another: any other run may move the time without bound. Sharing's `housekeptLately` is stopped (`Judged.stopped`),
+  and with it each statement taking it as given where it starts: its three deadlines and the branches above them, and
+  the claims about the programs' runs over the World (each proven itself); its scheduler's tests (`ScheduleSuite`)
+  still check the deadlines on a virtual clock. How such a rule is to be stated is the owner's to decide.
 
 A rule may relate several models' states (`always(clockModel, lastRun)((now, ran) => ran <= now)`), its `start_` of
 each model's `initially` together. `changesNothing` leaves the clock aside: time passes whatever a run does. In Scala the

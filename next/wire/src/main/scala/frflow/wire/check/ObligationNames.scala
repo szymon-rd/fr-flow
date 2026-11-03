@@ -15,7 +15,8 @@ object ObligationNames:
   private val fixed: Map[String, ObligationName] = List(ObligationName.Complete, ObligationName.Feasible,
     ObligationName.Impl, ObligationName.RootImpl).map(o => text(o) -> o).toMap
   private val fixedTries: Map[String, TryKind] =
-    List(TryKind.Vacuous, TryKind.Restates, TryKind.Clash, TryKind.Unsat, TryKind.Idle).map(k => text(k) -> k).toMap
+    List(TryKind.Vacuous, TryKind.Restates, TryKind.Clash, TryKind.Unsat, TryKind.Idle, TryKind.Frozen)
+      .map(k => text(k) -> k).toMap
 
   def tryKind(s: String): Option[TryKind] = fixedTries.get(s)
     .orElse(after("needed_", s).map(p => TryKind.Needed(NodeId(p))))

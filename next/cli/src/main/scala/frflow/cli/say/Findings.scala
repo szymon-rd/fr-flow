@@ -53,6 +53,7 @@ object Findings:
     case TryView.Clash                     => "its parts clash: together they prove anything"
     case TryView.Unsat                     => "it cannot hold"
     case TryView.Idle                      => "doing nothing meets it: say what users can do"
+    case TryView.Frozen                    => "from the start it lets no time pass: a deadline holds of a still clock"
     case TryView.RestatesConjunct(part, i) => s"$part restates conjunct ${i + 1} of it"
 
   def forbidden(f: Forbidden): String = f match

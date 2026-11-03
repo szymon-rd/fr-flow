@@ -23,7 +23,7 @@ theorem cover_handle : Obl.cover_handle := by
     LibraryModel.Ops.save_onWorldE, FrFlow.runOn_within, LibraryModel.load, LibraryModel.save, FrFlow.runOn_get,
     FrFlow.runOn_set, FrFlow.runOn_pure, FrFlow.runOn_bind, World.ticked_faults, World.ticked_libraryModel,
     World.ticked_mailerModel, World.ticked_housekeptModel, World.ticked_poolModel, World.ticked_races, hf]
-  all_goals have ht : w.housekeptModel ≤ (FrFlow.Clock.ticked (fun (w : World) => w.ticks) (fun (w : World) s => { w with ticks := s }) (fun (w : World) => w.clockModel) (fun (w : World) s => { w with clockModel := s }) (fun (w : World) s => housekeepingOnTime s w.housekeptModel) w).clockModel := Int.le_trans g1.1 (Lemmas.tick_le w)
+  all_goals have ht : w.housekeptModel ≤ (FrFlow.Clock.ticked (fun (w : World) => w.ticks) (fun (w : World) s => { w with ticks := s }) (fun (w : World) => w.clockModel) (fun (w : World) s => { w with clockModel := s }) (fun (w : World) s => True) w).clockModel := Int.le_trans g1.1 (Lemmas.tick_le w)
   all_goals refine ⟨?_, ?_⟩
   all_goals first
     | trivial
@@ -77,13 +77,13 @@ theorem cover_housekeep : Obl.cover_housekeep := by
 theorem cover_deliver : Obl.cover_deliver := by
   unfold Obl.cover_deliver Sharing.nothingEndedAtHousekeeping.keeps_deliver
   intro w g1 g2 g3
-  have hc := Lemmas.run_clock w (by simp only [housekeptLately] at g1; omega)
+  have hc := Lemmas.run_clock w
   have h := Lemmas.delivery_job w g1 g2 g3
   revert h hc
   cases delivery_run w with
   | mk res after =>
     intro hc h
-    obtain ⟨hk, _, _⟩ := hc
+    obtain ⟨hk, _⟩ := hc
     simp only at hk
     cases res with
     | error e =>

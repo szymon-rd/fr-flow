@@ -50,10 +50,11 @@ final case class LowerEnv(kb: KbName, openTerms: DefName => List[LeanName], mode
     clock.filter(_.timed.elapse == op).map(c => LowerModels.runOf(c.model, op))
 
 object LowerEnv:
-  /** The clock, where the World has it (owner §47): its model, its steps, and where the schedules let the world move
-    * its time (`fun w t => …`, `fun _ _ => True` with none).
+  /** The clock, where the World has it (owner §47): its model, its steps, where the schedules let the world move its
+    * time between runs (`fun w t => …`, `fun _ _ => True` with none), and where inside a run (anywhere,
+    * `LowerFaults.free`).
     */
-  final case class Clock(model: ModelName, timed: frflow.core.vocab.Timed, allows: LExpr)
+  final case class Clock(model: ModelName, timed: frflow.core.vocab.Timed, allows: LExpr, inside: LExpr)
 
   /** The second `def` of a define a rule calls, its `forall`s guarded, which statements call. */
   def guarded(d: DefName): DefName = DefName(s"${d.value}_guarded")

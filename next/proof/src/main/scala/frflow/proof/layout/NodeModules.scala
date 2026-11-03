@@ -29,7 +29,8 @@ object NodeModules:
     m.copy(imports = (m.imports ++ spec).distinct)
 
   private def spec(l: Lowering, o: NodeObligations): LeanModule =
-    val said = l.resolved.theory.node(o.node).flatMap(_.statement.said)
+    // A trusted fact states no claim (a schedule's module holds its freezing try only).
+    val said = l.resolved.theory.node(o.node).filter(_.statement.stated).flatMap(_.statement.said)
     val rule = l.resolved.theory.node(o.node).exists(_.statement.rule)
     val params = claimParams(l, o.node)
     // A rule's claim is `True`: Lean has it of every value already, as a guard, and its `∀` over every value is false

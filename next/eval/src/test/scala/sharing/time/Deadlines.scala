@@ -45,7 +45,7 @@ object Deadlines:
     */
   val timeMovesOn = Node.claim("Time in the service never goes back: a moment once reached is never left behind.")(
     forall((t: Term[BigInt]) => (t <= clockModel.current) implies (t <= clockModel.current).isConstant))
-    .assuming(oneTransactionAtATime, mailOneAtATime, poolOneAtATime, housekeepingOnTime)
+    .assuming(oneTransactionAtATime, mailOneAtATime, poolOneAtATime, housekeepingOnTime, housekeptOneAtATime)
 
   /** Housekeeping keeps up with the time: a rule of the clock and when housekeeping last ran, kept by time passing
     * where the schedule lets it pass (`housekeepingOnTime`).

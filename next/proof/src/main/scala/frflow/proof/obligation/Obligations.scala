@@ -12,4 +12,5 @@ object Obligations:
   def of(r: Resolved, table: TermTable, authored: Set[(NodeId, ObligationName)]): List[NodeObligations] =
     r.theory.refinement.nodes.filter(_.statement.stated).map { n =>
       NodeObligations(n.id, Required.of(r, authored, n.id), Tries.of(r, table, n.id))
-    }
+    } ++ r.theory.refinement.nodes.filterNot(_.statement.stated).flatMap(n =>
+      Option(Tries.frozen(r, n.id)).filter(_.nonEmpty).map(NodeObligations(n.id, Nil, _)))

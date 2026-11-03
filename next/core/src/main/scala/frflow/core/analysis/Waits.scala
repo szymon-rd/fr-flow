@@ -13,8 +13,10 @@ import frflow.core.vocab.{Define, Timed, Vocabulary}
   * where the sides start (the time read once, before them: `start`, a lower bound of every wait's own start in
   * them) and its end, the clock reaching at least `start` plus its seconds (`Prog.reach`). Two such ends commute (the
   * later of the two), so the reading in turn of waits at once takes the longest, not the sum; a read of the clock
-  * beside one does not commute, and is left to `commute_i` to refuse. A wait in turn stays one step, at least its
-  * seconds. Lean's reading only: production and the Scala tests run the waits as written.
+  * beside one does not commute, and is left to `commute_i` to refuse. A wait in turn outside any step at once stays
+  * one step, at least its seconds; waits in turn inside one side are each read from the same start, so they take the
+  * longest, not their sum (sound, a lower bound lost: the step 13d review's S3). Lean's reading only: production and
+  * the Scala tests run the waits as written.
   */
 object Waits:
   private val seconds = Ty.Num(NumKind.Big)

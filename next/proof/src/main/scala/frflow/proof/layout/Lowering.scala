@@ -40,9 +40,11 @@ final class Lowering(val resolved: Resolved, val table: TermTable, canonical: Bo
     v.models.exists(_.fails.nonEmpty), v.models.map(m => Names.ident(m.name.value)), ruleSide.twice,
     racing = LowerFaults.racing(v), assumed = v.models.flatMap(m => m.assumed.map(_.name -> m.name)).toMap)
   val env: LowerEnv = unclocked.copy(clock = v.models.flatMap(m => m.timed.map(LowerEnv.Clock(m.name, _,
-    allows(m.name)))).headOption)
+    allows(m.name), LowerFaults.free))).headOption)
 
-  /** Where the schedules let the world move the clock's time (owner §47): `fun w t => rule t w.other ∧ …`. */
+  /** Where the schedules let the world move the clock's time between runs (owner §47, `elapse` only):
+    * `fun w t => rule t w.other ∧ …`.
+    */
   private def allows(clock: ModelName): LExpr =
     val (w, t) = (Names.builtin("w"), Names.builtin("s"))
     val rules = Outsides.schedules(resolved.theory, clock).map((_, f) => LExpr.Paren(LExpr.App(

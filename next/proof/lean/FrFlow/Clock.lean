@@ -4,8 +4,10 @@ import FrFlow.Flow
 Time, as Cats Effect models it (owner §47). The clock's state is the time now, a field of the World; steps of code
 take no time of their own. The world moves the time on: between runs (`elapse`, the world's own step), after each
 of the clock's steps in a run (`tick`: the next of the world's `ticks`, none left: no time; what passes before a
-run's first look at the clock is the world's step before it), and at a wait's end, by at least its seconds. Every move the world makes is one the schedules allow (`allows`, a trusted fact restricting the
-world's steps): a move they do not allow is not taken, as no run the facts trust makes it. Waits at once are read as
+run's first look at the clock is the world's step before it), and at a wait's end, by at least its seconds. Inside a
+run every move is free (`allows` is `fun _ _ => True` there): other runs at once change what a schedule reads while a
+run is in progress. A schedule (`allows`, a trusted fact restricting the outside steps) restricts the world's own step
+between runs only: a move it does not allow is not taken there. Waits at once are read as
 two points: where the sides start, and the time reached at each end (`Waits.reach`): two ends commute, so waits at
 once take the longest, not the sum.
 -/
@@ -15,11 +17,12 @@ open Classical
 
 namespace FrFlow
 
-/-- The time moved to `t`, where the schedules allow it; else as it was. -/
+/-- The time moved to `t`, where `allows` lets it (everywhere inside a run, where the schedules allow between runs);
+else as it was. -/
 def Clock.move {σ : Type} (put : σ → Int → σ) (allows : σ → Int → Prop) (t : Int) (s : σ) : σ :=
   if allows s t then put s t else s
 
-/-- The world moving the time on by the next of its ticks (none left: by nothing), where the schedules allow. -/
+/-- The world moving the time on by the next of its ticks (none left: by nothing). -/
 def Clock.ticked {σ : Type} (ticks : σ → List Nat) (putTicks : σ → List Nat → σ) (clock : σ → Int)
     (put : σ → Int → σ) (allows : σ → Int → Prop) (s : σ) : σ :=
   match ticks s with

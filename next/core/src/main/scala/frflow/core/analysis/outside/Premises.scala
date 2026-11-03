@@ -52,11 +52,12 @@ object Premises:
     Outsides.schedules(t, m.name).map((id, _) => Premise.Schedule(m.name, id))
 
   /** The programs changing `m`'s state (owner §31): those whose proven code calls an operation whose meaning writes
-    * it, or one known only by assumptions (which may leave any state); and the world's own steps on it (the clock's
-    * `elapse`, owner §47).
+    * it, or one known only by assumptions (which may leave any state); of the clock, every one calling any of its
+    * operations, `now` too, after which the world moves the time (owner §47, `LowerFaults.timed`); and the world's
+    * own steps on it (the clock's `elapse`).
     */
   def writers(t: Theory, m: StateModel): List[SymbolName] =
-    val writing = (m.ops.filter(op => Progs.all(op.steps).exists {
+    val writing = (m.ops.filter(op => m.timed.isDefined || Progs.all(op.steps).exists {
       case Prog.Write(_, _) | Prog.Modify(_, _, _) => true
       case _                                       => false
     }).map(_.op) ++ m.assumed.map(_.name)).toSet

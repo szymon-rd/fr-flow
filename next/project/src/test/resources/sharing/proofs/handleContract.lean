@@ -37,10 +37,10 @@ theorem impl : Obl.impl := by
            all_goals simp only [World.ticked_libraryModel, World.ticked_mailerModel, World.ticked_housekeptModel,
              World.ticked_poolModel, and_self, and_true]
            all_goals first
-             | refine ⟨⟨fun hn => hn (FrFlow.Clock.ticked (fun (w : World) => w.ticks) (fun (w : World) s => { w with ticks := s }) (fun (w : World) => w.clockModel) (fun (w : World) s => { w with clockModel := s }) (fun (w : World) s => housekeepingOnTime s w.housekeptModel) w).clockModel ⟨⟨⟨Lemmas.tick_le w,
-                 Int.le_trans (Lemmas.tick_le (FrFlow.Clock.ticked (fun (w : World) => w.ticks) (fun (w : World) s => { w with ticks := s }) (fun (w : World) => w.clockModel) (fun (w : World) s => { w with clockModel := s }) (fun (w : World) s => housekeepingOnTime s w.housekeptModel) w)) (Lemmas.tick_le _)⟩, ?_⟩, ?_⟩, ?_⟩, ?_⟩
-             | refine ⟨fun hn => hn (FrFlow.Clock.ticked (fun (w : World) => w.ticks) (fun (w : World) s => { w with ticks := s }) (fun (w : World) => w.clockModel) (fun (w : World) s => { w with clockModel := s }) (fun (w : World) s => housekeepingOnTime s w.housekeptModel) w).clockModel ⟨⟨⟨Lemmas.tick_le w,
-                 Int.le_trans (Lemmas.tick_le (FrFlow.Clock.ticked (fun (w : World) => w.ticks) (fun (w : World) s => { w with ticks := s }) (fun (w : World) => w.clockModel) (fun (w : World) s => { w with clockModel := s }) (fun (w : World) s => housekeepingOnTime s w.housekeptModel) w)) (Lemmas.tick_le _)⟩, ?_⟩, ?_⟩, ?_⟩
+             | refine ⟨⟨fun hn => hn (FrFlow.Clock.ticked (fun (w : World) => w.ticks) (fun (w : World) s => { w with ticks := s }) (fun (w : World) => w.clockModel) (fun (w : World) s => { w with clockModel := s }) (fun (w : World) s => True) w).clockModel ⟨⟨⟨Lemmas.tick_le w,
+                 Int.le_trans (Lemmas.tick_le (FrFlow.Clock.ticked (fun (w : World) => w.ticks) (fun (w : World) s => { w with ticks := s }) (fun (w : World) => w.clockModel) (fun (w : World) s => { w with clockModel := s }) (fun (w : World) s => True) w)) (Lemmas.tick_le _)⟩, ?_⟩, ?_⟩, ?_⟩, ?_⟩
+             | refine ⟨fun hn => hn (FrFlow.Clock.ticked (fun (w : World) => w.ticks) (fun (w : World) s => { w with ticks := s }) (fun (w : World) => w.clockModel) (fun (w : World) s => { w with clockModel := s }) (fun (w : World) s => True) w).clockModel ⟨⟨⟨Lemmas.tick_le w,
+                 Int.le_trans (Lemmas.tick_le (FrFlow.Clock.ticked (fun (w : World) => w.ticks) (fun (w : World) s => { w with ticks := s }) (fun (w : World) => w.clockModel) (fun (w : World) s => { w with clockModel := s }) (fun (w : World) s => True) w)) (Lemmas.tick_le _)⟩, ?_⟩, ?_⟩, ?_⟩
            all_goals (try rfl)
            all_goals (try (rename_i hc; exact (Classical.not_not.mp hc).symm))
            all_goals split
@@ -50,7 +50,7 @@ theorem impl : Obl.impl := by
              | (left; simp; done)
              | (right
                 refine Int.lt_of_lt_of_le ?_ (Lemmas.tick_le _)
-                show w.clockModel + 5 < (FrFlow.Clock.ticked (fun (w : World) => w.ticks) (fun (w : World) s => { w with ticks := s }) (fun (w : World) => w.clockModel) (fun (w : World) s => { w with clockModel := s }) (fun (w : World) s => housekeepingOnTime s w.housekeptModel) (FrFlow.Clock.ticked (fun (w : World) => w.ticks) (fun (w : World) s => { w with ticks := s }) (fun (w : World) => w.clockModel) (fun (w : World) s => { w with clockModel := s }) (fun (w : World) s => housekeepingOnTime s w.housekeptModel) w)).clockModel
+                show w.clockModel + 5 < (FrFlow.Clock.ticked (fun (w : World) => w.ticks) (fun (w : World) s => { w with ticks := s }) (fun (w : World) => w.clockModel) (fun (w : World) s => { w with clockModel := s }) (fun (w : World) s => True) (FrFlow.Clock.ticked (fun (w : World) => w.ticks) (fun (w : World) s => { w with ticks := s }) (fun (w : World) => w.clockModel) (fun (w : World) s => { w with clockModel := s }) (fun (w : World) s => True) w)).clockModel
                 omega)))
 
 end Sharing.handleContract.Proofs

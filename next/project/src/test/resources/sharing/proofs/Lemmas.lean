@@ -413,7 +413,7 @@ theorem quiet_world : ∃ w : World, housekeptLately w.clockModel w.housekeptMod
     by simp [nothingEndedAtHousekeeping], by simp [logKept]⟩
 
 /-- The world's tick never takes the time back. -/
-theorem tick_le (w : World) : w.clockModel ≤ (FrFlow.Clock.ticked (fun (w : World) => w.ticks) (fun (w : World) s => { w with ticks := s }) (fun (w : World) => w.clockModel) (fun (w : World) s => { w with clockModel := s }) (fun (w : World) s => housekeepingOnTime s w.housekeptModel) w).clockModel := by
+theorem tick_le (w : World) : w.clockModel ≤ (FrFlow.Clock.ticked (fun (w : World) => w.ticks) (fun (w : World) s => { w with ticks := s }) (fun (w : World) => w.clockModel) (fun (w : World) s => { w with clockModel := s }) (fun (w : World) s => True) w).clockModel := by
   unfold FrFlow.Clock.ticked
   split
   · exact FrFlow.Clock.move_le (fun w : World => w.clockModel) _ _ _ _ (fun _ _ => rfl) (by simp; omega)
@@ -421,46 +421,7 @@ theorem tick_le (w : World) : w.clockModel ≤ (FrFlow.Clock.ticked (fun (w : Wo
 
 /-- A look at the clock in a run that may fail: the time now, then the world's tick. -/
 theorem now_run (s : World) :
-    FrFlow.runOnE (ClockModel.Ops.now : ExceptT Failure (StateM World) Int) s = (.ok s.clockModel, (FrFlow.Clock.ticked (fun (w : World) => w.ticks) (fun (w : World) s => { w with ticks := s }) (fun (w : World) => w.clockModel) (fun (w : World) s => { w with clockModel := s }) (fun (w : World) s => housekeepingOnTime s w.housekeptModel) s)) := rfl
-
-/-- The world's tick keeps the time within the schedule of housekeeping's last run: it moves the time on only where the
-schedule allows. -/
-theorem tick_lately (w : World) (c : Int) (hc : c = w.housekeptModel) (h : housekeptLately w.clockModel c) :
-    housekeptLately (FrFlow.Clock.ticked (fun (w : World) => w.ticks) (fun (w : World) s => { w with ticks := s }) (fun (w : World) => w.clockModel) (fun (w : World) s => { w with clockModel := s }) (fun (w : World) s => housekeepingOnTime s w.housekeptModel) w).clockModel c := by
-  subst hc
-  unfold FrFlow.Clock.ticked FrFlow.Clock.move
-  split
-  · split
-    · rename_i hok
-      simp only [housekeptLately, housekeepingOnTime] at h hok ⊢
-      omega
-    · exact h
-  · exact h
-
-/-- A move of the clock forwards keeps the time within the schedule, which it allows only there. -/
-theorem move_lately (w : World) (t c : Int) (hc : c = w.housekeptModel) (ht : w.clockModel ≤ t)
-    (h : housekeptLately w.clockModel c) :
-    housekeptLately (FrFlow.Clock.move (fun (w : World) s => { w with clockModel := s })
-      (fun w s => housekeepingOnTime s w.housekeptModel) t w).clockModel c := by
-  subst hc
-  unfold FrFlow.Clock.move
-  split
-  · rename_i hok
-    simp only [housekeptLately, housekeepingOnTime] at h hok ⊢
-    omega
-  · exact h
-
-/-- What the world's tick allows: the time no further than two minutes past housekeeping's last run, or as it was. -/
-theorem tick_within (w : World) :
-    (FrFlow.Clock.ticked (fun (w : World) => w.ticks) (fun (w : World) s => { w with ticks := s }) (fun (w : World) => w.clockModel) (fun (w : World) s => { w with clockModel := s }) (fun (w : World) s => housekeepingOnTime s w.housekeptModel) w).clockModel = w.clockModel ∨ (FrFlow.Clock.ticked (fun (w : World) => w.ticks) (fun (w : World) s => { w with ticks := s }) (fun (w : World) => w.clockModel) (fun (w : World) s => { w with clockModel := s }) (fun (w : World) s => housekeepingOnTime s w.housekeptModel) w).clockModel ≤ w.housekeptModel + 120 := by
-  unfold FrFlow.Clock.ticked FrFlow.Clock.move
-  split
-  · split
-    · rename_i hok
-      simp only [housekeepingOnTime] at hok
-      exact Or.inr hok
-    · exact Or.inl rfl
-  · exact Or.inl rfl
+    FrFlow.runOnE (ClockModel.Ops.now : ExceptT Failure (StateM World) Int) s = (.ok s.clockModel, (FrFlow.Clock.ticked (fun (w : World) => w.ticks) (fun (w : World) s => { w with ticks := s }) (fun (w : World) => w.clockModel) (fun (w : World) s => { w with clockModel := s }) (fun (w : World) s => True) s)) := rfl
 
 /-- A request served no earlier than housekeeping's last run leaves nothing that had ended by then: what it trashes,
 sends or asks, it does now; the rest the library held. -/
@@ -666,30 +627,18 @@ theorem delivery_job : Sharing.deliveryJob.claim delivery_run := by
        all_goals (try dsimp only)
        all_goals exact ⟨⟨⟨by rw [hk]; rw [Lemmas.filter_mem_filter], h2⟩, h4⟩, trivial⟩)
 
-theorem bounded_tick (Y : World) (lo hi : Int) (hY : Y.housekeptModel + 120 ≤ hi)
-    (h : lo ≤ Y.clockModel ∧ Y.clockModel ≤ hi) : lo ≤ (FrFlow.Clock.ticked (fun (w : World) => w.ticks) (fun (w : World) s => { w with ticks := s }) (fun (w : World) => w.clockModel) (fun (w : World) s => { w with clockModel := s }) (fun (w : World) s => housekeepingOnTime s w.housekeptModel) Y).clockModel ∧ (FrFlow.Clock.ticked (fun (w : World) => w.ticks) (fun (w : World) s => { w with ticks := s }) (fun (w : World) => w.clockModel) (fun (w : World) s => { w with clockModel := s }) (fun (w : World) s => housekeepingOnTime s w.housekeptModel) Y).clockModel ≤ hi := by
-  have := tick_le Y
-  rcases tick_within Y with e | e <;> omega
+theorem bounded_tick (Y : World) (lo : Int) (h : lo ≤ Y.clockModel) : lo ≤ (FrFlow.Clock.ticked (fun (w : World) => w.ticks) (fun (w : World) s => { w with ticks := s }) (fun (w : World) => w.clockModel) (fun (w : World) s => { w with clockModel := s }) (fun (w : World) s => True) Y).clockModel :=
+  Int.le_trans h (tick_le Y)
 
-theorem bounded_move (Y : World) (t lo hi : Int) (hY : Y.housekeptModel + 120 ≤ hi) (ht : Y.clockModel ≤ t)
-    (h : lo ≤ Y.clockModel ∧ Y.clockModel ≤ hi) :
-    lo ≤ (FrFlow.Clock.move (fun (w : World) s => { w with clockModel := s })
-        (fun w s => housekeepingOnTime s w.housekeptModel) t Y).clockModel ∧
-      (FrFlow.Clock.move (fun (w : World) s => { w with clockModel := s })
-        (fun w s => housekeepingOnTime s w.housekeptModel) t Y).clockModel ≤ hi := by
+theorem bounded_move (Y : World) (t lo : Int) (ht : Y.clockModel ≤ t) (h : lo ≤ Y.clockModel) :
+    lo ≤ (FrFlow.Clock.move (fun (w : World) s => { w with clockModel := s }) (fun (w : World) s => True) t Y).clockModel := by
   unfold FrFlow.Clock.move
-  split
-  · rename_i hok
-    simp only [housekeepingOnTime] at hok
-    simp only
-    omega
-  · exact h
-
+  simp only [↓reduceIte]
+  omega
 
 set_option maxHeartbeats 4000000 in
-theorem run_clock (w : World) (h : w.clockModel ≤ w.housekeptModel + 120) :
-    (delivery_run w).2.housekeptModel = w.housekeptModel ∧ w.clockModel ≤ (delivery_run w).2.clockModel ∧
-      (delivery_run w).2.clockModel ≤ w.housekeptModel + 120 := by
+theorem run_clock (w : World) :
+    (delivery_run w).2.housekeptModel = w.housekeptModel ∧ w.clockModel ≤ (delivery_run w).2.clockModel := by
   rcases w with ⟨boxes, hk, clock, lib, pool, faults, races, ticks⟩
   rcases races with _ | ⟨_ | _, _ | ⟨_ | _, rs⟩⟩ <;> rcases faults with _ | ⟨_ | _, fs⟩
   all_goals simp only [delivery_run, delivery, FrFlow.runOnE_bind, FrFlow.runOnE_pure, FrFlow.runOnE_lift,
@@ -706,11 +655,11 @@ theorem run_clock (w : World) (h : w.clockModel ≤ w.housekeptModel + 120) :
   all_goals first
     | (simp; done)
     | (generalize hres : FrFlow.runOnE (List.mapM _ _) _ = res
-       obtain ⟨bs, hbs, hinv⟩ : ∃ bs, res.1 = .ok bs ∧ (World.housekeptModel res.2 = hk ∧ clock ≤ World.clockModel res.2 ∧
-             World.clockModel res.2 ≤ hk + 120) := by
+       obtain ⟨bs, hbs, hinv⟩ : ∃ bs, res.1 = .ok bs ∧ (World.housekeptModel res.2 = hk ∧
+             clock ≤ World.clockModel res.2) := by
          rw [← hres]
-         refine Lemmas.mapM_inv _ (fun (_ : List Notice) (s : World) => s.housekeptModel = hk ∧ clock ≤ s.clockModel ∧
-           s.clockModel ≤ hk + 120) ?_ _ [] _ ?_
+         refine Lemmas.mapM_inv _ (fun (_ : List Notice) (s : World) => s.housekeptModel = hk ∧
+           clock ≤ s.clockModel) ?_ _ [] _ ?_
          rotate_left
          · (try simp only [World.move_housekeptModel, World.ticked_housekeptModel])
            (repeat (first
@@ -719,14 +668,14 @@ theorem run_clock (w : World) (h : w.clockModel ≤ w.housekeptModel + 120) :
                | rfl
                | exact ⟨_, rfl⟩
                | exact ⟨(), trivial⟩
-               | (refine bounded_tick _ _ _ (by simp only [World.ticked_housekeptModel, World.move_housekeptModel]; omega) ?_)
-               | (refine bounded_move _ _ _ _ (by simp only [World.ticked_housekeptModel, World.move_housekeptModel]; omega) (by first | (simp only []; omega) | omega | simp) ?_)
+               | (refine bounded_tick _ _ ?_)
+               | (refine bounded_move _ _ _ (by first | (simp only []; omega) | omega | simp) ?_)
                | (apply And.intro)
                | omega
                | dsimp only))
          intro done x s hs
          rcases s with ⟨b, hk', c, l, p, fs, rs, ts⟩
-         obtain ⟨rfl, hs1, hs2⟩ := hs
+         obtain ⟨rfl, hs1⟩ := hs
          simp only [FrFlow.runOnE_bind, FrFlow.runOnE_pure,
            FrFlow.runOnE_lift, FrFlow.runOnE_failing, FrFlow.runOnE_tryCatch, FrFlow.runOnE_ite,
            MailerModel.Ops.send_onWorldE, ClockModel.Ops.sleep_onWorldE, LibraryModel.Ops.load_onWorldE,
@@ -771,8 +720,8 @@ theorem run_clock (w : World) (h : w.clockModel ≤ w.housekeptModel + 120) :
              | rfl
              | exact ⟨_, rfl⟩
              | exact ⟨(), trivial⟩
-             | (refine bounded_tick _ _ _ (by simp only [World.ticked_housekeptModel, World.move_housekeptModel]; omega) ?_)
-             | (refine bounded_move _ _ _ _ (by simp only [World.ticked_housekeptModel, World.move_housekeptModel]; omega) (by first | (simp only []; omega) | omega | simp) ?_)
+             | (refine bounded_tick _ _ ?_)
+             | (refine bounded_move _ _ _ (by first | (simp only []; omega) | omega | simp) ?_)
              | (apply And.intro)
              | omega
              | dsimp only))
@@ -781,17 +730,16 @@ theorem run_clock (w : World) (h : w.clockModel ≤ w.housekeptModel + 120) :
        subst hbs
        simp only
        try (cases List.mapM id bs <;> simp only [])
-       all_goals (try simp only [World.move_housekeptModel, World.ticked_housekeptModel, FrFlow.Clock.move])
+       all_goals (try simp only [World.move_housekeptModel, World.ticked_housekeptModel, FrFlow.Clock.move, ↓reduceIte])
        all_goals (try split)
-       all_goals (try (rename_i hok; simp only [housekeepingOnTime, hinv.1] at hok))
        all_goals (repeat (first
            | assumption
            | trivial
            | rfl
            | exact ⟨_, rfl⟩
            | exact ⟨(), trivial⟩
-           | (refine bounded_tick _ _ _ (by simp only [World.ticked_housekeptModel, World.move_housekeptModel]; omega) ?_)
-           | (refine bounded_move _ _ _ _ (by simp only [World.ticked_housekeptModel, World.move_housekeptModel]; omega) (by first | (simp only []; omega) | omega | simp) ?_)
+           | (refine bounded_tick _ _ ?_)
+           | (refine bounded_move _ _ _ (by first | (simp only []; omega) | omega | simp) ?_)
            | (apply And.intro)
            | omega
            | dsimp only)))
@@ -801,8 +749,8 @@ theorem run_clock (w : World) (h : w.clockModel ≤ w.housekeptModel + 120) :
            | rfl
            | exact ⟨_, rfl⟩
            | exact ⟨(), trivial⟩
-           | (refine bounded_tick _ _ _ (by simp only [World.ticked_housekeptModel, World.move_housekeptModel]; omega) ?_)
-           | (refine bounded_move _ _ _ _ (by simp only [World.ticked_housekeptModel, World.move_housekeptModel]; omega) (by first | (simp only []; omega) | omega | simp) ?_)
+           | (refine bounded_tick _ _ ?_)
+           | (refine bounded_move _ _ _ (by first | (simp only []; omega) | omega | simp) ?_)
            | (apply And.intro)
            | omega
            | dsimp only)); done)

@@ -8,7 +8,7 @@ import frflow.core.spec.{Form, Written}
 import frflow.core.term.Final
 import frflow.core.ty.Ty
 import frflow.proof.lean.ast.*
-import frflow.proof.lean.term.Printed
+import frflow.proof.lean.term.{FrozenTry, Printed}
 import frflow.proof.obligation.{Constant, Hyp, Prop, Substitute}
 import frflow.proof.terms.{OpenTerms, TermTable}
 
@@ -95,6 +95,7 @@ final class LowerProp(table: TermTable, env: LowerEnv, naming: Naming, values: L
       applied(decl(n, LeanNames.conjunct(i)), table.claims.getOrElse(n, OpenTerms.empty), σ)
     case Prop.Starts(d, is, w)   => Writer.value(starts(d, is, w))
     case Prop.Inhabited(d, ty)   => Writer.value(inhabited(d, ty))
+    case Prop.Frozen(d, ss)      => Writer.value(FrozenTry(naming, opened, overOpens)(d, ss))
     case Prop.Iff(a, b)          => (prop(a, σ), prop(b, σ)).mapN((x, y) => LExpr.Paren(LExpr.Infix(LOp.Iff, x, y)))
     case Prop.Both(ps)           => ps.traverse(prop(_, σ)).map(_.toList.reduceRight(LExpr.Infix(LOp.And, _, _)))
     case Prop.Not(a)             => prop(a, σ).map(LExpr.Prefix(LPrefix.NotSpaced, _))

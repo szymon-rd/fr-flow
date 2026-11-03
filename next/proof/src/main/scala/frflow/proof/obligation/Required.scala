@@ -7,8 +7,8 @@ import frflow.core.Failing
 import frflow.core.term.interpret.Guard
 import frflow.core.code.Code
 import frflow.core.name.{DefName, NodeId, SymbolName}
-import frflow.core.expr.Mentions
-import frflow.core.spec.{CallForm, NodeKind}
+import frflow.core.expr.{Expr, Exprs, Mentions}
+import frflow.core.spec.{CallForm, NodeKind, Written}
 import frflow.core.ty.Ty
 import frflow.core.vocab.SymbolType
 import frflow.proof.terms.{Commutation, Keeping}
@@ -117,16 +117,19 @@ object Required:
 
   /** `cover_<op>` of the program's code keeping the formula, as `impl` is built (2.7): the code of what it calls put
     * in where that code is proven (`Callees.within`), a fixed value as its value; what is tested, assumed or provided
-    * stays open, what is said of it a hypothesis (`Resolve.constrainingCalled`), each with the same code put in. No
-    * hypothesis is the rule itself or rests on it (`Reads.restsOn`): it would be kept by being assumed.
+    * stays open, what is said of it a hypothesis (`Resolve.constrainingCalled`), each with the same code put in, but
+    * none about the program itself (what the `cover_` shows, as `reliesOn` takes none about the code's own
+    * Definitions). No hypothesis is the rule itself or rests on it (`Reads.restsOn`): it would be kept by being
+    * assumed.
     */
   private def covering(r: Resolved, n: NodeId, op: SymbolName, code: DefName)(
-      formula: frflow.core.spec.Written[frflow.core.expr.Expr]): Obligation =
+      formula: Written[Expr]): Obligation =
     val callees = Callees.within(r.theory, op)
     val values = Fixed.of(r, callees.calls.symbols :+ op) ++ fixed(r, formula)
     val put = callees.standsFor.view.mapValues(Substitute.Code(_)).toMap ++ values
     val goal = Prop.Keeps(n, op, formula, put)
-    val hyps = Resolve.constrainingCalled(r.theory, Some(callees)).filterNot(Reads.restsOn(r.theory, _, n))
+    val hyps = Resolve.constrainingCalled(r.theory, Some(callees)).filterNot(h => mentions(r, h, op))
+      .filterNot(Reads.restsOn(r.theory, _, n))
     val stated = hyps.map(h => Hyp(Hyp.of(h).name,
       Prop.ClaimOf(h, put.filter((s, _) => values.contains(s) || mentions(r, h, s)))))
     Obligation(ObligationName.Cover(op.value), Prop.over(Nil, Prop.Implies(stated, goal)),
@@ -146,9 +149,9 @@ object Required:
     })
 
   /** The fixed values a `cover_` reads, through the rules it states: each stands as its value (2.7). */
-  private def fixed(r: Resolved, f: frflow.core.spec.Written[frflow.core.expr.Expr]): Map[SymbolName, Substitute] =
-    Fixed.of(r, frflow.core.expr.Exprs.mentions(f.value).symbols ++ r.theory.vocabulary.closure(
-      frflow.core.expr.Exprs.mentions(f.value).defines).flatMap(d => frflow.core.expr.Exprs.mentions(d.lambda.body)
+  private def fixed(r: Resolved, f: Written[Expr]): Map[SymbolName, Substitute] =
+    Fixed.of(r, Exprs.mentions(f.value).symbols ++ r.theory.vocabulary.closure(
+      Exprs.mentions(f.value).defines).flatMap(d => Exprs.mentions(d.lambda.body)
         .symbols))
 
   private[obligation] def typeOf(r: Resolved, op: SymbolName): Option[Ty] =

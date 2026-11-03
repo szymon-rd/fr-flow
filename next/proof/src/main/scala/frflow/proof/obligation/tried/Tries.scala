@@ -1,6 +1,9 @@
 package frflow.proof.obligation.tried
 
 import frflow.core.analysis.Resolved
+import frflow.core.analysis.outside.Outsides
+import frflow.core.expr.OutsideFact
+import frflow.core.ty.Ty
 import frflow.core.name.NodeId
 import frflow.core.spec.NodeKind
 import frflow.proof.obligation.{Discharge, Obligation, ObligationName, Prop, TryKind}
@@ -18,6 +21,20 @@ object Tries:
   def of(r: Resolved, table: TermTable, n: NodeId): List[Obligation] =
     if r.theory.node(n).exists(_.statement.rule) then Nil
     else (Splits.of(r, n) ++ says(r, n) ++ List(unsat(n))).map(tried) ++ Idle.of(r, table, n)
+
+  /** Of a schedule (a trusted fact, stating nothing itself), the freezing try (`frozen`, the step 13d review's S1):
+    * from the start no move of the time it restricts is allowed, so a clock that never moves meets every deadline.
+    * Warned of, as vacuity is.
+    */
+  def frozen(r: Resolved, n: NodeId): List[Obligation] = frozenOf(r, n).toList.map(tried)
+
+  private def frozenOf(r: Resolved, n: NodeId): Option[(TryKind, Prop, String)] =
+    r.theory.node(n).flatMap(_.statement.outside).collect { case OutsideFact.Schedule(m, over, rule) =>
+      val starts = (m :: over).map(x => Outsides.initially(r.theory, x) ->
+        r.theory.vocabulary.model(x).fold(Ty.Unit)(_.state))
+      (TryKind.Frozen, Prop.over(Nil, Prop.Frozen(rule, starts)),
+        s"From the start ${n.value} lets the world move the time on by nothing.")
+    }
 
   /** Of a claim with no parts, the tautology try (`vacuous`): it holds whatever what it speaks of means, so it says
     * nothing (semantics review, finding 7: `accepted r = accepted r`, or `∀ w, ∃ c, opening w = c`).

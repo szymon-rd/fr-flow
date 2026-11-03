@@ -32,6 +32,7 @@ object LowerObligation:
   private def tried(k: TryKind): String = k match
     case TryKind.Needed(c)              => s"needed_${c.value}"
     case TryKind.Vacuous                => "vacuous"
+    case TryKind.Frozen                 => "frozen"
     case TryKind.Restates               => "restates"
     case TryKind.Clash                  => "clash"
     case TryKind.Unsat                  => "unsat"

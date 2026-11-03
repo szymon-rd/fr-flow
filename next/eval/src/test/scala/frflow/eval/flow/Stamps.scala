@@ -71,6 +71,7 @@ object Stamps:
 
   /** Seeded: the time standing still (an `isConstant` time passing breaks, as every run that looks at it does). */
   val timeStill = Node.claim("The time never moves.")(clockModel.current.isConstant)
+    .assuming(stampsOne)
 
   /** Seeded: a race lost to a wait said to take more than the wait's seconds. */
   val waitWinsLate = Node.claim("When the wait wins, ten seconds passed.")(
@@ -131,15 +132,27 @@ object Stamps:
   val nonNegative = Node.claim("Every stamp is not negative.")(always(stamps)(held => held.forall(x => x >= 0)))
     .assuming(stampsKept, stampsOne, noStamps)
 
+  /** Proven from a claim taking the rule (`pickedNonNegative`, its part): it rests on the rule through what it is
+    * proven from, so the rule's `cover_` may not take it either (the walk down, `Reads.restsOn`).
+    */
+  val pickedAlways = Node.claim("A time picked is never negative.")(forall((t: Term[BigInt]) => picked(t) >= 0))
+
   val pickedNonNegative = Node.claim("Where every stamp is not negative, a time picked is not negative.")(
     stamps.current.forall(x => x >= 0) implies forall((t: Term[BigInt]) => picked(t) >= 0))
+    .refines(pickedAlways)
+
+  /** An assumption about the covered program itself (and an open callee): what the `cover_` is to show, which it does
+    * not take (the step 13d review's S2), as `impl`'s `reliesOn` takes none about the code's own Definitions.
+    */
+  val pickingKeeps = Node.assumption("Picking stamps only times not negative, and picks one at zero.")(
+    stamps.in(picking.after).forall(x => x >= 0) && picked(0) >= 0)
 
   val pickingStamps = Node.claim("Picking stamps the time picked from now.")(
     stamps.in(picking.after) === stamps.current :+ picked(clockModel.current))
     .assuming(stampsOne)
 
-  val circling: FrModel = FrModel("Picking")(nonNegative, pickedNonNegative, pickingStamps, stampsKept, stampsOne,
-      noStamps, clockStarts)
+  val circling: FrModel = FrModel("Picking")(nonNegative, pickedAlways, pickedNonNegative, pickingKeeps, pickingStamps,
+      stampsKept, stampsOne, noStamps, clockStarts)
     .implementProven(picking)(pickingCode)
     .implementTested(picked)(_ => (t: BigInt) => t.abs)
     .implementTested(stampAt)(start = PlainShelf.holding, observe = _.held)(s => Tuple1(s.put))

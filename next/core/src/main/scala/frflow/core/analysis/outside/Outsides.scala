@@ -2,7 +2,7 @@ package frflow.core.analysis.outside
 
 import frflow.core.expr.OutsideFact
 import frflow.core.graph.Edge
-import frflow.core.name.{ModelName, NodeId}
+import frflow.core.name.{DefName, ModelName, NodeId}
 import frflow.core.spec.{Node, NodeKind, Range}
 import frflow.core.ty.Ty
 import frflow.core.Theory
@@ -45,6 +45,11 @@ object Outsides:
   /** The schedules of the clock `m`: where the world moves its time (owner §47). */
   def schedules(t: Theory, m: ModelName): List[(NodeId, OutsideFact.Schedule)] = all(t).collect {
     case (id, f @ OutsideFact.Schedule(`m`, _, _)) => id -> f
+  }
+
+  /** The rule of what `m`'s state meets when the service starts (its `initially`), if it has one. */
+  def initially(t: Theory, m: ModelName): Option[DefName] = all(t).collectFirst {
+    case (_, OutsideFact.Initially(`m`, rule)) => rule
   }
 
   private def assumesAlways(n: Node, ty: Ty): Boolean =

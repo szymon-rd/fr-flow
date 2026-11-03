@@ -45,7 +45,7 @@ object Judged:
       "housekeptKept")),
     "clockNeverGoesBack" -> ("gone" -> ("time never going back is no longer trusted (owner §47): the clock's state " +
       "moves only forwards by construction, and timeMovesOn, an isConstant over the World, is proven of the world's " +
-      "own step and of delivery's runs")),
+      "own step and of each program's runs")),
     "housekeptKept" -> ("new" -> ("when housekeeping last ran is a model of its own (owner §47), which only " +
       "housekeeping changes, the onlyCodeChanges its state rests on (owner §36)")),
     "housekeptOneAtATime" -> ("new" -> atomic("when housekeeping last ran")),
@@ -53,10 +53,11 @@ object Judged:
     "clockStarts" -> ("new" -> "what the time is when the service starts: when it started"),
     "libraryStarts" -> ("new" -> "what the library holds when the service starts: nothing ended at its start"),
     "timeMovesOn" -> ("new" -> ("today's clockNeverGoesBack, trusted, a claim (owner §47): a moment passed stays " +
-      "passed, under the world's own step and delivery's runs (an isConstant over the World)")),
+      "passed, under the world's own step and each program's runs: delivery's, housekeeping's and a request's, each " +
+      "looking at the clock (an isConstant over the World)")),
     "housekeptLately" -> ("new" -> ("a rule of the World (owner §45 D, §47): housekeeping ran no more than two " +
-      "minutes ago, kept by each program and by time passing where the schedule allows; today's deadlines read " +
-      "it from the history (Run.after)")),
+      "minutes ago, to be kept by each program and by time passing where the schedule allows; today's deadlines " +
+      "read it from the history (Run.after); not proven here (stopped)")),
     "nothingEndedAtHousekeeping" -> ("new" -> ("a rule of the World (owner §45 D, §47): nothing in the library had " +
       "ended when housekeeping last ran, kept by each program; today's deadlines read it from the history")),
     "logKept" -> ("new" -> ("a rule of the World (owner §45 D): every share held has its entry, every notice of a " +
@@ -86,9 +87,10 @@ object Judged:
     // witnessed (`Whole.lean`); delivery's runs proven under the race's reading, its sends commuting with each
     // branch given its own faults (the step 13 review's B1 and G3), and the pool given back. The programs' runs are
     // proven on the World with time as Cats Effect models it (owner §47): the world's tick after each look at the
-    // clock, its moves where housekeeping's schedule allows; the World's rules (housekeptLately, logKept,
+    // clock, its moves between runs where housekeeping's schedule allows; the World's rules (logKept,
     // nothingEndedAtHousekeeping) each kept by every program, the code of what it calls put in, and by time passing,
-    // time never going back (timeMovesOn) a claim.
+    // time never going back (timeMovesOn) a claim. HousekeptLately is open (stopped, below): inside a run the time
+    // moves freely, so no run keeps it.
     List("AcceptContract", "AccessContract", "AnnounceContract", "ApproveContract", "AskContract", "CanEditContract",
       "CanViewContract", "ChaseContract", "DeclineContract", "ForgetContract", "GoneContract", "HandleContract",
       "HousekeepingJob", "InForceContract", "InviteContract", "IsOpenContract", "MoveContract", "PendingContract",
@@ -96,13 +98,14 @@ object Judged:
       "TrashContract", "UnshareContract", "WarnContract", "WithdrawContract", "Cover", "EditPermission",
       "HousekeepingPeriod", "InTrash", "InvitationLifetime", "OwnersShare", "Permission", "Reach", "ReminderTime",
       "RequestLifetime", "TrashLifetime", "WhoMayEdit", "WhatIsTrashed", "DeliveryJob", "DeliveryGivesBack",
-      "HousekeptLately", "LogKept", "NothingEndedAtHousekeeping", "TimeMovesOn")
+      "LogKept", "NothingEndedAtHousekeeping", "TimeMovesOn")
       .map(_ -> List("claim", "proven", "proven", "")).toMap ++
+    Map("HousekeptLately" -> List("claim", "open", "open", "")) ++
     // Each model's runs one at a time, an assumption of the model (owner §32, §36), each model's start (its
-    // `initially`), and housekeeping's schedule, a schedule of the clock restricting the world's moves of the time
-    // (owner §47); nothing to check of them.
+    // `initially`); nothing to check of them. Housekeeping's schedule, restricting the world's moves of the time
+    // between runs (owner §47), stands as today's: its frozen try not shown, so it lets time pass.
     List("MailOneAtATime", "OneTransactionAtATime", "PoolOneAtATime", "HousekeptOneAtATime", "ClockStarts",
-      "HousekeptStarts", "LibraryStarts", "HousekeepingOnTime")
+      "HousekeptStarts", "LibraryStarts")
       .map(_ -> List("assumption", "assumed", "", "")).toMap ++
     // That nothing but the code changes a model's state (owner §36), with the model's Scala tested against it on
     // generated runs as today, from seed 1: the mail server's, the pool's and housekeeping's last run's 1,000, the
@@ -115,12 +118,25 @@ object Judged:
       "HousekeptKept" -> List("assumption", "assumed", "", "1000"),
       "ClockKept" -> Nil, "ClockNeverGoesBack" -> Nil)
 
-  /** What is not proven: nothing. Each of the World's rules is kept by every program, its `cover_` built as `impl`
-    * is, the code of what the program calls put in (2.7), and by time passing; delivery's steps at once commute two
-    * by two, each given its own faults (G3, the step 13 re-review's RB1 and RB2), its runs under the race's reading
+  /** What is not proven: housekeptLately, and each statement resting on it. Deadlines that rely on housekeeping
+    * running concurrently cannot be shown when runs are read one after another: a schedule restricts only the world's
+    * step between runs, and inside a run the time moves freely (the step 13d review's B1), so no program's `cover_` of
+    * housekeptLately holds (a request's run may take any time while housekeeping, beside it, keeps the rule true). The
+    * statements stopped with it take it as given where they start (`Reads.takes`): the three deadlines it is a part
+    * of, the branches above them, and each claim about a program's runs over the World (the programs' contracts and
+    * jobs, the pool given back, time moving on, the audit trail), each proven itself. How such a rule is stated is
+    * open for the owner (ARCHITECTURE 4.4, "Time"); the scheduler's tests still check it on a virtual clock
+    * (`ScheduleSuite`). The other rules are kept by every program, each `cover_` built as `impl` is,
+    * the code of what the program calls put in (2.7), and by time passing; delivery's steps at once commute two by
+    * two, each given its own faults (G3, the step 13 re-review's RB1 and RB2), its runs under the race's reading
     * (B1); the purpose, over its Declarations, is not met by doing nothing.
     */
-  val stopped: Map[String, List[String]] = Map.empty
+  val stopped: Map[String, List[String]] =
+    val concurrent = "Kept(housekeptLately)"
+    Map("housekeptLately" -> List("Check", concurrent)) ++
+      List("trashPurgedOnTime", "invitationsLapseOnTime", "requestsAnsweredOnTime", "trashUntilGone",
+        "invitationsAreOffers", "accessRequestsAreAsks", "handleContract", "housekeepingJob", "deliveryJob",
+        "deliveryGivesBack", "timeMovesOn", "auditTrail").map(_ -> List(concurrent)).toMap
 
   /** Each value provided where the code runs, under owner §45 D: the history and now are the World's (§47). */
   val provided: Map[String, frflow.project.Ported.OnD] = Map(
