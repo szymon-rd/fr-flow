@@ -73,13 +73,24 @@ object Stamps:
   val waitWinsLate = Node.claim("When the wait wins, ten seconds passed.")(
     raced.result.fold(_ => True, _ => clockModel.in(raced.after) >= clockModel.current + 10))
 
-  /** A schedule: the world moves the time on only while every stamp is at most ten seconds old. */
-  val tenSeconds = Node.assumption("The world moves the time on only while every stamp is at most ten seconds old.")(
-    Clock.clockModel.schedule(stamps)((t, held) => held.forall(x => t <= x + 10)))
+  /** A schedule: the world moves the time on only once something is stamped, and only while every stamp is at most
+    * ten seconds old. With nothing stamped it may not: stamping reads the time, the world moves it on, and only then
+    * is the time read stamped, so a move with nothing to bound it would leave a stamp already old.
+    */
+  val tenSeconds = Node.assumption("The world moves the time on only while there are stamps, each at most ten " +
+    "seconds old.")(Clock.clockModel.schedule(stamps)((t, held) => !held.isEmpty && held.forall(x => t <= x + 10)))
 
-  /** What the schedule keeps, where time passing alone would break it (`freshStamps`). */
+  /** What the schedule keeps, where time passing alone would break it (`freshStamps`): a stamp is of a time already
+    * come (`pastWhileScheduled`), so a move within ten seconds of every stamp before is within ten of the one
+    * stamped now.
+    */
   val freshWhileScheduled = Node.claim("Every stamp is at most ten seconds old, as the schedule keeps it.")(
     always(stamps, Clock.clockModel)((held, t) => held.forall(x => t <= x + 10)))
+    .assuming(stampsKept, stampsOne, noStamps, clockStarts, tenSeconds)
+
+  /** `pastStamps` where the time passes as scheduled. */
+  val pastWhileScheduled = Node.claim("Every stamp is of a time already come, time passing as scheduled.")(
+    always(stamps, Clock.clockModel)((held, t) => held.forall(x => x <= t)))
     .assuming(stampsKept, stampsOne, noStamps, clockStarts, tenSeconds)
 
   val stampsScheduled = Node.claim("Stamping adds the time it runs at to the stamps, time passing as scheduled.")(
@@ -99,8 +110,8 @@ object Stamps:
       (c.now, c.sleep, c.elapse))
 
   /** A schedule kept: one rule time passing breaks alone, kept where the world moves the time as scheduled. */
-  val scheduled: FrModel = FrModel("Stamping")(freshWhileScheduled, stampsScheduled, tenSeconds, stampsKept,
-      stampsOne, noStamps, clockStarts)
+  val scheduled: FrModel = FrModel("Stamping")(freshWhileScheduled, pastWhileScheduled, stampsScheduled, tenSeconds,
+      stampsKept, stampsOne, noStamps, clockStarts)
     .implementProven(stamp)(stampCode)
     .implementTested(stampAt)(start = PlainShelf.holding, observe = _.held)(s => Tuple1(s.put))
     .implementTested(Clock.now, Clock.sleep, Clock.elapse)(start = Wall.at, observe = _.time)(c =>

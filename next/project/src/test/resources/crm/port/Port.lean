@@ -349,9 +349,9 @@ private def two : CrmStore := CrmStore.mk [acmeContact, globexDeal] [] []
 private def ann : Account := Account.mk "ann@acme" (TenantId.mk "acme")
 private def gil : Account := Account.mk "gil@globex" (TenantId.mk "globex")
 
-/-- Ann's add and Gil's, the database holding what they led to, at time 0. -/
+/-- Ann's add and Gil's, the database holding what they led to, at time 0, the world moving the time no further. -/
 private def twoAdded : World := World.mk (Tables.mk two [Event.Wrote (WriteCmd.mk ann (Change.Add acmeContact)),
-  Event.Wrote (WriteCmd.mk gil (Change.Add globexDeal))]) 0
+  Event.Wrote (WriteCmd.mk gil (Change.Add globexDeal))]) 0 []
 
 private theorem two_keyed : onePerKey two := by simp [two, onePerKey, acmeContact, globexDeal]
 

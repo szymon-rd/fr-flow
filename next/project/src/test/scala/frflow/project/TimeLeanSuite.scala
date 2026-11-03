@@ -29,10 +29,16 @@ class TimeLeanSuite extends munit.CatsEffectSuite:
     }
   }
 
+  /** Kept by the schedule, proven by hand (`resources/stamps/proofs`): stamping reads the time and the world's tick
+    * moves it before the stamp, so it rests on each stamp being of a time already come.
+    */
+  private val scheduledProofs = List("freshWhileScheduled").map(n =>
+    n -> Ported.resource(s"stamps/proofs/$n.lean"))
+
   test(("a schedule kept: a rule time passing alone would break holds where the world moves the time only as the " +
       "schedule allows, at the program's tick and between runs").tag(Live)) {
-    Ported.run(Projects.elaborated(Stamps.scheduled), Nil, Ported.Lean(Nil, Nil, None), Nil).map { r =>
-      List("freshWhileScheduled", "stampsScheduled").foreach(n =>
+    Ported.run(Projects.elaborated(Stamps.scheduled), Nil, Ported.Lean(scheduledProofs, Nil, None), Nil).map { r =>
+      List("freshWhileScheduled", "pastWhileScheduled", "stampsScheduled").foreach(n =>
         assertEquals(Ported.row(r.analysis, NodeId(n)).take(3).drop(1), List("proven", "proven"),
           s"$n\n${Ported.table(r.analysis)}"))
     }

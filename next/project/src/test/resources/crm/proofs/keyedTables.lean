@@ -39,7 +39,7 @@ theorem cover_save : Obl.cover_save := by
   exact id
 
 theorem cover_runExpiry : Obl.cover_runExpiry := by
-  intro expire _ hX _ now w _ h2 _
+  intro expire hX _ now w _ h2 _
   have he := Runs.expired_onePerKey expire hX now w h2
   revert he
   generalize expireOnce_run expire now w = p
