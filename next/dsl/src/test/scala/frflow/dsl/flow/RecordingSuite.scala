@@ -27,6 +27,12 @@ class RecordingSuite extends munit.FunSuite:
     assertEquals(steps(store.load.race(store.load)), "race(load; pure, load; pure); pure")
   }
 
+  test("a pair of branches giving nothing binds both results the pair reads, named, not wildcards") {
+    firstStep(read(Flow.parTupled(store.save(n(1)), store.save(n(2))))) match
+      case Prog.Par(_, a, _, b) => assertEquals((a.ty, b.ty, a.wildcard, b.wildcard), (Ty.Unit, Ty.Unit, false, false))
+      case other                => fail(other.toString)
+  }
+
   test("race is read as the scheduler's choice of the winner, the loser's steps until it is cancelled, the winner's") {
     val raced = read(store.load.race(store.save(n(1))))
     assertEquals(shape(Progs.sequential(firstStep(raced))),

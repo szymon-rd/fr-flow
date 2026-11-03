@@ -109,8 +109,9 @@ object ReadRecording:
           out <- bound(Prog.Catch(pb, err.ty, e, ph), t)
       yield out
 
+    /** Both branches, each result bound to a variable the pair reads: named, even of the unit. */
     private def par[L, R](l: Recorded[L], r: Recorded[R], t: LeanType[?]): Reading =
-      for (pl, tl) <- whole(l); (pr, tr) <- whole(r); a <- fresh(tl.ty); b <- fresh(tr.ty)
+      for (pl, tl) <- whole(l); (pr, tr) <- whole(r); a <- named(tl.ty); b <- named(tr.ty)
           out <- bound(Prog.Par(pl, a, pr, b), t)
       yield out
 
@@ -171,6 +172,8 @@ object ReadRecording:
 
   private def fresh(ty: Ty): State[Seen, Binder] =
     State(s => (s.copy(next = s.next + 1), Binder(VarId.step(s.next), if ty == Ty.Unit then "_$u" else "r", ty)))
+
+  private def named(ty: Ty): State[Seen, Binder] = fresh(ty).map(_.copy(hint = "r"))
 
   private def noted(a: Any): State[Seen, Unit] = a match
     case t: Term[?] => State.modify(s => s.copy(notes = s.notes |+| t.notes))
