@@ -1,6 +1,6 @@
 package frflow.proof.audit
 
-import frflow.core.analysis.{Resolve, Resolved}
+import frflow.core.analysis.{AtOnce, Resolve, Resolved}
 import frflow.core.code.Code
 import frflow.core.expr.{Expr, Exprs, Prog, Progs}
 import frflow.core.name.{DefName, LeanNames, ModelName, NodeId, SymbolName, TypeName}
@@ -20,8 +20,8 @@ import frflow.proof.lean.ast.LeanModule
   * does, and `made_<code>_call_<i>` at each call `i` of code not proven that proven code hands a `T`.
   *
   * Every stated node is asked what its place asks: with parts, `complete` (or `impl`); a claim of proven code (but
-  * one saying what a Declaration is, at the bottom), `impl`, and `commute_<i>` of each parallel step of the proven
-  * programs it mentions.
+  * one saying what a Declaration is, at the bottom), `impl`, and `commute_<i>` of each pair of steps at once of the
+  * proven programs it mentions that touch a model in common (`AtOnce`).
   */
 object Completeness:
   /** A discharge a node needs and the modules do not state. */
@@ -46,10 +46,10 @@ object Completeness:
       val saysWhat = !parts && mentioned.exists(s => t.vocabulary.symbol(s).exists(_.kind == ValueKind.Declaration))
       val impl = n.statement.kind == NodeKind.Claim && code.nonEmpty && !saysWhat
       val flows = if impl then code.collect { case (_, Code.ProvenFlow(f)) => f }.distinct else Nil
-      val parallel = flows.flatMap(program(r, _)).map(Progs.parallel(_).size).sum
+      val parallel = flows.flatMap(program(r, _)).map(AtOnce.all(t.vocabulary, _).size).sum
       (Option.when(impl)("impl" -> "it is claimed of proven code").toList ++
         Option.when(parts && !impl && !have.contains("impl"))("complete" -> "it has parts").toList ++
-        (0 until parallel).map(i => s"commute_$i" -> s"parallel step ${i + 1} of its proven programs"))
+        (0 until parallel).map(i => s"commute_$i" -> s"pair ${i + 1} of steps at once of its proven programs"))
         .filterNot((name, _) => have.contains(name)).map((name, why) => Missing(n.id, name, why))
     }
 

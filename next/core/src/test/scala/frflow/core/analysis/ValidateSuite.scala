@@ -34,6 +34,10 @@ class ValidateSuite extends munit.FunSuite:
       List(Problem.WorldsEqual(NodeId("sameWorld"))))
   }
 
+  test("a side at once that may fail beside one that neither fails nor changes a model: cut short, it did nothing") {
+    assertEquals(FailureCases.beside(changing = false).problems, Nil)
+  }
+
   cases.foreach { c =>
     test(s"${c.name}: reported, and nothing else") {
       assertEquals(c.kb.problems, c.expected)

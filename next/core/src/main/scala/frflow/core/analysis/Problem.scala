@@ -120,6 +120,11 @@ enum Problem:
     * race or a pair inside it is read.
     */
   case RaceSideHolds(program: DefName)
+  /** A program with steps at once one of which may let an error out beside another that may fail or changes a
+    * model's state (a traverse's body that may fail, beside itself): production cancels the others then, at whatever
+    * step each has reached, and the reading in turn does not read what they did until then.
+    */
+  case FailsBeside(program: DefName)
   /** A program's step calling a Definition that is no model's operation: only an operation on a state is a step
     * (owner §36); what it hands another program or plain Scala this way is not checked at the call (§37), until step
     * 12 gives such a call its form.

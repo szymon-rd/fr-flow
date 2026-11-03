@@ -16,10 +16,11 @@ import frflow.proof.layout.Fixture.*
   * … }`); `check` gives the booking it is given or raises (sharing's shape: a failed run changes nothing,
   * `.failsChangingNothing[String]`), its result a booking (`made_check`, of the runs that succeed); `spoil` puts a
   * booking and, when the shelf is down, puts it backwards and fails: what it leaves when it fails breaks
-  * `endsAfterStart`, so its `cover_` must not be proven; `fileTwice` puts the booking twice at once, which does not
-  * commute when each call's failure is the world's choice for it (`commute_0`, each branch its own faults, through
-  * `FrFlow.runOnE`): one failing while the other lands, the two orders leave two worlds. `fileWrong` says a failed run
-  * of `file` holds the booking: false, so its `impl` must not be proven.
+  * `endsAfterStart`, so its `cover_` must not be proven; `fileTwice` puts the booking twice at once, each side
+  * handling its put's failure: the two puts commute when each call's failure is the world's choice for it
+  * (`commute_0`, each its own faults and outcome, `FrFlow.caught`), as one list of faults would not show (the first
+  * put of either order taking its first). `fileWrong` says a failed run of `file` holds the booking: false, so its
+  * `impl` must not be proven.
   */
 object Failing:
   private val shelf = ModelName("shelved")
@@ -39,7 +40,9 @@ object Failing:
     Prog.Raise(v[String](e))))
 
   private val pair = Ty.TupleOf(List(Ty.Unit, Ty.Unit))
-  private val twice = Prog.Par(put(v(b)), step(0, "u", Ty.Unit), put(v(b)), step(1, "u2", Ty.Unit))
+  private val unit = term([T[_]] => (s: Sym[T]) => s.lit((), Value.Unit, Ty.Unit))
+  private def handled(i: Int) = Prog.Catch(put(v(b)), Ty.Str, step(i, "e", Ty.Str), Prog.Pure(unit))
+  private val twice = Prog.Par(handled(2), step(0, "u", Ty.Unit), handled(3), step(1, "u2", Ty.Unit))
 
   private def program(out: Ty): Ty = fn(Booking.ty, Ty.FlowOf(out, Some(Ty.Str))) // each declared to fail (owner §46)
   private def run[T[_], R](l: Lang[T], name: String, out: Ty, x: T[Booking]): T[Program[R]] =
@@ -79,7 +82,7 @@ object Failing:
   private val runClaims = List(claim("fileRuns")(fileRuns), claim("fileWrong")(fileWrong),
     claim("checkRuns")(checkRuns),
     claim("spoilRuns")(bothRuns[Booking, Unit]("spoil", Booking.ty, Ty.Unit, Ty.Str)),
-    claim("twiceRuns")(bothRuns[Booking, (Unit, Unit)]("fileTwice", Booking.ty, pair, Ty.Str)))
+    claim("twiceRuns")(runs[Booking, (Unit, Unit)]("fileTwice", Booking.ty, pair)))
 
   val kb: Kb = Kb.of((List(endsAfterStart, fromOutside("fromOutside")) ++ runClaims ++ facts)*)
     .modelling(model)
@@ -88,7 +91,7 @@ object Failing:
         flow("checkIt", List(b), checking, Booking.ty) ++ flow("spoilIt", List(b), spoiling, Ty.Unit) ++
         flow("fileBoth", List(b), twice, pair)))
     .naming(definition("file", program(Ty.Unit)), definition("check", program(Booking.ty)),
-      definition("spoil", program(Ty.Unit)), definition("fileTwice", program(pair)))
+      definition("spoil", program(Ty.Unit)), definition("fileTwice", fn(Booking.ty, Ty.FlowOf(pair, None))))
     .coding(SymbolName("file") -> Code.ProvenFlow(DefName("fileIt")),
       SymbolName("check") -> Code.ProvenFlow(DefName("checkIt")),
       SymbolName("spoil") -> Code.ProvenFlow(DefName("spoilIt")),

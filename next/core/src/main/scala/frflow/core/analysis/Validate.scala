@@ -130,11 +130,14 @@ object Validate:
     all(unclaimed.map(Problem.CodeWithoutClaim(_)) ++ Resolve.circles(t).map(Problem.RestsOnItself(_)) ++ runs ++
       differing ++ clauses ++ held(t) ++ steps(t) ++ providedBesideWorld(t) ++ writes(t))
 
-  /** A transaction inside a transaction, and a race's side holding what its loser's reading does not read. */
+  /** A transaction inside a transaction, a race's side holding what its loser's reading does not read, and steps at
+    * once cancelled by another's error.
+    */
   private def held(t: Theory): List[Problem] = t.vocabulary.defines.filter(_.form == DefineForm.Flow).flatMap(d =>
     d.lambda.body match
       case Expr.Do(p, _) => Option.when(Progs.nestsAtomic(p))(Problem.NestedAtomic(d.name)).toList ++
-          Option.when(Progs.holdsInSide(p))(Problem.RaceSideHolds(d.name)).toList
+          Option.when(Progs.holdsInSide(p))(Problem.RaceSideHolds(d.name)).toList ++
+          Option.when(AtOnce.failsBeside(t.vocabulary, p))(Problem.FailsBeside(d.name)).toList
       case _             => Nil)
 
   /** Every program's steps. */

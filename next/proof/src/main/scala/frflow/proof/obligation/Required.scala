@@ -113,8 +113,9 @@ object Required:
       case Ty.FnOf(ins, _) => ins.zipWithIndex.map((t, i) => s"x$i" -> t)
       case _               => Nil)
 
-  /** `commute_i` of each parallel step of the proven programs `n` is checked against (`Commutation`), numbered
-    * across them: either order of the branches gives the same result and leaves the same world.
+  /** `commute_i` of each pair of steps at once of the proven programs `n` is checked against (`Commutation`),
+    * numbered across them: one step of each side, touching a model in common, in either order give the same
+    * results and leave the same models.
     */
   def commutes(r: Resolved, n: NodeId): List[Obligation] =
     val flows = SaysWhat.checkedAgainst(r.theory, n).toList.flatMap(_.standsFor.keys).flatMap(op =>
@@ -123,6 +124,6 @@ object Required:
       (d, c))).zipWithIndex.map { case ((d, c), i) =>
       Obligation(ObligationName.Commute(i),
         Prop.over(Nil, Prop.Commutes(c, Callees.calledBy(r.theory, d.name))), Discharge.Auto,
-        s"The branches of parallel step ${i + 1} in ${d.name.value} commute: either order gives the same result " +
-          "and leaves the same world.")
+        s"Two steps at once in ${d.name.value}, one of each side, commute (pair ${i + 1}): either order gives the " +
+          "same results and leaves the same models.")
     }
