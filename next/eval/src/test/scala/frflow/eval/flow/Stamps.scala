@@ -69,6 +69,9 @@ object Stamps:
   val waitsAddUp = Node.claim("Two waits of ten seconds at once take twenty seconds at least.")(
     clockModel.in(waited.after) >= clockModel.current + 20)
 
+  /** Seeded: the time standing still (an `isConstant` time passing breaks, as every run that looks at it does). */
+  val timeStill = Node.claim("The time never moves.")(clockModel.current.isConstant)
+
   /** Seeded: a race lost to a wait said to take more than the wait's seconds. */
   val waitWinsLate = Node.claim("When the wait wins, ten seconds passed.")(
     raced.result.fold(_ => True, _ => clockModel.in(raced.after) >= clockModel.current + 10))
@@ -120,4 +123,4 @@ object Stamps:
   /** What holds of the code as time passes. */
   val kept: FrModel = stamped(pastStamps, stampsTheTime, firesLate, waitWins, waitsAtOnce)
   /** Each a bug time passing finds. */
-  val seeded: FrModel = stamped(freshStamps, stampTakesNoTime, neverGivenUp, waitsAddUp, waitWinsLate)
+  val seeded: FrModel = stamped(freshStamps, stampTakesNoTime, neverGivenUp, waitsAddUp, waitWinsLate, timeStill)

@@ -24,9 +24,21 @@ class TimeLeanSuite extends munit.CatsEffectSuite:
   test(("the bugs time passing finds stay unproven: a rule it breaks, a run taking no time, a limit never firing, " +
       "waits at once adding up").tag(Live)) {
     Ported.run(Projects.elaborated(Stamps.seeded), Nil, Ported.Lean(Nil, Nil, None), Nil).map { r =>
-      List("freshStamps", "stampTakesNoTime", "neverGivenUp", "waitsAddUp", "waitWinsLate").foreach(n =>
+      List("freshStamps", "stampTakesNoTime", "neverGivenUp", "waitsAddUp", "waitWinsLate", "timeStill").foreach(n =>
         assert(Ported.unproven(r.analysis).contains(n), s"$n\n${Ported.table(r.analysis)}"))
     }
+  }
+
+  /** The module of `name` in the stamps' Lean, as printed. */
+  private def printed(m: frflow.FrModel, name: String): String =
+    Projects.bare(Projects.elaborated(m)).modules.find(_.name.dotted == name)
+      .map(frflow.proof.lean.print.Print.module).getOrElse(fail(s"no $name"))
+
+  test("time passing is asked of what reads the clock: a rule's cover_elapse, an isConstant's equation for elapse; " +
+      "waits at once end at the time reached from where the sides start") {
+    assert(printed(Stamps.seeded, "FrFlowGen.Stamping.freshStamps.Spec").contains("def cover_elapse"))
+    assert(printed(Stamps.seeded, "FrFlowGen.Stamping.timeStill.Spec").contains("ClockModel.elapse_run"))
+    assert(printed(Stamps.kept, "FrFlowGen.Stamping.Domain.Def_waitedCode").contains("FrFlow.Waits.reach"))
   }
 
   /** Kept by the schedule, proven by hand (`resources/stamps/proofs`): stamping reads the time and the world's tick

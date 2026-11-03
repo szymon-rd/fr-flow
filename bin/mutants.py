@@ -19,7 +19,7 @@ OBLIGATION = "next/proof/src/main/scala/frflow/proof/obligation/"
 TERMS = "next/proof/src/main/scala/frflow/proof/terms/"
 BROKEN = ["next-proof/Lean/testOnly frflow.proof.layout.BrokenLeanSuite"]
 ASSUMED = ["next-project/testOnly frflow.project.assumed.RefusedSuite"]
-TIME = ["next-project/Lean/testOnly frflow.project.TimeLeanSuite"]
+TIME = ["next-project/testOnly frflow.project.TimeLeanSuite", "next-project/Lean/testOnly frflow.project.TimeLeanSuite"]
 SUITES = ["next-project/testOnly frflow.project.CompletenessSuite frflow.project.ObligationNamesSuite",
           "next-eval/testOnly whole.RulesSuite whole.CaptureSuite",
           "next-proof/testOnly frflow.proof.obligation.RequiredSuite frflow.proof.obligation.AlwaysSuite"]
@@ -117,7 +117,8 @@ MUTANTS = [
      ["next-testing/testOnly frflow.testing.AssumedModelSuite"]),
     ("assumed-at-once", "next/testing/src/main/scala/frflow/testing/model/CallsAtOnce.scala",
      "if List(first, second).exists(st => check.model.isAssumed(st.op)) then againstItself(held, first, second)",
-     "if List(first, second).exists(st => check.model.isAssumed(st.op)) then F.pure(None)",
+     "if List(first, second).exists(st => check.model.isAssumed(st.op)) then againstItself(held, first, second)" +
+     ".map(_ => Option.empty[Difference])",
      "two calls at once of an operation known only by assumptions are not tried (R-S1)",
      ["next-testing/testOnly frflow.testing.ModelRunsSuite"]),
     ("elapse-cover", OBLIGATION + "Required.scala", "    } ++ outside(r, n)\n", "    } ++ outside(r, n).take(0)\n",
