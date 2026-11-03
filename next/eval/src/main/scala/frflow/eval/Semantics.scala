@@ -21,6 +21,9 @@ final class Semantics(e: Elaborated):
     val run = of(w.form)
     Applied((env, args) => run(w.value.params.map(_.id).zip(args).foldLeft(env)((en, xv) => en.bind(xv._1, xv._2))))
 
+  /** Whether the FrModel gives a generator of values of the type. */
+  def generates(t: Ty): Boolean = e.generators.exists(_.ty == t)
+
   /** A constant as Scala holds it, and a Scala value as a constant: both by its type. */
   def literal(v: Value, t: Ty): ScalaValue = literals(v, t)
   def reflect(v: ScalaValue, t: Ty): Value = reflected(v, t)
