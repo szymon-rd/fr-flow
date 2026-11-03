@@ -54,6 +54,21 @@ MUTANTS = [
      "bound(x, made(first, written).orElse(guarded(x.ty)), env, written ++ writes(first))(rest)",
      "made_ at a call assumes the rules of every value a step binds, not only of an operation's result",
      ["next-proof/Lean/testOnly frflow.proof.layout.calls.RowsViaBranchLeanSuite"]),
+    ("atonce-pairs", "next/core/src/main/scala/frflow/core/analysis/AtOnce.scala",
+     "&& models(v, ua(i)).exists(models(v, ub(j)))", "&& models(v, ua(i)).exists(models(v, ub(j))) && i < 0",
+     "no two steps at once are asked to commute: the reading in turn stands for runs it does not"),
+    ("atonce-whole", "next/core/src/main/scala/frflow/core/analysis/AtOnce.scala",
+     "case (true, true)   => atomic(a) == atomic(b)", "case (true, true)   => true",
+     "a transaction is taken as one step beside a call, which may come between its calls",
+     ["next-core/testOnly frflow.core.analysis.AtOnceSuite"]),
+    ("running-call", "next/eval/src/main/scala/frflow/eval/Running.scala",
+     "if op == Clock.sleep.name then call else F.uncancelable(_ => call)", "call",
+     "production cancels an operation's call part way, which Lean reads all or nothing",
+     ["next-eval/testOnly frflow.eval.RunningSuite"]),
+    ("running-atomic", "next/eval/src/main/scala/frflow/eval/Running.scala",
+     "F.uncancelable(_ => lock.lock.surround(of(body)))", "lock.lock.surround(of(body))",
+     "production cancels a transaction part way, which Lean reads as one step",
+     ["next-eval/testOnly frflow.eval.RunningSuite"]),
 ]
 
 
