@@ -76,8 +76,9 @@ object Required:
     */
   def hypotheses(r: Resolved, n: NodeId): List[NodeId] = Resolve.below(r.theory, n)
 
-  /** A claim about operations on a state alone, at the bottom with no code standing in it: proven of the models'
-    * meanings, given what is assumed of those known only by assumptions (nothing else would check it).
+  /** A claim about operations on a state alone, at the bottom with no code standing in it: asked `impl`, given what
+    * is assumed of those known only by assumptions (nothing else would check it). A statement's run of an operation
+    * with steps is not read as its steps yet, so a claim about one stays open: fail closed.
     */
   private def ofModels(r: Resolved, n: NodeId): Option[Callees] =
     val t = r.theory

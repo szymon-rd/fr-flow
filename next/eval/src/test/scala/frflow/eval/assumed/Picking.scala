@@ -68,7 +68,9 @@ object Picking:
   /** The claim about `pick` alone. */
   val lone: FrModel = coded(FrModel("Lone")(pickedPositive, pickKeeps, registerOnly))
 
-  /** Claims about `put` alone, of its meaning: one false (the register left empty), one true (it holds the number). */
+  /** Claims about `put` alone: one false (the register left empty), one true (it holds the number). A statement's
+    * run of an operation with steps is not read as its steps yet, so neither is proven.
+    */
   val putEmpties = Node.claim("Putting a number leaves the register empty.")(
     forall((n: Term[BigInt]) => register.in(put(n).after) === (Nil: Term[List[BigInt]])))
   val putHolds = Node.claim("Putting a number, the register holds it.")(

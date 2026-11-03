@@ -83,9 +83,10 @@ class AssumedLeanSuite extends munit.CatsEffectSuite:
       assertNotEquals(part(1)._2, List("claim", "proven", "proven"), t2)
   }
 
-  test("a claim about operations on a state alone is asked of their meaning: the false one open, the true proven"
+  test(("a claim about operations on a state alone is asked impl, where it was asked nothing and so stood proven: a " +
+    "statement's run of an operation with steps is not read as its steps yet, so both stay open (fail closed)")
     .tag(Live)) {
     rows(Picking.puts, "putEmpties", "putHolds").map((rs, table) =>
       assertEquals(rs, List("putEmpties" -> List("claim", "open", "open"),
-        "putHolds" -> List("claim", "proven", "proven")), table))
+        "putHolds" -> List("claim", "open", "open")), table))
   }

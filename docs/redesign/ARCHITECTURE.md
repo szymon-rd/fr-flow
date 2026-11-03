@@ -1282,9 +1282,10 @@ agreeing, and the model tests call its Scala again on the Scala made holding the
 give and leave the same (`Difference.Twice`: a lookup flipping a coin is found). What is assumed of it reads its own
 model only (`ReadsBeside`, 2.8): what it needs of another is handed to it as an input, as keycloak's draw is shown the
 requests the store has logged (`nextRequest(handled)`, `drawnTokens` fresh against them, tested on the inbox's runs).
-Only its assumptions are taken of it (`Constrained.assumptions`): a claim about it is proven from them (`impl`, as any
-claim about operations on a state alone is, of the models' meanings), never a hypothesis of code calling it, so no
-proof takes as given what it is to show (the review's B3); the circles `Validate` refuses are walked along what each
+Only its assumptions are taken of it (`Constrained.assumptions`): a claim about it is proven from them (`impl`, asked
+of any claim about operations on a state alone, which was asked nothing and stood proven; one about an operation with
+steps stays open for now, a statement's run of it not read as its steps), never a hypothesis of code calling it, so
+no proof takes as given what it is to show (the review's B3); the circles `Validate` refuses are walked along what each
 `complete` and `impl` takes (`Resolve.below`). Its results are values from outside (owner §37, `AssumedMakes`, 2.3).
 An assumption about it that its model's runs cannot evaluate (not read as a run of it, or its post with no Scala
 value) is trusted, not tested, and `show`, `check` and `status` say so (`Checking.TrustedUntested`,
