@@ -1,4 +1,4 @@
-package frflow.eval.flow
+package frflow.eval.assumed
 
 import cats.effect.{IO, Ref}
 import frflow.*
@@ -48,8 +48,12 @@ object Lookup:
   object Indexed:
     def holding(xs: List[BigInt], forgets: Boolean = false): IO[Indexed] = Ref[IO].of(xs).map(Indexed(_, forgets))
 
-  private def registers(answer: Node) = FrModel("Registers")(noDuplicates, putOnceStores, registerOnly,
-    registerOne, startsEmpty, answer, hasKeeps)
+  /** Two lookups of equal numbers answer alike: two runs of `has` in one statement, which no run of it reads. */
+  val hasAlike = Node.assumption("The index answers alike for equal numbers.")(
+    forall((n: Term[BigInt], m: Term[BigInt]) => (m === n) implies (has(m).result === has(n).result)))
+
+  private def registers(answer: Node*) = FrModel("Registers")((List(noDuplicates, putOnceStores, registerOnly,
+    registerOne, startsEmpty) ++ answer :+ hasKeeps)*)
     .implementProven(putOnce)(putOnceCode)
     .implementTested(put, has)(start = Indexed.holding(_), observe = _.numbers)(i => (i.put, i.has))
 
@@ -57,3 +61,5 @@ object Lookup:
   val knowledge: FrModel = registers(hasAnswers)
   /** The index assumed only to be right when it says yes: the rule not shown kept. */
   val halfAssumed: FrModel = registers(hasSound)
+  /** The index assumed to answer exactly, and alike for equal numbers, which the runs cannot evaluate. */
+  val alike: FrModel = registers(hasAnswers, hasAlike)

@@ -3,7 +3,7 @@ package frflow.testing
 import cats.effect.IO
 import cats.effect.unsafe.implicits.global
 import frflow.eval.Semantics
-import frflow.eval.flow.Lookup
+import frflow.eval.assumed.Lookup
 import frflow.core.name.{NodeId, SymbolName}
 import frflow.testing.derive.Derive
 import frflow.testing.model.{Difference, ModelRuns, ModelTests, Ran}

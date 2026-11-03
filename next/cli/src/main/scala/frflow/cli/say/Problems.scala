@@ -77,6 +77,11 @@ object Problems:
         s"${m.value}'s state: an assumption must say what its runs leave (${op.value}(…).after)"
     case Problem.AssumedFailing(op, m)      => s"${op.value} is known only by assumptions, but ${m.value}'s " +
         "operations may fail: give it its steps (means), or keep it on a model that does not fail"
+    case Problem.ReadsBeside(a, op, m)      => s"${a.value} is assumed of ${op.value}, known only by assumptions, " +
+        s"but reads ${m.value}: its runs are of its own model's state alone, so it would be said of every state of " +
+        s"${m.value}; hand what it needs to it as an input, or say it of ${m.value}'s own operations"
+    case Problem.AssumedMakes(n, op)        => s"${n.value} is a claim of always on what ${op.value} gives, which " +
+        "is known only by assumptions: its results come from outside (owner §37), so make it an assumption"
 
   private def premise(p: Premise): String = p match
     case Premise.OnlyCodeChanges(m) => s"nothing outside the code changing ${m.value} (${m.value}.onlyCodeChanges)"

@@ -20,8 +20,9 @@ import frflow.proof.lean.ast.LeanModule
   * does, and `made_<code>_call_<i>` at each call `i` of code not proven that proven code hands a `T`.
   *
   * Every stated node is asked what its place asks: with parts, `complete` (or `impl`); a claim of proven code (but
-  * one saying what a Declaration is, at the bottom), `impl`, and `commute_<i>` of each pair of steps at once of the
-  * proven programs it mentions that touch a model in common (`AtOnce`).
+  * one saying what a Declaration is, at the bottom), or of operations on a state alone at the bottom, `impl`, and
+  * `commute_<i>` of each pair of steps at once of the proven programs it mentions that touch a model in common
+  * (`AtOnce`).
   */
 object Completeness:
   /** A discharge a node needs and the modules do not state. */
@@ -44,10 +45,14 @@ object Completeness:
       val code = proven(r).filter((s, _) => mentioned(s))
       val parts = t.refinement.parts(n.id).nonEmpty
       val saysWhat = !parts && mentioned.exists(s => t.vocabulary.symbol(s).exists(_.kind == ValueKind.Declaration))
-      val impl = n.statement.kind == NodeKind.Claim && code.nonEmpty && !saysWhat
+      val claim = n.statement.kind == NodeKind.Claim && !saysWhat
+      val modelled = !parts && !n.statement.rule && mentioned.exists(s => t.code.attached.get(s).exists(_.code match
+        case Code.Modelled(_) => true
+        case _                => false))
+      val impl = claim && (code.nonEmpty || modelled)
       val flows = if impl then code.collect { case (_, Code.ProvenFlow(f)) => f }.distinct else Nil
       val parallel = flows.flatMap(program(r, _)).map(AtOnce.all(t.vocabulary, _).size).sum
-      (Option.when(impl)("impl" -> "it is claimed of proven code").toList ++
+      (Option.when(impl)("impl" -> "it is claimed of proven code or of operations on a state").toList ++
         Option.when(parts && !impl && !have.contains("impl"))("complete" -> "it has parts").toList ++
         (0 until parallel).map(i => s"commute_$i" -> s"pair ${i + 1} of steps at once of its proven programs"))
         .filterNot((name, _) => have.contains(name)).map((name, why) => Missing(n.id, name, why))

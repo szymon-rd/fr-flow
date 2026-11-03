@@ -1,5 +1,6 @@
-package frflow.core.analysis
+package frflow.core.analysis.refused
 
+import frflow.core.analysis.{Constrained, Problem}
 import frflow.core.Theory
 import frflow.core.code.Code
 import frflow.core.spec.Range

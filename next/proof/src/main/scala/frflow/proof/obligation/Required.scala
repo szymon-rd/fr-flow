@@ -2,12 +2,13 @@ package frflow.proof.obligation
 
 import cats.data.NonEmptyList
 import cats.syntax.all.*
-import frflow.core.analysis.{Callees, Constrained, Resolved, SaysWhat, Scope}
+import frflow.core.analysis.{Callees, Constrained, Resolve, Resolved, SaysWhat, Scope}
 import frflow.core.Failing
 import frflow.core.term.interpret.Guard
 import frflow.core.code.Code
 import frflow.core.name.{DefName, NodeId, SymbolName}
-import frflow.core.spec.CallForm
+import frflow.core.expr.Mentions
+import frflow.core.spec.{CallForm, NodeKind}
 import frflow.core.ty.Ty
 import frflow.core.vocab.SymbolType
 import frflow.proof.terms.{Commutation, Keeping}
@@ -55,7 +56,7 @@ object Required:
     * value the claim or its code reads stands as that value (2.7), in the claim and in each part reading it.
     */
   def impl(r: Resolved, n: NodeId): List[Obligation] =
-    SaysWhat.checkedAgainst(r.theory, n).toList.map { c =>
+    SaysWhat.checkedAgainst(r.theory, n).orElse(ofModels(r, n)).toList.map { c =>
       val hyps = hypotheses(r, n)
       val fixed = Fixed.of(r, (n :: hyps).flatMap(Constrained.of(r.theory, _)) ++ c.standsFor.keys)
       val code = c.standsFor.view.mapValues(Substitute.Code(_)).toMap ++ fixed
@@ -70,11 +71,21 @@ object Required:
     }
 
   /** What `impl` of a node rests on: the parts it states, or for a leaf what its code relies on; and always what is
-    * assumed of an operation known only by assumptions its code calls (G2): what such a step does is nothing else.
+    * assumed of an operation known only by assumptions it or its code reaches (G2, `Resolve.assumedOf`): what such a
+    * step does is nothing else. The circles `Validate` refuses are walked along the same (`Resolve.below`).
     */
-  def hypotheses(r: Resolved, n: NodeId): List[NodeId] =
-    (r.provenFrom(n) ++ r.reliesOn(n).filter(h => Constrained.of(r.theory, h).exists(r.theory.vocabulary.isAssumed)))
-      .distinct
+  def hypotheses(r: Resolved, n: NodeId): List[NodeId] = Resolve.below(r.theory, n)
+
+  /** A claim about operations on a state alone, at the bottom with no code standing in it: proven of the models'
+    * meanings, given what is assumed of those known only by assumptions (nothing else would check it).
+    */
+  private def ofModels(r: Resolved, n: NodeId): Option[Callees] =
+    val t = r.theory
+    val modelled = Constrained.of(t, n).exists(s => t.code.attached.get(s).exists(_.code match
+      case Code.Modelled(_) => true
+      case _                => false))
+    Option.when(modelled && t.node(n).exists(x => x.statement.kind == NodeKind.Claim && !x.statement.rule) &&
+      !SaysWhat.is(t, n) && t.refinement.parts(n).isEmpty)(Callees(Map.empty, Mentions.empty))
 
   private def mentions(r: Resolved, n: NodeId, s: SymbolName): Boolean = Constrained.of(r.theory, n).contains(s)
 

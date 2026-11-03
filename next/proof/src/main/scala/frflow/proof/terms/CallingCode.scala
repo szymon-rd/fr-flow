@@ -4,7 +4,7 @@ import frflow.core.analysis.outside.{Guards, Reads}
 import frflow.core.code.Code
 import frflow.core.expr.{Binder, Expr}
 import frflow.core.name.{DefName, SourceText, SymbolName, VarId}
-import frflow.core.spec.{Form, Written}
+import frflow.core.spec.{Form, NodeKind, Written}
 import frflow.core.term.{Bound, Sym}
 import frflow.core.term.interpret.{Guard, ToExpr}
 import frflow.core.Theory
@@ -27,13 +27,15 @@ object CallingCode:
   def of(t: Theory): List[CallingCode] =
     val covered = Covered.of(t)
     val all = Guards.byAlways(t).map(_._2)
+    val outside = Guards.byAlways(t).filter((n, _) => t.node(n).exists(_.statement.kind == NodeKind.Assumption))
+      .map(_._2)
     t.code.attached.toList.sortBy(_._1.value).flatMap((d, a) => a.code match
       case Code.Proven(c)     => t.vocabulary.define(c).map(coded(d, _, all)(
           [T[_]] => (s: Sym[T], env: Map[VarId, T[Any]]) => body(s, covered, env, _)))
       case Code.ProvenFlow(f) =>
         val reading = Guards.reading(t, Reads.ofProgram(t, d)).map(_._2)
         t.vocabulary.define(f).map(coded(d, _, reading)(
-          [T[_]] => (s: Sym[T], env: Map[VarId, T[Any]]) => CallSites(s, covered, all).of(env)))
+          [T[_]] => (s: Sym[T], env: Map[VarId, T[Any]]) => CallSites(s, covered, all, outside).of(env)))
       case _                  => None).filter(_.calls.nonEmpty)
 
   private type Read = [T[_]] => (Sym[T], Map[VarId, T[Any]]) => Define => List[AtCall[T]]

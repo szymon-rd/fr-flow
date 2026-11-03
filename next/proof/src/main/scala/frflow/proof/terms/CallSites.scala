@@ -14,9 +14,11 @@ import frflow.core.vocab.Define
   * Nothing is assumed of a value the program binds but where it is (an element of its list) and, of an operation's
   * result, the rules `made_<op>` proves of it on its model, `guards`, while no step that may run before it has written
   * that model's state (`made_<op>` is of a state meeting what always holds of it): the steps before it on the path,
-  * a loop's body in its earlier iterations, a failed body before its handler.
+  * a loop's body in its earlier iterations, a failed body before its handler. An operation known only by assumptions
+  * is asked no `made_`: its results are values from outside (owner §37), meeting what is assumed of them only,
+  * `outside` (the guards of the assumptions of `always`).
   */
-final class CallSites[T[_]](s: Sym[T], covered: Covered, guards: List[Guard]):
+final class CallSites[T[_]](s: Sym[T], covered: Covered, guards: List[Guard], outside: List[Guard]):
   private type Env = Map[VarId, T[Any]]
 
   /** A program's define's steps. */
@@ -74,14 +76,17 @@ final class CallSites[T[_]](s: Sym[T], covered: Covered, guards: List[Guard]):
     // What a loop runs over is a list, as the recording reads it.
     Some(v => s.contains(xs.t.asInstanceOf[T[List[Any]]], v))
 
-  /** Of an operation's result on a state no step before has written: the rules on its type `made_<op>` proves. */
+  /** Of an operation's result on a state no step before has written: the rules on its type `made_<op>` proves; of
+    * one known only by assumptions, what values from outside meet.
+    */
   private def made(first: Prog[Stated[?]], written: Set[ModelName]): Option[T[Any] => T[Boolean]] = first match
-    case Prog.Call(op, _, ty) if covered.operations.get(op).exists(o => !o.assumed && !written(o.model)) =>
-      guarded(Ty.yields(ty))
-    case _                                                                                 => None
+    case Prog.Call(op, _, ty) => covered.operations.get(op).flatMap(o =>
+        if o.assumed then guarded(Ty.yields(ty), outside)
+        else Option.when(!written(o.model))(guarded(Ty.yields(ty), guards)).flatten)
+    case _                    => None
 
-  private def guarded(ty: Ty): Option[T[Any] => T[Boolean]] =
-    Option(guards.flatMap(_.of[T, Any](ty, s))).filter(_.nonEmpty).map(gs => v => gs.map(_(v)).reduceLeft(s.and))
+  private def guarded(ty: Ty, by: List[Guard]): Option[T[Any] => T[Boolean]] =
+    Option(by.flatMap(_.of[T, Any](ty, s))).filter(_.nonEmpty).map(gs => v => gs.map(_(v)).reduceLeft(s.and))
 
   /** The models a step's operations write. */
   private def writes(p: Prog[Stated[?]]): Set[ModelName] = Progs.all(p).collect {

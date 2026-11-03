@@ -1,8 +1,8 @@
-package frflow.project.program
+package frflow.project.assumed
 
 import frflow.core.analysis.Validate
 import frflow.core.name.NodeId
-import frflow.eval.flow.Lookup
+import frflow.eval.assumed.{Lookup, Picking}
 import frflow.project.{Live, Ported, Projects}
 import frflow.proof.lean.print.Print
 import scala.concurrent.duration.*
@@ -66,4 +66,26 @@ class AssumedLeanSuite extends munit.CatsEffectSuite:
       assertEquals(Ported.row(r.analysis, NodeId("putOnceStores")).take(3), List("claim", "proven", "proven"),
         Ported.table(r.analysis))
     }
+  }
+
+  private val none = Ported.Lean(Nil, Nil, None)
+  private def rows(kb: frflow.FrModel, ns: String*) = Ported.run(Projects.elaborated(kb), Nil, none, Nil).map(r =>
+    ns.toList.map(n => n -> Ported.row(r.analysis, NodeId(n)).take(3)) -> Ported.table(r.analysis))
+
+  test(("a claim about an operation known only by assumptions is proven from what is assumed of it, alone or as a " +
+    "part: nothing says a picked number is positive, so neither it nor the claim it serves is (B3)").tag(Live)) {
+    for
+      (lone, t1) <- rows(Picking.lone, "pickedPositive")
+      (part, t2) <- rows(Picking.AsPart.knowledge, "pickedPositive", "takenPositive")
+    yield
+      assertEquals(lone, List("pickedPositive" -> List("claim", "open", "open")), t1)
+      assertEquals(part.head, "pickedPositive" -> List("claim", "open", "open"), t2)
+      assertNotEquals(part(1)._2, List("claim", "proven", "proven"), t2)
+  }
+
+  test("a claim about operations on a state alone is asked of their meaning: the false one open, the true proven"
+    .tag(Live)) {
+    rows(Picking.puts, "putEmpties", "putHolds").map((rs, table) =>
+      assertEquals(rs, List("putEmpties" -> List("claim", "open", "open"),
+        "putHolds" -> List("claim", "proven", "proven")), table))
   }

@@ -1,5 +1,6 @@
 package frflow.core.analysis
 
+import frflow.core.analysis.refused.{Assumed, Bounded, Unreached}
 import cats.data.{NonEmptyChain, Validated, ValidatedNec}
 import cats.syntax.all.*
 import frflow.core.{Elaborated, Failing, Theory}

@@ -131,13 +131,25 @@ enum Problem:
     */
   case StepNotOperation(program: DefName, called: SymbolName)
   /** An operation known only by assumptions (G2) of a model a rule is about, no assumption saying what its runs leave:
-    * no program calling it could be shown to keep the rule (`cover_`).
+    * no program calling it could be shown to keep the rule (`cover_`). Only that some assumption reads the world a
+    * run of it leaves is checked, a help to the author, not soundness: one saying nothing of it (`after === after`)
+    * passes here, and the `cover_` then stays unproven.
     */
   case LeavesUnsaid(operation: SymbolName, model: ModelName)
   /** An operation known only by assumptions of a model whose operations may fail: a failing call is the world's
     * choice, which a run known only by assumptions does not take.
     */
   case AssumedFailing(operation: SymbolName, model: ModelName)
+  /** An assumption about an operation known only by assumptions reading the state of another model (or running its
+    * operations): in Lean the operation's runs are of its own model's state alone, so the assumption is said of every
+    * state of the other beside every one of its own, which can force it to say nothing of what it says (that no
+    * request handed on carries a token, of a draw said to be fresh against another model's log).
+    */
+  case ReadsBeside(assumption: NodeId, operation: SymbolName, model: ModelName)
+  /** A claim of `always[T]` where an operation known only by assumptions gives values holding a `T`: they are values
+    * from outside (owner §37), which no covered code makes, so only an assumption of `always` on `T` covers them.
+    */
+  case AssumedMakes(rule: NodeId, operation: SymbolName)
 
 object Problem:
   /** Where a type sits that an `always` would guard (`Unreached`): a variable a statement quantifies over, a store's

@@ -59,3 +59,13 @@ class LeanShapeSuite extends munit.FunSuite:
       .filter(_.tried.exists(_.name == ObligationName.Tried(TryKind.Idle))).map(_.node.value)
     assertEquals(tried, List("expiryJob"))
   }
+
+  test("a step with parts over the screens' programs rests on what is assumed of the database's search they call " +
+    "(G2): its impl takes recordsByQuery and searchKeeps beside its parts") {
+    val a = Projects.bare(Projects.elaborated(knowledge))
+    val spec = a.modules.find(_.name.dotted == "FrFlowGen.Crm.visibility.Spec").map(Print.module)
+      .getOrElse(fail("no spec"))
+    val impl = spec.linesIterator.dropWhile(!_.contains("def impl ")).slice(1, 2).mkString
+    assert(List("recordsByQuery", "searchKeeps").forall(n => impl.contains(s"(h_$n : (Crm.$n.claim fetch))")), impl)
+    assert(a.decided.theory.refinement.parts(NodeId("visibility")).nonEmpty)
+  }
