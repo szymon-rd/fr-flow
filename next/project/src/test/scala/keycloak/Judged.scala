@@ -82,7 +82,7 @@ object Judged:
     "StoreOnlyCode" -> List("assumption", "assumed", "", "1000"),
     "StoreOneAtATime" -> List("assumption", "assumed", "", ""),
     "StoreStarts" -> List("assumption", "assumed", "", ""),
-    // What the HTTP API hands the server: trusted (its runs read the store, which the inbox's own runs lack).
+    // What the HTTP API hands the server: tested against drawnTokens on the inbox's runs, shown the log as its input.
     "DrawnTokens" -> List("assumption", "assumed", "proven", ""),
     "HandedOneAtATime" -> List("assumption", "assumed", "", ""),
     // New claims of the server's programs.
