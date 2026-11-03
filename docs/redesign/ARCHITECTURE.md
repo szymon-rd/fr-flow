@@ -195,16 +195,15 @@ What a statement may say, so that its Lean meaning is the one written wherever i
   another). There is one `Flow` (§42).
 - **A value provided where the code runs is not read beside the World** (owner §45 D, `Problem.ProvidedBesideWorld`):
   it is the same in every world. No port reads one so (`rooms.ReviewSuite`). Owner §45 D, that "now" and the
-  histories the ports read as provided values are part of the World, **is not done**: each port's
-  `Judged.provided` says how each of its provided values stands (`Ported.OnD`), the suites pinning which are open.
-  Crm's clock and sharing's history and "now" wait on G1, time passing between runs (the World's clock moves only by
-  the programs' sleeps, so a wait outside a program has no step, and a schedule assumed of the run would be asked
-  `cover_` of every program), put to the owner with a proposal: an outside step of a model (the clock's `elapse`,
-  taken by the world between runs, never going back, the schedule an assumption restricting it). Crm's history and
-  what it holds and keycloak's history and state wait on G2, programs calling operations known only by their
-  assumptions (4.4), whose form is ruled but not yet built. Auth's two tables, read in one moment only (no statement of auth reads two worlds), are a
-  question to the owner, the builder's view that they stay provided. Configuration fixed for the run (keycloak's
-  seed, sharing's start) is not "now" or a history and stays provided.
+  histories the ports read as provided values are part of the World, is done for crm and keycloak (step 13c, by G2,
+  4.4): crm's history and what it holds are its database's model's (`databaseModel.current.events`, `.store`), its
+  clock FrFlow's clock model's (`Clock.clockModel.current`); keycloak's history, state and accounts as loaded its
+  store's. Each port's `Judged.provided` says how each value it still provides stands (`Ported.OnD`), the suites
+  pinning which are open. Time passing between runs (owner §47's `elapse`, G1) is not built yet: crm's clock is the
+  clock model's, which no crm program moves, so its statements hold at whatever time a world holds and none yet
+  relates two times; sharing's history and "now" wait on it, put to the owner with a proposal and ruled (§47). Auth's
+  two tables, read in one moment only, stay provided (owner §48). Configuration fixed for the run (keycloak's seed,
+  sharing's start) is not "now" or a history and stays provided.
 
 **`isConstant`** (owner §44, §45 A). `t.isConstant`, of any value `t` read in a statement, says that no run of any
 program from the world the statement holds in changes `t`, whatever the run's outcome: TLA+'s `□[c ⇒ t′ = t]`, where
@@ -594,12 +593,12 @@ hold (owner §15, §18).
   equation read through a run (`bookedAfter(request).current === storedBookings.in(book(request).after)`) gives its
   witness over the run's outcome. `Equations.defining` reads the shape off the IR; `Defining` builds the term.
 - **Pinned provided values.** A provided value that an assumption of the group equates to a term is solved by that
-  equation, like an open value; the provided values no assumption pins stay universal (asked of every value).
-  keycloak's `state` is solved by `serverRun`, crm's `held` by `crmRun`; auth's session table, which an assumption
-  only bounds, is asked of every value (`PinnedSuite`). A pinned value joins groups as an open one does, so every
-  statement mentioning it is in one group, which solves it once: two groups never choose it apart, and an
-  assumption whose only value is a pinned one has a group (`SeededSuite`'s `TwoPins` and `Closed`).
-  (step 12 ruling)
+  equation, like an open value; the provided values no assumption pins stay universal (asked of every value):
+  `SeededSuite`'s `TwoPins` (keycloak's state and crm's store, which step 12 solved so, are the World's now, owner
+  §45 D); auth's session table, which an assumption only bounds, is asked of every value (`PinnedSuite`). A pinned
+  value joins groups as an open one does, so every statement mentioning it is in one group, which solves it once: two
+  groups never choose it apart, and an assumption whose only value is a pinned one has a group (`SeededSuite`'s
+  `TwoPins` and `Closed`). (step 12 ruling)
 - **Code all the way down.** What stands in a group's statements is closed over the code: a Definition with proven
   code reached only through another's code has its code stand too (`Stands`, `Callees.reaching`), and its open
   values are the group's. A value provided where the code runs that the standing code reaches is the group's too:
@@ -1206,14 +1205,20 @@ program's recording run on the models gives what `Running` gives on the models' 
 included.
 
 **An operation known only by its assumptions** (G2, ruled within owner §36, "a Definition known only by assumptions is
-the assumed case"; not yet built). An operation of a `StateModel` with no `means` is opaque in Lean: a constant of its
-model's state monad, run on its own field of the World through `within`, so it touches only its field by
-construction; what is assumed of it (its runs' results and what it leaves, `forall(q => fetch(q).result === …)`) is a
-hypothesis of every step that calls it; its Scala is tested against those assumptions where a case evaluates, as a
-model's Scala is tested against its model. It is an operation's meaning left open, not a model kind (§35's
-`AssumedModel` stays removed). Built, crm's searches become programs calling the database's `fetch`, and keycloak's
-server programs over its session store, so their histories and what they hold move into the World (owner §45 D);
-until then `Validate` refuses such a step (`StepNotOperation`) and those values stay provided, stopped on G2.
+the assumed case"; built in step 13c). An operation of a `StateModel` with no `means` (`fetch.assumed`) is opaque in
+Lean: a constant of its model's state monad, run on its own field of the World through `within` (the model's class's
+`onState`), so it touches only its field by construction; a statement's run of it is `Model.op_run`. What is assumed
+of it (its runs' results and what it leaves, `forall(q => fetch(u, q).result …)`, `databaseModel.in(fetch(u,
+q).after) === databaseModel.current`) is a hypothesis of every obligation of a program calling it, and open where
+consistency is asked (a hand witness, owner §39). Its Scala is tested against those assumptions on the model's
+generated runs, the model given the state the Scala left (`Difference.Assumed`), as a model's Scala is tested against
+its model. It is an operation's meaning left open, not a model kind (§35's `AssumedModel` stays removed). Where a
+rule is about its store and nothing says what its runs leave, it is refused (`LeavesUnsaid`), and where its model may
+fail (`AssumedFailing`). Crm's screens are programs calling the database's `fetch` (`recordsByQuery`, `searchKeeps`)
+and reading the clock, its write side and expiry job programs over the database; keycloak's server programs over its
+store, whose storing and index are assumed (`storeLogs`, `lookupKeeps`): so their histories and what they hold are
+the World's (owner §45 D), the rules of what each holds (crm's `crmRun`, `oneRowPerKey`; keycloak's `serverRun`,
+`freshTokens`, `oneSignInPerToken`) claims proven of the code that changes it.
 
 **Nothing FrFlow cannot see goes unchecked** (owner §36, superseding §30's and §35's boundary wording). Every
 Definition has a meaning (`Problem.Undefined`): proven code, a value, plain Scala tested against its claims, an
