@@ -61,6 +61,10 @@ enum Checking:
   case Possible(shown: List[Vacuity])
   /** Trusted: an outside system's promise, its code tested against it where there is code. */
   case Trusted
+  /** Of the operations known only by assumptions it is about, trusted and not tested: their model's generated runs
+    * cannot evaluate it (it is not read as a run of one, or its post has no Scala value).
+    */
+  case TrustedUntested(operations: List[SymbolName])
   /** A fact about the world outside the code: a rule of FrFlow's rests on it. */
   case Outside(fact: OutsideFact)
   /** The programs changing a model's state, derived from the code (owner §31): every program calling an operation
@@ -73,7 +77,8 @@ enum Checking:
 object Checking:
   def of(t: Theory, id: NodeId): List[Checking] = t.node(id).map(_.statement).toList.flatMap {
     case s @ Statement.Assumption(_) =>
-      s.outside.fold(Trusted :: ruled(t, id, s) ++ callers(t, id) ++ bottom(t, id) ++ possible(t, id))(outside(t, _))
+      s.outside.fold(Trusted :: untested(t, id) ++ ruled(t, id, s) ++ callers(t, id) ++ bottom(t, id) ++
+        possible(t, id))(outside(t, _))
     case s @ Statement.Claim(_, _)   =>
       claimed(t, id, s) ++ rules(t, id) ++ rests(t, id) ++ bottom(t, id) ++ possible(t, id)
     case Statement.Design(_)         => Nil
@@ -92,6 +97,9 @@ object Checking:
         case some => some
     case _              => ruled(t, id, s)
   }
+
+  private def untested(t: Theory, id: NodeId): List[Checking] =
+    Option(Assumed.untested(t, id)).filter(_.nonEmpty).map(TrustedUntested(_)).toList
 
   /** How a rule is met: where its values are made, or by every run changing its store. */
   private def ruled(t: Theory, id: NodeId, s: Statement): List[Checking] = s.range.toList.flatMap {

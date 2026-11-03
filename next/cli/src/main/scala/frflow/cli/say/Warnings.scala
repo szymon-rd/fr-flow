@@ -32,6 +32,8 @@ object Warnings:
       s"$id: the states its store starts in are not proven to meet it (start_$id; say what it starts with)"
     case Warning.NotChecked(id)           => s"$id is not checked: no parts prove it, no proven code is checked " +
         "against it, and the plain Scala it is about has no Scala value to test against"
+    case Warning.TrustedUntested(id, os)  => s"$id is trusted, not tested: the generated runs of " +
+        s"${os.map(_.value).mkString(", ")} cannot evaluate it (read it as a run of one, its post with a Scala value)"
     case Warning.Restates(id, part)       => s"$id restates $part: Lean proves them equivalent, so it says nothing " +
         "of its own"
 

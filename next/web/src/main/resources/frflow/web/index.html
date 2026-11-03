@@ -119,7 +119,9 @@ function warning(w) {
     ProofFileOfNoNode: `${w.file} is no node's proof file: it proves nothing`,
     ConsistencyNotProven: `consistency not proven: ${(w.statements || []).join(", ")}`,
     StartNotProven: `${w.statement}: where its store starts is not proven`,
-    NotChecked: `${w.node} is not checked`, Restates: `${w.node} restates ${w.part}: it says nothing of its own` };
+    NotChecked: `${w.node} is not checked`,
+    TrustedUntested: `${w.node} is trusted, not tested: ${(w.operations || []).join(", ")}'s runs cannot evaluate it`,
+    Restates: `${w.node} restates ${w.part}: it says nothing of its own` };
   return says[w.type] || `${words(w.type)} ${esc(JSON.stringify(Object.assign({}, w, { type: undefined })))}`;
 }
 

@@ -41,7 +41,8 @@ class TextsSuite extends munit.FunSuite:
     distinct(List(Warning.NoKey, Warning.DecidersUncommitted, Warning.BaseNotCommitted,
       Warning.GovernedTwice(file, List(a, b)),
       Warning.Ungoverned(file), Warning.GovernedMissing(file, a), Warning.ProofFileOfNoNode(file),
-      Warning.ConsistencyNotProven(List(a)), Warning.StartNotProven(a), Warning.NotChecked(a), Warning.Restates(a, b))
+      Warning.ConsistencyNotProven(List(a)), Warning.StartNotProven(a), Warning.NotChecked(a), Warning.Restates(a, b),
+      Warning.TrustedUntested(a, Nil))
       .map(Warnings.text) ++ Uncounted.values.toList.map(u => Warnings.text(Warning.NotCounted(a, decision, u))))
   }
 

@@ -1,6 +1,6 @@
 package frflow.api.view
 
-import frflow.core.name.{NodeId, RelPath}
+import frflow.core.name.{NodeId, RelPath, SymbolName}
 import frflow.decision.ledger.{Decision, Uncounted}
 
 /** What `status` warns of (docs/USAGE.md, Warnings): data, rendered by the CLI and the web view. */
@@ -37,5 +37,9 @@ enum Warning:
     * is about cannot be tested against it (it has no Scala value): "not checked".
     */
   case NotChecked(node: NodeId)
+  /** An assumption about operations known only by assumptions that their model's generated runs cannot evaluate (it
+    * is not read as a run of one, or its post has no Scala value): trusted, not tested.
+    */
+  case TrustedUntested(node: NodeId, operations: List[SymbolName])
   /** Lean proves a node equivalent to its part (or a part to a conjunct of its parent): it says nothing of its own. */
   case Restates(node: NodeId, part: NodeId)

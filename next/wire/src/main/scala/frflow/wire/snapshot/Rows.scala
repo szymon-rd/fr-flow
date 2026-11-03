@@ -58,6 +58,7 @@ object Rows:
 
   private def assumed(a: Assumed): String = a match
     case Assumed.Assumption => "assumption"
+    case Assumed.Untested(_) => "trusted, not tested"
 
   private def code(c: OnCode): String = c match
     case OnCode.Holds           => "holds"

@@ -42,3 +42,5 @@ object ProofText:
 
   private def assumed(a: Assumed): String = a match
     case Assumed.Assumption => "an outside system's promise: assumed, its Scala tested against it"
+    case Assumed.Untested(os) => s"an outside system's promise: trusted, not tested (the generated runs of " +
+        s"${os.map(_.value).mkString(", ")} cannot evaluate it)"

@@ -57,6 +57,8 @@ object Texts:
       s"met where the store starts, from what ${from.fold("nothing")(_.value)} says: ${standing(s)}"
     case Checking.Possible(vs)         => s"not vacuous: ${vs.map(vacuity).mkString(", ")}"
     case Checking.Trusted              => "trusted"
+    case Checking.TrustedUntested(os)  => s"trusted, not tested: the generated runs of ${names(os.map(_.value))} " +
+        "cannot evaluate it"
     case Checking.Outside(f)           => outside(f)
     case Checking.ChangedBy(ps)        => s"the programs changing it, derived: ${names(ps.map(_.value))}"
     case Checking.TestedOnModel(m, os) => s"rests on ${listed(os.map(_.value))}'s Scala, tested against ${m.value}"

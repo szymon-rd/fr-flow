@@ -25,7 +25,10 @@ object Shown:
     case Code.Tested(_, _) => List(Tested.Plain)
     case _                 => Nil
 
-  /** An assumption about a Definition with code: an outside system's promise, its Scala tested against it. */
+  /** An assumption about a Definition with code: an outside system's promise, its Scala tested against it, or
+    * trusted, not tested, where the generated runs cannot evaluate it.
+    */
   private def promised(t: Theory, id: NodeId) =
-    t.node(id).map(_.statement).filter(s => s.call.isDefined && s.kind == NodeKind.Assumption)
-      .map(_ => Assumed.Assumption).toList
+    val untested = Assumed.untested(t, id)
+    t.node(id).map(_.statement).filter(s => (s.call.isDefined || untested.nonEmpty) && s.kind == NodeKind.Assumption)
+      .map(_ => if untested.isEmpty then Assumed.Assumption else Assumed.Untested(untested)).toList
