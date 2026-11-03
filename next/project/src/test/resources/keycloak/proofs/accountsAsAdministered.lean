@@ -1,8 +1,8 @@
 import FrFlowGen.Keycloak.accountsAsAdministered.Spec
+import Proofs.Keycloak.Lemmas
 
-/-! The server holds the accounts as administered: its state is its requests handled in turn (`serverRun`), a
-simulation (`FrFlow.simulates`) whose abstraction is the accounts, since each request handled as handleRequest says
-changes them as `administer` does, from the accounts loaded at start. -/
+/-! The server holds the accounts as administered (`Lemmas.accounts_administered`): its state is its requests handled
+in turn by `next` (`serverRun`), which changes the accounts as `administer` does, from the accounts loaded at start. -/
 
 set_option autoImplicit false
 noncomputable section
@@ -10,19 +10,6 @@ open Classical
 
 namespace Keycloak.accountsAsAdministered.Proofs
 
-theorem complete : Obl.complete := by
-  intro history state seed step hRun hStep r u
-  unfold serverRun.claim at hRun
-  unfold handleRequest.claim at hStep
-  have h := FrFlow.simulates (step := fun s q => step s q) (astep := administer) (α := ServerState.accounts)
-    (init := ServerState.mk seed []) (ainit := seed) rfl (fun s e => (hStep s e).1.1.1) history
-  rw [hRun]
-  simp only [Keycloak.account, Keycloak.stateAfter, Keycloak.accountsAfter]
-  rw [h]
-
-/-- The parts hold together of the code: no request, the server's step over a store keeping what it is given. -/
-theorem feasible : Obl.feasible := by
-  refine ⟨[], _, [], Keycloak.handle (fun _ after => after), rfl, ?_⟩
-  frflow_auto
+theorem complete : Obl.complete := fun _ _ => Keycloak.Lemmas.accounts_administered
 
 end Keycloak.accountsAsAdministered.Proofs

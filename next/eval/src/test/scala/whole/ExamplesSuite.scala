@@ -43,9 +43,11 @@ class ExamplesSuite extends munit.FunSuite:
   }
 
   test("keycloak: today's, but the definition of four open types; the definition of `enabled` and `rolesOf` is two " +
-    "claims; the claim on `introspect` named apart from it (owner §40)") {
+    "claims; the claim on `introspect` named apart from it (owner §40); the server's store a model of the World, its " +
+    "operations' assumptions, its rules' premises, its loaded accounts kept, the requests handed to it (owner §45 D)") {
     assertEquals(ids(keycloak.knowledge), renamed(Today.keycloak, Set("identities", "introspect"),
-      Set("accountRoles", "introspectAnswers")))
+      Set("accountRoles", "introspectAnswers", "storeLogs", "lookupKeeps", "drawnTokens", "storeOnlyCode",
+        "storeOneAtATime", "storeStarts", "loadedKept", "answersWhatItStores")))
   }
 
   test("crm: today's, with the root's two general expectations claims of their own (its scenario an example, and the " +
@@ -67,12 +69,12 @@ class ExamplesSuite extends munit.FunSuite:
   }
 
   test("each example's examples elaborate, with no error") {
-    val written = List(rooms.GrantedExamples(), auth.DecisionExamples(), keycloak.IntrospectExamples(),
-      keycloak.LookupExamples(), keycloak.StoreExamples(), keycloak.RequestExamples(), crm.ExpectationsExamples(),
+    val written = List(rooms.GrantedExamples(), auth.DecisionExamples(), keycloak.RequestExamples(),
+      crm.ExpectationsExamples(),
       crm.QueryExamples(), crm.ReadExamples(), crm.DealExamples(), crm.WriteExamples(), crm.SaveExamples(),
       crm.StoreExamples(), crm.ExpireExamples())
     assertEquals(written.map(_.elaborated.fold(_.iterator.toList, _ => Nil)), List.fill(written.size)(Nil))
-    assertEquals(written.map(_.examples.size), List(2, 5, 12, 5, 3, 11, 1, 3, 9, 4, 6, 3, 3, 4))
+    assertEquals(written.map(_.examples.size), List(2, 5, 11, 1, 3, 9, 4, 6, 3, 3, 4))
   }
 
   test("sharing: today's, with the store's, the mail server's and the clock's runs one at a time, assumptions; the " +

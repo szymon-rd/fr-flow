@@ -61,11 +61,12 @@ class WholeProofSuite extends munit.CatsEffectSuite:
     yield assertEquals((fair, cheat), (Some(ObligationStatus.Proven), Some(ObligationStatus.Failed)))
   }
 
-  test("a request example takes what storeKeepsState says of the record the step's code leaves open") {
+  test("a request example is tried against the step's code, which leaves nothing open, given what the step's claim " +
+    "says") {
     val examples = RequestExamples().elaborated.fold(e => fail(e.toString), identity)
     val a = Analysis(bare.valid, bare.inputs, Computed(examples.map(_ -> OnCode.Holds), Map.empty))
     val spec = module(a, "Whole.Spec").getOrElse(fail("no statements"))
     val first = spec.linesIterator.dropWhile(!_.contains("def example_0 ")).slice(1, 2).mkString
-    assert(first.contains("(Keycloak.storeKeepsState.claim record)") && first.contains("(Keycloak.handle record "),
-      first)
+    assert(first.contains("(Keycloak.handleRequest.claim step)") && first.contains("((Keycloak.next ") &&
+      !first.contains("record"), first)
   }

@@ -1,6 +1,6 @@
 package whole
 
-import frflow.core.consistency.{Consistency, Group, Witness}
+import frflow.core.consistency.{Consistency, Group}
 import frflow.core.name.{DefName, NodeId, SymbolName}
 import frflow.proof.layout.Lowering
 import frflow.proof.lean.print.Print
@@ -58,9 +58,6 @@ class SeededSuite extends munit.FunSuite:
     val vacuous = Consistency.of(Theories.theory(Seeded.Vacuous.knowledge)).collect { case g: Group.Premises => g }
     assertEquals(vacuous.map(g => (g.statements.map(_.value), g.provided)),
       List((List("kPositive", "kNegative"), List(s("k")))))
-    val fresh = Consistency.of(Theories.theory(keycloak.knowledge)).collect { case g: Group.Premises => g }
-    assertEquals(fresh.map(g => (g.statements.map(_.value), g.provided, g.witnesses)),
-      List((List("freshTokens"), List(s("history")), List(Witness.Empty(s("history"))))))
   }
 
   test("an assumption every word of which the code gives a meaning is asked impl: nothing else checks it") {

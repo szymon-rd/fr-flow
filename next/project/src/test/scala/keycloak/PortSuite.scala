@@ -1,23 +1,25 @@
 package keycloak
 
+import cats.effect.IO
+import cats.syntax.all.*
 import frflow.*
 import frflow.core.name.NodeId
-import frflow.eval.run.{Broken, OnCode}
 import frflow.proof.audit.Completeness
 import frflow.project.{Captured, Live, Ported, Projects}
 import frflow.project.Ported.Lean
+import frflow.project.program.ModelCheck
 import frflow.proof.obligation.ObligationName
 import frflow.proof.verdict.{ObligationStatus, ProverRun, Result}
-import frflow.testing.ported.Tested
+import frflow.testing.model.{ModelRuns, ModelTests}
 import scala.concurrent.duration.*
 
 /** Keycloak ported (owner §14, §21, §40), against today's (`reference/keycloak`, ARCHITECTURE section 9,
-  * equivalence): every difference in where a node sits and what it assumes is listed and judged; checked by Lean and
-  * tested (1,000 cases from seed 1, as today), each node stands as today's but where judged; every consistency group
-  * proven (owner §28, §39; the server's run with the state it holds solved by `serverRun`, the step 12 ruling on
-  * provided values an assumption pins); section 9's seeded bugs are caught; today's examples
-  * hold on the code; and no statement is weakened: each claim as today stated it is proven equivalent to the port's
-  * (`resources/keycloak/port/Port.lean`).
+  * equivalence), its server's state the World's (owner §45 D): the store a model whose storing and index are known
+  * only by what is assumed of them (G2), the server and the introspection programs over it, the requests the HTTP API
+  * hands it a model of their own. Every difference in where a node sits and what it assumes is listed and judged;
+  * checked by Lean and tested (the store's Scala on today's 1,000 runs from seed 1), each node stands as today's but
+  * where judged; every consistency group proven (owner §28, §39); today's examples hold on the code; and each claim as
+  * today stated it is proven equivalent to the port's (`resources/keycloak/port/Port.lean`).
   */
 class PortSuite extends munit.CatsEffectSuite:
   override val munitIOTimeout: Duration = 50.minutes
@@ -25,46 +27,9 @@ class PortSuite extends munit.CatsEffectSuite:
   private val elaborated = Projects.elaborated(knowledge)
   private val t = elaborated.theory
 
-  /** Each difference from today's keycloak, with why the design makes it. */
-  private val judged: Map[String, (String, String)] = Map(
-    "identities" -> ("gone" ->
-      "it fixed four open types to realms and strings, which the Declarations' types now say (owner §15)"),
-    "introspect" -> ("gone" -> "its claim is introspectAnswers, named apart from the Definition (owner §40)"),
-    "introspectAnswers" -> ("new" -> "today's introspect, named apart from the Definition it is about (owner §40)"),
-    "accountRoles" -> ("new" ->
-      "today's accounts defined two words, enabled and rolesOf: a claim says what each Declaration is (2.7)"),
-    "sessionsMirrorSignIns" -> ("serverRun is a part" -> serverRun),
-    "accountsAsAdministered" -> ("serverRun is a part" -> serverRun),
-    "onlyTheSignedIn" -> ("signInHistory, referenceTokens are parts" -> words),
-    "disabledHaveNoAccess" -> ("accounts, referenceTokens, introspectAnswers are parts" -> words),
-    "rolesAsGranted" -> ("accountRoles, referenceTokens, introspectAnswers are parts" -> words),
-    "signedInAreAccepted" ->
-      ("accounts, accountRoles, signInHistory, referenceTokens, introspectAnswers are parts" -> words),
-    "answersNameASession" -> ("introspectAnswers is a part" -> renamed),
-    "realmIsolation" -> ("introspectAnswers is a part" -> renamed))
-
-  private def serverRun = "what the server's state is, trusted, is an assumption, a part of the claims resting on " +
-    "it (owner §21); today's was a definition of sessions and account, which every node could use"
-  private def words = "today's definitions of the purpose's words are claims saying what each Declaration is, below " +
-    "the steps they are used in (2.7), with today's introspect, renamed (owner §40)"
-  private def renamed = "today's introspect, which refined and kept it, renamed (owner §40)"
-
-  /** Each value provided where the code runs, under owner §45 D: "now" and the history so far, in statements about
-    * the state over time, are the World's; configuration stays provided. Keycloak's history and state stay provided,
-    * read beside no World, the step stopped on them.
-    */
-  private val provided: Map[String, Ported.OnD] = Map(
-    "seed" -> Ported.OnD.Configuration("the accounts as loaded at start: fixed for the run"),
-    "history" -> Ported.OnD.Stopped("G2", "the requests handled so far, read by statements about what came before " +
-      "(signInHistory, oneSignInPerToken, freshTokens): the World's under §45 D; not moved, as the server has no " +
-      "model (its step is a pure function, its store's record and lookup plain Scala known by assumptions): moving " +
-      "it needs a model and a program per request, lookup and introspect operations known only by their " +
-      "assumptions (sessionLookup, owner §39): G2's form"),
-    "state" -> Ported.OnD.Stopped("G2", "the server's state now, which serverRun pins to the history: as the history"))
-
-  test("every value provided where the code runs stands under owner §45 D: the history and the state stopped on G2") {
-    assertEquals(Ported.provided(elaborated), provided.keySet)
-    assertEquals(Ported.stoppedOnD(provided), Map("history" -> "G2", "state" -> "G2"))
+  test("nothing is provided where the code runs: the history, the state and the accounts as loaded are the World's") {
+    assertEquals(Ported.provided(elaborated), Set.empty[String])
+    assertEquals(Ported.stoppedOnD(Judged.provided), Map.empty)
   }
 
   private def differences: Map[String, String] =
@@ -88,101 +53,68 @@ class PortSuite extends munit.CatsEffectSuite:
     (gone ++ added ++ moved).groupMapReduce(_._1)(_._2)(_ + "; " + _)
 
   test("every difference from today's keycloak in where a node sits and what it assumes is listed and judged") {
-    assertEquals(differences, judged.view.mapValues(_._1).toMap)
+    assertEquals(differences, Judged.differences.view.mapValues(_._1).toMap)
   }
 
-  /** Where each node stands apart from today, each for a reason the design gives. */
-  private val standings: Map[String, List[String]] = Map(
-    // Gone: the types say it; and today's introspect, renamed.
-    "Identities" -> Nil,
-    "Introspect" -> Nil,
-    // Today's definitions, claims saying what each Declaration is (2.7): proven of what stands in them.
-    "Accounts" -> List("claim", "proven", "proven", ""),
-    "AccountRoles" -> List("claim", "proven", "proven", ""),
-    "SignInHistory" -> List("claim", "proven", "proven", ""),
-    "ReferenceTokens" -> List("claim", "proven", "proven", ""),
-    // Today's definition of what the state is: trusted, an assumption (owner §21).
-    "ServerRun" -> List("assumption", "assumed", "proven", ""),
-    // A contract is a claim (owner §15); today's introspect named apart (owner §40), tested on today's cases.
-    "HandleRequest" -> List("claim", "proven", "proven", ""),
-    "IntrospectAnswers" -> List("claim", "tested", "proven", "1000"),
-    // Claims mentioning introspect, tested against its Scala as well as proven from introspectAnswers (2.7).
-    "AnswersNameASession" -> List("claim", "tested", "proven", "1000"),
-    "RealmIsolation" -> List("claim", "tested", "proven", "1000"))
-
-  private val proofs = List("Lemmas", "sessionsMirrorSignIns", "accountsAsAdministered", "oneSignInPerToken",
-    "onlyTheSignedIn", "signedInAreAccepted", "Whole")
+  private val proofs = List("Lemmas", "realmAccess", "noUnauthorizedAccess", "signedInAreAccepted", "onlyTheSignedIn",
+    "disabledHaveNoAccess", "rolesAsGranted", "sessionsMirrorSignIns", "accountsAsAdministered", "serverRun",
+    "freshTokens", "oneSignInPerToken", "realmIsolation", "answersNameASession", "introspectAnswers", "loadedKept",
+    "answersWhatItStores", "Whole")
   private val lean = Lean(proofs.map(n => n -> Ported.resource(s"keycloak/proofs/$n.lean")),
     reference.old("Keycloak", identity) :+ ("FrFlowGen/Port.lean" -> Ported.resource("keycloak/port/Port.lean")),
     Some("FrFlowGen.Port"))
-  private val written = List(IntrospectExamples(), LookupExamples(), StoreExamples(), RequestExamples())
+  private val written = List(RequestExamples())
+
+  /** The store's Scala, run against what is assumed of its operations, today's 1,000 runs; and the inbox's, in its
+    * tests' stand-in (an idle request when none waits), whose assumption reads the store and so is trusted.
+    */
+  private def store: List[ModelCheck[IO]] =
+    val idle = AuthRequest.SignOut(RealmId(""), "")
+    def checked(m: frflow.core.vocab.StateModel, impl: frflow.core.code.Implementation) = ModelCheck(
+      ModelRuns.reportedUnder(m.name), ModelRuns[IO](ModelTests.Check(m, impl), frflow.eval.Semantics(elaborated), t,
+        1000).of(_, _))
+    t.vocabulary.model(serverStore.name).toList.map(checked(_, ModelTests.of(serverStore)(start = SessionDb.holding,
+      observe = (d: SessionDb) => d.stored)(d => (d.load, d.record, d.lookup)))) ++
+      t.vocabulary.model(inbox.name).toList.map(checked(_, ModelTests.of(inbox)(start = HttpInbox.holding,
+        observe = (i: HttpInbox) => i.left)(i => Tuple1(i.nextOr(idle)))))
 
   test("checked by Lean and tested, each node stands as today's but where judged; consistent; nothing weakened"
     .tag(Live)) {
     val examples = written.flatMap(_.elaborated.fold(e => fail(e.toString), identity))
-    Ported.run(elaborated, examples, lean, Nil).map { r =>
+    Ported.run(elaborated, examples, lean, store).map { r =>
       val a = r.analysis
       assertEquals(Completeness.of(a.decided, a.modules), Nil)
       val now = t.nodes.map(_.node.id).map(id => id.value.capitalize -> Ported.row(a, id)).toMap
       val compared = (reference.standings.keys ++ now.keys).toList.distinct.sorted
         .filter(k => now.get(k) != reference.standings.get(k)).map(k => k -> now.getOrElse(k, Nil))
-      assertEquals(compared.toMap, standings, s"keycloak now:\n${Ported.table(a)}")
+      assertEquals(compared.toMap, Judged.standings, s"keycloak now:\n${Ported.table(a)}")
       assertEquals(Ported.unproven(a), Map.empty[String, List[String]])
       val whole = a.wholeCheck.map(_.results).getOrElse(fail("the theory's own check is not recorded"))
       assertEquals(whole.collect { case Result(n @ ObligationName.Consistent(_), s, _) => n -> s }.toMap,
         a.groups.map((i, _) => ObligationName.Consistent(i) -> ObligationStatus.Proven).toMap)
-      // What the world gives, freshTokens, holds of some history (the empty one), as every group taking it rests on.
-      val fresh = a.groups.collectFirst { case (i, ids) if ids.contains(NodeId("freshTokens")) => i }
-      assertEquals(fresh.flatMap(i => whole.find(_.name == ObligationName.Consistent(i))).map(_.status),
-        Some(ObligationStatus.Proven))
-      // Today's examples that give no value, the store's and the request's, are tried against the claims in Lean
-      // too (owner §18), each shown: the request's by the step's code, given what storeKeepsState says of the
-      // record that code leaves open.
-      assertEquals(whole.collect { case Result(ObligationName.Example(i), s, _) => i -> s }.toMap,
-        (17 to 30).map(_ -> ObligationStatus.Shown).toMap)
       r.port match
         case Some(ProverRun.Built(said)) => assert(!said.contains("sorryAx"), said)
         case other                       => fail(s"the claims are not shown equivalent to today's: $other")
     }
   }
 
-  private type Looking = (RealmId, String) => Option[Session]
-  private type Introspecting =
-    (Looking, (RealmId, String) => Option[UserAccount]) => (RealmId, String) => Option[Claims]
+  /** A store holding `s`, and the code run on it as production runs it. */
+  private def on[A](s: Stored)(f: frflow.eval.Running[IO] => IO[A]): IO[A] =
+    SessionDb.holding(s).flatMap(db => knowledge.running[IO](serverStore := db)).flatMap(f)
 
-  /** Keycloak with the store's index, its writes or the introspection given other code. */
-  private def with_(looked: ServerState => Looking = s => SessionDb.holding(s).find,
-      introspected: Introspecting = (lookUp, accountOf) => introspection(lookUp, accountOf),
-      recorded: (AuthRequest, ServerState) => ServerState = (q, s) => SessionDb.holding(s).storeAfter(q, s)): FrModel =
-    FrModel("Keycloak")(knowledge.nodes*).implementProvided(seed, history, state)
-      .implementProven(step)(handle)
-      .implementTested(record)(_ => recorded)
-      .implementTested(lookup)(env => looked(env(state)))
-      .implementTested(introspect, lookup, account)(env => introspected(env(lookup), env(account)))
-
-  test("dropping store: a store that keeps the accounts and drops every session fails a case of storeKeepsState") {
-    val dropping = with_(recorded = (_, after) => ServerState(after.accounts, Nil))
-    assertEquals(Tested.failure(dropping, "storeKeepsState").broke, Broken.Post)
+  test("today's examples hold on the code: the introspection's, the index's and the store's, each a run on a store") {
+    val empty = Stored(loaded, ServerState(loaded, Nil), Nil)
+    for
+      intro  <- introspections.traverse(x => on(replayed)(_(introspecting)(x.inputs._1, x.inputs._2)).map(x -> _))
+      looked <- lookups.traverse(x => SessionDb.holding(replayed).flatMap(_.lookup(x.inputs._1, x.inputs._2))
+        .map(x -> _))
+      stored <- stores.traverse(x => SessionDb.holding(empty).flatMap(_.record(x.inputs._1, x.inputs._2)).map(x -> _))
+    yield
+      (intro ++ looked ++ stored).foreach((x, got) => assertEquals(got == x.gives, x.holds, x.says))
+      assertEquals((intro.size, looked.size, stored.size), (12, 5, 3))
   }
 
-  test("leaky introspection: an index answering with another realm's session fails a case of sessionLookup") {
-    val leaky = with_(looked = _ => (_, token) => Some(Session(token, globex, "carol")))
-    assertEquals(Tested.failure(leaky, "sessionLookup").broke, Broken.Post)
-  }
-
-  test("an introspection that forgets the account's state fails a generated case of introspectAnswers") {
-    val forgetting = with_(introspected = (lookUp, accountOf) => (r, t) =>
-      lookUp(r, t).flatMap(x => accountOf(r, x.user).map(a => Claims(r, x.user, a.roles))))
-    assertEquals(Tested.failure(forgetting, "introspectAnswers").broke, Broken.Post)
-  }
-
-  test("today's examples hold on the code: the introspection's, the index's, the store's and the request's") {
-    assertEquals(written.map(Tested.onCode), List(12, 5, 3, 11).map(List.fill(_)(OnCode.Holds)))
-  }
-
-  test("the code is tested with today's seed and cases: every claim on the introspection and the store, 1,000 " +
-    "cases from seed 1") {
-    assertEquals(Tested.nodes(knowledge).map(n => n -> Tested.passes(knowledge, n, written).seed.value).toMap,
-      Map("introspectAnswers" -> 1L, "sessionLookup" -> 1L, "storeKeepsState" -> 1L, "realmIsolation" -> 1L,
-        "answersNameASession" -> 1L))
+  test("today's request examples hold on the code") {
+    assertEquals(frflow.testing.ported.Tested.onCode(RequestExamples()),
+      List.fill(11)(frflow.eval.run.OnCode.Holds))
   }

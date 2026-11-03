@@ -9,8 +9,8 @@ import frflow.proof.obligation.ObligationName
   * stands in it (2.7), and no `impl` of an assumption, trusted with the proven code standing in it.
   */
 class CheckedAgainstSuite extends munit.FunSuite:
-  test("a claim saying what a Declaration is is not tested, though it mentions tested Scala: keycloak's") {
-    val t = Projects.elaborated(keycloak.knowledge).theory
+  test("a claim saying what a Declaration is is not tested, though it mentions tested Scala: auth's") {
+    val t = Projects.elaborated(auth.knowledge).theory
     val saying = t.nodes.map(_.node.id).filter(id => SaysWhat.is(t, id) &&
       Constrained.of(t, id).flatMap(t.code.attached.get).exists(_.code.scala.nonEmpty))
     assert(saying.nonEmpty)

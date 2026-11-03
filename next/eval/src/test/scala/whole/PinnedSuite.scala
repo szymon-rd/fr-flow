@@ -4,7 +4,7 @@ import frflow.core.consistency.{Consistency, Group, Witness}
 import frflow.core.name.{NodeId, SymbolName}
 
 /** A provided value an assumption of its group equates to a term is solved by that equation, like an open value
-  * (step 12 ruling, 2.8): keycloak's state by `serverRun`, crm's store by `crmRun`; a provided value no assumption
+  * (step 12 ruling, 2.8): crm's store by `crmRun`; a provided value no assumption
   * pins stays universal (auth's session table, which `tokensIssuedOnce` only bounds).
   */
 class PinnedSuite extends munit.FunSuite:
@@ -17,12 +17,11 @@ class PinnedSuite extends munit.FunSuite:
     case Witness.Equation(x, from, _) if x == s => from
   }
 
-  test("keycloak: the state the server holds is solved by serverRun, after the store it is built over") {
-    val g = group(keycloak.knowledge, "serverRun")
-    assert(g.open.contains(SymbolName("state")) && !g.provided.contains(SymbolName("state")), g)
-    assertEquals(g.provided.toSet, Set(SymbolName("history"), SymbolName("seed")))
-    assertEquals(g.witnesses.collect { case Witness.Equation(s, from, _) => s.value -> from.value },
-      List("record" -> "storeKeepsState", "state" -> "serverRun"))
+  test("keycloak: nothing is provided, the server's state the World's (owner §45 D); what is assumed of the store's " +
+    "operations known only by assumptions is asked to hold together, each open") {
+    val g = group(keycloak.knowledge, "sessionLookup")
+    assertEquals(g.provided, Nil)
+    assert(List("lookup", "record").map(SymbolName(_)).forall(g.open.contains), g)
   }
 
   test("crm: what the CRM holds is solved by crmRun, with every statement mentioning it; history and clock universal") {

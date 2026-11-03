@@ -2,8 +2,10 @@ package keycloak
 
 import frflow.*
 
-// Today's examples, one class per node they were written on, each giving the state the server holds: checked
-// against the code in Scala only (owner §18).
+// Today's examples. Those of the step, a function, are examples (owner §18), tried against the claims in Lean too.
+// Those of the introspection, the index and the store were given the state the server holds; the server's state is
+// the World's now (owner §45 D) and an example reads no world (2.10), so each is a run of the code on a store
+// holding it, in production's interpreter (`PortSuite`).
 
 // ============================================================================
 // Accounts the examples use
@@ -33,59 +35,57 @@ val events = List(
 val afterEvents = ServerState(List(alice, bob, carol),
   List(Session("t1", acme, "alice"), Session("t2", acme, "bob"), Session("t4", globex, "carol")))
 
-/** The server after `events`: what each example of the introspection and the index is given. */
-private val replayed = List(history := events, seed := atStart, state := afterEvents)
+/** The store after `events`: what each of today's examples of the introspection and the index was given. */
+val replayed = Stored(atStart, afterEvents, events)
 
-class IntrospectExamples extends FrFlowExamples(knowledge):
-  example("Alice's token at acme: accepted as hers, with her roles", replayed*):
-    introspect(acme, "t1") is Some(Claims(acme, "alice", List("admin", "user")))
-  example("Carol's token at globex: accepted as hers", replayed*):
-    introspect(globex, "t4") is Some(Claims(globex, "carol", List("viewer")))
-  example("acme's token is not good at globex", replayed*):
-    introspect(globex, "t1") is None
-  example("Bob was disabled after signing in: his token is no longer accepted", replayed*):
-    introspect(acme, "t2") is None
-  example("Alice signed out with t3", replayed*):
-    introspect(acme, "t3") is None
-  example("a token no sign-in got", replayed*):
-    introspect(acme, "t9") is None
-  example("a token is never good in another realm", replayed*):
-    (introspect(globex, "t1") is Some(Claims(globex, "alice", List("admin", "user")))) is false
-  example("nor is globex's token good at acme", replayed*):
-    (introspect(acme, "t4") is Some(Claims(acme, "carol", List("viewer")))) is false
-  example("a disabled user's token is never accepted", replayed*):
-    (introspect(acme, "t2") is Some(Claims(acme, "bob", List("user")))) is false
-  example("a token signed out with is never accepted again", replayed*):
-    (introspect(acme, "t3") is Some(Claims(acme, "alice", List("admin", "user")))) is false
-  example("roles are never made up", replayed*):
-    (introspect(acme, "t1") is Some(Claims(acme, "alice", List("admin", "user", "owner")))) is false
-  example("Alice's token is not turned away", replayed*):
-    (introspect(acme, "t1") is None) is false
+/** One of today's examples of a run: what it says, the run's inputs, what it gives, and whether it gives that
+  * (`holds`) or never does.
+  */
+final case class RunExample[I, O](says: String, inputs: I, gives: O, holds: Boolean = true)
 
-class LookupExamples extends FrFlowExamples(knowledge):
-  example("acme's session of t1", replayed*):
-    lookup(acme, "t1") is Some(Session("t1", acme, "alice"))
-  example("the store keeps sessions per realm: none of globex under t1", replayed*):
-    lookup(globex, "t1") is None
-  example("Alice signed out with t3: its session is gone", replayed*):
-    lookup(acme, "t3") is None
-  example("a session the store holds is never lost", replayed*):
-    (lookup(acme, "t1") is None) is false
-  example("another realm's session is never returned", replayed*):
-    (lookup(globex, "t1") is Some(Session("t1", acme, "alice"))) is false
+private val aliceClaims = Some(Claims(acme, "alice", List("admin", "user")))
+
+/** Today's examples of the introspection, on the store holding `replayed`. */
+val introspections: List[RunExample[(RealmId, String), Option[Claims]]] = List(
+  RunExample("Alice's token at acme: accepted as hers, with her roles", (acme, "t1"), aliceClaims),
+  RunExample("Carol's token at globex: accepted as hers", (globex, "t4"),
+    Some(Claims(globex, "carol", List("viewer")))),
+  RunExample("acme's token is not good at globex", (globex, "t1"), None),
+  RunExample("Bob was disabled after signing in: his token is no longer accepted", (acme, "t2"), None),
+  RunExample("Alice signed out with t3", (acme, "t3"), None),
+  RunExample("a token no sign-in got", (acme, "t9"), None),
+  RunExample("a token is never good in another realm", (globex, "t1"),
+    Some(Claims(globex, "alice", List("admin", "user"))), holds = false),
+  RunExample("nor is globex's token good at acme", (acme, "t4"), Some(Claims(acme, "carol", List("viewer"))),
+    holds = false),
+  RunExample("a disabled user's token is never accepted", (acme, "t2"), Some(Claims(acme, "bob", List("user"))),
+    holds = false),
+  RunExample("a token signed out with is never accepted again", (acme, "t3"), aliceClaims, holds = false),
+  RunExample("roles are never made up", (acme, "t1"), Some(Claims(acme, "alice", List("admin", "user", "owner"))),
+    holds = false),
+  RunExample("Alice's token is not turned away", (acme, "t1"), None, holds = false))
+
+/** Today's examples of the index, on the store holding `replayed`. */
+val lookups: List[RunExample[(RealmId, String), Option[Session]]] = List(
+  RunExample("acme's session of t1", (acme, "t1"), Some(Session("t1", acme, "alice"))),
+  RunExample("the store keeps sessions per realm: none of globex under t1", (globex, "t1"), None),
+  RunExample("Alice signed out with t3: its session is gone", (acme, "t3"), None),
+  RunExample("a session the store holds is never lost", (acme, "t1"), None, holds = false),
+  RunExample("another realm's session is never returned", (globex, "t1"), Some(Session("t1", acme, "alice")),
+    holds = false))
 
 /** Alice's sign-in with t1, and the state with her session under it. */
 private val aliceIn = AuthRequest.SignIn(acme, "alice", "h-alice", "t1")
 private val withAlice = ServerState(loaded, List(Session("t1", acme, "alice")))
 private val noSession = ServerState(loaded, Nil)
 
-class StoreExamples extends FrFlowExamples(knowledge):
-  example("Alice's new session is stored, and read back"):
-    record(aliceIn, withAlice) is withAlice
-  example("after her sign-out, no session is stored"):
-    record(AuthRequest.SignOut(acme, "t1"), noSession) is noSession
-  example("a session the store dropped is seen"):
-    (record(aliceIn, withAlice) is noSession) is false
+/** Today's examples of the store, each on a store holding the accounts loaded and nothing else: the request and
+  * the state stored, and what is read back.
+  */
+val stores: List[RunExample[(AuthRequest, ServerState), ServerState]] = List(
+  RunExample("Alice's new session is stored, and read back", (aliceIn, withAlice), withAlice),
+  RunExample("after her sign-out, no session is stored", (AuthRequest.SignOut(acme, "t1"), noSession), noSession),
+  RunExample("a session the store dropped is seen", (aliceIn, withAlice), noSession, holds = false))
 
 class RequestExamples extends FrFlowExamples(knowledge):
   example("Alice signs in to acme with her password: a session under t1"):

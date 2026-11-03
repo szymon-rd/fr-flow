@@ -19,11 +19,6 @@ enum AuthRequest derives LeanType:
   /** An administrator enables or disables a user. */
   case SetEnabled(realm: RealmId, user: String, on: Boolean)
 
-val seed = Definition[List[UserAccount]]("every realm's accounts as loaded at start: username, salted password " +
-  "hash, whether enabled, realm roles")
-val history = Definition[List[AuthRequest]]("the requests the server has handled since it started, in order: " +
-  "sign-ins, sign-outs and administrators' changes (the server's event log)")
-
 // ============================================================================
 // Accounts: as loaded, and as administrators set them since
 // ============================================================================
@@ -35,9 +30,9 @@ val administer = define { (as: Term[List[UserAccount]], q: Term[AuthRequest]) =>
     .on[AuthRequest.SignIn]((_, _, _, _) => as)
     .on[AuthRequest.SignOut]((_, _) => as) }
 
-/** The accounts after some requests: as loaded, with each administrator's change applied in turn. */
-val accountsAfter = define { (hs: Term[List[AuthRequest]]) =>
-  hs.foldLeft(seed: Term[List[UserAccount]])((as, q) => administer(as, q)) }
+/** The accounts after some requests: as loaded (`start`), with each administrator's change applied in turn. */
+val accountsAfter = define { (start: Term[List[UserAccount]], hs: Term[List[AuthRequest]]) =>
+  hs.foldLeft(start)((as, q) => administer(as, q)) }
 
 /** The user's account in a realm, if there is one. */
 val accountOf = define { (as: Term[List[UserAccount]], r: Term[RealmId], u: Term[String]) =>
@@ -51,12 +46,14 @@ val rolesIn = define { (a: Term[Option[UserAccount]]) => a.fold(Nil: Term[List[S
 
 val accounts = Node.claim("A user is enabled when their account in the realm says so, as loaded at start and as " +
     "administrators have set it since.")(
-  forall((r: Term[RealmId], u: Term[String]) => enabled(r, u) === isEnabled(accountOf(accountsAfter(history), r, u))))
+  forall((r: Term[RealmId], u: Term[String]) =>
+    enabled(r, u) === isEnabled(accountOf(accountsAfter(seed, history), r, u))))
   .refines(disabledHaveNoAccess, signedInAreAccepted)
 
 val accountRoles = Node.claim("A user has the roles their account in the realm gives, as loaded at start and as " +
     "administrators have set it since.")(
-  forall((r: Term[RealmId], u: Term[String]) => rolesOf(r, u) === rolesIn(accountOf(accountsAfter(history), r, u))))
+  forall((r: Term[RealmId], u: Term[String]) =>
+    rolesOf(r, u) === rolesIn(accountOf(accountsAfter(seed, history), r, u))))
   .refines(rolesAsGranted, signedInAreAccepted)
 
 // ============================================================================
@@ -71,19 +68,19 @@ val grantedBy = define { (as: Term[List[UserAccount]], q: Term[AuthRequest]) =>
     .on[AuthRequest.SignOut]((_, _) => none[Session])
     .on[AuthRequest.SetEnabled]((_, _, _) => none[Session]) }
 
-/** Whether a sign-in in the history got the session, granted by the accounts as they were then, and no sign-out with
-  * its token in its realm came after it.
+/** Whether a sign-in in the history got the session, granted by the accounts as they were then (from `start`), and no
+  * sign-out with its token in its realm came after it.
   */
-val liveIn = define { (hs: Term[List[AuthRequest]], x: Term[Session]) =>
+val liveIn = define { (start: Term[List[UserAccount]], hs: Term[List[AuthRequest]], x: Term[Session]) =>
   !forall((pre: Term[List[AuthRequest]], q: Term[AuthRequest], post: Term[List[AuthRequest]]) =>
-    !(hs === pre ++ (q :: post) && grantedBy(accountsAfter(pre), q) === some(x) &&
+    !(hs === pre ++ (q :: post) && grantedBy(accountsAfter(start, pre), q) === some(x) &&
       !post.contains(make[AuthRequest.SignOut](x.realm, x.token)))) }
 
 val signInHistory = Node.claim("A user is signed in to a realm with a token when a sign-in of theirs to that realm " +
     "got the token, while they were enabled and with their password, and no sign-out with the token in that realm " +
     "came after it.")(
   forall((r: Term[RealmId], u: Term[String], t: Term[String]) =>
-    signedIn(r, u, t) === liveIn(history, make[Session](t, r, u))))
+    signedIn(r, u, t) === liveIn(seed, history, make[Session](t, r, u))))
   .refines(onlyTheSignedIn, signedInAreAccepted)
 
 /** The token a sign-in carries. */
