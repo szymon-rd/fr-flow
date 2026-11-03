@@ -29,3 +29,12 @@ class TimeLeanSuite extends munit.CatsEffectSuite:
         assert(Ported.unproven(r.analysis).contains(n), s"$n\n${Ported.table(r.analysis)}"))
     }
   }
+
+  test(("a schedule kept: a rule time passing alone would break holds where the world moves the time only as the " +
+      "schedule allows, at the program's tick and between runs").tag(Live)) {
+    Ported.run(Projects.elaborated(Stamps.scheduled), Nil, Ported.Lean(Nil, Nil, None), Nil).map { r =>
+      List("freshWhileScheduled", "stampsScheduled").foreach(n =>
+        assertEquals(Ported.row(r.analysis, NodeId(n)).take(3).drop(1), List("proven", "proven"),
+          s"$n\n${Ported.table(r.analysis)}"))
+    }
+  }

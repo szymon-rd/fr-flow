@@ -73,6 +73,19 @@ object Stamps:
   val waitWinsLate = Node.claim("When the wait wins, ten seconds passed.")(
     raced.result.fold(_ => True, _ => clockModel.in(raced.after) >= clockModel.current + 10))
 
+  /** A schedule: the world moves the time on only while every stamp is at most ten seconds old. */
+  val tenSeconds = Node.assumption("The world moves the time on only while every stamp is at most ten seconds old.")(
+    Clock.clockModel.schedule(stamps)((t, held) => held.forall(x => t <= x + 10)))
+
+  /** What the schedule keeps, where time passing alone would break it (`freshStamps`). */
+  val freshWhileScheduled = Node.claim("Every stamp is at most ten seconds old, as the schedule keeps it.")(
+    always(stamps, Clock.clockModel)((held, t) => held.forall(x => t <= x + 10)))
+    .assuming(stampsKept, stampsOne, noStamps, clockStarts, tenSeconds)
+
+  val stampsScheduled = Node.claim("Stamping adds the time it runs at to the stamps, time passing as scheduled.")(
+    stamps.in(stamp.after) === stamps.current :+ clockModel.current)
+    .assuming(stampsOne, tenSeconds)
+
   private def clockModel = Clock.clockModel
 
   private def stamped(nodes: Node*): FrModel = FrModel("Stamping")((nodes ++
@@ -81,6 +94,14 @@ object Stamps:
     .implementProven(limited)(limitedCode)
     .implementProven(raced)(racedCode)
     .implementProven(waited)(waitedCode)
+    .implementTested(stampAt)(start = PlainShelf.holding, observe = _.held)(s => Tuple1(s.put))
+    .implementTested(Clock.now, Clock.sleep, Clock.elapse)(start = Wall.at, observe = _.time)(c =>
+      (c.now, c.sleep, c.elapse))
+
+  /** A schedule kept: one rule time passing breaks alone, kept where the world moves the time as scheduled. */
+  val scheduled: FrModel = FrModel("Stamping")(freshWhileScheduled, stampsScheduled, tenSeconds, stampsKept,
+      stampsOne, noStamps, clockStarts)
+    .implementProven(stamp)(stampCode)
     .implementTested(stampAt)(start = PlainShelf.holding, observe = _.held)(s => Tuple1(s.put))
     .implementTested(Clock.now, Clock.sleep, Clock.elapse)(start = Wall.at, observe = _.time)(c =>
       (c.now, c.sleep, c.elapse))
