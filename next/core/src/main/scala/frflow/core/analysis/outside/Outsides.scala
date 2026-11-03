@@ -39,7 +39,13 @@ object Outsides:
   /** Whether node `n` says `p`. */
   def saysOf(n: Node, p: Premise): Boolean = p match
     case Premise.FromOutside(ty) => assumesAlways(n, ty)
+    case Premise.Schedule(_, by) => n.id == by
     case _                       => n.statement.outside.exists(says(_, p))
+
+  /** The schedules of the clock `m`: where the world moves its time (owner §47). */
+  def schedules(t: Theory, m: ModelName): List[(NodeId, OutsideFact.Schedule)] = all(t).collect {
+    case (id, f @ OutsideFact.Schedule(`m`, _, _)) => id -> f
+  }
 
   private def assumesAlways(n: Node, ty: Ty): Boolean =
     n.statement.kind == NodeKind.Assumption && n.statement.range.contains(Range.Made(ty))

@@ -1,5 +1,6 @@
 package frflow.core.typing
 
+import cats.syntax.all.*
 import frflow.core.expr.{Expr, Exprs, Iteration, OutsideFact, Pattern, PrimOp, Prog, Side, Value}
 import frflow.core.name.{CtorName, TypeName}
 import frflow.core.term.Selector
@@ -66,6 +67,8 @@ final class Local(ctx: IrContext):
     case OutsideFact.OnlyCodeChanges(m) => ctx.states(m).nonEmpty
     case OutsideFact.Atomic(m)          => ctx.states(m).nonEmpty
     case OutsideFact.Initially(m, d)    => ctx.states(m).exists(s => ctx.defines(d).contains(Ty.FnOf(List(s), Ty.Bool)))
+    case OutsideFact.Schedule(m, os, d) => (m :: os).traverse(ctx.states(_)).exists(ss =>
+        ctx.defines(d).contains(Ty.FnOf(ss, Ty.Bool)))
 
   /** A constant's value of its type, each part of its part's type. */
   private def fits(v: Value, t: Ty): Boolean = (v, t) match

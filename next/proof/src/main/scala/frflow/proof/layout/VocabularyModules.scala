@@ -1,7 +1,8 @@
 package frflow.proof.layout
 
 import cats.syntax.all.*
-import frflow.core.expr.{Expr, Progs}
+import frflow.core.expr.{Expr, Prog, Progs}
+import frflow.core.analysis.Waits
 import frflow.core.analysis.outside.Guards
 import frflow.core.name.DefName
 import frflow.core.spec.{Form, Range}
@@ -81,17 +82,19 @@ object VocabularyModules:
   }
 
   /** A define as Lean is given it: a program generic in its monad, a run of one, or a term's `def`. */
-  def declared(l: Lowering, d: Define): Decl = (d.form, d.written.form) match
-    case (DefineForm.RunOf(flow), _)           =>
-      LowerModels(l.env, l.naming).run(d, flow, opens(l, d).map(s => s -> l.table.typeOf(s)))
-    case (DefineForm.Flow, Form.Steps(p))      => flow(l, d, p)
-    case (_, Form.Term(t))                     =>
-      val env = if l.ruleSide.defines(d.name) then l.env.copy(ruleSide = true) else l.env
-      val (bs, body) = Printed.define(env, l.naming)(d.lambda.params, Guarded.of(t.run, guards(l, d)))
-      Decl.Def(List(Attr.FrflowDefs), Names.define(d.name.value), openBinders(l, d) ++ bs,
-        LowerType(d.lambda.result), body)
-    case (_, Form.Steps(_))                    =>
-      throw IllegalStateException(s"FrFlow bug: ${d.name.value}'s steps are not a program's")
+  def declared(l: Lowering, written: Define): Decl =
+    val d = Waits.of(l.resolved.theory.vocabulary, written)
+    (d.form, d.written.form) match
+      case (DefineForm.RunOf(flow), _)           =>
+        LowerModels(l.env, l.naming).run(d, flow, opens(l, d).map(s => s -> l.table.typeOf(s)))
+      case (DefineForm.Flow, Form.Steps(p))      => flow(l, d, p)
+      case (_, Form.Term(t))                     =>
+        val env = if l.ruleSide.defines(d.name) then l.env.copy(ruleSide = true) else l.env
+        val (bs, body) = Printed.define(env, l.naming)(d.lambda.params, Guarded.of(t.run, guards(l, d)))
+        Decl.Def(List(Attr.FrflowDefs), Names.define(d.name.value), openBinders(l, d) ++ bs,
+          LowerType(d.lambda.result), body)
+      case (_, Form.Steps(_))                    =>
+        throw IllegalStateException(s"FrFlow bug: ${d.name.value}'s steps are not a program's")
 
   /** What a define's `forall`s come with, as a statement's do (semantics review, finding 5): each value rule
     * (`always[T]`) on its variable's type, but those of rules that call the define, which would be about themselves.
@@ -136,7 +139,8 @@ object VocabularyModules:
       LBinder.Instance(LExpr.App(name("Monad"), List(LExpr.Name(m)))) ::
       errors.map(e => LBinder.Instance(LExpr.App(name("MonadExceptOf"), List(LowerType(e), LExpr.Name(m))))) ++
       classes.map(c => LBinder.Instance(LExpr.App(LExpr.Name(c), List(LExpr.Name(m))))) ++
-      Option.when(LowerFaults.races(ir))(LowerFaults.racesBinder(m))
+      Option.when(LowerFaults.races(ir))(LowerFaults.racesBinder(m)) ++
+      Option.when(Progs.operations(ir).contains(Prog.reach))(LowerFaults.waitsBinder(m))
 
   private def opens(l: Lowering, d: Define) = l.table.defines.get(d.name).toList.flatMap(_.symbols)
 

@@ -1,7 +1,7 @@
 package frflow.proof.terms
 
 import cats.syntax.all.*
-import frflow.core.analysis.AtOnce
+import frflow.core.analysis.{AtOnce, Waits}
 import frflow.core.expr.{Binder, Expr, Exprs, Prog, Progs}
 import frflow.core.name.VarId
 import frflow.core.spec.Form
@@ -24,7 +24,10 @@ object Commutation:
   private type P = Prog[Stated[?]]
 
   /** Each pair of steps at once of a program's define, numbered across its concurrent steps. */
-  def of(v: Vocabulary, d: Define): List[Commutation] = (d.written.form, d.lambda.body) match
+  def of(v: Vocabulary, d: Define): List[Commutation] = ofRead(v, Waits.of(v, d))
+
+  /** Of a program as Lean reads it (its waits at once read as two points, `Waits`). */
+  private def ofRead(v: Vocabulary, d: Define): List[Commutation] = (d.written.form, d.lambda.body) match
     case (Form.Steps(p), Expr.Do(ir, _)) =>
       val fresh = (-ids(ir).minOption.getOrElse(0L)).max(0L).toInt
       val (written, read) = (AtOnce.of(p), AtOnce.of(ir))
@@ -80,20 +83,7 @@ object Commutation:
       .distinct
 
   /** The ids of every variable the steps bind, in their structure and in their terms. */
-  private def ids(p: Prog[Expr]): List[Long] =
-    (Progs.all(p).flatMap(bound) ++ Progs.terms(p).flatMap(Exprs.all).flatMap(Exprs.binders)).map(_.id.value)
-
-  private def bound(p: Prog[Expr]): List[Binder] = p match
-    case Prog.Bind(_, x, _)             => List(x)
-    case Prog.Let(x, _, _)              => List(x)
-    case Prog.Loop(_, x, _)             => List(x)
-    case Prog.Collect(_, x, _)          => List(x)
-    case Prog.Accumulate(_, _, a, x, _) => List(a, x)
-    case Prog.Modify(_, x, _)           => List(x)
-    case Prog.Catch(_, _, x, _)         => List(x)
-    case Prog.Par(_, a, _, b)           => List(a, b)
-    case Prog.ParEach(_, x, _, _)       => List(x)
-    case _                              => Nil
+  private def ids(p: Prog[Expr]): List[Long] = Progs.binders(p).map(_.id.value)
 
   /** The type of what a step gives: an operation's call, a transaction's body. */
   private def resultOf(v: Vocabulary, p: Prog[Expr]): Ty = p match

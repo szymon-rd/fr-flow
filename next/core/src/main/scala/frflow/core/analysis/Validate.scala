@@ -176,6 +176,8 @@ object Validate:
       case Expr.Do(p, _) => Progs.all(p).collect {
           case Prog.Call(op, _, _) if op != Prog.leftWins && t.vocabulary.modelOf(op).isEmpty =>
             Problem.StepNotOperation(d.name, op)
+          case Prog.Call(op, _, _) if t.vocabulary.models.exists(_.outside.contains(op)) =>
+            Problem.OutsideStepCalled(d.name, op)
         }.distinct
       case _             => Nil)
 

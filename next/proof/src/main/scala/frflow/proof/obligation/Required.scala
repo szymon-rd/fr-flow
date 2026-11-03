@@ -116,7 +116,20 @@ object Required:
         Obligation(ObligationName.Cover(op.value), Prop.over(Nil, Prop.Implies(Hyp.parts(hyps), goal)),
           Discharge.Auto, s"Every run of ${code.value} keeps ${n.value}" + givenWhat(hyps))
       }
-    }
+    } ++ outside(r, n)
+
+  /** `cover_<step>` of the world's own steps on the models the rule is about (the clock's `elapse`, owner §47):
+    * time passing keeps it, from a world meeting every `always`, where the schedules let the world move the time.
+    */
+  private def outside(r: Resolved, n: NodeId): List[Obligation] =
+    val models = r.theory.node(n).flatMap(_.statement.range).toList.flatMap(Scope.models(r.theory, _))
+    val every = Guards.reading(r.theory, r.theory.vocabulary.models.map(_.name))
+    models.flatMap(_.outside).flatMap(op => (every.toMap.get(n), typeOf(r, op)).tupled.map { (kept, ty) =>
+      val goal = Prop.Keeps(n, op, Keeping.formula(op, ty, escapes = false)(inputs(r, op, ty), kept,
+        every.map(_._2)), Map.empty)
+      Obligation(ObligationName.Cover(op.value), Prop.over(Nil, goal), Discharge.Auto,
+        s"Time passing (${op.value}) keeps ${n.value}.")
+    })
 
   private[obligation] def typeOf(r: Resolved, op: SymbolName): Option[Ty] =
     r.theory.vocabulary.symbol(op).map(_.ty).collect { case SymbolType.Typed(t) => t }

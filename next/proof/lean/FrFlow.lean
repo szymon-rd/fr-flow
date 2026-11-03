@@ -2,6 +2,7 @@ import FrFlow.Attr
 import FrFlow.Flow
 import FrFlow.Faults
 import FrFlow.Races
+import FrFlow.Clock
 import FrFlow.Commute
 import FrFlow.Auto
 import FrFlow.Intro

@@ -130,6 +130,10 @@ enum Problem:
     * 12 gives such a call its form.
     */
   case StepNotOperation(program: DefName, called: SymbolName)
+  /** A program calling the world's own step on a state (the clock's `elapse`, owner §47): the world takes it between
+    * runs; code waits (`sleep`) instead.
+    */
+  case OutsideStepCalled(program: DefName, step: SymbolName)
   /** An operation known only by assumptions (G2) of a model a rule is about, no assumption saying what its runs leave:
     * no program calling it could be shown to keep the rule (`cover_`). Only that some assumption reads the world a
     * run of it leaves is checked, a help to the author, not soundness: one saying nothing of it (`after === after`)

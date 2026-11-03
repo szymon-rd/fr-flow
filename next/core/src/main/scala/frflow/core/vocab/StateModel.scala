@@ -7,10 +7,11 @@ import frflow.core.ty.Ty
   * in the order the meanings are given, and what a call fails with when the operations may fail. Deterministic, the
   * flow's alone during a run. Each operation is a Definition; its plain Scala is given apart (`code.Implementation`).
   * An operation given no steps (`assumed`, G2) is known only by the assumptions about it: on its field of the World it
-  * may give any result and leave any state, but what those say (owner §36, "the assumed case").
+  * may give any result and leave any state, but what those say (owner §36, "the assumed case"). The clock (`timed`)
+  * is one model, FrFlow's own (owner §47).
   */
 final case class StateModel(name: ModelName, means: String, state: Ty, ops: List[ModelOp], fails: Option[Fails],
-    assumed: List[OpSig] = Nil):
+    assumed: List[OpSig] = Nil, timed: Option[Timed] = None):
   def failsWith: Option[Ty] = fails.map(_.ty)
   /** An operation's meaning, of one given steps. */
   def op(s: SymbolName): Option[ModelOp] = ops.find(_.op == s)
@@ -23,3 +24,5 @@ final case class StateModel(name: ModelName, means: String, state: Ty, ops: List
   def operations: List[SymbolName] = allSigs.map(_.name)
   /** Whether `s` is an operation of this model known only by assumptions. */
   def isAssumed(s: SymbolName): Boolean = assumed.exists(_.name == s)
+  /** The steps the world takes on this state between runs, never called by code: the clock's `elapse`. */
+  def outside: List[SymbolName] = timed.map(_.elapse).toList

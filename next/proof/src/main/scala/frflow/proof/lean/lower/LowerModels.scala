@@ -22,7 +22,7 @@ final class LowerModels(env: LowerEnv, naming: Naming):
   def decls(models: List[StateModel], errors: List[Ty]): List[Decl] =
     models.map(classOf) ++ models.map(model) ++ List(world(models)) ++ models.map(instance) ++
       models.flatMap(lemmas) ++ models.flatMap(m => m.assumed.map(assumedRun(m, _))) ++ faults.decls(models, errors) ++
-      (if env.racing then LowerFaults.racesDecls else Nil)
+      (if env.racing then LowerFaults.racesDecls else Nil) ++ LowerFaults.clockDecls(env)
 
   /** `@[frflow_defs] def Model.op_run (op : A → StateM S R) : A → World → (R × World) := fun a w => FrFlow.runOn
     * (FrFlow.within … (op a)) w`: an operation known only by assumptions run on its field of the World.
@@ -92,14 +92,16 @@ final class LowerModels(env: LowerEnv, naming: Naming):
         LowerType.declaration(op.params.map(_.ty), LowerModels.stateM(LowerType(m.state), op.result)), body)
     })
 
-  /** The models' states, the faults when a model's operations may fail (`true`: that call fails, in order), and the
-    * races' winners when a program races (`true`: the left wins, in order).
+  /** The models' states, the faults when a model's operations may fail (`true`: that call fails, in order), the
+    * races' winners when a program races (`true`: the left wins, in order), and the time the world lets pass at each
+    * of the clock's steps when the World has the clock (owner §47).
     */
   private def world(models: List[StateModel]): Decl =
     val failing = Option.when(models.exists(_.fails.nonEmpty))(LowerFaults.field -> LowerFaults.listOfBool)
     val racing = Option.when(env.racing)(LowerFaults.racesField -> LowerFaults.listOfBool)
+    val ticking = env.clock.map(_ => LowerFaults.ticksField -> LowerFaults.listOfNat)
     Decl.Documented("The models' states: what proven flows run on.", Decl.Structure(Names.builtin("World"),
-      models.map(m => env.modelField(m.name) -> LowerType(m.state)) ++ failing ++ racing))
+      models.map(m => env.modelField(m.name) -> LowerType(m.state)) ++ failing ++ racing ++ ticking))
 
   private def instance(m: StateModel): Decl =
     Decl.Instance(LExpr.App(LExpr.Name(LowerModels.className(m)),
@@ -135,8 +137,9 @@ object LowerModels:
   /** `FrFlow.within (fun w => w.f) (fun w s => { w with f := s }) (Model.op args)`: the model's operation on its
     * part of the world.
     */
-  def onWorld(env: LowerEnv, m: StateModel, o: OpSig, names: List[LeanName]): LExpr =
-    within(env, m.name, LExpr.App(LExpr.Const(List(space(m), Names.ident(o.name.value))), names.map(LExpr.Name(_))))
+  def onWorld(env: LowerEnv, m: StateModel, o: OpSig, names: List[LeanName]): LExpr = LowerFaults.timed(env, m.name,
+    o.name, within(env, m.name, LExpr.App(LExpr.Const(List(space(m), Names.ident(o.name.value))),
+      names.map(LExpr.Name(_)))))
 
   /** `FrFlow.within (fun w => w.f) (fun w s => { w with f := s }) (step)`: a step on a model's state run on its part
     * of the world.

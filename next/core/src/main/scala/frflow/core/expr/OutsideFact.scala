@@ -22,3 +22,11 @@ enum OutsideFact:
     * define named as the assumption.
     */
   case Initially(model: ModelName, rule: DefName)
+  /** Where the world moves the clock's time (owner §47: a schedule, a trusted fact restricting the world's steps):
+    * only to a time `rule` allows, given the states of `over` then (`clockModel.schedule(lastRun)((now, ran) => now
+    * <= ran + 120)`: housekeeping runs at least every two minutes). Every move the world makes is one: the steps it
+    * takes between runs (`elapse`), the time passing at each of the clock's steps in a run, and the end of a wait;
+    * read where the time is (the clock's steps, and the world's own), what passes in between counted at the next.
+    * A move it does not allow is not taken: no run the facts trust reaches it.
+    */
+  case Schedule(model: ModelName, over: List[ModelName], rule: DefName)

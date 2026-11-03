@@ -148,7 +148,8 @@ final class LowerProp(table: TermTable, env: LowerEnv, naming: Naming, values: L
     case Some(Substitute.Code(d)) => applied(define(d), table.defines.getOrElse(d, OpenTerms.empty), σ)
     case Some(Substitute.Fixed(c)) => Writer.value(constant(c))
     case Some(Substitute.Nothing) => Writer.value(nothing(table.typeOf(s)))
-    case None                     => Writer.tell(leaf(s)).as(LExpr.Name(Names.ident(s.value)))
+    case None                     =>
+      env.outside(s).fold(Writer.tell(leaf(s)).as(LExpr.Name(Names.ident(s.value))))(Writer.value(_))
 
   private def leaf(s: SymbolName): OpenTerms =
     OpenTerms(Ty.parts(table.typeOf(s)).collect { case Ty.Sort(n) => n }.distinct, List(s))

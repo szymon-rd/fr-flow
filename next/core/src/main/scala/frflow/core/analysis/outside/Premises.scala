@@ -30,19 +30,30 @@ object Premises:
   def of(t: Theory, id: NodeId): List[Premise] =
     t.node(id).filter(n => n.statement.kind == NodeKind.Claim && !SaysWhat.is(t, n.id)).toList.flatMap(n =>
       n.statement.range.toList.flatMap {
-        case Range.Possible     => runs(t, id).map(m => Premise.Atomic(m.name))
-        case Range.Reached(ms)  => ms.flatMap(t.vocabulary.model).flatMap(reached)
-        case r @ Range.Made(ty) => passed(t, ty) ++ Scope.models(t, r).flatMap(reached)
-      } ++ guarded(t, n) ++ constant(n)).distinct
+        case Range.Possible     => runs(t, id).flatMap(m => if m.timed.isEmpty then List(Premise.Atomic(m.name))
+            else scheduled(t, m))
+        case Range.Reached(ms)  => ms.flatMap(t.vocabulary.model).flatMap(reached(t, _))
+        case r @ Range.Made(ty) => passed(t, ty) ++ Scope.models(t, r).flatMap(reached(t, _))
+      } ++ guarded(t, n) ++ constant(t, n)).distinct
 
   /** An `isConstant` claim: no run changes the models it reads, read as no step changing them, rests on nothing
-    * outside the code changing them, and on each run being one step (owner §44).
+    * outside the code changing them, and on each run being one step (owner §44); of the clock, on where the world
+    * moves its time.
     */
-  private def constant(n: Node): List[Premise] = n.statement.said.toList.flatMap(Constancy.models)
-    .flatMap(m => List(Premise.OnlyCodeChanges(m), Premise.Atomic(m)))
+  private def constant(t: Theory, n: Node): List[Premise] = n.statement.said.toList.flatMap(Constancy.models)
+    .flatMap(m => t.vocabulary.model(m).filter(_.timed.nonEmpty).fold(
+      List(Premise.OnlyCodeChanges(m), Premise.Atomic(m)))(scheduled(t, _)))
+
+  /** What a check on the clock rests on outside the code: its schedules, which Lean's clock takes wherever the
+    * time moves (owner §47). Nothing else: its time is the World's, moved by code's waits and the world's steps only,
+    * and moved at every step of a run, so runs at once need no `atomic` of it.
+    */
+  private def scheduled(t: Theory, m: StateModel): List[Premise] =
+    Outsides.schedules(t, m.name).map((id, _) => Premise.Schedule(m.name, id))
 
   /** The programs changing `m`'s state (owner §31): those whose proven code calls an operation whose meaning writes
-    * it, or one known only by assumptions (which may leave any state).
+    * it, or one known only by assumptions (which may leave any state); and the world's own steps on it (the clock's
+    * `elapse`, owner §47).
     */
   def writers(t: Theory, m: StateModel): List[SymbolName] =
     val writing = (m.ops.filter(op => Progs.all(op.steps).exists {
@@ -51,7 +62,7 @@ object Premises:
     }).map(_.op) ++ m.assumed.map(_.name)).toSet
     t.code.attached.toList.collect {
       case (s, a) if (a.code match { case Code.ProvenFlow(f) => steps(t, f); case _ => Nil }).exists(writing) => s
-    }
+    } ++ m.outside
 
   /** The models whose operations covered code calls: those each proven program calls, through the defines it calls.
     */
@@ -68,8 +79,9 @@ object Premises:
       case c                  => c.proven.toList.flatMap(d => Callees.calledBy(t, d)))
     t.code.attached.keys.toList.filterNot(s => called.contains(s) || t.vocabulary.modelOf(s).nonEmpty)
 
-  private def reached(m: StateModel): List[Premise] =
-    List(Premise.OnlyCodeChanges(m.name), Premise.Atomic(m.name), Premise.Initially(m.name))
+  private def reached(t: Theory, m: StateModel): List[Premise] =
+    if m.timed.nonEmpty then Premise.Initially(m.name) :: scheduled(t, m)
+    else List(Premise.OnlyCodeChanges(m.name), Premise.Atomic(m.name), Premise.Initially(m.name))
 
   /** The models of the operations the programs a claim is checked against call. */
   private def runs(t: Theory, id: NodeId): List[StateModel] =
