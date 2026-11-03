@@ -1142,4 +1142,9 @@ theorem matching_keeps : searchKeeps.claim
     (fun (_ : Account) (q : Search) (s : Tables) => (s.store.records.filter (fun r => decide («matches» q r)), s)) :=
   fun _ _ _ _ _ _ => rfl
 
+/-- Expiring as the code does meets what is said of expiring (sharesExpire): a cover_ puts the code in. -/
+theorem sharesExpire_code : sharesExpire.claim expireCode := by
+  have h : Crm.sharesExpire.Obl.impl := by frflow_auto
+  exact h
+
 end Crm.Runs
