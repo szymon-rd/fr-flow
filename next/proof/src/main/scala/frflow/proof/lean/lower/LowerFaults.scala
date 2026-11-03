@@ -124,7 +124,7 @@ object LowerFaults:
   /** The clock's own declarations on the World: the instance a program waiting at once runs on, its lemma, and the
     * world's own step run on the World (`ClockModel.elapse_run`), what a statement and `cover_` read.
     */
-  def clockDecls(env: LowerEnv): List[Decl] = env.clock.toList.flatMap { c =>
+  def clockDecls(env: LowerEnv, fields: List[LeanName]): List[Decl] = env.clock.toList.flatMap { c =>
     val (get, put) = field(env.modelField(c.model))
     val reachOn = LExpr.App(const("FrFlow.Clock.reach"), List(get, put, c.allows))
     val monad = LExpr.App(name("StateM"), List(name("World")))
@@ -143,8 +143,32 @@ object LowerFaults:
           LExpr.Paren(LExpr.Infix(LOp.Times, name("Unit"), name("World"))))),
         LExpr.Fun(List(LBinder.Explicit(d, name("Int")), LBinder.Explicit(w, name("World"))),
           LExpr.App(const("FrFlow.runOn"), List(LExpr.Typed(LExpr.Paren(elapse), LExpr.App(monad,
-            List(name("Unit")))), LExpr.Name(w))))))
+            List(name("Unit")))), LExpr.Name(w)))))) ++ passing(env, c, fields)
   }
+
+  /** `World.ticked_f` and `World.move_f`: each other field of the World is as it was where the time passes, so a run
+    * reads through it; and the clock's own, moved where the schedules allow.
+    */
+  private def passing(env: LowerEnv, c: LowerEnv.Clock, fields: List[LeanName]): List[Decl] =
+    val clock = env.modelField(c.model)
+    val ((get, put), (ticks, putTicks)) = (field(clock), field(ticksField))
+    val (w, t) = (Names.builtin("w"), Names.builtin("s"))
+    val ticked = LExpr.App(const("FrFlow.Clock.ticked"), List(ticks, putTicks, get, put, c.allows, LExpr.Name(w)))
+    val moved = LExpr.App(const("FrFlow.Clock.move"), List(put, c.allows, LExpr.Name(t), LExpr.Name(w)))
+    def same(f: LeanName, of: LExpr) = LExpr.Infix(LOp.Eq, LExpr.Dot(LExpr.Paren(of), f.text), LExpr.Dot(LExpr.Name(w),
+      f.text))
+    def lemma(n: String, ps: List[LBinder], st: LExpr, proof: List[String]) =
+      Decl.Theorem(List(Attr.FrflowDefs), Names.builtin(n), ps, st, Proof.Tactics(proof), Break.NextLine)
+    val world = LBinder.Explicit(w, name("World"))
+    val time = LBinder.Explicit(t, name("Int"))
+    val others = fields.filterNot(_ == clock)
+    others.filterNot(_ == ticksField).map(f => lemma(s"World.ticked_${f.text}", List(world), same(f, ticked),
+      List("unfold FrFlow.Clock.ticked FrFlow.Clock.move", "split <;> (try split) <;> rfl"))) ++
+      others.map(f => lemma(s"World.move_${f.text}", List(time, world), same(f, moved),
+        List("unfold FrFlow.Clock.move", "split <;> rfl"))) :+
+      lemma(s"World.move_${clock.text}", List(time, world), LExpr.Infix(LOp.Eq, LExpr.Dot(LExpr.Paren(moved),
+        clock.text), LExpr.If(LExpr.App(c.allows, List(LExpr.Name(w), LExpr.Name(t))), LExpr.Name(t),
+        LExpr.Dot(LExpr.Name(w), clock.text))), List("unfold FrFlow.Clock.move", "split <;> simp_all"))
 
   /** `(fun w => w.f)` and `(fun w s => { w with f := s })`: a field of the World, read and put back. */
   private def field(f: LeanName): (LExpr, LExpr) =

@@ -22,7 +22,7 @@ final class LowerModels(env: LowerEnv, naming: Naming):
   def decls(models: List[StateModel], errors: List[Ty]): List[Decl] =
     models.map(classOf) ++ models.map(model) ++ List(world(models)) ++ models.map(instance) ++
       models.flatMap(lemmas) ++ models.flatMap(m => m.assumed.map(assumedRun(m, _))) ++ faults.decls(models, errors) ++
-      (if env.racing then LowerFaults.racesDecls else Nil) ++ LowerFaults.clockDecls(env)
+      (if env.racing then LowerFaults.racesDecls else Nil) ++ LowerFaults.clockDecls(env, fields(models))
 
   /** `@[frflow_defs] def Model.op_run (op : A → StateM S R) : A → World → (R × World) := fun a w => FrFlow.runOn
     * (FrFlow.within … (op a)) w`: an operation known only by assumptions run on its field of the World.
@@ -96,6 +96,11 @@ final class LowerModels(env: LowerEnv, naming: Naming):
     * races' winners when a program races (`true`: the left wins, in order), and the time the world lets pass at each
     * of the clock's steps when the World has the clock (owner §47).
     */
+  /** The World's fields, in order. */
+  private def fields(models: List[StateModel]): List[LeanName] = world(models) match
+    case Decl.Documented(_, Decl.Structure(_, fs)) => fs.map(_._1)
+    case _                                         => Nil
+
   private def world(models: List[StateModel]): Decl =
     val failing = Option.when(models.exists(_.fails.nonEmpty))(LowerFaults.field -> LowerFaults.listOfBool)
     val racing = Option.when(env.racing)(LowerFaults.racesField -> LowerFaults.listOfBool)

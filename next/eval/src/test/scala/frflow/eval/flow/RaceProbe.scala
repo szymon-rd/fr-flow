@@ -37,18 +37,15 @@ object RaceProbe:
 
   val boxOnly = Node.assumption("Nothing but the programs change the box.")(box.onlyCodeChanges)
   val boxOne = Node.assumption("One run at a time on the box.")(box.atomic)
-  val clockOnly = Node.assumption("Only sleeps move the clock as the programs see it.")(
-    Clock.clockModel.onlyCodeChanges)
-  val clockOne = Node.assumption("One run at a time on the clock.")(Clock.clockModel.atomic)
   val limitWinsUntouched = Node.claim("When the sleep wins, the box is as it was.")(
-    racer.result.fold(_ => True, _ => box.in(racer.after) === box.current)).assuming(boxOne, clockOne)
+    racer.result.fold(_ => True, _ => box.in(racer.after) === box.current)).assuming(boxOne)
 
   /** True of the code: when the adds win, both landed, whatever the cancelled sleep did. */
   val addsWinAddBoth = Node.claim("When the adds win, the box holds both numbers after what it held.")(
     racer.result.fold(_ => box.in(racer.after) === box.current :+ (1: Term[BigInt]) :+ (2: Term[BigInt]), _ => True))
-    .assuming(boxOne, clockOne)
+    .assuming(boxOne)
 
-  private def boxes(root: Node) = FrModel("Boxes")(root, boxOnly, boxOne, clockOnly, clockOne)
+  private def boxes(root: Node) = FrModel("Boxes")(root, boxOnly, boxOne)
     .implementProven(racer)(racerCode)
     .implementTested(addN)(start = SlowBox.holding, observe = _.numbers)(b => Tuple1(b.add))
     .implementTested(Clock.now, Clock.sleep, Clock.elapse)(start = Wall.at, observe = _.time)(c =>

@@ -1,5 +1,6 @@
 import FrFlow.Attr
 import FrFlow.Faults
+import FrFlow.Clock
 
 /-!
 `frflow_auto`: the tactic tried first on every link obligation. It unfolds the
@@ -9,6 +10,16 @@ conjunctions under quantifiers, when `grind` alone fails).
 -/
 
 syntax "frflow_auto" : tactic
+
+/-- The time the world lets pass (owner §47): each tick, each move the schedules allow, with each race's and fault's
+case, each computed. -/
+macro "frflow_ticks" : tactic => `(tactic| (
+  simp only [FrFlow.Clock.ticked] at *
+  try simp only [FrFlow.Clock.move] at *
+  intros
+  repeat (any_goals (frflow_choice_case <;> try simp only [] at *))
+  all_goals (try simp_all)
+  all_goals (first | done | grind | omega)))
 
 macro_rules
   | `(tactic| frflow_auto) => `(tactic| (
@@ -24,6 +35,9 @@ macro_rules
         | (simp only [forall_and] at *; grind)
         -- maps and sets are functions: equal when equal at every key
         | (simp only [funext_iff] at *; grind)
+        -- the time the world lets pass at the clock's steps (owner §47): each tick, each move the schedules allow,
+        -- with each race's and fault's case
+        | frflow_ticks
         -- a run that may fail: each case of the faults it takes
         | (frflow_faults; all_goals (try simp_all); all_goals (first | done | grind))
         | fail "frflow_auto found no proof; prove this obligation in the node's proof file"))
