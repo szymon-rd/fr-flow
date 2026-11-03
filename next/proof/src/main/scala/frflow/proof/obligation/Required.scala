@@ -111,17 +111,21 @@ object Required:
     writers.flatMap(op => reading(op).toMap.get(n).map(op -> _)).flatMap { (op, kept) =>
       (Callees.ofDefinition(r.theory, op).flatMap(_.standsFor.get(op)), typeOf(r, op)).tupled.map { (code, ty) =>
         val escapes = Failing.escapingOf(r.theory, op).nonEmpty
-        val within = reading(op).map(_._2)
-        val formula = Keeping.formula(op, ty, escapes)(inputs(r, op, ty), kept, within)
-        val goal = Prop.Keeps(n, op, formula, Map(op -> Substitute.Code(code)) ++ fixed(r, formula))
-        val hyps = r.reliedOnBy(op)
-        // what is proven of the program's runs is of its code, as `impl` puts the code in each part mentioning it
-        val stated = hyps.map(h => if !mentions(r, h, op) then Hyp.of(h)
-          else Hyp(Hyp.of(h).name, Prop.ClaimOf(h, Map(op -> Substitute.Code(code)))))
-        Obligation(ObligationName.Cover(op.value), Prop.over(Nil, Prop.Implies(stated, goal)),
-          Discharge.Auto, s"Every run of ${code.value} keeps ${n.value}" + givenWhat(hyps))
+        covering(r, n, op, code)(Keeping.formula(op, ty, escapes)(inputs(r, op, ty), kept, reading(op).map(_._2)))
       }
     } ++ outside(r, n)
+
+  /** `cover_<op>` of the program's code keeping the formula, given what the code relies on: what is proven of the
+    * program's runs is of its code, as `impl` puts the code in each part mentioning it.
+    */
+  private def covering(r: Resolved, n: NodeId, op: SymbolName, code: DefName)(
+      formula: frflow.core.spec.Written[frflow.core.expr.Expr]): Obligation =
+    val goal = Prop.Keeps(n, op, formula, Map(op -> Substitute.Code(code)) ++ fixed(r, formula))
+    val hyps = r.reliedOnBy(op)
+    val stated = hyps.map(h => if !mentions(r, h, op) then Hyp.of(h)
+      else Hyp(Hyp.of(h).name, Prop.ClaimOf(h, Map(op -> Substitute.Code(code)))))
+    Obligation(ObligationName.Cover(op.value), Prop.over(Nil, Prop.Implies(stated, goal)),
+      Discharge.Auto, s"Every run of ${code.value} keeps ${n.value}" + givenWhat(hyps))
 
   /** `cover_<step>` of the world's own steps on the models the rule is about (the clock's `elapse`, owner §47):
     * time passing keeps it, from a world meeting every `always`, where the schedules let the world move the time.

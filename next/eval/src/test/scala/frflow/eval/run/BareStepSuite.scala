@@ -1,4 +1,4 @@
-package frflow.eval.flow
+package frflow.eval.run
 
 import cats.effect.{IO, Ref}
 import frflow.*

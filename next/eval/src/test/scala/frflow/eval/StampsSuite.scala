@@ -1,5 +1,6 @@
-package frflow.eval.flow
+package frflow.eval
 
+import frflow.eval.flow.Stamps
 import whole.Theories
 
 /** The stamps (owner §47) as written: valid, both what holds as time passes and its seeded bugs. */

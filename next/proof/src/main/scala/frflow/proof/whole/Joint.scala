@@ -36,15 +36,20 @@ object Joint:
       }
     case g @ Group.Premises(_, _, _) => premised(r, g, i)
     case Group.Start(n, start) => start.flatMap(r.theory.node).flatMap(_.statement.outside).collect {
-      case OutsideFact.Initially(m, rule) =>
-        val state = r.theory.vocabulary.model(m).fold(Ty.Unit)(_.state)
-        reached(r, n).filter(_.size > 1).fold(
-          Obligation(ObligationName.Start(n), Prop.Starts(DefName(n.value), List(rule -> state),
-            within(r, n, state)), Discharge.Auto, s"Every state ${m.value} may start in meets ${n.value}.")) { ms =>
-          Obligation(ObligationName.Start(n), Prop.Starts(DefName(n.value), ms.flatMap(started(r, _)), None),
-            Discharge.Auto, s"Every state ${ms.map(_.value).mkString(" and ")} may start in together meets " +
-              s"${n.value}.")
-        }
+      case OutsideFact.Initially(m, rule) => starts(r, n, m, rule)
+    }
+
+  /** `start_<node>`: every state the model may start in meets the rule; of a rule over several models' states, the
+    * states each may start in, together.
+    */
+  private def starts(r: Resolved, n: NodeId, m: ModelName, rule: DefName): Obligation =
+    val state = r.theory.vocabulary.model(m).fold(Ty.Unit)(_.state)
+    reached(r, n).filter(_.size > 1).fold(
+      Obligation(ObligationName.Start(n), Prop.Starts(DefName(n.value), List(rule -> state),
+        within(r, n, state)), Discharge.Auto, s"Every state ${m.value} may start in meets ${n.value}.")) { ms =>
+      Obligation(ObligationName.Start(n), Prop.Starts(DefName(n.value), ms.flatMap(started(r, _)), None),
+        Discharge.Auto, s"Every state ${ms.map(_.value).mkString(" and ")} may start in together meets " +
+          s"${n.value}.")
     }
 
   /** The models a rule of the world reads, in the order it reads them: several where it relates them. */

@@ -25,13 +25,14 @@ final class Outcomes(env: LowerEnv, standing: Map[SymbolName, LExpr]):
       name("_") -> name("True"))
 
 object Outcomes:
-  /** `((after.Shelf = before.Shelf) ∧ …)`: one equation per model's field of the world, `True` with none; the faults
-    * are no model's (`Worlds.unchanged`), and the clock's time is the world's: it passes whatever a run does (owner
-    * §47), so a run changing nothing may still have let time pass.
+  /** `((after.Shelf = before.Shelf) ∧ …)`: one equation per model's field of the world, `True` with none; the
+    * faults are no model's (`Worlds.unchanged`), and the clock's time is the world's: it passes whatever a run does
+    * (owner §47), so a run changing nothing may still have let time pass.
     */
   def unchanged(env: LowerEnv, after: LExpr, before: LExpr): LExpr =
-    env.models.filterNot(f => env.clock.exists(c => env.modelField(c.model) == f)).map(f => LExpr.Paren(LExpr.Infix(LOp.Eq, LExpr.Dot(after, f.text), LExpr.Dot(before, f.text))))
-      match
+    val timed = env.clock.map(c => env.modelField(c.model))
+    env.models.filterNot(timed.contains)
+      .map(f => LExpr.Paren(LExpr.Infix(LOp.Eq, LExpr.Dot(after, f.text), LExpr.Dot(before, f.text)))) match
         case Nil        => Atoms.name("True")
         case one :: Nil => one
         case each       => LExpr.Paren(each.reduceRight(LExpr.Infix(LOp.And, _, _)))

@@ -1,8 +1,7 @@
-package frflow.project.program
+package frflow.project
 
 import frflow.core.name.NodeId
 import frflow.eval.flow.Stamps
-import frflow.project.{Live, Ported, Projects}
 import scala.concurrent.duration.*
 
 /** Time as Cats Effect models it (owner §47), checked by Lean: a rule time passing keeps is proven of the world's own
