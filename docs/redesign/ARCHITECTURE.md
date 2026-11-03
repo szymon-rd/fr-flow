@@ -430,7 +430,7 @@ from outside meet is said differently, with `always` on their type (below).
 |---|---|---|
 | `stored.onlyCodeChanges` | nothing outside the code changes the model's state | every reached state is one a run of the code leaves |
 | `stored.initially(held => …)` | what the state's start meets | `start_<node>`: `∀ s, initially s → A s` |
-| `stored.atomic` | runs on the state never interleave | each run is one step of the world |
+| `stored.atomic` | runs on the state never interleave; each call is one step against calls at once | each run is one step of the world |
 
 All three are said of the `StateModel` (owner §36: there is no boundary). That the plain Scala does what the model
 says is not assumed: it is tested on generated sequences of calls (3.8), so today's `behavesAs` is gone, its two
@@ -928,7 +928,9 @@ The SQLite table is tested against the model, not trusted. The FrModel's line (3
 `start` makes the implementation holding a state of the model; `observe` reads its state back; the last gives each
 operation's Scala, in the order the Definitions are listed. `ModelTests.run` runs generated sequences of calls
 (`Runs`, values meeting each `always[T]`) on both and reports the first answer that differs (`Difference.Answer`) or a
-final state that does (`Difference.State`), on 200 runs by default. It is one form whoever wrote the Scala, the project
+final state that does (`Difference.State`), on 200 runs by default; then each run's first two calls at once on
+the Scala, what it gave each and the state it then held being what one order of the two gives on the model
+(`CallsAtOnce`, `Difference.AtOnce`; the model's `atomic`, 4.4). It is one form whoever wrote the Scala, the project
 or an outside system's vendor (owner §36), so `checkedAgainst` and `implementedBy` are gone. `StoreModelSuite` runs the
 same test on an in-memory stand-in and its seeded variants (`ModelTests.of(storedBookings)(start, observe)(calls)`): on
 200 runs the stand-in agrees; one that forgets the room filter is found at `inRoom`, one that forgets to add by its
@@ -1182,29 +1184,30 @@ takes `now`, and `retry` `sleep`. A program's steps have three readings:
   model tests) or the implementations (interleavings). A sequential run takes the scheduler's choices from the world (a
   reserved `races : List Bool`, held like `faults`, read by `races.leftWins`), choices Lean leaves open.
 
-**A race** (step 13 review, B1). In production `l.race(r)` runs both sides at once and cancels the loser when the
-winner finishes, at whatever step it has reached: what its steps did until then stays. So a race is read, by Lean and
-by the sequential runs alike, as the scheduler's choice of the winner (`races.leftWins`), then the loser's steps until
-the scheduler cancels it (`Prog.Cut`: before each of the loser's steps the world says whether it is cancelled there,
-the next of the same `races`, `true` when none is left), then the winner's (`ReadRecording.raced`). A step is an
-operation's call or a transaction, neither of which production cancels part way (`Running` runs each call, as each
-transaction, uncancelable, as the concurrent tests' scheduling does; the step 13 re-review's RS1). The clock's wait is
-the one call cancelled inside, so that a race won beside a long wait does not wait for it: its model moves the clock
-once the wait is over, so a wait cut short is read as cut before it, and the time that passed meanwhile is owner
-§47's outside step, not yet built. A traverse at once in the loser has each branch cancelled at its own step, read in
-turn, and what follows it dropped when one was (`FrFlow.Races.each`); a race, a pair at once or a finalizer
-(`guarantee`, `bracket`) inside a race's side is refused (`RaceSideHolds`): what they do when cancelled is not read.
-In Lean the loser is `FrFlow.Races.cut (do …)`, its block in `OptionT`, each step `FrFlow.Races.step (…)` (the choice,
-then the step), the rest dropped once a step gives nothing; `frflow_defs` unfolds it step by step. The loser's steps
-are read before the winner's, which stands for production's run, where they interleave, by the commutation of each
-step of one side with each of the other's (below). Equations of
-worlds are refused where a program races, as where a model may fail (`WorldsEqual`): the choices a run takes are part
-of the world it leaves. The review's probe (`whole.RaceProbe`: two adds raced against a sleep, "when the sleep wins
-the box is as it was") stays unproven, as it is false of production's run (`RaceProbeSuite`, `RacesLeanSuite`), and
-sharing's delivery is interleaved whole with sends slower than its limit (`InterleavingsSuite`): every run ends where
-the reading allows, some half done. `timeout` is read as written (`now`, the steps, `now`): the clock's model moves
-only by sleeps, so where the steps do not sleep the limit is never past in Lean and its `none` side says nothing yet;
-G1's outside step would make it bite.
+**A race** (step 13 review, B1). In production `l.race(r)` runs both sides at once and cancels the loser when the winner
+finishes, at whatever step it has reached: what its steps did until then stays. So a race is read, by Lean and by the
+sequential runs alike, as the scheduler's choice of the winner (`races.leftWins`), then the loser's steps until the
+scheduler cancels it (`Prog.Cut`: before each of the loser's steps the world says whether it is cancelled there, the
+next of the same `races`, `true` when none is left), then the winner's (`ReadRecording.raced`). A step is an operation's
+call or a transaction, neither of which production cancels part way (`Running` runs each call, as each transaction,
+uncancelable, as the concurrent tests' scheduling does; the step 13 re-review's RS1). So any slow call holds a race
+until it finishes: a race won beside a call that blocks on I/O returns only when that call ends, and a race is no
+timeout for a slow operation. The clock's wait is the one call cancelled inside, so that a race won beside a long wait
+does not wait for it: its model moves the clock once the wait is over, so a wait cut short is read as cut before it, and
+the time that passed meanwhile is owner §47's outside step, not yet built. A traverse at once in the loser has each
+branch cancelled at its own step, read in turn, and what follows it dropped when one was (`FrFlow.Races.each`); a race,
+a pair at once or a finalizer (`guarantee`, `bracket`) inside a race's side is refused (`RaceSideHolds`): what they do
+when cancelled is not read. In Lean the loser is `FrFlow.Races.cut (do …)`, its block in `OptionT`, each step
+`FrFlow.Races.step (…)` (the choice, then the step), the rest dropped once a step gives nothing; `frflow_defs` unfolds
+it step by step. The loser's steps are read before the winner's, which stands for production's run, where they
+interleave, by the commutation of each step of one side with each of the other's (below). Equations of worlds are
+refused where a program races, as where a model may fail (`WorldsEqual`): the choices a run takes are part of the world
+it leaves. The review's probe (`whole.RaceProbe`: two adds raced against a sleep, "when the sleep wins the box is as it
+was") stays unproven, as it is false of production's run (`RaceProbeSuite`, `RacesLeanSuite`), and sharing's delivery is
+interleaved whole with sends slower than its limit (`InterleavingsSuite`): every run ends where the reading allows, some
+half done. `timeout` is read as written (`now`, the steps, `now`): the clock's model moves only by sleeps, so where the
+steps do not sleep the limit is never past in Lean and its `none` side says nothing yet; G1's outside step would make it
+bite.
 
 **Steps at once** (the step 13 re-review, RB1, RB2). Lean reads a pair's branches, two elements of a traverse at once
 and a race's sides one after the other; production interleaves their steps (`F.both`, `parTraverseN`, `F.race`). A
@@ -1221,9 +1224,15 @@ is asked of them; each pair is asked once (of a traverse, either way round). Unp
 not proven.
 
 It is sound by Lipton's reduction. A run in production is an interleaving of the sides' steps, each all or nothing
-(above). Two adjacent steps of two sides that commute can be swapped without changing either's result or the models
-after (`Commute.swap`), and what a step does depends only on the models and the values its side gave it. Swapped two
-at a time, each side's steps keep their order, so every interleaving becomes the reading's order (the first side's
+(above) and indivisible against the other side's: a transaction by the lock, a call by its model's `atomic`, which says
+each call of the model's operations is one step against calls at once as well as runs (its Scala keeps them apart: one
+update of the state, or a store serializing them). That is checked, not only assumed: the model tests run two calls of
+each run at once on the Scala and compare what each gave and the state it then held with the model's two orders of them
+(`CallsAtOnce`, 3.8), so Scala that reads the state, pauses and writes it back, which passes every run in turn, fails
+them (the re-review's P8, `ModelRunsSuite`). No lock per model is taken in `Running`, which would cost delivery its
+sends at once. Two adjacent steps of two sides that commute can be swapped without changing either's result or the
+models after (`Commute.swap`), and what a step does depends only on the models and the values its side gave it. Swapped
+two at a time, each side's steps keep their order, so every interleaving becomes the reading's order (the first side's
 steps, then the second's), every step giving what it gave: what is proven of the reading holds of the run. A race's
 loser cancelled between two of its steps is the reading's loser cut there. The two probes stay unproven, false of
 production's runs (`AtOnceLeanSuite`, `InterferenceProbeSuite`): a set raced against a copy of the same number into
@@ -1231,8 +1240,8 @@ another ("when the set wins, b is as it was or holds a's old number": the copy r
 once, each a read then a set ("adds two": one is lost); two sets on two models at once ask nothing and are proven.
 Sharing's delivery passes: two of its sends at once are to two people's mailboxes or of one notice
 (`Lemmas.sends_commute`), two removals from the outbox are transactions whose filters commute
-(`Lemmas.removals_commute`), and its waits add up in either order (automation); handle reads the time and the library
-at once, models apart.
+(`Lemmas.removals_commute`), and its waits add up in either order (automation); handle reads the time and the library at
+once, models apart.
 
 What the reduction does not cover is refused (`Validate`): a side that may let an error out beside one that may fail
 or changes a model's state (`FailsBeside`; of a traverse, a body that may let an error out). Production then cancels
