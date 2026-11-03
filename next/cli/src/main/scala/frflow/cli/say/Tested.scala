@@ -77,6 +77,9 @@ object Tested:
     case Difference.Call(s, impl, model) => s"at ${step(s)} the Scala ${ran(impl)}, the model ${ran(model)}"
     case Difference.Assumed(s, impl, ns) => s"at ${step(s)} the Scala ${ran(impl)}, " + (if ns.isEmpty then
         "which nothing assumed of it covers" else s"breaking ${ns.map(_.value).mkString(", ")}")
+    case Difference.Twice(s, impl, at)   => s"at ${step(s)}, made twice from one state, the Scala " +
+        s"${impl.map(ran).mkString(" then ")}, leaving ${at.map(Values.value).mkString(" then ")}: it is no function " +
+        "of its model's state, as Lean reads it"
     case Difference.State(impl, model)   =>
       s"the Scala holds ${Values.value(impl)} where the model holds ${Values.value(model)}"
     case Difference.AtOnce(ss, impl, at) => s"${ss.map(step).mkString(" and ")} at once: the Scala " +

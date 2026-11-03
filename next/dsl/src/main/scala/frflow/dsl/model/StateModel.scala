@@ -69,8 +69,14 @@ abstract class StateModel[S](description: String)(using named: StateModel.Named,
   extension (op: Definition[?])
     /** The operation known only by the assumptions about it (G2, owner §36: "the assumed case"), given no steps: on
       * this model's state it may give any result and leave any state but what those assumptions say
-      * (`forall((q: Term[Search]) => fetch(q).result === …)`). Its Scala is given with the others' and tested against
-      * them where a run can be evaluated.
+      * (`forall((q: Term[Search]) => fetch(q).result === …)`). It is a function of this model's state and its inputs:
+      * two calls from one state give one result and leave one state, so a program may rely on two lookups agreeing,
+      * and what it reads of the world is this model's state only (an assumption about it reads no other model,
+      * `ReadsBeside`; what it needs of another is handed to it as an input). Its results are values from outside
+      * (owner §37): a claim of `always` on their type is refused (`AssumedMakes`), an assumption covers them. Its Scala
+      * is given with the others' and tested against those assumptions where a run can be evaluated, and against
+      * itself: each call made again from the state before it must give and leave the same (`Difference.Twice`); an
+      * assumption no run can evaluate is trusted, not tested, and said so.
       */
     def assumed: Unit = unmeant += op
 

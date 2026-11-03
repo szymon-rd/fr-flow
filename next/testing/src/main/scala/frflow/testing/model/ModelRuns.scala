@@ -84,6 +84,7 @@ final class ModelRuns[F[_]: Concurrent](check: ModelTests.Check, semantics: Sema
     val upTo = d.collect {
       case Difference.Call(st, _, _)    => steps.indexOf(st) + 1
       case Difference.Assumed(st, _, _) => steps.indexOf(st) + 1
+      case Difference.Twice(st, _, _)   => steps.indexOf(st) + 1
     }.getOrElse(steps.size)
     steps.take(upTo).foldMap(st => Hits.of(Target(Position(List(ops.indexOf(st.op))), Reach.Called(st.op))))
 

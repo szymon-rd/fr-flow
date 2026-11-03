@@ -16,8 +16,9 @@ import frflow.eval.{Raised, ScalaValue, Semantics}
   * both, in turn, up to the first they do differently (`Ran`: a result, an error of the program's, anything else
   * thrown). `ModelRuns` generates the runs and shrinks a failing one. This is where the Scala, whoever wrote it, is
   * checked against the model (owner §36), since nothing checks it in production. A call of an operation known only by
-  * assumptions (G2) has no model's answer to compare: `assumed` checks it, its Scala's call against what is assumed of
-  * it, and gives the model the state the Scala left.
+  * assumptions (G2) has no model's answer to compare: `assumed` checks it (`AssumedCall`), its Scala's call against
+  * what is assumed of it and against itself made again from the same state, and gives the model the state the Scala
+  * left.
   */
 final class ModelTests[F[_]: MonadThrow](implemented: World[F], models: World[F], typing: Typing,
     assumed: ModelTests.Assumed[F] = ModelTests.Assumed.none[F]):
@@ -73,27 +74,11 @@ object ModelTests:
       states  <- Ref.of[F, Map[ModelName, ScalaValue]](Map(check.model.name -> held))
       models   = World.watched(semantics, v, states, branched)
       scala    = implemented(check, semantics, made)
-      found   <- ModelTests(scala, models, typing, assumed(check, made, (scala, states), typing))
+      found   <- ModelTests(scala, models, typing, AssumedCall(check, semantics, typing)(made, (scala, states)))
         .firstDifference(steps)
       ended   <- found.fold(atEnd(check, made, models, typing))(d => d.some.pure[F])
     yield ended
     ran.handleError(e => Some(Difference.NotRun(String.valueOf(e.getMessage))))
-
-  /** A call of an operation of the model known only by assumptions: its Scala called, its state read back before and
-    * after, the assumptions about it checked, and the model given the state the Scala left.
-    */
-  private def assumed[F[_]: MonadThrow](check: Check, made: Any, on: (World[F], Ref[F, Map[ModelName, ScalaValue]]),
-      typing: Typing): Assumed[F] = (s, args) =>
-    val (m, observe) = (check.model.name, () => check.implementation.scala.observe(made).asInstanceOf[F[Any]])
-    Option.when(check.model.isAssumed(s.op))(for
-      before <- observe()
-      result <- on._1.call(s.op, args).attempt
-      after  <- observe()
-      _      <- on._2.update(_.updated(m, ScalaValue(after)))
-    yield result match
-      case Left(e)  => Some(Difference.Assumed(s, outcome(typing, s)(Left(e)), Nil))
-      case Right(v) => Option(check.assumptions.broken(s.op, m)(args, v, (before, after))).filter(_.nonEmpty)
-          .map(Difference.Assumed(s, outcome(typing, s)(Right(v)), _)))
 
   /** What a call did, on the Scala or on the model. */
   private[model] def ran[F[_]: MonadThrow](w: World[F], typing: Typing)(s: Step): F[Ran] =

@@ -54,6 +54,7 @@ object TestDraws:
 
   val difference: Gen[Difference] = Gen.oneOf(Gen.zip(step, ran, ran).map(Difference.Call(_, _, _)),
     Gen.zip(value(1), value(1)).map(Difference.State(_, _)),
+    Gen.zip(step, few(ran), few(value(1))).map(Difference.Twice(_, _, _)),
     Gen.zip(few(step), few(ran), value(1)).map(Difference.AtOnce(_, _, _)), text.map(Difference.NotRun(_)))
 
   val failure: Gen[Failure] = Gen.oneOf(
