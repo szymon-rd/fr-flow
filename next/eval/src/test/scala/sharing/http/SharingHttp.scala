@@ -12,7 +12,7 @@ import sharing.requests.AccessRequests
 import sharing.service.Sharing
 import sharing.store.LibraryStore
 import sharing.store.LibraryStore.{libraryModel, oneTransactionAtATime}
-import sharing.time.ClockKept.{clockAlone, clockModel}
+import sharing.time.ClockKept.{clockModel, housekeepingOnTime}
 import sharing.time.Lifetimes.{isOpen, isPending}
 import sharing.trash.Trash
 
@@ -83,18 +83,17 @@ object SharingHttp:
   val handleContract = Node.claim("A request is answered at the time the clock gives, from the library the store " +
       "holds, and leaves the store holding the library it leads to: a question is answered with the person's access " +
       "and changes nothing; a change is made as its operation makes it, recorded in the log and announced in the " +
-      "outbox in the same save, and answered done when it may be made and refused otherwise; an answer past the " +
-      "time limit is not given. Handling does not move the clock. A request the store fails changes nothing. (The " +
-      "clock as the programs see it moves only by their sleeps, and handling sleeps not: so the time limit is never " +
-      "shown to pass, and that part says nothing yet; time passing outside the programs would make it bite.)")(
+      "outbox in the same save, and answered done when it may be made and refused otherwise; an answer is given up " +
+      "only once more than the time limit passed. A request the store fails changes nothing.")(
     forall((r: Term[Request]) => handle(r).result.fold(_ => handle(r).changesNothing,
       result =>
         val after = handle(r).after
         libraryModel.in(after) === served(libraryModel.current, clockModel.current, r) &&
-          clockModel.in(after) === clockModel.current && mailerModel.in(after) === mailerModel.current &&
-          result.forall(a => a === answerTo(libraryModel.current, clockModel.current, r)))))
+          mailerModel.in(after) === mailerModel.current &&
+          result.forall(a => a === answerTo(libraryModel.current, clockModel.current, r)) &&
+          (result.isDefined || clockModel.in(after) > clockModel.current + limit))))
     .refines(accessFollowsShares)
-    .assuming(oneTransactionAtATime, clockAlone)
+    .assuming(oneTransactionAtATime, housekeepingOnTime)
 
   /** How long a request may take, in seconds: past it, it is answered 503. */
   val limit: BigInt = 5

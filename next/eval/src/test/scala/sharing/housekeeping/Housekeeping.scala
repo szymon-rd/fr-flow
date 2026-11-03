@@ -33,11 +33,14 @@ object Housekeeping:
     let(Notifications.warn(AccessRequests.chase(Audit.forget(tidy(lib, t), t), t), t))(next =>
       when(next =!= lib)(Audit.record(next, t, Change.Housekept)).otherwise(lib)) }
 
-  /** One run, one transaction: the time, the library, the library housekeeping leaves saved when it changed. */
+  /** One run, one transaction: the time, the library, the library housekeeping leaves saved when it changed, and the
+    * time kept as when it last ran.
+    */
   val housekeeping = program {
     (for
       t   <- Clock.now
       lib <- LibraryStore.load
       next = Notifications.warn(AccessRequests.chase(Audit.forget(tidy(lib, t), t), t), t)
       _   <- Flow.when(next =!= lib)(LibraryStore.save(Audit.record(next, t, Change.Housekept)))
+      _   <- Flow.step(sharing.time.ClockKept.ranAt(t))
     yield Flow.done).atomically }

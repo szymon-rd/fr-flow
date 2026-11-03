@@ -19,7 +19,7 @@ final class LowerKeeps(env: LowerEnv, table: TermTable, naming: Naming):
   def makes(m: Prop.Makes): Decl = declared(m.always, LeanNames.makes(m.maker.value), m.formula)
 
   private def declared(always: NodeId, name: String, formula: Written[Expr]): Decl =
-    val params = LowerProp.opens(formula).symbols.map(s =>
+    val params = LowerProp.opens(formula, table).symbols.map(s =>
       LBinder.Explicit(Names.ident(s.value), LowerType.binder(typeIn(formula, s))))
     val body = formula.form match
       case Form.Term(t)  => Printed.formula(env, naming)(t.run)

@@ -110,8 +110,8 @@ object Required:
       (Callees.ofDefinition(r.theory, op).flatMap(_.standsFor.get(op)), typeOf(r, op)).tupled.map { (code, ty) =>
         val escapes = Failing.escapingOf(r.theory, op).nonEmpty
         val within = reading(op).map(_._2)
-        val goal = Prop.Keeps(n, op, Keeping.formula(op, ty, escapes)(inputs(r, op, ty), kept, within),
-          Map(op -> Substitute.Code(code)))
+        val formula = Keeping.formula(op, ty, escapes)(inputs(r, op, ty), kept, within)
+        val goal = Prop.Keeps(n, op, formula, Map(op -> Substitute.Code(code)) ++ fixed(r, formula))
         val hyps = r.reliedOnBy(op)
         Obligation(ObligationName.Cover(op.value), Prop.over(Nil, Prop.Implies(Hyp.parts(hyps), goal)),
           Discharge.Auto, s"Every run of ${code.value} keeps ${n.value}" + givenWhat(hyps))
@@ -125,11 +125,17 @@ object Required:
     val models = r.theory.node(n).flatMap(_.statement.range).toList.flatMap(Scope.models(r.theory, _))
     val every = Guards.reading(r.theory, r.theory.vocabulary.models.map(_.name))
     models.flatMap(_.outside).flatMap(op => (every.toMap.get(n), typeOf(r, op)).tupled.map { (kept, ty) =>
-      val goal = Prop.Keeps(n, op, Keeping.formula(op, ty, escapes = false)(inputs(r, op, ty), kept,
-        every.map(_._2)), Map.empty)
+      val formula = Keeping.formula(op, ty, escapes = false)(inputs(r, op, ty), kept, every.map(_._2))
+      val goal = Prop.Keeps(n, op, formula, fixed(r, formula))
       Obligation(ObligationName.Cover(op.value), Prop.over(Nil, goal), Discharge.Auto,
         s"Time passing (${op.value}) keeps ${n.value}.")
     })
+
+  /** The fixed values a `cover_` reads, through the rules it states: each stands as its value (2.7). */
+  private def fixed(r: Resolved, f: frflow.core.spec.Written[frflow.core.expr.Expr]): Map[SymbolName, Substitute] =
+    Fixed.of(r, frflow.core.expr.Exprs.mentions(f.value).symbols ++ r.theory.vocabulary.closure(
+      frflow.core.expr.Exprs.mentions(f.value).defines).flatMap(d => frflow.core.expr.Exprs.mentions(d.lambda.body)
+        .symbols))
 
   private[obligation] def typeOf(r: Resolved, op: SymbolName): Option[Ty] =
     r.theory.vocabulary.symbol(op).map(_.ty).collect { case SymbolType.Typed(t) => t }

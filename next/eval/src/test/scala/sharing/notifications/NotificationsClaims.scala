@@ -6,7 +6,7 @@ import sharing.domain.*
 import sharing.notifications.Mailer.{mailbox, taken}
 import sharing.notifications.Notifications.*
 import sharing.store.LibraryStore.{libraryModel, oneTransactionAtATime}
-import sharing.time.ClockKept.clockAlone
+import sharing.time.ClockKept.housekeepingOnTime
 
 /** Notifications's claims: what its code is proven to do, each refining a branch or the purpose. */
 object NotificationsClaims:
@@ -16,8 +16,7 @@ object NotificationsClaims:
       "declined; the new owner of a document. Nothing else changes.")(
     forall((lib: Term[Library], before: Term[Library], r: Term[Request], e: Term[Entry]) =>
       announce(lib, before, r, e) === lib.updated(_.outbox, lib.outbox ++ noticesOf(before, r, e))))
-    .refines(noticesFollowChanges, sharing.auditTrail, sharing.time.Deadlines.invitationsLapseOnTime,
-      sharing.time.Deadlines.trashPurgedOnTime, sharing.time.Deadlines.requestsAnsweredOnTime)
+    .refines(noticesFollowChanges, sharing.auditTrail)
 
   val warnContract = Node.claim("Housekeeping tells of the shares ending within a day: at a moment, it adds at the " +
       "end of the outbox a notice, to each person a share reaches, of each share whose end comes a day on, within " +
@@ -44,7 +43,7 @@ object NotificationsClaims:
               mailbox(mailerModel.in(after), n.to) === taken(mailbox(mailerModel.current, n.to), n))))
   }
     .refines(noticesFollowChanges)
-    .assuming(oneTransactionAtATime, mailOneAtATime, clockAlone, Pool.poolOneAtATime)
+    .assuming(oneTransactionAtATime, mailOneAtATime, Pool.poolOneAtATime, housekeepingOnTime)
 
   /** A root of its own (owner §11): what the kept combinators' bracket is for, which no branch about notices makes. */
   val deliveryGivesBack = Node.claim("No connection to the mail server is ever kept: a run of delivery gives back " +
@@ -52,4 +51,4 @@ object NotificationsClaims:
       "connections " +
       "are in use after it as before.")(
     Pool.poolModel.in(deliver.after) === Pool.poolModel.current)
-    .assuming(oneTransactionAtATime, mailOneAtATime, clockAlone, Pool.poolOneAtATime)
+    .assuming(oneTransactionAtATime, mailOneAtATime, Pool.poolOneAtATime, housekeepingOnTime)

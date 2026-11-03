@@ -78,14 +78,18 @@ class ExamplesSuite extends munit.FunSuite:
     assertEquals(written.map(_.examples.size), List(2, 5, 11, 6, 4))
   }
 
-  test("sharing: today's, with the store's, the mail server's and the clock's runs one at a time, assumptions; the " +
-    "definitions of two words each are a claim per word, today's id kept for the first; the pool of connections a " +
-    "run of delivery takes from and gives back (its bracket), its model's assumptions and its claim; the purpose's " +
-    "may edit and is in the trash, Declarations, each with the claim saying what it is") {
-    assertEquals(ids(sharing.knowledge), renamed(Today.sharing, Set.empty, Set(
-      "oneTransactionAtATime", "mailOneAtATime", "clockAlone", "editPermission", "reminderTime", "deliveryGivesBack",
-      "poolKept", "poolOneAtATime", "whoMayEdit", "whatIsTrashed")))
-    assertEquals(kinds(sharing.knowledge), Map("claim" -> 55, "assumption" -> 10, "design" -> 3))
+  test("sharing: today's, with the store's and the mail server's runs one at a time, assumptions; the definitions " +
+    "of two words each are a claim per word, today's id kept for the first; the pool of connections a run of " +
+    "delivery takes from and gives back (its bracket), its model's assumptions and its claim; the purpose's may edit " +
+    "and is in the trash, Declarations, each with the claim saying what it is; the run the World's (owner §45 D, " +
+    "§47): time never going back a claim of the clock, today's schedule a schedule of it, when housekeeping last ran " +
+    "a model with its assumptions, what the branches hold at every moment rules of the World, each model's start") {
+    assertEquals(ids(sharing.knowledge), renamed(Today.sharing, Set("clockNeverGoesBack", "clockKept"), Set(
+      "oneTransactionAtATime", "mailOneAtATime", "editPermission", "reminderTime", "deliveryGivesBack",
+      "poolKept", "poolOneAtATime", "whoMayEdit", "whatIsTrashed", "timeMovesOn", "housekeptLately",
+      "nothingEndedAtHousekeeping", "logKept", "mailedOnce", "clockStarts", "housekeptStarts", "housekeptKept",
+      "housekeptOneAtATime", "libraryStarts", "mailerStarts")))
+    assertEquals(kinds(sharing.knowledge), Map("claim" -> 60, "assumption" -> 13, "design" -> 3))
   }
 
   test("the five examples are valid as written") {
@@ -147,7 +151,6 @@ class ExamplesSuite extends munit.FunSuite:
     val parts = notAboutCallees(sharing.knowledge)
     assertEquals(parts.map(_._1).distinct.toSet, Set("accessFollowsShares", "invitationsAreOffers",
       "trashUntilGone", "housekeepingClearsOnlyTheEnded", "accessRequestsAreAsks", "ownersKeepTheirDocuments",
-      "auditTrail", "noticesFollowChanges", "trashPurgedOnTime", "invitationsLapseOnTime", "requestsAnsweredOnTime",
-      "endedStaysEnded"))
-    assertEquals(parts.size, 46)
+      "auditTrail", "endedStaysEnded"))
+    assertEquals(parts.size, 26)
   }

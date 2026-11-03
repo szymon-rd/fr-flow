@@ -20,7 +20,7 @@ import sharing.service.Sharing
 import sharing.service.SharingClaims
 import sharing.store.{LibraryStore, MemoryLibraryStore, Transactions}
 import sharing.time.LifetimesClaims
-import sharing.time.{ClockKept, Deadlines, Lifetimes, Run, Schedule}
+import sharing.time.{ClockKept, Deadlines, Housekept, Lifetimes, Run}
 import sharing.trash.Trash
 import sharing.trash.TrashClaims
 
@@ -61,16 +61,18 @@ val nodes: List[Node] = List(
   Run.housekeepingPeriod, LifetimesClaims.inForceContract, LifetimesClaims.isOpenContract,
   LifetimesClaims.goneContract, LifetimesClaims.pendingContract, LifetimesClaims.reminderDueContract,
   Deadlines.trashPurgedOnTime, Deadlines.invitationsLapseOnTime, Deadlines.requestsAnsweredOnTime,
-  Deadlines.endedStaysEnded, Schedule.clockNeverGoesBack, Schedule.housekeepingOnTime, LibraryStore.libraryKept,
-  LibraryStore.oneTransactionAtATime, Transactions.transactions, Notifications.mailerKept,
-  Notifications.mailOneAtATime, Pool.poolKept, Pool.poolOneAtATime, ClockKept.clockKept, ClockKept.clockAlone,
+  Deadlines.endedStaysEnded, Deadlines.timeMovesOn, Deadlines.housekeptLately, Deadlines.nothingEndedAtHousekeeping,
+  sharing.logKept, sharing.mailedOnce, ClockKept.housekeepingOnTime, ClockKept.clockStarts, ClockKept.housekeptStarts,
+  ClockKept.housekeptKept, ClockKept.housekeptOneAtATime, LibraryStore.libraryKept, LibraryStore.libraryStarts,
+  LibraryStore.oneTransactionAtATime, Transactions.transactions, Notifications.mailerKept, Notifications.mailerStarts,
+  Notifications.mailOneAtATime, Pool.poolKept, Pool.poolOneAtATime,
   SharingHttp.handleContract, serverWiring, domainTypes)
 
 /** Sharing: its nodes, and the code of every Definition. */
 val knowledge: FrModel = withCode(FrModel("Sharing")(nodes*)).implementProven(Sharing.access)(Sharing.accessCode)
 
 /** `kb` with the code of every Definition of sharing but `access`: the proven code of the words, the operations and
-  * the programs, the fixed lifetimes, the run's history provided, and each model's Scala.
+  * the programs, the fixed lifetimes, when the service started, and each model's Scala.
   */
 def withCode(kb: FrModel): FrModel = models(lifetimes(programs(operations(words(kb)))))
 
@@ -124,9 +126,10 @@ private def lifetimes(kb: FrModel): FrModel = kb
   .implementValue(Lifetimes.remindAfter)(BigInt(2 * 86400))
   .implementValue(Run.housekeepingWithin)(BigInt(120))
 
-/** The run's history, provided; each model's Scala. */
+/** When the service started, provided; each model's Scala. */
 private def models(kb: FrModel): FrModel = kb
-  .implementProvided(Run.startedAt, Run.events)
+  .implementProvided(Run.startedAt)
+  .implementTested(ClockKept.ranAt)(start = Housekept.at, observe = _.last)(h => Tuple1(h.ranAt))
   .implementTested(LibraryStore.load, LibraryStore.save)(start = MemoryLibraryStore.holding, observe = _.library)(
     s => (s.load, s.save))
   .implementTested(Mailer.send)(start = MemoryMailer.holding, observe = _.boxes)(m => Tuple1(m.send))

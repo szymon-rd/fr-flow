@@ -6,7 +6,7 @@ import sharing.domain.*
 import sharing.housekeeping.Housekeeping.*
 import sharing.notifications.Notifications.mailerModel
 import sharing.store.LibraryStore.{libraryModel, oneTransactionAtATime}
-import sharing.time.ClockKept.{clockAlone, clockModel}
+import sharing.time.ClockKept.{clockModel, housekeepingOnTime, housekeptModel, housekeptOneAtATime}
 import sharing.time.Lifetimes.{gone, inForce, isOpen}
 
 /** Housekeeping's claims: what its code is proven to do, each refining a branch or the purpose. */
@@ -21,12 +21,10 @@ object HousekeepingClaims:
 
   val housekeepingJob = Node.claim("A run of housekeeping leaves the store holding the library it held, tidied, its " +
       "old log entries forgotten, its access requests chased and the shares ending in a day told of, at the time the " +
-      "clock gives, and, when that changed it, recorded in the log; it does not move the clock. A run that fails " +
-      "changes nothing, and the next minute's run tries again.")(
+      "clock gives, and, when that changed it, recorded in the log; and keeps that time as when it last ran. A run " +
+      "that fails changes nothing, and the next minute's run tries again.")(
     housekeep.result.fold(_ => housekeep.changesNothing, _ =>
       val after = housekeep.after
       libraryModel.in(after) === housekeptAt(libraryModel.current, clockModel.current) &&
-        clockModel.in(after) === clockModel.current && mailerModel.in(after) === mailerModel.current))
-    .refines(sharing.time.Deadlines.trashPurgedOnTime, sharing.time.Deadlines.invitationsLapseOnTime,
-      sharing.time.Deadlines.requestsAnsweredOnTime)
-    .assuming(oneTransactionAtATime, clockAlone)
+        housekeptModel.in(after) === clockModel.current && mailerModel.in(after) === mailerModel.current))
+    .assuming(oneTransactionAtATime, housekeptOneAtATime, housekeepingOnTime)

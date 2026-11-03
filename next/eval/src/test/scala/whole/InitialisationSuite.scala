@@ -19,7 +19,7 @@ class InitialisationSuite extends munit.FunSuite:
     "crm" -> List(() => crm.history, () => crm.results, () => crm.databaseModel, () => crm.sharedCrm,
       () => crm.visibility, () => crm.recordsKept, () => crm.expiryJob, () => crm.knowledge),
     "sharing" -> List(() => sharing.reaches, () => sharing.time.Lifetimes.inForce, () => sharing.service.Sharing.access,
-      () => sharing.time.Run.answered, () => sharing.accessFollowsShares, () => sharing.auditTrail,
+      () => sharing.time.ClockKept.housekeptModel, () => sharing.accessFollowsShares, () => sharing.auditTrail,
       () => sharing.time.Deadlines.endedStaysEnded, () => sharing.housekeeping.HousekeepingClaims.housekeepingJob,
       () => sharing.time.LifetimesClaims.inForceContract, () => sharing.knowledge))
 

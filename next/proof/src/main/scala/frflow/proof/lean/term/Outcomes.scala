@@ -26,10 +26,11 @@ final class Outcomes(env: LowerEnv, standing: Map[SymbolName, LExpr]):
 
 object Outcomes:
   /** `((after.Shelf = before.Shelf) ∧ …)`: one equation per model's field of the world, `True` with none; the faults
-    * are no model's (`Worlds.unchanged`).
+    * are no model's (`Worlds.unchanged`), and the clock's time is the world's: it passes whatever a run does (owner
+    * §47), so a run changing nothing may still have let time pass.
     */
   def unchanged(env: LowerEnv, after: LExpr, before: LExpr): LExpr =
-    env.models.map(f => LExpr.Paren(LExpr.Infix(LOp.Eq, LExpr.Dot(after, f.text), LExpr.Dot(before, f.text))))
+    env.models.filterNot(f => env.clock.exists(c => env.modelField(c.model) == f)).map(f => LExpr.Paren(LExpr.Infix(LOp.Eq, LExpr.Dot(after, f.text), LExpr.Dot(before, f.text))))
       match
         case Nil        => Atoms.name("True")
         case one :: Nil => one

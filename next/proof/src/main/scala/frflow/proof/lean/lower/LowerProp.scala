@@ -89,8 +89,8 @@ final class LowerProp(table: TermTable, env: LowerEnv, naming: Naming, values: L
 
   def prop(p: Prop, σ: Subst): W[LExpr] = p match
     case Prop.ClaimOf(n, more)   => applied(decl(n, "claim"), table.claims.getOrElse(n, OpenTerms.empty), σ ++ more)
-    case Prop.Keeps(i, op, f, m) => applied(decl(i, LeanNames.keeps(op.value)), LowerProp.opens(f), σ ++ m)
-    case Prop.Makes(i, op, f, m) => applied(decl(i, LeanNames.makes(op.value)), LowerProp.opens(f), σ ++ m)
+    case Prop.Keeps(i, op, f, m) => applied(decl(i, LeanNames.keeps(op.value)), LowerProp.opens(f, table), σ ++ m)
+    case Prop.Makes(i, op, f, m) => applied(decl(i, LeanNames.makes(op.value)), LowerProp.opens(f, table), σ ++ m)
     case Prop.ConjunctOf(n, i)   =>
       applied(decl(n, LeanNames.conjunct(i)), table.claims.getOrElse(n, OpenTerms.empty), σ)
     case Prop.Starts(d, is, w)   => starts(d, is, w)
@@ -210,5 +210,9 @@ object LowerProp:
   /** What always holds of a value provided where the code runs, and whether a Definition has a meaning of its own. */
   final case class Values(fromOutside: SymbolName => List[LExpr], meant: SymbolName => Boolean = _ => false)
 
-  /** What a formula is over: the symbols it mentions, in order. */
-  def opens(f: Written[Expr]): OpenTerms = OpenTerms(Nil, Exprs.mentions(f.value).symbols)
+  /** What a formula is over: the symbols it mentions, in order, and those the defines it calls are over (a rule's
+    * fixed durations, which stand as their values where they are given).
+    */
+  def opens(f: Written[Expr], table: TermTable): OpenTerms =
+    val said = Exprs.mentions(f.value)
+    OpenTerms(Nil, (said.symbols ++ said.defines.flatMap(table.defines.getOrElse(_, OpenTerms.empty).symbols)).distinct)
