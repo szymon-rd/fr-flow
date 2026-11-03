@@ -93,7 +93,10 @@ final class ModelRuns[F[_]: Concurrent](check: ModelTests.Check, semantics: Sema
   private def drawnRun(draw: Draw, from: Drawn): Option[(Value, List[Step])] =
     val random = from.seed.forCase(from.index)
     for
-      start <- Iterator.continually(draw(Gen.Derived[Any](model.state), from.size, random)).take(ModelRuns.Tries)
+      // each try smaller than the one before: a rule a large state rarely meets by chance (sharing's logKept, every
+      // share held with its entry in the log) a smaller one meets
+      start <- (0 until ModelRuns.Tries).iterator.map(i => draw(Gen.Derived[Any](model.state),
+          from.size * (ModelRuns.Tries - i) / ModelRuns.Tries, random))
         .flatten.find(s => always.keeps(model.name, ScalaValue(s)))
       steps <- Runs(draw, typing).of(model, from.size + 2, random)
     yield (typing.reflect(ScalaValue(start), model.state), steps)
