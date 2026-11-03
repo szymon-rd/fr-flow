@@ -255,58 +255,89 @@ theorem mem_taken (ns : List Notice) (n : Notice) : n ∈ taken ns n := by
 theorem library_eta (l : Library) :
     Library.mk l.documents l.folders l.teams l.shares l.invitations l.requests l.log l.outbox = l := rfl
 
-/-- What a branch of delivery does, given its faults: whatever the world, it takes its notice out of the outbox or
-not, gives it to the mail server or not, and moves the clock by its sleeps, as the faults alone decide. -/
-theorem commute_split (b₁ b₂ : ExceptT Failure (StateM World) Unit) (n₁ n₂ : Notice) (hto : n₁.to ≠ n₂.to)
-    (f₁ r₁ f₂ r₂ : List Bool)
-    (hb₁ : ∃ (rm sent : Bool) (sleeps : List Int) (rest : List Bool),
-      ∀ (lib : Library) (c : Int) (mail : PersonId → Option (List Notice)) (pool : Int) (rs : List Bool),
-        FrFlow.runOnE b₁ (World.mk lib c mail pool f₁ rs) = (.ok (), World.mk
-          (if rm then { lib with outbox := lib.outbox.filter (fun m => decide ¬ m = n₁) } else lib) (sleeps.foldl (· + ·) c)
-          (if sent then withMailbox mail n₁.to (taken (mailbox mail n₁.to) n₁) else mail) pool rest rs))
-    (hb₂ : ∃ (rm sent : Bool) (sleeps : List Int) (rest : List Bool),
-      ∀ (lib : Library) (c : Int) (mail : PersonId → Option (List Notice)) (pool : Int) (rs : List Bool),
-        FrFlow.runOnE b₂ (World.mk lib c mail pool f₂ rs) = (.ok (), World.mk
-          (if rm then { lib with outbox := lib.outbox.filter (fun m => decide ¬ m = n₂) } else lib) (sleeps.foldl (· + ·) c)
-          (if sent then withMailbox mail n₂.to (taken (mailbox mail n₂.to) n₂) else mail) pool rest rs))
-    (w : World) :
-    FrFlow.sameModels (fun w => { w with faults := [], races := [] })
-      (FrFlow.runOnE (do
+/-- Two of an outbox's first notices, taken as two elements of it (equal, or apart), are one notice or of two
+people. -/
+theorem firstOfEach_apart (o : List Notice) (a b : Notice)
+    (h : List.Sublist [a, b] (firstOfEach o) ∨ List.Sublist [b, a] (firstOfEach o)) : a.to = b.to → a = b := by
+  have ha : a ∈ firstOfEach o := h.elim (fun s => s.subset (by simp)) (fun s => s.subset (by simp))
+  have hb : b ∈ firstOfEach o := h.elim (fun s => s.subset (by simp)) (fun s => s.subset (by simp))
+  exact firstOfEach_one o a b ha hb
+
+/-- Two sends at once, each with its own faults, in either order: the same outcomes (each its faults' alone), and
+the same mailboxes: of two people, each one's by its own send; of one, the same notice, taken once. -/
+theorem sends_commute (n₁ n₂ : Notice) (hto : n₁.to = n₂.to → n₁ = n₂) (w : World)
+    (f₁ r₁ f₂ r₂ : List Bool) :
+    FrFlow.sameModels (fun w => { w with faults := [], races := [] }) (FrFlow.runOn ((do
         modify (fun w => { w with faults := f₁, races := r₁ })
-        let one ← b₁
+        let one ← FrFlow.caught ((do
+            let r_1 := n₁
+            MailerModel.Ops.send r_1) : ExceptT Failure (StateM World) Unit)
         modify (fun w => { w with faults := f₂, races := r₂ })
-        let two ← b₂
-        pure (one, two)) w)
-      (FrFlow.runOnE (do
+        let two ← FrFlow.caught ((do
+            let r_1 := n₂
+            MailerModel.Ops.send r_1) : ExceptT Failure (StateM World) Unit)
+        pure (one, two)) : StateM World ((Except Failure Unit) × (Except Failure Unit))) w) (FrFlow.runOn ((do
         modify (fun w => { w with faults := f₂, races := r₂ })
-        let two ← b₂
+        let two ← FrFlow.caught ((do
+            let r_1 := n₂
+            MailerModel.Ops.send r_1) : ExceptT Failure (StateM World) Unit)
         modify (fun w => { w with faults := f₁, races := r₁ })
-        let one ← b₁
-        pure (one, two)) w) := by
-  obtain ⟨rm₁, sent₁, d₁, rest₁, h₁⟩ := hb₁
-  obtain ⟨rm₂, sent₂, d₂, rest₂, h₂⟩ := hb₂
+        let one ← FrFlow.caught ((do
+            let r_1 := n₁
+            MailerModel.Ops.send r_1) : ExceptT Failure (StateM World) Unit)
+        pure (one, two)) : StateM World ((Except Failure Unit) × (Except Failure Unit))) w) := by
   rcases w with ⟨lib, c, mail, pool, fs, rs⟩
-  simp only [FrFlow.runOnE_bind, FrFlow.runOnE_modify, FrFlow.runOnE_pure, h₁, h₂, FrFlow.sameModels]
-  have hm : ∀ (m : PersonId → Option (List Notice)) (q p : PersonId) (ns : List Notice), q ≠ p →
-      mailbox (withMailbox m q ns) p = mailbox m p := by
-    intro m q p ns h
-    simp [mailbox, withMailbox, Ne.symm h]
-  refine ⟨trivial, ?_⟩
-  simp only [World.mk.injEq, and_true]
-  have hsum : ∀ (l : List Int) (x : Int), l.foldl (· + ·) x = x + l.sum := by
-    intro l
-    induction l with
-    | nil => intro x; simp
-    | cons y ys ih => intro x; simp only [List.foldl_cons, List.sum_cons, ih]; omega
-  refine ⟨?_, by rw [hsum, hsum, hsum, hsum]; omega, ?_⟩
-  · cases rm₁ <;> cases rm₂ <;> simp only [Bool.false_eq_true, ↓reduceIte, List.filter_filter]
-    congr 2
-    funext m
-    exact Bool.and_comm _ _
-  · cases sent₁ <;> cases sent₂ <;> simp only [Bool.false_eq_true, ↓reduceIte]
-    rw [hm _ _ _ _ hto, hm _ _ _ _ (Ne.symm hto)]
-    funext k
-    simp only [withMailbox]
-    by_cases k₁ : k = n₁.to <;> by_cases k₂ : k = n₂.to <;> simp_all
+  rcases f₁ with _ | ⟨_ | _, f₁⟩ <;> rcases f₂ with _ | ⟨_ | _, f₂⟩ <;>
+    simp only [FrFlow.runOn_bind, FrFlow.runOn_modify, FrFlow.runOn_pure, FrFlow.runOn_caught, FrFlow.runOnE_failing,
+      MailerModel.Ops.send_onWorldE, FrFlow.runOn_within, MailerModel.send, FrFlow.runOn_get, FrFlow.runOn_set,
+      FrFlow.runOn_bind, FrFlow.sameModels, World.mk.injEq, and_true, true_and] <;>
+    first
+      | rfl
+      | (by_cases h : n₁.to = n₂.to
+         · obtain rfl := hto h
+           simp [Lemmas.mailbox_with, Lemmas.taken_taken]
+         · funext k
+           simp only [withMailbox, mailbox]
+           by_cases k₁ : k = n₁.to <;> by_cases k₂ : k = n₂.to <;> simp_all)
+
+/-- Two removals of notices from the outbox at once, each a transaction with its own faults, in either order: the
+same outcomes (each its faults' alone), and the same outbox, two filters in either order. -/
+theorem removals_commute (n₁ n₂ : Notice) (w : World) (f₁ r₁ f₂ r₂ : List Bool) :
+    FrFlow.sameModels (fun w => { w with faults := [], races := [] }) (FrFlow.runOn ((do
+        modify (fun w => { w with faults := f₁, races := r₁ })
+        let one ← FrFlow.caught ((do
+            let r_1 := n₁
+            let r_2 ← LibraryModel.Ops.load
+            LibraryModel.Ops.save { r_2 with outbox := (List.filter (fun m => decide (¬(m = r_1))) r_2.outbox) }
+            pure ()) : ExceptT Failure (StateM World) Unit)
+        modify (fun w => { w with faults := f₂, races := r₂ })
+        let two ← FrFlow.caught ((do
+            let r_1 := n₂
+            let r_2 ← LibraryModel.Ops.load
+            LibraryModel.Ops.save { r_2 with outbox := (List.filter (fun m => decide (¬(m = r_1))) r_2.outbox) }
+            pure ()) : ExceptT Failure (StateM World) Unit)
+        pure (one, two)) : StateM World ((Except Failure Unit) × (Except Failure Unit))) w) (FrFlow.runOn ((do
+        modify (fun w => { w with faults := f₂, races := r₂ })
+        let two ← FrFlow.caught ((do
+            let r_1 := n₂
+            let r_2 ← LibraryModel.Ops.load
+            LibraryModel.Ops.save { r_2 with outbox := (List.filter (fun m => decide (¬(m = r_1))) r_2.outbox) }
+            pure ()) : ExceptT Failure (StateM World) Unit)
+        modify (fun w => { w with faults := f₁, races := r₁ })
+        let one ← FrFlow.caught ((do
+            let r_1 := n₁
+            let r_2 ← LibraryModel.Ops.load
+            LibraryModel.Ops.save { r_2 with outbox := (List.filter (fun m => decide (¬(m = r_1))) r_2.outbox) }
+            pure ()) : ExceptT Failure (StateM World) Unit)
+        pure (one, two)) : StateM World ((Except Failure Unit) × (Except Failure Unit))) w) := by
+  rcases w with ⟨lib, c, mail, pool, fs, rs⟩
+  rcases f₁ with _ | ⟨_ | _, _ | ⟨_ | _, f₁⟩⟩ <;> rcases f₂ with _ | ⟨_ | _, _ | ⟨_ | _, f₂⟩⟩ <;>
+    simp only [FrFlow.runOn_bind, FrFlow.runOn_modify, FrFlow.runOn_pure, FrFlow.runOn_caught, FrFlow.runOnE_failing,
+      FrFlow.runOnE_bind, FrFlow.runOnE_pure, LibraryModel.Ops.load_onWorldE, LibraryModel.Ops.save_onWorldE,
+      FrFlow.runOn_within, LibraryModel.load, LibraryModel.save, FrFlow.runOn_get, FrFlow.runOn_set,
+      FrFlow.sameModels, World.mk.injEq, and_true, true_and, List.filter_filter] <;>
+    first
+      | rfl
+      | (congr 2; funext m; exact Bool.and_comm _ _)
 
 end Sharing.Lemmas

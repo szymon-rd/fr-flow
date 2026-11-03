@@ -182,44 +182,18 @@ theorem impl : Obl.impl := by
          | exact ⟨⟨⟨by rw [hk]; rw [Lemmas.filter_mem_filter], h2⟩, h4⟩, trivial⟩
          | (trace_state; sorry))
 
-/-- Two notices of the outbox's first ones, each given its own faults, delivered in either order leave the same:
-each branch does what its faults alone decide, to its own person's mailbox, and their removals from the
-outbox commute. -/
-theorem commute_0 : Obl.commute_0 := by
-  unfold Obl.commute_0
-  intro r n₁ n₂ w f₁ r₁ f₂ r₂ h₁ h₂ hne
-  refine Lemmas.commute_split _ _ n₁ n₂ (fun h => hne (Lemmas.firstOfEach_one _ _ _ h₁ h₂ h)) f₁ r₁ f₂ r₂ ?_ ?_ w
-  · clear h₁ h₂ hne r₁ r₂ f₂
-    iterate 5 (all_goals (try (rcases f₁ with _ | ⟨_ | _, f₁⟩)); all_goals (try simp only [FrFlow.runOnE_bind,
-      FrFlow.runOnE_pure, FrFlow.runOnE_lift, FrFlow.runOnE_failing, FrFlow.runOnE_tryCatch, FrFlow.runOnE_ite,
-      MailerModel.Ops.send_onWorldE, ClockModel.Ops.sleep_onWorldE, LibraryModel.Ops.load_onWorldE,
-      LibraryModel.Ops.save_onWorldE, FrFlow.runOn_within, MailerModel.send, ClockModel.sleep, LibraryModel.load,
-      LibraryModel.save, FrFlow.runOn_get, FrFlow.runOn_set, FrFlow.runOn_bind, FrFlow.runOn_pure, ↓reduceIte]))
-    all_goals first
-      | exact ⟨true, true, [], _, fun _ _ _ _ _ => rfl⟩
-      | exact ⟨false, true, [], _, fun _ _ _ _ _ => rfl⟩
-      | exact ⟨false, false, [], _, fun _ _ _ _ _ => rfl⟩
-      | exact ⟨true, true, [1], _, fun _ _ _ _ _ => rfl⟩
-      | exact ⟨false, true, [1], _, fun _ _ _ _ _ => rfl⟩
-      | exact ⟨false, false, [1], _, fun _ _ _ _ _ => rfl⟩
-      | exact ⟨true, true, [1, 2], _, fun _ _ _ _ _ => rfl⟩
-      | exact ⟨false, true, [1, 2], _, fun _ _ _ _ _ => rfl⟩
-      | exact ⟨false, false, [1, 2], _, fun _ _ _ _ _ => rfl⟩
-  · clear h₁ h₂ hne r₁ r₂ f₁
-    iterate 5 (all_goals (try (rcases f₂ with _ | ⟨_ | _, f₂⟩)); all_goals (try simp only [FrFlow.runOnE_bind,
-      FrFlow.runOnE_pure, FrFlow.runOnE_lift, FrFlow.runOnE_failing, FrFlow.runOnE_tryCatch, FrFlow.runOnE_ite,
-      MailerModel.Ops.send_onWorldE, ClockModel.Ops.sleep_onWorldE, LibraryModel.Ops.load_onWorldE,
-      LibraryModel.Ops.save_onWorldE, FrFlow.runOn_within, MailerModel.send, ClockModel.sleep, LibraryModel.load,
-      LibraryModel.save, FrFlow.runOn_get, FrFlow.runOn_set, FrFlow.runOn_bind, FrFlow.runOn_pure, ↓reduceIte]))
-    all_goals first
-      | exact ⟨true, true, [], _, fun _ _ _ _ _ => rfl⟩
-      | exact ⟨false, true, [], _, fun _ _ _ _ _ => rfl⟩
-      | exact ⟨false, false, [], _, fun _ _ _ _ _ => rfl⟩
-      | exact ⟨true, true, [1], _, fun _ _ _ _ _ => rfl⟩
-      | exact ⟨false, true, [1], _, fun _ _ _ _ _ => rfl⟩
-      | exact ⟨false, false, [1], _, fun _ _ _ _ _ => rfl⟩
-      | exact ⟨true, true, [1, 2], _, fun _ _ _ _ _ => rfl⟩
-      | exact ⟨false, true, [1, 2], _, fun _ _ _ _ _ => rfl⟩
-      | exact ⟨false, false, [1, 2], _, fun _ _ _ _ _ => rfl⟩
+/-- Two notices of the outbox's first ones sent at once, each with its own faults, commute: one notice, or two
+people's mailboxes (`Lemmas.sends_commute`). The sleeps at once commute as FrFlow's automation shows. -/
+theorem commute_2 : Obl.commute_2 := by
+  unfold Obl.commute_2
+  intro r n₁ n₂ w f₁ r₁ f₂ r₂ h
+  exact Lemmas.sends_commute n₁ n₂ (Lemmas.firstOfEach_apart _ _ _ h) w f₁ r₁ f₂ r₂
+
+/-- Two removals from the outbox at once, each a transaction with its own faults, commute
+(`Lemmas.removals_commute`). -/
+theorem commute_6 : Obl.commute_6 := by
+  unfold Obl.commute_6
+  intro r n₁ n₂ w f₁ r₁ f₂ r₂ _
+  exact Lemmas.removals_commute n₁ n₂ w f₁ r₁ f₂ r₂
 
 end Sharing.deliveryJob.Proofs
