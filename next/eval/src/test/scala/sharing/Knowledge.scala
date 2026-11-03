@@ -62,9 +62,9 @@ val nodes: List[Node] = List(
   LifetimesClaims.goneContract, LifetimesClaims.pendingContract, LifetimesClaims.reminderDueContract,
   Deadlines.trashPurgedOnTime, Deadlines.invitationsLapseOnTime, Deadlines.requestsAnsweredOnTime,
   Deadlines.endedStaysEnded, Deadlines.timeMovesOn, Deadlines.housekeptLately, Deadlines.nothingEndedAtHousekeeping,
-  sharing.logKept, sharing.mailedOnce, ClockKept.housekeepingOnTime, ClockKept.clockStarts, ClockKept.housekeptStarts,
+  sharing.logKept, ClockKept.housekeepingOnTime, ClockKept.clockStarts, ClockKept.housekeptStarts,
   ClockKept.housekeptKept, ClockKept.housekeptOneAtATime, LibraryStore.libraryKept, LibraryStore.libraryStarts,
-  LibraryStore.oneTransactionAtATime, Transactions.transactions, Notifications.mailerKept, Notifications.mailerStarts,
+  LibraryStore.oneTransactionAtATime, Transactions.transactions, Notifications.mailerKept,
   Notifications.mailOneAtATime, Pool.poolKept, Pool.poolOneAtATime,
   SharingHttp.handleContract, serverWiring, domainTypes)
 

@@ -3,8 +3,6 @@ package sharing
 import frflow.*
 import sharing.audit.Audit.makes
 import sharing.domain.*
-import sharing.notifications.Mailer.mailbox
-import sharing.notifications.Notifications.{mailerKept, mailerModel, mailerStarts, mailOneAtATime}
 import sharing.store.LibraryStore.{libraryKept, libraryModel, libraryStarts, oneTransactionAtATime}
 
 // What always holds of the World the service runs in (owner §45 D): the rules the branches' "at every moment" rest
@@ -21,10 +19,3 @@ val logKept = Node.claim("Everything the library holds of a change is in its log
       .on[Subject.Ending](_ => True))))
   .refines(auditTrail, noticesFollowChanges)
   .assuming(libraryKept, oneTransactionAtATime, libraryStarts)
-
-/** The mail server: each notice once in its person's mailbox. */
-val mailedOnce = Node.claim("The mail server has each notice it was given once in its person's mailbox.")(
-  always(mailerModel)(boxes => forall((p: Term[PersonId]) =>
-    mailbox(boxes, p).forall(n => mailbox(boxes, p).filter(m => m === n).length === 1))))
-  .refines(noticesFollowChanges)
-  .assuming(mailerKept, mailOneAtATime, mailerStarts)

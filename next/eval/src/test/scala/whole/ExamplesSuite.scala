@@ -87,9 +87,9 @@ class ExamplesSuite extends munit.FunSuite:
     assertEquals(ids(sharing.knowledge), renamed(Today.sharing, Set("clockNeverGoesBack", "clockKept"), Set(
       "oneTransactionAtATime", "mailOneAtATime", "editPermission", "reminderTime", "deliveryGivesBack",
       "poolKept", "poolOneAtATime", "whoMayEdit", "whatIsTrashed", "timeMovesOn", "housekeptLately",
-      "nothingEndedAtHousekeeping", "logKept", "mailedOnce", "clockStarts", "housekeptStarts", "housekeptKept",
-      "housekeptOneAtATime", "libraryStarts", "mailerStarts")))
-    assertEquals(kinds(sharing.knowledge), Map("claim" -> 60, "assumption" -> 13, "design" -> 3))
+      "nothingEndedAtHousekeeping", "logKept", "clockStarts", "housekeptStarts", "housekeptKept",
+      "housekeptOneAtATime", "libraryStarts")))
+    assertEquals(kinds(sharing.knowledge), Map("claim" -> 59, "assumption" -> 12, "design" -> 3))
   }
 
   test("the five examples are valid as written") {

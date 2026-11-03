@@ -9,8 +9,7 @@ import sharing.ownership.Ownership.{owns, ownersEdit, transfer}
 import sharing.requests.AccessRequests.{approve, ask, decline}
 import sharing.service.Sharing
 import sharing.time.Lifetimes.{gone, inForce, isOpen, isPending, reminderDue}
-import sharing.notifications.Mailer.mailbox
-import sharing.notifications.Notifications.mailerModel
+import sharing.notifications.Mailer.taken
 import sharing.store.LibraryStore.libraryModel
 import sharing.time.ClockKept.clockModel
 import sharing.time.Run.housekeepingWithin
@@ -116,6 +115,6 @@ val noticesFollowChanges = Node.claim("A notice is sent only of a change already
     .on[Subject.Reminder](_ => True)
     .on[Subject.Lapsed](_ => True)
     .on[Subject.Ending](_ => True)) &&
-  forall((p: Term[PersonId]) =>
-    mailbox(mailerModel.current, p).forall(n => mailbox(mailerModel.current, p).filter(m => m === n).length === 1)))
+  forall((ns: Term[List[Notice]], n: Term[Notice]) => taken(ns, n).contains(n) &&
+    (ns.contains(n) implies (taken(ns, n) === ns))))
   .refines(accessFollowsShares)

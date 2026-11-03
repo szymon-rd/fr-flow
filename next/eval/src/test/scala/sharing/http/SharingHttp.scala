@@ -80,17 +80,19 @@ object SharingHttp:
       .on[Request.Transfer]((by, d, to) => allowedWhen(Ownership.owns(lib, by, d) &&
         mayEdit(lib, t, by, make[Target.Doc](d)) && mayEdit(lib, t, to, make[Target.Doc](d)))) }
 
-  val handleContract = Node.claim("A request is answered at the time the clock gives, from the library the store " +
-      "holds, and leaves the store holding the library it leads to: a question is answered with the person's access " +
-      "and changes nothing; a change is made as its operation makes it, recorded in the log and announced in the " +
-      "outbox in the same save, and answered done when it may be made and refused otherwise; an answer is given up " +
-      "only once more than the time limit passed. A request the store fails changes nothing.")(
+  val handleContract = Node.claim("A request is answered at the time the clock gives as it is handled (no earlier " +
+      "than now, and time passes while it is: owner §47), from the library the store holds, and leaves the store " +
+      "holding the library it leads to: a question is answered with the person's access and changes nothing; a " +
+      "change is made as its operation makes it, recorded in the log and announced in the outbox in the same save, " +
+      "and answered done when it may be made and refused otherwise; an answer is given up only once more than the " +
+      "time limit passed. A request the store fails changes nothing.")(
     forall((r: Term[Request]) => handle(r).result.fold(_ => handle(r).changesNothing,
       result =>
         val after = handle(r).after
-        libraryModel.in(after) === served(libraryModel.current, clockModel.current, r) &&
+        !forall((t: Term[BigInt]) => !(clockModel.current <= t && t <= clockModel.in(after) &&
+          libraryModel.in(after) === served(libraryModel.current, t, r) &&
+          result.forall(a => a === answerTo(libraryModel.current, t, r)))) &&
           mailerModel.in(after) === mailerModel.current &&
-          result.forall(a => a === answerTo(libraryModel.current, clockModel.current, r)) &&
           (result.isDefined || clockModel.in(after) > clockModel.current + limit))))
     .refines(accessFollowsShares)
     .assuming(oneTransactionAtATime, housekeepingOnTime)

@@ -21,11 +21,6 @@ object Notifications:
   val mailerKept = Node.assumption("Nothing but the service's deliveries changes the mailboxes at the mail server.")(
     mailerModel.onlyCodeChanges)
 
-  val mailerStarts = Node.assumption("The mail server holds each notice in a person's mailbox once when the service " +
-      "starts.")(
-    mailerModel.initially(boxes => forall((p: Term[PersonId]) =>
-      Mailer.mailbox(boxes, p).forall(n => Mailer.mailbox(boxes, p).filter(m => m === n).length === 1))))
-
   val mailOneAtATime = Node.assumption("The mail server takes one notice at a time: two deliveries never interleave.")(
     mailerModel.atomic)
 

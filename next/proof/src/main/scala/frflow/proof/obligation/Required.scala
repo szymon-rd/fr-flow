@@ -113,7 +113,10 @@ object Required:
         val formula = Keeping.formula(op, ty, escapes)(inputs(r, op, ty), kept, within)
         val goal = Prop.Keeps(n, op, formula, Map(op -> Substitute.Code(code)) ++ fixed(r, formula))
         val hyps = r.reliedOnBy(op)
-        Obligation(ObligationName.Cover(op.value), Prop.over(Nil, Prop.Implies(Hyp.parts(hyps), goal)),
+        // what is proven of the program's runs is of its code, as `impl` puts the code in each part mentioning it
+        val stated = hyps.map(h => if !mentions(r, h, op) then Hyp.of(h)
+          else Hyp(Hyp.of(h).name, Prop.ClaimOf(h, Map(op -> Substitute.Code(code)))))
+        Obligation(ObligationName.Cover(op.value), Prop.over(Nil, Prop.Implies(stated, goal)),
           Discharge.Auto, s"Every run of ${code.value} keeps ${n.value}" + givenWhat(hyps))
       }
     } ++ outside(r, n)

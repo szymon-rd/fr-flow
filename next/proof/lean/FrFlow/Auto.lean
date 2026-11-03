@@ -14,8 +14,7 @@ syntax "frflow_auto" : tactic
 /-- The time the world lets pass (owner §47): each tick, each move the schedules allow, with each race's and fault's
 case, each computed. -/
 macro "frflow_ticks" : tactic => `(tactic| (
-  simp only [FrFlow.Clock.ticked] at *
-  try simp only [FrFlow.Clock.move] at *
+  simp only [FrFlow.Clock.ticked, FrFlow.Clock.move] at *
   intros
   repeat (any_goals (frflow_choice_case <;> try simp only [] at *))
   all_goals (try simp_all)
