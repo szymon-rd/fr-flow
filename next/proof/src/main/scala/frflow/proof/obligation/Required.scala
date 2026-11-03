@@ -115,15 +115,20 @@ object Required:
       }
     } ++ outside(r, n)
 
-  /** `cover_<op>` of the program's code keeping the formula, given what the code relies on: what is proven of the
-    * program's runs is of its code, as `impl` puts the code in each part mentioning it.
+  /** `cover_<op>` of the program's code keeping the formula, as `impl` is built (2.7): the code of what it calls put
+    * in where that code is proven (`Callees.within`), a fixed value as its value; what is tested, assumed or provided
+    * stays open, what is said of it a hypothesis (`Resolve.constrainingCalled`), each with the same code put in. No
+    * hypothesis is the rule itself or rests on it (`Reads.restsOn`): it would be kept by being assumed.
     */
   private def covering(r: Resolved, n: NodeId, op: SymbolName, code: DefName)(
       formula: frflow.core.spec.Written[frflow.core.expr.Expr]): Obligation =
-    val goal = Prop.Keeps(n, op, formula, Map(op -> Substitute.Code(code)) ++ fixed(r, formula))
-    val hyps = r.reliedOnBy(op)
-    val stated = hyps.map(h => if !mentions(r, h, op) then Hyp.of(h)
-      else Hyp(Hyp.of(h).name, Prop.ClaimOf(h, Map(op -> Substitute.Code(code)))))
+    val callees = Callees.within(r.theory, op)
+    val values = Fixed.of(r, callees.calls.symbols :+ op) ++ fixed(r, formula)
+    val put = callees.standsFor.view.mapValues(Substitute.Code(_)).toMap ++ values
+    val goal = Prop.Keeps(n, op, formula, put)
+    val hyps = Resolve.constrainingCalled(r.theory, Some(callees)).filterNot(Reads.restsOn(r.theory, _, n))
+    val stated = hyps.map(h => Hyp(Hyp.of(h).name,
+      Prop.ClaimOf(h, put.filter((s, _) => values.contains(s) || mentions(r, h, s)))))
     Obligation(ObligationName.Cover(op.value), Prop.over(Nil, Prop.Implies(stated, goal)),
       Discharge.Auto, s"Every run of ${code.value} keeps ${n.value}" + givenWhat(hyps))
 

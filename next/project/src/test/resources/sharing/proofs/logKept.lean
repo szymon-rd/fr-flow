@@ -2,12 +2,12 @@ import FrFlowGen.Sharing.logKept.Spec
 import Proofs.Sharing.Lemmas
 
 /-! The log's account kept at every step of the run (`logKept`): every share held has the entry that made it, every
-notice of a change the entry it tells of. Each operation is its code, as its contract says. A request handled leaves
+notice of a change the entry it tells of. A request handled leaves
 the library as it was or served at a moment (handleContract), a request served making only shares its entry tells of,
 the entries before kept and its notices of its entry; a run of housekeeping leaves it housekept (housekeepingJob),
 forgetting no entry that explains a share or a notice it keeps, its own notices of no logged change; delivery takes
 notices out of the outbox and touches nothing else of the library (deliveryJob). A run that fails changes none of
-it. -/
+it. Each run is of the code, what it calls as its code too. -/
 
 set_option autoImplicit false
 noncomputable section
@@ -40,83 +40,59 @@ theorem cover_deliver : Obl.cover_deliver := by
       exact (List.mem_filter.1 hn).1
 
 theorem cover_housekeep : Obl.cover_housekeep := by
-  unfold Obl.cover_housekeep
-  intro warn chase forget tidy record isPending reminderDue canView inTheTrash mayView canEdit allowedToEdit share
-    unshare move withdraw invite accept isOpen trash restore ask approve decline transfer inForce gone handle announce
-    access mayEdit ownedBy hWarn hJob hChase hForget _ _ hTidy hRecord _
-  generalize housekeeping_run warn chase forget tidy record = housekeep at hJob ⊢
-  have eW : warn = warnCode := by funext a b; rw [hWarn]; rfl
-  have eC : chase = chaseCode isPending reminderDue := by funext a b; rw [hChase]; rfl
-  have eF : forget = forgetCode := by funext a b; rw [hForget]; rfl
-  have eT : tidy = tidyCode gone inForce isOpen := by funext a b; rw [hTidy]; rfl
-  have eR : record = recordCode := by funext a b c; rw [hRecord]; rfl
-  subst eW eC eF eT eR
-  unfold Sharing.logKept.keeps_housekeep
-  intro before g1 g2 g3
-  have h := hJob before g1 g2 g3
-  revert h
-  cases housekeep before with
-  | mk res after =>
-    cases res with
-    | error e =>
-      intro h
-      obtain ⟨_, _, hlib, _⟩ := h.2
-      refine ⟨trivial, ?_⟩
-      show logKept after.libraryModel
-      rw [hlib]; exact g3
-    | ok u =>
-      intro h
-      obtain ⟨⟨hlib, _⟩, _⟩ := h.1
-      refine ⟨?_, trivial⟩
-      show logKept after.libraryModel
-      rw [hlib]
-      exact Lemmas.housekept_logKept isPending reminderDue gone inForce isOpen before.libraryModel
-        before.clockModel g3
+  unfold Obl.cover_housekeep Sharing.logKept.keeps_housekeep
+  intro w _ _ g3
+  have hk := Lemmas.housekept_logKept (isPendingCode 604800) (reminderDueCode 172800) (goneCode 2592000) inForceCode
+    (isOpenCode 604800) w.libraryModel w.clockModel g3
+  simp only [housekeptAt] at hk
+  rcases hf : w.faults with _ | ⟨_ | _, _ | ⟨_ | _, fs⟩⟩
+  all_goals simp only [housekeeping_run, housekeeping, FrFlow.runOnE_bind, FrFlow.runOnE_pure, Lemmas.now_run,
+    FrFlow.runOnE_failing, FrFlow.runOnE_ite, FrFlow.runOnE_lift, LibraryModel.Ops.load_onWorldE,
+    LibraryModel.Ops.save_onWorldE, HousekeptModel.Ops.ranAt_onWorldE, FrFlow.runOn_within, LibraryModel.load,
+    LibraryModel.save, HousekeptModel.ranAt, FrFlow.runOn_get, FrFlow.runOn_set, FrFlow.runOn_pure,
+    FrFlow.runOn_bind, FrFlow.runOn_modify, World.ticked_faults, World.ticked_libraryModel, World.ticked_mailerModel,
+    World.ticked_housekeptModel, World.ticked_poolModel, World.ticked_races, hf]
+  all_goals refine ⟨?_, ?_⟩
+  all_goals first
+    | trivial
+    | exact g3
+    | (split <;> first
+        | trivial
+        | (rename_i heq
+           (try split at heq)
+           all_goals (try simp only [Prod.mk.injEq, Except.ok.injEq, Except.error.injEq, reduceCtorEq, false_and,
+             and_false] at heq)
+           all_goals (try obtain ⟨rfl, rfl⟩ := heq)
+           all_goals (try obtain ⟨-, rfl⟩ := heq)
+           all_goals simp only [World.ticked_libraryModel, World.ticked_housekeptModel]
+           all_goals first
+             | exact g3
+             | (rename_i hc; rwa [if_pos hc] at hk)))
 
 theorem cover_handle : Obl.cover_handle := by
-  unfold Obl.cover_handle
-  intro announce record share unshare move invite accept withdraw trash restore ask approve decline transfer access
-    mayEdit ownedBy isOpen isPending gone _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
-    hAnnounce hHandle hRecord _ _ _ hShare hUnshare hMove _ hInvite hAccept hWithdraw _ hTrash hRestore _ hAsk hApprove
-    hDecline hTransfer
-  intros
-  generalize handleRequest_run announce record share unshare move invite accept withdraw trash restore ask approve
-    decline transfer access mayEdit ownedBy isOpen isPending gone = handle at hHandle ⊢
-  have eA : announce = announceCode := by funext a b c d; rw [hAnnounce]; rfl
-  have eR : record = recordCode := by funext a b c; rw [hRecord]; rfl
-  have e1 : share = shareCode mayEdit ownedBy := by funext a b c d; rw [hShare]; rfl
-  have e2 : unshare = unshareCode mayEdit ownedBy := by funext a b c d e; rw [hUnshare]; rfl
-  have e3 : move = moveCode mayEdit := by funext a b c d e; rw [hMove]; rfl
-  have e4 : invite = inviteCode mayEdit := by funext a b c d e f; rw [hInvite]; rfl
-  have e5 : accept = acceptCode isOpen ownedBy := by funext a b c d; rw [hAccept]; rfl
-  have e6 : withdraw = withdrawCode mayEdit := by funext a b c d e; rw [hWithdraw]; rfl
-  have e7 : trash = trashCode mayEdit := by funext a b c d; rw [hTrash]; rfl
-  have e8 : restore = restoreCode gone mayEdit := by funext a b c d; rw [hRestore]; rfl
-  have e9 : ask = askCode := by funext a b c d e; rw [hAsk]; rfl
-  have e10 : approve = approveCode isPending mayEdit ownedBy := by funext a b c d e; rw [hApprove]; rfl
-  have e11 : decline = declineCode mayEdit := by funext a b c d e; rw [hDecline]; rfl
-  have e12 : transfer = transferCode mayEdit := by funext a b c d e; rw [hTransfer]; rfl
-  subst eA eR e1 e2 e3 e4 e5 e6 e7 e8 e9 e10 e11 e12
-  unfold Sharing.logKept.keeps_handle
-  intro r before g1 g2 g3
-  have h := hHandle r before g1 g2 g3
-  revert h
-  cases handle r before with
-  | mk res after =>
-    cases res with
-    | error e =>
-      intro h
-      obtain ⟨_, _, hlib, _⟩ := h.2
-      refine ⟨trivial, ?_⟩
-      show logKept after.libraryModel
-      rw [hlib]; exact g3
-    | ok result =>
-      intro h
-      obtain ⟨⟨hex, _⟩, _⟩ := h.1
-      obtain ⟨t, ⟨_, hlib⟩, _⟩ := not_forall_not.mp hex
-      refine ⟨?_, trivial⟩
-      show logKept after.libraryModel
-      rw [hlib]
-      exact Lemmas.served_logKept mayEdit ownedBy isOpen gone isPending before.libraryModel t r g3
+  unfold Obl.cover_handle Sharing.logKept.keeps_handle
+  intro r w _ _ g3
+  rcases hf : w.faults with _ | ⟨_ | _, _ | ⟨_ | _, fs⟩⟩
+  all_goals simp only [handleRequest_run, handleRequest, FrFlow.runOnE_bind, FrFlow.runOnE_pure, Lemmas.now_run,
+    FrFlow.runOnE_failing, FrFlow.runOnE_ite, LibraryModel.Ops.load_onWorldE,
+    LibraryModel.Ops.save_onWorldE, FrFlow.runOn_within, LibraryModel.load, LibraryModel.save, FrFlow.runOn_get,
+    FrFlow.runOn_set, FrFlow.runOn_pure, FrFlow.runOn_bind, World.ticked_faults, World.ticked_libraryModel,
+    World.ticked_mailerModel, World.ticked_housekeptModel, World.ticked_poolModel, World.ticked_races, hf]
+  all_goals refine ⟨?_, ?_⟩
+  all_goals first
+    | trivial
+    | exact g3
+    | (split <;> first
+        | trivial
+        | (rename_i heq
+           (try split at heq)
+           all_goals (try simp only [Prod.mk.injEq, Except.ok.injEq, Except.error.injEq, reduceCtorEq, false_and,
+             and_false] at heq)
+           all_goals (try obtain ⟨rfl, rfl⟩ := heq)
+           all_goals (try obtain ⟨-, rfl⟩ := heq)
+           all_goals simp only [World.ticked_libraryModel, World.ticked_housekeptModel]
+           all_goals first
+             | exact g3
+             | exact Lemmas.served_logKept _ _ _ _ _ w.libraryModel _ r g3))
 
 end Sharing.logKept.Proofs

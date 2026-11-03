@@ -202,12 +202,10 @@ What a statement may say, so that its Lean meaning is the one written wherever i
   pinning which are open. Time passing (owner §47) is built (step 13d, "Time" in 4.4): crm's clock is the World's
   time, which the world moves on between runs and at each of the clock's steps; sharing's history and "now" are the
   World's, what its store, its mail server and its clock hold and when housekeeping last ran, its deadlines statements
-  of every moment proven from rules time passing keeps, its scheduler's tests run on a virtual clock (`ScheduleSuite`).
-  One `cover_` stops (sharing's `Judged.stopped`): a program's `cover_` puts in the program's own code but leaves what
-  it calls opaque, given only what the program relies on, so housekeeping keeping `nothingEndedAtHousekeeping` cannot
-  be shown (what "gone", "open" and "pending" mean, their contracts, housekeeping does not rely on); proposed to the
-  owner: a `cover_` puts in the code of what the program calls, as `impl` does (2.7). Auth's two tables, read in one moment only, stay provided
-  (owner §48). Configuration fixed for the run (keycloak's seed, sharing's start) is not "now" or a history and stays
+  of every moment proven from rules time passing keeps, each `cover_` with the code of what the program calls put in
+  (2.7: housekeeping keeping `nothingEndedAtHousekeeping` reads what "gone", "open" and "pending" mean as their code),
+  its scheduler's tests run on a virtual clock (`ScheduleSuite`). Auth's two tables, read in one moment only, stay
+  provided (owner §48). Configuration fixed for the run (keycloak's seed, sharing's start) is not "now" or a history and stays
   provided.
 
 **`isConstant`** (owner §44, §45 A). `t.isConstant`, of any value `t` read in a statement, says that no run of any
@@ -349,7 +347,7 @@ For an `always` A, each `H` below being every `always`'s guard on the variable:
 
 | Obligation | States | Asked of |
 |---|---|---|
-| `cover_<op>` | every run from a world meeting every `always`, on inputs meeting theirs, ends in one meeting A | each program writing a store A is about |
+| `cover_<op>` | every run of the code (what it calls as its code, as for `impl`), from a world meeting every `always`, on inputs meeting theirs, ends in one meeting A | each program writing a store A is about |
 | `made_<maker>` of a define `d` | `∀ x₁ … xₙ, H(x₁) → … → H(xₙ) → A(d x₁ … xₙ)` | each proven define whose result A applies to |
 | `made_<maker>` of a program `p` | `∀ x₁ … xₙ (w : World), H(x₁) → … → H(w) → A (p_run x₁ … xₙ w).1` | each proven program whose run's result A applies to |
 | `made_<maker>` of a store operation | `∀ p (w : World), H(p) → H(w) → A(op_of p w.s)` | each operation on a state whose result A applies to, on its model |
@@ -538,6 +536,17 @@ sharing no Declaration or Definition with the claim or what its code calls, it w
 under the root's two expectations and 16 of sharing's parts, sound hypotheses all. `complete` is not asked of it.
 Neither `impl` nor `complete` takes a rule (an `always`, claimed or assumed) as a hypothesis: Lean has its rule on every
 value already, and its own `claim` is not stated as a fact.
+
+**`cover_` is built as `impl` is** (a choice of the library's, step 13d). The program's run stands with the code of
+everything it reaches put in (`Callees.within`): each callee whose meaning is proven code (a define, or `implementProven`)
+as that code, a fixed value as its value; a callee tested, assumed or provided stays open, and what is said of it enters
+only as a hypothesis, as `impl`'s `reliesOn` gives it (`Resolve.constrainingCalled`), each with the same code put in
+where it mentions a callee. So what a program keeps follows from what its callees do, not only from what is promised of
+them: housekeeping keeps sharing's `nothingEndedAtHousekeeping` by tidying as its code does. No hypothesis is the rule
+covered or rests on it (`Reads.restsOn`: the rule itself, or a claim taking the rule, or one among what such a claim is
+proven from), since the rule would then be kept by being assumed; an assumption taking the rule is trusted and rests on
+nothing (`CoverCircleSuite`: the picking's claim, read where every stamp is not negative, is no hypothesis of that
+rule's `cover_picking`).
 
 **A step over what makers make.** `complete` takes, for each maker its parts' claims are about, the `made_` of every
 rule kept of it (proven of the maker's code) as an `m_<rule>_<maker>` hypothesis, as a caller's `made_` already takes

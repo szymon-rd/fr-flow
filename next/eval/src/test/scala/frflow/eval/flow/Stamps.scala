@@ -120,6 +120,32 @@ object Stamps:
     .implementTested(Clock.now, Clock.sleep, Clock.elapse)(start = Wall.at, observe = _.time)(c =>
       (c.now, c.sleep, c.elapse))
 
+  /** A circle a `cover_` must not close: a time picked by plain Scala and stamped, a rule that every stamp is not
+    * negative, and a claim about the picking read where the rule holds, which rests on the rule: the rule's `cover_`
+    * of the picking may not take it.
+    */
+  val picked = Definition[BigInt => BigInt]("a time picked to stamp")
+  val picking = Definition[Flow[Unit]]("a time picked from now, stamped")
+  val pickingCode = program { Flow.step(Clock.now).flatMap(t => Flow.step(stampAt(picked(t)))) }
+
+  val nonNegative = Node.claim("Every stamp is not negative.")(always(stamps)(held => held.forall(x => x >= 0)))
+    .assuming(stampsKept, stampsOne, noStamps)
+
+  val pickedNonNegative = Node.claim("Where every stamp is not negative, a time picked is not negative.")(
+    stamps.current.forall(x => x >= 0) implies forall((t: Term[BigInt]) => picked(t) >= 0))
+
+  val pickingStamps = Node.claim("Picking stamps the time picked from now.")(
+    stamps.in(picking.after) === stamps.current :+ picked(clockModel.current))
+    .assuming(stampsOne)
+
+  val circling: FrModel = FrModel("Picking")(nonNegative, pickedNonNegative, pickingStamps, stampsKept, stampsOne,
+      noStamps, clockStarts)
+    .implementProven(picking)(pickingCode)
+    .implementTested(picked)(_ => (t: BigInt) => t.abs)
+    .implementTested(stampAt)(start = PlainShelf.holding, observe = _.held)(s => Tuple1(s.put))
+    .implementTested(Clock.now, Clock.sleep, Clock.elapse)(start = Wall.at, observe = _.time)(c =>
+      (c.now, c.sleep, c.elapse))
+
   /** What holds of the code as time passes. */
   val kept: FrModel = stamped(pastStamps, stampsTheTime, firesLate, waitWins, waitsAtOnce)
   /** Each a bug time passing finds. */

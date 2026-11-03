@@ -3,8 +3,9 @@ package frflow.core.analysis.outside
 import cats.syntax.all.*
 import frflow.core.code.Code
 import frflow.core.expr.{Expr, Exprs, Quantifier}
+import frflow.core.graph.Walk
 import frflow.core.name.{ModelName, NodeId, SymbolName}
-import frflow.core.spec.{Node, Range}
+import frflow.core.spec.{Node, NodeKind, Range}
 import frflow.core.ty.Ty
 import frflow.core.vocab.SymbolType
 import frflow.core.Theory
@@ -30,6 +31,14 @@ object Reads:
     */
   def takes(t: Theory, id: NodeId, rule: NodeId): Boolean =
     guarded(t, id, rule) || fromOutside(t, id, rule)
+
+  /** Whether `id` rests on the rule: it is the rule, or a claim taking it (`takes`) is, or is among what it is proven
+    * from, all the way down (`Resolve.below`): that claim is proven only once the rule is, whose `cover_` then could
+    * not take it. An assumption taking the rule is trusted, proven from nothing, so it rests on nothing.
+    */
+  def restsOn(t: Theory, id: NodeId, rule: NodeId): Boolean =
+    Walk.breadthFirst(List(id), identity)(Resolve.below(t, _)).exists(h => h == rule ||
+      (t.node(h).exists(_.statement.kind != NodeKind.Assumption) && takes(t, h, rule)))
 
   private def guarded(t: Theory, id: NodeId, rule: NodeId): Boolean =
     (t.node(id), t.node(rule).flatMap(_.statement.range)).tupled.exists { (n, r) =>

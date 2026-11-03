@@ -86,8 +86,9 @@ object Judged:
     // witnessed (`Whole.lean`); delivery's runs proven under the race's reading, its sends commuting with each
     // branch given its own faults (the step 13 review's B1 and G3), and the pool given back. The programs' runs are
     // proven on the World with time as Cats Effect models it (owner §47): the world's tick after each look at the
-    // clock, its moves where housekeeping's schedule allows; the World's rules (housekeptLately, logKept) each kept by
-    // every program and by time passing, time never going back (timeMovesOn) a claim.
+    // clock, its moves where housekeeping's schedule allows; the World's rules (housekeptLately, logKept,
+    // nothingEndedAtHousekeeping) each kept by every program, the code of what it calls put in, and by time passing,
+    // time never going back (timeMovesOn) a claim.
     List("AcceptContract", "AccessContract", "AnnounceContract", "ApproveContract", "AskContract", "CanEditContract",
       "CanViewContract", "ChaseContract", "DeclineContract", "ForgetContract", "GoneContract", "HandleContract",
       "HousekeepingJob", "InForceContract", "InviteContract", "IsOpenContract", "MoveContract", "PendingContract",
@@ -95,7 +96,7 @@ object Judged:
       "TrashContract", "UnshareContract", "WarnContract", "WithdrawContract", "Cover", "EditPermission",
       "HousekeepingPeriod", "InTrash", "InvitationLifetime", "OwnersShare", "Permission", "Reach", "ReminderTime",
       "RequestLifetime", "TrashLifetime", "WhoMayEdit", "WhatIsTrashed", "DeliveryJob", "DeliveryGivesBack",
-      "HousekeptLately", "LogKept", "TimeMovesOn")
+      "HousekeptLately", "LogKept", "NothingEndedAtHousekeeping", "TimeMovesOn")
       .map(_ -> List("claim", "proven", "proven", "")).toMap ++
     // Each model's runs one at a time, an assumption of the model (owner §32, §36), each model's start (its
     // `initially`), and housekeeping's schedule, a schedule of the clock restricting the world's moves of the time
@@ -112,25 +113,14 @@ object Judged:
       "MailerKept" -> List("assumption", "assumed", "", "1000"),
       "PoolKept" -> List("assumption", "assumed", "", "1000"),
       "HousekeptKept" -> List("assumption", "assumed", "", "1000"),
-      "NothingEndedAtHousekeeping" -> List("claim", "open", "open", ""),
       "ClockKept" -> Nil, "ClockNeverGoesBack" -> Nil)
 
-  /** What is not proven: that housekeeping keeps nothingEndedAtHousekeeping (its cover_), and so each statement taking
-    * that rule as it starts (`Kept`). A program's cover_ puts in the program's own code but leaves what it calls
-    * opaque, given only what the program relies on: housekeeping's tidying and chasing read whether a document is
-    * gone, an invitation open, a request pending, whose contracts (goneContract, isOpenContract, pendingContract)
-    * housekeeping does not rely on, so what it keeps cannot be shown as asked. Proposed to the owner: a cover_ puts in
-    * the code of what the program calls, as impl does (2.7). Everything else is proven: each of the World's other
-    * rules kept by every program and by time passing, delivery's steps at once commuting two by two, each given its
-    * own faults (G3, the step 13 re-review's RB1 and RB2), its runs under the race's reading (B1); the purpose, over
-    * its Declarations, not met by doing nothing.
+  /** What is not proven: nothing. Each of the World's rules is kept by every program, its `cover_` built as `impl`
+    * is, the code of what the program calls put in (2.7), and by time passing; delivery's steps at once commute two
+    * by two, each given its own faults (G3, the step 13 re-review's RB1 and RB2), its runs under the race's reading
+    * (B1); the purpose, over its Declarations, is not met by doing nothing.
     */
-  val stopped: Map[String, List[String]] =
-    Map("nothingEndedAtHousekeeping" -> List("Check", "Kept(nothingEndedAtHousekeeping)")) ++
-      List("accessRequestsAreAsks", "auditTrail", "deliveryGivesBack", "deliveryJob", "handleContract",
-        "housekeepingJob", "invitationsAreOffers", "invitationsLapseOnTime", "noticesFollowChanges",
-        "requestsAnsweredOnTime", "timeMovesOn", "trashPurgedOnTime", "trashUntilGone")
-        .map(_ -> List("Kept(nothingEndedAtHousekeeping)")).toMap
+  val stopped: Map[String, List[String]] = Map.empty
 
   /** Each value provided where the code runs, under owner §45 D: the history and now are the World's (§47). */
   val provided: Map[String, frflow.project.Ported.OnD] = Map(

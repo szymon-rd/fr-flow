@@ -809,4 +809,32 @@ theorem run_clock (w : World) (h : w.clockModel ≤ w.housekeptModel + 120) :
 
 
 
+/-- A run of housekeeping leaves nothing ended as of the time it ran: tidying keeps only the documents not gone and
+the invitations open, chasing only the requests pending, each reminded once it is due. -/
+theorem housekept_nothingEnded (lib : Library) (t : Int) :
+    nothingEndedAtHousekeeping (housekeptAt warnCode (chaseCode (isPendingCode 604800) (reminderDueCode 172800)) forgetCode (tidyCode (goneCode 2592000) inForceCode (isOpenCode 604800)) recordCode lib t) t := by
+  obtain ⟨hd, hi, hq⟩ := housekept_parts (isPendingCode 604800) (reminderDueCode 172800) (goneCode 2592000)
+    inForceCode (isOpenCode 604800) lib t
+  refine ⟨⟨fun doc hdoc a ha => ?_, fun i hin => ?_⟩, fun q hq' => ?_⟩
+  · rw [hd] at hdoc
+    simp [tidyCode, goneCode] at hdoc
+    have := hdoc.2 a ha
+    omega
+  · rw [hi] at hin
+    simp only [tidyCode, List.mem_filter] at hin
+    exact @of_decide_eq_true (isOpenCode 604800 i t) (propDecidable _) hin.2
+  · rw [hq] at hq'
+    simp only [chaseCode, List.mem_map, List.mem_filter] at hq'
+    obtain ⟨q₀, ⟨_, hp⟩, rfl⟩ := hq'
+    have hp' : t < q₀.asked + 604800 := @of_decide_eq_true (isPendingCode 604800 q₀ t) (propDecidable _) hp
+    unfold chased
+    by_cases hdue : reminderDueCode 172800 q₀ t ∧ ¬q₀.reminded
+    · rw [if_pos hdue]
+      exact ⟨hp', Or.inl trivial⟩
+    · rw [if_neg hdue]
+      refine ⟨hp', ?_⟩
+      by_cases hr : q₀.reminded
+      · exact Or.inl hr
+      · exact Or.inr (Classical.byContradiction fun hc => hdue ⟨by simp only [reminderDueCode]; omega, hr⟩)
+
 end Sharing.Lemmas

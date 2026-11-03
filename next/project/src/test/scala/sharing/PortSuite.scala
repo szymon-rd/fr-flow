@@ -51,6 +51,14 @@ class PortSuite extends munit.CatsEffectSuite:
     assertEquals(Ported.stoppedOnD(Judged.provided), Map.empty)
   }
 
+  test("a cover_ puts in the code of what the program calls, as impl does (2.7): housekeeping tidying as its code") {
+    val spec = Projects.bare(elaborated).modules
+      .find(_.name.dotted == "FrFlowGen.Sharing.nothingEndedAtHousekeeping.Spec")
+      .map(frflow.proof.lean.print.Print.module).getOrElse(fail("no nothingEndedAtHousekeeping spec"))
+    val cover = spec.linesIterator.dropWhile(!_.contains("def cover_housekeep")).take(2).mkString("\n")
+    assert(cover.contains("(Sharing.tidyCode (Sharing.goneCode 2592000)"), cover)
+  }
+
   test("impl is stated for the fixed lifetimes the code and the claim read, not for every value of them (2.7)") {
     val spec = Projects.bare(elaborated).modules.find(_.name.dotted == "FrFlowGen.Sharing.isOpenContract.Spec")
       .map(frflow.proof.lean.print.Print.module).getOrElse(fail("no isOpenContract spec"))
