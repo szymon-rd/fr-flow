@@ -49,8 +49,9 @@ final class Lowering(val resolved: Resolved, val table: TermTable, canonical: Bo
   def provided(n: NodeId): List[(SymbolName, Ty)] = Reads.provided(resolved.theory, n)
   val props: LowerProp = LowerProp(table, env, naming, LowerProp.Values(fromOutside,
     s => resolved.theory.code.attached.get(s).exists(a => a.code.proven.nonEmpty || (a.code match
-      case Code.Valued(_) | Code.Modelled(_) | Code.Provided => true
-      case _                                 => false))))
+      case Code.Valued(_) | Code.Provided => true
+      case Code.Modelled(_)               => !v.isAssumed(s)
+      case _                              => false))))
 
   def node(n: NodeId): Boolean = resolved.theory.node(n).nonEmpty
   def isDefine(name: String): Boolean = v.defines.exists(d => d.name.value == name ||

@@ -39,8 +39,10 @@ object World:
       else v.modelOf(op).flatMap(_.fails).fold(ran(op, args))(e =>
         states.modify(Faults.next).flatMap(fails => if fails then failed(e) else ran(op, args)))
 
+    /** An operation known only by assumptions has no run on the models: what reads it is not evaluated. */
     private def ran(op: SymbolName, args: List[ScalaValue]): F[ScalaValue] =
-      v.modelOf(op).flatMap(_.op(op)).liftTo[F](FlowError.NoOperation(op))
+      if v.isAssumed(op) then F.raiseError(FlowError.NotEvaluated(EvalError.Unbound(op)))
+      else v.modelOf(op).flatMap(_.op(op)).liftTo[F](FlowError.NoOperation(op))
         .flatMap(o => FlowInterpreter.watched(semantics, self, (p, held) => branched(op, p, held))
           .prog(o.steps, FlowInterpreter.arguments(o.params, args)))
     private def failed(e: Fails): F[ScalaValue] = F.raiseError(Raised(semantics.literal(e.error, e.ty), e.ty))

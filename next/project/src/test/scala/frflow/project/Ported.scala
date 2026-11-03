@@ -36,8 +36,11 @@ object Ported:
     */
   final case class Lean(proofs: List[(String, String)], old: List[(String, String)], port: Option[String])
 
-  private val directory: Resource[IO, Path] = Resource.make(IO.blocking(Files.createTempDirectory("frflow-port")))(
-    d => IO.blocking(Files.walk(d).sorted(java.util.Comparator.reverseOrder()).forEach(p => Files.delete(p))))
+  /** A fresh directory, removed after; or, for writing proofs, the one `FRFLOW_PORT_DIR` names, kept. */
+  private val directory: Resource[IO, Path] = sys.env.get("FRFLOW_PORT_DIR").fold(
+    Resource.make(IO.blocking(Files.createTempDirectory("frflow-port")))(d =>
+      IO.blocking(Files.walk(d).sorted(java.util.Comparator.reverseOrder()).forEach(p => Files.delete(p)))))(d =>
+    Resource.eval(IO.blocking(Files.createDirectories(Path.of(d)))))
 
   private def module(name: String): ModuleName = ModuleName(Names.path(name.split('.').toList*))
 
