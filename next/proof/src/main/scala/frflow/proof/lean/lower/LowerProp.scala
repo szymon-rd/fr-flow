@@ -93,7 +93,7 @@ final class LowerProp(table: TermTable, env: LowerEnv, naming: Naming, values: L
     case Prop.Makes(i, op, f, m) => applied(decl(i, LeanNames.makes(op.value)), LowerProp.opens(f, table), σ ++ m)
     case Prop.ConjunctOf(n, i)   =>
       applied(decl(n, LeanNames.conjunct(i)), table.claims.getOrElse(n, OpenTerms.empty), σ)
-    case Prop.Starts(d, is, w)   => starts(d, is, w)
+    case Prop.Starts(d, is, w)   => Writer.value(starts(d, is, w))
     case Prop.Inhabited(d, ty)   => Writer.value(inhabited(d, ty))
     case Prop.Iff(a, b)          => (prop(a, σ), prop(b, σ)).mapN((x, y) => LExpr.Paren(LExpr.Infix(LOp.Iff, x, y)))
     case Prop.Both(ps)           => ps.traverse(prop(_, σ)).map(_.toList.reduceRight(LExpr.Infix(LOp.And, _, _)))
@@ -172,31 +172,34 @@ final class LowerProp(table: TermTable, env: LowerEnv, naming: Naming, values: L
   /** `∀ (s : S), (K.initially s) → (K.rule s)`, or `→ ∀ x ∈ s, (K.rule x)`. */
   /** `∀ s, init s → rule s` (or the rule at each `T` the state holds, `within`); of a rule over several models'
     * states, `∀ s₀ s₁, init₀ s₀ → init₁ s₁ → rule s₀ s₁`. Each `initially` and the rule on their open terms (a
-    * value provided where the code runs: every value of it).
+    * value provided where the code runs, every value of it), bound first.
     */
-  private def starts(rule: DefName, inits: List[(DefName, Ty)], within: Option[Final[Boolean]]): W[LExpr] =
+  private def starts(rule: DefName, inits: List[(DefName, Ty)], within: Option[Final[Boolean]]): LExpr =
     val ss = inits.indices.toList.traverse(i => Naming.helper(if inits.size == 1 then "s" else s"s$i", Set.empty))
       .runA(naming).value
     val (binders, meets) = (inits, within) match
-      case ((_, ty) :: Nil, Some(w)) =>
-        val (bs, m) = Printed.define(env, naming)(List(Binder(VarId.level(0), "s", ty)), w)
-        (bs, Writer.value[OpenTerms, LExpr](m))
+      case ((_, ty) :: Nil, Some(w)) => Printed.define(env, naming)(List(Binder(VarId.level(0), "s", ty)), w)
       case _                         => (ss.zip(inits).map((s, i) => LBinder.Explicit(s, LowerType(i._2))),
-        opened(rule).map(r => call(r, ss.map(LExpr.Name(_)))))
+        call(opened(rule), ss.map(LExpr.Name(_))))
     val named = binders.collect { case LBinder.Explicit(n, _) => LExpr.Const(List(n)) }
-    val hyps = inits.zip(named).traverse((i, n) => opened(i._1).map(d => call(d, List(n))))
-    (hyps, meets).mapN((hs, m) => LExpr.Forall(binders, (hs :+ m).reduceRight(LExpr.Infix(LOp.Arrow, _, _))))
+    val hyps = inits.zip(named).map((i, n) => call(opened(i._1), List(n)))
+    overOpens(rule :: inits.map(_._1), LExpr.Forall(binders, (hyps :+ meets).reduceRight(LExpr.Infix(LOp.Arrow, _, _))))
 
-  /** A define on its open terms, each a variable of the statement. */
-  private def opened(d: DefName): W[LExpr] =
-    applied(define(d), table.defines.getOrElse(d, OpenTerms.empty), Map.empty)
+  /** A define on its open terms, each named as itself. */
+  private def opened(d: DefName): LExpr =
+    applied(define(d), table.defines.getOrElse(d, OpenTerms.empty), Map.empty).value
+
+  /** `∀ opens, body`: what the defines given are over, bound (nothing when they are over nothing). */
+  private def overOpens(ds: List[DefName], body: LExpr): LExpr =
+    val opens = ds.flatMap(d => table.defines.getOrElse(d, OpenTerms.empty).symbols).distinct
+    if opens.isEmpty then body else LExpr.Forall(binders(OpenTerms(Nil, opens)), body)
 
   /** `∃ (x : T), (K.rule x)`. */
   private def inhabited(ds: List[DefName], ty: Ty): LExpr =
     val x = Naming.helper("x", Set.empty).runA(naming).value
-    LExpr.Exists(List(LBinder.Explicit(x, LowerType(ty))),
-      ds.map(d => call(define(d), List(LExpr.Name(x)))).reduceRightOption(LExpr.Infix(LOp.And, _, _))
-        .getOrElse(name("True")))
+    overOpens(ds, LExpr.Exists(List(LBinder.Explicit(x, LowerType(ty))),
+      ds.map(d => call(opened(d), List(LExpr.Name(x)))).reduceRightOption(LExpr.Infix(LOp.And, _, _))
+        .getOrElse(name("True"))))
 
   private def constant(c: Constant): LExpr = LowerValue(env)(c.value, c.ty).runA(naming).value
   private def decl(n: NodeId, d: String): LExpr = LExpr.Const(Names.path(env.kb.value, n.value, d))

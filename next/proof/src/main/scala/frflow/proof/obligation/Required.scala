@@ -76,17 +76,19 @@ object Required:
     */
   def hypotheses(r: Resolved, n: NodeId): List[NodeId] = Resolve.below(r.theory, n)
 
-  /** A claim about operations on a state alone, at the bottom with no code standing in it: asked `impl`, given what
-    * is assumed of those known only by assumptions (nothing else would check it). A statement's run of an operation
-    * with steps is not read as its steps yet, so a claim about one stays open: fail closed.
+  /** A claim about operations on a state alone, or about the World as it stands (a model's state read, owner §45 D:
+    * sharing's deadlines), at the bottom with no code standing in it: asked `impl`, given what is assumed of those
+    * known only by assumptions and what always holds of the world (nothing else would check it). A statement's run
+    * of an operation with steps is not read as its steps yet, so a claim about one stays open: fail closed.
     */
   private def ofModels(r: Resolved, n: NodeId): Option[Callees] =
     val t = r.theory
     val modelled = Constrained.of(t, n).exists(s => t.code.attached.get(s).exists(_.code match
       case Code.Modelled(_) => true
       case _                => false))
-    Option.when(modelled && t.node(n).exists(x => x.statement.kind == NodeKind.Claim && !x.statement.rule) &&
-      !SaysWhat.is(t, n) && t.refinement.parts(n).isEmpty)(Callees(Map.empty, Mentions.empty))
+    val worldly = Resolve.mentions(t, n).models.nonEmpty
+    Option.when((modelled || worldly) && t.node(n).exists(x => x.statement.kind == NodeKind.Claim &&
+      !x.statement.rule) && !SaysWhat.is(t, n) && t.refinement.parts(n).isEmpty)(Callees(Map.empty, Mentions.empty))
 
   private def mentions(r: Resolved, n: NodeId, s: SymbolName): Boolean = Constrained.of(r.theory, n).contains(s)
 

@@ -2,13 +2,36 @@ import FrFlowGen.Sharing.Domain
 
 /-! Facts the sharing proofs share: an `if` that changed a value took its branch; what each request leaves of the
 documents, the invitations and the requests; and that recording and announcing it touch only the log and the
-outbox. -/
+outbox. A request is served, and housekeeping run, by the operations' code (`answered`, `servedByCode`, `housekept`:
+the defines the programs call, each operation its code, which each operation's contract says it is). -/
 
 set_option autoImplicit false
 noncomputable section
 open Classical
 
 namespace Sharing.Lemmas
+
+/-- What a request leads to, each operation its code. -/
+def answered (mayEdit : Library → Int → PersonId → Target → Prop) (ownedBy : Library → Target → Grantee → Prop)
+    (isOpen : Invitation → Int → Prop) (gone : Document → Int → Prop) (isPending : AccessRequest → Int → Prop)
+    (lib : Library) (t : Int) (r : Request) : Library :=
+  afterRequest (shareCode mayEdit ownedBy) (unshareCode mayEdit ownedBy) (moveCode mayEdit) (inviteCode mayEdit)
+    (acceptCode isOpen ownedBy) (withdrawCode mayEdit) (trashCode mayEdit) (restoreCode gone mayEdit) askCode
+    (approveCode isPending mayEdit ownedBy) (declineCode mayEdit) (transferCode mayEdit) lib t r
+
+/-- The library a request leaves, each operation its code: when it changed, recorded and announced. -/
+def servedByCode (mayEdit : Library → Int → PersonId → Target → Prop) (ownedBy : Library → Target → Grantee → Prop)
+    (isOpen : Invitation → Int → Prop) (gone : Document → Int → Prop) (isPending : AccessRequest → Int → Prop)
+    (lib : Library) (t : Int) (r : Request) : Library :=
+  served announceCode recordCode (shareCode mayEdit ownedBy) (unshareCode mayEdit ownedBy) (moveCode mayEdit)
+    (inviteCode mayEdit) (acceptCode isOpen ownedBy) (withdrawCode mayEdit) (trashCode mayEdit)
+    (restoreCode gone mayEdit) askCode (approveCode isPending mayEdit ownedBy) (declineCode mayEdit)
+    (transferCode mayEdit) lib t r
+
+/-- The library a run of housekeeping leaves at a moment, each operation its code. -/
+def housekept (isPending reminderDue : AccessRequest → Int → Prop) (gone : Document → Int → Prop)
+    (inForce : Share → Int → Prop) (isOpen : Invitation → Int → Prop) (lib : Library) (t : Int) : Library :=
+  housekeptAt warnCode (chaseCode isPending reminderDue) forgetCode (tidyCode gone inForce isOpen) recordCode lib t
 
 /-- An `if` whose value is not its `else` branch's took its `then` branch. -/
 theorem changed {α : Type} {c : Prop} {inst : Decidable c} {a b : α} (h : ¬ (@ite α c inst a b = b)) : c :=
@@ -28,9 +51,10 @@ theorem served_cases (mayEdit : Library → Int → PersonId → Target → Prop
           (answered mayEdit ownedBy isOpen gone isPending lib t r).requests ∧
         (servedByCode mayEdit ownedBy isOpen gone isPending lib t r).shares =
           (answered mayEdit ownedBy isOpen gone isPending lib t r).shares) := by
-  simp only [servedByCode]
+  simp only [servedByCode, served, answered]
   split
-  · exact Or.inr ⟨rfl, rfl, rfl, rfl⟩
+  · exact Or.inr ⟨by simp [announceCode, recordCode], by simp [announceCode, recordCode],
+      by simp [announceCode, recordCode], by simp [announceCode, recordCode]⟩
   · exact Or.inl rfl
 
 /-- A document a request leaves is out of the trash, put there now, or in it since a time the library held. -/
@@ -40,7 +64,7 @@ theorem answered_documents (mayEdit : Library → Int → PersonId → Target �
     ∀ doc ∈ (answered mayEdit ownedBy isOpen gone isPending lib t r).documents,
       doc.trashed = none ∨ doc.trashed = some t ∨ ∃ x ∈ lib.documents, x.trashed = doc.trashed := by
   intro doc hd
-  cases r <;> simp only [answered, shareCode, unshareCode, moveCode, inviteCode, acceptCode, withdrawCode, trashCode,
+  cases r <;> simp only [answered, afterRequest, shareCode, unshareCode, moveCode, inviteCode, acceptCode, withdrawCode, trashCode,
     restoreCode, askCode, approveCode, declineCode, transferCode, granted, handedOn] at hd <;>
     (try split at hd) <;> (try split at hd) <;> (try simp only [List.mem_map] at hd)
   all_goals first
@@ -54,7 +78,7 @@ theorem answered_invitations (mayEdit : Library → Int → PersonId → Target 
     (lib : Library) (t : Int) (r : Request) :
     ∀ i ∈ (answered mayEdit ownedBy isOpen gone isPending lib t r).invitations, i ∈ lib.invitations ∨ i.sent = t := by
   intro i hi
-  cases r <;> simp only [answered, shareCode, unshareCode, moveCode, inviteCode, acceptCode, withdrawCode, trashCode,
+  cases r <;> simp only [answered, afterRequest, shareCode, unshareCode, moveCode, inviteCode, acceptCode, withdrawCode, trashCode,
     restoreCode, askCode, approveCode, declineCode, transferCode, granted] at hi <;>
     (try split at hi) <;> (try split at hi) <;> simp_all [invitationsWithout, List.mem_filter]
   all_goals rcases hi with rfl | ⟨h, _⟩ <;> simp_all
@@ -66,7 +90,7 @@ theorem answered_requests (mayEdit : Library → Int → PersonId → Target →
     ∀ q ∈ (answered mayEdit ownedBy isOpen gone isPending lib t r).requests,
       q ∈ lib.requests ∨ (q.asked = t ∧ ¬ q.reminded) := by
   intro q hq
-  cases r <;> simp only [answered, shareCode, unshareCode, moveCode, inviteCode, acceptCode, withdrawCode, trashCode,
+  cases r <;> simp only [answered, afterRequest, shareCode, unshareCode, moveCode, inviteCode, acceptCode, withdrawCode, trashCode,
     restoreCode, askCode, approveCode, declineCode, transferCode, granted] at hq <;>
     (try split at hq) <;> (try split at hq) <;> simp_all [requestsWithout, List.mem_filter]
   all_goals rcases hq with rfl | ⟨h, _⟩ <;> simp_all
@@ -86,9 +110,10 @@ theorem served_logged (mayEdit : Library → Int → PersonId → Target → Pro
           (answered mayEdit ownedBy isOpen gone isPending lib t r).outbox ++
             noticesOf lib r (Entry.mk ((answered mayEdit ownedBy isOpen gone isPending lib t r).log.length : Int) t
               (Change.Made r))) := by
-  simp only [servedByCode]
+  simp only [servedByCode, served, answered]
   split
-  · exact Or.inr ⟨rfl, rfl, rfl⟩
+  · exact Or.inr ⟨by simp [announceCode, recordCode], by simp [announceCode, recordCode],
+      by simp [announceCode, recordCode]⟩
   · exact Or.inl rfl
 
 /-- The operations leave the log alone. -/
@@ -96,7 +121,7 @@ theorem answered_log (mayEdit : Library → Int → PersonId → Target → Prop
     (isOpen : Invitation → Int → Prop) (gone : Document → Int → Prop) (isPending : AccessRequest → Int → Prop)
     (lib : Library) (t : Int) (r : Request) :
     (answered mayEdit ownedBy isOpen gone isPending lib t r).log = lib.log := by
-  cases r <;> simp only [answered, shareCode, unshareCode, moveCode, inviteCode, acceptCode, withdrawCode, trashCode,
+  cases r <;> simp only [answered, afterRequest, shareCode, unshareCode, moveCode, inviteCode, acceptCode, withdrawCode, trashCode,
     restoreCode, askCode, approveCode, declineCode, transferCode, granted] <;> (try split) <;> (try split) <;> rfl
 
 /-- The operations leave the outbox alone. -/
@@ -104,7 +129,7 @@ theorem answered_outbox (mayEdit : Library → Int → PersonId → Target → P
     (isOpen : Invitation → Int → Prop) (gone : Document → Int → Prop) (isPending : AccessRequest → Int → Prop)
     (lib : Library) (t : Int) (r : Request) :
     (answered mayEdit ownedBy isOpen gone isPending lib t r).outbox = lib.outbox := by
-  cases r <;> simp only [answered, shareCode, unshareCode, moveCode, inviteCode, acceptCode, withdrawCode, trashCode,
+  cases r <;> simp only [answered, afterRequest, shareCode, unshareCode, moveCode, inviteCode, acceptCode, withdrawCode, trashCode,
     restoreCode, askCode, approveCode, declineCode, transferCode, granted] <;> (try split) <;> (try split) <;> rfl
 
 /-- A share a request leaves is one the library held, or one the request made (as its log entry says). -/
@@ -114,7 +139,7 @@ theorem answered_shares (mayEdit : Library → Int → PersonId → Target → P
     ∀ s ∈ (answered mayEdit ownedBy isOpen gone isPending lib t r).shares,
       s ∈ lib.shares ∨ makes (Entry.mk n t (Change.Made r)) s := by
   intro s hs
-  cases r <;> simp only [answered, shareCode, unshareCode, moveCode, inviteCode, acceptCode, withdrawCode, trashCode,
+  cases r <;> simp only [answered, afterRequest, shareCode, unshareCode, moveCode, inviteCode, acceptCode, withdrawCode, trashCode,
     restoreCode, askCode, approveCode, declineCode, transferCode, granted] at hs <;>
     (try split at hs) <;> (try split at hs) <;>
     simp_all [sharesWithout, List.mem_filter, makes, madeBy, ownersEdit]
@@ -132,9 +157,9 @@ theorem housekept_parts (isPending reminderDue : AccessRequest → Int → Prop)
         (tidyCode gone inForce isOpen lib t).invitations ∧
       (housekept isPending reminderDue gone inForce isOpen lib t).requests =
         (chaseCode isPending reminderDue (tidyCode gone inForce isOpen lib t) t).requests := by
-  simp only [housekept]
+  simp only [housekept, housekeptAt]
   split
-  · exact ⟨rfl, rfl, rfl⟩
+  · simp [recordCode, warnCode, forgetCode, chaseCode]
   · next hn =>
     have h := Classical.not_not.mp hn
     exact ⟨(congrArg Library.documents h).symm, (congrArg Library.invitations h).symm,
@@ -266,27 +291,27 @@ theorem firstOfEach_apart (o : List Notice) (a b : Notice)
 /-- Two sends at once, each with its own faults, in either order: the same outcomes (each its faults' alone), and
 the same mailboxes: of two people, each one's by its own send; of one, the same notice, taken once. -/
 theorem sends_commute (n₁ n₂ : Notice) (hto : n₁.to = n₂.to → n₁ = n₂) (w : World)
-    (f₁ r₁ f₂ r₂ : List Bool) :
-    FrFlow.sameModels (fun w => { w with faults := [], races := [] }) (FrFlow.runOn ((do
-        modify (fun w => { w with faults := f₁, races := r₁ })
+    (f₁ r₁ f₂ r₂ : List Bool) (t₁ t₂ : List Nat) :
+    FrFlow.sameModels (fun w => { w with faults := [], races := [], ticks := [] }) (FrFlow.runOn ((do
+        modify (fun w => { w with faults := f₁, races := r₁, ticks := t₁ })
         let one ← FrFlow.caught ((do
             let r_1 := n₁
             MailerModel.Ops.send r_1) : ExceptT Failure (StateM World) Unit)
-        modify (fun w => { w with faults := f₂, races := r₂ })
+        modify (fun w => { w with faults := f₂, races := r₂, ticks := t₂ })
         let two ← FrFlow.caught ((do
             let r_1 := n₂
             MailerModel.Ops.send r_1) : ExceptT Failure (StateM World) Unit)
         pure (one, two)) : StateM World ((Except Failure Unit) × (Except Failure Unit))) w) (FrFlow.runOn ((do
-        modify (fun w => { w with faults := f₂, races := r₂ })
+        modify (fun w => { w with faults := f₂, races := r₂, ticks := t₂ })
         let two ← FrFlow.caught ((do
             let r_1 := n₂
             MailerModel.Ops.send r_1) : ExceptT Failure (StateM World) Unit)
-        modify (fun w => { w with faults := f₁, races := r₁ })
+        modify (fun w => { w with faults := f₁, races := r₁, ticks := t₁ })
         let one ← FrFlow.caught ((do
             let r_1 := n₁
             MailerModel.Ops.send r_1) : ExceptT Failure (StateM World) Unit)
         pure (one, two)) : StateM World ((Except Failure Unit) × (Except Failure Unit))) w) := by
-  rcases w with ⟨lib, c, mail, pool, fs, rs⟩
+  rcases w with ⟨mail, hk, c, lib, pool, fs, rs, ts⟩
   rcases f₁ with _ | ⟨_ | _, f₁⟩ <;> rcases f₂ with _ | ⟨_ | _, f₂⟩ <;>
     simp only [FrFlow.runOn_bind, FrFlow.runOn_modify, FrFlow.runOn_pure, FrFlow.runOn_caught, FrFlow.runOnE_failing,
       MailerModel.Ops.send_onWorldE, FrFlow.runOn_within, MailerModel.send, FrFlow.runOn_get, FrFlow.runOn_set,
@@ -302,35 +327,35 @@ theorem sends_commute (n₁ n₂ : Notice) (hto : n₁.to = n₂.to → n₁ = n
 
 /-- Two removals of notices from the outbox at once, each a transaction with its own faults, in either order: the
 same outcomes (each its faults' alone), and the same outbox, two filters in either order. -/
-theorem removals_commute (n₁ n₂ : Notice) (w : World) (f₁ r₁ f₂ r₂ : List Bool) :
-    FrFlow.sameModels (fun w => { w with faults := [], races := [] }) (FrFlow.runOn ((do
-        modify (fun w => { w with faults := f₁, races := r₁ })
+theorem removals_commute (n₁ n₂ : Notice) (w : World) (f₁ r₁ f₂ r₂ : List Bool) (t₁ t₂ : List Nat) :
+    FrFlow.sameModels (fun w => { w with faults := [], races := [], ticks := [] }) (FrFlow.runOn ((do
+        modify (fun w => { w with faults := f₁, races := r₁, ticks := t₁ })
         let one ← FrFlow.caught ((do
             let r_1 := n₁
             let r_2 ← LibraryModel.Ops.load
             LibraryModel.Ops.save { r_2 with outbox := (List.filter (fun m => decide (¬(m = r_1))) r_2.outbox) }
             pure ()) : ExceptT Failure (StateM World) Unit)
-        modify (fun w => { w with faults := f₂, races := r₂ })
+        modify (fun w => { w with faults := f₂, races := r₂, ticks := t₂ })
         let two ← FrFlow.caught ((do
             let r_1 := n₂
             let r_2 ← LibraryModel.Ops.load
             LibraryModel.Ops.save { r_2 with outbox := (List.filter (fun m => decide (¬(m = r_1))) r_2.outbox) }
             pure ()) : ExceptT Failure (StateM World) Unit)
         pure (one, two)) : StateM World ((Except Failure Unit) × (Except Failure Unit))) w) (FrFlow.runOn ((do
-        modify (fun w => { w with faults := f₂, races := r₂ })
+        modify (fun w => { w with faults := f₂, races := r₂, ticks := t₂ })
         let two ← FrFlow.caught ((do
             let r_1 := n₂
             let r_2 ← LibraryModel.Ops.load
             LibraryModel.Ops.save { r_2 with outbox := (List.filter (fun m => decide (¬(m = r_1))) r_2.outbox) }
             pure ()) : ExceptT Failure (StateM World) Unit)
-        modify (fun w => { w with faults := f₁, races := r₁ })
+        modify (fun w => { w with faults := f₁, races := r₁, ticks := t₁ })
         let one ← FrFlow.caught ((do
             let r_1 := n₁
             let r_2 ← LibraryModel.Ops.load
             LibraryModel.Ops.save { r_2 with outbox := (List.filter (fun m => decide (¬(m = r_1))) r_2.outbox) }
             pure ()) : ExceptT Failure (StateM World) Unit)
         pure (one, two)) : StateM World ((Except Failure Unit) × (Except Failure Unit))) w) := by
-  rcases w with ⟨lib, c, mail, pool, fs, rs⟩
+  rcases w with ⟨mail, hk, c, lib, pool, fs, rs, ts⟩
   rcases f₁ with _ | ⟨_ | _, _ | ⟨_ | _, f₁⟩⟩ <;> rcases f₂ with _ | ⟨_ | _, _ | ⟨_ | _, f₂⟩⟩ <;>
     simp only [FrFlow.runOn_bind, FrFlow.runOn_modify, FrFlow.runOn_pure, FrFlow.runOn_caught, FrFlow.runOnE_failing,
       FrFlow.runOnE_bind, FrFlow.runOnE_pure, LibraryModel.Ops.load_onWorldE, LibraryModel.Ops.save_onWorldE,
