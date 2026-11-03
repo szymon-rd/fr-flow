@@ -87,7 +87,8 @@ val freshTokens = Node.claim("Every sign-in carries a token no earlier sign-in c
   .assuming(storeOnlyCode, storeOneAtATime, storeStarts)
 
 val drawnTokens = Node.assumption("Every sign-in the HTTP API hands the server carries a token it drew, which no " +
-    "sign-in the server handled carried.")(fresh(history, nextRequest.result))
+    "sign-in among the requests the server has handled, which it is shown, carried.")(
+  forall((handled: Term[List[AuthRequest]]) => fresh(handled, nextRequest(handled).result)))
 
 // ============================================================================
 // The server, a program over its store
@@ -96,10 +97,13 @@ val drawnTokens = Node.assumption("Every sign-in the HTTP API hands the server c
 val serve = Definition[Flow[ServerState]]("the server handling the next request it is handed: the state it leads " +
   "to, stored with the request and read back")
 
-/** The next request, handled on the state the store holds, stored with it; the state read back. */
+/** The next request, drawn against the requests the store has logged, handled on the state the store holds, stored
+  * with it; the state read back.
+  */
 val serving = program {
   for
-    q <- nextRequest
+    h <- logged
+    q <- nextRequest(h)
     s <- load
     t <- record(q, next(s, q))
   yield t }

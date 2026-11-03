@@ -35,8 +35,10 @@ object Judged:
     "storeLogs" -> ("new" -> ("what storing a request leaves, known only by what is assumed of it (G2): the state " +
       "stored, the request logged; the store's rules need it (Problem.LeavesUnsaid)")),
     "lookupKeeps" -> ("new" -> "what looking a token up leaves, as storeLogs is for storing (G2, LeavesUnsaid)"),
-    "drawnTokens" -> ("new" -> ("what is trusted of each request the HTTP API hands the server: today's freshTokens " +
-      "over the history, said of what enters it, so the history's rule is proven of the code")),
+    "drawnTokens" -> ("new" -> ("what is trusted of each request the HTTP API hands the server, shown the requests " +
+      "the server has handled: today's freshTokens over the history, said of what enters it, so the history's rule " +
+      "is proven of the code; said of what the draw is shown, not of the store, which its runs do not read " +
+      "(Problem.ReadsBeside)")),
     "handedOneAtATime" -> ("new" -> "the requests are handed one at a time, an assumption of the inbox's model"),
     "loadedKept" -> ("new" -> ("the accounts as loaded, a field of the store no operation changes, kept (owner " +
       "§45 D, the coordinator's ruling: the configuration in the World, isConstant proven)")),

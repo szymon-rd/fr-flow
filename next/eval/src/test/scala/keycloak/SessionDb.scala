@@ -10,6 +10,9 @@ final class SessionDb private (held: Ref[IO, (Stored, Map[(RealmId, String), Ses
   /** The state stored now. */
   def load: IO[ServerState] = held.get.map(_._1.state)
 
+  /** The event log stored now. */
+  def logged: IO[List[AuthRequest]] = held.get.map(_._1.log)
+
   /** Stores a request in the log and the state it led to; returns the state stored afterwards, read back. */
   def record(q: AuthRequest, after: ServerState): IO[ServerState] =
     held.updateAndGet((s, _) => (s.copy(state = after, log = s.log :+ q), SessionDb.indexOf(after))).map(_._1.state)

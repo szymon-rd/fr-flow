@@ -113,10 +113,12 @@ theorem record_run_eq (record : AuthRequest → ServerState → StateM Stored Se
       ((FrFlow.runOn (record q after) w.serverStore).1,
         { w with serverStore := (FrFlow.runOn (record q after) w.serverStore).2 }) := rfl
 
-/-- The next request, run on the World: its run on the inbox, the rest of the World as it was. -/
-theorem next_run_eq (nextRequest : StateM (List AuthRequest) AuthRequest) (w : World) :
-    Inbox.nextRequest_run nextRequest w =
-      ((FrFlow.runOn nextRequest w.inbox).1, { w with inbox := (FrFlow.runOn nextRequest w.inbox).2 }) := rfl
+/-- The next request, drawn against some handled, run on the World: its run on the inbox, the rest of the World as it
+was. -/
+theorem next_run_eq (nextRequest : List AuthRequest → StateM (List AuthRequest) AuthRequest)
+    (handled : List AuthRequest) (w : World) : Inbox.nextRequest_run nextRequest handled w =
+      ((FrFlow.runOn (nextRequest handled) w.inbox).1,
+        { w with inbox := (FrFlow.runOn (nextRequest handled) w.inbox).2 }) := rfl
 
 /-- A run of the introspection: the index's answer made claims of over the state the index's run leaves. -/
 theorem introspecting_run_eq (lookup : RealmId → String → StateM Stored (Option Session)) (realm : RealmId)
@@ -132,36 +134,38 @@ theorem introspecting_run_eq (lookup : RealmId → String → StateM Stored (Opt
     FrFlow.runOn_get]
   rfl
 
-/-- A run of the server: the next request taken, stored with what `next` makes of the state the store holds. -/
-theorem serving_run_eq (nextRequest : StateM (List AuthRequest) AuthRequest)
+/-- A run of the server: the next request taken, drawn against the log, stored with what `next` makes of the state
+the store holds. -/
+theorem serving_run_eq (nextRequest : List AuthRequest → StateM (List AuthRequest) AuthRequest)
     (record : AuthRequest → ServerState → StateM Stored ServerState) (w : World) :
     serving_run nextRequest record w =
-      ((FrFlow.runOn (record (FrFlow.runOn nextRequest w.inbox).1
-          (next w.serverStore.state (FrFlow.runOn nextRequest w.inbox).1)) w.serverStore).1,
-        { w with inbox := (FrFlow.runOn nextRequest w.inbox).2,
-                 serverStore := (FrFlow.runOn (record (FrFlow.runOn nextRequest w.inbox).1
-                   (next w.serverStore.state (FrFlow.runOn nextRequest w.inbox).1)) w.serverStore).2 }) := by
+      ((FrFlow.runOn (record (FrFlow.runOn (nextRequest w.serverStore.log) w.inbox).1
+          (next w.serverStore.state (FrFlow.runOn (nextRequest w.serverStore.log) w.inbox).1)) w.serverStore).1,
+        { w with inbox := (FrFlow.runOn (nextRequest w.serverStore.log) w.inbox).2,
+                 serverStore := (FrFlow.runOn (record (FrFlow.runOn (nextRequest w.serverStore.log) w.inbox).1
+                   (next w.serverStore.state (FrFlow.runOn (nextRequest w.serverStore.log) w.inbox).1))
+                   w.serverStore).2 }) := by
   simp only [serving_run, serving, FrFlow.runOn_bind, FrFlow.runOn_pure, Inbox.Ops.onState_onWorld,
-    ServerStore.Ops.onState_onWorld, ServerStore.Ops.load_onWorld, FrFlow.runOn_within, ServerStore.load,
-    FrFlow.runOn_get]
+    ServerStore.Ops.onState_onWorld, ServerStore.Ops.load_onWorld, ServerStore.Ops.logged_onWorld,
+    FrFlow.runOn_within, ServerStore.load, ServerStore.logged, FrFlow.runOn_get]
 
 /-- The store after the server handles a request, of a store meeting its rules: the accounts as loaded, the state
 `next` makes of the one it held, the request logged at the end; the request fresh against the log; the answer the
 state stored. -/
-theorem served (nextRequest : StateM (List AuthRequest) AuthRequest)
+theorem served (nextRequest : List AuthRequest → StateM (List AuthRequest) AuthRequest)
     (record : AuthRequest → ServerState → StateM Stored ServerState)
     (hD : drawnTokens.claim nextRequest) (hK : storeKeepsState.claim record) (hL : storeLogs.claim record)
     (w : World) (h1 : serverRun w.serverStore) (h2 : oneSignInPerToken w.serverStore)
     (h3 : freshTokens w.serverStore) :
     (serving_run nextRequest record w).2.serverStore = Stored.mk w.serverStore.loaded
-        (next w.serverStore.state (FrFlow.runOn nextRequest w.inbox).1)
-        (w.serverStore.log ++ [(FrFlow.runOn nextRequest w.inbox).1]) ∧
-      fresh w.serverStore.log (FrFlow.runOn nextRequest w.inbox).1 ∧
+        (next w.serverStore.state (FrFlow.runOn (nextRequest w.serverStore.log) w.inbox).1)
+        (w.serverStore.log ++ [(FrFlow.runOn (nextRequest w.serverStore.log) w.inbox).1]) ∧
+      fresh w.serverStore.log (FrFlow.runOn (nextRequest w.serverStore.log) w.inbox).1 ∧
       (serving_run nextRequest record w).1 = (serving_run nextRequest record w).2.serverStore.state := by
-  have hd := hD w h1 h2 h3
+  have hd := hD w.serverStore.log w
   rw [next_run_eq] at hd
-  let q := (FrFlow.runOn nextRequest w.inbox).1
-  let w' : World := { w with inbox := (FrFlow.runOn nextRequest w.inbox).2 }
+  let q := (FrFlow.runOn (nextRequest w.serverStore.log) w.inbox).1
+  let w' : World := { w with inbox := (FrFlow.runOn (nextRequest w.serverStore.log) w.inbox).2 }
   have hl := hL q (next w.serverStore.state q) w' h1 h2 h3
   have hk := hK q (next w.serverStore.state q) w'
   rw [record_run_eq] at hl hk
@@ -219,7 +223,7 @@ theorem introspect_answers (lookup : RealmId → String → StateM Stored (Optio
       simp only [ha, hen, ite_true, rolesIn, account]
 
 /-- The server's and the introspection's runs keep the accounts as loaded. -/
-theorem loaded_kept (nextRequest : StateM (List AuthRequest) AuthRequest)
+theorem loaded_kept (nextRequest : List AuthRequest → StateM (List AuthRequest) AuthRequest)
     (record : AuthRequest → ServerState → StateM Stored ServerState)
     (lookup : RealmId → String → StateM Stored (Option Session))
     (hD : drawnTokens.claim nextRequest) (hK : storeKeepsState.claim record) (hL : storeLogs.claim record)
@@ -243,7 +247,7 @@ theorem loaded_kept (nextRequest : StateM (List AuthRequest) AuthRequest)
     rw [hAfter]
 
 /-- The server answers with the state it stores. -/
-theorem answers_stored (nextRequest : StateM (List AuthRequest) AuthRequest)
+theorem answers_stored (nextRequest : List AuthRequest → StateM (List AuthRequest) AuthRequest)
     (record : AuthRequest → ServerState → StateM Stored ServerState)
     (hD : drawnTokens.claim nextRequest) (hK : storeKeepsState.claim record) (hL : storeLogs.claim record) :
     answersWhatItStores.claim (serving_run nextRequest record) := by

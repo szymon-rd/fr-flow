@@ -66,7 +66,7 @@ class PortSuite extends munit.CatsEffectSuite:
   private val written = List(RequestExamples())
 
   /** The store's Scala, run against what is assumed of its operations, today's 1,000 runs; and the inbox's, in its
-    * tests' stand-in (an idle request when none waits), whose assumption reads the store and so is trusted.
+    * tests' stand-in (an idle request when none waits), against what is assumed of what it hands on.
     */
   private def store: List[ModelCheck[IO]] =
     val idle = AuthRequest.SignOut(RealmId(""), "")
@@ -74,9 +74,9 @@ class PortSuite extends munit.CatsEffectSuite:
       ModelRuns.reportedUnder(m.name), ModelRuns[IO](ModelTests.Check(m, impl), frflow.eval.Semantics(elaborated), t,
         1000).of(_, _))
     t.vocabulary.model(serverStore.name).toList.map(checked(_, ModelTests.of(serverStore)(start = SessionDb.holding,
-      observe = (d: SessionDb) => d.stored)(d => (d.load, d.record, d.lookup)))) ++
+      observe = (d: SessionDb) => d.stored)(d => (d.load, d.logged, d.record, d.lookup)))) ++
       t.vocabulary.model(inbox.name).toList.map(checked(_, ModelTests.of(inbox)(start = HttpInbox.holding,
-        observe = (i: HttpInbox) => i.left)(i => Tuple1(i.nextOr(idle)))))
+        observe = (i: HttpInbox) => i.left)(i => Tuple1(i.nextOr(idle)(_)))))
 
   test("checked by Lean and tested, each node stands as today's but where judged; consistent; nothing weakened"
     .tag(Live)) {

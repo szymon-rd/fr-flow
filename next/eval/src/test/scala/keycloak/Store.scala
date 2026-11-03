@@ -15,6 +15,8 @@ final case class ServerState(accounts: List[UserAccount], sessions: List[Session
 final case class Stored(loaded: List[UserAccount], state: ServerState, log: List[AuthRequest]) derives LeanType
 
 val load = Definition[Flow[ServerState]]("the state the store holds now: its accounts and open sessions")
+val logged = Definition[Flow[List[AuthRequest]]]("the event log the store holds now: the requests handled since it " +
+  "started, in order")
 val record = Definition[(AuthRequest, ServerState) => Flow[ServerState]]("storing a request in the event log, with " +
   "the state it led to: what the store holds afterwards, read back")
 val lookup = Definition[(RealmId, String) => Flow[Option[Session]]]("the store's answer to looking up a token's " +
@@ -26,11 +28,13 @@ val lookup = Definition[(RealmId, String) => Flow[Option[Session]]]("the store's
 object serverStore extends StateModel[Stored]("the server's store: every realm's accounts as loaded at start, the " +
     "server's state now, and the event log"):
   load.means(state.get.map(s => s.state))
+  logged.means(state.get.map(s => s.log))
   record.assumed
   lookup.assumed
 
-val nextRequest = Definition[Flow[AuthRequest]]("the next request the HTTP API hands the server: a sign-in, its " +
-  "token drawn, a sign-out or an administrator's change")
+val nextRequest = Definition[List[AuthRequest] => Flow[AuthRequest]]("the next request the HTTP API hands the " +
+  "server, shown the requests the server has handled: a sign-in, its token drawn, a sign-out or an administrator's " +
+  "change")
 
 /** The requests the HTTP API has received and not yet handed the server: known only by what is assumed of the next. */
 object inbox extends StateModel[List[AuthRequest]]("the requests the HTTP API has received and not yet handed on"):

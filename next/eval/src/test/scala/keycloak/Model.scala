@@ -27,8 +27,8 @@ def withCode(kb: FrModel): FrModel = kb
   .implementProven(step)(next)
   .implementProven(serve)(serving)
   .implementProven(introspect)(introspecting)
-  .implementTested(load, record, lookup)(start = SessionDb.holding, observe = _.stored)(d =>
-    (d.load, d.record, d.lookup))
+  .implementTested(load, logged, record, lookup)(start = SessionDb.holding, observe = _.stored)(d =>
+    (d.load, d.logged, d.record, d.lookup))
   .implementTested(nextRequest)(start = HttpInbox.holding, observe = _.left)(i => Tuple1(i.next))
   .withGenerator(Replay.stores)
 
