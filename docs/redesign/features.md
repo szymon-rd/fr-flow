@@ -258,11 +258,16 @@ adds a use), measured with grep on 3aa8cd7 and checked on e0fa3d9. "Tests only" 
    `retry(clock, waits)` is kept (owner §2), built from `handle` and the clock's `sleep` as today, a fold of the waits;
    sharing's `Delivery` uses it (step 13).
 9. The clock is read around the program, nothing cancelled, as today; kept by the owner, tested, used in sharing (step
-   13).
+   13). Since step 13d the world moves the time on after each of the clock's steps (owner §47), so its `none` is
+   reached exactly when more than the limit passed, both outcomes proven (ARCHITECTURE 4.4, "Time"); Cats' cancelling
+   form is a race against `sleep`, as sharing's delivery has it.
 10. Read as the scheduler's choice; kept by the owner, tested, used in sharing (step 13).
 11. A `Mutex` in production.
-12. FrFlow's own Definitions `now: Flow[BigInt]` and `sleep: BigInt => Flow[Unit]`, with their `StateModel`
-    (`clockModel`); `FakeClock` is Scala for tests, `SystemClock` for production (owner §36).
+12. FrFlow's own Definitions `now: Flow[BigInt]`, `sleep: BigInt => Flow[Unit]` and the world's own step
+    `elapse: BigInt => Flow[Unit]` (owner §47, no code calls it), with their `StateModel` (`clockModel`, its state the
+    time now, only moving on); a schedule (`clockModel.schedule(other)(rule)`) is a fact of where the world moves it.
+    `FakeClock` is a virtual clock in Scala for tests (its `elapse` is `TestControl.advance`), `SystemClock` for
+    production (owner §36); waits at once take the longest in Lean (ARCHITECTURE 4.4, "Time").
 13. Written in the example's fact (a world made, a run's outcome stated); `RunExample` and `RunEnd` go.
 
 ## Checks Lean makes
