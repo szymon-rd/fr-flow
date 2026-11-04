@@ -48,7 +48,7 @@ class RequiredSuite extends munit.FunSuite:
 
   test("made_ at the call: what proven code hands an operation on a state meets the rule, at every call (owner §37)") {
     assertEquals(names(Mini.resolved, "endsAfterStart").map(_._1).filterNot(_.isInstanceOf[ObligationName.Cover]),
-      List(ObligationName.Made("bookIfFree_call_0")))
+      List(ObligationName.Made("bookIfFree_call_0"), ObligationName.Outside))
     assertEquals(names(Broken.resolved, "endsAfterStart").map(_._1).collect { case ObligationName.Made(m)
       if m.contains("_call_") => m }, List("fileBack_call_0", "putEvery_call_0", "putBoth_call_0", "putBoth_call_1"))
     // Programs calls no plain Scala: none is asked.
@@ -81,7 +81,7 @@ class RequiredSuite extends munit.FunSuite:
   test("made_ at the call, crm-shaped: what the job hands storeAbout holds each key once, below the job's branch") {
     List(Rows.once, Rows.duplicates).foreach(steps =>
       assertEquals(names(Rows.resolved(steps), "onePerKey"), List(ObligationName.Made("expireIt_call_0") ->
-        Discharge.Auto)))
+        Discharge.Auto, ObligationName.Outside -> Discharge.Auto)))
     val declared = AlwaysSuite().declared(frflow.proof.layout.Laid(Rows.resolved(Rows.once), Map.empty, Nil),
       Rows.resolved(Rows.once))
     // Below the branch the store is called on: the rows not holding the key.
@@ -91,7 +91,7 @@ class RequiredSuite extends munit.FunSuite:
   test("made_: of a define making what the always is about, and of a program whose run gives one") {
     assertEquals(names(Programs.resolved, "endsAfterStart").map(_._1),
       List(ObligationName.Made("reschedule"), ObligationName.Made("fetch"), ObligationName.Made("latest"),
-        ObligationName.Made("sample")))
+        ObligationName.Made("sample"), ObligationName.Outside))
     val made = Made.of(Programs.resolved, NodeId("endsAfterStart"))
     assertEquals(made.map(_.doc).take(2), List("Every result of later meets endsAfterStart.",
       "Every result of a run of fetchOne_run meets endsAfterStart."))
@@ -139,10 +139,13 @@ class RequiredSuite extends munit.FunSuite:
     assert(spec.exists(_.contains(expected)), spec.getOrElse("no module"))
   }
 
-  test("an assumption of always is kept by the covered code making or storing its values, as a claim is") {
-    assertEquals(names(Programs.resolved, "fromOutside").map(_._1),
-      names(Programs.resolved, "endsAfterStart").map(_._1))
-    assertEquals(names(Mini.resolved, "fromTheForm").map(_._1), names(Mini.resolved, "endsAfterStart").map(_._1))
+  test(("an assumption of always is kept by the covered code making or storing its values, as a claim is; only the " +
+      "claim is asked of the values from outside (outside), which the assumption says itself (the 13d fourth " +
+      "pass's P4-B2)")) {
+    def claimed(r: Resolved) = names(r, "endsAfterStart").map(_._1)
+    assertEquals(names(Programs.resolved, "fromOutside").map(_._1) :+ ObligationName.Outside,
+      claimed(Programs.resolved))
+    assertEquals(names(Mini.resolved, "fromTheForm").map(_._1) :+ ObligationName.Outside, claimed(Mini.resolved))
   }
 
   test("every op with proven code where an always must hold gets its cover_ or its made_") {
