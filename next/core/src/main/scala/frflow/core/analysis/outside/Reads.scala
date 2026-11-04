@@ -40,6 +40,24 @@ object Reads:
     Walk.breadthFirst(List(id), identity)(Resolve.below(t, _)).exists(h => h == rule ||
       (t.node(h).exists(_.statement.kind != NodeKind.Assumption) && takes(t, h, rule)))
 
+  /** Whether `cover_<op>` of a rule takes the rule `other` as given where the run starts (`Required.keeps`): its
+    * guard on a store the program reads or on the program's inputs; of the world's own step (`elapse`), on any store.
+    * A rule kept from one still open is not shown kept (the step 13d re-review's R-B1).
+    */
+  def coverTakes(t: Theory, op: SymbolName, other: NodeId): Boolean =
+    t.node(other).filter(_.statement.rule).flatMap(_.statement.range).exists { r =>
+      val about = Scope.models(t, r).map(_.name)
+      if t.vocabulary.modelOf(op).nonEmpty then about.nonEmpty
+      else about.exists(ofProgram(t, op).contains) || (r match
+        case Range.Made(ty) => inputs(t, op).exists(Guards.applies(t, ty, _))
+        case _              => false)
+    }
+
+  private def inputs(t: Theory, op: SymbolName): List[Ty] = t.vocabulary.symbol(op).map(_.ty).toList.flatMap {
+    case SymbolType.Typed(Ty.FnOf(ins, _)) => ins
+    case _                                 => Nil
+  }
+
   private def guarded(t: Theory, id: NodeId, rule: NodeId): Boolean =
     (t.node(id), t.node(rule).flatMap(_.statement.range)).tupled.exists { (n, r) =>
       val over = quantified(n) ++ provided(t, id).map(_._2)

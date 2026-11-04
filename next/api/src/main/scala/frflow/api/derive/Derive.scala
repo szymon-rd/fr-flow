@@ -1,6 +1,7 @@
 package frflow.api.derive
 
 import frflow.api.view.{View, Views, Warning}
+import frflow.core.analysis.outside.Outsides
 import frflow.core.checking.{Assumed, Checking}
 import frflow.project.pipeline.Analysis
 
@@ -18,10 +19,13 @@ private[api] object Derive:
 
   /** `status` says it of each claim nothing checks (`Checking.unchecked`): its parts do not prove it, and the plain
     * Scala it is about cannot be tested against it; and of each assumption about operations known only by assumptions
-    * their runs cannot evaluate (`Assumed.untested`): trusted, not tested.
+    * their runs cannot evaluate (`Assumed.untested`): trusted, not tested; and of each schedule over models no
+    * program writes (`Outsides.unwritten`): it freezes the time once it reaches its bound.
     */
   def unchecked(a: Analysis): List[Warning] =
     val t = a.decided.theory
     t.nodes.map(_.node.id).filter(Checking.unchecked(t, _)).map(Warning.NotChecked(_)) ++
       t.nodes.map(_.node.id).flatMap(id => Option(Assumed.untested(t, id)).filter(_.nonEmpty)
-        .map(Warning.TrustedUntested(id, _)))
+        .map(Warning.TrustedUntested(id, _))) ++
+      t.nodes.map(_.node.id).flatMap(id => Option(Outsides.unwritten(t, id)).filter(_.nonEmpty)
+        .map(Warning.ScheduleUnwritten(id, _)))

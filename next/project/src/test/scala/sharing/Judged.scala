@@ -124,19 +124,23 @@ object Judged:
     * housekeptLately holds (a request's run may take any time while housekeeping, beside it, keeps the rule true). The
     * statements stopped with it take it as given where they start (`Reads.takes`): the three deadlines it is a part
     * of, the branches above them, and each claim about a program's runs over the World (the programs' contracts and
-    * jobs, the pool given back, time moving on, the audit trail), each proven itself. How such a rule is stated is
-    * open for the owner (ARCHITECTURE 4.4, "Time"); the scheduler's tests still check it on a virtual clock
-    * (`ScheduleSuite`). The other rules are kept by every program, each `cover_` built as `impl` is,
-    * the code of what the program calls put in (2.7), and by time passing; delivery's steps at once commute two by
-    * two, each given its own faults (G3, the step 13 re-review's RB1 and RB2), its runs under the race's reading
-    * (B1); the purpose, over its Declarations, is not met by doing nothing.
+    * jobs, the pool given back, time moving on, the audit trail), each proven itself; and the World's other rules
+    * (logKept, nothingEndedAtHousekeeping), whose every `cover_` takes it as given on the world a run starts from
+    * (`Reads.coverTakes`, the step 13d re-review's R-B1: housekeeping's keeping of nothingEndedAtHousekeeping uses
+    * it), with what takes them (noticesFollowChanges). How such a rule is stated is open for the owner (ARCHITECTURE
+    * 4.4, "Time"); the scheduler's tests still check it on a virtual clock (`ScheduleSuite`). Each other rule's
+    * `cover_`s are proven of every program, each built as `impl` is, the code of what the program calls put in (2.7),
+    * and of time passing; delivery's steps at once commute two by two, each given its own faults (G3, the step 13
+    * re-review's RB1 and RB2), its runs under the race's reading (B1); the purpose, over its Declarations, is not met
+    * by doing nothing.
     */
   val stopped: Map[String, List[String]] =
     val concurrent = "Kept(housekeptLately)"
     Map("housekeptLately" -> List("Check", concurrent)) ++
       List("trashPurgedOnTime", "invitationsLapseOnTime", "requestsAnsweredOnTime", "trashUntilGone",
         "invitationsAreOffers", "accessRequestsAreAsks", "handleContract", "housekeepingJob", "deliveryJob",
-        "deliveryGivesBack", "timeMovesOn", "auditTrail").map(_ -> List(concurrent)).toMap
+        "deliveryGivesBack", "timeMovesOn", "auditTrail", "logKept", "nothingEndedAtHousekeeping",
+        "noticesFollowChanges").map(_ -> List(concurrent)).toMap
 
   /** Each value provided where the code runs, under owner §45 D: the history and now are the World's (§47). */
   val provided: Map[String, frflow.project.Ported.OnD] = Map(

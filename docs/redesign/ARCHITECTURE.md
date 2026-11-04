@@ -547,7 +547,10 @@ them: housekeeping keeps sharing's `nothingEndedAtHousekeeping` by tidying as it
 covered or rests on it (`Reads.restsOn`: the rule itself, or a claim taking the rule, or one among what such a claim is
 proven from), since the rule would then be kept by being assumed; an assumption taking the rule is trusted and rests on
 nothing (`CoverCircleSuite`: the picking's claim, read where every stamp is not negative, is no hypothesis of that
-rule's `cover_picking`).
+rule's `cover_picking`). Each `cover_` also takes every other rule on the stores the program reads, on the world it
+starts from: the rules are kept together, so a rule is kept only as each rule its `cover_`s take is, all the way down,
+and is unproven (`Unproven.Kept` of each open one, `Reads.coverTakes`) while one is not (the step 13d re-review's
+R-B1: the probe `Leans`, a copy of `x` kept zero by taking `x` zero, while a bump breaks it).
 
 **A step over what makers make.** `complete` takes, for each maker its parts' claims are about, the `made_` of every
 rule kept of it (proven of the maker's code) as an `m_<rule>_<maker>` hypothesis, as a caller's `made_` already takes
@@ -1288,12 +1291,15 @@ by less than nothing (`vocab.Timed` marks it). Steps of code take no time of the
   `isConstant` reading it its equation for `elapse` (`Constancy`); a statement or an obligation reads its run as
   `ClockModel.elapse_run`. `stored.onlyCodeChanges` and `atomic` are not asked of the clock (2.6).
 - **In a run**, after each of the clock's steps: the next of the world's `ticks : List Nat` (a reserved field, a choice
-  of the world's as `faults` and `races` are; none left: no time), `FrFlow.Clock.tick`. After, so that a run's first
-  look at the clock is the world's time (what passed before it is the world's step before the run, and what passes
-  after its last look its step after): crm's searches read the world's time, and a statement may say so. Time passing
-  at a step that does not look at the clock is not told apart from passing at the next that does. So two looks in one
-  run may differ (`TimeLeanSuite`'s `stampTakesNoTime` stays unproven: a program relying on its run taking no time),
-  and `timeout`'s `none` is reached.
+  of the world's as `faults` and `races` are; none left: no time), `FrFlow.Clock.tick`. After, so that the first look
+  of a run that looks first is the world's time (what passed before it is the world's step before the run, and what
+  passes after its last look its step after): crm's searches read the world's time, and a statement may say so. A
+  look with other steps before it, and no step of the clock's yet, is given a look first, its time dropped, so the
+  tick after it is the time passing at those steps (`analysis.Looks`, the step 13d re-review's R-B2: `Late.readsStart`
+  stays unproven); a call of a program that may look is given one so too. Between two looks, time passing at a step
+  that does not look at the clock is not told apart from passing at the next that does. So two looks in one run may
+  differ (`TimeLeanSuite`'s `stampTakesNoTime` stays unproven: a program relying on its run taking no time), and
+  `timeout`'s `none` is reached.
 - **At a wait**, by at least its seconds: the wait's own move, then a tick. A wait at once with others (a side of a
   pair, a traverse at once or a race) is read as two points (`analysis.Waits`, the step 13 re-review's RN1): where the
   sides start (the time read once before them, a lower bound of every wait's own start in them) and its end, the time
@@ -1316,7 +1322,9 @@ by less than nothing (`vocab.Timed` marks it). Steps of code take no time of the
   this one is in progress (the step 13d review's B1: a five minutes' wait under sharing's schedule takes five minutes,
   `Lapse.quick` stays unproven). A check whose Lean takes the clock rests on each schedule of it (`Premise.Schedule`),
   listed by `.assuming`. A schedule that lets no time pass from the start is warned of: its `frozen` try (`∀` start, `¬`
-  a move by `d > 0`) shown, as vacuity is (`TimeLeanSuite`, `Frozen`).
+  a move by `d > 0`) shown, as vacuity is (`TimeLeanSuite`, `Frozen`). So is one over a model no program writes
+  (`Outsides.unwritten`, `status`'s `ScheduleUnwritten`, the re-review's R-N1): it lets time pass from the start and
+  freezes it once the time reaches its bound (`Unwritten`).
 - **Who moves the time.** Every program calling any of the clock's operations, `now` too, changes the clock's state
   (`Premises.writers`): the world moves the time after each of its looks. So an `isConstant` reading the clock is asked
   an equation for each such run (the step 13d review's B2: `Extend.stays` stays unproven).
@@ -1324,8 +1332,10 @@ by less than nothing (`vocab.Timed` marks it). Steps of code take no time of the
   model's state, kept true by a program that runs concurrently with the rest (sharing's `housekeptLately`, `now <= ran +
   120`, housekeeping run every minute beside requests and delivery), cannot be shown when runs are read one after
   another: any other run may move the time without bound. Sharing's `housekeptLately` is stopped (`Judged.stopped`),
-  and with it each statement taking it as given where it starts: its three deadlines and the branches above them, and
-  the claims about the programs' runs over the World (each proven itself); its scheduler's tests (`ScheduleSuite`)
+  and with it each statement taking it as given where it starts: its three deadlines and the branches above them, the
+  claims about the programs' runs over the World (each proven itself), and the World's other rules, whose every
+  `cover_` takes it on the world a run starts from (`Reads.coverTakes`; a rule kept from one still open is not kept,
+  the step 13d re-review's R-B1, the probe `Leans`), with what takes those. Its scheduler's tests (`ScheduleSuite`)
   still check the deadlines on a virtual clock. How such a rule is to be stated is the owner's to decide.
 
 A rule may relate several models' states (`always(clockModel, lastRun)((now, ran) => ran <= now)`), its `start_` of

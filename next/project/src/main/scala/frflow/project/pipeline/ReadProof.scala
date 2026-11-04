@@ -1,10 +1,10 @@
 package frflow.project.pipeline
 
-import frflow.core.analysis.{Constrained, Scope}
+import frflow.core.analysis.Constrained
 import frflow.core.analysis.outside.Reads
 import frflow.core.graph.Walk
 import frflow.core.checking.Checking
-import frflow.core.name.NodeId
+import frflow.core.name.{NodeId, SymbolName}
 import frflow.core.spec.{Node, NodeKind}
 import frflow.decision.review.{ProofStanding, Unproven}
 import frflow.proof.obligation.{Made, ObligationName}
@@ -57,15 +57,22 @@ object ReadProof:
 
   /** Of an `always`, each program keeping it whose `cover_<op>` is not proven; of a statement taking a rule as a
     * hypothesis (`Reads.takes`), each such rule: its step rests on the rule holding where it starts, as it rests on
-    * what the makers below it make (`made`).
+    * what the makers below it make (`made`). A rule's `cover_`s take the other rules too (`Reads.coverTakes`): it is
+    * kept only as they are, all the way down (the step 13d re-review's R-B1), so each open one below is named.
     */
   private def kept(a: Analysis, id: NodeId, rs: List[Result]): List[Unproven] =
     val t = a.decided.theory
-    def open(rule: NodeId, results: List[Result]) =
-      Scope.of(t, rule).exists(op => !status(results, Cover(op.value)).forall(_ == Proven))
-    val taken = t.nodes.map(_.node).filter(r => r.id != id && r.statement.rule && Reads.takes(t, id, r.id))
-      .filter(r => open(r.id, a.current(r.id).toList.flatMap(_.results)))
-    (Option.when(open(id, rs))(Unproven.Kept(id)).toList ++ taken.map(r => Unproven.Kept(r.id))).distinct
+    def results(rule: NodeId) = if rule == id then rs else a.current(rule).toList.flatMap(_.results)
+    def open(rule: NodeId) = results(rule).exists {
+      case Result(Cover(_), s, _) => s != Proven
+      case _                      => false
+    }
+    val rules = t.nodes.map(_.node).filter(_.statement.rule).map(_.id)
+    def below(rule: NodeId) = results(rule).collect { case Result(Cover(op), _, _) => op }.distinct.flatMap(op =>
+      rules.filter(r => r != rule && Reads.coverTakes(t, SymbolName(op), r)))
+    val taken = rules.filter(r => r != id && Reads.takes(t, id, r))
+    val start = (if t.node(id).exists(_.statement.rule) then List(id) else Nil) ++ taken
+    Walk.breadthFirst(start, identity)(below).filter(open).map(Unproven.Kept(_)).distinct
 
   /** Of a step taking what the makers below it make (`Made.taken`), each rule whose `made_<maker>` is not proven, or
     * the `made_` of a maker it calls, which that `made_` takes (`Made.resting`): the step rests on each (step 12

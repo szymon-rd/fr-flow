@@ -32,11 +32,16 @@ object Waits:
       case other => mapped(other)(outer)
     outer(p).runA(from).value
 
-  /** A program as Lean reads it: its waits at once each given its start, in its steps and their IR alike, the new
-    * variables numbered past every one it binds. Any other define, or where the World has no clock, as it is.
+  /** A program as Lean reads it: its late looks at the clock given one first (`Looks`), and its waits at once each
+    * given its start, in its steps and their IR alike, the new variables numbered past every one it binds. Any other
+    * define, or where the World has no clock, as it is.
     */
-  def of(v: Vocabulary, d: Define): Define = (v.models.flatMap(_.timed).headOption, d.lambda.body) match
-    case (Some(clock), Expr.Do(ir, _)) if AtOnce.of(ir).exists(waits(_, clock)) =>
+  def of(v: Vocabulary, d: Define): Define =
+    v.models.flatMap(_.timed).headOption.fold(d)(clock => atOnce(clock, Looks.of(v, clock, d)))
+
+  /** Its waits at once given their start, after its late looks are given one first (`Looks`). */
+  private def atOnce(clock: Timed, d: Define): Define = d.lambda.body match
+    case Expr.Do(ir, _) if AtOnce.of(ir).exists(waits(_, clock)) =>
       val from = (-Progs.binders(ir).map(_.id.value).minOption.getOrElse(0L)).max(0L).toInt
       d.copy(written = d.written.reread(read(_, clock, from), read(_, clock, from)))
     case _ => d

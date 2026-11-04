@@ -3,7 +3,7 @@ package frflow.project
 import frflow.core.name.NodeId
 import cats.syntax.all.*
 import frflow.eval.flow.Stamps
-import frflow.eval.time.{Extend, Frozen, Lapse}
+import frflow.eval.time.{Extend, Frozen, Lapse, Late, Leans}
 import frflow.proof.obligation.{ObligationName, TryKind}
 import frflow.proof.verdict.ObligationStatus
 import scala.concurrent.duration.*
@@ -27,11 +27,17 @@ class TimeLeanSuite extends munit.CatsEffectSuite:
 
   test(("the bugs time passing finds stay unproven: a rule it breaks, a run taking no time, a limit never firing, " +
       "waits at once adding up, a wait taking less than its seconds under a schedule (the 13d review's B1), a time " +
-      "said to stay where a run looking at it moves it (B2)").tag(Live)) {
+      "said to stay where a run looking at it moves it (B2), a late look said to read the start (the re-review's " +
+      "R-B2), a rule kept from one still open (R-B1)").tag(Live)) {
     List(Stamps.seeded -> List("freshStamps", "stampTakesNoTime", "neverGivenUp", "waitsAddUp", "waitWinsLate",
-        "timeStill"), Lapse.lapse -> List("quick", "lately"), Extend.model -> List("stays")).traverse_ { (m, ns) =>
+        "timeStill"), Lapse.lapse -> List("quick", "lately"), Extend.model -> List("stays"),
+        Late.model -> List("readsStart"), Leans.model -> List("xZero", "yZero")).traverse_ { (m, ns) =>
       Ported.run(Projects.elaborated(m), Nil, Ported.Lean(Nil, Nil, None), Nil).map { r =>
         ns.foreach(n => assert(Ported.unproven(r.analysis).contains(n), s"$n\n${Ported.table(r.analysis)}"))
+        if m == Leans.model then assertEquals(Ported.unproven(r.analysis).get("yZero"), Some(List("Kept(xZero)")))
+        // its root_impl is open beside readsStart's (a root reads root_impl open while a sibling root is)
+        if m == Late.model then assertEquals(results(r, "readsLater").get(ObligationName.Impl),
+          Some(ObligationStatus.Proven), Ported.table(r.analysis))
       }
     }
   }
@@ -42,10 +48,14 @@ class TimeLeanSuite extends munit.CatsEffectSuite:
       .map(frflow.proof.lean.print.Print.module).getOrElse(fail(s"no $name"))
 
   test("time passing is asked of what reads the clock: a rule's cover_elapse, an isConstant's equation for elapse " +
-      "and for a run whose only clock step is now (B2); waits at once end at the time reached where the sides start") {
+      "and for a run whose only clock step is now (B2); waits at once end at the time reached where the sides " +
+      "start; a late look given one first, whose tick is the time passing before it (R-B2)") {
     assert(printed(Stamps.seeded, "FrFlowGen.Stamping.freshStamps.Spec").contains("def cover_elapse"))
     assert(printed(Stamps.seeded, "FrFlowGen.Stamping.timeStill.Spec").contains("ClockModel.elapse_run"))
     assert(printed(Extend.model, "FrFlowGen.Extend.stays.Spec").contains("Extend.extendCode_run"))
+    val late = printed(Late.model, "FrFlowGen.Late.Domain.Def_lateCode")
+    assert(late.indexOf("ClockModel.Ops.now") > late.indexOf("ranAt") &&
+      late.split("ClockModel.Ops.now", -1).length == 3, late)
     assert(printed(Stamps.kept, "FrFlowGen.Stamping.Domain.Def_waitedCode").contains("FrFlow.Waits.reach"))
   }
 

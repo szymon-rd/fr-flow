@@ -1,7 +1,8 @@
 package frflow.eval.flow
 
 import cats.MonadThrow
-import cats.effect.kernel.Ref
+import cats.effect.kernel.{MonadCancel, Ref}
+import cats.effect.std.Mutex
 import cats.syntax.all.*
 import frflow.core.expr.Prog
 import frflow.core.name.{ModelName, SymbolName}
@@ -18,6 +19,15 @@ trait World[F[_]]:
   def write(model: ModelName, state: ScalaValue): F[Unit]
 
 object World:
+  /** `world`, each call one at a time under `one`: a call of a model reads its state and writes it back, one step of
+    * the model's as its atomic assumption says, so calls at once never lose one another's update (the step 13d
+    * review's N1, re-review's R-N2). Reads and writes of a state are single steps already.
+    */
+  def locked[F[_]](world: World[F], one: Mutex[F])(using MonadCancel[F, Throwable]): World[F] = new World[F]:
+    def call(op: SymbolName, args: List[ScalaValue]): F[ScalaValue] = one.lock.surround(world.call(op, args))
+    def read(m: ModelName): F[ScalaValue] = world.read(m)
+    def write(m: ModelName, s: ScalaValue): F[Unit] = world.write(m, s)
+
   /** The models: each call its operation's meaning (`StateModel`), run by the evaluator over the models' states in
     * `states` (each model's state, by name, and the faults under `Faults.model`). A call of an operation of a model
     * that may fail takes the next of the faults, as Lean's `FrFlow.failing` does: `true` fails it with the model's

@@ -3,8 +3,9 @@ import FrFlow.Flow
 /-!
 Time, as Cats Effect models it (owner §47). The clock's state is the time now, a field of the World; steps of code
 take no time of their own. The world moves the time on: between runs (`elapse`, the world's own step), after each
-of the clock's steps in a run (`tick`: the next of the world's `ticks`, none left: no time; what passes before a
-run's first look at the clock is the world's step before it), and at a wait's end, by at least its seconds. Inside a
+of the clock's steps in a run (`tick`: the next of the world's `ticks`, none left: no time; what passes before the
+first look of a run that looks first is the world's step before it, a later first look given a look before it whose
+tick is the time passing at the steps before), and at a wait's end, by at least its seconds. Inside a
 run every move is free (`allows` is `fun _ _ => True` there): other runs at once change what a schedule reads while a
 run is in progress. A schedule (`allows`, a trusted fact restricting the outside steps) restricts the world's own step
 between runs only: a move it does not allow is not taken there. Waits at once are read as
