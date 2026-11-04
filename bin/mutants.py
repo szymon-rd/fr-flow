@@ -138,7 +138,7 @@ MUTANTS = [
      "a run whose only clock step is now changes no clock: an isConstant is asked nothing of it (13d B2)", TIME),
     ("cover-walk", "next/core/src/main/scala/frflow/core/analysis/outside/Reads.scala",
      "Walk.breadthFirst(List(id), identity)(Resolve.below(t, _)).exists(",
-     "List(id).exists(",
+     "Walk.breadthFirst(List(id), identity)(_ => Nil).exists(",
      "a cover_ takes a claim proven from one resting on the rule it covers (the walk down)",
      ["next-project/testOnly frflow.project.CoverCircleSuite"]),
     ("cover-own", OBLIGATION + "Required.scala", ".filterNot(h => mentions(r, h, op))",
