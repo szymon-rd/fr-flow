@@ -351,7 +351,8 @@ until it is restarted.
 
 ### Modules
 
-One sbt project each, under `modules/`, each with its own top package (`frflow.<module>`); the module graph is in
+One sbt project each, under `modules/`, each with its own top package (`frflow.<module>`) and its name as sbt id, but
+`eval`'s, `evaluation` (`eval` is an sbt command); the module graph is in
 `build.sbt`, and what each may name of another in `project/architecture.conf`, which core's `ArchitectureSuite` checks:
 
 ```text

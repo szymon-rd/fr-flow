@@ -38,7 +38,8 @@ addCommandAlias("frflowInit", "cli/runMain frflow.cli.Init")
 addCommandAlias("frflowInitAgent", "agent/runMain frflow.agent.Init")
 
 // The modules (docs/redesign/ARCHITECTURE.md, section 5): each `module(name, libraries*)` under modules/<name>/, sbt
-// id `<name>`, package `frflow.<name>`, its warnings errors. The module graph is written here only (section 11).
+// id `<name>` (but `evaluation`, below), package `frflow.<name>`, its warnings errors. The module graph is written
+// here only (section 11).
 val strict = Seq("-Wunused:all", "-Wnonunit-statement", "-Wvalue-discard")
 def module(name: String, libraries: ModuleID*) = Project(name, file(s"modules/$name"))
   .configs(LeanTest).settings(leanTagged)
@@ -60,9 +61,11 @@ lazy val proof = module("proof", cats).dependsOn(core % "compile->compile;test->
 
 /** The Scala meaning of terms and of plain code: the evaluator, examples, the values a call reads, flows run on
   * models, production's interpreter of flows; the facade `frflow.*`, and the examples written in it. Its tests read
-  * core's generated terms and proof's printer (Lean decides each term as the evaluator does).
+  * core's generated terms and proof's printer (Lean decides each term as the evaluator does). Its sbt id is
+  * `evaluation`: `eval` is sbt's own command, so `sbt eval/test` would evaluate `/test` as Scala.
   */
 lazy val eval = module("eval", cats, catsEffectKernel, catsEffectStd, catsEffect % Test, roomsTable)
+  .withId("evaluation")
   .dependsOn(dsl, proof % "test->test")
 
 /** Generators and what draws them, property tests of plain code against its claims, model tests of implementations,

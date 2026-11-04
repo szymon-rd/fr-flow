@@ -21,7 +21,7 @@ BROKEN = ["proof/Lean/testOnly frflow.proof.layout.BrokenLeanSuite"]
 ASSUMED = ["project/testOnly frflow.project.assumed.RefusedSuite"]
 TIME = ["project/testOnly frflow.project.TimeLeanSuite", "project/Lean/testOnly frflow.project.TimeLeanSuite"]
 SUITES = ["project/testOnly frflow.project.CompletenessSuite frflow.project.ObligationNamesSuite",
-          "eval/testOnly whole.RulesSuite whole.CaptureSuite",
+          "evaluation/testOnly whole.RulesSuite whole.CaptureSuite",
           "proof/testOnly frflow.proof.obligation.RequiredSuite frflow.proof.obligation.AlwaysSuite"]
 
 # name, file, text, mutated text, the bug it stands for
@@ -85,11 +85,11 @@ MUTANTS = [
      "if op == Clock.sleep.name then call else F.uncancelable(_ => call)",
      "if op == Clock.sleep.name then call else F.uncancelable(poll => poll(call))",
      "production cancels an operation's call part way, which Lean reads all or nothing",
-     ["eval/testOnly frflow.eval.RunningSuite"]),
+     ["evaluation/testOnly frflow.eval.RunningSuite"]),
     ("running-atomic", "modules/eval/src/main/scala/frflow/eval/Running.scala",
      "F.uncancelable(_ => lock.lock.surround(of(body)))", "lock.lock.surround(of(body))",
      "production cancels a transaction part way, which Lean reads as one step",
-     ["eval/testOnly frflow.eval.RunningSuite"]),
+     ["evaluation/testOnly frflow.eval.RunningSuite"]),
     ("assumed-claims", "modules/core/src/main/scala/frflow/core/analysis/Resolve.scala",
      "filter(t.vocabulary.isAssumed).flatMap(Constrained.assumptions(t, _))\n    (called",
      "filter(t.vocabulary.isAssumed).flatMap(Constrained.statements(t, _))\n    (called",
@@ -193,7 +193,7 @@ MUTANTS = [
      "    Outsides.schedules(t, m.name).map((id, _) => Premise.Schedule(m.name, id))",
      "    Outsides.schedules(t, m.name).map((id, _) => Premise.Schedule(m.name, id)).take(0)",
      "a check on the clock rests on no schedule, so none is listed or reviewed",
-     ["eval/testOnly whole.ExamplesSuite frflow.eval.StampsSuite"]),
+     ["evaluation/testOnly whole.ExamplesSuite frflow.eval.StampsSuite"]),
     ("clock-ticks", "modules/proof/src/main/scala/frflow/proof/lean/lower/LowerFaults.scala",
      "      if op == c.timed.elapse then moved else", "      if op == c.timed.elapse || true then moved else",
      "time passes at no step of a run: a program relying on its run taking no time is proven", TIME),
