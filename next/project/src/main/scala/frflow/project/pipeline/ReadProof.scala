@@ -4,11 +4,12 @@ import frflow.core.analysis.Constrained
 import frflow.core.analysis.outside.Reads
 import frflow.core.graph.Walk
 import frflow.core.checking.Checking
-import frflow.core.name.{NodeId, SymbolName}
+import frflow.core.name.NodeId
 import frflow.core.spec.{Node, NodeKind}
 import frflow.decision.review.{ProofStanding, Unproven}
-import frflow.proof.obligation.{Made, ObligationName}
+import frflow.proof.obligation.{Made, ObligationName, Obligations}
 import frflow.proof.obligation.ObligationName.{Complete, Consistent, Cover, Impl, RootImpl, Start, Tried}
+import frflow.proof.obligation.ObligationName.Made as MadeOf
 import frflow.proof.obligation.TryKind.{Clash, Idle, Needed}
 import frflow.proof.verdict.{CheckStatus, ObligationStatus, Result}
 import frflow.proof.verdict.ObligationStatus.{NotShown, Proven, Shown}
@@ -55,24 +56,23 @@ object ReadProof:
     val leaf = n.statement.kind == NodeKind.Claim && t.refinement.parts(n.id).isEmpty && !checked
     Option.when(leaf)(Unproven.NothingBelow).toList
 
-  /** Of an `always`, each program keeping it whose `cover_<op>` is not proven; of a statement taking a rule as a
-    * hypothesis (`Reads.takes`), each such rule: its step rests on the rule holding where it starts, as it rests on
-    * what the makers below it make (`made`). A rule's `cover_`s take the other rules too (`Reads.coverTakes`): it is
-    * kept only as they are, all the way down (the step 13d re-review's R-B1), so each open one below is named.
+  /** Of an `always`, each program keeping it whose `cover_<op>` is not proven, or a maker whose `made_<maker>` is not;
+    * of a statement taking a rule as a hypothesis (`Reads.taken`), each such rule: its step rests on the rule holding
+    * where it starts, as it rests on what the makers below it make (`made`). Each obligation of a rule takes other
+    * rules in turn (`Obligations.takes`, one case per kind): it is kept only as they are, all the way down (the step
+    * 13d re-review's R-B1, the third pass's R3-B1), so each open one below is named.
     */
   private def kept(a: Analysis, id: NodeId, rs: List[Result]): List[Unproven] =
     val t = a.decided.theory
     def results(rule: NodeId) = if rule == id then rs else a.current(rule).toList.flatMap(_.results)
     def open(rule: NodeId) = results(rule).exists {
-      case Result(Cover(_), s, _) => s != Proven
-      case _                      => false
+      case Result(Cover(_) | MadeOf(_), s, _) => s != Proven
+      case _                                => false
     }
-    val rules = t.nodes.map(_.node).filter(_.statement.rule).map(_.id)
-    def below(rule: NodeId) = results(rule).collect { case Result(Cover(op), _, _) => op }.distinct.flatMap(op =>
-      rules.filter(r => r != rule && Reads.coverTakes(t, SymbolName(op), r)))
-    val taken = rules.filter(r => r != id && Reads.takes(t, id, r))
-    val start = (if t.node(id).exists(_.statement.rule) then List(id) else Nil) ++ taken
-    Walk.breadthFirst(start, identity)(below).filter(open).map(Unproven.Kept(_)).distinct
+    def takes(x: NodeId) = results(x).map(_.name).distinct.flatMap(Obligations.takes(a.decided, x, _))
+    def below(rule: NodeId) = takes(rule).filter(r => t.node(r).exists(_.statement.rule))
+    val start = (if t.node(id).exists(_.statement.rule) then List(id) else Nil) ++ Reads.taken(t, id) ++ below(id)
+    Walk.breadthFirst(start.distinct, identity)(below).filter(open).map(Unproven.Kept(_)).distinct
 
   /** Of a step taking what the makers below it make (`Made.taken`), each rule whose `made_<maker>` is not proven, or
     * the `made_` of a maker it calls, which that `made_` takes (`Made.resting`): the step rests on each (step 12

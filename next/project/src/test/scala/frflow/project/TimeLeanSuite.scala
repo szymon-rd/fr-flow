@@ -3,7 +3,7 @@ package frflow.project
 import frflow.core.name.NodeId
 import cats.syntax.all.*
 import frflow.eval.flow.Stamps
-import frflow.eval.time.{Extend, Frozen, Lapse, Late, Leans}
+import frflow.eval.time.{Extend, Frozen, Lapse, Late, Leans, MadeLeans}
 import frflow.proof.obligation.{ObligationName, TryKind}
 import frflow.proof.verdict.ObligationStatus
 import scala.concurrent.duration.*
@@ -28,14 +28,19 @@ class TimeLeanSuite extends munit.CatsEffectSuite:
   test(("the bugs time passing finds stay unproven: a rule it breaks, a run taking no time, a limit never firing, " +
       "waits at once adding up, a wait taking less than its seconds under a schedule (the 13d review's B1), a time " +
       "said to stay where a run looking at it moves it (B2), a late look said to read the start (the re-review's " +
-      "R-B2), a rule kept from one still open (R-B1)").tag(Live)) {
+      "R-B2), a rule kept from one still open, by a cover_ (R-B1) or a made_ (the third pass's R3-B1)")
+      .tag(Live)) {
     List(Stamps.seeded -> List("freshStamps", "stampTakesNoTime", "neverGivenUp", "waitsAddUp", "waitWinsLate",
         "timeStill"), Lapse.lapse -> List("quick", "lately"), Extend.model -> List("stays"),
-        Late.model -> List("readsStart"), Leans.model -> List("xZero", "yZero")).traverse_ { (m, ns) =>
+        Late.model -> List("readsStart"), Leans.model -> List("xZero", "yZero"),
+        MadeLeans.model -> List("cellPositive", "posMade")).traverse_ { (m, ns) =>
       Ported.run(Projects.elaborated(m), Nil, Ported.Lean(Nil, Nil, None), Nil).map { r =>
         ns.foreach(n => assert(Ported.unproven(r.analysis).contains(n), s"$n\n${Ported.table(r.analysis)}"))
-        if m == Leans.model then assert(Ported.unproven(r.analysis).get("yZero").exists(_.contains("Kept(xZero)")),
-          Ported.table(r.analysis))
+        // run with no model checks, as every run here: a statement resting on a model's tests is not tested
+        if m == Leans.model then assertEquals(Ported.unproven(r.analysis).get("yZero"),
+          Some(List("Kept(xZero)", "NotTested")), Ported.table(r.analysis))
+        if m == MadeLeans.model then assertEquals(Ported.unproven(r.analysis).get("posMade"),
+          Some(List("Kept(cellPositive)", "NotTested")), Ported.table(r.analysis))
         // its root_impl is open beside readsStart's (a root reads root_impl open while a sibling root is)
         if m == Late.model then assertEquals(results(r, "readsLater").get(ObligationName.Impl),
           Some(ObligationStatus.Proven), Ported.table(r.analysis))

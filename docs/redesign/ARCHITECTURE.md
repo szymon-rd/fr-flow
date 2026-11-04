@@ -548,9 +548,17 @@ covered or rests on it (`Reads.restsOn`: the rule itself, or a claim taking the 
 proven from), since the rule would then be kept by being assumed; an assumption taking the rule is trusted and rests on
 nothing (`CoverCircleSuite`: the picking's claim, read where every stamp is not negative, is no hypothesis of that
 rule's `cover_picking`). Each `cover_` also takes every other rule on the stores the program reads, on the world it
-starts from: the rules are kept together, so a rule is kept only as each rule its `cover_`s take is, all the way down,
-and is unproven (`Unproven.Kept` of each open one, `Reads.coverTakes`) while one is not (the step 13d re-review's
-R-B1: the probe `Leans`, a copy of `x` kept zero by taking `x` zero, while a bump breaks it).
+starts from, and each `made_` the rules on the maker's inputs and world: the rules are kept together, so a statement
+is kept only as each rule its obligations take is, all the way down, and is unproven (`Unproven.Kept` of each open
+one, a `cover_` or a `made_` not proven) while one is not (the step 13d re-review's R-B1, the probe `Leans`: a copy of
+`x` kept zero by taking `x` zero, while a bump breaks it; the third pass's R3-B1, `MadeLeans`: a value made from a
+cell kept positive, while a zeroing breaks it). What each kind takes is said once, where the kinds are
+(`Obligations.takes`, one case per kind): `complete`, `feasible` and `impl` the rules the node's claim takes
+(`Reads.taken`: its variables, its `isConstant`'s equations, the worlds it reads, the `forall`s of the defines it
+reads); `root_impl` every root's; `cover_<op>` the run's inputs and the world it starts from, of `elapse` every
+store's (`Reads.coverTaken`); `made_<maker>` the maker's inputs and world, `made_<code>_call_<i>` the calling code's
+and every value rule; `commute_`, the tries, `start_`, `inhabited_`, `consistent_`, `satisfiable_` and the examples
+none (two steps from any world; a refutation; the `initially`s; witnesses).
 
 **A step over what makers make.** `complete` takes, for each maker its parts' claims are about, the `made_` of every
 rule kept of it (proven of the maker's code) as an `m_<rule>_<maker>` hypothesis, as a caller's `made_` already takes
