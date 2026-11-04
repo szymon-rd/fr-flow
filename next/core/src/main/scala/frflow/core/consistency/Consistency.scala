@@ -167,10 +167,15 @@ object Consistency:
     * assumption saying what the state the store starts in meets.
     */
   private def starts(t: Theory): List[Group] = t.nodes.map(_.node).flatMap(n =>
-    n.statement.range.filter(_ => n.statement.rule).toList.flatMap(r =>
-      Scope.models(t, r).map(m => Group.Start(n.id, Outsides.all(t).collectFirst {
+    n.statement.range.filter(_ => n.statement.rule).toList.flatMap { r =>
+      val each = Scope.models(t, r).map(m => Outsides.all(t).collectFirst {
         case (id, OutsideFact.Initially(s, _)) if s == m.name => id
-      }))))
+      })
+      r match
+        // a rule relating several models' states (owner §47): one start, of each model's start together
+        case Range.Reached(_ :: _ :: _) => List(Group.Start(n.id, each.sequence.flatMap(_.headOption)))
+        case _                          => each.map(Group.Start(n.id, _))
+    })
 
   /** `∃ xs, A`: the `i`-th condition of `n`'s claim with the variables above it, written as the claim is, each
     * variable with what always holds of it, as the claim's own (`Guards`): a value code can make, a world meeting the

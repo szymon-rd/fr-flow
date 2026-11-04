@@ -48,7 +48,7 @@ val addedIsFound = Node.claim("A record a user adds to their company, under an i
     (history === pre ++ (make[Event.Wrote](make[WriteCmd](u, make[Change.Add](r))) :: post) &&
       r.tenant === u.tenant && !askedIn(pre).records.exists(x => x.id === r.id)) implies
       askMatches(q, r).implies(results(u, q).contains(r))))
-  .assuming(keyedTables, runsOneAtATime, clockOneAtATime)
+  .assuming(keyedTables, runsOneAtATime)
 
 val writesLeaveOthers = Node.claim("Nothing a user writes changes what anyone finds of another company's records: " +
     "after the write, a search finds of them what the history before it entitled it to.")(
@@ -56,7 +56,7 @@ val writesLeaveOthers = Node.claim("Nothing a user writes changes what anyone fi
     (history === es :+ make[Event.Wrote](w) && r.tenant =!= w.by.tenant) implies
       (results(u, q).contains(r) === (askMatches(q, r) && askedIn(es).records.contains(r) &&
         (r.tenant === u.tenant || sharedIn(es, r.id, u.tenant, clock))))))
-  .assuming(keyedTables, runsOneAtATime, clockOneAtATime)
+  .assuming(keyedTables, runsOneAtATime)
 
 // ============================================================================
 // The root: what a user's search finds, of what users asked

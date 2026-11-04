@@ -3,17 +3,17 @@ package frflow.proof.layout
 import frflow.core.analysis.{Reserved, Resolved}
 import frflow.core.code.Code
 import frflow.core.expr.Prog
-import frflow.core.name.{KbName, NodeId, SymbolName}
+import frflow.core.name.{KbName, ModelName, NodeId, SymbolName}
 import frflow.core.spec.Range
 import frflow.core.term.Sym
 import frflow.core.term.interpret.Guard
-import frflow.proof.lean.ast.{LExpr, Names}
+import frflow.proof.lean.ast.{LBinder, LExpr, LOp, Names}
 import frflow.proof.lean.term.Printed
-import frflow.proof.lean.lower.{LowerEnv, LowerModels, LowerFaults, LowerProp, Naming}
+import frflow.proof.lean.lower.{Atoms, LowerEnv, LowerModels, LowerFaults, LowerProp, Naming}
 import frflow.core.ty.Ty
 import frflow.core.vocab.SymbolType
 import frflow.proof.terms.TermTable
-import frflow.core.analysis.outside.{Guards, Reads}
+import frflow.core.analysis.outside.{Guards, Outsides, Reads}
 
 /** How one FrModel's Lean is lowered, computed once for every module: its environment (each model's field of the world
   * is its name, each model's namespace its name capitalized, its class `Space.Ops`), the names a binder may not take
@@ -27,9 +27,11 @@ final class Lowering(val resolved: Resolved, val table: TermTable, canonical: Bo
   val layout: Layout = Layout(kb)
   /** The defines a rule calls, and those of them lowered twice (`RuleSide`). */
   val ruleSide: RuleSide = RuleSide.of(resolved)
-  val env: LowerEnv = LowerEnv(kb, d => table.defines.get(d).toList.flatMap(_.symbols.map(s => Names.ident(s.value))),
+  private val unclocked: LowerEnv = LowerEnv(kb,
+    d => table.defines.get(d).toList.flatMap(_.symbols.map(s => Names.ident(s.value))),
     m => Names.ident(m.value),
-    op => if op == Prog.leftWins then LowerFaults.leftWins else LExpr.Const(v.modelOf(op).fold(
+    op => if op == Prog.leftWins then LowerFaults.leftWins else if op == Prog.reach then LowerFaults.reach
+      else LExpr.Const(v.modelOf(op).fold(
       List(Names.builtin(op.value)))(m => List(LowerModels.className(m), Names.ident(op.value)))),
     v.dataType, m => v.model(m).map(_.state),
     v.symbols.flatMap(s => s.ty match
@@ -37,6 +39,19 @@ final class Lowering(val resolved: Resolved, val table: TermTable, canonical: Bo
       case _                   => None).toMap,
     v.models.exists(_.fails.nonEmpty), v.models.map(m => Names.ident(m.name.value)), ruleSide.twice,
     racing = LowerFaults.racing(v), assumed = v.models.flatMap(m => m.assumed.map(_.name -> m.name)).toMap)
+  val env: LowerEnv = unclocked.copy(clock = v.models.flatMap(m => m.timed.map(LowerEnv.Clock(m.name, _,
+    allows(m.name), LowerFaults.free))).headOption)
+
+  /** Where the schedules let the world move the clock's time between runs (owner §47, `elapse` only):
+    * `fun w t => rule t w.other ∧ …`.
+    */
+  private def allows(clock: ModelName): LExpr =
+    val (w, t) = (Names.builtin("w"), Names.builtin("s"))
+    val rules = Outsides.schedules(resolved.theory, clock).map((_, f) => LExpr.Paren(LExpr.App(
+      Atoms.define(unclocked, f.rule), LExpr.Name(t) :: f.over.map(o => LExpr.Dot(LExpr.Name(w), Names.ident(
+        o.value).text)))))
+    LExpr.Paren(LExpr.Fun(List(LBinder.Bare(w), LBinder.Bare(t)),
+      rules.reduceOption(LExpr.Infix(LOp.And, _, _)).getOrElse(Atoms.name("True"))))
   /** A variable takes no name a symbol, a namespace (the FrModel's, a model's) or a name generated Lean writes itself
     * (`Reserved`) prints as, and no domain type's.
     */

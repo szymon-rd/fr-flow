@@ -4,7 +4,7 @@ import cats.syntax.all.*
 import frflow.core.expr.OutsideFact
 import frflow.core.name.{DefName, ModelName}
 import frflow.core.term.{Sym, World}
-import frflow.core.vocab.{Fails, StateModel as Read, Symbol, SymbolType, ValueKind}
+import frflow.core.vocab.{Fails, StateModel as Read, Symbol, SymbolType, Timed, ValueKind}
 import frflow.dsl.build.{Declarations, Deferred, Fault, Site, Source}
 import frflow.dsl.flow.Flow
 import frflow.dsl.shape.{Defines, Elab}
@@ -33,6 +33,8 @@ abstract class StateModel[S](description: String)(using named: StateModel.Named,
   private val unmeant = mutable.ListBuffer.empty[Definition[?]]
   /** What a call of any of its operations fails with, if one may (`StateModel.failing`). */
   protected def fails: Option[Fails] = None
+  /** What makes it the clock (FrFlow's own, `Clock.clockModel`, owner §47). */
+  protected def timed: Option[Timed] = None
 
   extension [R](op: Definition[Flow[R]])
     inline def means(inline body: Flow[R]): Unit = meant(op, Nil, Nil)(_ => body.steps)
@@ -116,7 +118,7 @@ abstract class StateModel[S](description: String)(using named: StateModel.Named,
     val read = meanings.toList.map(_.read)
     val known = unmeant.toList.map(Meaning.assumed)
     (read.foldMap(_._1) |+| known.foldMap(_._1), Read(name, description, stateType.ty, read.map(_._2), fails,
-      known.flatMap(_._2)))
+      known.flatMap(_._2), timed))
   }
 
   /** What mentioning the model declares: the model, its state's type, its operations and their types. */

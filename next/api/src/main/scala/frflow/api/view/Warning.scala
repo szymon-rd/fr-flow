@@ -1,6 +1,6 @@
 package frflow.api.view
 
-import frflow.core.name.{NodeId, RelPath, SymbolName}
+import frflow.core.name.{ModelName, NodeId, RelPath, SymbolName}
 import frflow.decision.ledger.{Decision, Uncounted}
 
 /** What `status` warns of (docs/USAGE.md, Warnings): data, rendered by the CLI and the web view. */
@@ -41,5 +41,9 @@ enum Warning:
     * is not read as a run of one, or its post has no Scala value): trusted, not tested.
     */
   case TrustedUntested(node: NodeId, operations: List[SymbolName])
+  /** A schedule over models no program writes: once the time reaches its bound over them, the world lets no more
+    * time pass, and every deadline holds of a still clock.
+    */
+  case ScheduleUnwritten(node: NodeId, models: List[ModelName])
   /** Lean proves a node equivalent to its part (or a part to a conjunct of its parent): it says nothing of its own. */
   case Restates(node: NodeId, part: NodeId)

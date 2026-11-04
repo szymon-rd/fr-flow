@@ -19,7 +19,8 @@ object Shelf:
     Node.assumption("Nothing but the programs change the shelf.")(kept.onlyCodeChanges),
     Node.assumption("The clock moves only when a program sleeps.")(Clock.clockModel.onlyCodeChanges))
     .implementTested(items, put)(start = PlainShelf.holding, observe = _.held)(s => (s.items, s.put))
-    .implementTested(Clock.now, Clock.sleep)(start = Wall.at, observe = _.time)(c => (c.now, c.sleep))
+    .implementTested(Clock.now, Clock.sleep, Clock.elapse)(start = Wall.at, observe = _.time)(c =>
+      (c.now, c.sleep, c.elapse))
 
   /** The shelf's and the clock's operations as a program's steps. */
   def held: Flow[List[BigInt]] = Flow.step(items)

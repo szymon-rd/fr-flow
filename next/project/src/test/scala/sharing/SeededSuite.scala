@@ -49,6 +49,7 @@ class SeededSuite extends munit.CatsEffectSuite:
   private def clock(start: BigInt): IO[Wall] = Ref[IO].of(start).map(t => new Wall:
     def now: IO[BigInt] = t.get
     def sleep(seconds: BigInt): IO[Unit] = IO.sleep((seconds * 10).toLong.millis) *> t.update(_ + seconds)
+    def elapse(seconds: BigInt): IO[Unit] = t.update(_ + seconds.max(0))
     def time: IO[BigInt] = t.get)
 
   /** The service in memory from a library and mailboxes at a time, the store's and the mail server's calls taking the
@@ -62,14 +63,14 @@ class SeededSuite extends munit.CatsEffectSuite:
   private def timed[A](from: (Library, BigInt), store: List[Boolean], mail: List[Boolean],
       boxes: Map[PersonId, List[Notice]] = Map.empty)(f: (frflow.eval.Running[IO]) => IO[A])
       : IO[(Either[Throwable, A], Library, Map[PersonId, List[Notice]], BigInt)] =
-    val (lib, at) = from
     for
-      s   <- MemoryLibraryStore.holding(lib)
+      s   <- MemoryLibraryStore.holding(from._1)
       m   <- MemoryMailer.holding(boxes)
-      w   <- clock(at)
+      w   <- clock(from._2)
       p   <- MemoryPool.holding(0)
+      h   <- sharing.time.Housekept.at(from._2)
       run <- knowledge.running[IO](LibraryStore.libraryModel := s, Mailer.mailerModel := m,
-               Clock.clockModel := w, Pool.poolModel := p)
+               Clock.clockModel := w, Pool.poolModel := p, sharing.time.ClockKept.housekeptModel := h)
       _   <- s.failing(store) *> m.failing(mail)
       out <- f(run).attempt
       l   <- s.library

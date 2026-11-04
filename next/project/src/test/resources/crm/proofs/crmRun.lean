@@ -39,10 +39,10 @@ theorem cover_save : Obl.cover_save := by
   exact id
 
 theorem cover_runExpiry : Obl.cover_runExpiry := by
-  intro expire _ hX _ now w h1 h2 h3
-  have he := Runs.expired_crmRun expire hX now w ⟨h1, h2, h3⟩
+  intro now w h1 h2 h3
+  have he := Runs.expired_crmRun expireCode Runs.sharesExpire_code now w ⟨h1, h2, h3⟩
   revert he
-  generalize expireOnce_run expire now w = p
+  generalize expireOnce_run expireCode now w = p
   rcases p with ⟨res, aft⟩
   exact id
 

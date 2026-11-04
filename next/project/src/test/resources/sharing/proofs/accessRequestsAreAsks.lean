@@ -14,7 +14,7 @@ open Sharing
 
 theorem impl : Obl.impl := by
   unfold Obl.impl
-  intro reaches covers events startedAt inForce chase _ _ _ _ _ _ hOnTime
+  intro inForce reaches covers ownedBy chase _ _ _ _ _ _ hOnTime world g1 g2 g3
   refine ⟨⟨fun lib t p w level => ?_, fun lib t by_ p w => ⟨fun h => ?_, fun h => Lemmas.changed h⟩⟩,
     fun r hr => ?_⟩
   · simp only [askCode]
@@ -25,7 +25,7 @@ theorem impl : Obl.impl := by
     · next r heq =>
       have hc := Lemmas.changed h
       exact ⟨hc.1, r, List.mem_of_find?_eq_some heq, by simpa using List.find?_some heq⟩
-  · obtain ⟨h1, h2⟩ := hOnTime r hr
+  · obtain ⟨h1, h2⟩ := hOnTime world g1 g2 g3 r hr
     simp only [isPendingCode, reminderDueCode]
     refine ⟨by omega, ?_⟩
     rcases h2 with h2 | h2

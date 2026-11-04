@@ -4,11 +4,11 @@ import cats.Order
 import frflow.core.name.NodeId
 
 /** What Lean is asked: the name of its theorem (`lean.lower.LowerObligation.name` spells it). Of a node: `complete`,
-  * `impl`, `cover_<op>`, `made_<maker>`, its tries. Of the theory as a whole: `consistent_<i>`, `start_<node>`,
-  * `inhabited_<node>`, `satisfiable_<i>_<node>`, and each example's `example_<i>`.
+  * `impl`, `cover_<op>`, `made_<maker>`, `outside`, its tries. Of the theory as a whole: `consistent_<i>`,
+  * `start_<node>`, `inhabited_<node>`, `satisfiable_<i>_<node>`, and each example's `example_<i>`.
   */
 enum ObligationName:
-  case Complete, Feasible, Impl, RootImpl
+  case Complete, Feasible, Impl, RootImpl, Outside
   case Cover(op: String)
   case Made(maker: String)
   case Tried(kind: TryKind)

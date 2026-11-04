@@ -3,8 +3,9 @@ package frflow.core.analysis.outside
 import cats.syntax.all.*
 import frflow.core.code.Code
 import frflow.core.expr.{Expr, Exprs, Quantifier}
+import frflow.core.graph.Walk
 import frflow.core.name.{ModelName, NodeId, SymbolName}
-import frflow.core.spec.{Node, Range}
+import frflow.core.spec.{Node, NodeKind, Range}
 import frflow.core.ty.Ty
 import frflow.core.vocab.SymbolType
 import frflow.core.Theory
@@ -30,6 +31,53 @@ object Reads:
     */
   def takes(t: Theory, id: NodeId, rule: NodeId): Boolean =
     guarded(t, id, rule) || fromOutside(t, id, rule)
+
+  /** Whether `id` rests on the rule: it is the rule, or a claim taking it (`takes`) is, or is among what it is proven
+    * from, all the way down (`Resolve.below`): that claim is proven only once the rule is, whose `cover_` then could
+    * not take it. An assumption taking the rule is trusted, proven from nothing, so it rests on nothing.
+    */
+  def restsOn(t: Theory, id: NodeId, rule: NodeId): Boolean =
+    Walk.breadthFirst(List(id), identity)(Resolve.below(t, _)).exists(h => h == rule ||
+      (t.node(h).exists(_.statement.kind != NodeKind.Assumption) && takes(t, h, rule)))
+
+  /** The rules an obligation takes as given on values of `inputs` and on a world of `models` (`Guarded`): each rule
+    * about one of those stores, and each `always[T]` whose `T` an input holds (`Guards.applies`). What each kind of
+    * obligation takes is `Obligations.takes`' (the step 13d third pass's R3-B1).
+    */
+  def rulesAt(t: Theory, inputs: List[Ty], models: List[ModelName]): List[NodeId] =
+    t.nodes.map(_.node).filter(_.statement.rule).filter(_.statement.range.exists { r =>
+      Scope.models(t, r).map(_.name).exists(models.contains) || (r match
+        case Range.Made(ty) => inputs.exists(Guards.applies(t, ty, _))
+        case _              => false)
+    }).map(_.id)
+
+  /** What `cover_<op>` takes on the world a run starts from (`Required.keeps`): the rules on the stores the program
+    * reads and on its inputs; of the world's own step (`elapse`, `Required.outside`), every rule on a store.
+    */
+  def coverTaken(t: Theory, op: SymbolName): List[NodeId] =
+    if t.vocabulary.modelOf(op).nonEmpty then rulesAt(t, Nil, t.vocabulary.models.map(_.name))
+    else rulesAt(t, inputs(t, op), ofProgram(t, op))
+
+  /** The types of a Definition's inputs. */
+  def inputs(t: Theory, op: SymbolName): List[Ty] = t.vocabulary.symbol(op).map(_.ty).toList.flatMap {
+    case SymbolType.Typed(Ty.FnOf(ins, _)) => ins
+    case _                                 => Nil
+  }
+
+  /** Of a statement, the rules its claim takes (`takes`, its `Lowering.guards`), and the value rules the `forall`s of
+    * the defines it mentions come with (`VocabularyModules.guards`): a define read in Lean means what it does only
+    * where those rules hold.
+    */
+  def taken(t: Theory, id: NodeId): List[NodeId] =
+    val said = t.node(id).flatMap(_.statement.said).toList.flatMap(f => Exprs.mentions(f.value).defines)
+    val over = t.vocabulary.closure(said).flatMap(d => Exprs.all(d.lambda.body).collect {
+      case Expr.Quant(Quantifier.Forall | Quantifier.Exists, xs, _) => xs.map(_.ty)
+    }.flatten).filterNot(_ == Ty.World)
+    t.nodes.map(_.node).filter(r => r.id != id && r.statement.rule).filter(r => takes(t, id, r.id) ||
+      r.statement.range.exists {
+        case Range.Made(ty) => over.exists(Guards.applies(t, ty, _))
+        case _              => false
+      }).map(_.id)
 
   private def guarded(t: Theory, id: NodeId, rule: NodeId): Boolean =
     (t.node(id), t.node(rule).flatMap(_.statement.range)).tupled.exists { (n, r) =>

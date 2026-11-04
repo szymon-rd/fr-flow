@@ -47,9 +47,6 @@ val tablesStartEmpty = Node.assumption("The database starts with no record, shar
   databaseModel.initially(t => t === make[Tables](make[CrmStore](Nil: Term[List[CrmRecord]], Nil: Term[List[Share]],
     Nil: Term[List[Expiry]]), Nil: Term[List[Event]])))
 
-val clockOneAtATime = Node.assumption("A search reads the time once, between two runs on the clock.")(
-  Clock.clockModel.atomic)
-
 // ============================================================================
 // The database's search: known only by what is assumed of it (G2)
 // ============================================================================

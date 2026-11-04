@@ -8,6 +8,9 @@ import frflow.project.check.CheckPlan
   * on among them, but its ancestors and, of a root proven of code, the other such roots (no circle orders them).
   */
 class CheckPlanSuite extends munit.FunSuite:
+  // Elaborating and laying out sharing takes about 8 s alone, past munit's 30 s when the whole build runs at once
+  // (the step 13d sixth pass's C1).
+  override val munitTimeout: scala.concurrent.duration.Duration = scala.concurrent.duration.Duration(2, "minutes")
   private val models: List[(String, () => Elaborated)] = List("crm" -> (() => Projects.elaborated(crm.knowledge)),
     "keycloak" -> (() => Projects.elaborated(keycloak.knowledge)), "rooms" -> (() => Projects.rooms))
 

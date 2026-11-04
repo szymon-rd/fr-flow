@@ -92,7 +92,9 @@ object AtOnce:
 
   /** The models a step touches. */
   private def models[E](v: Vocabulary, p: Prog[E]): Set[ModelName] = p match
-    case Prog.Call(op, _, _)     => v.modelOf(op).map(_.name).toSet
+    case Prog.Call(op, _, _)     =>
+      if op == Prog.reach then v.models.filter(_.timed.nonEmpty).map(_.name).toSet
+      else v.modelOf(op).map(_.name).toSet
     case Prog.Atomic(b)          => steps(b).flatMap(models(v, _)).toSet
     case Prog.Read(m)            => Set(m)
     case Prog.Write(m, _)        => Set(m)

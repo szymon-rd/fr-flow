@@ -11,9 +11,7 @@ object AuditClaims:
       "its place in it, with the moment and the change. Nothing else changes, and no entry is taken away.")(
     forall((lib: Term[Library], t: Term[BigInt], c: Term[Change]) =>
       record(lib, t, c) === lib.updated(_.log, lib.log :+ make[Entry](lib.log.length, t, c))))
-    .refines(auditTrail, sharing.noticesFollowChanges,
-      sharing.time.Deadlines.invitationsLapseOnTime, sharing.time.Deadlines.trashPurgedOnTime,
-      sharing.time.Deadlines.requestsAnsweredOnTime)
+    .refines(auditTrail, sharing.noticesFollowChanges)
 
   val forgetContract = Node.claim("Housekeeping forgets, at a moment, the change of each log entry made more than a " +
       "year before, unless the entry is the making of a share the library holds or of a change a notice waiting in " +

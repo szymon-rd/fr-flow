@@ -18,7 +18,8 @@ import frflow.core.analysis.outside.Premises
   * the same of its failing runs). A program changes what `t` reads when its proven code writes a model `t` reads,
   * through the defines it calls (`Premises.writers`); one with no proven code may change anything, and so may every
   * program where `t` reads a Declaration that changes with the World (no code gives it a value: of it, `isConstant`
-  * is an assumption). A new such program adds its equation, so the statement's meaning changes and it comes back to
+  * is an assumption). The world's own steps count as programs (the clock's `elapse`, owner §47: time passing must
+  * keep it too). A new such program adds its equation, so the statement's meaning changes and it comes back to
   * review. The models `t` reads are noted (`Of`): what the reading rests on outside the code (`onlyCodeChanges`, a
   * run one step: `atomic`).
   */
@@ -64,7 +65,10 @@ object Constancy:
         case SymbolType.Typed(Ty.FnOf(ins, _)) => ins.lastOption.contains(Ty.World)
         case _                                 => false))
     val writers = read.models.flatMap(t.vocabulary.model).flatMap(Premises.writers(t, _)).toSet
+    val outside = t.vocabulary.models.flatMap(_.outside).toSet
     t.vocabulary.symbols.flatMap(s => (s.ty, s.kind) match
+      case (SymbolType.Typed(ty), ValueKind.Definition) if outside(s.name) =>
+        run(t, s.name, ty).filter(_ => worldly || writers(s.name))
       case (SymbolType.Typed(ty), ValueKind.Definition) if t.vocabulary.modelOf(s.name).isEmpty =>
         run(t, s.name, ty).filter(_ => worldly || writers(s.name) || !proven(t, s.name))
       case _                                                                                  => None)

@@ -39,9 +39,14 @@ enum Prop:
   case ForSome(symbols: List[SymbolName], body: Prop)
   /** An `always`'s rule at every state a store may start in (`initially`'s rule): an `always(stored)`'s of the
     * state; an `always[T]`'s at each `T` the state holds (`within`: the state, each element, a field's), as its
-    * guard places it, over the state (level 0).
+    * guard places it, over the state (level 0). A rule over several models' states (the clock and a store, owner
+    * §47) is asked of every start of each, together: each model's `initially`, in the order the rule reads them.
     */
-  case Starts(rule: DefName, initially: DefName, state: Ty, within: Option[Final[Boolean]])
+  case Starts(rule: DefName, initially: List[(DefName, Ty)], within: Option[Final[Boolean]])
+  /** From the start no move of the time a schedule restricts is allowed (`rule (c + d) o₁ …` for no `d > 0`): the
+    * clock's state and each other model's it reads, each under its `initially` where it has one.
+    */
+  case Frozen(rule: DefName, starts: List[(Option[DefName], Ty)])
   /** Some value of `ty` meets every rule given together: the `always[T]`s on it, or what a store starts in. */
   case Inhabited(rules: List[DefName], ty: Ty)
   /** A parallel step's two orders give the same run, for every value of the Definitions the program calls. */

@@ -41,6 +41,15 @@ object Written:
       case Form.Term(t)  => lambda(w.value.params, Retyped.of(t.run, types), w.source)
       case Form.Steps(_) => w
 
+    /** A program's steps and their IR, each read anew by `stated` and `ir` alike (Lean's reading of waits at once,
+      * `analysis.Waits`), so the IR is still the steps'.
+      */
+    def reread(stated: Prog[Stated[?]] => Prog[Stated[?]], ir: Prog[Expr] => Prog[Expr]): Written[Lambda] =
+      (w.form, w.value.body) match
+        case (Form.Steps(p), Expr.Do(q, ty)) =>
+          Written(Lambda(w.value.params, Expr.Do(ir(q), ty), w.value.result), w.source, Form.Steps(stated(p)))
+        case _                               => w
+
     /** A program's steps typed with the error its runs may fail with (`analysis.Failing`); anything else as it is. */
     def failing(error: Option[Ty]): Written[Lambda] = w.value.body match
       case Expr.Do(ir, ty) =>

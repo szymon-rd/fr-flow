@@ -25,6 +25,13 @@ object Callees:
       case c                  => c.proven.map(d => Callees(Map(op -> d), calls(t, d)))
     }
 
+  /** A program's proven code and the proven code of everything it reaches (`reaching`), each standing for its
+    * Definition: what a `cover_` puts in, as `impl` does.
+    */
+  def within(t: Theory, op: SymbolName): Callees =
+    reaching(t, List(op)).flatMap(ofDefinition(t, _).toList).foldLeft(Callees(Map.empty, Mentions.empty))((a, b) =>
+      Callees(a.standsFor ++ b.standsFor, a.calls |+| b.calls))
+
   /** `ss` and every Definition the proven code standing for them reaches, through the code standing for each
     * Definition it calls in turn: what a statement asked of the code is about, all the way down; an operation known
     * only by assumptions a program calls among them (G2), which the program leaves open as plain Scala.

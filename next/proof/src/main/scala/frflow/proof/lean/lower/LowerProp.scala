@@ -8,7 +8,7 @@ import frflow.core.spec.{Form, Written}
 import frflow.core.term.Final
 import frflow.core.ty.Ty
 import frflow.proof.lean.ast.*
-import frflow.proof.lean.term.Printed
+import frflow.proof.lean.term.{FrozenTry, Printed}
 import frflow.proof.obligation.{Constant, Hyp, Prop, Substitute}
 import frflow.proof.terms.{OpenTerms, TermTable}
 
@@ -89,12 +89,13 @@ final class LowerProp(table: TermTable, env: LowerEnv, naming: Naming, values: L
 
   def prop(p: Prop, σ: Subst): W[LExpr] = p match
     case Prop.ClaimOf(n, more)   => applied(decl(n, "claim"), table.claims.getOrElse(n, OpenTerms.empty), σ ++ more)
-    case Prop.Keeps(i, op, f, m) => applied(decl(i, LeanNames.keeps(op.value)), LowerProp.opens(f), σ ++ m)
-    case Prop.Makes(i, op, f, m) => applied(decl(i, LeanNames.makes(op.value)), LowerProp.opens(f), σ ++ m)
+    case Prop.Keeps(i, op, f, m) => applied(decl(i, LeanNames.keeps(op.value)), LowerKeeps.opens(f, table), σ ++ m)
+    case Prop.Makes(i, op, f, m) => applied(decl(i, LeanNames.makes(op.value)), LowerKeeps.opens(f, table), σ ++ m)
     case Prop.ConjunctOf(n, i)   =>
       applied(decl(n, LeanNames.conjunct(i)), table.claims.getOrElse(n, OpenTerms.empty), σ)
-    case Prop.Starts(d, i, ty, w) => Writer.value(starts(d, i, ty, w))
+    case Prop.Starts(d, is, w)   => Writer.value(starts(d, is, w))
     case Prop.Inhabited(d, ty)   => Writer.value(inhabited(d, ty))
+    case Prop.Frozen(d, ss)      => Writer.value(FrozenTry(naming, opened, overOpens)(d, ss))
     case Prop.Iff(a, b)          => (prop(a, σ), prop(b, σ)).mapN((x, y) => LExpr.Paren(LExpr.Infix(LOp.Iff, x, y)))
     case Prop.Both(ps)           => ps.traverse(prop(_, σ)).map(_.toList.reduceRight(LExpr.Infix(LOp.And, _, _)))
     case Prop.Not(a)             => prop(a, σ).map(LExpr.Prefix(LPrefix.NotSpaced, _))
@@ -147,41 +148,43 @@ final class LowerProp(table: TermTable, env: LowerEnv, naming: Naming, values: L
   private def symbol(s: SymbolName, σ: Subst): W[LExpr] = σ.get(s) match
     case Some(Substitute.Code(d)) => applied(define(d), table.defines.getOrElse(d, OpenTerms.empty), σ)
     case Some(Substitute.Fixed(c)) => Writer.value(constant(c))
-    case Some(Substitute.Nothing) => Writer.value(nothing(table.typeOf(s)))
-    case None                     => Writer.tell(leaf(s)).as(LExpr.Name(Names.ident(s.value)))
+    case Some(Substitute.Nothing) => Writer.value(Atoms.nothing(naming, table.typeOf(s)))
+    case None                     =>
+      env.outside(s).fold(Writer.tell(leaf(s)).as(LExpr.Name(Names.ident(s.value))))(Writer.value(_))
 
   private def leaf(s: SymbolName): OpenTerms =
     OpenTerms(Ty.parts(table.typeOf(s)).collect { case Ty.Sort(n) => n }.distinct, List(s))
 
-  /** `fun (x0 : A) (x1 : B) => []`: a Definition doing nothing (`Substitute.canDoNothing` holds of its type). */
-  private def nothing(t: Ty): LExpr = t match
-    case Ty.FnOf(ins, r) =>
-      val xs = ins.indices.toList.traverse(i => Naming.helper(s"x$i", Set.empty)).runA(naming).value
-      LExpr.Paren(LExpr.Fun(xs.zip(ins).map((x, ty) => LBinder.Explicit(x, LowerType(ty))), nothingOf(r, ins, xs)))
-    case _ => throw IllegalStateException("FrFlow bug: doing nothing for a Definition that is not a function")
-
-  /** `False`, `[]`, `none`, or the first input of the result's type, returned unchanged. */
-  private def nothingOf(r: Ty, ins: List[Ty], xs: List[LeanName]): LExpr = r match
-    case Ty.Bool        => name("False")
-    case Ty.ListOf(_)   => LExpr.ListLit(Nil)
-    case Ty.OptionOf(_) => name("none")
-    case other          => xs.zip(ins).collectFirst { case (x, `other`) => LExpr.Name(x) }
-      .getOrElse(throw IllegalStateException("FrFlow bug: no input to return unchanged"))
-
-  /** `∀ (s : S), (K.initially s) → (K.rule s)`, or `→ ∀ x ∈ s, (K.rule x)`. */
-  private def starts(rule: DefName, initially: DefName, ty: Ty, within: Option[Final[Boolean]]): LExpr =
-    val s = Naming.helper("s", Set.empty).runA(naming).value
-    val (binders, meets) = within.fold((List(LBinder.Explicit(s, LowerType(ty))), call(define(rule),
-      List(LExpr.Name(s)))))(Printed.define(env, naming)(List(Binder(VarId.level(0), "s", ty)), _))
+  /** `∀ s, init s → rule s` (or the rule at each `T` the state holds, `within`); of a rule over several models'
+    * states, `∀ s₀ s₁, init₀ s₀ → init₁ s₁ → rule s₀ s₁`. Each `initially` and the rule on their open terms (a
+    * value provided where the code runs, every value of it), bound first.
+    */
+  private def starts(rule: DefName, inits: List[(DefName, Ty)], within: Option[Final[Boolean]]): LExpr =
+    val ss = inits.indices.toList.traverse(i => Naming.helper(if inits.size == 1 then "s" else s"s$i", Set.empty))
+      .runA(naming).value
+    val (binders, meets) = (inits, within) match
+      case ((_, ty) :: Nil, Some(w)) => Printed.define(env, naming)(List(Binder(VarId.level(0), "s", ty)), w)
+      case _                         => (ss.zip(inits).map((s, i) => LBinder.Explicit(s, LowerType(i._2))),
+        call(opened(rule), ss.map(LExpr.Name(_))))
     val named = binders.collect { case LBinder.Explicit(n, _) => LExpr.Const(List(n)) }
-    LExpr.Forall(binders, LExpr.Infix(LOp.Arrow, call(define(initially), named), meets))
+    val hyps = inits.zip(named).map((i, n) => call(opened(i._1), List(n)))
+    overOpens(rule :: inits.map(_._1), LExpr.Forall(binders, (hyps :+ meets).reduceRight(LExpr.Infix(LOp.Arrow, _, _))))
+
+  /** A define on its open terms, each named as itself. */
+  private def opened(d: DefName): LExpr =
+    applied(define(d), table.defines.getOrElse(d, OpenTerms.empty), Map.empty).value
+
+  /** `∀ opens, body`: what the defines given are over, bound (nothing when they are over nothing). */
+  private def overOpens(ds: List[DefName], body: LExpr): LExpr =
+    val opens = ds.flatMap(d => table.defines.getOrElse(d, OpenTerms.empty).symbols).distinct
+    if opens.isEmpty then body else LExpr.Forall(binders(OpenTerms(Nil, opens)), body)
 
   /** `∃ (x : T), (K.rule x)`. */
   private def inhabited(ds: List[DefName], ty: Ty): LExpr =
     val x = Naming.helper("x", Set.empty).runA(naming).value
-    LExpr.Exists(List(LBinder.Explicit(x, LowerType(ty))),
-      ds.map(d => call(define(d), List(LExpr.Name(x)))).reduceRightOption(LExpr.Infix(LOp.And, _, _))
-        .getOrElse(name("True")))
+    overOpens(ds, LExpr.Exists(List(LBinder.Explicit(x, LowerType(ty))),
+      ds.map(d => call(opened(d), List(LExpr.Name(x)))).reduceRightOption(LExpr.Infix(LOp.And, _, _))
+        .getOrElse(name("True"))))
 
   private def constant(c: Constant): LExpr = LowerValue(env)(c.value, c.ty).runA(naming).value
   private def decl(n: NodeId, d: String): LExpr = LExpr.Const(Names.path(env.kb.value, n.value, d))
@@ -194,6 +197,3 @@ final class LowerProp(table: TermTable, env: LowerEnv, naming: Naming, values: L
 object LowerProp:
   /** What always holds of a value provided where the code runs, and whether a Definition has a meaning of its own. */
   final case class Values(fromOutside: SymbolName => List[LExpr], meant: SymbolName => Boolean = _ => false)
-
-  /** What a formula is over: the symbols it mentions, in order. */
-  def opens(f: Written[Expr]): OpenTerms = OpenTerms(Nil, Exprs.mentions(f.value).symbols)

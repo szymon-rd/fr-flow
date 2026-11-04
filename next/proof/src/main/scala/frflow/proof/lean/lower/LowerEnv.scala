@@ -14,7 +14,7 @@ final case class LowerEnv(kb: KbName, openTerms: DefName => List[LeanName], mode
     operation: SymbolName => LExpr, data: TypeName => Option[DataType], modelState: ModelName => Option[Ty],
     failing: Map[SymbolName, Ty] = Map.empty, faulty: Boolean = false, models: List[LeanName] = Nil,
     twice: Set[DefName] = Set.empty, ruleSide: Boolean = false, racing: Boolean = false,
-    assumed: Map[SymbolName, ModelName] = Map.empty):
+    assumed: Map[SymbolName, ModelName] = Map.empty, clock: Option[LowerEnv.Clock] = None):
   /** The `def` a call of `d` names: of a define a rule calls, lowered twice (`layout.RuleSide`), the guarded one but
     * where a rule's side is printed (`ruleSide`: a rule, and what it calls).
     */
@@ -43,6 +43,18 @@ final case class LowerEnv(kb: KbName, openTerms: DefName => List[LeanName], mode
   def run(op: SymbolName, term: LExpr): LExpr = assumed.get(op).fold(term)(m =>
     LExpr.Paren(LExpr.App(LowerModels.runOf(m, op), List(term))))
 
+  /** The world's own step on the clock, run on the World (`ClockModel.elapse_run`): what an obligation or a
+    * statement mentioning it is given for it, as a program is given its run.
+    */
+  def outside(op: SymbolName): Option[LExpr] =
+    clock.filter(_.timed.elapse == op).map(c => LowerModels.runOf(c.model, op))
+
 object LowerEnv:
+  /** The clock, where the World has it (owner §47): its model, its steps, where the schedules let the world move its
+    * time between runs (`fun w t => …`, `fun _ _ => True` with none), and where inside a run (anywhere,
+    * `LowerFaults.free`).
+    */
+  final case class Clock(model: ModelName, timed: frflow.core.vocab.Timed, allows: LExpr, inside: LExpr)
+
   /** The second `def` of a define a rule calls, its `forall`s guarded, which statements call. */
   def guarded(d: DefName): DefName = DefName(s"${d.value}_guarded")

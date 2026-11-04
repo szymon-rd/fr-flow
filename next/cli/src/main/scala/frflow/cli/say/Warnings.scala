@@ -34,6 +34,8 @@ object Warnings:
         "against it, and the plain Scala it is about has no Scala value to test against"
     case Warning.TrustedUntested(id, os)  => s"$id is trusted, not tested: the generated runs of " +
         s"${os.map(_.value).mkString(", ")} cannot evaluate it (read it as a run of one, its post with a Scala value)"
+    case Warning.ScheduleUnwritten(id, ms) => s"$id reads ${ms.map(_.value).mkString(", ")}, which no program " +
+        "writes: once the time reaches its bound, the world lets no more pass and every deadline holds of a still clock"
     case Warning.Restates(id, part)       => s"$id restates $part: Lean proves them equivalent, so it says nothing " +
         "of its own"
 

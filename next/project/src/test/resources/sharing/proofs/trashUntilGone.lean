@@ -13,10 +13,10 @@ open Sharing
 
 theorem impl : Obl.impl := by
   unfold Obl.impl
-  intro reaches covers events startedAt inForce _ _ _ hPurged
+  intro inForce reaches covers _ _ _ hPurged world h1 h2 h3
   refine ⟨fun lib t by_ d => ⟨fun h => Lemmas.changed h, fun h => Lemmas.changed h⟩, fun doc hd => ?_⟩
   rintro ⟨a, ha, hle⟩
-  have := hPurged doc hd a ha
+  have := hPurged world h1 h2 h3 doc hd a ha
   omega
 
 end Sharing.trashUntilGone.Proofs

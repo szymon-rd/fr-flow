@@ -15,6 +15,7 @@ val http4s = Seq("http4s-ember-server", "http4s-dsl", "http4s-circe").map("org.h
   "org.slf4j" % "slf4j-nop" % "1.7.36"
 val munit = "org.scalameta" %% "munit" % "1.1.1" % Test
 val munitEffect = "org.typelevel" %% "munit-cats-effect" % "2.1.0" % Test
+val catsEffectTestkit = "org.typelevel" %% "cats-effect-testkit" % "3.6.3" % Test
 
 // Tests tagged `Lean` run Lean end to end (minutes): plain `sbt test` leaves them out, `sbt leanTest` runs them,
 // `sbt testAll` runs both.
@@ -126,7 +127,7 @@ lazy val nextWire = nextModule("wire", cats, circe, circeParser)
 /** The imperative shell: the algebras of the project's files, Lean, git, the keys and the ledger's store, each with its
   * live and in-memory interpreters; the analysis of a project (contents, fingerprints, standings), and the programs
   * (check, status, decide, export) over them. Its tests read the examples written in eval's tests. */
-lazy val nextProject = nextModule("project", (Seq(cats, catsEffect, munitEffect, roomsTable) ++ fs2)*)
+lazy val nextProject = nextModule("project", (Seq(cats, catsEffect, munitEffect, catsEffectTestkit, roomsTable) ++ fs2)*)
   .dependsOn(nextProof, nextTesting % "compile->compile;test->test", nextDecision, nextWire)
 
 // next-api (step 9)

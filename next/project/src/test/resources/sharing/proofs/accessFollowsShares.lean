@@ -46,20 +46,26 @@ theorem of_iff (lib : Library) (d : DocumentId) (t : Target) :
 
 theorem impl : Obl.impl := by
   unfold Obl.impl
-  intro access inTheTrash mayView allowedToEdit mayEdit ownedBy isPending reaches covers inTrash events startedAt
-    reminderDue handle announce record hReach hCover hPerm hEdit hTrash _ hWho hWhat hOffers hTrashGone hTidy hAsks _ _
-    _ hAccess _ _ _ _ _ _
-  obtain ⟨⟨hOffers, hAccept⟩, _⟩ := hOffers
-  obtain ⟨hTrashed, _⟩ := hTrashGone
+  intro access inTheTrash mayView allowedToEdit mayEdit ownedBy isPending reaches covers inTrash reminderDue handle
+    announce record hReach hCover hPerm hEdit hTrash _ hWho hWhat hOffers hTrashGone hTidy hAsks _ _ _ hAccess _ _ _ _ _
+    _ world
+  -- The branches' every world meeting the World's rules: what they say of no world holds through a quiet one.
+  obtain ⟨w₀, q₁, q₂, q₃⟩ := Lemmas.quiet_world
+  have q := fun (P : World → Prop)
+    (h : ∀ w, housekeptLately w.clockModel w.housekeptModel → nothingEndedAtHousekeeping w.libraryModel
+      w.housekeptModel → logKept w.libraryModel → P w) =>
+    h w₀ q₁ q₂ q₃
+  obtain ⟨⟨hOffers, hAccept⟩, _⟩ := q _ hOffers
+  obtain ⟨hTrashed, _⟩ := q _ hTrashGone
   obtain ⟨hTidy, _⟩ := hTidy
-  obtain ⟨⟨hAsk, hAnswer⟩, _⟩ := hAsks
+  obtain ⟨⟨hAsk, hAnswer⟩, _⟩ := q _ hAsks
   unfold Sharing.permission.claim at hPerm
   unfold Sharing.editPermission.claim at hEdit
   unfold Sharing.whoMayEdit.claim at hWho
   unfold Sharing.whatIsTrashed.claim at hWhat
   unfold Sharing.inTrash.claim at hTrash
   -- The purpose's "may edit" is the code's: the same shares, in force, reaching and covering.
-  have hE : ∀ lib t p x, mayEdit lib t p x → allowedToEdit lib t p x := fun lib t p x h => by
+  have hE : ∀ lib t p x, mayEdit lib t p x → allowedToEdit lib t p x world := fun lib t p x h => by
     rw [hWho]; rw [hEdit] at h; exact h
   refine ⟨⟨⟨⟨⟨⟨⟨⟨⟨⟨fun lib t p d => ?_, fun lib t by_ s h => hE _ _ _ _ ?_⟩,
     fun lib t by_ what withWhom h => hE _ _ _ _ ?_⟩,

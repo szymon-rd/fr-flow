@@ -50,7 +50,9 @@ object WellFormed:
     case Prop.Keeps(_, _, f, _)          => List(Left(f))
     case Prop.Makes(_, _, f, _)          => List(Left(f))
     case Prop.Formula(w, _)              => List(Left(w))
-    case Prop.Starts(_, _, state, guard) => guard.map(g => Right(state -> g)).toList
+    case Prop.Starts(_, inits, guard)    => (inits, guard) match
+        case ((_, state) :: Nil, Some(g)) => List(Right(state -> g))
+        case _                            => Nil
     case Prop.Implies(hs, c)             => hs.flatMap(h => terms(h.prop)) ++ terms(c)
     case Prop.Iff(a, b)                  => terms(a) ++ terms(b)
     case Prop.Both(ps)                   => ps.toList.flatMap(terms)

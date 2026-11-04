@@ -64,13 +64,14 @@ final class ModelRuns[F[_]: Concurrent](check: ModelTests.Check, semantics: Sema
         RunShrink(typing, always, model, t.vocabulary).smallest(differs(hits), s, steps, d)
           .map((small, run, why) => Failure.Run(small, run, why, from)))))
 
-  /** The run in turn, then its first two calls at once (`CallsAtOnce`), unless one is of an operation known only by
-    * assumptions, which the model has no answer to put in an order.
+  /** The run in turn, then its first two calls at once (`CallsAtOnce`): against the model's two orders of them, or,
+    * where one is of an operation known only by assumptions, the model having no answer to put in an order, against
+    * the Scala's own.
     */
   private def differs(hits: Ref[F, Hits])(s: Value, steps: List[Step]): F[Option[Difference]] =
     val held = typing.literal(s, model.state)
     ModelTests.run(checked, semantics, t.vocabulary, branched(hits))(held, steps).flatMap(found => (found, steps) match
-      case (None, first :: second :: _) if !List(first, second).exists(st => model.isAssumed(st.op)) =>
+      case (None, first :: second :: _) =>
         CallsAtOnce(checked, semantics, t.vocabulary, branched(hits)).of(held, first, second)
       case _ => found.pure[F])
 
@@ -92,7 +93,10 @@ final class ModelRuns[F[_]: Concurrent](check: ModelTests.Check, semantics: Sema
   private def drawnRun(draw: Draw, from: Drawn): Option[(Value, List[Step])] =
     val random = from.seed.forCase(from.index)
     for
-      start <- Iterator.continually(draw(Gen.Derived[Any](model.state), from.size, random)).take(ModelRuns.Tries)
+      // each try smaller than the one before: a rule a large state rarely meets by chance (sharing's logKept, every
+      // share held with its entry in the log) a smaller one meets
+      start <- (0 until ModelRuns.Tries).iterator.map(i => draw(Gen.Derived[Any](model.state),
+          from.size * (ModelRuns.Tries - i) / ModelRuns.Tries, random))
         .flatten.find(s => always.keeps(model.name, ScalaValue(s)))
       steps <- Runs(draw, typing).of(model, from.size + 2, random)
     yield (typing.reflect(ScalaValue(start), model.state), steps)

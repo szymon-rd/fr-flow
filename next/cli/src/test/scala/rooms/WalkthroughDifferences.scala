@@ -20,7 +20,9 @@ object WalkthroughDifferences:
     "4-code-forgets-the-next-booking" -> (ends.head :: ("status grantWhenNoOverlap: ! -> x" ->
         "status marks a failing node x before its review state (still to review), as check does") :: ends.tail),
     "5-misread-overlap" -> List(
-      "check bookingsEndAfterStart: - -> +" -> ends.head._2,
+      "check bookingsEndAfterStart: - -> o" -> restsOnOpen,
+      "check bookingsOfTheRoom: + -> o" -> restsOnOpen,
+      "check grantWhenNoOverlap: + -> o" -> restsOnOpen,
       "check neverOverlap: + -> o" -> sharedLemmas,
       "check nothingElseWrites: none -> +" -> modelRuns,
       "check roomBookingsApart: + -> o" ->
@@ -28,12 +30,13 @@ object WalkthroughDifferences:
           "stored bookings, which the table may hold, fail the strict noOverlap, so made_inRoom cannot be proven, as " +
           "it should not; today's rule is over moments (apart), which the misread leaves alone. " + sharedLemmas),
       "status acceptWhenFree: . -> o" -> rootOpen,
-      "status acceptedIsAnswered: ! -> +" -> meaningKept,
+      "status acceptedIsAnswered: ! -> o" -> (meaningKept + "; " + restsOnOpen),
       "status answerWhenFree: . -> o" -> sharedLemmas,
       "status bookWhenFree: . -> o" -> rootOpen,
-      "status bookedAfterIsStored: ! -> +" -> meaningKept,
-      "status bookedIsStored: ! -> +" -> meaningKept,
-      "status bookingsEndAfterStart: ! -> +" -> (ends.head._2 + "; and it is not back: " + premise),
+      "status bookedAfterIsStored: ! -> o" -> (meaningKept + "; " + restsOnOpen),
+      "status bookedIsStored: ! -> o" -> (meaningKept + "; " + restsOnOpen),
+      "status bookingsEndAfterStart: ! -> o" -> (premise + "; " + restsOnOpen),
+      "status bookingsOfTheRoom: + -> o" -> restsOnOpen,
       "status neverOverlap: + -> o" -> sharedLemmas,
       ends(1),
       ends(2),
@@ -75,5 +78,9 @@ object WalkthroughDifferences:
     "today's printed . for a node whose parts fail"
   private def meaningKept = "a claim saying what a Declaration is rests on no part: the calendar's change moves only " +
     "the claims tested against it (its fingerprint governs those), and the group it shares is proven again by Lean"
+  private def restsOnOpen = "it takes the rules neverOverlap and roomBookingsApart, whose own checks are not proven " +
+    "(the shared lemmas do not build): a rule whose own standing is not proven, for any reason, leaves what rests on " +
+    "it unproven (keeping neverOverlap, keeping roomBookingsApart; the step 13d sixth pass), where today's saw the " +
+    "rules' failure on their own rows only"
   private def premise = "a premise is decided before the claims assuming it and rests on none of them, so their " +
     "change does not bring it back (today: \"a node assuming it changed\")"

@@ -36,6 +36,21 @@ object Progs:
 
   def all[E](p: Prog[E]): List[Prog[E]] = p :: children(p).flatMap(all)
 
+  /** Every variable the steps bind, in their structure and in their terms. */
+  def binders(p: Prog[Expr]): List[Binder] = all(p).flatMap(bound) ++ terms(p).flatMap(Exprs.all).flatMap(Exprs.binders)
+
+  private def bound(p: Prog[Expr]): List[Binder] = p match
+    case Prog.Bind(_, x, _)             => List(x)
+    case Prog.Let(x, _, _)              => List(x)
+    case Prog.Loop(_, x, _)             => List(x)
+    case Prog.Collect(_, x, _)          => List(x)
+    case Prog.Accumulate(_, _, a, x, _) => List(a, x)
+    case Prog.Modify(_, x, _)           => List(x)
+    case Prog.Catch(_, _, x, _)         => List(x)
+    case Prog.Par(_, a, _, b)           => List(a, b)
+    case Prog.ParEach(_, x, _, _)       => List(x)
+    case _                              => Nil
+
   /** The terms the steps compute with. */
   def terms[E](p: Prog[E]): List[E] = all(p).flatMap {
     case Prog.Pure(t)                       => List(t)

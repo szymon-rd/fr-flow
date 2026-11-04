@@ -85,6 +85,14 @@ class ReadingSuite extends munit.CatsEffectSuite:
     yield assertEquals((first == again, first == moved), (true, false))
   }
 
+  test("status warns of a schedule over a model no program writes (the 13d re-review's R-N1), not of one written") {
+    List(frflow.eval.time.Unwritten.model, frflow.eval.time.Lapse.lapse).traverse(m =>
+      Opened.api(Opened.project(m)).flatMap(_.reading.view).map(_.warnings.collect {
+        case w: Warning.ScheduleUnwritten => w
+      })).map(ws => assertEquals(ws, List(List(Warning.ScheduleUnwritten(id("stale"),
+        List(frflow.core.name.ModelName("housekept")))), Nil)))
+  }
+
   test("status warns of an assumption the generated runs cannot evaluate: trusted, not tested") {
     Opened.api(Opened.project(frflow.eval.assumed.Lookup.alike)).flatMap(_.reading.view).map(v =>
       assertEquals(v.warnings.collect { case w: Warning.TrustedUntested => w },

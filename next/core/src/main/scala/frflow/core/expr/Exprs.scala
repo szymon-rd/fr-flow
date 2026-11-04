@@ -52,6 +52,7 @@ object Exprs:
     case OutsideFact.OnlyCodeChanges(m)   => Mentions(Nil, Nil, Nil, Nil, List(m))
     case OutsideFact.Atomic(m)            => Mentions(Nil, Nil, Nil, Nil, List(m))
     case OutsideFact.Initially(m, d)      => Mentions(Nil, List(d), Nil, Nil, List(m))
+    case OutsideFact.Schedule(m, os, d)   => Mentions(Nil, List(d), Nil, Nil, m :: os)
 
   /** The variables `e` binds itself (not those of its subexpressions). */
   def binders(e: Expr): List[Binder] = e match

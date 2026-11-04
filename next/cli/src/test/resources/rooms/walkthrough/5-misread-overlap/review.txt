@@ -7,6 +7,8 @@ Decision
   to review: it changed
   not mechanical: its meaning moved
   note: its check is not proven
+  note: keeping roomBookingsApart is not proven
+  note: keeping neverOverlap is not proven
 
 Why it holds (the reason it was decided with)
   it says what the service must do  (accepted by ann, <when>)
@@ -15,7 +17,7 @@ Formally (as written in Scala)
   always[RoomBookings](held => held.bookings.pairwise(noOverlap))
 
 Rules it uses (no part of its step: Lean has each of every value)
-  + bookingsEndAfterStart  assumption  accepted  Every booking ends after it starts.
+  o bookingsEndAfterStart  assumption  accepted  Every booking ends after it starts.
 
 [a]ccept [s]kip [v]iew [q]uit: s
 
@@ -26,6 +28,8 @@ Rules it uses (no part of its step: Lean has each of every value)
 Decision
   to review: it changed; the code it governs changed
   not mechanical: what moved needs you: it changed; the code it governs changed
+  note: keeping roomBookingsApart is not proven
+  note: keeping neverOverlap is not proven
 
 Why it holds (the reason it was decided with)
   it says what the service must do  (accepted by ann, <when>)
@@ -35,7 +39,7 @@ Formally (as written in Scala)
       granted(held, request) === held.bookings.forall(b => noOverlap(b, request)))
 
 Rules it uses (no part of its step: Lean has each of every value)
-  + bookingsEndAfterStart  assumption  accepted  Every booking ends after it starts.
+  o bookingsEndAfterStart  assumption  accepted  Every booking ends after it starts.
 
 [a]ccept [s]kip [v]iew [q]uit: s
 

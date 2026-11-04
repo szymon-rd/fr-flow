@@ -28,23 +28,22 @@ object LifetimesClaims:
   val isOpenContract = Node.claim("An invitation is open from its sending until 7 days after; then it has lapsed.")(
     forall((i: Term[Invitation], t: Term[BigInt]) => isOpen(i, t) === (t < i.sent + invitationLasts)))
     .leftOpenAbove
-    .refines(sharing.invitationsAreOffers, Deadlines.invitationsLapseOnTime,
-      Deadlines.endedStaysEnded)
+    .refines(sharing.invitationsAreOffers, Deadlines.endedStaysEnded)
 
   val goneContract = Node.claim("A document in the trash is gone 30 days after it was put there; a document not in " +
       "the trash is never gone.")(
     forall((doc: Term[Document], t: Term[BigInt]) => gone(doc, t) === doc.trashed.exists(at => at + trashKeeps <= t)))
     .leftOpenAbove
-    .refines(sharing.trashUntilGone, Deadlines.trashPurgedOnTime, Deadlines.endedStaysEnded)
+    .refines(sharing.trashUntilGone, Deadlines.endedStaysEnded)
 
   val pendingContract = Node.claim("An access request is pending from when it is made until 7 days after; then it " +
       "has lapsed.")(
     forall((r: Term[AccessRequest], t: Term[BigInt]) => isPending(r, t) === (t < r.asked + requestLasts)))
     .leftOpenAbove
-    .refines(sharing.accessRequestsAreAsks, Deadlines.requestsAnsweredOnTime)
+    .refines(sharing.accessRequestsAreAsks)
 
   val reminderDueContract = Node.claim("The owner is due a reminder of an access request from 48 hours after it is " +
       "made.")(
     forall((r: Term[AccessRequest], t: Term[BigInt]) => reminderDue(r, t) === (r.asked + remindAfter <= t)))
     .leftOpenAbove
-    .refines(sharing.accessRequestsAreAsks, Deadlines.requestsAnsweredOnTime)
+    .refines(sharing.accessRequestsAreAsks)

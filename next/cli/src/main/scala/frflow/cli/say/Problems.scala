@@ -73,6 +73,8 @@ object Problems:
         "that may fail or changes a model's state: cancelled by the error, what that one did until then is not read"
     case Problem.StepNotOperation(prog, d)  => s"${prog.value} runs ${d.value} as a step, which is no model's " +
         "operation: a program's steps call operations on a state"
+    case Problem.OutsideStepCalled(prog, d) => s"${prog.value} calls ${d.value}, the world's own step: time passes " +
+        "between runs by the world's steps; a program waits (sleep) instead"
     case Problem.LeavesUnsaid(op, m)        => s"${op.value} is known only by assumptions, and a rule is about " +
         s"${m.value}'s state: an assumption must say what its runs leave (${op.value}(…).after)"
     case Problem.AssumedFailing(op, m)      => s"${op.value} is known only by assumptions, but ${m.value}'s " +
@@ -87,5 +89,6 @@ object Problems:
     case Premise.OnlyCodeChanges(m) => s"nothing outside the code changing ${m.value} (${m.value}.onlyCodeChanges)"
     case Premise.Atomic(m)        => s"runs on ${m.value} being atomic (${m.value}.atomic)"
     case Premise.Initially(m)     => s"what ${m.value} starts with (${m.value}.initially)"
+    case Premise.Schedule(m, by)  => s"where the world moves ${m.value}'s time (${by.value}, ${m.value}.schedule)"
     case Premise.FromOutside(t)   => s"what the values of ${Values.ty(t)} from outside meet (an assumption of " +
         s"always[${Values.ty(t)}])"

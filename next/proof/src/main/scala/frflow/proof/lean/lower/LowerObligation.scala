@@ -17,6 +17,7 @@ object LowerObligation:
   def name(o: ObligationName): LeanName = Names.builtin(o match
     case ObligationName.Complete      => "complete"
     case ObligationName.Feasible      => "feasible"
+    case ObligationName.Outside       => "outside"
     case ObligationName.Impl          => "impl"
     case ObligationName.RootImpl      => "root_impl"
     case ObligationName.Cover(op)     => LeanNames.Cover + op
@@ -32,6 +33,7 @@ object LowerObligation:
   private def tried(k: TryKind): String = k match
     case TryKind.Needed(c)              => s"needed_${c.value}"
     case TryKind.Vacuous                => "vacuous"
+    case TryKind.Frozen                 => "frozen"
     case TryKind.Restates               => "restates"
     case TryKind.Clash                  => "clash"
     case TryKind.Unsat                  => "unsat"

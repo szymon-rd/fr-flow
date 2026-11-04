@@ -2,7 +2,7 @@ package frflow.core.analysis.outside
 
 import frflow.core.expr.OutsideFact
 import frflow.core.graph.Edge
-import frflow.core.name.{ModelName, NodeId}
+import frflow.core.name.{DefName, ModelName, NodeId}
 import frflow.core.spec.{Node, NodeKind, Range}
 import frflow.core.ty.Ty
 import frflow.core.Theory
@@ -39,7 +39,28 @@ object Outsides:
   /** Whether node `n` says `p`. */
   def saysOf(n: Node, p: Premise): Boolean = p match
     case Premise.FromOutside(ty) => assumesAlways(n, ty)
+    case Premise.Schedule(_, by) => n.id == by
     case _                       => n.statement.outside.exists(says(_, p))
+
+  /** The schedules of the clock `m`: where the world moves its time (owner §47). */
+  def schedules(t: Theory, m: ModelName): List[(NodeId, OutsideFact.Schedule)] = all(t).collect {
+    case (id, f @ OutsideFact.Schedule(`m`, _, _)) => id -> f
+  }
+
+  /** The models a schedule `id` reads that no program writes (`Premises.writers`): it may let the time pass from the
+    * start (its `frozen` try not shown) and still freeze it once the time reaches its bound over them (the step 13d
+    * re-review's R-N1), so `status` warns of each.
+    */
+  def unwritten(t: Theory, id: NodeId): List[ModelName] = t.node(id).flatMap(_.statement.outside).toList.flatMap {
+    case OutsideFact.Schedule(_, over, _) =>
+      over.filter(m => t.vocabulary.model(m).forall(Premises.writers(t, _).isEmpty))
+    case _                                => Nil
+  }
+
+  /** The rule of what `m`'s state meets when the service starts (its `initially`), if it has one. */
+  def initially(t: Theory, m: ModelName): Option[DefName] = all(t).collectFirst {
+    case (_, OutsideFact.Initially(`m`, rule)) => rule
+  }
 
   private def assumesAlways(n: Node, ty: Ty): Boolean =
     n.statement.kind == NodeKind.Assumption && n.statement.range.contains(Range.Made(ty))

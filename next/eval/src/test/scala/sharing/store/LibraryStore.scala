@@ -18,6 +18,10 @@ object LibraryStore:
   val libraryKept = Node.assumption("Nothing but the service's programs changes the library the store holds.")(
     libraryModel.onlyCodeChanges)
 
+  val libraryStarts = Node.assumption("The service starts with an empty library: no document, folder, team, share, " +
+      "invitation or access request, and an empty log and outbox.")(
+    libraryModel.initially(lib => lib === (Library(Nil, Nil, Nil, Nil, Nil, Nil, Nil, Nil): Term[Library])))
+
   val oneTransactionAtATime = Node.assumption("Each request, each run of housekeeping and each notice's removal from " +
       "the outbox is one transaction on the store: no step of another comes between two of its steps.")(
     libraryModel.atomic)

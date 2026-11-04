@@ -14,7 +14,8 @@ import frflow.proof.terms.Commutation
   * of a list, which may be equal). Where the program may fail, each step is run to its own outcome
   * (`FrFlow.caught ((do …) : ExceptT E (StateM World) S)`): its failure is its side's, the other step runs.
   *
-  * Where the world holds the world's choices (a model's faults, the scheduler's races), each step is given its own
+  * Where the world holds the world's choices (a model's faults, the scheduler's races, the time passing at the clock's
+  * steps), each step is given its own
   * (`one`, `two`: each call's failure and each race the world's choice for that call, not fixed by where the call
   * falls in one list), set as the step begins in either order, and the two orders give the same results and the
   * same models' states, the choices left aside (`FrFlow.sameModels`). That suffices (ARCHITECTURE 4.4): swapped
@@ -40,7 +41,7 @@ final class LowerCommute(env: LowerEnv, naming: Naming):
     val (first, second) = (ran(c.first, List(0, 1), w), ran(c.second, List(1, 0), w))
     val same = choices.fold(LExpr.Infix(LOp.Eq, first, second))(_ =>
       LExpr.App(const("FrFlow.sameModels"), List(LExpr.Paren(forget), LExpr.Paren(first), LExpr.Paren(second))))
-    val lists = choices.toList.flatten.flatMap(_.map(LBinder.Explicit(_, LowerFaults.listOfBool)))
+    val lists = choices.toList.flatten.flatMap(_.zip(fields).map((n, f) => LBinder.Explicit(n, f._2)))
     LExpr.Forall(inputs ++ elements ++ (LBinder.Explicit(w, name("World")) :: lists),
       (hyps :+ same).reduceRight(LExpr.Infix(LOp.Arrow, _, _)))
 
@@ -68,20 +69,24 @@ final class LowerCommute(env: LowerEnv, naming: Naming):
 
     private def chosen(i: Int): List[DoLine] = choices.toList.map(cs => choose(cs(i)))
 
-  /** The world's fields of choices: the faults, and the races. */
-  private def fields: List[LeanName] =
-    Option.when(env.faulty)(LowerFaults.field).toList ++ Option.when(env.racing)(LowerFaults.racesField).toList
+  /** The world's fields of choices, with their types: the faults, the races, and the time passing at the clock's
+    * steps (owner §47).
+    */
+  private def fields: List[(LeanName, LExpr)] =
+    Option.when(env.faulty)(LowerFaults.field -> LowerFaults.listOfBool).toList ++
+      Option.when(env.racing)(LowerFaults.racesField -> LowerFaults.listOfBool).toList ++
+      env.clock.map(_ => LowerFaults.ticksField -> LowerFaults.listOfNat).toList
 
   /** `modify (fun w => { w with faults := f, races := r })`: a step's choices, as it begins. */
   private def choose(lists: List[LeanName]): DoLine =
     val w = Names.builtin("w")
     DoLine.Step(LExpr.App(name("modify"), List(LExpr.Paren(LExpr.Fun(List(LBinder.Bare(w)),
-      LExpr.Update(LExpr.Name(w), fields.zip(lists.map(LExpr.Name(_)))))))))
+      LExpr.Update(LExpr.Name(w), fields.map(_._1).zip(lists.map(LExpr.Name(_)))))))))
 
   /** The world with its choices left aside: what the two orders are compared on. */
   private def forget: LExpr =
     val w = Names.builtin("w")
-    LExpr.Fun(List(LBinder.Bare(w)), LExpr.Update(LExpr.Name(w), fields.map(_ -> name("[]"))))
+    LExpr.Fun(List(LBinder.Bare(w)), LExpr.Update(LExpr.Name(w), fields.map(_._1 -> name("[]"))))
 
   /** The names bound: the inputs, a traverse's two elements, the world, and each step's choices. */
   private def bound(c: Commutation) = for
@@ -89,7 +94,8 @@ final class LowerCommute(env: LowerEnv, naming: Naming):
     apart   <- c.apart.traverse(a => (Naming.bind(a.one), Naming.bind(a.two)).tupled.map((one, two) => (a, one, two)))
     w       <- Naming.helper("w", Set.empty)
     choices <- if fields.isEmpty then cats.data.State.pure(None) else
-      List("one", "two").traverse(b => fields.traverse(f => Naming.helper(s"${f.text}_$b", Set.empty))).map(Some(_))
+      List("one", "two").traverse(b => fields.traverse(f => Naming.helper(s"${f._1.text}_$b", Set.empty)))
+        .map(Some(_))
   yield (inputs, apart, w, choices)
 
   /** `StateM World R`, or `ExceptT E (StateM World) R`. */

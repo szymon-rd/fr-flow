@@ -7,10 +7,10 @@ import frflow.core.term.interpret.Guard
 import frflow.core.expr.Expr
 import frflow.core.code.Code
 import frflow.core.name.{DefName, LeanNames, NodeId, SymbolName}
-import frflow.core.spec.{Range, Written}
+import frflow.core.spec.{NodeKind, Range, Written}
 import frflow.core.ty.Ty
 import frflow.proof.terms.{CallingCode, Making}
-import frflow.core.analysis.outside.{Guards, Reads}
+import frflow.core.analysis.outside.{Guards, Premises, Reads}
 
 /** What always holds kept by what covered code makes (owner §13, §37): `made_<maker>` of each maker, and
   * `made_<code>_call_<i>` at each call of plain Scala, of a statement of `always[T]`.
@@ -48,6 +48,25 @@ object Made:
               s"What ${c.code.value} hands plain Scala at call ${i + 1} meets ${n.value}" +
                 Required.givenWhat(hyps))
         })
+      case _                      => Nil
+    }
+
+  /** `outside` of a claim of `always[T]` whose `T` a value from outside can hold (`Premises.fromOutside`: an entry
+    * Definition's input, a value provided where the code runs): no covered code makes those, so the claim holds of
+    * them only as what is assumed of them says: `∀ x, assumed x → rule x`, every assumption of `always` on its type a
+    * hypothesis, one on a type holding `T` too (the step 13d fourth pass's P4-B2). An assumption of `always[T]` covers
+    * them itself. Validate still asks for an assumption on `T` itself (`PremiseMissing`): conservative (P5-N1).
+    */
+  def outside(r: Resolved, n: NodeId): List[Obligation] =
+    val t = r.theory
+    val assumed = Guards.byAlways(t).filter((a, _) => t.node(a).exists(_.statement.kind == NodeKind.Assumption))
+    (Guards.byAlways(t).toMap.get(n), t.node(n).filter(_.statement.kind == NodeKind.Claim)
+      .flatMap(_.statement.range)).tupled.toList.flatMap {
+      case (kept, Range.Made(ty)) =>
+        Option(Premises.fromOutside(t).filter(Guards.applies(t, ty, _))).filter(_.nonEmpty).map(from =>
+          Obligation(ObligationName.Outside, Prop.over(Nil, Prop.Formula(Making.ofOutside(from, kept,
+            assumed.map(_._2)), Map.empty)), Discharge.Auto, s"Every value from outside meets ${n.value}, as what " +
+            "is assumed of it says."))
       case _                      => Nil
     }
 

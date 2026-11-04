@@ -199,11 +199,15 @@ What a statement may say, so that its Lean meaning is the one written wherever i
   4.4): crm's history and what it holds are its database's model's (`databaseModel.current.events`, `.store`), its
   clock FrFlow's clock model's (`Clock.clockModel.current`); keycloak's history, state and accounts as loaded its
   store's. Each port's `Judged.provided` says how each value it still provides stands (`Ported.OnD`), the suites
-  pinning which are open. Time passing between runs (owner §47's `elapse`, G1) is not built yet: crm's clock is the
-  clock model's, which no crm program moves, so its statements hold at whatever time a world holds and none yet
-  relates two times; sharing's history and "now" wait on it, put to the owner with a proposal and ruled (§47). Auth's
-  two tables, read in one moment only, stay provided (owner §48). Configuration fixed for the run (keycloak's seed,
-  sharing's start) is not "now" or a history and stays provided.
+  pinning which are open. Time passing (owner §47) is built (step 13d, "Time" in 4.4): crm's clock is the World's
+  time, which the world moves on between runs and at each of the clock's steps; sharing's history and "now" are the
+  World's, what its store, its mail server and its clock hold and when housekeeping last ran, its deadlines statements
+  of every moment over rules of the World, each `cover_` with the code of what the program calls put in (2.7:
+  housekeeping keeping `nothingEndedAtHousekeeping` reads what "gone", "open" and "pending" mean as their code), its
+  scheduler's tests run on a virtual clock (`ScheduleSuite`). The rule of housekeeping running beside the other
+  programs (`housekeptLately`) is stopped, with what takes it as given, an open point for the owner (4.4, "Time").
+  Auth's two tables, read in one moment only, stay provided (owner §48). Configuration fixed for the run (keycloak's
+  seed, sharing's start) is not "now" or a history and stays provided.
 
 **`isConstant`** (owner §44, §45 A). `t.isConstant`, of any value `t` read in a statement, says that no run of any
 program from the world the statement holds in changes `t`, whatever the run's outcome: TLA+'s `□[c ⇒ t′ = t]`, where
@@ -344,7 +348,7 @@ For an `always` A, each `H` below being every `always`'s guard on the variable:
 
 | Obligation | States | Asked of |
 |---|---|---|
-| `cover_<op>` | every run from a world meeting every `always`, on inputs meeting theirs, ends in one meeting A | each program writing a store A is about |
+| `cover_<op>` | every run of the code (what it calls as its code, as for `impl`), from a world meeting every `always`, on inputs meeting theirs, ends in one meeting A | each program writing a store A is about |
 | `made_<maker>` of a define `d` | `∀ x₁ … xₙ, H(x₁) → … → H(xₙ) → A(d x₁ … xₙ)` | each proven define whose result A applies to |
 | `made_<maker>` of a program `p` | `∀ x₁ … xₙ (w : World), H(x₁) → … → H(w) → A (p_run x₁ … xₙ w).1` | each proven program whose run's result A applies to |
 | `made_<maker>` of a store operation | `∀ p (w : World), H(p) → H(w) → A(op_of p w.s)` | each operation on a state whose result A applies to, on its model |
@@ -433,8 +437,12 @@ from outside meet is said differently, with `always` on their type (below).
 | `stored.onlyCodeChanges` | nothing outside the code changes the model's state | every reached state is one a run of the code leaves |
 | `stored.initially(held => …)` | what the state's start meets | `start_<node>`: `∀ s, initially s → A s` |
 | `stored.atomic` | runs on the state never interleave; each call is one step against calls at once | each run is one step of the world |
+| `clockModel.schedule(other)((now, o) => …)` | between runs the world moves the clock's time only to a time the rule allows, given `other`'s state then (owner §47) | `elapse` is taken where it allows; inside a run the time moves freely (4.4, "Time") |
 
-All three are said of the `StateModel` (owner §36: there is no boundary). That the plain Scala does what the model
+All are said of the `StateModel` (owner §36: there is no boundary). The clock (`Clock.clockModel`) needs neither
+`onlyCodeChanges` nor `atomic`: its time is the World's by construction, moved by code's waits and by the world alone,
+and moved freely at every step of a run, so runs at once need nothing of it; a check on it rests on its schedules instead
+(`Premise.Schedule`), and on its `initially` where a rule reads it. That the plain Scala does what the model
 says is not assumed: it is tested on generated sequences of calls (3.8), so today's `behavesAs` is gone, its two
 meanings now that test and `onlyCodeChanges`. Which programs change a state is not written: FrFlow derives it from the
 code, every program calling an operation whose meaning changes the state (`Premises.writers`), and asks each to keep
@@ -529,6 +537,52 @@ sharing no Declaration or Definition with the claim or what its code calls, it w
 under the root's two expectations and 16 of sharing's parts, sound hypotheses all. `complete` is not asked of it.
 Neither `impl` nor `complete` takes a rule (an `always`, claimed or assumed) as a hypothesis: Lean has its rule on every
 value already, and its own `claim` is not stated as a fact.
+
+**`cover_` is built as `impl` is** (a choice of the library's, step 13d). The program's run stands with the code of
+everything it reaches put in (`Callees.within`): each callee whose meaning is proven code (a define, or `implementProven`)
+as that code, a fixed value as its value; a callee tested, assumed or provided stays open, and what is said of it enters
+only as a hypothesis, as `impl`'s `reliesOn` gives it (`Resolve.constrainingCalled`), each with the same code put in
+where it mentions a callee. So what a program keeps follows from what its callees do, not only from what is promised of
+them: housekeeping keeps sharing's `nothingEndedAtHousekeeping` by tidying as its code does. No hypothesis is the rule
+covered or rests on it (`Reads.restsOn`: the rule itself, or a claim taking the rule, or one among what such a claim is
+proven from), since the rule would then be kept by being assumed; an assumption taking the rule is trusted and rests on
+nothing (`CoverCircleSuite`: the picking's claim, read where every stamp is not negative, is no hypothesis of that
+rule's `cover_picking`). Each `cover_` also takes every other rule on the stores the program reads, on the world it
+starts from, and each `made_` the rules on the maker's inputs and world: the rules are kept together, so a statement
+is kept only as each rule its obligations take is, all the way down, and is unproven (`Unproven.Kept` of each open
+one) while one is not. A rule is open while its own standing is not proven, for any reason (`ReadProof.local`: its
+check, a `cover_`, a `made_` or its `outside` (below) among it; its tests; its consistency, its `start_` among it), or
+while a source of its values leaves it open: a value no rule allows (its `inhabited_` not proven: a statement taking
+it is proven of nothing), a test of tested plain Scala making a `T` failing, missing or stale (the search stops at
+the first failing case, the post's perhaps, so the rule broken may go unnamed; tested code handed a `T` makes none:
+what it is handed is drawn meeting the rules, or a proven caller's, asked at the call), a model run of its store's
+Scala failing. One condition, not a list of reasons, so a reason added to a node's standing opens the rules too (the
+step 13d re-review's R-B1, the probe `Leans`: a copy of `x` kept zero by taking `x` zero, while a bump breaks it; the
+third pass's R3-B1, `MadeLeans`; the fourth pass's P4-B1, `Starts4`; the fifth pass's P5-B1, `Sources5`; the sixth
+pass's P6-B1 and P6-B2, `Six`: a maker's test failing on its post first, a store's Scala failing its model test). A
+rule open only through another is named by that other (`Kept` names where the standing fails). The rules are kept
+together, a joint induction, so a cycle of rules each proven of its own is settled proven. A failing `inhabited_`
+stays a warning of its own besides. What each kind takes is said once, where the kinds are
+(`Obligations.takes`, one case per kind): `impl` the rules the node's claim takes (`Reads.taken`: its variables, its
+`isConstant`'s equations, the worlds it reads, the `forall`s of the defines it reads); `complete` and `feasible` those
+and the rules on the values provided where its parts' code runs, its open terms (`Lowering.provided`, the fourth
+pass's P4-N1: auth's `o_sessions_0`); `root_impl` of a root its claim's, each root's conjunct under its own guards, and
+the rules on what is provided below it; `cover_<op>` the run's inputs and the world it starts from, of `elapse` every
+store's (`Reads.coverTaken`); `made_<maker>` the maker's inputs and world, `made_<code>_call_<i>` the calling code's
+and every value rule; `outside` the assumptions on the values from outside; `commute_`, the tries, `start_`,
+`inhabited_`, `consistent_`, `satisfiable_` and the examples none (two steps from any world; a refutation; the
+`initially`s; witnesses).
+
+**Values from outside.** A claim of `always[T]` whose `T` a value from outside can hold (an entry Definition's input,
+a value provided where the code runs: `Premises.fromOutside`, the reading `FromOutside` premises and the guards on
+provided values already use; an operation known only by assumptions gives values from outside too, which no claim
+may cover, `AssumedMakes`) is asked `outside`: `∀ x, assumed x → rule x`, every assumption of `always` on the value's
+type a hypothesis. No covered code makes those values, so the claim holds of them only as what is assumed of them
+says; before, it was taken of them unasked (the step 13d fourth pass's P4-B2, `Outside4`: positive claimed, not
+negative assumed, a zero stored). An assumption on a type holding `T` (a record from outside with a `T` inside) is a
+hypothesis of `outside` too, but Validate still asks for one on `T` itself (`PremiseMissing`, the containing type's
+judged not needed): conservative, as an assumption on `T` is what the claim lists (the fifth pass's P5-N1, `Sources5`'s
+nested probe).
 
 **A step over what makers make.** `complete` takes, for each maker its parts' claims are about, the `made_` of every
 rule kept of it (proven of the maker's code) as an `m_<rule>_<maker>` hypothesis, as a caller's `made_` already takes
@@ -1172,9 +1226,10 @@ step before, so no step is added; the user never sees `F[_]` or an interpreter. 
 (owner §2) and given a use in an example. `collect`, `fold`, `parCollect` and `attempt` (today's `traverse`, `foldM`,
 `parTraverse`, `attempt`) are kept as step 2 added them, and today's `retry` and `parTraverseN`'s limit as
 `retry(sleep, waits)` (a fold of the waits over `handle` and the clock's `sleep`, as today) and `parCollectN(n)`
-(`Prog.ParEach` with its limit). The clock is FrFlow's own two Definitions, `now: Flow[BigInt]` and
-`sleep: BigInt => Flow[Unit]`, with their `StateModel` (`clockModel`: a count of seconds only sleeps move); `timeout`
-takes `now`, and `retry` `sleep`. A program's steps have three readings:
+(`Prog.ParEach` with its limit). The clock is FrFlow's own three Definitions, `now: Flow[BigInt]`,
+`sleep: BigInt => Flow[Unit]` and the world's own step `elapse: BigInt => Flow[Unit]`, with their `StateModel`
+(`clockModel`, its state the time now; "Time" below); `timeout` takes `now`, and `retry` `sleep`. A program's steps
+have three readings:
 
 - **Lean's**: the steps as recorded, where an operation applied is a recorded call (`Prog.Call` of the model and the
   operation). `program { … }` reads them into `Prog[Stated[?]]` (`ReadRecording`, steps numbered in its own `State`);
@@ -1203,7 +1258,7 @@ uncancelable, as the concurrent tests' scheduling does; the step 13 re-review's 
 until it finishes: a race won beside a call that blocks on I/O returns only when that call ends, and a race is no
 timeout for a slow operation. The clock's wait is the one call cancelled inside, so that a race won beside a long wait
 does not wait for it: its model moves the clock once the wait is over, so a wait cut short is read as cut before it, and
-the time that passed meanwhile is owner §47's outside step, not yet built. A traverse at once in the loser has each
+the time that passed meanwhile is the world's ("Time" below). A traverse at once in the loser has each
 branch cancelled at its own step, read in turn, and what follows it dropped when one was (`FrFlow.Races.each`); a race,
 a pair at once or a finalizer (`guarantee`, `bracket`) inside a race's side is refused (`RaceSideHolds`): what they do
 when cancelled is not read. In Lean the loser is `FrFlow.Races.cut (do …)`, its block in `OptionT`, each step
@@ -1214,9 +1269,11 @@ refused where a program races, as where a model may fail (`WorldsEqual`): the ch
 it leaves. The review's probe (`whole.RaceProbe`: two adds raced against a sleep, "when the sleep wins the box is as it
 was") stays unproven, as it is false of production's run (`RaceProbeSuite`, `RacesLeanSuite`), and sharing's delivery is
 interleaved whole with sends slower than its limit (`InterleavingsSuite`): every run ends where the reading allows, some
-half done. `timeout` is read as written (`now`, the steps, `now`): the clock's model moves only by sleeps, so where the
-steps do not sleep the limit is never past in Lean and its `none` side says nothing yet; G1's outside step would make it
-bite.
+half done. `timeout` is read as written (`now`, the steps, `now`; it does not cancel): the world moves the time on
+after each of the clock's steps, so the limit is past exactly when more than its seconds passed between the two reads,
+and both outcomes are proven of a program using it (`TimeLeanSuite`'s `firesLate`, sharing's `handleContract`). A
+race against a wait (Cats' cancelling form, sharing's delivery) is read as races are; a wait winning it means its
+seconds passed (`waitWins`).
 
 **Steps at once** (the step 13 re-review, RB1, RB2). Lean reads a pair's branches, two elements of a traverse at once
 and a race's sides one after the other; production interleaves their steps (`F.both`, `parTraverseN`, `F.race`). A
@@ -1239,8 +1296,9 @@ update of the state, or a store serializing them). That is checked, not only ass
 each run at once on the Scala and compare what each gave and the state it then held with the model's two orders of them
 (`CallsAtOnce`, 3.8), so Scala that reads the state, pauses and writes it back, which passes every run in turn, fails
 them (the re-review's P8, `ModelRunsSuite`). Where one of the two is of an operation known only by assumptions, the
-model has no answer to put in an order, and the pair is not tried: that its calls are one step each is assumed
-(`atomic`), not tested. No lock per model is taken in `Running`, which would cost delivery its
+model has no answer to put in an order, so the two at once are compared with the Scala's own two orders of them, each
+made afresh holding the state before (it is a function of its state, `Difference.Twice`): a lost update is found there
+too (the step 13c re-review's R-S1, `ModelRunsSuite`). No lock per model is taken in `Running`, which would cost delivery its
 sends at once. Two adjacent steps of two sides that commute can be swapped without changing either's result or the
 models after (`Commute.swap`), and what a step does depends only on the models and the values its side gave it. Swapped
 two at a time, each side's steps keep their order, so every interleaving becomes the reading's order (the first side's
@@ -1251,8 +1309,73 @@ another ("when the set wins, b is as it was or holds a's old number": the copy r
 once, each a read then a set ("adds two": one is lost); two sets on two models at once ask nothing and are proven.
 Sharing's delivery passes: two of its sends at once are to two people's mailboxes or of one notice
 (`Lemmas.sends_commute`), two removals from the outbox are transactions whose filters commute
-(`Lemmas.removals_commute`), and its waits add up in either order (automation); handle reads the time and the library at
-once, models apart.
+(`Lemmas.removals_commute`), and its waits at once take the longest of them in either order ("Time" below); handle
+reads the time and the library at once, models apart.
+
+**Time** (owner §47: "see how Cats does that"; step 13d). Time follows Cats Effect's model (`Clock`, `Temporal`,
+`TestControl`). The clock is FrFlow's model `Clock.clockModel`, its state the time now, a field of the World, which
+only moves on by construction: `now` reads it, `sleep(d)` and the world's own step `elapse(d)` move it by `d` and never
+by less than nothing (`vocab.Timed` marks it). Steps of code take no time of their own; the world moves the time:
+
+- **Between runs**, by `elapse(d)`, the world's own step (`TestControl.advance`), which no code calls
+  (`Problem.OutsideStepCalled`). It is a step like a run for what holds of every reachable world: every rule reading the
+  clock is asked `cover_elapse` (the reachable worlds are the start, then any mix of runs and `elapse` steps), and every
+  `isConstant` reading it its equation for `elapse` (`Constancy`); a statement or an obligation reads its run as
+  `ClockModel.elapse_run`. `stored.onlyCodeChanges` and `atomic` are not asked of the clock (2.6).
+- **In a run**, after each of the clock's steps: the next of the world's `ticks : List Nat` (a reserved field, a choice
+  of the world's as `faults` and `races` are; none left: no time), `FrFlow.Clock.tick`. After, so that the first look
+  of a run that looks first is the world's time (what passed before it is the world's step before the run, and what
+  passes after its last look its step after): crm's searches read the world's time, and a statement may say so. A
+  look with other steps before it, and no step of the clock's yet, is given a look first, its time dropped, so the
+  tick after it is the time passing at those steps (`analysis.Looks`, the step 13d re-review's R-B2: `Late.readsStart`
+  stays unproven); a call of a program that may look is given one so too. Between two looks, time passing at a step
+  that does not look at the clock is not told apart from passing at the next that does. So two looks in one run may
+  differ (`TimeLeanSuite`'s `stampTakesNoTime` stays unproven: a program relying on its run taking no time), and
+  `timeout`'s `none` is reached.
+- **At a wait**, by at least its seconds: the wait's own move, then a tick. A wait at once with others (a side of a
+  pair, a traverse at once or a race) is read as two points (`analysis.Waits`, the step 13 re-review's RN1): where the
+  sides start (the time read once before them, a lower bound of every wait's own start in them) and its end, the time
+  reaching at least that start plus its seconds (`Prog.reach`, `FrFlow.Waits.reach`). Two such ends commute (each the
+  later of two times), so waits at once take the longest, not the sum (`waitsAtOnce` proven, `waitsAddUp` not); a look
+  at the clock beside one does not commute, and `commute_i` refuses the pair. This is Lean's reading only: production
+  and the Scala tests run the waits as written. The other reading the re-review offered, leaving waits out of the
+  reduction, was not taken: sound too, but a wait would then say nothing of the time it took, and a race lost to a wait
+  (a cancelling time limit) could not be said to have taken its seconds. Waits in sequence inside one side of a step at
+  once are read so too, each from the same start: delivery's retry waits of a second and then two in one branch are
+  read as two seconds at least, not three. This is sound (it allows more runs, and the tick after the start covers the
+  rest) but loses a lower bound a statement could want (the step 13d review's S3).
+- **Where the schedules allow.** A schedule is a trusted fact restricting the outside steps (2.6, owner §47):
+  `clockModel.schedule(lastRun)((now, ran) => now <= ran + 120)`, an `OutsideFact.Schedule(model, over, rule)`, its rule
+  a define over the time reached and the states of the models it names (no world, no other Definition: Lean reads it in
+  the clock's instance, `allows`). It restricts the world's own step between runs only: an `elapse` is taken only where
+  every schedule allows the time it reaches (`FrFlow.Clock.move`). Inside a run the world moves the time freely: a tick
+  by any amount, a wait by at least its seconds, never less (`LowerEnv.Clock.inside`, `fun _ _ => True`). A run sees the
+  World as it leaves it, not as the runs at once beside it change it, and those runs may keep a schedule true while
+  this one is in progress (the step 13d review's B1: a five minutes' wait under sharing's schedule takes five minutes,
+  `Lapse.quick` stays unproven). A check whose Lean takes the clock rests on each schedule of it (`Premise.Schedule`),
+  listed by `.assuming`. A schedule that lets no time pass from the start is warned of: its `frozen` try (`∀` start, `¬`
+  a move by `d > 0`) shown, as vacuity is (`TimeLeanSuite`, `Frozen`). So is one over a model no program writes
+  (`Outsides.unwritten`, `status`'s `ScheduleUnwritten`, the re-review's R-N1): it lets time pass from the start and
+  freezes it once the time reaches its bound (`Unwritten`).
+- **Who moves the time.** Every program calling any of the clock's operations, `now` too, changes the clock's state
+  (`Premises.writers`): the world moves the time after each of its looks. So an `isConstant` reading the clock is asked
+  an equation for each such run (the step 13d review's B2: `Extend.stays` stays unproven).
+- **Open (for the owner): deadlines kept by a program running beside the others.** A rule bounding the time by another
+  model's state, kept true by a program that runs concurrently with the rest (sharing's `housekeptLately`, `now <= ran +
+  120`, housekeeping run every minute beside requests and delivery), cannot be shown when runs are read one after
+  another: any other run may move the time without bound. Sharing's `housekeptLately` is stopped (`Judged.stopped`),
+  and with it each statement taking it as given where it starts: its three deadlines and the branches above them, the
+  claims about the programs' runs over the World (each proven itself), and the World's other rules, whose every
+  `cover_` takes it on the world a run starts from (`Reads.coverTakes`; a rule kept from one still open is not kept,
+  the step 13d re-review's R-B1, the probe `Leans`), with what takes those. Its scheduler's tests (`ScheduleSuite`)
+  still check the deadlines on a virtual clock. How such a rule is to be stated is the owner's to decide.
+
+A rule may relate several models' states (`always(clockModel, lastRun)((now, ran) => ran <= now)`), its `start_` of
+each model's `initially` together. `changesNothing` leaves the clock aside: time passes whatever a run does. In Scala the
+clock is a virtual one where it is tested (`Wall`: `elapse` moves it, the model tests interleave its calls, `elapse`
+among them, on generated runs), and the system's in production, where `elapse` is never called. Crm reads the World's
+time; sharing's run is the World's (2.2). What a statement may not yet say: "eventually" and two runs in sequence
+(owner §45 E), and so a deadline is a statement of every moment (sharing's `trashPurgedOnTime`), not of a run's future.
 
 What the reduction does not cover is refused (`Validate`): a side that may let an error out beside one that may fail
 or changes a model's state (`FailsBeside`; of a traverse, a body that may let an error out). Production then cancels
@@ -1842,7 +1965,9 @@ today's `storedSession` and `storedMatching` as witnesses; an agent may write th
 decides the nodes as usual (2.8, owner §28, §39).
 
 In step 13, sharing uses `timeout`,
-`race`, `bracket` and `parTupled`, each under a proven claim. Step 14 rewrites `docs/USAGE.md`, `docs/DAG.md`,
+`race`, `bracket` and `parTupled`, each under a proven claim. Step 13d builds time as Cats Effect models it (owner §47,
+"Time" in 4.4): the clock's `elapse`, schedules, ticks, waits at once read as two points, rules over several models;
+crm's clock and sharing's run are the World's (§45 D done). Step 14 rewrites `docs/USAGE.md`, `docs/DAG.md`,
 `docs/index.html` and the frflow and scala-fp skills.
 
 **Stubs by step** (40 `???`, `review.md` lists the first ones the owner will meet): step 2, `derives BoundaryOps`, and
@@ -2037,6 +2162,8 @@ The decisions are in `owner-decisions.md`; the right column says where this docu
 | 44 | `isConstant` on any value: no next step changes it, one equation per program | 2.2, 4.2, 4.5 |
 | 45 | One `isConstant`; error in the type (§46); no worldly rule; D at step 13; safety only | 2.2, 2.7, 10.2 |
 | 46 | A program that can fail: `.failsWith[E]` on its Definition, `p.result` an `Either`; `.current` | 2.2, 2.7, 4.4 |
+| 47 | Time as Cats Effect models it: the clock's time the World's, `elapse` the world's step, ticks, schedules | 2.2, 2.6, 4.4 ("Time") |
+| 48 | Auth's tables stay provided | 2.2 |
 
 ## Appendix B. Today's library, and where each problem is addressed
 

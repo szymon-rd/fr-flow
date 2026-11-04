@@ -25,10 +25,15 @@ class ModelSuite extends munit.FunSuite:
     assertEquals(kept.ops.map(_.result), List(Ty.Num(NumKind.Big), Ty.Unit))
   }
 
-  test("the clock's model: the time now read, a sleep adding its seconds") {
+  test("the clock's model: the time now read, a sleep and the world's step adding their seconds, never less than " +
+      "none: the time only moves on (owner §47)") {
     val clock = read(Clock.clockModel)
     assertEquals(clock.name, ModelName("clockModel"))
-    assertEquals(steps(clock), List(("now", Nil, "get"), ("sleep", List("seconds"), "get, set")))
+    assertEquals(steps(clock), List(("now", Nil, "get"), ("sleep", List("seconds"), "get, set"),
+      ("elapse", List("seconds"), "get, set")))
+    assertEquals(clock.timed, Some(frflow.core.vocab.Timed(SymbolName("now"), SymbolName("sleep"),
+      SymbolName("elapse"))))
+    assertEquals(clock.outside, List(SymbolName("elapse")))
     clock.op(SymbolName("sleep")).map(_.steps) match
       case Some(Prog.Bind(Prog.Read(_), _, Prog.Bind(Prog.Write(_, _), _, Prog.Pure(_)))) => ()
       case other                                                                         => fail(other.toString)

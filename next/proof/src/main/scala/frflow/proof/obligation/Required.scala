@@ -7,8 +7,8 @@ import frflow.core.Failing
 import frflow.core.term.interpret.Guard
 import frflow.core.code.Code
 import frflow.core.name.{DefName, NodeId, SymbolName}
-import frflow.core.expr.Mentions
-import frflow.core.spec.{CallForm, NodeKind}
+import frflow.core.expr.{Expr, Exprs, Mentions}
+import frflow.core.spec.{CallForm, NodeKind, Written}
 import frflow.core.ty.Ty
 import frflow.core.vocab.SymbolType
 import frflow.proof.terms.{Commutation, Keeping}
@@ -24,7 +24,7 @@ object Required:
   def of(r: Resolved, authored: Set[(NodeId, ObligationName)], n: NodeId): List[Obligation] =
     (complete(r, n).map(Obligation(ObligationName.Complete, _, Discharge.Auto, completes(r, n))).toList ++
       feasible(r, authored, n) ++ impl(r, n) ++ commutes(r, n) ++ keeps(r, n) ++ Made.of(r, n) ++
-      Made.atCalls(r, n))
+      Made.atCalls(r, n) ++ Made.outside(r, n))
       .map(o => if authored((n, o.name)) then o.copy(discharge = Discharge.Authored) else o)
 
   /** `∀ U, C1 → … → Cn → M → N`, of a node not checked against proven code: its parts, and what the makers its parts'
@@ -76,17 +76,19 @@ object Required:
     */
   def hypotheses(r: Resolved, n: NodeId): List[NodeId] = Resolve.below(r.theory, n)
 
-  /** A claim about operations on a state alone, at the bottom with no code standing in it: asked `impl`, given what
-    * is assumed of those known only by assumptions (nothing else would check it). A statement's run of an operation
-    * with steps is not read as its steps yet, so a claim about one stays open: fail closed.
+  /** A claim about operations on a state alone, or about the World as it stands (a model's state read, owner §45 D:
+    * sharing's deadlines), at the bottom with no code standing in it: asked `impl`, given what is assumed of those
+    * known only by assumptions and what always holds of the world (nothing else would check it). A statement's run
+    * of an operation with steps is not read as its steps yet, so a claim about one stays open: fail closed.
     */
   private def ofModels(r: Resolved, n: NodeId): Option[Callees] =
     val t = r.theory
     val modelled = Constrained.of(t, n).exists(s => t.code.attached.get(s).exists(_.code match
       case Code.Modelled(_) => true
       case _                => false))
-    Option.when(modelled && t.node(n).exists(x => x.statement.kind == NodeKind.Claim && !x.statement.rule) &&
-      !SaysWhat.is(t, n) && t.refinement.parts(n).isEmpty)(Callees(Map.empty, Mentions.empty))
+    val worldly = Resolve.mentions(t, n).models.nonEmpty
+    Option.when((modelled || worldly) && t.node(n).exists(x => x.statement.kind == NodeKind.Claim &&
+      !x.statement.rule) && !SaysWhat.is(t, n) && t.refinement.parts(n).isEmpty)(Callees(Map.empty, Mentions.empty))
 
   private def mentions(r: Resolved, n: NodeId, s: SymbolName): Boolean = Constrained.of(r.theory, n).contains(s)
 
@@ -109,14 +111,48 @@ object Required:
     writers.flatMap(op => reading(op).toMap.get(n).map(op -> _)).flatMap { (op, kept) =>
       (Callees.ofDefinition(r.theory, op).flatMap(_.standsFor.get(op)), typeOf(r, op)).tupled.map { (code, ty) =>
         val escapes = Failing.escapingOf(r.theory, op).nonEmpty
-        val within = reading(op).map(_._2)
-        val goal = Prop.Keeps(n, op, Keeping.formula(op, ty, escapes)(inputs(r, op, ty), kept, within),
-          Map(op -> Substitute.Code(code)))
-        val hyps = r.reliedOnBy(op)
-        Obligation(ObligationName.Cover(op.value), Prop.over(Nil, Prop.Implies(Hyp.parts(hyps), goal)),
-          Discharge.Auto, s"Every run of ${code.value} keeps ${n.value}" + givenWhat(hyps))
+        covering(r, n, op, code)(Keeping.formula(op, ty, escapes)(inputs(r, op, ty), kept, reading(op).map(_._2)))
       }
-    }
+    } ++ outside(r, n)
+
+  /** `cover_<op>` of the program's code keeping the formula, as `impl` is built (2.7): the code of what it calls put
+    * in where that code is proven (`Callees.within`), a fixed value as its value; what is tested, assumed or provided
+    * stays open, what is said of it a hypothesis (`Resolve.constrainingCalled`), each with the same code put in, but
+    * none about the program itself (what the `cover_` shows, as `reliesOn` takes none about the code's own
+    * Definitions). No hypothesis is the rule itself or rests on it (`Reads.restsOn`): it would be kept by being
+    * assumed.
+    */
+  private def covering(r: Resolved, n: NodeId, op: SymbolName, code: DefName)(
+      formula: Written[Expr]): Obligation =
+    val callees = Callees.within(r.theory, op)
+    val values = Fixed.of(r, callees.calls.symbols :+ op) ++ fixed(r, formula)
+    val put = callees.standsFor.view.mapValues(Substitute.Code(_)).toMap ++ values
+    val goal = Prop.Keeps(n, op, formula, put)
+    val hyps = Resolve.constrainingCalled(r.theory, Some(callees)).filterNot(h => mentions(r, h, op))
+      .filterNot(Reads.restsOn(r.theory, _, n))
+    val stated = hyps.map(h => Hyp(Hyp.of(h).name,
+      Prop.ClaimOf(h, put.filter((s, _) => values.contains(s) || mentions(r, h, s)))))
+    Obligation(ObligationName.Cover(op.value), Prop.over(Nil, Prop.Implies(stated, goal)),
+      Discharge.Auto, s"Every run of ${code.value} keeps ${n.value}" + givenWhat(hyps))
+
+  /** `cover_<step>` of the world's own steps on the models the rule is about (the clock's `elapse`, owner §47):
+    * time passing keeps it, from a world meeting every `always`, where the schedules let the world move the time.
+    */
+  private def outside(r: Resolved, n: NodeId): List[Obligation] =
+    val models = r.theory.node(n).flatMap(_.statement.range).toList.flatMap(Scope.models(r.theory, _))
+    val every = Guards.reading(r.theory, r.theory.vocabulary.models.map(_.name))
+    models.flatMap(_.outside).flatMap(op => (every.toMap.get(n), typeOf(r, op)).tupled.map { (kept, ty) =>
+      val formula = Keeping.formula(op, ty, escapes = false)(inputs(r, op, ty), kept, every.map(_._2))
+      val goal = Prop.Keeps(n, op, formula, fixed(r, formula))
+      Obligation(ObligationName.Cover(op.value), Prop.over(Nil, goal), Discharge.Auto,
+        s"Time passing (${op.value}) keeps ${n.value}.")
+    })
+
+  /** The fixed values a `cover_` reads, through the rules it states: each stands as its value (2.7). */
+  private def fixed(r: Resolved, f: Written[Expr]): Map[SymbolName, Substitute] =
+    Fixed.of(r, Exprs.mentions(f.value).symbols ++ r.theory.vocabulary.closure(
+      Exprs.mentions(f.value).defines).flatMap(d => Exprs.mentions(d.lambda.body)
+        .symbols))
 
   private[obligation] def typeOf(r: Resolved, op: SymbolName): Option[Ty] =
     r.theory.vocabulary.symbol(op).map(_.ty).collect { case SymbolType.Typed(t) => t }

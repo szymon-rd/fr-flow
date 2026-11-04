@@ -1,7 +1,7 @@
 package frflow.testing
 
 import cats.effect.Async
-import cats.effect.std.Random
+import cats.effect.std.{Mutex, Random}
 import cats.syntax.all.*
 import frflow.core.expr.Prog
 import frflow.core.name.{ModelName, SymbolName}
@@ -11,15 +11,17 @@ import frflow.eval.{Env, ScalaValue, Semantics}
 import scala.concurrent.duration.*
 
 /** A program with concurrent steps run on its operations' Scala from each generated start, its branches at once and
-  * each call after a random pause, `Runs` times each on the Scala made afresh, for its runs to be compared with the
+  * each call after a random pause and one at a time (`World.locked`, as the models' atomic assumptions say), `Runs`
+  * times each on the Scala made afresh, for its runs to be compared with the
   * models' (which Lean agrees with). It runs the recorded `Prog`, the object Lean proves; production's interpreter
   * (`eval.Running`) is tested concurrently on its own (`RunningSuite`). Deterministic under `TestControl`.
   */
 final class Interleavings[F[_]: Async: Random](semantics: Semantics, worlds: F[World[F]]):
   /** Each start's runs, each on the Scala made afresh. */
   def of(steps: Prog[Stated[?]], starts: List[Env]): F[List[ScalaValue]] =
-    starts.flatTraverse(start => worlds.flatMap(a => FlowInterpreter.concurrent(semantics, paused(a)))
-      .flatMap(_.prog(steps, start)).replicateA(Interleavings.Runs))
+    starts.flatTraverse(start => (worlds, Mutex[F]).flatMapN((a, one) =>
+      FlowInterpreter.concurrent(semantics, paused(World.locked(a, one)))).flatMap(_.prog(steps, start))
+      .replicateA(Interleavings.Runs))
 
   private def paused(world: World[F]): World[F] = new World[F]:
     def call(op: SymbolName, args: List[ScalaValue]): F[ScalaValue] = pause *> world.call(op, args)

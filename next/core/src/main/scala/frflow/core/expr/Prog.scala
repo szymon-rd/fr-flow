@@ -46,6 +46,10 @@ object Prog:
     * next step (`true`: it is), read from the world's `races`; no model gives it, and no Definition can be named so.
     */
   val leftWins: SymbolName = SymbolName("races.leftWins")
+  /** A wait's end at once with others, as Lean reads it (`Waits`): the clock reaches at least the time the sides
+    * started at plus the wait's seconds, `reach(start, seconds)`; no Definition can be named so.
+    */
+  val reach: SymbolName = SymbolName("clock.reach")
 
   /** How a program's terms pair two step results: what `Progs.sequential` reads a concurrent pair as. */
   trait Pairs[E]:
@@ -53,3 +57,10 @@ object Prog:
 
   object Pairs:
     given Pairs[Expr] = (a, b) => Expr.Tuple(List(Expr.Var(a), Expr.Var(b)))
+
+  /** How a program's terms name a variable bound by a step: what `Waits` reads a wait's start as. */
+  trait Vars[E]:
+    def variable(x: Binder): E
+
+  object Vars:
+    given Vars[Expr] = x => Expr.Var(x)

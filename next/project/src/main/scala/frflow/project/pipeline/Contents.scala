@@ -48,6 +48,7 @@ object Contents:
           case OutsideFact.OnlyCodeChanges(m) => s"${m.value}.onlyCodeChanges"
           case OutsideFact.Atomic(m)          => s"${m.value}.atomic"
           case OutsideFact.Initially(m, d)    => s"${m.value}.initially(${d.value})"
+          case OutsideFact.Schedule(m, os, d) => s"${m.value}.schedule(${os.map(_.value).mkString(", ")})(${d.value})"
       case _                  => Print.expr(Printed.formula(l.env, l.naming)(f.term))
     (said :: defines.map(d => PrintDecl(VocabularyModules.declared(l, d)))).mkString("\n\n")
 

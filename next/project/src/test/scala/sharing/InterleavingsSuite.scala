@@ -2,6 +2,7 @@ package sharing
 
 import cats.effect.{IO, Ref}
 import cats.effect.std.{Mutex, Random}
+import cats.effect.testkit.TestControl
 import cats.syntax.all.*
 import frflow.*
 import frflow.core.code.Values
@@ -22,7 +23,9 @@ import scala.concurrent.duration.*
   * were run; the outbox and the mailboxes every interleaving leaves are the one order's. And a whole run of delivery
   * whose time limit passes before its sends end (a send slower than the limit): its sends cut off part way, every
   * run leaves what the reading Lean proves allows (the loser cut off between two of its steps, `Prog.Cut`), some of
-  * them a delivery half done, and a send begun finishes, as a call is never cancelled part way.
+  * them a delivery half done, and a send begun finishes, as a call is never cancelled part way. Each call of the
+  * models one at a time (`World.locked`, as `Interleavings` calls them), as their atomic assumptions say; the timed
+  * runs on a virtual clock (`TestControl`), their pauses as written, never a real millisecond.
   */
 class InterleavingsSuite extends munit.CatsEffectSuite:
   private val elaborated = Projects.elaborated(knowledge)
@@ -68,15 +71,15 @@ class InterleavingsSuite extends munit.CatsEffectSuite:
       states <- Ref[IO].of(start(outbox))
       begun  <- Ref[IO].of(List.empty[Notice])
       one    <- Mutex[IO]
-      models  = World.models(semantics, elaborated.theory.vocabulary, states)
-      run    <- FlowInterpreter.concurrent(semantics, paced(models, one, begun, random))
+      models  = World.locked(World.models(semantics, elaborated.theory.vocabulary, states), one)
+      run    <- FlowInterpreter.concurrent(semantics, paced(models, begun, random))
       _      <- run.prog(ReadRecording(Delivery.run.steps)._1, Env.of(Values.none))
       after  <- states.get
       sent   <- begun.get
     yield (end(after), sent)
 
-  /** The models, each call one at a time after its pause, each send noted to `begun` as it begins. */
-  private def paced(models: World[IO], one: Mutex[IO], begun: Ref[IO, List[Notice]], random: Random[IO]): World[IO] =
+  /** The models, each call after its pause, each send noted to `begun` as it begins. */
+  private def paced(models: World[IO], begun: Ref[IO, List[Notice]], random: Random[IO]): World[IO] =
     new World[IO]:
       def call(op: SymbolName, args: List[ScalaValue]): IO[ScalaValue] =
         (if op == Mailer.send.name then
@@ -84,7 +87,7 @@ class InterleavingsSuite extends munit.CatsEffectSuite:
            begun.update(_ :+ n) *> random.betweenLong(0, 4).flatMap(ms =>
              IO.sleep((ms + (if n.to == cat then 10 else 60)).millis))
          else if op == Clock.sleep.name then IO.sleep(Fn.as[BigInt](args.head).toLong.millis)
-         else IO.unit) *> one.lock.surround(models.call(op, args))
+         else IO.unit) *> models.call(op, args)
       def read(m: ModelName): IO[ScalaValue] = models.read(m)
       def write(m: ModelName, s: ScalaValue): IO[Unit] = models.write(m, s)
 
@@ -101,7 +104,7 @@ class InterleavingsSuite extends munit.CatsEffectSuite:
     val outbox = List(catTold, bobTold, catAgain)
     for
       random  <- Random.scalaUtilRandomSeedLong[IO](13)
-      ran     <- slowly(outbox, random).map(_._1).replicateA(24)
+      ran     <- TestControl.executeEmbed(slowly(outbox, random).map(_._1).replicateA(24))
       allowed <- read(outbox)
     yield
       assert(ran.forall(allowed), ran.filterNot(allowed).distinct.mkString("\n"))
@@ -112,7 +115,7 @@ class InterleavingsSuite extends munit.CatsEffectSuite:
   test("a send begun when delivery's time limit passes is not cancelled part way: it finishes, its notice delivered") {
     for
       random <- Random.scalaUtilRandomSeedLong[IO](17)
-      ran    <- slowly(List(catTold, bobTold, catAgain), random).replicateA(8)
+      ran    <- TestControl.executeEmbed(slowly(List(catTold, bobTold, catAgain), random).replicateA(8))
     yield
       assert(ran.forall((_, sent) => sent.contains(bobTold)), "Bob's send did not begin")
       ran.foreach { case ((_, boxes), sent) =>
