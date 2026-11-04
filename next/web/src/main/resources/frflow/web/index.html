@@ -121,6 +121,7 @@ function warning(w) {
     StartNotProven: `${w.statement}: where its store starts is not proven`,
     NotChecked: `${w.node} is not checked`,
     TrustedUntested: `${w.node} is trusted, not tested: ${(w.operations || []).join(", ")}'s runs cannot evaluate it`,
+    ScheduleUnwritten: `${w.node} reads ${(w.models || []).join(", ")}, which no program writes: it freezes the time`,
     Restates: `${w.node} restates ${w.part}: it says nothing of its own` };
   return says[w.type] || `${words(w.type)} ${esc(JSON.stringify(Object.assign({}, w, { type: undefined })))}`;
 }
