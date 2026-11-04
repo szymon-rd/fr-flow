@@ -86,7 +86,8 @@ object ReadProof:
   /** What leaves a rule open beyond its own obligations: a value no rule allows (its `inhabited_` not proven: what
     * rests on a rule nothing meets is proven of nothing); of an `always[T]`, any test of tested plain Scala making a
     * `T` failing, missing or stale (its search stops at the first failing case, the post's perhaps: the sixth pass's
-    * P6-B1); of an `always(stored)`, any model run of its models' Scala failing or missing, a run breaking what is
+    * P6-B1), or tested by no node at all, so never tried against the rule (the seventh pass's S7-N1); of an
+    * `always(stored)`, any model run of its models' Scala failing or missing, a run breaking what is
     * assumed of an operation among them (P6-B2). Tested code handed a `T` makes none: what it is handed is drawn
     * meeting the rules, or is a proven caller's, asked at the call (`made_<code>_call_<i>`).
     */
@@ -97,9 +98,12 @@ object ReadProof:
     vacant || t.node(rule).flatMap(_.statement.range).exists {
       case Range.Made(ty) =>
         val makers = t.code.attached.toList.collect { case (s, at) if at.code.isInstanceOf[Code.Tested] &&
-            Guards.applies(t, ty, resultOf(t, s)) => s }.toSet
-        t.nodes.map(_.node.id).filter(n => Testable.of(t, n) && Constrained.of(t, n).exists(makers))
-          .exists(n => red(a.tested(n)))
+            Guards.applies(t, ty, resultOf(t, s)) => s }
+        val testing = t.nodes.map(_.node.id).filter(Testable.of(t, _))
+        makers.exists { m =>
+          val reports = testing.filter(n => Constrained.of(t, n).contains(m))
+          reports.isEmpty || reports.exists(n => red(a.tested(n)))
+        }
       case r              => Scope.models(t, r).exists(m => red(a.testedModel(m.name)))
     }
 

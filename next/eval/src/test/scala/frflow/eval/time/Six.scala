@@ -57,3 +57,16 @@ object Six:
     .implementTested(setB)(start = (n: BigInt) => IO.ref(n), observe = _.get)(r => Tuple1((t: BigInt) => r.set(t)))
     .implementTested(setC)(start = (n: BigInt) => Ref[IO].of(n).map(RawCell(_)), observe = _.held)(c =>
       Tuple1(c.set))
+
+  /** The step 13d seventh pass's S7-N1, seeded: the same tested maker of a `Pos`, mentioned only by a claim saying what
+    * a Declaration is, which no code is tested against: its Scala is never tried against the rule, so `posRule` must
+    * stay open, and `aboveZero` resting on it.
+    */
+  val madeOf = Declaration[BigInt => Pos]("the Pos a number is made into")
+  val madeSome = Node.claim("Every number is made into a Pos.")(forall((n: Term[BigInt]) =>
+    madeOf(n).v === madeOf(n).v))
+  val madeIs = Node.claim("A number is made into the Pos mkPos makes of it.")(forall((n: Term[BigInt]) =>
+    madeOf(n) === mkPos(n))).refines(madeSome)
+  val aboveZero = Node.claim("Every Pos holds a number above zero.")(forall((p: Term[Pos]) => p.v >= 1))
+  val untried: FrModel = FrModel("SevenA")(posRule, aboveZero, madeSome, madeIs)
+    .implementTested(mkPos)(_ => (n: BigInt) => Pos(n))

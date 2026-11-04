@@ -38,7 +38,7 @@ class TimeLeanSuite extends munit.CatsEffectSuite:
         MadeLeans.model -> List("cellPositive", "posMade"), Starts4.model -> List("yZero", "yIsZero"),
         Outside4.model -> List("posRule", "storesPositive"), Sources5.tested -> List("posRule", "allPos"),
         Sources5.nested -> List("posRuleB", "firstStores"), Sources5.empty -> List("never", "allBelow"),
-        Sources5.vacant -> List("never", "noneBelow"))
+        Sources5.vacant -> List("never", "noneBelow"), Six.untried -> List("posRule", "aboveZero"))
       .traverse { (m, ns) =>
       Ported.run(Projects.elaborated(m), Nil, Ported.Lean(Nil, Nil, None), Nil).map { r =>
         val un = Ported.unproven(r.analysis)
@@ -65,7 +65,7 @@ class TimeLeanSuite extends munit.CatsEffectSuite:
   private val exact: Map[String, List[String]] = Map("Leans" -> List("yZero"), "MadeLeans" -> List("posMade"),
     "Starts4" -> List("yIsZero"), "Outside4" -> List("posRule", "storesPositive"),
     "Sources5a" -> List("posRule", "allPos"), "Sources5c" -> List("never", "allBelow"),
-    "Sources5d" -> List("never", "noneBelow"))
+    "Sources5d" -> List("never", "noneBelow"), "SevenA" -> List("posRule", "aboveZero"))
   private val expected: List[(String, Option[List[String]])] = List(
     "Leans.yZero" -> Some(List("Kept(yZero)", "Kept(xZero)", "NotTested")),
     "MadeLeans.posMade" -> Some(List("Kept(posMade)", "Kept(cellPositive)", "NotTested")),
@@ -77,7 +77,9 @@ class TimeLeanSuite extends munit.CatsEffectSuite:
     "Sources5c.never" -> Some(List("Kept(never)")),
     "Sources5c.allBelow" -> Some(List("Kept(never)")),
     "Sources5d.never" -> Some(List("Kept(never)")),
-    "Sources5d.noneBelow" -> Some(List("NothingBelow", "Kept(never)")))
+    "Sources5d.noneBelow" -> Some(List("NothingBelow", "Kept(never)")),
+    "SevenA.posRule" -> Some(List("Kept(posRule)")),
+    "SevenA.aboveZero" -> Some(List("NothingBelow", "Kept(posRule)")))
 
   test(("a rule whose own standing is not proven, for any reason, is open: a tested maker's test failing on its " +
       "post first (the 13d sixth pass's P6-B1), a model's Scala failing its model test (P6-B2)").tag(Live)) {

@@ -553,8 +553,9 @@ is kept only as each rule its obligations take is, all the way down, and is unpr
 one) while one is not. A rule is open while its own standing is not proven, for any reason (`ReadProof.local`: its
 check, a `cover_`, a `made_` or its `outside` (below) among it; its tests; its consistency, its `start_` among it), or
 while a source of its values leaves it open: a value no rule allows (its `inhabited_` not proven: a statement taking
-it is proven of nothing), a test of tested plain Scala making a `T` failing, missing or stale (the search stops at
-the first failing case, the post's perhaps, so the rule broken may go unnamed; tested code handed a `T` makes none:
+it is proven of nothing), a test of tested plain Scala making a `T` failing, missing or stale, or none at all (the
+search stops at the first failing case, the post's perhaps, so the rule broken may go unnamed; a maker no node is
+tested against is never tried against the rule, the seventh pass's S7-N1; tested code handed a `T` makes none:
 what it is handed is drawn meeting the rules, or a proven caller's, asked at the call), a model run of its store's
 Scala failing. One condition, not a list of reasons, so a reason added to a node's standing opens the rules too (the
 step 13d re-review's R-B1, the probe `Leans`: a copy of `x` kept zero by taking `x` zero, while a bump breaks it; the
