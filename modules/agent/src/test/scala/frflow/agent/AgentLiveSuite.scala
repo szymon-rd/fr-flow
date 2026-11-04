@@ -3,10 +3,11 @@ package frflow.agent
 import cats.effect.{ExitCode, IO, Resource}
 import cats.syntax.all.*
 import com.monovore.decline.Command as Sub
-import frflow.api.{FrFlowApi, Host, Opened}
+import frflow.api.fixture.Opened
+import frflow.api.{FrFlowApi, Host}
 import frflow.cli.command.{Commands, Dispatch}
-import frflow.cli.term.Style
 import frflow.cli.{Launch, Scripted}
+import frflow.cli.term.Style
 import frflow.decision.rules.Command as Decide
 import java.nio.file.{Files, Path}
 

@@ -2,7 +2,8 @@ package frflow.cli
 
 import cats.effect.IO
 import cats.syntax.all.*
-import frflow.api.{Opened, Project}
+import frflow.api.fixture.Opened
+import frflow.api.Project
 import frflow.cli.command.Command
 import frflow.cli.term.{Style, Terminal}
 import frflow.cli.text.Depth

@@ -1,13 +1,14 @@
 package frflow.api
 
 import cats.effect.IO
-import frflow.api.Opened.id
+import frflow.api.fixture.Opened
+import frflow.api.fixture.Opened.id
 import frflow.api.view.Warning
 import frflow.core.name.RelPath
 import frflow.decision.ledger.Ledger
 import frflow.decision.rules.{Command, Refusal}
-import frflow.project.Projects
 import frflow.project.port.Records
+import frflow.project.Projects
 import frflow.wire.file.Files as Wire
 import frflow.wire.ledger.LedgerFile
 

@@ -1,7 +1,7 @@
 package sharing.store
 
 import frflow.*
-import sharing.housekeeping.HousekeepingClaims
+import sharing.features.HousekeepingClaims
 import sharing.notifications.NotificationsClaims
 
 /** What the store gives requests at once, in an object of its own: it refines the programs' claims, which rest on the
@@ -14,5 +14,5 @@ object Transactions:
       "it, in the order they take the store; once begun, a transaction runs to its end. Reading the clock is not " +
       "part of the store's transaction.")(
     "src/main/scala/sharing/store/MemoryLibraryStore.scala")
-    .refines(sharing.http.SharingHttp.handleContract, HousekeepingClaims.housekeepingJob,
+    .refines(sharing.features.SharingHttp.handleContract, HousekeepingClaims.housekeepingJob,
       NotificationsClaims.deliveryJob)

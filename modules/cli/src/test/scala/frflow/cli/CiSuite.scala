@@ -2,16 +2,17 @@ package frflow.cli
 
 import cats.effect.{ExitCode, IO}
 import com.monovore.decline.Command as Sub
+import frflow.api.fixture.Opened
+import frflow.api.{FrFlowApi, Host, Lean}
 import frflow.api.view.View
-import frflow.api.{FrFlowApi, Host, Lean, Opened}
 import frflow.cli.command.{CliExtension, Command, Dispatch}
 import frflow.cli.review.ReviewKey
 import frflow.cli.term.{Style, Terminal}
 import frflow.cli.text.Contribution
 import frflow.core.name.RelPath
 import frflow.decision.ledger.Ledger
-import frflow.project.Projects
 import frflow.project.port.Records
+import frflow.project.Projects
 import frflow.wire.file.Files as Wire
 import frflow.wire.ledger.LedgerFile
 

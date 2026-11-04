@@ -3,11 +3,11 @@ package sharing.examples
 import frflow.*
 import sharing.Demo.*
 import sharing.knowledge
-import sharing.audit.Audit
+import sharing.features.Audit
 import sharing.domain.*
-import sharing.ownership.Ownership
-import sharing.requests.AccessRequests
-import sharing.trash.Trash
+import sharing.features.Ownership
+import sharing.features.AccessRequests
+import sharing.features.Trash
 
 // Today's examples of the trash, access requests, ownership and the log, one class per contract they were
 // written on (owner §18), each on the demo library: given nothing, each is checked against the code in Scala and

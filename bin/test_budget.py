@@ -1,5 +1,6 @@
-"""The budget check's exit code (`python3 docs/redesign/tools/test_budget.py`): zero on a tree within its budgets or
-with only the violations its baseline records; non-zero on one more, a second of a kind in one file included.
+"""The budget check's exit code (`python3 bin/test_budget.py`): zero on a tree within its budgets or with only the
+violations its baseline records; non-zero on one more, a second of a kind in one file included; and the skill's three
+exceptions, each read off the code.
 """
 import os, subprocess, sys, tempfile, unittest
 
@@ -9,7 +10,7 @@ BUDGET = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'budget.py')
 class BudgetTest(unittest.TestCase):
     def setUp(self):
         self.dir = tempfile.TemporaryDirectory()
-        self.root = os.path.join(self.dir.name, 'next')
+        self.root = os.path.join(self.dir.name, 'modules')
         self.pkg = os.path.join(self.root, 'm', 'src', 'main', 'scala', 'p')
         os.makedirs(self.pkg)
         self.baseline = os.path.join(self.dir.name, 'baseline.txt')
@@ -41,6 +42,31 @@ class BudgetTest(unittest.TestCase):
         self.assertEqual(self.run_budget(), 1)
         self.write('B', "object B\n")
         os.remove(os.path.join(self.pkg, 'C.scala'))
+        self.assertEqual(self.run_budget(), 1)
+
+    def test_a_def_that_is_one_match_of_short_cases_may_be_long(self):
+        cases = "".join(f"    case {i} =>\n      {i}\n" for i in range(12))
+        self.write('A', "object A:\n  def f(a: Int): Int = a match\n" + cases)
+        self.assertEqual(self.run_budget(), 0)
+        self.write('A', "object A:\n  def f(a: Int): Int = a match\n" + cases.replace("      0\n", "      0\n      0\n"))
+        self.assertEqual(self.run_budget(), 1)
+        self.write('A', "object A:\n  def f(a: Int): Int =\n" + "    a\n" * 22)
+        self.assertEqual(self.run_budget(), 1)
+
+    def test_an_apply_mirroring_its_function_types_arity_may_take_more_than_four(self):
+        apply = "  def apply(a: Int, b: Int, c: Int, d: Int, e: Int): Int = a\n"
+        self.write('A', "object A:\n  extension [A, B, C, D, E, R](f: Fn[(A, B, C, D, E) => R])\n  " + apply)
+        self.assertEqual(self.run_budget(), 0)
+        self.write('A', "object A:\n  extension [A, B, C, D, R](f: Fn[(A, B, C, D) => R])\n  " + apply)
+        self.assertEqual(self.run_budget(), 1)
+
+    def test_the_facade_package_may_hold_one_file(self):
+        facade = os.path.join(self.root, 'm', 'src', 'main', 'scala', 'frflow')
+        os.makedirs(facade)
+        with open(os.path.join(facade, 'package.scala'), 'w') as f: f.write("package frflow\n")
+        self.assertEqual(self.run_budget(), 0)
+        os.makedirs(os.path.join(facade, 'q'))
+        with open(os.path.join(facade, 'q', 'Q.scala'), 'w') as f: f.write("package frflow.q\n")
         self.assertEqual(self.run_budget(), 1)
 
 

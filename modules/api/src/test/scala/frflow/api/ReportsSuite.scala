@@ -1,7 +1,8 @@
 package frflow.api
 
 import cats.syntax.all.*
-import frflow.api.Opened.id
+import frflow.api.fixture.{Opened, Shelf}
+import frflow.api.fixture.Opened.id
 import frflow.api.view.Found
 import frflow.api.view.whole.GroupStatus
 import frflow.core.name.RelPath

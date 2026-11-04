@@ -1,28 +1,28 @@
 package sharing
 
 import frflow.*
-import sharing.audit.Audit
-import sharing.audit.AuditClaims
-import sharing.housekeeping.Housekeeping
-import sharing.housekeeping.HousekeepingClaims
-import sharing.http.SharingHttp
-import sharing.invitations.Invitations
-import sharing.invitations.InvitationsClaims
+import sharing.features.Audit
+import sharing.features.AuditClaims
+import sharing.features.Housekeeping
+import sharing.features.HousekeepingClaims
+import sharing.features.SharingHttp
+import sharing.features.Invitations
+import sharing.features.InvitationsClaims
 import sharing.notifications.Notifications
 import sharing.notifications.NotificationsClaims
 import sharing.notifications.{Mailer, MemoryMailer, MemoryPool, Pool}
 import frflow.eval.flow.Wall
-import sharing.ownership.Ownership
-import sharing.ownership.OwnershipClaims
-import sharing.requests.AccessRequests
-import sharing.requests.AccessRequestsClaims
-import sharing.service.Sharing
-import sharing.service.SharingClaims
+import sharing.features.Ownership
+import sharing.features.OwnershipClaims
+import sharing.features.AccessRequests
+import sharing.features.AccessRequestsClaims
+import sharing.features.Sharing
+import sharing.features.SharingClaims
 import sharing.store.{LibraryStore, MemoryLibraryStore, Transactions}
 import sharing.time.LifetimesClaims
 import sharing.time.{ClockKept, Deadlines, Housekept, Lifetimes, Run}
-import sharing.trash.Trash
-import sharing.trash.TrashClaims
+import sharing.features.Trash
+import sharing.features.TrashClaims
 
 val serverWiring = Node.design("The server reads each HTTP request into a request, answers it with handleContract's " +
     "program on the store and the clock, in IO, as many at once as its workers take, and writes the answer as JSON; " +

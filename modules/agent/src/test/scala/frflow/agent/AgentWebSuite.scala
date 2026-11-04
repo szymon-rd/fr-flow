@@ -2,7 +2,7 @@ package frflow.agent
 
 import cats.effect.IO
 import frflow.agent.work.AgentApi
-import frflow.api.Opened
+import frflow.api.fixture.Opened
 import frflow.cli.Cli
 import frflow.web.{Gate, Routes}
 import io.circe.Json

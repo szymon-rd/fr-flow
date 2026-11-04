@@ -2,9 +2,10 @@ package rooms.walkthrough
 
 import frflow.*
 
-// The README's three changes to rooms (steps 4 to 6 of its walk-through), each a package holding rooms as the
-// developer changes it: the calendar, the defines and the nodes the change reaches, the rest rooms' own. Each FrModel
-// gives `granted` its code with the same words as rooms', `Calendar(held).grants(request)`, the step's Calendar.
+// The README's three changes to rooms (steps 4 to 6 of its walk-through), each holding rooms as the developer changes
+// it: the calendar, the defines and the nodes the change reaches, the rest rooms' own; step 4 here (`Forgets.scala`),
+// steps 5 and 6 a package each (`misread`, `reaches`). Each FrModel gives `granted` its code with the same words as
+// rooms', `Calendar(held).grants(request)`, the step's Calendar.
 
 /** Rooms' nodes, `changed` in place of those of the same names. */
 def nodes(changed: Node*): List[Node] =

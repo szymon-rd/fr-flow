@@ -8,14 +8,6 @@ import rooms.walkthrough.misread.Calendar
 // Step 6: step 5, and `covers` includes the end moment, so touching meetings share a moment: every statement over
 // moments now says the misread, and the proofs are unchanged.
 
-val covers = define { (b: Term[Booking], t: Term[BigInt]) => b.start <= t && t <= b.end }
-
-val apart = define { (a: Term[Booking], b: Term[Booking]) =>
-  a.room =!= b.room || forall((t: Term[BigInt]) => !(covers(a, t) && covers(b, t))) }
-
-val free = define { (bookings: Term[List[Booking]], request: Term[Booking]) =>
-  bookings.forall(b => apart(b, request)) }
-
 val bookWhenFree = Node.claim("A request is booked exactly when its room is free for its whole time.")(
   forall((request: Term[Booking]) =>
     bookedAfter(request) === when(free(booked, request))(booked :+ request).otherwise(booked)))
@@ -54,14 +46,3 @@ val reaches = FrModel("Rooms")(rooms.walkthrough.nodes(bookWhenFree, acceptWhenF
   .copy(generators = rooms.rooms.generators, operations = rooms.rooms.operations)
   .implementProven(book)(bookIfGranted)
   .implementTested(granted)(_ => (held, request) => Calendar(held).grants(request))
-
-/** The examples as step 5 changed them. */
-class GrantedExamples extends FrFlowExamples(reaches):
-  example("a gap between them: granted"):
-    granted(RoomBookings("Oak", List(Booking("Oak", 9, 10))), Booking("Oak", 11, 12)) is true
-
-  example("back to back: refused"):
-    granted(RoomBookings("Oak", List(Booking("Oak", 9, 10))), Booking("Oak", 10, 11)) is false
-
-  example("overlapping: refused"):
-    granted(RoomBookings("Oak", List(Booking("Oak", 9, 11))), Booking("Oak", 10, 12)) is false

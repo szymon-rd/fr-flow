@@ -1,7 +1,8 @@
 package frflow.api
 
 import cats.syntax.all.*
-import frflow.api.Opened.id
+import frflow.api.fixture.Opened
+import frflow.api.fixture.Opened.id
 import frflow.api.node.lean.CheckState
 import frflow.api.view.{CheckEvent, Scaffolded, Stop}
 import frflow.core.name.RelPath

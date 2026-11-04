@@ -4,7 +4,7 @@ import frflow.*
 import sharing.Demo.*
 import sharing.knowledge
 import sharing.domain.*
-import sharing.housekeeping.Housekeeping
+import sharing.features.Housekeeping
 import sharing.notifications.Notifications
 import sharing.time.Lifetimes
 

@@ -4,11 +4,12 @@ import cats.effect.{ExitCode, IO}
 import cats.syntax.all.*
 import com.monovore.decline.Command as Sub
 import frflow.agent.work.AgentApi
-import frflow.api.{FrFlowApi, Opened}
+import frflow.api.fixture.Opened
+import frflow.api.FrFlowApi
+import frflow.cli.{Cli, Launch, Scripted}
 import frflow.cli.command.{Commands, Dispatch}
 import frflow.cli.review.ReviewSession
 import frflow.cli.term.Style
-import frflow.cli.{Cli, Launch, Scripted}
 import frflow.core.name.NodeId
 import frflow.decision.review.ReviewState
 

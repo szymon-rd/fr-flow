@@ -25,33 +25,9 @@ class PortSuite extends munit.CatsEffectSuite:
   private val elaborated = Projects.elaborated(knowledge)
   private val t = elaborated.theory
 
-  /** Each difference from today's auth, with why the design makes it. */
-  private val judged: Map[String, (String, String)] = Map(
-    "identities" -> ("gone" ->
-      "it fixed two open types to UserId and Path, which the Declarations' types now say (owner §15)"),
-    "tokensIssuedOnce" -> ("new" ->
-      ("the session table is a list, so what today's function said, one user per token, is said of it (owner §40)")),
-    "accessExactly" -> ("grantTable, sessionTable, requests are parts" ->
-      ("today's definitions of its words are claims saying what each Declaration is, below the purpose it is stated " +
-        "in (2.7)")),
-    "tokenNamesHolder" -> ("assumes +tokensIssuedOnce" ->
-      "its Lean takes what always holds of the session table, a value from outside (2.6, owner §21)"),
-    "grantLetsIn" -> ("assumes +tokensIssuedOnce" ->
-      "its Lean takes what always holds of the session table, a value from outside (2.6, owner §21)"),
-    "decisionContract" -> ("assumes +tokensIssuedOnce" ->
-      "its Lean takes what always holds of the session table, a value from outside (2.6, owner §21)"))
-
-  /** Each value provided where the code runs, under owner §45 D, which names auth: its tables stay provided (§48). */
-  private val provided: Map[String, Ported.OnD] = Map("grants" -> Ported.OnD.Ruled("§48", table),
-    "sessions" -> Ported.OnD.Ruled("§48", table))
-
-  private def table = "auth's tables read in one moment stay provided: no statement of auth is about the state over " +
-    "time (each holds of one decision, with no run, isConstant or history), so the value provided is the World's at " +
-    "that moment; were one to compare two moments, they would move into the World then"
-
   test("every value provided where the code runs stands under owner §45 D: the tables stay provided (owner §48)") {
-    assertEquals(Ported.provided(elaborated), provided.keySet)
-    assertEquals(Ported.stoppedOnD(provided), Map.empty)
+    assertEquals(Ported.provided(elaborated), Judged.provided.keySet)
+    assertEquals(Ported.stoppedOnD(Judged.provided), Map.empty)
   }
 
   private def differences: Map[String, String] =
@@ -73,25 +49,8 @@ class PortSuite extends munit.CatsEffectSuite:
     (gone ++ added ++ moved).toMap
 
   test("every difference from today's auth in where a node sits and what it assumes is listed and judged") {
-    assertEquals(differences, judged.view.mapValues(_._1).toMap)
+    assertEquals(differences, Judged.differences.view.mapValues(_._1).toMap)
   }
-
-  /** Where each node stands apart from today, each for a reason the design gives. */
-  private val standings: Map[String, List[String]] = Map(
-    // Gone: the types say it.
-    "Identities" -> Nil,
-    // New: trusted, what the session table issues.
-    "TokensIssuedOnce" -> List("assumption", "assumed", "proven", ""),
-    // Today's definitions, claims saying what each Declaration is (2.7): proven of what stands in them.
-    "GrantTable" -> List("claim", "proven", "proven", ""),
-    "SessionTable" -> List("claim", "proven", "proven", ""),
-    "Requests" -> List("claim", "proven", "proven", ""),
-    // A contract is a claim (owner §15).
-    "DecisionContract" -> List("claim", "tested", "proven", "1000"),
-    // Claims mentioning admit, tested against its Scala as well as proven from decisionContract (2.7).
-    "TokenNamesHolder" -> List("claim", "tested", "proven", "1000"),
-    "AccessNeedsGrant" -> List("claim", "tested", "proven", "1000"),
-    "GrantLetsIn" -> List("claim", "tested", "proven", "1000"))
 
   private val proofs = List("Lemmas", "tokenNamesHolder", "accessNeedsGrant", "grantLetsIn")
   private val lean = Lean(proofs.map(n => n -> Ported.resource(s"auth/proofs/$n.lean")),
@@ -106,7 +65,7 @@ class PortSuite extends munit.CatsEffectSuite:
       val now = t.nodes.map(_.node.id).map(id => id.value.capitalize -> Ported.row(a, id)).toMap
       val compared = (reference.standings.keys ++ now.keys).toList.distinct.sorted
         .filter(k => now.get(k) != reference.standings.get(k)).map(k => k -> now.getOrElse(k, Nil))
-      assertEquals(compared.toMap, standings, s"auth now:\n${Ported.table(a)}")
+      assertEquals(compared.toMap, Judged.standings, s"auth now:\n${Ported.table(a)}")
       assertEquals(Ported.unproven(a), Map.empty[String, List[String]])
       val whole = a.wholeCheck.map(_.results).getOrElse(fail("the theory's own check is not recorded"))
       assertEquals(whole.collect { case Result(n @ ObligationName.Consistent(_), s, _) => n -> s }.toMap,

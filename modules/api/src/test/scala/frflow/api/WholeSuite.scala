@@ -1,5 +1,6 @@
 package frflow.api
 
+import frflow.api.fixture.{Opened, Shelf}
 import frflow.api.node.lean.ObligationState
 import frflow.api.view.Warning
 import frflow.api.view.whole.OnClaims

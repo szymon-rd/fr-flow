@@ -1,7 +1,8 @@
 package frflow.cli
 
 import cats.effect.{ExitCode, IO, Ref}
-import frflow.api.{FrFlowApi, Opened}
+import frflow.api.fixture.Opened
+import frflow.api.FrFlowApi
 import frflow.cli.command.{Asked, Command}
 import frflow.cli.review.{ReviewKey, ReviewSession}
 import frflow.cli.term.Style
@@ -119,7 +120,7 @@ class ReviewSuite extends munit.CatsEffectSuite:
 
   test("the mechanical batch: a node whose new part Lean proves makes it is confirmed with one reason") {
     for
-      api    <- moved(Opened.project(frflow.api.Shelf.Grown.kb))
+      api    <- moved(Opened.project(frflow.api.fixture.Shelf.Grown.kb))
       _      <- Opened.checked(api.proving.check(None))
       (_, t) <- review(api, List("a", "a new part makes it as before", "q"))
       claim  <- state(api, nonNegative)

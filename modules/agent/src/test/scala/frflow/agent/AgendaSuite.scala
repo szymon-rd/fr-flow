@@ -6,7 +6,7 @@ import frflow.agent.conversation.{Conversation, Talk}
 import frflow.agent.request.*
 import frflow.agent.store.FileStore
 import frflow.agent.work.{AgentView, ForAgent}
-import frflow.api.Opened
+import frflow.api.fixture.Opened
 import frflow.cli.Cli
 import frflow.core.name.NodeId
 import frflow.decision.rules.Command as Decide

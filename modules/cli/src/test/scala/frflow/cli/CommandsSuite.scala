@@ -3,8 +3,9 @@ package frflow.cli
 import cats.effect.{ExitCode, IO}
 import cats.syntax.all.*
 import com.monovore.decline.Command as Sub
+import frflow.api.fixture.{Opened, Shelf}
+import frflow.api.Lean
 import frflow.api.view.Stop
-import frflow.api.{Lean, Opened, Shelf}
 import frflow.cli.command.{Asked, Command, Commands}
 import frflow.cli.term.Style
 import frflow.core.name.NodeId

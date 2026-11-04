@@ -8,10 +8,10 @@ import frflow.testing.ported.Tested
 import sharing.Demo.*
 import sharing.domain.*
 import sharing.examples.AccessExamples
-import sharing.http.SharingHttp
-import sharing.housekeeping.Housekeeping
+import sharing.features.SharingHttp
+import sharing.features.Housekeeping
 import sharing.notifications.{Mailer, MemoryMailer, MemoryPool, Notifications, Pool}
-import sharing.service.Sharing
+import sharing.features.Sharing
 import sharing.store.{LibraryStore, MemoryLibraryStore}
 import scala.concurrent.duration.*
 

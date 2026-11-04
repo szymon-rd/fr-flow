@@ -29,9 +29,7 @@ final class Local(ctx: IrContext):
     case Expr.Field(on, n, i, t)      => field(ty(on), n, i, t)
     case Expr.Copy(on, n, us)         => ty(on) == Ty.Data(n) && us.forall((i, v) => record(n).lift(i).contains(ty(v)))
     case Expr.Make(n, c, as)          => fields(n, c).forall(_ == as.map(ty))
-    case Expr.Inject(s, a, t)         => t match
-        case Ty.EitherOf(l, r) => ty(a) == (if s == Side.Error then l else r)
-        case _                 => false
+    case Expr.Inject(s, a, t)         => injects(s, ty(a), t)
     case Expr.ListOf(es, t)           => es.forall(ty(_) == t)
     case e: Expr.Iterate              => iterate(e)
     case Expr.Fold(xs, z, acc, x, b)  => Ty.elementOf(ty(xs)).contains(x.ty) && acc.ty == ty(z) && ty(b) == ty(z)
@@ -43,6 +41,11 @@ final class Local(ctx: IrContext):
     case Expr.Constant(w, a, _)       => ty(w) == Ty.World && a.ty == Ty.World
     case Expr.Outside(_)              => false
     case Expr.Var(_) | Expr.Tuple(_) | Expr.SomeOf(_) | Expr.Do(_, _) => true // their type is their parts'
+
+  /** A value put on one side of an Either: of that side's type. */
+  private def injects(s: Side, a: Ty, t: Ty): Boolean = t match
+    case Ty.EitherOf(l, r) => a == (if s == Side.Error then l else r)
+    case _                 => false
 
   /** A program's step typed by what it calls or changes: an operation's arguments and result, a model's state, a
     * branch's condition, what a loop or a handler binds.

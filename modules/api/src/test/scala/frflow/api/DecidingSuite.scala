@@ -1,9 +1,10 @@
 package frflow.api
 
 import cats.syntax.all.*
-import frflow.api.Opened.id
-import frflow.api.view.Warning
+import frflow.api.fixture.Opened
+import frflow.api.fixture.Opened.id
 import frflow.api.view.diff.DiffLine
+import frflow.api.view.Warning
 import frflow.decision.ledger.{Action, Uncounted}
 import frflow.decision.review.{Cause, ReviewState}
 import frflow.decision.rules.{Command, Refusal}

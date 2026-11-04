@@ -1,7 +1,7 @@
 package frflow.cli
 
 import cats.effect.{ExitCode, IO, Resource}
-import frflow.api.Opened
+import frflow.api.fixture.Opened
 import frflow.cli.command.Command
 import java.nio.charset.StandardCharsets.UTF_8
 import java.nio.file.Files

@@ -1,19 +1,19 @@
 package sharing
 
 import frflow.*
-import sharing.audit.Audit.makes
+import sharing.features.Audit.makes
 import sharing.domain.*
-import sharing.housekeeping.Housekeeping.tidy
-import sharing.invitations.Invitations.{accept, invite, withdraw}
-import sharing.ownership.Ownership.{owns, ownersEdit, transfer}
-import sharing.requests.AccessRequests.{approve, ask, decline}
-import sharing.service.Sharing
+import sharing.features.Housekeeping.tidy
+import sharing.features.Invitations.{accept, invite, withdraw}
+import sharing.features.Ownership.{owns, ownersEdit, transfer}
+import sharing.features.AccessRequests.{approve, ask, decline}
+import sharing.features.Sharing
 import sharing.time.Lifetimes.{gone, inForce, isOpen, isPending, reminderDue}
 import sharing.notifications.Mailer.taken
 import sharing.store.LibraryStore.libraryModel
 import sharing.time.ClockKept.clockModel
 import sharing.time.Run.housekeepingWithin
-import sharing.trash.Trash.{restore, trash}
+import sharing.features.Trash.{restore, trash}
 
 // The purpose's branches, one for each part of the service, each refining the purpose: after the words they are
 // stated in, before the parts' claims and the deadlines, which refine them.

@@ -2,15 +2,16 @@ package frflow.web
 
 import cats.effect.IO
 import cats.syntax.all.*
-import frflow.api.{FrFlowApi, Opened}
+import frflow.api.fixture.Opened
+import frflow.api.FrFlowApi
 import frflow.core.name.RelPath
 import io.circe.Json
 import io.circe.syntax.*
 import org.http4s.circe.CirceEntityCodec.*
 import org.http4s.dsl.io.*
-import org.http4s.implicits.*
-import org.http4s.headers.`Content-Type`
 import org.http4s.{Header, HttpRoutes, MediaType, Method, Request, Status, Uri}
+import org.http4s.headers.`Content-Type`
+import org.http4s.implicits.*
 import org.typelevel.ci.CIString
 
 /** The web view's routes over the API in memory, behind the session's token (in a link only for the page and its

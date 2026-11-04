@@ -3,7 +3,7 @@ package sharing.notifications
 import frflow.*
 import sharing.*
 import sharing.domain.*
-import sharing.requests.AccessRequests
+import sharing.features.AccessRequests
 
 /** Notifications: a change that concerns someone puts a notice of it in the outbox, in the same save as the change;
   * delivery sends the outbox to the mail server, a notice leaving the outbox only once the mail server has it. The

@@ -1,7 +1,8 @@
 package frflow.cli
 
 import cats.effect.{ExitCode, IO}
-import frflow.api.{FrFlowApi, Host, Opened}
+import frflow.api.fixture.Opened
+import frflow.api.{FrFlowApi, Host}
 import frflow.cli.command.{Command, Dispatch}
 import frflow.cli.term.Style
 import java.nio.file.Path

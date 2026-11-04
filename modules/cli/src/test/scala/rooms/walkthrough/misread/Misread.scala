@@ -19,9 +19,6 @@ final class Calendar(held: RoomBookings):
     val startsAfter = after.forall(_.start > request.end)
     request.room != held.room || (endsInTime && startsAfter)
 
-val noOverlap = define { (a: Term[Booking], b: Term[Booking]) =>
-  a.room =!= b.room || a.end < b.start || b.end < a.start }
-
 val roomBookingsApart = Node.claim("A room's bookings never overlap.")(
   always[RoomBookings](held => held.bookings.pairwise(noOverlap)))
   .refines(grantWhenFree)
@@ -37,14 +34,3 @@ val misread = FrModel("Rooms")(rooms.walkthrough.nodes(roomBookingsApart, grantW
   .copy(generators = rooms.rooms.generators, operations = rooms.rooms.operations)
   .implementProven(book)(bookIfGranted)
   .implementTested(granted)(_ => (held, request) => Calendar(held).grants(request))
-
-/** The examples as step 5 changes them: back to back is refused. */
-class GrantedExamples extends FrFlowExamples(misread):
-  example("a gap between them: granted"):
-    granted(RoomBookings("Oak", List(Booking("Oak", 9, 10))), Booking("Oak", 11, 12)) is true
-
-  example("back to back: refused"):
-    granted(RoomBookings("Oak", List(Booking("Oak", 9, 10))), Booking("Oak", 10, 11)) is false
-
-  example("overlapping: refused"):
-    granted(RoomBookings("Oak", List(Booking("Oak", 9, 11))), Booking("Oak", 10, 12)) is false

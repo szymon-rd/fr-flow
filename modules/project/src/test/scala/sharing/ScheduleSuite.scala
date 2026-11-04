@@ -6,8 +6,8 @@ import frflow.*
 import frflow.eval.flow.Wall
 import sharing.Demo.*
 import sharing.domain.*
-import sharing.http.SharingHttp
-import sharing.housekeeping.Housekeeping
+import sharing.features.SharingHttp
+import sharing.features.Housekeeping
 import sharing.notifications.{Mailer, MemoryMailer, MemoryPool, Pool}
 import sharing.store.{LibraryStore, MemoryLibraryStore}
 import sharing.time.{ClockKept, Housekept}

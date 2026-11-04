@@ -1,7 +1,7 @@
 package sharing
 
 import frflow.*
-import sharing.audit.Audit.makes
+import sharing.features.Audit.makes
 import sharing.domain.*
 import sharing.store.LibraryStore.{libraryKept, libraryModel, libraryStarts, oneTransactionAtATime}
 

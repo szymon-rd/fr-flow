@@ -1,9 +1,10 @@
 package frflow.api
 
 import cats.syntax.all.*
-import frflow.api.Opened.id
-import frflow.api.node.Relation
+import frflow.api.fixture.{Assembled, Opened, Shelf}
+import frflow.api.fixture.Opened.id
 import frflow.api.node.lean.CheckState
+import frflow.api.node.Relation
 import frflow.api.view.Warning
 import frflow.core.name.RelPath
 import frflow.core.spec.NodeKind

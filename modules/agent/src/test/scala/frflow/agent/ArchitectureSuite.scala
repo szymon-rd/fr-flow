@@ -1,6 +1,6 @@
 package frflow.agent
 
-import frflow.api.Front
+import frflow.api.fixture.Front
 import scala.util.matching.Regex
 
 /** The agent layer is a front end: it sees the API's views and algebras, the CLI and the web view, never the shell.

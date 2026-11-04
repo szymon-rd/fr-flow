@@ -1,6 +1,6 @@
 package frflow.web
 
-import frflow.api.Front
+import frflow.api.fixture.Front
 import scala.util.matching.Regex
 
 /** The web view is a front end: it sees the API's views and algebras (and the core, DSL, decision and eval values

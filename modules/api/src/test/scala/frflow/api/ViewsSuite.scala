@@ -1,11 +1,12 @@
 package frflow.api
 
 import cats.kernel.laws.discipline.CommutativeMonoidTests
-import frflow.api.Opened.id
+import cats.syntax.all.*
 import frflow.api.derive.Leans
+import frflow.api.fixture.Opened
+import frflow.api.fixture.Opened.id
 import frflow.api.view.{Tally, View, Views}
 import frflow.proof.verdict.{CheckStatus, ObligationStatus}
-import cats.syntax.all.*
 import munit.DisciplineSuite
 import org.scalacheck.{Arbitrary, Gen}
 

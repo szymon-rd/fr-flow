@@ -1,6 +1,6 @@
 package frflow.cli
 
-import frflow.api.Front
+import frflow.api.fixture.Front
 
 /** The command line is a front end: it sees the API's views and algebras (and the core, DSL, decision and eval values
   * they carry), never the shell. No source of it names `frflow.project`, `frflow.proof`, `frflow.testing` or

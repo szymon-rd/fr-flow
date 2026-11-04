@@ -2,13 +2,13 @@ package sharing
 
 import frflow.*
 import sharing.domain.*
-import sharing.housekeeping.Housekeeping
-import sharing.invitations.Invitations
-import sharing.ownership.Ownership
-import sharing.requests.AccessRequests
-import sharing.service.Sharing
+import sharing.features.Housekeeping
+import sharing.features.Invitations
+import sharing.features.Ownership
+import sharing.features.AccessRequests
+import sharing.features.Sharing
 import sharing.time.Lifetimes.{gone, inForce, isOpen}
-import sharing.trash.Trash
+import sharing.features.Trash
 
 // Sharing's nodes in the three kinds (owner §15), each named as today's: the purpose, over its Declarations; the
 // claims at the bottom saying what each Declaration is, the code standing in them (2.7); and the claim of each of the

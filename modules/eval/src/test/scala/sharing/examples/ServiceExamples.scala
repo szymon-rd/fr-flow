@@ -4,8 +4,8 @@ import frflow.*
 import sharing.Demo.*
 import sharing.knowledge
 import sharing.domain.*
-import sharing.invitations.Invitations
-import sharing.service.Sharing
+import sharing.features.Invitations
+import sharing.features.Sharing
 
 // Today's examples of who can see and change what (access, sharing, moving, invitations), one class per contract
 // they were written on (owner §18), each on the demo library: given nothing, each is checked against the code in

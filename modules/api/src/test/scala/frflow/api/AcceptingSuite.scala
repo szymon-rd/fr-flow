@@ -1,7 +1,8 @@
 package frflow.api
 
 import cats.effect.{IO, Resource}
-import frflow.api.Opened.id
+import frflow.api.fixture.{Opened, Shelf}
+import frflow.api.fixture.Opened.id
 import frflow.api.node.tests.TestOutcome
 import frflow.api.shell.Memory
 import frflow.api.view.Listed

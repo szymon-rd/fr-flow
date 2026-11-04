@@ -1,7 +1,7 @@
 package frflow.cli
 
 import frflow.*
-import frflow.api.Shelf.{Before, d}
+import frflow.api.fixture.Shelf.{Before, d}
 
 /** The API suites' shelf, changed as the CLI's suites need it. */
 object Shelves:

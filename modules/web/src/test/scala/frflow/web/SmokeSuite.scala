@@ -1,9 +1,10 @@
 package frflow.web
 
 import cats.effect.IO
-import frflow.api.{Host, Opened}
-import java.net.URI
+import frflow.api.fixture.Opened
+import frflow.api.Host
 import java.net.http.{HttpClient, HttpRequest, HttpResponse}
+import java.net.URI
 import java.nio.file.Path
 
 /** The web view served for real: started on a free port of localhost, the page fetched with the link's token, the

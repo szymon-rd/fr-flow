@@ -1,5 +1,6 @@
 package frflow.api
 
+import frflow.api.fixture.Opened
 import frflow.api.shell.Relocate
 import frflow.api.view.Warning
 import frflow.core.name.RelPath
