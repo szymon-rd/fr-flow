@@ -24,7 +24,7 @@ object Required:
   def of(r: Resolved, authored: Set[(NodeId, ObligationName)], n: NodeId): List[Obligation] =
     (complete(r, n).map(Obligation(ObligationName.Complete, _, Discharge.Auto, completes(r, n))).toList ++
       feasible(r, authored, n) ++ impl(r, n) ++ commutes(r, n) ++ keeps(r, n) ++ Made.of(r, n) ++
-      Made.atCalls(r, n))
+      Made.atCalls(r, n) ++ Made.outside(r, n))
       .map(o => if authored((n, o.name)) then o.copy(discharge = Discharge.Authored) else o)
 
   /** `∀ U, C1 → … → Cn → M → N`, of a node not checked against proven code: its parts, and what the makers its parts'

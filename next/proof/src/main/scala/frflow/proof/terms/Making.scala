@@ -48,6 +48,14 @@ object Making:
       go(inputs, Nil)
     Written.formula(Guarded.of(run, guards), SourceText(s"every result of a run of ${op.value}"))
 
+  /** Of the values from outside, each of a type in `from`: `∀ x, assumed x → rule x`, every assumption of `always`
+    * on its type a hypothesis (`Guarded`), the rule at each `T` it holds (`kept`).
+    */
+  def ofOutside(from: List[Ty], kept: Guard, assumed: List[Guard]): Written[Expr] =
+    Written.formula(Guarded.of([T[_]] => (s: Sym[T]) => from.map(ty => s.forall(Bound[Any]("x", ty))(x =>
+      kept.of[T, Any](ty, s).fold(s.bool(true))(_(x)))).reduceLeftOption(s.and).getOrElse(s.bool(true)), assumed),
+      SourceText("every value from outside"))
+
   private def over(inputs: List[(String, Ty)], result: Ty, kept: Guard)(
       made: [T[_]] => (Sym[T], List[T[Any]]) => T[Any]): Final[Boolean] = [T[_]] => (s: Sym[T]) =>
     def go(left: List[(String, Ty)], args: List[T[Any]]): T[Boolean] = left match

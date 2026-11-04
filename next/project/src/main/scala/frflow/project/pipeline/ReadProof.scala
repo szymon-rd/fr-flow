@@ -8,7 +8,8 @@ import frflow.core.name.NodeId
 import frflow.core.spec.{Node, NodeKind}
 import frflow.decision.review.{ProofStanding, Unproven}
 import frflow.proof.obligation.{Made, ObligationName, Obligations}
-import frflow.proof.obligation.ObligationName.{Complete, Consistent, Cover, Impl, RootImpl, Start, Tried}
+import frflow.proof.obligation.ObligationName.{Complete, Consistent, Cover, Impl, Outside, RootImpl, Start,
+  Tried}
 import frflow.proof.obligation.ObligationName.Made as MadeOf
 import frflow.proof.obligation.TryKind.{Clash, Idle, Needed}
 import frflow.proof.verdict.{CheckStatus, ObligationStatus, Result}
@@ -56,19 +57,23 @@ object ReadProof:
     val leaf = n.statement.kind == NodeKind.Claim && t.refinement.parts(n.id).isEmpty && !checked
     Option.when(leaf)(Unproven.NothingBelow).toList
 
-  /** Of an `always`, each program keeping it whose `cover_<op>` is not proven, or a maker whose `made_<maker>` is not;
-    * of a statement taking a rule as a hypothesis (`Reads.taken`), each such rule: its step rests on the rule holding
-    * where it starts, as it rests on what the makers below it make (`made`). Each obligation of a rule takes other
-    * rules in turn (`Obligations.takes`, one case per kind): it is kept only as they are, all the way down (the step
-    * 13d re-review's R-B1, the third pass's R3-B1), so each open one below is named.
+  /** Of an `always`, itself while it is open: a program keeping it whose `cover_<op>` is not proven, a maker whose
+    * `made_<maker>` is not, the values from outside where its `outside` is not, or the states its store starts in
+    * where its `start_` is not (the step 13d fourth pass's P4-B1 and P4-B2; a failing `inhabited_` is warned of, not
+    * gated on: a value no rule allows comes from a maker, from outside or from a start, each asked). Of a statement
+    * taking a rule as a hypothesis (`Reads.taken`), each such rule open: its step rests on the rule holding where it
+    * starts, as it rests on what the makers below it make (`made`). Each obligation of a rule takes other rules in
+    * turn (`Obligations.takes`, one case per kind): it is kept only as they are, all the way down (the step 13d
+    * re-review's R-B1, the third pass's R3-B1), so each open one below is named.
     */
   private def kept(a: Analysis, id: NodeId, rs: List[Result]): List[Unproven] =
     val t = a.decided.theory
     def results(rule: NodeId) = if rule == id then rs else a.current(rule).toList.flatMap(_.results)
+    val started = a.wholeCheck.toList.flatMap(_.results).collect { case Result(n, Proven, _) => n }.toSet
     def open(rule: NodeId) = results(rule).exists {
-      case Result(Cover(_) | MadeOf(_), s, _) => s != Proven
-      case _                                => false
-    }
+      case Result(Cover(_) | MadeOf(_) | Outside, s, _) => s != Proven
+      case _                                          => false
+    } || (a.whole.exists(_.name == Start(rule)) && !started(Start(rule)))
     def takes(x: NodeId) = results(x).map(_.name).distinct.flatMap(Obligations.takes(a.decided, x, _))
     def below(rule: NodeId) = takes(rule).filter(r => t.node(r).exists(_.statement.rule))
     val start = (if t.node(id).exists(_.statement.rule) then List(id) else Nil) ++ Reads.taken(t, id) ++ below(id)

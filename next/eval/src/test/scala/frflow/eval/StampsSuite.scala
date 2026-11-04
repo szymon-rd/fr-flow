@@ -8,5 +8,6 @@ class StampsSuite extends munit.FunSuite:
   test("the stamps are valid as written, what holds and what is seeded") {
     assertEquals(List(Stamps.kept, Stamps.seeded, Stamps.scheduled, Stamps.circling, time.Lapse.lapse,
       time.Extend.model, time.Frozen.model, time.Late.model, time.Leans.model, time.Unwritten.model,
-      time.MadeLeans.model).map(Theories.problems), List.fill(11)(Nil))
+      time.MadeLeans.model, time.Starts4.model, time.Outside4.model).map(Theories.problems),
+      List.fill(13)(Nil))
   }

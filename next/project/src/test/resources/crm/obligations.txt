@@ -115,6 +115,7 @@ oneRowPerKey made_save
 oneRowPerKey made_load
 oneRowPerKey made_expireOnce_call_1
 oneRowPerKey made_saved_call_1
+oneRowPerKey outside
 Whole consistent_0
 Whole consistent_1
 Whole consistent_2

@@ -90,8 +90,13 @@ object Premises:
 
   /** What `ty`s from outside meet, when values from outside can hold one. */
   private def passed(t: Theory, ty: Ty): List[Premise] =
-    val outside = entries(t).flatMap(inputs(t, _)) ++ provided(t)
-    Option.when(outside.exists(Guards.applies(t, ty, _)))(Premise.FromOutside(ty)).toList
+    Option.when(fromOutside(t).exists(Guards.applies(t, ty, _)))(Premise.FromOutside(ty)).toList
+
+  /** The types of the values that enter from outside: an entry Definition's inputs and the values provided where the
+    * code runs (an operation known only by assumptions gives values from outside too, which no claim of `always` may
+    * cover, `AssumedMakes`).
+    */
+  def fromOutside(t: Theory): List[Ty] = (entries(t).flatMap(inputs(t, _)) ++ provided(t)).distinct
 
   /** What values from outside meet, of each type an assumption of `always` is about whose guard the node carries:
     * on what it quantifies over (a world: the stores it reads, `Reads`), and on the inputs and worlds of what its

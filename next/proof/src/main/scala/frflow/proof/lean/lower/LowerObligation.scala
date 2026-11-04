@@ -17,6 +17,7 @@ object LowerObligation:
   def name(o: ObligationName): LeanName = Names.builtin(o match
     case ObligationName.Complete      => "complete"
     case ObligationName.Feasible      => "feasible"
+    case ObligationName.Outside       => "outside"
     case ObligationName.Impl          => "impl"
     case ObligationName.RootImpl      => "root_impl"
     case ObligationName.Cover(op)     => LeanNames.Cover + op

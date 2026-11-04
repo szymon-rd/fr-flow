@@ -550,16 +550,29 @@ nothing (`CoverCircleSuite`: the picking's claim, read where every stamp is not 
 rule's `cover_picking`). Each `cover_` also takes every other rule on the stores the program reads, on the world it
 starts from, and each `made_` the rules on the maker's inputs and world: the rules are kept together, so a statement
 is kept only as each rule its obligations take is, all the way down, and is unproven (`Unproven.Kept` of each open
-one, a `cover_` or a `made_` not proven) while one is not (the step 13d re-review's R-B1, the probe `Leans`: a copy of
-`x` kept zero by taking `x` zero, while a bump breaks it; the third pass's R3-B1, `MadeLeans`: a value made from a
-cell kept positive, while a zeroing breaks it). What each kind takes is said once, where the kinds are
-(`Obligations.takes`, one case per kind): `complete`, `feasible` and `impl` the rules the node's claim takes
-(`Reads.taken`: its variables, its `isConstant`'s equations, the worlds it reads, the `forall`s of the defines it
-reads), and `root_impl` of a root its claim's, each root's conjunct under its own guards; `cover_<op>` the run's
-inputs and the world it starts from, of `elapse` every store's (`Reads.coverTaken`); `made_<maker>` the maker's inputs
-and world, `made_<code>_call_<i>` the calling code's and every value rule; `commute_`, the tries, `start_`,
+one) while one is not. A rule is open while what shows it holds is not proven: a `cover_`, a `made_`, its `outside`
+(below) or its `start_` (the step 13d re-review's R-B1, the probe `Leans`: a copy of `x` kept zero by taking `x` zero,
+while a bump breaks it; the third pass's R3-B1, `MadeLeans`: a value made from a cell kept positive, while a zeroing
+breaks it; the fourth pass's P4-B1, `Starts4`: zeroing said to leave `y` as it was, `y` said always zero but starting
+at one). A failing `inhabited_` is warned of, not gated on: a value no rule allows still comes from a maker, from
+outside or from a store's start, each asked. What each kind takes is said once, where the kinds are
+(`Obligations.takes`, one case per kind): `impl` the rules the node's claim takes (`Reads.taken`: its variables, its
+`isConstant`'s equations, the worlds it reads, the `forall`s of the defines it reads); `complete` and `feasible` those
+and the rules on the values provided where its parts' code runs, its open terms (`Lowering.provided`, the fourth
+pass's P4-N1: auth's `o_sessions_0`); `root_impl` of a root its claim's, each root's conjunct under its own guards, and
+the rules on what is provided below it; `cover_<op>` the run's inputs and the world it starts from, of `elapse` every
+store's (`Reads.coverTaken`); `made_<maker>` the maker's inputs and world, `made_<code>_call_<i>` the calling code's
+and every value rule; `outside` the assumptions on the values from outside; `commute_`, the tries, `start_`,
 `inhabited_`, `consistent_`, `satisfiable_` and the examples none (two steps from any world; a refutation; the
 `initially`s; witnesses).
+
+**Values from outside.** A claim of `always[T]` whose `T` a value from outside can hold (an entry Definition's input,
+a value provided where the code runs: `Premises.fromOutside`, the reading `FromOutside` premises and the guards on
+provided values already use; an operation known only by assumptions gives values from outside too, which no claim
+may cover, `AssumedMakes`) is asked `outside`: `∀ x, assumed x → rule x`, every assumption of `always` on the value's
+type a hypothesis. No covered code makes those values, so the claim holds of them only as what is assumed of them
+says; before, it was taken of them unasked (the step 13d fourth pass's P4-B2, `Outside4`: positive claimed, not
+negative assumed, a zero stored).
 
 **A step over what makers make.** `complete` takes, for each maker its parts' claims are about, the `made_` of every
 rule kept of it (proven of the maker's code) as an `m_<rule>_<maker>` hypothesis, as a caller's `made_` already takes

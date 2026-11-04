@@ -10,7 +10,7 @@ object ObligationNames:
   def read(s: String): Option[ObligationName] = fixed.get(s).orElse(numbered(s)).orElse(named(s))
 
   private val fixed: Map[String, ObligationName] = Map("complete" -> Complete, "feasible" -> Feasible,
-    "impl" -> Impl, "root_impl" -> RootImpl, "vacuous" -> Tried(TryKind.Vacuous),
+    "outside" -> Outside, "impl" -> Impl, "root_impl" -> RootImpl, "vacuous" -> Tried(TryKind.Vacuous),
     "restates" -> Tried(TryKind.Restates), "clash" -> Tried(TryKind.Clash), "unsat" -> Tried(TryKind.Unsat),
     "idle" -> Tried(TryKind.Idle), "frozen" -> Tried(TryKind.Frozen))
 

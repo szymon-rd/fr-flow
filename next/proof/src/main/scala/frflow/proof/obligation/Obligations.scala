@@ -1,9 +1,10 @@
 package frflow.proof.obligation
 
 import frflow.core.analysis.Resolved
-import frflow.core.analysis.outside.Reads
+import frflow.core.analysis.outside.{Premises, Reads}
+import frflow.core.graph.Walk
 import frflow.core.name.{LeanNames, NodeId, SymbolName}
-import frflow.core.spec.Range
+import frflow.core.spec.{NodeKind, Range}
 import frflow.core.ty.Ty
 import frflow.proof.obligation.ObligationName.*
 import frflow.proof.obligation.tried.Tries
@@ -27,7 +28,15 @@ object Obligations:
     // the node's claim as `def claim` states it (`Lowering.guards`): its variables, its isConstant's equations over
     // each writer's inputs, the worlds it reads, and the defines' `forall`s it reads through; of `root_impl`, the
     // roots' claims together, each its own guards: of this root, its claim's
-    case Complete | Feasible | Impl | RootImpl => Reads.taken(r.theory, n)
+    case Impl                       => Reads.taken(r.theory, n)
+    // and what always holds of each value provided where the code of a part, or of a leaf below, runs: an open term
+    // of the step (`Lowering.provided`, `LowerProp.Values`; the step 13d fourth pass's P4-N1)
+    case Complete | Feasible        => Reads.taken(r.theory, n) ++ provided(r, r.theory.refinement.parts(n))
+    case RootImpl                   => Reads.taken(r.theory, n) ++ provided(r, Walk.breadthFirst(
+        r.theory.refinement.parts(n), identity)(r.theory.refinement.parts))
+    // the assumptions of `always` on the values from outside (`Made.outside`)
+    case Outside                    => Reads.rulesAt(r.theory, Premises.fromOutside(r.theory), Nil)
+        .filter(a => r.theory.node(a).exists(_.statement.kind == NodeKind.Assumption))
     // the run's inputs and the world it starts from (`Required.keeps`, `Required.outside`)
     case Cover(op)                  => Reads.coverTaken(r.theory, SymbolName(op))
     // the maker's inputs and world (`Made.of`), or the calling code's (`Made.atCalls`)
@@ -36,6 +45,10 @@ object Obligations:
     // from the `initially`s, assumptions; a witness, a group's or an example's values, none taken
     case Commute(_) | Tried(_) | Start(_) | Inhabited(_) | Consistent(_) | Satisfiable(_, _) | Example(_) => Nil
   ).filterNot(_ == n)
+
+  /** The rules on the values provided where the code of `ns` runs, which each of their claims mentions. */
+  private def provided(r: Resolved, ns: List[NodeId]): List[NodeId] =
+    Reads.rulesAt(r.theory, ns.flatMap(Reads.provided(r.theory, _)).map(_._2), Nil)
 
   /** `made_<maker>`: a store's operation on its model's world and its inputs (`Making.ofModel`), a define's inputs, a
     * program's and the world of the stores it reads (`Making.ofDefine`, `ofProgram`); `made_<code>_call_<i>`: the
