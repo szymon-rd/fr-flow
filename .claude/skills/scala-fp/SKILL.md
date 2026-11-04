@@ -1,6 +1,6 @@
 ---
 name: scala-fp
-description: Typelevel-style functional architecture and code rules for FrFlow's Scala 3 (cats, cats-effect, fs2, circe, http4s), with size budgets, a review checklist and a refactoring procedure. Use whenever you write, refactor or review Scala in this repository, including when you add a field, a case class, a function, an algebra or interpreter, a package or a module; change a core type such as `Node`, `FrModel`, `Term`, `SnapNode` or `Overview`; touch effects (`F[_]`, `IO`, `Resource`, `Ref`, `Stream`), errors, type class instances, laws, givens or the DSL; or audit code for quality.
+description: Typelevel-style functional architecture and code rules for FrFlow's Scala 3 (cats, cats-effect, fs2, circe, http4s), with size budgets, a review checklist and a refactoring procedure. Use whenever you write, refactor or review Scala in this repository, including when you add a field, a case class, a function, an algebra or interpreter, a package or a module; change a core type such as `Statement`, `Expr`, `Prog`, `FrModel`, `Term`, `Flow` or `SnapNode`; touch effects (`F[_]`, `IO`, `Resource`, `Ref`, `Stream`), errors, type class instances, laws, givens or the DSL; or audit code for quality.
 ---
 
 # Scala FP in FrFlow
@@ -23,9 +23,9 @@ change a type that other modules use, follow `refactoring.md`.
 
 The owner's direction is a Typelevel-style functional architecture. FrFlow is a
 DSL and a tool. A developer writes nodes in Scala, and FrFlow turns them into
-data. Interpreters run on that data: Lean printing, evaluation, checking at run
-time, the snapshot, the CLI and the web view. Around the data sit effectful
-services and boundaries (the ledger, git, Lean's `lake`, the file system, HTTP).
+data. Interpreters run on that data: Lean printing, evaluation, the tests, the
+snapshot, the CLI and the web view. Around the data sit the shell's effectful
+algebras (the ledger, git, Lean's `lake`, the file system, the keys) and HTTP.
 
 - **The domain is data with a stated theory.** For every core type you can say
   in two sentences what it is, which cases it has and which operations it
@@ -34,7 +34,7 @@ services and boundaries (the ledger, git, Lean's `lake`, the file system, HTTP).
 - **The types rule out the states the domain rules out.** Every domain value
   has its own type (an opaque type with its instances), and each fact is stored
   once.
-- **Effects are algebras with interpreters.** A service or boundary is a
+- **Effects are algebras with interpreters.** A service is a
   `trait X[F[_]]`. Its interpreters (live, in-memory) are built by smart
   constructors, as a `Resource` when they hold something. Programs are
   polymorphic in `F` and ask for the least capability they need. `IO` is chosen
@@ -104,10 +104,12 @@ The source tags are expanded in `references/sources.md`.
 - **B1 (H)** A core type holds its data and the essential operations that follow
   from its meaning. They are pure and total. [Ghosh, FPiS]
 - **B2 (H)** Interpreters live outside the type, each in its own package:
-  running, checking at run time, evaluating examples, printing for people or
-  for Lean, codecs and persistence. [Ghosh, Volpe, FPiS]
-- **B3 (H)** Dependencies point inward. A core package does not import
-  `runtime`, `example`, `testing`, printing, `cats.effect` or a codec. [Volpe, Bernhardt]
+  running, testing, evaluating examples, printing for people or for Lean,
+  codecs and persistence. [Ghosh, Volpe, FPiS]
+- **B3 (H)** Dependencies point inward. `core`, `dsl`, `proof` and `decision`
+  import no `cats.effect`, codec, `Files`, randomness or environment, and no
+  module names of another what `project/architecture.conf` does not list; core's
+  `ArchitectureSuite` checks both, and package cycles. [Volpe, Bernhardt]
 - **B4 (M)** Design the algebra first: the operations and their laws, in
   Scaladoc and as property tests, before the representation. [FPiS ch. 7-9, Ghosh]
 - **B5 (H)** Configuration of how something runs (sampling rate, report sink)
@@ -115,7 +117,7 @@ The source tags are expanded in `references/sources.md`.
 
 ### Architecture: algebras, interpreters, programs, modules (A)
 
-- **A1 (H)** An effectful service or boundary is an algebra over `F[_]`
+- **A1 (H)** An effectful service is an algebra over `F[_]`
   (`trait Ledger[F[_]]`) when there is a point in it: a second interpreter
   exists or is wanted (in-memory, pure `State`, `TestControl`), a law suite
   runs against it, or the programs using it gain from being limited to the
@@ -163,20 +165,20 @@ The source tags are expanded in `references/sources.md`.
 - **T5 (M)** Coherence: one instance per type, in the companion of the type or
   the type class. No orphans and no local givens that shadow. [cats guidelines]
 - **T6 (H)** Implicit conversions are only for DSL literal lifting, all in one
-  file. Using one to hide an access, such as `Boundary[T] => T`, is a finding.
+  file. Using one to hide an access, such as a value converted to its contents, is a finding.
   [Scala 3 ref: contextual]
 - **T7 (M)** Use `using` and context bounds for type classes, capabilities and
   typing witnesses only (A4). [Scala 3 ref: using]
 - **T8 (M)** Use extension methods for the API of opaque types and for syntax,
   never to attach interpreters to a core type. [Scala 3 ref: opaques]
-- **T9 (M)** Derive `Codec` on DTOs in `protocol` only. [Volpe]
+- **T9 (M)** Derive `Codec` on the rows in `wire` only: no domain type has a codec. [Volpe]
 - **T10 (L)** Use `EitherT`, `OptionT` or `Kleisli` inside a program when they
   make a chain of steps clearer. Keep them out of algebra signatures. [cats EitherT]
 
 ### Effects (E)
 
-- **E1 (H)** The core is pure: `node`, `kb`, `term`, `types`, `vocabulary`, Lean
-  printing and `check/analysis` take no `F` and perform no effect. [FPiS ch. 13, Bernhardt]
+- **E1 (H)** The core is pure: `core`, `dsl`, `proof` and `decision` take no `F`
+  and perform no effect; `eval` only through `cats-effect-kernel` and `-std`. [FPiS ch. 13, Bernhardt]
 - **E2 (M)** A program reads its inputs once through algebras, then calls pure
   functions. [Bernhardt, Volpe]
 - **E3 (H)** Side effects are suspended only in interpreters, with `Sync[F].delay`,
@@ -312,8 +314,8 @@ It is approximate, so read the code it points at before you report.
 | Budget | Limit | Exception |
 |---|---|---|
 | Fields per case class or enum case | 6 | none: group them by concept (V3) |
-| Optional or defaulted fields per type | 2, each absent in the domain (D7) | wire compatibility in `protocol` (V4) |
-| Explicit parameters per function (`using` and context bounds excluded) | 4 | DSL entry points that mirror the user's operation's arity (`expect(a, b, result, note)`) |
+| Optional or defaulted fields per type | 2, each absent in the domain (D7) | wire compatibility in `wire` (V4) |
+| Explicit parameters per function (`using` and context bounds excluded) | 4 | DSL entry points that mirror the arity of the user's function type (`Declaration` and `Definition` applied to five or six arguments) |
 | Non-blank lines per `def` | 20 | one `match` over an ADT whose cases are at most 2 lines each |
 | Nesting of blocks and lambdas | 3 levels | none (checked by reading) |
 | Public members of a core type, or operations of an algebra | 8 | none (checked by reading) |
@@ -322,12 +324,14 @@ It is approximate, so read the code it points at before you report.
 | Top-level types per file | 1, with its companion | none |
 | Files per package | 3 to 15 | the facade package `frflow` |
 
-The baseline when this skill was written (`measure.py --summary` on
-`modules/*/src/main/scala`): 20 types over the field budget (largest
-`SnapNode` 31, `Overview` 30, `Node` 24), 15 over the optional-field budget,
-55 functions over 4 parameters, 51 functions over 20 lines (largest
-`Eval.compile` 99), 4 files over 200 lines, 204 files wider than 120 columns,
-and 3 packages over 15 files.
+`bin/budget.py modules` gates the budgets it measures (line width, file and
+`def` length, parameters, files per package) in CI, against
+`bin/budget-baseline.txt`, which is empty: a change may add no violation. It
+reads the three exceptions above off the code (a `def` that is one `match` of
+cases of at most two lines; an `apply` in an extension on a function type taking
+one parameter per input; the facade package), and `bin/test_budget.py` tests it.
+When the rebuild started, today's library had 20 types over the field budget
+(`SnapNode` 31, `Overview` 30, `Node` 24) and 55 functions over 4 parameters.
 
 ## 4. Reviewing
 
@@ -336,7 +340,7 @@ there, go through the modules in dependency order, and check each file against
 the rules. Report each finding on one line:
 
 ```
-[H] modules/model/src/main/scala/frflow/node/Node.scala:14 D1 — Node holds six kinds' fields (24, 20 optional); kind decides which are set → enum Node with one case per kind
+[H] modules/<module>/src/main/scala/frflow/<module>/<package>/<Type>.scala:14 D1 — <Type> holds three kinds' fields (9, 6 optional); kind decides which are set → enum <Type> with one case per kind
 ```
 
 End with the themes the findings share, and with the core types and algebras
@@ -344,7 +348,7 @@ that need a new theory (section 5).
 
 ## 5. Changing a core type
 
-The full procedure, with a worked plan for `Node` and one for a boundary, is in
+The full procedure, with the plans that rebuilt `Node` and the ledger's store as worked examples, is in
 `references/refactoring.md`. In short:
 
 1. **Baseline.** Green `sbt test` (and `sbt leanTest` when Lean output is

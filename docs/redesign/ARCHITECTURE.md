@@ -14,7 +14,7 @@ Beside this file, in `docs/redesign/`:
 | `dependencies.txt` | today's package and module dependencies, measured |
 | `planned/` | the planned code: nine of the twelve modules, compiled, with suites |
 | `lean-spike/` | rooms' and auth's Lean as the printer gives it, built by `lake`, with proofs |
-| `tools/budget.py` | the size budgets, measured over `planned/` |
+| `tools/` | scripts the design used; the size budgets are `bin/budget.py` since step 14 (`python3 bin/budget.py modules`) |
 
 Source paths below are under `planned/src/<module>/`; rooms is `planned/test/project/frflow/rooms/`, auth
 `planned/test/project/frflow/auth/`.
@@ -843,7 +843,7 @@ reads the state in the world a statement holds in, `storedBookings.in(book(reque
 program is one `Flow[R]` (owner §42), written as a `for` comprehension: an operation applied, `inRoom(request.room)`, is
 a step where one is expected (`Flow.step`, given implicitly). Lean sees what it saw with a boundary: a class with the
 operations named as the Definitions, the model's operations as `do` blocks, `World`, and the instance on `StateM World`
-(`next/proof/src/test/resources/rooms/Models.lean`, the module `Models`, each class `<Model>.Ops`). The program's run on
+(`modules/proof/src/test/resources/rooms/Models.lean`, the module `Models`, each class `<Model>.Ops`). The program's run on
 the models is `bookIfGranted_run`.
 
 The World is the application at one moment, as the proofs see it (owner §33): code never sees it, and a statement
@@ -1570,7 +1570,7 @@ audited too. A check is current while its key holds, and the key includes FrFlow
 reads of it) and the toolchain.
 
 `CrmModulesSuite` prints four of crm's files byte for byte (`Boundaries.lean`, `Def_expireOnce.lean`,
-`Def_expireOnce_run.lean`, `ExpiryJob/Spec.lean`); rooms' four golden files (`next/proof/src/test/resources/rooms/`)
+`Def_expireOnce_run.lean`, `ExpiryJob/Spec.lean`); rooms' four golden files (`modules/proof/src/test/resources/rooms/`)
 state owner §21 and compile; step 11 regenerates them for owner §25 (one type, `Booking`). Constants are printed typed
 at their root (2.9), so the goldens are no longer the spike's text verbatim; step 11 regenerates `lean-spike/Dump.lean`
 and rechecks `Proofs.lean`. Today's Lean is a reference, not a constraint (owner §2, D).
@@ -1666,9 +1666,9 @@ compiled. The agent layer (`agent`) never decides: its commands and routes read 
 
 Each module has its own top package (`frflow.core`, …), so `private[core]` is a real boundary. The planned code has
 the first nine; `cli`, `web` and `agent` keep their structure and are rebuilt on the new API. Serialization points
-outward: only the shell depends on `wire`. Five edges are between tests only (`test->test`): `next-proof` on
-`next-core`'s fixtures (`next-core % "compile->compile;test->test"`), `next-eval` on `next-proof`'s, `next-testing` on
-`next-eval`'s, `next-project` on `next-testing`'s and `next-api` on `next-project`'s; production `eval` never sees
+outward: only the shell depends on `wire`. Five edges are between tests only (`test->test`): `proof` on
+`core`'s fixtures (`core % "compile->compile;test->test"`), `eval` on `proof`'s, `testing` on
+`eval`'s, `project` on `testing`'s and `api` on `project`'s; production `eval` never sees
 `proof`. The agent depends on `cli` and `web`; `web` does not depend on `cli`. Front ends see `api.view` and `api.node`
 values, and the core, dsl, decision and eval values those hold (`NodeId`, `Decision`, `Refusal`, `Command`, `Standing`,
 `Unproven`, `Problem`, `Ty`, `Value`, …), never `project`, `proof`, `testing`, `wire`, `api.derive` or `api.shell`:

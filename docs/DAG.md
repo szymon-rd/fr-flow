@@ -1,403 +1,215 @@
 # FrFlow on a DAG of refinements: the design
 
-This file is the contract every change follows. Where code and this file disagree, this file wins; a
-change that needs to depart from it says so in its commit message and in this file.
+This file is the design every change follows, in brief; [redesign/ARCHITECTURE.md](redesign/ARCHITECTURE.md) is the
+full record, and [redesign/owner-decisions.md](redesign/owner-decisions.md) the owner's decisions it applies (§n
+below). Where code and these disagree, they win; a change that needs to depart from them says so in its commit message
+and in them.
 
 ## 0. Principles
 
-1. **A small set of roots.** A FrModel has one or a few root statements, on any of its Definitions and
-   relating them too, kept concise by its author: each states one idea, and together they are the idea's
-   purpose. A root claim is stated as *exactly* (what users can do and what must never happen, together), so
-   that a system that does nothing does not meet it. Where the purpose has one, the root is one relation
-   (`===`, "exactly when") between what users observe and what their requests entitle them to, defined over
-   the history of requests; a part proves that the state mirrors the history (keycloak's
-   `SessionsMirrorSignIns`). A conjunction at the root asks for a better observable, or for a second root. A
-   service's purpose may be stated of its flow: a root is then a claim on the flow's Definition, with parts
-   (§1a; `examples/rooms`: what booking stores, what it answers, and what the store always holds).
-2. **A tree of refinements, as a DAG.** Every other node refines the nodes above it, and may refine
-   several. Every edge is proven and every node is decided: a FrModel of why the system is as
-   it is.
-3. **Granular and understandable.** One node says one thing, in the developer's domain words, in one
-   sentence. A node that only restates its parent, or one conjunct of it, is not a node; one that
-   only renames terms is a definition, or folds into its parent. A formula that packs several
-   independent properties is split into parts. A parent should have 2 to 5 parts. The first split
-   is ⇒/⇐ (safety and capability) or state/reads, not one part per conjunct, and the top nodes each
-   name their `IDEA.md` section.
-4. **Domain-driven.** The root speaks in the most general terms (users, applications, access); nodes
-   below introduce the domain's concepts (realm, session, token) by decided definitions, as they are
-   needed. Each term has one meaning, written in words (`means`), and at most one definition in force.
-5. **Proofs are central.** Every edge is a Lean theorem; the code at the leaves is proven against its
-   contract where it is a `define`; what is trusted is a named, visible list.
+1. **A small set of roots.** A FrModel has one or a few root statements, on any of its Definitions and Declarations
+   and relating them too, kept concise by its author: each states one idea, and together they are the purpose (§11).
+   A root is stated as *exactly* (what users can do and what must never happen, together), so that a system that
+   does nothing does not meet it; the `idle` try asks it of the roots together. Where the purpose is more general
+   than the code, it is stated over Declarations, and claims at the bottom say what each is in terms of the code
+   (rooms' `bookedAfterIsStored`).
+2. **A graph of refinements.** Every other node refines the nodes above it, and may refine several, so the nodes form
+   a directed acyclic graph. Every step is proven, every node is decided: a model of why the system is as it is.
+3. **Granular and understandable.** One node says one thing, in the developer's domain words, in one sentence; no
+   concepts glued with `&&` (a style guide, not a check: §10, §16). A node that only restates its part is reported
+   (`restates`). A parent should have 2 to 5 parts. The first split is ⇒/⇐ (safety and capability) or state/reads,
+   not one part per conjunct.
+4. **Domain-driven.** The roots speak in the most general terms; nodes below introduce the domain's concepts as they
+   are needed. Each value has one meaning, written in words (`means`), and is given its meaning once.
+5. **Proofs are central.** Every step is a Lean theorem; the code at the leaves is proven where it is written in the
+   DSL, and tested where it is plain Scala; what is trusted is a named, visible list of assumptions. Nothing is
+   checked when the code runs (§2): FrFlow is for testing before production and strict static guarantees.
 
 ## 0a. The core concepts
 
-Three kinds of nodes, two kinds of values, two quantifiers; `examples/rooms` is written with these alone. The
-older kinds (contract, invariant, definition, `Param`, `allows`/`forbids`) still work, for the other
-examples, and are described below where they differ.
+Three kinds of nodes, two kinds of values, two quantifiers (§15); nothing else, under any name.
 
-- **Nodes.** `Node.claim(statement)(formula)`: proven from its parts, or tested where the Definitions it is
-  about are plain Scala. `Node.assumption(statement)(formula)`: trusted, the developer's decision: the outside
-  world, as a store's model (`bookingTable.behavesAs(storedBookings)`) or a fact of how the system is run
-  (`storedBookings.writtenOnlyBy(book)`, `storedBookings.changedOneRunAtATime`,
-  `storedBookings.startsSatisfying(neverOverlap)` or `storedBookings.initially(held => …)`); a fact is read by
-  FrFlow, Lean has nothing to say of it. What comes from outside has a type of its own, and what it meets is
-  an assumption `always` of that type (`always[Request](r => r.start < r.end)`): statements are about values,
-  not about a function's inputs.
-  `Node.design(statement, why)(files*)`: a decision about code no proof covers.
-- **Values.** `Declaration[A](means)`: an abstract idea, known only through the claims and assumptions about
-  it: no code or flow uses it, nothing implements it. `Definition[A](means)`: of any type, the only kind code
-  may use; it must get a meaning: a flow or a `define` (proven), plain Scala (tested against the claims on
-  it), or a value. `check` refuses a Definition nothing defines, and code using a Declaration. `define { … }`
-  is a Definition given its meaning on the spot.
-- **Quantifiers.** `forall` is every possible value (proven). `always[T](x => …)` is every value of `T` that
-  can be made: a hypothesis of every statement about such values, wherever they are held (each element of a
-  list of them, a field of a record holding one, what the models hold in a world); the tests draw only values
-  that hold it. `always(storedBookings)(s => …)` is every state the store reaches, kept by every program using
-  it, from a start that meets it. `always` holds where FrFlow covers the code: the
-  statements (assumptions included), flows and term-API code, and the boundaries of plain Scala
-  Definitions (their inputs and results); values entering from outside are covered by assumptions about
-  the outside world (`check` asks for one for each program given inputs from outside). There is no run-time
-  check. A claim needing a property of its inputs states it as the `always` of a domain type
-  (`always[RoomBookings](held => held.bookings.pairwise(apart))`), not as a precondition: Lean then proves it
-  wherever code makes such a value.
-- **A claim constrains every Definition and Declaration it mentions.** One applied to its `forall`'s
-  variables in order, and named nowhere else, is the claim's operation: its post is the formula with each
-  call read as the result, the code given to the Definition is checked against it, and code calling the
-  Definition is proven from it. A flow's runs are `book(request).answer(before)` and
-  `book(request).after(before)`, over `forall((request, before) => …)`.
-- **Edges.** `.refines(parent)` makes a node a part; `.assuming(assumption)` a premise, drawn below the node.
-- **One idea per statement**: no concepts glued with `&&`. A style guide for the library and its agents: no
-  check, no warning.
-- **Atomicity**: each program runs as one step. Where a proof needs it, an assumption node says so
-  (`changedOneRunAtATime`); asynchrony is out of scope.
+- **Nodes.** `Node.claim(statement)(formula)`: proven from its parts or of the code it mentions, or tested where the
+  code is plain Scala. `Node.assumption(statement)(formula)`: trusted, the developer's decision: the world outside the
+  code (what a model's state starts in, that only the code changes it, that runs on it never interleave, a
+  schedule), an outside system's promise, what values from outside meet. `Node.design(statement)(files*)`: a decision
+  about code no proof covers.
+- **Values.** `Declaration[A](means)`: abstract, known only through the statements about it; no code, define or
+  program uses it, nothing implements it. `Definition[A](means)`: of any type, what code and programs use; it must get
+  a meaning (§15). `define { … }` and `program { … }` are Definitions given their meaning on the spot.
+- **Quantifiers.** `forall` is every possible value. `always` is every value the code FrFlow covers can produce
+  (§19): `always[T](x => …)` every value of `T` that can be made, a hypothesis of every statement about such values
+  wherever they are held, met wherever covered code makes one; `always(stored)(s => …)` every state a model reaches,
+  kept by every program writing it, from a start that meets it. Values from outside are covered by an assumption of
+  `always` on their type (§21): statements are about values, not about a function's inputs.
+- **Edges.** `.refines(parent)` makes a node a part, or, for a claim of `always`, a rule below the statement it
+  serves (no part of the step); `.assuming(assumption)` a premise; `.replaces(other)` an alternative.
+- **The World** (§33, §41, §43): the application at one moment, one field per model's state. A statement holds in
+  every reachable world and never names it: what changes is read in the current one (`stored.current`), a program's
+  run is `p(x).result` and `p(x).after`, and `.current` names the world before a run where a statement reads one.
+  `t.isConstant` says no run changes `t` (§44, §45 A).
 
 ## 1. Vocabulary
 
-- `Opaque("Realm", means)`: a domain type, open until a definition fixes it.
-- `Param[T](means)`: a domain term of type `T`, open until a definition fixes it. It is a
-  fact of the world (`enabled`), or an **operation** of the system (`introspect`): a term some
-  contract or assumption is about (`op`), which code implements.
-- `define { (a: Term[A]) => ... }`: a named function over terms, a Lean `def` named as its val, run
-  as Scala.
-- `Boundary[T]("db", means)`: what proven code calls but cannot see, a trait `T` of operations that
-  take terms and return flows; `Node.assumption(boundary)(Model)` decides the state model it behaves
-  as (§1a).
-- `always[T](rule)` and `always(storedBookings)(rule)` (§0a): the rule is a `define` named as the claim's val.
-  Lean assumes the rule of each variable of the type a statement quantifies over (and of each element of a
-  list of them, and of a record's fields of the type), and of what the models hold in the world before a
-  flow runs; every program writing a store that holds such values is proven to keep the rule of the states
-  it leaves (`kept_by_<program>`, on the `always` claim); a store's start meets its rule (`initially`, from
-  the fact that says what it holds; a fact naming the claim, `startsSatisfying(neverOverlap)`, is a premise
-  of it, and Lean shows only that some state meets it). An `always` assumption is what the values of its type
-  from outside meet (the inputs of the programs called from outside): a hypothesis like a claim's, not proven.
-  It stands in only for those: a program that stores such a value still keeps it (`kept_by_<program>`), and a
-  step that hands one it made to a claim proves it. `check` reports an `always` claim about a type such inputs
-  have when no assumption says what they meet, and `status` warns of a statement whose Lean takes what an
-  assumption says of what comes from outside and does not list it (`.assuming`).
+- A domain type is a case class or an enum deriving `LeanType`: a Lean `structure` or `inductive`.
+- A Declaration may change with the World: Lean takes it as a function of the world where a statement reads it
+  beside something that changes, and as a value otherwise. A rule (`always`) may not read one that changes (§45 C).
+- A Definition gets its meaning once: in the FrModel (`implementProven`, `implementTested`, `implementValue`,
+  `implementProvided`), on the spot (`define`, `program`), or from a `StateModel` for an operation on a state.
+  `check` refuses one nothing defines, one defined twice, and code using a Declaration.
+- A define changes with the World exactly when its body reads state; it then takes the world last and is read in its
+  caller's world, or in the one it names (`ofRoom(room).in(w)`).
+- Names come from the `val`s: a node's id is its val's name, a Definition's and a Declaration's too. Renaming a val
+  renames the node: a new node to decide (`.replaces(old)` links them).
 
-Formulas and code are terms (`Term[A]`): a tree that prints as Lean and compiles to Scala, built by
-calling the Scala lambda once on variables. The library's operations are the language (`===`,
-`&&`, `forall`, `.on[Case]`, `when(c)(a).otherwise(b)` (`c.fold(a, b)`) and `o.fold(z)(x => ...)`, list
-(`xs :+ x` among them), option, map and set operations, a pair's `===`); anything else is a type error. A case class is built from terms by its name
-(`Booking(r.room, r.start, r.end)`); an enum built from terms has `object X extends Data[X]` as companion. Their Lean types are derived (structures and inductive
-types); a define's and a lambda's variable names are read from the lambda.
+## 1a. Programs and state models
 
-An open term is a Lean binder: what is proven holds for every value of it. Every term is open or has
-exactly one definition in force. The vocabulary is in modules of its own, so a change to one term
-rebuilds only the nodes that use it: `FrFlowGen/<Model>/Types.lean` holds the domain types and each type
-in force as an `abbrev`; each `define` and each defined term has a module, `Domain/Def_<name>.lean`
-and `Domain/Term_<name>.lean`, a term as a `def`; `Domain.lean` only imports them all. A node's
-own declarations (`claim`, `post`, `rule`) take every term they mention as a binder; its statements
-(`complete`, `holds`, the tries, `impl`, `root_impl`) apply them to the definitions in force. So a
-node's Lean does not change when a term it uses gets a definition; only its statements do. A defined
-term's Scala value is evaluated where it is used, under the bindings in force.
-
-A `Param` of an opaque type cannot be applied, in Scala, to the concrete type a definition fixes:
-parts below a type's definition are written in concrete terms, and definitions relate the general
-terms to them (`examples/auth`).
-
-## 1a. Flows, boundaries and state models
-
-A **flow** (`Flow[A]`) is code over boundaries, a monad relative to `Term` (`RelativeMonad[Flow, Term]`)
-written with `for`/`<-`/`yield` and Cats' combinators: `db.load`, `f *> g`, `xs.traverse_(x => ...)`,
-`xs.traverse`, `xs.foldM`, `c.foldF(f1, f2)`, `Flow.whenA(c)(f)`, `Flow.ifM(fc)(f1, f2)`. It is built once on
-symbolic values; its laws hold of what it gives in Lean and at run time.
-In Lean it is a generic `do` block, `def f {m} [Monad m] [B m] … : A → m R`, one class `B` per boundary
-(declared from the trait in `Boundaries.lean`). In Scala it runs in any `cats.effect.Sync`
-(`knowledge.run[F](contract)(boundary.bind(impl))`).
-
-A **state model** is an implementation of a boundary's trait over a state `S` (`StateModel[S]`), with
-`state.get`, `state.set(s)` and `state.update(f)`. In Lean it is a `def` per operation in `StateM S`;
-the models together make `structure World` (one field per boundary), an instance of each class on
-`StateM World`, and an `@[frflow_defs]` lemma per operation (`B.op_onWorld`, `rfl`). A state model
-assumes the boundary deterministic (unknowns go into the state; the proofs hold for every start
-state), never failing, the flow's alone during a run (a design node governs how), and loops over
-lists. The model's node is an assumption: decided and trusted, a hypothesis of nothing in Lean (the
-instance is the model). Its implementations are run against it (§1b): `.checkedAgainst(implementation, stateOf)`
-names an outside system (assumed: checked on the flows' examples and on generated runs);
-`.implementedBy(implementation, stateOf)` names the project's own code (tested on generated runs).
-
-A **contract on a flow** is on an operation `Param[A => Flow[R]]` (of 0 to 6 inputs, as any
-operation); its post relates the inputs, the result and the worlds before and after (`Model.in(before)`
-is the model's state before the call). Its `claim` takes the operation as a run on the models, `A → World → R × World`. The attached flow `f` is `f_run` there
-(`FrFlow.runOn (f a) w`), and `impl` is proven of it from the promises of the operations it calls.
-Such a contract may have no parent: production code runs it (an entry point). A proven flow takes no
-step of the outside world (`Flow.effect`, which production implementations use); a validation
-problem says so.
-
-A contract on a flow may have **parts**: the statements about what its code calls (a decision the flow
-makes with an operation, stated over the root's words), and the models of the boundaries it uses. Its
-code then makes it from them: `complete` is the step of the code, `∀ U, C1 → … → claim[op := f_run]`,
-the parts stated of the operations the code calls (the models are not hypotheses: the instance is the
-model), and `impl` is that step. Such a contract with no parents is the **root**: the service's purpose
-stated of its run (`examples/rooms`: "A room is never double-booked, and a request is booked exactly when
-its room is free", its parts the calendar's claim and the store's model). It needs its proven flow, and
-no examples (it is stated as a claim is, made by its parts).
+- **A program** is one type, `Flow[R]` (§42), written as a `for` comprehension; `A => Flow[R]` is a Definition's
+  type. Its steps are recorded once: Lean reads them, the Scala tests run them on the models, production folds them
+  into `F: Async` (`knowledge.running[F](…)`). Every combinator is kept: `atomically`, `when`, `cond`, `ifM`, `each`,
+  `collect`, `fold`, `parCollect(N)`, `parTupled`, `race`, `raise`, `handle`, `attempt`, `guarantee`, `bracket`,
+  `timeout`, `retry`.
+- **There is no boundary** (§36): what FrFlow cannot see is a Definition given plain Scala, whether it is the
+  project's code or calls an outside system. An operation on a state gets its meaning in Lean from a `StateModel`
+  (`inRoom.means(…)`, `add.means(…)` over `state`), its plain Scala tested against the model on generated runs. An
+  operation known only by assumptions (`fetch.assumed`) is an unknown function of its model's state, its assumptions
+  hypotheses, its Scala tested against them where it can be.
+- **What the world outside does** is said of the model: `onlyCodeChanges`, `initially(s => …)`, `atomic` (§31,
+  §32, §36), and of the clock `schedule`. Which programs change a state is derived from the code (§31).
+- **A failing program** declares its error on its Definition, `.failsWith[E]` (§45 B, §46); its `result` is then an
+  `Either[E, R]`, and FrFlow checks the declaration against the code.
+- **Time** (§47) is Cats Effect's: the clock is FrFlow's model (`Clock.now`, `Clock.sleep`, the world's own
+  `elapse`), steps of code take no time, the world moves the time on between runs and at each of the clock's steps,
+  waits at once take the longest of them; every rule and `isConstant` reading the clock survives time passing.
+- **Concurrency.** Steps at once are read in turn and proven to commute where they touch a model in common
+  (`commute_<i>`), so the reading stands for every interleaving.
 
 ## 1b. Proven, tested, assumed
 
-The code under a contract, or behind a boundary, is in one of three states, kept apart in the
-snapshot, `status` and `show`:
-- **proven**: a define or a flow, and `impl` proves it meets the contract;
-- **tested**: plain Scala under a contract (`implementTested(contract, calls*)(code)`), or the project's own
-  implementation of a boundary (`.implementedBy`); in Lean the operation stays a parameter with the
-  contract (or the model) as its hypothesis, so the proofs above rest on the contract alone, and
-  `root_impl` lists it under "tested, not proven";
-- **assumed**: an outside system (`.checkedAgainst`), or an assumption on an operation.
+- **Proven**: a `define` or a `program`, of which Lean proves the claims mentioning it.
+- **Tested**: plain Scala, tested against the claims mentioning it on generated cases (each argument drawn meeting
+  the rules on its type), or, for a model's operations, against the model on generated runs, two calls at once
+  among them.
+- **Assumed**: what an assumption says, trusted; plain Scala known only by assumptions is tested against them where
+  a generated run can evaluate them, and "trusted, not tested" otherwise.
 
-Where the code runs, `service` checks results as the contract's run-time check says: every call by
-default for plain code and outside adapters, none for a proven define that is the running code (its
-result is what Lean proves), or what the developer decided (`checkedAtRunTime`: `EveryCall`,
-`Sampled(n[, seed])`, `Never`; part of the node's content, so decided like the rest). Assumptions about
-the values the code runs with are checked whatever the choice. A failed check is reported (`Violation`,
-to the FrModel's reporter: a log line by default) before `ContractViolation` is thrown.
-
-Tests are built from what is decided:
-- **the property** is the contract's own formula (with its `checkedBy` check and kept invariants),
-  evaluated on each case; for a boundary, the model run beside the implementation, results and states
-  (read back) compared after every call;
-- **the cases** come from generators derived from the types, the world included (the parameters the
-  contract reads), seeded with the examples' values; generators given with `.withGenerator(gen)` are
-  described, checked against the examples (their values they never make stay seeds), and share
-  the cases with the derived ones (for an outside system's types, they are all there is);
-- **coverage** is of the formula (each premise, disjunct, branch and match case) and of the model
-  (each operation called, each branch taken): a part no case reached is a finding;
-- **failures** are shrunk (smaller values, fewer calls), kept in `.frflow/counterexamples.json` and
-  replayed first. Runs are seeded (`TestSettings(cases, seed)`; `FRFLOW_SEED` for one `check`), and
-  a result is kept while the node's meaning, code, settings and generators are the same
-  (`.frflow/tests.json`, derived).
+What proven code hands to plain Scala meets the rules on its type (`made_<code>_call_<i>`, §37): a proof only.
 
 ## 2. Nodes
 
-Kinds (JSON `kind`): `claim`, `contract`, `assumption`, `definition`, `design`. An invariant is a claim
-with a `rule`.
-
-| Kind | Scala | Lean |
-|---|---|---|
-| claim | `Node.claim(statement, why, idea = "")(formula)` | `def claim : Prop` over its open terms |
-| claim on a Definition | `Node.claim(statement)(forall((a: Term[A], b: Term[B]) => … op(a, b) …))`, `op` a `Definition` (or `Declaration`) applied to the forall's variables; a flow's `forall((a, before: Term[World]) => … op(a).after(before) …)` | as a contract's: `∀ a b, post(a, b, op(a, b))`, of every run for a flow; `impl` when proven code is attached |
-| `always` | `Node.claim(statement)(always[T](x => …))`, or `always(storedBookings)(s => …)` | `claim := True`: a hypothesis of the others; `kept_by_<program>`, `initially` |
-| root | a claim with no parents (a small set of them), or a contract on a flow with parts and no parents | as a claim (the flow's: its step is of its code), plus `idle` |
-| invariant | `Node.invariant[A, B](statement, why, scope)(rule)` | a claim whose parts are its keepers |
-| contract | `Node.contract(statement, why)(forall((a: Term[A], b: Term[B]) => … op(a, b) …))`, `op: Param[(A, B) => R]` (0 to 6 inputs), the same naming its operation (`Node.contract(op)(statement)(forall(…))`), or `Node.contract(op)(statement, why)(post)` when another operation is applied to the same inputs | `∀ a b, post(a, b, op(a, b))`; `impl` when a `define` is attached |
-| contract on a flow | `Node.contract(op)(statement, why)((a, r, before, after) => ...)`, `op: Param[A => Flow[R]]` (0 to 6 inputs) | `∀ a w, post a (op a w).1 w (op a w).2`; `impl` when a flow is attached |
-| assumption | `Node.assumption(op)(statement, why)(post)`, or `Node.assumption(statement, why)(formula)` | a hypothesis of `root_impl`: trusted |
-| fact | `Node.assumption(statement)(storedBookings.writtenOnlyBy(book))`, `….changedOneRunAtATime`, `….startsSatisfying(neverOverlap)` (or `….initially(s => …)`) | none: FrFlow reads it (an `always` of the store rests on the three) |
-| what comes from outside | `Node.assumption(statement)(always[Request](r => r.start < r.end))` | `claim := True`: a hypothesis of every statement about a `Request`, trusted |
-| model | `Node.assumption(statement)(bookingTable.behavesAs(storedBookings))`, or `Node.assumption(boundary)(Model)(statement, why)` | the boundary's class instance on `StateM World`: trusted |
-| definition | `Node.definition(statement, why)(Opaque := of[T], param := expr, ...)` | an `abbrev` in `Types.lean`, a `def` in its term's module |
-| design | `Node.design(statement, why)(files*)` | none: it governs code no proof covers |
-
-Edges:
-
-- `.refines(parents*)` on a claim, contract or design node: this node is a **part** of each
-  parent. Edges point up: adding a part never edits the parent's file. A design node under a node is
-  not a part of what it says.
-- `.assuming(assumptions*)` on a statement: each is a **premise** of its proof, trusted and drawn below it (a
-  formula's, a part in Lean; a model's, what its flow is proven on; a fact's, what FrFlow reads).
-- `.replaces(other)`: an **alternative**. Accepting one rejects the other. Two definitions of one term
-  are alternatives without `replaces`; until one is chosen, the nodes using the term are `waiting`,
-  and examples and `service` use the first listed.
-- A definition has no parents. It is used by every node whose statements mention a term it defines
-  (directly or through other definitions).
-- A contract keeps an invariant with `.keeps(inv)(view)`, which makes it a part of the invariant: the
-  invariant's formula is the conjunction, over its keepers, of `∀ a b, ∀ p ∈ view(a, b, op(a, b)),
-  rule(p)` (over as many inputs as the operation takes). Every contract in the invariant's scope keeps it or is `.exempt` with a reason; so is every
-  design node in the scope.
-
-Structure rules (`FrModel.problems`): at least one root (a claim without parents, or a contract without
-parents whose operation no code calls: on a flow, its purpose stated of its run); no cycles; an assumption or a contract has no parents only when code
-calls its operation, it is a model, or a flow implements it; a contract on a flow with parts has its flow
-proven (`implementProven`); a design node has a parent; a definition has none; at most one definition in
-force per term.
-
-Also part of the DSL: `examples(bindings*)(allows/forbids...)` (on a flow's contract, each with the
-world before and after), `checkedBy`, `checkedAgainst`, `implement`, `implementProven(contract)(define)`,
-`(define, runs)` and `(flow)`, `service`, `run`, `expects`, `forall`/`exists`.
-
-`IDEA.md`: the title and lead paragraph are the root claims'. Any node may name a section with
-`idea = "Section"`; a section no node names is a warning.
-
-`IDEA.md` is a decision of the developer's, kept in the ledger under `IDEA`: proposed until accepted, back for
-review when it changes. The root is decided after it. A node's meaning carries the text of the section it names
-(without `From:` lines, which say where a section comes from and move no node), so an edit to a section brings back
-the nodes naming it. A project starts empty (`sbt "frflowInit NAME"`): a FrModel with no nodes is valid while
-`IDEA.md` is written.
+- A claim with parts is proven from them: its parts, with the assumptions it lists, imply it (`complete`), each is
+  needed (`needed_<part>`). Its rules (claims of `always` below it) are no part of the step.
+- A claim mentioning proven code is proven of the code (`impl`), its parts or the claims about what the code calls
+  as hypotheses. A claim at the bottom mentioning a Declaration says what the Declaration is: it is never asked
+  `impl`, and the proven code stands in it in its consistency group (§3a).
+- A claim mentioning plain Scala is tested against it: read as a call where it applies the Definition to exactly its
+  leading `forall` variables, the whole formula evaluated otherwise; one with no Scala value is not checked, and
+  `status` warns when nothing else checks it.
+- An assumption is trusted, and listed by every check resting on it (`.assuming`), which FrFlow derives and checks:
+  a missing premise or one not needed is refused.
+- A design node governs files; a change to them brings it back. Every source file is governed by one node (an
+  implementation, or a design).
+- At least one root, never an assumption; no cycle over parts and premises; edges inside the model.
 
 ## 3. Lean obligations
 
-For each node N with parts C1..Cn (n ≥ 1), over the union U of the open terms the statements mention:
+What Lean is asked of each node is a function of the resolved theory (`proof.obligation.Obligations`). Generated Lean
+is under `lean/FrFlowGen/<Model>/` (a module per node, its `Spec` and its `Checks`, the models, the domain);
+developers' proofs under `lean/Proofs/<Model>/`.
 
-| Name | Statement | Proven by | Failing means |
-|---|---|---|---|
-| `complete` | `∀ U, C1 → … → Cn → N`; for a contract on a flow with parts, `N[op := f_run]` (its code) | matching, `frflow_auto`, or `theorem complete` in `lean/Proofs/<Model>/<N>.lean` | the parts do not make N: open |
-| `needed_C` (n ≥ 2) | tried: `∀ U, (∧ the other parts) → N` | `frflow_auto`, 4000 heartbeats | proven: C is not needed for N; the split is unproven |
-| `vacuous` (n = 1) | tried: `∀ U, N` | as above | proven: N says nothing its part adds; unproven |
-| `restates` (n = 1) | tried: `∀ U, N → C1` | as above | proven (with `complete`): N says what its part says; `status` warns of it |
-| `restates_i_C` (n ≥ 2) | tried, when N's claim is a top-level conjunction of n conjuncts, for each part C and conjunct i: `∀ U, C ↔ conjunct_i` | as above | proven: C says what conjunct i of N says, with the definitions applied; `status` warns of it |
-| `clash` | tried: `∀ U, C1 → … → Cn → False` | as above | proven: the parts contradict each other; failed |
-| `unsat` (every claim) | tried: `∀ U, ¬ N` | as above | proven: no world meets N; failed |
-| `feasible` | `∃ U, C1 ∧ … ∧ Cn` | in the proof file | asked only of an authored `complete` on a node nothing witnesses |
-| `idle` (roots only) | tried: the root with every operation doing nothing (`[]`, `none`, `False`, its input unchanged); a word left open above (`leftOpenAbove`) stays open, since the root holds for every meaning of it | Lean's default budget | proven: doing nothing meets the purpose; unproven |
-| `impl` | `∀ U, promises of the callees → claim[op := code]` | `frflow_auto` or authored | the `define` does not meet the contract |
-| `commute_i` | the `i`-th `parTupled` or `parTraverse` of the code: its branches in either order give the same result and world, from every world with no call failing | `frflow_auto` or authored | the branches need not commute: the code is proven of one order only, and the node stays open |
-| `check` | post → the `checkedBy` check | as above | the cheap check does not follow |
-| `cover_X`, `expect_i` | the view lists every value the rule is about; the expectation follows from N | as above | |
-| `kept_by_P`, `initially` (an `always` claim) | program `P`'s proven code keeps the claim's rule of the states it leaves, from a world where everything that always holds does, given what the operations it calls promise; what the store starts with meets the rule | as above | the code can leave a state the rule forbids |
-| `eval_i`, `probe_j` | an example, or an input near one, evaluated as Scala computes it | `frflow_eval` | Lean and Scala disagree: the Lean printer or the evaluator is wrong |
+| Obligation | Asked of |
+|---|---|
+| `complete`, `needed_<part>` | a claim with parts |
+| `impl` | a claim mentioning proven code |
+| `root_impl` | the roots, of the code, through the claims saying what each Declaration is |
+| `cover_<program>` | each program writing a store an `always` is about; `cover_elapse` where it reads the clock |
+| `made_<maker>` | each proven define, program or operation making a value an `always[T]` is about |
+| `made_<code>_call_<i>` | each call from proven code to plain Scala, of the arguments' rules |
+| `start_<node>` | an `always` about a store, from what `initially` says |
+| `outside` | a claim of `always[T]` whose `T`s come from outside |
+| `commute_<i>` | each two steps at once that touch a model in common |
+| `consistent_<i>`, `inhabited_<node>`, `satisfiable_<i>_<node>` | §3a |
+| `example_<i>` | §3b |
 
-A try is one-sided: `shown` means Lean proved it; `not-shown` means it found no proof within its
-budget, and its detail says so ("Lean found no proof that N holds without it (a try)"). Never read a
-`not-shown` try as a proof that a part is needed. `unsat` is the guard for a node no `feasible` is
-asked of: a contradictory node would make everything above it provable.
-
-A node is witnessed when it has proven code, is an assumption, or all its parts are witnessed. The
-assumptions' joint consistency is trusted.
-
-Composition: each node gets `theorem holds : ∀ U, Leaves → N` (the contracts, assumptions and
-part-less claims below N), built from the `complete` theorems in topological order; a shared node is
-proven once. The FrModel gets `theorem root_impl : ∀ U', Assumptions → Root[op := code for
-every op with a proven define]`. Its hypotheses are the trusted base, shown by `status`. `impl` is
-proven from the promises of the operations the code calls, never from their code.
-
-Lean modules per node: `Spec` (the claim, its `conjunct_i` when `restates_i_C` is tried, and the
-statements), `Auto` (`complete`; empty when the proof file proves it), `Theorems` (`holds`), `Impl`,
-`Checks` (the tries, `check`, `cover_X`, `expect_i`, `feasible`) and `Eval`; then `RootImpl.lean`.
-Before them, the vocabulary's: `Types`, a `Def_` or `Term_` module per `define` and defined term (a flow
-has `Def_<f>` and `Def_<f>_run`), `Boundaries` (the classes, the models, `World`), and `Domain`, which
-imports them. Each `Def_`, `Term_` and `Spec` ends with `frflow_match_eqns`, so a
-`match`'s equations are made where it is declared and not again in two modules a third imports.
-
-Library (`lean/FrFlow/`): `frflow_auto`, `frflow_intro` (binders by their generated names, `h_<Part>`
-for each part), `FrFlow.always`, `always_when` and `along_when` (over runs that keep to an assumption on each event), `simulates`, `tracks` and `tracks_eq`, `run_snoc`, list lemmas, and for
-flows `FrFlow.runOn` with its lemmas (`runOn_bind`, `runOn_pure`, `runOn_get`, `runOn_modify`,
-`runOn_within`, `runOn_forIn_unit`: a loop whose body yields nothing is a `foldl` over states).
-
-A node's check hash covers its own Lean, and its parts' statements (`holds`), not their proofs or
-code; a root's covers everything below it (its `root_impl`). A node is checked again when the hash moves, when a
-part stops being proven, or when the checker's version changes.
+The tries (`vacuous`, `restates`, `clash`, `unsat`, `idle`, `frozen`) are refuters, reported as shown or not shown. A
+step refuted carries the case Lean confirms. A rule is kept only as every rule its obligations take is: a statement is
+open while a rule it takes is open, for any reason (its `cover_`, its `made_`, its tests, nothing meeting it).
 
 ## 3a. Consistency and vacuity
 
-Beside each node's obligations, `check` asks Lean of the FrModel as a whole, in
-`FrFlowGen/<Model>/Consistency.lean` (recorded in `.frflow/consistency.json`, checked again when it changes):
-
-- **The statements hold together.** The statements at the bottom of the DAG (formal, with no parts, not an
-  `always`), grouped by the open terms they share: `∃ terms, C1 ∧ … ∧ Cn`, each term given a witness: what an
-  equation of a statement in the group says it is (`granted(held, request) === e` gives `fun held request =>
-  e`), its proven code, or a value the tests draw (a term no statement is about). The proven steps carry it up:
-  every node above holds of the same meanings. A term with no witness, or a Definition whose code is tested
-  Scala and that no equation gives, leaves its group not proven, and `check` says which; tested code is
-  evidence, not proof. The search for parts that contradict each other (`clash`) stays, as an early refuter.
-- **Nothing is vacuous.** Every `always` admits a value; some state meets what each store starts with; some
-  case meets each claim's condition (`a` in `forall(xs => a implies b)`). Witnesses are drawn as the tests draw
-  values (a few tried, the empty one first); Lean proves the rule of one.
-
-The summary says `consistency proven` or `consistency not proven`, and `nothing vacuous` or `something may be
-vacuous`; `check` lists each thing asked. It is a status of its own: it does not fail `status`.
+- **Consistency** (§15, §18, §28): the statements at the bottom and the assumptions beside them, in groups sharing an
+  open value, each `consistent_<i>`: some meaning of every open value makes them all hold. Witnesses are derived where
+  possible (an equation, a bound, a fixed value, proven code, solved in order); a group FrFlow cannot witness is
+  proven by hand (§39). A group not proven is a failure, not a warning: the whole model's proof is red, and so is
+  every statement proven from parts over a Declaration while a group below it is not proven. Tested Scala alone is
+  evidence, not proof.
+- **Vacuity**: positive statements guard against a model that says nothing (a root stated as *exactly*), and two
+  small proofs: `inhabited_<node>`, some value meets an `always` (with every other `always` on its type), and
+  `satisfiable_<i>_<node>`, each condition `A` of `A implies B` can hold. Witnesses come from the generators or a
+  search of small values. Reported, not gated.
 
 ## 3b. Examples written as tests
 
-Examples leave the nodes: in a project's tests, `class GrantedExamples extends FrFlowExamples(rooms):` with
-`example("back to back: granted"):` and
-`granted(RoomBookings("Oak", List(Booking("Oak", 9, 10))), Booking("Oak", 10, 11)) is true`. `sbt test` runs each on the
-code and on the claims about the Definition Scala can evaluate. `check` reads the compiled suites (the project's
-test classes, `-Dfrflow.tests`), makes each a case of every claim on its Definition, evaluates it in Lean (where
-Scala cannot evaluate the claim, Lean alone decides it: a claim that refuses the example fails), and runs it on
-the code. They are not part of what a node is decided as, and nothing (consistency, vacuity, any rule) depends on
-them; a contract no longer needs an `allows` and a `forbids`.
+Examples are ordinary tests (`class GrantedExamples extends FrFlowExamples(rooms)`, `example(name): fact`), read by
+`check`, evaluated against the code and in Lean against the claims (`example_<i>`). Nothing depends on them (§18): the
+theory and its Lean are the same without them. An example whose values break a rule on their type is refused.
 
 ## 4. Snapshot (`.frflow/kb.json`), per node
 
-- `kind`, `parents`, `parts` (in the model's order), `replaces`, `op`, `rule` (an invariant).
-- `defines` (a definition's terms); `uses` (the definitions in force it depends on); `relies` (the
-  contracts its code calls, but not one marked `leftOpenAbove` whose operation its statement names: such a
-  statement holds whatever that operation does; nor one below it: a contract on a flow made by its code from its
-  parts rests on them, and they are decided after it).
-- `split`: `{complete, needed: [{id, status, detail}], clash}`. `complete` is `proven`, `open`,
-  `failed`, `unchecked` or `timeout`; a try is `shown` or `not-shown` (with one part, `needed` holds
-  `vacuous`).
-- `status`: the check of its statement (`proven`, `open`, `failed`, `model-error`, `waiting`,
-  `timeout`, `unchecked`); none for definitions and design nodes. `waiting`: proven itself, but a part
-  is not yet, or a term it uses has two definitions and neither is chosen.
-- `leaf` (a claim nothing below proves), `idle` (on the root, what doing nothing is when Lean shows it
-  meets the root), `rootImpl`, `obligations` (each with its statement), `holds`, `examples`,
-  `invariants`, `expectations`, `implementationProof`.
-- `content`: what the developer decides. A statement's content carries `parts`; definitions and design
-  nodes have none.
-- Top level: `root`, `definitions`, `trusted` (the hypotheses of `root_impl`), the vocabulary.
+An export for tools, in decision order; FrFlow never reads it back.
+
+- `header`: `id`, `kind` (`claim`, `assumption`, `design`), the content as decided and its `hash`, what a decision
+  binds.
+- `place`: `parents`, `parts`, `assumes`, `relies` (the claims about what its code calls), `keptBy` (the programs
+  keeping a rule).
+- `check`: `status`, `holds`, and its `obligations`, each with its name, status and Lean's detail.
+- `body`: for a claim or an assumption (`stated`), how it is checked, the call it reads as, its code and its tests
+  (cases, against what, seed); for a design, the files it `governs`.
+- Top level: `kb`, `roots`, `trusted` (what the roots rest on), the vocabulary (each value and what it means),
+  `consistency` (each group: its statements, open and provided values, status), and the examples as checked.
+
+A node's content is its fields as decided: `kind`, `parents`, `parts` (a claim's), `assumes`, `statement`, `formula`
+(the canonical print of the elaborated formula, what a decision binds), `written` (the source, for display),
+`vocabulary`, and for code `checking`, `writers`, `governs`, `call`, `replaces`, `reliance`, `failure`,
+`implementation`, `model`.
 
 ## 5. Decisions
 
-- A node is decided once, whatever the number of its parents. Its decided content includes its
-  statement, formula and `why`, and for a node with parts, the list of its parts.
-- **Causes.** `self`: its content changed, without `parts` and `parents`, and with the `.refines(...)`
-  calls taken out of its source (a design node keeps `parents`). `parts`: the set of its parts changed.
-  `above`: its `parentChain` changed, that is the meaning of its parents, of the definitions it uses
-  and of the contracts its code calls, each with its own chain. A node's meaning has no `parts`, so a
-  new sibling reviews the parent only, and a change above a diamond moves the shared node once. Also
-  `code`, `revisit`, `merged` (two decisions following the same one: two branches).
-- **Review follows meaning.** Rewording a formal node, with what Lean reads unchanged, reviews that
-  node (`self`) and not what rests on it: its chain is read with the reworded node as it was decided.
-  Its review lists the decisions below it, to revisit by name. Any change of a formula cascades.
-- **Accepting** a node whose own content did not change is recorded as a `confirm`: the reason it was
-  chosen stays. A node is confirmed only once all it rests on is accepted, parents first. Accepting a
-  change acts on `below`: everything that rests on it, however far down (parts, users of a
-  definition, callers of a contract, keepers of an invariant), each once, parents first. Those named
-  with `--revisit` are revisited; those that moved only with it are confirmed.
-- **Mechanical**: a node under review, not a definition or a design node, whose causes are among
-  `self`, `above` and `parts`, whose own content did not change, that Lean proves again with its
-  examples passing; under `parts`, with `complete` proven, no part shown not needed and no clash
-  shown. The mechanical batch is one decision (`confirm`).
-- **Order.** A proposal, or a node whose `above` moved, waits for the first of its parents, then the
-  definitions it uses and the contracts its code calls, that is not accepted (`waitsFor`).
-- **Alternatives** are `replaces` and two definitions of one term; siblings are parts, not
-  alternatives. The annotated snapshot gives each node its `rivals`; accepting one rejects them.
-- **Refused**: a decision on a node that moved since the developer saw it (`seen`), a reason of fewer
-  than a few words, a rejection of a node that is not a proposal.
-- **The ledger** holds, per node, its decisions in order. Each records the content and chain it was
-  bound to, the reason, the alternatives rejected, the commit (code diffs run against it), the
-  decision it follows, and the developer's signature. A decision not signed by a key in
-  `.frflow/keys/` is a warning. On disk a decision names its content by the reference its signature
-  covers; `contents` holds each content once, as references to its fields' values (one per element of
-  a list), and `values` each value once. A decision that changes one example adds that example and a
-  line for the content, not the node again; a content that does not hash to its name does not read.
-- **Held aside.** A layer on top may hold a node out of the developer's queue (for example, while
-  the node is asked of someone); the inbox lists it apart, and nothing else about it changes.
+- A node is decided once, whatever the number of its parents; its decided content is its content (§4).
+- **Causes.** `self`: what it says changed. `parts`: its list of parts. `above`: the meaning of what it rests on
+  (its parents, the values it uses, the claims its code relies on), each with its own chain; a node's meaning has no
+  parts, so a new sibling reviews the parent only, and a change above a diamond moves the shared node once. `code`:
+  the code it governs. `revisit`: the developer asked. `merged`: two decisions following the same one (two
+  branches). `writers`: a new program started changing a store its rule is about (§31).
+- **Review follows meaning.** Rewording a node with what Lean reads unchanged reviews that node and not what rests
+  on it. Any change of meaning cascades.
+- **Accepting** a node whose own content did not change is a `confirm`: the reason it was chosen stays. Accepting a
+  change acts on what rests on it, each once, parents first; those named with `--revisit` are revisited, those that
+  moved only with it confirmed.
+- **Mechanical**: a node under review whose own content did not change, that Lean proves again, its examples
+  passing. The mechanical batch is one decision (`confirm`).
+- **Order.** A node waits for the first node it rests on that is not accepted: a parent, a premise, a value it uses.
+- **Alternatives** are `replaces`; accepting one rejects the other.
+- **Refused**: a decision on a node that moved since the developer saw it, a reason of fewer than three words, code
+  failing a generated case or not tested since it moved, a decider not listed, a ledger whose committed history was
+  rewritten.
+- **Who decides** (§2): `.frflow/deciders`, committed and signed by a listed key, names the keys whose decisions
+  count. The ledger holds, per node, its decisions in order, each with the content it binds, the reason, the
+  alternatives rejected, the commit, the decision it follows and its signature; a node's committed history must be
+  a prefix of the working one, or nothing of it counts until a listed decider runs `rebase` (`.frflow/ledger-base`).
+- **Held aside.** A layer on top may hold a node out of the developer's queue (while it is asked of the agent); the
+  inbox lists it apart, and nothing else about it changes.
 
 ## 6. Reading a node, and where a change belongs
 
-`show --full NODE` gives what bears on a node: its idea section, the vocabulary it uses
-with the definitions in force, its ancestors with their reasons, its co-parts under each parent, its
-parts, the rejected alternatives and why, what moved, and its obligations in Lean. `find` searches
-nodes, reasons, rejected options, gone nodes, the idea and Not modelled, and names the nodes that
-govern a file. A new statement belongs under the lowest nodes it helps prove, as a part; never as a
-restatement. A rejection's reason that asks for something is answered by a node in its place.
-`scaffold` writes proof stubs that start with `unfold Obl.X`, `frflow_intro` and
-`simp only [frflow_defs] at *`; `check` prints the goal they leave when automation gives up.
+`show --full NODE` gives what bears on a node: its statement and formula, why it was accepted, how it is checked,
+where it sits, its parts and the rules it uses, what moved, and its obligations in Lean. `find` names the nodes that
+govern a file, or mention some words. A new statement belongs under the lowest nodes it helps prove, as a part; never
+as a restatement. A rejection's reason that asks for something is answered by a node in its place. `scaffold` writes
+proof stubs for what the last check left open; `check` prints the goal Lean leaves when automation gives up.
 
-The developer's flow is in the CLI. The `web` module serves it in a
-browser (the sbt task `sbt "PROJECT/serve --as NAME"`, not a CLI command) over the same API, so a decision is
-recorded alike from either. Both take layers on top (`Extension`: a `CliExtension`'s commands and what it
-adds to a view; a `WebExtension`'s routes and script); the core depends on none. The AI agent's layer is one,
-described in [USAGE.md](USAGE.md#with-an-ai-agent).
+The developer's flow is in the CLI. The `web` module serves it in a browser (the sbt task
+`sbt "PROJECT/serve --as NAME"`, not a CLI command) over the same API, so a decision is recorded alike from either.
+Both take layers on top (`Extension`: a `CliExtension`'s commands and what it adds to a view; a `WebExtension`'s
+routes and script); the core depends on none. The AI agent's layer is one, described in
+[USAGE.md](USAGE.md#with-an-ai-agent).

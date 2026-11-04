@@ -5,6 +5,11 @@ like FrFlow's code where possible, and the source it comes from (expanded in
 `sources.md`). The good examples show a shape. A change to a core type still
 goes through `refactoring.md`, where the owner approves the design.
 
+Many bad examples are taken from the library before the rebuild (its `Node`,
+`Param`, `Boundary`, `SnapNode`, `Overview`, the `model` and `protocol`
+modules), deleted in step 14: they show what each rule finds, and the rebuilt
+modules (`docs/redesign/ARCHITECTURE.md`) show how each was resolved.
+
 ## Domain modelling
 
 ### D1 One concept per type

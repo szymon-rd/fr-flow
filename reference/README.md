@@ -1,8 +1,8 @@
-# Reference: today's outputs
+# Reference: the library before the rebuild
 
-What today's FrFlow gives for each example, recorded before the rebuild (step 0 of section 9 of
-`docs/redesign/ARCHITECTURE.md`). Each ported example's `PortSuite` and the `WalkthroughSuite` compare against it.
-Nothing here is read by today's FrFlow.
+What FrFlow gave for each example before the rebuild ("today's" library below, deleted in step 14), recorded in step
+0 of section 9 of `docs/redesign/ARCHITECTURE.md`. Each ported example's `PortSuite` and the `WalkthroughSuite`
+compare against it; nothing else reads it.
 
 ## How it was captured
 
