@@ -555,10 +555,11 @@ one, a `cover_` or a `made_` not proven) while one is not (the step 13d re-revie
 cell kept positive, while a zeroing breaks it). What each kind takes is said once, where the kinds are
 (`Obligations.takes`, one case per kind): `complete`, `feasible` and `impl` the rules the node's claim takes
 (`Reads.taken`: its variables, its `isConstant`'s equations, the worlds it reads, the `forall`s of the defines it
-reads); `root_impl` every root's; `cover_<op>` the run's inputs and the world it starts from, of `elapse` every
-store's (`Reads.coverTaken`); `made_<maker>` the maker's inputs and world, `made_<code>_call_<i>` the calling code's
-and every value rule; `commute_`, the tries, `start_`, `inhabited_`, `consistent_`, `satisfiable_` and the examples
-none (two steps from any world; a refutation; the `initially`s; witnesses).
+reads), and `root_impl` of a root its claim's, each root's conjunct under its own guards; `cover_<op>` the run's
+inputs and the world it starts from, of `elapse` every store's (`Reads.coverTaken`); `made_<maker>` the maker's inputs
+and world, `made_<code>_call_<i>` the calling code's and every value rule; `commute_`, the tries, `start_`,
+`inhabited_`, `consistent_`, `satisfiable_` and the examples none (two steps from any world; a refutation; the
+`initially`s; witnesses).
 
 **A step over what makers make.** `complete` takes, for each maker its parts' claims are about, the `made_` of every
 rule kept of it (proven of the maker's code) as an `m_<rule>_<maker>` hypothesis, as a caller's `made_` already takes

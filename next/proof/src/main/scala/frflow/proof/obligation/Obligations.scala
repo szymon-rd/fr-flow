@@ -25,10 +25,9 @@ object Obligations:
     */
   def takes(r: Resolved, n: NodeId, o: ObligationName): List[NodeId] = (o match
     // the node's claim as `def claim` states it (`Lowering.guards`): its variables, its isConstant's equations over
-    // each writer's inputs, the worlds it reads, and the defines' `forall`s it reads through
-    case Complete | Feasible | Impl => Reads.taken(r.theory, n)
-    // every root of the code, each its claim
-    case RootImpl                   => r.theory.refinement.roots.flatMap(x => x.id :: Reads.taken(r.theory, x.id))
+    // each writer's inputs, the worlds it reads, and the defines' `forall`s it reads through; of `root_impl`, the
+    // roots' claims together, each its own guards: of this root, its claim's
+    case Complete | Feasible | Impl | RootImpl => Reads.taken(r.theory, n)
     // the run's inputs and the world it starts from (`Required.keeps`, `Required.outside`)
     case Cover(op)                  => Reads.coverTaken(r.theory, SymbolName(op))
     // the maker's inputs and world (`Made.of`), or the calling code's (`Made.atCalls`)
