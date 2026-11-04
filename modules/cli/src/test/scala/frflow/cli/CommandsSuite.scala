@@ -3,167 +3,171 @@ package frflow.cli
 import cats.effect.{ExitCode, IO}
 import cats.syntax.all.*
 import com.monovore.decline.Command as Sub
-import frflow.api.*
-import frflow.cli.command.*
-import frflow.cli.text.*
-import frflow.protocol.*
+import frflow.api.view.Stop
+import frflow.api.{Lean, Opened, Shelf}
+import frflow.cli.command.{Asked, Command, Commands}
+import frflow.cli.term.Style
+import frflow.core.name.NodeId
+import frflow.decision.rules.Command as Decide
 
-/** The command line as CI meets it: what parses, and the exit codes. */
+/** The command line as CI and the developer meet it: what parses, the exit codes, and what `find`, `check` and `ci`
+  * say, over the API in memory.
+  */
 class CommandsSuite extends munit.CatsEffectSuite:
-  private val st = Style(color = false, unicode = false, width = None)
-  private def parse(args: String) = Sub("frflow", Commands.header())(Commands.all()).parse(args.split(" ").toList, Map.empty)
+  private def parse(args: String) =
+    Sub("frflow", Commands.header(Nil))(Commands.all(Nil)).parse(args.split(" ").toList, Map.empty)
+  private val (nonNegative, sameAbove) = (NodeId("nonNegative"), NodeId("sameAbove"))
+  private def decide(make: String => Decide, about: Option[NodeId], why: Option[String]) =
+    Command.Decision(make, about, Asked(why, None, yes = true))
 
   test("every command parses, --plain before or after it; a usage error is the help with errors") {
-    List("tree", "tree Root --json", "show Decide --full --json", "diff Decide", "inbox --json", "review --as dev", "reject Expiry --reason no",
-      "confirm -m same", "revisit Root -m look", "gone Old -m renamed --yes", "render", "check", "check Pick --json", "status --json", "ci",
-      "find some words", "scaffold Pick")
-      .foreach(a => assert(parse(a).isRight, a))
+    List("tree", "tree root", "show decide --full", "diff decide", "inbox", "review --as dev", "reject expiry -m no",
+      "confirm -m same", "revisit root -m look", "gone old -m renamed --yes", "rebase --as ann --yes",
+      "deciders --as ann", "render", "check", "check pick --json", "status --json", "ci", "export",
+      "find some words", "scaffold pick").foreach(a => assert(parse(a).isRight, a))
     // the web view is an sbt task, not a command; the agent's commands are a layer's, not FrFlow's
-    assert(List("serve", "ask Decide name the user", "said hello").forall(parse(_).left.exists(_.errors.nonEmpty)))
-    assertEquals(List("--plain tree", "tree --plain", "tree").map(parse(_).map(_._2)), List(Right(true), Right(true), Right(false)))
-    parse("accept A B --revisit C -m why --yes") match
-      case Right((Command.Decision(make, asked), _)) =>
-        assertEquals((make("why"), asked), (Decide.Accept(List(NodeId("A"), NodeId("B")), "why", List(NodeId("C"))), Asked(Some("why"), None, true)))
-      case other => fail(other.toString)
-    assert(List("nope", "tree A B", "show").forall(parse(_).left.exists(_.errors.nonEmpty)))
+    assert(List("serve", "ask decide name the user", "said hello").forall(parse(_).left.exists(_.errors.nonEmpty)))
+    assertEquals(List("--plain tree", "tree --plain", "tree").map(parse(_).map(_._2)),
+      List(Right(true), Right(true), Right(false)))
+    parse("accept a b --revisit c -m why --yes") match
+      case Right((Command.Decision(make, about, asked), _)) =>
+        assertEquals((make("why"), about, asked), (Decide.Accept(List(NodeId("a"), NodeId("b")), "why",
+          List(NodeId("c")), Map.empty), None, Asked(Some("why"), None, true)))
+      case other                                            => fail(other.toString)
+    assert(List("nope", "tree a b", "show", "deciders").forall(parse(_).left.exists(_.errors.nonEmpty)))
   }
 
   test("exit codes: status 1 until every node is accepted and proven, then 0; a usage error 2; no Lean 3") {
     for
-      term <- Scripted(Nil, interactive = false)
-      open <- FakeApi().flatMap(Dispatch(_, term, st)(Command.Status(json = false)))
-      complete <- FakeApi(Sample.decided, Sample.ledger).flatMap(Dispatch(_, term, st)(Command.Status(json = false)))
-      out <- term.output
-      unknown <- FakeApi().flatMap(Dispatch(_, term, st)(Command.Decision(Decide.Revisit(NodeId("Nope"), _), Asked(Some("look"), None, yes = true))))
-      noReason <- FakeApi().flatMap(Dispatch(_, term, st)(Command.Decision(Decide.Gone(NodeId("Old"), _), Asked(None, None, yes = true))))
-      failed <- List(FrFlowError.UnknownNode(NodeId("Nope")), FrFlowError.ModelProblems(List("a cycle")), FrFlowError.LeanMissing).traverse(FrFlowApp.failed(term, _))
+      api                <- Opened.api(Opened.trusted)
+      (open, _)          <- Cli.all(api, Command.Status(json = false))
+      _                  <- Cli.accepted(api)
+      (done, text)       <- Cli.all(api, Command.Status(json = false),
+                              decide(Decide.Revisit(NodeId("nope"), _), Some(NodeId("nope")), Some("look again here")),
+                              decide(Decide.Gone(NodeId("old"), _), Some(NodeId("old")), None))
+      term               <- Scripted(Nil)
+      stops              <- List(Stop.UnknownNode(nonNegative), Stop.NoLean, Stop.NoVersion("ledger"))
+                              .traverse(Launch.failed(term, _))
     yield
-      assertEquals((open, complete), (ExitCode(1), ExitCode.Success))
-      assert(out.contains("Nothing waits: every node is accepted and proven."), out)
-      assertEquals((unknown, noReason, failed), (ExitCode(2), ExitCode(2), List(2, 1, 3).map(ExitCode(_))))
+      assertEquals(open, List(ExitCode(1)))
+      assertEquals(done ++ stops, List(0, 2, 2, 2, 3, 1).map(ExitCode(_)))
+      assert(text.contains("Nothing waits: every node is accepted and proven, or its code tested."), text)
   }
 
-  test("find: the nodes that mention some words, each with its sentence; wrapped to a terminal's width") {
-    def find(q: String, st: Style) = FakeApi().flatMap(api => api.view.flatMap(v => api.find(v, q).map(f => ReportText.found(f, v, st))))
-    find("stolen token", st).map { out =>
-      assertEquals(out.headOption, Some("What mentions it:"))
-      assert(out.contains("- Expiry: A session ends an hour after sign-in."), out)
-    } *> List("stolen token", "user", "src/main/scala/auth/Cache.scala", "dragons").traverse_(q => find(q, st.copy(width = Some(40))).map { out =>
-      assert(out.size > 1 && out.forall(Style.visible(_) <= 40), out.mkString("\n"))
-    })
-  }
-
-  test("check: a node Lean proved with its impl open reads open, as check exits on it; proven when nothing is open") {
-    def checked(c: CheckedNode) = FakeApi().flatMap(_.view).map(v => ReportText.check(CheckReport(List(c), v, Overview.of(v)), st).head)
-    val proven = CheckedNode(NodeId("Decide"), CheckStatus.Proven, Nil, Nil, Nil, None, Nil, None)
-    (checked(proven.copy(notProven = List(ObligationName.Impl))), checked(proven)).mapN { (open, done) =>
-      assertEquals(open, "o Decide: open (impl not proven)")
-      assertEquals(done, "+ Decide: proven")
-    }
-  }
-
-  test("check: a contract whose code fails a generated case reads failed, with the case, shrunk") {
-    val failure = TestFailure("token = \"t1\", path = Path(\"/b\")", "returned Some(UserId(\"alice\")), which Decide forbids", 1, 0, 1)
-    val failing = CheckedNode(NodeId("Decide"), CheckStatus.Proven, Nil, Nil, Nil, None, Nil, None, Some(failure))
-    FakeApi().flatMap(_.view).map { v =>
-      val text = ReportText.check(CheckReport(List(failing), v, Overview.of(v)), st)
-      assertEquals(text.take(2), List("x Decide: failed",
-        "  its code fails a generated case: token = \"t1\", path = Path(\"/b\"): returned Some(UserId(\"alice\")), which Decide forbids"))
-      assert(!CheckReport(List(failing), v, Overview.of(v)).ok)
-    }
-  }
-
-  test("check: a contract whose code is tested, not proven, says it is tested; proven stays for what Lean proves") {
-    val tested = TestReport(1000, 1, "Decide")
-    val ok = CheckedNode(NodeId("Decide"), CheckStatus.Proven, Nil, Nil, Nil, None, Nil, None, codeTested = Some(tested))
-    FakeApi().flatMap(_.view).map { v =>
-      def line(c: CheckedNode) = ReportText.check(CheckReport(List(c), v, Overview.of(v)), st).head
-      assertEquals(line(ok), "+ Decide: code tested on 1,000 cases")
-      assertEquals(line(ok.copy(codeTested = Some(tested.copy(coverage = List(Covered("x", 0)))))),
-        "+ Decide: code tested on 1,000 cases, but they never reached a part of the claim")
-      assertEquals(line(ok.copy(codeTested = None)), "+ Decide: proven")
-      assertEquals(line(ok.copy(codeTested = None, step = true)), "+ Decide: step proven")
-    }
-  }
-
-  test("check: code failing a contract that changed under it says the contract changed, on the node's line") {
-    val failure = TestFailure("held = List(Booking(\"Oak\", 12, 17)), request = Booking(\"Oak\", 0, 12)", "returned true, which Decide forbids", 1, 0, 1)
-    val moved = CheckedNode(NodeId("Decide"), CheckStatus.Proven, Nil, Nil, Nil, None, Nil, None, Some(failure), contractChanged = true)
-    FakeApi().flatMap(_.view).map { v =>
-      val text = ReportText.check(CheckReport(List(moved), v, Overview.of(v)), st).takeWhile(_.nonEmpty)
-      assertEquals(text, List("x Decide: the claim changed and its code no longer meets it: " +
-        "held = List(Booking(\"Oak\", 12, 17)), " +
-        "request = Booking(\"Oak\", 0, 12): returned true, which the claim now forbids"))
-      assert(!moved.ok)
-    }
-  }
-
-  test("check: a node with one obligation open says it on its line, its name left out; with several, each in words") {
-    val broken = Result(ObligationName.Complete, ObligationStatus.Open,
-      "the proof from its parts no longer goes through: overlaps changed\nLean: omega could not prove the goal:\na - c ≤ -1")
-    val open = CheckedNode(NodeId("Decide"), CheckStatus.Open, List(ObligationName.Complete), List(broken), Nil, None, Nil,
-      Some("fix the proof in lean/Proofs/Auth/Decide.lean"))
-    FakeApi().flatMap(_.view).map { v =>
-      def text(c: CheckedNode) = ReportText.check(CheckReport(List(c), v, Overview.of(v)), st).takeWhile(_.nonEmpty)
-      assertEquals(text(open), List("o Decide: the proof from its parts no longer goes through: overlaps changed",
-        "    Lean: omega could not prove the goal:\n    a - c ≤ -1", "  ! fix the proof in lean/Proofs/Auth/Decide.lean"))
-      val two = open.copy(problems = List(broken, Result(ObligationName.Impl, ObligationStatus.Open, "not proven")))
-      assertEquals(text(two).head, "o Decide: open")
-      assert(text(two)(1).startsWith("  the proof from its parts no longer goes through: overlaps changed\n"),
-        text(two))
-    }
-  }
-
-  test("find: a path that names no file says so; one no node governs says that") {
-    def find(q: String) = FakeApi().flatMap(api => api.view.flatMap(v => api.find(v, q).map(f => ReportText.found(f, v, st).mkString(" "))))
-    (find("nope/Cache.scala"), find("src/main/scala/auth/Cache.scala")).mapN { (missing, ungoverned) =>
-      assertEquals(missing, "There is no file or directory nope/Cache.scala (paths are relative to the project's directory).")
-      assert(ungoverned.startsWith("No node governs src/main/scala/auth/Cache.scala"), ungoverned)
-    }
-  }
-
-  test("a node gone from the model: show and diff say so, with its last decision; renamed, when a node says the same") {
-    // StoreKeeps renamed: the same statement under another name.
-    val snapshot = Sample.decided.copy(nodes = Sample.decided.nodes.map(n => if n.id == Sample.store.id then n.copy(id = NodeId("StoreReturnsLast")) else n))
+  test("find: the nodes that mention some words, each in a line; wrapped to a terminal's width") {
     for
-      api <- FakeApi(snapshot, Sample.ledger)
-      term <- Scripted(Nil, interactive = false)
-      codes <- List(Command.Show(NodeId("StoreKeeps"), Depth.Normal, json = false), Command.Diff(NodeId("StoreKeeps")), Command.Inbox(json = false),
-        Command.Show(NodeId("Nope"), Depth.Normal, json = false)).traverse(c => Dispatch(api, term, st)(c).handleErrorWith(FrFlowApp.failed(term, _)))
-      out <- term.output
+      api   <- Opened.api(Opened.before)
+      (_, t) <- Cli.all(api, Command.Find("negative NUMBER"), Command.Find("dragons"))
+      term  <- Scripted(Nil)
+      _     <- Cli.run(api, term, Command.Find("service gives"), Style.plain.copy(width = Some(40)))
+      wide  <- term.output
     yield
-      assertEquals(codes, List(ExitCode.Success, ExitCode.Success, ExitCode.Success, ExitCode(2)))
-      // named as the code names them: the val's name
-      assertEquals(out.count(_ == "- storeKeeps  gone from the model"), 2, out.mkString("\n"))
-      val all = out.mkString("\n")
-      assertEquals(out.count(_ == "  last accepted by dev (2026-01-02 10:00): storeKeeps holds as stated"), 2, all)
-      val renamed = "  renamed to storeReturnsLast (it says the same): gone storeKeeps agrees that it is gone"
-      assertEquals(out.count(_ == renamed), 2, all)
-      assert(out.contains("  storeKeeps  renamed to storeReturnsLast: The store returns what was last written."), all)
-      assert(out.contains("error: unknown node Nope"), out.mkString("\n"))
+      assert(t.contains("What mentions it\n  ! nonNegative  claim  proposed  The service never gives a negative " +
+        "number."),
+        t)
+      assert(t.contains("Nothing governs or mentions \"dragons\""), t)
+      assert(wide.size > 2 && wide.forall(Style.visible(_) <= 40), wide.mkString("\n"))
   }
 
-  test("IDEA.md waits for the developer, first: the root is decided after it, and accepting it twice is refused") {
-    val idea = "# Shelf\n\nA shelf hands out the good books.\n\n## Picking\nFrom: Q1\nOnly long books are picked.\n"
+  test("check: a node whose obligation Lean does not prove reads open, with Lean's message; proven when none is") {
     for
-      api <- FakeApi(Sample.snapshot.copy(idea = idea), Sample.ledgerNow)
-      term <- Scripted(Nil, interactive = false)
-      before <- api.view
-      root = before.snapshot.root.flatMap(before.node).get
-      _ <- Dispatch(api, term, st)(Command.Inbox(json = false))
-      refused <- Dispatch(api, term, st)(Command.Decision(Decide.Accept(List(root.id), _), Asked(Some("as decided"), None, yes = true)))
-      accepted <- Dispatch(api, term, st)(Command.Decision(Decide.Accept(List(IdeaReview.Id), _), Asked(Some("it says what the shelf is for"), None, yes = true)))
-      after <- api.view
-      again <- Dispatch(api, term, st)(Command.Decision(Decide.Accept(List(IdeaReview.Id), _), Asked(Some("again"), None, yes = true)))
-      out <- term.output
+      failing       <- Opened.api(Opened.trusted, lean = Lean.Proving(Set("complete"), Set.empty))
+      (codes, text) <- Cli.all(failing, Command.Check(None, json = false))
+      proven        <- Opened.api(Opened.trusted)
+      (fine, done)  <- Cli.all(proven, Command.Check(None, json = false))
     yield
-      assertEquals(before.annotated.idea.map(_.state), Some(ReviewState.Proposed))
-      assertEquals(root.review.waitsFor, Some(IdeaReview.Id))
-      assertEquals((refused, accepted, again), (ExitCode(1), ExitCode.Success, ExitCode(1)))
-      assertEquals(after.annotated.idea.map(_.state), Some(ReviewState.Accepted))
-      assertEquals(after.snapshot.root.flatMap(after.node).flatMap(_.review.waitsFor), None)
-      val text = out.mkString("\n")
-      List("IDEA.md, first", "IDEA.md, not accepted yet: read it, then accept IDEA",
-        "error: accept IDEA first: what rests on it is decided after it", "error: IDEA is already accepted")
-        .foreach(l => assert(text.contains(l), s"$l\n$text"))
+      assertEquals((codes, fine), (List(ExitCode(1)), List(ExitCode(0))))
+      assert(text.contains("o aboveMinusOne: open\n  complete: open\n"), text)
+      assert(text.contains(": unsolved goals"), text)
+      assert(done.contains("+ aboveMinusOne: proven"), done)
+  }
+
+  test("check: a claim whose code fails a generated case reads failed, with the case, shrunk") {
+    Opened.api(Opened.project(Shelf.Careless.kb)).flatMap(Cli.all(_, Command.Check(None, json = false))).map {
+      (codes, text) =>
+        assertEquals(codes, List(ExitCode(1)))
+        assert(text.contains("x nonNegative: fails a generated case: ("), text)
+        assert(text.contains("its result breaks the claim (seed "), text)
+    }
+  }
+
+  test("check: a claim whose code is tested, not proven, says it is tested; proven stays for what Lean proves") {
+    Opened.api(Opened.before).flatMap(Cli.all(_, Command.Check(None, json = false))).map { (_, text) =>
+      assert(text.contains("+ nonNegative: proven; its code tested on 200 cases"), text)
+    }
+  }
+
+  test("check: a model's operations' Scala, tested against it, is said beside the assumption only the code writes it") {
+    Opened.api(Opened.rooms).flatMap(Cli.all(_, Command.Check(None, json = false))).map { (_, text) =>
+      assert(text.contains("+ nothingElseWrites: inRoom and add's Scala tested against storedBookings on 200 runs"),
+        text)
+    }
+  }
+
+  test("check: rooms accepted, its table's Scala then forgetting to add: the nodes resting on it are listed, exit 1") {
+    for
+      ports         <- Opened.ports()
+      _             <- Opened.over(Opened.rooms, ports).flatMap(Cli.accepted)
+      forgets       <- Opened.over(Opened.project(rooms.Forgetting.everyNode), ports)
+      (codes, text) <- Cli.all(forgets, Command.Check(None, json = false))
+    yield
+      assertEquals(codes, List(ExitCode(1)))
+      assert(text.contains("x nothingElseWrites: a generated run differs from the model: from List(), add("), text)
+      assert(text.contains("the Scala holds List() where the model holds List(("), text)
+      val resting = List("storeWhenFree", "answerWhenFree", "neverOverlap", "bookingsOfTheRoom", "roomBookingsApart")
+      assert(resting.forall(n => text.contains(s"o $n: proven\n")), text)
+      assertEquals(text.split("not proven: its code fails a generated case", -1).length - 1, resting.size + 1, text)
+  }
+
+  test("check: code failing a claim that changed under it says the claim changed, on the node's line") {
+    for
+      ports         <- Opened.ports()
+      _             <- Opened.over(Opened.before, ports).flatMap(Cli.accepted)
+      strict        <- Opened.over(Opened.project(Shelves.Strict.kb), ports)
+      (codes, text) <- Cli.all(strict, Command.Check(None, json = false))
+    yield
+      assertEquals(codes, List(ExitCode(1)))
+      assert(text.contains("x nonNegative: the claim changed and its code did not: the code fails a case of the " +
+        "changed claim: (0)"), text)
+  }
+
+  test("check and ci stream each level on stderr as Lean starts it; ci exits 0 only when complete, nothing warned") {
+    for
+      api          <- Opened.api(Opened.trusted)
+      (first, t1)  <- Cli.all(api, Command.Ci)
+      _            <- Cli.accepted(api)
+      (second, _)  <- Cli.all(api, Command.Ci)
+    yield
+      assertEquals(first ++ second, List(ExitCode(1), ExitCode(0)))
+      assert(t1.contains("error: check: level 1 of 2: nonNegative\nerror: check: level 2 of 2: aboveMinusOne"), t1)
+  }
+
+  test("a node gone from the model: show and diff say so; an unknown name is a usage error") {
+    for
+      ports         <- Opened.ports()
+      _             <- Opened.over(Opened.before, ports).flatMap(Cli.accepted)
+      fewer         <- Opened.over(Opened.project(Shelves.Fewer.kb), ports)
+      (codes, text) <- Cli.all(fewer, Command.Show(sameAbove, frflow.cli.text.Depth.Normal), Command.Diff(sameAbove),
+                         Command.Inbox, Command.Show(NodeId("nope"), frflow.cli.text.Depth.Normal))
+    yield
+      assertEquals(codes, List(0, 0, 0, 2).map(ExitCode(_)))
+      assertEquals(text.linesIterator.count(_.startsWith("sameAbove is gone from the model")), 2, text)
+      assert(text.contains("Gone from the model (gone NODE agrees it is gone)\n  sameAbove"), text)
+      assert(text.contains("error: unknown node nope"), text)
+  }
+
+  test("accept or reject a node gone from the model: rejecting it agrees it is gone, accepting it is refused") {
+    val why = Some("the part is no longer needed")
+    for
+      ports         <- Opened.ports()
+      _             <- Opened.over(Opened.before, ports).flatMap(Cli.accepted)
+      fewer         <- Opened.over(Opened.project(Shelves.Fewer.kb), ports)
+      (codes, text) <- Cli.all(fewer, decide(n => Decide.Accept(List(sameAbove), n, Nil, Map.empty), Some(sameAbove),
+                         why), decide(Decide.Reject(sameAbove, _, None), Some(sameAbove), why))
+      view          <- fewer.reading.view
+    yield
+      assertEquals(codes, List(ExitCode(1), ExitCode(0)))
+      assert(text.contains("error: sameAbove is gone from the model: it cannot be decided on"), text)
+      assert(text.contains("sameAbove is gone from the model: recording that you agree it is gone"), text)
+      assertEquals(view.gone, Nil)
   }

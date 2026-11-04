@@ -1,84 +1,44 @@
 package frflow.agent
 
-import cats.effect.{IO, Resource}
-import frflow.agent.queue.*
-import frflow.agent.request.*
-import frflow.api.{Decide, Developer, Host, Inbox, LiveApi}
-import frflow.check.Workspace
-import frflow.fixtures.shelfKb
-import frflow.protocol.*
+import cats.effect.{ExitCode, IO, Resource}
+import cats.syntax.all.*
+import com.monovore.decline.Command as Sub
+import frflow.api.{FrFlowApi, Host, Opened}
+import frflow.cli.command.{Commands, Dispatch}
+import frflow.cli.term.Style
+import frflow.cli.{Launch, Scripted}
+import frflow.decision.rules.Command as Decide
 import java.nio.file.{Files, Path}
-import java.util.Comparator
-import scala.util.Using
 
-/** The agent layer over a project on disk: its files beside the ledger, the live API under it. */
+/** The agent layer as a project's main object passes it (`Agent`): its records in the project's `.frflow/`, a temporary
+  * directory here, over the API in memory.
+  */
 class AgentLiveSuite extends munit.CatsEffectSuite:
-  private val dir = ResourceFunFixture(Resource.make(IO.blocking(Files.createTempDirectory("frflow-agent")))(d =>
-    IO.blocking(Using.resource(Files.walk(d))(_.sorted(Comparator.reverseOrder()).forEach(Files.delete(_))))))
-  private def project(d: Path) = d.resolve("project")
-  private def env(d: Path) = Map("FRFLOW_KEY" -> d.resolve("signing.key").toString)
-  private def host(d: Path, kb: frflow.FrModel = shelfKb) =
-    LiveApi(kb, Workspace(project(d), "../lean"), env(d)).map(Host(_, project(d), env(d)))
-  private val dev = Developer("demo")
+  private val temp = ResourceFunFixture(Resource.make(IO.blocking(Files.createTempDirectory("frflow-agent-live")))(d =>
+    IO.blocking(Files.walk(d).sorted(java.util.Comparator.reverseOrder()).forEach(p => Files.delete(p)))))
 
-  dir.test("the developer asks; the agent answers the request; a rejected node is the agent's to replace") { d =>
-    val why = "a shelf is not where picked books come from"
-    for
-      h <- host(d)
-      a <- AgentApi.live(h)
-      asked <- a.ask(Some(NodeId("OnlyGood")), "Say what makes an item good.", dev)
-      id = asked.fold(r => fail(r.message), _.id)
-      answered <- a.answer(id.value, "Books says it: a book is good when it is long enough.")
-      unknown <- a.ask(Some(NodeId("Nope")), "Say more.", dev)
-      empty <- a.ask(None, "  ", dev)
-      _ <- h.api.decide(Decide.Reject(NodeId("FromList"), why), dev)
-      v <- h.api.view.flatMap(a.read)
-    yield
-      assertEquals(answered, Right(id))
-      assertEquals(v.requests.map(q => (q.id, q.node, q.status, q.answer)),
-        List((id, Some(NodeId("OnlyGood")), RequestStatus.Answered, Some("Books says it: a book is good when it is long enough."))))
-      assertEquals((unknown, empty), (Left(AgentRefusal.UnknownNode(NodeId("Nope"))), Left(AgentRefusal.NoText)))
-      assert(v.forAgent.contains(ForAgent.Replace(NodeId("FromList"), dev.name, why)), v.forAgent)
-      // the agent's files sit beside the ledger; FrFlow's view does not read them
-      assert(Files.isRegularFile(AgentApi.requestsFile(project(d))))
-  }
+  private def run(api: FrFlowApi[IO], host: Host[IO], t: Scripted, args: String*): IO[ExitCode] =
+    Sub("frflow", "")(Commands.all(List(Agent))).parse(args.toList, Map.empty) match
+      case Right((c, _)) => Dispatch(api, host, t, Style.plain)(List(Agent))(c).handleErrorWith(Launch.failed(t, _))
+      case Left(help)    => IO(fail(help.toString))
 
-  dir.test("a project starts in chat: the words and questions recorded, IDEA.md written from them and accepted, then the root") { d =>
-    import frflow.{FrModel, Node, True}
-    val empty = FrModel("Toy", idea = "IDEA.md")()
-    val toyRoot = Node.claim("A reader borrows exactly the books on the shelf that nobody else holds.",
-      why = "The idea's purpose, as the developer confirmed it in chat.")(True)
-    val idea = "# Toy\n\nA shelf of books readers borrow.\nFrom: Q1\n\n## Borrowing\nFrom: Q1, Q2\nA reader borrows a book nobody holds.\n"
-    def write(text: String) = IO.blocking { Files.createDirectories(project(d)); Files.writeString(project(d).resolve("IDEA.md"), text) }
+  temp.test("the developer asks; the agent answers the request; a rejected node is the agent's to replace") { d =>
+    val reject = Decide.Reject(frflow.core.name.NodeId("nonNegative"), "a bound says more than a sign here", None)
     for
-      h <- host(d, empty)
-      a <- AgentApi.live(h)
-      // the developer's words, and the agent's questions, each with the answer it assumes
-      _ <- a.said("A shelf of books that readers borrow.")
-      q1 <- a.asked("Can a reader hold several books?", "Yes, any number.")
-      q2 <- a.asked("Can two readers hold one book?", "No: a book is held by one reader at a time.")
-      _ <- a.replied("Q1", "Yes.")
-      talking <- h.api.view.flatMap(a.read)
-      // the agent writes IDEA.md from the conversation: it waits for the developer
-      _ <- write(idea)
-      written <- h.api.view
-      accepted <- h.api.decide(Decide.Accept(List(IdeaReview.Id), "it says what the shelf is for"), dev)
-      confirmed <- h.api.view.flatMap(a.read)
-      // then the root, proposed: decided after IDEA.md
-      withRoot <- host(d, FrModel("Toy", idea = "IDEA.md")(toyRoot))
-      proposed <- withRoot.api.view
-      // a changed answer: a warning of the agent layer's, beside FrFlow's
-      _ <- a.replied("Q1", "Yes, at most three.")
-      warned <- withRoot.api.view.flatMap(a.read)
+      api   <- Opened.api(Opened.before)
+      host   = Host.of(api, d, Map.empty)
+      t     <- Scripted(Nil, interactive = false)
+      asked <- run(api, host, t, "ask", "nonNegative", "name the number plainly", "--as", "ann")
+      text  <- t.text
+      id     = "R[0-9a-z]+".r.findFirstIn(text).getOrElse("R?")
+      codes <- List(run(api, host, t, "answer", id, "named it plainly"),
+                 api.deciding.decide(reject, "ann").as(ExitCode(0)), run(api, host, t, "inbox")).sequence
+      out   <- t.text
+      file  <- IO.blocking(Files.readString(d.resolve(".frflow/requests.json")))
     yield
-      assertEquals((q1.map(_.id), q2.map(_.id)), (Right("Q1"), Right("Q2")))
-      assertEquals(talking.conversation.said.map(_.text), List("A shelf of books that readers borrow."))
-      assertEquals(talking.conversation.unanswered.map(_.id), List("Q2"))
-      assertEquals((talking.view.annotated.idea, talking.view.nodes), (None, Nil))
-      assertEquals(Inbox.of(written).idea.map(_.state), Some(ReviewState.Proposed))
-      assertEquals(accepted.map(_.decisions.map(_.node)), Right(List(IdeaReview.Id)))
-      assertEquals((confirmed.view.annotated.idea.map(_.state), confirmed.warnings), (Some(ReviewState.Accepted), Nil))
-      assertEquals(proposed.node(NodeId("ToyRoot")).map(r => (r.state, r.review.waitsFor)), Some((ReviewState.Proposed, None)))
-      assert(warned.warnings.exists(_.contains("the answer to Q1 changed after IDEA.md was accepted")), warned.warnings)
-      assert(!warned.view.warnings.exists(_.contains("Q1")), warned.view.warnings)
+      assertEquals(asked :: codes, List.fill(4)(ExitCode(0)))
+      assert(file.contains("named it plainly"), file)
+      assert(out.contains("Answers to read (close REQUEST when read)"), out)
+      assert(out.contains("nonNegative: rejected by ann: a bound says more than a sign here"), out)
+      assert(Files.isRegularFile(Path.of(d.toString, ".frflow", "requests.json")))
   }

@@ -1,29 +1,39 @@
-package frflow.cli
-package text
+package frflow.cli.text
 
-import frflow.api.*
-import frflow.protocol.*
+import frflow.api.node.NodeView
+import frflow.api.view.{View, Views}
+import frflow.cli.say.Unprovens
+import frflow.cli.term.Style
+import frflow.core.name.NodeId
+import frflow.decision.review.ReviewState
 
-/** What waits for the developer; then what layers on top add (`c`); the summary last. */
+/** What waits for the developer (`inbox`): the mechanical batch, each node to decide in order with why, the decided
+  * nodes gone from the model, what layers on top add, then the summary.
+  */
 object InboxText:
-  import Lines.section
+  def lines(v: View, st: Style, layers: Contribution): List[String] =
+    val (batch, rest) = queue(v, layers.aside).partition(mechanical)
+    val body = Lines.section("Mechanical: Lean proves them again, and nothing in them is a choice (confirm takes them)",
+        batch.map(Lines.node(_, st, 2)), st) ++
+      Lines.section("To decide, in order (review, or accept / reject NODE)", rest.flatMap(waits(_, st)), st) ++
+      Lines.section("Gone from the model (gone NODE agrees it is gone)", v.gone.map(_.value), st) ++
+      layers.inbox.flatMap((title, ls) => Lines.section(title, ls, st))
+    val head = if body.isEmpty then List("Nothing waits for the developer.") else body.drop(1)
+    head ++ ("" :: SummaryText.lines(v, waiting(v, layers.aside), st, layers.waiting))
 
-  /** `v`: the view the inbox was read from, for a gone node renamed. */
-  def lines(i: Inbox, v: View, st: Style, c: Contribution = Contribution.empty): List[String] =
-    def waiting(w: Queued) =
-      Lines.node(w.node, st, 4, w.waitsFor.fold("")(x => st.dim(s"  after $x"))) ::
-        w.followers.map(f => st.dim("  " + Words.follower(f, w.node.id, st)))
-    val idea = i.idea.toList.flatMap { r =>
-      val how = if r.state == ReviewState.Review then "changed since you accepted it" else "not accepted yet"
-      Lines.para(s"${st.bold("IDEA")}  ${st.yellow(s"IDEA.md, $how")}: read it, then accept IDEA (the root is decided after it)", st)
-    }
-    val body =
-      section("IDEA.md, first", idea, st) ++
-        section("Warnings: status fails on each", (i.warnings ++ c.warnings).map(w => st.red(s"${st.bullet} $w")), st) ++
-        section("For the developer, in order (review, or accept / reject NODE)", i.queue.flatMap(waiting), st) ++
-        section(s"Mechanical: Lean proves them again, nothing in them is a choice (confirm decides all ${i.mechanical.size})",
-          i.mechanical.map(Lines.node(_, st, 4)), st) ++
-        section("Gone from the model (gone NODE)", i.gone.map(Details.gone(v, _)).map(g => st.fit(s"${st.bold(g.gone.id.value)}" +
-          s"${g.renamedTo.fold("")(y => st.yellow(s"  renamed to $y"))}: ${g.gone.decision.content.statement}", 2)), st) ++
-        c.inbox(st)
-    (body ++ ("" :: SummaryText.lines(i.overview, st, c.waiting(st)))).dropWhile(_.isEmpty)
+  /** The nodes waiting, in the order to decide them. */
+  def queue(v: View, aside: Set[NodeId]): List[NodeView] = Views.inbox(v, aside).flatMap(v.node)
+
+  /** How many nodes wait for the developer, the gone ones among them. */
+  def waiting(v: View, aside: Set[NodeId]): Int = Views.inbox(v, aside).size + v.gone.size
+
+  /** Under review, and `confirm` takes it in its batch. */
+  def mechanical(n: NodeView): Boolean =
+    n.review.standing.state == ReviewState.Review && n.review.notMechanical.isEmpty
+
+  /** Its line, and why it waits: what moved, or what it waits for. */
+  def waits(n: NodeView, st: Style): List[String] =
+    val why = n.review.waitsFor.map(w => s"decide $w first: what rests on it is decided after it")
+      .orElse(Option.when(n.review.standing.state == ReviewState.Review)(
+        s"to review: ${n.review.standing.causes.map(Unprovens.cause).mkString("; ")}"))
+    Lines.node(n, st, 2) :: why.toList.map(w => st.fit(st.dim(s"  $w"), 2))

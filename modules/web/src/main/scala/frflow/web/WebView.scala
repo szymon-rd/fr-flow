@@ -1,25 +1,37 @@
 package frflow.web
 
-import cats.effect.IO
+import cats.effect.{IO, Resource}
 import cats.syntax.all.*
 import com.comcast.ip4s.{Port, ipv4}
-import frflow.api.{Developer, Host}
+import frflow.api.{FrFlowApi, Host}
+import java.net.URI
 import org.http4s.ember.server.EmberServerBuilder
 
-/** The web view: the page and the API's routes on localhost, in the project's own process (its model compiled once). */
+/** The web view: the page and the API's routes on localhost, in the project's own process (its model compiled once),
+  * deciding as `developer`, with what the layers on top add. Held while the resource is: its link carries the
+  * session's token.
+  */
 object WebView:
-  /** Serves until stopped, deciding as `dev`, with what the layers on top add; prints the link, which carries the token. */
-  def serve(host: Host, dev: Developer, port: Int, layers: List[WebExtension] = Nil): IO[Unit] =
-    val api = host.api
+  /** How long a stop waits for open connections (a browser keeps one alive). */
+  private val Stopping = scala.concurrent.duration.FiniteDuration(1, "second")
+
+  /** The server on `port` (0: any free one), and its link. */
+  def server(api: FrFlowApi[IO], host: Host[IO], developer: String, port: Int)(layers: List[WebExtension])
+      : Resource[IO, URI] =
     for
-      token <- newToken
-      started <- api.modelFingerprint
-      p <- IO.fromOption(Port.fromInt(port))(IllegalArgumentException(s"no port $port"))
-      parts <- layers.traverse(_.part(host, dev))
-      _ <- EmberServerBuilder.default[IO].withHost(ipv4"127.0.0.1").withPort(p).withHttpApp(Routes(api, dev, token, started, parts).app)
-        .build.use(s => IO.println(s"FrFlow web view, deciding as ${dev.name}: http://127.0.0.1:${s.address.getPort}/?token=$token" +
-          "\n(Ctrl-C stops it; after the model's sources change, start it again)") *> IO.never)
-    yield ()
+      token   <- Resource.eval(newToken)
+      started <- Resource.eval(api.reading.modelFingerprint)
+      p       <- Resource.eval(IO.fromOption(Port.fromInt(port))(IllegalArgumentException(s"no port $port")))
+      parts   <- Resource.eval(layers.traverse(_.part(host, developer)))
+      s       <- EmberServerBuilder.default[IO].withHost(ipv4"127.0.0.1").withPort(p).withShutdownTimeout(Stopping)
+                   .withHttpApp(Routes(api, developer, Gate(token, started), parts).app).build
+    yield URI(s"http://127.0.0.1:${s.address.getPort}/?token=$token")
+
+  /** Serves until stopped, the link printed. */
+  def serve(api: FrFlowApi[IO], host: Host[IO], developer: String, port: Int)(layers: List[WebExtension]): IO[Unit] =
+    server(api, host, developer, port)(layers).use(link =>
+      IO.println(s"FrFlow web view, deciding as $developer: $link\n" +
+        "(Ctrl-C stops it; after the model's sources change, start it again)") >> IO.never)
 
   private def newToken: IO[String] = IO {
     val b = new Array[Byte](18)

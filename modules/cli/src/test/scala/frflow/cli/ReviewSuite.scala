@@ -1,131 +1,129 @@
 package frflow.cli
 
 import cats.effect.{ExitCode, IO, Ref}
-import frflow.api.*
-import frflow.cli.command.*
-import frflow.cli.text.*
-import frflow.protocol.*
+import frflow.api.{FrFlowApi, Opened}
+import frflow.cli.command.{Asked, Command}
+import frflow.cli.review.{ReviewKey, ReviewSession}
+import frflow.cli.term.Style
+import frflow.cli.text.Contribution
+import frflow.core.name.NodeId
+import frflow.decision.ledger.Action
+import frflow.decision.review.ReviewState
+import frflow.decision.rules.Command as Decide
 
-/** The review and the decision commands on scripted input, over the in-memory API. */
-class ReviewSuite extends munit.CatsEffectSuite with Golden:
-  private val st = Style(color = false, unicode = false, width = Some(100))
+/** The review and the deciding commands on scripted input, over the API in memory. */
+class ReviewSuite extends munit.CatsEffectSuite:
+  private val st = Style.plain.copy(width = Some(100))
+  private val (nonNegative, sameAbove) = (NodeId("nonNegative"), NodeId("sameAbove"))
 
-  test("review: the mechanical batch, a layer's key instead of a decision, then the proposal it unblocked") {
-    val typed = List("a", "the new parts are proven to make it", "v", "n", "Name the user as 'that user'.", "a", "an hour bounds a stolen token", "y")
+  private def review(api: FrFlowApi[IO], typed: List[String], keys: List[ReviewKey] = Nil) =
+    Scripted(typed).flatMap(t => ReviewSession(api, t, st, _ => IO.pure(Contribution.empty), keys).run(None)
+      .flatMap(code => t.text.map(code -> _)))
+
+  private def state(api: FrFlowApi[IO], id: NodeId) =
+    api.reading.view.map(_.node(id).map(n => n.review.standing.state -> n.review.decisions.binding.map(_.action)))
+
+  /** Every node accepted; then the model as `p` has it, over the same ledger. */
+  private def moved(p: frflow.api.Project) =
+    Opened.ports().flatMap(ports => Opened.over(Opened.before, ports).flatMap(Cli.accepted) >> Opened.over(p, ports))
+
+  test("review: a layer's key instead of a decision, then the node it skipped is not offered again") {
     for
-      api <- FakeApi()
-      noted <- Ref.of[IO, List[(NodeId, String)]](Nil)
-      // A layer on top offers a key of its own on each node: it reads a line, and the review moves on.
-      key = ReviewKey("n", "[n]ote", (_, r, term, _) =>
-        term.read("Note: ").flatMap(t => noted.update(_ :+ (r.id -> t.getOrElse(""))) *> term.out(s"noted on ${r.id}")))
-      term <- Scripted(typed)
-      code <- ReviewSession(api, term, st, _ => IO.pure(Contribution(review = List(key)))).run(None)
-      out <- term.output
-      ledger <- api.ledgerNow
-      notes <- noted.get
+      api       <- Opened.api(Opened.before)
+      noted     <- Ref.of[IO, List[(NodeId, String)]](Nil)
+      key        = ReviewKey("n", "[n]ote", (_, n, term, _) => term.read("Note: ").flatMap(t =>
+                     noted.update(_ :+ (n.id -> t.getOrElse(""))) >> term.out(s"noted on ${n.id}")))
+      (code, t) <- review(api, List("n", "name the number plainly", "q"), List(key))
+      notes     <- noted.get
     yield
       assertEquals(code, ExitCode.Success)
-      golden("review", out)
-      assertEquals(ledger.current(NodeId("Root")).map(_.action), Some(Action.Confirm))
-      assertEquals(ledger.current(NodeId("Expiry")).map(d => d.action -> d.reason), Some(Action.Accept -> "an hour bounds a stolen token"))
-      assertEquals(notes, List(NodeId("Decide") -> "Name the user as 'that user'."))
+      assert(t.contains("[a]ccept [r]eject [s]kip [v]iew [q]uit [n]ote: n"), t)
+      assertEquals(notes, List(nonNegative -> "name the number plainly"))
   }
 
   test("without a terminal: review is refused, and a decision needs --yes; with it, it is recorded") {
-    def reject(yes: Boolean) = Command.Decision(Decide.Reject(NodeId("Expiry"), _), Asked(Some("sessions end on sign-out instead"), None, yes))
+    def reject(yes: Boolean) = Command.Decision(Decide.Reject(nonNegative, _, None), Some(nonNegative),
+      Asked(Some("a negative number is fine here"), None, yes))
     for
-      api <- FakeApi()
-      term <- Scripted(Nil, interactive = false)
-      review <- ReviewSession(api, term, st).run(None)
-      refused <- Dispatch(api, term, st)(reject(yes = false))
-      done <- Dispatch(api, term, st)(reject(yes = true))
-      out <- term.output
-      ledger <- api.ledgerNow
+      api        <- Opened.api(Opened.before)
+      term       <- Scripted(Nil, interactive = false)
+      refused    <- ReviewSession(api, term, st, _ => IO.pure(Contribution.empty), Nil).run(None)
+      (codes, t) <- Cli.all(api, reject(yes = false), reject(yes = true))
+      after      <- state(api, nonNegative)
     yield
-      assertEquals((review, refused, done), (Dispatch.Usage, Dispatch.Usage, ExitCode.Success))
-      assertEquals(ledger.current(NodeId("Expiry")).map(_.action), Some(Action.Reject))
-      assert(out.exists(_.contains("pass --yes")), out)
+      assertEquals(refused :: codes, List(ExitCode(2), ExitCode(1), ExitCode(0)))
+      assert(t.contains("pass --yes"), t)
+      assertEquals(after.map(_._1), Some(ReviewState.Rejected))
   }
 
   test("on a terminal a decision shows what it records and asks first") {
-    val accept = Command.Decision(Decide.Accept(List(NodeId("Decide")), _), Asked(None, None, yes = false))
+    val accept = Command.Decision(n => Decide.Accept(List(nonNegative), n, Nil, Map.empty), Some(nonNegative),
+      Asked(None, None, yes = false))
     for
-      api <- FakeApi()
-      term <- Scripted(List("the wording names the user plainly", "y"))
-      code <- Dispatch(api, term, st)(accept)
-      out <- term.output
+      api  <- Opened.api(Opened.before)
+      term <- Scripted(List("it says what the service must do", "y"))
+      code <- Cli.run(api, term, accept)
+      t    <- term.text
     yield
       assertEquals(code, ExitCode.Success)
-      golden("accept", out)
+      assert(t.contains("Why (kept as part of the theory)? it says what the service must do"), t)
+      assert(t.contains("This records, as ann:\n  - accepted nonNegative\nRecord it? [y/N] y"), t)
+      assert(t.contains("Recorded, signed by ann:\n  - accepted nonNegative"), t)
   }
 
   test("a refused decision exits 1 and says why") {
-    for
-      api <- FakeApi()
-      term <- Scripted(Nil, interactive = false)
-      code <- Dispatch(api, term, st)(Command.Decision(Decide.Accept(List(NodeId("Expiry")), _), Asked(Some("an hour bounds a stolen token"), None, yes = true)))
-      out <- term.output
-    yield
-      assertEquals(code, Dispatch.Refused)
-      assert(out.exists(_.contains("accept root first")), out)
-  }
-
-  /** Root's formula changed, so what rests on it moved with it (and Decide reworded, if `reworded`). */
-  private def rootMoved(reworded: Boolean = false): Snapshot =
-    def changed(n: SnapNode, field: String, to: io.circe.Json) =
-      val c = n.content.mapFields { case (`field`, _) => field -> to }
-      n.copy(content = c, hash = c.hash)
-    val formula = "forall((u, r) => access(u, r) == (authorized(u, r) && signedIn(u)))"
-    val root = changed(Sample.root, "sources", io.circe.Json.obj("formula" -> io.circe.Json.fromString(formula)))
-    Sample.decided.copy(nodes = Sample.decided.nodes.map(n =>
-      if n.id == root.id then root else if reworded && n.id == Sample.decide.id then Sample.reworded.copy(hash = Sample.reworded.content.hash) else n))
-
-  private def review(api: FakeApi, typed: List[String]) =
-    Scripted(typed).flatMap(term => ReviewSession(api, term, st).run(None).flatMap(code => term.output.map(code -> _)))
-
-  test("a node waiting for another offers no [a]ccept, and says once what it waits for") {
-    (for
-      api <- FakeApi()
-      (code, out) <- review(api, List("s", "s", "a", "r", "q"))
-      ledger <- api.ledgerNow
-    yield
-      assertEquals(code, ExitCode.Success)
-      assert(out.contains("\n[s]kip [v]iew [q]uit: a"), out.mkString("\n"))
-      assertEquals(out.count(_ == "one of: q s v"), 2, out.mkString("\n"))
-      assertEquals(out.count(_.contains("Root first")), 1, out.mkString("\n"))
-      assert(!out.exists(_.contains("waits for Root")), out.mkString("\n"))
-      assertEquals(ledger.current(NodeId("Expiry")), None)) *>
-    FakeApi(rootMoved(reworded = true), Sample.ledger).flatMap(api => review(api, List("s", "a", "q"))).map { (_, out) =>
-      // Under review, waiting for what it rests on: one line says so.
-      assert(out.contains("  decide NeedsGrant first: what rests on it is decided after it"), out.mkString("\n"))
-      assert(!out.exists(_.contains("waits for NeedsGrant")), out.mkString("\n"))
-      assertEquals(out.count(_ == "one of: q s v"), 1, out.mkString("\n"))
+    val accept = Command.Decision(n => Decide.Accept(List(sameAbove), n, Nil, Map.empty), Some(sameAbove),
+      Asked(Some("it says what the service must do"), None, yes = true))
+    Opened.api(Opened.before).flatMap(Cli.all(_, accept)).map { (codes, t) =>
+      assertEquals(codes, List(ExitCode(1)))
+      assert(t.contains("refused: decide nonNegative first: what rests on it is decided after it"), t)
     }
   }
 
-  test("a mistyped name at the revisit prompt is asked again: the reason and the node are kept") {
-    val typed = List("a", "the new parts are proven to make it", "a", "Nope", "Memory", "the wording names the user plainly", "y", "q")
+  test("a node waiting for another offers no [a]ccept, and says once what it waits for") {
     for
-      api <- FakeApi()
-      (_, out) <- review(api, typed)
-      ledger <- api.ledgerNow
+      api       <- Opened.api(Opened.before)
+      (code, t) <- review(api, List("s", "a", "q"))
     yield
-      assert(out.contains("not a decision below Decide: Nope"), out.mkString("\n"))
-      assertEquals(out.count(_.startsWith("Revisit any decision below")), 2, out.mkString("\n"))
-      assertEquals(ledger.current(NodeId("Decide")).map(d => d.action -> d.reason), Some(Action.Accept -> "the wording names the user plainly"))
-      assertEquals(ledger.current(NodeId("Memory")).map(_.action), Some(Action.Revisit))
+      assertEquals(code, ExitCode.Success)
+      assert(t.contains("\n[s]kip [v]iew [q]uit: a"), t)
+      assertEquals(t.linesIterator.count(_ == "one of: q s v"), 1, t)
+      assertEquals(t.linesIterator.count(_.contains("decide nonNegative first")), 1, t)
   }
 
-  test("what moved only with a node: the inbox and the review say the same, and accepting the node confirms it") {
-    val followers = List("NeedsGrant", "LetsIn", "Decide")
+  test("a mistyped name at the revisit prompt is asked again: the reason and the node are kept") {
+    val typed = List("a", "nope", "sameAbove", "a stricter bound is what the service needs", "y", "q")
     for
-      api <- FakeApi(rootMoved(), Sample.ledger)
-      inbox <- api.reviewing().map((v, i) => InboxText.lines(i, v, st))
-      (_, out) <- review(api, List("a", "", "the formula says the same, in another order", "y"))
-      ledger <- api.ledgerNow
+      api       <- moved(Opened.after)
+      (_, t)    <- review(api, typed)
+      claim     <- state(api, nonNegative)
+      part      <- api.reading.view.map(_.node(sameAbove).map(_.review.standing))
     yield
-      val said = followers.map(f => s"-> $f moved only with it: accepting Root confirms it too")
-      assertEquals(said.map(l => inbox.count(_.trim == l)), List(1, 1, 1), inbox.mkString("\n"))
-      assertEquals(said.map(l => out.count(_.trim == l)), List(1, 1, 1), out.mkString("\n"))
-      assertEquals(followers.map(f => ledger.current(NodeId(f)).map(_.action)), List.fill(3)(Some(Action.Confirm)))
+      assert(t.contains("not a decision below nonNegative: nope"), t)
+      assertEquals(t.linesIterator.count(_.startsWith("Revisit any decision below")), 2, t)
+      assertEquals(claim, Some(ReviewState.Accepted -> Some(Action.Accept)))
+      assert(part.exists(_.causes.contains(frflow.decision.review.Cause.Revisit)), part)
+  }
+
+  test("what moved only with a node: the inbox says it waits for it, and accepting the node confirms it") {
+    for
+      api      <- moved(Opened.after)
+      (_, box) <- Cli.all(api, Command.Inbox)
+      (_, t)   <- review(api, List("a", "", "the bound says the same, in other words", "y", "q"))
+      part     <- state(api, sameAbove)
+    yield
+      assert(box.contains("    decide nonNegative first: what rests on it is decided after it"), box)
+      assert(t.contains("Recorded, signed by ann:"), t)
+      assertEquals(part, Some(ReviewState.Accepted -> Some(Action.Confirm)))
+  }
+
+  test("the mechanical batch: a node whose new part Lean proves makes it is confirmed with one reason") {
+    for
+      api    <- moved(Opened.project(frflow.api.Shelf.Grown.kb))
+      _      <- Opened.checked(api.proving.check(None))
+      (_, t) <- review(api, List("a", "a new part makes it as before", "q"))
+      claim  <- state(api, nonNegative)
+    yield
+      assert(t.contains("1 mechanical decision(s): Lean proves them again, and nothing in them is a choice"), t)
+      assertEquals(claim, Some(ReviewState.Accepted -> Some(Action.Confirm)))
   }

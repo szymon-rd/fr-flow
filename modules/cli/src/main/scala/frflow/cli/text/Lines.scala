@@ -1,55 +1,38 @@
-package frflow.cli
-package text
+package frflow.cli.text
 
-import frflow.protocol.{Content, ReviewState, Reviewed}
+import frflow.api.node.NodeView
+import frflow.api.view.View
+import frflow.cli.say.Refusals
+import frflow.cli.term.{Marks, Style}
+import frflow.core.name.NodeId
+import frflow.core.spec.NodeKind
 
-/** The pieces views are made of: a section, wrapped prose, and a node in one line. */
+/** The pieces every view is printed with: a node in one line, a titled section, a paragraph wrapped to the width. */
 object Lines:
-  /** Nothing when it has no lines. */
-  def section(title: String, body: List[String], st: Style): List[String] =
-    if body.isEmpty then Nil else "" :: st.bold(title) :: body.map("  " + _)
+  /** `✓ nonNegative  claim  accepted  The service never gives…`, cut to the width less `indent`. */
+  def node(n: NodeView, st: Style, indent: Int = 0): String =
+    st.fit(s"${Marks.glyph(n, st)} ${st.bold(n.id.value)}  ${st.dim(kind(n.says.kind))}  " +
+      s"${Marks.state(n.review.standing.state, Refusals.state(n.review.standing.state), st)}  ${statement(n)}", indent)
 
-  /** Wrapped to the width (less `indent`), its later lines indented by `hang`. */
+  /** A node of the view in one line, or its id when the view has none. */
+  def of(v: View, id: NodeId, st: Style, indent: Int = 0): String = v.node(id).fold(id.value)(node(_, st, indent))
+
+  def kind(k: NodeKind): String = k match
+    case NodeKind.Claim      => "claim"
+    case NodeKind.Assumption => "assumption"
+    case NodeKind.Design     => "design"
+
+  /** Its sentence on one line, whatever spaces it was written with. */
+  def statement(n: NodeView): String = n.says.statement.replaceAll("\\s+", " ").trim
+
+  /** A title and its lines indented by two; nothing when there are no lines. */
+  def section(title: String, lines: List[String], st: Style): List[String] =
+    if lines.isEmpty then Nil else "" :: st.bold(title) :: lines.map("  " + _)
+
+  /** `text` wrapped to the width less `indent`, its later lines under its first by `hang`. */
   def para(text: String, st: Style, indent: Int = 2, hang: Int = 2): List[String] =
     st.width.fold(List(text)) { w =>
-      st.wrap(text, w - indent - hang) match
+      st.wrap(text, (w - indent).max(20)) match
         case first :: rest => first :: rest.map(" " * hang + _)
-        case Nil => Nil
+        case Nil           => Nil
     }
-
-  /** The node's reason, dimmed and indented; nothing when it gives none. */
-  def why(c: Content, room: Int, st: Style): List[String] =
-    if c.why.trim.isEmpty then Nil else st.wrap(s"why: ${c.why}", room).map(l => "  " + st.dim(l))
-
-  /** What the developer is to do with it, in a few words: `it and its code changed: review it`; `new: decide it`. */
-  def state(r: Reviewed): String = r.state match
-    case ReviewState.Review   => Words.review(r.review.causes, Some(r.node))
-    case ReviewState.Proposed => "new: decide it"
-    case other                => other.toString
-
-  /** Its kind unless a claim, in brackets; what to do with it unless accepted, after a dash; and the word a layer on
-    * top shows beside it (`mark`): `bookWhenFree — it and its code changed: review it`.
-    */
-  def marks(r: Reviewed, st: Style, mark: Option[String] = None): String =
-    val kind = Option.when(r.node.shownKind != "claim")(" " + st.dim(s"(${r.node.shownKind})"))
-    val review = Option.when(r.state != ReviewState.Accepted)(" — " + st.state(r.state, state(r)))
-    (kind.toList ++ review ++ mark.map("  " + st.magenta(_))).mkString
-
-  def statement(r: Reviewed): String = r.node.content.statement.replaceAll("\\s+", " ").trim
-  /** The statement as a line shows it, after its id: in quotes. */
-  def quoted(r: Reviewed): String = s"\"${statement(r)}\""
-
-  /** A statement after `indent` characters, whole: on one line when it fits the width, else a clause a line (cut after
-    * each ";" and before each ", and"), a clause longer than a line wrapped at its words; the later lines start with
-    * `bar` and are indented under the first's text.
-    */
-  def clauses(text: String, st: Style, indent: Int, bar: String = ""): List[String] =
-    st.width.filter(w => indent + Style.visible(text) > w).fold(List(text)) { w =>
-      val room = (w - indent).max(20)
-      val lines = text.split("(?<=;) +|(?<=,) +(?=and )").toList.flatMap(c => if c.length <= room then List(c) else st.wrap(c, room))
-      lines.headOption.toList ++ lines.drop(1).map(l => bar + " " * (indent - Style.visible(bar)).max(0) + l)
-    }
-
-  /** Its status, id, marks and statement, cut to the width (less `indent`). */
-  def node(r: Reviewed, st: Style, indent: Int = 2, extra: String = ""): String =
-    st.fit(s"${st.glyph(r)} ${st.bold(r.id.value)}${marks(r, st)}$extra: ${quoted(r)}", indent)

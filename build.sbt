@@ -16,6 +16,11 @@ val http4s = Seq("http4s-ember-server", "http4s-dsl", "http4s-circe").map("org.h
 val munit = "org.scalameta" %% "munit" % "1.1.1" % Test
 val munitEffect = "org.typelevel" %% "munit-cats-effect" % "2.1.0" % Test
 val catsEffectTestkit = "org.typelevel" %% "cats-effect-testkit" % "3.6.3" % Test
+val lawTests = Seq("org.typelevel" %% "cats-kernel-laws" % "2.13.0" % Test,
+  "org.typelevel" %% "discipline-munit" % "2.0.0" % Test)
+
+/** The SQLite driver rooms' table is kept in, for the tests that run rooms (eval's and every module's after it). */
+val roomsTable = "org.xerial" % "sqlite-jdbc" % "3.46.1.3" % Test
 
 // Tests tagged `Lean` run Lean end to end (minutes): plain `sbt test` leaves them out, `sbt leanTest` runs them,
 // `sbt testAll` runs both.
@@ -27,150 +32,111 @@ def leanTagged: Seq[Setting[?]] = inConfig(LeanTest)(Defaults.testTasks) ++ Seq(
     Tests.Argument(TestFrameworks.MUnit, "--include-tags=Lean"))
 addCommandAlias("leanTest", "Lean/test")
 addCommandAlias("testAll", "; test; Lean/test")
-// A new project: `sbt "frflowInit toy"` (an empty FrModel and its line below); with an AI agent's layer on top,
-// `sbt "frflowInitAgent toy"` (the same, its main object passing the layer; the idea is then told in chat).
+// A new project: `sbt "frflowInit toy --as NAME"` (an empty FrModel and its line below; `--as` lists you as the first
+// decider); with an AI agent's layer on top, `sbt "frflowInitAgent toy --as NAME"`.
 addCommandAlias("frflowInit", "cli/runMain frflow.cli.Init")
 addCommandAlias("frflowInitAgent", "agent/runMain frflow.agent.Init")
-// The same on the rebuilt modules: `sbt "frflowNextInit toy --as NAME"` (`--as` lists you as the first decider).
-addCommandAlias("frflowNextInit", "next-cli/runMain frflow.cli.Init")
-addCommandAlias("frflowNextInitAgent", "next-agent/runMain frflow.agent.Init")
+
+// The modules (docs/redesign/ARCHITECTURE.md, section 5): each `module(name, libraries*)` under modules/<name>/, sbt
+// id `<name>`, package `frflow.<name>`, its warnings errors. The module graph is written here only (section 11).
+val strict = Seq("-Wunused:all", "-Wnonunit-statement", "-Wvalue-discard")
+def module(name: String, libraries: ModuleID*) = Project(name, file(s"modules/$name"))
+  .configs(LeanTest).settings(leanTagged)
+  .settings(Keys.name := s"frflow-$name", libraryDependencies ++= munit +: libraries, scalacOptions ++= strict)
 
 lazy val root = project.in(file("."))
-  .aggregate((Seq[ProjectReference](model, protocol, lean, ledger, check, api, cli, web, testkit, agent, auth, crm,
-    keycloak, sharing, rooms, referenceCapture) ++ nextModules)*)
+  .aggregate(core, dsl, proof, eval, testing, decision, wire, shell, api, cli, web, agent)
   .configs(LeanTest).settings(leanTagged)
   .settings(publish / skip := true)
 
-def module(name: String, libraries: ModuleID*) = Project(name, file(s"modules/$name"))
-  .configs(LeanTest).settings(leanTagged)
-  .settings(Keys.name := s"frflow-$name", libraryDependencies ++= munit +: libraries)
-
-// The rebuild (docs/redesign/ARCHITECTURE.md, section 9): each new module is `nextModule(name, libraries*)` under
-// next/<name>/, sbt id `next-<name>`, package `frflow.<name>`, with the planned build's warnings as errors. A step
-// adds its `lazy val` in its slot below and its name in its slot of `nextModules`, which the root aggregates.
-val nextFlags = Seq("-Wunused:all", "-Wnonunit-statement", "-Wvalue-discard")
-val lawTests = Seq("org.typelevel" %% "cats-kernel-laws" % "2.13.0" % Test,
-  "org.typelevel" %% "discipline-munit" % "2.0.0" % Test)
-def nextModules: Seq[ProjectReference] = Seq(
-  nextCore,
-
-  nextDsl, // step 2
-
-  // step 3: nextProof
-  nextProof,
-
-  // step 4: nextEval
-  nextEval,
-
-  // step 5: nextTesting
-  nextTesting,
-
-  nextDecision,
-
-  // step 7: nextWire
-  nextWire,
-
-  // step 8: nextProject
-  nextProject,
-
-  // step 9: nextApi
-  nextApi,
-
-  // step 10: nextCli, nextWeb, nextAgent
-  nextCli, nextWeb, nextAgent,
-)
-def nextModule(name: String, libraries: ModuleID*) = Project(s"next-$name", file(s"next/$name"))
-  .configs(LeanTest).settings(leanTagged)
-  .settings(Keys.name := s"frflow-next-$name", libraryDependencies ++= munit +: libraries,
-    scalacOptions ++= nextFlags, publish / skip := true)
-
 /** Names, types, the term algebras and core interpreters, the IR, statements, validation, checking, consistency. */
-lazy val nextCore = nextModule("core", cats).settings(libraryDependencies ++= lawTests)
+lazy val core = module("core", cats).settings(libraryDependencies ++= lawTests)
 
-/** The DSL a model is written in: terms, nodes, programs over boundaries, models, macros; its elaboration. */
-lazy val nextDsl = nextModule("dsl", cats).dependsOn(nextCore)
+/** The DSL a model is written in: terms, nodes, flows, state models, models, macros; its elaboration. */
+lazy val dsl = module("dsl", cats).dependsOn(core)
 
-// next-proof (step 3)
 /** Obligations, the Lean AST, the one term printer, lowering, layout, reading Lean's output, the judges. */
-lazy val nextProof = nextModule("proof", cats).dependsOn(nextCore % "compile->compile;test->test")
+lazy val proof = module("proof", cats).dependsOn(core % "compile->compile;test->test")
 
-/** The SQLite driver rooms' table is kept in, for the tests that run rooms (eval's and every module's after it). */
-val roomsTable = "org.xerial" % "sqlite-jdbc" % "3.46.1.3" % Test
+/** The Scala meaning of terms and of plain code: the evaluator, examples, the values a call reads, flows run on
+  * models, production's interpreter of flows; the facade `frflow.*`, and the examples written in it. Its tests read
+  * core's generated terms and proof's printer (Lean decides each term as the evaluator does).
+  */
+lazy val eval = module("eval", cats, catsEffectKernel, catsEffectStd, catsEffect % Test, roomsTable)
+  .dependsOn(dsl, proof % "test->test")
 
-// next-eval (step 4)
-/** The Scala meaning of terms and of plain code: the evaluator, examples, the values a call reads, recorded programs
-  * run on models, production's interpreter of programs; the facade `frflow.*`, and the examples written in it. Its
-  * tests read core's generated terms and proof's printer (Lean decides each term as the evaluator does). */
-lazy val nextEval = nextModule("eval", cats, catsEffectKernel, catsEffectStd, catsEffect % Test, roomsTable)
-  .dependsOn(nextDsl, nextProof % "test->test")
-
-// next-testing (step 5)
 /** Generators and what draws them, property tests of plain code against its claims, model tests of implementations,
   * interleavings, the searches for witnesses and refutations, and the examples' runner (an sbt test framework, so
-  * `sbt test` runs a project's `FrFlowExamples`). Its tests read the examples written in eval's tests. */
-lazy val nextTesting = nextModule("testing", cats, catsEffect, roomsTable, "org.scala-sbt" % "test-interface" % "1.0",
+  * `sbt test` runs a project's `FrFlowExamples`). Its tests read the examples written in eval's tests.
+  */
+lazy val testing = module("testing", cats, catsEffect, roomsTable, "org.scala-sbt" % "test-interface" % "1.0",
     munitEffect)
   .settings(libraryDependencies ++= lawTests :+ "org.typelevel" %% "cats-laws" % "2.13.0" % Test,
     testFrameworks += TestFramework("frflow.testing.examples.ExamplesFramework"))
-  .dependsOn(nextEval % "compile->compile;test->test")
+  .dependsOn(eval % "compile->compile;test->test")
 
-lazy val nextDecision = nextModule("decision", cats).dependsOn(nextCore)
+/** The developer's decisions: content, the ledger, the deciders, review, the rules of each command. */
+lazy val decision = module("decision", cats).dependsOn(core)
 
-// next-wire (step 7)
 /** The files FrFlow writes under a project's .frflow/ (the ledger, the deciders' list, checks, tests) and the snapshot
-  * the front ends read: rows of its own, and explicit codecs, each file with its version. Only the shell depends on it. */
-lazy val nextWire = nextModule("wire", cats, circe, circeParser)
+  * the front ends read: rows of its own, and explicit codecs, each file with its version. Only the shell depends on it.
+  */
+lazy val wire = module("wire", cats, circe, circeParser)
   .settings(libraryDependencies += "org.scalameta" %% "munit-scalacheck" % "1.0.0" % Test)
-  .dependsOn(nextProof, nextDecision, nextTesting)
+  .dependsOn(proof, decision, testing)
 
-// next-project (step 8)
-/** The imperative shell: the algebras of the project's files, Lean, git, the keys and the ledger's store, each with its
-  * live and in-memory interpreters; the analysis of a project (contents, fingerprints, standings), and the programs
-  * (check, status, decide, export) over them. Its tests read the examples written in eval's tests. */
-lazy val nextProject = nextModule("project", (Seq(cats, catsEffect, munitEffect, catsEffectTestkit, roomsTable) ++ fs2)*)
-  .dependsOn(nextProof, nextTesting % "compile->compile;test->test", nextDecision, nextWire)
+/** The imperative shell (sbt id `project`, package `frflow.project`; `project` itself names sbt's own method here): the
+  * algebras of the project's files, Lean, git, the keys and the ledger's store, each with its live and in-memory
+  * interpreters; the analysis of a project (contents, fingerprints, standings), and the programs (check, status,
+  * decide, export) over them. Its tests read the examples written in eval's tests.
+  */
+lazy val shell = module("project", (Seq(cats, catsEffect, munitEffect, catsEffectTestkit, roomsTable) ++ fs2)*)
+  .dependsOn(proof, testing % "compile->compile;test->test", decision, wire)
 
-// next-api (step 9)
 /** The API front ends call: three algebras (`Reading`, `Deciding`, `Proving`) over a project, the views they return
   * (`api.view`, `api.node`: front ends see nothing else), and the live and in-memory interpreters. Its tests read the
-  * shell's projects in memory. */
-lazy val nextApi = nextModule("api", (Seq(cats, catsEffect, munitEffect, roomsTable) ++ fs2)*)
+  * shell's projects in memory.
+  */
+lazy val api = module("api", (Seq(cats, catsEffect, munitEffect, roomsTable) ++ fs2)*)
   .settings(libraryDependencies ++= lawTests)
-  .dependsOn(nextProject % "compile->compile;test->test")
+  .dependsOn(shell % "compile->compile;test->test")
 
-// next-cli, next-web, next-agent (step 10)
 /** The command line a project's main object extends (`FrFlowApp`, the composition root): its commands, colors, the
   * interactive review, and `init`; layers on top add their commands (`CliExtension`). Its tests read the API's.
   */
-lazy val nextCli = nextModule("cli", cats, catsEffect, roomsTable, decline, munitEffect)
+lazy val cli = module("cli", cats, catsEffect, roomsTable, decline, munitEffect)
   .settings(forkedAtRoot)
-  .dependsOn(nextApi % "compile->compile;test->test")
+  .dependsOn(api % "compile->compile;test->test")
 
-/** `init` runs forked from the build's directory (`frflowNextInit`), so it exits with its own code. */
+/** `init` runs forked from the build's directory (`frflowInit`), so it exits with its own code. */
 def forkedAtRoot: Seq[Setting[?]] = Seq(run / fork := true, run / baseDirectory := (ThisBuild / baseDirectory).value)
 
 /** The web view (`serve`): the page, and routes onto the API, over http4s on localhost; layers on top add routes and
   * a script (`WebExtension`). The CLI does not depend on it.
   */
-lazy val nextWeb = nextModule("web", (Seq(catsEffect, circe, munitEffect, roomsTable) ++ http4s)*)
-  .dependsOn(nextApi % "compile->compile;test->test")
+lazy val web = module("web", (Seq(catsEffect, circe, munitEffect, roomsTable) ++ http4s)*)
+  .dependsOn(api % "compile->compile;test->test")
 
 /** A layer on top for an AI agent building the system: the conversation a project starts from, the developer's
   * requests and the agent's answers, its queue, `context`, their commands and web panels. It proposes and asks;
   * deciding stays the developer's.
   */
-lazy val nextAgent = nextModule("agent",
+lazy val agent = module("agent",
     (Seq(cats, catsEffect, circe, circeParser, decline, munitEffect, roomsTable) ++ http4s)*)
   .settings(forkedAtRoot)
-  .dependsOn(nextCli % "compile->compile;test->test", nextWeb % "compile->compile;test->test")
+  .dependsOn(cli % "compile->compile;test->test", web % "compile->compile;test->test")
 
-/** A project on the rebuilt modules, as `init` writes its line (`frflow.cli.Init`): its main object runs the CLI with
-  * its examples' classes on the classpath (`frflow.tests` names where they are), and `serve` its web view; `layers`,
-  * the layers on top it uses (the AI agent's by default).
+/** The java command that runs a project's CLI on a terminal (colors, the interactive review): what `bin/frflow` runs. */
+val cliLauncher = taskKey[File]("Writes the java command running this project's CLI, for bin/frflow")
+val serve = inputKey[Unit]("The project's web view on localhost, until stopped: serve [--port N] [--as NAME]")
+
+/** A project, as `init` writes its line (`frflow.cli.Init`), under examples/<name>/: its main object runs the CLI with
+  * its examples' classes on the classpath (`frflow.tests` names where they are), `cliLauncher` writes that java command
+  * for `bin/frflow`, and `serve` runs its web view; `layers`, the layers on top it uses (the AI agent's by default).
   */
-def nextExample(name: String, layers: Seq[ClasspathDep[ProjectReference]] = Seq(nextAgent)) =
+def example(name: String, layers: Seq[ClasspathDep[ProjectReference]] = Seq(agent)) =
   Project(name, file(s"examples/$name"))
-    .dependsOn((Seq[ClasspathDep[ProjectReference]](nextCli, nextWeb) ++ layers)*)
+    .dependsOn((Seq[ClasspathDep[ProjectReference]](cli, web) ++ layers)*)
     .settings(
       libraryDependencies += munit, publish / skip := true, run / fork := true, Test / fork := true,
       run / javaOptions ++= Seq("-Dstdout.encoding=UTF-8", "-Dstderr.encoding=UTF-8", "-Dfile.encoding=UTF-8"),
@@ -180,122 +146,15 @@ def nextExample(name: String, layers: Seq[ClasspathDep[ProjectReference]] = Seq(
       Compile / runMain := Defaults.runMainTask(Test / fullClasspath, Compile / run / runner).evaluated,
       run / baseDirectory := (ThisBuild / baseDirectory).value,
       Test / baseDirectory := (ThisBuild / baseDirectory).value,
+      cliLauncher := {
+        val launch = target.value / "frflow.launch"
+        val main = (Compile / run / mainClass).value.getOrElse(sys.error(s"${Keys.name.value} has no main class"))
+        val classpath = (Test / fullClasspath).value.files.mkString(java.io.File.pathSeparator)
+        IO.writeLines(launch, (run / javaOptions).value ++ Seq("-cp", classpath, main))
+        launch
+      },
       serve := Def.inputTaskDyn {
         val args = complete.DefaultParsers.spaceDelimited("[--port N] [--as NAME]").parsed
         val main = (Compile / run / mainClass).value.getOrElse(sys.error(s"${Keys.name.value} has no main class"))
         (Compile / runMain).toTask((Seq("frflow.web.Serve", main) ++ args).mkString(" ", " ", ""))
       }.evaluated)
-
-// FrFlow's core: the modules below up to `web`, usable on their own. `agent` is a layer on top; no core module depends on it.
-
-/** The DSL: terms, flows, nodes, the FrModel, the runtime checks (package `frflow`). */
-lazy val model = module("model", cats, catsEffectKernel, catsEffect).dependsOn(protocol)
-
-/** The data crossing modules and files: the snapshot, the review, the ledger and checks, with their JSON codecs; ids and
-  * statuses (package `frflow.protocol`).
-  */
-lazy val protocol = module("protocol", circe, circeParser % Test)
-
-/** The Lean of a FrModel, and reading Lean's output. */
-lazy val lean = module("lean", cats).dependsOn(model % "compile->compile;test->test", protocol)
-
-/** The developer's decisions: review states, decide, signatures, reports; the ledger's and keys' files. */
-lazy val ledger = module("ledger", cats, catsEffect, circe, circeParser, munitEffect).dependsOn(protocol)
-
-/** Rendering and checking a FrModel against Lean; the snapshot; git. */
-lazy val check = module("check", (Seq(cats, catsEffect, circe, circeParser, munitEffect) ++ fs2)*)
-  .dependsOn(lean % "compile->compile;test->test", ledger)
-
-/** The API the front ends (the CLI, the web view) call, over `IO`. */
-lazy val api = module("api", cats, catsEffect, circe, munitEffect).dependsOn(check % "compile->compile;test->test")
-
-/** The command line a project's main object extends (`FrFlowApp`): commands, colors, interactive review; layers on top add
-  * their commands (`CliExtension`).
-  */
-lazy val cli = module("cli", cats, catsEffect, circe, decline, munitEffect).dependsOn(api % "compile->compile;test->test")
-
-/** The web view (`serve`): the page, and routes onto the API, over http4s on localhost; layers on top add routes and a
-  * script (`WebExtension`). The CLI does not depend on it.
-  */
-lazy val web = module("web", (Seq(catsEffect, circe, munitEffect) ++ http4s)*).dependsOn(api % "compile->compile;test->test")
-
-/** Examples written as tests (`FrFlowExamples`): run by munit, and read by `check` from a project's test classes. */
-lazy val testkit = module("testkit", "org.scalameta" %% "munit" % "1.1.1").dependsOn(model)
-
-/** A layer on top of the core for an AI agent building the system: the conversation a project starts from, the developer's
-  * requests and the agent's answers, the agent's queue, `context`, their commands and web panels (package `frflow.agent`).
-  */
-lazy val agent = module("agent", (Seq(cats, catsEffect, circe, circeParser, decline, munitEffect) ++ http4s)*)
-  .dependsOn(cli % "compile->compile;test->test", web % "compile->compile;test->test", ledger % "test->test")
-
-/** The java command that runs a project's CLI on a terminal (colors, the interactive review): what `bin/frflow` runs. */
-val cliLauncher = taskKey[File]("Writes the java command running this project's CLI, for bin/frflow")
-val serve = inputKey[Unit]("The project's web view on localhost, until stopped: serve [--port N] [--as NAME]")
-
-/** A project; `layers`, the layers on top on its classpath (the AI agent's by default; none for a core-only project). */
-def example(name: String, layers: Seq[ClasspathDep[ProjectReference]] = Seq(agent)) = Project(name, file(s"examples/$name"))
-  .dependsOn((Seq[ClasspathDep[ProjectReference]](cli, web, testkit % Test) ++ layers)*)
-  .configs(LeanTest).settings(leanTagged)
-  .settings(
-    libraryDependencies ++= Seq(munit, munitEffect),
-    publish / skip := true,
-    run / fork := true,
-    // The CLI's output (read by agents) is UTF-8 whatever the locale.
-    run / javaOptions ++= Seq("-Dstdout.encoding=UTF-8", "-Dstderr.encoding=UTF-8", "-Dfile.encoding=UTF-8"),
-    // Every source the build compiles, so code in a source directory added here is governed too.
-    run / javaOptions += "-Dfrflow.sources=" + (Compile / sources).value.map(_.getAbsolutePath).mkString(java.io.File.pathSeparator),
-    // The examples written as tests (`FrFlowExamples`), which `check` reads: the test classes are on the CLI's
-    // classpath.
-    run / javaOptions += "-Dfrflow.tests=" + (Test / classDirectory).value.getAbsolutePath,
-    Compile / run :=
-      Defaults.runTask(Test / fullClasspath, Compile / run / mainClass, Compile / run / runner).evaluated,
-    Compile / runMain := Defaults.runMainTask(Test / fullClasspath, Compile / run / runner).evaluated,
-    run / baseDirectory := (ThisBuild / baseDirectory).value,
-    cliLauncher := {
-      val launch = target.value / "frflow.launch"
-      val main = (Compile / run / mainClass).value.getOrElse(sys.error(s"${Keys.name.value} has no main class"))
-      val classpath = (Test / fullClasspath).value.files.mkString(java.io.File.pathSeparator)
-      IO.writeLines(launch, (run / javaOptions).value ++ Seq("-cp", classpath, main))
-      launch
-    },
-    // The web view runs the project's main object (its FrModel) in a forked JVM, over the API the CLI uses.
-    serve := Def.inputTaskDyn {
-      val args = complete.DefaultParsers.spaceDelimited("[--port N] [--as NAME]").parsed
-      val main = (Compile / run / mainClass).value.getOrElse(sys.error(s"${Keys.name.value} has no main class"))
-      (Compile / runMain).toTask((Seq("frflow.web.Serve", main) ++ args).mkString(" ", " ", ""))
-    }.evaluated,
-    Test / fork := true,
-    Test / baseDirectory := (ThisBuild / baseDirectory).value
-  )
-
-/** Access control: who can access what, refined through grants, sessions and requests to proven code. */
-lazy val auth = example("auth")
-
-/** A multi-tenant CRM: one purpose (users find exactly their company's and shared records, write only
-  * their company's), refined through the domain to proven code, served over HTTP from SQLite.
-  */
-lazy val crm = example("crm").settings(libraryDependencies += "org.xerial" % "sqlite-jdbc" % "3.46.1.3",
-  Compile / run / mainClass := Some("crm.crmCli"))
-
-/** A synthetic project, generated by `bench/generate.py N`, to measure FrFlow as it grows (not built by default). */
-lazy val scale = example("scale")
-
-/** A Keycloak-like authentication server: realms, sign-in, token introspection, sign-out. */
-lazy val keycloak = example("keycloak").settings(Compile / run / mainClass := Some("keycloak.keycloakCli"))
-
-
-/** People, teams, documents and folders: who can view and edit what, and who may change it. */
-lazy val sharing = example("sharing").settings(libraryDependencies += "org.xerial" % "sqlite-jdbc" % "3.46.1.3",
-  Compile / run / mainClass := Some("sharing.sharingCli"))
-
-/** Booking meeting rooms: a request is granted exactly when its room is free; the README's example. */
-lazy val rooms = example("rooms", layers = Nil).settings(libraryDependencies += "org.xerial" % "sqlite-jdbc" % "3.46.1.3")
-
-/** Today's outputs recorded under `reference/` for the rebuild (step 0): `python3 reference/capture.py EXAMPLE` runs
-  * it; this project holds the examples' seeded bugs, run as their suites seed them.
-  */
-lazy val referenceCapture = Project("referenceCapture", file("reference/capture"))
-  .dependsOn(auth, crm, keycloak, sharing)
-  .configs(LeanTest).settings(leanTagged)
-  .settings(publish / skip := true, run / fork := true, run / baseDirectory := (ThisBuild / baseDirectory).value,
-    run / javaOptions ++= Seq("-Dstdout.encoding=UTF-8", "-Dfile.encoding=UTF-8", "-Duser.timezone=UTC"))

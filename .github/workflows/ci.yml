@@ -55,8 +55,8 @@ jobs:
             "$RUNNER_TEMP/elan-init" -y --no-modify-path --default-toolchain none
           fi
           echo "$HOME/.elan/bin" >> "$GITHUB_PATH"
-          "$HOME/.elan/bin/elan" toolchain install "$(cat next/proof/lean/lean-toolchain)"
-          "$HOME/.elan/bin/elan" default "$(cat next/proof/lean/lean-toolchain)"
+          "$HOME/.elan/bin/elan" toolchain install "$(cat modules/proof/lean/lean-toolchain)"
+          "$HOME/.elan/bin/elan" default "$(cat modules/proof/lean/lean-toolchain)"
 
       - name: Lean and Lake
         run: lean --version && lake --version
@@ -66,7 +66,7 @@ jobs:
         run: echo "FRFLOW_LAW_SEEDS=$(( GITHUB_RUN_NUMBER * 10000 + 1 )):1500" >> "$GITHUB_ENV"
 
       - name: Budgets
-        run: python3 docs/redesign/tools/test_budget.py && python3 docs/redesign/tools/budget.py next
+        run: python3 bin/test_budget.py && python3 bin/budget.py modules
 
       - name: sbt test
         run: sbt test < /dev/null
