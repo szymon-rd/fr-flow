@@ -3,7 +3,7 @@ package frflow.project
 import frflow.core.name.NodeId
 import cats.syntax.all.*
 import frflow.eval.flow.Stamps
-import frflow.eval.time.{Extend, Frozen, Lapse, Late, Leans, MadeLeans, Outside4, Sources5, Starts4}
+import frflow.eval.time.{Extend, Frozen, Lapse, Late, Leans, MadeLeans, Outside4, Six, Sources5, Starts4}
 import frflow.proof.obligation.{ObligationName, TryKind}
 import frflow.proof.verdict.ObligationStatus
 import scala.concurrent.duration.*
@@ -39,38 +39,61 @@ class TimeLeanSuite extends munit.CatsEffectSuite:
         Outside4.model -> List("posRule", "storesPositive"), Sources5.tested -> List("posRule", "allPos"),
         Sources5.nested -> List("posRuleB", "firstStores"), Sources5.empty -> List("never", "allBelow"),
         Sources5.vacant -> List("never", "noneBelow"))
-      .traverse_ { (m, ns) =>
+      .traverse { (m, ns) =>
       Ported.run(Projects.elaborated(m), Nil, Ported.Lean(Nil, Nil, None), Nil).map { r =>
-        ns.foreach(n => assert(Ported.unproven(r.analysis).contains(n), s"$n\n${Ported.table(r.analysis)}"))
-        // run with no model checks, as every run here: a statement resting on a model's tests is not tested
-        if m == Leans.model then assertEquals(Ported.unproven(r.analysis).get("yZero"),
-          Some(List("Kept(xZero)", "NotTested")), Ported.table(r.analysis))
-        if m == MadeLeans.model then assertEquals(Ported.unproven(r.analysis).get("posMade"),
-          Some(List("Kept(cellPositive)", "NotTested")), Ported.table(r.analysis))
-        if m == Starts4.model then assertEquals(Ported.unproven(r.analysis).get("yIsZero"),
-          Some(List("Kept(yZero)", "NotTested")), Ported.unproven(r.analysis).toString)
-        if m == Outside4.model then assertEquals(List("posRule", "storesPositive").map(Ported.unproven(r.analysis).get),
-          List(Some(List("Check", "Kept(posRule)")), Some(List("Kept(posRule)", "NotTested"))),
-          Ported.unproven(r.analysis).toString)
-        // the failing test is mkGives', of the tested mkPos; the rule it breaks is open, and what rests on it
+        val un = Ported.unproven(r.analysis)
+        ns.foreach(n => assert(un.contains(n), s"$n\n${Ported.table(r.analysis)}"))
+        // its root_impl is open beside readsStart's (a root reads root_impl open while a sibling root is)
+        if m == Late.model then assertEquals(results(r, "readsLater").get(ObligationName.Impl),
+          Some(ObligationStatus.Proven), Ported.table(r.analysis))
+        // the failing test is mkGives', of the tested mkPos
         if m == Sources5.tested then
           assertEquals(r.analysis.tested(NodeId("mkGives")).flatMap(_.failure).map {
             case frflow.testing.report.Failure.Call(_, _, broke, _) => broke.toString
             case other                                               => other.toString
           }, Some("Always(posRule)"), Ported.table(r.analysis))
-          assertEquals(List("posRule", "allPos").map(Ported.unproven(r.analysis).get(_).exists(_.contains(
-            "Kept(posRule)"))), List(true, true), Ported.unproven(r.analysis).toString)
-        if m == Sources5.empty then assertEquals(List("never", "allBelow").map(Ported.unproven(r.analysis).get(_)
-          .exists(_.contains("Kept(never)"))), List(true, true), Ported.unproven(r.analysis).toString)
         // nothing breaks it here, no test runs: only its failing inhabited_ opens it
-        if m == Sources5.vacant then assertEquals((r.analysis.broken, List("never", "noneBelow").map(
-          Ported.unproven(r.analysis).get(_).exists(_.contains("Kept(never)")))), (Set.empty, List(true, true)),
-          Ported.unproven(r.analysis).toString)
-        // its root_impl is open beside readsStart's (a root reads root_impl open while a sibling root is)
-        if m == Late.model then assertEquals(results(r, "readsLater").get(ObligationName.Impl),
-          Some(ObligationStatus.Proven), Ported.table(r.analysis))
+        if m == Sources5.vacant then assertEquals(r.analysis.broken, Set.empty, Ported.table(r.analysis))
+        exact.getOrElse(m.name.value, Nil).map(n => s"${m.name.value}.$n" -> un.get(n))
       }
-    }
+    }.map(found => assertEquals(found.flatten, expected))
+  }
+
+  /** Run with no model checks, as every run here: a statement resting on a model's tests is not tested, and a rule
+    * not tested is open, so it names itself too.
+    */
+  private val exact: Map[String, List[String]] = Map("Leans" -> List("yZero"), "MadeLeans" -> List("posMade"),
+    "Starts4" -> List("yIsZero"), "Outside4" -> List("posRule", "storesPositive"),
+    "Sources5a" -> List("posRule", "allPos"), "Sources5c" -> List("never", "allBelow"),
+    "Sources5d" -> List("never", "noneBelow"))
+  private val expected: List[(String, Option[List[String]])] = List(
+    "Leans.yZero" -> Some(List("Kept(yZero)", "Kept(xZero)", "NotTested")),
+    "MadeLeans.posMade" -> Some(List("Kept(posMade)", "Kept(cellPositive)", "NotTested")),
+    "Starts4.yIsZero" -> Some(List("Kept(yZero)", "NotTested")),
+    "Outside4.posRule" -> Some(List("Check", "Kept(posRule)")),
+    "Outside4.storesPositive" -> Some(List("Kept(posRule)", "NotTested")),
+    "Sources5a.posRule" -> Some(List("Kept(posRule)")),
+    "Sources5a.allPos" -> Some(List("Kept(posRule)")),
+    "Sources5c.never" -> Some(List("Kept(never)")),
+    "Sources5c.allBelow" -> Some(List("Kept(never)")),
+    "Sources5d.never" -> Some(List("Kept(never)")),
+    "Sources5d.noneBelow" -> Some(List("NothingBelow", "Kept(never)")))
+
+  test(("a rule whose own standing is not proven, for any reason, is open: a tested maker's test failing on its " +
+      "post first (the 13d sixth pass's P6-B1), a model's Scala failing its model test (P6-B2)").tag(Live)) {
+    List(Six.postFirst, Six.wrongScala).traverse { m =>
+      val e = Projects.elaborated(m)
+      val models = frflow.project.program.ModelCheck.counted[cats.effect.IO](frflow.eval.Semantics(e), e.theory,
+        _ => 200)
+      Ported.run(e, Nil, Ported.Lean(Nil, Nil, None), models).map(r =>
+        m.name.value -> Ported.unproven(r.analysis))
+    }.map(found => assertEquals(found.toMap, Map[String, Map[String, List[String]]](
+      // the maker's test fails on its post (mkWrong), naming no rule: posRule is open, and allPos resting on it
+      "SixA" -> Map("posRule" -> List("Kept(posRule)"), "allPos" -> List("Kept(posRule)"),
+        "mkStores" -> List("Consistency"), "mkWrong" -> List("Tests", "Consistency")),
+      // the cell's Scala fails its model test: nonNeg is open, and sumAtLeast resting on it, on another model
+      "SixB" -> Map("nonNeg" -> List("Kept(nonNeg)", "Tests"), "sumAtLeast" -> List("Kept(nonNeg)"),
+        "puts" -> List("Kept(nonNeg)", "Tests"), "cellKept" -> List("Tests")))))
   }
 
   /** The module of `name` in the stamps' Lean, as printed. */

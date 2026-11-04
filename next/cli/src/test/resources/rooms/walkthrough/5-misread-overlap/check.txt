@@ -6,20 +6,30 @@ o neverOverlap: open
   not proven: it imports the shared lemmas, which do not build (the error is the lemmas', not its own proof's)
     Proofs/Rooms/Lemmas.lean:38: omega could not prove the goal:
   not proven: its check is not proven
-+ bookingsOfTheRoom: proven
+  not proven: keeping neverOverlap is not proven
+  not proven: keeping roomBookingsApart is not proven
+o bookingsOfTheRoom: proven
+  not proven: keeping neverOverlap is not proven
+  not proven: keeping roomBookingsApart is not proven
 o roomBookingsApart: open
   not proven: it imports the shared lemmas, which do not build (the error is the lemmas', not its own proof's)
     Proofs/Rooms/Lemmas.lean:38: omega could not prove the goal:
   not proven: its check is not proven
-+ grantWhenNoOverlap: proven; its code tested on 1001 cases
+  not proven: keeping roomBookingsApart is not proven
+  not proven: keeping neverOverlap is not proven
+o grantWhenNoOverlap: proven
   vacuous: not shown
   unsat: not shown
+  not proven: keeping roomBookingsApart is not proven
+  not proven: keeping neverOverlap is not proven
   note: the generator given for String: Oak or Elm
   note: the generator given for Booking: requests for Oak or Elm that end after they start
   note: the generator given for RoomBookings: a room's bookings, laid end to end, some back to back
   note: the generator of Booking never makes the examples' ("Oak", 9, 10), ("Oak", 11, 12), ("Oak", 10, 11), ("Oak", 9, 11), ("Oak", 10, 12)
   note: the generator of RoomBookings never makes the examples' ("Oak", List(("Oak", 9, 10))), ("Oak", List(("Oak", 9, 11)))
-+ bookingsEndAfterStart: proven
+o bookingsEndAfterStart: proven
+  not proven: keeping neverOverlap is not proven
+  not proven: keeping roomBookingsApart is not proven
 x grantWhenFree: failed
   complete: open
     Proofs/Rooms/grantWhenFree.lean:19: omega could not prove the goal:
@@ -30,6 +40,8 @@ x grantWhenFree: failed
   a step is refuted on: held = ("Elm", List(("Elm", 0, 3))), request = ("Elm", 3, 5)
   not proven: its check is not proven
   not proven: its parts are not proven to make it
+  not proven: keeping roomBookingsApart is not proven
+  not proven: keeping neverOverlap is not proven
   note: the generator given for String: Oak or Elm
   note: the generator given for Booking: requests for Oak or Elm that end after they start
   note: the generator given for RoomBookings: a room's bookings, laid end to end, some back to back
@@ -39,10 +51,14 @@ o storeWhenFree: open
   not proven: it imports the shared lemmas, which do not build (the error is the lemmas', not its own proof's)
     Proofs/Rooms/Lemmas.lean:38: omega could not prove the goal:
   not proven: its check is not proven
+  not proven: keeping neverOverlap is not proven
+  not proven: keeping roomBookingsApart is not proven
 o answerWhenFree: open
   not proven: it imports the shared lemmas, which do not build (the error is the lemmas', not its own proof's)
     Proofs/Rooms/Lemmas.lean:38: omega could not prove the goal:
   not proven: its check is not proven
+  not proven: keeping neverOverlap is not proven
+  not proven: keeping roomBookingsApart is not proven
 o bookWhenFree: open
   needed_bookedIsStored: not shown
   needed_bookedAfterIsStored: not shown
@@ -52,6 +68,8 @@ o bookWhenFree: open
   root_impl: open
   not proven: its check is not proven
   not proven: the roots of the code are not proven (root_impl)
+  not proven: keeping neverOverlap is not proven
+  not proven: keeping roomBookingsApart is not proven
 o acceptWhenFree: open
   needed_bookedIsStored: not shown
   needed_acceptedIsAnswered: not shown
@@ -61,6 +79,8 @@ o acceptWhenFree: open
   root_impl: open
   not proven: its check is not proven
   not proven: the roots of the code are not proven (root_impl)
+  not proven: keeping neverOverlap is not proven
+  not proven: keeping roomBookingsApart is not proven
 + nothingElseWrites: inRoom and add's Scala tested against storedBookings on 200 runs
   note: the generator given for String: Oak or Elm
   note: the generator given for Booking: requests for Oak or Elm that end after they start

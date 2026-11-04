@@ -550,16 +550,19 @@ nothing (`CoverCircleSuite`: the picking's claim, read where every stamp is not 
 rule's `cover_picking`). Each `cover_` also takes every other rule on the stores the program reads, on the world it
 starts from, and each `made_` the rules on the maker's inputs and world: the rules are kept together, so a statement
 is kept only as each rule its obligations take is, all the way down, and is unproven (`Unproven.Kept` of each open
-one) while one is not. A rule is open while what shows it holds is not proven: a `cover_`, a `made_`, its `outside`
-(below), its `start_` or its `inhabited_`, or while a current test finds a value breaking it (the step 13d re-review's
-R-B1, the probe `Leans`: a copy of `x` kept zero by taking `x` zero, while a bump breaks it; the third pass's R3-B1,
-`MadeLeans`: a value made from a cell kept positive, while a zeroing breaks it; the fourth pass's P4-B1, `Starts4`:
-zeroing said to leave `y` as it was, `y` said always zero but starting at one; the fifth pass's P5-B1, `Sources5`). A
-value of a ruled type tested plain Scala makes is checked only by its tests (`Broken.Always` on the node of the
-claim about it, `Analysis.broken`), so a failure there opens the rule too, and what rests on it with it. A rule no value
-meets (`inhabited_` failing) is open: a statement taking it is proven of nothing, and a value from a tested maker may
-break it unasked; so a failing `inhabited_` gates what rests on the rule, and stays a warning of its own. What each
-kind takes is said once, where the kinds are
+one) while one is not. A rule is open while its own standing is not proven, for any reason (`ReadProof.local`: its
+check, a `cover_`, a `made_` or its `outside` (below) among it; its tests; its consistency, its `start_` among it), or
+while a source of its values leaves it open: a value no rule allows (its `inhabited_` not proven: a statement taking
+it is proven of nothing), a test of tested plain Scala making a `T` failing, missing or stale (the search stops at
+the first failing case, the post's perhaps, so the rule broken may go unnamed; tested code handed a `T` makes none:
+what it is handed is drawn meeting the rules, or a proven caller's, asked at the call), a model run of its store's
+Scala failing. One condition, not a list of reasons, so a reason added to a node's standing opens the rules too (the
+step 13d re-review's R-B1, the probe `Leans`: a copy of `x` kept zero by taking `x` zero, while a bump breaks it; the
+third pass's R3-B1, `MadeLeans`; the fourth pass's P4-B1, `Starts4`; the fifth pass's P5-B1, `Sources5`; the sixth
+pass's P6-B1 and P6-B2, `Six`: a maker's test failing on its post first, a store's Scala failing its model test). A
+rule open only through another is named by that other (`Kept` names where the standing fails). The rules are kept
+together, a joint induction, so a cycle of rules each proven of its own is settled proven. A failing `inhabited_`
+stays a warning of its own besides. What each kind takes is said once, where the kinds are
 (`Obligations.takes`, one case per kind): `impl` the rules the node's claim takes (`Reads.taken`: its variables, its
 `isConstant`'s equations, the worlds it reads, the `forall`s of the defines it reads); `complete` and `feasible` those
 and the rules on the values provided where its parts' code runs, its open terms (`Lowering.provided`, the fourth
