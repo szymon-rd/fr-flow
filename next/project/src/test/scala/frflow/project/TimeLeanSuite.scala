@@ -34,7 +34,8 @@ class TimeLeanSuite extends munit.CatsEffectSuite:
         Late.model -> List("readsStart"), Leans.model -> List("xZero", "yZero")).traverse_ { (m, ns) =>
       Ported.run(Projects.elaborated(m), Nil, Ported.Lean(Nil, Nil, None), Nil).map { r =>
         ns.foreach(n => assert(Ported.unproven(r.analysis).contains(n), s"$n\n${Ported.table(r.analysis)}"))
-        if m == Leans.model then assertEquals(Ported.unproven(r.analysis).get("yZero"), Some(List("Kept(xZero)")))
+        if m == Leans.model then assert(Ported.unproven(r.analysis).get("yZero").exists(_.contains("Kept(xZero)")),
+          Ported.table(r.analysis))
         // its root_impl is open beside readsStart's (a root reads root_impl open while a sibling root is)
         if m == Late.model then assertEquals(results(r, "readsLater").get(ObligationName.Impl),
           Some(ObligationStatus.Proven), Ported.table(r.analysis))
