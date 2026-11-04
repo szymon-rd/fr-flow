@@ -3,7 +3,7 @@ package frflow.project
 import frflow.core.name.NodeId
 import cats.syntax.all.*
 import frflow.eval.flow.Stamps
-import frflow.eval.time.{Extend, Frozen, Lapse, Late, Leans, MadeLeans, Outside4, Starts4}
+import frflow.eval.time.{Extend, Frozen, Lapse, Late, Leans, MadeLeans, Outside4, Sources5, Starts4}
 import frflow.proof.obligation.{ObligationName, TryKind}
 import frflow.proof.verdict.ObligationStatus
 import scala.concurrent.duration.*
@@ -29,13 +29,17 @@ class TimeLeanSuite extends munit.CatsEffectSuite:
       "waits at once adding up, a wait taking less than its seconds under a schedule (the 13d review's B1), a time " +
       "said to stay where a run looking at it moves it (B2), a late look said to read the start (the re-review's " +
       "R-B2), a rule kept from one still open, by a cover_ (R-B1), a made_ (the third pass's R3-B1) or a start_ " +
-      "(the fourth pass's P4-B1), a value rule stronger than what values from outside are assumed to meet (P4-B2)")
+      "(the fourth pass's P4-B1), a value rule stronger than what values from outside are assumed to meet (P4-B2), " +
+      "broken by tested plain Scala or met by nothing (the fifth pass's P5-B1)")
       .tag(Live)) {
     List(Stamps.seeded -> List("freshStamps", "stampTakesNoTime", "neverGivenUp", "waitsAddUp", "waitWinsLate",
         "timeStill"), Lapse.lapse -> List("quick", "lately"), Extend.model -> List("stays"),
         Late.model -> List("readsStart"), Leans.model -> List("xZero", "yZero"),
         MadeLeans.model -> List("cellPositive", "posMade"), Starts4.model -> List("yZero", "yIsZero"),
-        Outside4.model -> List("posRule", "storesPositive")).traverse_ { (m, ns) =>
+        Outside4.model -> List("posRule", "storesPositive"), Sources5.tested -> List("posRule", "allPos"),
+        Sources5.nested -> List("posRuleB", "firstStores"), Sources5.empty -> List("never", "allBelow"),
+        Sources5.vacant -> List("never", "noneBelow"))
+      .traverse_ { (m, ns) =>
       Ported.run(Projects.elaborated(m), Nil, Ported.Lean(Nil, Nil, None), Nil).map { r =>
         ns.foreach(n => assert(Ported.unproven(r.analysis).contains(n), s"$n\n${Ported.table(r.analysis)}"))
         // run with no model checks, as every run here: a statement resting on a model's tests is not tested
@@ -47,6 +51,20 @@ class TimeLeanSuite extends munit.CatsEffectSuite:
           Some(List("Kept(yZero)", "NotTested")), Ported.unproven(r.analysis).toString)
         if m == Outside4.model then assertEquals(List("posRule", "storesPositive").map(Ported.unproven(r.analysis).get),
           List(Some(List("Check", "Kept(posRule)")), Some(List("Kept(posRule)", "NotTested"))),
+          Ported.unproven(r.analysis).toString)
+        // the failing test is mkGives', of the tested mkPos; the rule it breaks is open, and what rests on it
+        if m == Sources5.tested then
+          assertEquals(r.analysis.tested(NodeId("mkGives")).flatMap(_.failure).map {
+            case frflow.testing.report.Failure.Call(_, _, broke, _) => broke.toString
+            case other                                               => other.toString
+          }, Some("Always(posRule)"), Ported.table(r.analysis))
+          assertEquals(List("posRule", "allPos").map(Ported.unproven(r.analysis).get(_).exists(_.contains(
+            "Kept(posRule)"))), List(true, true), Ported.unproven(r.analysis).toString)
+        if m == Sources5.empty then assertEquals(List("never", "allBelow").map(Ported.unproven(r.analysis).get(_)
+          .exists(_.contains("Kept(never)"))), List(true, true), Ported.unproven(r.analysis).toString)
+        // nothing breaks it here, no test runs: only its failing inhabited_ opens it
+        if m == Sources5.vacant then assertEquals((r.analysis.broken, List("never", "noneBelow").map(
+          Ported.unproven(r.analysis).get(_).exists(_.contains("Kept(never)")))), (Set.empty, List(true, true)),
           Ported.unproven(r.analysis).toString)
         // its root_impl is open beside readsStart's (a root reads root_impl open while a sibling root is)
         if m == Late.model then assertEquals(results(r, "readsLater").get(ObligationName.Impl),

@@ -8,8 +8,8 @@ import frflow.core.name.NodeId
 import frflow.core.spec.{Node, NodeKind}
 import frflow.decision.review.{ProofStanding, Unproven}
 import frflow.proof.obligation.{Made, ObligationName, Obligations}
-import frflow.proof.obligation.ObligationName.{Complete, Consistent, Cover, Impl, Outside, RootImpl, Start,
-  Tried}
+import frflow.proof.obligation.ObligationName.{Complete, Consistent, Cover, Impl, Inhabited, Outside, RootImpl,
+  Start, Tried}
 import frflow.proof.obligation.ObligationName.Made as MadeOf
 import frflow.proof.obligation.TryKind.{Clash, Idle, Needed}
 import frflow.proof.verdict.{CheckStatus, ObligationStatus, Result}
@@ -58,9 +58,10 @@ object ReadProof:
     Option.when(leaf)(Unproven.NothingBelow).toList
 
   /** Of an `always`, itself while it is open: a program keeping it whose `cover_<op>` is not proven, a maker whose
-    * `made_<maker>` is not, the values from outside where its `outside` is not, or the states its store starts in
-    * where its `start_` is not (the step 13d fourth pass's P4-B1 and P4-B2; a failing `inhabited_` is warned of, not
-    * gated on: a value no rule allows comes from a maker, from outside or from a start, each asked). Of a statement
+    * `made_<maker>` is not, the values from outside where its `outside` is not, the states its store starts in where
+    * its `start_` is not (the step 13d fourth pass's P4-B1 and P4-B2), a value no rule allows where its `inhabited_`
+    * is not (what rests on a rule nothing meets is proven of nothing), or a value tested plain Scala makes or is handed
+    * that a current test found breaking it (`Analysis.broken`, the fifth pass's P5-B1). Of a statement
     * taking a rule as a hypothesis (`Reads.taken`), each such rule open: its step rests on the rule holding where it
     * starts, as it rests on what the makers below it make (`made`). Each obligation of a rule takes other rules in
     * turn (`Obligations.takes`, one case per kind): it is kept only as they are, all the way down (the step 13d
@@ -69,11 +70,12 @@ object ReadProof:
   private def kept(a: Analysis, id: NodeId, rs: List[Result]): List[Unproven] =
     val t = a.decided.theory
     def results(rule: NodeId) = if rule == id then rs else a.current(rule).toList.flatMap(_.results)
-    val started = a.wholeCheck.toList.flatMap(_.results).collect { case Result(n, Proven, _) => n }.toSet
+    val whole = a.wholeCheck.toList.flatMap(_.results).collect { case Result(n, Proven, _) => n }.toSet
+    def asked(o: ObligationName) = a.whole.exists(_.name == o) && !whole(o)
     def open(rule: NodeId) = results(rule).exists {
       case Result(Cover(_) | MadeOf(_) | Outside, s, _) => s != Proven
       case _                                          => false
-    } || (a.whole.exists(_.name == Start(rule)) && !started(Start(rule)))
+    } || asked(Start(rule)) || asked(Inhabited(rule)) || a.broken(rule)
     def takes(x: NodeId) = results(x).map(_.name).distinct.flatMap(Obligations.takes(a.decided, x, _))
     def below(rule: NodeId) = takes(rule).filter(r => t.node(r).exists(_.statement.rule))
     val start = (if t.node(id).exists(_.statement.rule) then List(id) else Nil) ++ Reads.taken(t, id) ++ below(id)

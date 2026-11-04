@@ -54,7 +54,8 @@ object Made:
   /** `outside` of a claim of `always[T]` whose `T` a value from outside can hold (`Premises.fromOutside`: an entry
     * Definition's input, a value provided where the code runs): no covered code makes those, so the claim holds of
     * them only as what is assumed of them says: `∀ x, assumed x → rule x`, every assumption of `always` on its type a
-    * hypothesis (the step 13d fourth pass's P4-B2). An assumption of `always[T]` covers them itself.
+    * hypothesis, one on a type holding `T` too (the step 13d fourth pass's P4-B2). An assumption of `always[T]` covers
+    * them itself. Validate still asks for an assumption on `T` itself (`PremiseMissing`): conservative (P5-N1).
     */
   def outside(r: Resolved, n: NodeId): List[Obligation] =
     val t = r.theory

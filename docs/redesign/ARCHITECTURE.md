@@ -551,11 +551,15 @@ rule's `cover_picking`). Each `cover_` also takes every other rule on the stores
 starts from, and each `made_` the rules on the maker's inputs and world: the rules are kept together, so a statement
 is kept only as each rule its obligations take is, all the way down, and is unproven (`Unproven.Kept` of each open
 one) while one is not. A rule is open while what shows it holds is not proven: a `cover_`, a `made_`, its `outside`
-(below) or its `start_` (the step 13d re-review's R-B1, the probe `Leans`: a copy of `x` kept zero by taking `x` zero,
-while a bump breaks it; the third pass's R3-B1, `MadeLeans`: a value made from a cell kept positive, while a zeroing
-breaks it; the fourth pass's P4-B1, `Starts4`: zeroing said to leave `y` as it was, `y` said always zero but starting
-at one). A failing `inhabited_` is warned of, not gated on: a value no rule allows still comes from a maker, from
-outside or from a store's start, each asked. What each kind takes is said once, where the kinds are
+(below), its `start_` or its `inhabited_`, or while a current test finds a value breaking it (the step 13d re-review's
+R-B1, the probe `Leans`: a copy of `x` kept zero by taking `x` zero, while a bump breaks it; the third pass's R3-B1,
+`MadeLeans`: a value made from a cell kept positive, while a zeroing breaks it; the fourth pass's P4-B1, `Starts4`:
+zeroing said to leave `y` as it was, `y` said always zero but starting at one; the fifth pass's P5-B1, `Sources5`). A
+value of a ruled type tested plain Scala makes is checked only by its tests (`Broken.Always` on the node of the
+claim about it, `Analysis.broken`), so a failure there opens the rule too, and what rests on it with it. A rule no value
+meets (`inhabited_` failing) is open: a statement taking it is proven of nothing, and a value from a tested maker may
+break it unasked; so a failing `inhabited_` gates what rests on the rule, and stays a warning of its own. What each
+kind takes is said once, where the kinds are
 (`Obligations.takes`, one case per kind): `impl` the rules the node's claim takes (`Reads.taken`: its variables, its
 `isConstant`'s equations, the worlds it reads, the `forall`s of the defines it reads); `complete` and `feasible` those
 and the rules on the values provided where its parts' code runs, its open terms (`Lowering.provided`, the fourth
@@ -572,7 +576,10 @@ provided values already use; an operation known only by assumptions gives values
 may cover, `AssumedMakes`) is asked `outside`: `∀ x, assumed x → rule x`, every assumption of `always` on the value's
 type a hypothesis. No covered code makes those values, so the claim holds of them only as what is assumed of them
 says; before, it was taken of them unasked (the step 13d fourth pass's P4-B2, `Outside4`: positive claimed, not
-negative assumed, a zero stored).
+negative assumed, a zero stored). An assumption on a type holding `T` (a record from outside with a `T` inside) is a
+hypothesis of `outside` too, but Validate still asks for one on `T` itself (`PremiseMissing`, the containing type's
+judged not needed): conservative, as an assumption on `T` is what the claim lists (the fifth pass's P5-N1, `Sources5`'s
+nested probe).
 
 **A step over what makers make.** `complete` takes, for each maker its parts' claims are about, the `made_` of every
 rule kept of it (proven of the maker's code) as an `m_<rule>_<maker>` hypothesis, as a caller's `made_` already takes

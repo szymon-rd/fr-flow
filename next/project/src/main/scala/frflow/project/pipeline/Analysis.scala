@@ -16,7 +16,8 @@ import frflow.proof.terms.TermTable
 import frflow.proof.verdict.{CheckKey, NodeCheck, WholeCheck}
 import frflow.proof.whole.{ExampleGoals, Joint, Possible}
 import frflow.testing.model.ModelRuns
-import frflow.testing.report.TestReport
+import frflow.testing.report.{Failure, TestReport}
+import frflow.eval.run.Broken
 
 /** The pure state of a project: every phase after elaboration, each computed once, on demand. */
 final class Analysis(val valid: Valid, val inputs: Inputs, val computed: Computed):
@@ -67,6 +68,12 @@ final class Analysis(val valid: Valid, val inputs: Inputs, val computed: Compute
   def wholeCheck: Option[WholeCheck] = inputs.recorded.checks.whole.filter(_.key == keys.whole)
   /** Its recorded test report, while its key is the node's now. */
   def tested(id: NodeId): Option[TestReport] = currentTests.get(id)
+  /** The rules a current test report found a value breaking (`Broken.Always`), on whichever node's code the value
+    * was made or handed: tested plain Scala making it (the step 13d fifth pass's P5-B1).
+    */
+  lazy val broken: Set[NodeId] = currentTests.values.flatMap(_.failure).collect {
+    case Failure.Call(_, _, Broken.Always(rule), _) => rule
+  }.toSet
   private lazy val currentTests: Map[NodeId, TestReport] =
     inputs.recorded.tests.collect { case (id, (k, r)) if k == TestKeys.of(this, id) => id -> r }
   /** The models whose operations' Scala, tested against the model, a node rests on (owner §36): each its checking
