@@ -22,6 +22,9 @@ val answersWhatItStores = Node.claim("The server answers each request it handles
   serve.result === serverStore.in(serve.after).state)
   .assuming(storeOneAtATime, handedOneAtATime)
 
+/** What the inbox hands the tests' runs when no request waits, so each run ends (`HttpInbox.nextOr`). */
+val idleRequest: AuthRequest = AuthRequest.SignOut(RealmId(""), "")
+
 /** The FrModel's code, apart from its nodes: a variant keeps all but one. */
 def withCode(kb: FrModel): FrModel = kb
   .implementProven(step)(next)
@@ -29,7 +32,7 @@ def withCode(kb: FrModel): FrModel = kb
   .implementProven(introspect)(introspecting)
   .implementTested(load, logged, record, lookup)(start = SessionDb.holding, observe = _.stored)(d =>
     (d.load, d.logged, d.record, d.lookup))
-  .implementTested(nextRequest)(start = HttpInbox.holding, observe = _.left)(i => Tuple1(i.next))
+  .implementTested(nextRequest)(start = HttpInbox.holding, observe = _.left)(i => Tuple1(i.nextOr(idleRequest)))
   .withGenerator(Replay.stores)
 
 val knowledge = withCode(FrModel("Keycloak")(realmAccess, noUnauthorizedAccess, signedInAreAccepted,
