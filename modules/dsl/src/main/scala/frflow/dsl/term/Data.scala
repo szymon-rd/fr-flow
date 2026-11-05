@@ -57,7 +57,8 @@ object Data:
       : LeanType[T] =
     new LeanType[T]:
       val ty: Ty = Ty.Data(d.data.typeName)
-      val declares: Declarations = Declarations.of(d) |+| Declarations.in(at.map(Source.path), d.data.typeName.value) |+|
+      val declares: Declarations = Declarations.of(d) |+|
+        Declarations.in(at.map(Source.path), d.data.typeName.value) |+|
         parts.foldMap(_.declares)
       override val fields: List[LeanType.Field[T, ?]] = fs
 

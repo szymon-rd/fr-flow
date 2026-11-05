@@ -65,7 +65,8 @@ object Definition:
     * (one `apply`: two overloads differing only in what they are given are ambiguous to Scala).
     */
   inline def apply[A](means: String): Definition[A] = summonFrom {
-    case t: LeanType[A] => new Definition[A](SymbolName(Source.valName), means, None, WrittenAt.in(Source.here))(using t)
+    case t: LeanType[A] =>
+      new Definition[A](SymbolName(Source.valName), means, None, WrittenAt.in(Source.here))(using t)
     case _              => new Definition[A](SymbolName(Source.valName), means, None, WrittenAt.in(Source.here))(
       using NoLeanType[A](Source.typeName[A]))
   }

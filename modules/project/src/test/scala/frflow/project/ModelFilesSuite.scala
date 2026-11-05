@@ -25,9 +25,10 @@ class ModelFilesSuite extends munit.FunSuite:
   }
 
   test("a file mixing vocabulary with plain code is not; nor is one with an extension, nor an empty one") {
-    val mixed = "package crm\n\nval granted = Definition[Int => Boolean](\"\")\n\nfinal class SqliteDatabase(db: Db):\n" +
-      "  def load(): Int = db.load()\n"
-    val extended = "package rooms\n\nval free = define { (b: Term[Int]) => true }\nextension (b: Int) def twice = b * 2\n"
+    val mixed = "package crm\n\nval granted = Definition[Int => Boolean](\"\")\n\n" +
+      "final class SqliteDatabase(db: Db):\n  def load(): Int = db.load()\n"
+    val extended = "package rooms\n\nval free = define { (b: Term[Int]) => true }\n" +
+      "extension (b: Int) def twice = b * 2\n"
     assert(!ModelFiles.only(mixed, vocabulary) && !ModelFiles.only(extended, vocabulary))
     assert(!ModelFiles.only("package rooms\n", vocabulary))
   }

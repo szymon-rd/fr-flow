@@ -42,8 +42,7 @@ object Obligations:
     case Cover(op)                  => Reads.coverTaken(r.theory, SymbolName(op))
     // the maker's inputs and world (`Made.of`), or the calling code's (`Made.atCalls`)
     case Made(maker)                => made(r, maker)
-    // two steps' runs from any world, no guard (`LowerCommute`); a try refutes, nothing is proven from it; a start
-    // from the `initially`s, assumptions; a witness, a group's or an example's values, none taken
+    // none: two steps' runs from any world (`LowerCommute`); a try; a start, from assumptions; a witness; an example
     case Commute(_) | Tried(_) | Start(_) | Inhabited(_) | Consistent(_) | Satisfiable(_, _) | Example(_, _) |
         ExampleOpposite(_, _) => Nil
   ).filterNot(_ == n)
