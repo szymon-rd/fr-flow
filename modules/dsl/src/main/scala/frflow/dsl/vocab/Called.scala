@@ -1,7 +1,7 @@
 package frflow.dsl.vocab
 
 import frflow.core.name.SymbolName
-import frflow.core.term.Final
+import frflow.core.term.language.Final
 import frflow.dsl.term.{LeanType, Term}
 
 /** A Definition applied to its arguments (`inRoom(request.room)`): the term `Definition.apply` makes, which also says

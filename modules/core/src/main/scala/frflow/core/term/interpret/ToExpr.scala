@@ -3,6 +3,7 @@ package frflow.core.term.interpret
 import frflow.core.expr.*
 import frflow.core.name.{ModelName, SymbolName, VarId}
 import frflow.core.term.*
+import frflow.core.term.language.{Body, Final, Sym}
 import frflow.core.ty.{NumKind, Ty}
 
 /** The initial form of a term (LNCS 7470 §2.4 and §3.3, `initialize`): the IR `Expr` the analyses read (what changed,

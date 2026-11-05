@@ -2,7 +2,7 @@ package frflow.proof.lean.laws
 
 import frflow.core.Booking
 import frflow.core.expr.{LawSeeds, Terms, Tm}
-import frflow.core.term.Final
+import frflow.core.term.language.Final
 import frflow.proof.layout.{LeanTag, LeanWorkspace}
 import frflow.proof.lean.ast.*
 import frflow.proof.lean.lower.{Naming, LowerType}

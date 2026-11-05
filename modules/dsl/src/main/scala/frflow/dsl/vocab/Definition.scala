@@ -1,13 +1,14 @@
 package frflow.dsl.vocab
 
 import frflow.core.name.SymbolName
-import frflow.core.term.{Final, Sym, World}
+import frflow.core.term.language.{Final, Sym}
+import frflow.core.term.World
 import frflow.core.ty.Ty
 import frflow.core.vocab.{Symbol, SymbolType, ValueKind}
 import frflow.dsl.build.{Declarations, Fault, Source}
-import frflow.dsl.flow.{Flow, Run}
-import frflow.dsl.term.{LeanType, Notes, Term}
 import frflow.dsl.run.Worlds
+import frflow.dsl.term.{LeanType, Notes, Term}
+import frflow.dsl.vocab.{Flow, Run}
 import scala.annotation.publicInBinary
 import scala.compiletime.summonFrom
 

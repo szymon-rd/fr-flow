@@ -5,7 +5,7 @@ import frflow.core.example.Example
 import frflow.core.expr.{Expr, Exprs, Value}
 import frflow.core.name.SymbolName
 import frflow.core.ty.Ty
-import frflow.testing.Case
+import frflow.testing.derive.Case
 
 /** The cases the examples show of a call: each application of the Definition, in an example's fact, to values of the
   * call's input types, under the example's givens. A node's coverage counts them before its generated cases (what

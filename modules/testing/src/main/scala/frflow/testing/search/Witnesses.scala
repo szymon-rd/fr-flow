@@ -5,12 +5,13 @@ import frflow.core.consistency.{Conditions, Consistency, Vacuity}
 import frflow.core.expr.Value
 import frflow.core.name.{DefName, ModelName, NodeId, SymbolName}
 import frflow.core.spec.Range
-import frflow.core.term.Stated
+import frflow.core.term.language.Stated
+import frflow.core.Theory
 import frflow.core.ty.Ty
 import frflow.core.vocab.SymbolType
-import frflow.core.Theory
+import frflow.eval.{Env, Fn, NotEvaluated, ScalaValue}
 import frflow.eval.run.{Made, Wiring}
-import frflow.eval.{Env, Fn, NotEvaluated, ScalaValue, Semantics}
+import frflow.eval.term.Semantics
 
 /** The values that show what always holds possible and each condition able to hold (owner §18), found by a search:
   * first what the FrModel's generators draw (`drawn`), then the small values of each type (`Small`), each

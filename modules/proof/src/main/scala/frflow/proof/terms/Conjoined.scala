@@ -1,7 +1,8 @@
 package frflow.proof.terms
 
-import frflow.core.term.{Annotation, Final, Sym}
+import frflow.core.term.Annotation
 import frflow.core.term.interpret.Forward
+import frflow.core.term.language.{Final, Sym}
 
 /** `a && (b && c)` split into its top-level conjuncts, over any interpreter `s`: the term `conjunct_i` declares, in
   * the order `Exprs.conjuncts` reads them off the IR. Only `and` differs from `s` (`Forward`).

@@ -1,16 +1,17 @@
 package frflow.project.pipeline
 
-import frflow.core.analysis.{Resolved, Scope}
+import frflow.core.analysis.outside.Premises
+import frflow.core.analysis.resolution.Resolved
+import frflow.core.analysis.outside.Scope
+import frflow.core.expr.{Expr, Exprs, OutsideFact}
 import frflow.core.graph.Edge
 import frflow.core.name.NodeId
 import frflow.core.spec.{CallForm, FailureClause, Node, Reliance, Statement, Written}
 import frflow.decision.content.{Content, FieldValue}
-import frflow.proof.lean.lower.LowerType
-import frflow.core.expr.{Expr, Exprs, OutsideFact}
 import frflow.proof.layout.{Lowering, VocabularyModules}
+import frflow.proof.lean.lower.LowerType
 import frflow.proof.lean.print.{Print, PrintDecl}
 import frflow.proof.lean.term.Printed
-import frflow.core.analysis.outside.Premises
 
 /** A node's decided form: what it says (its sentence and formula; its reason is its decision's), where it sits, and
   * how it is checked. Its `formula` is what the formula means: the elaborated term as Lean is given it (FrFlow's

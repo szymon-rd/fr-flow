@@ -1,7 +1,8 @@
 package frflow.dsl.term
 
 import cats.syntax.all.*
-import frflow.core.term.{Bound, Sym}
+import frflow.core.term.Bound
+import frflow.core.term.language.Sym
 
 /** The binders of the term language, each a host function given each interpreter's own variable (`Term.body`): what
   * `TermSyntax`'s inline methods call once they have the parameters' names. A binder notes its variables' types (both

@@ -1,7 +1,7 @@
 package frflow.dsl.term
 
 import frflow.core.expr.Value
-import frflow.core.term.Sym
+import frflow.core.term.language.Sym
 
 /** A value as a constant term: what the DSL's implicit conversions (`Term.value`, `Term.int`) make, noting its type;
   * a value that is not data is noted as a fault on the term, which fails its node.

@@ -1,11 +1,12 @@
 package frflow.eval.run
 
-import frflow.core.analysis.Constrained
+import frflow.core.analysis.resolution.Constrained
 import frflow.core.example.{Example, Given}
 import frflow.core.expr.{Expr, Exprs}
 import frflow.core.name.NodeId
 import frflow.core.Theory
-import frflow.eval.{Env, Fn, Semantics}
+import frflow.eval.{Env, Fn}
+import frflow.eval.term.Semantics
 
 /** An example checked against the code (owner §18): its fact evaluated with every Definition it mentions given its
   * meaning (`Wiring`: plain Scala, proven code run by the evaluator, a fixed value) and the values the example gives.

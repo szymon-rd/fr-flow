@@ -5,7 +5,8 @@ import frflow.core.code.CodeTable
 import frflow.core.name.*
 import frflow.core.{Sited, Theory}
 import frflow.core.spec.{Node, Reliance, Statement, Written}
-import frflow.core.term.{Bound, Final, Sym}
+import frflow.core.term.Bound
+import frflow.core.term.language.{Final, Sym}
 import frflow.core.ty.{Ctor, DataType, Field, Ty}
 import frflow.core.vocab.{Sort, Symbol, SymbolType, ValueKind, Vocabulary}
 

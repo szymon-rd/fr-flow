@@ -2,12 +2,13 @@ package frflow.testing
 
 import cats.effect.IO
 import cats.effect.unsafe.implicits.global
-import frflow.eval.Semantics
-import frflow.eval.assumed.{Agreeing, Lookup}
 import frflow.core.name.{NodeId, SymbolName}
+import frflow.eval.assumed.{Agreeing, Lookup}
+import frflow.eval.term.Semantics
 import frflow.testing.derive.Derive
-import frflow.testing.model.{Difference, ModelRuns, ModelTests, Ran}
+import frflow.testing.model.{ModelRuns, ModelTests}
 import frflow.testing.report.{Failure, Outcome}
+import frflow.testing.steps.{Difference, Ran}
 
 /** The Scala of an operation known only by its assumptions (G2), tested against them on generated runs of its model's
   * operations: each call of it checked against what is assumed of its run (its result, the world it leaves), the

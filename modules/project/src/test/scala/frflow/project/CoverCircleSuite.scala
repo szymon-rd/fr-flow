@@ -1,7 +1,7 @@
 package frflow.project
 
-import frflow.core.analysis.{Callees, Resolve}
 import frflow.core.analysis.outside.Reads
+import frflow.core.analysis.resolution.{Callees, Resolve}
 import frflow.core.name.{NodeId, SymbolName}
 import frflow.eval.flow.Stamps
 

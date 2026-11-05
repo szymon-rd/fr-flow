@@ -1,6 +1,6 @@
 package frflow.dsl.term
 
-import frflow.core.term.Sym
+import frflow.core.term.language.Sym
 import scala.quoted.*
 
 /** `implies` as written: an alphanumeric operator, so it binds last (`a && b implies c` is `(a && b) implies c`) and,

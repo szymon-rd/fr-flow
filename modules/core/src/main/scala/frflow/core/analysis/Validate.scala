@@ -1,17 +1,19 @@
 package frflow.core.analysis
 
-import frflow.core.analysis.refused.{Assumed, Bounded, Unreached}
 import cats.data.{NonEmptyChain, Validated, ValidatedNec}
 import cats.syntax.all.*
-import frflow.core.{Elaborated, Failing, Theory}
+import frflow.core.analysis.{Assumed, Bounded, Unreached}
+import frflow.core.analysis.outside.{Outsides, Premises, Reads}
+import frflow.core.analysis.outside.Scope
+import frflow.core.analysis.resolution.{Constrained, Resolve, Valid}
 import frflow.core.code.Code
+import frflow.core.{Elaborated, Failing, Theory}
 import frflow.core.expr.{Expr, Exprs, OutsideFact, PrimOp, Prog, Progs}
 import frflow.core.graph.{Edge, Walk}
 import frflow.core.name.{LeanNames, NodeId, SymbolName}
 import frflow.core.spec.NodeKind
 import frflow.core.ty.Ty
 import frflow.core.vocab.DefineForm
-import frflow.core.analysis.outside.{Outsides, Premises, Reads}
 
 /** The structure rules (docs/DAG.md §2) as one pure function: every problem at once, or the theory as `Valid`. */
 object Validate:

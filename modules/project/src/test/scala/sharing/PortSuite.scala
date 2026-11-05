@@ -2,7 +2,7 @@ package sharing
 
 import cats.effect.IO
 import frflow.core.name.NodeId
-import frflow.eval.Semantics
+import frflow.eval.term.Semantics
 import frflow.proof.audit.Completeness
 import frflow.project.{Captured, Live, Ported, Projects}
 import frflow.project.program.ModelCheck

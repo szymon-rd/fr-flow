@@ -1,6 +1,6 @@
 package frflow.dsl.vocab
 
-import frflow.core.term.Body
+import frflow.core.term.language.Body
 import frflow.dsl.term.{LeanType, Term}
 import frflow.dsl.run.Recorded
 

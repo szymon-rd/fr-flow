@@ -3,6 +3,7 @@ package frflow.core.term.interpret
 import frflow.core.expr.{Binder, OutsideFact, Value}
 import frflow.core.name.{ModelName, SymbolName}
 import frflow.core.term.*
+import frflow.core.term.language.{Body, Final, Sym}
 import frflow.core.ty.Ty
 
 /** The notes a term carries (`noted`), in order: another interpreter of the term (LNCS 7470 §3.2), whose

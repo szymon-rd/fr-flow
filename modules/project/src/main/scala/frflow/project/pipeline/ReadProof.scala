@@ -1,16 +1,18 @@
 package frflow.project.pipeline
 
-import frflow.core.analysis.{Constrained, Scope}
 import frflow.core.analysis.outside.{Guards, Reads}
+import frflow.core.analysis.resolution.Constrained
+import frflow.core.analysis.outside.Scope
+import frflow.core.checking.Checking
 import frflow.core.code.Code
 import frflow.core.graph.Walk
-import frflow.core.checking.Checking
 import frflow.core.name.NodeId
 import frflow.core.spec.{Node, NodeKind, Range}
 import frflow.core.ty.Ty
 import frflow.core.vocab.SymbolType
 import frflow.decision.review.{ProofStanding, Unproven}
-import frflow.proof.obligation.{Made, ObligationName, Obligations}
+import frflow.proof.audit.Obligations
+import frflow.proof.obligation.{Made, ObligationName}
 import frflow.proof.obligation.ObligationName.{Complete, Consistent, Impl, Inhabited, RootImpl, Start, Tried}
 import frflow.proof.obligation.TryKind.{Clash, Idle, Needed}
 import frflow.proof.verdict.{CheckStatus, ObligationStatus, Result}

@@ -1,7 +1,7 @@
 package frflow.proof.obligation.tried
 
 import cats.data.NonEmptyList
-import frflow.core.analysis.{Constrained, Resolved}
+import frflow.core.analysis.resolution.{Constrained, Resolved}
 import frflow.core.name.{NodeId, SymbolName}
 import frflow.core.spec.{Range, Reliance, Statement}
 import frflow.proof.obligation.{Discharge, Obligation, ObligationName, Prop, Substitute, TryKind}

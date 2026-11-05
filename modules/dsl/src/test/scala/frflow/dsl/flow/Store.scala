@@ -3,6 +3,7 @@ package frflow.dsl.flow
 import frflow.dsl.model.StateModel
 import frflow.dsl.term.Term
 import frflow.dsl.vocab.Definition
+import frflow.dsl.vocab.Flow
 
 /** Operations on a state of the tests, Definitions, and their model: a number kept, given back and replaced. */
 object Store:

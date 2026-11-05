@@ -2,9 +2,10 @@ package rooms
 
 import frflow.*
 import frflow.core.example.Gen
-import frflow.testing.Seed
-import frflow.eval.{ScalaValue, Semantics}
+import frflow.eval.ScalaValue
+import frflow.eval.term.Semantics
 import frflow.testing.derive.{Always, Derive, Hints, Seeds}
+import frflow.testing.report.Seed
 
 /** Drawn values meet their fields' rules (step 5, section 10.2): a `RoomBookings` drawn by its type, from the derived
   * generators alone, meets `endsAfterStart` for each booking it holds, and the rules on itself.

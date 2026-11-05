@@ -1,11 +1,12 @@
 package frflow.core.analysis
 
+import frflow.core.analysis.resolution.{Constrained, Resolve}
 import frflow.core.{Booking, Failing, Lang, Store}
-import frflow.core.Nodes.*
 import frflow.core.expr.{Binder, Expr, Exprs, Prog, Progs, Value}
 import frflow.core.name.{DefName, NodeId, SourceText, SymbolName, VarId}
+import frflow.core.Nodes.*
 import frflow.core.spec.{Form, Written}
-import frflow.core.term.{Stated, Sym}
+import frflow.core.term.language.{Stated, Sym}
 import frflow.core.ty.Ty
 import frflow.core.vocab.{Define, DefineForm, SymbolType}
 

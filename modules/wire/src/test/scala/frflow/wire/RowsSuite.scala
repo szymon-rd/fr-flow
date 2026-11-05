@@ -7,7 +7,7 @@ import frflow.eval.EvalError
 import frflow.eval.run.Broken
 import frflow.proof.obligation.{ObligationName, TryKind}
 import frflow.proof.verdict.{ObligationStatus, Result}
-import frflow.testing.Seed
+import frflow.testing.report.Seed
 import frflow.testing.report.{Against, Count, Outcome, TestReport}
 import frflow.wire.snapshot.{FieldRow, ObligationRow, Rows, TestRow}
 

@@ -1,17 +1,21 @@
 package frflow.testing.model
 
-import cats.MonadThrow
 import cats.effect.kernel.{Concurrent, Ref}
+import cats.MonadThrow
 import cats.syntax.all.*
 import frflow.core.example.Gen
 import frflow.core.expr.{Prog, Progs, Value}
 import frflow.core.name.{ModelName, NodeId, SymbolName}
-import frflow.core.term.Stated
+import frflow.core.term.language.Stated
 import frflow.core.Theory
-import frflow.eval.{ScalaValue, Semantics}
-import frflow.testing.{Draw, Plan, Seed}
+import frflow.eval.ScalaValue
+import frflow.eval.term.Semantics
 import frflow.testing.derive.Always
+import frflow.testing.derive.Draw
+import frflow.testing.Plan
 import frflow.testing.report.*
+import frflow.testing.report.Seed
+import frflow.testing.steps.{Difference, Step}
 
 /** A model's operations' plain Scala tested against the model (`implementTested(ops*)(start, observe)(calls)`,
   * whoever wrote it, owner §36): at most `most` runs of its operations (`ModelRuns.Runs` unless a port gives today's

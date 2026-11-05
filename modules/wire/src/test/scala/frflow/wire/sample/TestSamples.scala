@@ -6,10 +6,9 @@ import frflow.core.name.{CtorName, ModelName, NodeId, SymbolName, TypeName}
 import frflow.core.ty.{NumKind, Ty}
 import frflow.eval.EvalError
 import frflow.eval.run.Broken
-import frflow.testing.Seed
-import frflow.testing.model.{Difference, Ran, Step}
-import frflow.testing.report.{Against, Count, Drawn, Failure, Made, Note, Outcome, Position, Reach, Target,
+import frflow.testing.report.{Against, Count, Drawn, Failure, Made, Note, Outcome, Position, Reach, Seed, Target,
   TestReport}
+import frflow.testing.steps.{Difference, Ran, Step}
 
 /** The golden tests and counterexamples: a call that broke its claim, a model run its store answered differently. */
 object TestSamples:

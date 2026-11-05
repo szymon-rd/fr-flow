@@ -2,8 +2,8 @@ package frflow.core.spec
 
 import frflow.core.expr.{Binder, Expr, Exprs, Lambda, Prog, Progs}
 import frflow.core.name.{SourceText, SymbolName}
-import frflow.core.term.{Final, Stated}
 import frflow.core.term.interpret.{Retyped, ToExpr}
+import frflow.core.term.language.{Final, Stated}
 import frflow.core.ty.Ty
 
 /** An elaborated part with the Scala it was written as: what the back ends read (`form`: the term itself, LNCS 7470

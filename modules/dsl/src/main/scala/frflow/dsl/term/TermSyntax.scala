@@ -1,6 +1,7 @@
 package frflow.dsl.term
 
-import frflow.core.term.{Selector, Sym}
+import frflow.core.term.language.Sym
+import frflow.core.term.Selector
 import frflow.dsl.build.Source
 import scala.annotation.targetName
 import scala.deriving.Mirror

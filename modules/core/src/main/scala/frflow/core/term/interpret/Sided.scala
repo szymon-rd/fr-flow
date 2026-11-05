@@ -1,7 +1,8 @@
 package frflow.core.term.interpret
 
 import frflow.core.expr.Binder
-import frflow.core.term.{Annotation, Bound, Ext, Sym}
+import frflow.core.term.{Annotation, Bound, Ext}
+import frflow.core.term.language.Sym
 import frflow.core.ty.Ty
 
 /** A value with the side of an `Either` it was made on, where known. */

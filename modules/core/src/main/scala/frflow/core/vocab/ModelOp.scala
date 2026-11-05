@@ -2,7 +2,7 @@ package frflow.core.vocab
 
 import frflow.core.expr.{Binder, Prog}
 import frflow.core.name.SymbolName
-import frflow.core.term.Stated
+import frflow.core.term.language.Stated
 import frflow.core.ty.Ty
 
 /** What an operation on a state means (`op.means(…)`): its steps over the model's state, from the operation's

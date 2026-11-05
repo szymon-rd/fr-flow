@@ -1,14 +1,15 @@
 package whole
 
 import frflow.*
-import frflow.core.analysis.{Problem, SaysWhat}
+import frflow.core.analysis.outside.Premises
+import frflow.core.analysis.Problem
+import frflow.core.analysis.resolution.SaysWhat
 import frflow.core.checking.Checking
 import frflow.core.consistency.{Consistency, Group, Picked, Vacuity, Witness}
 import frflow.core.name.{NodeId, SymbolName}
 import frflow.core.ty.Ty
 import frflow.proof.obligation.{ObligationName, Required}
 import rooms.{Booking, accepted, book, granted}
-import frflow.core.analysis.outside.Premises
 
 /** What a Declaration is (2.7): a claim at the bottom mentioning one says what it is, with no `impl` and no premise
   * list, the proven code standing in it; its consistency group is joined through that code and solved in order, a

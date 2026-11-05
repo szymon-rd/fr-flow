@@ -2,8 +2,8 @@ package frflow.proof.lean.term
 
 import frflow.core.expr.Binder
 import frflow.core.name.SymbolName
-import frflow.core.term.{Final, Stated}
 import frflow.core.term.interpret.{Guard, Guarded}
+import frflow.core.term.language.{Final, Stated}
 import frflow.core.ty.Ty
 import frflow.proof.lean.ast.{LBinder, LExpr}
 import frflow.proof.lean.lower.{LowerEnv, LowerType, Naming}

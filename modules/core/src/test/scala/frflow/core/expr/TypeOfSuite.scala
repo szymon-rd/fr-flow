@@ -50,7 +50,7 @@ class TypeOfSuite extends munit.FunSuite:
     (1L to 30L).foreach { seed =>
       val g = Terms(seed)
       val body = g.bool(2, 1)
-      val w = Written.lambda(List(x), [T[_]] => (s: frflow.core.term.Sym[T]) =>
+      val w = Written.lambda(List(x), [T[_]] => (s: frflow.core.term.language.Sym[T]) =>
         body[T](s, Scope(List(s.free[BigInt](x)))), SourceText("…"))
       assertEquals((w.value.result, Exprs.typeOf(w.value.body)), (Ty.Bool, Ty.Bool))
       assertEquals(problems(w.value.body, List(x)), Nil)

@@ -4,7 +4,8 @@ import frflow.core.code.{Attachment, Code, CodeTable, Impl, ScalaCode}
 import frflow.core.name.*
 import frflow.core.{Sited, Theory}
 import frflow.core.spec.{Node, Reliance, Statement, Written}
-import frflow.core.term.{Bound, Sym}
+import frflow.core.term.Bound
+import frflow.core.term.language.Sym
 import frflow.core.ty.Ty
 import frflow.core.vocab.{Symbol, SymbolType, ValueKind, Vocabulary}
 

@@ -1,7 +1,7 @@
 package frflow.proof.whole
 
 import cats.data.NonEmptyList
-import frflow.core.analysis.{Constrained, Resolved}
+import frflow.core.analysis.resolution.{Constrained, Resolved}
 import frflow.core.consistency.Consistency
 import frflow.core.example.Example
 import frflow.core.expr.Exprs

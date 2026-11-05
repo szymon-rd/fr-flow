@@ -1,6 +1,6 @@
 package frflow.proof.layout
 
-import frflow.core.analysis.SaysWhat
+import frflow.core.analysis.resolution.SaysWhat
 import frflow.core.name.{LeanNames, NodeId, SymbolName}
 import frflow.proof.lean.ast.*
 import frflow.proof.obligation.{Hyp, Made, ObligationName, Prop, Required, Substitute}

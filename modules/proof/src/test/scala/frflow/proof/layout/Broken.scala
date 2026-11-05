@@ -1,16 +1,17 @@
 package frflow.proof.layout
 
+import Fixture.*
+import frflow.core.analysis.resolution.{Resolve, Resolved}
+import frflow.core.analysis.Validate
 import frflow.core.{Booking, Kb, Lang}
-import frflow.core.Nodes.*
-import frflow.core.analysis.{Resolve, Resolved, Validate}
 import frflow.core.code.Code
 import frflow.core.expr.Prog
 import frflow.core.name.{DefName, ModelName, SourceText, SymbolName}
+import frflow.core.Nodes.*
 import frflow.core.spec.Written
-import frflow.core.term.Sym
+import frflow.core.term.language.Sym
 import frflow.core.ty.Ty
 import frflow.core.vocab.{Define, DefineForm, ModelOp, StateModel}
-import Fixture.*
 
 /** Proven code that breaks what always holds, and steps at once on a store: `misdate` makes a booking ending before
   * it starts (its `made_` must not be proven), `fileBackwards` stores one (its `cover_` must stay open); `countBoth`
@@ -34,7 +35,7 @@ object Broken:
     s.field(s.free[Booking](b), Booking.end), s.field(s.free[Booking](b), Booking.start))
   private val swap = Define(DefName("swap"), Written.lambda(List(b), [T[_]] => (s: Sym[T]) => swapped(s),
     SourceText("swap")), DefineForm.Function)
-  private def put(x: frflow.core.term.Stated[Booking]) = Prog.Call(SymbolName("put"), List(x), Ty.Unit)
+  private def put(x: frflow.core.term.language.Stated[Booking]) = Prog.Call(SymbolName("put"), List(x), Ty.Unit)
   private val count = Prog.Call(SymbolName("count"), Nil, big)
   private val later = term([T[_]] => (s: Sym[T]) => booking(s, s.field(s.free[Booking](b), room),
     s.field(s.free[Booking](b), Booking.start), s.add(s.field(s.free[Booking](b), Booking.end), Lang(s).num(1))))

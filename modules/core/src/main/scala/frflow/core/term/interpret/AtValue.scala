@@ -1,6 +1,7 @@
 package frflow.core.term.interpret
 
-import frflow.core.term.{Annotation, Bound, Final, Sym}
+import frflow.core.term.{Annotation, Bound}
+import frflow.core.term.language.{Final, Sym}
 
 /** A formula's leading `always` at a value: `always(x)(p)` at `v` is `p(v)`, what the rule says of `v` (the
   * hypothesis a variable comes with, `Guards`; the rule of the world a run ends in, `Keeping`). A context-passing

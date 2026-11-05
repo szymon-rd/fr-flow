@@ -3,8 +3,9 @@ package frflow.eval.term
 import frflow.core.{Booking, Lang}
 import frflow.core.expr.{Side, Value}
 import frflow.core.name.{CtorName, ModelName, SymbolName}
-import frflow.core.term.{Bound, Final, Program, Stated, Sym, World}
+import frflow.core.term.{Bound, Program, World}
 import frflow.core.term.interpret.Forward
+import frflow.core.term.language.{Final, Stated, Sym}
 import frflow.core.ty.Ty
 import frflow.proof.lean.laws.{Event, MoreTerms}
 

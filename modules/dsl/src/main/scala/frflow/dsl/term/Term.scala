@@ -1,8 +1,9 @@
 package frflow.dsl.term
 
 import frflow.core.expr.{Binder, Expr}
-import frflow.core.term.{Constructor, Final, Selector, Sym}
+import frflow.core.term.{Constructor, Selector}
 import frflow.core.term.interpret.ToExpr
+import frflow.core.term.language.{Final, Sym}
 import frflow.dsl.build.{Failure, Fault}
 import scala.annotation.implicitNotFound
 import scala.util.NotGiven

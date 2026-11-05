@@ -1,6 +1,6 @@
 package frflow.proof.obligation.tried
 
-import frflow.core.analysis.Resolved
+import frflow.core.analysis.resolution.Resolved
 import frflow.core.analysis.outside.Outsides
 import frflow.core.expr.OutsideFact
 import frflow.core.ty.Ty

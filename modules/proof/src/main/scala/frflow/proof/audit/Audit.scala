@@ -1,6 +1,6 @@
 package frflow.proof.audit
 
-import frflow.core.analysis.Resolved
+import frflow.core.analysis.resolution.Resolved
 import frflow.proof.lean.ast.LeanModule
 import frflow.proof.obligation.Obligation
 

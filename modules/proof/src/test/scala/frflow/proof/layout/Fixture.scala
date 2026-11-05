@@ -1,11 +1,12 @@
 package frflow.proof.layout
 
 import frflow.core.{Booking, Lang}
-import frflow.core.Nodes.*
 import frflow.core.expr.{Binder, OutsideFact, Prog}
 import frflow.core.name.{DefName, ModelName, SourceText, VarId}
+import frflow.core.Nodes.*
 import frflow.core.spec.{Node, Written}
-import frflow.core.term.{Bound, Final, Program, Selector, Stated, Sym, World}
+import frflow.core.term.{Bound, Program, Selector, World}
+import frflow.core.term.language.{Final, Stated, Sym}
 import frflow.core.ty.Ty
 import frflow.core.vocab.{Define, DefineForm}
 

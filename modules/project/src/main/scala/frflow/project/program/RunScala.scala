@@ -1,17 +1,18 @@
 package frflow.project.program
 
 import cats.syntax.all.*
-import frflow.core.analysis.Resolved
+import frflow.core.analysis.resolution.Resolved
 import frflow.core.consistency.Consistency
 import frflow.core.example.Example
-import frflow.eval.{Races, Semantics}
+import frflow.eval.Races
 import frflow.eval.run.{ExampleRun, OnCode}
+import frflow.eval.term.Semantics
 import frflow.project.pipeline.Computed
 import frflow.project.port.RunCode
 import frflow.proof.obligation.Constant
-import frflow.testing.Settings
 import frflow.testing.derive.Derive
 import frflow.testing.search.Witnesses
+import frflow.testing.Settings
 
 /** Running Scala before the pure phases (the developer's code runs, through `RunCode`): each example against the
   * code (a throw said as one), and the search for the witnesses of what must be shown possible (owner §18), from the

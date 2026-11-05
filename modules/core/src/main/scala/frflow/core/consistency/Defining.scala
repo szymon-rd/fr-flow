@@ -1,9 +1,10 @@
 package frflow.core.consistency
 
 import frflow.core.expr.Value
-import frflow.core.term.{Annotation, Bound, Final, Program, Selector, Sym, World}
-import frflow.core.ty.{NumKind, Ty}
+import frflow.core.term.{Annotation, Bound, Program, Selector, World}
 import frflow.core.term.interpret.Forward
+import frflow.core.term.language.{Final, Sym}
+import frflow.core.ty.{NumKind, Ty}
 
 /** The witness a defining formula gives (owner §18): of `∀ xs, s(xs) = e` the function `fun xs => e`, of a bound
   * `s(xs) ≤ e` the bound itself, of `s(xs) < e` one less. A transformer that keeps, beside each term, the side

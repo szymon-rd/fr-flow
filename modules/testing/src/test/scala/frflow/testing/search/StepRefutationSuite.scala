@@ -1,13 +1,14 @@
 package frflow.testing.search
 
 import frflow.*
-import frflow.core.analysis.{Resolve, Validate}
+import frflow.core.analysis.resolution.Resolve
+import frflow.core.analysis.Validate
 import frflow.core.expr.{Expr, Lambda, Value}
 import frflow.core.name.NodeId
 import frflow.core.spec.CallForm
-import frflow.eval.Semantics
 import frflow.eval.run.Echo
-import frflow.testing.Case
+import frflow.eval.term.Semantics
+import frflow.testing.derive.Case
 
 /** The answer a part's claim fixes (`guard implies op(inputs) === e`), which a refuted step is searched with: the
   * Definition answering `e` everywhere, a case the claim above fails on.

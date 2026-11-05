@@ -7,7 +7,7 @@ import fs2.io.process.Processes
 import frflow.api.{FrFlowApi, Project}
 import frflow.project.port.{Git, KeyRing, Lake, LeanLibrary, LedgerStore, ProjectFiles}
 import frflow.project.program.{Config, Ports}
-import frflow.testing.Seed
+import frflow.testing.report.Seed
 import java.nio.file.Path
 
 /** The API over a project's directory: its files on disk, the ledger's file under its lock, `git`, the developer's

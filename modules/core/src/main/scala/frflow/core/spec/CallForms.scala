@@ -2,8 +2,8 @@ package frflow.core.spec
 
 import frflow.core.expr.{Binder, Expr, Exprs, Lambda, PrimOp, Quantifier}
 import frflow.core.name.SymbolName
-import frflow.core.term.{Final, Sym}
 import frflow.core.term.interpret.Opened
+import frflow.core.term.language.{Final, Sym}
 import frflow.core.ty.Ty
 
 /** A formula read as a run of a program from the world before (its success side the post, its failing side the

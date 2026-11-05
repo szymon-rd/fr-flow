@@ -1,12 +1,13 @@
 package frflow.eval.run
 
 import frflow.core.analysis.outside.Guards
+import frflow.core.expr.Value
 import frflow.core.name.{DefName, NodeId}
 import frflow.core.spec.Range
 import frflow.core.Theory
-import frflow.core.expr.Value
 import frflow.core.ty.Ty
-import frflow.eval.{Applied, Env, Fn, ScalaValue, Semantics}
+import frflow.eval.{Applied, Env, Fn, ScalaValue}
+import frflow.eval.term.Semantics
 
 /** An `always[T]`, enforced where a value is made: of each `T` a value in a call holds (an input, the result), as
   * its guard reaches it in Lean (`Guards`: a list's elements, an option's value, an `Either`'s side, a pair's

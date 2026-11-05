@@ -1,11 +1,12 @@
 package frflow.proof.lean.laws
 
 import cats.data.NonEmptyList
-import frflow.core.{Lang, Booking}
 import frflow.core.expr.{Terms, Tm}
 import frflow.core.expr.Tm.*
+import frflow.core.{Lang, Booking}
 import frflow.core.name.{CtorName, ModelName, SymbolName, TypeName}
-import frflow.core.term.{Bound, Case, Constructor, Final, Program, Selector, Sym, When, World}
+import frflow.core.term.{Bound, Case, Constructor, Program, Selector, When, World}
+import frflow.core.term.language.{Final, Sym}
 import frflow.core.ty.{Ctor, DataType, Field, Ty}
 import scala.util.Random
 

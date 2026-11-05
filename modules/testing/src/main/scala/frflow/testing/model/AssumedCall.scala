@@ -1,11 +1,13 @@
 package frflow.testing.model
 
-import cats.MonadThrow
 import cats.effect.kernel.Ref
+import cats.MonadThrow
 import cats.syntax.all.*
 import frflow.core.name.ModelName
 import frflow.eval.flow.World
-import frflow.eval.{ScalaValue, Semantics}
+import frflow.eval.ScalaValue
+import frflow.eval.term.Semantics
+import frflow.testing.steps.Difference
 
 /** A call of an operation of the model known only by assumptions (G2): its Scala called, its state read back before
   * and after, the assumptions about it checked, and the model given the state the Scala left. In Lean the operation

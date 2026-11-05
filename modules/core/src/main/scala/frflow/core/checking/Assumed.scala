@@ -1,6 +1,6 @@
 package frflow.core.checking
 
-import frflow.core.analysis.Constrained
+import frflow.core.analysis.resolution.Constrained
 import frflow.core.name.{NodeId, SymbolName}
 import frflow.core.spec.{CallForm, NodeKind}
 import frflow.core.Theory

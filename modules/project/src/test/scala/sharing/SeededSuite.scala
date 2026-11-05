@@ -56,12 +56,12 @@ class SeededSuite extends munit.CatsEffectSuite:
     * faults given: what a program gives (its error on the left), and the library and mailboxes after.
     */
   private def ran[A](lib: Library, at: BigInt, store: List[Boolean], mail: List[Boolean])(
-      f: (frflow.eval.Running[IO]) => IO[A]): IO[(Either[Throwable, A], Library, Map[PersonId, List[Notice]])] =
+      f: (frflow.eval.run.Running[IO]) => IO[A]): IO[(Either[Throwable, A], Library, Map[PersonId, List[Notice]])] =
     timed((lib, at), store, mail)(f).map((out, l, b, _) => (out, l, b))
 
   /** The same, from mailboxes `boxes`, and the clock after too. */
   private def timed[A](from: (Library, BigInt), store: List[Boolean], mail: List[Boolean],
-      boxes: Map[PersonId, List[Notice]] = Map.empty)(f: (frflow.eval.Running[IO]) => IO[A])
+      boxes: Map[PersonId, List[Notice]] = Map.empty)(f: (frflow.eval.run.Running[IO]) => IO[A])
       : IO[(Either[Throwable, A], Library, Map[PersonId, List[Notice]], BigInt)] =
     for
       s   <- MemoryLibraryStore.holding(from._1)
@@ -85,7 +85,7 @@ class SeededSuite extends munit.CatsEffectSuite:
   private val bobViewsPlan = Share(Target.Doc(plan), Grantee.Person(bob), Level.View, None)
 
   test("fault sweep, handle: Ann shares the plan with Bob, done and logged; its read or its save failing, nothing") {
-    val handle = (r: Request) => (run: frflow.eval.Running[IO]) => run(SharingHttp.handleRequest)(r)
+    val handle = (r: Request) => (run: frflow.eval.run.Running[IO]) => run(SharingHttp.handleRequest)(r)
     for
       ok    <- ran(library, now, Nil, Nil)(handle(shareWithBob))
       read  <- ran(library, now, List(true), Nil)(handle(shareWithBob))
@@ -100,7 +100,7 @@ class SeededSuite extends munit.CatsEffectSuite:
 
   test("fault sweep, housekeeping: an hour on, Bob's share goes and the run is logged; failing, nothing") {
     val start = library.copy(shares = bobViewsPlanForAnHour :: library.shares)
-    val job = (run: frflow.eval.Running[IO]) => run(Housekeeping.housekeeping)
+    val job = (run: frflow.eval.run.Running[IO]) => run(Housekeeping.housekeeping)
     for
       ok    <- ran(start, now + 3600, Nil, Nil)(job)
       read  <- ran(start, now + 3600, List(true), Nil)(job)
@@ -117,7 +117,7 @@ class SeededSuite extends munit.CatsEffectSuite:
   test("fault sweep, delivery: Cat's notice delivered once, tried again while the mail server fails, kept when " +
     "it fails three times; an outbox that cannot be read, nothing") {
     val start = library.copy(outbox = List(catTold))
-    val job = (run: frflow.eval.Running[IO]) => run(Notifications.delivery)
+    val job = (run: frflow.eval.run.Running[IO]) => run(Notifications.delivery)
     for
       ok     <- ran(start, now, Nil, Nil)(job)
       second <- ran(start, now, Nil, List(true))(job)
@@ -134,7 +134,7 @@ class SeededSuite extends munit.CatsEffectSuite:
 
   test("today's examples of handle: Bob's team views the Q3 report and nothing changes; Bob may not share the plan, " +
     "refused, the store keeps the library; Cat has no access to the plan") {
-    val handle = (r: Request) => (run: frflow.eval.Running[IO]) => run(SharingHttp.handleRequest)(r)
+    val handle = (r: Request) => (run: frflow.eval.run.Running[IO]) => run(SharingHttp.handleRequest)(r)
     for
       views   <- ran(library, now, Nil, Nil)(handle(Request.Access(bob, q3Report)))
       refused <- ran(library, now, Nil, Nil)(handle(Request.Share(bob, Target.Doc(plan), Grantee.Person(bob),
@@ -161,7 +161,7 @@ class SeededSuite extends munit.CatsEffectSuite:
   test("today's examples of delivery: Cat's first and Bob's go at once, Cat's second waits; down once, delivered a " +
     "second later; down three times, three seconds on; delivered but the store failed, the notice stays; sent " +
     "again after that, not delivered twice") {
-    val job = (run: frflow.eval.Running[IO]) => run(Notifications.delivery)
+    val job = (run: frflow.eval.run.Running[IO]) => run(Notifications.delivery)
     val one = library.copy(outbox = List(catTold))
     for
       both    <- timed((library.copy(outbox = List(catTold, bobTold, catAgain)), now), Nil, Nil)(job)

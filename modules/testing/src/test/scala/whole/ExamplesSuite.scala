@@ -1,11 +1,11 @@
 package whole
 
-import frflow.core.analysis.{Callees, Constrained}
+import frflow.core.analysis.resolution.{Callees, Constrained}
 import frflow.core.graph.Walk
 import frflow.core.name.NodeId
+import frflow.core.spec.Statement
 import frflow.core.ty.Ty
 import frflow.core.vocab.{Symbol, SymbolType}
-import frflow.core.spec.Statement
 import frflow.dsl.kb.FrModel
 
 /** Every node of the five examples, written in the three kinds before any port (ARCHITECTURE.md, section 9, step 2):

@@ -3,7 +3,8 @@ package frflow.core.expr
 import frflow.core.{Booking, Lang}
 import frflow.core.expr.Tm.*
 import frflow.core.name.{DefName, ModelName, SymbolName, TypeName}
-import frflow.core.term.{Body, Bound, Sym}
+import frflow.core.term.Bound
+import frflow.core.term.language.{Body, Sym}
 import frflow.core.ty.Ty
 import scala.collection.mutable
 import scala.util.Random

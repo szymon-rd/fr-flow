@@ -1,6 +1,7 @@
 package frflow.proof.obligation
 
-import frflow.core.analysis.{Resolved, Scope}
+import frflow.core.analysis.resolution.Resolved
+import frflow.core.analysis.outside.Scope
 import frflow.core.name.NodeId
 import frflow.core.ty.Ty
 import frflow.proof.layout.{Broken, Laid, Mini, Programs}

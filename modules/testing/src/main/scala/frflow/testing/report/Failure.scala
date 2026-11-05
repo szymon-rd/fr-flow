@@ -3,7 +3,7 @@ package frflow.testing.report
 import frflow.core.example.Given
 import frflow.core.expr.Value
 import frflow.eval.run.Broken
-import frflow.testing.model.{Difference, Step}
+import frflow.testing.steps.{Difference, Step}
 
 /** The smallest failing case found, and where it was drawn: a call that broke what it is tested against, or a run of
   * a model's operations, from a state, that their Scala answered differently from the model.

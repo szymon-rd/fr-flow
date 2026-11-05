@@ -1,7 +1,8 @@
 package frflow.core.term.interpret
 
 import frflow.core.name.SymbolName
-import frflow.core.term.{Bound, Final, Sym}
+import frflow.core.term.Bound
+import frflow.core.term.language.{Final, Sym}
 import frflow.core.ty.Ty
 
 /** A formula with what always holds as hypotheses: below each `forall`, the guards of its variable's type, in order,

@@ -1,6 +1,6 @@
 package frflow.proof.obligation
 
-import frflow.core.analysis.{Callees, Resolved}
+import frflow.core.analysis.resolution.{Callees, Resolved}
 import frflow.core.code.Code
 import frflow.core.name.SymbolName
 

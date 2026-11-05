@@ -5,8 +5,9 @@ import frflow.core.code.Code
 import frflow.core.expr.{Binder, Expr}
 import frflow.core.name.{DefName, SourceText, SymbolName, VarId}
 import frflow.core.spec.{Form, NodeKind, Written}
-import frflow.core.term.{Bound, Sym}
+import frflow.core.term.Bound
 import frflow.core.term.interpret.{Guard, ToExpr}
+import frflow.core.term.language.Sym
 import frflow.core.Theory
 import frflow.core.ty.Ty
 import frflow.core.vocab.Define

@@ -5,7 +5,7 @@ import cats.syntax.all.*
 import frflow.core.expr.{Binder, Expr, Exprs}
 import frflow.core.name.{DefName, LeanNames, NodeId, SymbolName, TypeName, VarId}
 import frflow.core.spec.{Form, Written}
-import frflow.core.term.Final
+import frflow.core.term.language.Final
 import frflow.core.ty.Ty
 import frflow.proof.lean.ast.*
 import frflow.proof.lean.term.{FrozenTry, Printed}

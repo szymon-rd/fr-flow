@@ -2,8 +2,9 @@ package frflow.proof.terms
 
 import frflow.core.expr.Binder
 import frflow.core.name.VarId
-import frflow.core.term.{Bound, Sym}
+import frflow.core.term.Bound
 import frflow.core.term.interpret.Guard
+import frflow.core.term.language.Sym
 import frflow.core.ty.Ty
 
 /** A call proven code makes of a Definition given plain Scala (owner §37): its arguments' types, and what it states of

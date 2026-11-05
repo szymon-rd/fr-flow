@@ -68,11 +68,11 @@ class ScheduleSuite extends munit.CatsEffectSuite:
           if kept then pick(day / 24, day / 4, 2 * day) else pick(day, 3 * day, 10 * day), rnd)
     }
 
-  private def handled(run: frflow.eval.Running[IO], r: Request): IO[Boolean] =
+  private def handled(run: frflow.eval.run.Running[IO], r: Request): IO[Boolean] =
     run(SharingHttp.handleRequest)(r).as(true)
 
   /** What time passing runs on: the service, its clock, its store, and when housekeeping last ran. */
-  private final case class Passing(run: frflow.eval.Running[IO], wall: Wall[IO], store: MemoryLibraryStore, ran: Housekept)
+  private final case class Passing(run: frflow.eval.run.Running[IO], wall: Wall[IO], store: MemoryLibraryStore, ran: Housekept)
 
   /** Time passing, a minute at a time: housekeeping started each minute (a wake-up late by up to `late` seconds), or
     * never; whether the schedule held at each wake-up. Housekeeping purging what has not ended is caught at once.
@@ -99,7 +99,7 @@ class ScheduleSuite extends munit.CatsEffectSuite:
       if t - last >= 60 then housekept(on.run, on.wall, on.store) else IO.unit)
 
   /** A run of housekeeping; what it purges must have been gone already. */
-  private def housekept(run: frflow.eval.Running[IO], wall: Wall[IO], store: MemoryLibraryStore): IO[Unit] =
+  private def housekept(run: frflow.eval.run.Running[IO], wall: Wall[IO], store: MemoryLibraryStore): IO[Unit] =
     for
       before <- store.library
       _      <- run(Housekeeping.housekeeping).void

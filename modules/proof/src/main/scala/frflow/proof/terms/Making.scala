@@ -3,8 +3,9 @@ package frflow.proof.terms
 import frflow.core.expr.Expr
 import frflow.core.name.{SourceText, SymbolName}
 import frflow.core.spec.Written
-import frflow.core.term.{Bound, Final, Program, Sym, World}
+import frflow.core.term.{Bound, Program, World}
 import frflow.core.term.interpret.{Guard, Guarded}
+import frflow.core.term.language.{Final, Sym}
 import frflow.core.ty.Ty
 import frflow.core.vocab.{OpSig, StateModel}
 

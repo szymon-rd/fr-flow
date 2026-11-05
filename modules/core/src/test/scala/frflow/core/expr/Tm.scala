@@ -2,7 +2,8 @@ package frflow.core.expr
 
 import frflow.core.{Booking, Lang}
 import frflow.core.name.SymbolName
-import frflow.core.term.{Body, Bound, Final, Selector, Sym}
+import frflow.core.term.{Bound, Selector}
+import frflow.core.term.language.{Body, Final, Sym}
 import frflow.core.ty.Ty
 
 /** A term over the number variables bound around it, and the algebras' operations over such terms: what `Terms`

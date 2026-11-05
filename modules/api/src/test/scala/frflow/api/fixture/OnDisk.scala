@@ -7,7 +7,8 @@ import frflow.decision.ledger.{Deciders, Ledger}
 import frflow.project.port.{Lake, ProjectFiles}
 import frflow.project.port.memory.{MemoryGit, MemoryKeys, MemoryLedger}
 import frflow.project.program.Ports
-import frflow.testing.{Seed, Settings}
+import frflow.testing.report.Seed
+import frflow.testing.Settings
 import java.nio.file.Path
 
 /** The API over a project's files on disk and Lean's `lake`, its ledger, git and key in memory (`ann` listed): a

@@ -1,16 +1,17 @@
 package frflow.core.consistency
 
 import cats.syntax.all.*
-import frflow.core.analysis.{Callees, Constrained, Scope}
 import frflow.core.analysis.outside.{Guards, Outsides}
+import frflow.core.analysis.resolution.{Callees, Constrained}
+import frflow.core.analysis.outside.Scope
 import frflow.core.code.Code
 import frflow.core.expr.{Expr, Exprs, OutsideFact}
 import frflow.core.name.{DefName, NodeId, SourceText, SymbolName}
 import frflow.core.spec.{NodeKind, Range, Written}
 import frflow.core.term.interpret.{Guarded, ToExpr}
+import frflow.core.Theory
 import frflow.core.ty.Ty
 import frflow.core.vocab.SymbolType
-import frflow.core.Theory
 
 /** The consistency and vacuity obligations of a theory (owner §15, §18), derived from it alone: no example is read.
   * The bottom statements and the premises beside them, split into groups that share open values, each with the

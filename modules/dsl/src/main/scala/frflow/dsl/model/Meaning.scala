@@ -4,7 +4,7 @@ import frflow.core.expr.Binder
 import frflow.core.ty.Ty
 import frflow.core.vocab.{ModelOp, OpSig}
 import frflow.dsl.build.{Declarations, Fault}
-import frflow.dsl.flow.ReadRecording
+import frflow.dsl.vocab.ReadRecording
 import frflow.dsl.shape.DefineShape
 import frflow.dsl.term.{LeanType, Notes}
 import frflow.dsl.run.Recorded

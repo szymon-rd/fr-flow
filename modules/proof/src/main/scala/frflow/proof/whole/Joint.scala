@@ -1,14 +1,14 @@
 package frflow.proof.whole
 
 import cats.data.NonEmptyList
-import frflow.core.analysis.{Callees, Constrained, Resolved}
 import frflow.core.analysis.outside.{Guards, Outsides}
+import frflow.core.analysis.resolution.{Callees, Constrained, Resolved}
 import frflow.core.consistency.{Consistency, Defining, Group, Picked, Standing, Witness}
 import frflow.core.expr.{Binder, OutsideFact, Value}
 import frflow.core.graph.Walk
 import frflow.core.name.{DefName, LeanNames, ModelName, NodeId, SymbolName, VarId}
 import frflow.core.spec.Range
-import frflow.core.term.{Final, Stated, Sym}
+import frflow.core.term.language.{Final, Stated, Sym}
 import frflow.core.ty.Ty
 import frflow.core.vocab.SymbolType
 import frflow.proof.obligation.{Constant, Discharge, Hyp, Obligation, ObligationName, Prop, Substitute, Supplied}

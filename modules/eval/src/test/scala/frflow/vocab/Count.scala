@@ -1,6 +1,7 @@
 package frflow.vocab
 
-import frflow.core.term.{Bound, Ext, Sym}
+import frflow.core.term.{Bound, Ext}
+import frflow.core.term.language.Sym
 
 /** An operation added outside the core: an algebra of its own (LNCS 7470 §2.2, the expression problem's answer: a new
   * operation is a new type class, no central enum edited). An interpreter that knows it says so for its key

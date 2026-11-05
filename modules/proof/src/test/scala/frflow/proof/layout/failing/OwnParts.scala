@@ -1,12 +1,14 @@
 package frflow.proof.layout.failing
 
-import frflow.core.{Kb, Lang}
-import frflow.core.Nodes.*
-import frflow.core.analysis.{Resolve, Resolved, Validate}
+import frflow.core.analysis.resolution.{Resolve, Resolved}
+import frflow.core.analysis.Validate
 import frflow.core.code.Code
+import frflow.core.{Kb, Lang}
 import frflow.core.name.{DefName, SourceText, SymbolName}
+import frflow.core.Nodes.*
 import frflow.core.spec.Written
-import frflow.core.term.{Bound, Final, Sym}
+import frflow.core.term.Bound
+import frflow.core.term.language.{Final, Sym}
 import frflow.core.ty.Ty
 import frflow.core.vocab.{Define, DefineForm}
 import frflow.proof.layout.Fixture.at

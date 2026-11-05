@@ -4,14 +4,15 @@ import cats.effect.IO
 import cats.effect.unsafe.implicits.global
 import cats.syntax.all.*
 import frflow.core.code.Values
-import frflow.dsl.flow.Flow
-import frflow.dsl.flow.FlowSyntax.*
+import frflow.dsl.vocab.Flow
+import frflow.dsl.vocab.FlowSyntax.*
 import frflow.dsl.model.Clock
-import frflow.dsl.vocab.Definition
-import frflow.eval.flow.{Bound, PlainShelf, Runs, Shelf, Trouble, Wall}
-import java.io.IOException
 import frflow.dsl.term.{Lift, Term}
 import frflow.dsl.term.TermSyntax.*
+import frflow.dsl.vocab.Definition
+import frflow.eval.flow.{Bound, PlainShelf, Runs, Shelf, Trouble, Wall}
+import frflow.eval.run.Running
+import java.io.IOException
 import scala.concurrent.duration.*
 
 /** A program run in production: its steps folded into `IO`, its terms evaluated where a step needs their values, no

@@ -6,7 +6,7 @@ import frflow.core.expr.{Binder, Expr, Exprs, Lambda, Quantifier}
 import frflow.core.name.SourceText
 import frflow.core.spec.Written
 import frflow.dsl.build.{AsWritten, Declarations, Deferred, ElabError, Failure, Fault, Site}
-import frflow.dsl.flow.ReadRecording
+import frflow.dsl.vocab.ReadRecording
 import frflow.dsl.term.{LeanType, Notes, Term}
 import frflow.core.term.interpret.Collect
 import frflow.dsl.run.{Recorded, RunNote}

@@ -3,7 +3,9 @@ package frflow.testing.model
 import frflow.core.expr.Value
 import frflow.core.ty.Ty
 import frflow.core.vocab.{OpSig, Vocabulary}
-import frflow.eval.{ScalaValue, Semantics}
+import frflow.eval.ScalaValue
+import frflow.eval.term.Semantics
+import frflow.testing.steps.Step
 
 /** A run's values as data and back, typed by the model's operations: a step's arguments by its parameters, a call's
   * result by the operation's result.

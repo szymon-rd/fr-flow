@@ -1,7 +1,8 @@
 package frflow.project.program
 
 import frflow.project.process.{Command, Output}
-import frflow.testing.{Seed, Settings}
+import frflow.testing.report.Seed
+import frflow.testing.Settings
 import java.nio.file.Path
 import scala.concurrent.duration.FiniteDuration
 

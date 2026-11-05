@@ -1,6 +1,6 @@
 package frflow.proof.layout
 
-import frflow.core.analysis.Resolved
+import frflow.core.analysis.resolution.Resolved
 import frflow.core.name.KbName
 import frflow.proof.lean.ast.*
 import frflow.proof.lean.lower.{LowerObligation, LowerProp, LowerWitness}

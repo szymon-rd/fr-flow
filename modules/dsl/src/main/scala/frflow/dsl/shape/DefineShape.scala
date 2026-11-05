@@ -4,7 +4,8 @@ import frflow.core.code.Code
 import frflow.core.expr.{Binder, Lambda}
 import frflow.core.name.{DefName, VarId}
 import frflow.core.spec.Written
-import frflow.core.term.{Body, Bound, Sym}
+import frflow.core.term.Bound
+import frflow.core.term.language.{Body, Sym}
 import frflow.dsl.build.Deferred
 import frflow.dsl.term.{LeanType, Term}
 import frflow.dsl.vocab.{Definition, OnTheSpot, Spot}

@@ -4,7 +4,8 @@ import frflow.core.code.Impl
 import frflow.core.Elaborated
 import frflow.core.expr.Value
 import frflow.eval.run.{Broken, CallCheck, Echo}
-import frflow.eval.Semantics
+import frflow.eval.term.Semantics
+import frflow.testing.derive.Case
 
 /** A generated case judged as the running service used to judge each call, before production. */
 class PropertyTestsSuite extends munit.FunSuite:

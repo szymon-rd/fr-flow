@@ -5,7 +5,7 @@ import cats.syntax.all.*
 import frflow.core.{Elaborated, Sited, Theory}
 import frflow.core.expr.Lambda
 import frflow.core.graph.Edge
-import frflow.core.analysis.Constancy
+import frflow.core.analysis.outside.Constancy
 import frflow.core.code.Attachment
 import frflow.core.name.{DefName, LeanNames, ModelName, SymbolName}
 import frflow.core.spec.{Form, Node as Spec, Written}

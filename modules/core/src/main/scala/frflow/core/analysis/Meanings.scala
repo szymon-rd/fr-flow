@@ -1,10 +1,11 @@
 package frflow.core.analysis
 
 import cats.data.{NonEmptyChain, Validated, ValidatedNec}
+import frflow.core.analysis.resolution.Constrained
 import frflow.core.expr.Exprs
 import frflow.core.name.{DefName, SymbolName}
-import frflow.core.vocab.ValueKind
 import frflow.core.Theory
+import frflow.core.vocab.ValueKind
 
 /** The calling rule of the two kinds of values (owner §15), where the types cannot enforce it. The DSL's types
   * already keep a Declaration out of code: only a Definition takes code (`implementProven`, `implementTested`,

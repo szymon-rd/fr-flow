@@ -1,6 +1,6 @@
 package frflow.testing.report
 
-import frflow.testing.Seed
+import frflow.testing.report.Seed
 
 /** What testing a node's code found: how many cases were asked and tried from which seed, what was tested, what was
   * found (`Outcome`), the targets no case reached, and the notes (each given generator and what it makes, the

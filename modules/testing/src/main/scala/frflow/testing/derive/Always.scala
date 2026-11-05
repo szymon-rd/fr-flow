@@ -4,8 +4,9 @@ import frflow.core.code.Values
 import frflow.core.name.{DefName, ModelName}
 import frflow.core.spec.Range
 import frflow.core.Theory
-import frflow.eval.{Applied, Env, EvalError, Fn, ScalaValue, Semantics}
+import frflow.eval.{Applied, Env, EvalError, Fn, ScalaValue}
 import frflow.eval.run.{Made, Wiring}
+import frflow.eval.term.Semantics
 
 /** What always holds, as drawn values must meet it: each `always[T]` (`Made`, of every `T` a value holds), and each
   * `always(stored)`, by the model whose state it is about (its rule the define named as the node).

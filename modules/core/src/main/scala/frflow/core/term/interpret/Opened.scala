@@ -2,7 +2,8 @@ package frflow.core.term.interpret
 
 import frflow.core.expr.Binder
 import frflow.core.name.VarId
-import frflow.core.term.{Annotation, Bound, Final, Program, Sym, World}
+import frflow.core.term.{Annotation, Bound, Program, World}
+import frflow.core.term.language.{Final, Sym}
 
 /** A formula with its first `n` `forall`s opened: their variables bound outside it, at levels `0 … n-1`. A claim
   * read as a call, `forall((held, request) => … granted(held, request) …)`, is its post over the call's inputs this

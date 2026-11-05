@@ -4,6 +4,7 @@ import cats.syntax.all.*
 import frflow.core.expr.{Binder, OutsideFact, Value}
 import frflow.core.name.{ModelName, SymbolName}
 import frflow.core.term.*
+import frflow.core.term.language.{Body, Final, Sym}
 import frflow.core.ty.Ty
 import frflow.eval.{Env, EvalError, Faults, Fn, NotEvaluated, Races, ScalaValue}
 import frflow.eval.term.Run.{map2, pure}

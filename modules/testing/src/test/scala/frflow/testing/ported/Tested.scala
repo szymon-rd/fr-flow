@@ -4,7 +4,7 @@ import frflow.FrModel
 import frflow.core.code.Code
 import frflow.core.name.NodeId
 import frflow.dsl.example.FrFlowExamples
-import frflow.eval.Semantics
+import frflow.eval.term.Semantics
 import frflow.eval.run.OnCode
 import frflow.testing.{Plan, PropertyTests, Settings}
 import frflow.testing.derive.Derive

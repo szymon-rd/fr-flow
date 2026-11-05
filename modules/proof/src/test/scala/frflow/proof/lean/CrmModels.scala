@@ -3,6 +3,7 @@ package frflow.proof.lean
 import frflow.core.expr.{Binder, Prog}
 import frflow.core.name.*
 import frflow.core.term.*
+import frflow.core.term.language.{Body, Stated, Sym}
 import frflow.core.ty.*
 import frflow.core.vocab.{ModelOp, StateModel}
 

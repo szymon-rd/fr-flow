@@ -85,7 +85,7 @@ class TimeLeanSuite extends munit.CatsEffectSuite:
       "post first (the 13d sixth pass's P6-B1), a model's Scala failing its model test (P6-B2)").tag(Live)) {
     List(Six.postFirst, Six.wrongScala).traverse { m =>
       val e = Projects.elaborated(m)
-      val models = frflow.project.program.ModelCheck.counted[cats.effect.IO](frflow.eval.Semantics(e), e.theory,
+      val models = frflow.project.program.ModelCheck.counted[cats.effect.IO](frflow.eval.term.Semantics(e), e.theory,
         _ => 200)
       Ported.run(e, Nil, Ported.Lean(Nil, Nil, None), models).map(r =>
         m.name.value -> Ported.unproven(r.analysis))

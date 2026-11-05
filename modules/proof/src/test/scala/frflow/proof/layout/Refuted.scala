@@ -1,11 +1,13 @@
 package frflow.proof.layout
 
-import frflow.core.{Kb, Lang}
-import frflow.core.Nodes.*
-import frflow.core.analysis.{Resolve, Resolved, Validate}
+import frflow.core.analysis.resolution.{Resolve, Resolved}
+import frflow.core.analysis.Validate
 import frflow.core.expr.Value
+import frflow.core.{Kb, Lang}
 import frflow.core.name.NodeId
-import frflow.core.term.{Bound, Stated, Sym}
+import frflow.core.Nodes.*
+import frflow.core.term.Bound
+import frflow.core.term.language.{Stated, Sym}
 import frflow.core.ty.Ty
 import frflow.proof.lean.ast.LeanModule
 import frflow.proof.obligation.Constant

@@ -1,6 +1,6 @@
 package frflow.proof.layout
 
-import frflow.core.term.Stated
+import frflow.core.term.language.Stated
 import frflow.core.ty.Ty
 import frflow.proof.obligation.Constant
 

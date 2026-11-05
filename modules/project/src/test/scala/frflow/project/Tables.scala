@@ -2,7 +2,7 @@ package frflow.project
 
 import cats.effect.{IO, Ref}
 import frflow.core.Elaborated
-import frflow.eval.Semantics
+import frflow.eval.term.Semantics
 import frflow.project.program.ModelCheck
 import frflow.testing.model.{ModelRuns, ModelTests}
 import rooms.{Booking, RoomBookings, storedBookings}

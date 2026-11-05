@@ -21,7 +21,7 @@ class AlwaysSuite extends munit.FunSuite:
         .mkString)
 
   /** Every `keeps_`/`makes_` a theory's obligations declare, in the order its nodes ask them. */
-  def declared(laid: Laid, r: frflow.core.analysis.Resolved): String =
+  def declared(laid: Laid, r: frflow.core.analysis.resolution.Resolved): String =
     val l = Lowering(r, laid.table)
     val keeps = LowerKeeps(l.env, l.table, l.naming)
     def stated(p: Prop): List[Prop] = p match

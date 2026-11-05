@@ -1,6 +1,6 @@
 package frflow.project.pipeline
 
-import frflow.core.analysis.{Constrained, Resolved}
+import frflow.core.analysis.resolution.{Constrained, Resolved}
 import frflow.core.code.Code
 import frflow.core.expr.OutsideFact
 import frflow.core.name.{ModelName, NodeId}

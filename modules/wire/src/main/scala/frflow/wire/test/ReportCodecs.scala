@@ -5,7 +5,7 @@ import frflow.core.name.{ModelName, NodeId, SymbolName}
 import frflow.core.expr.Value
 import frflow.core.ty.Ty
 import frflow.eval.EvalError
-import frflow.testing.Seed
+import frflow.testing.report.Seed
 import frflow.testing.report.*
 import frflow.wire.file.Names.given
 import frflow.wire.file.Tagged

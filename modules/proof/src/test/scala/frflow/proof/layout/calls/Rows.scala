@@ -1,13 +1,15 @@
 package frflow.proof.layout.calls
 
-import frflow.core.{Kb, Lang}
-import frflow.core.Nodes.*
-import frflow.core.analysis.{Resolve, Resolved, Validate}
+import frflow.core.analysis.resolution.{Resolve, Resolved}
+import frflow.core.analysis.Validate
 import frflow.core.code.Code
 import frflow.core.expr.{OutsideFact, Prog, Value}
+import frflow.core.{Kb, Lang}
 import frflow.core.name.{DefName, ModelName, SourceText, SymbolName}
+import frflow.core.Nodes.*
 import frflow.core.spec.Written
-import frflow.core.term.{Bound, Program, Stated, Sym, World}
+import frflow.core.term.{Bound, Program, World}
+import frflow.core.term.language.{Stated, Sym}
 import frflow.core.ty.Ty
 import frflow.core.vocab.{Define, DefineForm, ModelOp, StateModel}
 import frflow.proof.layout.Fixture.*

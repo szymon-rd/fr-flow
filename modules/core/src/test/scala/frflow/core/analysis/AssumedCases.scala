@@ -1,12 +1,13 @@
 package frflow.core.analysis
 
 import frflow.core.{Booking, Kb, Lang, Store}
-import frflow.core.Nodes.*
 import frflow.core.code.Code
 import frflow.core.expr.{Binder, OutsideFact}
 import frflow.core.name.{DefName, ModelName, NodeId, SourceText, SymbolName, VarId}
+import frflow.core.Nodes.*
 import frflow.core.spec.Written
-import frflow.core.term.{Bound, Final, Program, Sym, World}
+import frflow.core.term.{Bound, Program, World}
+import frflow.core.term.language.{Final, Sym}
 import frflow.core.ty.Ty
 import frflow.core.vocab.{Define, DefineForm, OpSig, StateModel}
 

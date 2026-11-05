@@ -3,6 +3,7 @@ package frflow.testing
 import frflow.core.name.SymbolName
 import frflow.core.term.*
 import frflow.core.term.interpret.Forward
+import frflow.core.term.language.Sym
 import frflow.core.ty.Ty
 import frflow.eval.EvalError
 import frflow.eval.term.{Evaluate, Run}

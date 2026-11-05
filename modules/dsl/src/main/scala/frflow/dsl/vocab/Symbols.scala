@@ -2,7 +2,7 @@ package frflow.dsl.vocab
 
 import cats.syntax.all.*
 import frflow.core.name.SymbolName
-import frflow.core.term.{Final, Sym}
+import frflow.core.term.language.{Final, Sym}
 import frflow.core.ty.Ty
 import frflow.core.vocab.{Symbol, SymbolType, ValueKind}
 import frflow.dsl.build.Declarations

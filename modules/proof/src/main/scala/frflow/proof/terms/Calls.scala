@@ -5,6 +5,7 @@ import frflow.core.name.{DefName, ModelName, SymbolName, VarId}
 import frflow.core.spec.Form
 import frflow.core.term.*
 import frflow.core.term.interpret.Forward
+import frflow.core.term.language.{Body, Final, Stated, Sym}
 import frflow.core.ty.Ty
 import frflow.core.vocab.Define
 

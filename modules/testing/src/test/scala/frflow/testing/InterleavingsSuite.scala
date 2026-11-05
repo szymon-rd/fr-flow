@@ -3,11 +3,12 @@ package frflow.testing
 import cats.effect.{IO, Ref}
 import cats.effect.std.Random
 import cats.effect.unsafe.implicits.global
+import frflow.*
 import frflow.core.code.Values
 import frflow.core.name.ModelName
-import frflow.*
-import frflow.eval.{Env, ScalaValue, Semantics}
+import frflow.eval.{Env, ScalaValue}
 import frflow.eval.flow.{AtOnce, Runs, Shelf, Shelved, World}
+import frflow.eval.term.Semantics
 
 /** A program's concurrent steps run on the models at once, each call after a random pause, from a start, `Runs`
   * times, each on a shelf holding 3: branches that only read give the models' one answer every time; branches that

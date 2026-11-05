@@ -1,6 +1,6 @@
 package frflow.project.pipeline
 
-import frflow.core.analysis.Resolved
+import frflow.core.analysis.resolution.Resolved
 import frflow.core.graph.{Edge, Walk}
 import frflow.core.name.NodeId
 import frflow.core.spec.Node

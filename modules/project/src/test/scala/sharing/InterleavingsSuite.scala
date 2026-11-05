@@ -7,16 +7,17 @@ import cats.syntax.all.*
 import frflow.*
 import frflow.core.code.Values
 import frflow.core.name.{ModelName, SymbolName}
-import frflow.dsl.flow.ReadRecording
-import frflow.eval.{Env, Fn, Races, ScalaValue, Semantics}
+import frflow.dsl.vocab.ReadRecording
+import frflow.eval.{Env, Fn, Races, ScalaValue}
 import frflow.eval.flow.{FlowInterpreter, World}
+import frflow.eval.term.Semantics
 import frflow.project.Projects
 import frflow.testing.Interleavings
+import scala.concurrent.duration.*
 import sharing.Demo.*
 import sharing.domain.*
 import sharing.notifications.{Delivery, Mailer, Pool}
 import sharing.store.LibraryStore
-import scala.concurrent.duration.*
 
 /** Section 9's interleavings of sharing, over the recorded program: delivery's sends, its branches at once, each call
   * of the models after a random pause, `Interleavings.Runs` times from each start, as today's examples of the job

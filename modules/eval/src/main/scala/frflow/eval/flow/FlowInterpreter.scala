@@ -1,14 +1,15 @@
 package frflow.eval.flow
 
-import cats.MonadThrow
 import cats.effect.kernel.Async
 import cats.effect.std.Mutex
+import cats.MonadThrow
 import cats.syntax.all.*
 import frflow.core.expr.{Binder, Exprs, Prog}
-import frflow.core.term.Stated
 import frflow.core.term.interpret.ToExpr
+import frflow.core.term.language.Stated
 import frflow.core.ty.Ty
-import frflow.eval.{Env, Fn, Raised, ScalaValue, Semantics}
+import frflow.eval.{Env, Fn, Raised, ScalaValue}
+import frflow.eval.term.Semantics
 
 /** A recorded program's `Prog` run in Scala, its terms by the evaluator, against a `World`: on the models (flow
   * examples, and the model each implementation is tested against), or on the operations' Scala (the interleavings

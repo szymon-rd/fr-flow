@@ -3,8 +3,9 @@ package whole
 import frflow.*
 import frflow.core.analysis.Problem
 import frflow.core.name.NodeId
+import frflow.proof.audit.Obligations
 import frflow.proof.layout.{Composition, Lowering, RootImplModule}
-import frflow.proof.obligation.{Obligations, Prop, Required}
+import frflow.proof.obligation.{Prop, Required}
 import frflow.proof.terms.TermTable
 import frflow.proof.whole.Joint
 import rooms.{Booking, granted, noOverlap}

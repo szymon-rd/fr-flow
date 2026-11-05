@@ -5,15 +5,15 @@ import frflow.core.example.Given
 import frflow.core.expr.Value
 import frflow.core.name.{NodeId, SymbolName}
 import frflow.eval.run.Broken
-import frflow.testing.Seed
-import frflow.testing.model.{Difference, Ran, Step}
 import frflow.testing.report.{Drawn, Failure}
+import frflow.testing.report.Seed
+import frflow.testing.steps.{Difference, Ran, Step}
 import frflow.wire.file.Names.given
 import frflow.wire.file.Tagged
 import frflow.wire.test.BrokenCodecs.given
 import frflow.wire.test.ValueCodecs.given
-import io.circe.syntax.*
 import io.circe.{Codec, Decoder, Encoder, HCursor, Json}
+import io.circe.syntax.*
 
 /** A failing case, and where it was drawn (its seed, index and size draw it again); a model test's calls and what
   * each did, as data.

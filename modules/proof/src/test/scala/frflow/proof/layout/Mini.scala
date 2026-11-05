@@ -1,13 +1,15 @@
 package frflow.proof.layout
 
+import frflow.core.analysis.resolution.{Resolve, Resolved}
+import frflow.core.analysis.Validate
 import frflow.core.{Booking, Kb, Lang, Store}
-import frflow.core.Nodes.*
-import frflow.core.analysis.{Resolve, Resolved, Validate}
 import frflow.core.example.Example
 import frflow.core.expr.{Binder, OutsideFact, Value}
 import frflow.core.name.{DefName, NodeId, SourceText, VarId}
+import frflow.core.Nodes.*
 import frflow.core.spec.Written
-import frflow.core.term.{Bound, Final, Sym}
+import frflow.core.term.Bound
+import frflow.core.term.language.{Final, Sym}
 import frflow.core.ty.Ty
 import frflow.core.vocab.{Define, DefineForm}
 

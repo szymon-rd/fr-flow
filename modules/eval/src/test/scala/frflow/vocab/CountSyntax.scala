@@ -1,6 +1,7 @@
 package frflow.vocab
 
-import frflow.core.term.{Bound, Sym}
+import frflow.core.term.Bound
+import frflow.core.term.language.Sym
 import frflow.dsl.build.Source
 import frflow.dsl.term.{LeanType, Notes, Term}
 

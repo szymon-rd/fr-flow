@@ -6,7 +6,7 @@ import frflow.core.name.{DefName, SymbolName}
 import frflow.core.ty.{NumKind, Ty}
 import frflow.core.vocab.Timed
 import frflow.dsl.build.{Declarations, Fault}
-import frflow.dsl.flow.Flow
+import frflow.dsl.vocab.Flow
 import frflow.dsl.shape.Defines
 import frflow.dsl.term.{LeanType, Notes, Term}
 import frflow.dsl.term.TermSyntax.*
@@ -57,7 +57,7 @@ object Clock:
 
     def scheduled[O](other: StateModel[O], rule: Definition[(BigInt, O) => Boolean]): Fact =
       val f = Fact(Term.noted(Notes.of(declares |+| other.declares |+| rule.notes.declares))([T[_]] =>
-        (s: frflow.core.term.Sym[T]) => s.outside(OutsideFact.Schedule(name, List(other.name),
+        (s: frflow.core.term.language.Sym[T]) => s.outside(OutsideFact.Schedule(name, List(other.name),
           DefName(rule.name.value)))))
       if rule.readsWorld then Fact(Term.noted(Notes.fault(Fault.WorldRead(s"$name's schedule")))(f.term.run)) else f
 

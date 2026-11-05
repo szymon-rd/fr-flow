@@ -1,7 +1,8 @@
 package frflow.core.term.interpret
 
 import frflow.core.name.SymbolName
-import frflow.core.term.{Ext, Final, Sym}
+import frflow.core.term.Ext
+import frflow.core.term.language.{Final, Sym}
 import frflow.core.ty.Ty
 
 /** Each symbol at the type `types` gives it, every other operation as `base` has it: a term written before what its

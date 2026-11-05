@@ -2,12 +2,13 @@ package rooms
 
 import frflow.*
 import frflow.core.name.NodeId
-import frflow.eval.Semantics
-import frflow.eval.run.Broken
-import frflow.testing.{Plan, PropertyTests, Seed, Settings}
-import frflow.testing.derive.Derive
 import frflow.eval.EvalError
+import frflow.eval.run.Broken
+import frflow.eval.term.Semantics
+import frflow.testing.derive.Derive
+import frflow.testing.{Plan, PropertyTests, Settings}
 import frflow.testing.report.{Failure, Outcome}
+import frflow.testing.report.Seed
 
 /** A claim about a program's runs evaluated in Scala: the proven program's value is its run on the models
   * (`ProgramRun`), from each generated world, each model's state meeting what always holds of the store.

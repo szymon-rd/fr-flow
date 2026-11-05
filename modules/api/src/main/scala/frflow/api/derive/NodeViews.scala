@@ -1,14 +1,14 @@
 package frflow.api.derive
 
 import frflow.api.node.*
-import frflow.core.analysis.{Constrained, Resolve}
+import frflow.core.analysis.outside.{Outsides, Reads}
+import frflow.core.analysis.resolution.{Constrained, Resolve}
 import frflow.core.checking.Shown
 import frflow.core.name.{ModelName, NodeId, SymbolName}
 import frflow.core.spec.{Node, NodeKind}
 import frflow.decision.content.FieldValue
 import frflow.decision.review.{Moves, ReviewState, Standing}
 import frflow.project.pipeline.{Analysis, Texts}
-import frflow.core.analysis.outside.{Outsides, Reads}
 
 /** Each group of a node's view, one function each, from the analysis. */
 private[api] final class NodeViews(a: Analysis):

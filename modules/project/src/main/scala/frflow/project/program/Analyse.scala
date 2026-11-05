@@ -3,10 +3,11 @@ package frflow.project.program
 import cats.effect.Clock
 import cats.{MonadThrow, Parallel}
 import cats.syntax.all.*
+import frflow.core.analysis.resolution.Resolve
+import frflow.core.analysis.Validate
 import frflow.core.Elaborated
-import frflow.core.analysis.{Resolve, Validate}
 import frflow.core.example.Example
-import frflow.eval.Semantics
+import frflow.eval.term.Semantics
 import frflow.project.pipeline.{Analysis, Problems}
 import frflow.project.port.RunCode
 import frflow.testing.derive.Derive

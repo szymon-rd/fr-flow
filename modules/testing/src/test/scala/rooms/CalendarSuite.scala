@@ -5,11 +5,14 @@ import frflow.core.code.Values
 import frflow.core.example.Gen
 import frflow.core.name.NodeId
 import frflow.core.ty.Ty
-import frflow.eval.{Env, ScalaValue, Semantics}
+import frflow.eval.{Env, ScalaValue}
 import frflow.eval.run.{Broken, CallCheck, Made}
-import frflow.testing.{Case, Plan, PropertyTests, Seed, Settings}
+import frflow.eval.term.Semantics
+import frflow.testing.derive.Case
 import frflow.testing.derive.Derive
+import frflow.testing.{Plan, PropertyTests, Settings}
 import frflow.testing.report.Failure
+import frflow.testing.report.Seed
 
 /** R14.1: the calendar's claims range over what the store can give (`RoomBookings`, always of one room and apart), so
   * the README's binary-search calendar is correct as stated: tested on generated cases meeting what always holds (as

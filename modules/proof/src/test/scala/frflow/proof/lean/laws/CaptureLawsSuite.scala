@@ -1,11 +1,12 @@
 package frflow.proof.lean.laws
 
-import frflow.core.{Booking, Lang}
 import frflow.core.analysis.Reserved
+import frflow.core.{Booking, Lang}
 import frflow.core.expr.{Expr, Exprs, LawSeeds, Renamed, Terms, Tm}
 import frflow.core.name.{DefName, KbName, SymbolName}
-import frflow.core.term.{Body, Bound, Final, Sym}
+import frflow.core.term.Bound
 import frflow.core.term.interpret.ToExpr
+import frflow.core.term.language.{Body, Final, Sym}
 import frflow.core.ty.Ty
 import frflow.core.typing.{IrCheck, IrContext, Local}
 import frflow.proof.lean.ast.{LExpr, Names}

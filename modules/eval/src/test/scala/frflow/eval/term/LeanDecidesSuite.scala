@@ -3,7 +3,7 @@ package frflow.eval.term
 import frflow.core.code.Values
 import frflow.core.name.SymbolName
 import frflow.core.expr.{Expr, Exprs, LawSeeds, Renamed, Terms, Tm}
-import frflow.core.term.Final
+import frflow.core.term.language.Final
 import frflow.core.term.interpret.ToExpr
 import frflow.core.ty.Ty
 import frflow.eval.Env

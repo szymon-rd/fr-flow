@@ -55,7 +55,7 @@ class CompletenessSuite extends munit.FunSuite:
     val built = a.obligations.flatMap(o => o.required ++ o.tried) ++ a.whole
     assertEquals(WellFormed.of(a.decided, built), Nil)
     val big = frflow.core.ty.Ty.Num(frflow.core.ty.NumKind.Big)
-    val misread = frflow.core.spec.Written.formula([T[_]] => (s: frflow.core.term.Sym[T]) =>
+    val misread = frflow.core.spec.Written.formula([T[_]] => (s: frflow.core.term.language.Sym[T]) =>
       s.eq(s.param[BigInt](SymbolName("inRoom"), big), s.param[BigInt](SymbolName("inRoom"), big)), SourceText("…"))
     val ill = Obligation(ObligationName.Made("inRoom"), Prop.Formula(misread, Map.empty), Discharge.Auto, "…")
     assertEquals(WellFormed.of(a.decided, List(ill)), List.fill(2)(ill.name ->

@@ -1,5 +1,7 @@
 package frflow.testing
 
+import frflow.testing.report.Seed
+
 /** How many cases each node's code is tested on, from which seed: the checker's configuration (`project.Config`),
   * since it says how tests run, not what the model states.
   */

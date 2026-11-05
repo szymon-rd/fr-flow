@@ -2,9 +2,9 @@ package frflow.api.derive
 
 import frflow.api.node.tests.*
 import frflow.core.name.{ModelName, SymbolName}
-import frflow.testing.model.{Difference as Diff, Ran as Did, Step as Called}
 import frflow.testing.report.{Against as On, Drawn as From, Failure, Note as Noted, Outcome, Reach as Reached,
   Target as Aim, TestReport}
+import frflow.testing.steps.{Difference as Diff, Ran as Did, Step as Called}
 
 /** What testing found, as the front ends see it: each of `testing.report`'s values as its view, case for case. */
 private[api] object Tests:

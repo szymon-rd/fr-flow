@@ -5,7 +5,7 @@ import frflow.core.expr.OutsideFact
 import frflow.core.graph.Edge
 import frflow.core.name.{NodeId, RelPath, SourceText, SymbolName}
 import frflow.core.spec.{Node, Reliance, Statement, Written}
-import frflow.core.term.Final
+import frflow.core.term.language.Final
 import frflow.core.ty.Ty
 import frflow.core.vocab.{Symbol, SymbolType, ValueKind}
 

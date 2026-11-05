@@ -3,11 +3,12 @@ package frflow.testing.ported
 import cats.effect.IO
 import cats.effect.unsafe.implicits.global
 import frflow.core.name.{NodeId, SymbolName}
-import frflow.eval.Semantics
-import frflow.testing.{Plan, Settings}
+import frflow.eval.term.Semantics
 import frflow.testing.derive.Derive
-import frflow.testing.model.{Difference, ModelRuns, ModelTests}
+import frflow.testing.model.{ModelRuns, ModelTests}
+import frflow.testing.{Plan, Settings}
 import frflow.testing.report.{Failure, Outcome}
+import frflow.testing.steps.Difference
 import keycloak.*
 
 /** Keycloak's generated tests (today's `KeycloakSuite`): the store's Scala against what is assumed of its operations

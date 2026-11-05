@@ -3,7 +3,7 @@ package frflow.project.program
 import cats.Monad
 import cats.syntax.all.*
 import frflow.core.name.NodeId
-import frflow.eval.Semantics
+import frflow.eval.term.Semantics
 import frflow.project.pipeline.{Analysis, Testable, TestKeys}
 import frflow.project.port.{ProjectFiles, Records, RunCode}
 import frflow.testing.{Plan, PropertyTests}

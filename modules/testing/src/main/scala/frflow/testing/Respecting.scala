@@ -4,6 +4,7 @@ import frflow.core.code.Values
 import frflow.core.example.Gen
 import frflow.eval.{Env, ScalaValue}
 import frflow.eval.run.Made
+import frflow.testing.derive.Draw
 import java.util.SplittableRandom
 
 /** A `Draw` whose values meet what always holds of their types (`Made`, through every shape it reaches): a value

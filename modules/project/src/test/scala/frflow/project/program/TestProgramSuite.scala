@@ -9,11 +9,11 @@ import frflow.project.{Projects, Tables}
 import frflow.project.pipeline.TestKeys
 import frflow.project.port.RunCode
 import frflow.project.port.Records
-import frflow.testing.Seed
+import frflow.testing.report.Seed
 import frflow.testing.report.*
 import frflow.wire.file.Depth
 import frflow.decision.review.Unproven
-import frflow.eval.Semantics
+import frflow.eval.term.Semantics
 import rooms.storedBookings
 
 /** Testing before production on rooms in memory: the calendar's Scala tested against each claim on `granted`, the

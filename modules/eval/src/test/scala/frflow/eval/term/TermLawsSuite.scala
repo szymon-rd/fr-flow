@@ -9,7 +9,8 @@ import frflow.core.spec.Written
 import frflow.core.ty.Ty
 import frflow.core.vocab.Vocabulary
 import frflow.dsl.term.Lift
-import frflow.eval.{Env, ScalaValue, Semantics}
+import frflow.eval.{Env, ScalaValue}
+import frflow.eval.term.Semantics
 import scala.util.Random
 
 /** The laws of the term interpreters, on generated terms that use every algebra: the examples' path (a written lambda,

@@ -1,14 +1,15 @@
 package frflow.eval.flow
 
-import cats.MonadThrow
 import cats.effect.kernel.{MonadCancel, Ref}
 import cats.effect.std.Mutex
+import cats.MonadThrow
 import cats.syntax.all.*
 import frflow.core.expr.Prog
 import frflow.core.name.{ModelName, SymbolName}
-import frflow.core.term.Stated
+import frflow.core.term.language.Stated
 import frflow.core.vocab.{Fails, Vocabulary}
-import frflow.eval.{EvalError, Faults, Races, Raised, ScalaValue, Semantics}
+import frflow.eval.{EvalError, Faults, Races, Raised, ScalaValue}
+import frflow.eval.term.Semantics
 
 /** Where a program's calls go when its `Prog` is run in Scala: the models (each call its operation's meaning, over
   * each model's state), or the operations' Scala (`Bound`, each argument and result a plain value).

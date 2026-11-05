@@ -1,7 +1,7 @@
 package frflow.proof.audit
 
 import cats.data.ValidatedNec
-import frflow.core.analysis.Resolved
+import frflow.core.analysis.resolution.Resolved
 import frflow.core.expr.{Binder, Expr}
 import frflow.core.name.VarId
 import frflow.core.spec.Written
@@ -46,7 +46,7 @@ object WellFormed:
     case other          => other
 
   /** The formulas a statement holds, and each start's rule under its guard (over the state, at level 0). */
-  private def terms(p: Prop): List[Either[Written[Expr], (Ty, frflow.core.term.Final[Boolean])]] = p match
+  private def terms(p: Prop): List[Either[Written[Expr], (Ty, frflow.core.term.language.Final[Boolean])]] = p match
     case Prop.Keeps(_, _, f, _)          => List(Left(f))
     case Prop.Makes(_, _, f, _)          => List(Left(f))
     case Prop.Formula(w, _)              => List(Left(w))

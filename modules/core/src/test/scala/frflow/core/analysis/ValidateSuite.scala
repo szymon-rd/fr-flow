@@ -1,12 +1,14 @@
 package frflow.core.analysis
 
+import frflow.core.analysis.outside.{Premise, Premises}
+import frflow.core.analysis.outside.Scope
+import frflow.core.analysis.resolution.Resolve
 import frflow.core.{Booking, Kb, Lang, Store}
-import frflow.core.Nodes.*
 import frflow.core.code.Code
 import frflow.core.name.{DefName, NodeId, SymbolName}
+import frflow.core.Nodes.*
 import scala.compiletime.constValueTuple
 import scala.deriving.Mirror
-import frflow.core.analysis.outside.{Premise, Premises}
 
 /** Every problem `Validate` can report, each by name on a theory with that one thing wrong; the theories they are
   * made from are valid; and every problem of a theory is reported at once.

@@ -77,7 +77,7 @@ class PortSuite extends munit.CatsEffectSuite:
   private def store: List[ModelCheck[IO]] =
     val idle = AuthRequest.SignOut(RealmId(""), "")
     def checked(m: frflow.core.vocab.StateModel, impl: frflow.core.code.Implementation) = ModelCheck(
-      ModelRuns.reportedUnder(m.name), ModelRuns[IO](ModelTests.Check(m, impl), frflow.eval.Semantics(elaborated), t,
+      ModelRuns.reportedUnder(m.name), ModelRuns[IO](ModelTests.Check(m, impl), frflow.eval.term.Semantics(elaborated), t,
         1000).of(_, _))
     t.vocabulary.model(serverStore.name).toList.map(checked(_, ModelTests.of(serverStore)(start = SessionDb.holding,
       observe = (d: SessionDb) => d.stored)(d => (d.load, d.logged, d.record, d.lookup)))) ++
@@ -105,7 +105,7 @@ class PortSuite extends munit.CatsEffectSuite:
   }
 
   /** A store holding `s`, and the code run on it as production runs it. */
-  private def on[A](s: Stored)(f: frflow.eval.Running[IO] => IO[A]): IO[A] =
+  private def on[A](s: Stored)(f: frflow.eval.run.Running[IO] => IO[A]): IO[A] =
     SessionDb.holding(s).flatMap(db => knowledge.running[IO](serverStore := db)).flatMap(f)
 
   test("today's examples hold on the code: the introspection's, the index's and the store's, each a run on a store") {

@@ -1,6 +1,6 @@
 package frflow.proof.whole
 
-import frflow.core.analysis.{Callees, Resolved}
+import frflow.core.analysis.resolution.{Callees, Resolved}
 import frflow.core.code.Code
 import frflow.core.name.SymbolName
 import frflow.core.ty.Ty

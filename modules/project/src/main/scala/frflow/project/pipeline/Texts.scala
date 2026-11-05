@@ -1,6 +1,6 @@
 package frflow.project.pipeline
 
-import frflow.core.analysis.Resolve
+import frflow.core.analysis.resolution.Resolve
 import frflow.core.checking.Checking
 import frflow.core.code.Code
 import frflow.core.consistency.{Standing, Vacuity}

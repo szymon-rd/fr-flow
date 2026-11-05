@@ -1,6 +1,6 @@
 package frflow.proof.layout
 
-import frflow.core.analysis.Resolved
+import frflow.core.analysis.resolution.Resolved
 import frflow.core.analysis.outside.Guards
 import frflow.core.expr.{Expr, Exprs, Quantifier}
 import frflow.core.name.DefName

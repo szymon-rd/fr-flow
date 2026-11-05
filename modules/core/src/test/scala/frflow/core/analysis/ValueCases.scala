@@ -1,12 +1,12 @@
 package frflow.core.analysis
 
-import frflow.core.{Kb, Lang, Store}
-import frflow.core.Nodes.*
 import frflow.core.code.Code
 import frflow.core.expr.{Binder, Value}
+import frflow.core.{Kb, Lang, Store}
 import frflow.core.name.{DefName, NodeId, SourceText, SymbolName, TypeName, VarId}
+import frflow.core.Nodes.*
 import frflow.core.spec.Written
-import frflow.core.term.{Final, Sym}
+import frflow.core.term.language.{Final, Sym}
 import frflow.core.ty.Ty
 import frflow.core.vocab.{Define, DefineForm, Sort}
 

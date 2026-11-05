@@ -7,10 +7,12 @@ import frflow.core.code.Impl
 import frflow.core.expr.{Lambda, Prog}
 import frflow.core.name.ModelName
 import frflow.core.spec.Written
-import frflow.core.term.{Program, Stated, World}
+import frflow.core.term.language.Stated
+import frflow.core.term.{Program, World}
 import frflow.core.vocab.Vocabulary
-import frflow.eval.{Env, Faults, Fn, NotEvaluated, Races, ScalaValue, Semantics}
+import frflow.eval.{Env, Faults, Fn, NotEvaluated, Races, ScalaValue}
 import frflow.eval.flow.{FlowError, FlowInterpreter, World as Worlds}
+import frflow.eval.term.Semantics
 
 /** A proven program as the evaluator holds its value (`A => Program[R]`): its recorded steps run on the models from
   * the world before, one after the other as Lean reads them (`FlowInterpreter.sequential` over a pure state of the

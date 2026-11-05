@@ -1,7 +1,7 @@
 package frflow.proof.layout
 
 import cats.data.NonEmptyList
-import frflow.core.analysis.{Callees, Resolved}
+import frflow.core.analysis.resolution.{Callees, Resolved}
 import frflow.core.name.{LeanNames, NodeId, SymbolName}
 import frflow.core.spec.Range
 import frflow.proof.lean.ast.*

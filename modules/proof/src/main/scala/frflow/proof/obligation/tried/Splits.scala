@@ -1,6 +1,6 @@
 package frflow.proof.obligation.tried
 
-import frflow.core.analysis.Resolved
+import frflow.core.analysis.resolution.Resolved
 import frflow.core.expr.Exprs
 import frflow.core.name.NodeId
 import frflow.proof.obligation.{Hyp, Prop, TryKind}

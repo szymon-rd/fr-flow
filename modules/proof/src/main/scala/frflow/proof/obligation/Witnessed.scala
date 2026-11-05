@@ -1,6 +1,6 @@
 package frflow.proof.obligation
 
-import frflow.core.analysis.Resolved
+import frflow.core.analysis.resolution.Resolved
 import frflow.core.consistency.{Consistency, Group, Standing}
 import frflow.core.name.NodeId
 

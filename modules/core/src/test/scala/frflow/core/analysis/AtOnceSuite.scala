@@ -3,7 +3,7 @@ package frflow.core.analysis
 import frflow.core.{Booking, Store}
 import frflow.core.expr.{Binder, Expr, Prog, Value}
 import frflow.core.name.{ModelName, SymbolName, VarId}
-import frflow.core.term.{Stated, Sym}
+import frflow.core.term.language.{Stated, Sym}
 import frflow.core.ty.Ty
 import frflow.core.vocab.{ModelOp, StateModel}
 

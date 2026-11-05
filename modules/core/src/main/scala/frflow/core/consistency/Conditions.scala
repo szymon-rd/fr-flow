@@ -2,8 +2,9 @@ package frflow.core.consistency
 
 import frflow.core.expr.Binder
 import frflow.core.name.VarId
-import frflow.core.term.{Annotation, Bound, Final, Program, Sym, World}
+import frflow.core.term.{Annotation, Bound, Program, World}
 import frflow.core.term.interpret.Forward
+import frflow.core.term.language.{Final, Sym}
 
 /** The conditions of a claim (owner §18, vacuity): of each `A implies B` in its logical structure, `A`, with the
   * antecedents above it, over the variables bound above it (`forall`, `always` and `exists` bind one; a list's `all`

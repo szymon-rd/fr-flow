@@ -1,6 +1,6 @@
 package frflow.dsl.vocab
 
-import frflow.core.term.Sym
+import frflow.core.term.language.Sym
 import frflow.dsl.term.{LeanType, Term, Terms}
 
 /** A Definition passed where a list's operation takes a function of its elements (`held.pairwise(apart)`,

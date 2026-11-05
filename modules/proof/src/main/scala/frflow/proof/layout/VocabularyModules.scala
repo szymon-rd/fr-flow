@@ -21,7 +21,7 @@ import frflow.proof.lean.term.Printed
 object VocabularyModules:
   import Atoms.name
 
-  def of(r: frflow.core.analysis.Resolved): List[LeanModule] = of(Lowering(r, frflow.proof.terms.TermTable.of(r)))
+  def of(r: frflow.core.analysis.resolution.Resolved): List[LeanModule] = of(Lowering(r, frflow.proof.terms.TermTable.of(r)))
 
   def of(l: Lowering): List[LeanModule] =
     val v = l.resolved.theory.vocabulary
@@ -114,7 +114,7 @@ object VocabularyModules:
   /** A program, generic in its monad:`{m : Type → Type} [Monad m] [MonadExceptOf E m] [Bookings m] (open terms) :
     * A → m R := fun (a : A) => do …`, the monad's name taken by no symbol (`Naming.helper`).
     */
-  private def flow(l: Lowering, d: Define, p: frflow.core.expr.Prog[frflow.core.term.Stated[?]]): Decl =
+  private def flow(l: Lowering, d: Define, p: frflow.core.expr.Prog[frflow.core.term.language.Stated[?]]): Decl =
     val (named, m) = Naming.helper("m", Set.empty).run(l.naming).value
     val result = Ty.yields(d.lambda.result)
     val inputs = d.lambda.params

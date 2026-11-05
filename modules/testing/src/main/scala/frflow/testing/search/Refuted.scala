@@ -1,7 +1,7 @@
 package frflow.testing.search
 
 import frflow.core.expr.{Expr, Value}
-import frflow.core.term.Stated
+import frflow.core.term.language.Stated
 import frflow.core.ty.Ty
 
 /** A case refuting a step: the claim's inputs, each named, and their types; the answer the part's claim gives on them

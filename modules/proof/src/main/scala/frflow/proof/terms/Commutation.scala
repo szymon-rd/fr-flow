@@ -5,7 +5,7 @@ import frflow.core.analysis.{AtOnce, Waits}
 import frflow.core.expr.{Binder, Expr, Exprs, Prog, Progs}
 import frflow.core.name.VarId
 import frflow.core.spec.Form
-import frflow.core.term.{Stated, Sym}
+import frflow.core.term.language.{Stated, Sym}
 import frflow.core.ty.Ty
 import frflow.core.vocab.{Define, Vocabulary}
 

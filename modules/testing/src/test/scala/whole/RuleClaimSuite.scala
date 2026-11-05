@@ -2,9 +2,10 @@ package whole
 
 import frflow.*
 import frflow.core.name.NodeId
+import frflow.proof.audit.Obligations
 import frflow.proof.layout.NodeModules
 import frflow.proof.lean.print.Print
-import frflow.proof.obligation.{Obligations, Prop}
+import frflow.proof.obligation.Prop
 import frflow.proof.obligation.tried.Tries
 import frflow.proof.terms.TermTable
 import frflow.proof.whole.ExampleGoals

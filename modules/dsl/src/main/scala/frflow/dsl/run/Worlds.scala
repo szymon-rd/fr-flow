@@ -2,8 +2,9 @@ package frflow.dsl.run
 
 import frflow.core.expr.{Binder, Expr, Exprs}
 import frflow.core.name.VarId
-import frflow.core.term.{Bound, Sym, World}
+import frflow.core.term.{Bound, World}
 import frflow.core.term.interpret.{Substituted, ToExpr}
+import frflow.core.term.language.Sym
 import frflow.core.ty.Ty
 import frflow.dsl.build.Fault
 import frflow.dsl.term.{Notes, Term}

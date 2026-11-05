@@ -4,13 +4,14 @@ import cats.effect.IO
 import cats.syntax.all.*
 import frflow.*
 import frflow.core.name.NodeId
-import frflow.eval.{Running, Semantics}
 import frflow.eval.flow.Wall
 import frflow.eval.run.OnCode
-import frflow.proof.audit.Completeness
+import frflow.eval.run.Running
+import frflow.eval.term.Semantics
 import frflow.project.{Captured, Live, Ported, Projects}
 import frflow.project.Ported.Lean
 import frflow.project.program.ModelCheck
+import frflow.proof.audit.Completeness
 import frflow.proof.obligation.ObligationName
 import frflow.proof.verdict.{ObligationStatus, ProverRun, Result}
 import frflow.testing.model.{ModelRuns, ModelTests}

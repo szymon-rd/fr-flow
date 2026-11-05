@@ -6,10 +6,13 @@ import frflow.*
 import frflow.core.example.Gen
 import frflow.core.name.SymbolName
 import frflow.core.ty.Ty
-import frflow.eval.Semantics
+import frflow.eval.term.Semantics
 import frflow.testing.derive.Derive
-import frflow.testing.model.{Difference, ModelRuns, ModelTests, Typing}
+import frflow.testing.derive.Draw
+import frflow.testing.model.{ModelRuns, ModelTests, Typing}
 import frflow.testing.report.{Count, Failure, Outcome, Position, Reach, Target}
+import frflow.testing.report.Seed
+import frflow.testing.steps.Difference
 import java.util.SplittableRandom
 import scala.concurrent.duration.*
 

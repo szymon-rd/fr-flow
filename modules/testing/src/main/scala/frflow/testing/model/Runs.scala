@@ -2,7 +2,8 @@ package frflow.testing.model
 
 import frflow.core.vocab.StateModel
 import frflow.eval.ScalaValue
-import frflow.testing.Draw
+import frflow.testing.derive.Draw
+import frflow.testing.steps.Step
 import java.util.SplittableRandom
 
 /** Generated runs of a model's operations: each call one of its operations, the arguments of the whole run drawn

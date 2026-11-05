@@ -3,6 +3,7 @@ package frflow.core.expr
 import frflow.core.name.SymbolName
 import frflow.core.term.*
 import frflow.core.term.interpret.Forward
+import frflow.core.term.language.{Final, Sym}
 
 /** A term with its binders' hints and its symbols renamed, the same term otherwise: what the printer's capture laws
   * run the generated terms through, so every binder is named as Lean's keywords and prelude names, their mangled

@@ -1,6 +1,6 @@
 package frflow.project.pipeline
 
-import frflow.core.analysis.{Constrained, SaysWhat}
+import frflow.core.analysis.resolution.{Constrained, SaysWhat}
 import frflow.core.name.NodeId
 import frflow.core.Theory
 

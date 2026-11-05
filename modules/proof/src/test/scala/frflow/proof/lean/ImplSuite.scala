@@ -1,13 +1,14 @@
 package frflow.proof.lean
 
-import frflow.core.analysis.{Resolve, Validate}
+import frflow.core.analysis.resolution.Resolve
+import frflow.core.analysis.Validate
 import frflow.core.code.{Attachment, Code, CodeTable}
 import frflow.core.{Elaborated, Sited, Theory}
 import frflow.core.expr.{Expr, OutsideFact}
 import frflow.core.graph.Edge
 import frflow.core.name.*
 import frflow.core.spec.{Node, Reliance, Statement, Written}
-import frflow.core.term.Sym
+import frflow.core.term.language.Sym
 import frflow.core.ty.{NumKind, Ty}
 import frflow.core.vocab.{Define, DefineForm, Symbol, SymbolType, ValueKind, Vocabulary}
 import frflow.proof.obligation.{Hyp, Prop, Required, Substitute}

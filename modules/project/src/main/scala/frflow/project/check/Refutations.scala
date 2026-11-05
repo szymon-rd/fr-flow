@@ -3,12 +3,13 @@ package frflow.project.check
 import cats.syntax.all.*
 import frflow.core.name.NodeId
 import frflow.core.spec.CallForms
-import frflow.eval.Semantics
+import frflow.eval.term.Semantics
 import frflow.project.pipeline.Analysis
 import frflow.project.port.RunCode
-import frflow.testing.{Case, Seed}
+import frflow.testing.derive.Case
 import frflow.testing.derive.Derive
 import frflow.testing.search.{Refuted, StepRefutation}
+import frflow.testing.report.Seed
 
 /** The search for a case refuting a node's step, asked only once `complete` does not go through: among `Drawn`
   * cases of the node's inputs, drawn as its tests draw them, one on which the claim fails given the answer its one

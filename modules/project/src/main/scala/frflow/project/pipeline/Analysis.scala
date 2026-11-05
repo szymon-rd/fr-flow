@@ -1,23 +1,25 @@
 package frflow.project.pipeline
 
-import frflow.core.analysis.{Resolve, Resolved, Valid}
+import frflow.core.analysis.resolution.{Resolve, Resolved, Valid}
+import frflow.core.checking.Checking
 import frflow.core.consistency.{Consistency, Group}
 import frflow.core.expr.OutsideFact
-import frflow.core.checking.Checking
 import frflow.core.name.{ModelName, NodeId}
 import frflow.decision.content.CodeNow
 import frflow.decision.review.{Reading, Standing, Subjects}
+import frflow.eval.run.Broken
 import frflow.project.code.{CodeFingerprints, Governance}
-import frflow.proof.layout.{Layout, LeanProject, Lowering, RootImplModule}
+import frflow.proof.audit.LeanProject
+import frflow.proof.audit.Obligations
+import frflow.proof.layout.{Layout, Lowering, RootImplModule}
 import frflow.proof.lean.ast.LeanModule
-import frflow.proof.obligation.{Discharge, NodeObligations, Obligation, ObligationName, Obligations}
+import frflow.proof.obligation.{Discharge, NodeObligations, Obligation, ObligationName}
 import frflow.proof.reading.{ProofFile, ProofRules}
 import frflow.proof.terms.TermTable
 import frflow.proof.verdict.{CheckKey, NodeCheck, WholeCheck}
 import frflow.proof.whole.{ExampleGoals, Joint, Possible}
 import frflow.testing.model.ModelRuns
 import frflow.testing.report.{Failure, TestReport}
-import frflow.eval.run.Broken
 
 /** The pure state of a project: every phase after elaboration, each computed once, on demand. */
 final class Analysis(val valid: Valid, val inputs: Inputs, val computed: Computed):

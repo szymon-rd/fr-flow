@@ -1,6 +1,7 @@
 package whole
 
-import frflow.core.analysis.{Problem, Resolve, Resolved, Validate}
+import frflow.core.analysis.{Problem, Validate}
+import frflow.core.analysis.resolution.{Resolve, Resolved}
 import frflow.core.{Elaborated, Theory}
 import frflow.dsl.build.ElabError
 import frflow.dsl.kb.FrModel

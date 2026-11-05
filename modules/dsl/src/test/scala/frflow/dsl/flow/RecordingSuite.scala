@@ -1,13 +1,14 @@
 package frflow.dsl.flow
 
 import frflow.core.expr.{Expr, Prog, Progs, Side}
-import frflow.core.ty.{NumKind, Ty}
 import frflow.core.term.interpret.ToExpr
-import frflow.core.term.Stated
-import frflow.dsl.flow.FlowSyntax.*
+import frflow.core.term.language.Stated
+import frflow.core.ty.{NumKind, Ty}
 import frflow.dsl.model.Clock
 import frflow.dsl.term.{Lift, Term}
 import frflow.dsl.term.TermSyntax.*
+import frflow.dsl.vocab.{Flow, ReadRecording}
+import frflow.dsl.vocab.FlowSyntax.*
 
 /** Every combinator a program uses, recorded as the step Lean reads (the owner keeps them all). */
 class RecordingSuite extends munit.FunSuite:

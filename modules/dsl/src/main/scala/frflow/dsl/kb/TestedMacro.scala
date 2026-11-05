@@ -1,6 +1,6 @@
 package frflow.dsl.kb
 
-import frflow.dsl.flow.Flow
+import frflow.dsl.vocab.Flow
 import frflow.dsl.vocab.Definition as Defined
 import scala.quoted.*
 

@@ -1,6 +1,7 @@
 package frflow.dsl.term
 
-import frflow.core.term.{Bound, Sym, When}
+import frflow.core.term.{Bound, When}
+import frflow.core.term.language.Sym
 import scala.deriving.Mirror
 
 /** A match so far, `s.on[A](…).on[B](…)`: a term of its result, to which `on` adds an arm. Each arm is a host function

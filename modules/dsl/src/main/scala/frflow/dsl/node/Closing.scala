@@ -3,8 +3,9 @@ package frflow.dsl.node
 import cats.syntax.all.*
 import frflow.core.expr.{Binder, Expr, Exprs, PrimOp, Quantifier}
 import frflow.core.name.VarId
-import frflow.core.term.{Bound, Final, Program, Sym, World}
+import frflow.core.term.{Bound, Program, World}
 import frflow.core.term.interpret.{Collect, Sided, Substituted}
+import frflow.core.term.language.{Final, Sym}
 import frflow.core.ty.Ty
 import frflow.dsl.build.Fault
 import frflow.dsl.run.{RunNote, Worlds}

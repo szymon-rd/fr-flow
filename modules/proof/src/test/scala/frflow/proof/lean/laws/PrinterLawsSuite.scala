@@ -4,7 +4,7 @@ import frflow.core.Booking
 import frflow.core.expr.{LawSeeds, Terms, Tm}
 import frflow.core.name.SourceText
 import frflow.core.spec.Written
-import frflow.core.term.Final
+import frflow.core.term.language.Final
 import frflow.proof.lean.ast.{LBinder, LExpr}
 import frflow.proof.lean.lower.{LowerProp, Naming}
 import frflow.proof.lean.print.Print

@@ -1,8 +1,9 @@
 package frflow.proof.obligation
 
+import frflow.core.analysis.resolution.{Resolve, Resolved}
+import frflow.core.analysis.Validate
 import frflow.core.{Kb, Lang}
 import frflow.core.Nodes.*
-import frflow.core.analysis.{Resolve, Resolved, Validate}
 import frflow.core.ty.Ty
 
 /** `allowsOne` from a part no equation solves: its group of consistency is not witnessed. */

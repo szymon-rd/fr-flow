@@ -6,6 +6,7 @@ import frflow.core.expr.{Binder, Lambda, Prog}
 import frflow.core.name.*
 import frflow.core.spec.{Form, Written}
 import frflow.core.term.*
+import frflow.core.term.language.{Body, Stated, Sym}
 import frflow.core.ty.*
 import frflow.proof.lean.ast.*
 import frflow.proof.lean.lower.*

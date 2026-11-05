@@ -1,10 +1,12 @@
 package frflow.proof.layout
 
-import frflow.core.analysis.Resolved
+import frflow.core.analysis.resolution.Resolved
 import frflow.core.consistency.Vacuity
 import frflow.core.example.Example
+import frflow.proof.audit.LeanProject
+import frflow.proof.audit.Obligations
 import frflow.proof.lean.ast.LeanModule
-import frflow.proof.obligation.{Constant, NodeObligations, Obligation, Obligations}
+import frflow.proof.obligation.{Constant, NodeObligations, Obligation}
 import frflow.proof.terms.TermTable
 import frflow.proof.whole.{ExampleGoals, Joint, Possible}
 

@@ -1,6 +1,6 @@
 package frflow.dsl.term
 
-import frflow.core.term.Sym
+import frflow.core.term.language.Sym
 
 /** `when(c)(a)`, waiting for its other branch: `.otherwise(b)` is Lean's `if c then a else b`. */
 final class Conditional[A](condition: Term[Boolean], ifTrue: Term[A]):

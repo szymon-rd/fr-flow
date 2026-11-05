@@ -7,10 +7,12 @@ import frflow.core.name.{NodeId, SymbolName}
 import frflow.core.Theory
 import frflow.core.ty.Ty
 import frflow.core.vocab.SymbolType
-import frflow.eval.Semantics
 import frflow.eval.run.{Broken, CallCheck, Made, Wiring}
+import frflow.eval.term.Semantics
+import frflow.testing.derive.{Case, Draw}
 import frflow.testing.derive.ExampleCases
 import frflow.testing.report.{Against, Count, Drawn, Failure, Note, TestReport}
+import frflow.testing.report.Seed
 
 /** Plain code tested against the claims about its Definition on generated cases: each case's inputs drawn, the
   * values its code reads made by `Wiring` (what wiring does not make drawn too), the code called through `Fn`, the

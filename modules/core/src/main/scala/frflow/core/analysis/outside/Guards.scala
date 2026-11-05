@@ -1,14 +1,15 @@
 package frflow.core.analysis.outside
 
 import cats.syntax.all.*
+import frflow.core.analysis.outside.Scope
 import frflow.core.name.{ModelName, NodeId, TypeName}
 import frflow.core.spec.Range
-import frflow.core.term.{Bound, Case, Final, Selector, Sym, When, World}
+import frflow.core.term.{Bound, Case, Selector, When, World}
 import frflow.core.term.interpret.{AtValue, Guard}
+import frflow.core.term.language.{Final, Sym}
 import frflow.core.Theory
 import frflow.core.ty.{DataType, Field, Ty}
 import frflow.core.vocab.StateModel
-import frflow.core.analysis.Scope
 
 /** The hypotheses every variable of a statement comes with (`Guarded`), one guard per statement of `always`,
   * claimed or assumed: its rule at the variable (`AtValue`). `always[T]` on each `T` a value holds: the value

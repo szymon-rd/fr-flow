@@ -1,10 +1,11 @@
 package frflow.proof.obligation
 
-import frflow.core.{Kb, Lang}
-import frflow.core.Nodes.*
-import frflow.core.analysis.{Resolve, Resolved, Validate}
+import frflow.core.analysis.resolution.{Resolve, Resolved}
+import frflow.core.analysis.Validate
 import frflow.core.code.Code
+import frflow.core.{Kb, Lang}
 import frflow.core.name.SymbolName
+import frflow.core.Nodes.*
 import frflow.core.ty.Ty
 
 /** Two Declarations and the claims that try every try: `both` (`f 1 ∧ g 2`) split into one part per conjunct (each

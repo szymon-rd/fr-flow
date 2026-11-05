@@ -3,6 +3,7 @@ package frflow.core.term.interpret
 import frflow.core.expr.{Binder, OutsideFact, Value}
 import frflow.core.name.{ModelName, SymbolName}
 import frflow.core.term.*
+import frflow.core.term.language.{Body, Sym}
 import frflow.core.ty.Ty
 
 /** An interpreter over a richer representation `U` that forwards every operation to `base`: a transformer overrides

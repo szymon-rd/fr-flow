@@ -1,6 +1,6 @@
 package frflow.proof.terms
 
-import frflow.core.analysis.Resolved
+import frflow.core.analysis.resolution.Resolved
 import frflow.core.name.{DefName, NodeId, SymbolName}
 import frflow.core.ty.Ty
 import frflow.core.vocab.{Symbol, SymbolType}

@@ -1,7 +1,8 @@
 package frflow.core.term.interpret
 
 import frflow.core.expr.Binder
-import frflow.core.term.{Ext, Sym}
+import frflow.core.term.Ext
+import frflow.core.term.language.Sym
 
 /** Each free variable `env` names as the value it gives, every other operation as `base` has it: a term written over
   * free variables (a statement's leading variables opened, its current world, its runs' outcomes) closed by the

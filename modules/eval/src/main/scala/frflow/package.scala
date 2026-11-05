@@ -25,8 +25,8 @@ export frflow.dsl.kb.Gens
 export frflow.dsl.shape.Defines.*
 export frflow.dsl.term.TermSyntax.*
 export frflow.dsl.kb.ValuesSyntax.*
-export frflow.dsl.flow.Flow
+export frflow.dsl.vocab.Flow
 export frflow.dsl.model.{Clock, Fact, Model, StateModel}
-export frflow.dsl.flow.FlowSyntax.*
+export frflow.dsl.vocab.FlowSyntax.*
 export frflow.eval.term.DefSyntax.*
-export frflow.eval.CodeSyntax.*
+export frflow.eval.run.CodeSyntax.*

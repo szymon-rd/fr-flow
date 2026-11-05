@@ -1,6 +1,6 @@
 package frflow.project.code
 
-import frflow.core.analysis.Constrained
+import frflow.core.analysis.resolution.Constrained
 import frflow.core.analysis.outside.Outsides
 import frflow.core.checking.Checking
 import frflow.core.code.CodeFile

@@ -1,10 +1,11 @@
 package frflow.eval.run
 
-import frflow.core.analysis.Resolve
+import frflow.core.analysis.resolution.Resolve
 import frflow.core.name.{NodeId, SymbolName}
 import frflow.core.spec.{Range, Statement}
 import frflow.core.Theory
-import frflow.eval.{Env, EvalError, Fn, ScalaValue, Semantics}
+import frflow.eval.{Env, EvalError, Fn, ScalaValue}
+import frflow.eval.term.Semantics
 
 /** A fact about the values plain code runs with (an assumption over every possible value that reads as no call),
   * compiled once: the values it reads, and whether it holds under an environment. One that quantifies has no Scala

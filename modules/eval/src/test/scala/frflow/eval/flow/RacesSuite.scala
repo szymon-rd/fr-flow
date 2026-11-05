@@ -5,8 +5,9 @@ import cats.effect.unsafe.implicits.global
 import frflow.*
 import frflow.core.code.Values
 import frflow.core.name.ModelName
-import frflow.dsl.flow.ReadRecording
-import frflow.eval.{Env, Fn, Races, ScalaValue, Semantics}
+import frflow.dsl.vocab.ReadRecording
+import frflow.eval.{Env, Fn, Races, ScalaValue}
+import frflow.eval.term.Semantics
 
 /** A race whose sides differ, on the models: read as Lean reads it, the world's choice of the winner (`Prog.leftWins`),
   * the loser's steps until the world cancels it (`Prog.Cut`), then the winner's: the left when the world says nothing,

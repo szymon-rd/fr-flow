@@ -3,7 +3,7 @@ package frflow.dsl.shape
 import frflow.core.code.Code
 import frflow.core.name.DefName
 import frflow.dsl.build.{AsWritten, Site, Source}
-import frflow.dsl.flow.Flow
+import frflow.dsl.vocab.Flow
 import frflow.dsl.term.{LeanType, Term}
 import frflow.dsl.vocab.{Definition, OnTheSpot, Spot}
 

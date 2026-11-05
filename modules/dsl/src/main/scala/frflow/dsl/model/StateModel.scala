@@ -3,14 +3,15 @@ package frflow.dsl.model
 import cats.syntax.all.*
 import frflow.core.expr.OutsideFact
 import frflow.core.name.{DefName, ModelName}
-import frflow.core.term.{Sym, World}
+import frflow.core.term.language.Sym
+import frflow.core.term.World
 import frflow.core.vocab.{Fails, StateModel as Read, Symbol, SymbolType, Timed, ValueKind}
 import frflow.dsl.build.{Declarations, Deferred, Fault, Site, Source}
-import frflow.dsl.flow.Flow
+import frflow.dsl.run.{Recorded, Worlds}
 import frflow.dsl.shape.{Defines, Elab}
 import frflow.dsl.term.{LeanType, Notes, Reify, Term}
-import frflow.dsl.run.{Recorded, Worlds}
 import frflow.dsl.vocab.Definition
+import frflow.dsl.vocab.Flow
 import scala.annotation.publicInBinary
 import scala.collection.mutable
 

@@ -5,9 +5,9 @@ import cats.effect.unsafe.implicits.global
 import frflow.*
 import frflow.core.code.Values
 import frflow.core.name.ModelName
-import frflow.dsl.flow.ReadRecording
-import frflow.eval.{Env, Fn, Races, ScalaValue, Semantics}
-
+import frflow.dsl.vocab.ReadRecording
+import frflow.eval.{Env, Fn, Races, ScalaValue}
+import frflow.eval.term.Semantics
 import RaceProbe.*
 
 /** The step 13 review's race probe (B1): in production the sleep wins and the first add has landed; read as Lean

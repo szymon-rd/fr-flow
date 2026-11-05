@@ -3,9 +3,10 @@ package frflow.project.program
 import cats.effect.Concurrent
 import frflow.core.name.{ModelName, NodeId}
 import frflow.core.Theory
-import frflow.eval.Semantics
-import frflow.testing.{Draw, Plan}
+import frflow.eval.term.Semantics
+import frflow.testing.derive.Draw
 import frflow.testing.model.{ModelRuns, ModelTests}
+import frflow.testing.Plan
 import frflow.testing.report.TestReport
 
 /** A model's operations' plain Scala tested against the model (`implementTested(ops*)(start, observe)(calls)`), as the

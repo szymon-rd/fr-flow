@@ -1,7 +1,7 @@
 package frflow.eval.term
 
 import frflow.core.Booking
-import frflow.core.term.Final
+import frflow.core.term.language.Final
 import frflow.core.ty.DataType
 import frflow.proof.layout.LeanWorkspace
 import frflow.proof.lean.ast.*

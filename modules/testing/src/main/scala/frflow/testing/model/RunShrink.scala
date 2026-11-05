@@ -2,13 +2,14 @@ package frflow.testing.model
 
 import cats.Monad
 import cats.syntax.all.*
+import frflow.core.code.Values
 import frflow.core.expr.Value
 import frflow.core.ty.Ty
-import frflow.testing.Shrinking
-import frflow.core.code.Values
 import frflow.core.vocab.{StateModel, Vocabulary}
 import frflow.eval.Env
 import frflow.testing.derive.{Always, Shrink}
+import frflow.testing.Shrinking
+import frflow.testing.steps.{Difference, Step}
 
 /** A run that differs from its model made smaller while it still differs: a call left out, then an argument smaller,
   * then the state it starts from; each argument and state meeting what always holds of the types it holds, and the

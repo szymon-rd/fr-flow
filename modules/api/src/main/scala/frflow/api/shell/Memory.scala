@@ -1,15 +1,16 @@
 package frflow.api.shell
 
-import cats.Parallel
 import cats.effect.{Async, Ref}
+import cats.Parallel
 import cats.syntax.all.*
 import frflow.api.{FrFlowApi, Lean, Project}
 import frflow.core.name.RelPath
 import frflow.decision.ledger.{Deciders, Ledger}
-import frflow.project.port.memory.{MemoryFiles, MemoryGit, MemoryKeys, MemoryLedger}
 import frflow.project.pipeline.Recorded
+import frflow.project.port.memory.{MemoryFiles, MemoryGit, MemoryKeys, MemoryLedger}
 import frflow.project.program.Ports
-import frflow.testing.{Seed, Settings}
+import frflow.testing.report.Seed
+import frflow.testing.Settings
 
 /** The API in memory: the files as given, an empty ledger, a repository with no commit, a key made for the run (the
   * deciders' list holding it under `decider`, as if committed), Lean scripted, and the tests on 200 cases from seed

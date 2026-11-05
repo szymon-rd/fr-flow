@@ -3,6 +3,7 @@ package frflow.proof.lean.term
 import frflow.core.expr.{Binder, OutsideFact, Value}
 import frflow.core.name.{ModelName, SymbolName}
 import frflow.core.term.*
+import frflow.core.term.language.{Body, Sym}
 import frflow.core.ty.Ty
 import frflow.proof.lean.ast.*
 import frflow.proof.lean.lower.{Atoms, LExprs, LowerEnv, LowerType, LowerValue}

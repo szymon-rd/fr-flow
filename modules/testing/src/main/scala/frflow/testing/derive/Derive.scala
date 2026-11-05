@@ -1,16 +1,18 @@
 package frflow.testing.derive
 
 import cats.syntax.all.*
-import frflow.core.Elaborated
 import frflow.core.code.Values
+import frflow.core.Elaborated
 import frflow.core.example.{Example, Gen}
 import frflow.core.expr.{Prog, Progs, Value}
 import frflow.core.spec.Form
 import frflow.core.ty.Ty
 import frflow.core.vocab.Vocabulary
-import frflow.eval.{Env, ScalaValue, Semantics}
-import frflow.testing.{Draw, Seed}
+import frflow.eval.{Env, ScalaValue}
+import frflow.eval.term.Semantics
+import frflow.testing.derive.Draw
 import frflow.testing.report
+import frflow.testing.report.Seed
 import java.util.SplittableRandom
 
 /** The derived generators (`Gen.Derived(ty)`, what `kb.withGenerator` does not give), and the interpreter of the rest

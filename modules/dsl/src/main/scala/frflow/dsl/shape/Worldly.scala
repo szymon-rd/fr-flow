@@ -1,17 +1,18 @@
 package frflow.dsl.shape
 
+import cats.syntax.all.*
 import frflow.core.code.Code
 import frflow.core.expr.{Binder, Expr, Exprs}
 import frflow.core.name.{DefName, VarId}
-import frflow.core.term.{Body, Bound, Final, Sym}
+import frflow.core.term.Bound
 import frflow.core.term.interpret.Substituted
+import frflow.core.term.language.{Body, Final, Sym}
 import frflow.core.ty.Ty
 import frflow.dsl.build.{AsWritten, Fault, Site}
-import frflow.dsl.term.{LeanType, Term}
-import frflow.dsl.run.Worlds
-import frflow.dsl.vocab.{Definition, OnTheSpot, Spot}
-import cats.syntax.all.*
 import frflow.dsl.build.Failure
+import frflow.dsl.run.Worlds
+import frflow.dsl.term.{LeanType, Term}
+import frflow.dsl.vocab.{Definition, OnTheSpot, Spot}
 
 /** A define whose body reads state (owner §43): it changes with the World, so it takes the world as its last input
   * (Lean: `def d (x : A) (world : World) : R`), and every call of it, in a statement or in another define, is read in

@@ -6,7 +6,7 @@ import cats.syntax.all.*
 import frflow.api.Project
 import frflow.api.derive.Derive
 import frflow.api.view.{View, Warning}
-import frflow.eval.Semantics
+import frflow.eval.term.Semantics
 import frflow.project.pipeline.Analysis
 import frflow.project.port.{KeyRing, Lake, LeanLibrary, RunCode}
 import frflow.project.program.{Analyse, Committed, ModelCheck, Ports, Project as Sources}

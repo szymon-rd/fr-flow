@@ -5,8 +5,10 @@ import frflow.core.name.NodeId
 import frflow.core.spec.CallForms
 import frflow.core.Theory
 import frflow.core.ty.Ty
-import frflow.eval.{Applied, Env, Fn, Semantics}
+import frflow.eval.{Applied, Env, Fn}
 import frflow.eval.run.{Broken, CallCheck, Wiring}
+import frflow.eval.term.Semantics
+import frflow.testing.derive.Case
 import scala.util.Try
 
 /** What one generated case of a node's code is judged by: the types of its inputs, and what a case breaks. A claim

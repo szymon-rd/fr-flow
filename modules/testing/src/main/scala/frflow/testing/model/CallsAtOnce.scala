@@ -4,10 +4,12 @@ import cats.effect.kernel.{Concurrent, Ref}
 import cats.syntax.all.*
 import frflow.core.expr.Prog
 import frflow.core.name.{ModelName, SymbolName}
-import frflow.core.term.Stated
+import frflow.core.term.language.Stated
 import frflow.core.vocab.Vocabulary
 import frflow.eval.flow.World
-import frflow.eval.{ScalaValue, Semantics}
+import frflow.eval.ScalaValue
+import frflow.eval.term.Semantics
+import frflow.testing.steps.{Difference, Ran, Step}
 
 /** Two calls of a model's operations at once on its plain Scala, compared with the model (a linearizability check):
   * the model's `atomic` says each call is one step against calls at once, so what the Scala gives each call and the

@@ -2,11 +2,12 @@ package frflow.eval
 
 import cats.effect.IO
 import frflow.*
+import frflow.core.analysis.resolution.Resolve
+import frflow.core.analysis.Validate
 import frflow.core.Elaborated
-import frflow.core.analysis.{Resolve, Validate}
 import frflow.core.expr.Binder
 import frflow.core.spec.{Form, Written}
-import frflow.core.term.Final
+import frflow.core.term.language.Final
 import frflow.core.ty.Ty
 import frflow.proof.layout.Laid
 import frflow.proof.lean.ast.{Decl, ModuleName}

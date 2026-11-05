@@ -1,6 +1,6 @@
 package frflow.eval.run
 
-import frflow.core.analysis.Resolve
+import frflow.core.analysis.resolution.Resolve
 import frflow.core.code.{Code, Impl, Values}
 import frflow.core.example.Given
 import frflow.core.expr.{Exprs, Lambda}
@@ -9,7 +9,8 @@ import frflow.core.spec.{Form, Written}
 import frflow.core.Theory
 import frflow.core.ty.Ty
 import frflow.core.vocab.SymbolType
-import frflow.eval.{Fn, Semantics}
+import frflow.eval.Fn
+import frflow.eval.term.Semantics
 
 /** The values code reads, made explicitly for the examples and the generated tests (there is no ambient scope): the
   * meaning of each Definition with one (its plain Scala, its proven code run by the evaluator, its fixed value), and

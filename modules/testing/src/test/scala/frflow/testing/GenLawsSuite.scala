@@ -6,6 +6,7 @@ import cats.syntax.all.*
 import frflow.core.example.Gen
 import frflow.core.ty.{NumKind, Ty}
 import frflow.testing.derive.Derive
+import frflow.testing.derive.Draw
 import java.util.SplittableRandom
 import org.scalacheck.{Arbitrary, Gen as SGen}
 

@@ -6,8 +6,10 @@ import frflow.core.example.Given
 import frflow.core.name.SymbolName
 import frflow.core.ty.Ty
 import frflow.core.vocab.Vocabulary
-import frflow.eval.{Env, EvalError, ScalaValue, Semantics}
+import frflow.eval.{Env, EvalError, ScalaValue}
 import frflow.eval.run.{Broken, Made}
+import frflow.eval.term.Semantics
+import frflow.testing.derive.{Case, Draw}
 import frflow.testing.derive.Shrink
 import frflow.testing.report.{Drawn, Failure, Hits, Outcome}
 import scala.annotation.tailrec

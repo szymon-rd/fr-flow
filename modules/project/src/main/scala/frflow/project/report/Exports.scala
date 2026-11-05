@@ -1,6 +1,6 @@
 package frflow.project.report
 
-import frflow.core.analysis.Scope
+import frflow.core.analysis.outside.Scope
 import frflow.core.checking.Shown
 import frflow.core.consistency.{Consistency, Group}
 import frflow.core.name.NodeId

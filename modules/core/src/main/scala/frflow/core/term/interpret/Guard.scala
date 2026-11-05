@@ -1,6 +1,6 @@
 package frflow.core.term.interpret
 
-import frflow.core.term.Sym
+import frflow.core.term.language.Sym
 import frflow.core.ty.Ty
 
 /** A hypothesis a variable of a type comes with, built over any interpreter: an `always[T]` of the type's values, or an

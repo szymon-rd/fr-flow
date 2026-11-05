@@ -4,11 +4,12 @@ import cats.effect.{IO, Ref}
 import cats.effect.unsafe.implicits.global
 import crm.*
 import frflow.core.name.{NodeId, SymbolName}
-import frflow.eval.Semantics
-import frflow.testing.{Plan, Settings}
+import frflow.eval.term.Semantics
 import frflow.testing.derive.Derive
-import frflow.testing.model.{Difference, ModelRuns, ModelTests}
+import frflow.testing.model.{ModelRuns, ModelTests}
+import frflow.testing.{Plan, Settings}
 import frflow.testing.report.{Failure, Outcome, TestReport}
+import frflow.testing.steps.Difference
 
 /** Crm's generated tests (today's `CrmSuite`): the database's Scala, SQLite and its in-memory variant, against its
   * model and what is assumed of its search, known only by assumptions (G2), on generated runs of its operations,

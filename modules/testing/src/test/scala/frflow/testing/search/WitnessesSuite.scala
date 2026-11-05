@@ -5,8 +5,8 @@ import frflow.core.consistency.{Consistency, Vacuity}
 import frflow.core.expr.Value
 import frflow.core.name.{CtorName, NodeId}
 import frflow.core.ty.Ty
-import frflow.eval.Semantics
-import frflow.testing.Seed
+import frflow.eval.term.Semantics
+import frflow.testing.report.Seed
 import frflow.testing.derive.Derive
 import rooms.{Booking, RoomBookings}
 

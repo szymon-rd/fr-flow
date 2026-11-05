@@ -1,6 +1,6 @@
 package frflow.testing
 
-import frflow.core.analysis.Constrained
+import frflow.core.analysis.resolution.Constrained
 import frflow.core.code.Code
 import frflow.core.Theory
 import frflow.eval.EvalError

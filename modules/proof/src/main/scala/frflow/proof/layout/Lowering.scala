@@ -1,19 +1,20 @@
 package frflow.proof.layout
 
-import frflow.core.analysis.{Reserved, Resolved}
+import frflow.core.analysis.outside.{Guards, Outsides, Reads}
+import frflow.core.analysis.Reserved
+import frflow.core.analysis.resolution.Resolved
 import frflow.core.code.Code
 import frflow.core.expr.Prog
 import frflow.core.name.{KbName, ModelName, NodeId, SymbolName}
 import frflow.core.spec.Range
-import frflow.core.term.Sym
 import frflow.core.term.interpret.Guard
-import frflow.proof.lean.ast.{LBinder, LExpr, LOp, Names}
-import frflow.proof.lean.term.Printed
-import frflow.proof.lean.lower.{Atoms, LowerEnv, LowerModels, LowerFaults, LowerProp, Naming}
+import frflow.core.term.language.Sym
 import frflow.core.ty.Ty
 import frflow.core.vocab.SymbolType
+import frflow.proof.lean.ast.{LBinder, LExpr, LOp, Names}
+import frflow.proof.lean.lower.{Atoms, LowerEnv, LowerModels, LowerFaults, LowerProp, Naming}
+import frflow.proof.lean.term.Printed
 import frflow.proof.terms.TermTable
-import frflow.core.analysis.outside.{Guards, Outsides, Reads}
 
 /** How one FrModel's Lean is lowered, computed once for every module: its environment (each model's field of the world
   * is its name, each model's namespace its name capitalized, its class `Space.Ops`), the names a binder may not take

@@ -5,10 +5,12 @@ import frflow.core.{Elaborated, Sited, Theory}
 import frflow.core.expr.Binder
 import frflow.core.name.*
 import frflow.core.spec.{Node, Reliance, Statement, Written}
-import frflow.core.term.{Bound, Sym}
+import frflow.core.term.Bound
+import frflow.core.term.language.Sym
 import frflow.core.ty.Ty
 import frflow.core.vocab.{Define, DefineForm, Symbol, SymbolType, ValueKind, Vocabulary}
-import frflow.eval.{Fn, ScalaValue, Semantics}
+import frflow.eval.{Fn, ScalaValue}
+import frflow.eval.term.Semantics
 
 /** The values a call reads, made without asking for what FrFlow can build: a Definition given its meaning only by a
   * proven define (crm's `expire`, keycloak's `step`) is its define, run by the evaluator.

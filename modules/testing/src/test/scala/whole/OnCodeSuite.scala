@@ -1,7 +1,7 @@
 package whole
 
 import frflow.*
-import frflow.eval.Semantics
+import frflow.eval.term.Semantics
 import frflow.eval.run.{ExampleRun, OnCode}
 
 /** The examples' code as production and the examples run it, from the FrModel alone: every example of the

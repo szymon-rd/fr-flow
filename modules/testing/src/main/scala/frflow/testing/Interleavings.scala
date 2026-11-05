@@ -5,9 +5,10 @@ import cats.effect.std.{Mutex, Random}
 import cats.syntax.all.*
 import frflow.core.expr.Prog
 import frflow.core.name.{ModelName, SymbolName}
-import frflow.core.term.Stated
+import frflow.core.term.language.Stated
+import frflow.eval.{Env, ScalaValue}
 import frflow.eval.flow.{FlowInterpreter, World}
-import frflow.eval.{Env, ScalaValue, Semantics}
+import frflow.eval.term.Semantics
 import scala.concurrent.duration.*
 
 /** A program with concurrent steps run on its operations' Scala from each generated start, its branches at once and

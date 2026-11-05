@@ -1,7 +1,7 @@
 package frflow.dsl.model
 
 import frflow.core.name.ModelName
-import frflow.dsl.flow.Flow
+import frflow.dsl.vocab.Flow
 import frflow.dsl.term.{LeanType, Term}
 import frflow.dsl.run.Recorded
 

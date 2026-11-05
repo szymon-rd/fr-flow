@@ -3,7 +3,7 @@ package frflow.proof.lean.lower
 import cats.data.State
 import cats.syntax.all.*
 import frflow.core.expr.{Binder, Exprs, Prog, Progs}
-import frflow.core.term.Stated
+import frflow.core.term.language.Stated
 import frflow.core.term.interpret.ToExpr
 import frflow.proof.lean.ast.*
 import frflow.proof.lean.term.Printed

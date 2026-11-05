@@ -5,9 +5,11 @@ import frflow.core.name.NodeId
 import frflow.core.spec.{CallForms, Form, Written}
 import frflow.core.Theory
 import frflow.core.ty.Ty
-import frflow.eval.{Env, EvalError, Semantics}
+import frflow.eval.{Env, EvalError}
 import frflow.eval.run.Wiring
 import frflow.eval.term.Run
+import frflow.eval.term.Semantics
+import frflow.testing.derive.Case
 import frflow.testing.report.{Hits, Target}
 import scala.collection.mutable.ListBuffer
 import scala.util.Try

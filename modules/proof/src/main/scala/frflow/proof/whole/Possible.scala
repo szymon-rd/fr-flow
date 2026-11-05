@@ -1,6 +1,6 @@
 package frflow.proof.whole
 
-import frflow.core.analysis.{Callees, Constrained, Resolved}
+import frflow.core.analysis.resolution.{Callees, Constrained, Resolved}
 import frflow.core.consistency.{Consistency, Vacuity}
 import frflow.core.name.DefName
 import frflow.proof.obligation.{Constant, Discharge, Obligation, ObligationName, Prop, Supplied}

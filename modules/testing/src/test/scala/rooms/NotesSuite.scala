@@ -2,10 +2,11 @@ package rooms
 
 import frflow.*
 import frflow.core.name.NodeId
-import frflow.eval.Semantics
-import frflow.testing.{Plan, PropertyTests, Seed, Settings}
+import frflow.eval.term.Semantics
 import frflow.testing.derive.Derive
+import frflow.testing.{Plan, PropertyTests, Settings}
 import frflow.testing.report.Note
+import frflow.testing.report.Seed
 
 /** What a report says beside its outcome, and what its coverage counts: each generator given; the examples' values a
   * given generator never makes; and the cases the examples show of the call, counted before the generated ones.

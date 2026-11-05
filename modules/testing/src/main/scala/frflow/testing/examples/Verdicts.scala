@@ -1,7 +1,7 @@
 package frflow.testing.examples
 
 import frflow.dsl.example.FrFlowExamples
-import frflow.eval.Semantics
+import frflow.eval.term.Semantics
 import frflow.core.Theory
 import frflow.eval.run.{ExampleRun, OnCode}
 import frflow.testing.NoValue

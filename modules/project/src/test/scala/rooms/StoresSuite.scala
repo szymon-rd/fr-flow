@@ -6,7 +6,7 @@ import frflow.project.Projects
 import frflow.project.pipeline.Contents
 import frflow.proof.layout.NodeModules
 import frflow.proof.lean.print.Print
-import frflow.proof.obligation.Obligations
+import frflow.proof.audit.Obligations
 import frflow.proof.terms.TermTable
 
 /** A log of the requests: a second state, its operation, its model and a rule about it, beside rooms. */

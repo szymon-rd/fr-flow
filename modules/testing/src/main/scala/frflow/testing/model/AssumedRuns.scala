@@ -1,12 +1,13 @@
 package frflow.testing.model
 
-import frflow.core.Theory
 import frflow.core.code.Values
 import frflow.core.name.{ModelName, NodeId, SymbolName}
 import frflow.core.spec.{CallForm, NodeKind}
 import frflow.core.term.World
-import frflow.eval.{Applied, Env, Fn, ScalaValue, Semantics}
+import frflow.core.Theory
+import frflow.eval.{Applied, Env, Fn, ScalaValue}
 import frflow.eval.run.Wiring
+import frflow.eval.term.Semantics
 
 /** What is assumed of the operations known only by assumptions (G2, owner §36: "tested against them where
   * possible, trusted otherwise"): each assumption read as a run of one of them (`CallForm.Run`), its post over the

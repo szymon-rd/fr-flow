@@ -1,15 +1,16 @@
 package rooms
 
 import frflow.*
-import frflow.core.analysis.{Constancy, Problem}
+import frflow.core.analysis.outside.Constancy
 import frflow.core.analysis.outside.Premise
+import frflow.core.analysis.Problem
 import frflow.core.consistency.{Consistency, Vacuity}
 import frflow.core.expr.{Expr, Exprs}
 import frflow.core.name.{ModelName, NodeId, SymbolName}
 import frflow.dsl.build.Fault
-import frflow.eval.Semantics
 import frflow.eval.flow.{Shelf, Trouble}
 import frflow.eval.run.{ExampleRun, OnCode}
+import frflow.eval.term.Semantics
 import whole.Theories
 
 /** The semantics review's probes (scratchpad semantics-review.md, owner §44, §45), each now refused where its

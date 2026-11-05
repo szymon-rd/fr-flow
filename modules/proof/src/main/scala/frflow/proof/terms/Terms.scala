@@ -1,7 +1,7 @@
 package frflow.proof.terms
 
 import cats.syntax.all.*
-import frflow.core.analysis.Resolved
+import frflow.core.analysis.resolution.Resolved
 import frflow.core.expr.{Expr, Exprs}
 import frflow.core.name.DefName
 import frflow.core.spec.Statement

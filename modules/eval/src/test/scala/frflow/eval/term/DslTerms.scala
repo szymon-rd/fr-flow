@@ -2,7 +2,7 @@ package frflow.eval.term
 
 import cats.syntax.all.*
 import frflow.core.spec.Form
-import frflow.core.term.Final
+import frflow.core.term.language.Final
 import frflow.core.ty.DataType
 import frflow.dsl.build.Declarations
 import frflow.proof.lean.ast.*

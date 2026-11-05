@@ -6,7 +6,7 @@ import frflow.eval.EvalError
 import frflow.project.Projects
 import frflow.proof.obligation.ObligationName
 import frflow.proof.verdict.*
-import frflow.testing.Seed
+import frflow.testing.report.Seed
 import frflow.testing.report.*
 import java.time.Instant
 

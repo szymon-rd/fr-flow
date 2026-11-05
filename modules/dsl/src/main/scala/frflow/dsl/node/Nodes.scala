@@ -4,7 +4,7 @@ import cats.data.NonEmptyList
 import cats.syntax.all.*
 import frflow.core.name.RelPath
 import frflow.core.spec.{Reliance, Statement}
-import frflow.core.term.Sym
+import frflow.core.term.language.Sym
 import frflow.dsl.build.{AsWritten, Deferred, Fault, Site}
 import frflow.dsl.shape.Elab
 import frflow.dsl.model.Fact

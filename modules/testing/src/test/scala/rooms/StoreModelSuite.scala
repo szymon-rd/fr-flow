@@ -4,11 +4,13 @@ import cats.effect.{IO, Ref}
 import cats.effect.unsafe.implicits.global
 import frflow.*
 import frflow.core.code.Implementation
-import frflow.eval.Semantics
-import frflow.testing.{Plan, Seed, Settings}
+import frflow.eval.term.Semantics
 import frflow.testing.derive.Derive
-import frflow.testing.model.{Difference, ModelRuns, ModelTests, Ran}
+import frflow.testing.model.{ModelRuns, ModelTests}
+import frflow.testing.{Plan, Settings}
 import frflow.testing.report.{Count, Failure}
+import frflow.testing.report.Seed
+import frflow.testing.steps.{Difference, Ran}
 
 /** The model-based test the owner asked for (§7, §36): the plain Scala of the table's operations tested against
   * `storedBookings` (`implementTested(inRoom, add)(start, observe)(calls)`), on generated runs of its operations, from

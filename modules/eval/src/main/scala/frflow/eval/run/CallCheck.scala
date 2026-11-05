@@ -5,7 +5,8 @@ import frflow.core.spec.CallForm
 import frflow.core.Theory
 import frflow.core.ty.Ty
 import frflow.core.vocab.SymbolType
-import frflow.eval.{Applied, Env, EvalError, Fn, ScalaValue, Semantics}
+import frflow.eval.{Applied, Env, EvalError, Fn, ScalaValue}
+import frflow.eval.term.Semantics
 
 /** What one call of a Definition's plain code is checked against in its generated tests, built once: the post of a
   * claim read as its call (over the call's inputs, the Definition named in it), and the `always[T]`s of the values it

@@ -3,12 +3,14 @@ package frflow.testing
 import cats.effect.{IO, Ref}
 import cats.effect.unsafe.implicits.global
 import cats.syntax.all.*
-import frflow.LeanType
 import frflow.core.expr.Value
 import frflow.core.name.{ModelName, SymbolName}
-import frflow.eval.{Faults, Raised, ScalaValue, Semantics}
+import frflow.eval.{Faults, Raised, ScalaValue}
 import frflow.eval.flow.{PlainShelf, Shelf, Trouble, World}
-import frflow.testing.model.{Difference, ModelTests, Ran, Step, Typing}
+import frflow.eval.term.Semantics
+import frflow.LeanType
+import frflow.testing.model.{ModelTests, Typing}
+import frflow.testing.steps.{Difference, Ran, Step}
 
 /** A failing model's operations' Scala in a model test: its failure is the model's declared error, as production
   * makes it (`Bound.failures`), so it is compared with the model as a program would see it: failing alike is no

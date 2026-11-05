@@ -2,7 +2,8 @@ package frflow.core
 
 import frflow.core.expr.Value
 import frflow.core.name.SymbolName
-import frflow.core.term.{Bound, Final, Sym}
+import frflow.core.term.Bound
+import frflow.core.term.language.{Final, Sym}
 import frflow.core.ty.{NumKind, Ty}
 
 /** The algebras over one interpreter, with short names for the tests' formulas: what the DSL gives a model. */

@@ -2,17 +2,18 @@ package frflow.proof.obligation
 
 import cats.data.NonEmptyList
 import cats.syntax.all.*
-import frflow.core.analysis.{Callees, Constrained, Resolve, Resolved, SaysWhat, Scope}
-import frflow.core.Failing
-import frflow.core.term.interpret.Guard
+import frflow.core.analysis.outside.{Guards, Reads}
+import frflow.core.analysis.resolution.{Callees, Constrained, Resolve, Resolved, SaysWhat}
+import frflow.core.analysis.outside.Scope
 import frflow.core.code.Code
-import frflow.core.name.{DefName, NodeId, SymbolName}
 import frflow.core.expr.{Expr, Exprs, Mentions}
+import frflow.core.Failing
+import frflow.core.name.{DefName, NodeId, SymbolName}
 import frflow.core.spec.{CallForm, NodeKind, Written}
+import frflow.core.term.interpret.Guard
 import frflow.core.ty.Ty
 import frflow.core.vocab.SymbolType
 import frflow.proof.terms.{Commutation, Keeping}
-import frflow.core.analysis.outside.{Guards, Reads}
 
 /** What must hold of a node, each read off its statement, its place and the code (owner §15), in today's order:
   * `complete` (proven from its parts), `feasible`, `impl` (checked against the proven code of the Definitions it

@@ -1,12 +1,13 @@
 package frflow.dsl.vocab
 
 import frflow.core.name.SymbolName
-import frflow.core.term.{Bound, Final, Sym, World}
+import frflow.core.term.{Bound, World}
+import frflow.core.term.language.{Final, Sym}
 import frflow.core.ty.Ty
 import frflow.core.vocab.ValueKind
 import frflow.dsl.build.{Fault, Source}
-import frflow.dsl.term.{LeanType, Notes, Term}
 import frflow.dsl.run.Worlds
+import frflow.dsl.term.{LeanType, Notes, Term}
 import scala.annotation.{publicInBinary, unused}
 
 /** An abstract value (owner §15), of any type, named as its val (`val authorized = Declaration[(UserId, Path) =>

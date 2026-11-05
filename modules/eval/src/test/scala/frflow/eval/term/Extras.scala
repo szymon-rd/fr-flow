@@ -1,9 +1,10 @@
 package frflow.eval.term
 
-import frflow.core.Lang
 import frflow.core.expr.Value
+import frflow.core.Lang
 import frflow.core.name.{CtorName, ModelName}
-import frflow.core.term.{Final, Sym, World}
+import frflow.core.term.language.{Final, Sym}
+import frflow.core.term.World
 import frflow.core.ty.Ty
 
 /** Terms of the Lean law written by hand, for what the generators reach rarely or not at all: worlds unchanged with

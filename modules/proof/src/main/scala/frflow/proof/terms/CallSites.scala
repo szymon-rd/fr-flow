@@ -3,8 +3,9 @@ package frflow.proof.terms
 import frflow.core.expr.{Binder, Prog, Progs}
 import frflow.core.name.{ModelName, VarId}
 import frflow.core.spec.Form
-import frflow.core.term.{Bound, Stated, Sym}
+import frflow.core.term.Bound
 import frflow.core.term.interpret.Guard
+import frflow.core.term.language.{Stated, Sym}
 import frflow.core.ty.Ty
 import frflow.core.vocab.Define
 

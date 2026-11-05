@@ -4,7 +4,8 @@ import frflow.core.code.Code
 import frflow.core.expr.{Binder, OutsideFact, Prog}
 import frflow.core.name.{DefName, ModelName, SourceText, SymbolName, VarId}
 import frflow.core.spec.Written
-import frflow.core.term.{Bound, Program, Stated, Sym, World}
+import frflow.core.term.{Bound, Program, World}
+import frflow.core.term.language.{Stated, Sym}
 import frflow.core.ty.Ty
 import frflow.core.vocab.{Define, DefineForm, ModelOp, StateModel}
 

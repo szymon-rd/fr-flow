@@ -1,16 +1,17 @@
 package frflow.proof.obligation
 
 import cats.syntax.all.*
-import frflow.core.analysis.{Callees, Constrained, Resolved, Scope}
-import frflow.core.graph.Walk
-import frflow.core.term.interpret.Guard
-import frflow.core.expr.Expr
+import frflow.core.analysis.outside.{Guards, Premises, Reads}
+import frflow.core.analysis.resolution.{Callees, Constrained, Resolved}
+import frflow.core.analysis.outside.Scope
 import frflow.core.code.Code
+import frflow.core.expr.Expr
+import frflow.core.graph.Walk
 import frflow.core.name.{DefName, LeanNames, NodeId, SymbolName}
 import frflow.core.spec.{NodeKind, Range, Written}
+import frflow.core.term.interpret.Guard
 import frflow.core.ty.Ty
 import frflow.proof.terms.{CallingCode, Making}
-import frflow.core.analysis.outside.{Guards, Premises, Reads}
 
 /** What always holds kept by what covered code makes (owner §13, §37): `made_<maker>` of each maker, and
   * `made_<code>_call_<i>` at each call of plain Scala, of a statement of `always[T]`.

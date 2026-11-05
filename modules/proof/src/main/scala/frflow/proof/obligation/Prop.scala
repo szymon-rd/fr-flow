@@ -4,7 +4,7 @@ import cats.data.NonEmptyList
 import frflow.core.expr.Expr
 import frflow.core.name.{DefName, NodeId, SymbolName}
 import frflow.core.spec.Written
-import frflow.core.term.Final
+import frflow.core.term.language.Final
 import frflow.core.ty.Ty
 import frflow.proof.terms.Commutation
 

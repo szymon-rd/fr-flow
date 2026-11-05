@@ -1,16 +1,17 @@
 package frflow.testing.search
 
-import frflow.core.analysis.Resolved
+import frflow.core.analysis.resolution.Resolved
 import frflow.core.consistency.{Defining, Picked}
 import frflow.core.expr.{Expr, Exprs, Lambda, PrimOp, Value}
 import frflow.core.name.{NodeId, SymbolName}
 import frflow.core.spec.{CallForm, CallForms}
 import frflow.core.spec.Written.term
-import frflow.core.term.Stated
+import frflow.core.term.language.Stated
 import frflow.core.vocab.SymbolType
-import frflow.eval.{Env, Fn, ScalaValue, Semantics}
+import frflow.eval.{Env, Fn, ScalaValue}
 import frflow.eval.run.Wiring
-import frflow.testing.Case
+import frflow.eval.term.Semantics
+import frflow.testing.derive.Case
 
 /** A step whose proof does not go through, searched for a case that refutes it (today's `Refutation`): its one part a
   * claim fixing a Definition's result (`guard implies op(inputs) === e`), so `e` is an answer the claim allows; a

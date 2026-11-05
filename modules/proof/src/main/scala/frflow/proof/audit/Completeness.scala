@@ -1,6 +1,7 @@
 package frflow.proof.audit
 
-import frflow.core.analysis.{AtOnce, Resolve, Resolved}
+import frflow.core.analysis.AtOnce
+import frflow.core.analysis.resolution.{Resolve, Resolved}
 import frflow.core.code.Code
 import frflow.core.expr.{Expr, Exprs, Prog, Progs}
 import frflow.core.name.{DefName, LeanNames, ModelName, NodeId, SymbolName, TypeName}
