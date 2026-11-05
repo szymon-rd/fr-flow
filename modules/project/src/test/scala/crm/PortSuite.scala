@@ -66,7 +66,7 @@ class PortSuite extends munit.CatsEffectSuite:
     "noCrossTenantRead", "writeContract", "saveWrite", "writesTakeEffect", "writesOnlyAsAsked", "recordsKept",
     "expiryJob", "crmRun", "keyedTables", "oneRowPerKey", "storeMirrorsRequests", "sharedCrm", "addedIsFound",
     "writesLeaveOthers", "Whole")
-  private val lean = Lean(proofs.map(n => n -> Ported.resource(s"crm/proofs/$n.lean")),
+  private val lean = Lean(proofs.map(n => n -> Ported.proof("crm", "Crm", n)),
     reference.old("Crm", identity) :+ ("FrFlowGen/Port.lean" -> Ported.resource("crm/port/Port.lean")),
     Some("FrFlowGen.Port"))
   private val written = List(WriteExamples(), ExpireExamples())
@@ -112,7 +112,7 @@ class PortSuite extends munit.CatsEffectSuite:
   private def on[A](from: (Tables, BigInt))(f: Running[IO] => IO[A]): IO[A] =
     for
       d   <- SqliteDatabase.holding(from._1)
-      w   <- Wall.at(from._2)
+      w   <- Wall.at[IO](from._2)
       run <- knowledge.running[IO](databaseModel := d, Clock.clockModel := w)
       a   <- f(run).guarantee(IO.blocking(d.db.close()))
     yield a

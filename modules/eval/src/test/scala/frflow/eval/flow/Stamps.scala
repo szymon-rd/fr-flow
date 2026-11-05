@@ -1,5 +1,6 @@
 package frflow.eval.flow
 
+import cats.effect.IO
 import frflow.*
 
 /** Time as Cats Effect models it (owner §47), on a model of the times stamped: what holds as time passes, and the bugs
@@ -110,7 +111,7 @@ object Stamps:
     .implementProven(raced)(racedCode)
     .implementProven(waited)(waitedCode)
     .implementTested(stampAt)(start = PlainShelf.holding, observe = _.held)(s => Tuple1(s.put))
-    .implementTested(Clock.now, Clock.sleep, Clock.elapse)(start = Wall.at, observe = _.time)(c =>
+    .implementTested(Clock.now, Clock.sleep, Clock.elapse)(start = Wall.at[IO], observe = _.time)(c =>
       (c.now, c.sleep, c.elapse))
 
   /** A schedule kept: one rule time passing breaks alone, kept where the world moves the time as scheduled. */
@@ -118,7 +119,7 @@ object Stamps:
       stampsKept, stampsOne, noStamps, clockStarts)
     .implementProven(stamp)(stampCode)
     .implementTested(stampAt)(start = PlainShelf.holding, observe = _.held)(s => Tuple1(s.put))
-    .implementTested(Clock.now, Clock.sleep, Clock.elapse)(start = Wall.at, observe = _.time)(c =>
+    .implementTested(Clock.now, Clock.sleep, Clock.elapse)(start = Wall.at[IO], observe = _.time)(c =>
       (c.now, c.sleep, c.elapse))
 
   /** A circle a `cover_` must not close: a time picked by plain Scala and stamped, a rule that every stamp is not
@@ -156,7 +157,7 @@ object Stamps:
     .implementProven(picking)(pickingCode)
     .implementTested(picked)(_ => (t: BigInt) => t.abs)
     .implementTested(stampAt)(start = PlainShelf.holding, observe = _.held)(s => Tuple1(s.put))
-    .implementTested(Clock.now, Clock.sleep, Clock.elapse)(start = Wall.at, observe = _.time)(c =>
+    .implementTested(Clock.now, Clock.sleep, Clock.elapse)(start = Wall.at[IO], observe = _.time)(c =>
       (c.now, c.sleep, c.elapse))
 
   /** What holds of the code as time passes. */

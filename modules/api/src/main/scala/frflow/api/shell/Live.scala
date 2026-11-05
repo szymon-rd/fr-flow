@@ -31,7 +31,7 @@ private[api] object Live:
       lib    <- Resource.eval(LeanLibrary.read[F](root.resolve("lean").resolve(Session.library(p)).normalize,
                   Session.library(p)))
       ports   = Ports(ProjectFiles.make[F](root), ledger, git, keys)
-      built  <- Resource.eval(Async[F].delay(Path.of(sys.props.getOrElse("frflow.sources", ""))))
+      built  <- Resource.eval(Async[F].delay(Path.of("").toAbsolutePath)) // the build's, as `Source.relative`
       moved   = p.copy(model = Relocate(p.model, built, root))
       api    <- Resource.eval(Memory.api(Session[F](moved, ports, _ => lake.pure[F],
                   Session.Run(config.tests, env.get("FRFLOW_AS"), keyed), lib.version)))

@@ -1,5 +1,6 @@
 package frflow.eval.flow
 
+import cats.effect.IO
 import frflow.*
 
 /** Operations on a state of the tests: a shelf of numbers, which may be down, and FrFlow's clock; their models, and
@@ -19,7 +20,7 @@ object Shelf:
     Node.assumption("Nothing but the programs change the shelf.")(kept.onlyCodeChanges),
     Node.assumption("The clock moves only when a program sleeps.")(Clock.clockModel.onlyCodeChanges))
     .implementTested(items, put)(start = PlainShelf.holding, observe = _.held)(s => (s.items, s.put))
-    .implementTested(Clock.now, Clock.sleep, Clock.elapse)(start = Wall.at, observe = _.time)(c =>
+    .implementTested(Clock.now, Clock.sleep, Clock.elapse)(start = Wall.at[IO], observe = _.time)(c =>
       (c.now, c.sleep, c.elapse))
 
   /** The shelf's and the clock's operations as a program's steps. */

@@ -138,9 +138,9 @@ class RunningSuite extends munit.FunSuite:
   private val broken = IOException("no clock")
 
   /** The shelf's Scala, `faults` its calls' failures, and the clock's, `wall`, bound. */
-  private def bound(faults: List[Boolean], wall: Wall): IO[Running[IO]] =
+  private def bound(faults: List[Boolean], wall: Wall[IO]): IO[Running[IO]] =
     (IO.ref(List.empty[BigInt]), IO.ref(faults)).flatMapN((s, f) => Runs.bound(PlainShelf(s, f), wall))
-  private val ticking = Wall.ticking(cats.effect.Ref.unsafe[IO, BigInt](BigInt(0)))
+  private val ticking = Wall.ticking[IO](cats.effect.Ref.unsafe[IO, BigInt](BigInt(0)))
 
   test("an operation's call runs its Scala bound: a failing model's Scala's failure is its error, its cause kept") {
     val ran = bound(List(true), ticking).flatMap(run => run.flow(Shelf.held).attempt)
@@ -151,7 +151,7 @@ class RunningSuite extends munit.FunSuite:
   }
 
   test("a model that may not fail lets its Scala's exception escape unchanged") {
-    val ran = bound(Nil, Wall.stopped(broken)).flatMap(run => run.flow(Flow.step(Clock.now)).attempt)
+    val ran = bound(Nil, Wall.stopped[IO](broken)).flatMap(run => run.flow(Flow.step(Clock.now)).attempt)
     assertEquals(ran.unsafeRunSync().left.toOption, Some(broken))
   }
 

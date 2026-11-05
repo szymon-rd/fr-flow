@@ -97,6 +97,10 @@ object Ported:
   def resource(path: String): String =
     scala.io.Source.fromResource(path, getClass.getClassLoader)(using scala.io.Codec.UTF8).mkString
 
+  /** A developer's proof file of an example, as its project keeps it (`examples/<example>/lean/Proofs/<Kb>`). */
+  def proof(example: String, kb: String, name: String): String =
+    java.nio.file.Files.readString(Projects.base.resolve(s"examples/$example/lean/Proofs/$kb/$name.lean"))
+
   /** A node's standing as today's `standings.tsv` has it: kind, standing (proven, tested or assumed), its check's
     * status, and the cases its Scala was tested on; a model's runs shown beside its `onlyCodeChanges` assumption.
     */

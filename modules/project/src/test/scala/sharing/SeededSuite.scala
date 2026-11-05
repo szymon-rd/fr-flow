@@ -46,7 +46,7 @@ class SeededSuite extends munit.CatsEffectSuite:
   }
 
   /** A clock whose waits take a hundredth of their seconds, so a race against one is decided by what runs. */
-  private def clock(start: BigInt): IO[Wall] = Ref[IO].of(start).map(t => new Wall:
+  private def clock(start: BigInt): IO[Wall[IO]] = Ref[IO].of(start).map(t => new Wall[IO]:
     def now: IO[BigInt] = t.get
     def sleep(seconds: BigInt): IO[Unit] = IO.sleep((seconds * 10).toLong.millis) *> t.update(_ + seconds)
     def elapse(seconds: BigInt): IO[Unit] = t.update(_ + seconds.max(0))

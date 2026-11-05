@@ -56,4 +56,4 @@ object SourceFiles:
   private def file(using q: Quotes)(s: q.reflect.Symbol): Option[String] =
     val library = s.fullName == "frflow" || s.fullName.startsWith("frflow.")
     Option.when(!s.isNoSymbol && !library)(s.pos).flatten.map(p => Paths.get(p.sourceFile.path))
-      .filter(Files.isRegularFile(_)).map(_.toAbsolutePath.normalize.toString).filter(_.endsWith(".scala"))
+      .filter(Files.isRegularFile(_)).map(p => Source.relative(p.toString)).filter(_.endsWith(".scala"))

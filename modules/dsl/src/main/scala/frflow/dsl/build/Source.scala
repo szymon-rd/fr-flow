@@ -50,7 +50,15 @@ object Source:
     go(x.asTerm)
 
   private def fileOf(using Quotes): Expr[String] =
-    Expr(quotes.reflect.Position.ofMacroExpansion.sourceFile.path)
+    Expr(relative(quotes.reflect.Position.ofMacroExpansion.sourceFile.path))
+
+  /** A source file's path relative to the directory the compiler runs in (the build's), read at compile time; a file
+    * outside it by its name alone. What `Spans` makes a model's paths of.
+    */
+  def relative(file: String): String =
+    val root = java.nio.file.Paths.get("").toAbsolutePath.normalize
+    val path = java.nio.file.Paths.get(file).toAbsolutePath.normalize
+    if path.startsWith(root) then root.relativize(path).toString else path.getFileName.toString
   private def offsetOf(using Quotes): Expr[Int] =
     Expr(quotes.reflect.Position.ofMacroExpansion.start)
   private def typeNameOf[A: Type](using Quotes): Expr[String] =

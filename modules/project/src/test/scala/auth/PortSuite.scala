@@ -53,7 +53,7 @@ class PortSuite extends munit.CatsEffectSuite:
   }
 
   private val proofs = List("Lemmas", "tokenNamesHolder", "accessNeedsGrant", "grantLetsIn")
-  private val lean = Lean(proofs.map(n => n -> Ported.resource(s"auth/proofs/$n.lean")),
+  private val lean = Lean(proofs.map(n => n -> Ported.proof("auth", "Auth", n)),
     reference.old("Auth", identity) :+ ("FrFlowGen/Port.lean" -> Ported.resource("auth/port/Port.lean")),
     Some("FrFlowGen.Port"))
 

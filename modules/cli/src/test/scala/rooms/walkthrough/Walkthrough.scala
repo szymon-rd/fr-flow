@@ -14,9 +14,9 @@ object Walkthrough:
   private def resource(path: String): String =
     scala.io.Source.fromResource(path, getClass.getClassLoader)(using scala.io.Codec.UTF8).mkString
 
-  /** The developer's proofs, as `PortSuite` writes them. */
+  /** The developer's proofs, as rooms' project keeps them and `PortSuite` writes them. */
   val proofs: List[(String, String)] = List("Lemmas", "storeWhenFree", "answerWhenFree", "grantWhenFree",
-    "neverOverlap", "roomBookingsApart").map(n => n -> resource(s"rooms/proofs/$n.lean"))
+    "neverOverlap", "roomBookingsApart").map(n => n -> frflow.project.Ported.proof("rooms", "Rooms", n))
 
   /** Rooms as accepted, then each change on its own: the step's name in `reference/rooms/walkthrough`. */
   def steps(project: (FrModel, List[Example]) => Project, examples: FrFlowExamples => List[Example])

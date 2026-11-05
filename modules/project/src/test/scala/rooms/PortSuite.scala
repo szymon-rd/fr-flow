@@ -6,7 +6,7 @@ import cats.syntax.all.*
 import frflow.core.name.{NodeId, RelPath}
 import frflow.core.spec.NodeKind
 import frflow.decision.ledger.Ledger
-import frflow.project.{Live, Projects, Tables}
+import frflow.project.{Live, Ported, Projects, Tables}
 import frflow.project.check.CheckProgram
 import frflow.project.pipeline.Analysis
 import frflow.project.port.*
@@ -115,7 +115,7 @@ class PortSuite extends munit.CatsEffectSuite:
   private def resource(path: String): String =
     scala.io.Source.fromResource(path, getClass.getClassLoader)(using scala.io.Codec.UTF8).mkString
 
-  /** The developer's proofs (`resources/rooms/proofs`): the code's steps, the calendar's, what the table keeps. */
+  /** The developer's proofs (`examples/rooms/lean/Proofs/Rooms`): the code's steps, the calendar's, what the table keeps. */
   private val proofs: List[String] =
     List("Lemmas", "storeWhenFree", "answerWhenFree", "grantWhenFree", "neverOverlap", "roomBookingsApart")
 
@@ -141,7 +141,7 @@ class PortSuite extends munit.CatsEffectSuite:
         git     <- MemoryGit[IO]
         keys    <- MemoryKeys[IO]
         ports    = Ports(files, ledger, git, keys)
-        _       <- proofs.traverse_(n => write(s"Proofs/Rooms/$n.lean", resource(s"rooms/proofs/$n.lean")))
+        _       <- proofs.traverse_(n => write(s"Proofs/Rooms/$n.lean", Ported.proof("rooms", "Rooms", n)))
         a       <- Analyse(ports, run, project)(Projects.rooms, Projects.roomsExamples)
         (_, c)  <- CheckProgram(files, lake, library.path, run)(a, None)
         (_, t)  <- TestProgram[IO](files, run, models)(c, None)

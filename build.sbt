@@ -46,7 +46,8 @@ def module(name: String, libraries: ModuleID*) = Project(name, file(s"modules/$n
   .settings(Keys.name := s"frflow-$name", libraryDependencies ++= munit +: libraries, scalacOptions ++= strict)
 
 lazy val root = project.in(file("."))
-  .aggregate(core, dsl, proof, eval, testing, decision, wire, shell, api, cli, web, agent)
+  .aggregate(core, dsl, proof, eval, testing, decision, wire, shell, api, cli, web, agent,
+    roomsModel, rooms, authModel, auth, keycloakModel, keycloak, crmModel, crm, sharingModel, sharing)
   .configs(LeanTest).settings(leanTagged)
   .settings(publish / skip := true)
 
@@ -60,7 +61,7 @@ lazy val dsl = module("dsl", cats).dependsOn(core)
 lazy val proof = module("proof", cats).dependsOn(core % "compile->compile;test->test")
 
 /** The Scala meaning of terms and of plain code: the evaluator, examples, the values a call reads, flows run on
-  * models, production's interpreter of flows; the facade `frflow.*`, and the examples written in it. Its tests read
+  * models, production's interpreter of flows; the facade `frflow.*` FrFlow's examples are written in. Its tests read
   * core's generated terms and proof's printer (Lean decides each term as the evaluator does). Its sbt id is
   * `evaluation`: `eval` is sbt's own command, so `sbt eval/test` would evaluate `/test` as Scala.
   */
@@ -70,13 +71,14 @@ lazy val eval = module("eval", cats, catsEffectKernel, catsEffectStd, catsEffect
 
 /** Generators and what draws them, property tests of plain code against its claims, model tests of implementations,
   * interleavings, the searches for witnesses and refutations, and the examples' runner (an sbt test framework, so
-  * `sbt test` runs a project's `FrFlowExamples`). Its tests read the examples written in eval's tests.
+  * `sbt test` runs a project's `FrFlowExamples`). Its tests read FrFlow's examples (examples/<name>).
   */
 lazy val testing = module("testing", cats, catsEffect, roomsTable, "org.scala-sbt" % "test-interface" % "1.0",
     munitEffect)
   .settings(libraryDependencies ++= lawTests :+ "org.typelevel" %% "cats-laws" % "2.13.0" % Test,
     testFrameworks += TestFramework("frflow.testing.examples.ExamplesFramework"))
-  .dependsOn(eval % "compile->compile;test->test")
+  .dependsOn(eval % "compile->compile;test->test", roomsModel % "test->test", authModel % "test->test",
+    keycloakModel % "test->test", crmModel % "test->test", sharingModel % "test->test")
 
 /** The developer's decisions: content, the ledger, the deciders, review, the rules of each command. */
 lazy val decision = module("decision", cats).dependsOn(core)
@@ -91,7 +93,7 @@ lazy val wire = module("wire", cats, circe, circeParser)
 /** The imperative shell (sbt id `project`, package `frflow.project`; `project` itself names sbt's own method here): the
   * algebras of the project's files, Lean, git, the keys and the ledger's store, each with its live and in-memory
   * interpreters; the analysis of a project (contents, fingerprints, standings), and the programs (check, status,
-  * decide, export) over them. Its tests read the examples written in eval's tests.
+  * decide, export) over them. Its tests read FrFlow's examples (examples/<name>).
   */
 lazy val shell = module("project", (Seq(cats, catsEffect, munitEffect, catsEffectTestkit, roomsTable) ++ fs2)*)
   .dependsOn(proof, testing % "compile->compile;test->test", decision, wire)
@@ -138,26 +140,65 @@ val serve = inputKey[Unit]("The project's web view on localhost, until stopped: 
   * for `bin/frflow`, and `serve` runs its web view; `layers`, the layers on top it uses (the AI agent's by default).
   */
 def example(name: String, layers: Seq[ClasspathDep[ProjectReference]] = Seq(agent)) =
-  Project(name, file(s"examples/$name"))
-    .dependsOn((Seq[ClasspathDep[ProjectReference]](cli, web) ++ layers)*)
-    .settings(
-      libraryDependencies += munit, publish / skip := true, run / fork := true, Test / fork := true,
-      run / javaOptions ++= Seq("-Dstdout.encoding=UTF-8", "-Dstderr.encoding=UTF-8", "-Dfile.encoding=UTF-8"),
-      run / javaOptions += "-Dfrflow.tests=" + (Test / classDirectory).value.getAbsolutePath,
-      Compile / run := Defaults.runTask(Test / fullClasspath, Compile / run / mainClass, Compile / run / runner)
-        .evaluated,
-      Compile / runMain := Defaults.runMainTask(Test / fullClasspath, Compile / run / runner).evaluated,
-      run / baseDirectory := (ThisBuild / baseDirectory).value,
-      Test / baseDirectory := (ThisBuild / baseDirectory).value,
-      cliLauncher := {
-        val launch = target.value / "frflow.launch"
-        val main = (Compile / run / mainClass).value.getOrElse(sys.error(s"${Keys.name.value} has no main class"))
-        val classpath = (Test / fullClasspath).value.files.mkString(java.io.File.pathSeparator)
-        IO.writeLines(launch, (run / javaOptions).value ++ Seq("-cp", classpath, main))
-        launch
-      },
-      serve := Def.inputTaskDyn {
-        val args = complete.DefaultParsers.spaceDelimited("[--port N] [--as NAME]").parsed
-        val main = (Compile / run / mainClass).value.getOrElse(sys.error(s"${Keys.name.value} has no main class"))
-        (Compile / runMain).toTask((Seq("frflow.web.Serve", main) ++ args).mkString(" ", " ", ""))
-      }.evaluated)
+  commandLine(Project(name, file(s"examples/$name")), layers, Def.setting((Test / classDirectory).value))
+
+/** One of FrFlow's own examples, in two projects, so that FrFlow's suites can test it with no cycle in the build: its
+  * model (sbt id `<name>Model`, under examples/<name>: its statements and code in src/main, its examples in src/test,
+  * its proofs in lean/Proofs), which testing's tests depend on; and its command line (`<name>`, under
+  * examples/<name>/app: its main object alone), made as `example` makes one, over the model.
+  */
+def exampleModel(name: String) = Project(s"${name}Model", file(s"examples/$name"))
+  .configs(LeanTest).settings(leanTagged)
+  .settings(Keys.name := s"frflow-example-$name", scalacOptions ++= strict, publish / skip := true,
+    libraryDependencies ++= Seq(munit, catsEffect, "org.xerial" % "sqlite-jdbc" % "3.46.1.3"))
+  .dependsOn(eval)
+
+def exampleApp(name: String, model: Project, layers: Seq[ClasspathDep[ProjectReference]] = Seq(agent)) =
+  commandLine(Project(name, file(s"examples/$name/app")), layers, Def.setting((model / Test / classDirectory).value))
+    .dependsOn(model % "compile->compile;test->test")
+    .settings(Compile / run / mainClass := Some(s"$name.${name}Cli"))
+
+def commandLine(p: Project, layers: Seq[ClasspathDep[ProjectReference]], tests: Def.Initialize[File]) = p
+  .dependsOn((Seq[ClasspathDep[ProjectReference]](cli, web) ++ layers)*)
+  .configs(LeanTest).settings(leanTagged)
+  .settings(
+    libraryDependencies += munit, publish / skip := true, run / fork := true, Test / fork := true,
+    run / javaOptions ++= Seq("-Dstdout.encoding=UTF-8", "-Dstderr.encoding=UTF-8", "-Dfile.encoding=UTF-8"),
+    run / javaOptions += "-Dfrflow.tests=" + tests.value.getAbsolutePath,
+    Compile / run := Defaults.runTask(Test / fullClasspath, Compile / run / mainClass, Compile / run / runner)
+      .evaluated,
+    Compile / runMain := Defaults.runMainTask(Test / fullClasspath, Compile / run / runner).evaluated,
+    run / baseDirectory := (ThisBuild / baseDirectory).value,
+    Test / baseDirectory := (ThisBuild / baseDirectory).value,
+    cliLauncher := {
+      val launch = target.value / "frflow.launch"
+      val main = (Compile / run / mainClass).value.getOrElse(sys.error(s"${Keys.name.value} has no main class"))
+      val classpath = (Test / fullClasspath).value.files.mkString(java.io.File.pathSeparator)
+      IO.writeLines(launch, (run / javaOptions).value ++ Seq("-cp", classpath, main))
+      launch
+    },
+    serve := Def.inputTaskDyn {
+      val args = complete.DefaultParsers.spaceDelimited("[--port N] [--as NAME]").parsed
+      val main = (Compile / run / mainClass).value.getOrElse(sys.error(s"${Keys.name.value} has no main class"))
+      (Compile / runMain).toTask((Seq("frflow.web.Serve", main) ++ args).mkString(" ", " ", ""))
+    }.evaluated)
+
+/** Booking meeting rooms: a request is granted exactly when its room is free; the README's example. */
+lazy val roomsModel = exampleModel("rooms")
+lazy val rooms = exampleApp("rooms", roomsModel, layers = Nil)
+
+/** Access control: who can access what, refined through grants, sessions and requests to proven code. */
+lazy val authModel = exampleModel("auth")
+lazy val auth = exampleApp("auth", authModel)
+
+/** A Keycloak-like authentication server: realms, sign-in, token introspection, sign-out. */
+lazy val keycloakModel = exampleModel("keycloak")
+lazy val keycloak = exampleApp("keycloak", keycloakModel)
+
+/** A multi-tenant CRM: users find exactly their company's and shared records, write only their company's. */
+lazy val crmModel = exampleModel("crm")
+lazy val crm = exampleApp("crm", crmModel)
+
+/** People, teams, documents and folders: who can view and edit what, and who may change it. */
+lazy val sharingModel = exampleModel("sharing")
+lazy val sharing = exampleApp("sharing", sharingModel)

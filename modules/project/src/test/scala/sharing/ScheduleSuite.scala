@@ -37,7 +37,7 @@ class ScheduleSuite extends munit.CatsEffectSuite:
     for
       store <- MemoryLibraryStore.holding(library)
       mail  <- MemoryMailer.holding(Map.empty)
-      wall  <- Wall.at(now)
+      wall  <- Wall.at[IO](now)
       pool  <- MemoryPool.holding(0)
       ran   <- Housekept.at(now)
       run   <- knowledge.running[IO](LibraryStore.libraryModel := store, Mailer.mailerModel := mail,
@@ -72,7 +72,7 @@ class ScheduleSuite extends munit.CatsEffectSuite:
     run(SharingHttp.handleRequest)(r).as(true)
 
   /** What time passing runs on: the service, its clock, its store, and when housekeeping last ran. */
-  private final case class Passing(run: frflow.eval.Running[IO], wall: Wall, store: MemoryLibraryStore, ran: Housekept)
+  private final case class Passing(run: frflow.eval.Running[IO], wall: Wall[IO], store: MemoryLibraryStore, ran: Housekept)
 
   /** Time passing, a minute at a time: housekeeping started each minute (a wake-up late by up to `late` seconds), or
     * never; whether the schedule held at each wake-up. Housekeeping purging what has not ended is caught at once.
@@ -99,7 +99,7 @@ class ScheduleSuite extends munit.CatsEffectSuite:
       if t - last >= 60 then housekept(on.run, on.wall, on.store) else IO.unit)
 
   /** A run of housekeeping; what it purges must have been gone already. */
-  private def housekept(run: frflow.eval.Running[IO], wall: Wall, store: MemoryLibraryStore): IO[Unit] =
+  private def housekept(run: frflow.eval.Running[IO], wall: Wall[IO], store: MemoryLibraryStore): IO[Unit] =
     for
       before <- store.library
       _      <- run(Housekeeping.housekeeping).void
@@ -108,7 +108,7 @@ class ScheduleSuite extends munit.CatsEffectSuite:
     yield assert(before.documents.filterNot(after.documents.contains).forall(_.trashed.exists(_ + 30 * day <= at)),
       "housekeeping purged a document not gone")
 
-  private def measured(m: Measured, store: MemoryLibraryStore, wall: Wall, ran: Housekept): IO[Measured] =
+  private def measured(m: Measured, store: MemoryLibraryStore, wall: Wall[IO], ran: Housekept): IO[Measured] =
     (store.library, wall.time, ran.last).mapN { (lib, t, last) =>
       Measured(m.onSchedule && t <= last + 120,
         m.trashOnTime && lib.documents.forall(_.trashed.forall(at => t < at + 30 * day + 120)),

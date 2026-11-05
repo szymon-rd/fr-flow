@@ -23,7 +23,7 @@ object RaceProbe:
     def holding(xs: List[BigInt]): IO[SlowBox] = Ref[IO].of(xs).map(SlowBox(_))
 
   /** A clock whose second is 10 ms. */
-  def fast(start: BigInt): IO[Wall] = Ref[IO].of(start).map(t => new Wall:
+  def fast(start: BigInt): IO[Wall[IO]] = Ref[IO].of(start).map(t => new Wall[IO]:
     def now: IO[BigInt] = t.get
     def sleep(seconds: BigInt): IO[Unit] = IO.sleep((seconds * 10).toLong.millis) *> t.update(_ + seconds)
     def elapse(seconds: BigInt): IO[Unit] = t.update(_ + seconds.max(0))
@@ -48,7 +48,7 @@ object RaceProbe:
   private def boxes(root: Node) = FrModel("Boxes")(root, boxOnly, boxOne)
     .implementProven(racer)(racerCode)
     .implementTested(addN)(start = SlowBox.holding, observe = _.numbers)(b => Tuple1(b.add))
-    .implementTested(Clock.now, Clock.sleep, Clock.elapse)(start = Wall.at, observe = _.time)(c =>
+    .implementTested(Clock.now, Clock.sleep, Clock.elapse)(start = Wall.at[IO], observe = _.time)(c =>
       (c.now, c.sleep, c.elapse))
 
   /** The probe as the review wrote it. */

@@ -35,7 +35,7 @@ object Runs:
   def recorded[R](p: Shelved[R]): Prog[Stated[?]] = ReadRecording(p.program.steps)._1
 
   /** Production's interpreter, the shelf's and the clock's plain Scala bound. */
-  def bound(shelf: PlainShelf, wall: Wall): IO[Running[IO]] =
+  def bound(shelf: PlainShelf, wall: Wall[IO]): IO[Running[IO]] =
     Running.make[IO](Values.none, Literals(elaborated),
       Bound.of[IO](elaborated.theory, List(Shelf.kept := shelf, Clock.clockModel := wall)))
 
@@ -44,7 +44,7 @@ object Runs:
       shelf  <- IO.ref(List.empty[BigInt])
       time   <- IO.ref(BigInt(0))
       faults <- IO.ref(p.faults)
-      run    <- bound(PlainShelf(shelf, faults), Wall.ticking(time))
+      run    <- bound(PlainShelf(shelf, faults), Wall.ticking[IO](time))
       out    <- run.flow(p.program).map(t => run.value(t): Any).attempt
       held   <- shelf.get
       now    <- time.get

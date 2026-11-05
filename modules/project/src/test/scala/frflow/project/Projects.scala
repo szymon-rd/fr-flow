@@ -14,6 +14,7 @@ import frflow.project.program.{Analyse, Ports, Project}
 import frflow.testing.{Seed, Settings}
 import java.nio.file.{Files, Path}
 import java.time.Instant
+import scala.jdk.OptionConverters.*
 
 /** Projects in memory for the shell's suites: a FrModel elaborated, its ports in memory (the files, the
   * ledger, git, a key made for the run), and its analysis as `Analyse` makes it.
@@ -35,8 +36,9 @@ object Projects:
   def source(file: RelPath): Path =
     val direct = base.resolve(file.value)
     if Files.isRegularFile(direct) then direct
-    else Files.walk(base.resolve("next")).filter(p => Files.isRegularFile(p) && p.endsWith(file.value)).findFirst
-      .orElseThrow(() => IllegalStateException(s"no ${file.value} under $base"))
+    else List("modules", "examples").iterator.flatMap(d => Files.walk(base.resolve(d))
+      .filter(p => Files.isRegularFile(p) && p.endsWith(file.value)).findFirst.toScala)
+      .nextOption().getOrElse(throw IllegalStateException(s"no ${file.value} under $base"))
 
   def elaborated(kb: FrModel): Elaborated = kb.elaborated.fold(e => throw AssertionError(e.toString), identity)
   lazy val rooms: Elaborated = elaborated(_root_.rooms.rooms)
