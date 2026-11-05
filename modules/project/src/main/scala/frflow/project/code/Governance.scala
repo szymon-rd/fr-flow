@@ -9,8 +9,8 @@ import frflow.core.spec.Statement
 import frflow.core.Theory
 
 /** The code each node governs: each design's files, whole; and the files of the plain Scala each statement is tested
-  * against, whole, but in a file that holds nodes (or the FrModel), only the definitions the Scala refers to (owner
-  * §38).
+  * against, whole, but in a file of the model's own (nodes, the FrModel, vocabulary), only the definitions the Scala
+  * refers to (owner §38).
   */
 object Governance:
   def of(t: Theory, files: List[RelPath]): Map[NodeId, List[Governed]] =
@@ -21,12 +21,12 @@ object Governance:
     (designs.flatMap((n, g) => under(g, files).map(n -> Governed.Whole(_))) ++ implied).groupMap(_._1)(_._2)
       .view.mapValues(gs => merged(gs.distinct)).toMap
 
-  /** What of a file plain Scala refers to is governed: in a file that holds nodes, the definitions it names (none:
-    * nothing); any other file whole.
+  /** What of a file plain Scala refers to is governed: in a file of the model's own (that holds nodes, code given
+    * a Definition, the FrModel or vocabulary: `Theory.modelFiles`), the definitions it names (none: nothing); any
+    * other file whole.
     */
   def governed(t: Theory, f: CodeFile): Option[Governed] =
-    val beside = t.nodes.map(_.at.file).toSet ++ t.code.attached.values.map(_.writtenIn)
-    if !beside(f.path) then Some(Governed.Whole(f.path))
+    if !t.modelFiles(f.path) then Some(Governed.Whole(f.path))
     else Option.when(f.names.nonEmpty)(Governed.Named(f.path, f.names))
 
   /** One per file, by path: a file governed whole wins over its definitions. */

@@ -45,9 +45,9 @@ object SourceFiles:
     object Refs extends TreeTraverser:
       override def traverseTree(t: Tree)(owner: Symbol): Unit =
         t match
-          case r: Ref if !inside(r.symbol) => found ++= List(r.symbol, r.symbol.owner): Unit
-          case n: New                      => found += n.tpe.typeSymbol: Unit
-          case _                           => ()
+          case r: Ref if !r.symbol.isNoSymbol && !inside(r.symbol) => found ++= List(r.symbol, r.symbol.owner): Unit
+          case n: New                                               => found += n.tpe.typeSymbol: Unit
+          case _                                                    => ()
         super.traverseTree(t)(owner)
     Refs.traverseTree(t)(Symbol.spliceOwner)
     found.toList

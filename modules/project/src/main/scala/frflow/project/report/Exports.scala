@@ -26,8 +26,9 @@ object Exports:
         t.vocabulary.symbols.map(s => TermRow(s.name.value, s.means))).sortBy(_.name),
       a.subjects.inOrder.map(node(a, _)),
       Consistency.of(t).collect { case g: Group.Sharing => Rows.group(g) },
-      a.computed.examples.zipWithIndex.map { case ((e, onCode), i) =>
-        Rows.example(e, a.wholeCheck.flatMap(_.results.find(_.name == ObligationName.Example(i))).map(_.status), onCode)
+      a.computed.examples.map { (e, onCode) =>
+        Rows.example(e, a.wholeCheck.flatMap(_.results.find(_.name == ObligationName.Example(e.of, e.at)))
+          .map(_.status), onCode)
       })
 
   private def node(a: Analysis, s: Subject): SnapNode =

@@ -13,7 +13,8 @@ object Verdicts:
     es => written.examples.map(_.name -> Verdict.NotRead(es.iterator.toList)),
     e =>
       val run = ExampleRun(Semantics(e), e.theory)
-      written.examples.map(x => x.name -> x.elaborated.run.fold(es => Verdict.NotRead(es.iterator.toList),
+      written.examples.zipWithIndex.map((x, i) => x.name -> x.elaborated(written.setName, i).run.fold(es =>
+        Verdict.NotRead(es.iterator.toList),
         (_, elaborated) => Try(run.of(elaborated)).fold(t => Verdict.Threw(String.valueOf(t.getMessage)),
           verdict(e.theory, _)))))
 

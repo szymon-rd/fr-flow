@@ -24,16 +24,16 @@ theorem consistent_5 : Obl.consistent_5 := by
 -- Today's examples of the job's store, each its code's run on the store given (`frflow_auto` does not decide them
 -- within an example's budget).
 
-theorem example_6 : Obl.example_6 := by
+theorem example_ExpireExamples_0 : Obl.example_ExpireExamples_0 := by
   intro _ _ _ _; simp [expireCode, ended]
 
-theorem example_7 : Obl.example_7 := by
+theorem example_ExpireExamples_1 : Obl.example_ExpireExamples_1 := by
   intro _ _ _ _; simp [expireCode, ended]
 
-theorem example_8 : Obl.example_8 := by
+theorem example_ExpireExamples_2 : Obl.example_ExpireExamples_2 := by
   intro _ _ _ _; simp [expireCode, ended]
 
-theorem example_9 : Obl.example_9 := by
+theorem example_ExpireExamples_3 : Obl.example_ExpireExamples_3 := by
   intro _ _ _ _; simp [expireCode, ended]
 
 end Crm.Whole.Proofs

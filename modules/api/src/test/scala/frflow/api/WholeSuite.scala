@@ -40,7 +40,7 @@ class WholeSuite extends munit.CatsEffectSuite:
     val project = Opened.project(Shelf.Before.kb, examples)
     for
       notShown <- Opened.api(project).flatMap(api => Opened.checked(api.proving.check(None)))
-      shown    <- Opened.api(project, lean = Lean.Proving(Set.empty, Set("example_0")))
+      shown    <- Opened.api(project, lean = Lean.Proving(Set.empty, Set("example_BeforeExamples_0")))
                     .flatMap(api => Opened.checked(api.proving.check(None)))
     yield
       val example = shown.whole.examples.headOption.getOrElse(fail("no example"))

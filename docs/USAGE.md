@@ -21,6 +21,12 @@ FrFlow's own tests: `sbt test` runs the fast ones (a few minutes); the ones that
 run with `sbt leanTest`; `sbt testAll` runs both. Per module, `sbt core/test`, `sbt project/test` and so on; eval's
 is `sbt evaluation/test`, since `eval/…` is sbt's own command (it would evaluate the rest as Scala).
 
+Run sbt and `bin/frflow` from the build's root (the directory holding `build.sbt`). A model records the files its
+nodes, code and vocabulary are written in when it is compiled, relative to the directory the compiler runs in, and
+the CLI makes them relative to the project's directory when it runs, from the directory it runs in; both are the
+build's root under `bin/frflow`, `sbt "PROJECT/run …"` and `serve`. A run from another directory (an IDE's run
+configuration, say) would place them wrongly: `status` would warn of the model's own files as ungoverned.
+
 ### Commands
 
 | | command | what it does |
@@ -242,7 +248,7 @@ the winner, then the loser's steps until it is cancelled, then the winner's.
 | `commute_<i>` | a program with steps at once | each two steps that may interleave commute |
 | `consistent_<i>` | each group of statements at the bottom sharing an open value | some meaning of every open value makes them all hold |
 | `inhabited_<node>`, `satisfiable_<i>_<node>` | an `always`; a condition `A` in `A implies B` | some value meets it; it can hold |
-| `example_<i>` | each example | Lean evaluates it |
+| `example_<set>_<i>` | each example: the `i`th of its class (`example_GrantedExamples_0`) | Lean evaluates it |
 
 The tries (`vacuous`, `restates`, `clash`, `unsat`, `idle`, `frozen`) look for a statement that says nothing, restates
 its part, contradicts another, holds whatever is done, or a schedule that stops time; each is reported as shown or not shown. A step Lean does not
@@ -270,7 +276,10 @@ class GrantedExamples extends FrFlowExamples(rooms):
 
 `example(name, d := v)` sets a provided Definition's value; such an example is checked in Scala only. An example
 whose values break a rule on their type is refused. Nothing depends on examples: the theory and its Lean are the same
-without them. The examples run with `sbt PROJECT/test` too (FrFlow's test framework, which `init` adds).
+without them. In a project `init` made, the examples also run with `sbt PROJECT/test` (FrFlow's test framework,
+which `init` adds). FrFlow's own five are not run that way: their model projects (`roomsModel`, …) have no test
+framework, since testing's tests depend on them; their examples run in testing's `ExamplesSuite` and in each one's
+`PortSuite` (`sbt test`).
 
 ### Decisions
 
@@ -318,7 +327,10 @@ the others (an open point), values inside a map, a set or a function reached by 
 warnings:
 
 - no signing key; `.frflow/deciders` not as committed; the ledger's base not committed; a decision that does not count;
-- a source file governed by two nodes, or by none; a governed file that does not exist;
+- a source file governed by two nodes, or by none (the model's own files aside: where its nodes, its FrModel, the
+  code given its Definitions and its vocabulary are written, each Declaration, Definition, `define`, `program`,
+  `StateModel` and domain type recording its file, a `program` the files its body refers to too); a governed file that does not exist (`show` marks it missing
+  under the design's "Files it governs");
 - a proof file of no node;
 - consistency not proven; a store's start not proven to meet its rules;
 - a node nothing checks; an assumption the generated runs cannot evaluate (trusted, not tested); a schedule over a
@@ -337,7 +349,7 @@ bin/frflow NAME ci
 FRFLOW_SEED=fresh bin/frflow NAME ci
 ```
 
-FrFlow's own CI (`.github/workflows/ci.yml`) runs the size budgets (`bin/budget.py modules`), `sbt test` and
+FrFlow's own CI (`.github/workflows/ci.yml`) runs the size budgets (`bin/budget.py modules examples`), `sbt test` and
 `sbt leanTest`.
 
 ### Web view

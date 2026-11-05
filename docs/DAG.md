@@ -129,7 +129,7 @@ developers' proofs under `lean/Proofs/<Model>/`.
 | `outside` | a claim of `always[T]` whose `T`s come from outside |
 | `commute_<i>` | each two steps at once that touch a model in common |
 | `consistent_<i>`, `inhabited_<node>`, `satisfiable_<i>_<node>` | §3a |
-| `example_<i>` | §3b |
+| `example_<set>_<i>` | §3b |
 
 The tries (`vacuous`, `restates`, `clash`, `unsat`, `idle`, `frozen`) are refuters, reported as shown or not shown. A
 step refuted carries the case Lean confirms. A rule is kept only as every rule its obligations take is: a statement is
@@ -151,7 +151,7 @@ open while a rule it takes is open, for any reason (its `cover_`, its `made_`, i
 ## 3b. Examples written as tests
 
 Examples are ordinary tests (`class GrantedExamples extends FrFlowExamples(rooms)`, `example(name): fact`), read by
-`check`, evaluated against the code and in Lean against the claims (`example_<i>`). Nothing depends on them (§18): the
+`check`, evaluated against the code and in Lean against the claims (`example_<set>_<i>`, the `i`th of its class). Nothing depends on them (§18): the
 theory and its Lean are the same without them. An example whose values break a rule on their type is refused.
 
 ## 4. Snapshot (`.frflow/kb.json`), per node

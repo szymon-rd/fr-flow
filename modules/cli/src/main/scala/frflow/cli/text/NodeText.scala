@@ -19,6 +19,7 @@ final class NodeText(v: View, style: Style, layers: Contribution):
       (true, "Decision", decision(v, n, st)),
       (true, "Why it holds (the reason it was decided with)", reason(n)),
       (true, "Formally (as written in Scala)", n.says.written.toList.flatMap(_.linesIterator.map(l => st.dim(l)))),
+      (true, "Files it governs", governs(n, st)),
       (normal, "How it is checked", n.says.checking),
       (normal, "Where it sits", place(v, n, st)),
       (true, "Parts: together, with the assumptions it lists, they make it",
@@ -79,6 +80,12 @@ final class NodeText(v: View, style: Style, layers: Contribution):
   private def rules(n: NodeView, st: Style): List[String] =
     n.place(Relation.Rule).map(Lines.of(v, _, st, 2)) ++
       n.place(Relation.UnusedRule).map(id => Lines.of(v, id, st, 2) + st.dim("  (not taken: it is about nothing here)"))
+
+  /** A design's paths, each with the files under it (a directory's), or marked missing when it names none. */
+  private def governs(n: NodeView, st: Style): List[String] = n.says.governs.flatMap(g =>
+    if g.missing then List(s"${g.path}  ${st.red("missing: no file of the project is there")}")
+    else if g.files == List(g.path) then List(g.path.value)
+    else g.path.value :: g.files.map("  " + _.value))
 
   private def mentions(n: NodeView): List[String] =
     val m = n.says.mentions

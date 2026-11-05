@@ -27,7 +27,7 @@ object LowerObligation:
     case ObligationName.Start(n)      => LeanNames.Start + n.value
     case ObligationName.Inhabited(n)  => s"inhabited_${n.value}"
     case ObligationName.Satisfiable(n, i) => s"satisfiable_${i + 1}_${n.value}"
-    case ObligationName.Example(i)    => s"example_$i"
+    case ObligationName.Example(of, i) => s"example_${of}_$i"
     case ObligationName.Tried(kind)   => tried(kind))
 
   private def tried(k: TryKind): String = k match

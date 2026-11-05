@@ -17,11 +17,12 @@ object ObligationNames:
   private val Indexed = """([a-z]+)_(\d+)""".r
   private val IndexedNode = """([a-z]+)_(\d+)_(.+)""".r
   private val Of = """([a-z]+)_(.+)""".r
+  private val OfSet = """example_([A-Za-z][A-Za-z0-9]*)_(\d+)""".r
 
   private def numbered(s: String): Option[ObligationName] = s match
     case Indexed("commute", i)            => Some(Commute(i.toInt))
     case Indexed("consistent", i)         => Some(Consistent(i.toInt))
-    case Indexed("example", i)            => Some(Example(i.toInt))
+    case OfSet(of, i)                     => Some(Example(of, i.toInt))
     case IndexedNode("satisfiable", i, n) => Some(Satisfiable(NodeId(n), i.toInt - 1))
     case IndexedNode("restates", i, n)    => Some(Tried(TryKind.RestatesConjunct(NodeId(n), i.toInt)))
     case _                                => None

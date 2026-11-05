@@ -1,6 +1,6 @@
-"""The size budgets over a tree of Scala (`python3 bin/budget.py modules`): no line over 120 columns, no file over 200
-lines, no def over 20 lines, no parameter list over four, every package of 3 to 15 files. It prints what it measures
-and exits non-zero when a violation is not in the baseline (`budget-baseline.txt` beside it, one per line, keyed
+"""The size budgets over trees of Scala (`python3 bin/budget.py modules examples`): no line over 120 columns, no file
+over 200 lines, no def over 20 lines, no def over four parameters (over all its lists but `using` ones), every package
+of 3 to 15 files. It prints what it measures, tree by tree, and exits non-zero when a violation is not in the baseline (`budget-baseline.txt` beside it, one per line, keyed
 without line numbers so moving code keeps its key, and counted where one file has several of a kind and name; empty
 when every budget is met). `--write-baseline` records today's violations.
 
@@ -8,7 +8,9 @@ The exceptions are the scala-fp skill's (its "Size budgets"), each read off the 
 - a def that is one `match` whose cases are at most two lines each may be longer than 20 lines;
 - an `apply` in an extension on a `Declaration`'s, a `Definition`'s or a failing Definition's (`Fails`) function
   type, taking one parameter per input of that type (ARCHITECTURE.md section 11, rule 4), may take more than four;
-- the facade package `frflow` (`modules/eval/src/main/scala/frflow`) may hold fewer than three files.
+- the facade package `frflow` (`modules/eval/src/main/scala/frflow`) may hold fewer than three files;
+- an example's app and tests (`examples/NAME/app/src/…`, `examples/NAME/src/test/…`) may hold fewer than three
+  files a package: they are its model's package (`rooms`), which the layout splits across the example's projects.
 Parameters are counted over every list of a def but `using` ones, as the skill's `measure.py` counts them. The
 one-`match` rule does not check that the match is over an ADT.
 """
@@ -44,6 +46,11 @@ def arity(L, i):
 
 
 def facade(d): return d.endswith(os.path.join('eval', 'src', 'main', 'scala', 'frflow'))
+
+
+def split(d):
+    """A package of an example's app or tests: its model's package, split across the example's projects."""
+    return re.search(r'(^|/)examples/[^/]+/(app/src|src/test)(/|$)', d.replace(os.sep, '/')) is not None
 
 
 def explicit(sig):
@@ -109,7 +116,7 @@ def measure(root):
             cnt = explicit(sig)
             mirrors = name == 'apply' and arity(L, i) == cnt
             if cnt > 4 and not mirrors: params.append(f"{p}:{i+1}:{cnt}"); keys.append(f"params {p} {name}")
-    packages = [(k, v) for k, v in sorted(pk.items()) if (v < 3 and not facade(k)) or v > 15]
+    packages = [(k, v) for k, v in sorted(pk.items()) if (v < 3 and not facade(k) and not split(k)) or v > 15]
     keys += [f"package {k}" for k, _ in packages]
     print("files", len(files), "lines", tot, "??? occurrences", q, "files with ???", qf)
     print("long lines", len(long)); [print(" ", x) for x in long]
@@ -127,7 +134,7 @@ def main(args):
     baseline = os.path.join(HERE, 'budget-baseline.txt')
     if '--baseline' in rest:
         i = rest.index('--baseline'); baseline = rest[i + 1]; del rest[i:i + 2]
-    keys = measure(rest[0])
+    keys = sorted(k for root in rest for k in measure(root))
     if write:
         with open(baseline, 'w') as f: f.write(''.join(k + '\n' for k in keys))
         print("baseline written:", len(keys), "violations")

@@ -17,9 +17,9 @@ private[api] object Wholes:
     WholeView(groups.flatMap(group(a, _, _)),
       groups.collect { case (Group.Start(n, start), _) => StartView(n, start, check(a, ObligationName.Start(n))) },
       Consistency.vacuity(a.decided.theory).map(v => v -> check(a, possible(v))),
-      a.computed.examples.zipWithIndex.map { case ((e, onCode), i) =>
+      a.computed.examples.map { (e, onCode) =>
         ExampleView(e.name, if e.givens.nonEmpty then OnClaims.ScalaOnly
-          else OnClaims.Lean(check(a, ObligationName.Example(i))), onCode)
+          else OnClaims.Lean(check(a, ObligationName.Example(e.of, e.at))), onCode)
       })
 
   /** A group of statements or of premises, with Lean's check of it; none of a start. */

@@ -66,7 +66,7 @@ class WholeProofSuite extends munit.CatsEffectSuite:
     val examples = RequestExamples().elaborated.fold(e => fail(e.toString), identity)
     val a = Analysis(bare.valid, bare.inputs, Computed(examples.map(_ -> OnCode.Holds), Map.empty))
     val spec = module(a, "Whole.Spec").getOrElse(fail("no statements"))
-    val first = spec.linesIterator.dropWhile(!_.contains("def example_0 ")).slice(1, 2).mkString
+    val first = spec.linesIterator.dropWhile(!_.contains("def example_RequestExamples_0 ")).slice(1, 2).mkString
     assert(first.contains("(Keycloak.handleRequest.claim step)") && first.contains("((Keycloak.next ") &&
       !first.contains("record"), first)
   }

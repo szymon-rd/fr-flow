@@ -73,8 +73,8 @@ class ReadingSuite extends munit.FunSuite:
     val all = List(ObligationName.Complete, ObligationName.Feasible, ObligationName.Impl, ObligationName.RootImpl,
       ObligationName.Cover("book"), ObligationName.Made("in_room"), ObligationName.Commute(2),
       ObligationName.Consistent(0), ObligationName.Start(n), ObligationName.Inhabited(n),
-      ObligationName.Satisfiable(n, 0), ObligationName.Example(3)) ++ (List(TryKind.Needed(n), TryKind.Vacuous,
-      TryKind.Restates, TryKind.Clash, TryKind.Unsat, TryKind.Idle, TryKind.RestatesConjunct(n, 2))
+      ObligationName.Satisfiable(n, 0), ObligationName.Example("GrantedExamples", 3)) ++ (List(TryKind.Needed(n),
+      TryKind.Vacuous, TryKind.Restates, TryKind.Clash, TryKind.Unsat, TryKind.Idle, TryKind.RestatesConjunct(n, 2))
       .map(ObligationName.Tried(_)))
     all.foreach(o => assertEquals(ObligationNames.read(LowerObligation.name(o).text), Some(o)))
     assertEquals(ObligationNames.read("helper"), None)

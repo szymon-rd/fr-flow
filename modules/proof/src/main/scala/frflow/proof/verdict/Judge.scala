@@ -65,7 +65,7 @@ object Judge:
     val fatal = results.collect { case Result(ObligationName.Tried(k), ObligationStatus.Shown, _) if k.fatal => k }
     val disallowed = axioms.distinct.filterNot(ProofRules.AllowedAxioms)
     val required = results.filter(_.name match
-      case ObligationName.Tried(_) | ObligationName.Example(_) => false
+      case ObligationName.Tried(_) | ObligationName.Example(_, _) => false
       case _                                                    => true)
     if fatal.nonEmpty then Judged(CheckStatus.Failed, results, List(Finding.Refuted(fatal)))
     else if disallowed.nonEmpty then Judged(CheckStatus.Failed, results, List(Finding.DisallowedAxioms(disallowed)))

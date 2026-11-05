@@ -2,7 +2,7 @@ package frflow.dsl.model
 
 import cats.syntax.all.*
 import frflow.core.expr.OutsideFact
-import frflow.core.name.{DefName, ModelName}
+import frflow.core.name.{DefName, ModelName, RelPath}
 import frflow.core.term.language.Sym
 import frflow.core.term.World
 import frflow.core.vocab.{Fails, StateModel as Read, Symbol, SymbolType, Timed, ValueKind}
@@ -129,6 +129,7 @@ abstract class StateModel[S](description: String)(using named: StateModel.Named,
     * in turn, as the clock's do).
     */
   @publicInBinary private[model] def itself: Declarations = Declarations.model(name, model) |+| stateType.declares |+|
+    Declarations.in(named.at) |+|
     operations.foldMap(op => Declarations.symbol(Symbol(op.name, op.described, SymbolType.Typed(op.leanType.ty),
       ValueKind.Definition)))
 
@@ -138,10 +139,12 @@ abstract class StateModel[S](description: String)(using named: StateModel.Named,
     Fact(Term.noted(Notes.of(d))([T[_]] => (s: Sym[T]) => s.outside(f)))
 
 object StateModel:
-  /** The name of the object a model is written as, read where it is written (`Source.ownerName`). */
-  final case class Named(name: String)
+  /** The name of the object a model is written as, and its file (none: FrFlow's own), read where it is written
+    * (`Source.ownerName`, `Source.here`).
+    */
+  final case class Named(name: String, at: Option[RelPath])
   object Named:
-    inline given here: Named = Named(Source.ownerName)
+    inline given here: Named = Named(Source.ownerName, Some(Source.here))
 
   /** A model any call of whose operations may fail with `error` (a store that may be down,
     * `Failure.StoreUnavailable`), changing nothing: `object stored extends StateModel.failing[S, E]("…", error)`.

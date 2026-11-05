@@ -1,6 +1,6 @@
 package frflow.dsl.vocab
 
-import frflow.core.name.SymbolName
+import frflow.core.name.{RelPath, SymbolName}
 import frflow.core.term.{Bound, World}
 import frflow.core.term.language.{Final, Sym}
 import frflow.core.ty.Ty
@@ -15,9 +15,10 @@ import scala.annotation.{publicInBinary, unused}
   * implemented. It is not a term: it is applied only where a statement is being written (`Stating`), so code that
   * names it does not compile. Consistency asks a witness for it, usually from what refines it. It may change with the
   * World (owner §43): where a statement reads it beside what does, it is read in the world the statement holds in
-  * (Lean: a function of the world, the world its last input); `isConstant` assumes no run changes it.
+  * (Lean: a function of the world, the world its last input); `isConstant` assumes no run changes it. `at`: the file
+  * it is written in.
   */
-final class Declaration[A] @publicInBinary private (val name: SymbolName, val means: String)(
+final class Declaration[A] @publicInBinary private (val name: SymbolName, val means: String, val at: RelPath)(
     using val leanType: LeanType[A]):
   /** The value as a term, in a statement. */
   def term(using Stating): Term[A] = Declaration.applied[A](this, Nil)
@@ -28,7 +29,8 @@ final class Declaration[A] @publicInBinary private (val name: SymbolName, val me
   def isConstant(using @unused st: Stating): Term[Boolean] = Term(Declaration.constant(this))
 
 object Declaration:
-  inline def apply[A: LeanType](means: String): Declaration[A] = new Declaration[A](SymbolName(Source.valName), means)
+  inline def apply[A: LeanType](means: String): Declaration[A] = new Declaration[A](SymbolName(Source.valName), means,
+    Source.here)
 
   /** Where a statement expects a term, a Declaration is its value (`booked === storedBookings.current`). */
   given value[A](using Stating): Conversion[Declaration[A], Term[A]] = _.term
@@ -47,7 +49,8 @@ object Declaration:
 
   private def symbol[F](d: Declaration[?], worldly: Boolean): Final[F] =
     val ty = if worldly then Worldly(d.leanType.ty) else d.leanType.ty
-    Symbols.term[F](d.name, d.means, ValueKind.Declaration, LeanType.of[Any](ty, d.leanType))
+    Symbols.written(Some(d.at), Symbols.term[F](d.name, d.means, ValueKind.Declaration,
+      LeanType.of[Any](ty, d.leanType)))
 
   /** A function's term applied, its type forgotten: what `applied` types again. */
   private def ap[T[_]](s: Sym[T])(f: T[Any], a: T[Any]): T[Any] = s.app[Any, Any](f.asInstanceOf[T[Any => Any]], a)

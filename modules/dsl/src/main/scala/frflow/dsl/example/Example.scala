@@ -10,8 +10,9 @@ import frflow.dsl.build.{Deferred, Site}
   * built when elaborated.
   */
 final case class Example(name: String, bindings: List[Binding], fact: Deferred[Written[Expr]]):
-  def elaborated: Deferred[Elaborated] =
-    (bindings.traverse(bound), fact).mapN(Elaborated(name, _, _))
+  /** Elaborated as the `at`th example of the set `of`. */
+  def elaborated(of: String, at: Int): Deferred[Elaborated] =
+    (bindings.traverse(bound), fact).mapN(Elaborated(name, _, _, of, at))
 
   private def bound(b: Binding): Deferred[Given] =
     b.value.fold(Deferred.failed(Site.Example(name), _), v => Deferred.pure(Given(b.of, v)))

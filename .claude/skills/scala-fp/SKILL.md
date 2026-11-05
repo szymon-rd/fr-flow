@@ -322,19 +322,19 @@ It is approximate, so read the code it points at before you report.
 | Non-blank lines per file | 200 | none |
 | Line width | 120 columns | none |
 | Top-level types per file | 1, with its companion | none |
-| Files per package | 3 to 15 | the facade package `frflow` |
+| Files per package | 3 to 15 | the facade package `frflow`; an example's app and tests (its model's package, split across its projects) |
 
-`bin/budget.py modules` gates the budgets it measures (line width, file and
+`bin/budget.py modules examples` gates the budgets it measures (line width, file and
 `def` length, explicit parameters over every list but `using` ones, as
 `measure.py` counts them, files per package) in CI, against
 `bin/budget-baseline.txt`: a change may add no violation. The baseline lists,
 with why, the 73 functions over four parameters found once every list was
 counted (mostly the term algebras' curried operations); remove a line once its
-function meets the budget. It reads the three exceptions above off the code (a
+function meets the budget. It reads the exceptions above off the code (a
 `def` that is one `match` of cases of at most two lines; an `apply` in an
 extension on a `Declaration`'s or `Definition`'s function type taking one
-parameter per input; the facade package in `eval`), and `bin/test_budget.py`
-tests it. Fields per type, optional fields and types per file are review
+parameter per input; the facade package in `eval`; an example's app and
+tests), and `bin/test_budget.py` tests it. Fields per type, optional fields and types per file are review
 triggers only: `measure.py` finds them, `budget.py` does not gate them.
 When the rebuild started, today's library had 20 types over the field budget
 (`SnapNode` 31, `Overview` 30, `Node` 24) and 55 functions over 4 parameters.

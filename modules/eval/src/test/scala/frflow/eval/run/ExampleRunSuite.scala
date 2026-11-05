@@ -8,7 +8,8 @@ import frflow.eval.term.Semantics
 class ExampleRunSuite extends munit.FunSuite:
   private def onCode(code: String => String): OnCode =
     val theory = Echo.theory(code)
-    ExampleRun(Semantics(Elaborated(theory, Map.empty, Nil)), theory).of(Example("echoes hi", Nil, Echo.example))
+    ExampleRun(Semantics(Elaborated(theory, Map.empty, Nil)), theory)
+      .of(Example("echoes hi", Nil, Echo.example, "Echo", 0))
 
   test("an example the code meets holds of the code; one it does not, fails") {
     assertEquals(onCode(identity), OnCode.Holds)

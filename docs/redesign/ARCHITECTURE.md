@@ -14,7 +14,7 @@ Beside this file, in `docs/redesign/`:
 | `dependencies.txt` | today's package and module dependencies, measured |
 | `planned/` | the planned code: nine of the twelve modules, compiled, with suites |
 | `lean-spike/` | historical: rooms' and auth's Lean as the printer gave it during the design, with proofs; it no longer builds (its `Proofs.lean` is of the §21 shape, its bundled `frflow/` older than the library) and is kept as the record |
-| `tools/` | scripts the design used; the size budgets are `bin/budget.py` since step 14 (`python3 bin/budget.py modules`) |
+| `tools/` | scripts the design used; the size budgets are `bin/budget.py` since step 14 (`python3 bin/budget.py modules examples`) |
 
 Source paths below are under `planned/src/<module>/`; rooms is `planned/test/project/frflow/rooms/`, auth
 `planned/test/project/frflow/auth/`.
@@ -758,10 +758,11 @@ class GrantedExamples extends FrFlowExamples(rooms):
     granted(RoomBookings("Oak", List(Booking("Oak", 9, 11))), Booking("Oak", 10, 12)) is false
 ```
 
-An example is a closed fact (`core.example.Example(name, givens, fact)`); `example(name, d := v)` sets provided
-Definitions. Checked against the code (`ExampleRun`: `OnCode.Holds`, `Fails`, `NotEvaluated`, or `Abstract` for a fact
-about Declarations) and against the claims in Lean (`example_<i>`, a try met by `frflow_auto`); one that sets values is
-shown "checked in Scala only". A value an example writes that breaks a rule on its type (an `always[T]`, evaluated
+An example is a closed fact (`core.example.Example(name, givens, fact, of, at)`: `of` its class's name, `at` its
+place there); `example(name, d := v)` sets provided Definitions. Checked against the code (`ExampleRun`:
+`OnCode.Holds`, `Fails`, `NotEvaluated`, or `Abstract` for a fact about Declarations) and against the claims in Lean
+(`example_<of>_<at>`, a try met by `frflow_auto`: its name does not depend on the order the classes are found in, so a
+hand proof of one in `Whole.lean` names it whoever reads them); one that sets values is shown "checked in Scala only". A value an example writes that breaks a rule on its type (an `always[T]`, evaluated
 on each `T` the value holds, `Made.breaks`) is no value the code is ever given, so the example is refused
 (`OnCode.BreaksRule`) rather than judged: on such a value the code is neither right nor wrong (semantics review,
 finding 10). An example reads no world and states no `isConstant` (2.2). Nothing depends on examples: the theory and
@@ -1201,7 +1202,7 @@ with, the steps unchanged). The IR is never printed or run.
 
 There is no boundary (owner §36). A program calls Definitions: functions, defines, and operations on a state
 (`A => Flow[R]`), each given its Lean meaning by a `StateModel` (2.2, 3.2). A program is one type, `Flow[R]` (owner
-§42), written as a plain `for` comprehension over its steps, its values terms (`dsl/frflow/dsl/flow/Flow.scala`,
+§42), written as a plain `for` comprehension over its steps, its values terms (`dsl/frflow/dsl/vocab/Flow.scala`,
 excerpt); the steps are an initial encoding, `run.Recorded`, which Lean reads and production folds:
 
 ```scala
@@ -1547,7 +1548,7 @@ Of a node: `complete`, `impl`, `feasible`, `cover_<op>`, `made_<maker>`, `commut
 Tries, within a budget and one-sided (proven, they show something wrong): `needed_C`, `vacuous`, `restates`,
 `restates_i_C`, `clash`, `unsat`, `idle`. A failed step is refuted when a node's one part fixes its result:
 `StepRefutation` finds a case where the claim fails with that answer, and `RefutesModule` proves it. Of the whole
-theory (`proof.whole`): `consistent_<i>`, `start_<node>`, `inhabited_<node>`, `satisfiable_<i>_<node>`, `example_<i>`.
+theory (`proof.whole`): `consistent_<i>`, `start_<node>`, `inhabited_<node>`, `satisfiable_<i>_<node>`, `example_<set>_<i>`.
 Each obligation carries the sentence its Lean is documented with.
 
 ### 4.8 The Lean back end
@@ -1760,9 +1761,11 @@ to `f(x)`).
 
 **Code in a file that holds nodes** (owner §38). The expression given to `implementTested` is part of the node's
 content already (its `implementation` line); the definitions it refers to are fingerprinted wherever they are written.
-A file holding no node or attached code is governed whole, as before. A file holding nodes is governed only by the
-spans of the definitions referred to: `SourceFiles` records each referred symbol's file and start, and the lexer takes
-its span, from that line to the next line at the same or a lower indentation, adding the spans of the same file's
+A file that is none of the model's own is governed whole, as before. A file of the model's own (holding nodes,
+attached code, the FrModel, or vocabulary: each Declaration, Definition, define, program, model and domain type records
+the file it is written in, a program the files its body refers to as well, sharing's `program { Delivery.run }` its
+`Delivery.scala`, `Theory.modelFiles`) is governed only by the spans of the definitions referred to, and is
+never warned ungoverned. `SourceFiles` records each referred symbol's file and start, and the lexer takes its span, from that line to the next line at the same or a lower indentation, adding the spans of the same file's
 top-level definitions a span names until nothing new is added. So editing a node beside the code brings nothing back,
 and editing the code does: keycloak's `introspection`, written in `Introspection.scala` beside four nodes, brings
 `introspectAnswers` back with `Cause.Code`.

@@ -2,24 +2,27 @@ package frflow.dsl.build
 
 import cats.kernel.Monoid
 import frflow.core.expr.Lambda
-import frflow.core.name.{DefName, ModelName, SymbolName, TypeName}
+import frflow.core.name.{DefName, ModelName, RelPath, SymbolName, TypeName}
 import frflow.core.spec.Written
 import frflow.core.vocab.{Sort, StateModel, Symbol}
 
 /** The vocabulary something mentions, by name: a monoid merged by every term, so no registry is needed. Two different
-  * declarations of one name are both kept, for `Validate` to report.
+  * declarations of one name are both kept, for `Validate` to report. `files`: where they are written, as the
+  * compiler named them (`Source.path`).
   */
 final case class Declarations(types: Map[TypeName, List[Declared]], sorts: Map[TypeName, List[Sort]],
     symbols: Map[SymbolName, List[Symbol]], defines: Map[DefName, List[Deferred[Written[Lambda]]]],
-    models: Map[ModelName, List[Deferred[StateModel]]])
+    models: Map[ModelName, List[Deferred[StateModel]]], files: Set[RelPath])
 
 object Declarations:
-  val none: Declarations = Declarations(Map.empty, Map.empty, Map.empty, Map.empty, Map.empty)
+  val none: Declarations = Declarations(Map.empty, Map.empty, Map.empty, Map.empty, Map.empty, Set.empty)
   given Monoid[Declarations] = Monoid.instance(none, (a, b) =>
     Declarations(union(a.types, b.types)(_.data), union(a.sorts, b.sorts)(identity),
       union(a.symbols, b.symbols)(identity), union(a.defines, b.defines)(identity),
-      union(a.models, b.models)(identity)))
+      union(a.models, b.models)(identity), a.files ++ b.files))
 
+  /** That something declared is written in `files` (none: in FrFlow's own sources). */
+  def in(files: IterableOnce[RelPath]): Declarations = none.copy(files = files.iterator.toSet)
   def of(d: Declared): Declarations = none.copy(types = Map(d.data.typeName -> List(d)))
   def sort(s: Sort): Declarations = none.copy(sorts = Map(s.name -> List(s)))
   def symbol(s: Symbol): Declarations = none.copy(symbols = Map(s.name -> List(s)))
