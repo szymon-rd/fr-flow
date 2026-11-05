@@ -20,7 +20,7 @@ object Views:
   def overview(nodes: List[NodeView], whole: WholeView, gone: List[NodeId]): Overview = Overview(
     nodes.foldMap(n => Tally.one(n.review.standing.state)), nodes.foldMap(n => Tally.one(n.proof.state)),
     nodes.foldMap(_.code.foldMap(pieces)), whole.groups.foldMap(g => Tally.one(g.status)),
-    whole.examples.foldMap(e => Tally.one(e.passes)),
+    whole.examples.foldMap(e => Tally.one(e.outcome)),
     nodes.nonEmpty && gone.isEmpty && whole.starts.forall(_.check.state == ObligationState.Proven) &&
       nodes.forall(n => n.review.standing.state == ReviewState.Accepted && n.proof.unproven.isEmpty))
 

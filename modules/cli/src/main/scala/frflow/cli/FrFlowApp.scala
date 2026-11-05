@@ -34,12 +34,14 @@ abstract class FrFlowApp(model: => FrModel, root: String = ".", val extensions: 
   final def directory(env: Map[String, String]): Path =
     Path.of(env.getOrElse("FRFLOW_ROOT", root)).toAbsolutePath.normalize
 
-  /** The model elaborated, with its own examples (those found written for another model are left out). */
+  /** The model elaborated, with its own examples (those found written for another model are left out), and the
+    * classes of examples found that could not be made.
+    */
   final def project: IO[Either[NonEmptyChain[ElabError], Project]] =
     TestClasses.examples(sys.props.get("frflow.tests")).map { found =>
-      val written = (examples ++ found.filter(_.knowledge eq kb)).distinctBy(_.getClass)
-      (kb.elaborated, written.traverse(_.elaborated).map(_.flatten)).mapN((e, xs) =>
-        Project(e, xs, sources.flatMap(RelPath.parse(_).toOption), Path.of(library))).toEither
+      val written = (examples ++ found.examples.filter(_.knowledge eq kb)).distinctBy(_.getClass)
+      (kb.elaborated, FrFlowExamples.elaborated(written)).mapN((e, xs) =>
+        Project(e, xs, sources.flatMap(RelPath.parse(_).toOption), Path.of(library), found.unread)).toEither
     }
 
   final def run(args: List[String]): IO[ExitCode] = Launch(this, args)

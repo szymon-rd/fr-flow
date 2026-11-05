@@ -19,7 +19,7 @@ object CheckDraws:
     word.map(ObligationName.Cover(_)), word.map(ObligationName.Made(_)), tryKind.map(ObligationName.Tried(_)),
     small.map(ObligationName.Commute(_)), small.map(ObligationName.Consistent(_)), node.map(ObligationName.Start(_)),
     node.map(ObligationName.Inhabited(_)), Gen.zip(node, small).map(ObligationName.Satisfiable(_, _)),
-    small.map(ObligationName.Example("GrantedExamples", _)))
+    small.map(ObligationName.Example("GrantedExamples", _)), small.map(ObligationName.ExampleOpposite("Set1", _)))
 
   val diagnostic: Gen[Diagnostic] = Gen.zip(text, small, Gen.oneOf(true, false), text).map(Diagnostic(_, _, _, _))
 

@@ -19,7 +19,8 @@ private[api] object Wholes:
       Consistency.vacuity(a.decided.theory).map(v => v -> check(a, possible(v))),
       a.computed.examples.map { (e, onCode) =>
         ExampleView(e.name, if e.givens.nonEmpty then OnClaims.ScalaOnly
-          else OnClaims.Lean(check(a, ObligationName.Example(e.of, e.at))), onCode)
+          else OnClaims.Lean(check(a, ObligationName.Example(e.of, e.at)),
+            check(a, ObligationName.ExampleOpposite(e.of, e.at))), onCode)
       })
 
   /** A group of statements or of premises, with Lean's check of it; none of a start. */

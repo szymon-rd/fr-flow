@@ -84,3 +84,5 @@ enum Fault:
     */
   case ConstantInside(where: String)
   case Thrown(message: String)
+  /** Two classes of examples of one model of one name (`setName`): their examples' theorems would be one. */
+  case ExampleSetsClash(name: String, classes: List[String])

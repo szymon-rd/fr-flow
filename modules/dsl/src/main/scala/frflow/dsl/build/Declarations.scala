@@ -1,28 +1,34 @@
 package frflow.dsl.build
 
 import cats.kernel.Monoid
+import cats.syntax.all.*
 import frflow.core.expr.Lambda
 import frflow.core.name.{DefName, ModelName, RelPath, SymbolName, TypeName}
 import frflow.core.spec.Written
 import frflow.core.vocab.{Sort, StateModel, Symbol}
 
 /** The vocabulary something mentions, by name: a monoid merged by every term, so no registry is needed. Two different
-  * declarations of one name are both kept, for `Validate` to report. `files`: where they are written, as the
-  * compiler named them (`Source.path`).
+  * declarations of one name are both kept, for `Validate` to report. `written`: the names of what is declared, by
+  * the file it is written in, as the compiler named it (`Source.path`); `referred`: what programs' bodies refer to,
+  * by file (`SourceFiles`).
   */
 final case class Declarations(types: Map[TypeName, List[Declared]], sorts: Map[TypeName, List[Sort]],
     symbols: Map[SymbolName, List[Symbol]], defines: Map[DefName, List[Deferred[Written[Lambda]]]],
-    models: Map[ModelName, List[Deferred[StateModel]]], files: Set[RelPath])
+    models: Map[ModelName, List[Deferred[StateModel]]], written: Map[RelPath, Set[String]],
+    referred: Map[RelPath, Set[String]])
 
 object Declarations:
-  val none: Declarations = Declarations(Map.empty, Map.empty, Map.empty, Map.empty, Map.empty, Set.empty)
+  val none: Declarations = Declarations(Map.empty, Map.empty, Map.empty, Map.empty, Map.empty, Map.empty, Map.empty)
   given Monoid[Declarations] = Monoid.instance(none, (a, b) =>
     Declarations(union(a.types, b.types)(_.data), union(a.sorts, b.sorts)(identity),
       union(a.symbols, b.symbols)(identity), union(a.defines, b.defines)(identity),
-      union(a.models, b.models)(identity), a.files ++ b.files))
+      union(a.models, b.models)(identity), a.written |+| b.written, a.referred |+| b.referred))
 
-  /** That something declared is written in `files` (none: in FrFlow's own sources). */
-  def in(files: IterableOnce[RelPath]): Declarations = none.copy(files = files.iterator.toSet)
+  /** That `name` is declared in `file` (none: in FrFlow's own sources). */
+  def in(file: Option[RelPath], name: String): Declarations = none.copy(written = file.map(_ -> Set(name)).toMap)
+  /** That a program's body refers to these definitions of these files. */
+  def refers(files: List[(RelPath, List[String])]): Declarations =
+    none.copy(referred = files.groupMapReduce(_._1)(_._2.toSet)(_ ++ _))
   def of(d: Declared): Declarations = none.copy(types = Map(d.data.typeName -> List(d)))
   def sort(s: Sort): Declarations = none.copy(sorts = Map(s.name -> List(s)))
   def symbol(s: Symbol): Declarations = none.copy(symbols = Map(s.name -> List(s)))

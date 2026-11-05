@@ -55,6 +55,26 @@ class CommandsSuite extends munit.CatsEffectSuite:
       assert(text.contains("Nothing waits: every node is accepted and proven, or its code tested."), text)
   }
 
+  test("examples: one the claims do not decide is said apart and fails nothing; one they contradict fails") {
+    val examples = Shelf.BeforeExamples().elaborated.fold(e => fail(e.toString), identity)
+    val both = List(Command.Check(None, json = false), Command.Status(json = false))
+    def run(shown: String*) = Opened.api(Opened.project(Shelf.Before.kb, examples),
+      lean = Lean.Proving(Set.empty, shown.toSet)).flatMap(Cli.accepted).flatMap(Cli.all(_, both*))
+    for
+      (plain, _)               <- Opened.api(Opened.before).flatMap(Cli.accepted).flatMap(Cli.all(_, both*))
+      (undecided, open)        <- run()
+      (shown, passing)         <- run("example_BeforeExamples_0")
+      (contradicted, contrary) <- run("example_BeforeExamples_0_opposite")
+    yield
+      assertEquals(List(plain, undecided, shown), List.fill(3)(plain))
+      assertEquals(contradicted.head, ExitCode(1))
+      assert(open.contains("Examples: 0/1 pass; 1 hold on the code, not decided by the claims"), open)
+      assert(open.contains("o one is given itself  Lean: not shown, not decided by the claims"), open)
+      assert(passing.contains("Examples: 1/1 pass"), passing)
+      assert(contrary.contains("x one is given itself  Lean: the claims contradict it"), contrary)
+      assert(contrary.contains("Examples: 0/1 pass; 1 fail"), contrary)
+  }
+
   test("find: the nodes that mention some words, each in a line; wrapped to a terminal's width") {
     for
       api   <- Opened.api(Opened.before)

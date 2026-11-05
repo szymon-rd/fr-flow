@@ -28,7 +28,7 @@ object TestKeys:
     val t = a.decided.theory
     val scala = t.code.implemented.get(m)
     keyed(a, CodeTexts.lean(a.decided, m).toList.flatten ++ scala.map(_.written.value) ++
-      scala.map(i => CodeFingerprints.of(i.files.flatMap(Governance.governed(t, _)).map(f =>
+      scala.map(i => CodeFingerprints.of(i.files.flatMap(Governance.governed(a.own, _)).map(f =>
         f -> a.inputs.sources.get(f.path))).fingerprint.sha) ++
       Guards.reading(t, List(m)).map(_._1).distinct.map(n => Contents.of(a.canonical, n).ref))
 

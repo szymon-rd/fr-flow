@@ -5,7 +5,7 @@ import frflow.core.term.{Bound, World}
 import frflow.core.term.language.{Final, Sym}
 import frflow.core.ty.Ty
 import frflow.core.vocab.ValueKind
-import frflow.dsl.build.{Fault, Source}
+import frflow.dsl.build.{Declarations, Fault, Source}
 import frflow.dsl.run.Worlds
 import frflow.dsl.term.{LeanType, Notes, Term}
 import scala.annotation.{publicInBinary, unused}
@@ -49,7 +49,7 @@ object Declaration:
 
   private def symbol[F](d: Declaration[?], worldly: Boolean): Final[F] =
     val ty = if worldly then Worldly(d.leanType.ty) else d.leanType.ty
-    Symbols.written(Some(d.at), Symbols.term[F](d.name, d.means, ValueKind.Declaration,
+    Symbols.written(Declarations.in(Some(d.at), d.name.value), Symbols.term[F](d.name, d.means, ValueKind.Declaration,
       LeanType.of[Any](ty, d.leanType)))
 
   /** A function's term applied, its type forgotten: what `applied` types again. */

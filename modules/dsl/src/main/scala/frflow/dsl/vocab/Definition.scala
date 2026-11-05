@@ -1,12 +1,12 @@
 package frflow.dsl.vocab
 
 import cats.syntax.all.*
-import frflow.core.name.{RelPath, SymbolName}
+import frflow.core.name.SymbolName
 import frflow.core.term.language.{Final, Sym}
 import frflow.core.term.World
 import frflow.core.ty.Ty
 import frflow.core.vocab.{Symbol, SymbolType, ValueKind}
-import frflow.dsl.build.{Declarations, Fault, Source}
+import frflow.dsl.build.{Declarations, Fault, Source, WrittenAt}
 import frflow.dsl.run.Worlds
 import frflow.dsl.term.{LeanType, Notes, Term}
 import frflow.dsl.vocab.{Flow, Run}
@@ -21,14 +21,15 @@ import scala.compiletime.summonFrom
   * against it), or where it is written: `define { … }` and `program { … }` are
   * Definitions carrying their proven code (`onTheSpot`). Every claim mentioning it constrains it, and its code is
   * checked against them. Of a type with no `LeanType` (a connection), it is code-only: provided where the code runs
-  * and read there (`env(d)`), never mentioned in a statement (`CodeOnlyInStatement`). `at`: the files it is written
-  * in, its own first, then those a program's body refers to (none: FrFlow's own, the clock's).
+  * and read there (`env(d)`), never mentioned in a statement (`CodeOnlyInStatement`). `at`: where it is written, and
+  * what a program's body refers to (`WrittenAt`).
   */
 class Definition[A] @publicInBinary private[dsl] (val name: SymbolName, val described: String,
-    val onTheSpot: Option[OnTheSpot], val at: List[RelPath])(using t: LeanType[A])
-    extends Term[A](Symbols.written(at, Definition.called[A](name, described, onTheSpot, t))):
+    val onTheSpot: Option[OnTheSpot], val at: WrittenAt)(using t: LeanType[A])
+    extends Term[A](Symbols.written(at.declares(name.value), Definition.called[A](name, described, onTheSpot, t))):
   /** The term as a curried function (`F` the curried type of `A`): what `Functions.app` applies. */
-  def curried[F: LeanType]: Term[F] = Term(Symbols.written(at, Definition.called[F](name, described, onTheSpot, t)))
+  def curried[F: LeanType]: Term[F] =
+    Term(Symbols.written(at.declares(name.value), Definition.called[F](name, described, onTheSpot, t)))
   /** A define whose body reads state, which takes the world as its last input (owner §43). */
   def readsWorld: Boolean = onTheSpot.exists(_.spot match
     case Spot.Define(_, worldly) => worldly
@@ -41,13 +42,13 @@ class Definition[A] @publicInBinary private[dsl] (val name: SymbolName, val desc
     */
   def failsWith[E](using e: LeanType[E]): Definition.Fails[A, E] =
     Definition.Fails[A, E](this, LeanType.of[A](Ty.failing(t.ty, Some(e.ty)), t, e))
-  /** The same Definition, written in `files` (`define` and `program` say where). */
-  private[dsl] def in(files: List[RelPath]): Definition[A] = new Definition[A](name, described, onTheSpot, files)
+  /** The same Definition, written `at` (`define` and `program` say where). */
+  private[dsl] def in(at: WrittenAt): Definition[A] = new Definition[A](name, described, onTheSpot, at)
   /** What a code-only Definition declares wherever it is given its meaning: no statement mentions it to. */
   private[dsl] def declares: Declarations =
     t.codeOnly.fold(Declarations.none)(scala =>
       Declarations.symbol(Symbol(name, described, SymbolType.CodeOnly(scala), ValueKind.Definition)) |+|
-        Declarations.in(at))
+        at.declares(name.value))
 
 object Definition:
   /** A Definition of a program that can fail with an `E` (`failsWith`). Of one with no inputs, its run's outcome and
@@ -64,8 +65,9 @@ object Definition:
     * (one `apply`: two overloads differing only in what they are given are ambiguous to Scala).
     */
   inline def apply[A](means: String): Definition[A] = summonFrom {
-    case t: LeanType[A] => new Definition[A](SymbolName(Source.valName), means, None, List(Source.here))(using t)
-    case _              => new Definition[A](SymbolName(Source.valName), means, None, List(Source.here))(
+    case t: LeanType[A] =>
+      new Definition[A](SymbolName(Source.valName), means, None, WrittenAt.in(Source.here))(using t)
+    case _              => new Definition[A](SymbolName(Source.valName), means, None, WrittenAt.in(Source.here))(
       using NoLeanType[A](Source.typeName[A]))
   }
 
@@ -77,7 +79,7 @@ object Definition:
 
   /** A Definition given its meaning where it is written (`define`, `program`; where, `in`). */
   def onTheSpot[A: LeanType](spot: OnTheSpot): Definition[A] = new Definition[A](SymbolName(spot.name.value), "",
-    Some(spot), Nil)
+    Some(spot), WrittenAt.none)
 
   /** How a mention of the Definition reads, as a term of type `F`: its symbol; a define's call by name, noting the
     * define; a program, a fault (claims speak of the Definition the program is the meaning of).

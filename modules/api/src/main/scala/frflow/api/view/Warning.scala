@@ -23,6 +23,8 @@ enum Warning:
   case Ungoverned(file: RelPath)
   /** A design governs a path that names no file of the project. */
   case GovernedMissing(file: RelPath, by: NodeId)
+  /** A class of examples among the project's test classes that could not be made: none of its examples is read. */
+  case ExamplesNotRead(className: String, why: NotMade)
   /** A proof file of no node (after a rename or a removal): it proves nothing any more. */
   case ProofFileOfNoNode(file: RelPath)
   /** A consistency group Lean has not proven (evidence only is not proof): a failure, the whole model's proof red

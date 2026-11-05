@@ -5,7 +5,7 @@ import frflow.core.expr.OutsideFact
 import frflow.core.name.{DefName, SymbolName}
 import frflow.core.ty.{NumKind, Ty}
 import frflow.core.vocab.Timed
-import frflow.dsl.build.{Declarations, Fault}
+import frflow.dsl.build.{Declarations, Fault, WrittenAt}
 import frflow.dsl.vocab.Flow
 import frflow.dsl.shape.Defines
 import frflow.dsl.term.{LeanType, Notes, Term}
@@ -26,17 +26,17 @@ object Clock:
   private val seconds = Ty.Num(NumKind.Big)
 
   val now: Definition[Flow[BigInt]] =
-    new Definition[Flow[BigInt]](SymbolName("now"), "the time now, in seconds", None, Nil)(using
+    new Definition[Flow[BigInt]](SymbolName("now"), "the time now, in seconds", None, WrittenAt.none)(using
       declaring[Flow[BigInt]](Ty.FlowOf(seconds, None)))
 
   val sleep: Definition[BigInt => Flow[Unit]] =
     new Definition[BigInt => Flow[Unit]](SymbolName("sleep"), "a wait of at least the seconds given", None,
-      Nil)(using
+      WrittenAt.none)(using
       declaring[BigInt => Flow[Unit]](Ty.FnOf(List(seconds), Ty.FlowOf(Ty.Unit, None))))
 
   val elapse: Definition[BigInt => Flow[Unit]] =
     new Definition[BigInt => Flow[Unit]](SymbolName("elapse"), "time passing between runs, by the seconds given: " +
-      "the world's own step, never code's", None, Nil)(using
+      "the world's own step, never code's", None, WrittenAt.none)(using
       declaring[BigInt => Flow[Unit]](Ty.FnOf(List(seconds), Ty.FlowOf(Ty.Unit, None))))
 
   object clockModel extends StateModel[BigInt]("the time now, in seconds")(using StateModel.Named("clockModel", None),

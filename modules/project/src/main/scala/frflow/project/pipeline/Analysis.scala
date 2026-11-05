@@ -4,11 +4,11 @@ import frflow.core.analysis.resolution.{Resolve, Resolved, Valid}
 import frflow.core.checking.Checking
 import frflow.core.consistency.{Consistency, Group}
 import frflow.core.expr.OutsideFact
-import frflow.core.name.{ModelName, NodeId}
+import frflow.core.name.{ModelName, NodeId, RelPath}
 import frflow.decision.content.CodeNow
 import frflow.decision.review.{Reading, Standing, Subjects}
 import frflow.eval.run.Broken
-import frflow.project.code.{CodeFingerprints, Governance}
+import frflow.project.code.{CodeFingerprints, Governance, ModelFiles}
 import frflow.proof.audit.LeanProject
 import frflow.proof.audit.Obligations
 import frflow.proof.layout.{Layout, Lowering, RootImplModule}
@@ -57,8 +57,11 @@ final class Analysis(val valid: Valid, val inputs: Inputs, val computed: Compute
   lazy val keys: CheckKeys = CheckKeys(decided.theory.name, modules, inputs.lean, rooted)
   private lazy val nodeKeys: Map[NodeId, CheckKey] = obligations.map(o => o.node -> keys.node(o.node)).toMap
   /** Each node's governed code now: the files it governs, fingerprinted. */
-  lazy val governed: Map[NodeId, CodeNow] = Governance.of(decided.theory, inputs.sources.keys.toList).map((id, fs) =>
-    id -> CodeFingerprints.of(fs.map(f => f -> inputs.sources.get(f.path))))
+  lazy val governed: Map[NodeId, CodeNow] = Governance.of(decided.theory, inputs.sources.keys.toList, own)
+    .map((id, fs) => id -> CodeFingerprints.of(fs.map(f => f -> inputs.sources.get(f.path))))
+  /** The files of the model's own (owner §38), and those that need no node to govern them (`ModelFiles`). */
+  lazy val own: Set[RelPath] = ModelFiles.own(decided.theory, inputs.sources)
+  lazy val accounted: Set[RelPath] = ModelFiles.accounted(decided.theory, inputs.sources)
   lazy val subjects: Subjects = ReadSubjects(this)
   lazy val reading: Reading = Reading(subjects, inputs.ledger.counting)
   lazy val standings: Map[NodeId, Standing] = reading.standings

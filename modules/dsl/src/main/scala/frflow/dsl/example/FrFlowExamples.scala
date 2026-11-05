@@ -1,6 +1,6 @@
 package frflow.dsl.example
 
-import cats.data.ValidatedNec
+import cats.data.{NonEmptyChain, Validated, ValidatedNec}
 import cats.syntax.all.*
 import frflow.core.expr.{Expr, Exprs}
 import frflow.core.example.Example as Elaborated
@@ -54,14 +54,28 @@ abstract class FrFlowExamples(val knowledge: FrModel):
   /** The examples, in the order written. */
   def examples: List[Example] = written.toList
   /** The set's name, as each example's obligation is named (`example_<set>_<i>`): the class's, as a Lean identifier
-    * (`Examples` for a class with none).
+    * (`FrFlowExamples.identifier`).
     */
-  def setName: String = FrFlowExamples.identifier(getClass.getSimpleName)
+  def setName: String = FrFlowExamples.identifier(getClass.getSimpleName.stripSuffix("$"), getClass.getName)
   lazy val elaborated: ValidatedNec[ElabError, List[Elaborated]] =
     examples.zipWithIndex.traverse((e, i) => e.elaborated(setName, i)).run.map(_._2)
 
 object FrFlowExamples:
-  /** A name's ASCII letters and digits, starting with a letter. */
-  def identifier(name: String): String =
-    val kept = name.filter(c => c.isLetterOrDigit && c < 128)
-    if kept.headOption.exists(_.isLetter) then kept else "Examples" + kept
+  /** A class's simple name as a Lean identifier: as it is when it is ASCII letters and digits starting with a letter;
+    * else what of it is (or `Examples`) and a hash of the class's full name, so names that differ only in what is
+    * dropped stay apart.
+    */
+  def identifier(simple: String, full: String): String =
+    val kept = simple.filter(c => c.isLetterOrDigit && c < 128)
+    if kept == simple && kept.headOption.exists(_.isLetter) then kept
+    else (if kept.headOption.exists(_.isLetter) then kept else "Examples" + kept) +
+      Integer.toHexString(full.hashCode).toUpperCase
+
+  /** The examples of one model's sets, each set's in the order written; refused when two sets have one name, their
+    * examples' theorems (`example_<set>_<i>`) would be one (two classes of one simple name in two packages).
+    */
+  def elaborated(sets: List[FrFlowExamples]): ValidatedNec[ElabError, List[Elaborated]] =
+    val clashes = sets.groupBy(_.setName).toList.sortBy(_._1).collect { case (n, xs) if xs.size > 1 =>
+      ElabError(Site.Example(n), Fault.ExampleSetsClash(n, xs.map(_.getClass.getName).sorted))
+    }
+    NonEmptyChain.fromSeq(clashes).fold(sets.traverse(_.elaborated).map(_.flatten))(Validated.invalid)

@@ -119,6 +119,14 @@ class PortSuite extends munit.CatsEffectSuite:
       val whole = a.wholeCheck.map(_.results).getOrElse(fail("the theory's own check is not recorded"))
       assertEquals(whole.collect { case Result(n @ ObligationName.Consistent(_), s, _) => n -> s }.toMap,
         a.groups.map((i, _) => ObligationName.Consistent(i) -> ObligationStatus.Proven).toMap)
+      // The examples, tried against the claims (owner §18): which the claims give, the rest not decided within the
+      // budget, none contradicted; today's were all shown, on closed values (`JudgedExamples.differs`).
+      val tried = whole.collect { case Result(ObligationName.Example(of, i), s, _) => (of, i) -> s }.toMap
+      assertEquals((tried.size, tried.filter(_._2 == ObligationStatus.Shown).keySet),
+        (examples.size, JudgedExamples.shown))
+      assert(JudgedExamples.differs._1.contains(s"now ${JudgedExamples.shown.size}/${examples.size} given"))
+      assertEquals(whole.collect { case Result(ObligationName.ExampleOpposite(of, i), ObligationStatus.Shown, _) =>
+        (of, i) }, Nil)
       r.port match
         case Some(ProverRun.Built(said)) => assert(!said.contains("sorryAx"), said)
         case other                       => fail(s"the claims are not shown equivalent to today's: $other")

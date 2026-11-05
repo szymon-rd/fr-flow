@@ -30,6 +30,8 @@ object ObligationNames:
     .orElse(after(LeanNames.Start, s).map(n => ObligationName.Start(NodeId(n))))
     .orElse(after("inhabited_", s).map(n => ObligationName.Inhabited(NodeId(n))))
     .orElse(after("satisfiable_", s).flatMap(numbered).map((i, n) => ObligationName.Satisfiable(NodeId(n), i - 1)))
+    .orElse(after("example_", s).flatMap(s => Option.when(s.endsWith("_opposite"))(s.stripSuffix("_opposite")))
+      .flatMap(ofSet).map(ObligationName.ExampleOpposite(_, _)))
     .orElse(after("example_", s).flatMap(ofSet).map(ObligationName.Example(_, _)))
 
   given Codec[ObligationName] = codec("obligation", obligation)(text)

@@ -28,6 +28,7 @@ object LowerObligation:
     case ObligationName.Inhabited(n)  => s"inhabited_${n.value}"
     case ObligationName.Satisfiable(n, i) => s"satisfiable_${i + 1}_${n.value}"
     case ObligationName.Example(of, i) => s"example_${of}_$i"
+    case ObligationName.ExampleOpposite(of, i) => s"example_${of}_${i}_opposite"
     case ObligationName.Tried(kind)   => tried(kind))
 
   private def tried(k: TryKind): String = k match

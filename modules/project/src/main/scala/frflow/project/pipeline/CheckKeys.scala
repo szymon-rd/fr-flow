@@ -52,7 +52,9 @@ final class CheckKeys(kb: KbName, modules: List[LeanModule], lean: LeanSources, 
     _.imports.map(_.dotted))
 
 object CheckKeys:
-  /** How checks are made and read: a change to it checks every node again. */
-  val Version: Int = 1
+  /** How checks are made and read: a change to it checks every node again (2: Lean is let report every error, and a
+    * theorem after where it stopped is not read as proven, `Elaboration.stopped`).
+    */
+  val Version: Int = 2
   private val Imported = """(?m)^\s*import\s+(\S+)""".r
 

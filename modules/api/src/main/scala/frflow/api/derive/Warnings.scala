@@ -31,14 +31,13 @@ private[api] object Warnings:
     Option.when(by.size > 1)(Warning.GovernedTwice(f, by))
   }
 
-  /** A source file nothing governs, other than the model's own: where its nodes are written, where code is given to
-    * its Definitions, where the FrModel is assembled, and where its vocabulary is written, as the elaborated model
-    * records them (`Theory.modelFiles`).
+  /** A source file nothing governs, other than the model's own and those whose every definition is vocabulary or
+    * what a program's body refers to (`Analysis.accounted`, `ModelFiles`).
     */
   private def ungoverned(a: Analysis): List[Warning] =
     val governed = a.governed.values.flatMap(_.files).toSet ++ designs(a).flatMap((_, g) =>
       sources(a).filter(_.isUnder(g))).map(_.value)
-    val model = a.decided.theory.modelFiles
+    val model = a.accounted
     sources(a).filter(f => !governed(f.value) && !model(f)).map(Warning.Ungoverned(_))
 
   private def missing(a: Analysis): List[Warning] = designs(a).collect {

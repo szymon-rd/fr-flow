@@ -20,8 +20,14 @@ final case class Elaboration(source: String, output: String, file: String):
   /** An error before the first theorem (an import that did not build) stops the file: it proves nothing. */
   def header: Option[Diagnostic] = diagnostics.find(d => d.error && theorems.forall(d.line < _.from))
 
+  /** Where Lean stopped reading the file, having reported as many errors as it reports (`maxErrors`): nothing after
+    * it was elaborated, so no theorem there is proven, though no error is said of it.
+    */
+  def stopped: Option[Int] = diagnostics.filter(_.message.contains("maximum number of errors")).map(_.line).minOption
+
   def verdict(name: String): TheoremVerdict = theorems.find(_.name == name) match
-    case None    => TheoremVerdict.Missing
+    case None                                       => TheoremVerdict.Missing
+    case Some(t) if stopped.exists(_ <= t.to)        => TheoremVerdict.Missing
     case Some(t) =>
       val within = diagnostics.filter(d => t.spans(d.line))
       within.filter(_.error) ++ header.toList match
