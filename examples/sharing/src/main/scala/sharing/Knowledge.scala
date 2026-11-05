@@ -2,7 +2,6 @@ package sharing
 
 import cats.effect.IO
 import frflow.*
-import frflow.eval.flow.Wall
 import sharing.features.AccessRequests
 import sharing.features.AccessRequestsClaims
 import sharing.features.Audit

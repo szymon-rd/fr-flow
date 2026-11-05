@@ -29,7 +29,7 @@ object Replay:
       if grants && !s.sessions.exists(_.token == t) then s.copy(sessions = s.sessions :+ Session(t, r, u)) else s
 
   /** Stores as the server's requests leave them. */
-  val stores: frflow.core.example.Gen[Stored] = (for
+  val stores: Gen[Stored] = (for
     loaded <- Gens.derived[List[UserAccount]]
     asked  <- Gens.derived[List[AuthRequest]]
   yield stored(loaded, asked)).describedAs("stores as the server's requests leave them")

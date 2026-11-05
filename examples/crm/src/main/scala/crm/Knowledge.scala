@@ -3,7 +3,6 @@ package crm
 import cats.effect.IO
 import cats.syntax.all.*
 import frflow.*
-import frflow.eval.flow.Wall
 
 val httpApi = Node.design("The HTTP API answers searches through the records screen and the sales screen, and " +
     "writes through the write side; who calls is the account in the request's headers.")(

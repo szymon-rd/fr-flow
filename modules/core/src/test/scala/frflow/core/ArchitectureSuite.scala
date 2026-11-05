@@ -9,7 +9,8 @@ import scala.deriving.Mirror
 import scala.jdk.CollectionConverters.*
 
 /** The rules that keep the modules apart (ARCHITECTURE.md, section 11, rules 2 and 9), read off every module's
-  * sources and `project/architecture.conf`: what a module names of another, package cycles, one package clause a
+  * sources and `project/architecture.conf`: what a module names of another, what an example names of FrFlow (only
+  * the facade, and an app the front ends' entry points), package cycles, one package clause a
   * file, `private[frflow]`, `ThreadLocal`, effects, IO, randomness and the environment in the pure modules, locks
   * outside the places that take them, and the owner's concepts (§15). The conf's exceptions are counted here, so a
   * new one is a change to this suite as well as to the conf.
@@ -19,11 +20,13 @@ class ArchitectureSuite extends munit.FunSuite:
     .find(d => Files.isRegularFile(d.resolve("project/architecture.conf"))).getOrElse(fail("no architecture.conf"))
   private val conf = Files.readAllLines(root.resolve("project/architecture.conf")).asScala.toList.map(_.trim)
     .filterNot(l => l.isEmpty || l.startsWith("#"))
-  private val sources = Sources.of(root.resolve("modules"))
+  private val sources = Sources.of(root, "modules")
+  private val examples = Sources.of(root, "examples").all
   private def listed(word: String): List[String] = conf.filter(_.startsWith(word + " ")).map(_.drop(word.length + 1))
   private def arrows(lines: List[String]): Map[String, List[String]] = lines.map(_.split("->").map(_.trim)).map(a =>
     a(0) -> a(1).split(",").map(_.trim).toList).groupMapReduce(_._1)(_._2)(_ ++ _)
-  private val edges = arrows(conf.filter(l => l.contains("->") && !l.startsWith("tests ")))
+  private val edges =
+    arrows(conf.filter(l => l.contains("->") && !l.startsWith("tests ") && !l.startsWith("example ")))
   private val testEdges = arrows(listed("tests"))
   private val pure = Set("core", "dsl", "proof", "decision")
 
@@ -44,6 +47,11 @@ class ArchitectureSuite extends munit.FunSuite:
     assertEquals(named.distinct, Nil)
   }
 
+  test("an example's model names of FrFlow only the facade, and its app the front ends' entry points too") {
+    assert(examples.size > 50, examples.size)
+    assertEquals(Architecture.outsideFacade(examples, arrows(listed("example"))), Nil)
+  }
+
   test("the package cycles inside a module are the ones listed, and no other") {
     val found = sources.main.groupBy(_.module).values.toList.flatMap(Cycles.of).map(_.sorted).toSet
     val kept = listed("cycle").map(_.split(",").map(p => s"frflow.${p.trim}").toList.sorted).toSet
@@ -51,8 +59,8 @@ class ArchitectureSuite extends munit.FunSuite:
     assertEquals(kept.diff(found), Set.empty, "a cycle listed that is gone: drop it from architecture.conf")
   }
 
-  test("one package clause a file, no private[frflow], and no ThreadLocal") {
-    val bad = (sources.main ++ sources.tests).filter(f => f.clauses.size > 1 || f.code.contains("private[frflow]") ||
+  test("one package clause a file, no private[frflow], and no ThreadLocal, in the modules and the examples") {
+    val bad = (sources.all ++ examples).filter(f => f.clauses.size > 1 || f.code.contains("private[frflow]") ||
       f.code.contains("ThreadLocal")).map(_.rel)
     assertEquals(bad, Nil)
   }

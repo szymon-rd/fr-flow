@@ -75,6 +75,19 @@ class BudgetTest(unittest.TestCase):
             with open(os.path.join(facade, 'package.scala'), 'w') as f: f.write("package frflow\n")
             self.assertEqual(self.run_budget(), code)
 
+    def test_an_examples_app_and_tests_may_hold_one_file_a_package_and_its_model_not(self):
+        examples = os.path.join(self.dir.name, 'examples')
+        def one(*at):
+            d = os.path.join(examples, 'x', *at, 'scala', 'x')
+            os.makedirs(d)
+            with open(os.path.join(d, 'X.scala'), 'w') as f: f.write("package x\n")
+        run = lambda: subprocess.run([sys.executable, BUDGET, self.root, examples, '--baseline', self.baseline],
+                                     capture_output=True, text=True).returncode
+        one('app', 'src', 'main'); one('src', 'test')
+        self.assertEqual(run(), 0)
+        one('src', 'main')
+        self.assertEqual(run(), 1)
+
     def test_a_baseline_comment_is_no_violation(self):
         with open(self.baseline, 'w') as f: f.write("# why\n")
         self.assertEqual(self.run_budget(), 0)

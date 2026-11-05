@@ -1,9 +1,10 @@
 package frflow
 
-/** The one facade a model imports (`import frflow.*`): the DSL, programs (`Flow`), models of a state, examples, and
-  * plain code's syntax (`env(d)`, `d.fn(env)`, `knowledge.code(d)(…)`, `knowledge.running[F](…)`). The World is not
-  * among its names (owner §41): a statement holds in every reachable world and reads what changes with it in the
-  * current one (`storedBookings.current`, `book(request).result`, `storedBookings.in(book(request).after)`).
+/** The one facade a model imports (`import frflow.*`): the DSL, programs (`Flow`), models of a state, examples and
+  * their generators (`Gen`), the plain Scala a model's tests give FrFlow's clock (`Wall`), and plain code's syntax
+  * (`env(d)`, `d.fn(env)`, `knowledge.code(d)(…)`, `knowledge.running[F](…)`). The World is not among its names
+  * (owner §41): a statement holds in every reachable world and reads what changes with it in the current one
+  * (`storedBookings.current`, `book(request).result`, `storedBookings.in(book(request).after)`).
   *
   * Its names are an import's: a model's own top-level `val` or `def` of the same name, in scope where one is used,
   * hides it, and the use does not compile (`val after = …` hides `book(request).after`). The names it takes,
@@ -22,11 +23,13 @@ export frflow.dsl.term.{Data, LeanType, Term}
 export frflow.dsl.vocab.{Declaration, Definition, Opaque}
 export frflow.dsl.vocab.DefinitionSyntax.*
 export frflow.dsl.kb.Gens
+export frflow.core.example.Gen
 export frflow.dsl.shape.Defines.*
 export frflow.dsl.term.TermSyntax.*
 export frflow.dsl.kb.ValuesSyntax.*
 export frflow.dsl.vocab.Flow
 export frflow.dsl.model.{Clock, Fact, Model, StateModel}
+export frflow.eval.flow.Wall
 export frflow.dsl.vocab.FlowSyntax.*
 export frflow.eval.term.DefSyntax.*
 export frflow.eval.run.CodeSyntax.*

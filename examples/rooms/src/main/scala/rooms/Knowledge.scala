@@ -2,7 +2,6 @@ package rooms
 
 import cats.syntax.all.*
 import frflow.*
-import frflow.core.example.Gen
 
 // The FrModel: the roots first, then what each Declaration is, what booking does, what always holds, the calendar's
 // claims and the world outside; and what gives each Definition its meaning: `book` the proven program, `granted`

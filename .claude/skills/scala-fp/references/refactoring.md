@@ -110,7 +110,7 @@ Run the baseline commands again: the golden files, the walk-through and the
 `PortSuite`s compare what the change prints with what was pinned.
 
 ```sh
-sbt test && sbt leanTest && python3 bin/budget.py modules
+sbt test && sbt leanTest && python3 bin/budget.py modules examples
 ```
 
 Generated Lean, CLI output and the files under `.frflow/` are identical unless a
