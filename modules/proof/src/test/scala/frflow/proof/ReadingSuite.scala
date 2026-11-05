@@ -75,6 +75,17 @@ class ReadingSuite extends munit.FunSuite:
     assertEquals(List("cover_book", "unsat").map(stopped.verdict), List(TheoremVerdict.Proven, TheoremVerdict.Missing))
   }
 
+  test("a file FrFlow wrote whose last line Lean did not print was cut off: nothing in it is proven or shown") {
+    val written = source + Sentinel.line("FrFlowGen.Crm.N.Checks") + "\n"
+    val ended = output + "info: FrFlowGen/Crm/N/Checks.lean:18:0: frflow-end FrFlowGen.Crm.N.Checks\n"
+    val (cut, whole) = (Elaboration(written, output, e.file), Elaboration(written, ended, e.file))
+    assertEquals((cut.stopped, whole.stopped), (Some(0), None))
+    assertEquals(List("cover_book", "unsat", "impl").map(cut.verdict), List.fill(3)(TheoremVerdict.Missing))
+    assertEquals(whole.verdict("cover_book"), TheoremVerdict.Proven)
+    assertEquals(Sentinel.of(written), Some("frflow-end FrFlowGen.Crm.N.Checks"))
+    assertEquals((Sentinel.of(source), e.stopped), (None, None))
+  }
+
   test("every obligation's name reads back as the obligation") {
     val n = NodeId("Grants")
     val all = List(ObligationName.Complete, ObligationName.Feasible, ObligationName.Impl, ObligationName.RootImpl,

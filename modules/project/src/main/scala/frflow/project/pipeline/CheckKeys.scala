@@ -53,8 +53,9 @@ final class CheckKeys(kb: KbName, modules: List[LeanModule], lean: LeanSources, 
 
 object CheckKeys:
   /** How checks are made and read: a change to it checks every node again (2: Lean is let report every error, and a
-    * theorem after where it stopped is not read as proven, `Elaboration.stopped`).
+    * theorem after where it stopped is not read as proven, `Elaboration.stopped`; 3: every module FrFlow writes ends
+    * with a line Lean prints, `Sentinel`, and `complete` is proven only with its audit).
     */
-  val Version: Int = 2
+  val Version: Int = 3
   private val Imported = """(?m)^\s*import\s+(\S+)""".r
 

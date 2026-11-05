@@ -53,3 +53,5 @@ instance : DatabaseModel.Ops (StateM World) where
     ((DatabaseModel.Ops.storeAbout id_ t) : StateM World Unit) = FrFlow.within (fun w => w.databaseModel) (fun w s => { w with databaseModel := s }) (DatabaseModel.storeAbout id_ t) := rfl
 
 end Crm
+
+#print "frflow-end FrFlowGen.Crm.Models"

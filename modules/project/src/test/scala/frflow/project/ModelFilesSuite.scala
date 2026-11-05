@@ -46,6 +46,22 @@ class ModelFilesSuite extends munit.FunSuite:
       .map(ModelFiles.resultType), List(Some("Term[Int]"), Some("Int"), None))
   }
 
+  test("a helper's type is read with its brackets balanced: its final result is a term or a program, or it is none") {
+    assertEquals(List("Term[A]", "A => Flow[B]", "(Term[A], Term[B]) => Term[List[C]]", "Term[A] => Term[B]",
+      "Term[A] => IO[Unit]", "Flow[A] => Future[B]", "Term[A] | Int", "IO[Term[A]]").map(ModelFiles.buildsTerms),
+      List(true, true, true, true, false, false, false, false))
+    val effect = "package crm\n\ndef deliver(t: Term[Int]): Term[Int] => IO[Unit] = _ => IO.unit\n"
+    assert(!ModelFiles.only(effect, vocabulary), effect)
+  }
+
+  test("an object of helpers whose body also runs a statement is mixed: the statement is plain code") {
+    val pure = "package crm\n\nobject Steps:\n  def run(n: Term[Int]): Flow[Unit] = go(n)\n" +
+      "  val pick: Term[Int] => Term[Boolean] = n =>\n    n > 0\nend Steps\n"
+    val running = pure.replace("end Steps", "  Registry.add(\"steps\")\nend Steps")
+    assert(ModelFiles.only(pure, vocabulary), pure)
+    assert(!ModelFiles.only(running, vocabulary), running)
+  }
+
   test("crm: Domain.scala, vocabulary and helpers building terms, is the model's own; its SQLite code is not") {
     val t = Projects.elaborated(_root_.crm.knowledge).theory
     val sources = Using.resource(Files.walk(Projects.base.resolve("examples/crm/src/main")))(_.iterator.asScala

@@ -46,4 +46,5 @@ object Render:
        |[[lean_lib]]
        |name = "Proofs"
        |globs = ["Proofs.+"]
+       |moreLeanArgs = ["-DmaxErrors=1000000"]
        |""".stripMargin

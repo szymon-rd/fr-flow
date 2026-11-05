@@ -31,4 +31,4 @@ private[api] object ScriptedLean:
     case _                    => false
 
   private def answer(a: Analysis, failing: Set[String])(m: ModuleName): ProverRun =
-    a.modules.find(_.name == m).fold(ProverRun.Built(""))(ScriptedLake.building(_, failing))
+    a.modules.find(_.name == m).fold(ScriptedLake.ended(m))(ScriptedLake.building(_, failing))

@@ -65,14 +65,17 @@ class CommandsSuite extends munit.CatsEffectSuite:
       (undecided, open)        <- run()
       (shown, passing)         <- run("example_BeforeExamples_0")
       (contradicted, contrary) <- run("example_BeforeExamples_0_opposite")
+      (_, both)                <- run("example_BeforeExamples_0", "example_BeforeExamples_0_opposite")
     yield
       assertEquals(List(plain, undecided, shown), List.fill(3)(plain))
       assertEquals(contradicted.head, ExitCode(1))
-      assert(open.contains("Examples: 0/1 pass; 1 hold on the code, not decided by the claims"), open)
+      assert(open.contains("Examples: 0/1 pass; 1 not decided by the claims"), open)
       assert(open.contains("o one is given itself  Lean: not shown, not decided by the claims"), open)
       assert(passing.contains("Examples: 1/1 pass"), passing)
       assert(contrary.contains("x one is given itself  Lean: the claims contradict it"), contrary)
       assert(contrary.contains("Examples: 0/1 pass; 1 fail"), contrary)
+      assert(both.contains("x one is given itself  Lean: the claims are inconsistent here: they give both it and " +
+        "its negation"), both)
   }
 
   test("find: the nodes that mention some words, each in a line; wrapped to a terminal's width") {

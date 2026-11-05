@@ -42,5 +42,5 @@ object SummaryText:
     val (ok, open, bad) = (e(ExampleOutcome.Passes), e(ExampleOutcome.Undecided), e(ExampleOutcome.Fails))
     val all = ok + open + bad
     val passing = if ok == all then st.green(s"$ok/$all pass") else s"$ok/$all pass"
-    Option.when(all > 0)(s"Examples: $passing" + (if open > 0 then st.yellow(s"; $open hold on the code, not " +
-      "decided by the claims") else "") + (if bad > 0 then st.red(s"; $bad fail") else ""))
+    Option.when(all > 0)(s"Examples: $passing" + (if open > 0 then st.yellow(s"; $open not decided by the claims")
+      else "") + (if bad > 0 then st.red(s"; $bad fail") else ""))

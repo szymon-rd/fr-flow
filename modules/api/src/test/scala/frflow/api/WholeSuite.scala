@@ -1,9 +1,9 @@
 package frflow.api
 
 import frflow.api.fixture.{Opened, Shelf}
-import frflow.api.node.lean.ObligationState
+import frflow.api.node.lean.{ObligationState, ObligationView}
 import frflow.api.view.Warning
-import frflow.api.view.whole.{ExampleOutcome, OnClaims}
+import frflow.api.view.whole.{ExampleOutcome, ExampleView, OnClaims}
 import frflow.eval.run.OnCode
 
 /** The theory as a whole in the view, each obligation with Lean's outcome and messages: the states each store starts
@@ -55,4 +55,18 @@ class WholeSuite extends munit.CatsEffectSuite:
       assertEquals((shown.overview.examples(ExampleOutcome.Passes),
         undecided.overview.examples(ExampleOutcome.Undecided), contradicted.overview.examples(ExampleOutcome.Fails)),
         (1, 1, 1))
+  }
+
+  test("an example shown both ways says the claims are inconsistent there, and fails; a fact only about " +
+    "Declarations the claims give passes") {
+    def lean(state: ObligationState) = ObligationView("t", state, Nil)
+    val both = ExampleView("both", OnClaims.Lean(lean(ObligationState.Shown), lean(ObligationState.Shown)),
+      OnCode.Holds)
+    val abstractShown = ExampleView("only Declarations", OnClaims.Lean(lean(ObligationState.Shown),
+      lean(ObligationState.NotShown)), OnCode.Abstract(Nil))
+    val abstractOpen = abstractShown.copy(onClaims = OnClaims.Lean(lean(ObligationState.NotShown),
+      lean(ObligationState.NotShown)))
+    assert(both.onClaims.inconsistent && !abstractShown.onClaims.inconsistent)
+    assertEquals(List(both, abstractShown, abstractOpen).map(_.outcome),
+      List(ExampleOutcome.Fails, ExampleOutcome.Passes, ExampleOutcome.Undecided))
   }

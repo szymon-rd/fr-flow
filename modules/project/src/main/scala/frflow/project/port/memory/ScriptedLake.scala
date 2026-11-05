@@ -7,7 +7,7 @@ import cats.syntax.all.*
 import frflow.project.port.Lake
 import frflow.proof.lean.ast.{LeanModule, ModuleName}
 import frflow.proof.lean.print.Print
-import frflow.proof.reading.Elaboration
+import frflow.proof.reading.{Elaboration, Sentinel}
 import frflow.proof.verdict.ProverRun
 
 /** Lake scripted: each module's build answered by `answer`, a build of several the worst of their answers (a
@@ -36,11 +36,18 @@ object ScriptedLake:
     val errors = Elaboration(source, "", file).theorems.filter(t => failing(t.name))
       .map(t => s"error: $file:${t.from}:2: unsolved goals")
     val audits = Audited.findAllMatchIn(source).map(_.group(1)).filterNot(n => failing(n.split('.').last))
-      .map(n => s"info: $file:1:0: '$n' does not depend on any axioms").toList
+      .map(n => s"info: $file:1:0: '$n' does not depend on any axioms").toList ++
+      Sentinel.of(source).map(end => s"info: $file:1:0: $end")
     if errors.isEmpty then ProverRun.Built(audits.mkString("\n"))
     else ProverRun.Failed((s"✖ [1/1] Building ${m.name.dotted}" :: errors ++ audits).mkString("\n"))
 
   private val Audited = """(?m)^#print\s+axioms\s+(\S+)""".r
+
+  /** Of a module the script has no text of (one written as the check goes, a step's refutation): built, Lean having
+    * read it to its end.
+    */
+  def ended(m: ModuleName): ProverRun = ProverRun.Built(
+    s"info: ${m.file.value.stripPrefix("lean/")}:1:0: ${Sentinel.of(Sentinel.line(m.dotted)).mkString}")
 
   private def worst(runs: NonEmptyList[ProverRun]): ProverRun =
     val out = runs.map(_.output).toList.mkString("\n")

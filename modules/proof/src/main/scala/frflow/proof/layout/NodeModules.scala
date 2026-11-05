@@ -72,9 +72,14 @@ object NodeModules:
       case other                 => List(other)
     }
 
+  /** `complete` by FrFlow's automation, and its audit; or, proven in the developer's file, only the audit of that
+    * proof (`#print axioms`), as every required obligation is judged.
+    */
   private def auto(l: Lowering, o: NodeObligations): Option[LeanModule] =
-    o.required.find(x => x.name == ObligationName.Complete && x.discharge == Discharge.Auto).map(x =>
-      module(l, o.node, NodePart.Auto, List(theorem(l, o.node, x))))
+    o.required.find(_.name == ObligationName.Complete).map(x =>
+      if x.discharge == Discharge.Authored then module(l, o.node, NodePart.Auto,
+        List(Decl.PrintAxioms(Names.path(l.kb.value, o.node.value, "Proofs", "complete"))))
+      else module(l, o.node, NodePart.Auto, List(theorem(l, o.node, x), audit(l, o.node, NodePart.Auto, "complete"))))
 
   private def impl(l: Lowering, o: NodeObligations): Option[LeanModule] =
     o.required.find(_.name == ObligationName.Impl).map(x => module(l, o.node, NodePart.Impl,
