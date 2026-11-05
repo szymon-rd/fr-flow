@@ -21,7 +21,13 @@ import frflow.proof.obligation.{Discharge, Hyp, Obligation, ObligationName, Prop
 object ExampleGoals:
   val Heartbeats: Int = 20000
 
-  def of(r: Resolved, examples: List[Example]): List[Obligation] = examples.filter(_.givens.isEmpty).flatMap { e =>
+  /** In the order of their names (`example_<set>_<i>`), whatever order the sets are read in: Lean's automation can
+    * decide a try near its budget differently after other theorems, so one order makes one outcome.
+    */
+  def of(r: Resolved, examples: List[Example]): List[Obligation] =
+    examples.filter(_.givens.isEmpty).sortBy(e => (e.of, e.at)).flatMap(goals(r, _))
+
+  private def goals(r: Resolved, e: Example): List[Obligation] =
     val about = Exprs.mentions(e.fact.value).symbols
     val reached = about.flatMap(Consistency.reach(r.theory, _)).distinct
     val hyps = (about ++ reached).flatMap(Constrained.statements(r.theory, _)).distinct
@@ -35,4 +41,3 @@ object ExampleGoals:
         s"${e.name}: what the claims say gives it."),
       Obligation(ObligationName.ExampleOpposite(e.of, e.at), stated(Prop.Not(fact)), Discharge.Attempt(Heartbeats),
         s"${e.name}: what the claims say contradicts it."))
-  }

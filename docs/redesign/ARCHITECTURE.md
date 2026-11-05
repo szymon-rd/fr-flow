@@ -1562,8 +1562,10 @@ modules. `proof.reading` and `proof.verdict` hold today's proof-file rules one c
 The check judges the nodes level by level (`CheckPlan.byLevel`), each above its parts: a node's status reads only its
 parts' (`CheckProgram.parts`), so where what the code relies on goes round (sharing's housekeeping and the claims on
 what it calls), a second pass raises each node above its parts, and no node is judged before a part of it.
-The Lean library gains only `frflow_witness`; examples are tries met by `frflow_auto`. FrFlow writes the project's
-`lean/lakefile.toml` and `lean-toolchain`. A proof file is read only at `lean/Proofs/<Model>/<Node>.lean`, directly in
+The Lean library gains only `frflow_witness`; examples are tries met by `frflow_auto`, each with its opposite, in the
+order of their names. FrFlow writes the project's `lean/lakefile.toml` (Lean let report every error of a file,
+`-DmaxErrors`: past its default hundred it stops reading the file, and a theorem after that point, of which nothing is
+said, is not proven, `Elaboration.stopped`) and `lean-toolchain`. A proof file is read only at `lean/Proofs/<Model>/<Node>.lean`, directly in
 that directory; any other `.lean` under `lean/Proofs/` is a stray, which `review` lists and `check` refuses to run
 beside (`StrayProofs`), since Lake would build it when imported. Judging fails closed: an obligation is Proven only when
 its theorem's `#print axioms` line is there and within the allowed axioms, else Unchecked or Open, whole obligations

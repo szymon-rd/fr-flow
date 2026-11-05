@@ -122,7 +122,7 @@ class PortSuite extends munit.CatsEffectSuite:
       // The examples, tried against the claims (owner §18): which the claims give, the rest not decided within the
       // budget, none contradicted; today's were all shown, on closed values (`JudgedExamples.differs`).
       val tried = whole.collect { case Result(ObligationName.Example(of, i), s, _) => (of, i) -> s }.toMap
-      assertEquals((tried.size, tried.collect { case (k, ObligationStatus.Shown) => k }.toSet),
+      assertEquals((tried.size, tried.filter(_._2 == ObligationStatus.Shown).keySet),
         (examples.size, JudgedExamples.shown))
       assert(JudgedExamples.differs._1.contains(s"now ${JudgedExamples.shown.size}/${examples.size} given"))
       assertEquals(whole.collect { case Result(ObligationName.ExampleOpposite(of, i), ObligationStatus.Shown, _) =>
