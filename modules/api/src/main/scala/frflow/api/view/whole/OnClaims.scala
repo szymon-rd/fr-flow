@@ -19,3 +19,8 @@ enum OnClaims:
   def contradicted: Boolean = this match
     case Lean(_, o) => ExampleView.shown(o.state)
     case ScalaOnly  => false
+
+  /** Lean shows both it and its opposite: the statements it is shown from cannot all hold (they are inconsistent
+    * there), so neither says anything.
+    */
+  def inconsistent: Boolean = shown && contradicted

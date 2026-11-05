@@ -20,10 +20,15 @@ final case class Elaboration(source: String, output: String, file: String):
   /** An error before the first theorem (an import that did not build) stops the file: it proves nothing. */
   def header: Option[Diagnostic] = diagnostics.find(d => d.error && theorems.forall(d.line < _.from))
 
-  /** Where Lean stopped reading the file, having reported as many errors as it reports (`maxErrors`): nothing after
-    * it was elaborated, so no theorem there is proven, though no error is said of it.
+  /** Where Lean stopped reading the file: where it reported as many errors as it reports (`maxErrors`), or, in a
+    * file FrFlow wrote, its first line when Lean did not print the file's last line (`Sentinel`: Lean crashed, ran out
+    * of memory, was killed, or said why in other words). Nothing after it was elaborated, so no theorem there is
+    * proven or shown, though no error is said of it.
     */
-  def stopped: Option[Int] = diagnostics.filter(_.message.contains("maximum number of errors")).map(_.line).minOption
+  def stopped: Option[Int] =
+    val cut = diagnostics.filter(_.message.contains("maximum number of errors")).map(_.line)
+    val unended = Sentinel.of(source).filterNot(output.contains).map(_ => 0)
+    (cut ++ unended).minOption
 
   def verdict(name: String): TheoremVerdict = theorems.find(_.name == name) match
     case None                                       => TheoremVerdict.Missing

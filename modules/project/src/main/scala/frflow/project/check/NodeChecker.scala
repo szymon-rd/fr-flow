@@ -35,13 +35,14 @@ final class NodeChecker[F[_]: Monad: Clock](lake: Lake[F], files: ProjectFiles[F
       for
         _             <- run(lean.module(NodePart.Spec)).flatMap(r => stop(Judge.model(r)))
         _             <- proofFile(lean)
-        (done, found) <- complete(lean, a)
+        (done, found, rests) <- complete(lean, a)
         impl          <- proven(lean, ObligationName.Impl)
         holds         <- composed(lean, done, parts)
         checks        <- checked(lean)
         root          <- rootImpl(lean)
       yield
-        val (results, axioms) = (done ++ impl._1 ++ checks._1 ++ root._1, holds ++ impl._2 ++ checks._2 ++ root._2)
+        val (results, axioms) =
+          (done ++ impl._1 ++ checks._1 ++ root._1, rests ++ holds ++ impl._2 ++ checks._2 ++ root._2)
         val j = Judge.node(results, axioms, parts)
         // A step Lean refutes on a case is false, not open.
         val refuted = found.exists { case Finding.StepRefuted(_) => true; case _ => false }
@@ -64,18 +65,19 @@ final class NodeChecker[F[_]: Monad: Clock](lake: Lake[F], files: ProjectFiles[F
       run(lean.layout.lemmas).flatMap(r => stop(Judge.lemmas(l, r))))
   }
 
-  /** `complete`, and when neither automation nor the developer's proof proves it, a case Lean proves refutes the
-    * step.
+  /** `complete`, proven only with its audit (the `Auto` module's `#print axioms`, which imports the developer's
+    * proof when there is one), and when neither automation nor the developer's proof proves it, a case Lean proves
+    * refutes the step.
     */
-  private def complete(lean: NodeLean, a: Analysis): Step[(List[Result], List[Finding])] =
-    lean.required(ObligationName.Complete).fold(EitherT.pure[F, Judged]((List.empty[Result], List.empty[Finding]))) {
-      o =>
+  private def complete(lean: NodeLean, a: Analysis): Step[(List[Result], List[Finding], List[String])] =
+    lean.required(ObligationName.Complete).fold(EitherT.pure[F, Judged]((List.empty[Result], List.empty[Finding],
+      List.empty[String]))) { o =>
         val authored = o.discharge == Discharge.Authored
-        val module = if authored then lean.layout.proofs(lean.node) else lean.module(NodePart.Auto)
-        run(module).flatMap { r =>
-          val result = judged(o, if authored then lean.elaboratedProof(r) else lean.elaborated(NodePart.Auto, r))
-          if result.status == ObligationStatus.Proven then EitherT.pure((List(result), Nil))
-          else EitherT.liftF(refuted(lean, a).map(f => (List(result), f.toList)))
+        run(lean.module(NodePart.Auto)).flatMap { r =>
+          val audit = lean.elaborated(NodePart.Auto, r)
+          val (results, axioms) = auditedBy(o, if authored then lean.elaboratedProof(r) else audit, audit, "complete")
+          if results.forall(_.status == ObligationStatus.Proven) then EitherT.pure((results, Nil, axioms))
+          else EitherT.liftF(refuted(lean, a).map(f => (results, f.toList, axioms)))
         }
     }
 
@@ -142,7 +144,11 @@ final class NodeChecker[F[_]: Monad: Clock](lake: Lake[F], files: ProjectFiles[F
 
   /** Proven only with the axioms its audit lists (fail closed): one Lean says nothing of is not checked. */
   private def audited(lean: NodeLean, o: Obligation, e: Option[Elaboration]): Judging =
+    auditedBy(o, e, e, lean.named(o))
+
+  /** Judged where it is proven (`e`), its axioms read where they are printed (`audit`). */
+  private def auditedBy(o: Obligation, e: Option[Elaboration], audit: Option[Elaboration], name: String): Judging =
     val result = judged(o, e)
-    val audit = e.flatMap(_.axiomsOf(lean.named(o)))
     if result.status != ObligationStatus.Proven then (List(result), Nil)
-    else audit.fold((List(result.copy(status = ObligationStatus.Unchecked)), Nil))(as => (List(result), as))
+    else audit.flatMap(_.axiomsOf(name))
+      .fold((List(result.copy(status = ObligationStatus.Unchecked)), Nil))(as => (List(result), as))

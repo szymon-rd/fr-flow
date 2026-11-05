@@ -162,7 +162,7 @@ async function render() {
       `${words(g.status.type)}</p>`).join("") || '<p class="dim">Nothing is left open.</p>') +
       "<h2>Examples</h2>" + (v.whole.examples.map(e => {
         const [cls, mark, why] = { Passes: ["ok", "✓", ""], Fails: ["bad", "✗", ""],
-          Undecided: ["warn", "○", " (holds on the code; the claims do not decide it)"] }[e.outcome.type];
+          Undecided: ["warn", "○", " (the claims do not decide it)"] }[e.outcome.type];
         return `<p class="${cls}">${mark} ${esc(e.name)}<span class="dim">${why}</span></p>`;
       }).join("") || '<p class="dim">None.</p>');
   }

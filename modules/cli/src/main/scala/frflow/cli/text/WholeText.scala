@@ -43,12 +43,15 @@ object WholeText:
     case Vacuity.Inhabited(id, ty)       => s"$id admits a value of ${Values.ty(ty)}"
     case Vacuity.Satisfiable(id, i, _)   => s"condition ${i + 1} of $id can hold"
 
-  /** An example's line: `+` it passes, `x` it fails (on the code, or the claims contradict it), `o` the code holds
-    * it and the claims do not decide it (reported: nothing depends on an example, owner §18).
+  /** An example's line: `+` it passes, `x` it fails (on the code, or the claims contradict it, or give both it and
+    * its negation), `o` the claims do not decide it and the code does not fail it (reported: nothing depends on an
+    * example, owner §18).
     */
   private def example(e: ExampleView, st: Style): String =
     val lean = e.onClaims match
       case OnClaims.ScalaOnly                        => "checked in Scala only (it gives values)"
+      case c @ OnClaims.Lean(_, _) if c.inconsistent => "Lean: the claims are inconsistent here: they give both it " +
+          "and its negation"
       case c @ OnClaims.Lean(_, _) if c.contradicted => "Lean: the claims contradict it"
       case OnClaims.Lean(c, _)                       => s"Lean: ${Findings.obligation(c.state)}" +
           (if ExampleView.shown(c.state) then "" else ", not decided by the claims")

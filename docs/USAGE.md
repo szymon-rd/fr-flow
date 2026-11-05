@@ -280,14 +280,20 @@ whose values break a rule on their type is refused. Nothing depends on examples:
 without them. Each comes to one of three outcomes:
 
 - `+` it passes: the code holds it, and Lean shows the claims give it (or a proof file proves it);
-- `o` the code holds it, and the claims do not decide it within the budget: reported and counted apart
-  ("Examples: 10/99 pass; 89 hold on the code, not decided by the claims"), no failure;
-- `x` it fails: the code does not hold it, or Lean shows the claims contradict it (its `_opposite`): `check` and
-  `status` exit 1.
+- `o` the claims do not decide it within the budget, and the code does not fail it: reported and counted apart
+  ("Examples: 10/99 pass; 89 not decided by the claims"), no failure;
+- `x` it fails: the code does not hold it, or Lean shows the claims contradict it (its `_opposite`), or shows both
+  it and its opposite (the claims are inconsistent there): `check` and `status` exit 1.
+
+A fact only about Declarations has no code to run: the claims giving it, it passes.
 
 An example the claims do not decide is not wrong: leave it as it is (a proof of `example_<set>_<i>` in
 `Proofs/<Model>/Whole.lean` decides it). Each class of examples is made with its constructor without arguments (an
-`object`, as it is); `status` warns of each class among the test classes it cannot make, and why. Two classes of one
+`object`, as it is); `status` warns of each class among the test classes it cannot make, and why. It cannot tell
+which model such a class is of (it cannot make it to ask), so a class of examples the tests make with arguments (a
+parametrised set, for a variant of the model) turns `status` red: give it a constructor without arguments too, on
+the model as written, or keep it out of the test classes `check` reads (a suite's own test sources, not the
+model's). Two classes of one
 model of one name are refused (their theorems would be one). In a project `init` made, the examples also run with `sbt PROJECT/test` (FrFlow's test framework,
 which `init` adds). FrFlow's own five are not run that way: their model projects (`roomsModel`, …) have no test
 framework, since testing's tests depend on them; their examples run in testing's `ExamplesSuite` and in each one's

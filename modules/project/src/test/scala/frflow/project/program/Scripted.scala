@@ -17,7 +17,7 @@ final case class Scripted(a: Analysis, failing: Set[String], proving: Set[String
       .map(LowerObligation.name(_).text).toSet
 
   def answer(m: ModuleName): ProverRun =
-    a.modules.find(_.name == m).fold(ProverRun.Built(""))(module => ScriptedLake.building(module,
+    a.modules.find(_.name == m).fold(ScriptedLake.ended(m))(module => ScriptedLake.building(module,
       (tries -- proving) ++ failing))
 
   private def attempt(d: Discharge): Boolean = d match

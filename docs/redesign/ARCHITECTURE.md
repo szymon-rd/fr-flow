@@ -1563,12 +1563,15 @@ The check judges the nodes level by level (`CheckPlan.byLevel`), each above its 
 parts' (`CheckProgram.parts`), so where what the code relies on goes round (sharing's housekeeping and the claims on
 what it calls), a second pass raises each node above its parts, and no node is judged before a part of it.
 The Lean library gains only `frflow_witness`; examples are tries met by `frflow_auto`, each with its opposite, in the
-order of their names. FrFlow writes the project's `lean/lakefile.toml` (Lean let report every error of a file,
-`-DmaxErrors`: past its default hundred it stops reading the file, and a theorem after that point, of which nothing is
-said, is not proven, `Elaboration.stopped`) and `lean-toolchain`. A proof file is read only at `lean/Proofs/<Model>/<Node>.lean`, directly in
+order of their names. FrFlow writes the project's `lean/lakefile.toml` (Lean let report every error of a file, its
+generated modules' and the developer's proofs', `-DmaxErrors`) and `lean-toolchain`. Every module it writes ends with
+a line Lean prints once it has read the whole file (`#print "frflow-end <module>"`, `proof.reading.Sentinel`): of a
+file whose line Lean did not print (it stopped at its error limit, crashed, ran out of memory, was killed), nothing
+is proven or shown (`Elaboration.stopped`). A proof file is read only at `lean/Proofs/<Model>/<Node>.lean`, directly in
 that directory; any other `.lean` under `lean/Proofs/` is a stray, which `review` lists and `check` refuses to run
 beside (`StrayProofs`), since Lake would build it when imported. Judging fails closed: an obligation is Proven only when
-its theorem's `#print axioms` line is there and within the allowed axioms, else Unchecked or Open, whole obligations
+its theorem's `#print axioms` line is there and within the allowed axioms (`complete` too: its `Auto` module prints
+its axioms, of FrFlow's proof or of the developer's), else Unchecked or Open, whole obligations
 audited too. A check is current while its key holds, and the key includes FrFlow's Lean library (a hash of what Lean
 reads of it) and the toolchain.
 
