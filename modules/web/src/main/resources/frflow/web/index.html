@@ -185,6 +185,9 @@ function show(id) {
     section("Why it holds", r.decisions.binding ? `<p>${esc(r.decisions.binding.reason)} <span class="dim">(${r.decisions.binding.action} by ` +
       `${esc(r.decisions.binding.by)})</span></p>` : "") +
     section("Formally", n.says.written ? `<pre>${esc(n.says.written)}</pre>` : "") +
+    section("Files it governs", items(n.says.governs.map(g => g.files.length === 0
+      ? `${esc(g.path)} <span class="bad">missing: no file of the project is there</span>`
+      : esc(g.path) + (g.files.length === 1 && g.files[0] === g.path ? "" : items(g.files.map(esc)))))) +
     section("How it is checked", items(n.says.checking.map(esc))) +
     section("Parts", items(related(n, "Part").map(p => node(p) ? line(node(p)) : esc(p)))) +
     section("Part of", items(related(n, "Parent").map(esc))) +

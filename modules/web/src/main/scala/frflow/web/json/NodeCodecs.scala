@@ -22,6 +22,7 @@ object NodeCodecs:
   given Encoder.AsObject[Mentions] = ConfiguredEncoder.derived
   given Encoder.AsObject[Relation] = ConfiguredEncoder.derived
   given Encoder.AsObject[Placement] = ConfiguredEncoder.derived
+  given Encoder.AsObject[Governs] = ConfiguredEncoder.derived
   given Encoder.AsObject[Says] = ConfiguredEncoder.derived
   given Encoder.AsObject[CheckState] = ConfiguredEncoder.derived
   given Encoder.AsObject[ObligationState] = ConfiguredEncoder.derived

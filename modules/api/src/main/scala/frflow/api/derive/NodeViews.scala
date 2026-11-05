@@ -5,7 +5,7 @@ import frflow.core.analysis.outside.{Outsides, Reads}
 import frflow.core.analysis.resolution.{Constrained, Resolve}
 import frflow.core.checking.Shown
 import frflow.core.name.{ModelName, NodeId, SymbolName}
-import frflow.core.spec.{Node, NodeKind}
+import frflow.core.spec.{Node, NodeKind, Statement}
 import frflow.decision.content.FieldValue
 import frflow.decision.review.{Moves, ReviewState, Standing}
 import frflow.project.pipeline.{Analysis, Texts}
@@ -20,7 +20,13 @@ private[api] final class NodeViews(a: Analysis):
   def says(n: Node): Says =
     val written = a.subjects.get(n.id).flatMap(_.content.get("written")).collect { case FieldValue.Text(f) => f }
     Says(n.statement.kind, n.says, written, Texts.checking(r.theory, n.id), Resolve.mentions(r.theory, n.id),
-      counting.binding(n.id).map(_.reason.text))
+      counting.binding(n.id).map(_.reason.text), governs(n))
+
+  /** A design's paths, each with the project's files under it. */
+  private def governs(n: Node): List[Governs] = n.statement match
+    case Statement.Design(gs) =>
+      gs.toList.map(g => Governs(g, a.inputs.sources.keys.toList.filter(_.isUnder(g)).sorted))
+    case _                    => Nil
 
   def placement(id: NodeId): Placement =
     val g = r.theory.refinement

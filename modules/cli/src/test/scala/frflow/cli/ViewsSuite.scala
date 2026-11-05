@@ -2,12 +2,12 @@ package frflow.cli
 
 import cats.effect.IO
 import cats.syntax.all.*
-import frflow.api.fixture.Opened
+import frflow.api.fixture.{Opened, Shelf}
 import frflow.api.Project
 import frflow.cli.command.Command
 import frflow.cli.term.{Style, Terminal}
 import frflow.cli.text.Depth
-import frflow.core.name.NodeId
+import frflow.core.name.{NodeId, RelPath}
 
 /** What the reading commands print, and how lines meet a terminal: colors, Unicode, the width. */
 class ViewsSuite extends munit.CatsEffectSuite:
@@ -68,6 +68,21 @@ class ViewsSuite extends munit.CatsEffectSuite:
       assert(full.contains("check: proven"), full)
       assert(full.contains("The service never gives a negative number."), full)
     }
+  }
+
+  test("show, show --full and the review's brief list a design's files, a path naming none marked missing") {
+    val file = RelPath.fromIdentifiers("src/main", "shelf/Shelf.scala")
+    def over(files: Map[RelPath, String], d: Depth) = Opened.ports(files).flatMap(p =>
+      Opened.over(Opened.project(Shelf.Governed.kb), p)).flatMap(Cli.all(_, Command.Show(NodeId("inShelf"), d)))
+      .map(_._2)
+    (over(Map(file -> "object Shelf"), Depth.Normal), over(Map.empty, Depth.Full), over(Map.empty, Depth.Brief))
+      .tupled.map { (there, full, brief) =>
+        assert(there.contains("Files it governs\n  src/main/shelf\n    src/main/shelf/Shelf.scala\n"), there)
+        assert(!there.contains("missing"), there)
+        val missing = "Files it governs\n  src/main/shelf  missing: no file of the project is there"
+        assert(full.contains(missing), full)
+        assert(brief.contains(missing), brief)
+      }
   }
 
   test("--json: status prints the snapshot, as export writes it") {

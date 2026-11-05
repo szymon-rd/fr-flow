@@ -4,7 +4,7 @@ import cats.syntax.all.*
 import frflow.api.fixture.{Assembled, Opened, Shelf}
 import frflow.api.fixture.Opened.id
 import frflow.api.node.lean.CheckState
-import frflow.api.node.Relation
+import frflow.api.node.{Governs, Relation}
 import frflow.api.view.Warning
 import frflow.core.name.RelPath
 import frflow.core.spec.NodeKind
@@ -64,6 +64,19 @@ class ReadingSuite extends munit.CatsEffectSuite:
       }, List(Warning.DecidersUncommitted, Warning.Ungoverned(other),
         Warning.GovernedMissing(RelPath.fromIdentifiers("src/main", "shelf"), id("inShelf")),
         Warning.ProofFileOfNoNode(gone)))
+    }
+  }
+
+  test("a design's view lists the paths it governs, each with the project's files under it: none when missing") {
+    val dir = RelPath.fromIdentifiers("src/main", "shelf")
+    val file = RelPath.fromIdentifiers("src/main", "shelf/A.scala")
+    def governs(files: Map[RelPath, String]) = Opened.ports(files).flatMap(p =>
+      Opened.over(Opened.project(Shelf.Governed.kb), p).flatMap(_.reading.view))
+      .map(_.nodes.map(n => n.id -> n.says.governs).filter(_._2.nonEmpty))
+    (governs(Map(file -> "object A")), governs(Map.empty)).tupled.map { (there, missing) =>
+      assertEquals(there, List(id("inShelf") -> List(Governs(dir, List(file)))))
+      assertEquals(missing, List(id("inShelf") -> List(Governs(dir, Nil))))
+      assert(missing.head._2.head.missing && !there.head._2.head.missing)
     }
   }
 
