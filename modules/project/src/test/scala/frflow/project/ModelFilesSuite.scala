@@ -33,6 +33,30 @@ class ModelFilesSuite extends munit.FunSuite:
     assert(!ModelFiles.only("package rooms\n", vocabulary))
   }
 
+  test("a helper building terms counts as vocabulary; a plain def beside it still makes the file mixed") {
+    val helpers = "package crm\n\nval granted = Definition[Int => Boolean](\"\")\n\n" +
+      "def results(u: Term[Int],\n    q: Term[Int]): Term[List[Int]] =\n  someOf(u, q)\n" +
+      "val held: Term[Int] = model.current\nobject Steps:\n  def run(n: Term[Int]): Flow[Unit] = go(n)\n" +
+      "  val pick: Term[Int] => Term[Boolean] = n => n > 0\n"
+    val mixed = helpers + "def plain(n: Int): Int = n + 1\n"
+    assert(ModelFiles.only(helpers, vocabulary), helpers)
+    assert(!ModelFiles.only(mixed, vocabulary), mixed)
+    assert(!ModelFiles.only("package crm\n\nval inferred = model.current\n", vocabulary))
+    assertEquals(List("def f(a: Term[Int]): Term[Int] = a", "val x: Int = 1", "def g(n: Int) = n")
+      .map(ModelFiles.resultType), List(Some("Term[Int]"), Some("Int"), None))
+  }
+
+  test("crm: Domain.scala, vocabulary and helpers building terms, is the model's own; its SQLite code is not") {
+    val t = Projects.elaborated(_root_.crm.knowledge).theory
+    val sources = Using.resource(Files.walk(Projects.base.resolve("examples/crm/src/main")))(_.iterator.asScala
+      .toList).filter(p => p.toString.endsWith(".scala"))
+      .map(p => path(Projects.base.relativize(p).toString) -> Files.readString(p)).toMap
+    val own = ModelFiles.accounted(t, sources)
+    val at = "examples/crm/src/main/scala/crm/"
+    assert(own(path(at + "Domain.scala")), own)
+    assertEquals(List("Db", "Events", "History", "MemoryDatabase").filter(n => own(path(at + n + ".scala"))), Nil)
+  }
+
   test("a mixed file plain Scala refers to is governed whole; a file of the model's own, by the names it uses") {
     val (mixed, own) = (path("src/main/scala/crm/Mixed.scala"), path("src/main/scala/rooms/Domain.scala"))
     assertEquals(Governance.governed(Set(own), CodeFile(mixed, List("SqliteDatabase"))), Some(Governed.Whole(mixed)))

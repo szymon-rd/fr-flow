@@ -9,7 +9,8 @@ import frflow.core.Theory
   * definition is vocabulary (`Own.vocabulary`: Declarations, Definitions, defines, programs, models, domain types,
   * and objects holding only these). A file mixing vocabulary with plain code is governed whole, as before. A file a
   * program's body refers to (`Own.referred`) needs no node when every definition in it is vocabulary or what the
-  * programs refer to (sharing's `Delivery`, the steps of `program { Delivery.run }`); it is not the model's own.
+  * programs refer to (sharing's `Delivery`, the steps of `program { Delivery.run }`); it is not the model's own. A
+  * helper building terms (`only`) counts as vocabulary.
   */
 object ModelFiles:
   def own(t: Theory, sources: Map[RelPath, String]): Set[RelPath] =
@@ -19,12 +20,15 @@ object ModelFiles:
     own(t, sources) ++ t.own.referred.keySet.filter(f => sources.get(f).exists(only(_,
       t.own.referred.getOrElse(f, Set.empty) ++ t.own.vocabulary.getOrElse(f, Set.empty))))
 
-  /** Whether every top-level definition of `source` is one of `names`, or an object or class all of whose members
-    * are (recursively), and there is one.
+  /** Whether every top-level definition of `source` is one of `names`, a helper building terms, or an object or
+    * class all of whose members are (recursively), and there is one. A helper building terms is a `def` or `val`
+    * whose result type, as written, is a `Term[…]` or a `Flow[…]`, or a function returning one (crm's
+    * `def results(u: Term[Account], q: Term[Ask]): Term[List[CrmRecord]]`): it only builds a statement's or a
+    * program's terms, so what it says reaches Lean through the nodes that use it.
     */
   def only(source: String, names: Set[String]): Boolean =
     val defs = definitions(ScalaTokens.significant(source).split("\n", -1).toVector)
-    def covered(d: Def): Boolean = names(d.name) || {
+    def covered(d: Def): Boolean = names(d.name) || d.buildsTerms || {
       val inside = defs.filter(x => x.line > d.line && x.line < d.end && x.indent > d.indent)
       val members = inside.filter(_.indent == inside.map(_.indent).minOption.getOrElse(0))
       members.nonEmpty && members.forall(covered)
@@ -33,9 +37,9 @@ object ModelFiles:
     top.nonEmpty && top.forall(covered)
 
   /** A definition: its name (`""` for an `extension` or an anonymous `given`, which no name covers), where it starts
-    * and ends (the next line at its indentation or less), and its indentation.
+    * and ends (the next line at its indentation or less), its indentation, and whether it is a helper building terms.
     */
-  private final case class Def(name: String, line: Int, end: Int, indent: Int)
+  private final case class Def(name: String, line: Int, end: Int, indent: Int, buildsTerms: Boolean)
 
   private val Starts = ("""^(\s*)(?:@\w+\s+)*(?:(?:private|protected|final|sealed|abstract|override|implicit|lazy|""" +
     """inline|transparent|case|open|opaque)\s+|private\[\w+\]\s+)*(def|val|var|object|class|trait|enum|type|""" +
@@ -48,8 +52,28 @@ object ModelFiles:
         .getOrElse(lines.size)
       val name = if m.group(2) == "extension" || (m.group(2) == "given" && !named(l)) then "" else
         Option(m.group(3)).getOrElse("")
-      Def(name, i, end, indent)
+      val valued = m.group(2) == "def" || m.group(2) == "val"
+      Def(name, i, end, indent, valued && resultType(lines.slice(i, end).mkString(" ")).exists(Terms.matches))
     }).toList
+
+  /** A term's or a program's type, or a function's returning one, as written: `Term[A]`, `A => Flow[B]`. */
+  private val Terms = """(?s)(?:.*=>\s*)?(?:Term|Flow)\[.*\]""".r
+
+  /** A definition's result type as written: what follows its last `:` at no depth before its `=` (none without one,
+    * the type inferred).
+    */
+  def resultType(text: String): Option[String] =
+    val ends = text.indices.foldLeft((0, Option.empty[Int], Option.empty[Int])) {
+      case ((depth, colon, eq @ Some(_)), _) => (depth, colon, eq)
+      case ((depth, colon, None), k) => text(k) match
+        case '(' | '[' | '{' => (depth + 1, colon, None)
+        case ')' | ']' | '}' => (depth - 1, colon, None)
+        case ':' if depth == 0 => (depth, Some(k), None)
+        case '=' if depth == 0 && !text.lift(k + 1).exists(c => c == '>' || c == '=') &&
+            !text.lift(k - 1).exists(c => "<>!=".contains(c)) => (depth, colon, Some(k))
+        case _ => (depth, colon, None)
+    }
+    for colon <- ends._2; eq <- ends._3 if colon < eq yield text.substring(colon + 1, eq).trim
 
   /** A `given` with a name of its own (`given ordering: Ordering[A] = …`), not one named only by its type. */
   private def named(l: String): Boolean = """\bgiven\s+[a-z][A-Za-z0-9_]*\s*(:|\[|\()""".r.findFirstIn(l).isDefined

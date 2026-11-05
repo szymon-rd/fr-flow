@@ -1767,8 +1767,9 @@ A file that holds nodes, code given a Definition, or the FrModel (`Theory.modelF
 the definitions referred to; every other file is governed whole, as before. This is §38 as the owner decided it; the
 implementation reads one more file as holding nothing but the model, which §38's reason covers (no plain code is
 there to change unnoticed): a file whose every top-level definition is vocabulary (a Declaration, Definition, define,
-program, model or domain type, each recording its name and file, `Own.vocabulary`; or an object holding only these),
-`project.code.ModelFiles.own`. A file mixing vocabulary with plain code is governed whole. A file a program's body
+program, model or domain type, each recording its name and file, `Own.vocabulary`; a helper building terms, a `def` or
+`val` whose result type as written is a `Term[…]`, a `Flow[…]` or a function returning one, since what it says reaches
+Lean through the nodes using it, crm's `results`; or an object holding only these), `project.code.ModelFiles.own`. A file mixing vocabulary with plain code is governed whole. A file a program's body
 refers to (`SourceFiles.of(body)`, `Own.referred`: sharing's `program { Delivery.run }` names `Delivery` and `run` in
 `Delivery.scala`) is not the model's own: only the definitions named count as the model's, so it is warned ungoverned
 unless every top-level definition in it is one of them or vocabulary (`ModelFiles.accounted`), and plain Scala

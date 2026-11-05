@@ -341,7 +341,8 @@ warnings:
 - no signing key; `.frflow/deciders` not as committed; the ledger's base not committed; a decision that does not count;
 - a source file governed by two nodes, or by none (the model's own files aside: where its nodes, its FrModel and
   the code given its Definitions are written, and a file holding only vocabulary, each Declaration, Definition,
-  `define`, `program`, `StateModel` and domain type recording its name and file; and a file holding only what a
+  `define`, `program`, `StateModel` and domain type recording its name and file, and each helper whose result type is
+  written `Term[…]` or `Flow[…]` (or a function returning one) counting as vocabulary; and a file holding only what a
   `program`'s body refers to and vocabulary); a governed file that does not exist (`show` marks it missing
   under the design's "Files it governs");
 - a proof file of no node;
