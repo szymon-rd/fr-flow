@@ -21,18 +21,18 @@ significant risk and cost to the new, agentic software engineering process. Name
 
 ## Proposed solution
 
-FrFlow proposes a way to build a formal, logically proven model of the developed software as a refinement tree. It
+FrFlow proposes a way to build a formal, logically proven model of the developed software as a refinement graph. It
 follows the method of stepwise refinement (Wirth, 1971) and the refinement calculus (Back, 1978; Morgan, 1990):
 
-1. Development starts from a specification: a set of core, formal statements about the program.
-2. Then, gradually, each specification is refined. A refinement step replaces a statement with more concrete
-   statements that together imply it. Every refinement step is a proof obligation, and Lean checks it, so a statement
-   can never contradict the one it refines, and parallel statements are checked against the invariants they share.
+1. Development starts from a specification: a small set of core, formal statements about the program.
+2. Then, gradually, each statement is refined. A refinement step replaces a statement with more concrete statements
+   that together imply it. Every refinement step is a proof obligation, and Lean checks it, so a statement can never
+   contradict the one it refines, and Lean also proves that the statements as a whole do not contradict each other.
 3. The final refinement is the program's code itself. At that level, it can be developed in one of two ways:
-   - As a standard Scala function or service, with a set of required property-based tests, whose shape and data are
-     driven by its formally defined contract.
-   - As an implementation in FrFlow's monadic DSL, which compiles both to executable code and to a Lean model, which
-     is then used in a strict proof.
+   - As plain Scala, which FrFlow tests with property-based testing on generated cases, whose shape and data are
+     driven by the statements about it.
+   - As code in FrFlow's monadic DSL, which compiles both to executable code and to a Lean model, which is then used
+     in a strict proof.
 
 The logical model sits alongside the code that performs the given functions, and acts as its contract: an interface
 the code conforms to, albeit stricter and more powerful than has been usual for software.
@@ -43,17 +43,17 @@ and should be explored.
 
 ## How FrFlow addresses problems of agentic coding
 
-In essence, FrFlow makes sure that there is a view of the software that is correct by construction. The refinement tree
-is the source of truth, and it is meant to be impossible to diverge from at the functional level.
+In essence, FrFlow makes sure that there is a view of the software that is correct by construction. The refinement
+graph is the source of truth, and it is meant to be impossible to diverge from at the functional level.
 
-Every refinement step is proven in Lean, from the contract of a single function up to the core statements at the
-root. When the code meets its contracts, the core statements hold as well. Nobody has to take it on trust that a check
+Every refinement step is proven in Lean, from the statements about a single function up to the core statements at the
+root. When the code meets them, the core statements hold as well. Nobody has to take it on trust that a check
 somewhere deep in the code really gives the property stated at the top.
 
-This addresses both problems. The tree, with the reason written next to each statement, is the theory of the program,
-and it stays in the repository after the agent's context ends. And every change to the code or to a statement brings
-the statements it affects back to the developer for review, with the diff, so the codebase cannot drift away from its
-specification unnoticed.
+This addresses both problems. The graph, with the reason each statement was accepted for, signed in its decision, is
+the theory of the program, and it stays in the repository after the agent's context ends. And every change to the code
+or to a statement brings the statements it affects back to the developer for review, with the diff, so the codebase
+cannot drift away from its specification unnoticed.
 
 **That makes it possible for a human developer to realistically take responsibility and sign off on mission-critical
 software, even if its parts are developed by agentic AI.**
@@ -74,10 +74,10 @@ apart when they are in different rooms or share no moment.
 
 ```scala
 /** What the booking form sends and the table stores. */
-final case class Booking(room: String, start: BigInt, end: BigInt)
+final case class Booking(room: String, start: BigInt, end: BigInt) derives LeanType
 
 /** A room's bookings, as the table gives them. */
-final case class RoomBookings(room: String, bookings: List[Booking])
+final case class RoomBookings(room: String, bookings: List[Booking]) derives LeanType
 
 val covers = define { (b: Term[Booking], t: Term[BigInt]) => b.start <= t && t < b.end }
 
@@ -89,64 +89,93 @@ val free = define { (bookings: Term[List[Booking]], request: Term[Booking]) =>
 ```
 
 Bookings come from the booking form, which sends only bookings that end after they start. That is trusted, so it is
-an assumption. The roots state the purpose over `Declaration`s: concepts known only by what the statements say of
-them. `now` is the world as it stands.
+an assumption, stated with `always`: every value of the type that can occur. The roots state the purpose over
+`Declaration`s: concepts known only by what the statements say of them. A statement holds in every state the service
+reaches, and reads what changes, such as what is booked, in the current one.
 
 ```scala
 val bookingsEndAfterStart = Node.assumption("Every booking ends after it starts.")(
   always[Booking](b => b.start < b.end))
 
-val booked = Declaration[World => List[Booking]]("the bookings made, as the world stands")
+val booked = Declaration[List[Booking]]("the bookings made, as the world stands")
 
-val bookedAfter = Declaration[(Booking, World) => List[Booking]]("the bookings made once a request is handled")
+val bookedAfter = Declaration[Booking => List[Booking]]("the bookings made once a request is handled")
 
-val accepted = Declaration[(Booking, World) => Boolean]("whether a request is accepted")
+val accepted = Declaration[Booking => Boolean]("whether a request is accepted")
 
 val bookWhenFree = Node.claim("A request is booked exactly when its room is free for its whole time.")(
-  forall((request: Term[Booking], now: Term[World]) =>
-    val bookings = booked(now)
-    bookedAfter(request, now) === when(free(bookings, request))(bookings :+ request).otherwise(bookings)))
+  forall((request: Term[Booking]) =>
+    bookedAfter(request) === when(free(booked, request))(booked :+ request).otherwise(booked)))
   .assuming(bookingsEndAfterStart)
 
 val acceptWhenFree = Node.claim("A request is accepted exactly when its room is free for its whole time.")(
-  forall((request: Term[Booking], now: Term[World]) => accepted(request, now) === free(booked(now), request)))
+  forall((request: Term[Booking]) => accepted(request) === free(booked, request)))
   .assuming(bookingsEndAfterStart)
 ```
 
-Booking a request is a `Definition`: what the code provides. Its implementation reads the room's bookings from the
-table, asks the calendar, and adds the booking if it is granted. It is a `Flow`, which Lean proves against its claims.
+Booking a request is a `Definition`: what the code provides. Its program reads the room's bookings from the table,
+asks the calendar, and adds the booking if it is granted, in one transaction. The table's two operations are
+`Definition`s too, given their meaning by a model of what it stores. Lean proves the program against its claims. A
+program that can fail says so where it is declared (`Definition[Booking => Flow[Boolean]]("…").failsWith[StoreDown]`);
+a claim about its run then covers the runs that fail too, its `result` an `Either[StoreDown, Boolean]`, and FrFlow
+checks the error against what the code raises.
 
 ```scala
 val book = Definition[Booking => Flow[Boolean]]("booking a request: whether it was booked")
 
-trait BookingTable:
-  def inRoom(room: Term[String]): Flow[RoomBookings]
-  def add(booking: Term[Booking]): Flow[Unit]
+val inRoom = Definition[String => Flow[RoomBookings]]("a room's bookings, as the SQLite table gives them")
+val add = Definition[Booking => Flow[Unit]]("a booking added to the SQLite table")
 
-val bookingTable = Boundary[BookingTable]("the SQLite table the bookings are kept in")
+object storedBookings extends StateModel[List[Booking]]("every booking stored, oldest first"):
+  inRoom.means(room => state.get.map(stored => make[RoomBookings](room, stored.filter(b => b.room === room))))
+  add.means(booking => state.update(stored => stored :+ booking))
 
-def bookIfGranted(request: Term[Booking]): Flow[Boolean] =
-  Flow.atomically(
-    for
-      held  <- bookingTable.inRoom(request.room)
-      booked = granted(held, request)
-      _     <- Flow.whenA(booked)(bookingTable.add(request))
-    yield booked)
+val bookIfGranted = program { (request: Term[Booking]) =>
+  (for
+    held  <- inRoom(request.room)
+    booked = granted(held, request)
+    _     <- Flow.when(booked)(add(request))
+  yield booked).atomically }
 ```
 
-Claims tie each `Declaration` to the code, as this one does for `accepted`. Below them, the claims about booking's
-code assume that the SQLite table behaves as its model, that bookings are processed one at a time, and that every
-booking ends after it starts.
+What the world outside does with the table is assumed, and so is what always holds of it: nothing but the code
+changes it, it starts empty, and runs on it never interleave. A claim of `always` on the table's state is a rule
+below the roots: Lean has it of every state a statement reads, and proves that every program writing the table keeps
+it.
+
+```scala
+val nothingElseWrites = Node.assumption("Nothing but the booking code changes the table.")(
+  storedBookings.onlyCodeChanges)
+
+val startsEmpty = Node.assumption("The table starts empty.")(storedBookings.initially(stored => stored === Nil))
+
+val oneAtATime = Node.assumption("Bookings are processed one at a time.")(storedBookings.atomic)
+
+val neverOverlap = Node.claim("The bookings stored never overlap.")(
+  always(storedBookings)(stored => stored.pairwise(apart)))
+  .refines(bookWhenFree, acceptWhenFree)
+  .assuming(nothingElseWrites, oneAtATime, startsEmpty, bookingsEndAfterStart)
+```
+
+Claims say what each `Declaration` is in the code, as these do for `accepted` and `bookedAfter`: what `book` returns,
+run in the current state, answers whether a request is accepted, and the table in the state the run leaves
+(`book(request).after`) is what is booked once it is handled. A statement reading the state a run leaves names the
+state each value is read in, `.current` for the one before the run.
 
 ```scala
 val acceptedIsAnswered = Node.claim("A request is accepted exactly when booking it answers booked.")(
-  forall((request: Term[Booking], now: Term[World]) =>
-    accepted(request, now) === book(request).answer(now)))
+  forall((request: Term[Booking]) => accepted(request).current === book(request).result))
   .refines(acceptWhenFree)
+
+val bookedAfterIsStored =
+  Node.claim("What is booked once a request is handled is what the table holds after booking it.")(
+    forall((request: Term[Booking]) => bookedAfter(request).current === storedBookings.in(book(request).after)))
+  .refines(bookWhenFree)
 ```
 
 The calendar decides whether a request is granted. It is plain Scala and is not proven: FrFlow tests it
-automatically with property-based testing, on 1,000 generated cases, against its claim `grantWhenNoOverlap` below.
+automatically with property-based testing, on a thousand generated cases, against its claim `grantWhenNoOverlap`
+below.
 
 ```scala
 val granted = Definition[(RoomBookings, Booking) => Boolean]("whether a request is granted, given its room's bookings")
@@ -164,8 +193,8 @@ final class Calendar(held: RoomBookings):
     request.room != held.room || (endsInTime && startsAfter)
 ```
 
-What booking needs from the calendar, refined into a claim over start and end times, which code can compare. Lean
-proves each step.
+What booking needs from the calendar (it refines booking's claims, not shown), refined into a claim over start and
+end times, which code can compare. Lean proves each step.
 
 ```scala
 val grantWhenFree = Node.claim("A request is granted exactly when its room is free for its whole time.")(
@@ -185,15 +214,17 @@ val grantWhenNoOverlap = Node.claim("A request is granted exactly when it overla
   .assuming(bookingsEndAfterStart)
 ```
 
-The FrModel lists the statements and attaches the code: booking's `Flow` code to be proven, the calendar to be tested
-on cases drawn from the generators given for the domain's types.
+The FrModel lists the statements and attaches the code: booking's program to be proven, the calendar to be tested on
+cases drawn from the generators given for the domain's types, and the SQLite table's Scala to be tested against its
+model on generated runs.
 
 ```scala
 val rooms = FrModel("Rooms")(bookWhenFree, acceptWhenFree, bookedIsStored, bookedAfterIsStored, acceptedIsAnswered,
   storeWhenFree, answerWhenFree, neverOverlap, grantWhenFree, bookingsOfTheRoom, roomBookingsApart, grantWhenNoOverlap,
-  tableMatchesModel, onlyBookingWrites, oneAtATime, startsEmpty, bookingsEndAfterStart)
+  nothingElseWrites, oneAtATime, startsEmpty, bookingsEndAfterStart)
   .implementProven(book)(bookIfGranted)
-  .implementTested(granted)((held, request) => Calendar(held).grants(request))
+  .implementTested(granted)(_ => (held, request) => Calendar(held).grants(request))
+  .implementTested(inRoom, add)(start = BookingsTable.holding, observe = _.bookings)(t => (t.inRoom, t.add))
   .withGenerator(roomNames.describedAs("Oak or Elm"))
   .withGenerator(requests.describedAs("requests for Oak or Elm that end after they start"))
   .withGenerator(roomBookings.describedAs("a room's bookings, laid end to end, some back to back"))
@@ -212,17 +243,23 @@ class GrantedExamples extends FrFlowExamples(rooms):
 
 ### How it works
 
-`bin/frflow rooms check` proves the steps in Lean and tests the calendar against `grantWhenNoOverlap` on generated
-cases:
+`bin/frflow rooms check` proves the steps in Lean, tests the calendar against `grantWhenNoOverlap` and the table's
+Scala against its model on generated cases, and has Lean prove that a meaning exists for the `Declaration`s under which
+every statement holds. Once the developer has accepted every node (`bin/frflow rooms review`), it ends:
 
 ```text
-+ bookWhenFree: step proven
-+ grantWhenNoOverlap: code tested on 1,000 cases
-+ grantWhenFree: step proven
-- bookingsEndAfterStart: assumed
-+ acceptedIsAnswered: proven
+Consistency: a meaning for what is open under which every statement holds
+  bookedIsStored: proven
+    booked: as bookedIsStored defines it
+  bookedAfterIsStored, acceptedIsAnswered, grantWhenNoOverlap: proven
+    granted: as grantWhenNoOverlap defines it
+    bookedAfter: as bookedAfterIsStored defines it
+    accepted: as acceptedIsAnswered defines it
 
-Rooms: 17 nodes, 17 accepted
+FrModel: 16 nodes, 16 accepted
+Code: 4 proven, 3 tested; consistency proven
+Examples: 2/2 pass
+Nothing waits: every node is accepted and proven, or its code tested.
 ```
 
 ### How changes cause failures
@@ -230,17 +267,21 @@ Rooms: 17 nodes, 17 accepted
 The calendar forgets the booking after the request. Property-based testing finds a case that fails:
 
 ```diff
+     val before = byStart.lift(i - 1)
+-    val after = byStart.lift(i)
+     val endsInTime = before.forall(_.end <= request.start)
+-    val startsAfter = after.forall(_.start >= request.end)
 -    request.room != held.room || (endsInTime && startsAfter)
 +    request.room != held.room || endsInTime
 ```
 
 ```text
-x grantWhenNoOverlap: failed
-  its code fails a generated case: held = RoomBookings("Oak", List(Booking("Oak", 0, 10))), request = Booking("Oak", 0, 1): returned true, which grantWhenNoOverlap forbids
+x grantWhenNoOverlap: fails a generated case: (("Elm", List(("Elm", 0, 5))), ("Elm", 0, 1)): its result breaks the claim (seed 1, case 11, size 1)
 ```
 
 An agent takes meetings that touch to overlap, and changes the claim over times, the calendar and the examples to
-match. The calendar's tests pass, but Lean refutes the step to `grantWhenFree` with a case it confirms:
+match. The calendar's tests pass, but Lean refutes the step to `grantWhenFree` with a case it confirms, and the lemmas
+over the same times no longer build, so the rules resting on them stay open:
 
 ```diff
  val noOverlap = define { (a: Term[Booking], b: Term[Booking]) =>
@@ -250,13 +291,14 @@ match. The calendar's tests pass, but Lean refutes the step to `grantWhenFree` w
 
 ```text
 x grantWhenFree: failed
-  the step from grantWhenNoOverlap does not hold on held = RoomBookings("Elm", List(Booking("Elm", 0, 8))), request = Booking("Elm", 8, 9):
-    grantWhenNoOverlap has it not granted, and this claim needs it granted; Lean confirms this case
+  complete: open
+  …
+  a step is refuted on: held = ("Elm", List(("Elm", 0, 3))), request = ("Elm", 3, 5)
 ```
 
 The agent also changes `covers` to include the end. Now everything agrees with the misreading and every proof passes,
-but the change reaches all 17 statements, so they go back to the developer, and `bin/frflow rooms review` shows
-what changed:
+but the change reaches every claim, so all 12 go back to the developer. `bin/frflow rooms review` shows each, and
+`bin/frflow rooms diff bookWhenFree` what changed:
 
 ```diff
 -val covers = define { (b: Term[Booking], t: Term[BigInt]) => b.start <= t && t < b.end }
@@ -264,98 +306,103 @@ what changed:
 ```
 
 ```text
-! bookWhenFree  claim on bookedAfter (a root)  it changed: review it
+! bookWhenFree  claim (a root)  to review
   A request is booked exactly when its room is free for its whole time.
 
-What changed since it was accepted (demo-developer, 2026-10-27 15:31)
-  definitions used
-    ... 4 unchanged line(s)
-        a.room =!= b.room || forall((t: Term[BigInt]) => !(covers(a, t) && covers(b, t)))
-    - covers = (b: Term[Booking], t: Term[BigInt]) => b.start <= t && t < b.end
-    + covers = (b: Term[Booking], t: Term[BigInt]) => b.start <= t && t <= b.end
+Decision
+  to review: it changed
+  not mechanical: its meaning moved
+  …
 ```
 
-Only the developer's signed decisions count, so an agent cannot accept the change. The full example is in
-[`examples/rooms`](examples/rooms).
+```text
+formula:
+  (∀ (x : Booking), (∀ (x_1 : World), ((bookedAfter x x_1) = (if (Rooms.free (booked x_1) x) then ((booked x_1) ++ [x]) else (booked x_1)))))
+  
+  ...
+  
+  @[frflow_defs] def covers (x : Booking) (x_1 : Int) : Prop :=
+-   ((x.start ≤ x_1) ∧ (x_1 < x.«end»))
++   ((x.start ≤ x_1) ∧ (x_1 ≤ x.«end»))
+```
+
+Only the developer's signed decisions count, so an agent cannot accept the change. `WalkthroughSuite` replays these
+three changes and compares what `check`, `status`, `review` and `diff` print with the text above
+(`sbt "cli/Lean/testOnly rooms.walkthrough.WalkthroughSuite"`).
 
 ## Statements
 
-There are three kinds of statements:
+There are three kinds of statements, the nodes of the graph:
 
-| Kind | What it says | How it is checked |
-|---|---|---|
-| claim | a property of the system, in the words of its domain | Lean proves it from the statements that refine it or from the code that implements it; a claim on plain Scala code is tested on generated cases |
-| assumption | what is trusted: an outside system, such as a database, or what comes from outside, such as a form | decided by the developer; checked at run time, and against its model on generated runs |
-| design | an architecture decision with no formal content | decided by the developer; a change to the code it covers brings it back |
+| Kind | Written | What it says | How it is checked |
+|---|---|---|---|
+| claim | `Node.claim(statement)(formula)` | a property of the system, in the words of its domain | Lean proves it from the claims that refine it, or of the code it mentions; where that code is plain Scala, it is tested on generated cases |
+| assumption | `Node.assumption(statement)(formula)` | what is trusted: the world outside the code, an outside system's promise, what comes from outside | decided by the developer; what Lean takes as given, and plain Scala it is about is tested against it where it can be |
+| design | `Node.design(statement)(files*)` | an architecture decision no proof covers | decided by the developer; a change to the files it governs brings it back |
 
 Statements are about two kinds of values:
 
-| Value | What it is |
-|---|---|
-| `Declaration` | a concept known only by what the statements say of it, such as `booked` |
-| `Definition` | what the code provides, such as `book`: proven code, plain Scala tested with property-based testing, or a meaning given with `define { … }` |
+| Value | Written | What it is |
+|---|---|---|
+| Declaration | `Declaration[A](means)` | a concept known only by what the statements say of it, such as `booked`; never called by code. It may change as the service runs; `d.isConstant`, as an assumption, says it does not |
+| Definition | `Definition[A](means)`, or `define { … }` given its meaning on the spot | what the code provides, such as `book`, and must be given a meaning: a program or a `define` (proven in Lean), plain Scala (tested), a value, or, for an operation on a state, a `StateModel` saying what it does (its Scala tested against the model) or the assumptions about it alone (`op.assumed`) |
 
-They use two quantifiers: `forall` (every possible value) and `always` (every value that can be made, or every state
-a store reaches).
+They use two quantifiers: `forall`, every possible value, and `always`, every value the code FrFlow covers can produce
+(`always[T](x => …)`, of a type; `always(stored)(s => …)`, every state a model reaches). A statement holds in every
+state the service reaches, the World, which it never names: `stored.current` is a model's state as it stands,
+`p(x).result` what a run of a program from it returns, `p(x).after` the state it leaves, read with `stored.in(…)`.
 
 A statement refines the statements it serves (`.refines`) and lists the assumptions it rests on (`.assuming`). A
 statement can refine several others, and there can be several roots, so the statements form a directed acyclic graph.
 
 ## Proven, tested and assumed
 
-The code at the bottom of the tree is in one of three states, and `status` reports which:
+The code at the bottom of the graph is in one of three states, and `status` reports which:
 
-- **Proven** code is written in the DSL, and Lean proves that it meets its claims.
-- **Tested** code is plain Scala. It is tested against its claim with property-based testing on generated cases, and
-  checked on every call at run time.
-- **Assumed** code is an outside system, such as a database or the clock. Its behaviour is an assumption the developer
-  decides, and it is checked at run time and against its model on generated runs.
+- **Proven** code is written in the DSL (a `program { … }` over a `Flow`, or a `define`), and Lean proves that it
+  meets its claims.
+- **Tested** code is plain Scala. It is tested against its claims with property-based testing on generated cases; an
+  operation on a state is tested against its model on generated runs, two of its calls at once among them.
+- **Assumed** code is known only by the assumptions about it, such as an outside system's search: Lean takes them as
+  given, and its Scala is tested against them where a generated run can tell.
 
-Everything above the code is proven from these. What is left to trust is the assumptions the developer accepted,
-FrFlow's translation of the model to Lean (which the examples cross-check by running the same model as Scala), and,
-for tested code, the inputs the tests and run-time checks actually reach.
+Everything above the code is proven from these, and Lean proves the statements consistent: some meaning of every
+`Declaration` makes them all hold. Nothing is checked when the code runs: FrFlow is for testing before production and
+for proofs. What is left to trust is the assumptions the developer accepted, FrFlow's translation of the model to Lean
+(which the examples cross-check by running the same model as Scala), and, for tested code, the cases the tests reach.
+
+Time is modelled as Cats Effect models it: the clock is a model of FrFlow's own (`Clock.now`, `Clock.sleep`), steps of
+code take no time of their own, and the world moves the time on between runs and at each of the clock's steps.
+FrFlow states safety properties: "eventually", and two runs in sequence in one statement, are out of scope for now.
 
 ## Decisions
 
 The developer accepts or rejects every statement, in the terminal or in a local web view. Each decision is signed with
-the developer's key and kept in a ledger in the repository. When anything a decision rests on changes, the statement
-comes back for review with the diff. `status` exits with 1 while anything waits for a decision or is not proven, so CI
-can gate on it.
+the developer's key and kept in a ledger in the repository, and counts only when its key is on the project's list of
+deciders, which the developer signs. When anything a decision rests on changes, the statement comes back for review
+with the diff. `status` exits with 1 while anything waits for a decision or is not proven, so CI can gate on it.
 
 ## Using it
 
-`bin/frflow PROJECT COMMAND` runs the command line of a project. The screenshots below are from `examples/keycloak`.
+`bin/frflow PROJECT COMMAND` runs the command line of a project, on the terminal with colors and the interactive
+review; `sbt "PROJECT/run COMMAND"` gives the same, plain.
 
-`tree` shows the graph from the root, with the state and the kind of each statement.
+- `tree` shows the graph from the roots, with each statement's mark, kind and state.
+- `show NODE` shows one statement: what it says and why it was accepted, its formula, how it is checked, where it
+  sits, its parts and the rules it uses, and what Lean proved; `diff NODE` what moved since it was decided.
+- `review` goes through the statements waiting for a decision, each with what changed; `inbox` lists them.
+- `check` renders the model as Lean, proves it and tests the code; `status` shows the state of the whole project, and
+  `ci` does both for CI.
 
-![bin/frflow keycloak tree](docs/img/cli-tree.png)
-
-`show NODE` shows one statement: what it says and why, its formula, where it sits, and the statements that refine it,
-with what Lean proved.
-
-![bin/frflow keycloak show NoUnauthorizedAccess](docs/img/cli-show.png)
-
-`review` goes through the statements waiting for a decision, each with what changed. Here, the check that the user is
-still enabled was removed from the introspection code, so three examples fail and the proof of the code no longer goes
-through.
-
-![bin/frflow keycloak review](docs/img/cli-review.png)
-
-`check` renders the model as Lean and proves it, and `status` shows the state of the whole project.
-
-![bin/frflow keycloak status](docs/img/cli-status.png)
-
-`sbt "PROJECT/serve --as NAME"` runs the same flow as a local web view, with the graph, the statement under review and
-its diff, and the inbox. Decisions are signed the same way as in the terminal.
-
-![The web view](docs/img/web-view.png)
+`sbt "PROJECT/serve --as NAME"` runs the same as a local web view, with the graph, the statement under review and its
+diff, and the inbox. Decisions are signed the same way as in the terminal.
 
 ## With an AI agent
 
 The agent layer (`modules/agent`) is enabled per project with `extensions = List(frflow.agent.Agent)`. The developer
-describes the idea to the agent, which asks what it needs to know, proposes the root and its refinements, writes the
-proofs and the code, and answers the developer's questions about any statement. The decisions stay with the developer.
-The agent's rules are in [`.claude/skills/frflow/SKILL.md`](.claude/skills/frflow/SKILL.md).
+describes the idea to the agent, which asks what it needs to know, proposes a README and the roots and their
+refinements, writes the proofs and the code, and answers the developer's requests about any statement. The decisions
+stay with the developer. The agent's rules are in [`.claude/skills/frflow/SKILL.md`](.claude/skills/frflow/SKILL.md).
 
 ## Getting started
 
@@ -364,25 +411,32 @@ You need JDK 17 or later, sbt, and Lean 4.35.0 installed with [elan](https://git
 
 ```sh
 git clone https://github.com/szymon-rd/fr-flow && cd fr-flow
-bin/frflow auth tree                    # the smallest example; compiles on first use
-bin/frflow keycloak check               # prove the keycloak example in Lean
-bin/frflow keycloak show RealmAccess    # read its root
-sbt "keycloak/serve --as NAME"          # the web view on localhost, deciding as NAME
+sbt "frflowInit toy --as NAME"       # an empty project in examples/toy, NAME its first decider
+sbt reload
+bin/frflow toy status                # compiles on first use
+sbt "toy/serve --as NAME"            # the web view on localhost, deciding as NAME
+bin/frflow rooms status              # an example: rooms, auth, keycloak, crm, sharing
 ```
 
-`sbt "frflowInit NAME"` creates an empty project in `examples/NAME`, and `sbt "frflowInitAgent NAME"` creates one with
-the agent layer enabled.
+`sbt "frflowInitAgent toy --as NAME"` creates one with the agent layer enabled. `sbt test` runs FrFlow's fast tests;
+`sbt leanTest` runs the ones that run Lean end to end, the examples' among them.
 
 ## Examples
 
-- `examples/rooms` books meeting rooms: the example above.
-- `examples/auth` is access control by a table of grants, and the smallest example.
-- `examples/keycloak` has realms, sign-in, token introspection and sign-out over HTTP. Its sessions are proven to
-  follow the history of requests.
-- `examples/crm` is a multi-tenant CRM on SQLite with an HTTP API. Its expiry job is a flow over the database, proven
-  from the database's model.
-- `examples/sharing` shares documents, folders and teams between people, with expiring shares, invitations, a trash,
-  access requests, notifications and an audit log. Time, failures and concurrency are modelled.
+Each example is a project in `examples/<name>`: its statements and code in `src/main`, its examples in `src/test`,
+its proofs by hand in `lean/Proofs`, and its command line in `app` (`bin/frflow <name> COMMAND`). None has a decision
+yet: each starts with no ledger, for its developer to decide. FrFlow's own suites test them, each whole in its
+`PortSuite` (`sbt "project/Lean/testOnly <name>.PortSuite"`), against what the library before the rebuild recorded
+(`reference/`).
+
+- `rooms` books meeting rooms: the example above.
+- `auth` is access control by a table of grants, and the smallest example.
+- `keycloak` has realms, sign-in, token introspection and sign-out over HTTP. Its sessions are proven to follow the
+  history of requests, and its store's lookup is known only by what is assumed of it.
+- `crm` is a multi-tenant CRM on SQLite with an HTTP API. Its expiry job is a program over the database, proven from
+  the database's model.
+- `sharing` shares documents, folders and teams between people, with expiring shares, invitations, a trash, access
+  requests, notifications and an audit log. Time, failures and concurrency are modelled.
 
 ## References
 
@@ -399,6 +453,7 @@ the agent layer enabled.
 ## Documentation
 
 - [docs/index.html](docs/index.html) has a tutorial, how-to guides, the reference and troubleshooting.
-- [docs/USAGE.md](docs/USAGE.md) describes the commands, their output and exit codes, what Lean proves, the warnings,
-  the web view and the modules.
+- [docs/USAGE.md](docs/USAGE.md) describes the DSL, the commands, their output and exit codes, what Lean proves, the
+  warnings, the web view and the modules.
 - [docs/DAG.md](docs/DAG.md) describes the design of the refinement graph.
+- [docs/redesign/](docs/redesign/ARCHITECTURE.md) is the design record of the library as it was rebuilt.

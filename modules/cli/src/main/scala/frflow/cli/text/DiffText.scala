@@ -1,52 +1,46 @@
-package frflow.cli
-package text
+package frflow.cli.text
 
-import frflow.api.*
-import frflow.protocol.*
+import frflow.api.view.diff.{DiffLine, FieldDiff, NodeDiff}
+import frflow.cli.term.Style
+import frflow.core.name.NodeId
 
-/** What changed since a node was decided, as lines wrapped to the width less 2 (room for a caller's indent). */
+/** What moved under a node's decision (`diff`): its fields, what it rests on, its parts, its code. Long unchanged runs
+  * are folded to their first and last lines.
+  */
 object DiffText:
-  def lines(d: NodeDiff, st: Style): List[String] = unwrapped(d, st).flatMap(st.fold(_, 2))
+  private val Kept = 2
 
-  private def unwrapped(d: NodeDiff, st: Style): List[String] =
-    val parts = List(Option.when(d.partsAdded.nonEmpty)(s"parts added: ${d.partsAdded.mkString(", ")}"),
-      Option.when(d.partsRemoved.nonEmpty)(s"parts removed: ${d.partsRemoved.mkString(", ")}")).flatten
-    val codeLines = d.code.toList.flatMap(code(_, st))
-    val body = fields(d.self, st) ++
-        Option.when(d.statementStale)(st.yellow("! what it says formally changed and its statement did not: does the statement still say it?")) ++
-        parts.map(p => s"${st.yellow(p)}: do these parts, together, still make it?") ++
-        d.moved.flatMap { m =>
-          val how = if m.acceptedAgain then st.green(s"you accepted that${m.reason.fold("")(r => s": $r")}") else st.yellow("not accepted yet")
-          s"the meaning of ${st.bold(m.id.value)} changed (${how})" :: fields(m.changes, st).map("  " + _)
-        } ++
-        d.rejectedParents.map(p => st.red(s"its parent $p was rejected: move it under the node chosen instead")) ++
-        d.revisit.map(r => st.yellow(s"${r.by} asked to revisit it: ${r.reason}")) ++ codeLines
-    d.since match
-      case None => st.bold("New: never decided") :: codeLines.map("  " + _)
-      case Some(x) =>
-        // A confirmation accepts the node with what moved it: said as accepted, as the decision it confirms is.
-        val verb = if x.action == Action.Confirm then Words.verb(Action.Accept) else Words.verb(x.action)
-        val since = s"since it was $verb (${x.by}, ${Words.date(x.at)})"
-        if body.isEmpty then List(st.dim(s"Nothing changed $since."))
-        else st.bold(s"What changed $since") :: body.map("  " + _)
+  def lines(id: NodeId, d: Option[NodeDiff], decided: Boolean, st: Style): List[String] = d match
+    case None                 => List(s"unknown node $id")
+    case Some(_) if !decided  => List(s"$id is not decided yet: everything in it is new (show $id reads it)")
+    case Some(x) if empty(x)  => List(s"nothing moved under $id since it was decided")
+    case Some(x)              => x.fields.flatMap(field(_, st)) ++ x.above.flatMap(m =>
+        Lines.section(s"${m.id} moved above it since:", m.fields.flatMap(field(_, st)), st)) ++
+      Lines.section("Parts", x.parts.added.map(p => st.green(s"+ $p")) ++ x.parts.removed.map(p => st.red(s"- $p")),
+        st) ++ Lines.section("Code since the decision's commit", x.code.toList.flatMap(code(_, st)), st)
 
-  private def fields(fs: List[FieldChange], st: Style): List[String] =
-    fs.flatMap(f => st.bold(f.field) :: f.lines.map {
-      case DiffLine.Same(t)    => "  " + st.dim(s"  $t")
-      case DiffLine.Added(t)   => "  " + st.green(s"+ $t")
-      case DiffLine.Removed(t) => "  " + st.red(s"- $t")
-      case DiffLine.Folded(n)  => "  " + st.dim(s"${st.ellipsis} $n unchanged line(s)")
-    })
+  private def empty(d: NodeDiff): Boolean =
+    d.fields.isEmpty && d.above.isEmpty && d.parts.added.isEmpty && d.parts.removed.isEmpty && d.code.isEmpty
 
-  private def code(c: CodeChange, st: Style): List[String] =
-    val text = c.text.linesIterator.toList
-    val title = if c.inFull then s"the files it governs, in full: read them before accepting (${c.files.mkString(", ")})"
-      else s"the code it governs changed (${c.files.mkString(", ")})"
-    st.bold(title) :: (if text.isEmpty then List(st.dim("  no git diff available (decided outside git, or before the code was committed)"))
-      else text.map { l =>
-        if c.inFull then "  " + l
-        else if l.startsWith("+") && !l.startsWith("+++") then "  " + st.green(l)
-        else if l.startsWith("-") && !l.startsWith("---") then "  " + st.red(l)
-        else if l.startsWith("@@") then "  " + st.cyan(l)
-        else "  " + st.dim(l)
-      })
+  def field(f: FieldDiff, st: Style): List[String] = s"${st.bold(f.field)}:" :: folded(f.lines).map {
+    case Some(DiffLine.Same(t))    => s"  $t"
+    case Some(DiffLine.Added(t))   => st.green(s"+ $t")
+    case Some(DiffLine.Removed(t)) => st.red(s"- $t")
+    case None                      => st.dim(s"  ${st.ellipsis}")
+  }
+
+  /** Each line, but those of an unchanged run with at least `Kept` unchanged lines on either side: one gap (none)
+    * stands for each stretch of them.
+    */
+  private def folded(ls: List[DiffLine]): List[Option[DiffLine]] =
+    val same = ls.map { case DiffLine.Same(_) => true; case _ => false }.toVector
+    def run(i: Int, step: Int) = Iterator.iterate(i + step)(_ + step).takeWhile(j => same.lift(j).contains(true)).size
+    def hidden(i: Int) = same(i) && run(i, -1) >= Kept && run(i, 1) >= Kept
+    ls.zipWithIndex.flatMap((l, i) =>
+      if !hidden(i) then List(Some(l)) else if i > 0 && hidden(i - 1) then Nil else List(None))
+
+  private def code(diff: String, st: Style): List[String] = diff.linesIterator.toList.map { l =>
+    if l.startsWith("+") && !l.startsWith("+++") then st.green(l)
+    else if l.startsWith("-") && !l.startsWith("---") then st.red(l)
+    else l
+  }

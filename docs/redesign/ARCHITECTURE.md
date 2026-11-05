@@ -13,8 +13,8 @@ Beside this file, in `docs/redesign/`:
 | `features.md` | every feature of today's library, its concept here, its use, what the rebuild does |
 | `dependencies.txt` | today's package and module dependencies, measured |
 | `planned/` | the planned code: nine of the twelve modules, compiled, with suites |
-| `lean-spike/` | rooms' and auth's Lean as the printer gives it, built by `lake`, with proofs |
-| `tools/budget.py` | the size budgets, measured over `planned/` |
+| `lean-spike/` | historical: rooms' and auth's Lean as the printer gave it during the design, with proofs; it no longer builds (its `Proofs.lean` is of the §21 shape, its bundled `frflow/` older than the library) and is kept as the record |
+| `tools/` | scripts the design used; the size budgets are `bin/budget.py` since step 14 (`python3 bin/budget.py modules`) |
 
 Source paths below are under `planned/src/<module>/`; rooms is `planned/test/project/frflow/rooms/`, auth
 `planned/test/project/frflow/auth/`.
@@ -843,7 +843,7 @@ reads the state in the world a statement holds in, `storedBookings.in(book(reque
 program is one `Flow[R]` (owner §42), written as a `for` comprehension: an operation applied, `inRoom(request.room)`, is
 a step where one is expected (`Flow.step`, given implicitly). Lean sees what it saw with a boundary: a class with the
 operations named as the Definitions, the model's operations as `do` blocks, `World`, and the instance on `StateM World`
-(`next/proof/src/test/resources/rooms/Models.lean`, the module `Models`, each class `<Model>.Ops`). The program's run on
+(`modules/proof/src/test/resources/rooms/Models.lean`, the module `Models`, each class `<Model>.Ops`). The program's run on
 the models is `bookIfGranted_run`.
 
 The World is the application at one moment, as the proofs see it (owner §33): code never sees it, and a statement
@@ -1570,7 +1570,7 @@ audited too. A check is current while its key holds, and the key includes FrFlow
 reads of it) and the toolchain.
 
 `CrmModulesSuite` prints four of crm's files byte for byte (`Boundaries.lean`, `Def_expireOnce.lean`,
-`Def_expireOnce_run.lean`, `ExpiryJob/Spec.lean`); rooms' four golden files (`next/proof/src/test/resources/rooms/`)
+`Def_expireOnce_run.lean`, `ExpiryJob/Spec.lean`); rooms' four golden files (`modules/proof/src/test/resources/rooms/`)
 state owner §21 and compile; step 11 regenerates them for owner §25 (one type, `Booking`). Constants are printed typed
 at their root (2.9), so the goldens are no longer the spike's text verbatim; step 11 regenerates `lean-spike/Dump.lean`
 and rechecks `Proofs.lean`. Today's Lean is a reference, not a constraint (owner §2, D).
@@ -1666,9 +1666,9 @@ compiled. The agent layer (`agent`) never decides: its commands and routes read 
 
 Each module has its own top package (`frflow.core`, …), so `private[core]` is a real boundary. The planned code has
 the first nine; `cli`, `web` and `agent` keep their structure and are rebuilt on the new API. Serialization points
-outward: only the shell depends on `wire`. Five edges are between tests only (`test->test`): `next-proof` on
-`next-core`'s fixtures (`next-core % "compile->compile;test->test"`), `next-eval` on `next-proof`'s, `next-testing` on
-`next-eval`'s, `next-project` on `next-testing`'s and `next-api` on `next-project`'s; production `eval` never sees
+outward: only the shell depends on `wire`. Five edges are between tests only (`test->test`): `proof` on
+`core`'s fixtures (`core % "compile->compile;test->test"`), `eval` on `proof`'s, `testing` on
+`eval`'s, `project` on `testing`'s and `api` on `project`'s; production `eval` never sees
 `proof`. The agent depends on `cli` and `web`; `web` does not depend on `cli`. Front ends see `api.view` and `api.node`
 values, and the core, dsl, decision and eval values those hold (`NodeId`, `Decision`, `Refusal`, `Command`, `Standing`,
 `Unproven`, `Problem`, `Ty`, `Value`, …), never `project`, `proof`, `testing`, `wire`, `api.derive` or `api.shell`:
@@ -2067,13 +2067,32 @@ Type errors inside a define and `==` on terms give the same messages as today, n
    in `project/architecture.conf`; a package cycle in a module; `private[frflow]`; `ThreadLocal`; `cats.effect`,
    `io.circe`, `java.nio.file.Files`, `scala.util.Random` or `System.getenv` in `core`, `dsl`, `proof` or `decision`;
    atomics, `Mutex` or `synchronized` outside `eval.Running` and `FlowInterpreter`.
+
+   *Implementation notes (step 14), not owner decisions.* The suite is core's `ArchitectureSuite`; it also reads
+   names relative to a file's package, fails on a file with two package clauses, bans `sys.env`, `sys.props`,
+   `System.getProperty`, `Random` however imported and `java.nio.file` wildcards in the pure modules, and counts as
+   locks a `Semaphore` and the JDK's `locks`. Edges are checked per module (only decision's are narrowed to
+   packages). Its exceptions are listed in `project/architecture.conf` and counted in the suite, so a new one is a
+   visible change, each to be removed when its reason goes:
+   - two package cycles: `proof.lean.lower` with `proof.lean.term` (lowering a term and lowering a program call
+     each other; one package would hold 21 files), to go when a program's lowering takes the term printer as a
+     parameter; and `api` with `api.shell` (the shell is private to the API, its public constructors in
+     `FrFlowApi`'s companion), to go when the constructors move to a public package of their own;
+   - five lock places besides the rule's two (`eval.run.Running`, `eval.flow.FlowInterpreter`): the `World` a
+     transaction holds its lock over, `testing.Interleavings` (a test harness pausing two runs' calls), and the
+     shell's `LedgerStore`, `Lake` and the agent's `FileStore`, whose critical sections write a file or run a build,
+     which a `Ref` cannot hold (the in-memory stores use `Ref.modify` alone); to go if a store's writes become one
+     atomic file replacement;
+   - one file read in the pure modules: `dsl.build.SourceFiles`, a macro reading the disk at compile time.
 3. **scalafix `DisableSyntax`** on `core`, `proof`, `eval`, `decision`, `dsl`: no `null` (but `dsl.node.Parent.of`), no
    `var` in classes, no `throw` (but "FrFlow bug" sites, `Failure(fault)` in `Elab`, `ReadRecording`, `Term.select`,
    `CodeSyntax`'s refusals, and `NotEvaluated` where 7.1 says), no `asInstanceOf` outside 7.3's places, no
    `isInstanceOf`, no `@unchecked` outside `eval.Fn`.
 4. **Size budgets** in CI against a committed baseline: a change may not add a violation. The five- and six-input
    `apply` forms of `Declaration` and `Definition` are an accepted exception to the four-parameter limit: Scala cannot
-   shorten them.
+   shorten them. *Implementation note (step 14):* `bin/budget.py` counts every parameter list but `using` ones, as the
+   scala-fp skill's `measure.py` does; its baseline (`bin/budget-baseline.txt`) lists the 73 functions over four it
+   then finds, mostly the term algebras' curried operations, each to be removed as its function is brought to four.
 5. **Golden files** for every example's Lean, contents, CLI output and the README walk-through, once ported; a change
    is listed in its commit message and approved.
 6. **Law suites** for every instance (`Gen`, the monoids, `Deferred`) and every algebra against each interpreter;
@@ -2092,15 +2111,15 @@ The code uses a few patterns, each written the same way everywhere; one file sho
 |---|---|
 | Phase | `core/analysis/Validate.scala` |
 | Value of | `core/analysis/Shown.scala` |
-| Stage type | `core/analysis/Valid.scala` |
+| Stage type | `core/analysis/resolution/Valid.scala` |
 | Case per kind | `core/spec/Statement.scala` |
 | Gathered from parts | `dsl/build/Declarations.scala` |
 | Built later, errors kept | `dsl/kb/Elaborate.scala` |
-| Algebra of terms | `core/term/Sym.scala` |
+| Algebra of terms | `core/term/language/Sym.scala` |
 | Interpreter transformer | `core/term/interpret/Forward.scala` |
 | Lowering of structure | `proof/lean/lower/LowerProg.scala` |
 | Algebra | `project/port/LedgerStore.scala` |
-| Capability, two interpreters | `dsl/flow/Flow.scala` |
+| Capability, two interpreters | `dsl/vocab/Flow.scala` |
 | Program | `project/program/DecideProgram.scala` |
 | Rule per command | `decision/rules/Decide.scala` |
 | Derived view | `api/derive/NodeViews.scala` |

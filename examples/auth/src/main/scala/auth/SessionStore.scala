@@ -1,10 +1,10 @@
 package auth
 
-/** The implementation: plain Scala, with any code and any data structures. It is attached to `DecisionContract` in
-  * Auth.scala: the proofs above rest on that contract, and `check` tests this code against it, on cases generated from
-  * the types (grant tables, session tables, tokens, paths) and on the examples; a change to this file shows on the
-  * contract until the developer confirms it.
+/** The implementation: plain Scala, with any code and any data structures. It gives `admit` its meaning (`Auth.scala`),
+  * tested against every claim on `admit` on generated grant and session tables, tokens and paths.
   */
-final class SessionStore(grantTable: Set[Grant], tokens: String => Option[UserId]):
-  def decide(token: String, path: Path): Option[UserId] =
-    tokens(token).filter(u => grantTable.contains(Grant(u, path)))
+final class SessionStore(grantTable: List[Grant], tokens: Sessions):
+  private val granted = grantTable.toSet
+  private val holders = tokens.open.map(s => s.token -> s.user).toMap
+
+  def decide(token: String, path: Path): Option[UserId] = holders.get(token).filter(u => granted(Grant(u, path)))

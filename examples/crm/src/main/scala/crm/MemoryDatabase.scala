@@ -1,35 +1,31 @@
 package crm
 
-import frflow.*
-import java.util.concurrent.atomic.AtomicReference
+import cats.effect.{IO, Ref}
 
-/** The CRM's database in memory: the project's own code, for development and tests. It keeps the rows by record (a
-  * map from a record's id to what the store holds about it) and the event log, and is tested against DatabaseModel
-  * (TablesModel), as SQLite is checked against it.
+/** The CRM's database in memory, its own code for development and tests: the three tables and the event log, each
+  * in the order its rows were stored; a variant of the database's Scala, tested against `databaseModel` as SQLite
+  * is.
   */
-final class MemoryDatabase private (initial: MemoryDatabase.Held) extends Database:
-  private val held = AtomicReference(initial)
-
-  /** What it holds: the rows of each record, by id, and the event log. */
-  def tables: Tables =
-    val h = held.get
-    val byId = h.rows.toList.sortBy(_._1).map(_._2)
-    Tables(CrmStore(byId.flatMap(_.records), byId.flatMap(_.shares), byId.flatMap(_.expiries)), h.log.toList)
-
-  def load = Flow.effect(tables.store)
-  def storeAbout(id: Term[BigInt], t: Term[CrmStore]) =
-    Flow.effect(id, t)((i, s) => { held.updateAndGet(h => h.copy(rows = MemoryDatabase.put(h.rows, i, s))); () })
-  def logEvent(e: Term[Event]) = Flow.effect(e)(ev => { held.updateAndGet(h => h.copy(log = h.log :+ ev)); () })
+final class MemoryDatabase private (held: Ref[IO, Tables], keepsShares: Boolean):
+  def load: IO[CrmStore] = held.get.map(_.store)
+  def storeAbout(id: BigInt, t: CrmStore): IO[Unit] = held.update { h =>
+    val s = h.store
+    val kept = if keepsShares then s.shares.filter(_.record == id) else Nil
+    h.copy(store = CrmStore(s.records.filterNot(_.id == id) ++ t.records.filter(_.id == id),
+      s.shares.filterNot(_.record == id) ++ (kept ++ t.shares.filter(_.record == id)).distinct,
+      s.expiries.filterNot(_.record == id) ++ t.expiries.filter(_.record == id)))
+  }
+  def logEvent(e: Event): IO[Unit] = held.update(h => h.copy(events = h.events :+ e))
+  def fetch(@annotation.unused user: Account, query: Search): IO[List[CrmRecord]] =
+    held.get.map(_.store.records.filter(r => query match
+      case Search.ById(id)   => r.id == id
+      case Search.OfKind(k)  => r.kind == k
+      case Search.Everything => true))
+  def tables: IO[Tables] = held.get
 
 object MemoryDatabase:
-  private final case class Held(rows: Map[BigInt, CrmStore], log: Vector[Event])
-
-  /** An in-memory database holding the given tables. */
-  def holding(t: Tables): MemoryDatabase =
-    val ids = (t.store.records.map(_.id) ++ t.store.shares.map(_.record) ++ t.store.expiries.map(_.record)).distinct
-    MemoryDatabase(Held(ids.foldLeft(Map.empty[BigInt, CrmStore])((rows, id) => put(rows, id, t.store)), t.events.toVector))
-
-  /** The rows `s` has about the record `id`, in place of those held about it. */
-  private def put(rows: Map[BigInt, CrmStore], id: BigInt, s: CrmStore): Map[BigInt, CrmStore] =
-    val about = CrmStore(s.records.filter(_.id == id), s.shares.filter(_.record == id), s.expiries.filter(_.record == id))
-    if about.records.isEmpty && about.shares.isEmpty && about.expiries.isEmpty then rows.removed(id) else rows.updated(id, about)
+  /** A database in memory holding the tables; `keepsShares`, the seeded bug, keeps a record's old shares when it
+    * stores the record again.
+    */
+  def holding(t: Tables, keepsShares: Boolean = false): IO[MemoryDatabase] =
+    Ref[IO].of(t).map(MemoryDatabase(_, keepsShares))

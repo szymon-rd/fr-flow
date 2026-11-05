@@ -1,15 +1,23 @@
 package rooms
 
-import cats.effect.IO
 import frflow.*
 
-def bookIfGranted(request: Term[Booking]): Flow[Boolean] =
-  Flow.atomically(
-    for
-      held  <- bookingTable.inRoom(request.room)
-      booked = granted(held, request)
-      _     <- Flow.whenA(booked)(bookingTable.add(request))
-    yield booked)
+// The table's operations, its model, and the program `book` is, over the words of `Domain.scala`; the nodes that
+// name them are in `Rooms.scala`.
 
-/** Booking on SQLite: the flow proven of `book`, deciding with the Calendar. */
-def bookOn(sql: SqliteBookings): Booking => IO[Boolean] = rooms.run[IO](book)(bookingTable.bind(sql))
+/** The table's two operations: a room's bookings as it gives them, and a booking added. */
+val inRoom = Definition[String => Flow[RoomBookings]]("a room's bookings, as the SQLite table gives them")
+val add = Definition[Booking => Flow[Unit]]("a booking added to the SQLite table")
+
+/** The bookings stored, as the proofs see them: every booking, oldest first. */
+object storedBookings extends StateModel[List[Booking]]("every booking stored, oldest first"):
+  inRoom.means(room => state.get.map(stored => make[RoomBookings](room, stored.filter(b => b.room === room))))
+  add.means(booking => state.update(stored => stored :+ booking))
+
+/** The program `book` is: the room's bookings read, the request added when granted, in one transaction. */
+val bookIfGranted = program { (request: Term[Booking]) =>
+  (for
+    held  <- inRoom(request.room)
+    booked = granted(held, request)
+    _     <- Flow.when(booked)(add(request))
+  yield booked).atomically }

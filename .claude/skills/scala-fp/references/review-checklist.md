@@ -10,7 +10,7 @@ the examples are in `rules.md`.
   type or a dependency, and callers change with it. Examples: a union of
   concepts in one type (D1), an illegal state the types allow (D2), duplicated
   state (D3), a core package depending on an interpreter or on `cats.effect`
-  (B3, E1), a service or boundary written as a concrete class over `IO` (A1,
+  (B3, E1), a service written as a concrete class over `IO` (A1,
   A2), a program that requires `Sync` or `Async` (A3), a side effect outside an
   interpreter's `delay` or `blocking` (E3), an unreleased resource (E4),
   shared mutable state outside a `Ref` (E5), `unsafeRun` outside `IOApp` (E6),
@@ -37,7 +37,8 @@ whatever its size.
 [SEVERITY] path:line RULE — what is wrong, with the evidence → the change, in one sentence
 ```
 
-Examples:
+Examples, from the audit of the library before the rebuild (its modules were
+deleted in step 14; `docs/redesign/` records how each was resolved):
 
 ```
 [H] modules/model/src/main/scala/frflow/node/Node.scala:14 D1 — 24 fields for six kinds, 20 optional or defaulted; `kind` decides which are set → enum Node with a case per kind and a shared Statement
@@ -81,32 +82,17 @@ grep -rh "^import frflow\." modules/<m>/src/main --include=*.scala \
   | sed 's/^import \(frflow\.[a-z]*\).*/\1/' | sort | uniq -c | sort -rn                      # B3 M1
 ```
 
-Files in `model` open with chained package clauses (`package frflow` then
-`package node`), so every member of `frflow` is visible without an import. The
-import greps undercount for that reason. To find uses of an interpreter from a
-core package, also grep for its object names, for example
-`grep -rn "Wiring\.\|ExampleRuns\.\|RunTimeChecks\." modules/model/src/main/scala/frflow/{node,kb}`.
-
-For `model`, also check the package graph (B3, M1). A core package must not
-import `runtime`, `example`, `testing`, `program`, `cats.effect` or a printer:
-
-```sh
-for p in node kb term types vocabulary; do
-  echo "== $p"; grep -rn "^import frflow\.\(runtime\|example\|testing\|program\)\|^import cats.effect" \
-    modules/model/src/main/scala/frflow/$p
-done
-```
-
-When this skill was written, this printed `example` and `runtime` imports in
-`node` and `kb`, and `program` imports in `types` and `vocabulary`.
+The package graph (B3, M1) is checked by core's `ArchitectureSuite` against
+`project/architecture.conf`: what each module may name of another, no package
+cycle but those listed, no effect, codec or file in the pure modules, and locks
+only where listed (`sbt "core/testOnly frflow.core.ArchitectureSuite"`). A
+front end's own `ArchitectureSuite` checks it names nothing of the shell.
 
 ## Pass 1: order
 
 Review the modules in dependency order, so a finding in a lower module is known
-before its consequences show up above it: `protocol`, `model` (packages
-`term`, `types`, `vocabulary`, `node`, `kb`, then `flow`, `boundary`,
-`example`, `runtime`, `testing`, `program`, then the files in `frflow`),
-`lean`, `ledger`, `check`, `api`, `cli`, `web`, `agent`.
+before its consequences show up above it: `core`, `dsl`, `proof`, `eval`,
+`testing`, `decision`, `wire`, `project`, `api`, `cli`, `web`, `agent`.
 
 ## Pass 2: each file
 
@@ -148,9 +134,9 @@ finding under the rule given.
     (F6)
 17. Is `require` used only for FrFlow bugs? (F7)
 
-**Architecture** (for each service, boundary or program)
+**Architecture** (for each service or program)
 
-18. Is each effectful service or boundary an algebra `X[F[_]]` over domain
+18. Is each effectful service an algebra `X[F[_]]` over domain
     types, with at most 8 operations? (A1)
 19. Are its interpreters built by `make` (live in the companion, others in their
     own files), returning `F[X[F]]` or `Resource[F, X[F]]`? Does each algebra
@@ -212,7 +198,7 @@ After the findings, write:
 3. **Concepts to rebuild**: each core type that needs a new theory, with its
    two-sentence statement and the findings it resolves. These are the inputs to
    `refactoring.md`, step 2.
-4. **Algebras to introduce**: each service or boundary written over `IO` today
+4. **Algebras to introduce**: each service written over `IO` today
    (the ledger store, git, `lake`, the disk, `FrFlowApi`), with its operations,
    its laws and the interpreters it needs.
 5. **Deletions**: features, fields and functions that nothing uses, or that

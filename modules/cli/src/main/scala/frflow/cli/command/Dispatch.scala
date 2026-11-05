@@ -1,98 +1,78 @@
-package frflow.cli
-package command
+package frflow.cli.command
 
 import cats.effect.{ExitCode, IO}
 import cats.syntax.all.*
-import frflow.api.*
+import frflow.api.view.{CheckEvent, Scaffolded, Stop, View}
+import frflow.api.{FrFlowApi, Host}
+import frflow.cli.review.ReviewSession
+import frflow.cli.term.{Exit, Style, Terminal}
 import frflow.cli.text.*
-import frflow.protocol.*
-import io.circe.Json
+import frflow.core.name.NodeId
 
-/** Runs a parsed command: a read prints a view, or (`--json`) the API's value as JSON, in brief; a decision is confirmed first.
-  * `layers`, the layers on top: their commands run on `host`, and what they add to a view is shown with it (a warning of
-  * theirs fails `status` and `ci` as FrFlow's do). `--json` prints FrFlow's values only.
+/** Runs a parsed command on the project open in `host`: a read prints a view, a decision is confirmed first, a check
+  * streams its levels on stderr. `layers`: the layers on top; what they add to a view is shown with it, and a warning
+  * of theirs fails `status`, `check` and `ci` as FrFlow's do.
   */
-final class Dispatch(api: FrFlowApi, raw: Terminal, st: Style, layers: List[CliExtension] = Nil,
-    host: Option[Host] = None):
-  import Dispatch.*
-  // Text names the nodes as the code does (`grantWhenFree`); JSON keeps their ids.
-  private val term: Terminal = Names.terminal(raw, api.view.map(v =>
-    (v.snapshot.nodes.map(_.id.value) ++ v.annotated.gone.map(_.id.value)).toSet))
-  private val on: Host = host.getOrElse(Host(api, java.nio.file.Path.of(".").toAbsolutePath.normalize, Map.empty))
-  private def added(v: View): IO[Contribution] = layers.traverse(_.contribute(on, v)).map(Contribution.all)
+final class Dispatch(api: FrFlowApi[IO], host: Host[IO], term: Terminal, st: Style)(layers: List[CliExtension]):
+  private def added(v: View): IO[Contribution] = layers.traverse(_.contribute(host, v, st)).map(_.combineAll)
+  private def ok(lines: List[String]): IO[ExitCode] = term.out(lines).as(Exit.Fine)
 
   def apply(c: Command): IO[ExitCode] = c match
-    case Command.Tree(from, json) =>
-      api.view.flatMap(added).flatMap(x => api.tree(from).flatMap(t => emit(json, Brief(t))(TreeText.lines(t, st, x))))
-    case Command.Show(id, depth, json) =>
-      node(id, json)((v, r) => (api.details(v, r), added(v)).flatMapN((d, x) => emit(json, Brief(d))(NodeText.lines(d, st, depth, x))))
-    case Command.Diff(id) => node(id, json = false)(api.diff(_, _).flatMap(d => ok(DiffText.lines(d, st))))
-    case Command.Inbox(json) =>
-      api.view.flatMap(added).flatMap(x => api.reviewing(_ => IO.pure(x.aside))
-        .flatMap((v, i) => emit(json, Brief(i))(InboxText.lines(i, v, st, x))))
-    case Command.Review(as) => ReviewSession(api, term, st, added).run(as)
-    case Command.Decision(make, a) => decision(a)(make)
-    case Command.Render => api.render.flatMap(r => ok(List(s"rendered ${r.changed.size} changed file(s); wrote ${r.snapshot}")))
-    case Command.Check(node, json) =>
-      api.check(node, progress).flatMap(r => added(r.view).flatMap(x =>
-        emit(json, Brief(r))(ReportText.check(r, st, x)).as(exit(r.ok && x.warnings.isEmpty))))
-    case Command.Status(json) => api.status.flatMap(s => added(s.view).flatMap(x =>
-      emit(json, Brief(s))(ReportText.status(s.view, s.tree, st, x)).as(exit(s.ok && x.warnings.isEmpty))))
-    case Command.Ci => api.ci(progress).flatMap(r => added(r.view).flatMap(x =>
-      ok(ReportText.ci(r, r.tree, st, x)).as(exit(r.ok && x.warnings.isEmpty))))
-    case Command.Find(query) => api.view.flatMap(v => api.find(v, query).flatMap(f => ok(ReportText.found(f, v, st))))
-    case Command.Scaffold(node) =>
-      api.scaffold(node).flatMap(s => ok(List(s.file.fold(s"nothing to stub: the last check of $node left nothing open that the proof file lacks")(f => s"created $f"))))
-    case Command.Layer(run) => run(on, term, st)
+    case Command.Review(as)        => ReviewSession(api, term, st, added, layers.flatMap(_.keys(host))).run(as)
+    case Command.Decision(m, n, a) => DecisionCommands(api, term, st).decide(m, n, a)
+    case Command.Rebase(as, yes)   => DecisionCommands(api, term, st).rebase(as, yes)
+    case Command.Deciders(_)       => term.err("deciders runs before the project is opened").as(Exit.Usage)
+    case Command.Layer(run)        => run(host, term, st)
+    case other                     => (reads orElse proves)(other)
 
-  /** A node in the model; or one gone from it, shown as gone with its last decision. */
-  private def node(id: NodeId, json: Boolean)(f: (View, Reviewed) => IO[ExitCode]): IO[ExitCode] = api.view.flatMap(v =>
-    v.node(id).map(f(v, _)).orElse(Details.gone(v, id).map(g => emit(json, Brief(g))(GoneText.lines(g, st))))
-      .getOrElse(IO.raiseError(FrFlowError.UnknownNode(id))))
+  private val reads: PartialFunction[Command, IO[ExitCode]] =
+    case Command.Tree(from)        => viewed((v, x) => ok(TreeText.lines(v, from, st, x.marks) ++
+        ("" :: SummaryText.lines(v, InboxText.waiting(v, x.aside), st, x.waiting))))
+    case Command.Show(id, depth)   => viewed((v, x) => v.node(id).fold(gone(v, id))(n =>
+        ok(NodeText(v, st, x).lines(n, depth))))
+    case Command.Diff(id)          => viewed((v, _) => v.node(id).fold(gone(v, id))(n => api.reading.diff(id)
+        .flatMap(d => ok(DiffText.lines(id, d, n.review.decisions.binding.isDefined, st)))))
+    case Command.Inbox             => viewed((v, x) => ok(InboxText.lines(v, st, x)))
+    case Command.Find(q)           => (api.reading.find(q), api.reading.view).flatMapN((f, v) =>
+        ok(ReportText.found(q, f, v, st)))
 
-  // On a terminal: a check can take minutes.
-  private def progress(p: Progress): IO[Unit] =
-    if !term.interactive then IO.unit
-    else if p.level == 0 then term.err(st.dim(s"check: building the models (${p.levels} level(s) to prove)"))
-    else term.err(st.dim(st.fit(s"check: level ${p.level} of ${p.levels}: ${p.nodes.mkString(", ")}")))
+  private val proves: PartialFunction[Command, IO[ExitCode]] =
+    case Command.Render => api.proving.render.flatMap(ms => ok(List(s"rendered ${ms.size} changed module(s)")))
+    case Command.Check(node, json) => checked(api.proving.check(node), json)((ids, v, x) =>
+        (CheckText.check(ids, v, st, x), ids.flatMap(v.node).forall(CheckText.proven) && x.warnings.isEmpty &&
+          (node.isDefined || WholeText.fine(v.whole))))
+    case Command.Status(json)      => api.proving.status.flatMap(v => added(v).flatMap(x =>
+        (if json then api.proving.snapshot.map(List(_)) else IO.pure(TreeText.status(v, st, x)))
+          .flatMap(term.out).as(Exit.of(complete(v, x)))))
+    case Command.Ci                => checked(api.proving.ci, json = false)((_, v, x) =>
+        (CheckText.ci(v, st, x), complete(v, x)))
+    case Command.Export            => api.proving.snapshot.flatMap(s => term.out(s)).as(Exit.Fine)
+    case Command.Scaffold(id)      => api.proving.scaffold(id).flatMap(s =>
+        term.out(ReportText.scaffolded(s)).as(Exit.of(s match
+          case Scaffolded.EndNotFound(_) => false
+          case _                         => true)))
 
-  private def emit(json: Boolean, j: => Json)(text: => List[String]): IO[ExitCode] =
-    if json then raw.out(List(Canonical.file(j))).as(ExitCode.Success) else ok(text)
-  private def ok(lines: List[String]) = term.out(lines).as(ExitCode.Success)
-  private def done[A](lines: A => List[String])(r: Either[Refusal, A]): IO[ExitCode] = r.fold(refused, a => ok(lines(a)))
+  private def viewed(f: (View, Contribution) => IO[ExitCode]): IO[ExitCode] =
+    api.reading.view.flatMap(v => added(v).flatMap(f(v, _)))
 
-  /** Naming no such node is a usage error (2), as an unknown node is elsewhere. */
-  private def refused(r: Refusal): IO[ExitCode] = term.err(r.message).as(r match
-    case Refusal.UnknownNode(_) => Usage
-    case _ => Refused)
+  /** The CI gate: complete, and nothing warned of, FrFlow's or a layer's. */
+  private def complete(v: View, x: Contribution): Boolean =
+    v.overview.complete && v.warnings.isEmpty && x.warnings.isEmpty
 
-  private def developer(as: Option[String])(f: Developer => IO[ExitCode]): IO[ExitCode] =
-    api.developer(as).flatMap(_.fold(r => term.err(r.message).as(Usage), f))
+  /** A decided node gone from the model is said so; any other name is unknown. */
+  private def gone(v: View, id: NodeId): IO[ExitCode] =
+    if v.gone.contains(id) then ok(List(s"$id is gone from the model: it was decided, and the model no longer has " +
+      s"it (gone $id -m REASON agrees it is gone)"))
+    else IO.raiseError(Stop.UnknownNode(id))
 
-  /** The reason given or asked for; what `make` records, confirmed by `--yes` or on a terminal; then recorded. */
-  private def decision(a: Asked)(make: String => Decide): IO[ExitCode] =
-    def typed(r: Option[String]) = r.map(_.trim).filter(_.nonEmpty)
-    val reason = if typed(a.reason).isDefined || !term.interactive then IO.pure(typed(a.reason))
-      else term.read("Why (kept as part of the theory)? ").map(typed)
-    reason.flatMap {
-      case None => term.err("give the reason: --reason TEXT (it is kept as part of the theory)").as(Usage)
-      case Some(reason) => developer(a.as) { dev =>
-        val d = make(reason)
-        // None: no one can be asked.
-        def confirmed(p: Decided): IO[Option[Boolean]] =
-          if a.yes then IO.pure(Some(true))
-          else if !term.interactive then IO.pure(None)
-          else term.out(s"This records, as ${dev.name}:" :: ReportText.decided(p, st)) *>
-            term.read("Record it? [y/N] ").map(x => Some(x.exists(y => Set("y", "yes")(y.trim.toLowerCase))))
-        api.preview(d, dev).flatMap(_.fold(refused, confirmed(_).flatMap {
-          case Some(true) => api.decide(d, dev).flatMap(done(r => s"Recorded, signed by ${dev.name}:" :: ReportText.decided(r, st, notes = false)))
-          case Some(false) => term.out("Nothing recorded.").as(Refused)
-          case None => term.err("a decision is confirmed on a terminal; without one, pass --yes").as(Usage)
-        }))
-      }
-    }
-
-object Dispatch:
-  val Refused: ExitCode = ExitCode(1)
-  val Usage: ExitCode = ExitCode(2)
-  def exit(ok: Boolean): ExitCode = if ok then ExitCode.Success else Refused
+  /** Each level said on stderr as it starts; then what `report` makes of the view the check ends with. */
+  private def checked(events: fs2.Stream[IO, CheckEvent], json: Boolean)(
+      report: (List[NodeId], View, Contribution) => (List[String], Boolean)): IO[ExitCode] =
+    events.evalMap {
+      case CheckEvent.Level(i, n, ids) => term.err(st.dim(st.fit(s"check: level $i of $n: ${ids.mkString(", ")}")))
+          .as(Option.empty[(List[NodeId], View)])
+      case CheckEvent.Done(ids, v)     => IO.pure(Some((ids, v)))
+    }.unNone.compile.lastOrError.flatMap((ids, v) => added(v).flatMap { x =>
+      val (lines, fine) = report(ids, v, x)
+      (if json then api.proving.snapshot.map(List(_)) else IO.pure(lines)).flatMap(term.out).as(Exit.of(fine))
+    })

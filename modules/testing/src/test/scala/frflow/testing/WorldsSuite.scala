@@ -1,0 +1,54 @@
+package frflow.testing
+
+import frflow.*
+import frflow.core.expr.Value
+import frflow.core.name.NodeId
+import frflow.eval.flow.{Shelf, Trouble}
+import frflow.eval.Races
+import frflow.eval.term.Semantics
+import frflow.testing.derive.Derive
+import frflow.testing.report.Failure
+import frflow.testing.report.Seed
+
+/** Drawn worlds carry the faults a failing model's operations take and the races' winners, so a generated test of a
+  * claim about a run takes a failing call's error path, and lets a race's right side win.
+  */
+class WorldsSuite extends munit.FunSuite:
+  /** Puts a number on the shelf, saying it did, or that it could not when the shelf is down. */
+  private def putsIt(n: Term[BigInt]): Flow[Boolean] =
+    Shelf.putting(n).as(True).handle[Trouble](_ => Flow.pure(False))
+
+  /** Reads the shelf after putting a number, raced against reading it. */
+  private def racesIt(n: Term[BigInt]): Flow[Either[List[BigInt], List[BigInt]]] =
+    Shelf.putting(n).flatMap(_ => Shelf.held).race(Shelf.held)
+
+  private val putting = Definition[BigInt => Flow[Boolean]]("putting a number on the shelf")
+  private val racing = Definition[BigInt => Flow[Either[List[BigInt], List[BigInt]]]]("reading, raced")
+  private val puts = program { (n: Term[BigInt]) => putsIt(n) }
+  private val races = program { (n: Term[BigInt]) => racesIt(n) }
+
+  private val putIsKept = Node.claim("A number put is on the shelf after.")(
+    forall((n: Term[BigInt]) => Shelf.kept.in(putting(n).after).contains(n)))
+  private val readSeesPut = Node.claim("What is read holds the number put.")(
+    forall((n: Term[BigInt]) => racing(n).result.fold(xs => xs.contains(n), ys => ys.contains(n))))
+
+  private val kb = FrModel("Shelves")((Shelf.knowledge.nodes ++ List(putIsKept, readSeesPut))*)
+    .copy(operations = Shelf.knowledge.operations).implementProven(putting)(puts).implementProven(racing)(races)
+  private val e = kb.elaborated.fold(es => fail(es.toString), identity)
+
+  private def failingWorld(claim: String): List[(Value, Option[Value])] =
+    PropertyTests(Semantics(e), e.theory).of(NodeId(claim), Plan(Settings(300, Seed(1)), Nil), Derive.of(e, Nil))
+      .flatMap(_.failure).toList.collect { case Failure.Call(List(_, w @ Value.World(states, _)), _, _, _) =>
+        w -> states.find(_._1 == Races.model).map(_._2) }
+
+  test("a claim broken only when a call fails is found on a world whose first fault fails it") {
+    failingWorld("putIsKept") match
+      case List((Value.World(_, faults), _)) => assertEquals(faults.headOption, Some(true))
+      case other                             => fail(s"not found: $other")
+  }
+
+  test("a claim broken only when the right side of a race wins is found on a world whose race it wins") {
+    failingWorld("readSeesPut") match
+      case List((_, Some(Value.Many(races)))) => assertEquals(races.headOption, Some(Value.Bool(false)))
+      case other                                              => fail(s"not found: $other")
+  }

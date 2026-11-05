@@ -3,7 +3,7 @@ defaultTargets = ["FrFlowGen"]
 
 [[require]]
 name = "frflow"
-path = "../../../lean"
+path = "../../../modules/proof/lean"
 
 [[lean_lib]]
 name = "FrFlowGen"

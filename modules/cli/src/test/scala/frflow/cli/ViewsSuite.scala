@@ -1,111 +1,131 @@
 package frflow.cli
 
-import frflow.api.*
-import frflow.cli.command.*
-import frflow.cli.text.*
-import frflow.protocol.*
-import io.circe.Json
-import io.circe.syntax.*
+import cats.effect.IO
+import cats.syntax.all.*
+import frflow.api.fixture.Opened
+import frflow.api.Project
+import frflow.cli.command.Command
+import frflow.cli.term.{Style, Terminal}
+import frflow.cli.text.Depth
+import frflow.core.name.NodeId
 
-/** The views in plain mode, against golden files: what CI reads. */
-class ViewsSuite extends munit.CatsEffectSuite with Golden:
-  private val st = Style(color = false, unicode = false, width = Some(100))
-  private def api = FakeApi()
+/** What the reading commands print, and how lines meet a terminal: colors, Unicode, the width. */
+class ViewsSuite extends munit.CatsEffectSuite:
+  private val (nonNegative, sameAbove) = (NodeId("nonNegative"), NodeId("sameAbove"))
+  private val color = Style(color = true, unicode = true, width = None)
 
-  test("tree: the DAG from the root, the sections, the summary; from a node, what is below it") {
-    api.flatMap(_.tree(None)).map(t => golden("tree", TreeText.lines(t, st))) *>
-      api.flatMap(_.tree(Some(NodeId("LetsIn")))).map(t => golden("tree-node", TreeText.lines(t, st)))
-  }
+  private def shown(p: Project, cs: Command*) = Opened.api(p).flatMap(Cli.all(_, cs*)).map(_._2)
+  private def moved(p: Project, cs: Command*) = Opened.ports().flatMap(ports =>
+    Opened.over(Opened.before, ports).flatMap(Cli.accepted) >> Opened.over(p, ports)).flatMap(Cli.all(_, cs*))
+    .map(_._2)
 
-  test("show: a node under review, with what changed and what deciding it acts on; a proposal waiting for its parent") {
-    api.flatMap(_.details(NodeId("Decide"))).map(d => golden("show-review", NodeText.lines(d, st))) *>
-      api.flatMap(_.details(NodeId("Expiry"))).map(d => golden("show-proposed", NodeText.lines(d, st)))
-  }
-
-  test("a node that gives no reason shows no why line") {
-    def why(text: String) = Lines.why(Content("statement" -> Json.fromString("s"), "why" -> Json.fromString(text)), 100, st)
-    assertEquals(why(""), Nil)
-    assertEquals(why("a reason"), List("  why: a reason"))
-  }
-
-  test("diff: a proposal is new") {
-    api.flatMap(_.diff(NodeId("Expiry"))).map(d => assertEquals(DiffText.lines(d, st).headOption, Some("New: never decided")))
-  }
-
-  test("show --full: with the idea, what it rests on and the obligations; nothing cut") {
-    api.flatMap(_.details(NodeId("Decide"))).map(d => golden("context", NodeText.lines(d, st, Depth.Full)))
-  }
-
-  test("--json: the typed value, each node in brief") {
-    api.flatMap(_.tree(None)).map { t =>
-      val j = Brief(t)
-      val root = j.hcursor.downField("main").downArray.downField("node")
-      assertEquals(root.keys.map(_.toList), Some(List("id", "kind", "state", "causes", "status", "statement", "waitsFor", "unproven")))
+  test("tree: the DAG from the roots, the summary; from a node, what is below it") {
+    (shown(Opened.before, Command.Tree(None)), shown(Opened.before, Command.Tree(Some(sameAbove)))).tupled.map {
+      (all, below) =>
+        assert(all.startsWith("! nonNegative  claim  proposed  The service never gives a negative number.\n" +
+          "  ! sameAbove  claim  proposed  Above zero, the service gives the number itself."), all)
+        assert(all.contains("FrModel: 2 nodes, 0 accepted, 2 proposed"), all)
+        assert(all.contains("Waiting: 2 for the developer"), all)
+        assert(below.startsWith("! sameAbove"), below)
     }
   }
 
-  test("--json: a diff line is an object with its op, as other enums are lowercase strings") {
-    api.flatMap(_.details(NodeId("Decide"))).map { d =>
-      val lines = Brief(d).hcursor.downField("diff").downField("self").downArray.downField("lines")
-      assertEquals(lines.downArray.focus.map(_.noSpaces), Some("""{"op":"removed","text":"A request is admitted on behalf of its token's user exactly when a grant names that user and the path."}"""))
-      assertEquals((DiffLine.Folded(3): DiffLine).asJson.noSpaces, """{"op":"folded","lines":3}""")
-      assertEquals(List[DiffLine](DiffLine.Same("a"), DiffLine.Added("b"), DiffLine.Folded(2)).asJson.as[List[DiffLine]],
-        Right(List(DiffLine.Same("a"), DiffLine.Added("b"), DiffLine.Folded(2))))
+  test("show: a node under review, with what moved and what deciding it acts on; a proposal waiting for its parent") {
+    (moved(Opened.after, Command.Show(nonNegative, Depth.Normal), Command.Show(sameAbove, Depth.Normal)),
+      shown(Opened.before, Command.Show(sameAbove, Depth.Normal))).tupled.map { (review, proposal) =>
+      assert(review.contains("to review: it changed"), review)
+      assert(review.contains("decisions below it that accepting it acts on (accept --revisit NODE reviews one " +
+        "again): sameAbove"), review)
+      assert(review.contains("moved above it since it was decided: nonNegative (diff sameAbove shows how)"), review)
+      assert(proposal.contains("decide nonNegative first: what rests on it is decided after it"), proposal)
+      assert(proposal.contains("Formally (as written in Scala)"), proposal)
     }
   }
 
-  test("decisions wrap to the width, as formulas and diffs do: the history and the decisions below are not cut") {
-    val narrow = st.copy(width = Some(50))
-    api.flatMap(_.details(NodeId("Decide"))).map { d =>
-      val out = NodeText.lines(d, narrow)
-      assert(out.forall(Style.visible(_) <= 50), out.mkString("\n"))
-      val text = out.mkString(" ").replaceAll("\\s+", " ")
-      assert(text.contains("Memory: Sessions and grants are kept in memory. — holds because: Memory holds as stated"), out.mkString("\n"))
-      assert(text.contains("2026-01-02 10:00 accepted by dev: Decide holds as stated"), out.mkString("\n"))
+  test("a node not decided shows no why section; one decided shows the reason it was decided with") {
+    (shown(Opened.before, Command.Show(nonNegative, Depth.Normal)),
+      moved(Opened.before, Command.Show(nonNegative, Depth.Normal))).tupled.map { (proposal, accepted) =>
+      assert(!proposal.contains("Why it holds"), proposal)
+      assert(accepted.contains("Why it holds (the reason it was decided with)\n  it says what the service must do " +
+        " (accepted by ann, "), accepted)
     }
   }
 
-  test("inbox: the developer's queue, then the summary") {
-    api.flatMap(_.view).map(v => golden("inbox", InboxText.lines(Inbox.of(v), v, st)))
+  test("diff: a proposal is new; what moved under a decision is its fields, line by line") {
+    (shown(Opened.before, Command.Diff(nonNegative)), moved(Opened.after, Command.Diff(nonNegative))).tupled.map {
+      (fresh, moved) =>
+        assertEquals(fresh, "nonNegative is not decided yet: everything in it is new (show nonNegative reads it)")
+        assert(moved.contains("formula:\n- "), moved)
+        assert(moved.linesIterator.exists(_.startsWith("+ ")), moved)
+    }
+  }
+
+  test("show --full: what it mentions and every obligation; nothing cut") {
+    Opened.api(Opened.before).flatMap(api => Opened.checked(api.proving.check(None)) >>
+      Scripted(Nil, interactive = false).flatMap(t => Cli.run(api, t, Command.Show(nonNegative, Depth.Full),
+        Style.plain.copy(width = Some(30))) >> t.text)).map { full =>
+      assert(full.contains("What it mentions\n  values: d"), full)
+      assert(full.contains("check: proven"), full)
+      assert(full.contains("The service never gives a negative number."), full)
+    }
+  }
+
+  test("--json: status prints the snapshot, as export writes it") {
+    shown(Opened.before, Command.Status(json = true), Command.Export).map { out =>
+      assert(out.startsWith("{\n  \"version\": "), out)
+      assertEquals(out.linesIterator.count(_ == "{"), 2, out)
+    }
+  }
+
+  test("inbox: the developer's queue in order, then the summary") {
+    shown(Opened.before, Command.Inbox).map { out =>
+      assert(out.startsWith("To decide, in order (review, or accept / reject NODE)\n  ! nonNegative"), out)
+      assert(out.contains("  ! sameAbove  claim  proposed  Above zero, the service gives the number itself.\n" +
+        "    decide nonNegative first"), out)
+    }
   }
 
   test("colors are ANSI codes around the same text") {
-    api.flatMap(_.tree(None)).map { t =>
-      val colored = TreeText.lines(t, st.copy(color = true))
-      assert(colored.exists(_.contains("\u001b[32m")))
-      assertEquals(colored.map(Style.strip), TreeText.lines(t, st))
-    }
+    assertEquals(color.red("x"), "\u001b[31mx\u001b[0m")
+    assertEquals(Style.strip(color.bold(color.green("ok"))), "ok")
+    assertEquals(Style.plain.red("x"), "x")
   }
 
   test("a statement is cut to the width, with an ellipsis") {
-    assertEquals(st.cut("a user gets access", 10), "a user...")
-    assertEquals(Style(true, true, None).cut("a user gets access", 10), "a user ge…\u001b[0m")
-    assertEquals(Style.strip(Style(true, true, None).cut(Style(true, true, None).green("a user gets access"), 10)), "a user ge…")
-    assertEquals(st.wrap("one two three four", 9), List("one two", "three", "four"))
+    val st = Style.plain.copy(width = Some(30))
+    assertEquals(st.fit("a statement longer than thirty columns"), "a statement longer than thi...")
+    assertEquals(Style.visible(color.copy(width = Some(30)).fit(color.bold("a statement longer than thirty columns"))),
+      30)
   }
 
-  test("the root's statement is wrapped at its clauses, under its text: nothing is cut") {
-    val narrow = Style(color = false, unicode = false, width = Some(40))
-    assertEquals(Lines.clauses("Users find their records, and add them; a share ends at its time.", narrow, 8, "|  "),
-      List("Users find their records,", "|       and add them;", "|       a share ends at its time."))
-    assertEquals(Lines.clauses("Users find their records.", narrow, 8), List("Users find their records."))
+  test("a node's statement is wrapped under its header in show: nothing is cut") {
+    Opened.api(Opened.before).flatMap(api => Scripted(Nil).flatMap(t =>
+      Cli.run(api, t, Command.Show(sameAbove, Depth.Normal), Style.plain.copy(width = Some(30))) >> t.output)).map {
+      out =>
+        val statement = out.slice(1, out.indexOf(""))
+        assert(statement.size > 1 && out.forall(Style.visible(_) <= 30), out)
+        assertEquals(statement.map(_.trim).mkString(" "), "Above zero, the service gives the number itself.")
+    }
   }
 
   test("a source or diff line is wrapped under its text, its colors kept; nothing is cut") {
-    val narrow = Style(color = false, unicode = false, width = Some(24))
-    assertEquals(narrow.fold("  - one two three four five six"), List("  - one two three four", "    five six"))
-    val colored = narrow.copy(color = true).fold("  " + narrow.copy(color = true).red("- one two three four five six"))
-    assertEquals((colored.map(Style.strip), colored(1).take(9)), (narrow.fold("  - one two three four five six"), "    \u001b[31m"))
+    val st = color.copy(width = Some(24))
+    val folded = st.fold("  " + st.green("+ forall n, d(n) >= 0 and d(n) is the number"))
+    assert(folded.size > 1 && folded.forall(Style.visible(_) <= 24), folded)
+    assertEquals(folded.map(Style.strip).mkString(" ").replaceAll("\\s+", " ").trim,
+      "+ forall n, d(n) >= 0 and d(n) is the number")
   }
 
   test("colors and Unicode only on a terminal, without --plain or NO_COLOR; lines cut only on a terminal") {
     val env = Map("COLUMNS" -> "80")
-    assertEquals(List(Style.of(false, env, terminal = true), Style.of(true, env, terminal = true), Style.of(false, env + ("NO_COLOR" -> "1"), terminal = true),
-      Style.of(false, env, terminal = false)), List(Style(true, true, Some(80)), Style(false, false, Some(80)), Style(false, false, Some(80)), Style(false, false, None)))
-    assertEquals(Style.of(false, env + ("TERM" -> "dumb"), terminal = true), Style(false, false, Some(80)))
+    assertEquals(Style.of(plain = false, env, terminal = true), Style(true, true, Some(80)))
+    assertEquals(Style.of(plain = true, env, terminal = true), Style(false, false, Some(80)))
+    assertEquals(Style.of(plain = false, env + ("NO_COLOR" -> "1"), terminal = true), Style(false, false, Some(80)))
+    assertEquals(Style.of(plain = false, env, terminal = false), Style(false, false, None))
   }
 
   test("a terminal is the console's own answer where the JDK has one (22 and later), else a console being there") {
-    assertEquals(List(Terminal.attached(Some(()), _ => Some(false)), Terminal.attached(Some(()), _ => Some(true)),
-      Terminal.attached(Some(()), _ => None), Terminal.attached(Option.empty[Unit], _ => Some(true))), List(false, true, true, false))
+    assert(Terminal.attached[Int](Some(1), _ => None))
+    assert(!Terminal.attached[Int](Some(1), _ => Some(false)))
+    assert(!Terminal.attached[Int](None, _ => Some(true)))
   }

@@ -1,108 +1,72 @@
-package frflow.agent
-package command
+package frflow.agent.command
 
 import cats.effect.{ExitCode, IO}
 import cats.syntax.all.*
 import com.monovore.decline.{Command as Sub, Opts}
-import frflow.agent.queue.ForAgent
-import frflow.agent.request.{Request, RequestId, RequestStatus}
-import frflow.api.{Developer, Host}
-import frflow.cli.*
-import frflow.protocol.*
+import frflow.agent.request.{AgentRefusal, RequestId}
+import frflow.agent.work.AgentApi
+import frflow.api.Host
+import frflow.cli.command.Options.{as, node, words}
+import frflow.cli.command.{CliExtension, Command, Commands}
+import frflow.cli.term.{Exit, Style, Terminal}
+import frflow.cli.text.{Depth, NodeText}
+import frflow.core.name.NodeId
 import io.circe.syntax.*
 
-/** The agent layer's commands and what it shows in FrFlow's views. */
-private[agent] object AgentCommands:
-  import Commands.{as, json, layer, node, words}
+/** The agent layer's commands: the developer asks and closes (`ask`, `close`); the agent records the conversation
+  * (`said`, `asked`, `replied`), reads what it needs (`context`, `conversation`) and answers (`answer`). None decides.
+  * `open` gives the layer's API over a project; `layer` is the layer itself, whose view `context` shows.
+  */
+final class AgentCommands(open: Host[IO] => IO[AgentApi[IO]], layer: CliExtension):
+  private type Run = (Host[IO], Terminal, Style) => IO[ExitCode]
 
-  private def run(f: (AgentApi, Host, Terminal, Style) => IO[ExitCode]): CliRun = (host, term, st) => Agent.api(host).flatMap(f(_, host, term, st))
+  private def run(f: (AgentApi[IO], Host[IO], Terminal, Style) => IO[ExitCode]): Run =
+    (host, term, st) => open(host).flatMap(f(_, host, term, st))
+
   private def done[A](term: Terminal)(lines: A => List[String])(r: Either[AgentRefusal, A]): IO[ExitCode] =
-    r.fold(e => term.err(e.message).as(Dispatch.Usage), a => term.out(lines(a)).as(ExitCode.Success))
-  private def developer(host: Host, term: Terminal, as: Option[String])(f: Developer => IO[ExitCode]): IO[ExitCode] =
-    host.api.developer(as).flatMap(_.fold(r => term.err(r.message).as(Dispatch.Usage), f))
+    r.fold(e => term.err(e.message).as(Exit.Usage), a => term.out(lines(a)).as(Exit.Fine))
 
-  private def ask(n: Option[NodeId], text: String, as: Option[String]): CliRun = run { (a, host, term, _) =>
-    developer(host, term, as)(dev => a.ask(n, text, dev).flatMap(done(term)(q =>
-      List(s"asked [${q.id.value}] on ${q.node.fold("the idea")(_.value)}: the agent sees it in its inbox"))))
-  }
-  private def close(ids: List[String]): CliRun = run { (a, _, term, _) =>
-    a.close(ids.map(RequestId(_))).flatMap(done(term)(_.map(r => s"closed [${r.id.value}]")))
-  }
-  private def conversation(asJson: Boolean): CliRun = run { (a, host, term, st) =>
-    host.api.view.flatMap(a.read).flatMap(v =>
-      term.out(if asJson then List(Canonical.file(v.conversation.asJson)) else ConversationText.lines(v.conversation, st)).as(ExitCode.Success))
-  }
-  private def said(text: String): CliRun = run((a, _, term, _) => a.said(text).flatMap(done(term)(_ => List("recorded what the developer said"))))
-  private def asked(q: String, assumed: String): CliRun = run { (a, _, term, _) =>
-    a.asked(q, assumed).flatMap(done(term)(x => List(s"recorded [${x.id}]: ask it in chat, with the answer you assume")))
-  }
-  private def replied(q: String, text: String): CliRun = run { (a, _, term, _) =>
-    a.replied(q, text).flatMap(done(term)(x => List(s"recorded the reply to [${x.id}]")))
-  }
-  private def context(id: NodeId): CliRun = (host, term, st) =>
-    Dispatch(host.api, term, st, List(Agent), Some(host))(Command.Show(id, Depth.Full, json = false))
-      .flatTap(code => if code == ExitCode.Success then term.out("" :: Footer) else IO.unit)
-  private def answer(to: String, text: String): CliRun = run { (a, _, term, _) =>
-    a.answer(to, text).flatMap(done(term)(id => List(s"answered ${id.value}")))
+  private def ask(n: Option[NodeId], text: String, who: Option[String]): Run = run { (a, host, term, _) =>
+    host.developer(who).flatMap(_.fold(_ => term.err("who asks? pass --as NAME").as(Exit.Usage), by =>
+      a.ask(n, text, by).flatMap(done(term)(q => List(s"asked [${q.id.value}] on ${q.node.fold("the idea")(_.value)}" +
+        ": the agent sees it in its inbox")))))
   }
 
-  private val onIdea = Opts.flag("idea", "about the whole idea, not one node").map(_ => Option.empty[NodeId]).orElse(node().map(Some(_)))
-  private val assume = Opts.option[String]("assume", "the answer you assume, which the developer can just confirm")
+  /** `show --full` of the node, with what the layer adds, then what the agent works by. */
+  private def context(id: NodeId): Run = (host, term, st) =>
+    host.reading.view.flatMap(v => layer.contribute(host, v, st).flatMap(x => v.node(id).fold(
+      term.err(s"unknown node $id").as(Exit.Usage))(n =>
+        term.out(NodeText(v, st, x).lines(n, Depth.Full) ++ ("" :: AgentCommands.Footer)).as(Exit.Fine))))
+
+  private val onIdea = Opts.flag("idea", "about the whole idea, not one node").as(Option.empty[NodeId])
+    .orElse(node().map(Some(_)))
 
   val all: List[Sub[(Command, Boolean)]] = List(
-    layer("ask", "ask the agent for a change on NODE (or, with --idea, about the whole idea)")((onIdea, words("TEXT"), as).mapN(ask)),
-    layer("close", "close requests: an answer read, or a request withdrawn")(Opts.arguments[String]("REQUEST").map(rs => close(rs.toList))),
-    layer("conversation", "what you told the agent and its questions, with the answers it assumed and yours: what IDEA.md comes from")(
-      json.map(conversation)),
-    layer("said", "record what the developer said in chat, word for word (the idea, a correction)")(words("TEXT").map(said)),
-    layer("asked", "record a question asked in chat, with the answer you assume (--assume): numbered Q1, Q2, ...")(
-      (words("QUESTION"), assume).mapN(asked)),
-    layer("replied", "record the developer's reply to a question, as they said it in chat")((Opts.argument[String]("Q"), words("TEXT")).mapN(replied)),
-    layer("context", "show --full: everything needed to work on NODE, with the idea and what it rests on, and its requests")(node().map(context)),
-    layer("answer", "reply to the developer's request; with a NODE instead, tell them about work they did not ask for")(
-      (Opts.argument[String]("REQUEST|NODE"), words("TEXT")).mapN(answer)))
+    Commands.layer("ask", "ask the agent for a change on NODE (or, with --idea, about the whole idea)")(
+      (onIdea, words("TEXT"), as).mapN(ask)),
+    Commands.layer("close", "close requests: an answer read, or a request withdrawn")(
+      Opts.arguments[String]("REQUEST").map(rs => run((a, _, term, _) =>
+        a.close(rs.toList.map(RequestId(_))).flatMap(done(term)(_.map(r => s"closed [${r.id.value}]")))))),
+    Commands.layer("conversation", "what you told the agent and its questions, with the answers it assumed and yours")(
+      Opts.flag("json", "the record as JSON").orFalse.map(json => run((a, host, term, st) => host.reading.view
+        .flatMap(a.read).flatMap(v => term.out(if json then List(v.conversation.asJson.spaces2)
+          else AgentText.conversation(v.conversation, st)).as(Exit.Fine))))),
+    Commands.layer("said", "record what the developer said in chat, word for word")(words("TEXT").map(t =>
+      run((a, _, term, _) => a.said(t).flatMap(done(term)(_ => List("recorded what the developer said")))))),
+    Commands.layer("asked", "record a question asked in chat, with the answer you assume (--assume)")(
+      (words("QUESTION"), Opts.option[String]("assume", "the answer you assume, which the developer can just confirm"))
+        .mapN((q, assumed) => run((a, _, term, _) => a.asked(q, assumed).flatMap(done(term)(x =>
+          List(s"recorded [${x.id}]: ask it in chat, with the answer you assume")))))),
+    Commands.layer("replied", "record the developer's reply to a question, as they said it in chat")(
+      (Opts.argument[String]("QUESTION"), words("TEXT")).mapN((q, t) => run((a, _, term, _) =>
+        a.replied(q, t).flatMap(done(term)(x => List(s"recorded the reply to [${x.id}]")))))),
+    Commands.layer("context", "show --full: everything needed to work on NODE, with its requests")(
+      node().map(context)),
+    Commands.layer("answer", "reply to the developer's request; with a NODE instead, tell them of work they did not " +
+      "ask for")((Opts.argument[String]("REQUEST|NODE"), words("TEXT")).mapN((to, t) => run((a, _, term, _) =>
+        a.answer(to, t).flatMap(done(term)(id => List(s"answered ${id.value}")))))))
 
-  private val Footer = List("A new statement belongs under the lowest nodes it helps prove, as a part; never as a restatement of a node.",
-    "The developer decides; you propose. The rules are in the frflow skill (.claude/skills/frflow/SKILL.md).")
-
-  /** What the layer adds to FrFlow's views. */
-  def contribution(host: Host)(a: AgentView): Contribution =
-    val withAgent = a.view.nodes.filter(a.withAgent)
-    def on(q: Request) = q.node.fold("the idea")(_.value)
-    Contribution(
-      aside = a.held,
-      marks = withAgent.map(_.id -> "asked").toMap,
-      warnings = a.warnings,
-      waiting = st => {
-        def some(n: Int, what: String, tone: String => String = identity) = Option.when(n > 0)(tone(s"$n $what"))
-        List(some(a.conversation.unanswered.size, "question(s) for the developer to answer in chat", st.yellow),
-          some(withAgent.size, "asked of the agent", st.magenta), some(a.forAgent.size, "for the agent", st.magenta),
-          some(a.open.size, "open request(s)"), some(a.answers.size, "answer(s) to read")).flatten
-      },
-      inbox = st => {
-        import Lines.section
-        section("Questions the agent asked: answer them in chat", a.conversation.unanswered.flatMap(q =>
-          Lines.para(s"[${q.id}] ${q.text}", st) ++ Lines.para(st.dim(s"assumed: ${q.assumed}"), st, indent = 4).map("  " + _)), st) ++
-          section("Requests from the developer", a.open.map(q => s"[${q.id.value}] on ${on(q)} ${st.dot} ${q.by}: ${q.text}"), st) ++
-          section("Answers to read (close REQUEST when read)", a.answers.flatMap(q =>
-            s"[${q.id.value}] on ${on(q)}: ${q.text}" :: q.answer.toList.map(x => s"  ${st.cyan("agent:")} $x")), st) ++
-          section("With the agent: asked, until it answers or changes the node", withAgent.map(Lines.node(_, st, 4)), st) ++
-          section("For the agent", a.forAgent.flatMap(t => Lines.para(task(t, st), st)), st)
-      },
-      node = (id, st) => Lines.section("Requests", a.requests.filter(q => q.node.contains(id) && q.status != RequestStatus.Closed)
-        .flatMap(q => s"[${q.id.value}] ${q.status} ${st.dot} ${q.by}: ${q.text}" :: q.answer.filter(_.nonEmpty).map(x => s"  agent: $x").toList), st),
-      review = List(ReviewKey("?", "[?]ask", (dev, r, term, st) => term.read("What should change? ").flatMap {
-        case Some(text) if text.trim.nonEmpty => Agent.api(host).flatMap(_.ask(Some(r.id), text, dev)).flatMap {
-          case Left(e) => term.out(st.red(s"refused: ${e.message}"))
-          case Right(q) => term.out(List(s"asked [${q.id.value}]: ${r.id} is with the agent until it answers or changes it"))
-        }
-        case _ => IO.unit
-      })))
-
-  private def task(t: ForAgent, st: Style): String = t match
-    case ForAgent.Replace(node, by, reason) =>
-      s"${st.bold(node.value)}: ${st.red(s"rejected by $by")}: ${reason.trim.stripSuffix(".")}; " +
-        "propose what the reason asks for in its place, or remove it from the Scala model"
-    case ForAgent.Revisit(node, reason) =>
-      s"${st.bold(node.value)}: ${st.yellow("the developer asked to revisit it")} ($reason): propose a change, or `answer $node TEXT` why it still holds"
-    case ForAgent.Move(node, parents) => s"${st.bold(node.value)}: rests on rejected ${parents.mkString(", ")}; move it under the node chosen instead"
+object AgentCommands:
+  val Footer: List[String] = List(
+    "A new statement belongs under the lowest nodes it helps prove, as a part; never as a restatement of a node.",
+    "The developer decides; you propose, with your rationale in an answer or the conversation, never in the node.")

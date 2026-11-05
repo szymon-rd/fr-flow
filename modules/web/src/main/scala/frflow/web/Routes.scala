@@ -3,58 +3,67 @@ package frflow.web
 import cats.data.Kleisli
 import cats.effect.IO
 import cats.syntax.all.*
-import frflow.api.*
-import frflow.protocol.{Fingerprint, NodeId}
+import frflow.api.FrFlowApi
+import frflow.api.view.{CheckEvent, Stop, Views}
+import frflow.core.name.NodeId
+import frflow.decision.rules.{Command, Refusal}
+import frflow.web.json.Asked.given
+import frflow.web.json.Leaves.given
+import frflow.web.json.ViewCodecs.given
+import io.circe.syntax.*
 import io.circe.{Encoder, Json}
-import java.nio.charset.StandardCharsets.UTF_8
-import java.security.MessageDigest
-import org.http4s.{EntityEncoder, HttpApp, HttpRoutes, MediaType, MessageFailure, QueryParamDecoder, Response, Status, StaticFile, Request as Http}
-import org.http4s.headers.`Content-Type`
 import org.http4s.circe.CirceEntityCodec.*
 import org.http4s.dsl.io.*
+import org.http4s.headers.`Content-Type`
+import org.http4s.{EntityEncoder, Header, HttpApp, HttpRoutes, MediaType, MessageFailure, QueryParamDecoder, Response,
+  Status, StaticFile}
 import org.typelevel.ci.CIString
 
-/** One route per operation of the API, in its JSON, all behind the token `serve` printed. Decisions are `dev`'s, signed by
-  * `api.decide` as the CLI's are; refused once the model's sources are no longer those this process compiled (`started`).
-  * `layers`: what the layers on top add (their routes, behind the same token; their scripts, served as `/ext.js`).
+/** One route per operation of the API, its views as JSON, all behind the session's token (`Gate`); what writes a
+  * file is a `POST`. Decisions are `developer`'s, signed by the API as the CLI's are (an acceptance checked and
+  * tested afresh first), and refused once the model's sources moved since `serve` started. `layers`: what the layers
+  * on top add (their routes, behind the same token; their scripts, served as `/ext.js`).
   */
-final class Routes(api: FrFlowApi, dev: Developer, token: String, started: Fingerprint, layers: List[WebPart] = Nil):
+final class Routes(api: FrFlowApi[IO], developer: String, gate: Gate, layers: List[WebPart]):
   import Routes.*
 
-  // Only the browser opened from the printed link has the token: an agent's process on this machine does not.
-  val app: HttpApp[IO] = Kleisli(req =>
-    if !authorized(req) then error(Status.Forbidden, NoToken)
-    else (routes <+> layers.map(_.routes).foldLeft(HttpRoutes.empty[IO])(_ <+> _))(req)
-      .getOrElseF(error(Status.NotFound, s"no route ${req.method} ${req.uri.path}")).handleErrorWith(failed))
+  /** Every answer tells the browser to send no `Referer` (the page's link holds the token). */
+  val app: HttpApp[IO] = Kleisli(req => gate.refuses(req).fold(
+    layers.map(_.routes).foldLeft(routes)(_ <+> _)(req).getOrElseF(error(Status.NotFound,
+      s"no route ${req.method} ${req.uri.path}")).handleErrorWith(failed))(error(_, _))
+    .map(_.putHeaders(Header.Raw(CIString("Referrer-Policy"), "no-referrer"))))
 
-  private def authorized(req: Http[IO]): Boolean =
-    req.headers.get(CIString(TokenHeader)).map(_.head.value).orElse(req.params.get("token"))
-      .exists(t => MessageDigest.isEqual(t.getBytes(UTF_8), token.getBytes(UTF_8)))
-
-  private def modelChanged: IO[Boolean] = api.modelFingerprint.map(_ != started)
+  private def modelChanged: IO[Boolean] = api.reading.modelFingerprint.map(_ != gate.started)
 
   private val routes: HttpRoutes[IO] = HttpRoutes.of[IO] {
-    case req @ GET -> Root => StaticFile.fromResource[IO]("/frflow/web/index.html", Some(req)).getOrElseF(error(Status.NotFound, "no page"))
-    case GET -> Root / "api" / "serving" => modelChanged.flatMap(c => Ok(Serving(dev.name, c)))
-    case GET -> Root / "api" / "view" => api.view.flatMap(Ok(_))
-    case GET -> Root / "api" / "tree" :? From(from) => api.tree(from).flatMap(Ok(_))
-    case GET -> Root / "api" / "details" / id => api.details(NodeId(id)).flatMap(Ok(_))
-    case GET -> Root / "api" / "diff" / id => api.diff(NodeId(id)).flatMap(Ok(_))
-    case GET -> Root / "api" / "inbox" => api.inbox().flatMap(Ok(_))
-    case GET -> Root / "ext.js" =>
-      // As text: the JSON encoder in scope here would quote it.
-      IO.pure(Response[IO](Status.Ok).withEntity(layers.map(_.script).mkString("\n;\n"))(using EntityEncoder.stringEncoder[IO])
-        .withContentType(`Content-Type`(MediaType.application.javascript)))
-    case GET -> Root / "api" / "status" => api.status.flatMap(Ok(_))
-    case GET -> Root / "api" / "find" :? Words(q) => api.view.flatMap(api.find(_, q)).flatMap(Ok(_))
-    case req @ POST -> Root / "api" / "preview" => req.as[Decide].flatMap(api.preview(_, dev)).flatMap(answer)
-    case req @ POST -> Root / "api" / "decide" =>
-      req.as[Decide].flatMap(d => modelChanged.ifM(error(Status.Conflict, ModelChanged), api.decide(d, dev).flatMap(answer)))
-    case POST -> Root / "api" / "check" :? From(node) => api.check(node).flatMap(Ok(_))
-    case POST -> Root / "api" / "render" => api.render.flatMap(Ok(_))
+    case req @ GET -> Root                     =>
+      StaticFile.fromResource[IO]("/frflow/web/index.html", Some(req)).getOrElseF(error(Status.NotFound, "no page"))
+    case GET -> Root / "ext.js"                => script
+    case GET -> Root / "api" / "serving"       => modelChanged.flatMap(c => Ok(Serving(developer, c)))
+    case GET -> Root / "api" / "view"          => api.reading.view.flatMap(Ok(_))
+    case GET -> Root / "api" / "tree" :? From(from) => api.reading.view.flatMap(v =>
+        Ok(Views.tree(v, from).map((depth, id) => Json.obj("depth" -> depth.asJson, "node" -> id.asJson))))
+    case GET -> Root / "api" / "inbox"         => api.reading.view.flatMap(v => Ok(Views.inbox(v, Set.empty)))
+    case GET -> Root / "api" / "diff" / id     => api.reading.diff(NodeId(id)).flatMap(_.fold(error(Status.NotFound,
+        s"unknown node $id"))(Ok(_)))
+    case GET -> Root / "api" / "find" :? Words(q) => api.reading.find(q).flatMap(Ok(_))
+    case POST -> Root / "api" / "status"       => api.proving.status.flatMap(Ok(_))
+    case POST -> Root / "api" / "render"       => api.proving.render.flatMap(Ok(_))
+    case POST -> Root / "api" / "check" :? From(node) => api.proving.check(node).compile.toList.flatMap(events =>
+        events.collectFirst { case CheckEvent.Done(ids, v) =>
+          Ok(Json.obj("checked" -> ids.asJson, "view" -> v.asJson))
+        }
+          .getOrElse(error(Status.InternalServerError, "the check ended without its view")))
+    case req @ POST -> Root / "api" / "preview" => req.as[Command].flatMap(api.deciding.preview(_, developer))
+        .flatMap(answer)
+    case req @ POST -> Root / "api" / "decide"  => req.as[Command].flatMap(c => modelChanged.ifM(
+        error(Status.Conflict, ModelChanged), api.deciding.decide(c, developer).flatMap(answer)))
   }
 
-  private def answer[A: Encoder](r: Either[Refusal, A]): IO[Response[IO]] = r.fold(refused, Ok(_))
+  /** The layers' scripts, as text (the JSON encoder in scope would quote it). */
+  private def script: IO[Response[IO]] = IO.pure(Response[IO](Status.Ok)
+    .withEntity(layers.map(_.script).mkString("\n;\n"))(using EntityEncoder.stringEncoder[IO])
+    .withContentType(`Content-Type`(MediaType.application.javascript)))
 
 object Routes:
   val TokenHeader = "X-FrFlow-Token"
@@ -65,15 +74,21 @@ object Routes:
   private object From extends OptionalQueryParamDecoderMatcher[NodeId]("node")
   private object Words extends QueryParamDecoderMatcher[String]("q")
 
-  /** `{"error": message}`, the body of every failure. */
+  /** `{"error": message}`, the body of a failure in words. */
   def error(status: Status, message: String): IO[Response[IO]] =
-    IO.pure(Response[IO](status).withEntity(Json.obj("error" -> Json.fromString(message))))
+    IO.pure(Response[IO](status).withEntity(Json.obj("error" -> message.asJson)))
 
-  private def refused(r: Refusal): IO[Response[IO]] = r match
-    case Refusal.UnknownNode(_) => error(Status.NotFound, r.message)
-    case _ => error(Status.Conflict, r.message)
+  /** A refusal is a 409 (an unknown node a 404), `{"refusal": …}`; what it records otherwise. */
+  def answer[A: Encoder](r: Either[Refusal, A]): IO[Response[IO]] = r.fold(x =>
+    IO.pure(Response[IO](x match
+      case Refusal.UnknownNode(_) => Status.NotFound
+      case _                      => Status.Conflict).withEntity(Json.obj("refusal" -> x.asJson))), Ok(_))
 
+  /** What stops an operation, `{"stop": …}`: an unknown node 404, no Lean 503; a body that does not read 400. */
   def failed(e: Throwable): IO[Response[IO]] = e match
-    case FrFlowError.UnknownNode(_) => error(Status.NotFound, e.getMessage)
+    case s: Stop           => IO.pure(Response[IO](s match
+        case Stop.UnknownNode(_) => Status.NotFound
+        case Stop.NoLean         => Status.ServiceUnavailable
+        case _                   => Status.InternalServerError).withEntity(Json.obj("stop" -> s.asJson)))
     case m: MessageFailure => error(Status.BadRequest, m.getMessage)
-    case _ => error(Status.InternalServerError, Option(e.getMessage).getOrElse(e.toString))
+    case other             => error(Status.InternalServerError, Option(other.getMessage).getOrElse(other.toString))

@@ -8,5 +8,4 @@ import frflow.*
   */
 final case class Library(documents: List[Document], folders: List[Folder], teams: List[Team], shares: List[Share],
     invitations: List[Invitation], requests: List[AccessRequest], log: List[Entry], outbox: List[Notice])
-object Library extends Data[Library]:
-  given LeanType[Library] = LeanType.product[Library]
+    derives LeanType

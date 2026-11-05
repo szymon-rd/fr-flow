@@ -1,13 +1,14 @@
-package frflow.agent
-package request
+package frflow.agent.request
 
-import frflow.protocol.{NodeId, Version}
-import io.circe.Codec
-import java.time.Instant
+import frflow.core.name.NodeId
+import io.circe.{Codec, Decoder, Encoder}
 
-/** A request of the developer's to the agent, on a node or on the idea (`.frflow/requests.json`); the node is with the
-  * agent until it is answered (`answeredAt`) or the node changes from the `version` it was `seen` at.
+/** A request of the developer's to the agent, on a node or on the whole idea (`.frflow/requests.json`), with the
+  * agent's answer once it gives one; the node is with the agent until it answers or the node moves from the version
+  * the developer `seen` it at.
   */
-final case class Request(id: RequestId, node: Option[NodeId], text: String, by: String, at: Instant,
-    status: RequestStatus, answer: Option[String] = None, seen: Option[Version] = None, answeredAt: Option[Instant] = None)
-    derives Codec.AsObject
+final case class Request(id: RequestId, node: Option[NodeId], text: String, asked: Asked, status: RequestStatus,
+    answer: Option[Answer]) derives Codec.AsObject
+
+object Request:
+  given Codec[NodeId] = Codec.from(Decoder.decodeString.map(NodeId(_)), Encoder.encodeString.contramap(_.value))

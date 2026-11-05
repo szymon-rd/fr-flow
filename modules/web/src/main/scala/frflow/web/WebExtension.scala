@@ -1,10 +1,10 @@
 package frflow.web
 
 import cats.effect.IO
-import frflow.api.{Developer, Extension, Host}
+import frflow.api.{Extension, Host}
 
-/** What a layer on top adds to the web view: its routes (behind the page's token; under `/api/NAME/`, say), and a script
-  * the page runs after its own, which registers with `FrFlow.extend({...})` (see the page).
+/** What a layer on top adds to the web view, for the project `host` opens and the developer deciding on the page: its
+  * routes and script (`WebPart`). A layer proposes and asks; deciding stays the page's own routes.
   */
 trait WebExtension extends Extension:
-  def part(host: Host, dev: Developer): IO[WebPart]
+  def part(host: Host[IO], developer: String): IO[WebPart]

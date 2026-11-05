@@ -1,6 +1,6 @@
 package frflow.api
 
-/** A layer on top of FrFlow, such as an AI agent's tools: a project's main object lists the ones it uses, and each front
-  * end takes the parts it knows (the CLI's `CliExtension`, the web view's `WebExtension`).
+/** A layer on top of FrFlow (an AI agent's, say), as a project's main object passes it: each front end takes from it
+  * what it knows (the command line its commands, the web view its routes and script).
   */
 trait Extension

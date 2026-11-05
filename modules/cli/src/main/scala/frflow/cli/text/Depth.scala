@@ -1,6 +1,5 @@
-package frflow.cli
-package text
+package frflow.cli.text
 
-/** `Brief` before a review prompt, `Normal` for `show` (about a screen), `Full` for `show --full` (nothing cut). */
+/** How much of a node `show` prints: what the review shows first, the usual sections, or everything, nothing cut. */
 enum Depth:
   case Brief, Normal, Full

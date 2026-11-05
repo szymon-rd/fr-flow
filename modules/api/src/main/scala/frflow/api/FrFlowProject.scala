@@ -1,17 +1,15 @@
 package frflow.api
 
+import cats.data.NonEmptyChain
 import cats.effect.IO
+import frflow.dsl.build.ElabError
 import java.nio.file.Path
 
-/** A project as its front ends open it: the FrModel, its directory (`FRFLOW_ROOT` overrides it), FrFlow's Lean
-  * kernel relative to its `lean/`, and the layers on top it uses. A project's main object is one (the CLI's `FrFlowApp`);
-  * the web view's `serve` task opens the same object.
+/** What a project's main object gives the front ends (the command line's `FrFlowApp`, the web view's `serve`): the
+  * project, or what keeps its model or its examples from elaborating (its examples' classes are read from where the
+  * build put them, hence `IO`); its directory, as the environment gives it; and the layers on top it uses.
   */
 trait FrFlowProject:
-  def kb: frflow.FrModel
-  def root: String
-  def kernelPath: String
-  def extensions: List[Extension] = Nil
-  def directory(env: Map[String, String]): Path = Path.of(env.getOrElse("FRFLOW_ROOT", root)).toAbsolutePath.normalize
-  def api(env: Map[String, String]): IO[FrFlowApi] = LiveApi.fromEnv(kb, root, kernelPath, env)
-  def host(env: Map[String, String]): IO[Host] = api(env).map(Host(_, directory(env), env))
+  def project: IO[Either[NonEmptyChain[ElabError], Project]]
+  def directory(env: Map[String, String]): Path
+  def extensions: List[Extension]

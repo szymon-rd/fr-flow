@@ -1,68 +1,105 @@
 package crm
 
-import java.sql.{Connection, DriverManager}
+import java.sql.{Connection, PreparedStatement, ResultSet}
+import scala.util.Using
 
-/** The CRM's records, shares and expiries in SQLite: the adapter behind the RecordsByQuery port
-  * (writes: DbWrites.scala). What it returns is checked against the port on every call, and against
-  * the proven `define` the port is decided with on every combination of the port's examples.
+/** The CRM's records, shares, expiries and event log in SQLite: the plain Scala behind the database model's
+  * operations, tested against `databaseModel` and what is assumed of its search (`recordsByQuery`). Its tables have
+  * one row per key (their keys unique), as `keyedTables` trusts, each read in the order its rows were stored. One
+  * connection, its calls one at a time.
   */
-final class Db private (val conn: Connection):
-  conn.createStatement().executeUpdate(
-    "create table if not exists records (id integer primary key, tenant text not null, kind text not null, title text not null)")
-  conn.createStatement().executeUpdate(
-    "create table if not exists shares (record integer not null, tenant text not null, primary key (record, tenant))")
-  conn.createStatement().executeUpdate(
-    "create table if not exists expiries (record integer not null, tenant text not null, until integer not null, primary key (record, tenant))")
-
-  private[crm] def rows[T](sql: String, args: Any*)(read: java.sql.ResultSet => T): List[T] = synchronized {
-    val st = conn.prepareStatement(sql)
-    args.zipWithIndex.foreach((a, i) => st.setObject(i + 1, a))
-    val rs = st.executeQuery()
-    val out = List.newBuilder[T]
-    while rs.next() do out += read(rs)
-    out.result()
-  }
-  private[crm] def record(rs: java.sql.ResultSet) =
-    CrmRecord(BigInt(rs.getLong("id")), TenantId(rs.getString("tenant")), Kind.valueOf(rs.getString("kind")), rs.getString("title"))
-
+final class Db private (conn: Connection, select: Search => (String, List[Any])):
   /** The stored records a search asks for, by SQL. */
-  def recordsMatching(q: Search): List[CrmRecord] = q match
-    case Search.ById(id)   => rows("select * from records where id = ? order by id", id.toLong)(record)
-    case Search.OfKind(k)  => rows("select * from records where kind = ? order by id", k.toString)(record)
-    case Search.Everything => rows("select * from records order by id")(record)
+  def recordsMatching(q: Search): List[CrmRecord] = synchronized {
+    val (where, args) = select(q)
+    rows(s"select id, tenant, kind, title from records $where order by seq", args)(record)
+  }
 
-  def allRecords(): List[CrmRecord] = recordsMatching(Search.Everything)
-  def shares(): List[Share] = rows("select record, tenant from shares order by record, tenant")(rs => Share(BigInt(rs.getLong(1)), TenantId(rs.getString(2))))
-  def expiries(): List[Expiry] =
-    rows("select record, tenant, until from expiries order by record, tenant")(rs => Expiry(BigInt(rs.getLong(1)), TenantId(rs.getString(2)), BigInt(rs.getLong(3))))
-  def load(): CrmStore = CrmStore(allRecords(), shares(), expiries())
+  /** What it holds: the records, shares and expiries, each table in the order its rows were stored. */
+  def load(): CrmStore = synchronized(CrmStore(rows("select id, tenant, kind, title from records order by seq", Nil)(
+    record), rows("select record, tenant from shares order by seq", Nil)(share),
+    rows("select record, tenant, until from expiries order by seq", Nil)(expiry)))
 
-  private[crm] def insert(records: List[CrmRecord], shares: List[Share], expiries: List[Expiry]): Unit =
-    val r = conn.prepareStatement("insert into records (id, tenant, kind, title) values (?, ?, ?, ?)")
-    records.foreach { x => r.setLong(1, x.id.toLong); r.setString(2, x.tenant.value); r.setString(3, x.kind.toString); r.setString(4, x.title); r.executeUpdate() }
-    val s = conn.prepareStatement("insert or ignore into shares (record, tenant) values (?, ?)")
-    shares.foreach { x => s.setLong(1, x.record.toLong); s.setString(2, x.to.value); s.executeUpdate() }
-    val e = conn.prepareStatement("insert or replace into expiries (record, tenant, until) values (?, ?, ?)")
-    expiries.foreach { x => e.setLong(1, x.record.toLong); e.setString(2, x.to.value); e.setLong(3, x.until.toLong); e.executeUpdate() }
+  /** Replaces what is stored about record `id` with what `t` holds about it, in one transaction; returns the rows
+    * about it, read back in the order stored.
+    */
+  def storeAbout(id: BigInt, t: CrmStore): CrmStore = synchronized {
+    conn.setAutoCommit(false)
+    try
+      List("records where id", "shares where record", "expiries where record").foreach(table =>
+        update(s"delete from $table = ?", List(id.toLong)))
+      insert(CrmStore(t.records.filter(_.id == id), t.shares.filter(_.record == id), t.expiries.filter(_.record == id)))
+      conn.commit()
+    catch
+      case e: Exception =>
+        conn.rollback()
+        throw e
+    finally conn.setAutoCommit(true)
+    CrmStore(rows("select id, tenant, kind, title from records where id = ? order by seq", List(id.toLong))(record),
+      rows("select record, tenant from shares where record = ? order by seq", List(id.toLong))(share),
+      rows("select record, tenant, until from expiries where record = ? order by seq", List(id.toLong))(expiry))
+  }
+
+  /** Appends an event to the log. */
+  def logEvent(e: Event): Unit = synchronized(update("insert into events (event) values (?)", List(Events.text(e))))
+
+  /** The log, in order. */
+  def events(): List[Event] = synchronized(rows("select event from events order by seq", Nil)(r =>
+    Events.read(r.getString(1))))
+
+  def tables: Tables = Tables(load(), events())
+  def close(): Unit = conn.close()
+
+  private def insert(s: CrmStore): Unit =
+    s.records.foreach(x => update("insert into records (id, tenant, kind, title) values (?, ?, ?, ?)",
+      List(x.id.toLong, x.tenant.value, x.kind.toString, x.title)))
+    s.shares.foreach(x => update("insert into shares (record, tenant) values (?, ?)",
+      List(x.record.toLong, x.to.value)))
+    s.expiries.foreach(x => update("insert into expiries (record, tenant, until) values (?, ?, ?)",
+      List(x.record.toLong, x.to.value, x.until.toLong)))
+
+  private def prepared[T](sql: String, args: List[Any])(use: PreparedStatement => T): T =
+    Using.resource(conn.prepareStatement(sql)) { st =>
+      args.zipWithIndex.foreach((a, i) => st.setObject(i + 1, a))
+      use(st)
+    }
+  private def update(sql: String, args: List[Any]): Unit = prepared(sql, args)(st => { val _ = st.executeUpdate() })
+  private def rows[T](sql: String, args: List[Any])(read: ResultSet => T): List[T] = prepared(sql, args)(st =>
+    Using.resource(st.executeQuery())(rs => Iterator.continually(rs).takeWhile(_.next()).map(read).toList))
+
+  private def record(r: ResultSet) =
+    CrmRecord(BigInt(r.getLong(1)), TenantId(r.getString(2)), Kind.valueOf(r.getString(3)), r.getString(4))
+  private def share(r: ResultSet) = Share(BigInt(r.getLong(1)), TenantId(r.getString(2)))
+  private def expiry(r: ResultSet) = Expiry(BigInt(r.getLong(1)), TenantId(r.getString(2)), BigInt(r.getLong(3)))
 
 object Db:
-  /** A database file (created if missing). */
-  def open(path: String): Db = Db(DriverManager.getConnection(s"jdbc:sqlite:$path"))
+  /** The search's SQL: a record by its id, the records of a kind, or every record. */
+  val selecting: Search => (String, List[Any]) =
+    case Search.ById(id)   => ("where id = ?", List(id.toLong))
+    case Search.OfKind(k)  => ("where kind = ?", List(k.toString))
+    case Search.Everything => ("", Nil)
 
-  /** An in-memory database holding the given records, shares and expiries: for examples and tests. */
-  def of(records: List[CrmRecord], shares: List[Share] = Nil, expiries: List[Expiry] = Nil): Db =
-    val db = Db(DriverManager.getConnection("jdbc:sqlite::memory:"))
-    db.synchronized(db.insert(records, shares, expiries))
-    db
-
-  /** An in-memory database holding what a history led to, as CrmRun says (each write applied by
-    * WriteContract's code and its record's rows replaced, each run by SharesExpire's code), with the
-    * history in its event log: for examples and tests.
+  /** An in-memory database holding the tables given, its searches by `select`: through SQLite's driver itself, not
+    * `DriverManager`, which finds drivers by the calling thread's class loader.
     */
-  def replaying(es: List[Event]): Db =
-    val s = es.foldLeft(CrmStore(Nil, Nil, Nil))((s, e) => e match
-      case Event.Wrote(w)     => replaceAbout.fn(s, about.fn(w), aboutRecord.fn(applyWrite.fn(s, w), about.fn(w)))
-      case Event.Expired(now) => expireCode.fn(s, now))
-    val db = of(s.records, s.shares, s.expiries)
-    es.foreach(db.logEvent)
+  def holding(t: Tables, select: Search => (String, List[Any]) = selecting): Db =
+    val conn = org.sqlite.JDBC().connect("jdbc:sqlite::memory:", java.util.Properties())
+    List("records (seq integer primary key autoincrement, id integer not null unique, tenant text not null, " +
+      "kind text not null, title text not null)",
+      "shares (seq integer primary key autoincrement, record integer not null, tenant text not null, " +
+        "unique (record, tenant))",
+      "expiries (seq integer primary key autoincrement, record integer not null, tenant text not null, " +
+        "until integer not null, unique (record, tenant))",
+      "events (seq integer primary key autoincrement, event text not null)")
+      .foreach(table => Using.resource(conn.createStatement())(_.executeUpdate(s"create table $table")))
+    val db = Db(conn, select)
+    db.synchronized(db.insert(t.store))
+    t.events.foreach(db.logEvent)
     db
+
+  /** A database holding the store, used once and closed. */
+  def using[A](s: CrmStore, select: Search => (String, List[Any]) = selecting)(f: Db => A): A =
+    Using.resource(holding(Tables(s, Nil), select))(f)(using Releasable)
+
+  private object Releasable extends Using.Releasable[Db]:
+    def release(db: Db): Unit = db.close()

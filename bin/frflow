@@ -1,14 +1,17 @@
 #!/bin/sh
 # Runs a project's FrFlow CLI on this terminal, with colors and the interactive review:
-#   bin/frflow auth tree          bin/frflow keycloak review --as NAME          bin/frflow crm --help
+#   bin/frflow rooms status       bin/frflow rooms review --as NAME             bin/frflow crm --help
+# A project is examples/PROJECT; FrFlow's own examples keep their command line in examples/PROJECT/app.
 # sbt writes the java command once (`<project>/cliLauncher`), and again after a source changes.
 # Agents and CI can use `sbt "<project>/run COMMAND"` as well: through sbt the output is plain.
 set -e
 here=$(cd "$(dirname "$0")/.." && pwd)
 project=${1:?usage: bin/frflow PROJECT COMMAND [ARGS...]}
 shift
-launch="$here/examples/$project/target/frflow.launch"
-if [ ! -s "$launch" ] || [ -n "$(find "$here/modules" "$here/examples/$project/src" "$here/build.sbt" \( -name '*.scala' -o -name '*.sbt' -o -name '*.html' \) -newer "$launch" 2>/dev/null | head -n 1)" ]; then
+app="$here/examples/$project"
+[ -d "$app/app" ] && app="$app/app"
+launch="$app/target/frflow.launch"
+if [ ! -s "$launch" ] || [ -n "$(find "$here/modules" "$here/examples/$project/src" "$app/src" "$here/build.sbt" \( -name '*.scala' -o -name '*.sbt' -o -name '*.html' \) -newer "$launch" 2>/dev/null | head -n 1)" ]; then
   command -v sbt > /dev/null || { echo "frflow: sbt is not on the PATH" >&2; exit 2; }
   echo "frflow: compiling $project with sbt (on first use, or after a change)..." >&2
   (cd "$here" && sbt --client "$project/cliLauncher" < /dev/null > /dev/null 2>&1) ||
