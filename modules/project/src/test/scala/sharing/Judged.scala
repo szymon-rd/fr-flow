@@ -148,11 +148,13 @@ object Judged:
       "when the service started: fixed for the run, the start of its history"))
 
   /** Today's tests not ported, each deferred with why and to when (the step 13 review's S4): they need today's
-    * server and scheduler (its HTTP routes, its codec, its wall-clock scheduler), which `next` does not have.
+    * server and scheduler (its HTTP routes, its codec, its wall-clock scheduler), which the port does not have. Step
+    * 14 deleted today's example; its server is at f727b4a (examples/sharing/src/main/scala/sharing/http), and its
+    * tests wait for the server's port, carried past step 14 (rebuild-carry.md).
     */
   val deferred: Map[String, String] = Map(
     "the black-box oracle: 400 generated requests, waits and runs of housekeeping, on the memory store and SQLite" ->
-      "needs today's server and its codec; with the server's port (step 14's documents and examples or later)",
+      "needs today's server and its codec; with the server's port, after step 14",
     "many clients at once: serializable results in commit order, every notice delivered once or waiting" ->
       ("needs today's server; the transactions and the delivery's interleavings are tested on the models " +
         "(InterleavingsSuite) and proven (commute_0 to commute_6); with the server's port"),

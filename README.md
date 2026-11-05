@@ -65,7 +65,7 @@ developed software.
 ## Example: booking meeting rooms
 
 People book meeting rooms for a stretch of time, and a room holds one meeting at a time. Below is the core of the
-example; the whole of it is in [`modules/eval/src/test/scala/rooms`](modules/eval/src/test/scala/rooms).
+example; the whole of it is in [`examples/rooms`](examples/rooms).
 
 ### The code
 
@@ -243,9 +243,9 @@ class GrantedExamples extends FrFlowExamples(rooms):
 
 ### How it works
 
-`check` proves the steps in Lean, tests the calendar against `grantWhenNoOverlap` and the table's Scala against its
-model on generated cases, and has Lean prove that a meaning exists for the `Declaration`s under which every statement
-holds:
+`bin/frflow rooms check` proves the steps in Lean, tests the calendar against `grantWhenNoOverlap` and the table's
+Scala against its model on generated cases, and has Lean prove that a meaning exists for the `Declaration`s under which
+every statement holds. Once the developer has accepted every node (`bin/frflow rooms review`), it ends:
 
 ```text
 Consistency: a meaning for what is open under which every statement holds
@@ -297,8 +297,8 @@ x grantWhenFree: failed
 ```
 
 The agent also changes `covers` to include the end. Now everything agrees with the misreading and every proof passes,
-but the change reaches every claim, so all 12 go back to the developer. `review` shows each, and `diff bookWhenFree`
-what changed:
+but the change reaches every claim, so all 12 go back to the developer. `bin/frflow rooms review` shows each, and
+`bin/frflow rooms diff bookWhenFree` what changed:
 
 ```diff
 -val covers = define { (b: Term[Booking], t: Term[BigInt]) => b.start <= t && t < b.end }
@@ -312,6 +312,7 @@ what changed:
 Decision
   to review: it changed
   not mechanical: its meaning moved
+  …
 ```
 
 ```text
@@ -414,6 +415,7 @@ sbt "frflowInit toy --as NAME"       # an empty project in examples/toy, NAME it
 sbt reload
 bin/frflow toy status                # compiles on first use
 sbt "toy/serve --as NAME"            # the web view on localhost, deciding as NAME
+bin/frflow rooms status              # an example: rooms, auth, keycloak, crm, sharing
 ```
 
 `sbt "frflowInitAgent toy --as NAME"` creates one with the agent layer enabled. `sbt test` runs FrFlow's fast tests;
@@ -421,9 +423,11 @@ sbt "toy/serve --as NAME"            # the web view on localhost, deciding as NA
 
 ## Examples
 
-Each example is written in `modules/eval/src/test/scala/<name>`, its proofs by hand in
-`modules/project/src/test/resources/<name>/proofs`, and its `PortSuite` (`modules/project/src/test/scala/<name>`)
-checks it in Lean and tests its code (`sbt "project/Lean/testOnly <name>.PortSuite"`).
+Each example is a project in `examples/<name>`: its statements and code in `src/main`, its examples in `src/test`,
+its proofs by hand in `lean/Proofs`, and its command line in `app` (`bin/frflow <name> COMMAND`). None has a decision
+yet: each starts with no ledger, for its developer to decide. FrFlow's own suites test them, each whole in its
+`PortSuite` (`sbt "project/Lean/testOnly <name>.PortSuite"`), against what the library before the rebuild recorded
+(`reference/`).
 
 - `rooms` books meeting rooms: the example above.
 - `auth` is access control by a table of grants, and the smallest example.

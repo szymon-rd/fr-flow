@@ -13,7 +13,7 @@ Beside this file, in `docs/redesign/`:
 | `features.md` | every feature of today's library, its concept here, its use, what the rebuild does |
 | `dependencies.txt` | today's package and module dependencies, measured |
 | `planned/` | the planned code: nine of the twelve modules, compiled, with suites |
-| `lean-spike/` | rooms' and auth's Lean as the printer gives it, built by `lake`, with proofs |
+| `lean-spike/` | historical: rooms' and auth's Lean as the printer gave it during the design, with proofs; it no longer builds (its `Proofs.lean` is of the §21 shape, its bundled `frflow/` older than the library) and is kept as the record |
 | `tools/` | scripts the design used; the size budgets are `bin/budget.py` since step 14 (`python3 bin/budget.py modules`) |
 
 Source paths below are under `planned/src/<module>/`; rooms is `planned/test/project/frflow/rooms/`, auth
@@ -2067,13 +2067,32 @@ Type errors inside a define and `==` on terms give the same messages as today, n
    in `project/architecture.conf`; a package cycle in a module; `private[frflow]`; `ThreadLocal`; `cats.effect`,
    `io.circe`, `java.nio.file.Files`, `scala.util.Random` or `System.getenv` in `core`, `dsl`, `proof` or `decision`;
    atomics, `Mutex` or `synchronized` outside `eval.Running` and `FlowInterpreter`.
+
+   *Implementation notes (step 14), not owner decisions.* The suite is core's `ArchitectureSuite`; it also reads
+   names relative to a file's package, fails on a file with two package clauses, bans `sys.env`, `sys.props`,
+   `System.getProperty`, `Random` however imported and `java.nio.file` wildcards in the pure modules, and counts as
+   locks a `Semaphore` and the JDK's `locks`. Edges are checked per module (only decision's are narrowed to
+   packages). Its exceptions are listed in `project/architecture.conf` and counted in the suite, so a new one is a
+   visible change, each to be removed when its reason goes:
+   - two package cycles: `proof.lean.lower` with `proof.lean.term` (lowering a term and lowering a program call
+     each other; one package would hold 21 files), to go when a program's lowering takes the term printer as a
+     parameter; and `api` with `api.shell` (the shell is private to the API, its public constructors in
+     `FrFlowApi`'s companion), to go when the constructors move to a public package of their own;
+   - five lock places besides the rule's two (`eval.run.Running`, `eval.flow.FlowInterpreter`): the `World` a
+     transaction holds its lock over, `testing.Interleavings` (a test harness pausing two runs' calls), and the
+     shell's `LedgerStore`, `Lake` and the agent's `FileStore`, whose critical sections write a file or run a build,
+     which a `Ref` cannot hold (the in-memory stores use `Ref.modify` alone); to go if a store's writes become one
+     atomic file replacement;
+   - one file read in the pure modules: `dsl.build.SourceFiles`, a macro reading the disk at compile time.
 3. **scalafix `DisableSyntax`** on `core`, `proof`, `eval`, `decision`, `dsl`: no `null` (but `dsl.node.Parent.of`), no
    `var` in classes, no `throw` (but "FrFlow bug" sites, `Failure(fault)` in `Elab`, `ReadRecording`, `Term.select`,
    `CodeSyntax`'s refusals, and `NotEvaluated` where 7.1 says), no `asInstanceOf` outside 7.3's places, no
    `isInstanceOf`, no `@unchecked` outside `eval.Fn`.
 4. **Size budgets** in CI against a committed baseline: a change may not add a violation. The five- and six-input
    `apply` forms of `Declaration` and `Definition` are an accepted exception to the four-parameter limit: Scala cannot
-   shorten them.
+   shorten them. *Implementation note (step 14):* `bin/budget.py` counts every parameter list but `using` ones, as the
+   scala-fp skill's `measure.py` does; its baseline (`bin/budget-baseline.txt`) lists the 73 functions over four it
+   then finds, mostly the term algebras' curried operations, each to be removed as its function is brought to four.
 5. **Golden files** for every example's Lean, contents, CLI output and the README walk-through, once ported; a change
    is listed in its commit message and approved.
 6. **Law suites** for every instance (`Gen`, the monoids, `Deferred`) and every algebra against each interpreter;
@@ -2092,15 +2111,15 @@ The code uses a few patterns, each written the same way everywhere; one file sho
 |---|---|
 | Phase | `core/analysis/Validate.scala` |
 | Value of | `core/analysis/Shown.scala` |
-| Stage type | `core/analysis/Valid.scala` |
+| Stage type | `core/analysis/resolution/Valid.scala` |
 | Case per kind | `core/spec/Statement.scala` |
 | Gathered from parts | `dsl/build/Declarations.scala` |
 | Built later, errors kept | `dsl/kb/Elaborate.scala` |
-| Algebra of terms | `core/term/Sym.scala` |
+| Algebra of terms | `core/term/language/Sym.scala` |
 | Interpreter transformer | `core/term/interpret/Forward.scala` |
 | Lowering of structure | `proof/lean/lower/LowerProg.scala` |
 | Algebra | `project/port/LedgerStore.scala` |
-| Capability, two interpreters | `dsl/flow/Flow.scala` |
+| Capability, two interpreters | `dsl/vocab/Flow.scala` |
 | Program | `project/program/DecideProgram.scala` |
 | Rule per command | `decision/rules/Decide.scala` |
 | Derived view | `api/derive/NodeViews.scala` |

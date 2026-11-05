@@ -168,15 +168,15 @@ sbt reload
 bin/frflow toy status
 sbt &quot;toy/serve --as NAME&quot;          # the web view on localhost</code></pre></div>
 <p><code>--as NAME</code> lists your key as the project's first decider (<code>.frflow/deciders</code>, signed by it):
-commit it. The examples FrFlow ships are written in <code>modules/eval/src/test/scala/&lt;name&gt;</code> (rooms, auth,
-keycloak, crm, sharing), and each is checked whole by its <code>PortSuite</code>:
+commit it. The examples FrFlow ships are projects in <code>examples/&lt;name&gt;</code> (rooms, auth, keycloak, crm,
+sharing): <code>bin/frflow rooms status</code>. Each is checked whole by its <code>PortSuite</code>:
 <code>sbt "project/Lean/testOnly rooms.PortSuite"</code>.</p>
 </section>
 
 <section aria-labelledby="tutorial">
 <h2 id="tutorial">Tutorial: read a FrModel, top to bottom <span class="kind">Tutorial</span></h2>
 <p>The rooms example: people book meeting rooms for a stretch of time, and a room holds one meeting at a time. Its
-whole source is in <code>modules/eval/src/test/scala/rooms</code>.</p>
+whole source is in <code>examples/rooms</code>.</p>
 
 <h3 id="t-domain">1. The domain</h3>
 <p>Domain types are case classes deriving <code>LeanType</code>. A <code>define</code> is a Definition given its

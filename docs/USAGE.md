@@ -12,12 +12,14 @@ on top, which a project enables, for an agent that proposes the nodes and writes
 
 ### Running
 
-Requirements: JDK 17+, sbt, and Lean 4.35.0 (`lake` on the `PATH`, or `FRFLOW_LAKE`). `bin/frflow PROJECT COMMAND` runs a project's
-CLI on the terminal, with colors and the interactive review, compiling with sbt on first use and after a change;
-`sbt "PROJECT/run COMMAND"` runs it through sbt, plain. `--help` lists the commands.
+Requirements: JDK 17+, sbt, and Lean 4.35.0 (`lake` on the `PATH`, or `FRFLOW_LAKE`). `bin/frflow PROJECT COMMAND`
+runs a project's CLI on the terminal, with colors and the interactive review, compiling with sbt on first use and
+after a change; `sbt "PROJECT/run COMMAND"` runs it through sbt, plain. `--help` lists the commands. A project is
+`examples/PROJECT`; FrFlow's own five (`rooms`, `auth`, `keycloak`, `crm`, `sharing`) are there too.
 
 FrFlow's own tests: `sbt test` runs the fast ones (a few minutes); the ones that run Lean end to end (tagged `Lean`)
-run with `sbt leanTest`; `sbt testAll` runs both.
+run with `sbt leanTest`; `sbt testAll` runs both. Per module, `sbt core/test`, `sbt project/test` and so on; eval's
+is `sbt evaluation/test`, since `eval/…` is sbt's own command (it would evaluate the rest as Scala).
 
 ### Commands
 
@@ -382,9 +384,11 @@ One sbt project each, under `modules/`, each with its own top package (`frflow.<
 - `cli`, `web`: the command line (`FrFlowApp`, the composition root) and the web view.
 - `agent`: the AI agent's layer, on top of `cli` and `web`. No other module depends on it.
 
-The examples are written in eval's tests (`modules/eval/src/test/scala/<name>`), their proofs in project's test
-resources, and each is checked whole by its `PortSuite` against what the library before the rebuild recorded
-(`reference/`).
+FrFlow's examples are projects under `examples/<name>`, each in two sbt projects so FrFlow's suites can test it
+with no cycle in the build: its model (`<name>Model`: `src/main`, its examples in `src/test`, its proofs in
+`lean/Proofs`), which testing's tests depend on, and its command line (`<name>`, its main object in `app`). Each is
+checked whole by its `PortSuite` (project's tests) against what the library before the rebuild recorded
+(`reference/`), and rooms' walk-through by `WalkthroughSuite` (cli's tests).
 
 ## With an AI agent
 

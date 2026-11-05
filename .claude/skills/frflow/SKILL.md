@@ -157,7 +157,7 @@ contract, invariant, model or definition node, no boundary, no `Program`. Never 
 
 ## Writing nodes
 
-From rooms (`modules/eval/src/test/scala/rooms`):
+From rooms (`examples/rooms`):
 
 ```scala
 val booked = Declaration[List[Booking]]("the bookings made, as the world stands")

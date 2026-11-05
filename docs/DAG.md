@@ -113,7 +113,7 @@ What proven code hands to plain Scala meets the rules on its type (`made_<code>_
 
 ## 3. Lean obligations
 
-What Lean is asked of each node is a function of the resolved theory (`proof.obligation.Obligations`). Generated Lean
+What Lean is asked of each node is a function of the resolved theory (`proof.audit.Obligations`). Generated Lean
 is under `lean/FrFlowGen/<Model>/` (a module per node, its `Spec` and its `Checks`, the models, the domain);
 developers' proofs under `lean/Proofs/<Model>/`.
 
