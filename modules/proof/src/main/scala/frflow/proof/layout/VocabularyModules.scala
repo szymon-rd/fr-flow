@@ -21,7 +21,8 @@ import frflow.proof.lean.term.Printed
 object VocabularyModules:
   import Atoms.name
 
-  def of(r: frflow.core.analysis.resolution.Resolved): List[LeanModule] = of(Lowering(r, frflow.proof.terms.TermTable.of(r)))
+  def of(r: frflow.core.analysis.resolution.Resolved): List[LeanModule] =
+    of(Lowering(r, frflow.proof.terms.TermTable.of(r)))
 
   def of(l: Lowering): List[LeanModule] =
     val v = l.resolved.theory.vocabulary

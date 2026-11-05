@@ -26,7 +26,8 @@ class RelocateSuite extends munit.CatsEffectSuite:
   }
 
   test("the files code refers to are made relative to the project too: rooms' calendar, its table's Scala") {
-    val rooms = Relocate(frflow.project.Projects.rooms, Path.of(""), Path.of("").toAbsolutePath.resolve("examples/rooms"))
+    val rooms = Relocate(frflow.project.Projects.rooms, Path.of(""),
+      Path.of("").toAbsolutePath.resolve("examples/rooms"))
     val tested = rooms.theory.code.attached.values.flatMap(_.code.scala).flatMap(_.files).map(_.path.value).toList
     val modelled = rooms.theory.code.implemented.values.flatMap(_.files).map(_.path.value).toList
     assert(tested.contains("src/main/scala/rooms/Calendar.scala"), tested)

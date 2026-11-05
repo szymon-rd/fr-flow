@@ -1,7 +1,8 @@
-package frflow.eval.run
+package frflow.eval
 
 import cats.effect.{IO, Ref}
 import frflow.*
+import frflow.eval.run.*
 import whole.Theories
 
 /** The step 13c re-review's R-N3: a program whose whole code is one operation's call, written bare

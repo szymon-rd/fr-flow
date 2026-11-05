@@ -77,7 +77,8 @@ class PortSuite extends munit.CatsEffectSuite:
   private def store: List[ModelCheck[IO]] =
     val idle = AuthRequest.SignOut(RealmId(""), "")
     def checked(m: frflow.core.vocab.StateModel, impl: frflow.core.code.Implementation) = ModelCheck(
-      ModelRuns.reportedUnder(m.name), ModelRuns[IO](ModelTests.Check(m, impl), frflow.eval.term.Semantics(elaborated), t,
+      ModelRuns.reportedUnder(m.name), ModelRuns[IO](ModelTests.Check(m, impl),
+        frflow.eval.term.Semantics(elaborated), t,
         1000).of(_, _))
     t.vocabulary.model(serverStore.name).toList.map(checked(_, ModelTests.of(serverStore)(start = SessionDb.holding,
       observe = (d: SessionDb) => d.stored)(d => (d.load, d.logged, d.record, d.lookup)))) ++

@@ -1,5 +1,6 @@
-package crm
+package frflow.testing.ported
 
+import crm.*
 import frflow.core.name.SymbolName
 import frflow.core.spec.CallForm
 import rooms.RoomsIr

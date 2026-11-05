@@ -1,13 +1,14 @@
-package sharing
+package frflow.testing.ported
 
 import frflow.core.expr.Exprs
 import frflow.core.name.{SymbolName, TypeName}
 import frflow.core.spec.{CallForm, FailureClause}
 import frflow.core.ty.Ty
 import rooms.RoomsIr
+import sharing.*
+import sharing.features.SharingClaims
 import sharing.features.SharingHttp
 import sharing.notifications.NotificationsClaims
-import sharing.features.SharingClaims
 
 /** sharing's claims in the owner's forms, as the analyses read them: one stating its Definition by another applied to
   * the same inputs, a run whose failing side changes nothing, and a run stating both outcomes. (Their Lean is

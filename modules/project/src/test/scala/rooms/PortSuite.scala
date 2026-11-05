@@ -115,7 +115,9 @@ class PortSuite extends munit.CatsEffectSuite:
   private def resource(path: String): String =
     scala.io.Source.fromResource(path, getClass.getClassLoader)(using scala.io.Codec.UTF8).mkString
 
-  /** The developer's proofs (`examples/rooms/lean/Proofs/Rooms`): the code's steps, the calendar's, what the table keeps. */
+  /** The developer's proofs (`examples/rooms/lean/Proofs/Rooms`): the code's steps, the calendar's, what the table
+    * keeps.
+    */
   private val proofs: List[String] =
     List("Lemmas", "storeWhenFree", "answerWhenFree", "grantWhenFree", "neverOverlap", "roomBookingsApart")
 

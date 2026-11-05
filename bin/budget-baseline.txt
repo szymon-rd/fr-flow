@@ -1,0 +1,80 @@
+# The size budgets' known violations, which bin/budget.py admits (a change may add none). Since step 14 it counts
+# every parameter list of a def, as the scala-fp skill's measure.py does, not the first list only; these are the
+# functions it then finds over four parameters. Most are the term algebras' curried operations and their
+# interpreters (`core.term.algebra`, `core.term.interpret`, `proof.lean.term`, `eval.term`: an operation's operands,
+# then its binder's hints, then its bodies, one list each, as the algebra's laws state them) and the lowerings and
+# tests that pass a lowering's environment beside its operands. Bringing each to four is a refactoring of its
+# algebra or its callers, not done in step 14; remove a line once its function meets the budget.
+params modules/core/src/main/scala/frflow/core/consistency/Conditions.scala fails
+params modules/core/src/main/scala/frflow/core/consistency/Conditions.scala ran
+params modules/core/src/main/scala/frflow/core/consistency/Conditions.scala runs
+params modules/core/src/main/scala/frflow/core/consistency/Defining.scala runs
+params modules/core/src/main/scala/frflow/core/term/algebra/Collections.scala foldLeft
+params modules/core/src/main/scala/frflow/core/term/algebra/Eithers.scala foldEither
+params modules/core/src/main/scala/frflow/core/term/algebra/Worlds.scala fails
+params modules/core/src/main/scala/frflow/core/term/algebra/Worlds.scala runs
+params modules/core/src/main/scala/frflow/core/term/interpret/Collect.scala fails
+params modules/core/src/main/scala/frflow/core/term/interpret/Collect.scala foldEither
+params modules/core/src/main/scala/frflow/core/term/interpret/Collect.scala foldLeft
+params modules/core/src/main/scala/frflow/core/term/interpret/Collect.scala runs
+params modules/core/src/main/scala/frflow/core/term/interpret/Forward.scala fails
+params modules/core/src/main/scala/frflow/core/term/interpret/Forward.scala foldEither
+params modules/core/src/main/scala/frflow/core/term/interpret/Forward.scala foldLeft
+params modules/core/src/main/scala/frflow/core/term/interpret/Forward.scala runs
+params modules/core/src/main/scala/frflow/core/term/interpret/Opened.scala fails
+params modules/core/src/main/scala/frflow/core/term/interpret/Opened.scala runs
+params modules/core/src/main/scala/frflow/core/term/interpret/Sided.scala foldEither
+params modules/core/src/main/scala/frflow/core/term/interpret/ToExpr.scala fails
+params modules/core/src/main/scala/frflow/core/term/interpret/ToExpr.scala foldEither
+params modules/core/src/main/scala/frflow/core/term/interpret/ToExpr.scala foldLeft
+params modules/core/src/main/scala/frflow/core/term/interpret/ToExpr.scala iterate
+params modules/core/src/main/scala/frflow/core/term/interpret/ToExpr.scala run
+params modules/core/src/main/scala/frflow/core/term/interpret/ToExpr.scala runs
+params modules/core/src/test/scala/frflow/core/expr/Renamed.scala fails
+params modules/core/src/test/scala/frflow/core/expr/Renamed.scala foldEither
+params modules/core/src/test/scala/frflow/core/expr/Renamed.scala foldLeft
+params modules/core/src/test/scala/frflow/core/expr/Renamed.scala runs
+params modules/dsl/src/main/scala/frflow/dsl/shape/Elab.scala program
+params modules/dsl/src/main/scala/frflow/dsl/vocab/ReadRecording.scala collected
+params modules/eval/src/main/scala/frflow/eval/run/Made.scala fieldsOf
+params modules/eval/src/main/scala/frflow/eval/run/ProgramRun.scala run
+params modules/eval/src/main/scala/frflow/eval/term/Evaluate.scala fails
+params modules/eval/src/main/scala/frflow/eval/term/Evaluate.scala runs
+params modules/eval/src/main/scala/frflow/eval/term/RunContainers.scala foldEither
+params modules/eval/src/main/scala/frflow/eval/term/RunLists.scala foldLeft
+params modules/project/src/test/scala/sharing/SeededSuite.scala ran
+params modules/project/src/test/scala/sharing/SeededSuite.scala timed
+params modules/proof/src/main/scala/frflow/proof/lean/lower/LowerModels.scala lemma
+params modules/proof/src/main/scala/frflow/proof/lean/lower/LowerProp.scala inner
+params modules/proof/src/main/scala/frflow/proof/lean/lower/LowerProp.scala named
+params modules/proof/src/main/scala/frflow/proof/lean/term/LeanTerm.scala fails
+params modules/proof/src/main/scala/frflow/proof/lean/term/LeanTerm.scala foldEither
+params modules/proof/src/main/scala/frflow/proof/lean/term/LeanTerm.scala foldLeft
+params modules/proof/src/main/scala/frflow/proof/lean/term/LeanTerm.scala holding
+params modules/proof/src/main/scala/frflow/proof/lean/term/LeanTerm.scala runs
+params modules/proof/src/main/scala/frflow/proof/lean/term/Printed.scala claim
+params modules/proof/src/main/scala/frflow/proof/lean/term/Printed.scala standing
+params modules/proof/src/main/scala/frflow/proof/obligation/Required.scala covering
+params modules/proof/src/main/scala/frflow/proof/terms/CallSites.scala bound
+params modules/proof/src/main/scala/frflow/proof/terms/CallSites.scala each
+params modules/proof/src/main/scala/frflow/proof/terms/CallingCode.scala over
+params modules/proof/src/main/scala/frflow/proof/terms/Calls.scala fails
+params modules/proof/src/main/scala/frflow/proof/terms/Calls.scala foldEither
+params modules/proof/src/main/scala/frflow/proof/terms/Calls.scala foldLeft
+params modules/proof/src/main/scala/frflow/proof/terms/Calls.scala of
+params modules/proof/src/main/scala/frflow/proof/terms/Calls.scala runs
+params modules/proof/src/main/scala/frflow/proof/terms/Keeping.scala formula
+params modules/proof/src/main/scala/frflow/proof/terms/Keeping.scala run
+params modules/proof/src/main/scala/frflow/proof/terms/Making.scala ofProgram
+params modules/testing/src/main/scala/frflow/testing/Cases.scala search
+params modules/testing/src/main/scala/frflow/testing/Judge.scala call
+params modules/testing/src/main/scala/frflow/testing/Judge.scala whole
+params modules/testing/src/main/scala/frflow/testing/PropertyTests.scala searched
+params modules/testing/src/main/scala/frflow/testing/Watching.scala fails
+params modules/testing/src/main/scala/frflow/testing/Watching.scala foldEither
+params modules/testing/src/main/scala/frflow/testing/Watching.scala foldLeft
+params modules/testing/src/main/scala/frflow/testing/Watching.scala runs
+params modules/testing/src/main/scala/frflow/testing/model/AssumedRuns.scala broken
+params modules/testing/src/main/scala/frflow/testing/model/ModelTests.scala run
+params modules/web/src/main/scala/frflow/web/WebView.scala serve
+params modules/web/src/main/scala/frflow/web/WebView.scala server

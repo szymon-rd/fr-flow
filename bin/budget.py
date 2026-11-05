@@ -6,9 +6,11 @@ when every budget is met). `--write-baseline` records today's violations.
 
 The exceptions are the scala-fp skill's (its "Size budgets"), each read off the code, none listed by name:
 - a def that is one `match` whose cases are at most two lines each may be longer than 20 lines;
-- an `apply` in an extension on a function type, taking one parameter per input of that type (the DSL's
-  `Declaration` and `Definition` applied to their arguments), may take more than four;
-- the facade package `frflow` (`src/main/scala/frflow`) may hold fewer than three files.
+- an `apply` in an extension on a `Declaration`'s, a `Definition`'s or a failing Definition's (`Fails`) function
+  type, taking one parameter per input of that type (ARCHITECTURE.md section 11, rule 4), may take more than four;
+- the facade package `frflow` (`modules/eval/src/main/scala/frflow`) may hold fewer than three files.
+Parameters are counted over every list of a def but `using` ones, as the skill's `measure.py` counts them. The
+one-`match` rule does not check that the match is over an ADT.
 """
 import os, re, sys, collections
 
@@ -35,13 +37,43 @@ def one_match(L, i, n):
 def arity(L, i):
     """The number of inputs of the function type an extension directly above line i is on, if any."""
     for k in range(i - 1, max(i - 3, -1), -1):
-        m = re.match(r'\s*extension\s*\[.*?\]\s*\(\w+:\s*\w+\[\(([^()]*)\)\s*=>', L[k])
+        m = re.match(r'\s*extension\s*\[.*?\]\s*\(\w+:\s*(?:Declaration|Definition|Fails)\[\(([^()]*)\)\s*=>', L[k])
         if m: return len([t for t in m.group(1).split(',') if t.strip()])
         if L[k].strip() and not L[k].lstrip().startswith('def apply'): return None
     return None
 
 
-def facade(d): return d.endswith(os.path.join('src', 'main', 'scala', 'frflow'))
+def facade(d): return d.endswith(os.path.join('eval', 'src', 'main', 'scala', 'frflow'))
+
+
+def explicit(sig):
+    """The explicit parameters of a def's signature, in every list but `using` ones (as the skill's `measure.py`)."""
+    m = re.search(r'\bdef\s+[^\s(\[:]+', sig)
+    if not m: return 0
+    i, n, depth, count = m.end(), len(sig), 0, 0
+    while i < n and sig[i] in ' [':
+        if sig[i] == '[':  # type parameters
+            d = 0
+            while i < n:
+                d += sig[i] == '['; d -= sig[i] == ']'; i += 1
+                if d == 0: break
+        else: i += 1
+    while i < n and sig[i] == '(':
+        d, j = 0, i
+        while j < n:
+            d += sig[j] in '([{'; d -= sig[j] in ')]}'; j += 1
+            if d == 0: break
+        inner = sig[i + 1:j - 1].strip()
+        if inner and not inner.startswith('using'):
+            depth = 0; c = 1
+            for ch in inner:
+                if ch in '([{': depth += 1
+                elif ch in ')]}': depth -= 1
+                elif ch == ',' and depth == 0: c += 1
+            count += c
+        i = j
+        while i < n and sig[i] == ' ': i += 1
+    return count
 
 
 def measure(root):
@@ -72,15 +104,11 @@ def measure(root):
             sig = l
             k = i
             while sig.count('(') > sig.count(')') and k + 1 < len(L): k += 1; sig += L[k]
-            mm = re.search(r'def\s+\S+?(\[.*?\])?\((.*?)\)', sig)
-            if mm and not mm.group(2).startswith('using'):
-                depth = 0; cnt = 1 if mm.group(2).strip() else 0
-                for ch in mm.group(2):
-                    if ch in '([{': depth += 1
-                    elif ch in ')]}': depth -= 1
-                    elif ch == ',' and depth == 0: cnt += 1
-                mirrors = name == 'apply' and arity(L, i) == cnt
-                if cnt > 4 and not mirrors: params.append(f"{p}:{i+1}:{cnt}"); keys.append(f"params {p} {name}")
+            while k + 1 < len(L) and re.search(r'\)\s*$|\($', sig) and L[k + 1].lstrip().startswith(('(', 'using')):
+                k += 1; sig += L[k]
+            cnt = explicit(sig)
+            mirrors = name == 'apply' and arity(L, i) == cnt
+            if cnt > 4 and not mirrors: params.append(f"{p}:{i+1}:{cnt}"); keys.append(f"params {p} {name}")
     packages = [(k, v) for k, v in sorted(pk.items()) if (v < 3 and not facade(k)) or v > 15]
     keys += [f"package {k}" for k, _ in packages]
     print("files", len(files), "lines", tot, "??? occurrences", q, "files with ???", qf)
@@ -104,7 +132,7 @@ def main(args):
         with open(baseline, 'w') as f: f.write(''.join(k + '\n' for k in keys))
         print("baseline written:", len(keys), "violations")
         return 0
-    known = set(open(baseline).read().split('\n')) - {''} if os.path.exists(baseline) else set()
+    known = {l for l in open(baseline).read().split('\n') if l and not l.startswith('#')} if os.path.exists(baseline) else set()
     new = [k for k in keys if k not in known]
     print("baseline", len(known), "new violations", len(new)); [print(" ", k) for k in new]
     return 1 if new else 0

@@ -72,7 +72,8 @@ class ScheduleSuite extends munit.CatsEffectSuite:
     run(SharingHttp.handleRequest)(r).as(true)
 
   /** What time passing runs on: the service, its clock, its store, and when housekeeping last ran. */
-  private final case class Passing(run: frflow.eval.run.Running[IO], wall: Wall[IO], store: MemoryLibraryStore, ran: Housekept)
+  private final case class Passing(run: frflow.eval.run.Running[IO], wall: Wall[IO], store: MemoryLibraryStore,
+      ran: Housekept)
 
   /** Time passing, a minute at a time: housekeeping started each minute (a wake-up late by up to `late` seconds), or
     * never; whether the schedule held at each wake-up. Housekeeping purging what has not ended is caught at once.

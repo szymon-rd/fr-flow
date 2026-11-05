@@ -53,21 +53,31 @@ class BudgetTest(unittest.TestCase):
         self.write('A', "object A:\n  def f(a: Int): Int =\n" + "    a\n" * 22)
         self.assertEqual(self.run_budget(), 1)
 
-    def test_an_apply_mirroring_its_function_types_arity_may_take_more_than_four(self):
+    def test_an_apply_mirroring_a_definitions_arity_may_take_more_than_four(self):
         apply = "  def apply(a: Int, b: Int, c: Int, d: Int, e: Int): Int = a\n"
-        self.write('A', "object A:\n  extension [A, B, C, D, E, R](f: Fn[(A, B, C, D, E) => R])\n  " + apply)
+        self.write('A', "object A:\n  extension [A, B, C, D, E, R](f: Definition[(A, B, C, D, E) => R])\n  " + apply)
         self.assertEqual(self.run_budget(), 0)
-        self.write('A', "object A:\n  extension [A, B, C, D, R](f: Fn[(A, B, C, D) => R])\n  " + apply)
+        self.write('A', "object A:\n  extension [A, B, C, D, R](f: Definition[(A, B, C, D) => R])\n  " + apply)
+        self.assertEqual(self.run_budget(), 1)
+        self.write('A', "object A:\n  extension [A, B, C, D, E, R](f: Fn[(A, B, C, D, E) => R])\n  " + apply)
         self.assertEqual(self.run_budget(), 1)
 
-    def test_the_facade_package_may_hold_one_file(self):
-        facade = os.path.join(self.root, 'm', 'src', 'main', 'scala', 'frflow')
-        os.makedirs(facade)
-        with open(os.path.join(facade, 'package.scala'), 'w') as f: f.write("package frflow\n")
+    def test_every_parameter_list_counts_but_using(self):
+        self.write('A', "object A:\n  def f(a: Int, b: Int)(c: Int)(using x: Int, y: Int): Int = a\n")
         self.assertEqual(self.run_budget(), 0)
-        os.makedirs(os.path.join(facade, 'q'))
-        with open(os.path.join(facade, 'q', 'Q.scala'), 'w') as f: f.write("package frflow.q\n")
+        self.write('A', "object A:\n  def f(a: Int, b: Int, c: Int)(d: Int,\n      e: Int): Int = a\n")
         self.assertEqual(self.run_budget(), 1)
+
+    def test_the_facade_package_may_hold_one_file_in_eval_only(self):
+        for module, code in [('eval', 0), ('dsl', 1)]:
+            facade = os.path.join(self.root, module, 'src', 'main', 'scala', 'frflow')
+            os.makedirs(facade)
+            with open(os.path.join(facade, 'package.scala'), 'w') as f: f.write("package frflow\n")
+            self.assertEqual(self.run_budget(), code)
+
+    def test_a_baseline_comment_is_no_violation(self):
+        with open(self.baseline, 'w') as f: f.write("# why\n")
+        self.assertEqual(self.run_budget(), 0)
 
 
 if __name__ == '__main__':
