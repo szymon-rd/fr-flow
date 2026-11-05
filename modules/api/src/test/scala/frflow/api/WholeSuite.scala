@@ -58,7 +58,7 @@ class WholeSuite extends munit.CatsEffectSuite:
   }
 
   test("an example shown both ways says the claims are inconsistent there, and fails; a fact only about " +
-    "Declarations the claims give passes") {
+    "Declarations the claims give passes; one that also sets values, which nothing checks, is not decided") {
     def lean(state: ObligationState) = ObligationView("t", state, Nil)
     val both = ExampleView("both", OnClaims.Lean(lean(ObligationState.Shown), lean(ObligationState.Shown)),
       OnCode.Holds)
@@ -67,6 +67,9 @@ class WholeSuite extends munit.CatsEffectSuite:
     val abstractOpen = abstractShown.copy(onClaims = OnClaims.Lean(lean(ObligationState.NotShown),
       lean(ObligationState.NotShown)))
     assert(both.onClaims.inconsistent && !abstractShown.onClaims.inconsistent)
-    assertEquals(List(both, abstractShown, abstractOpen).map(_.outcome),
-      List(ExampleOutcome.Fails, ExampleOutcome.Passes, ExampleOutcome.Undecided))
+    val abstractGiven = abstractShown.copy(onClaims = OnClaims.ScalaOnly)
+    val valued = abstractGiven.copy(onCode = OnCode.Holds)
+    assertEquals(List(both, abstractShown, abstractOpen, abstractGiven, valued).map(_.outcome),
+      List(ExampleOutcome.Fails, ExampleOutcome.Passes, ExampleOutcome.Undecided, ExampleOutcome.Undecided,
+        ExampleOutcome.Passes))
   }

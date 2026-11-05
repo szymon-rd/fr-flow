@@ -23,11 +23,13 @@ final case class Elaboration(source: String, output: String, file: String):
   /** Where Lean stopped reading the file: where it reported as many errors as it reports (`maxErrors`), or, in a
     * file FrFlow wrote, its first line when Lean did not print the file's last line (`Sentinel`: Lean crashed, ran out
     * of memory, was killed, or said why in other words). Nothing after it was elaborated, so no theorem there is
-    * proven or shown, though no error is said of it.
+    * proven or shown, though no error is said of it. The line is this file's own message, the whole of its first line:
+    * a dependency's, printed in the same build (`Whole.Spec`'s, of `Whole`), is not it.
     */
   def stopped: Option[Int] =
     val cut = diagnostics.filter(_.message.contains("maximum number of errors")).map(_.line)
-    val unended = Sentinel.of(source).filterNot(output.contains).map(_ => 0)
+    val unended = Sentinel.of(source).filterNot(end =>
+      diagnostics.exists(_.message.linesIterator.nextOption().exists(_.trim == end))).map(_ => 0)
     (cut ++ unended).minOption
 
   def verdict(name: String): TheoremVerdict = theorems.find(_.name == name) match

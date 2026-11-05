@@ -86,6 +86,18 @@ class ReadingSuite extends munit.FunSuite:
     assertEquals((Sentinel.of(source), e.stopped), (None, None))
   }
 
+  test("a dependency's last line, printed in the same build, is not this file's: it still reads as cut off") {
+    val written = source + Sentinel.line("FrFlowGen.Crm.N") + "\n"
+    val file = "FrFlowGen/Crm/N.lean"
+    val dependency = "info: FrFlowGen/Crm/N/Checks.lean:18:0: frflow-end FrFlowGen.Crm.N.Checks\n"
+    val own = s"info: $file:18:0: frflow-end FrFlowGen.Crm.N\n"
+    assertEquals(Elaboration(written, dependency, file).stopped, Some(0))
+    assertEquals(Elaboration(written, s"info: $file:3:0: frflow-end FrFlowGen.Crm.N.Checks\n", file).stopped, Some(0))
+    assertEquals(Elaboration(written, dependency + own, file).stopped, None)
+    // Lake's next line, which its messages do not end before, is no part of the line Lean printed.
+    assertEquals(Elaboration(written, own + "ℹ [24/29] Built FrFlowGen.Crm.Whole (1.7s)\n", file).stopped, None)
+  }
+
   test("every obligation's name reads back as the obligation") {
     val n = NodeId("Grants")
     val all = List(ObligationName.Complete, ObligationName.Feasible, ObligationName.Impl, ObligationName.RootImpl,

@@ -7,10 +7,12 @@ import frflow.eval.run.OnCode
   * only), and against the code; what it comes to, `outcome`.
   */
 final case class ExampleView(name: String, onClaims: OnClaims, onCode: OnCode):
-  /** A fact only about Declarations (`Abstract`) has no code to run: the claims giving it, it passes. */
+  /** A fact only about Declarations (`Abstract`) has no code to run: the claims giving it, it passes; one that also
+    * sets values is not asked of Lean (`ScalaOnly`), so nothing checks it: not decided.
+    */
   def outcome: ExampleOutcome =
     if ExampleView.failsOnCode(onCode) || onClaims.contradicted then ExampleOutcome.Fails
-    else if onClaims.shown then ExampleOutcome.Passes
+    else if onClaims.shown && (onCode == OnCode.Holds || onClaims != OnClaims.ScalaOnly) then ExampleOutcome.Passes
     else ExampleOutcome.Undecided
 
 object ExampleView:
