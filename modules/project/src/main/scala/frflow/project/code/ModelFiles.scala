@@ -1,6 +1,7 @@
 package frflow.project.code
 
 import frflow.core.name.RelPath
+import scala.annotation.tailrec
 import frflow.core.Theory
 
 /** Which source files are the model's own (owner §38: in such a file only the definitions plain Scala refers to are
@@ -21,20 +22,28 @@ object ModelFiles:
       t.own.referred.getOrElse(f, Set.empty) ++ t.own.vocabulary.getOrElse(f, Set.empty))))
 
   /** Whether every top-level definition of `source` is one of `names`, a helper building terms, or an object or
-    * class all of whose members are (recursively), and there is one. A helper building terms is a `def` or `val`
-    * whose result type, as written, is a `Term[…]` or a `Flow[…]`, or a function returning one (crm's
-    * `def results(u: Term[Account], q: Term[Ask]): Term[List[CrmRecord]]`): it only builds a statement's or a
-    * program's terms, so what it says reaches Lean through the nodes that use it.
+    * class whose body holds only such definitions (recursively), and there is one. A helper building terms is a
+    * `def` or `val` whose result type, as written, is a `Term[…]` or a `Flow[…]`, or a function whose final result
+    * is one (crm's `def results(u: Term[Account], q: Term[Ask]): Term[List[CrmRecord]]`): it only builds a
+    * statement's or a program's terms, so what it says reaches Lean through the nodes that use it. A statement in a
+    * body that is no definition (an initialiser, a call made for its effect) is plain code: the file is mixed.
     */
   def only(source: String, names: Set[String]): Boolean =
-    val defs = definitions(ScalaTokens.significant(source).split("\n", -1).toVector)
+    val lines = ScalaTokens.significant(source).split("\n", -1).toVector
+    val defs = definitions(lines)
     def covered(d: Def): Boolean = names(d.name) || d.buildsTerms || {
-      val inside = defs.filter(x => x.line > d.line && x.line < d.end && x.indent > d.indent)
-      val members = inside.filter(_.indent == inside.map(_.indent).minOption.getOrElse(0))
-      members.nonEmpty && members.forall(covered)
+      val body = (d.line + 1 until d.end).filter(j => lines(j).trim.nonEmpty)
+      val at = body.map(j => indentOf(lines(j))).minOption
+      val members = defs.filter(x => x.line > d.line && x.line < d.end && at.contains(x.indent))
+      val statements = body.filter(j => at.contains(indentOf(lines(j))) && !members.exists(_.line == j) &&
+        !closes(lines(j)))
+      members.nonEmpty && statements.isEmpty && members.forall(covered)
     }
     val top = defs.filter(_.indent == 0)
     top.nonEmpty && top.forall(covered)
+
+  /** A line that only closes what is open (`)`, `}`, `end Mailer`): no statement of its own. */
+  private def closes(l: String): Boolean = l.trim.headOption.exists(")]}".contains(_)) || l.trim.startsWith("end ")
 
   /** A definition: its name (`""` for an `extension` or an anonymous `given`, which no name covers), where it starts
     * and ends (the next line at its indentation or less), its indentation, and whether it is a helper building terms.
@@ -53,11 +62,31 @@ object ModelFiles:
       val name = if m.group(2) == "extension" || (m.group(2) == "given" && !named(l)) then "" else
         Option(m.group(3)).getOrElse("")
       val valued = m.group(2) == "def" || m.group(2) == "val"
-      Def(name, i, end, indent, valued && resultType(lines.slice(i, end).mkString(" ")).exists(Terms.matches))
+      Def(name, i, end, indent, valued && resultType(lines.slice(i, end).mkString(" ")).exists(buildsTerms))
     }).toList
 
-  /** A term's or a program's type, or a function's returning one, as written: `Term[A]`, `A => Flow[B]`. */
-  private val Terms = """(?s)(?:.*=>\s*)?(?:Term|Flow)\[.*\]""".r
+  /** A term's or a program's type, or a function's whose final result is one, as written: `Term[A]`,
+    * `A => Flow[B]`; not `Term[A] => IO[Unit]`. The type is read with its brackets balanced: its final result is
+    * what follows its last `=>` at no depth, and it is `Term[…]` or `Flow[…]` exactly, the bracket closing at its end.
+    */
+  def buildsTerms(t: String): Boolean =
+    val last = arrows(t, 0, 0, 0, Nil).last.trim
+    List("Term[", "Flow[").exists(p => last.startsWith(p) && closing(last, p.length - 1).contains(last.length - 1))
+
+  /** The parts of a type between its `=>`s at no depth. */
+  @tailrec private def arrows(t: String, k: Int, depth: Int, from: Int, done: List[String]): List[String] =
+    if k >= t.length then (t.substring(from) :: done).reverse
+    else t(k) match
+      case '(' | '[' | '{'                                  => arrows(t, k + 1, depth + 1, from, done)
+      case ')' | ']' | '}'                                  => arrows(t, k + 1, depth - 1, from, done)
+      case '=' if depth == 0 && t.lift(k + 1).contains('>') =>
+        arrows(t, k + 2, depth, k + 2, t.substring(from, k) :: done)
+      case _                                                => arrows(t, k + 1, depth, from, done)
+
+  /** Where the bracket opened at `at` closes, if it does. */
+  private def closing(t: String, at: Int): Option[Int] =
+    (at until t.length).scanLeft(0)((d, k) => d + (if "([{".contains(t(k)) then 1 else if ")]}".contains(t(k)) then -1
+      else 0)).zipWithIndex.drop(1).collectFirst { case (0, j) => at + j - 1 }
 
   /** A definition's result type as written: what follows its last `:` at no depth before its `=` (none without one,
     * the type inferred).
