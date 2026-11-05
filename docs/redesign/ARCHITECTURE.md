@@ -1763,7 +1763,8 @@ to `f(x)`).
 content already (its `implementation` line); the definitions it refers to are fingerprinted wherever they are written.
 A file that is none of the model's own is governed whole, as before. A file of the model's own (holding nodes,
 attached code, the FrModel, or vocabulary: each Declaration, Definition, define, program, model and domain type records
-the file it is written in, `Theory.modelFiles`) is governed only by the spans of the definitions referred to, and is
+the file it is written in, a program the files its body refers to as well, sharing's `program { Delivery.run }` its
+`Delivery.scala`, `Theory.modelFiles`) is governed only by the spans of the definitions referred to, and is
 never warned ungoverned. `SourceFiles` records each referred symbol's file and start, and the lexer takes its span, from that line to the next line at the same or a lower indentation, adding the spans of the same file's
 top-level definitions a span names until nothing new is added. So editing a node beside the code brings nothing back,
 and editing the code does: keycloak's `introspection`, written in `Introspection.scala` beside four nodes, brings
