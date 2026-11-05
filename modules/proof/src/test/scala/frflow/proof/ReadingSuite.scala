@@ -94,6 +94,8 @@ class ReadingSuite extends munit.FunSuite:
     assertEquals(Elaboration(written, dependency, file).stopped, Some(0))
     assertEquals(Elaboration(written, s"info: $file:3:0: frflow-end FrFlowGen.Crm.N.Checks\n", file).stopped, Some(0))
     assertEquals(Elaboration(written, dependency + own, file).stopped, None)
+    // Lake's next line, which its messages do not end before, is no part of the line Lean printed.
+    assertEquals(Elaboration(written, own + "ℹ [24/29] Built FrFlowGen.Crm.Whole (1.7s)\n", file).stopped, None)
   }
 
   test("every obligation's name reads back as the obligation") {
