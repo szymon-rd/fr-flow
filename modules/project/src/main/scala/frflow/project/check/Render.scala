@@ -41,6 +41,7 @@ object Render:
        |[[lean_lib]]
        |name = "FrFlowGen"
        |globs = ["FrFlowGen.+"]
+       |moreLeanArgs = ["-DmaxErrors=1000000"]
        |
        |[[lean_lib]]
        |name = "Proofs"

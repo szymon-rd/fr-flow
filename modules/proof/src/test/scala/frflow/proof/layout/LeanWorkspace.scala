@@ -78,6 +78,7 @@ object LeanWorkspace:
       |
       |[[lean_lib]]
       |name = "FrFlowGen"
+      |moreLeanArgs = ["-DmaxErrors=1000000"]
       |""".stripMargin)
     w.write("lean-toolchain", Files.readString(library.resolve("lean-toolchain")))
     w

@@ -68,12 +68,20 @@ class ReadingSuite extends munit.FunSuite:
     assert(broken.verdict("cover_book").isInstanceOf[TheoremVerdict.Failed], "an error before the first theorem")
   }
 
+  test("a theorem after where Lean stopped, having reported as many errors as it reports, is not proven") {
+    val stopped = Elaboration(source, "error: FrFlowGen/Crm/N/Checks.lean:8:2: maximum number of errors (100; from " +
+      "option `maxErrors`) reached, exiting\n", e.file)
+    assertEquals(stopped.stopped, Some(8))
+    assertEquals(List("cover_book", "unsat").map(stopped.verdict), List(TheoremVerdict.Proven, TheoremVerdict.Missing))
+  }
+
   test("every obligation's name reads back as the obligation") {
     val n = NodeId("Grants")
     val all = List(ObligationName.Complete, ObligationName.Feasible, ObligationName.Impl, ObligationName.RootImpl,
       ObligationName.Cover("book"), ObligationName.Made("in_room"), ObligationName.Commute(2),
       ObligationName.Consistent(0), ObligationName.Start(n), ObligationName.Inhabited(n),
-      ObligationName.Satisfiable(n, 0), ObligationName.Example("GrantedExamples", 3)) ++ (List(TryKind.Needed(n),
+      ObligationName.Satisfiable(n, 0), ObligationName.Example("GrantedExamples", 3),
+      ObligationName.ExampleOpposite("GrantedExamples", 3)) ++ (List(TryKind.Needed(n),
       TryKind.Vacuous, TryKind.Restates, TryKind.Clash, TryKind.Unsat, TryKind.Idle, TryKind.RestatesConjunct(n, 2))
       .map(ObligationName.Tried(_)))
     all.foreach(o => assertEquals(ObligationNames.read(LowerObligation.name(o).text), Some(o)))
