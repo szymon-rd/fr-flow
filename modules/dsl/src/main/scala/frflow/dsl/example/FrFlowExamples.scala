@@ -53,4 +53,15 @@ abstract class FrFlowExamples(val knowledge: FrModel):
 
   /** The examples, in the order written. */
   def examples: List[Example] = written.toList
-  lazy val elaborated: ValidatedNec[ElabError, List[Elaborated]] = examples.traverse(_.elaborated).run.map(_._2)
+  /** The set's name, as each example's obligation is named (`example_<set>_<i>`): the class's, as a Lean identifier
+    * (`Examples` for a class with none).
+    */
+  def setName: String = FrFlowExamples.identifier(getClass.getSimpleName)
+  lazy val elaborated: ValidatedNec[ElabError, List[Elaborated]] =
+    examples.zipWithIndex.traverse((e, i) => e.elaborated(setName, i)).run.map(_._2)
+
+object FrFlowExamples:
+  /** A name's ASCII letters and digits, starting with a letter. */
+  def identifier(name: String): String =
+    val kept = name.filter(c => c.isLetterOrDigit && c < 128)
+    if kept.headOption.exists(_.isLetter) then kept else "Examples" + kept

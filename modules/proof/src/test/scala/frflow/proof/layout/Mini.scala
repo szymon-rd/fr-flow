@@ -58,7 +58,7 @@ object Mini:
     identity))
 
   val examples: List[Example] = List(Example("two is allowed", Nil, Written.formula(Lang.formula([T[_]] =>
-    (l: Lang[T]) => allowed(l, l.num(2))), SourceText("allowed(2) is true"))))
+    (l: Lang[T]) => allowed(l, l.num(2))), SourceText("allowed(2) is true")), "Mini", 0))
 
   /** The value the witness search would find for `endsAfterStart`. */
   val booking: Value = Value.Data(Booking.make.ctor, List(Value.Str(""), Value.Num(0), Value.Num(1)))

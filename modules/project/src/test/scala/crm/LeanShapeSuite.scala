@@ -1,9 +1,11 @@
 package crm
 
+import frflow.core.example.Example
 import frflow.core.name.NodeId
 import frflow.decision.review.Unproven
 import frflow.project.Projects
-import frflow.project.pipeline.{Analysis, ReadProof}
+import frflow.eval.run.OnCode
+import frflow.project.pipeline.{Analysis, Computed, ReadProof}
 import frflow.proof.lean.print.Print
 import frflow.proof.obligation.{ObligationName, TryKind}
 
@@ -16,6 +18,19 @@ class LeanShapeSuite extends munit.FunSuite:
   private def start(on: Analysis, kb: String, node: String): String =
     on.modules.find(_.name.dotted == s"FrFlowGen.$kb.Whole.Spec").map(Print.module).getOrElse(fail("no statements"))
       .linesIterator.dropWhile(!_.contains(s"def start_$node ")).slice(1, 2).mkString.trim
+
+  test("each example's obligation is named by its class and its place there, whatever order the classes are read in " +
+    "(the PortSuite's, or check's, which finds them by name)") {
+    val sets = List(WriteExamples(), ExpireExamples()).map(_.elaborated.fold(es => fail(es.toString), identity))
+    def asked(in: List[List[Example]]) =
+      val b = Projects.bare(Projects.elaborated(knowledge))
+      Analysis(b.valid, b.inputs, Computed(in.flatten.map(_ -> OnCode.Holds), Map.empty)).whole
+        .filter(_.name match { case ObligationName.Example(_, _) => true; case _ => false }).toSet
+    val (asPorted, asChecked) = (asked(sets), asked(sets.reverse))
+    assertEquals(asPorted, asChecked)
+    assertEquals(asPorted.map(_.name), ((0 to 5).map(ObligationName.Example("WriteExamples", _)) ++
+      (0 to 3).map(ObligationName.Example("ExpireExamples", _))).toSet)
+  }
 
   test("the tables' starting state meets one row per key at the store they hold") {
     assertEquals(start(Projects.bare(Projects.elaborated(knowledge)), "Crm", "oneRowPerKey"),

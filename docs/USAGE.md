@@ -248,7 +248,7 @@ the winner, then the loser's steps until it is cancelled, then the winner's.
 | `commute_<i>` | a program with steps at once | each two steps that may interleave commute |
 | `consistent_<i>` | each group of statements at the bottom sharing an open value | some meaning of every open value makes them all hold |
 | `inhabited_<node>`, `satisfiable_<i>_<node>` | an `always`; a condition `A` in `A implies B` | some value meets it; it can hold |
-| `example_<i>` | each example | Lean evaluates it |
+| `example_<set>_<i>` | each example: the `i`th of its class (`example_GrantedExamples_0`) | Lean evaluates it |
 
 The tries (`vacuous`, `restates`, `clash`, `unsat`, `idle`, `frozen`) look for a statement that says nothing, restates
 its part, contradicts another, holds whatever is done, or a schedule that stops time; each is reported as shown or not shown. A step Lean does not

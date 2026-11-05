@@ -30,7 +30,7 @@ object ObligationNames:
     .orElse(after(LeanNames.Start, s).map(n => ObligationName.Start(NodeId(n))))
     .orElse(after("inhabited_", s).map(n => ObligationName.Inhabited(NodeId(n))))
     .orElse(after("satisfiable_", s).flatMap(numbered).map((i, n) => ObligationName.Satisfiable(NodeId(n), i - 1)))
-    .orElse(after("example_", s).flatMap(_.toIntOption).map(ObligationName.Example(_)))
+    .orElse(after("example_", s).flatMap(ofSet).map(ObligationName.Example(_, _)))
 
   given Codec[ObligationName] = codec("obligation", obligation)(text)
   given Codec[TryKind] = codec("try", tryKind)(text)
@@ -40,6 +40,12 @@ object ObligationNames:
 
   private def after(prefix: String, s: String): Option[String] =
     Option.when(s.startsWith(prefix))(s.drop(prefix.length))
+
+  /** `<set>_<i>`, the set a Lean identifier. */
+  private def ofSet(s: String): Option[(String, Int)] = s.lastIndexOf('_') match
+    case -1 => None
+    case k  => Option.when(s.take(k).nonEmpty && s.take(k).forall(_.isLetterOrDigit))(s.take(k))
+        .flatMap(of => s.drop(k + 1).toIntOption.map(of -> _))
 
   /** `<i>_<rest>`. */
   private def numbered(s: String): Option[(Int, String)] = s.split("_", 2) match

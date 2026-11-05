@@ -3,8 +3,8 @@ package frflow.api.view.whole
 import frflow.api.node.lean.ObligationState
 import frflow.eval.run.OnCode
 
-/** An example as checked: against the claims (Lean's outcome of `example_<i>`, or Scala only), and against the code.
-  * It passes when the code holds it and Lean shows it, or Lean is not asked it.
+/** An example as checked: against the claims (Lean's outcome of `example_<set>_<i>`, or Scala only), and against the
+  * code. It passes when the code holds it and Lean shows it, or Lean is not asked it.
   */
 final case class ExampleView(name: String, onClaims: OnClaims, onCode: OnCode):
   def passes: Boolean = onCode == OnCode.Holds && onClaims.shown

@@ -7,7 +7,7 @@ import frflow.core.example.Example
 import frflow.core.expr.Exprs
 import frflow.proof.obligation.{Discharge, Hyp, Obligation, ObligationName, Prop}
 
-/** Each example checked against the claims (owner §18), `example_<i>`: for every meaning of the Definitions and
+/** Each example checked against the claims (owner §18), `example_<set>_<i>`: for every meaning of the Definitions and
   * Declarations it mentions, the statements constraining them, and those constraining what the code standing in it
   * leaves open (keycloak's `record`, which `storeKeepsState` says), give its fact. Tried within a budget: an example
   * the claims do not decide is reported, and nothing else depends on it. An example giving values to provided
@@ -19,15 +19,15 @@ import frflow.proof.obligation.{Discharge, Hyp, Obligation, ObligationName, Prop
 object ExampleGoals:
   val Heartbeats: Int = 20000
 
-  def of(r: Resolved, examples: List[Example]): List[Obligation] = examples.zipWithIndex.collect {
-    case (e, i) if e.givens.isEmpty =>
+  def of(r: Resolved, examples: List[Example]): List[Obligation] = examples.collect {
+    case e if e.givens.isEmpty =>
       val about = Exprs.mentions(e.fact.value).symbols
       val reached = about.flatMap(Consistency.reach(r.theory, _)).distinct
       val hyps = (about ++ reached).flatMap(Constrained.statements(r.theory, _)).distinct
         .filter(n => r.theory.node(n).exists(s => s.statement.stated && !s.statement.rule))
         .sortBy(r.theory.refinement.parts(_).nonEmpty)
       val fact = Prop.Formula(e.fact, Stands.of(r, about))
-      Obligation(ObligationName.Example(i),
+      Obligation(ObligationName.Example(e.of, e.at),
         Prop.ForEvery(about, NonEmptyList.fromList(hyps).fold(fact)(hs => Prop.Implies(Hyp.parts(hs.toList), fact))),
         Discharge.Attempt(Heartbeats), s"${e.name}: what the claims say gives it.")
   }

@@ -36,7 +36,7 @@ object CheckSamples:
   private val whole = WholeCheck(CheckKey("5a6b7c"), List(
     Result(ObligationName.Consistent(0), ObligationStatus.Proven, Nil),
     Result(ObligationName.Inhabited(NodeId("EndsAfterStart")), ObligationStatus.Shown, Nil),
-    Result(ObligationName.Example(0), ObligationStatus.NotShown, Nil)), at)
+    Result(ObligationName.Example("GrantedExamples", 0), ObligationStatus.NotShown, Nil)), at)
 
   val checks: Checks =
     Checks(List(proven, refused, refuted, stepRefuted).map(c => c.node -> c).toMap, Some(whole))

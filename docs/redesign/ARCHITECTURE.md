@@ -758,10 +758,11 @@ class GrantedExamples extends FrFlowExamples(rooms):
     granted(RoomBookings("Oak", List(Booking("Oak", 9, 11))), Booking("Oak", 10, 12)) is false
 ```
 
-An example is a closed fact (`core.example.Example(name, givens, fact)`); `example(name, d := v)` sets provided
-Definitions. Checked against the code (`ExampleRun`: `OnCode.Holds`, `Fails`, `NotEvaluated`, or `Abstract` for a fact
-about Declarations) and against the claims in Lean (`example_<i>`, a try met by `frflow_auto`); one that sets values is
-shown "checked in Scala only". A value an example writes that breaks a rule on its type (an `always[T]`, evaluated
+An example is a closed fact (`core.example.Example(name, givens, fact, of, at)`: `of` its class's name, `at` its
+place there); `example(name, d := v)` sets provided Definitions. Checked against the code (`ExampleRun`:
+`OnCode.Holds`, `Fails`, `NotEvaluated`, or `Abstract` for a fact about Declarations) and against the claims in Lean
+(`example_<of>_<at>`, a try met by `frflow_auto`: its name does not depend on the order the classes are found in, so a
+hand proof of one in `Whole.lean` names it whoever reads them); one that sets values is shown "checked in Scala only". A value an example writes that breaks a rule on its type (an `always[T]`, evaluated
 on each `T` the value holds, `Made.breaks`) is no value the code is ever given, so the example is refused
 (`OnCode.BreaksRule`) rather than judged: on such a value the code is neither right nor wrong (semantics review,
 finding 10). An example reads no world and states no `isConstant` (2.2). Nothing depends on examples: the theory and
@@ -1547,7 +1548,7 @@ Of a node: `complete`, `impl`, `feasible`, `cover_<op>`, `made_<maker>`, `commut
 Tries, within a budget and one-sided (proven, they show something wrong): `needed_C`, `vacuous`, `restates`,
 `restates_i_C`, `clash`, `unsat`, `idle`. A failed step is refuted when a node's one part fixes its result:
 `StepRefutation` finds a case where the claim fails with that answer, and `RefutesModule` proves it. Of the whole
-theory (`proof.whole`): `consistent_<i>`, `start_<node>`, `inhabited_<node>`, `satisfiable_<i>_<node>`, `example_<i>`.
+theory (`proof.whole`): `consistent_<i>`, `start_<node>`, `inhabited_<node>`, `satisfiable_<i>_<node>`, `example_<set>_<i>`.
 Each obligation carries the sentence its Lean is documented with.
 
 ### 4.8 The Lean back end
