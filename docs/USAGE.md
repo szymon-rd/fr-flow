@@ -21,6 +21,12 @@ FrFlow's own tests: `sbt test` runs the fast ones (a few minutes); the ones that
 run with `sbt leanTest`; `sbt testAll` runs both. Per module, `sbt core/test`, `sbt project/test` and so on; eval's
 is `sbt evaluation/test`, since `eval/…` is sbt's own command (it would evaluate the rest as Scala).
 
+Run sbt and `bin/frflow` from the build's root (the directory holding `build.sbt`). A model records the files its
+nodes, code and vocabulary are written in when it is compiled, relative to the directory the compiler runs in, and
+the CLI makes them relative to the project's directory when it runs, from the directory it runs in; both are the
+build's root under `bin/frflow`, `sbt "PROJECT/run …"` and `serve`. A run from another directory (an IDE's run
+configuration, say) would place them wrongly: `status` would find nodes' files missing and code ungoverned.
+
 ### Commands
 
 | | command | what it does |
@@ -270,7 +276,10 @@ class GrantedExamples extends FrFlowExamples(rooms):
 
 `example(name, d := v)` sets a provided Definition's value; such an example is checked in Scala only. An example
 whose values break a rule on their type is refused. Nothing depends on examples: the theory and its Lean are the same
-without them. The examples run with `sbt PROJECT/test` too (FrFlow's test framework, which `init` adds).
+without them. In a project `init` made, the examples also run with `sbt PROJECT/test` (FrFlow's test framework,
+which `init` adds). FrFlow's own five are not run that way: their model projects (`roomsModel`, …) have no test
+framework, since testing's tests depend on them; their examples run in testing's `ExamplesSuite` and in each one's
+`PortSuite` (`sbt test`).
 
 ### Decisions
 
@@ -337,7 +346,7 @@ bin/frflow NAME ci
 FRFLOW_SEED=fresh bin/frflow NAME ci
 ```
 
-FrFlow's own CI (`.github/workflows/ci.yml`) runs the size budgets (`bin/budget.py modules`), `sbt test` and
+FrFlow's own CI (`.github/workflows/ci.yml`) runs the size budgets (`bin/budget.py modules examples`), `sbt test` and
 `sbt leanTest`.
 
 ### Web view

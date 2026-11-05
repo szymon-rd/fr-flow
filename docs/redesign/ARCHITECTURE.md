@@ -14,7 +14,7 @@ Beside this file, in `docs/redesign/`:
 | `dependencies.txt` | today's package and module dependencies, measured |
 | `planned/` | the planned code: nine of the twelve modules, compiled, with suites |
 | `lean-spike/` | historical: rooms' and auth's Lean as the printer gave it during the design, with proofs; it no longer builds (its `Proofs.lean` is of the §21 shape, its bundled `frflow/` older than the library) and is kept as the record |
-| `tools/` | scripts the design used; the size budgets are `bin/budget.py` since step 14 (`python3 bin/budget.py modules`) |
+| `tools/` | scripts the design used; the size budgets are `bin/budget.py` since step 14 (`python3 bin/budget.py modules examples`) |
 
 Source paths below are under `planned/src/<module>/`; rooms is `planned/test/project/frflow/rooms/`, auth
 `planned/test/project/frflow/auth/`.
@@ -1201,7 +1201,7 @@ with, the steps unchanged). The IR is never printed or run.
 
 There is no boundary (owner §36). A program calls Definitions: functions, defines, and operations on a state
 (`A => Flow[R]`), each given its Lean meaning by a `StateModel` (2.2, 3.2). A program is one type, `Flow[R]` (owner
-§42), written as a plain `for` comprehension over its steps, its values terms (`dsl/frflow/dsl/flow/Flow.scala`,
+§42), written as a plain `for` comprehension over its steps, its values terms (`dsl/frflow/dsl/vocab/Flow.scala`,
 excerpt); the steps are an initial encoding, `run.Recorded`, which Lean reads and production folds:
 
 ```scala
