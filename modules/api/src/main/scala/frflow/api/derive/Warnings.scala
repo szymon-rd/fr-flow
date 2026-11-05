@@ -32,13 +32,13 @@ private[api] object Warnings:
   }
 
   /** A source file nothing governs, other than the model's own: where its nodes are written, where code is given to
-    * its Definitions, and where the FrModel is assembled, as the elaborated model records them.
+    * its Definitions, where the FrModel is assembled, and where its vocabulary is written, as the elaborated model
+    * records them (`Theory.modelFiles`).
     */
   private def ungoverned(a: Analysis): List[Warning] =
-    val t = a.decided.theory
     val governed = a.governed.values.flatMap(_.files).toSet ++ designs(a).flatMap((_, g) =>
       sources(a).filter(_.isUnder(g))).map(_.value)
-    val model = t.nodes.map(_.at.file).toSet ++ t.code.attached.values.map(_.writtenIn) ++ t.writtenIn
+    val model = a.decided.theory.modelFiles
     sources(a).filter(f => !governed(f.value) && !model(f)).map(Warning.Ungoverned(_))
 
   private def missing(a: Analysis): List[Warning] = designs(a).collect {

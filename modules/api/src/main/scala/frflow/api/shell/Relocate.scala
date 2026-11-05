@@ -6,9 +6,10 @@ import frflow.core.name.RelPath
 import java.nio.file.Path
 
 /** The files a model records (where each node is written, where code is given its Definitions, the files that code
-  * refers to, where the model is assembled) made relative to the project's directory: the DSL records them as the
-  * compiler named them, relative to the working directory the build ran in (`from`), and a project under
-  * `examples/NAME` reads its sources relative to itself. A file outside the project is left as recorded.
+  * refers to, where the model is assembled, where its vocabulary is written) made relative to the project's
+  * directory: the DSL records them as the compiler named them, relative to the working directory the build ran in
+  * (`from`), and a project under `examples/NAME` reads its sources relative to itself. A file outside the project is
+  * left as recorded.
   */
 private[api] object Relocate:
   def apply(e: Elaborated, from: Path, to: Path): Elaborated =
@@ -25,4 +26,4 @@ private[api] object Relocate:
     e.copy(theory = t.copy(nodes = t.nodes.map(s => s.copy(at = s.at.copy(file = move(s.at.file)))),
       code = t.code.copy(attached = t.code.attached.map((k, a) =>
         k -> a.copy(code = code(a.code), writtenIn = move(a.writtenIn))), implemented = implemented),
-      writtenIn = t.writtenIn.map(move)))
+      writtenIn = t.writtenIn.map(move), vocabularyIn = t.vocabularyIn.map(move)))

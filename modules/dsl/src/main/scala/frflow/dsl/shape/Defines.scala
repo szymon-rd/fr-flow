@@ -11,60 +11,62 @@ import frflow.dsl.vocab.{Definition, OnTheSpot, Spot}
   * called by name in terms, its IR built when elaborated; and `program { (a: Term[A]) => for … yield … }`: a
   * Definition whose meaning is a program (owner §42), its steps recorded once on its inputs' variables and read into
   * a define whose body is its steps (`Expr.Do`), the meaning `implementProven` gives the Definition the claims speak
-  * of; production runs the same steps on its inputs' values (`Spot.Steps`).
+  * of; production runs the same steps on its inputs' values (`Spot.Steps`). Each records the file it is written in
+  * (`Definition.in`).
   */
 object Defines:
   inline def define[A: LeanType, R: LeanType](inline body: Term[A] => Term[R]): Definition[A => R] =
-    made(DefName(Source.valName), DefineShape.one[A, R])(body)
+    made(DefName(Source.valName), DefineShape.one[A, R])(body).in(Source.here)
   inline def define[A: LeanType, B: LeanType, R: LeanType](inline body: (Term[A], Term[B]) => Term[R])
       : Definition[(A, B) => R] =
-    made(DefName(Source.valName), DefineShape.two[A, B, R])(body)
+    made(DefName(Source.valName), DefineShape.two[A, B, R])(body).in(Source.here)
 
   inline def define[A: LeanType, B: LeanType, C: LeanType, R: LeanType](
       inline body: (Term[A], Term[B], Term[C]) => Term[R]): Definition[(A, B, C) => R] =
-    made(DefName(Source.valName), DefineShape.three[A, B, C, R])(body)
+    made(DefName(Source.valName), DefineShape.three[A, B, C, R])(body).in(Source.here)
   inline def define[A: LeanType, B: LeanType, C: LeanType, D: LeanType, R: LeanType](
       inline body: (Term[A], Term[B], Term[C], Term[D]) => Term[R]): Definition[(A, B, C, D) => R] =
-    made(DefName(Source.valName), DefineShape.four[A, B, C, D, R])(body)
+    made(DefName(Source.valName), DefineShape.four[A, B, C, D, R])(body).in(Source.here)
 
   inline def define[A: LeanType, B: LeanType, C: LeanType, D: LeanType, E: LeanType, R: LeanType](
       inline body: (Term[A], Term[B], Term[C], Term[D], Term[E]) => Term[R]): Definition[(A, B, C, D, E) => R] =
-    made(DefName(Source.valName), DefineShape.five[A, B, C, D, E, R])(body)
+    made(DefName(Source.valName), DefineShape.five[A, B, C, D, E, R])(body).in(Source.here)
   inline def define[A: LeanType, B: LeanType, C: LeanType, D: LeanType, E: LeanType, G: LeanType, R: LeanType](
       inline body: (Term[A], Term[B], Term[C], Term[D], Term[E], Term[G]) => Term[R])
       : Definition[(A, B, C, D, E, G) => R] =
-    made(DefName(Source.valName), DefineShape.six[A, B, C, D, E, G, R])(body)
+    made(DefName(Source.valName), DefineShape.six[A, B, C, D, E, G, R])(body).in(Source.here)
 
   /** A program of no input: its steps recorded once. */
   inline def program[R: LeanType](inline body: Flow[R]): Definition[Flow[R]] =
-    recorded[Flow[R], R](DefName(Source.valName), Nil, Source.of(body))(_ => body)
+    recorded[Flow[R], R](DefName(Source.valName), Nil, Source.of(body))(_ => body).in(Source.here)
   inline def program[A: LeanType, R: LeanType](inline body: Term[A] => Flow[R]): Definition[A => Flow[R]] =
-    recorded[A => Flow[R], R](DefName(Source.valName), List(LeanType[A]), Source.of(body))(xs => body(in(xs, 0)))
+    recorded[A => Flow[R], R](DefName(Source.valName), List(LeanType[A]), Source.of(body))(xs =>
+      body(in(xs, 0))).in(Source.here)
   inline def program[A: LeanType, B: LeanType, R: LeanType](inline body: (Term[A], Term[B]) => Flow[R])
       : Definition[(A, B) => Flow[R]] =
     recorded[(A, B) => Flow[R], R](DefName(Source.valName), List(LeanType[A], LeanType[B]), Source.of(body))(xs =>
-      body(in(xs, 0), in(xs, 1)))
+      body(in(xs, 0), in(xs, 1))).in(Source.here)
   inline def program[A: LeanType, B: LeanType, C: LeanType, R: LeanType](
       inline body: (Term[A], Term[B], Term[C]) => Flow[R]): Definition[(A, B, C) => Flow[R]] =
     recorded[(A, B, C) => Flow[R], R](DefName(Source.valName), List(LeanType[A], LeanType[B], LeanType[C]),
-      Source.of(body))(xs => body(in(xs, 0), in(xs, 1), in(xs, 2)))
+      Source.of(body))(xs => body(in(xs, 0), in(xs, 1), in(xs, 2))).in(Source.here)
   inline def program[A: LeanType, B: LeanType, C: LeanType, D: LeanType, R: LeanType](
       inline body: (Term[A], Term[B], Term[C], Term[D]) => Flow[R]): Definition[(A, B, C, D) => Flow[R]] =
     recorded[(A, B, C, D) => Flow[R], R](DefName(Source.valName),
       List(LeanType[A], LeanType[B], LeanType[C], LeanType[D]), Source.of(body))(xs =>
-      body(in(xs, 0), in(xs, 1), in(xs, 2), in(xs, 3)))
+      body(in(xs, 0), in(xs, 1), in(xs, 2), in(xs, 3))).in(Source.here)
   inline def program[A: LeanType, B: LeanType, C: LeanType, D: LeanType, E: LeanType, R: LeanType](
       inline body: (Term[A], Term[B], Term[C], Term[D], Term[E]) => Flow[R])
       : Definition[(A, B, C, D, E) => Flow[R]] =
     recorded[(A, B, C, D, E) => Flow[R], R](DefName(Source.valName),
       List(LeanType[A], LeanType[B], LeanType[C], LeanType[D], LeanType[E]), Source.of(body))(xs =>
-      body(in(xs, 0), in(xs, 1), in(xs, 2), in(xs, 3), in(xs, 4)))
+      body(in(xs, 0), in(xs, 1), in(xs, 2), in(xs, 3), in(xs, 4))).in(Source.here)
   inline def program[A: LeanType, B: LeanType, C: LeanType, D: LeanType, E: LeanType, G: LeanType, R: LeanType](
       inline body: (Term[A], Term[B], Term[C], Term[D], Term[E], Term[G]) => Flow[R])
       : Definition[(A, B, C, D, E, G) => Flow[R]] =
     recorded[(A, B, C, D, E, G) => Flow[R], R](DefName(Source.valName),
       List(LeanType[A], LeanType[B], LeanType[C], LeanType[D], LeanType[E], LeanType[G]), Source.of(body))(xs =>
-      body(in(xs, 0), in(xs, 1), in(xs, 2), in(xs, 3), in(xs, 4), in(xs, 5)))
+      body(in(xs, 0), in(xs, 1), in(xs, 2), in(xs, 3), in(xs, 4), in(xs, 5))).in(Source.here)
 
   /** A program's Definition: its steps on its inputs' terms (`xs`, one per input, in order), recorded on their
     * variables when elaborated, run on their values in production.

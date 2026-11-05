@@ -1,5 +1,6 @@
 package frflow.dsl.build
 
+import frflow.core.name.RelPath
 import scala.quoted.*
 
 /** What the compiler knows of a model's parts at the call site: where they are written, their text, a lambda's
@@ -9,6 +10,8 @@ import scala.quoted.*
 object Source:
   inline def of(inline x: Any): AsWritten = ${ writtenOf('x) }
   inline def file: String = ${ fileOf }
+  /** The file the expression is written in, as a path (`relative`). */
+  inline def here: RelPath = path(file)
   inline def offset: Int = ${ offsetOf }
   /** The name of the `val` the expression is the right-hand side of: `val matches = define { … }` gives `matches`. */
   inline def valName: String = ${ valNameOf }
@@ -59,6 +62,10 @@ object Source:
     val root = java.nio.file.Paths.get("").toAbsolutePath.normalize
     val path = java.nio.file.Paths.get(file).toAbsolutePath.normalize
     if path.startsWith(root) then root.relativize(path).toString else path.getFileName.toString
+  /** A path as `relative` gives it, read back. */
+  def path(file: String): RelPath =
+    RelPath.parse(file).fold(why => throw IllegalStateException(s"FrFlow bug: no relative path for $file: $why"),
+      identity)
   private def offsetOf(using Quotes): Expr[Int] =
     Expr(quotes.reflect.Position.ofMacroExpansion.start)
   private def typeNameOf[A: Type](using Quotes): Expr[String] =

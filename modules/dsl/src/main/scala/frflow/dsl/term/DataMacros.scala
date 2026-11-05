@@ -2,6 +2,7 @@ package frflow.dsl.term
 
 import cats.data.NonEmptyList
 import frflow.core.name.TypeName
+import frflow.dsl.build.Source
 import frflow.core.term.{Constructor, Selector as FieldSelector}
 import scala.deriving.Mirror
 import scala.quoted.*
@@ -15,14 +16,20 @@ object DataMacros:
     import quotes.reflect.*
     Expr.summon[Mirror.Of[T]] match
       case Some('{ $m: Mirror.ProductOf[T] }) =>
-        '{ Data.product[T](${ Expr(Type.show[T]) }, ${ fields[T] },
+        '{ Data.product[T](${ named[T] }, ${ fields[T] },
           args => $m.fromProduct(Tuple.fromArray(args.toArray))) }
       case Some('{ $m: Mirror.SumOf[T] { type MirroredElemTypes = es; type MirroredElemLabels = ls } }) =>
         val alts = cases[T, es, ls]
-        '{ Data.sum[T](${ Expr(Type.show[T]) }, NonEmptyList.fromListUnsafe($alts), (a: Any) => a match
+        '{ Data.sum[T](${ named[T] }, NonEmptyList.fromListUnsafe($alts), (a: Any) => a match
           case t: T => $m.ordinal(t)
           case _    => -1) }
       case _ => report.errorAndAbort(s"${Type.show[T]} is not a case class or an enum")
+
+  /** The type's Scala name, and the file it is written in (relative as `Source.relative` makes it), if any. */
+  def named[T: Type](using Quotes): Expr[(String, Option[String])] =
+    import quotes.reflect.*
+    val file = TypeRepr.of[T].typeSymbol.pos.map(p => Source.relative(p.sourceFile.path))
+    '{ (${ Expr(Type.show[T]) }, ${ Expr(file) }) }
 
   /** A case class's fields, each a selector with its `LeanType`. */
   def fields[T: Type](using Quotes): Expr[List[LeanType.Field[T, ?]]] =

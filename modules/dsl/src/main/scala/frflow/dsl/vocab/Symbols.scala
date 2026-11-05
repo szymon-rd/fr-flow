@@ -1,7 +1,7 @@
 package frflow.dsl.vocab
 
 import cats.syntax.all.*
-import frflow.core.name.SymbolName
+import frflow.core.name.{RelPath, SymbolName}
 import frflow.core.term.language.{Final, Sym}
 import frflow.core.ty.Ty
 import frflow.core.vocab.{Symbol, SymbolType, ValueKind}
@@ -18,6 +18,10 @@ private[vocab] object Symbols:
   def codeOnly[A](name: SymbolName, means: String, scalaType: String): Final[A] =
     [T[_]] => (s: Sym[T]) => s.noted(Notes.of(Declarations.symbol(Symbol(name, means, SymbolType.CodeOnly(scalaType),
       ValueKind.Definition))), s.param[A](name, Ty.Unit))
+
+  /** `f`, noting that what it declares is written in `at` (`Declarations.in`). */
+  def written[A](at: Option[RelPath], f: Final[A]): Final[A] =
+    [T[_]] => (s: Sym[T]) => s.noted(Notes.of(Declarations.in(at)), f(s))
 
   private def declares(name: SymbolName, means: String, kind: ValueKind, t: LeanType[?]): Declarations =
     Declarations.symbol(Symbol(name, means, SymbolType.Typed(t.ty), kind))

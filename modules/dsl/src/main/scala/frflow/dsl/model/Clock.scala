@@ -26,19 +26,20 @@ object Clock:
   private val seconds = Ty.Num(NumKind.Big)
 
   val now: Definition[Flow[BigInt]] =
-    new Definition[Flow[BigInt]](SymbolName("now"), "the time now, in seconds", None)(using
+    new Definition[Flow[BigInt]](SymbolName("now"), "the time now, in seconds", None, None)(using
       declaring[Flow[BigInt]](Ty.FlowOf(seconds, None)))
 
   val sleep: Definition[BigInt => Flow[Unit]] =
-    new Definition[BigInt => Flow[Unit]](SymbolName("sleep"), "a wait of at least the seconds given", None)(using
+    new Definition[BigInt => Flow[Unit]](SymbolName("sleep"), "a wait of at least the seconds given", None,
+      None)(using
       declaring[BigInt => Flow[Unit]](Ty.FnOf(List(seconds), Ty.FlowOf(Ty.Unit, None))))
 
   val elapse: Definition[BigInt => Flow[Unit]] =
     new Definition[BigInt => Flow[Unit]](SymbolName("elapse"), "time passing between runs, by the seconds given: " +
-      "the world's own step, never code's", None)(using
+      "the world's own step, never code's", None, None)(using
       declaring[BigInt => Flow[Unit]](Ty.FnOf(List(seconds), Ty.FlowOf(Ty.Unit, None))))
 
-  object clockModel extends StateModel[BigInt]("the time now, in seconds")(using StateModel.Named("clockModel"),
+  object clockModel extends StateModel[BigInt]("the time now, in seconds")(using StateModel.Named("clockModel", None),
       LeanType[BigInt]):
     meant(now, Nil, Nil)(_ => state.get.steps)
     meant(sleep, List(LeanType[BigInt]), List("seconds"))(xs => state.update(on(_, xs(0))).steps)
