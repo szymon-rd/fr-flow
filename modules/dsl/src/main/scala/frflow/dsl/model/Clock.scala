@@ -26,17 +26,17 @@ object Clock:
   private val seconds = Ty.Num(NumKind.Big)
 
   val now: Definition[Flow[BigInt]] =
-    new Definition[Flow[BigInt]](SymbolName("now"), "the time now, in seconds", None, None)(using
+    new Definition[Flow[BigInt]](SymbolName("now"), "the time now, in seconds", None, Nil)(using
       declaring[Flow[BigInt]](Ty.FlowOf(seconds, None)))
 
   val sleep: Definition[BigInt => Flow[Unit]] =
     new Definition[BigInt => Flow[Unit]](SymbolName("sleep"), "a wait of at least the seconds given", None,
-      None)(using
+      Nil)(using
       declaring[BigInt => Flow[Unit]](Ty.FnOf(List(seconds), Ty.FlowOf(Ty.Unit, None))))
 
   val elapse: Definition[BigInt => Flow[Unit]] =
     new Definition[BigInt => Flow[Unit]](SymbolName("elapse"), "time passing between runs, by the seconds given: " +
-      "the world's own step, never code's", None, None)(using
+      "the world's own step, never code's", None, Nil)(using
       declaring[BigInt => Flow[Unit]](Ty.FnOf(List(seconds), Ty.FlowOf(Ty.Unit, None))))
 
   object clockModel extends StateModel[BigInt]("the time now, in seconds")(using StateModel.Named("clockModel", None),

@@ -21,8 +21,8 @@ object Declarations:
       union(a.symbols, b.symbols)(identity), union(a.defines, b.defines)(identity),
       union(a.models, b.models)(identity), a.files ++ b.files))
 
-  /** That something declared is written in `file` (none: in FrFlow's own sources). */
-  def in(file: Option[RelPath]): Declarations = none.copy(files = file.toSet)
+  /** That something declared is written in `files` (none: in FrFlow's own sources). */
+  def in(files: IterableOnce[RelPath]): Declarations = none.copy(files = files.iterator.toSet)
   def of(d: Declared): Declarations = none.copy(types = Map(d.data.typeName -> List(d)))
   def sort(s: Sort): Declarations = none.copy(sorts = Map(s.name -> List(s)))
   def symbol(s: Symbol): Declarations = none.copy(symbols = Map(s.name -> List(s)))

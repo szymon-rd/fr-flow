@@ -17,12 +17,15 @@ import frflow.dsl.vocab.Definition
   */
 object Implementing:
   extension (kb: FrModel)
-    /** `d` is `proven` (a `define` or a `program`), which Lean proves meets each claim mentioning `d` (`impl`). */
+    /** `d` is `proven` (a `define` or a `program`), which Lean proves meets each claim mentioning `d` (`impl`); the
+      * files `proven` is written in are the model's own.
+      */
     inline def implementProven[F](d: Definition[F])(proven: Definition[F]): FrModel =
       val at = Spans.relative(Source.file)
       Implementing.attach(kb, d, proven.onTheSpot.fold(Deferred.failed(Site.Meaning(d.name),
         Fault.NotProvenCode(proven.name.value)))(spot =>
-          Deferred((Declarations.define(spot.name, spot.lambda), Attachment(spot.code, at)).validNec)))
+          Deferred((Declarations.define(spot.name, spot.lambda) |+| Declarations.in(proven.at),
+            Attachment(spot.code, at)).validNec)))
 
     /** Plain Scala for the Definitions `ds`, as the next argument list says (`Tested`): the first one's, built from
       * the values it is given and calling the others (`implementTested(granted)(env => …)`), or the operations on one

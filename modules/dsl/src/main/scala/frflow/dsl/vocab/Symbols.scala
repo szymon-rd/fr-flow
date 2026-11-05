@@ -20,7 +20,7 @@ private[vocab] object Symbols:
       ValueKind.Definition))), s.param[A](name, Ty.Unit))
 
   /** `f`, noting that what it declares is written in `at` (`Declarations.in`). */
-  def written[A](at: Option[RelPath], f: Final[A]): Final[A] =
+  def written[A](at: IterableOnce[RelPath], f: Final[A]): Final[A] =
     [T[_]] => (s: Sym[T]) => s.noted(Notes.of(Declarations.in(at)), f(s))
 
   private def declares(name: SymbolName, means: String, kind: ValueKind, t: LeanType[?]): Declarations =

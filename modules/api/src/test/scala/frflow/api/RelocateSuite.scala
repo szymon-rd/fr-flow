@@ -66,3 +66,11 @@ class RelocateSuite extends munit.CatsEffectSuite:
       assert(checked.nodes.size >= 16 && files.exists(_._1.value.endsWith("Domain.scala")), files.map(_._1))
       assertEquals(warnings, Nil)
   }
+
+  test("a program whose steps a plain def elsewhere builds records that file as the model's own: sharing's delivery") {
+    val sharing = Relocate(Projects.elaborated(_root_.sharing.knowledge), Projects.base,
+      Projects.base.resolve("examples/sharing"))
+    val files = sharing.theory.modelFiles.map(_.value)
+    assert(files("src/main/scala/sharing/notifications/Delivery.scala"), files)
+    assert(!files("src/main/scala/sharing/store/SqliteLibraryStore.scala"), files)
+  }
