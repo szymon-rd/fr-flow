@@ -6,7 +6,7 @@ import frflow.decision.ledger.Ledger
 import frflow.project.port.LedgerStore
 
 /** The ledger in memory, each update one atomic change of a `Ref`: the decision programs tested without a file. */
-final class MemoryLedger[F[_]: Concurrent] private (held: Ref[F, Ledger]) extends LedgerStore[F]:
+final class MemoryLedger[F[_]] private (held: Ref[F, Ledger]) extends LedgerStore[F]:
   def load: F[Ledger] = held.get
 
   def update[E, A](f: Ledger => Either[E, (Ledger, A)]): F[Either[E, A]] =

@@ -48,7 +48,7 @@ private[api] object Warnings:
   private def orphans(a: Analysis): List[Warning] =
     val layout = Layout(a.decided.theory.name)
     a.inputs.lean.proofs.keys.toList.sortBy(_.value)
-      .filter(id => id.value != "Lemmas" && a.decided.theory.node(id).isEmpty)
+      .filter(id => !Set("Lemmas", "Whole")(id.value) && a.decided.theory.node(id).isEmpty)
       .map(id => Warning.ProofFileOfNoNode(layout.proofs(id).file))
 
   /** A node Lean proves equivalent to its one part (`restates` shown, `complete` proven), or a part it proves
