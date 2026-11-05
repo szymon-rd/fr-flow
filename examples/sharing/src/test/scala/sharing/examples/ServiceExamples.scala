@@ -12,7 +12,10 @@ import sharing.features.Sharing
 // Scala and tried against the claims in Lean.
 
 /** On any FrModel of sharing: the seeded bug's code is judged by them too. */
-class AccessExamples(kb: FrModel = knowledge) extends FrFlowExamples(kb):
+class AccessExamples(kb: FrModel) extends FrFlowExamples(kb):
+  /** The examples of the model as written, made as `check` makes a class of examples (no arguments). */
+  def this() = this(knowledge)
+
   example("Bob's team may view the reports folder, which the Q3 report is in"):
     Sharing.access(library, now, bob, q3Report) is Some(Level.View)
   example("Ann may edit the reports folder"):

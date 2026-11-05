@@ -117,6 +117,7 @@ function warning(w) {
     GovernedTwice: `${w.file} is governed by ${(w.by || []).join(" and ")}`,
     Ungoverned: `no node governs ${w.file}`, GovernedMissing: `${w.by} governs ${w.file}, which is no file here`,
     ProofFileOfNoNode: `${w.file} is no node's proof file: it proves nothing`,
+    ExamplesNotRead: `the examples of ${w.className} are not read: ${w.why && words(w.why.type)}`,
     ConsistencyNotProven: `consistency not proven: ${(w.statements || []).join(", ")}`,
     StartNotProven: `${w.statement}: where its store starts is not proven`,
     NotChecked: `${w.node} is not checked`,
@@ -159,8 +160,11 @@ async function render() {
       `<li class="bad">${esc(warning(w))}</li>`).join("") + "</ul>" : '<p class="ok">None.</p>') +
       "<h2>Consistency</h2>" + (v.whole.groups.map(g => `<p>${esc(g.statements.join(", "))}: ` +
       `${words(g.status.type)}</p>`).join("") || '<p class="dim">Nothing is left open.</p>') +
-      "<h2>Examples</h2>" + (v.whole.examples.map(e => `<p class="${e.passes ? "ok" : "bad"}">${e.passes ? "✓" : "✗"} ` +
-      `${esc(e.name)}</p>`).join("") || '<p class="dim">None.</p>');
+      "<h2>Examples</h2>" + (v.whole.examples.map(e => {
+        const [cls, mark, why] = { Passes: ["ok", "✓", ""], Fails: ["bad", "✗", ""],
+          Undecided: ["warn", "○", " (holds on the code; the claims do not decide it)"] }[e.outcome.type];
+        return `<p class="${cls}">${mark} ${esc(e.name)}<span class="dim">${why}</span></p>`;
+      }).join("") || '<p class="dim">None.</p>');
   }
   list.querySelectorAll("[data-node]").forEach(li => li.onclick = () => show(li.dataset.node));
   list.querySelectorAll("[data-gone]").forEach(li => li.onclick = () => gone(li.dataset.gone));

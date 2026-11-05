@@ -24,7 +24,7 @@ object Implementing:
       val at = Spans.relative(Source.file)
       Implementing.attach(kb, d, proven.onTheSpot.fold(Deferred.failed(Site.Meaning(d.name),
         Fault.NotProvenCode(proven.name.value)))(spot =>
-          Deferred((Declarations.define(spot.name, spot.lambda) |+| Declarations.in(proven.at),
+          Deferred((Declarations.define(spot.name, spot.lambda) |+| proven.at.declares(proven.name.value),
             Attachment(spot.code, at)).validNec)))
 
     /** Plain Scala for the Definitions `ds`, as the next argument list says (`Tested`): the first one's, built from

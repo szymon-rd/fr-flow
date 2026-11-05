@@ -1,6 +1,6 @@
 package frflow.cli.say
 
-import frflow.api.view.Warning
+import frflow.api.view.{NotMade, Warning}
 import frflow.decision.ledger.{Action, Decision, Uncounted}
 
 /** What `status` warns of, in words (docs/USAGE.md, Warnings), and why a decision does not count. */
@@ -17,6 +17,12 @@ object Warnings:
     case Warning.NotCounted(id, d, why)   => s"${verb(d.action)} of $id by ${d.author.by} does not count: " +
         uncounted(why, d)
 
+  private def notMade(why: NotMade): String = why match
+    case NotMade.NoConstructor => "it has no constructor without arguments (add `def this() = this(knowledge)`)"
+    case NotMade.Nested        => "it is nested in a class (make it a top-level class)"
+    case NotMade.Anonymous     => "it is anonymous (make it a named top-level class)"
+    case NotMade.Threw(m)      => s"making it threw $m"
+
   private val code: PartialFunction[Warning, String] =
     case Warning.GovernedTwice(f, by)     =>
       s"$f is governed by ${by.mkString(" and ")}: each would review it as its own"
@@ -25,6 +31,7 @@ object Warnings:
     case Warning.GovernedMissing(f, by)   => s"$by governs $f, which names no file of the project"
 
   private val proofs: PartialFunction[Warning, String] =
+    case Warning.ExamplesNotRead(c, why)  => s"the examples of $c are not read: ${notMade(why)}"
     case Warning.ProofFileOfNoNode(f)     => s"$f is no node's proof file (renamed or removed?): it proves nothing"
     case Warning.ConsistencyNotProven(ns) => s"consistency not proven: ${ns.mkString(", ")}; the proof is red " +
         "until Lean proves some meaning meets them all (an equation, a bound, a value, proven code, or a proof)"

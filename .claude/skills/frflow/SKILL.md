@@ -295,7 +295,8 @@ A try is `shown` (Lean proved it) or `not shown`. Never write that Lean shows a 
 | fails a generated case | tested code does not meet its claim | Add the case as an example; fix the code. |
 | trusted, not tested | an assumption no generated run can evaluate | Write it as a run of one operation with a Scala value, or tell the developer it is trusted. |
 | `PremiseMissing`, `PremiseNotNeeded` | the `.assuming` list differs from what the check rests on | List what it names, or drop what it does not. |
-| examples fail | the code or the claim is wrong | Fix them before any proof. |
+| an example fails (`x`: the code does not hold it, or the claims contradict it) | the code or the claim is wrong | Fix the code or the claim before any proof; never the example to make it pass. |
+| an example not decided by the claims (`o`) | Lean's automation did not decide it within its budget | Nothing to fix: leave the example as it is; prove `example_<set>_<i>` in `Whole.lean` only if the developer asks. |
 | Lean and Scala disagree | an example gives one result in Lean and another in Scala | FrFlow's printer or evaluator is wrong: report it; never change the example. |
 
 ## Proving by hand

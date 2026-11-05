@@ -26,4 +26,4 @@ private[api] object Relocate:
     e.copy(theory = t.copy(nodes = t.nodes.map(s => s.copy(at = s.at.copy(file = move(s.at.file)))),
       code = t.code.copy(attached = t.code.attached.map((k, a) =>
         k -> a.copy(code = code(a.code), writtenIn = move(a.writtenIn))), implemented = implemented),
-      writtenIn = t.writtenIn.map(move), vocabularyIn = t.vocabularyIn.map(move)))
+      writtenIn = t.writtenIn.map(move), own = t.own.moved(move)))

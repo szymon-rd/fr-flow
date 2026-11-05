@@ -6,7 +6,8 @@ import frflow.core.name.NodeId
 /** What Lean is asked: the name of its theorem (`lean.lower.LowerObligation.name` spells it). Of a node: `complete`,
   * `impl`, `cover_<op>`, `made_<maker>`, `outside`, its tries. Of the theory as a whole: `consistent_<i>`,
   * `start_<node>`, `inhabited_<node>`, `satisfiable_<i>_<node>`, and each example's `example_<set>_<i>` (the `i`th of
-  * its set, whatever order the sets are read in).
+  * its set, whatever order the sets are read in) with its opposite, `example_<set>_<i>_opposite` (the claims give
+  * its negation: they contradict it).
   */
 enum ObligationName:
   case Complete, Feasible, Impl, RootImpl, Outside
@@ -19,6 +20,7 @@ enum ObligationName:
   case Inhabited(node: NodeId)
   case Satisfiable(node: NodeId, i: Int)
   case Example(of: String, i: Int)
+  case ExampleOpposite(of: String, i: Int)
 
 object ObligationName:
   given Order[ObligationName] = Order.by(_.toString)

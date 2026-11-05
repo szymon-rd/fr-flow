@@ -6,7 +6,7 @@ import frflow.core.{Elaborated, Sited, Theory}
 import frflow.core.expr.Lambda
 import frflow.core.graph.Edge
 import frflow.core.analysis.outside.Constancy
-import frflow.core.code.Attachment
+import frflow.core.code.{Attachment, Own}
 import frflow.core.name.{DefName, LeanNames, ModelName, SymbolName}
 import frflow.core.spec.{Form, Node as Spec, Written}
 import frflow.core.typing.IrCheck
@@ -31,7 +31,7 @@ object Elaborate:
       vocabulary(declared).andThen { (all, v) =>
         Modelled.table(v, code.toMap, kb.operations, kb.writtenIn).map { table =>
           val theory = IrCheck.checked(Constancy.expanded(Theory(kb.name, v, ns.map(_._1), ns.flatMap(_._2), table,
-            kb.writtenIn, all.files)))
+            kb.writtenIn, Own(all.written, all.referred))))
           Elaborated(theory, all.types.collect { case (n, d :: _) => n -> d.rep }, kb.generators)
         }
       }

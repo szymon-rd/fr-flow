@@ -36,7 +36,8 @@ class DatabaseReviewSuite extends munit.CatsEffectSuite:
   private def state(s: Subjects, l: Ledger) = Reading(s, l).standings.get(node).map(st => st.state -> st.causes)
 
   test("tablesModel governs the database's Scala in Database.scala, not the file's nodes") {
-    val gs = frflow.project.code.Governance.of(elaborated.theory, List(file)).getOrElse(node, Nil)
+    val gs = frflow.project.code.Governance.of(elaborated.theory, List(file), elaborated.theory.modelFiles)
+      .getOrElse(node, Nil)
     val names = gs.collect { case frflow.project.code.Governed.Named(`file`, ns) => ns }.flatten
     assert(names.contains("SqliteDatabase") && !names.exists(n => List("tablesModel", "runsOneAtATime",
       "databaseModel").contains(n)), names)

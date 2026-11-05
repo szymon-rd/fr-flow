@@ -14,7 +14,7 @@ final class Opaque(val name: TypeName, val means: String, val at: RelPath):
   type T
   given LeanType[T] = new LeanType[T]:
     val ty: Ty = Ty.Sort(name)
-    val declares: Declarations = Declarations.sort(Sort(name, means)) |+| Declarations.in(Some(at))
+    val declares: Declarations = Declarations.sort(Sort(name, means)) |+| Declarations.in(Some(at), name.value)
 
 object Opaque:
   inline def apply(means: String): Opaque = new Opaque(TypeName(Source.valName), means, Source.here)

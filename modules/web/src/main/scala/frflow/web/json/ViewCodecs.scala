@@ -31,12 +31,14 @@ object ViewCodecs:
   given Encoder.AsObject[Vacuity] = ConfiguredEncoder.derived
   given Encoder.AsObject[OnCode] = ConfiguredEncoder.derived
   given Encoder.AsObject[OnClaims] = ConfiguredEncoder.derived
+  given Encoder.AsObject[ExampleOutcome] = ConfiguredEncoder.derived
   given Encoder.AsObject[ExampleView] = Encoder.AsObject.instance(e =>
-    ConfiguredEncoder.derived[ExampleView].encodeObject(e).add("passes", e.passes.asJson))
+    ConfiguredEncoder.derived[ExampleView].encodeObject(e).add("outcome", e.outcome.asJson))
   given Encoder.AsObject[WholeView] = ConfiguredEncoder.derived
   given Encoder.AsObject[Piece] = ConfiguredEncoder.derived
   given Encoder.AsObject[Overview] = ConfiguredEncoder.derived
   given Encoder.AsObject[Uncounted] = ConfiguredEncoder.derived
+  given Encoder.AsObject[NotMade] = ConfiguredEncoder.derived
   given Encoder.AsObject[Warning] = ConfiguredEncoder.derived
   given Encoder.AsObject[View] = ConfiguredEncoder.derived
   given Encoder.AsObject[DiffLine] = ConfiguredEncoder.derived

@@ -1,7 +1,7 @@
 package frflow.cli.text
 
 import frflow.api.view.{Overview, Piece, View}
-import frflow.api.view.whole.GroupStatus
+import frflow.api.view.whole.{ExampleOutcome, GroupStatus}
 import frflow.cli.term.{Marks, Style}
 import frflow.decision.review.ReviewState
 
@@ -38,5 +38,9 @@ object SummaryText:
       ("Code: " + (if code.isEmpty then "none" else code.mkString(", "))) + consistency.fold("")(c => s"; $c"))
 
   private def tests(o: Overview, st: Style): Option[String] =
-    val (ok, all) = (o.examples(true), o.examples(true) + o.examples(false))
-    Option.when(all > 0)(s"Examples: ${if ok == all then st.green(s"$ok/$all pass") else st.red(s"$ok/$all pass")}")
+    val e = o.examples
+    val (ok, open, bad) = (e(ExampleOutcome.Passes), e(ExampleOutcome.Undecided), e(ExampleOutcome.Fails))
+    val all = ok + open + bad
+    val passing = if ok == all then st.green(s"$ok/$all pass") else s"$ok/$all pass"
+    Option.when(all > 0)(s"Examples: $passing" + (if open > 0 then st.yellow(s"; $open hold on the code, not " +
+      "decided by the claims") else "") + (if bad > 0 then st.red(s"; $bad fail") else ""))

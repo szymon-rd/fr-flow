@@ -43,14 +43,24 @@ object WholeText:
     case Vacuity.Inhabited(id, ty)       => s"$id admits a value of ${Values.ty(ty)}"
     case Vacuity.Satisfiable(id, i, _)   => s"condition ${i + 1} of $id can hold"
 
+  /** An example's line: `+` it passes, `x` it fails (on the code, or the claims contradict it), `o` the code holds
+    * it and the claims do not decide it (reported: nothing depends on an example, owner §18).
+    */
   private def example(e: ExampleView, st: Style): String =
     val lean = e.onClaims match
-      case OnClaims.ScalaOnly => "checked in Scala only (it gives values)"
-      case OnClaims.Lean(c)   => s"Lean: ${Findings.obligation(c.state)}"
+      case OnClaims.ScalaOnly                        => "checked in Scala only (it gives values)"
+      case c @ OnClaims.Lean(_, _) if c.contradicted => "Lean: the claims contradict it"
+      case OnClaims.Lean(c, _)                       => s"Lean: ${Findings.obligation(c.state)}" +
+          (if ExampleView.shown(c.state) then "" else ", not decided by the claims")
     val code = if e.onCode == OnCode.Holds then "" else s"; ${Tested.onCode(e.onCode)}"
-    val mark = if e.passes then Marks.proven(st) else Marks.failed(st)
-    s"$mark ${e.name}  ${st.dim(lean)}${if e.passes then code else st.red(code)}"
+    e.outcome match
+      case ExampleOutcome.Passes    => s"${Marks.proven(st)} ${e.name}  ${st.dim(lean)}$code"
+      case ExampleOutcome.Undecided => s"${Marks.open(st)} ${e.name}  ${st.dim(lean)}$code"
+      case ExampleOutcome.Fails     => s"${Marks.failed(st)} ${e.name}  ${st.red(lean + code)}"
 
-  /** Whether everything about the whole is as it should be: what `check` exits on beside the nodes. */
-  def fine(w: WholeView): Boolean = w.groups.forall(_.status == GroupStatus.Proven) && w.examples.forall(_.passes) &&
+  /** Whether everything about the whole is as it should be: what `check` exits on beside the nodes. An example the
+    * claims do not decide is no failure.
+    */
+  def fine(w: WholeView): Boolean = w.groups.forall(_.status == GroupStatus.Proven) &&
+    w.examples.forall(_.outcome != ExampleOutcome.Fails) &&
     w.starts.forall(_.check.state == ObligationState.Proven)

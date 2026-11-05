@@ -3,12 +3,13 @@ package frflow.api
 import frflow.api.fixture.{Opened, Shelf}
 import frflow.api.node.lean.ObligationState
 import frflow.api.view.Warning
-import frflow.api.view.whole.OnClaims
+import frflow.api.view.whole.{ExampleOutcome, OnClaims}
 import frflow.eval.run.OnCode
 
 /** The theory as a whole in the view, each obligation with Lean's outcome and messages: the states each store starts
   * in (rooms has two), the consistency groups, what is shown possible, and the examples, which pass when the code
-  * holds them and Lean shows them.
+  * holds them and Lean shows them, fail when it does not or the claims contradict them, and are reported apart when
+  * the claims do not decide them.
   */
 class WholeSuite extends munit.CatsEffectSuite:
   test("a start Lean does not prove is in the view with Lean's messages, warned of, and the project is not complete") {
@@ -35,16 +36,23 @@ class WholeSuite extends munit.CatsEffectSuite:
     }
   }
 
-  test("an example passes when the code holds it and Lean shows it; not shown, it does not") {
+  test("an example passes when the code holds it and Lean shows it; the claims not deciding it, it is reported " +
+    "apart, no failure; the claims contradicting it (its opposite shown), it fails") {
     val examples = Shelf.BeforeExamples().elaborated.fold(e => fail(e.toString), identity)
     val project = Opened.project(Shelf.Before.kb, examples)
+    def checked(shown: String*) = Opened.api(project, lean = Lean.Proving(Set.empty, shown.toSet))
+      .flatMap(api => Opened.checked(api.proving.check(None)))
     for
-      notShown <- Opened.api(project).flatMap(api => Opened.checked(api.proving.check(None)))
-      shown    <- Opened.api(project, lean = Lean.Proving(Set.empty, Set("example_BeforeExamples_0")))
-                    .flatMap(api => Opened.checked(api.proving.check(None)))
+      undecided    <- checked()
+      shown        <- checked("example_BeforeExamples_0")
+      contradicted <- checked("example_BeforeExamples_0_opposite")
     yield
       val example = shown.whole.examples.headOption.getOrElse(fail("no example"))
       assertEquals(example.onCode, OnCode.Holds)
-      assert(example.onClaims match { case OnClaims.Lean(c) => c.state == ObligationState.Shown; case _ => false })
-      assertEquals((shown.overview.examples(true), notShown.overview.examples(false)), (1, 1))
+      assert(example.onClaims match { case OnClaims.Lean(c, _) => c.state == ObligationState.Shown; case _ => false })
+      assertEquals(List(shown, undecided, contradicted).map(_.whole.examples.map(_.outcome)),
+        List(List(ExampleOutcome.Passes), List(ExampleOutcome.Undecided), List(ExampleOutcome.Fails)))
+      assertEquals((shown.overview.examples(ExampleOutcome.Passes),
+        undecided.overview.examples(ExampleOutcome.Undecided), contradicted.overview.examples(ExampleOutcome.Fails)),
+        (1, 1, 1))
   }

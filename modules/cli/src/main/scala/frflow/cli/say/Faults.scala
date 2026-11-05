@@ -63,6 +63,8 @@ object Faults:
     case Fault.MeantWhereWritten(d)   => s"$d has its meaning where it is written (a define, a program): it is " +
         "given another"
     case Fault.Thrown(message)        => s"building it threw: $message"
+    case Fault.ExampleSetsClash(n, cs) => s"the classes of examples ${cs.mkString(" and ")} are both named $n, " +
+        "as their examples' theorems are: rename one"
 
   /** A value only plain code reads, spoken of in a statement. */
   def codeOnly(scalaType: String): String =

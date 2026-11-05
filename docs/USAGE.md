@@ -248,7 +248,8 @@ the winner, then the loser's steps until it is cancelled, then the winner's.
 | `commute_<i>` | a program with steps at once | each two steps that may interleave commute |
 | `consistent_<i>` | each group of statements at the bottom sharing an open value | some meaning of every open value makes them all hold |
 | `inhabited_<node>`, `satisfiable_<i>_<node>` | an `always`; a condition `A` in `A implies B` | some value meets it; it can hold |
-| `example_<set>_<i>` | each example: the `i`th of its class (`example_GrantedExamples_0`) | Lean evaluates it |
+| `example_<set>_<i>` | each example: the `i`th of its class (`example_GrantedExamples_0`), a try | for every meaning of what it mentions, the claims constraining them give its fact |
+| `example_<set>_<i>_opposite` | each example, a try | the same claims give its negation: they contradict it |
 
 The tries (`vacuous`, `restates`, `clash`, `unsat`, `idle`, `frozen`) look for a statement that says nothing, restates
 its part, contradicts another, holds whatever is done, or a schedule that stops time; each is reported as shown or not shown. A step Lean does not
@@ -276,7 +277,18 @@ class GrantedExamples extends FrFlowExamples(rooms):
 
 `example(name, d := v)` sets a provided Definition's value; such an example is checked in Scala only. An example
 whose values break a rule on their type is refused. Nothing depends on examples: the theory and its Lean are the same
-without them. In a project `init` made, the examples also run with `sbt PROJECT/test` (FrFlow's test framework,
+without them. Each comes to one of three outcomes:
+
+- `+` it passes: the code holds it, and Lean shows the claims give it (or a proof file proves it);
+- `o` the code holds it, and the claims do not decide it within the budget: reported and counted apart
+  ("Examples: 10/99 pass; 89 hold on the code, not decided by the claims"), no failure;
+- `x` it fails: the code does not hold it, or Lean shows the claims contradict it (its `_opposite`): `check` and
+  `status` exit 1.
+
+An example the claims do not decide is not wrong: leave it as it is (a proof of `example_<set>_<i>` in
+`Proofs/<Model>/Whole.lean` decides it). Each class of examples is made with its constructor without arguments (an
+`object`, as it is); `status` warns of each class among the test classes it cannot make, and why. Two classes of one
+model of one name are refused (their theorems would be one). In a project `init` made, the examples also run with `sbt PROJECT/test` (FrFlow's test framework,
 which `init` adds). FrFlow's own five are not run that way: their model projects (`roomsModel`, …) have no test
 framework, since testing's tests depend on them; their examples run in testing's `ExamplesSuite` and in each one's
 `PortSuite` (`sbt test`).
@@ -327,9 +339,10 @@ the others (an open point), values inside a map, a set or a function reached by 
 warnings:
 
 - no signing key; `.frflow/deciders` not as committed; the ledger's base not committed; a decision that does not count;
-- a source file governed by two nodes, or by none (the model's own files aside: where its nodes, its FrModel, the
-  code given its Definitions and its vocabulary are written, each Declaration, Definition, `define`, `program`,
-  `StateModel` and domain type recording its file, a `program` the files its body refers to too); a governed file that does not exist (`show` marks it missing
+- a source file governed by two nodes, or by none (the model's own files aside: where its nodes, its FrModel and
+  the code given its Definitions are written, and a file holding only vocabulary, each Declaration, Definition,
+  `define`, `program`, `StateModel` and domain type recording its name and file; and a file holding only what a
+  `program`'s body refers to and vocabulary); a governed file that does not exist (`show` marks it missing
   under the design's "Files it governs");
 - a proof file of no node;
 - consistency not proven; a store's start not proven to meet its rules;

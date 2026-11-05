@@ -129,7 +129,7 @@ abstract class StateModel[S](description: String)(using named: StateModel.Named,
     * in turn, as the clock's do).
     */
   @publicInBinary private[model] def itself: Declarations = Declarations.model(name, model) |+| stateType.declares |+|
-    Declarations.in(named.at) |+|
+    Declarations.in(named.at, named.name) |+|
     operations.foldMap(op => Declarations.symbol(Symbol(op.name, op.described, SymbolType.Typed(op.leanType.ty),
       ValueKind.Definition)))
 
