@@ -25,7 +25,7 @@ Run sbt and `bin/frflow` from the build's root (the directory holding `build.sbt
 nodes, code and vocabulary are written in when it is compiled, relative to the directory the compiler runs in, and
 the CLI makes them relative to the project's directory when it runs, from the directory it runs in; both are the
 build's root under `bin/frflow`, `sbt "PROJECT/run …"` and `serve`. A run from another directory (an IDE's run
-configuration, say) would place them wrongly: `status` would find nodes' files missing and code ungoverned.
+configuration, say) would place them wrongly: `status` would warn of the model's own files as ungoverned.
 
 ### Commands
 
@@ -327,7 +327,10 @@ the others (an open point), values inside a map, a set or a function reached by 
 warnings:
 
 - no signing key; `.frflow/deciders` not as committed; the ledger's base not committed; a decision that does not count;
-- a source file governed by two nodes, or by none; a governed file that does not exist;
+- a source file governed by two nodes, or by none (the model's own files aside: where its nodes, its FrModel, the
+  code given its Definitions and its vocabulary are written, each Declaration, Definition, `define`, `program`,
+  `StateModel` and domain type recording its file); a governed file that does not exist (`show` marks it missing
+  under the design's "Files it governs");
 - a proof file of no node;
 - consistency not proven; a store's start not proven to meet its rules;
 - a node nothing checks; an assumption the generated runs cannot evaluate (trusted, not tested); a schedule over a
