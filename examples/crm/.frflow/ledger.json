@@ -125,6 +125,23 @@
         }
       }
     ],
+    "databaseLock": [
+      {
+        "action": "accept",
+        "by": "demo-developer",
+        "at": "2026-11-09T22:53:06.400565Z",
+        "commit": "63e82570d9addb4351a20f539588dc0f47c292b6",
+        "reason": "Accepted with the demo key when moving to the rebuilt library.",
+        "rejected": [],
+        "content": "da1197196e6c560970c570c58e3ff81c11089fd6118c98b1de0704dfd93f88fe",
+        "chain": "",
+        "code": "1c8beb1661cb7223f6c43f1b03e5b6145b71025e5bebcf3f22b77d8a9da10d05",
+        "seal": {
+          "key": "087bcc41dcd575d8",
+          "signature": "84hi2NhKvUP8T8wt3PfM0+S0XSqfnTgkI+pwjMjaWMiWKpGkf3TJeWM9lyYhmpQz2Bc3ZjSdxXJj22ZAWKrCAQ=="
+        }
+      }
+    ],
     "dealSearch": [
       {
         "action": "accept",
@@ -251,6 +268,22 @@
           "key": "087bcc41dcd575d8",
           "signature": "Iu8ZuAGR3Q652kOxExeG/yoSX1WIN2hP/Vw0XFWpZq5+rYJFBAAjl+cae7yV3q3kXEtyTsU69975cXeEsT6zAg=="
         }
+      },
+      {
+        "action": "accept",
+        "by": "demo-developer",
+        "at": "2026-11-09T22:53:06.400565Z",
+        "commit": "63e82570d9addb4351a20f539588dc0f47c292b6",
+        "reason": "Accepted with the demo key when moving to the rebuilt library.",
+        "rejected": [],
+        "content": "c190db9e622cc952ce7d32bb947f0bd5bc90ed99b88aed63ac5ba595cfc4d780",
+        "chain": "",
+        "code": "366ce65fe848a042e2877ce26f5182cae23c9483ea8a79d1d3039d60bce96339",
+        "after": "5d95259aaeccb0c6ac06618d7e005a5ee3e116e7d9423bacb80a609f627dd76e",
+        "seal": {
+          "key": "087bcc41dcd575d8",
+          "signature": "hIqDwsvfGxx/maGociCzfrFLuh1YXKYl/K07nYcuShReOxPC+WMWQAw+vBqUMPQNu3okVoVj0jJkZSv+qe9PCg=="
+        }
       }
     ],
     "expiryKeepsLiveShares": [
@@ -301,6 +334,23 @@
         }
       }
     ],
+    "expirySchedule": [
+      {
+        "action": "accept",
+        "by": "demo-developer",
+        "at": "2026-11-09T22:53:06.400565Z",
+        "commit": "63e82570d9addb4351a20f539588dc0f47c292b6",
+        "reason": "Accepted with the demo key when moving to the rebuilt library.",
+        "rejected": [],
+        "content": "e356d2d045ebbcd56d4a97b0455879c391ab385280ad2e9ac547622ec004850b",
+        "chain": "",
+        "code": "366ce65fe848a042e2877ce26f5182cae23c9483ea8a79d1d3039d60bce96339",
+        "seal": {
+          "key": "087bcc41dcd575d8",
+          "signature": "5PJNKjoNAPwhz4ADLt95jlKsZkbwM6g91eYNfDJukmZEBw4tEFuaIQ+P3X+jd6VJRfjhcwcstn7McYYubqNQDg=="
+        }
+      }
+    ],
     "fetchesEveryMatch": [
       {
         "action": "accept",
@@ -347,6 +397,22 @@
         "seal": {
           "key": "087bcc41dcd575d8",
           "signature": "ntmhPm7CtDY9iuZCO9AItryn0faiJtj4WrSsGbUtWDNraYjTQqM2q8nrRk4bJMmltlIXbdokgXhxvkkeBt0jBw=="
+        }
+      },
+      {
+        "action": "accept",
+        "by": "demo-developer",
+        "at": "2026-11-09T22:53:06.400565Z",
+        "commit": "63e82570d9addb4351a20f539588dc0f47c292b6",
+        "reason": "Accepted with the demo key when moving to the rebuilt library.",
+        "rejected": [],
+        "content": "ba6952e344418c00efa7ef10b6b663f6f183920678540e37e9ed8f8f67204c0c",
+        "chain": "",
+        "code": "a5c81b7e2ab1cb4127fa2aa185b54a3be8fd4f99fa40532ee6d0b941852c7fc7",
+        "after": "122e9e35d54c6d3ce9cfc4af7424d7d75e6df491201ae0e6ed2c542c5d0414e7",
+        "seal": {
+          "key": "087bcc41dcd575d8",
+          "signature": "IlyveFFMqYCbx0TpvBsxVT6UTMZ77rH6xZBNLnyND+pPB654ioK3t3TCLqzaZpdsGR8+QMAXOp3r3YLoy1G3BQ=="
         }
       }
     ],
@@ -567,6 +633,22 @@
         "seal": {
           "key": "087bcc41dcd575d8",
           "signature": "ETVjVKjHyD7N+Hj/JbMP1GPpUf2b0BgXsTeUUQj+mFC5cnVnqogaBt0zKOSvrO6vprqEasafpSYZn/cDtmtNBQ=="
+        }
+      },
+      {
+        "action": "accept",
+        "by": "demo-developer",
+        "at": "2026-11-09T22:53:06.400565Z",
+        "commit": "63e82570d9addb4351a20f539588dc0f47c292b6",
+        "reason": "Accepted with the demo key when moving to the rebuilt library.",
+        "rejected": [],
+        "content": "ef7e8b35f563db3d93f511cf696bc8641698682323a5e2e2538c1177c9680d46",
+        "chain": "",
+        "code": "b2247e5099a591b370b76993a1e5581ce1c82d30888bb0a79db1e6a5e04519b7",
+        "after": "cf7cf95d9c14169bfeda259c80b6d3c1e85f5160610817f660aa106d2e091ae1",
+        "seal": {
+          "key": "087bcc41dcd575d8",
+          "signature": "8yg/sAQiH+RXPODrpuUDWQ6GfsHKd79dJDQ1Neg4MTrIEwF5PjpKLxu5muPuv8+Iy7VAg5NhBSC/pPno1yWXBg=="
         }
       }
     ],
@@ -1230,6 +1312,22 @@
           "key": "087bcc41dcd575d8",
           "signature": "2L0RsO6RLNgyt7wXdYOcRjpnsXmF8oVYmqEUJFTTXENMTflZwbLC3N57EwUUm6tlH4uzRGhCjE/o4U2j3u4QDg=="
         }
+      },
+      {
+        "action": "accept",
+        "by": "demo-developer",
+        "at": "2026-11-09T22:53:06.400565Z",
+        "commit": "63e82570d9addb4351a20f539588dc0f47c292b6",
+        "reason": "Accepted with the demo key when moving to the rebuilt library.",
+        "rejected": [],
+        "content": "299b48387a8149b13418087c37666ada69f8f6bfce319786a4b3b4a5e6135758",
+        "chain": "",
+        "code": "6026d95ab1b8c26b5791f070ac33a420baf9c004e54e1042916063a71634ffc6",
+        "after": "4a215653643f56a218c16706d12458f52f50874e4414a1f7cabc49d265f37b30",
+        "seal": {
+          "key": "087bcc41dcd575d8",
+          "signature": "Al3JPe0I7HgQRWUxEFllqXWFarJbZiYylRKDqDVM2bymRcbXa6YKwJuW3PFxnxXbEf1pUeX371XyFOvm8rifAg=="
+        }
       }
     ],
     "writesLeaveOthers": [
@@ -1542,6 +1640,21 @@
       ],
       "governs": []
     },
+    "da1197196e6c560970c570c58e3ff81c11089fd6118c98b1de0704dfd93f88fe": {
+      "kind": "design",
+      "parents": [
+        "saveStores",
+        "jobStoresExpired"
+      ],
+      "assumes": [],
+      "statement": "Every program on the database holds the database's lock for its whole run.",
+      "vocabulary": [],
+      "checking": [],
+      "governs": [
+        "src/main/scala/crm/WriteSide.scala",
+        "src/main/scala/crm/Job.scala"
+      ]
+    },
     "73b7e314c6b98afd50c62f9559fad43e6a433b52fbc3cb6e4cc64758d08e7d5f": {
       "kind": "claim",
       "parents": [
@@ -1770,6 +1883,21 @@
         "src/main/scala/crm/Job.scala"
       ]
     },
+    "c190db9e622cc952ce7d32bb947f0bd5bc90ed99b88aed63ac5ba595cfc4d780": {
+      "kind": "design",
+      "parents": [
+        "jobStoresExpired",
+        "jobLogsRun",
+        "jobReturnsExpired"
+      ],
+      "assumes": [],
+      "statement": "The expiry job runs its proven program on SQLite.",
+      "vocabulary": [],
+      "checking": [],
+      "governs": [
+        "src/main/scala/crm/Job.scala"
+      ]
+    },
     "51d1ba9a332c0cf3e4aaff913183c64bccb62c37c363c8bf2149621ca47114f7": {
       "kind": "claim",
       "parents": [
@@ -1845,6 +1973,19 @@
       "call": "expire",
       "implementation": "expire: proven, (s: Term[CrmStore], now: Term[BigInt]) =>\n  make[CrmStore](s.records, liveShares(s, now), liveExpiries(s, now))"
     },
+    "e356d2d045ebbcd56d4a97b0455879c391ab385280ad2e9ac547622ec004850b": {
+      "kind": "design",
+      "parents": [
+        "jobStoresExpired"
+      ],
+      "assumes": [],
+      "statement": "The expiry job runs every minute.",
+      "vocabulary": [],
+      "checking": [],
+      "governs": [
+        "src/main/scala/crm/Job.scala"
+      ]
+    },
     "e7313015f5973e8cc7a14ecb0eaf5d67d2b53995f99592540ffc90397a201318": {
       "kind": "assumption",
       "parents": [],
@@ -1892,6 +2033,19 @@
       ],
       "assumes": [],
       "statement": "The HTTP API answers searches through the records screen and the sales screen, and writes through the write side; who calls is the account in the request's headers.",
+      "vocabulary": [],
+      "checking": [],
+      "governs": [
+        "src/main/scala/crm/Server.scala"
+      ]
+    },
+    "ba6952e344418c00efa7ef10b6b663f6f183920678540e37e9ed8f8f67204c0c": {
+      "kind": "design",
+      "parents": [
+        "sharedCrm"
+      ],
+      "assumes": [],
+      "statement": "The HTTP API serves the screens and the write side to the account each request names.",
       "vocabulary": [],
       "checking": [],
       "governs": [
@@ -2276,6 +2430,20 @@
       ],
       "assumes": [],
       "statement": "The records screen and the sales screen serve searches through their code; they read the time from the clock, the shares and expiries from the database's tables, and search them with SQL.",
+      "vocabulary": [],
+      "checking": [],
+      "governs": [
+        "src/main/scala/crm/ReadSide.scala"
+      ]
+    },
+    "ef7e8b35f563db3d93f511cf696bc8641698682323a5e2e2538c1177c9680d46": {
+      "kind": "design",
+      "parents": [
+        "readContract",
+        "dealSearch"
+      ],
+      "assumes": [],
+      "statement": "The records screen and the sales screen run their proven code on the clock and the SQLite database.",
       "vocabulary": [],
       "checking": [],
       "governs": [
@@ -3320,6 +3488,22 @@
       ],
       "assumes": [],
       "statement": "The write side saves each write on the store loaded from the database, one write at a time, and logs it in the event log.",
+      "vocabulary": [],
+      "checking": [],
+      "governs": [
+        "src/main/scala/crm/WriteSide.scala",
+        "src/main/scala/crm/EventLog.scala"
+      ]
+    },
+    "299b48387a8149b13418087c37666ada69f8f6bfce319786a4b3b4a5e6135758": {
+      "kind": "design",
+      "parents": [
+        "saveStores",
+        "saveLogs",
+        "saveReturns"
+      ],
+      "assumes": [],
+      "statement": "The write side runs its proven program on SQLite.",
       "vocabulary": [],
       "checking": [],
       "governs": [
