@@ -84,6 +84,23 @@
         }
       }
     ],
+    "inMemorySessions": [
+      {
+        "action": "accept",
+        "by": "demo-developer",
+        "at": "2026-11-09T04:35:31.708921Z",
+        "commit": "fa736923318837de1d5ada181535d47970b11eaa",
+        "reason": "Accepted with the demo key when moving to the rebuilt library.",
+        "rejected": [],
+        "content": "e75260d9dc6b31dd2baf01724a25cbd5eb05a094c769dc7d26e5079c9a706e68",
+        "chain": "",
+        "code": "12d42839a70d0b751f207201512f8cfb3f0ef6d6d84eedb8009f4b15188c06f0",
+        "seal": {
+          "key": "087bcc41dcd575d8",
+          "signature": "XUSuA1RfsRlcIdnCzsLm7PxuqD7A2rgVrHKfyCouYwbCIzwREt3RBjwN4MArdzJtgQe40ockfA9vGcpnmKykCg=="
+        }
+      }
+    ],
     "requests": [
       {
         "action": "accept",
@@ -289,6 +306,19 @@
       "governs": [],
       "call": "authorized",
       "implementation": "grants: provided where the code runs"
+    },
+    "e75260d9dc6b31dd2baf01724a25cbd5eb05a094c769dc7d26e5079c9a706e68": {
+      "kind": "design",
+      "parents": [
+        "decisionContract"
+      ],
+      "assumes": [],
+      "statement": "Sessions and grants are loaded into memory, in one process that decides every request.",
+      "vocabulary": [],
+      "checking": [],
+      "governs": [
+        "src/main/scala/auth/Server.scala"
+      ]
     },
     "7fe087b5b3f6dde10a8381cdf7777e970b4d1082e0619d9de214f1e925d1d4be": {
       "kind": "claim",
