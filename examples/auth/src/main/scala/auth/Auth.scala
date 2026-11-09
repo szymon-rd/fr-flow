@@ -5,8 +5,8 @@ import frflow.*
 // Auth's nodes in the three kinds (owner §14, §15), each named as today's. `access`, `authorized` and `signedIn` are
 // Declarations, known only through the statements about them; today's definition nodes are claims, each an equation
 // tying a Declaration to the domain (its consistency witness). `grants` and `sessions` are provided where the code
-// runs; `admit` is the plain Scala tested against the claims on it. Two quantifiers only: today's `exists t` is
-// `!forall(t => …)`. Users are named by ids and resources are paths:
+// runs; `admit` is the plain Scala tested against the claims on it. Today's `exists t` over every token is over the
+// tokens of the session table (`admittedTo`). Users are named by ids and resources are paths:
 // today's `identities` fixed two open types to these, which the types now say directly.
 
 // ============================================================================
@@ -44,18 +44,15 @@ val admit = Definition[(String, Path) => Option[UserId]](
 /** A grant names the user and the path. */
 val grantFor = define { (u: Term[UserId], p: Term[Path]) => grants.exists(g => g === make[Grant](u, p)) }
 
-/** The token was issued to the user. */
-val issuedTo = define { (t: Term[String], u: Term[UserId]) => sessions.open.exists(s => s.token === t && s.user === u) }
-
-/** The user the token was issued to, if any. */
+/** The user the token was issued to, if any (an Option's map, written as its fold: the DSL has no `map` on it). */
 val holderOf = define { (t: Term[String]) =>
   sessions.open.find(s => s.token === t).fold(none[UserId])(s => some(s.user)) }
 
 /** The token's holder has a grant for the path. */
 val holderGranted = define { (t: Term[String], p: Term[Path]) => holderOf(t).exists(u => grantFor(u, p)) }
 
-/** Some request for the path is admitted on the user's behalf. */
-val admittedTo = define { (u: Term[UserId], p: Term[Path]) => !forall((t: Term[String]) => admit(t, p) =!= some(u)) }
+/** Some session's token is admitted for the path on the user's behalf. */
+val admittedTo = define { (u: Term[UserId], p: Term[Path]) => sessions.open.exists(s => admit(s.token, p) === some(u)) }
 
 val tokensIssuedOnce = Node.assumption("The session table issues each token to one user.")(
   always[Sessions](s => s.open.pairwise((a, b) => a.token =!= b.token)))
@@ -78,7 +75,7 @@ val requests = Node.claim(
 // ============================================================================
 
 val tokenNamesHolder = Node.claim("A request is admitted only on behalf of the user its token was issued to.")(
-  forall((t: Term[String], p: Term[Path]) => admit(t, p).forall(u => issuedTo(t, u))))
+  forall((t: Term[String], p: Term[Path]) => admit(t, p).forall(u => holderOf(t) === some(u))))
   .refines(accessExactly)
   .assuming(tokensIssuedOnce)
 

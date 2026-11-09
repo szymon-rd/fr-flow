@@ -57,7 +57,7 @@ class LeanShapeSuite extends munit.FunSuite:
 
   test("a claim whose Lean takes what always holds of the session table lists the assumption saying it") {
     val unlisted = Node.claim("A request is let in only for the user its token was issued to.")(
-      forall((t: Term[String], p: Term[Path]) => admit(t, p).forall(u => issuedTo(t, u))))
+      forall((t: Term[String], p: Term[Path]) => admit(t, p).forall(u => holderOf(t) === some(u))))
       .refines(accessExactly)
     val kb = FrModel("Auth")((knowledge.nodes :+ unlisted)*)
       .implementProvided(grants, sessions)

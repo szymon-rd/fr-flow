@@ -1,7 +1,7 @@
 import FrFlowGen.Auth.Domain
 
-/-! What the proofs of auth share: a token's holder. The holder is a user the token was issued to; and, when the
-table issues each token to one user, the holder of a session's token is that session's user. -/
+/-! What the proofs of auth share: a token's holder. The holder is the user of a session under the token; and, when
+the table issues each token to one user, the holder of a session's token is that session's user. -/
 
 set_option autoImplicit false
 noncomputable section
@@ -9,9 +9,9 @@ open Classical
 
 namespace Auth.Lemmas
 
-/-- The holder of a token is a user it was issued to. -/
-theorem issued_of_holder (sessions : Sessions) (t : String) (u : UserId) (h : holderOf sessions t = some u) :
-    issuedTo sessions t u := by
+/-- The holder of a token is the user of a session under it. -/
+theorem session_of_holder (sessions : Sessions) (t : String) (u : UserId) (h : holderOf sessions t = some u) :
+    ∃ s ∈ sessions.open, s.token = t ∧ s.user = u := by
   unfold holderOf at h
   split at h
   · cases h

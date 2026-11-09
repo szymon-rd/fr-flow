@@ -76,12 +76,8 @@ theorem accessNeedsGrant (admit grants) :
 
 theorem tokenNamesHolder (admit) (s : Sessions) (hs : tokensIssuedOnce s) :
     Old.TokenNamesHolder.claim admit (asFunction s) ↔ Auth.tokenNamesHolder.claim admit s := by
-  simp only [Old.TokenNamesHolder.claim, Auth.tokenNamesHolder.claim, issuedTo, asFunction]
-  constructor
-  · intro h _ t p u ha
-    exact (asFunction_some _ hs t u).1 (h t p u ha)
-  · intro h t p u ha
-    exact (asFunction_some _ hs t u).2 (h hs t p u ha)
+  simp only [Old.TokenNamesHolder.claim, Auth.tokenNamesHolder.claim, holderOf_eq]
+  exact ⟨fun h _ => h, fun h => h hs⟩
 
 theorem grantLetsIn (admit grants) (s : Sessions) (hs : tokensIssuedOnce s) :
     Old.GrantLetsIn.claim (asFunction s) grants admit ↔ Auth.grantLetsIn.claim admit s grants := by
@@ -143,8 +139,23 @@ theorem sessionTable (signedIn) (s : Sessions) (hs : tokensIssuedOnce s) :
   simp only [e]
   exact ⟨fun h => h hs, fun h _ => h⟩
 
-theorem requests (access admit) :
-    Auth.requests.claim access admit ↔ ∀ u p, access u p = Old.access admit u p := by
-  simp only [Auth.requests.claim, Old.access, admittedTo, Classical.not_forall, Classical.not_not]
+/-- Today's access is over every token; the port's over the tokens of the session table. The two agree where the
+decision meets `tokenNamesHolder`: a token admitted for a user is a session's. -/
+theorem requests (access admit) (s : Sessions) (hs : tokensIssuedOnce s)
+    (hn : Auth.tokenNamesHolder.claim admit s) :
+    Auth.requests.claim access s admit ↔ ∀ u p, access u p = Old.access admit u p := by
+  have e : ∀ u p, admittedTo s admit u p = Old.access admit u p := fun u p => by
+    apply propext
+    simp only [admittedTo, Old.access]
+    constructor
+    · rintro ⟨x, _, hx⟩
+      exact ⟨x.token, hx⟩
+    · rintro ⟨t, ht⟩
+      have hh := hn hs t p u ht
+      rw [holderOf_eq] at hh
+      obtain ⟨x, hx, hxt, _⟩ := (asFunction_some _ hs t u).1 hh
+      exact ⟨x, hx, by rw [hxt]; exact ht⟩
+  simp only [Auth.requests.claim, e]
+  exact ⟨fun h => h hs, fun h _ => h⟩
 
 end Port

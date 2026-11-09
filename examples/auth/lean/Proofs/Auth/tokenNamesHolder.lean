@@ -14,7 +14,7 @@ theorem complete : Obl.complete := by
   intro adm sessions grants hs hd _ t p u hu
   rw [hd hs t p] at hu
   split at hu
-  · exact Lemmas.issued_of_holder sessions t u hu
+  · exact hu
   · cases hu
 
 end Auth.tokenNamesHolder.Proofs
