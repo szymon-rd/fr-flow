@@ -16,16 +16,18 @@ val granted = Definition[(RoomBookings, Booking) => Boolean]("whether a request 
 
 val book = Definition[Booking => Flow[Boolean]]("booking a request: whether it was booked")
 
-// Over moments.
+/** A booking covers the moments from its start up to its end. */
 val covers = define { (b: Term[Booking], t: Term[BigInt]) => b.start <= t && t < b.end }
 
+/** Two bookings are apart when they are in different rooms or share no moment. */
 val apart = define { (a: Term[Booking], b: Term[Booking]) =>
   a.room =!= b.room || forall((t: Term[BigInt]) => !(covers(a, t) && covers(b, t))) }
 
+/** A room is free for a request when each of the bookings is apart from it. */
 val free = define { (bookings: Term[List[Booking]], request: Term[Booking]) =>
   bookings.forall(b => apart(b, request)) }
 
-// Over start and end times.
+/** Two bookings do not overlap when they are in different rooms or one ends by the time the other starts. */
 val noOverlap = define { (a: Term[Booking], b: Term[Booking]) =>
   a.room =!= b.room || a.end <= b.start || b.end <= a.start }
 
