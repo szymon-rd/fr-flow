@@ -1,7 +1,7 @@
 import FrFlowGen.Crm.noCrossTenantRead.Spec
 import Proofs.Crm.Lemmas
 
-/-! Each screen returns only records the user may read now (`Runs.searched`, `Runs.dealt`). -/
+/-! Each screen returns only records the user may read now: what its two parts say, together. -/
 
 set_option autoImplicit false
 noncomputable section
@@ -11,15 +11,14 @@ namespace Crm.noCrossTenantRead.Proofs
 open Crm Crm.Lemmas
 
 theorem impl : Obl.impl := by
-  intro fetch _ _ hR hK u q world h1 h2 h3
-  have hs := (Runs.searched fetch hR hK u q world ⟨h1, h2, h3⟩).2
-  have hd := (Runs.dealt fetch hR hK u q world ⟨h1, h2, h3⟩).2
-  revert hs hd
+  intro fetch hR hD _ _ _ u q world h1 h2 h3
+  have a := hR u q world h1 h2 h3
+  have b := hD u q world h1 h2 h3
+  revert a b
   generalize search_run fetch u q world = p1
   generalize dealsOf_run fetch u q world = p2
   rcases p1 with ⟨r1, a1⟩
   rcases p2 with ⟨r2, a2⟩
-  intro hs hd
-  exact ⟨fun r h => ((hs r).1 h).2, fun r h => ((hd r).1 h).2⟩
+  exact fun a b => ⟨a, b⟩
 
 end Crm.noCrossTenantRead.Proofs

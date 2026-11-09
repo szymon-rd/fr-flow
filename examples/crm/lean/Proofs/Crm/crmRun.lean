@@ -11,8 +11,8 @@ namespace Crm.crmRun.Proofs
 open Crm Crm.Lemmas
 
 theorem cover_read : Obl.cover_read := by
-  intro fetch hR hK u q w h1 h2 h3
-  have he := (Runs.searched fetch hR hK u q w ⟨h1, h2, h3⟩).1
+  intro fetch hO hA hK u q w h1 h2 h3
+  have he := (Runs.searched fetch hO hA hK u q w ⟨h1, h2, h3⟩).1
   revert he
   generalize search_run fetch u q w = p
   rcases p with ⟨res, aft⟩
@@ -21,8 +21,8 @@ theorem cover_read : Obl.cover_read := by
   rw [he]; exact h1
 
 theorem cover_deals : Obl.cover_deals := by
-  intro fetch hR hK u q w h1 h2 h3
-  have he := (Runs.dealt fetch hR hK u q w ⟨h1, h2, h3⟩).1
+  intro fetch hO hA hK u q w h1 h2 h3
+  have he := (Runs.dealt fetch hO hA hK u q w ⟨h1, h2, h3⟩).1
   revert he
   generalize dealsOf_run fetch u q w = p
   rcases p with ⟨res, aft⟩

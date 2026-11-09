@@ -11,8 +11,8 @@ namespace Crm.oneRowPerKey.Proofs
 open Crm Crm.Lemmas
 
 theorem cover_read : Obl.cover_read := by
-  intro fetch hR hK u q w h1 h2 h3
-  have he := (Runs.searched fetch hR hK u q w ⟨h1, h2, h3⟩).1
+  intro fetch hO hA hK u q w h1 h2 h3
+  have he := (Runs.searched fetch hO hA hK u q w ⟨h1, h2, h3⟩).1
   revert he
   generalize search_run fetch u q w = p
   rcases p with ⟨res, aft⟩
@@ -21,8 +21,8 @@ theorem cover_read : Obl.cover_read := by
   rw [he]; exact h2
 
 theorem cover_deals : Obl.cover_deals := by
-  intro fetch hR hK u q w h1 h2 h3
-  have he := (Runs.dealt fetch hR hK u q w ⟨h1, h2, h3⟩).1
+  intro fetch hO hA hK u q w h1 h2 h3
+  have he := (Runs.dealt fetch hO hA hK u q w ⟨h1, h2, h3⟩).1
   revert he
   generalize dealsOf_run fetch u q w = p
   rcases p with ⟨res, aft⟩
@@ -50,13 +50,18 @@ theorem made_write : Obl.made_write := fun s hk _ c => applyWrite_onePerKey s c 
 
 theorem made_saved_call_1 : Obl.made_saved_call_1 := fun c s h => applyWrite_onePerKey s c h.1
 
+/-- What the job hands the database to store is its expire's store, which keeps the rule (`m_expire`). -/
+theorem made_expireOnce_call_1 : Obl.made_expireOnce_call_1 := by
+  intro expire _ _ _ _ _ _ _ mX now s h _ _ _
+  exact mX s h.1 h.2 now
+
 theorem made_save : Obl.made_save := by
   intro c w _ h2 _
   rw [Runs.saved_run_eq]
   exact aboutRecord_onePerKey _ _ (applyWrite_onePerKey _ c h2)
 
 theorem made_runExpiry : Obl.made_runExpiry := by
-  intro expire _ _ _ mX now w _ h2 h3
+  intro expire _ _ _ _ _ _ _ mX now w _ h2 h3
   rw [Runs.expireOnce_run_eq]
   exact mX _ h2 h3 now
 

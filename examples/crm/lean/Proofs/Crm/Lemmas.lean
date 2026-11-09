@@ -1,10 +1,18 @@
 import FrFlowGen.Crm.Domain
 import FrFlowGen.Crm.writeContract.Spec
-import FrFlowGen.Crm.recordsByQuery.Spec
+import FrFlowGen.Crm.fetchesOnlyMatches.Spec
+import FrFlowGen.Crm.fetchesEveryMatch.Spec
 import FrFlowGen.Crm.searchKeeps.Spec
 import FrFlowGen.Crm.sharesExpire.Spec
 import FrFlowGen.Crm.readContract.Spec
 import FrFlowGen.Crm.dealSearch.Spec
+import FrFlowGen.Crm.readsOnlyMatching.Spec
+import FrFlowGen.Crm.readsOnlyReadable.Spec
+import FrFlowGen.Crm.readsAllReadable.Spec
+import FrFlowGen.Crm.dealsOnlyMatching.Spec
+import FrFlowGen.Crm.dealsOnlyDeals.Spec
+import FrFlowGen.Crm.dealsOnlyReadable.Spec
+import FrFlowGen.Crm.dealsAllReadable.Spec
 import FrFlowGen.Crm.visibility.Spec
 import FrFlowGen.Crm.storeMirrorsRequests.Spec
 import FrFlowGen.Crm.recordsKept.Spec
@@ -43,6 +51,15 @@ theorem mem_expiries (s t : CrmStore) (id_ : Int) (e : Expiry) :
 theorem aboutRecord_idem (t : CrmStore) (i : Int) : aboutRecord (aboutRecord t i) i = aboutRecord t i := by
   simp only [aboutRecord, List.filter_filter, Bool.and_self]
 
+/-- That a store differs from another only in what a write asks, table by table, each direction a fact of its own. -/
+theorem onlyAsked_iff {s t : CrmStore} {w : WriteCmd} : onlyAsked s w t ↔
+    ((((∀ r ∈ t.records, r ∈ s.records ∨ addsRecord s w r) ∧
+      (∀ sh ∈ t.shares, sh ∈ s.shares ∨ changesShare s w sh.record sh.to)) ∧
+      (∀ sh ∈ s.shares, sh ∈ t.shares ∨ changesShare s w sh.record sh.to)) ∧
+      (∀ e ∈ t.expiries, e ∈ s.expiries ∨ changesShare s w e.record e.to)) ∧
+      (∀ e ∈ s.expiries, e ∈ t.expiries ∨ changesShare s w e.record e.to) := by
+  simp only [onlyAsked, recordsOnlyAdded, sharesOnlyChanged, expiriesOnlyChanged, and_assoc]
+
 /-- What a write asks is about its own record's rows only: it holds of the replaced store when it holds of the
 store the write led to. -/
 theorem takesEffect_replace (s t : CrmStore) (w : WriteCmd) (h : takesEffect s w t) :
@@ -50,12 +67,12 @@ theorem takesEffect_replace (s t : CrmStore) (w : WriteCmd) (h : takesEffect s w
   rcases w with ⟨a, ch⟩
   cases ch with
   | Add r =>
-    simp only [takesEffect, about] at h ⊢
+    simp only [takesEffect, freshAdd, about, addTakes] at h ⊢
     intro hc
     rw [mem_records]
     exact Or.inr ⟨h hc, rfl⟩
   | ShareWith id_ to u =>
-    simp only [takesEffect, about] at h ⊢
+    simp only [takesEffect, sharedUntil, shareTimeIs, about, shareTakes, noTimeFor, onlyTime] at h ⊢
     intro hc
     obtain ⟨h1, h2⟩ := h hc
     refine ⟨(mem_shares s t id_ _).2 (Or.inr ⟨h1, rfl⟩), ?_⟩
@@ -74,7 +91,7 @@ theorem takesEffect_replace (s t : CrmStore) (w : WriteCmd) (h : takesEffect s w
       · exact hne her
       · exact h2 ⟨e, he, her, het⟩
   | Unshare id_ to =>
-    simp only [takesEffect, about] at h ⊢
+    simp only [takesEffect, about, unshareTakes] at h ⊢
     intro hc hm
     rw [mem_shares] at hm
     rcases hm with ⟨_, hne⟩ | ⟨hm, _⟩
@@ -85,8 +102,8 @@ theorem takesEffect_replace (s t : CrmStore) (w : WriteCmd) (h : takesEffect s w
 other rows are those of the store before it. -/
 theorem onlyAsked_replace (s t : CrmStore) (w : WriteCmd) (h : onlyAsked s w t) :
     onlyAsked s w (replaceAbout s (about w) (aboutRecord t (about w))) := by
-  obtain ⟨⟨⟨⟨hRec, hShT⟩, hShS⟩, hExT⟩, hExS⟩ := h
-  refine ⟨⟨⟨⟨fun r hr => ?_, fun sh hsh => ?_⟩, fun sh hsh => ?_⟩, fun e he => ?_⟩, fun e he => ?_⟩
+  obtain ⟨⟨⟨⟨hRec, hShT⟩, hShS⟩, hExT⟩, hExS⟩ := onlyAsked_iff.1 h
+  refine onlyAsked_iff.2 ⟨⟨⟨⟨fun r hr => ?_, fun sh hsh => ?_⟩, fun sh hsh => ?_⟩, fun e he => ?_⟩, fun e he => ?_⟩
   · rw [mem_records] at hr
     rcases hr with ⟨hr, _⟩ | ⟨hr, _⟩
     · exact Or.inl hr
@@ -141,13 +158,13 @@ theorem applyWrite_onePerKey (s : CrmStore) (w : WriteCmd) (h : onePerKey s) : o
   rcases w with ⟨a, ch⟩
   cases ch with
   | Add r =>
-    simp only [applyWrite]
+    simp only [applyWrite, addRecord]
     split
     · rename_i hAllowed
       refine ⟨⟨pairwise_snoc _ _ _ hr (fun x hx hxr => hAllowed.2 ⟨x, hx, hxr⟩), hs⟩, he⟩
     · exact ⟨⟨hr, hs⟩, he⟩
   | ShareWith id_ to u =>
-    simp only [applyWrite]
+    simp only [applyWrite, shareRecord, sharesBut, expiriesBut, expiryOf]
     split
     · refine ⟨⟨hr, pairwise_snoc _ _ _ (pairwise_filter _ _ _ hs) (fun x hx hxe => ?_)⟩, ?_⟩
       · exact of_decide_eq_true (List.mem_filter.1 hx).2 hxe
@@ -158,7 +175,7 @@ theorem applyWrite_onePerKey (s : CrmStore) (w : WriteCmd) (h : onePerKey s) : o
           exact of_decide_eq_true (List.mem_filter.1 hx).2 hxe
     · exact ⟨⟨hr, hs⟩, he⟩
   | Unshare id_ to =>
-    simp only [applyWrite]
+    simp only [applyWrite, unshareRecord, sharesBut, expiriesBut]
     split
     · exact ⟨⟨hr, pairwise_filter _ _ _ hs⟩, pairwise_filter _ _ _ he⟩
     · exact ⟨⟨hr, hs⟩, he⟩
@@ -183,8 +200,9 @@ theorem replace_onePerKey (st t : CrmStore) (i : Int) (hst : onePerKey st) (ht :
       (fun x y hxy he => hxy he.1) (fun y hy => of_decide_eq_true (List.mem_filter.1 hy).2)
 
 /-- A run of the expiry job keeps one row per key: the same records, and some of the shares and expiries. -/
-theorem endsDueAt_onePerKey (s : CrmStore) (now : Int) (t : CrmStore) (h : endsDueAt s now t)
-    (hs : onePerKey s) : onePerKey t := by
+theorem endsDueAt_onePerKey (s : CrmStore) (now : Int) (t : CrmStore)
+    (h : (sameRecords s t ∧ onlyLiveShares s now t) ∧ onlyLiveTimes s now t) (hs : onePerKey s) : onePerKey t := by
+  simp only [sameRecords, onlyLiveShares, onlyLiveTimes] at h
   obtain ⟨⟨hr, hsh⟩, he⟩ := h
   obtain ⟨⟨a, b⟩, c⟩ := hs
   refine ⟨⟨?_, ?_⟩, ?_⟩
@@ -293,22 +311,22 @@ theorem askedIn_snoc (es : List Event) (e : Event) :
 theorem askedStep_records {a : Asked} (e : Event) {r : CrmRecord} (h : r ∈ a.records) :
     r ∈ (askedStep a e).records := by
   cases e with
-  | Expired now => simpa [askedStep] using h
+  | Expired now => simpa [askedStep, askedAdd, askedShare, askedUnshare, askedExpiry, grantsBut, grantStands] using h
   | Wrote w =>
     rcases w with ⟨u, ch⟩
     cases ch with
     | Add x =>
-      simp only [askedStep]
+      simp only [askedStep, askedAdd]
       split
       · exact List.mem_append_left _ h
       · exact h
     | ShareWith i to v =>
-      simp only [askedStep]
+      simp only [askedStep, askedShare, grantsBut]
       split
       · exact h
       · exact h
     | Unshare i to =>
-      simp only [askedStep]
+      simp only [askedStep, askedUnshare, grantsBut]
       split
       · exact h
       · exact h
@@ -339,7 +357,7 @@ theorem askedIn_unique (es : List Event) :
       rcases w with ⟨u, ch⟩
       cases ch with
       | Add x =>
-        simp only [askedStep]
+        simp only [askedStep, askedAdd]
         split
         · rename_i hc
           refine ⟨fun y hy z hz hyz => ?_, hG⟩
@@ -351,7 +369,7 @@ theorem askedIn_unique (es : List Event) :
           · rfl
         · exact ⟨hR, hG⟩
       | ShareWith i to v =>
-        simp only [askedStep]
+        simp only [askedStep, askedShare, grantsBut]
         split
         · refine ⟨hR, fun g hg g' hg' hr ht => ?_⟩
           simp only [List.mem_append, List.mem_singleton] at hg hg'
@@ -364,7 +382,7 @@ theorem askedIn_unique (es : List Event) :
           · rfl
         · exact ⟨hR, hG⟩
       | Unshare i to =>
-        simp only [askedStep]
+        simp only [askedStep, askedUnshare, grantsBut]
         split
         · exact ⟨hR, hFilter _⟩
         · exact ⟨hR, hG⟩
@@ -400,7 +418,7 @@ theorem grant_append_other (gs : List Grant) (id0 : Int) (to0 : TenantId) (u : O
 
 /-- A store that is the one before changes nothing it was not asked. -/
 theorem onlyAsked_self (s : CrmStore) (w : WriteCmd) : onlyAsked s w s := by
-  simp only [onlyAsked]
+  simp only [onlyAsked_iff]
   exact ⟨⟨⟨⟨fun _ h => Or.inl h, fun _ h => Or.inl h⟩, fun _ h => Or.inl h⟩, fun _ h => Or.inl h⟩, fun _ h => Or.inl h⟩
 
 /-- A write that returns the store as it was meets the contract when its author's company may not make it. -/
@@ -414,21 +432,22 @@ theorem kept (s : CrmStore) (w : WriteCmd) (hNot : ¬ takesEffect s w s → Fals
 theorem applyWrite_contract : writeContract.claim applyWrite := by
   unfold writeContract.claim
   intro s _ _ w
+  simp only [keepsRecords, othersKept, othersRecords]
   rcases w with ⟨a, ch⟩
   cases ch with
   | Add r =>
     by_cases hAllowed : r.tenant = a.tenant ∧ ¬∃ x ∈ s.records, x.id_ = r.id_
-    · simp only [applyWrite, takesEffect, onlyAsked, addsRecord, changesShare]
-      rw [ite_eq_left hAllowed]
+    · simp only [applyWrite, takesEffect, onlyAsked_iff, addsRecord, changesShare, addRecord, addTakes]
+      rw [ite_eq_left (show freshAdd s ⟨a, Change.Add r⟩ r from hAllowed)]
       refine ⟨⟨⟨fun x hx => List.mem_append_left _ hx, ?_⟩, fun _ => by simp⟩,
         ⟨⟨⟨⟨fun x hx => ?_, fun _ h => Or.inl h⟩, fun _ h => Or.inl h⟩, fun _ h => Or.inl h⟩, fun _ h => Or.inl h⟩⟩
       · simp [List.filter_append, hAllowed.1]
       · simp only [List.mem_append, List.mem_singleton] at hx
         rcases hx with hx | rfl
         · exact Or.inl hx
-        · exact Or.inr ⟨⟨rfl, hAllowed.1⟩, hAllowed.2⟩
-    · simp only [applyWrite]
-      rw [ite_eq_right hAllowed]
+        · exact Or.inr ⟨rfl, hAllowed⟩
+    · simp only [applyWrite, addRecord]
+      rw [ite_eq_right (show ¬freshAdd s ⟨a, Change.Add r⟩ r from hAllowed)]
       exact kept s _ (fun h => h (fun hc => absurd hc hAllowed))
   | ShareWith id_ to u =>
     by_cases hAllowed : ownRecord s ⟨a, Change.ShareWith id_ to u⟩ id_
@@ -438,7 +457,7 @@ theorem applyWrite_contract : writeContract.claim applyWrite := by
         subst hi hc
         simp only [changesShare]
         exact ⟨⟨trivial, trivial⟩, hAllowed⟩
-      simp only [applyWrite, takesEffect, onlyAsked, addsRecord]
+      simp only [applyWrite, takesEffect, sharedUntil, shareTimeIs, onlyAsked_iff, addsRecord, shareRecord, sharesBut, expiriesBut, expiryOf, shareTakes, noTimeFor, onlyTime]
       rw [ite_eq_left hAllowed]
       refine ⟨⟨⟨fun _ h => h, by simp⟩, fun _ => ⟨by simp, ?_⟩⟩,
         ⟨⟨⟨⟨fun _ h => Or.inl h, fun sh hsh => ?_⟩, fun sh hsh => ?_⟩, fun e he => ?_⟩, fun e he => ?_⟩⟩
@@ -473,7 +492,7 @@ theorem applyWrite_contract : writeContract.claim applyWrite := by
       · by_cases hPair : e.record = id_ ∧ e.to = to
         · exact Or.inr (hChanges _ _ hPair.1 hPair.2)
         · exact Or.inl (List.mem_append_left _ (List.mem_filter.2 ⟨he, decide_eq_true hPair⟩))
-    · simp only [applyWrite]
+    · simp only [applyWrite, shareRecord, sharesBut, expiriesBut, expiryOf]
       rw [ite_eq_right hAllowed]
       exact kept s _ (fun h => h (fun hc => absurd hc hAllowed))
   | Unshare id_ to =>
@@ -484,7 +503,7 @@ theorem applyWrite_contract : writeContract.claim applyWrite := by
         subst hi hc
         simp only [changesShare]
         exact ⟨⟨trivial, trivial⟩, hAllowed⟩
-      simp only [applyWrite, takesEffect, onlyAsked, addsRecord]
+      simp only [applyWrite, takesEffect, onlyAsked_iff, addsRecord, unshareRecord, sharesBut, expiriesBut, unshareTakes]
       rw [ite_eq_left hAllowed]
       refine ⟨⟨⟨fun _ h => h, by simp⟩, fun _ => by simp⟩,
         ⟨⟨⟨⟨fun _ h => Or.inl h, fun sh hsh => Or.inl (List.mem_filter.1 hsh).1⟩, fun sh hsh => ?_⟩,
@@ -496,7 +515,7 @@ theorem applyWrite_contract : writeContract.claim applyWrite := by
       · by_cases hPair : e.record = id_ ∧ e.to = to
         · exact Or.inr (hChanges _ _ hPair.1 hPair.2)
         · exact Or.inl (List.mem_filter.2 ⟨he, decide_eq_true hPair⟩)
-    · simp only [applyWrite]
+    · simp only [applyWrite, unshareRecord, sharesBut, expiriesBut]
       rw [ite_eq_right hAllowed]
       exact kept s _ (fun h => h (fun hc => absurd hc hAllowed))
 
@@ -526,9 +545,7 @@ theorem search_run_eq (fetch : Account → Search → StateM Tables (List CrmRec
           (fun r => decide (mayRead w.databaseModel.store w.clockModel u r)),
         { (FrFlow.Clock.ticked (fun w => w.ticks) (fun w s => { w with ticks := s }) (fun w => w.clockModel)
           (fun w s => { w with clockModel := s }) (fun w s => True) w) with databaseModel := (FrFlow.runOn (fetch u q) w.databaseModel).2 }) := by
-  simp only [search_run, search, FrFlow.runOn_bind, FrFlow.runOn_pure, ClockModel.Ops.now_onWorld,
-    DatabaseModel.Ops.load_onWorld, DatabaseModel.Ops.onState_onWorld, FrFlow.runOn_within, ClockModel.now,
-    DatabaseModel.load, FrFlow.runOn_get, FrFlow.runOn_tick, World.ticked_databaseModel]
+  simp only [search_run, search, FrFlow.runOn_bind, FrFlow.runOn_pure, ClockModel.Ops.now_onWorld, DatabaseModel.Ops.load_onWorld, DatabaseModel.Ops.onState_onWorld, FrFlow.runOn_within, ClockModel.now, DatabaseModel.load, FrFlow.runOn_get, FrFlow.runOn_tick, World.ticked_databaseModel]
 
 /-- The sales screen's run: the records screen's, deals only. -/
 theorem dealsOf_run_eq (fetch : Account → Search → StateM Tables (List CrmRecord)) (u : Account) (q : Search)
@@ -537,41 +554,40 @@ theorem dealsOf_run_eq (fetch : Account → Search → StateM Tables (List CrmRe
           (fun r => decide (mayRead w.databaseModel.store w.clockModel u r))).filter (fun r => decide (r.kind = Kind.Deal)),
         { (FrFlow.Clock.ticked (fun w => w.ticks) (fun w s => { w with ticks := s }) (fun w => w.clockModel)
           (fun w s => { w with clockModel := s }) (fun w s => True) w) with databaseModel := (FrFlow.runOn (fetch u q) w.databaseModel).2 }) := by
-  simp only [dealsOf_run, dealsOf, FrFlow.runOn_bind, FrFlow.runOn_pure, ClockModel.Ops.now_onWorld,
-    DatabaseModel.Ops.load_onWorld, DatabaseModel.Ops.onState_onWorld, FrFlow.runOn_within, ClockModel.now,
-    DatabaseModel.load, FrFlow.runOn_get, FrFlow.runOn_tick, World.ticked_databaseModel]
+  simp only [dealsOf_run, dealsOf, FrFlow.runOn_bind, FrFlow.runOn_pure, ClockModel.Ops.now_onWorld, DatabaseModel.Ops.load_onWorld, DatabaseModel.Ops.onState_onWorld, FrFlow.runOn_within, ClockModel.now, DatabaseModel.load, FrFlow.runOn_get, FrFlow.runOn_tick, World.ticked_databaseModel]
 
 /-- What the database's search gives and leaves, of a world meeting the rules, by what is assumed of it: exactly the
 stored records that match, the tables as they were. -/
-theorem fetched (fetch : Account → Search → StateM Tables (List CrmRecord)) (hR : recordsByQuery.claim fetch)
-    (hK : searchKeeps.claim fetch) (u : Account) (q : Search) (w : World) (hw : crmRun w.databaseModel ∧ keyedTables w.databaseModel.store ∧ oneRowPerKey w.databaseModel.store) :
+theorem fetched (fetch : Account → Search → StateM Tables (List CrmRecord)) (hO : fetchesOnlyMatches.claim fetch)
+    (hA : fetchesEveryMatch.claim fetch) (hK : searchKeeps.claim fetch) (u : Account) (q : Search) (w : World) (hw : crmRun w.databaseModel ∧ keyedTables w.databaseModel.store ∧ oneRowPerKey w.databaseModel.store) :
     (FrFlow.runOn (fetch u q) w.databaseModel).2 = w.databaseModel ∧
       ∀ r, r ∈ (FrFlow.runOn (fetch u q) w.databaseModel).1 ↔ r ∈ w.databaseModel.store.records ∧ «matches» q r := by
-  have hr := hR u q w hw.1 hw.2.1 hw.2.2
+  have ho := hO u q w hw.1 hw.2.1 hw.2.2
+  have ha := hA u q w hw.1 hw.2.1 hw.2.2
   have hk := hK u q w hw.1 hw.2.1 hw.2.2
-  rw [fetch_run_eq] at hr hk
-  simp only at hr hk
-  exact ⟨hk, fun r => ⟨fun h => hr.1 r h, fun ⟨h1, h2⟩ => hr.2 r h1 h2⟩⟩
+  rw [fetch_run_eq] at ho ha hk
+  simp only [onlyMatching, allMatching] at ho ha hk
+  exact ⟨hk, fun r => ⟨fun h => ho r h, fun ⟨h1, h2⟩ => ha r h1 h2⟩⟩
 
 /-- The records screen, of a world meeting the rules: what the database holds as it was (the time moved on only);
 exactly the stored records that match and the user may read. -/
-theorem searched (fetch : Account → Search → StateM Tables (List CrmRecord)) (hR : recordsByQuery.claim fetch)
-    (hK : searchKeeps.claim fetch) (u : Account) (q : Search) (w : World) (hw : crmRun w.databaseModel ∧ keyedTables w.databaseModel.store ∧ oneRowPerKey w.databaseModel.store) :
+theorem searched (fetch : Account → Search → StateM Tables (List CrmRecord))
+    (hO : fetchesOnlyMatches.claim fetch) (hA : fetchesEveryMatch.claim fetch) (hK : searchKeeps.claim fetch) (u : Account) (q : Search) (w : World) (hw : crmRun w.databaseModel ∧ keyedTables w.databaseModel.store ∧ oneRowPerKey w.databaseModel.store) :
     (search_run fetch u q w).2.databaseModel = w.databaseModel ∧ ∀ r, r ∈ (search_run fetch u q w).1 ↔
       (r ∈ w.databaseModel.store.records ∧ «matches» q r) ∧ mayRead w.databaseModel.store w.clockModel u r := by
-  obtain ⟨hk, hr⟩ := fetched fetch hR hK u q w hw
+  obtain ⟨hk, hr⟩ := fetched fetch hO hA hK u q w hw
   rw [search_run_eq, hk]
   refine ⟨rfl, fun r => ?_⟩
   simp only [List.mem_filter, decide_eq_true_eq, hr]
 
 /-- The sales screen, of a world meeting the rules: what the database holds as it was (the time moved on only);
 exactly the stored deals that match and the user may read. -/
-theorem dealt (fetch : Account → Search → StateM Tables (List CrmRecord)) (hR : recordsByQuery.claim fetch)
-    (hK : searchKeeps.claim fetch) (u : Account) (q : Search) (w : World) (hw : crmRun w.databaseModel ∧ keyedTables w.databaseModel.store ∧ oneRowPerKey w.databaseModel.store) :
+theorem dealt (fetch : Account → Search → StateM Tables (List CrmRecord))
+    (hO : fetchesOnlyMatches.claim fetch) (hA : fetchesEveryMatch.claim fetch) (hK : searchKeeps.claim fetch) (u : Account) (q : Search) (w : World) (hw : crmRun w.databaseModel ∧ keyedTables w.databaseModel.store ∧ oneRowPerKey w.databaseModel.store) :
     (dealsOf_run fetch u q w).2.databaseModel = w.databaseModel ∧ ∀ r, r ∈ (dealsOf_run fetch u q w).1 ↔
       (((r ∈ w.databaseModel.store.records ∧ r.kind = Kind.Deal) ∧ «matches» q r) ∧
         mayRead w.databaseModel.store w.clockModel u r) := by
-  obtain ⟨hk, hr⟩ := fetched fetch hR hK u q w hw
+  obtain ⟨hk, hr⟩ := fetched fetch hO hA hK u q w hw
   rw [dealsOf_run_eq, hk]
   refine ⟨rfl, fun r => ?_⟩
   simp only [List.mem_filter, decide_eq_true_eq, hr]
@@ -583,10 +599,7 @@ theorem dealt (fetch : Account → Search → StateM Tables (List CrmRecord)) (h
 theorem saved_run_eq (c : WriteCmd) (w : World) : saved_run c w =
     (aboutRecord (applyWrite w.databaseModel.store c) (about c),
       { w with databaseModel := Tables.mk (afterSave w.databaseModel.store c) (w.databaseModel.events ++ [Event.Wrote c]) }) := by
-  simp only [saved_run, saved, FrFlow.runOn_bind, FrFlow.runOn_pure, DatabaseModel.Ops.load_onWorld,
-    DatabaseModel.Ops.storeAbout_onWorld, DatabaseModel.Ops.logEvent_onWorld, FrFlow.runOn_within,
-    DatabaseModel.load, DatabaseModel.storeAbout, DatabaseModel.logEvent, FrFlow.runOn_get, FrFlow.runOn_set,
-    afterSave]
+  simp only [saved_run, saved, FrFlow.runOn_bind, FrFlow.runOn_pure, DatabaseModel.Ops.load_onWorld, DatabaseModel.Ops.storeAbout_onWorld, DatabaseModel.Ops.logEvent_onWorld, FrFlow.runOn_within, DatabaseModel.load, DatabaseModel.storeAbout, DatabaseModel.logEvent, FrFlow.runOn_get, FrFlow.runOn_set, afterSave]
 
 /-- A run of the expiry job: what `expire` makes of what the database holds, each changed record's rows stored
 again, the run logged; that store given. -/
@@ -594,15 +607,12 @@ theorem expireOnce_run_eq (expire : CrmStore → Int → CrmStore) (now : Int) (
     expireOnce_run expire now w = (expire w.databaseModel.store now,
       { w with databaseModel := Tables.mk ((idsIn w.databaseModel.store ++ idsIn (expire w.databaseModel.store now)).foldl (fun x i => if ¬aboutRecord w.databaseModel.store i = aboutRecord (expire w.databaseModel.store now) i then replaceAbout x i (aboutRecord (expire w.databaseModel.store now) i) else x) w.databaseModel.store) (w.databaseModel.events ++ [Event.Expired now]) }) := by
   rcases w with ⟨⟨s, es⟩, clk⟩
-  simp only [expireOnce_run, expireOnce, FrFlow.runOn_bind, FrFlow.runOn_pure, DatabaseModel.Ops.load_onWorld,
-    DatabaseModel.Ops.storeAbout_onWorld, DatabaseModel.Ops.logEvent_onWorld, FrFlow.runOn_within,
-    DatabaseModel.load, DatabaseModel.storeAbout, DatabaseModel.logEvent, FrFlow.runOn_get, FrFlow.runOn_set]
+  simp only [expireOnce_run, expireOnce, FrFlow.runOn_bind, FrFlow.runOn_pure, DatabaseModel.Ops.load_onWorld, DatabaseModel.Ops.storeAbout_onWorld, DatabaseModel.Ops.logEvent_onWorld, FrFlow.runOn_within, DatabaseModel.load, DatabaseModel.storeAbout, DatabaseModel.logEvent, FrFlow.runOn_get, FrFlow.runOn_set]
   rw [loop _ _ (fun x i => if ¬aboutRecord s i = aboutRecord (expire s now) i then
       { x with databaseModel := Tables.mk (replaceAbout x.databaseModel.store i (aboutRecord (expire s now) i)) x.databaseModel.events } else x) (by
     intro i x
     by_cases hc : ¬aboutRecord s i = aboutRecord (expire s now) i
-    · simp only [hc, not_false_eq_true, ↓reduceIte, FrFlow.runOn_bind, FrFlow.runOn_pure, FrFlow.runOn_within,
-        FrFlow.runOn_get, FrFlow.runOn_set]
+    · simp only [hc, not_false_eq_true, ↓reduceIte, FrFlow.runOn_bind, FrFlow.runOn_pure, FrFlow.runOn_within, FrFlow.runOn_get, FrFlow.runOn_set]
     · simp only [hc, ↓reduceIte, FrFlow.runOn_pure])]
   rw [fold_world _ (fun i => ¬aboutRecord s i = aboutRecord (expire s now) i)]
 
@@ -613,8 +623,8 @@ theorem expire_code (expire : CrmStore → Int → CrmStore) (h : sharesExpire.c
   obtain ⟨⟨h1, h2⟩, h3⟩ := h s hk hk now
   rcases hx : expire s now with ⟨rs, ss, es⟩
   rw [hx] at h1 h2 h3
-  simp only at h1 h2 h3
-  simp only [expireCode, h1, h2, h3]
+  simp only [sameRecords, onlyLiveShares, onlyLiveTimes] at h1 h2 h3
+  simp only [expireCode, h1, h2, h3, liveShares, liveExpiries]
 
 /-- What the job stores is jobDone, its rule's step. -/
 theorem jobStored_code (s : CrmStore) (now : Int) :
@@ -622,18 +632,18 @@ theorem jobStored_code (s : CrmStore) (now : Int) :
 
 /-- Either screen, of a world meeting the rules: exactly the stored records the search on it asks for and the user
 may read. -/
-theorem screened (fetch : Account → Search → StateM Tables (List CrmRecord)) (hR : recordsByQuery.claim fetch)
-    (hK : searchKeeps.claim fetch) (u : Account) (q : Ask) (w : World) (hw : crmRun w.databaseModel ∧ keyedTables w.databaseModel.store ∧ oneRowPerKey w.databaseModel.store) (r : CrmRecord) :
+theorem screened (fetch : Account → Search → StateM Tables (List CrmRecord))
+    (hO : fetchesOnlyMatches.claim fetch) (hA : fetchesEveryMatch.claim fetch) (hK : searchKeeps.claim fetch) (u : Account) (q : Ask) (w : World) (hw : crmRun w.databaseModel ∧ keyedTables w.databaseModel.store ∧ oneRowPerKey w.databaseModel.store) (r : CrmRecord) :
     r ∈ onScreen q (search_run fetch u q.search w).1 (dealsOf_run fetch u q.search w).1 ↔
       (r ∈ w.databaseModel.store.records ∧ askMatches q r) ∧ mayRead w.databaseModel.store w.clockModel u r := by
   rcases q with ⟨sc, se⟩
   cases sc with
   | Records =>
     simp only [onScreen, askMatches]
-    exact (searched fetch hR hK u se w hw).2 r
+    exact (searched fetch hO hA hK u se w hw).2 r
   | Sales =>
     simp only [onScreen, askMatches]
-    rw [(dealt fetch hR hK u se w hw).2 r]
+    rw [(dealt fetch hO hA hK u se w hw).2 r]
     constructor
     · rintro ⟨⟨⟨h1, h2⟩, h3⟩, h4⟩; exact ⟨⟨h1, h2, h3⟩, h4⟩
     · rintro ⟨⟨h1, h2, h3⟩, h4⟩; exact ⟨⟨⟨h1, h2⟩, h3⟩, h4⟩
@@ -717,7 +727,7 @@ theorem jobDone_mem (s : CrmStore) (now : Int) :
       (∀ e, e ∈ (jobDone s now).expiries ↔ e ∈ (expireCode s now).expiries) := by
   have h := sameRows_mem _ _ (jobStored_sameRows s (expireCode s now))
   rw [jobStored_code] at h
-  exact ⟨fun r => (h.1 r).trans (by simp [expireCode]), h.2.1, h.2.2⟩
+  exact ⟨fun r => (h.1 r).trans (by simp [expireCode, liveShares, liveExpiries]), h.2.1, h.2.2⟩
 
 /-- The job's rule's step keeps one row per key. -/
 theorem jobDone_onePerKey (s : CrmStore) (now : Int) (h : onePerKey s) : onePerKey (jobDone s now) := by
@@ -754,15 +764,18 @@ theorem applyWrite_local (s : CrmStore) (c : WriteCmd) :
   | Add r =>
     have h : (∃ x ∈ s.records, x.id_ = r.id_) ↔ (∃ x ∈ (aboutRecord s r.id_).records, x.id_ = r.id_) := by
       have := exists_about s r.id_ (fun _ => True); simpa using this
-    dsimp only [about, applyWrite]
+    dsimp only [about, applyWrite, addRecord, shareRecord, unshareRecord, sharesBut, expiriesBut, expiryOf]
     by_cases hc : r.tenant = a.tenant ∧ ¬∃ x ∈ s.records, x.id_ = r.id_
-    · rw [ite_eq_left hc, ite_eq_left ⟨hc.1, fun hx => hc.2 (h.2 hx)⟩]
+    · rw [ite_eq_left (show freshAdd s ⟨a, Change.Add r⟩ r from hc),
+        ite_eq_left (show freshAdd (aboutRecord s r.id_) ⟨a, Change.Add r⟩ r from ⟨hc.1, fun hx => hc.2 (h.2 hx)⟩)]
       simp only [aboutRecord, List.filter_append, List.filter_filter, Bool.and_self]
-    · rw [ite_eq_right hc, ite_eq_right (fun h' => hc ⟨h'.1, fun hx => h'.2 (h.1 hx)⟩)]
+    · rw [ite_eq_right (show ¬freshAdd s ⟨a, Change.Add r⟩ r from hc),
+        ite_eq_right (show ¬freshAdd (aboutRecord s r.id_) ⟨a, Change.Add r⟩ r from
+          fun h' => hc ⟨h'.1, fun hx => h'.2 (h.1 hx)⟩)]
       simp only [aboutRecord, List.filter_filter, Bool.and_self]
   | ShareWith i to u =>
     have h := exists_about s i (fun x => x.tenant = a.tenant)
-    dsimp only [about, applyWrite]
+    dsimp only [about, applyWrite, addRecord, shareRecord, unshareRecord, sharesBut, expiriesBut, expiryOf]
     by_cases hc : ownRecord s ⟨a, Change.ShareWith i to u⟩ i
     · have hc2 : ownRecord (aboutRecord s i) ⟨a, Change.ShareWith i to u⟩ i := by simp only [ownRecord] at hc ⊢; exact h.1 hc
       rw [ite_eq_left hc, ite_eq_left hc2]
@@ -776,7 +789,7 @@ theorem applyWrite_local (s : CrmStore) (c : WriteCmd) :
       simp only [aboutRecord, List.filter_filter, Bool.and_self]
   | Unshare i to =>
     have h := exists_about s i (fun x => x.tenant = a.tenant)
-    dsimp only [about, applyWrite]
+    dsimp only [about, applyWrite, addRecord, shareRecord, unshareRecord, sharesBut, expiriesBut, expiryOf]
     by_cases hc : ownRecord s ⟨a, Change.Unshare i to⟩ i
     · have hc2 : ownRecord (aboutRecord s i) ⟨a, Change.Unshare i to⟩ i := by simp only [ownRecord] at hc ⊢; exact h.1 hc
       rw [ite_eq_left hc, ite_eq_left hc2]
@@ -798,7 +811,7 @@ theorem ended_local (sh : Share) (s : CrmStore) (now i : Int) (h : sh.record = i
 
 theorem expire_local (s : CrmStore) (now i : Int) :
     aboutRecord (expireCode s now) i = aboutRecord (expireCode (aboutRecord s i) now) i := by
-  simp only [expireCode, aboutRecord, CrmStore.mk.injEq, List.filter_filter]
+  simp only [expireCode, aboutRecord, CrmStore.mk.injEq, List.filter_filter, liveShares, liveExpiries]
   refine ⟨?_, ?_, ?_⟩
   · apply List.filter_congr; intro x _; cases decide (x.id_ = i) <;> rfl
   · apply List.filter_congr; intro x _
@@ -829,26 +842,106 @@ theorem jobDone_about (s : CrmStore) (now j : Int) : aboutRecord (jobDone s now)
 
 
 /-- The records screen keeps readContract, of what is assumed of the database's search. -/
-theorem read_contract (fetch : Account → Search → StateM Tables (List CrmRecord)) (hR : recordsByQuery.claim fetch)
-    (hK : searchKeeps.claim fetch) : readContract.claim (search_run fetch) := by
+theorem read_contract (fetch : Account → Search → StateM Tables (List CrmRecord))
+    (hO : fetchesOnlyMatches.claim fetch) (hA : fetchesEveryMatch.claim fetch) (hK : searchKeeps.claim fetch) : readContract.claim (search_run fetch) := by
   intro user query world h1 h2 h3
-  have hr := (searched fetch hR hK user query world ⟨h1, h2, h3⟩).2
+  have hr := (searched fetch hO hA hK user query world ⟨h1, h2, h3⟩).2
   revert hr
   generalize search_run fetch user query world = p
   rcases p with ⟨res, aft⟩
   intro hr
-  exact ⟨fun r h => (hr r).1 h, fun r h1 h2 => (hr r).2 ⟨⟨h1, h2.1⟩, h2.2⟩⟩
+  simp only [onlyMatching, onlyReadable, allReadable]
+  exact ⟨⟨fun r h => ((hr r).1 h).1, fun r h => ((hr r).1 h).2⟩, fun r h1 h2 => (hr r).2 ⟨⟨h1, h2.1⟩, h2.2⟩⟩
 
 /-- The sales screen keeps dealSearch, of what is assumed of the database's search. -/
-theorem deal_search (fetch : Account → Search → StateM Tables (List CrmRecord)) (hR : recordsByQuery.claim fetch)
-    (hK : searchKeeps.claim fetch) : dealSearch.claim (dealsOf_run fetch) := by
+theorem deal_search (fetch : Account → Search → StateM Tables (List CrmRecord))
+    (hO : fetchesOnlyMatches.claim fetch) (hA : fetchesEveryMatch.claim fetch) (hK : searchKeeps.claim fetch) : dealSearch.claim (dealsOf_run fetch) := by
   intro user query world h1 h2 h3
-  have hr := (dealt fetch hR hK user query world ⟨h1, h2, h3⟩).2
+  have hr := (dealt fetch hO hA hK user query world ⟨h1, h2, h3⟩).2
   revert hr
   generalize dealsOf_run fetch user query world = p
   rcases p with ⟨res, aft⟩
   intro hr
-  exact ⟨fun r h => (hr r).1 h, fun r h1 h2 => (hr r).2 ⟨⟨⟨h1, h2.1.1⟩, h2.1.2⟩, h2.2⟩⟩
+  simp only [onlyMatching, onlyDeals, onlyReadable, allReadableDeals]
+  exact ⟨⟨⟨fun r h => ⟨((hr r).1 h).1.1.1, ((hr r).1 h).1.2⟩, fun r h => ((hr r).1 h).1.1.2⟩,
+    fun r h => ((hr r).1 h).2⟩, fun r h1 h2 => (hr r).2 ⟨⟨⟨h1, h2.1.1⟩, h2.1.2⟩, h2.2⟩⟩
+
+/-- The records screen returns only stored records that match. -/
+theorem reads_only_matching (fetch : Account → Search → StateM Tables (List CrmRecord))
+    (hO : fetchesOnlyMatches.claim fetch) (hA : fetchesEveryMatch.claim fetch) (hK : searchKeeps.claim fetch) :
+    readsOnlyMatching.claim (search_run fetch) := by
+  intro u q w h1 h2 h3
+  have h := read_contract fetch hO hA hK u q w h1 h2 h3
+  revert h
+  generalize search_run fetch u q w = p
+  rcases p with ⟨res, aft⟩
+  exact fun h => h.1.1
+
+/-- The records screen returns only records the user may read now. -/
+theorem reads_only_readable (fetch : Account → Search → StateM Tables (List CrmRecord))
+    (hO : fetchesOnlyMatches.claim fetch) (hA : fetchesEveryMatch.claim fetch) (hK : searchKeeps.claim fetch) :
+    readsOnlyReadable.claim (search_run fetch) := by
+  intro u q w h1 h2 h3
+  have h := read_contract fetch hO hA hK u q w h1 h2 h3
+  revert h
+  generalize search_run fetch u q w = p
+  rcases p with ⟨res, aft⟩
+  exact fun h => h.1.2
+
+/-- The records screen returns every stored record that matches and the user may read now. -/
+theorem reads_all_readable (fetch : Account → Search → StateM Tables (List CrmRecord))
+    (hO : fetchesOnlyMatches.claim fetch) (hA : fetchesEveryMatch.claim fetch) (hK : searchKeeps.claim fetch) :
+    readsAllReadable.claim (search_run fetch) := by
+  intro u q w h1 h2 h3
+  have h := read_contract fetch hO hA hK u q w h1 h2 h3
+  revert h
+  generalize search_run fetch u q w = p
+  rcases p with ⟨res, aft⟩
+  exact fun h => h.2
+
+/-- The sales screen returns only stored records that match. -/
+theorem deals_only_matching (fetch : Account → Search → StateM Tables (List CrmRecord))
+    (hO : fetchesOnlyMatches.claim fetch) (hA : fetchesEveryMatch.claim fetch) (hK : searchKeeps.claim fetch) :
+    dealsOnlyMatching.claim (dealsOf_run fetch) := by
+  intro u q w h1 h2 h3
+  have h := deal_search fetch hO hA hK u q w h1 h2 h3
+  revert h
+  generalize dealsOf_run fetch u q w = p
+  rcases p with ⟨res, aft⟩
+  exact fun h => h.1.1.1
+
+/-- The sales screen returns only deals. -/
+theorem deals_only_deals (fetch : Account → Search → StateM Tables (List CrmRecord))
+    (hO : fetchesOnlyMatches.claim fetch) (hA : fetchesEveryMatch.claim fetch) (hK : searchKeeps.claim fetch) :
+    dealsOnlyDeals.claim (dealsOf_run fetch) := by
+  intro u q w h1 h2 h3
+  have h := deal_search fetch hO hA hK u q w h1 h2 h3
+  revert h
+  generalize dealsOf_run fetch u q w = p
+  rcases p with ⟨res, aft⟩
+  exact fun h => h.1.1.2
+
+/-- The sales screen returns only records the user may read now. -/
+theorem deals_only_readable (fetch : Account → Search → StateM Tables (List CrmRecord))
+    (hO : fetchesOnlyMatches.claim fetch) (hA : fetchesEveryMatch.claim fetch) (hK : searchKeeps.claim fetch) :
+    dealsOnlyReadable.claim (dealsOf_run fetch) := by
+  intro u q w h1 h2 h3
+  have h := deal_search fetch hO hA hK u q w h1 h2 h3
+  revert h
+  generalize dealsOf_run fetch u q w = p
+  rcases p with ⟨res, aft⟩
+  exact fun h => h.1.2
+
+/-- The sales screen returns every stored deal that matches and the user may read now. -/
+theorem deals_all_readable (fetch : Account → Search → StateM Tables (List CrmRecord))
+    (hO : fetchesOnlyMatches.claim fetch) (hA : fetchesEveryMatch.claim fetch) (hK : searchKeeps.claim fetch) :
+    dealsAllReadable.claim (dealsOf_run fetch) := by
+  intro u q w h1 h2 h3
+  have h := deal_search fetch hO hA hK u q w h1 h2 h3
+  revert h
+  generalize dealsOf_run fetch u q w = p
+  rcases p with ⟨res, aft⟩
+  exact fun h => h.2
 
 /-- A run of the job at `now`: a share holds at `T` after it exactly when it held both at `now` and at `T`. -/
 theorem job_store (s t : CrmStore) (now T id_ : Int) (c : TenantId)
@@ -892,14 +985,14 @@ theorem job_asked (gs : List Grant) (now T id_ : Int) (c : TenantId)
 theorem frame_store (s t : CrmStore) (w : WriteCmd) (T id_ : Int) (c : TenantId)
     (hOnly : onlyAsked s w t) (hNot : ¬ changesShare s w id_ c) :
     sharedNow t T id_ c ↔ sharedNow s T id_ c := by
-  obtain ⟨⟨⟨⟨_, hSharesT⟩, hSharesS⟩, hExpiriesT⟩, hExpiriesS⟩ := hOnly
+  obtain ⟨⟨⟨⟨_, hSharesT⟩, hSharesS⟩, hExpiriesT⟩, hExpiriesS⟩ := onlyAsked_iff.1 hOnly
   have hShare : Share.mk id_ c ∈ t.shares ↔ Share.mk id_ c ∈ s.shares :=
     ⟨fun h => (hSharesT _ h).resolve_right hNot, fun h => (hSharesS _ h).resolve_right hNot⟩
   have hExpiry : ∀ e : Expiry, e.record = id_ → e.to = c → (e ∈ t.expiries ↔ e ∈ s.expiries) := by
     intro e hRecord hTo
     have hNotE : ¬ changesShare s w e.record e.to := by rw [hRecord, hTo]; exact hNot
     exact ⟨fun h => (hExpiriesT e h).resolve_right hNotE, fun h => (hExpiriesS e h).resolve_right hNotE⟩
-  simp only [sharedNow]
+  simp only [sharedNow, ended]
   constructor
   · rintro ⟨hIn, hNo⟩
     exact ⟨hShare.1 hIn, fun ⟨e, he, hPair, hLe⟩ => hNo ⟨e, (hExpiry e hPair.1 hPair.2).2 he, hPair, hLe⟩⟩
@@ -919,11 +1012,11 @@ theorem mirror_step (hTakesAll : writesTakeEffect.claim) (hOnlyAll : writesOnlyA
   cases e with
   | Expired now =>
     obtain ⟨hRecords, hShares, hExpiries⟩ := jobDone_mem s now
-    simp only [stepOf, askedStep]
+    simp only [stepOf, askedStep, askedExpiry, grantStands]
     refine ⟨fun r => by rw [hRecords]; exact hRec r, fun id_ c T => ?_⟩
     rw [job_store s (jobDone s now) now T id_ c
-      (fun sh => by rw [hShares]; simp only [expireCode]; exact mem_kept _ _ sh)
-      (fun e => by rw [hExpiries]; simp only [expireCode]; exact mem_kept _ _ e), hShared id_ c now, hShared id_ c T]
+      (fun sh => by rw [hShares]; simp only [expireCode, liveShares, liveExpiries]; exact mem_kept _ _ sh)
+      (fun e => by rw [hExpiries]; simp only [expireCode, liveShares, liveExpiries]; exact mem_kept _ _ e), hShared id_ c now, hShared id_ c T]
     exact (job_asked A.grants now T id_ c hUnique).symm
   | Wrote w =>
     have hTakes := hTakesAll s hk hk w
@@ -931,11 +1024,11 @@ theorem mirror_step (hTakesAll : writesTakeEffect.claim) (hOnlyAll : writesOnlyA
     have hKept := hKeptAll s hk hk (Event.Wrote w)
     simp only [stepOf] at hKept ⊢
     generalize afterSave s w = t at hTakes hOnly hKept ⊢
-    have hOnlyRecords := hOnly.1.1.1.1
+    have hOnlyRecords := (onlyAsked_iff.1 hOnly).1.1.1.1
     rcases w with ⟨a, ch⟩
     cases ch with
     | Add r =>
-      simp only [askedStep]
+      simp only [askedStep, askedAdd]
       have hFrame : ∀ id_ c T, sharedNow t T id_ c ↔ sharedNow s T id_ c :=
         fun id_ c T => frame_store s t _ T id_ c hOnly (by simp [changesShare])
       have hAllowedIff : (r.tenant = a.tenant ∧ ¬∃ x ∈ A.records, x.id_ = r.id_) ↔
@@ -949,29 +1042,29 @@ theorem mirror_step (hTakesAll : writesTakeEffect.claim) (hOnlyAll : writesOnlyA
         · intro hx
           rcases hOnlyRecords x hx with hs | hAdds
           · exact Or.inl ((hRec x).1 hs)
-          · simp only [addsRecord] at hAdds
-            exact Or.inr hAdds.1.1.symm
+          · simp only [addsRecord, freshAdd] at hAdds
+            exact Or.inr hAdds.1.symm
         · rintro (hx | rfl)
           · exact hKept x ((hRec x).2 hx)
-          · simp only [takesEffect] at hTakes
+          · simp only [takesEffect, freshAdd, addTakes] at hTakes
             exact hTakes hAllowed
       · rw [ite_eq_right (fun h => hAllowed (hAllowedIff.1 h))]
         refine ⟨fun x => ⟨fun hx => ?_, fun hx => hKept x ((hRec x).2 hx)⟩, fun id_ c T => by rw [hFrame, hShared]⟩
         rcases hOnlyRecords x hx with hs | hAdds
         · exact (hRec x).1 hs
-        · simp only [addsRecord] at hAdds
-          obtain ⟨⟨hSame, hTenant⟩, hFresh⟩ := hAdds
+        · simp only [addsRecord, freshAdd] at hAdds
+          obtain ⟨hSame, hTenant, hFresh⟩ := hAdds
           subst hSame
           exact absurd ⟨hTenant, hFresh⟩ hAllowed
     | ShareWith id0 to0 u =>
       have hRecT : ∀ x, x ∈ t.records ↔ x ∈ A.records := fun x =>
         ⟨fun hx => (hRec x).1 ((hOnlyRecords x hx).resolve_right (by simp [addsRecord])),
           fun hx => hKept x ((hRec x).2 hx)⟩
-      simp only [askedStep]
+      simp only [askedStep, askedShare, grantsBut]
       by_cases hAllowed : ∃ x ∈ s.records, x.id_ = id0 ∧ x.tenant = a.tenant
       · have hAllowedA : ∃ x ∈ A.records, x.id_ = id0 ∧ x.tenant = a.tenant := by
           simpa only [hRec] using hAllowed
-        rw [ite_eq_left hAllowedA]
+        rw [ite_eq_left (show ownIn A ⟨a, Change.ShareWith id0 to0 u⟩ id0 from hAllowedA)]
         refine ⟨hRecT, fun id_ c T => ?_⟩
         by_cases hPair : id_ = id0 ∧ c = to0
         · obtain ⟨rfl, rfl⟩ := hPair
@@ -988,9 +1081,9 @@ theorem mirror_step (hTakesAll : writesTakeEffect.claim) (hOnlyAll : writesOnlyA
             · intro hKeep
               exact ⟨_, List.mem_append_right _ (List.mem_singleton_self _), ⟨rfl, rfl⟩, hKeep⟩
           rw [hAsked]
-          simp only [takesEffect, ownRecord] at hTakes
+          simp only [takesEffect, sharedUntil, shareTimeIs, ownRecord, shareTakes, noTimeFor, onlyTime] at hTakes
           obtain ⟨hIn, hTimes⟩ := hTakes hAllowed
-          simp only [sharedNow]
+          simp only [sharedNow, ended]
           cases u with
           | some v =>
             obtain ⟨hHas, hOnlyV⟩ := hTimes
@@ -1020,7 +1113,7 @@ theorem mirror_step (hTakesAll : writesTakeEffect.claim) (hOnlyAll : writesOnlyA
             grant_filter_other A.grants id0 to0 T id_ c hPair]
       · have hNotA : ¬∃ x ∈ A.records, x.id_ = id0 ∧ x.tenant = a.tenant := by
           simpa only [hRec] using hAllowed
-        rw [ite_eq_right hNotA]
+        rw [ite_eq_right (show ¬ownIn A ⟨a, Change.ShareWith id0 to0 u⟩ id0 from hNotA)]
         refine ⟨hRecT, fun id_ c T => ?_⟩
         have hNot : ¬ changesShare s ⟨a, Change.ShareWith id0 to0 u⟩ id_ c := by
           simp only [changesShare, ownRecord]
@@ -1032,17 +1125,17 @@ theorem mirror_step (hTakesAll : writesTakeEffect.claim) (hOnlyAll : writesOnlyA
       have hRecT : ∀ x, x ∈ t.records ↔ x ∈ A.records := fun x =>
         ⟨fun hx => (hRec x).1 ((hOnlyRecords x hx).resolve_right (by simp [addsRecord])),
           fun hx => hKept x ((hRec x).2 hx)⟩
-      simp only [askedStep]
+      simp only [askedStep, askedUnshare, grantsBut]
       by_cases hAllowed : ∃ x ∈ s.records, x.id_ = id0 ∧ x.tenant = a.tenant
       · have hAllowedA : ∃ x ∈ A.records, x.id_ = id0 ∧ x.tenant = a.tenant := by
           simpa only [hRec] using hAllowed
-        rw [ite_eq_left hAllowedA]
+        rw [ite_eq_left (show ownIn A ⟨a, Change.Unshare id0 to0⟩ id0 from hAllowedA)]
         refine ⟨hRecT, fun id_ c T => ?_⟩
         by_cases hPair : id_ = id0 ∧ c = to0
         · obtain ⟨rfl, rfl⟩ := hPair
-          simp only [takesEffect, ownRecord] at hTakes
+          simp only [takesEffect, ownRecord, unshareTakes] at hTakes
           have hGone := hTakes hAllowed
-          simp only [sharedNow]
+          simp only [sharedNow, ended]
           constructor
           · rintro ⟨hIn, _⟩
             exact absurd hIn hGone
@@ -1055,7 +1148,7 @@ theorem mirror_step (hTakesAll : writesTakeEffect.claim) (hOnlyAll : writesOnlyA
           rw [frame_store s t _ T id_ c hOnly hNot, hShared, grant_filter_other A.grants id0 to0 T id_ c hPair]
       · have hNotA : ¬∃ x ∈ A.records, x.id_ = id0 ∧ x.tenant = a.tenant := by
           simpa only [hRec] using hAllowed
-        rw [ite_eq_right hNotA]
+        rw [ite_eq_right (show ¬ownIn A ⟨a, Change.Unshare id0 to0⟩ id0 from hNotA)]
         refine ⟨hRecT, fun id_ c T => ?_⟩
         have hNot : ¬ changesShare s ⟨a, Change.Unshare id0 to0⟩ id_ c := by
           simp only [changesShare, ownRecord]
@@ -1074,12 +1167,12 @@ theorem store_mirrors (h_writesTakeEffect : writesTakeEffect.claim) (h_writesOnl
     (by
       refine ⟨by simp [onePerKey], fun r => ?_, fun id_ c T => ?_⟩
       · simp [askedIn]
-      · simp [sharedNow, sharedIn, askedIn])
+      · simp [sharedNow, sharedIn, askedIn, ended, grantStands])
     (by
       intro s es e ⟨hs, hRec, hShared⟩
       refine ⟨stepOf_onePerKey s e hs, ?_⟩
       have hUnique := (askedIn_unique es).2
-      simp only [sharedIn] at hShared ⊢
+      simp only [sharedIn, grantStands] at hShared ⊢
       rw [askedIn_snoc]
       generalize askedIn es = A at hRec hShared hUnique
       exact mirror_step h_writesTakeEffect h_writesOnlyAsAsked h_recordsKept s hs A e hRec hShared hUnique)
@@ -1117,10 +1210,10 @@ theorem records_kept : recordsKept.claim := by
     exact ((jobDone_mem s now).1 r).2 hr
 
 /-- Either screen returns exactly the stored records the search asks for and the user may read now. -/
-theorem visible (fetch : Account → Search → StateM Tables (List CrmRecord)) (hR : recordsByQuery.claim fetch)
-    (hK : searchKeeps.claim fetch) : visibility.claim (search_run fetch) (dealsOf_run fetch) := by
+theorem visible (fetch : Account → Search → StateM Tables (List CrmRecord))
+    (hO : fetchesOnlyMatches.claim fetch) (hA : fetchesEveryMatch.claim fetch) (hK : searchKeeps.claim fetch) : visibility.claim (search_run fetch) (dealsOf_run fetch) := by
   intro u q r world h1 h2 h3
-  have hs := screened fetch hR hK u q world ⟨h1, h2, h3⟩ r
+  have hs := screened fetch hO hA hK u q world ⟨h1, h2, h3⟩ r
   revert hs
   generalize search_run fetch u q.search world = p1
   generalize dealsOf_run fetch u q.search world = p2
@@ -1131,20 +1224,26 @@ theorem visible (fetch : Account → Search → StateM Tables (List CrmRecord)) 
 
 /-- The database answering with the stored records that match, its tables as they were, keeps what is assumed of its
 search (today's `storedMatching`). -/
-theorem matching_records : recordsByQuery.claim
+theorem matching_only : fetchesOnlyMatches.claim
     (fun (_ : Account) (q : Search) (s : Tables) => (s.store.records.filter (fun r => decide («matches» q r)), s)) := by
   intro u q w _ _ _
   rw [fetch_run_eq]
-  simp only [FrFlow.runOn, StateT.run, Id.run, List.mem_filter, decide_eq_true_eq]
-  exact ⟨fun r h => h, fun r h1 h2 => ⟨h1, h2⟩⟩
+  simp only [onlyMatching, FrFlow.runOn, StateT.run, Id.run, List.mem_filter, decide_eq_true_eq]
+  exact fun r h => h
+
+theorem matching_every : fetchesEveryMatch.claim
+    (fun (_ : Account) (q : Search) (s : Tables) => (s.store.records.filter (fun r => decide («matches» q r)), s)) := by
+  intro u q w _ _ _
+  rw [fetch_run_eq]
+  simp only [allMatching, FrFlow.runOn, StateT.run, Id.run, List.mem_filter, decide_eq_true_eq]
+  exact fun r h1 h2 => ⟨h1, h2⟩
 
 theorem matching_keeps : searchKeeps.claim
     (fun (_ : Account) (q : Search) (s : Tables) => (s.store.records.filter (fun r => decide («matches» q r)), s)) :=
   fun _ _ _ _ _ _ => rfl
 
 /-- Expiring as the code does meets what is said of expiring (sharesExpire): a cover_ puts the code in. -/
-theorem sharesExpire_code : sharesExpire.claim expireCode := by
-  have h : Crm.sharesExpire.Obl.impl := by frflow_auto
-  exact h
+theorem sharesExpire_code : sharesExpire.claim expireCode :=
+  fun _ _ _ _ => ⟨⟨rfl, rfl⟩, rfl⟩
 
 end Crm.Runs

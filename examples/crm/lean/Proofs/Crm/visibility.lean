@@ -10,6 +10,6 @@ open Classical
 namespace Crm.visibility.Proofs
 open Crm Crm.Lemmas
 
-theorem impl : Obl.impl := fun fetch _ hR hK => Runs.visible fetch hR hK
+theorem impl : Obl.impl := fun fetch _ _ hO hA hK => Runs.visible fetch hO hA hK
 
 end Crm.visibility.Proofs
