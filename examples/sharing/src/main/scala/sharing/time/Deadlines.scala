@@ -26,24 +26,39 @@ object Deadlines:
     .refines(sharing.invitationsAreOffers)
 
   val requestsAnsweredOnTime = Node.claim("While housekeeping runs at least every two minutes, no access request " +
-      "stays pending longer than 7 days and two minutes after it was made, and none goes more than 48 hours and two " +
-      "minutes without its reminder.")(
-    libraryModel.current.requests.forall(r => clockModel.current < r.asked + requestLasts + housekeepingWithin &&
-      (r.reminded || clockModel.current < r.asked + remindAfter + housekeepingWithin)))
+      "stays pending longer than 7 days and two minutes after it was made.")(
+    libraryModel.current.requests.forall(r => clockModel.current < r.asked + requestLasts + housekeepingWithin))
     .refines(sharing.accessRequestsAreAsks)
 
-  val endedStaysEnded = Node.claim("What has ended stays ended as time moves on: a share once ended, an invitation " +
-      "once lapsed and a document once gone stay so at every later moment.")(
-    forall((t: Term[BigInt], u: Term[BigInt]) => (t <= u) implies
-      (forall((s: Term[Share]) => !inForce(s, t) implies !inForce(s, u)) &&
-        forall((i: Term[Invitation]) => !isOpen(i, t) implies !isOpen(i, u)) &&
-        forall((doc: Term[Document]) => gone(doc, t) implies gone(doc, u)))))
-    .refines(sharing.housekeepingClearsOnlyTheEnded)
+  val remindersOnTime = Node.claim("While housekeeping runs at least every two minutes, no access request goes more " +
+      "than 48 hours and two minutes without its reminder.")(
+    libraryModel.current.requests.forall(r => r.reminded || clockModel.current < r.asked + remindAfter +
+      housekeepingWithin))
+    .refines(sharing.accessRequestsAreAsks)
+
+  /** A root of its own: what makes clearing away the ended harmless, which no branch's step needs. */
+  val endedStaysEnded = Node.claim("What has ended stays ended as time moves on.")(
+    forall((s: Term[Share], i: Term[Invitation], doc: Term[Document], t: Term[BigInt], u: Term[BigInt]) =>
+      ((t <= u && !inForce(s, t)) implies !inForce(s, u)) &&
+      ((t <= u && !isOpen(i, t)) implies !isOpen(i, u)) &&
+      ((t <= u && gone(doc, t)) implies gone(doc, u))))
+
+  val endedSharesStayEnded = Node.claim("A share once ended stays ended at every later moment.")(
+    forall((s: Term[Share], t: Term[BigInt], u: Term[BigInt]) => (t <= u && !inForce(s, t)) implies !inForce(s, u)))
+    .refines(endedStaysEnded)
+
+  val lapsedInvitationsStayLapsed = Node.claim("An invitation once lapsed stays lapsed at every later moment.")(
+    forall((i: Term[Invitation], t: Term[BigInt], u: Term[BigInt]) => (t <= u && !isOpen(i, t)) implies !isOpen(i, u)))
+    .refines(endedStaysEnded)
+
+  val goneDocumentsStayGone = Node.claim("A document once gone stays gone at every later moment.")(
+    forall((doc: Term[Document], t: Term[BigInt], u: Term[BigInt]) => (t <= u && gone(doc, t)) implies gone(doc, u)))
+    .refines(endedStaysEnded)
 
   /** Today's clockNeverGoesBack, built into the clock now (owner §47) and a root of its own: no run and no step of the
     * world takes the time back, which each program and time passing are proven to keep (`isConstant`).
     */
-  val timeMovesOn = Node.claim("Time in the service never goes back: a moment once reached is never left behind.")(
+  val timeMovesOn = Node.claim("A moment the service's time has reached is never left behind.")(
     forall((t: Term[BigInt]) => (t <= clockModel.current) implies (t <= clockModel.current).isConstant))
     .assuming(oneTransactionAtATime, mailOneAtATime, poolOneAtATime, housekeepingOnTime, housekeptOneAtATime)
 
@@ -52,16 +67,30 @@ object Deadlines:
     */
   val housekeptLately = Node.claim("Housekeeping last ran at a time already come, at most two minutes ago.")(
     always(clockModel, housekeptModel)((now, ran) => ran <= now && now <= ran + 120))
-    .refines(trashPurgedOnTime, invitationsLapseOnTime, requestsAnsweredOnTime)
+    .refines(trashPurgedOnTime, invitationsLapseOnTime, requestsAnsweredOnTime, remindersOnTime)
     .assuming(clockStarts, housekeptStarts, housekeptKept, housekeptOneAtATime, housekeepingOnTime)
 
-  /** What housekeeping leaves: a rule of the library and when housekeeping last ran. */
-  val nothingEndedAtHousekeeping = Node.claim("Nothing the library holds had ended when housekeeping last ran: no " +
-      "document in the trash was gone, no invitation had lapsed, no access request had lapsed, and none was due a " +
-      "reminder it had not had.")(
+  // What housekeeping leaves: rules of the library and of when housekeeping last ran, one a deadline.
+
+  val trashNotGoneAtHousekeeping = Node.claim("No document in the trash was gone when housekeeping last ran.")(
     always(libraryModel, housekeptModel)((lib, ran) =>
-      lib.documents.forall(doc => doc.trashed.forall(at => ran < at + 30 * 86400)) &&
-        lib.invitations.forall(i => ran < i.sent + 7 * 86400) &&
-        lib.requests.forall(r => ran < r.asked + 7 * 86400 && (r.reminded || ran < r.asked + 2 * 86400))))
-    .refines(trashPurgedOnTime, invitationsLapseOnTime, requestsAnsweredOnTime)
+      lib.documents.forall(doc => doc.trashed.forall(at => ran < at + 30 * 86400))))
+    .refines(trashPurgedOnTime)
+    .assuming(libraryKept, oneTransactionAtATime, libraryStarts, housekeptStarts, housekeptKept, housekeptOneAtATime)
+
+  val invitationsOpenAtHousekeeping = Node.claim("No invitation had lapsed when housekeeping last ran.")(
+    always(libraryModel, housekeptModel)((lib, ran) => lib.invitations.forall(i => ran < i.sent + 7 * 86400)))
+    .refines(invitationsLapseOnTime)
+    .assuming(libraryKept, oneTransactionAtATime, libraryStarts, housekeptStarts, housekeptKept, housekeptOneAtATime)
+
+  val requestsPendingAtHousekeeping = Node.claim("No access request had lapsed when housekeeping last ran.")(
+    always(libraryModel, housekeptModel)((lib, ran) => lib.requests.forall(r => ran < r.asked + 7 * 86400)))
+    .refines(requestsAnsweredOnTime)
+    .assuming(libraryKept, oneTransactionAtATime, libraryStarts, housekeptStarts, housekeptKept, housekeptOneAtATime)
+
+  val remindedAtHousekeeping = Node.claim("No access request was due a reminder it had not had when housekeeping " +
+      "last ran.")(
+    always(libraryModel, housekeptModel)((lib, ran) =>
+      lib.requests.forall(r => r.reminded || ran < r.asked + 2 * 86400)))
+    .refines(remindersOnTime)
     .assuming(libraryKept, oneTransactionAtATime, libraryStarts, housekeptStarts, housekeptKept, housekeptOneAtATime)

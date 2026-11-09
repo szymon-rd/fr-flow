@@ -50,6 +50,10 @@ object Sharing:
     when(inTrash(lib, d))(none[Level]).otherwise(strongest(lib.shares.filter(s =>
       inForce(s, t) && grantees.contains(s.withWhom) && places.contains(s.what)))) }
 
+  /** Whether every person's access to every document is the same in two libraries at a moment. */
+  val sameAccess = define { (before: Term[Library], after: Term[Library], t: Term[BigInt]) =>
+    forall((p: Term[PersonId], d: Term[DocumentId]) => access(after, t, p, d) === access(before, t, p, d)) }
+
   // ---------------------------------------------------------------------------
   // canView, canEdit: what the access allows
   // ---------------------------------------------------------------------------

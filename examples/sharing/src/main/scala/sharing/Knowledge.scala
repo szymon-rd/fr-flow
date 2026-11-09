@@ -24,30 +24,36 @@ import sharing.store.{LibraryStore, MemoryLibraryStore, Transactions}
 import sharing.time.{ClockKept, Deadlines, Housekept, Lifetimes, Run}
 import sharing.time.LifetimesClaims
 
-val serverWiring = Node.design("The server reads each HTTP request into a request, answers it with handleContract's " +
-    "program on the store and the clock, in IO, as many at once as its workers take, and writes the answer as JSON; " +
-    "requests run on a pool of workers with a time limit each, a request the store fails is answered 503 and changes " +
-    "nothing. On the computer's clock, housekeeping runs every minute and delivery every ten seconds; a run that " +
-    "fails is tried again at its next start.")(
+val serverWiring = Node.design("The server answers each HTTP request, read into a request, with handleContract's " +
+    "program on the store and the clock, as JSON, on a pool of workers that gives each request a time limit.")(
   "src/main/scala/sharing/http/Server.scala", "src/main/scala/sharing/http/HttpCodec.scala",
   "src/main/scala/sharing/service/SharingService.scala", "src/main/scala/sharing/invitations/InvitationsService.scala",
-  "src/main/scala/sharing/trash/TrashService.scala", "src/main/scala/sharing/housekeeping/HousekeepingService.scala",
-  "src/main/scala/sharing/time/LifetimesService.scala", "src/main/scala/sharing/requests/AccessRequestsService.scala",
+  "src/main/scala/sharing/trash/TrashService.scala", "src/main/scala/sharing/time/LifetimesService.scala",
+  "src/main/scala/sharing/requests/AccessRequestsService.scala",
   "src/main/scala/sharing/ownership/OwnershipService.scala").refines(SharingHttp.handleContract)
 
-val domainTypes = Node.design("People, teams, documents, folders, shares, invitations, access requests, log entries " +
-    "and notices are plain data: a document and a folder each list the folders around them, outermost first; a " +
-    "document names its owner; a team lists its people; a share may carry its end, a document the time it went to " +
-    "the trash, an invitation the time it was sent, a request the time it was made, all in seconds. The library " +
-    "keeps its log and its outbox with it.")(
+val jobsWiring = Node.design("On the computer's clock, housekeeping is started every minute and delivery every ten " +
+    "seconds, so a run that fails is tried again at its next start.")(
+  "src/main/scala/sharing/housekeeping/HousekeepingService.scala")
+  .refines(HousekeepingClaims.housekeepingRunsCleanly, NotificationsClaims.deliveryJob)
+
+val domainTypes = Node.design("The domain's records (people, teams, documents, folders, shares, invitations, access " +
+    "requests, log entries and notices) are plain data, kept together in one library with its log and its outbox.")(
   "src/main/scala/sharing/domain", "src/main/scala/sharing/Demo.scala").refines(accessFollowsShares)
 
-/** Sharing's nodes, in today's order. */
+/** Sharing's nodes: the words, the purpose and its parts, the branches with theirs, the contracts, the deadlines and
+  * the World's rules, the assumptions, the designs.
+  */
 val nodes: List[Node] = List(
   reach, cover, permission, editPermission, Definitions.inTrash, ownersShare, whoMayEdit, whatIsTrashed,
-  accessFollowsShares,
-  sharing.invitationsAreOffers, sharing.trashUntilGone, sharing.housekeepingClearsOnlyTheEnded,
-  sharing.accessRequestsAreAsks, sharing.ownersKeepTheirDocuments, sharing.auditTrail, sharing.noticesFollowChanges,
+  accessFollowsShares, viewFollowsShares, editFollowsShares, onlyEditorsShare, onlyEditorsUnshare, onlyEditorsMove,
+  sharing.invitationsAreOffers, sharing.onlyEditorsInvite, sharing.invitingGivesNoAccess, sharing.onlyTheInvitedAccept,
+  sharing.trashUntilGone, sharing.onlyEditorsTrash, sharing.restoredOnlyBeforeGone,
+  sharing.accessRequestsAreAsks, sharing.askingChangesNothingKept, sharing.onlyEditorsAnswer,
+  sharing.approvedOnlyWhilePending, sharing.ownersKeepTheirDocuments, sharing.onlyTheOwnerHandsOn,
+  sharing.newOwnerOwnsForGood, sharing.nobodyUnsharesAnOwner, sharing.nobodyReplacesAnOwner,
+  sharing.housekeepingClearsOnlyTheEnded, sharing.auditTrail, sharing.viewingRestsOnTheLog,
+  sharing.noticesFollowChanges,
   SharingClaims.accessContract, SharingClaims.canViewContract, SharingClaims.canEditContract,
   SharingClaims.shareContract, SharingClaims.unshareContract, SharingClaims.moveContract,
   InvitationsClaims.inviteContract, InvitationsClaims.acceptContract, InvitationsClaims.withdrawContract,
@@ -55,18 +61,26 @@ val nodes: List[Node] = List(
   AccessRequestsClaims.approveContract, AccessRequestsClaims.declineContract, AccessRequestsClaims.chaseContract,
   OwnershipClaims.transferContract, AuditClaims.recordContract, AuditClaims.forgetContract,
   NotificationsClaims.announceContract, NotificationsClaims.warnContract, HousekeepingClaims.tidyContract,
-  HousekeepingClaims.housekeepingJob, NotificationsClaims.deliveryJob, NotificationsClaims.deliveryGivesBack,
+  HousekeepingClaims.housekeepingJob, HousekeepingClaims.housekeepingRunsCleanly,
+  HousekeepingClaims.failedHousekeepingChangesNothing, HousekeepingClaims.housekeepingNotesItsRun,
+  HousekeepingClaims.housekeepingSendsNoMail, NotificationsClaims.deliveryJob,
+  NotificationsClaims.failedDeliveryChangesNothing, NotificationsClaims.deliveryOnlyEmptiesTheOutbox,
+  NotificationsClaims.deliveryTakesOutOnlyWhatWasSent, NotificationsClaims.deliveryTouchesOnlyWhatItSends,
+  NotificationsClaims.deliveryGivesBack,
   LifetimesClaims.invitationLifetime, LifetimesClaims.trashLifetime, LifetimesClaims.requestLifetime,
   LifetimesClaims.reminderTime,
   Run.housekeepingPeriod, LifetimesClaims.inForceContract, LifetimesClaims.isOpenContract,
   LifetimesClaims.goneContract, LifetimesClaims.pendingContract, LifetimesClaims.reminderDueContract,
   Deadlines.trashPurgedOnTime, Deadlines.invitationsLapseOnTime, Deadlines.requestsAnsweredOnTime,
-  Deadlines.endedStaysEnded, Deadlines.timeMovesOn, Deadlines.housekeptLately, Deadlines.nothingEndedAtHousekeeping,
-  sharing.logKept, ClockKept.housekeepingOnTime, ClockKept.clockStarts, ClockKept.housekeptStarts,
-  ClockKept.housekeptKept, ClockKept.housekeptOneAtATime, LibraryStore.libraryKept, LibraryStore.libraryStarts,
-  LibraryStore.oneTransactionAtATime, Transactions.transactions, Notifications.mailerKept,
+  Deadlines.remindersOnTime, Deadlines.endedStaysEnded, Deadlines.endedSharesStayEnded,
+  Deadlines.lapsedInvitationsStayLapsed, Deadlines.goneDocumentsStayGone, Deadlines.timeMovesOn,
+  Deadlines.housekeptLately, Deadlines.trashNotGoneAtHousekeeping, Deadlines.invitationsOpenAtHousekeeping,
+  Deadlines.requestsPendingAtHousekeeping, Deadlines.remindedAtHousekeeping,
+  sharing.sharesLogged, sharing.noticesLogged, ClockKept.housekeepingOnTime, ClockKept.clockStarts,
+  ClockKept.housekeptStarts, ClockKept.housekeptKept, ClockKept.housekeptOneAtATime, LibraryStore.libraryKept,
+  LibraryStore.libraryStarts, LibraryStore.oneTransactionAtATime, Transactions.transactions, Notifications.mailerKept,
   Notifications.mailOneAtATime, Pool.poolKept, Pool.poolOneAtATime,
-  SharingHttp.handleContract, serverWiring, domainTypes)
+  SharingHttp.handleContract, serverWiring, jobsWiring, domainTypes)
 
 /** Sharing: its nodes, and the code of every Definition. */
 val knowledge: FrModel = withCode(FrModel("Sharing")(nodes*)).implementProven(Sharing.access)(Sharing.accessCode)

@@ -3,6 +3,7 @@ package sharing.features
 import frflow.*
 import sharing.*
 import sharing.domain.*
+import sharing.time.Lifetimes.inForce
 
 /** The log: every change the service makes, recorded with the request that made it (who asked, what) and when, in the
   * same save as the change. A function of the library and of the moment.
@@ -37,6 +38,19 @@ object Audit:
   /** Whether a log entry is of the request that made a share. */
   val makes = define { (e: Term[Entry], s: Term[Share]) =>
     e.change.on[Change.Made](r => madeBy(r, s)).on[Change.Housekept.type](False).on[Change.Forgotten.type](False) }
+
+  /** Whether the log holds the request that made a share. */
+  val logged = define { (lib: Term[Library], s: Term[Share]) => lib.log.exists(e => makes(e, s)) }
+
+  /** Whether a notice in the outbox tells of an entry in the log, or of no logged change. */
+  val noticeLogged = define { (lib: Term[Library], n: Term[Notice]) =>
+    n.about.on[Subject.Logged](e => lib.log.contains(e)).on[Subject.Reminder](_ => True)
+      .on[Subject.Lapsed](_ => True).on[Subject.Ending](_ => True) }
+
+  /** Whether a share lets a person view a document or folder at a moment: in force, reaching them, covering it. */
+  val letsView = define {
+    (lib: Term[Library], t: Term[BigInt], s: Term[Share], p: Term[PersonId], x: Term[Target]) =>
+      inForce(s, t) && reaches(lib, s, p) && covers(lib, s, x) }
 
   val recordCode = define { (lib: Term[Library], t: Term[BigInt], c: Term[Change]) =>
     lib.updated(_.log, lib.log :+ make[Entry](lib.log.length, t, c)) }

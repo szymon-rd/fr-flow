@@ -19,25 +19,22 @@ object LifetimesClaims:
 
   val trashLifetime = Node.claim("A document stays in the trash for 30 days.")(trashKeeps === 30 * 86400)
 
-  val inForceContract = Node.claim("A share is in force while now is before its end; a share with no end is always " +
-      "in force.")(
+  val inForceContract = Node.claim("A share is in force until its end, when it has one.")(
     forall((s: Term[Share], t: Term[BigInt]) => inForce(s, t) === s.until.forall(end => t < end)))
     .leftOpenAbove
-    .refines(Deadlines.endedStaysEnded)
+    .refines(Deadlines.endedSharesStayEnded)
 
-  val isOpenContract = Node.claim("An invitation is open from its sending until 7 days after; then it has lapsed.")(
+  val isOpenContract = Node.claim("An invitation is open until 7 days after it is sent.")(
     forall((i: Term[Invitation], t: Term[BigInt]) => isOpen(i, t) === (t < i.sent + invitationLasts)))
     .leftOpenAbove
-    .refines(sharing.invitationsAreOffers, Deadlines.endedStaysEnded)
+    .refines(sharing.invitationsAreOffers, Deadlines.lapsedInvitationsStayLapsed)
 
-  val goneContract = Node.claim("A document in the trash is gone 30 days after it was put there; a document not in " +
-      "the trash is never gone.")(
+  val goneContract = Node.claim("A document is gone once 30 days have passed since it was put in the trash.")(
     forall((doc: Term[Document], t: Term[BigInt]) => gone(doc, t) === doc.trashed.exists(at => at + trashKeeps <= t)))
     .leftOpenAbove
-    .refines(sharing.trashUntilGone, Deadlines.endedStaysEnded)
+    .refines(sharing.trashUntilGone, Deadlines.goneDocumentsStayGone)
 
-  val pendingContract = Node.claim("An access request is pending from when it is made until 7 days after; then it " +
-      "has lapsed.")(
+  val pendingContract = Node.claim("An access request is pending until 7 days after it is made.")(
     forall((r: Term[AccessRequest], t: Term[BigInt]) => isPending(r, t) === (t < r.asked + requestLasts)))
     .leftOpenAbove
     .refines(sharing.accessRequestsAreAsks)

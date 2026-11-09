@@ -20,6 +20,15 @@ object Ownership:
   val ownersEdit = define { (d: Term[DocumentId], to: Term[PersonId]) =>
     make[Share](make[Target.Doc](d), make[Grantee.Person](to), Level.Edit: Term[Level], none[BigInt]) }
 
+  /** Whether a person may hand a document on to another: they own it, and both may edit it. */
+  val mayHandOn = define {
+    (lib: Term[Library], t: Term[BigInt], by: Term[PersonId], d: Term[DocumentId], to: Term[PersonId]) =>
+      owns(lib, by, d) && mayEdit(lib, t, by, make[Target.Doc](d)) && mayEdit(lib, t, to, make[Target.Doc](d)) }
+
+  /** Whether a person owns a document with an edit share of it for good. */
+  val ownsForGood = define { (lib: Term[Library], p: Term[PersonId], d: Term[DocumentId]) =>
+    owns(lib, p, d) && lib.shares.contains(ownersEdit(d, p)) }
+
   /** The documents with one handed on to a new owner. */
   val handedOn = define { (lib: Term[Library], d: Term[DocumentId], to: Term[PersonId]) =>
     lib.documents.map(doc => when(doc.id === d)(doc.updated(_.owner, to)).otherwise(doc)) }

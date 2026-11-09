@@ -31,6 +31,10 @@ object AccessRequests:
   val isFor = define { (w: Term[Target], doc: Term[Document]) =>
     w.on[Target.Doc](d => doc.id === d).on[Target.InFolder](f => doc.folders.contains(f)) }
 
+  /** Whether the library holds a pending request of a person for a document or folder at a moment. */
+  val pendingRequest = define { (lib: Term[Library], t: Term[BigInt], p: Term[PersonId], w: Term[Target]) =>
+    lib.requests.exists(r => r.person === p && r.what === w && isPending(r, t)) }
+
   val askCode = define {
     (lib: Term[Library], t: Term[BigInt], p: Term[PersonId], w: Term[Target], level: Term[Level]) =>
       when(holds(lib, w))(lib.updated(_.requests,

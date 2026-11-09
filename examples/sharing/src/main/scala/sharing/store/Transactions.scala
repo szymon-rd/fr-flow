@@ -10,9 +10,7 @@ import sharing.notifications.NotificationsClaims
 object Transactions:
   /** What the store gives requests at once: transactions. Decided, not proven: Lean reads a transaction as one step. */
   val transactions = Node.design("Each request, each run of housekeeping and each notice's removal from the outbox " +
-      "is one transaction on the store (atomically): requests at once leave the store as one after the other leaves " +
-      "it, in the order they take the store; once begun, a transaction runs to its end. Reading the clock is not " +
-      "part of the store's transaction.")(
+      "runs to its end as one transaction on the store, which reading the clock is not part of.")(
     "src/main/scala/sharing/store/MemoryLibraryStore.scala")
     .refines(sharing.features.SharingHttp.handleContract, HousekeepingClaims.housekeepingJob,
       NotificationsClaims.deliveryJob)

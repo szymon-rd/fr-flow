@@ -11,8 +11,8 @@ object Run:
   val startedAt = Definition[BigInt]("when the service started, in seconds")
   val housekeepingWithin = Definition[BigInt]("the longest the service goes without a run of housekeeping, in seconds")
 
-  val housekeepingPeriod = Node.claim("Housekeeping is started every minute; the service never goes more than two " +
-      "minutes without a run.")(housekeepingWithin === 120)
+  val housekeepingPeriod = Node.claim("The service never goes more than two minutes without a run of housekeeping.")(
+    housekeepingWithin === 120)
 
 /** When housekeeping last ran, in memory: tested against `housekeptModel`. */
 final class Housekept private (at: Ref[IO, BigInt]):

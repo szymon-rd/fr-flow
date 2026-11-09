@@ -82,3 +82,15 @@ object Notifications:
     outbox.filter(n => outbox.find(m => m.to === n.to) === some(n)) }
 
   val delivery = program { Delivery.run }
+
+  /** Whether a library is another with only some notices taken out of its outbox. */
+  val onlyTakenOut = define { (before: Term[Library], after: Term[Library]) =>
+    after === before.updated(_.outbox, before.outbox.filter(n => after.outbox.contains(n))) }
+  /** Whether a notice was among an outbox's oldest of each person, and its person's mailbox has it. */
+  val sentFrom = define { (outbox: Term[List[Notice]], boxes: Term[Map[PersonId, List[Notice]]], n: Term[Notice]) =>
+    firstOfEach(outbox).contains(n) && Mailer.mailbox(boxes, n.to).contains(n) }
+  /** Whether a notice's person has the mailbox they had, or it with the notice taken. */
+  val tookAtMost = define {
+    (before: Term[Map[PersonId, List[Notice]]], after: Term[Map[PersonId, List[Notice]]], n: Term[Notice]) =>
+      Mailer.mailbox(after, n.to) === Mailer.mailbox(before, n.to) ||
+        Mailer.mailbox(after, n.to) === Mailer.taken(Mailer.mailbox(before, n.to), n) }

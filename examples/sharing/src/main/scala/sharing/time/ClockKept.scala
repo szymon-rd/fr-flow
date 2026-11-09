@@ -28,6 +28,6 @@ object ClockKept:
     housekeptModel.atomic)
 
   /** Today's housekeepingOnTime, a schedule now: where the world moves the time (owner §47). */
-  val housekeepingOnTime = Node.assumption("Housekeeping runs often enough: the world never moves the time on more " +
-      "than two minutes past its last run.")(
+  val housekeepingOnTime = Node.assumption("The world never moves the time on more than two minutes past " +
+      "housekeeping's last run.")(
     clockModel.schedule(housekeptModel)((now, ran) => now <= ran + 120))
