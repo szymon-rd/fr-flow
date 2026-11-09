@@ -1,0 +1,235 @@
+{
+  "version": 1,
+  "decisions": {
+    "acceptWhenFree": [
+      {
+        "action": "accept",
+        "by": "demo-developer",
+        "at": "2026-11-09T03:38:51.736780Z",
+        "commit": "2f7423b3e81f7e22d8835334838f5c495fc6d1d2",
+        "reason": "Accepted with the demo key when moving to the rebuilt library.",
+        "rejected": [],
+        "content": "ec066b683d33c94b7087353435542ebb1e781db647ef98e2ec5a4c0225f5fce7",
+        "chain": "36827329626abed2b1462872278869a46a838365b8695feaef43bde57e3378e0",
+        "seal": {
+          "key": "087bcc41dcd575d8",
+          "signature": "wSCKOGTGv2tk9IVrkyXN416m6QR2e+AkFlF/IDhEMMRRVBwHzmM6TDNmVTebMMeNCo68JHwBcaPek09sb3IHAA=="
+        }
+      }
+    ],
+    "bookWhenFree": [
+      {
+        "action": "accept",
+        "by": "demo-developer",
+        "at": "2026-11-09T03:38:51.736780Z",
+        "commit": "2f7423b3e81f7e22d8835334838f5c495fc6d1d2",
+        "reason": "Accepted with the demo key when moving to the rebuilt library.",
+        "rejected": [],
+        "content": "d588814189a90614b5bbd87823b3fb32e224d1a0b28c7de93ce5aafef9ae1996",
+        "chain": "36827329626abed2b1462872278869a46a838365b8695feaef43bde57e3378e0",
+        "seal": {
+          "key": "087bcc41dcd575d8",
+          "signature": "9IO5FRt7e0MCFR1xfF16KxW3nY/fCki73twsMN1grq10NgbwZO740+TM5d6H1kvvRkupfqfaxM+YZF5JUWjmDg=="
+        }
+      }
+    ],
+    "bookingsEndAfterStart": [
+      {
+        "action": "accept",
+        "by": "demo-developer",
+        "at": "2026-11-09T03:38:51.736780Z",
+        "commit": "2f7423b3e81f7e22d8835334838f5c495fc6d1d2",
+        "reason": "Accepted with the demo key when moving to the rebuilt library.",
+        "rejected": [],
+        "content": "e48748d744e64c853e22755ede88d1a3057a5732006bf8220e0f23dda7e9794c",
+        "chain": "",
+        "seal": {
+          "key": "087bcc41dcd575d8",
+          "signature": "HFPiWkRrpIWqXAIIl1QIPIg2jOoSioOv3KtpYazTIT2gZNc3To0QuMqz+Fb77FeOSEaWLYS6j84RCZKxHr5HAQ=="
+        }
+      }
+    ],
+    "nothingElseWrites": [
+      {
+        "action": "accept",
+        "by": "demo-developer",
+        "at": "2026-11-09T03:38:51.736780Z",
+        "commit": "2f7423b3e81f7e22d8835334838f5c495fc6d1d2",
+        "reason": "Accepted with the demo key when moving to the rebuilt library.",
+        "rejected": [],
+        "content": "7b16d49d352f175cb5873441710a7ca3f2dd7cab94fc5181932bbaa168c8620e",
+        "chain": "",
+        "code": "1b228c7e1fd242ef44016704d237a3ca6904dd265f1c63e0e164998d4a3e7bf1",
+        "seal": {
+          "key": "087bcc41dcd575d8",
+          "signature": "4RACr21qv9h8FHD212IFH8vhLpDQQZ2Cn1wQ+OMmlbjAwjvM9DO5XmYYblWt7PyFqlfTDgjX2Q39nosfli+KDw=="
+        }
+      }
+    ],
+    "oneAtATime": [
+      {
+        "action": "accept",
+        "by": "demo-developer",
+        "at": "2026-11-09T03:38:51.736780Z",
+        "commit": "2f7423b3e81f7e22d8835334838f5c495fc6d1d2",
+        "reason": "Accepted with the demo key when moving to the rebuilt library.",
+        "rejected": [],
+        "content": "4ed19e51d85ea22c5ca30a863c693f31757c399f406b6b42bc6c3334187bb17f",
+        "chain": "",
+        "seal": {
+          "key": "087bcc41dcd575d8",
+          "signature": "rx82T6Y+eIflyIxGHeGXts5JiYUrtpk9Y7h9K2t1VDfEU2kBFIxdoOo+m9ZIopDudw3ZTUV9ljh1+SP0r1E+Cw=="
+        }
+      }
+    ],
+    "startsEmpty": [
+      {
+        "action": "accept",
+        "by": "demo-developer",
+        "at": "2026-11-09T03:38:51.736780Z",
+        "commit": "2f7423b3e81f7e22d8835334838f5c495fc6d1d2",
+        "reason": "Accepted with the demo key when moving to the rebuilt library.",
+        "rejected": [],
+        "content": "8a4a7b93e3fbe71fe6ffbf1be9b85dd62890c2796df57ad100f85b6185c44665",
+        "chain": "",
+        "seal": {
+          "key": "087bcc41dcd575d8",
+          "signature": "RPyr9Un1Z40Z/ASrJtW/tvu0QU/NCkN+Vipit9+HOT1h+CqVmPYXwW2LWuI92xmv08q+9kNyhQt/tttONKqfDA=="
+        }
+      }
+    ]
+  },
+  "contents": {
+    "ec066b683d33c94b7087353435542ebb1e781db647ef98e2ec5a4c0225f5fce7": {
+      "kind": "claim",
+      "parents": [],
+      "parts": [
+        "bookedIsStored",
+        "acceptedIsAnswered",
+        "answerWhenFree"
+      ],
+      "assumes": [
+        "bookingsEndAfterStart"
+      ],
+      "statement": "A request is accepted exactly when its room is free for its whole time.",
+      "formula": "(∀ (x : Booking), (∀ (x_1 : World), ((accepted x x_1) = (Rooms.free (booked x_1) x))))\n\n@[frflow_defs] def free (x : (List Booking)) (x_1 : Booking) : Prop :=\n  (∀ x_2 ∈ x, (Rooms.apart x_2 x_1))\n\n@[frflow_defs] def apart (x : Booking) (x_1 : Booking) : Prop :=\n  ((¬(x.room = x_1.room)) ∨ (∀ (x_2 : Int), (¬((Rooms.covers x x_2) ∧ (Rooms.covers x_1 x_2)))))\n\n@[frflow_defs] def covers (x : Booking) (x_1 : Int) : Prop :=\n  ((x.start ≤ x_1) ∧ (x_1 < x.«end»))",
+      "written": "forall((request: Term[Booking]) => accepted(request) === free(booked, request))",
+      "vocabulary": [
+        "accepted: whether a request is accepted",
+        "booked: the bookings made, as the world stands"
+      ],
+      "checking": [
+        "proven from its parts (bookedIsStored, acceptedIsAnswered, answerWhenFree)",
+        "rules it uses: neverOverlap, bookingsEndAfterStart",
+        "rests on what each Booking from outside meets: bookingsEndAfterStart"
+      ],
+      "governs": [],
+      "call": "accepted"
+    },
+    "d588814189a90614b5bbd87823b3fb32e224d1a0b28c7de93ce5aafef9ae1996": {
+      "kind": "claim",
+      "parents": [],
+      "parts": [
+        "bookedIsStored",
+        "bookedAfterIsStored",
+        "storeWhenFree"
+      ],
+      "assumes": [
+        "bookingsEndAfterStart"
+      ],
+      "statement": "A request is booked exactly when its room is free for its whole time.",
+      "formula": "(∀ (x : Booking), (∀ (x_1 : World), ((bookedAfter x x_1) = (if (Rooms.free (booked x_1) x) then ((booked x_1) ++ [x]) else (booked x_1)))))\n\n@[frflow_defs] def free (x : (List Booking)) (x_1 : Booking) : Prop :=\n  (∀ x_2 ∈ x, (Rooms.apart x_2 x_1))\n\n@[frflow_defs] def apart (x : Booking) (x_1 : Booking) : Prop :=\n  ((¬(x.room = x_1.room)) ∨ (∀ (x_2 : Int), (¬((Rooms.covers x x_2) ∧ (Rooms.covers x_1 x_2)))))\n\n@[frflow_defs] def covers (x : Booking) (x_1 : Int) : Prop :=\n  ((x.start ≤ x_1) ∧ (x_1 < x.«end»))",
+      "written": "forall((request: Term[Booking]) =>\n    bookedAfter(request) === when(free(booked, request))(booked :+ request).otherwise(booked))",
+      "vocabulary": [
+        "booked: the bookings made, as the world stands",
+        "bookedAfter: the bookings made once a request is handled"
+      ],
+      "checking": [
+        "proven from its parts (bookedIsStored, bookedAfterIsStored, storeWhenFree)",
+        "rules it uses: neverOverlap, bookingsEndAfterStart",
+        "rests on what each Booking from outside meets: bookingsEndAfterStart"
+      ],
+      "governs": [],
+      "call": "bookedAfter"
+    },
+    "e48748d744e64c853e22755ede88d1a3057a5732006bf8220e0f23dda7e9794c": {
+      "kind": "assumption",
+      "parents": [],
+      "parts": [],
+      "assumes": [],
+      "statement": "Every booking ends after it starts.",
+      "formula": "(∀ (x : Booking), (Rooms.bookingsEndAfterStart x))\n\n@[frflow_defs] def bookingsEndAfterStart (x : Booking) : Prop :=\n  (x.start < x.«end»)",
+      "written": "always[Booking](b => b.start < b.end)",
+      "vocabulary": [],
+      "checking": [
+        "trusted",
+        "met where a Booking is made (book, storedBookings's inRoom); assumed of every Booking in Lean",
+        "met where the store starts, from what startsEmpty says: witnessed, for Lean to check",
+        "not vacuous: some Booking meets it"
+      ],
+      "writers": [
+        "book"
+      ],
+      "governs": []
+    },
+    "7b16d49d352f175cb5873441710a7ca3f2dd7cab94fc5181932bbaa168c8620e": {
+      "kind": "assumption",
+      "parents": [],
+      "assumes": [],
+      "statement": "Nothing but the booking code changes the table.",
+      "formula": "storedBookings.onlyCodeChanges",
+      "written": "storedBookings.onlyCodeChanges",
+      "vocabulary": [],
+      "checking": [
+        "the world outside: nothing but the code changes storedBookings",
+        "the programs changing it, derived: book"
+      ],
+      "governs": [],
+      "model": [
+        "namespace StoredBookings",
+        "",
+        "@[frflow_defs] def inRoom : String → StateM (List Booking) RoomBookings :=",
+        "  fun (room : String) => do",
+        "    let r ← get",
+        "    pure (RoomBookings.mk room (List.filter (fun b => decide (b.room = room)) r))",
+        "",
+        "@[frflow_defs] def add : Booking → StateM (List Booking) Unit :=",
+        "  fun (booking : Booking) => do",
+        "    let r ← get",
+        "    set (r ++ [booking])",
+        "    pure ()",
+        "",
+        "end StoredBookings"
+      ],
+      "implementations": [
+        "(start = BookingsTable.holding, observe = _.bookings)(t => (t.inRoom, t.add))"
+      ]
+    },
+    "4ed19e51d85ea22c5ca30a863c693f31757c399f406b6b42bc6c3334187bb17f": {
+      "kind": "assumption",
+      "parents": [],
+      "assumes": [],
+      "statement": "Bookings are processed one at a time.",
+      "formula": "storedBookings.atomic",
+      "written": "storedBookings.atomic",
+      "vocabulary": [],
+      "checking": [
+        "the world outside: runs on storedBookings never interleave"
+      ],
+      "governs": []
+    },
+    "8a4a7b93e3fbe71fe6ffbf1be9b85dd62890c2796df57ad100f85b6185c44665": {
+      "kind": "assumption",
+      "parents": [],
+      "assumes": [],
+      "statement": "The table starts empty.",
+      "formula": "storedBookings.initially(startsEmpty)\n\n@[frflow_defs] def startsEmpty (x : (List Booking)) : Prop :=\n  (x = ([] : (List Booking)))",
+      "written": "storedBookings.initially(stored => stored === Nil)",
+      "vocabulary": [],
+      "checking": [
+        "the world outside: the state storedBookings starts in"
+      ],
+      "governs": []
+    }
+  }
+}
