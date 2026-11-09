@@ -53,8 +53,8 @@ class PortSuite extends munit.CatsEffectSuite:
 
   test("a cover_ puts in the code of what the program calls, as impl does (2.7): housekeeping tidying as its code") {
     val spec = Projects.bare(elaborated).modules
-      .find(_.name.dotted == "FrFlowGen.Sharing.nothingEndedAtHousekeeping.Spec")
-      .map(frflow.proof.lean.print.Print.module).getOrElse(fail("no nothingEndedAtHousekeeping spec"))
+      .find(_.name.dotted == "FrFlowGen.Sharing.trashNotGoneAtHousekeeping.Spec")
+      .map(frflow.proof.lean.print.Print.module).getOrElse(fail("no trashNotGoneAtHousekeeping spec"))
     val cover = spec.linesIterator.dropWhile(!_.contains("def cover_housekeep")).take(2).mkString("\n")
     assert(cover.contains("(Sharing.tidyCode (Sharing.goneCode 2592000)"), cover)
   }
@@ -85,10 +85,15 @@ class PortSuite extends munit.CatsEffectSuite:
     assertEquals(differences, Judged.differences.view.mapValues(_._1).toMap)
   }
 
-  private val proofs = List("Lemmas", "canViewContract", "canEditContract",
-    "housekeepingClearsOnlyTheEnded", "ownersKeepTheirDocuments", "trashUntilGone", "invitationsAreOffers",
-    "accessRequestsAreAsks", "auditTrail", "accessFollowsShares", "handleContract", "housekeepingJob", "deliveryJob",
-    "deliveryGivesBack", "logKept", "nothingEndedAtHousekeeping", "timeMovesOn", "Whole")
+  private val proofs = ("Lemmas" :: List("canViewContract", "canEditContract", "viewFollowsShares",
+    "editFollowsShares", "housekeepingClearsOnlyTheEnded", "invitingGivesNoAccess", "newOwnerOwnsForGood",
+    "ownersKeepTheirDocuments", "trashUntilGone", "invitationsAreOffers", "accessRequestsAreAsks",
+    "viewingRestsOnTheLog", "auditTrail", "accessFollowsShares", "handleContract", "housekeepingJob",
+    "housekeepingRunsCleanly", "failedHousekeepingChangesNothing", "housekeepingNotesItsRun",
+    "housekeepingSendsNoMail", "deliveryJob", "failedDeliveryChangesNothing", "deliveryOnlyEmptiesTheOutbox",
+    "deliveryTakesOutOnlyWhatWasSent", "deliveryTouchesOnlyWhatItSends", "deliveryGivesBack", "sharesLogged",
+    "noticesLogged", "trashNotGoneAtHousekeeping", "invitationsOpenAtHousekeeping", "requestsPendingAtHousekeeping",
+    "remindedAtHousekeeping", "timeMovesOn")) :+ "Whole"
   private val lean = Lean(proofs.map(n => n -> Ported.proof("sharing", "Sharing", n)),
     reference.old("Sharing", Judged.oldOverNew) :+ ("FrFlowGen/Port.lean" -> Ported.resource("sharing/port/Port.lean")),
     Some("FrFlowGen.Port"))

@@ -83,13 +83,23 @@ class ExamplesSuite extends munit.FunSuite:
     "delivery takes from and gives back (its bracket), its model's assumptions and its claim; the purpose's may edit " +
     "and is in the trash, Declarations, each with the claim saying what it is; the run the World's (owner §45 D, " +
     "§47): time never going back a claim of the clock, today's schedule a schedule of it, when housekeeping last ran " +
-    "a model with its assumptions, what the branches hold at every moment rules of the World, each model's start") {
+    "a model with its assumptions, what the branches hold at every moment rules of the World, each model's start; " +
+    "every statement small: each composite statement a parent of its smaller statements") {
+    val newParts = Set("viewFollowsShares", "editFollowsShares", "onlyEditorsShare", "onlyEditorsUnshare",
+      "onlyEditorsMove", "onlyEditorsInvite", "invitingGivesNoAccess", "onlyTheInvitedAccept", "onlyEditorsTrash",
+      "restoredOnlyBeforeGone", "askingChangesNothingKept", "onlyEditorsAnswer", "approvedOnlyWhilePending",
+      "onlyTheOwnerHandsOn", "newOwnerOwnsForGood", "nobodyUnsharesAnOwner", "nobodyReplacesAnOwner",
+      "viewingRestsOnTheLog", "remindersOnTime",
+      "endedSharesStayEnded", "lapsedInvitationsStayLapsed", "goneDocumentsStayGone", "trashNotGoneAtHousekeeping",
+      "invitationsOpenAtHousekeeping", "requestsPendingAtHousekeeping", "remindedAtHousekeeping", "sharesLogged",
+      "noticesLogged", "housekeepingRunsCleanly", "failedHousekeepingChangesNothing", "housekeepingNotesItsRun",
+      "housekeepingSendsNoMail", "failedDeliveryChangesNothing", "deliveryOnlyEmptiesTheOutbox",
+      "deliveryTakesOutOnlyWhatWasSent", "deliveryTouchesOnlyWhatItSends", "jobsWiring")
     assertEquals(ids(sharing.knowledge), renamed(Today.sharing, Set("clockNeverGoesBack", "clockKept"), Set(
       "oneTransactionAtATime", "mailOneAtATime", "editPermission", "reminderTime", "deliveryGivesBack",
       "poolKept", "poolOneAtATime", "whoMayEdit", "whatIsTrashed", "timeMovesOn", "housekeptLately",
-      "nothingEndedAtHousekeeping", "logKept", "clockStarts", "housekeptStarts", "housekeptKept",
-      "housekeptOneAtATime", "libraryStarts")))
-    assertEquals(kinds(sharing.knowledge), Map("claim" -> 59, "assumption" -> 12, "design" -> 3))
+      "clockStarts", "housekeptStarts", "housekeptKept", "housekeptOneAtATime", "libraryStarts") ++ newParts))
+    assertEquals(kinds(sharing.knowledge), Map("claim" -> 93, "assumption" -> 12, "design" -> 4))
   }
 
   test("the five examples are valid as written") {
@@ -147,10 +157,13 @@ class ExamplesSuite extends munit.FunSuite:
       "searchesMatch" -> "readContract", "searchesMatch" -> "dealSearch"))
   }
 
-  test("sharing: its branches rest on the claims on their own operations' code, not on what that code calls") {
+  test("sharing: its branches, and their parts, rest on the claims on their own operations' code, not on what that " +
+    "code calls") {
     val parts = notAboutCallees(sharing.knowledge)
-    assertEquals(parts.map(_._1).distinct.toSet, Set("accessFollowsShares", "invitationsAreOffers",
-      "trashUntilGone", "housekeepingClearsOnlyTheEnded", "accessRequestsAreAsks", "ownersKeepTheirDocuments",
-      "auditTrail", "endedStaysEnded"))
-    assertEquals(parts.size, 26)
+    assertEquals(parts.map(_._1).distinct.toSet, Set("accessFollowsShares", "viewFollowsShares", "editFollowsShares",
+      "onlyEditorsMove", "invitationsAreOffers", "onlyEditorsInvite", "trashUntilGone", "onlyEditorsTrash",
+      "housekeepingClearsOnlyTheEnded", "accessRequestsAreAsks", "askingChangesNothingKept", "onlyEditorsAnswer",
+      "ownersKeepTheirDocuments", "onlyTheOwnerHandsOn", "auditTrail", "viewingRestsOnTheLog", "endedStaysEnded",
+      "endedSharesStayEnded", "housekeepingRunsCleanly", "deliveryJob"))
+    assertEquals(parts.size, 54)
   }
