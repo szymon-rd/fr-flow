@@ -67,4 +67,3 @@ class RelocateSuite extends munit.CatsEffectSuite:
       assertEquals(warnings, Nil)
   }
 
-  private def path(p: String): RelPath = RelPath.parse(p).getOrElse(fail(s"no path $p"))
