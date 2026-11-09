@@ -1,6 +1,7 @@
 package frflow.dsl.shape
 
 import frflow.core.name.{DefName, SymbolName}
+import frflow.dsl.build.WrittenAt
 import frflow.dsl.term.{LeanType, Term}
 import frflow.dsl.vocab.{Definition, Stating}
 import scala.collection.concurrent.TrieMap
@@ -21,6 +22,10 @@ final class Stated[F] private[shape] (val name: DefName, build: Stating => Defin
   private[shape] def in(st: Stating): Definition[F] = built.getOrElseUpdate((st.varies, st.closing), build(st))
 
 object Stated:
+  /** The define named `name` written `at`, its body read in each `Stating` it is applied in by `build`. */
+  def of[F](name: DefName, at: WrittenAt)(build: DefName => Stating => Definition[F]): Stated[F] =
+    new Stated(name, st => build(name)(st).in(at))
+
   /** A `stated` define's lambda `L`, of inputs' and result's terms: the Definition's type it makes, and its shape. */
   trait Shaped[L]:
     type F

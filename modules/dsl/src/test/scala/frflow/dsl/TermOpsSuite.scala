@@ -75,8 +75,9 @@ class TermOpsSuite extends munit.FunSuite:
 
   test("exists binds its variables as forall does, nested in order, each one's name kept") {
     exists((x: Term[BigInt]) => one < x).expr match
-      case Expr.Quant(Quantifier.Exists, List(x), Expr.Prim(PrimOp.Lt, _, _)) => assertEquals((x.hint, x.ty), ("x", big))
-      case other                                                               => fail(s"not an exists: $other")
+      case Expr.Quant(Quantifier.Exists, List(x), Expr.Prim(PrimOp.Lt, _, _)) =>
+        assertEquals((x.hint, x.ty), ("x", big))
+      case other => fail(s"not an exists: $other")
     exists((a: Term[BigInt], b: Term[Boolean]) => b && a === one).expr match
       case Expr.Quant(Quantifier.Exists, List(a), Expr.Quant(Quantifier.Exists, List(b), _)) =>
         assertEquals((a.hint, b.hint, b.ty), ("a", "b", Ty.Bool))

@@ -84,10 +84,9 @@ object TermSyntax:
     @targetName("optionExists") inline def exists(inline p: Term[A] => Term[Boolean]): Term[Boolean] =
       Terms.over(o, hint(Source.of(p).params), p)([T[_]] => (s: Sym[T]) => s.optionAny[A])
     def getOrElse(default: Term[A]): Term[A] = Term.both(o, default)([T[_]] => (s: Sym[T]) => s.getOrElse[A])
-    /* Scala's other operations on an option, each the fold an author would write (Lean reads its `match`). */
     @targetName("optionMap") inline def map[B: LeanType](inline f: Term[A] => Term[B]): Term[Option[B]] =
       Terms.foldOption(o, none[B], hint(Source.of(f).params))(a => some(f(a)))
-    /** The value if it meets `p`, else none; `filterNot`, if it does not. */
+    /** The value if it meets `p`, else none (`filterNot`: if it does not); each the fold an author would write. */
     @targetName("optionFilter") inline def filter(inline p: Term[A] => Term[Boolean]): Term[Option[A]] =
       Terms.foldOption(o, none[A], hint(Source.of(p).params))(a => when(p(a))(some(a)).otherwise(none[A]))
     inline def filterNot(inline p: Term[A] => Term[Boolean]): Term[Option[A]] =
@@ -95,7 +94,6 @@ object TermSyntax:
     @targetName("optionContains") def contains(x: Term[A]): Term[Boolean] =
       Terms.foldOption(o, False, "a")(a => a === x)
     @targetName("optionIsEmpty") def isEmpty: Term[Boolean] = Terms.foldOption(o, True, "a")(_ => False)
-    /** The value as a list of one, or the empty list. */
     def toList: Term[List[A]] = Terms.foldOption(o, nil[A], "a")(a => a :: nil[A])
   extension [A](o: Term[Option[A]])
     def isDefined: Term[Boolean] = Term.one(o)([T[_]] => (s: Sym[T]) => s.isDefined[A])
@@ -151,9 +149,7 @@ object TermSyntax:
     val h = names(Source.of(p).params, 6)
     Terms.forall[A](h(0), u => Terms.forall[B](h(1), v => Terms.forall[C](h(2), w =>
       Terms.forall[D](h(3), x => Terms.forall[E](h(4), y => Terms.forall[G](h(5), z => p(u, v, w, x, y, z)))))))
-  /** `exists(x => p)`: some value meets `p`, as `forall` takes every one, to six variables. What always holds of each
-    * variable is a conjunct below it (`Guarded`), as it is a premise below a `forall`: Lean's `∃ x, guard ∧ p`.
-    */
+  /** `exists(x => p)`: some value meets `p`, to six variables; what always holds of each a conjunct (`Guarded`). */
   inline def exists[A: LeanType](inline p: Term[A] => Term[Boolean]): Term[Boolean] =
     Terms.exists(hint(Source.of(p).params), p)
   inline def exists[A: LeanType, B: LeanType](inline p: (Term[A], Term[B]) => Term[Boolean]): Term[Boolean] =

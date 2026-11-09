@@ -6,8 +6,8 @@ when every budget is met). `--write-baseline` records today's violations.
 
 The exceptions are the scala-fp skill's (its "Size budgets"), each read off the code, none listed by name:
 - a def that is one `match` whose cases are at most two lines each may be longer than 20 lines;
-- an `apply` in an extension on a `Declaration`'s, a `Definition`'s or a failing Definition's (`Fails`) function
-  type, taking one parameter per input of that type (ARCHITECTURE.md section 11, rule 4), may take more than four;
+- an `apply` in an extension on a `Declaration`'s, a `Definition`'s, a failing Definition's (`Fails`) or a `stated`
+  define's (`Stated`) function type, taking one parameter per input of that type (ARCHITECTURE.md section 11, rule 4), may take more than four;
 - the facade package `frflow` (`modules/eval/src/main/scala/frflow`) may hold fewer than three files;
 - an example's app and tests (`examples/NAME/app/src/…`, `examples/NAME/src/test/…`) may hold fewer than three
   files a package: they are its model's package (`rooms`), which the layout splits across the example's projects.
@@ -39,7 +39,7 @@ def one_match(L, i, n):
 def arity(L, i):
     """The number of inputs of the function type an extension directly above line i is on, if any."""
     for k in range(i - 1, max(i - 3, -1), -1):
-        m = re.match(r'\s*extension\s*\[.*?\]\s*\(\w+:\s*(?:Declaration|Definition|Fails)\[\(([^()]*)\)\s*=>', L[k])
+        m = re.match(r'\s*extension\s*\[.*?\]\s*\(\w+:\s*(?:Declaration|Definition|Fails|Stated)\[\(([^()]*)\)\s*=>', L[k])
         if m: return len([t for t in m.group(1).split(',') if t.strip()])
         if L[k].strip() and not L[k].lstrip().startswith('def apply'): return None
     return None

@@ -41,8 +41,8 @@ object Defines:
     * overloads would type the lambda before giving it the `Stating` its body reads.
     */
   inline def stated[L](inline body: Stating ?=> L)(using l: Stated.Shaped[L]): Stated[l.F] =
-    statedOf(DefName(Source.valName), l.shape, Source.of(body(using Stating.probing)), WrittenAt.in(Source.here))(
-      st => body(using st))
+    Stated.of(DefName(Source.valName), WrittenAt.in(Source.here))(n =>
+      st => madeOf(n, l.shape, Source.of(body(using Stating.probing)))(body(using st)))
 
   /** A program of no input: its steps recorded once. */
   inline def program[R: LeanType](inline body: Flow[R]): Definition[Flow[R]] =
@@ -114,10 +114,5 @@ object Defines:
     val build = () => b.body(body, written.params)
     if Worldly.reads(build) then Worldly.define(n, b.types, build, written)(using b.leanType)
     else b.made(n, body, written.params, Elab.lambda(Site.Define(n), b.types)(build, written))
-
-  /** A define over Declarations, its body read in each `Stating` it is applied in. */
-  private def statedOf[F](n: DefName, b: DefineShape[F], written: AsWritten, at: WrittenAt)(
-      body: Stating => b.Lam): Stated[F] =
-    new Stated(n, st => madeOf(n, b, written)(body(st)).in(at))
 
   private def named[A](name: DefName)(f: DefName => A): A = f(name)

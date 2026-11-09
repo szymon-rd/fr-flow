@@ -315,7 +315,7 @@ It is approximate, so read the code it points at before you report.
 |---|---|---|
 | Fields per case class or enum case | 6 | none: group them by concept (V3) |
 | Optional or defaulted fields per type | 2, each absent in the domain (D7) | wire compatibility in `wire` (V4) |
-| Explicit parameters per function (`using` and context bounds excluded) | 4 | DSL entry points that mirror the arity of the user's function type (`Declaration` and `Definition` applied to five or six arguments) |
+| Explicit parameters per function (`using` and context bounds excluded) | 4 | DSL entry points that mirror the arity of the user's function type (`Declaration`, `Definition` and a `stated` define applied to five or six arguments) |
 | Non-blank lines per `def` | 20 | one `match` over an ADT whose cases are at most 2 lines each |
 | Nesting of blocks and lambdas | 3 levels | none (checked by reading) |
 | Public members of a core type, or operations of an algebra | 8 | none (checked by reading) |
