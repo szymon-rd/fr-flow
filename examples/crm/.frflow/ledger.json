@@ -97,6 +97,40 @@
         }
       }
     ],
+    "expiryJobWiring": [
+      {
+        "action": "accept",
+        "by": "demo-developer",
+        "at": "2026-11-09T04:38:37.852956Z",
+        "commit": "1b06352f704f7b448c4359d013e734afb900f001",
+        "reason": "Accepted with the demo key when moving to the rebuilt library.",
+        "rejected": [],
+        "content": "19266dd8665d753abb6931a56e39f0cb9f8c485cfefbcb7c9107649c08e529d2",
+        "chain": "",
+        "code": "366ce65fe848a042e2877ce26f5182cae23c9483ea8a79d1d3039d60bce96339",
+        "seal": {
+          "key": "087bcc41dcd575d8",
+          "signature": "Iu8ZuAGR3Q652kOxExeG/yoSX1WIN2hP/Vw0XFWpZq5+rYJFBAAjl+cae7yV3q3kXEtyTsU69975cXeEsT6zAg=="
+        }
+      }
+    ],
+    "httpApi": [
+      {
+        "action": "accept",
+        "by": "demo-developer",
+        "at": "2026-11-09T04:38:37.852956Z",
+        "commit": "1b06352f704f7b448c4359d013e734afb900f001",
+        "reason": "Accepted with the demo key when moving to the rebuilt library.",
+        "rejected": [],
+        "content": "60a9e1c8d90145a6fb0b86ac624a45e82b29b9786820e0add0d0291d89844c9d",
+        "chain": "",
+        "code": "a5c81b7e2ab1cb4127fa2aa185b54a3be8fd4f99fa40532ee6d0b941852c7fc7",
+        "seal": {
+          "key": "087bcc41dcd575d8",
+          "signature": "ntmhPm7CtDY9iuZCO9AItryn0faiJtj4WrSsGbUtWDNraYjTQqM2q8nrRk4bJMmltlIXbdokgXhxvkkeBt0jBw=="
+        }
+      }
+    ],
     "keyedTables": [
       {
         "action": "accept",
@@ -174,6 +208,23 @@
         "seal": {
           "key": "087bcc41dcd575d8",
           "signature": "XZEfHvyx8Gy1L/mp0b+SvvEcackOZdnAcme0Ox/RXT8tUOKzNbjj9SjlSN5kR2Kxvel3nJBNuOKmnIGiyg3eDQ=="
+        }
+      }
+    ],
+    "readSideWiring": [
+      {
+        "action": "accept",
+        "by": "demo-developer",
+        "at": "2026-11-09T04:38:37.852956Z",
+        "commit": "1b06352f704f7b448c4359d013e734afb900f001",
+        "reason": "Accepted with the demo key when moving to the rebuilt library.",
+        "rejected": [],
+        "content": "e50415872cc303e9c4951ac4e2090b418cd0371f05675a6765294acb22c11557",
+        "chain": "",
+        "code": "b2247e5099a591b370b76993a1e5581ce1c82d30888bb0a79db1e6a5e04519b7",
+        "seal": {
+          "key": "087bcc41dcd575d8",
+          "signature": "ETVjVKjHyD7N+Hj/JbMP1GPpUf2b0BgXsTeUUQj+mFC5cnVnqogaBt0zKOSvrO6vprqEasafpSYZn/cDtmtNBQ=="
         }
       }
     ],
@@ -434,6 +485,23 @@
         }
       }
     ],
+    "writeSideWiring": [
+      {
+        "action": "accept",
+        "by": "demo-developer",
+        "at": "2026-11-09T04:38:37.852956Z",
+        "commit": "1b06352f704f7b448c4359d013e734afb900f001",
+        "reason": "Accepted with the demo key when moving to the rebuilt library.",
+        "rejected": [],
+        "content": "c81a5db8d6f9b7f199d73f5199f84bf581bc533ffd433542fb950ff871032d70",
+        "chain": "",
+        "code": "6026d95ab1b8c26b5791f070ac33a420baf9c004e54e1042916063a71634ffc6",
+        "seal": {
+          "key": "087bcc41dcd575d8",
+          "signature": "2L0RsO6RLNgyt7wXdYOcRjpnsXmF8oVYmqEUJFTTXENMTflZwbLC3N57EwUUm6tlH4uzRGhCjE/o4U2j3u4QDg=="
+        }
+      }
+    ],
     "writesLeaveOthers": [
       {
         "action": "accept",
@@ -651,6 +719,32 @@
       "call": "runExpiry",
       "implementation": "expire: proven, (s: Term[CrmStore], now: Term[BigInt]) =>\n  make[CrmStore](s.records, s.shares.filter(sh => !ended(sh, s, now)),\n    s.expiries.filter(e => !ended(make[Share](e.record, e.to), s, now)))\nrunExpiry: proven program, (now: Term[BigInt]) =>\n  for\n    s <- load\n    t  = expire(s, now)\n    _ <- Flow.each(idsIn(s) ++ idsIn(t))(id =>\n           Flow.ifM[Unit](Flow.pure(aboutRecord(s, id) =!= aboutRecord(t, id)))(storeAbout(id, t), Flow.unit))\n    _ <- logEvent(make[Event.Expired](now))\n  yield t"
     },
+    "19266dd8665d753abb6931a56e39f0cb9f8c485cfefbcb7c9107649c08e529d2": {
+      "kind": "design",
+      "parents": [
+        "expiryJob"
+      ],
+      "assumes": [],
+      "statement": "The expiry job runs every minute, holding the database's lock during a run so no write interleaves with it; its code is the program expiryJob is proven of, run on SQLite.",
+      "vocabulary": [],
+      "checking": [],
+      "governs": [
+        "src/main/scala/crm/Job.scala"
+      ]
+    },
+    "60a9e1c8d90145a6fb0b86ac624a45e82b29b9786820e0add0d0291d89844c9d": {
+      "kind": "design",
+      "parents": [
+        "sharedCrm"
+      ],
+      "assumes": [],
+      "statement": "The HTTP API answers searches through the records screen and the sales screen, and writes through the write side; who calls is the account in the request's headers.",
+      "vocabulary": [],
+      "checking": [],
+      "governs": [
+        "src/main/scala/crm/Server.scala"
+      ]
+    },
     "4b9c5ae5ad8d54c32ad4c590168f4edcf3ccc820d5c7677d83cb44bf749be455": {
       "kind": "assumption",
       "parents": [],
@@ -793,6 +887,20 @@
       "governs": [],
       "call": "read",
       "implementation": "read: proven program, (user: Term[Account], query: Term[Search]) => readSteps(user, query)"
+    },
+    "e50415872cc303e9c4951ac4e2090b418cd0371f05675a6765294acb22c11557": {
+      "kind": "design",
+      "parents": [
+        "readContract",
+        "dealSearch"
+      ],
+      "assumes": [],
+      "statement": "The records screen and the sales screen serve searches through their code; they read the time from the clock, the shares and expiries from the database's tables, and search them with SQL.",
+      "vocabulary": [],
+      "checking": [],
+      "governs": [
+        "src/main/scala/crm/ReadSide.scala"
+      ]
     },
     "8a60da656af4704de2aca080983d43ea28fc59d2ef38df3c6a8ef10ec1d7e7df": {
       "kind": "assumption",
@@ -1193,6 +1301,20 @@
       "governs": [],
       "call": "write",
       "implementation": "write: proven, (s: Term[CrmStore], w: Term[WriteCmd]) =>\n  val noExpiries: Term[List[Expiry]] = Nil\n  val othersOf = (id: Term[BigInt], to: Term[TenantId]) => s.expiries.filter(e => !(e.record === id && e.to === to))\n  w.change\n    .on[Change.Add](r => when(r.tenant === w.by.tenant && !s.records.exists(x => x.id === r.id))(\n      make[CrmStore](s.records :+ r, s.shares, s.expiries)).otherwise(s))\n    .on[Change.ShareWith]((id, to, until) => when(ownRecord(s, w, id))(make[CrmStore](s.records,\n      s.shares.filter(sh => sh =!= make[Share](id, to)) :+ make[Share](id, to),\n      othersOf(id, to) ++ until.fold(noExpiries)(u => make[Expiry](id, to, u) :: noExpiries))).otherwise(s))\n    .on[Change.Unshare]((id, to) => when(ownRecord(s, w, id))(make[CrmStore](s.records,\n      s.shares.filter(sh => sh =!= make[Share](id, to)), othersOf(id, to))).otherwise(s))"
+    },
+    "c81a5db8d6f9b7f199d73f5199f84bf581bc533ffd433542fb950ff871032d70": {
+      "kind": "design",
+      "parents": [
+        "saveWrite"
+      ],
+      "assumes": [],
+      "statement": "The write side saves each write on the store loaded from the database, one write at a time, and logs it in the event log.",
+      "vocabulary": [],
+      "checking": [],
+      "governs": [
+        "src/main/scala/crm/WriteSide.scala",
+        "src/main/scala/crm/EventLog.scala"
+      ]
     },
     "a3d0ba183f2aa54affca7cc2b08ca1fdce19e53ca389d1192e4e97c22869bd6b": {
       "kind": "claim",
