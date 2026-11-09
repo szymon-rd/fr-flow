@@ -38,12 +38,10 @@ val tablesModel = Node.assumption("Nothing but the CRM's programs changes the st
     "holds.")(
   databaseModel.onlyCodeChanges)
 
-val runsOneAtATime = Node.assumption("Runs on the database never interleave: the expiry job holds the database's " +
-    "lock during a run, and the write side saves one write at a time.")(
+val runsOneAtATime = Node.assumption("Runs on the database never interleave.")(
   databaseModel.atomic)
 
-val tablesStartEmpty = Node.assumption("The database starts with no record, share or expiry, and an empty event " +
-    "log.")(
+val tablesStartEmpty = Node.assumption("The database starts empty.")(
   databaseModel.initially(t => t === make[Tables](make[CrmStore](Nil: Term[List[CrmRecord]], Nil: Term[List[Share]],
     Nil: Term[List[Expiry]]), Nil: Term[List[Event]])))
 
@@ -51,11 +49,12 @@ val tablesStartEmpty = Node.assumption("The database starts with no record, shar
 // The database's search: known only by what is assumed of it (G2)
 // ============================================================================
 
-val recordsByQuery = Node.assumption("The database returns exactly the stored records that match a search, of " +
+val fetchesOnlyMatches = Node.assumption("The database's search returns only stored records that match it.")(
+  forall((user: Term[Account], query: Term[Search]) => onlyMatching(held, query, fetch(user, query).result)))
+
+val fetchesEveryMatch = Node.assumption("The database's search returns every stored record that matches it, of " +
     "every company.")(
-  forall((user: Term[Account], query: Term[Search]) =>
-    fetch(user, query).result.forall(r => held.records.contains(r) && matches(query, r)) &&
-      held.records.forall(r => matches(query, r) implies fetch(user, query).result.contains(r))))
+  forall((user: Term[Account], query: Term[Search]) => allMatching(held, query, fetch(user, query).result)))
 
 val searchKeeps = Node.assumption("A search changes nothing the database holds.")(
   forall((user: Term[Account], query: Term[Search]) =>

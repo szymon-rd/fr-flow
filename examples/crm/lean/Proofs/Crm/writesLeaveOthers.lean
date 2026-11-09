@@ -20,7 +20,7 @@ theorem records_other_write (es : List Event) (w : WriteCmd) (r : CrmRecord) (hO
   rcases w with ⟨a, ch⟩
   cases ch with
   | Add x =>
-    simp only [askedStep]
+    simp only [askedStep, askedAdd]
     split
     · rename_i hAllowed
       simp only [List.mem_append, List.mem_singleton]
@@ -31,10 +31,10 @@ theorem records_other_write (es : List Event) (w : WriteCmd) (r : CrmRecord) (hO
       · exact Or.inl
     · exact Iff.rfl
   | ShareWith i to v =>
-    simp only [askedStep]
+    simp only [askedStep, askedShare, grantsBut]
     split <;> exact Iff.rfl
   | Unshare i to =>
-    simp only [askedStep]
+    simp only [askedStep, askedUnshare, grantsBut]
     split <;> exact Iff.rfl
 
 /-- A write by a user of another company changes no share of a record of this one. -/
@@ -42,7 +42,7 @@ theorem shares_other_write (es : List Event) (w : WriteCmd) (r : CrmRecord) (c :
     (hOther : ¬r.tenant = w.«by».tenant) (hAdded : r ∈ (askedIn es).records) :
     sharedIn (es ++ [Event.Wrote w]) r.id_ c T ↔ sharedIn es r.id_ c T := by
   have hIds := (askedIn_unique es).1
-  simp only [sharedIn]
+  simp only [sharedIn, grantStands]
   rw [askedIn_snoc]
   generalize askedIn es = A at hIds hAdded
   rcases w with ⟨a, ch⟩
@@ -52,17 +52,17 @@ theorem shares_other_write (es : List Event) (w : WriteCmd) (r : CrmRecord) (c :
     exact hOther (hSame ▸ hxa)
   cases ch with
   | Add x =>
-    simp only [askedStep]
+    simp only [askedStep, askedAdd]
     split <;> exact Iff.rfl
   | ShareWith i to v =>
-    simp only [askedStep]
+    simp only [askedStep, askedShare, grantsBut]
     split
     · rename_i hAllowed
       have hNotPair : ¬(r.id_ = i ∧ c = to) := fun ⟨hri, _⟩ => hOtherId i hAllowed ⟨hri, rfl⟩
       rw [grant_append_other _ i to v T r.id_ c hNotPair, grant_filter_other A.grants i to T r.id_ c hNotPair]
     · exact Iff.rfl
   | Unshare i to =>
-    simp only [askedStep]
+    simp only [askedStep, askedUnshare, grantsBut]
     split
     · rename_i hAllowed
       have hNotPair : ¬(r.id_ = i ∧ c = to) := fun ⟨hri, _⟩ => hOtherId i hAllowed ⟨hri, rfl⟩
@@ -70,8 +70,8 @@ theorem shares_other_write (es : List Event) (w : WriteCmd) (r : CrmRecord) (c :
     · exact Iff.rfl
 
 theorem impl : Obl.impl := by
-  intro fetch hM _ hR hK es w u q r world h1 h2 h3
-  have hs := Runs.screened fetch hR hK u q world ⟨h1, h2, h3⟩ r
+  intro fetch hM _ hO hA hK es w u q r world h1 h2 h3
+  have hs := Runs.screened fetch hO hA hK u q world ⟨h1, h2, h3⟩ r
   obtain ⟨hRec, hShared⟩ := hM world h1 h2 h3
   revert hs
   generalize search_run fetch u q.search world = p1
@@ -80,7 +80,7 @@ theorem impl : Obl.impl := by
   rcases p2 with ⟨r2, a2⟩
   intro hs hWrite
   obtain ⟨hHistory, hOther⟩ := hWrite
-  simp only at hs ⊢
+  simp only [entitled, readableIn] at hs ⊢
   rw [propext hs]
   simp only [mayRead]
   rw [hRec r, hShared r.id_ u.tenant, hHistory]

@@ -33,14 +33,15 @@ import FrFlowGen.Old.Domain.Def_askMatches
 import FrFlowGen.Old.Domain.Def_matches
 import FrFlowGen.Crm.readContract.Spec
 import FrFlowGen.Crm.dealSearch.Spec
-import FrFlowGen.Crm.recordsByQuery.Spec
-import FrFlowGen.Crm.searchesMatch.Spec
+import FrFlowGen.Crm.fetchesOnlyMatches.Spec
+import FrFlowGen.Crm.fetchesEveryMatch.Spec
 import FrFlowGen.Crm.visibility.Spec
 import FrFlowGen.Crm.noCrossTenantRead.Spec
 import FrFlowGen.Crm.storeMirrorsRequests.Spec
 import FrFlowGen.Crm.sharedCrm.Spec
 import FrFlowGen.Crm.writeContract.Spec
-import FrFlowGen.Crm.saveWrite.Spec
+import FrFlowGen.Crm.saveReturns.Spec
+import FrFlowGen.Crm.readers.Spec
 import FrFlowGen.Crm.writesTakeEffect.Spec
 import FrFlowGen.Crm.writesOnlyAsAsked.Spec
 import FrFlowGen.Crm.recordsKept.Spec
@@ -53,7 +54,8 @@ today's library stated it (`reference/crm`, put in namespace `Old` over the port
 port states each in every world meeting the database's rules (`Rules`: what it holds is what its history led to, one
 row per key), today's values read in it: what the CRM holds is the database's store, the history its event log, the
 clock the clock model's time, and a screen's or the database's search's result its run's from the world. Of the read
-side, the root and what the CRM holds, each claim is today's in every such world. Of a write and the job's store,
+side, the root and what the CRM holds, each claim is today's in every such world; today's searchesMatch, gone, is
+implied by visibility, and today's recordsByQuery is the port's two assumptions on the database's search together. Of a write and the job's store,
 the port's claim is today's of every store with one row per key (the stores the port's rules allow), the write side's
 and the job's being today's code (`saved storedAbout`, `expireCode`). Today's write side was a function of a store; the port's runs
 on the database: its claim gives today's of the store the database holds, and says what it leaves too. Today's expiry
@@ -104,17 +106,25 @@ theorem takesEffect_eq : Old.takesEffect = Crm.takesEffect := by
   rcases w with ⟨a, ch⟩
   cases ch with
   | Add r => rfl
-  | ShareWith i to u => cases u <;> simp only [Old.takesEffect, Crm.takesEffect, ownRecord]
-  | Unshare i to => simp only [Old.takesEffect, Crm.takesEffect, ownRecord]
+  | ShareWith i to u =>
+    cases u <;> simp only [Old.takesEffect, Crm.takesEffect, shareTakes, sharedUntil, shareTimeIs, noTimeFor, onlyTime,
+      ownRecord]
+  | Unshare i to => simp only [Old.takesEffect, Crm.takesEffect, unshareTakes, ownRecord]
 
 theorem addsRecord_eq : Old.addsRecord = Crm.addsRecord := by
-  funext s w r; rcases w with ⟨a, ch⟩; cases ch <;> rfl
+  funext s w r; rcases w with ⟨a, ch⟩
+  cases ch with
+  | Add x => simp only [Old.addsRecord, Crm.addsRecord, freshAdd, and_assoc]
+  | ShareWith i to u => rfl
+  | Unshare i to => rfl
 
 theorem changesShare_eq : Old.changesShare = Crm.changesShare := by
   funext s w i c; rcases w with ⟨a, ch⟩; cases ch <;> rfl
 
 theorem onlyAsked_eq : Old.onlyAsked = Crm.onlyAsked := by
-  funext s w t; simp only [Old.onlyAsked, Crm.onlyAsked, addsRecord_eq, changesShare_eq]
+  funext s w t
+  simp only [Old.onlyAsked, Crm.onlyAsked, recordsOnlyAdded, sharesOnlyChanged, expiriesOnlyChanged, addsRecord_eq,
+    changesShare_eq, and_assoc]
 
 theorem about_eq : Old.about = Crm.about := by
   funext w; rcases w with ⟨_, ch⟩; cases ch <;> rfl
@@ -173,62 +183,82 @@ theorem crmRun (w : World) (hw : Rules w) :
 
 -- The read side, in every world meeting the rules: today's statements of what the CRM holds and the clock then.
 
+/-- What the records screen's three parts say of its result: today's post. -/
+theorem read_post (st : CrmStore) (c : Int) (u : Account) (q : Search) (res : List CrmRecord) :
+    ((onlyMatching st q res ∧ onlyReadable st c u res) ∧ allReadable st c u q res) ↔
+      Old.ReadContract.post st.records st.shares st.expiries c u q res := by
+  simp only [onlyMatching, onlyReadable, allReadable, Old.ReadContract.post, matches_eq, mayRead_eq]
+  constructor
+  · rintro ⟨⟨h1, h2⟩, h3⟩; exact ⟨fun r h => ⟨h1 r h, h2 r h⟩, h3⟩
+  · rintro ⟨h1, h3⟩; exact ⟨⟨fun r h => (h1 r h).1, fun r h => (h1 r h).2⟩, h3⟩
+
+/-- What the sales screen's four parts say of its result: today's post. -/
+theorem deal_post (st : CrmStore) (c : Int) (u : Account) (q : Search) (res : List CrmRecord) :
+    (((onlyMatching st q res ∧ onlyDeals res) ∧ onlyReadable st c u res) ∧ allReadableDeals st c u q res) ↔
+      Old.DealSearch.post st.records st.shares st.expiries c u q res := by
+  simp only [onlyMatching, onlyDeals, onlyReadable, allReadableDeals, Old.DealSearch.post, matches_eq, mayRead_eq]
+  constructor
+  · rintro ⟨⟨⟨h1, h2⟩, h3⟩, h4⟩; exact ⟨fun r h => ⟨⟨⟨(h1 r h).1, h2 r h⟩, (h1 r h).2⟩, h3 r h⟩, h4⟩
+  · rintro ⟨h1, h4⟩
+    exact ⟨⟨⟨fun r h => ⟨(h1 r h).1.1.1, (h1 r h).1.2⟩, fun r h => (h1 r h).1.1.2⟩, fun r h => (h1 r h).2⟩, h4⟩
+
+/-- What the two assumptions on the database's search say of its result: today's post. -/
+theorem fetch_post (st : CrmStore) (u : Account) (q : Search) (res : List CrmRecord) :
+    (onlyMatching st q res ∧ allMatching st q res) ↔ Old.RecordsByQuery.post st.records u q res := by
+  simp only [onlyMatching, allMatching, Old.RecordsByQuery.post, matches_eq]
+
 theorem readContract (read : Account → Search → World → List CrmRecord × World) :
     Crm.readContract.claim read ↔ ∀ w, Rules w →
       Old.ReadContract.claim w.databaseModel.store.records w.databaseModel.store.shares
         w.databaseModel.store.expiries w.clockModel (fun u q => (read u q w).1) := by
-  unfold Crm.readContract.claim Old.ReadContract.claim Old.ReadContract.post
-  simp only [matches_eq, mayRead_eq]
+  unfold Crm.readContract.claim Old.ReadContract.claim
+  dsimp only
   constructor
   · intro h w hw u q
     have hr := h u q w hw.1 hw.2.1 hw.2.2
-    revert hr; generalize read u q w = p; rcases p with ⟨res, aft⟩; exact id
+    revert hr; generalize read u q w = p; rcases p with ⟨res, aft⟩
+    exact (read_post w.databaseModel.store w.clockModel u q res).1
   · intro h u q w h1 h2 h3
     have hr := h w ⟨h1, h2, h3⟩ u q
-    revert hr; generalize read u q w = p; rcases p with ⟨res, aft⟩; exact id
+    revert hr; generalize read u q w = p; rcases p with ⟨res, aft⟩
+    exact (read_post w.databaseModel.store w.clockModel u q res).2
 
 theorem dealSearch (deals : Account → Search → World → List CrmRecord × World) :
     Crm.dealSearch.claim deals ↔ ∀ w, Rules w →
       Old.DealSearch.claim w.databaseModel.store.records w.databaseModel.store.shares
         w.databaseModel.store.expiries w.clockModel (fun u q => (deals u q w).1) := by
-  unfold Crm.dealSearch.claim Old.DealSearch.claim Old.DealSearch.post
-  simp only [matches_eq, mayRead_eq]
+  unfold Crm.dealSearch.claim Old.DealSearch.claim
+  dsimp only
   constructor
   · intro h w hw u q
     have hr := h u q w hw.1 hw.2.1 hw.2.2
-    revert hr; generalize deals u q w = p; rcases p with ⟨res, aft⟩; exact id
+    revert hr; generalize deals u q w = p; rcases p with ⟨res, aft⟩
+    exact (deal_post w.databaseModel.store w.clockModel u q res).1
   · intro h u q w h1 h2 h3
     have hr := h w ⟨h1, h2, h3⟩ u q
-    revert hr; generalize deals u q w = p; rcases p with ⟨res, aft⟩; exact id
+    revert hr; generalize deals u q w = p; rcases p with ⟨res, aft⟩
+    exact (deal_post w.databaseModel.store w.clockModel u q res).2
 
+/-- Today's recordsByQuery is the port's two assumptions on the database's search, together. -/
 theorem recordsByQuery (fetch : Account → Search → StateM Tables (List CrmRecord)) :
-    Crm.recordsByQuery.claim fetch ↔ ∀ w, Rules w →
+    (Crm.fetchesOnlyMatches.claim fetch ∧ Crm.fetchesEveryMatch.claim fetch) ↔ ∀ w, Rules w →
       Old.RecordsByQuery.claim w.databaseModel.store.records (fun u q => (DatabaseModel.fetch_run fetch u q w).1) := by
-  unfold Crm.recordsByQuery.claim Old.RecordsByQuery.claim Old.RecordsByQuery.post
-  simp only [matches_eq]
+  unfold Crm.fetchesOnlyMatches.claim Crm.fetchesEveryMatch.claim Old.RecordsByQuery.claim
+  dsimp only
   constructor
-  · intro h w hw u q
-    have hr := h u q w hw.1 hw.2.1 hw.2.2
-    revert hr; generalize DatabaseModel.fetch_run fetch u q w = p; rcases p with ⟨res, aft⟩; exact id
-  · intro h u q w h1 h2 h3
-    have hr := h w ⟨h1, h2, h3⟩ u q
-    revert hr; generalize DatabaseModel.fetch_run fetch u q w = p; rcases p with ⟨res, aft⟩; exact id
-
-theorem searchesMatch (read deals : Account → Search → World → List CrmRecord × World) :
-    Crm.searchesMatch.claim read deals ↔ ∀ w, Rules w →
-      Old.SearchesMatch.claim w.databaseModel.store.records (fun u q => (read u q w).1) (fun u q => (deals u q w).1)
-        w.databaseModel.store.shares w.databaseModel.store.expiries w.clockModel := by
-  unfold Crm.searchesMatch.claim Old.SearchesMatch.claim
-  simp only [askMatches_eq, mayRead_eq, results_at]
-  constructor
-  · intro h w hw u q
-    have hr := h u q w hw.1 hw.2.1 hw.2.2
-    revert hr; generalize read u q.search w = p1; generalize deals u q.search w = p2
-    rcases p1 with ⟨r1, a1⟩; rcases p2 with ⟨r2, a2⟩; exact id
-  · intro h u q w h1 h2 h3
-    have hr := h w ⟨h1, h2, h3⟩ u q
-    revert hr; generalize read u q.search w = p1; generalize deals u q.search w = p2
-    rcases p1 with ⟨r1, a1⟩; rcases p2 with ⟨r2, a2⟩; exact id
+  · rintro ⟨hO, hA⟩ w hw u q
+    have ho := hO u q w hw.1 hw.2.1 hw.2.2
+    have ha := hA u q w hw.1 hw.2.1 hw.2.2
+    revert ho ha; generalize DatabaseModel.fetch_run fetch u q w = p; rcases p with ⟨res, aft⟩
+    exact fun ho ha => (fetch_post w.databaseModel.store u q res).1 ⟨ho, ha⟩
+  · intro h
+    refine ⟨fun u q w h1 h2 h3 => ?_, fun u q w h1 h2 h3 => ?_⟩
+    · have hr := h w ⟨h1, h2, h3⟩ u q
+      revert hr; generalize DatabaseModel.fetch_run fetch u q w = p; rcases p with ⟨res, aft⟩
+      exact fun hr => ((fetch_post w.databaseModel.store u q res).2 hr).1
+    · have hr := h w ⟨h1, h2, h3⟩ u q
+      revert hr; generalize DatabaseModel.fetch_run fetch u q w = p; rcases p with ⟨res, aft⟩
+      exact fun hr => ((fetch_post w.databaseModel.store u q res).2 hr).2
 
 theorem visibility (read deals : Account → Search → World → List CrmRecord × World) :
     Crm.visibility.claim read deals ↔ ∀ w, Rules w →
@@ -245,6 +275,20 @@ theorem visibility (read deals : Account → Search → World → List CrmRecord
     have hr := h w ⟨h1, h2, h3⟩ u q r
     revert hr; generalize read u q.search w = p1; generalize deals u q.search w = p2
     rcases p1 with ⟨r1, a1⟩; rcases p2 with ⟨r2, a2⟩; exact id
+
+/-- Today's searchesMatch, gone from the port: visibility, its parent, says it (its two directions). -/
+theorem searchesMatch (read deals : Account → Search → World → List CrmRecord × World)
+    (h : Crm.visibility.claim read deals) : ∀ w, Rules w →
+      Old.SearchesMatch.claim w.databaseModel.store.records (fun u q => (read u q w).1) (fun u q => (deals u q w).1)
+        w.databaseModel.store.shares w.databaseModel.store.expiries w.clockModel := by
+  intro w hw
+  have hv := (visibility read deals).1 h w hw
+  unfold Old.Visibility.claim at hv
+  unfold Old.SearchesMatch.claim
+  intro u q
+  refine ⟨fun r hr => ?_, fun r hr hm => ?_⟩
+  · rw [hv u q r] at hr; exact hr.1
+  · rw [hv u q r]; exact ⟨⟨hr, hm.1⟩, hm.2⟩
 
 theorem noCrossTenantRead (read deals : Account → Search → World → List CrmRecord × World) :
     Crm.noCrossTenantRead.claim read deals ↔ ∀ w, Rules w →
@@ -274,18 +318,45 @@ theorem noCrossTenantRead (read deals : Account → Search → World → List Cr
 
 -- What the CRM holds and the root, in every world meeting the rules.
 
+/-- Today's one step of what users asked: the port's, each change's rule named. -/
+theorem askedStep_eq : Old.askedStep = Crm.askedStep := by
+  funext a e
+  cases e with
+  | Wrote c =>
+    rcases c with ⟨u, ch⟩
+    cases ch <;> simp only [Old.askedStep, Crm.askedStep, askedAdd, askedShare, askedUnshare, ownIn, grantsBut] <;>
+      congr
+  | Expired now =>
+    simp only [Old.askedStep, Crm.askedStep, askedExpiry, grantStands]; congr; funext g; congr
+
+theorem askedIn_eq : Old.askedIn = Crm.askedIn := by
+  funext es; simp only [Old.askedIn, Crm.askedIn, askedStep_eq]
+
+theorem sharedIn_eq : Old.sharedIn = Crm.sharedIn := by
+  funext es i c now; simp only [Old.sharedIn, Crm.sharedIn, askedIn_eq, grantStands]
+
 theorem storeMirrorsRequests : Crm.storeMirrorsRequests.claim ↔ ∀ w, Rules w →
     Old.StoreMirrorsRequests.claim w.databaseModel.store.records w.databaseModel.events w.clockModel
-      w.databaseModel.store.shares w.databaseModel.store.expiries :=
-  ⟨fun h w hw => h w hw.1 hw.2.1 hw.2.2, fun h w h1 h2 h3 => h w ⟨h1, h2, h3⟩⟩
+      w.databaseModel.store.shares w.databaseModel.store.expiries := by
+  unfold Old.StoreMirrorsRequests.claim
+  simp only [askedIn_eq, sharedIn_eq, sharedNow_eq]
+  exact ⟨fun h w hw => h w hw.1 hw.2.1 hw.2.2, fun h w h1 h2 h3 => h w ⟨h1, h2, h3⟩⟩
 
+/-- The root, with readers saying what may read is (today's root said it inline): today's root. -/
 theorem sharedCrm (finds : Account → Ask → CrmRecord → World → Prop) (asksFor : Ask → CrmRecord → World → Prop)
     (added : TenantId → CrmRecord → World → Prop) (owner : CrmRecord → World → TenantId)
-    (companyOf : Account → World → TenantId) (sharedWith : CrmRecord → TenantId → World → Prop) :
-    Crm.sharedCrm.claim finds asksFor added owner companyOf sharedWith ↔ ∀ w, Rules w →
+    (readable : Account → CrmRecord → World → Prop) (companyOf : Account → World → TenantId)
+    (sharedWith : CrmRecord → TenantId → World → Prop) (hR : Crm.readers.claim readable owner companyOf sharedWith) :
+    Crm.sharedCrm.claim finds asksFor added owner readable ↔ ∀ w, Rules w →
       Old.SharedCrm.claim Account Ask CrmRecord TenantId (fun u q r => finds u q r w) (fun q r => asksFor q r w)
-        (fun c r => added c r w) (fun r => owner r w) (fun a => companyOf a w) (fun r c => sharedWith r c w) :=
-  ⟨fun h w hw u q r => h u q r w hw.1 hw.2.1 hw.2.2, fun h u q r w h1 h2 h3 => h w ⟨h1, h2, h3⟩ u q r⟩
+        (fun c r => added c r w) (fun r => owner r w) (fun a => companyOf a w) (fun r c => sharedWith r c w) := by
+  unfold Crm.sharedCrm.claim Old.SharedCrm.claim
+  dsimp only
+  constructor
+  · intro h w hw u q r
+    rw [h u q r w hw.1 hw.2.1 hw.2.2, hR u r w hw.1 hw.2.1 hw.2.2]
+  · intro h u q r w h1 h2 h3
+    rw [h w ⟨h1, h2, h3⟩ u q r, hR u r w h1 h2 h3]
 
 -- The write side and the expiry job: the port's, of every store with one row per key (the stores the CRM makes and
 -- holds), exactly today's of those stores, today's write side and job being today's code. Each is stated of a store
@@ -294,7 +365,9 @@ theorem sharedCrm (finds : Account → Ask → CrmRecord → World → Prop) (as
 theorem writeContract (write : CrmStore → WriteCmd → CrmStore) :
     Crm.writeContract.claim write ↔
       ∀ s, keyedTables s → oneRowPerKey s → ∀ w, Old.WriteContract.post s w (write s w) := by
-  simp only [Crm.writeContract.claim, Old.WriteContract.post, takesEffect_eq, onlyAsked_eq, ne_eq]
+  simp only [Crm.writeContract.claim, Old.WriteContract.post, keepsRecords, othersKept, othersRecords, takesEffect_eq,
+    onlyAsked_eq,
+    ne_eq]
 
 theorem writesTakeEffect : Crm.writesTakeEffect.claim ↔
     ∀ s, keyedTables s → oneRowPerKey s → ∀ w, Old.takesEffect s w (Old.afterSave todaysSave s w) := by
@@ -332,12 +405,12 @@ theorem sharesExpire (expire : CrmStore → Int → CrmStore) :
   ⟨fun h s h1 h2 now => h s h1 h2 now, fun h s h1 h2 now => h s h1 h2 now⟩
 
 /-- The write side, of the store the database holds: today's claim of it, the port's run giving those rows. -/
-theorem saveWrite (save : WriteCmd → World → CrmStore × World) (h : Crm.saveWrite.claim save) :
+theorem saveWrite (save : WriteCmd → World → CrmStore × World) (h : Crm.saveReturns.claim save) :
     ∀ w, Rules w → ∀ c, Old.SaveWrite.post Crm.applyWrite w.databaseModel.store c (save c w).1 := by
   intro w hw c
   have hs := h c w hw.1 hw.2.1 hw.2.2
   revert hs; generalize save c w = p; rcases p with ⟨res, aft⟩
-  rintro ⟨-, hres⟩
+  intro hres
   simp only [Old.SaveWrite.post, hres, about_eq, afterSave, Lemmas.about_replace, ite_true]
   rfl
 
@@ -357,22 +430,22 @@ private theorem two_keyed : onePerKey two := by simp [two, onePerKey, acmeContac
 
 private theorem two_rules : Rules twoAdded := by
   refine ⟨?_, two_keyed, two_keyed⟩
-  simp [twoAdded, Crm.crmRun, Crm.runOf, Crm.stepOf, afterSave, applyWrite, replaceAbout, aboutRecord, about, two, ann, gil,
-    acmeContact, globexDeal]
+  simp [twoAdded, Crm.crmRun, Crm.runOf, Crm.stepOf, afterSave, applyWrite, addRecord, freshAdd, replaceAbout,
+    aboutRecord, about, two, ann, gil, acmeContact, globexDeal]
 
 /-- Leaky read: code answering every search with every stored record shows Ann Globex's deal. -/
 theorem leakyRead : ¬ Crm.readContract.claim (fun _ _ w => (w.databaseModel.store.records, w)) := by
   intro h
-  have := (h ann Search.Everything twoAdded two_rules.1 two_rules.2.1 two_rules.2.2).1 globexDeal
+  have := (h ann Search.Everything twoAdded two_rules.1 two_rules.2.1 two_rules.2.2).1.2 globexDeal
     (by simp [twoAdded, two])
-  simp [mayRead, sharedNow, twoAdded, two, ann, globexDeal] at this
+  simp [mayRead, sharedNow, ended, twoAdded, two, ann, globexDeal] at this
 
 /-- Relabel read: code answering with every stored record relabelled as the user's company's returns a record the
 CRM does not hold. -/
 theorem relabelRead : ¬ Crm.readContract.claim
     (fun u _ w => (w.databaseModel.store.records.map (fun r => { r with tenant := u.tenant }), w)) := by
   intro h
-  have := (h ann Search.Everything twoAdded two_rules.1 two_rules.2.1 two_rules.2.2).1
+  have := (h ann Search.Everything twoAdded two_rules.1 two_rules.2.1 two_rules.2.2).1.1
     (CrmRecord.mk 2 (TenantId.mk "acme") Kind.Deal "Globex deal") (by simp [twoAdded, two, ann, acmeContact, globexDeal])
   simp [twoAdded, two, acmeContact, globexDeal] at this
 

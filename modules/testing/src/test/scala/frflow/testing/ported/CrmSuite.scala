@@ -43,15 +43,16 @@ class CrmSuite extends munit.FunSuite:
       assertEquals((r.count.tried, r.outcome), (1000, Outcome.Passed)))
   }
 
-  test("a seeded SQL bug (the search's WHERE dropped) breaks recordsByQuery on a generated run") {
-    assertEquals(broke(sqlite(_ => ("", Nil))), Some(SymbolName("fetch") -> List(NodeId("recordsByQuery"))))
+  test("a seeded SQL bug (the search's WHERE dropped) breaks fetchesOnlyMatches on a generated run") {
+    assertEquals(broke(sqlite(_ => ("", Nil))), Some(SymbolName("fetch") -> List(NodeId("fetchesOnlyMatches"))))
   }
 
-  test("SQL that is right on the examples but drops rows on other searches breaks recordsByQuery on a generated run") {
+  test("SQL that is right on the examples but drops rows on other searches breaks fetchesEveryMatch on a generated " +
+    "run") {
     val limit2 = (q: Search) =>
       val (where, args) = Db.selecting(q)
       (s"where seq in (select seq from records $where order by seq limit 2)", args)
-    assertEquals(broke(sqlite(limit2)), Some(SymbolName("fetch") -> List(NodeId("recordsByQuery"))))
+    assertEquals(broke(sqlite(limit2)), Some(SymbolName("fetch") -> List(NodeId("fetchesEveryMatch"))))
   }
 
   test("an in-memory database keeping a record's old shares when it stores it again differs from the model, shrunk") {

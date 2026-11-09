@@ -65,6 +65,8 @@ val companyOf = Declaration[Account => TenantId]("the company a user works for")
 val owner = Declaration[CrmRecord => TenantId]("the company a record belongs to")
 val sharedWith = Declaration[(CrmRecord, TenantId) => Boolean](
   "whether the record's company has shared it with the company, and that share holds now")
+val readable = Declaration[(Account, CrmRecord) => Boolean](
+  "whether the user may read the record: their company's, or shared with it now")
 val asksFor = Declaration[(Ask, CrmRecord) => Boolean]("whether the record is one the search asks for")
 val finds = Declaration[(Account, Ask, CrmRecord) => Boolean]("whether the user's search, run now, returns the record")
 val added = Declaration[(TenantId, CrmRecord) => Boolean](

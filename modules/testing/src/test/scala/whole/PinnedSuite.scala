@@ -23,7 +23,7 @@ class PinnedSuite extends munit.FunSuite:
 
   test("crm: nothing is provided, what the CRM holds the World's (owner §45 D); what is assumed of the database's " +
     "search, known only by assumptions, is asked to hold together, open") {
-    val g = group(crm.knowledge, "recordsByQuery")
+    val g = group(crm.knowledge, "fetchesOnlyMatches")
     assertEquals(g.provided, Nil)
     assert(g.open.contains(SymbolName("fetch")) && g.statements.contains(NodeId("searchKeeps")), g)
   }

@@ -63,10 +63,11 @@ class PortSuite extends munit.CatsEffectSuite:
     assertEquals(differences, Judged.differences.view.mapValues(_._1).toMap)
   }
 
-  private val proofs = List("Lemmas", "readContract", "dealSearch", "searchesMatch", "visibility",
-    "noCrossTenantRead", "writeContract", "saveWrite", "writesTakeEffect", "writesOnlyAsAsked", "recordsKept",
-    "expiryJob", "crmRun", "keyedTables", "oneRowPerKey", "storeMirrorsRequests", "sharedCrm", "addedIsFound",
-    "writesLeaveOthers", "Whole")
+  private val proofs = List("Lemmas", "readContract", "dealSearch", "visibility", "noCrossTenantRead",
+    "writeContract", "writesTakeEffect", "writesOnlyAsAsked", "recordsKept", "crmRun",
+    "keyedTables", "oneRowPerKey", "storeMirrorsRequests", "sharedCrm", "addedIsFound", "writesLeaveOthers",
+    "sharesExpire", "recordsMirrorAdds", "sharesMirrorGrants") ++ Judged.newParts.filterNot(_.startsWith("fetches")) ++
+    List("Whole")
   private val lean = Lean(proofs.map(n => n -> Ported.proof("crm", "Crm", n)),
     reference.old("Crm", identity) :+ ("FrFlowGen/Port.lean" -> Ported.resource("crm/port/Port.lean")),
     Some("FrFlowGen.Port"))
@@ -99,10 +100,11 @@ class PortSuite extends munit.CatsEffectSuite:
       val whole = a.wholeCheck.map(_.results).getOrElse(fail("the theory's own check is not recorded"))
       assertEquals(whole.collect { case Result(n @ ObligationName.Consistent(_), s, _) => n -> s }.toMap,
         a.groups.map((i, _) => ObligationName.Consistent(i) -> ObligationStatus.Proven).toMap)
-      // The examples, tried against the claims (owner §18): today's of a write shown; of the job's store, which
-      // FrFlow's automation does not decide within an example's budget, proven by hand (`Whole.lean`).
+      // The examples, tried against the claims (owner §18): today's of a write and of the job's store, which
+      // FrFlow's automation does not decide within an example's budget (a write's, since its contract's parts stand
+      // beside it), proven by hand (`Whole.lean`).
       assertEquals(whole.collect { case Result(ObligationName.Example(of, i), s, _) => (of, i) -> s }.toMap,
-        ((0 to 5).map(("WriteExamples", _) -> ObligationStatus.Shown) ++
+        ((0 to 5).map(("WriteExamples", _) -> ObligationStatus.Proven) ++
           (0 to 3).map(("ExpireExamples", _) -> ObligationStatus.Proven)).toMap)
       r.port match
         case Some(ProverRun.Built(said)) => assert(!said.contains("sorryAx"), said)
