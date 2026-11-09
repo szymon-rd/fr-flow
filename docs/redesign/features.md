@@ -59,8 +59,8 @@ adds a use), measured with grep on 3aa8cd7 and checked on e0fa3d9. "Tests only" 
    to the left, does not compile unless its grouping is written in parentheses (4.2).
 8. A Scala `Boolean` is not made a term implicitly.
 9. The body is a host function, its variable named by each interpreter where it binds it; the user never sees an
-   interpreter (4.2). There is no `exists` word (owner §15): today's `exists t` is written `!forall(t => !…)`, which
-   is logically the same; a list's `.exists` stays, a list operation.
+   interpreter (4.2). `exists(t => …)` says some value meets the body (Lean's `∃`, what
+   always holds of `t` a conjunct), in place of `!forall(t => !…)`; a list's `.exists` stays, a list operation.
 10. Every value of `T` that can be made, and every state the store reaches: a hypothesis everywhere (`Guarded`), kept
     by every writer (`cover_<op>`), met at the start (`start_<node>`), shown to admit a value (`inhabited_<node>`)
     (2.3; `AlwaysSuite`).

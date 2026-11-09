@@ -34,8 +34,8 @@ Appendix B lists the seventeen measured problems and where each is addressed.
 
 ### 1.2 What it becomes
 
-1. **The owner's concepts, and no others** (owner §15): three kinds of nodes, two kinds of values, two quantifiers, two
-   edges. How a claim is checked is derived and shown. The theory is proven consistent, each store's start included, and
+1. **The owner's concepts, and no others** (owner §15): three kinds of nodes, two kinds of values, two quantifiers (and
+   `exists`, some value, beside `forall`, 2.3), two edges. How a claim is checked is derived and shown. The theory is proven consistent, each store's start included, and
    shown not vacuous; examples are tests beside it; the world outside is said by assumptions.
 2. **A compiler with a type per stage**: DSL, `Elaborated`, `Valid`, `Resolved`, `Prop`, `LeanModule`, text; every
    phase pure.

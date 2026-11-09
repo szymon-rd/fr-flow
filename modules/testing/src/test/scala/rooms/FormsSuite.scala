@@ -48,11 +48,11 @@ class FormsSuite extends munit.FunSuite:
     fails(compileErrors("""Operation[Booking => Boolean]("s")"""), "Not found: Operation")
   }
 
-  test("two quantifiers and no other: forall and always; `exists` is a list's, never a statement's") {
+  test("three quantifiers and no other: forall, exists and always") {
     assert(compileErrors("forall((t: Term[BigInt]) => t === t)").isEmpty)
+    assert(compileErrors("exists((t: Term[BigInt], u: Term[BigInt]) => t === u)").isEmpty)
     assert(compileErrors("always[Booking](b => b.start < b.end)").isEmpty)
-    fails(compileErrors("exists((t: Term[BigInt]) => t === t)"),
-      "None of the overloaded alternatives of method exists")
+    fails(compileErrors("forsome((t: Term[BigInt]) => t === t)"), "Not found: forsome")
   }
 
   test("statements are about values only (owner §21): no assumption on what a Definition is called with") {
