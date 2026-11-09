@@ -251,6 +251,21 @@
           "key": "087bcc41dcd575d8",
           "signature": "YFu0D/27H4xRHUWXQIVchA+XjURh4eTBrwV3CNdoFPUOUXFPPCOlfZ5M9CWdBL0bNKdmuEoqllypFT23xIfqAw=="
         }
+      },
+      {
+        "action": "remove",
+        "by": "demo-developer",
+        "at": "2026-11-09T23:05:10.729736Z",
+        "commit": "953fcf1ca5428995ad19e8dcdfea6e475fad75d5",
+        "reason": "Split into smaller statements when moving to the rebuilt library.",
+        "rejected": [],
+        "content": "2ad17398461413137c9c3078af4a2605e9767870368dd53915f91fb153c963a7",
+        "chain": "8d56c4db87a19e3501ae0609bd30758514985d6b44d375e8d1687a46c3c1f448",
+        "after": "d986e59b86cd80e212ce9299fd561709e279ae4bd3d3fd05ba28eae39893558d",
+        "seal": {
+          "key": "087bcc41dcd575d8",
+          "signature": "camf5K2v0GLAxfI2bROPfMJ7zIFCqYkjYvG0BhGGdEKeH8XPlZFhM6+UF7T6xrSw0b6Mlyb5kJYRStLlcVJSDQ=="
+        }
       }
     ],
     "expiryJobWiring": [
@@ -730,6 +745,21 @@
           "key": "087bcc41dcd575d8",
           "signature": "rf5nB2CTTllDBLIXPZJVjOItolin5WW1B9PIuJpVRqiByDt5bxtC2l+v9/luSzoo7wPGnhkw4jIsSceK0sOUAA=="
         }
+      },
+      {
+        "action": "remove",
+        "by": "demo-developer",
+        "at": "2026-11-09T23:06:03.592985Z",
+        "commit": "953fcf1ca5428995ad19e8dcdfea6e475fad75d5",
+        "reason": "Split into smaller statements when moving to the rebuilt library.",
+        "rejected": [],
+        "content": "8a60da656af4704de2aca080983d43ea28fc59d2ef38df3c6a8ef10ec1d7e7df",
+        "chain": "",
+        "after": "724cdee61c6c5012441d9efebb39095ca06a16c12f9b1e57d6093c83827e6548",
+        "seal": {
+          "key": "087bcc41dcd575d8",
+          "signature": "r04DinOISRqL5SWe1dSM/K6AMXzS6c0xkRD3sfDtTQ9KxQciHxcDSBMQM4MpNGivnLYwauQOIckpdKnDQAByAQ=="
+        }
       }
     ],
     "recordsKept": [
@@ -872,6 +902,21 @@
           "key": "087bcc41dcd575d8",
           "signature": "w1/lC9biRDN5V+ylHXGuylA6JMzxB2aJdt4vl2DZntMSOWcjh4B+M+RygCjpH/r2avxaUHmabVt9PO56JNEgDA=="
         }
+      },
+      {
+        "action": "remove",
+        "by": "demo-developer",
+        "at": "2026-11-09T23:06:57.952360Z",
+        "commit": "953fcf1ca5428995ad19e8dcdfea6e475fad75d5",
+        "reason": "Split into smaller statements when moving to the rebuilt library.",
+        "rejected": [],
+        "content": "03ddb54cbbf85662da254a9efe4bdeaa4bbd525cea0117120a5c7aa8a5377199",
+        "chain": "8d56c4db87a19e3501ae0609bd30758514985d6b44d375e8d1687a46c3c1f448",
+        "after": "1d5c49dca0878274276c55c8e20cbb5fb8d11d54bb2accd6bded1b9fa143cd0c",
+        "seal": {
+          "key": "087bcc41dcd575d8",
+          "signature": "vuxJ074MVqEMBEfVNeeBYOFw2JauoDKLwg+Rpuv8m/2ipLULfugy3GcNhvLjgzX9ZijVPsUaEq1esb/Cc7tmBQ=="
+        }
       }
     ],
     "searchKeeps": [
@@ -980,6 +1025,21 @@
         "seal": {
           "key": "087bcc41dcd575d8",
           "signature": "Y0bIORiGB8wccu31CLMaQPXasFX2LR0Z89yj7JDGEtt0q1wUqaI4njcoKsglkoChJTNSxEdB+s7n9Up+CHnHBQ=="
+        }
+      },
+      {
+        "action": "remove",
+        "by": "demo-developer",
+        "at": "2026-11-09T23:07:49.925641Z",
+        "commit": "953fcf1ca5428995ad19e8dcdfea6e475fad75d5",
+        "reason": "Split into smaller statements when moving to the rebuilt library.",
+        "rejected": [],
+        "content": "203adaeb8513fd38e57351aa5e2ce44c728e745bf745e460c5a47728207690e3",
+        "chain": "2d03f84766f6edbd13bd09e639b0d16840ec9f89219ef791ea59249c3f8fa38b",
+        "after": "bbb97d1094aca0ca9ba28c2f8adbe2ad90fe28a9b03e28bd4c42321ac9b2d0de",
+        "seal": {
+          "key": "087bcc41dcd575d8",
+          "signature": "AOXPLjc5+FaKs3wXr/qhiZ94LosabHqv0I2rZwZ3CLKTNbfrBAsPuoF6lA/8yhEmdTWhxbY8LBxLesTqvoooDQ=="
         }
       }
     ],
