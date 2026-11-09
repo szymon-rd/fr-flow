@@ -16,6 +16,7 @@ object Terms:
   def always[A: LeanType](hint: String, p: Term[A] => Term[Boolean]): Term[Boolean] =
     bound[A, Boolean]([T[_]] => (s: Sym[T]) => s.always(Bound[A](hint, LeanType[A].ty))(Term.body(s, p)))
 
+  /** `exists(x => …)`: some value of `A` meets the body (not opened where a statement is closed: it is no premise). */
   def exists[A: LeanType](hint: String, p: Term[A] => Term[Boolean]): Term[Boolean] =
     bound[A, Boolean]([T[_]] => (s: Sym[T]) => s.exists(Bound[A](hint, LeanType[A].ty))(Term.body(s, p)))
 

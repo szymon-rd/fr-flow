@@ -59,6 +59,10 @@ object Definition:
     def result[R](using ev: A <:< Flow[R], r: LeanType[R]): Term[Either[E, R]] = run[R].result
     def after[R](using ev: A <:< Flow[R], r: LeanType[R]): Term[World] = run[R].after
     def changesNothing[R](using ev: A <:< Flow[R], r: LeanType[R]): Term[Boolean] = run[R].changesNothing
+    inline def ifSucceeds[R](using ev: A <:< Flow[R], r: LeanType[R])(inline p: Term[R] => Term[Boolean])
+        : Term[Boolean] = run[R].ifSucceeds(p)
+    inline def ifFails[R](using ev: A <:< Flow[R], r: LeanType[R])(inline p: Term[E] => Term[Boolean]): Term[Boolean] =
+      run[R].ifFails(p)
     private def run[R](using A <:< Flow[R], LeanType[R]): Run[E, R] = Run[E, R](this.asInstanceOf[Term[Flow[R]]])
 
   /** A Definition of a domain type; of a type with no `LeanType`, a code-only one, whose term has no type of its own

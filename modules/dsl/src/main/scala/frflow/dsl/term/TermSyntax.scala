@@ -84,6 +84,19 @@ object TermSyntax:
     @targetName("optionExists") inline def exists(inline p: Term[A] => Term[Boolean]): Term[Boolean] =
       Terms.over(o, hint(Source.of(p).params), p)([T[_]] => (s: Sym[T]) => s.optionAny[A])
     def getOrElse(default: Term[A]): Term[A] = Term.both(o, default)([T[_]] => (s: Sym[T]) => s.getOrElse[A])
+    /* Scala's other operations on an option, each the fold an author would write (Lean reads its `match`). */
+    @targetName("optionMap") inline def map[B: LeanType](inline f: Term[A] => Term[B]): Term[Option[B]] =
+      Terms.foldOption(o, none[B], hint(Source.of(f).params))(a => some(f(a)))
+    /** The value if it meets `p`, else none; `filterNot`, if it does not. */
+    @targetName("optionFilter") inline def filter(inline p: Term[A] => Term[Boolean]): Term[Option[A]] =
+      Terms.foldOption(o, none[A], hint(Source.of(p).params))(a => when(p(a))(some(a)).otherwise(none[A]))
+    inline def filterNot(inline p: Term[A] => Term[Boolean]): Term[Option[A]] =
+      Terms.foldOption(o, none[A], hint(Source.of(p).params))(a => when(p(a))(none[A]).otherwise(some(a)))
+    @targetName("optionContains") def contains(x: Term[A]): Term[Boolean] =
+      Terms.foldOption(o, False, "a")(a => a === x)
+    @targetName("optionIsEmpty") def isEmpty: Term[Boolean] = Terms.foldOption(o, True, "a")(_ => False)
+    /** The value as a list of one, or the empty list. */
+    def toList: Term[List[A]] = Terms.foldOption(o, nil[A], "a")(a => a :: nil[A])
   extension [A](o: Term[Option[A]])
     def isDefined: Term[Boolean] = Term.one(o)([T[_]] => (s: Sym[T]) => s.isDefined[A])
   extension [E: LeanType, A: LeanType](v: Term[Either[E, A]])
@@ -138,6 +151,33 @@ object TermSyntax:
     val h = names(Source.of(p).params, 6)
     Terms.forall[A](h(0), u => Terms.forall[B](h(1), v => Terms.forall[C](h(2), w =>
       Terms.forall[D](h(3), x => Terms.forall[E](h(4), y => Terms.forall[G](h(5), z => p(u, v, w, x, y, z)))))))
+  /** `exists(x => p)`: some value meets `p`, as `forall` takes every one, to six variables. What always holds of each
+    * variable is a conjunct below it (`Guarded`), as it is a premise below a `forall`: Lean's `∃ x, guard ∧ p`.
+    */
+  inline def exists[A: LeanType](inline p: Term[A] => Term[Boolean]): Term[Boolean] =
+    Terms.exists(hint(Source.of(p).params), p)
+  inline def exists[A: LeanType, B: LeanType](inline p: (Term[A], Term[B]) => Term[Boolean]): Term[Boolean] =
+    val h = names(Source.of(p).params, 2)
+    Terms.exists[A](h(0), x => Terms.exists[B](h(1), y => p(x, y)))
+  inline def exists[A: LeanType, B: LeanType, C: LeanType](inline p: (Term[A], Term[B], Term[C]) => Term[Boolean])
+      : Term[Boolean] =
+    val h = names(Source.of(p).params, 3)
+    Terms.exists[A](h(0), x => Terms.exists[B](h(1), y => Terms.exists[C](h(2), z => p(x, y, z))))
+  inline def exists[A: LeanType, B: LeanType, C: LeanType, D: LeanType](
+      inline p: (Term[A], Term[B], Term[C], Term[D]) => Term[Boolean]): Term[Boolean] =
+    val h = names(Source.of(p).params, 4)
+    Terms.exists[A](h(0), w => Terms.exists[B](h(1), x =>
+      Terms.exists[C](h(2), y => Terms.exists[D](h(3), z => p(w, x, y, z)))))
+  inline def exists[A: LeanType, B: LeanType, C: LeanType, D: LeanType, E: LeanType](
+      inline p: (Term[A], Term[B], Term[C], Term[D], Term[E]) => Term[Boolean]): Term[Boolean] =
+    val h = names(Source.of(p).params, 5)
+    Terms.exists[A](h(0), v => Terms.exists[B](h(1), w => Terms.exists[C](h(2), x =>
+      Terms.exists[D](h(3), y => Terms.exists[E](h(4), z => p(v, w, x, y, z))))))
+  inline def exists[A: LeanType, B: LeanType, C: LeanType, D: LeanType, E: LeanType, G: LeanType](
+      inline p: (Term[A], Term[B], Term[C], Term[D], Term[E], Term[G]) => Term[Boolean]): Term[Boolean] =
+    val h = names(Source.of(p).params, 6)
+    Terms.exists[A](h(0), u => Terms.exists[B](h(1), v => Terms.exists[C](h(2), w =>
+      Terms.exists[D](h(3), x => Terms.exists[E](h(4), y => Terms.exists[G](h(5), z => p(u, v, w, x, y, z)))))))
   /** `when(free)(held :+ request).otherwise(held)`: the conditional, each branch named where it is written. */
   def when[A](condition: Term[Boolean])(ifTrue: Term[A]): Conditional[A] = Conditional(condition, ifTrue)
   /** `let(v)(x => body)`: `v` named for the body, computed once (Lean's `let`). */
@@ -155,6 +195,8 @@ object TermSyntax:
   def right[E, A](a: Term[A])(using t: LeanType[Either[E, A]]): Term[Either[E, A]] =
     Term.one(a)([T[_]] => (s: Sym[T]) => (x: T[A]) => s.right[E, A](x, t.ty))
 
+  private def nil[A](using a: LeanType[A]): Term[List[A]] =
+    Term.noted(Notes.of(a.declares))([T[_]] => (s: Sym[T]) => s.nil[A](a.ty))
   private def hint(names: List[String]): String = names.headOption.getOrElse("x")
   private def hints(names: List[String]): (String, String) = (hint(names), hint(names.drop(1)))
   private def names(ns: List[String], n: Int): Vector[String] = ns.padTo(n, "x").toVector

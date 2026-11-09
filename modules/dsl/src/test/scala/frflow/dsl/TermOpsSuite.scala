@@ -1,6 +1,6 @@
 package frflow.dsl
 
-import frflow.core.expr.{Expr, Iteration, PrimOp}
+import frflow.core.expr.{Arm, Expr, Iteration, Pattern, PrimOp, Quantifier}
 import frflow.core.term.Selector
 import frflow.core.ty.{NumKind, Ty}
 import frflow.dsl.term.*
@@ -71,4 +71,46 @@ class TermOpsSuite extends munit.FunSuite:
         case Expr.Match(_, arms, Ty.Bool) => assertEquals(arms.size, 2)
         case other                        => fail(s"not a match: $other")
       }
+  }
+
+  test("exists binds its variables as forall does, nested in order, each one's name kept") {
+    exists((x: Term[BigInt]) => one < x).expr match
+      case Expr.Quant(Quantifier.Exists, List(x), Expr.Prim(PrimOp.Lt, _, _)) => assertEquals((x.hint, x.ty), ("x", big))
+      case other                                                               => fail(s"not an exists: $other")
+    exists((a: Term[BigInt], b: Term[Boolean]) => b && a === one).expr match
+      case Expr.Quant(Quantifier.Exists, List(a), Expr.Quant(Quantifier.Exists, List(b), _)) =>
+        assertEquals((a.hint, b.hint, b.ty), ("a", "b", Ty.Bool))
+      case other => fail(s"not two exists: $other")
+  }
+
+  /** The fold an option's operation is: its arms, `none` then `some`, and its type. */
+  private def folded(t: Term[?]): (Expr, Expr, Ty) = t.expr match
+    case Expr.Match(_, List(Arm(Pattern.NoneP, n), Arm(Pattern.SomeP(_), s)), ty) => (n, s, ty)
+    case other                                                                 => fail(s"not an option's fold: $other")
+
+  test("an option's map, filter, filterNot, contains, isEmpty and toList are its folds, as an author writes them") {
+    assertEquals(folded(o.map(x => x + one)), folded(o.fold(none[BigInt])(x => some(x + one))))
+    assertEquals(folded(o.filter(x => one < x)),
+      folded(o.fold(none[BigInt])(x => when(one < x)(some(x)).otherwise(none[BigInt]))))
+    assertEquals(folded(o.filterNot(x => one < x)),
+      folded(o.fold(none[BigInt])(x => when(one < x)(none[BigInt]).otherwise(some(x)))))
+    assertEquals(folded(o.contains(one)), folded(o.fold(False)(a => a === one)))
+    assertEquals(folded(o.isEmpty), folded(o.fold(True)(_ => False)))
+    assertEquals(folded(o.toList)._3, Ty.ListOf(big))
+    assertEquals(folded(o.map(x => x === one))._3, Ty.OptionOf(Ty.Bool))
+  }
+
+  test("a failing run's ifSucceeds and ifFails are the folds of its result, true on the other side") {
+    val store = frflow.dsl.vocab.Definition[BigInt => frflow.dsl.vocab.Flow[Unit]]("a number stored")
+      .failsWith[BigInt]
+    def closed(t: Term[Boolean]): Option[Expr] =
+      frflow.dsl.node.Node.claim("Holds.")(t).alone.run.toOption.flatMap(_._2.said).map(_.value)
+    assertEquals(closed(forall((n: Term[BigInt]) => store(n).ifSucceeds(r => r === r))),
+      closed(forall((n: Term[BigInt]) => store(n).result.fold(_ => True, r => r === r))))
+    assertEquals(closed(forall((n: Term[BigInt]) => store(n).ifFails(e => e === n))),
+      closed(forall((n: Term[BigInt]) => store(n).result.fold(e => e === n, _ => True))))
+    val tidy = frflow.dsl.vocab.Definition[frflow.dsl.vocab.Flow[Unit]]("tidying").failsWith[BigInt]
+    assertEquals(closed(tidy.ifSucceeds(r => r === r)), closed(tidy.result.fold(_ => True, r => r === r)))
+    assertEquals(closed(tidy.ifFails(e => one < e)), closed(tidy.result.fold(e => one < e, _ => True)))
+    assert(closed(tidy.ifFails(e => one < e)).nonEmpty)
   }
