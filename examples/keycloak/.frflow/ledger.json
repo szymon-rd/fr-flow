@@ -163,6 +163,23 @@
         }
       }
     ],
+    "httpApi": [
+      {
+        "action": "accept",
+        "by": "demo-developer",
+        "at": "2026-11-09T04:36:30.722368Z",
+        "commit": "f4fd8b10100f7683174812b22d882a75d3a600f2",
+        "reason": "Accepted with the demo key when moving to the rebuilt library.",
+        "rejected": [],
+        "content": "a67dcd2c9c007af52be252b74e8cfb144db21f0625cfeade6d6ee4beb224396a",
+        "chain": "",
+        "code": "bbffc245cfabc2393d34d191688a7a461d76c38f14243bd440d323e7ccc15ee0",
+        "seal": {
+          "key": "087bcc41dcd575d8",
+          "signature": "c0rzNahOnfF1DXX7tjqmbos356RbX1EKhMG65MNkK2gfP1sWYaX/QGnSonhlHc1AaAGjapa4n+4y1zQ/Ngc8Dw=="
+        }
+      }
+    ],
     "introspectAnswers": [
       {
         "action": "accept",
@@ -339,6 +356,23 @@
         "seal": {
           "key": "087bcc41dcd575d8",
           "signature": "xSOB+EqSTfFPe2WByBvmd9Z18mJcv/47ge7IF+dl11CVyW3llNrGINo32yCinkg59PshMFLv6JumUSbszvzCDg=="
+        }
+      }
+    ],
+    "serviceWiring": [
+      {
+        "action": "accept",
+        "by": "demo-developer",
+        "at": "2026-11-09T04:36:30.722368Z",
+        "commit": "f4fd8b10100f7683174812b22d882a75d3a600f2",
+        "reason": "Accepted with the demo key when moving to the rebuilt library.",
+        "rejected": [],
+        "content": "acc4b95cf95238019b9f0c062a484a171f0ea7eab201c6948b6a6a16faf4ddd8",
+        "chain": "",
+        "code": "b539660e4ca9e8b19f7eca00645c697439d6972349a9000fc2b8c15e5e126a11",
+        "seal": {
+          "key": "087bcc41dcd575d8",
+          "signature": "BoAtO5tAzjeHqpqJ11j5P8K41by07k5nFDXkFg4JdW1o8uQf6/8YYsOqnV6Dyf9c2z6gWU2zI+OkjR8FlnBgCw=="
         }
       }
     ],
@@ -717,6 +751,20 @@
       "call": "step",
       "implementation": "step: proven, (s: Term[ServerState], q: Term[AuthRequest]) =>\n  make[ServerState](administer(s.accounts, q),\n    opened(s, q).fold(s.sessions.filter(y => !endedBy(q, y)))(x => s.sessions :+ x))"
     },
+    "a67dcd2c9c007af52be252b74e8cfb144db21f0625cfeade6d6ee4beb224396a": {
+      "kind": "design",
+      "parents": [
+        "serviceWiring",
+        "drawnTokens"
+      ],
+      "assumes": [],
+      "statement": "The HTTP API serves Keycloak's token, introspection and logout endpoints for each realm, and lets an administrator enable or disable a user; it hashes the password with the user's salt and draws each token from a secure random source before handing the request to the server.",
+      "vocabulary": [],
+      "checking": [],
+      "governs": [
+        "src/main/scala/keycloak/Server.scala"
+      ]
+    },
     "9df28240325ef1009ebabe8af8de04d52ea36b92dd85a9316dda5948c82f61f3": {
       "kind": "claim",
       "parents": [
@@ -1010,6 +1058,20 @@
         "introspect"
       ],
       "governs": []
+    },
+    "acc4b95cf95238019b9f0c062a484a171f0ea7eab201c6948b6a6a16faf4ddd8": {
+      "kind": "design",
+      "parents": [
+        "handleRequest",
+        "introspectAnswers"
+      ],
+      "assumes": [],
+      "statement": "The server takes each request the HTTP API hands it, one at a time, and runs serve's code on its store: handleRequest's step on the state it holds, stored with the request; an introspection runs introspect's code on the store.",
+      "vocabulary": [],
+      "checking": [],
+      "governs": [
+        "src/main/scala/keycloak/Wiring.scala"
+      ]
     },
     "d146952aedf14281b65b8ce1218d86375e2b5c6a275b39f0933f3eee2121f4b5": {
       "kind": "assumption",
