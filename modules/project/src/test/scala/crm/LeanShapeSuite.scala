@@ -57,12 +57,12 @@ class LeanShapeSuite extends munit.FunSuite:
 
   test("a step over what makers make takes their made_ (step 12 ruling), and rests on it: unproven, the step is red") {
     val a = Projects.bare(Projects.elaborated(knowledge))
-    val spec = a.modules.find(_.name.dotted == "FrFlowGen.Crm.storeMirrorsRequests.Spec").map(Print.module)
+    val spec = a.modules.find(_.name.dotted == "FrFlowGen.Crm.sharesMirrorGrants.Spec").map(Print.module)
       .getOrElse(fail("no spec"))
     val complete = spec.linesIterator.dropWhile(!_.contains("def complete ")).slice(1, 2).mkString
     assert(List("keyedTables", "oneRowPerKey").forall(r => complete.contains(s"(m_${r}_expire : (Crm.$r.makes_expire " +
       "expire))")), complete)
-    val node = a.decided.theory.node(NodeId("storeMirrorsRequests")).getOrElse(fail("no node"))
+    val node = a.decided.theory.node(NodeId("sharesMirrorGrants")).getOrElse(fail("no node"))
     val unproven = ReadProof.of(a, node).unproven
     assert(unproven.contains(Unproven.Kept(NodeId("keyedTables"))) &&
       unproven.contains(Unproven.Kept(NodeId("oneRowPerKey"))), unproven)
@@ -72,15 +72,16 @@ class LeanShapeSuite extends munit.FunSuite:
     "over the screens' runs, programs now, are asked none") {
     val tried = Projects.bare(Projects.elaborated(knowledge)).obligations
       .filter(_.tried.exists(_.name == ObligationName.Tried(TryKind.Idle))).map(_.node.value)
-    assertEquals(tried, List("expiryJob"))
+    assertEquals(tried, List("jobStoresExpired", "jobReturnsExpired"))
   }
 
   test("a step with parts over the screens' programs rests on what is assumed of the database's search they call " +
-    "(G2): its impl takes recordsByQuery and searchKeeps beside its parts") {
+    "(G2): its impl takes fetchesOnlyMatches, fetchesEveryMatch and searchKeeps beside its parts") {
     val a = Projects.bare(Projects.elaborated(knowledge))
     val spec = a.modules.find(_.name.dotted == "FrFlowGen.Crm.visibility.Spec").map(Print.module)
       .getOrElse(fail("no spec"))
     val impl = spec.linesIterator.dropWhile(!_.contains("def impl ")).slice(1, 2).mkString
-    assert(List("recordsByQuery", "searchKeeps").forall(n => impl.contains(s"(h_$n : (Crm.$n.claim fetch))")), impl)
+    assert(List("fetchesOnlyMatches", "fetchesEveryMatch", "searchKeeps").forall(n =>
+      impl.contains(s"(h_$n : (Crm.$n.claim fetch))")), impl)
     assert(a.decided.theory.refinement.parts(NodeId("visibility")).nonEmpty)
   }
