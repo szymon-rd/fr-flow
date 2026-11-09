@@ -16,10 +16,10 @@ How it is checked
   rests on what each Booking from outside meets: bookingsEndAfterStart
 
 Where it sits
-  part of    o storeWhenFree  claim  accepted  A request is stored exactly when its room is free for its whole time.
+  part of    o storeWhenFree  claim  accepted  Booking a request leaves the table holding what it held, with the request added if its room is free for its whole time.
   part of    o answerWhenFree  claim  accepted  A request is answered booked exactly when its room is free for its whole time.
   assumes    o bookingsEndAfterStart  assumption  accepted  Every booking ends after it starts.
-  called by  o storeWhenFree  claim  accepted  A request is stored exactly when its room is free for its whole time.
+  called by  o storeWhenFree  claim  accepted  Booking a request leaves the table holding what it held, with the request added if its room is free for its whole time.
   called by  o answerWhenFree  claim  accepted  A request is answered booked exactly when its room is free for its whole time.
 
 Parts: together, with the assumptions it lists, they make it

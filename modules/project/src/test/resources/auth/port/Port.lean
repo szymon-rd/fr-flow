@@ -12,13 +12,12 @@ import FrFlowGen.Auth.decisionContract.Spec
 import FrFlowGen.Auth.grantTable.Spec
 import FrFlowGen.Auth.sessionTable.Spec
 import FrFlowGen.Auth.requests.Spec
-import Proofs.Auth.Lemmas
 
 /-! No statement of auth is weakened by the port (ARCHITECTURE section 9, equivalence 4): each node's claim as
 today's library stated it (`reference/auth`, put in namespace `Old` over the port's types) is equivalent to the
 port's. Today's session table is a function from a token to the user it was issued to; the port's is the table
 itself, a list of sessions each token issued once (`tokensIssuedOnce`), read as today's function by the user of the
-session under the token (`asFunction`). Today's definitions of the purpose's words are the port's claims of one
+session under the token (`asFunction`), which is the token's holder (`holderOf`). Today's definitions of the purpose's words are the port's claims of one
 equation, each equivalent to the word being today's define. -/
 
 set_option autoImplicit false
@@ -27,11 +26,6 @@ open Classical
 
 namespace Port
 open Auth
-
-/-- The decision's step over one session, as its claim folds it. -/
-def pick (grants : List Grant) (token : String) (path : Path) (found : Option UserId) (s : Session) :
-    Option UserId :=
-  if s.token = token ∧ grantFor grants s.user path then some s.user else found
 
 /-- The session table as today's function: the user of the session under the token. -/
 def asFunction (s : Sessions) (t : String) : Option UserId := (s.open.find? (fun x => decide (x.token = t))).map (·.user)
@@ -62,20 +56,15 @@ theorem asFunction_some (l : List Session) (hl : l.Pairwise (fun a b => ¬a.toke
 theorem grantFor_iff (grants : List Grant) (u : UserId) (p : Path) : grantFor grants u p ↔ Grant.mk u p ∈ grants := by
   simp [grantFor]
 
-/-- The decision's fold, read as today's: some user exactly when the session under the token names them with a
-grant. -/
-theorem fold_some (s : Sessions) (hs : tokensIssuedOnce s) (grants : List Grant) (t : String) (p : Path)
-    (u : UserId) : s.open.foldl (pick grants t p) none = some u ↔
-      asFunction s t = some u ∧ Grant.mk u p ∈ grants := by
-  unfold asFunction
-  rw [asFunction_some _ hs]
-  constructor
-  · intro h
-    rcases Lemmas.found_from grants t p u _ _ h with h | ⟨x, hx, ht, hu, hg⟩
-    · cases h
-    · exact ⟨⟨x, hx, ht, hu⟩, (grantFor_iff _ _ _).1 hg⟩
-  · rintro ⟨⟨x, hx, ht, rfl⟩, hg⟩
-    exact Lemmas.finds grants t p _ none hs x hx ht ((grantFor_iff _ _ _).2 hg)
+/-- The token's holder is today's function at the token. -/
+theorem holderOf_eq (s : Sessions) (t : String) : holderOf s t = asFunction s t := by
+  unfold holderOf asFunction
+  cases List.find? (fun x => decide (x.token = t)) s.open <;> rfl
+
+/-- The token's holder has a grant for the path exactly when today's function gives a user at the token with one. -/
+theorem holderGranted_iff (s : Sessions) (grants : List Grant) (t : String) (p : Path) :
+    holderGranted s grants t p ↔ ∃ u, asFunction s t = some u ∧ Grant.mk u p ∈ grants := by
+  simp only [holderGranted, holderOf_eq, grantFor_iff]
 
 theorem accessExactly (access signedIn authorized) :
     Old.AccessExactly.claim UserId Path access signedIn authorized ↔
@@ -84,59 +73,52 @@ theorem accessExactly (access signedIn authorized) :
 theorem accessNeedsGrant (admit grants) :
     Old.AccessNeedsGrant.claim admit grants ↔ Auth.accessNeedsGrant.claim admit grants := by
   simp only [Old.AccessNeedsGrant.claim, Auth.accessNeedsGrant.claim, grantFor_iff]
-  constructor
-  · intro h t p
-    cases ha : admit t p with
-    | none => trivial
-    | some u => exact h t p u ha
-  · intro h t p u ha
-    have := h t p
-    rw [ha] at this
-    exact this
 
 theorem tokenNamesHolder (admit) (s : Sessions) (hs : tokensIssuedOnce s) :
     Old.TokenNamesHolder.claim admit (asFunction s) ↔ Auth.tokenNamesHolder.claim admit s := by
-  simp only [Old.TokenNamesHolder.claim, Auth.tokenNamesHolder.claim, issuedTo, asFunction]
-  constructor
-  · intro h _ t p
-    cases ha : admit t p with
-    | none => trivial
-    | some u => exact (asFunction_some _ hs t u).1 (h t p u ha)
-  · intro h t p u ha
-    have := h hs t p
-    rw [ha] at this
-    exact (asFunction_some _ hs t u).2 this
+  simp only [Old.TokenNamesHolder.claim, Auth.tokenNamesHolder.claim, holderOf_eq]
+  exact ⟨fun h _ => h, fun h => h hs⟩
 
 theorem grantLetsIn (admit grants) (s : Sessions) (hs : tokensIssuedOnce s) :
-    Old.GrantLetsIn.claim (asFunction s) grants admit ↔ Auth.grantLetsIn.claim s admit grants := by
-  simp only [Old.GrantLetsIn.claim, Auth.grantLetsIn.claim, asFunction, grantFor_iff]
+    Old.GrantLetsIn.claim (asFunction s) grants admit ↔ Auth.grantLetsIn.claim admit s grants := by
+  simp only [Old.GrantLetsIn.claim, Auth.grantLetsIn.claim, holderGranted_iff, holderOf_eq]
   constructor
-  · intro h _ t p x hx ht hg
-    exact h t p x.user ((asFunction_some _ hs t x.user).2 ⟨x, hx, ht, rfl⟩) hg
+  · rintro h _ t p ⟨u, hu, hg⟩
+    rw [hu]
+    exact h t p u hu hg
   · intro h t p u hu hg
-    obtain ⟨x, hx, ht, rfl⟩ := (asFunction_some _ hs t u).1 hu
-    exact h hs t p x hx ht hg
+    rw [← hu]
+    exact h hs t p ⟨u, hu, hg⟩
 
 theorem decisionContract (admit grants) (s : Sessions) (hs : tokensIssuedOnce s) :
     Old.DecisionContract.claim (asFunction s) grants admit ↔ Auth.decisionContract.claim admit s grants := by
   unfold Old.DecisionContract.claim Old.DecisionContract.post Auth.decisionContract.claim
   constructor
   · intro h _ t p
-    show admit t p = s.open.foldl (pick grants t p) none
-    cases hf : s.open.foldl (pick grants t p) none with
-    | some u => exact (h t p).2 u ((fold_some s hs grants t p u).1 hf).1 ((fold_some s hs grants t p u).1 hf).2
-    | none =>
+    obtain ⟨h1, h2⟩ := h t p
+    by_cases hg : holderGranted s grants t p
+    · rw [ite_eq_left hg]
+      obtain ⟨u, hu, hgu⟩ := (holderGranted_iff s grants t p).1 hg
+      rw [holderOf_eq, hu]
+      exact h2 u hu hgu
+    · rw [ite_eq_right hg]
       cases ha : admit t p with
       | none => rfl
       | some u =>
-        have := (fold_some s hs grants t p u).2 ((h t p).1 u ha)
-        rw [hf] at this
-        cases this
+        obtain ⟨hu, hgu⟩ := h1 u ha
+        exact absurd ((holderGranted_iff s grants t p).2 ⟨u, hu, hgu⟩) hg
   · intro h t p
-    have e : admit t p = s.open.foldl (pick grants t p) none := h hs t p
+    have e := h hs t p
     refine ⟨fun u hu => ?_, fun u hu hg => ?_⟩
-    · rw [e] at hu; exact (fold_some s hs grants t p u).1 hu
-    · rw [e]; exact (fold_some s hs grants t p u).2 ⟨hu, hg⟩
+    · rw [e] at hu
+      split at hu
+      · rename_i hg
+        obtain ⟨v, hv, hgv⟩ := (holderGranted_iff s grants t p).1 hg
+        rw [holderOf_eq, hv] at hu
+        cases hu
+        exact ⟨hv, hgv⟩
+      · cases hu
+    · rw [e, ite_eq_left ((holderGranted_iff s grants t p).2 ⟨u, hu, hg⟩), holderOf_eq, hu]
 
 /-- Today's definitions, each the port's claim of one equation: the word is today's define. -/
 theorem grantTable (authorized grants) :
@@ -157,8 +139,23 @@ theorem sessionTable (signedIn) (s : Sessions) (hs : tokensIssuedOnce s) :
   simp only [e]
   exact ⟨fun h => h hs, fun h _ => h⟩
 
-theorem requests (access admit) :
-    Auth.requests.claim access admit ↔ ∀ u p, access u p = Old.access admit u p := by
-  simp only [Auth.requests.claim, Old.access, Classical.not_forall, Classical.not_not]
+/-- Today's access is over every token; the port's over the tokens of the session table. The two agree where the
+decision meets `tokenNamesHolder`: a token admitted for a user is a session's. -/
+theorem requests (access admit) (s : Sessions) (hs : tokensIssuedOnce s)
+    (hn : Auth.tokenNamesHolder.claim admit s) :
+    Auth.requests.claim access s admit ↔ ∀ u p, access u p = Old.access admit u p := by
+  have e : ∀ u p, admittedTo s admit u p = Old.access admit u p := fun u p => by
+    apply propext
+    simp only [admittedTo, Old.access]
+    constructor
+    · rintro ⟨x, _, hx⟩
+      exact ⟨x.token, hx⟩
+    · rintro ⟨t, ht⟩
+      have hh := hn hs t p u ht
+      rw [holderOf_eq] at hh
+      obtain ⟨x, hx, hxt, _⟩ := (asFunction_some _ hs t u).1 hh
+      exact ⟨x, hx, by rw [hxt]; exact ht⟩
+  simp only [Auth.requests.claim, e]
+  exact ⟨fun h => h hs, fun h _ => h⟩
 
 end Port

@@ -184,8 +184,8 @@ val neverOverlap = Node.claim("The bookings stored never overlap.")(
 And from the others:
 
 ```scala
-val inMemorySessions = Node.design("Sessions and grants are loaded into memory, in one process that decides " +
-  "every request.")("src/main/scala/auth/Server.scala")                                   // auth
+val inMemorySessions = Node.design("One process decides every request, from the sessions and grants it holds " +
+  "in memory.")("src/main/scala/auth/Server.scala")                                       // auth
 val loadedKept = Node.claim("The accounts as loaded at start never change.")(seed.isConstant)  // keycloak
 val searchKeeps = Node.assumption("A search changes nothing the database holds.")(           // crm
   forall((user: Term[Account], query: Term[Search]) =>

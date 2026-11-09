@@ -12,7 +12,7 @@ namespace Rooms.grantWhenFree.Proofs
 
 theorem apart_iff_noOverlap {a b : Booking} (ha : bookingsEndAfterStart a) (hb : bookingsEndAfterStart b) :
     apart a b ↔ noOverlap a b := by
-  simp only [apart, noOverlap, covers, bookingsEndAfterStart] at *
+  simp only [apart, shareNoMoment, noOverlap, covers, bookingsEndAfterStart] at *
   constructor
   · rintro (h | h)
     · exact .inl (.inl h)

@@ -8,19 +8,19 @@ import rooms.walkthrough.misread.Calendar
 // Step 6: step 5, and `covers` includes the end moment, so touching meetings share a moment: every statement over
 // moments now says the misread, and the proofs are unchanged.
 
-val bookWhenFree = Node.claim("A request is booked exactly when its room is free for its whole time.")(
-  forall((request: Term[Booking]) =>
-    bookedAfter(request) === when(free(booked, request))(booked :+ request).otherwise(booked)))
+val bookWhenFree = Node.claim("Once a request is handled, the bookings are those before it, with the request added " +
+    "if its room is free for its whole time.")(
+  forall((request: Term[Booking]) => bookedAfter(request) === addedIfFree(booked, request)))
   .assuming(bookingsEndAfterStart)
 
 val acceptWhenFree = Node.claim("A request is accepted exactly when its room is free for its whole time.")(
   forall((request: Term[Booking]) => accepted(request) === free(booked, request)))
   .assuming(bookingsEndAfterStart)
 
-val storeWhenFree = Node.claim("A request is stored exactly when its room is free for its whole time.")(
+val storeWhenFree = Node.claim("Booking a request leaves the table holding what it held, with the request added if " +
+    "its room is free for its whole time.")(
   forall((request: Term[Booking]) =>
-    val stored = storedBookings.current
-    storedBookings.in(book(request).after) === when(free(stored, request))(stored :+ request).otherwise(stored)))
+    storedBookings.in(book(request).after) === addedIfFree(storedBookings.current, request)))
   .refines(bookWhenFree)
   .assuming(oneAtATime, bookingsEndAfterStart)
 

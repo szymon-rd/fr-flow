@@ -46,8 +46,8 @@ class LeanShapeSuite extends munit.FunSuite:
 
   test("a condition is over what its defines reach: grants, through grantFor") {
     val whole = module(a, "Whole.Spec")
-    assert(defined(whole, "satisfiable_2_grantLetsIn").contains("∃ (sessions : Sessions) (grants : (List Grant))"),
-      defined(whole, "satisfiable_2_grantLetsIn"))
+    assert(defined(whole, "satisfiable_1_grantLetsIn").contains("∃ (sessions : Sessions) (grants : (List Grant))"),
+      defined(whole, "satisfiable_1_grantLetsIn"))
   }
 
   test("a root over Declarations is asked no idle try: a Declaration is no code") {
@@ -57,7 +57,7 @@ class LeanShapeSuite extends munit.FunSuite:
 
   test("a claim whose Lean takes what always holds of the session table lists the assumption saying it") {
     val unlisted = Node.claim("A request is let in only for the user its token was issued to.")(
-      forall((t: Term[String], p: Term[Path]) => admit(t, p).fold(True)(u => issuedTo(t, u))))
+      forall((t: Term[String], p: Term[Path]) => admit(t, p).forall(u => holderOf(t) === some(u))))
       .refines(accessExactly)
     val kb = FrModel("Auth")((knowledge.nodes :+ unlisted)*)
       .implementProvided(grants, sessions)

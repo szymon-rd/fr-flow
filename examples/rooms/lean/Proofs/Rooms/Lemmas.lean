@@ -27,7 +27,7 @@ theorem run_eq (granted : RoomBookings → Booking → Prop) (request : Booking)
 theorem apart_noOverlap (a b : Booking) (ha : bookingsEndAfterStart a) (hb : bookingsEndAfterStart b)
     (h : apart a b) : noOverlap a b := by
   unfold bookingsEndAfterStart at ha hb
-  unfold apart covers at h
+  unfold apart shareNoMoment covers at h
   unfold noOverlap
   rcases h with h | h
   · exact Or.inl (Or.inl h)

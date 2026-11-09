@@ -1,7 +1,7 @@
 
 --- 12 waiting ---
 ! bookWhenFree  claim (a root)  to review
-  A request is booked exactly when its room is free for its whole time.
+  Once a request is handled, the bookings are those before it, with the request added if its room is free for its whole time.
 
 Decision
   to review: it changed
@@ -12,13 +12,12 @@ Why it holds (the reason it was decided with)
   it says what the service must do  (accepted by ann, <when>)
 
 Formally (as written in Scala)
-  forall((request: Term[Booking]) =>
-      bookedAfter(request) === when(free(booked, request))(booked :+ request).otherwise(booked))
+  forall((request: Term[Booking]) => bookedAfter(request) === addedIfFree(booked, request))
 
 Parts: together, with the assumptions it lists, they make it
   ! bookedIsStored  claim  to review  What is booked is what the table holds.
   ! bookedAfterIsStored  claim  to review  What is booked once a request is handled is what the table holds after booking it.
-  ! storeWhenFree  claim  to review  A request is stored exactly when its room is free for its whole time.
+  ! storeWhenFree  claim  to review  Booking a request leaves the table holding what it held, with the request added if its room is free for its whole time.
 
 Rules it uses (no part of its step: Lean has each of every value)
   ! neverOverlap  claim  to review  The bookings stored never overlap.
@@ -106,7 +105,7 @@ Formally (as written in Scala)
 
 --- 7 waiting ---
 ! storeWhenFree  claim  to review
-  A request is stored exactly when its room is free for its whole time.
+  Booking a request leaves the table holding what it held, with the request added if its room is free for its whole time.
 
 Decision
   to review: it changed; the meaning of what it rests on changed
@@ -118,8 +117,7 @@ Why it holds (the reason it was decided with)
 
 Formally (as written in Scala)
   forall((request: Term[Booking]) =>
-      val stored = storedBookings.current
-      storedBookings.in(book(request).after) === when(free(stored, request))(stored :+ request).otherwise(stored))
+      storedBookings.in(book(request).after) === addedIfFree(storedBookings.current, request))
 
 Parts: together, with the assumptions it lists, they make it
   ! grantWhenFree  claim  to review  A request is granted exactly when its room is free for its whole time.
