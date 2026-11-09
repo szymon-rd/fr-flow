@@ -17,6 +17,38 @@
         }
       }
     ],
+    "acceptedIsAnswered": [
+      {
+        "action": "accept",
+        "by": "demo-developer",
+        "at": "2026-11-09T03:51:16.656210Z",
+        "commit": "1b3e921204a870c83d09a6c266045a65daa985ea",
+        "reason": "Accepted with the demo key when moving to the rebuilt library.",
+        "rejected": [],
+        "content": "7f68b31b249cf485fa37403dc55eb2aba3c93b67a69eac878cdb71df6f7534af",
+        "chain": "48604b5a220268795ec2524302224782480f6278187229a44281cb9d4fdd24e4",
+        "seal": {
+          "key": "087bcc41dcd575d8",
+          "signature": "O5Y09LVeKyW/DD1w7MIFGS6E3Bxt39lA1yAW6IKmOLMY6elWPUsEXFuw/+nNK9fGl3pRPTDjuQNA1fj6UYnBDQ=="
+        }
+      }
+    ],
+    "answerWhenFree": [
+      {
+        "action": "accept",
+        "by": "demo-developer",
+        "at": "2026-11-09T03:51:16.656210Z",
+        "commit": "1b3e921204a870c83d09a6c266045a65daa985ea",
+        "reason": "Accepted with the demo key when moving to the rebuilt library.",
+        "rejected": [],
+        "content": "7811479135ed482dea575ac962aab9ee5b4aa6d32efa9f11f41133b93e0b7147",
+        "chain": "eeb130cafccd52e108112d8666a6e8b5177de845c7f55070a080250c418bc964",
+        "seal": {
+          "key": "087bcc41dcd575d8",
+          "signature": "LMyZiQPlFHUUENZl9UZkxCKetFWzx0Oxo31dmO+iekyw6gCviV6UD3nhLw7ra6HTH8qjYbVX6V7v77SMRvLvBA=="
+        }
+      }
+    ],
     "bookWhenFree": [
       {
         "action": "accept",
@@ -33,6 +65,38 @@
         }
       }
     ],
+    "bookedAfterIsStored": [
+      {
+        "action": "accept",
+        "by": "demo-developer",
+        "at": "2026-11-09T03:51:16.656210Z",
+        "commit": "1b3e921204a870c83d09a6c266045a65daa985ea",
+        "reason": "Accepted with the demo key when moving to the rebuilt library.",
+        "rejected": [],
+        "content": "20cda7bbbbf59c44aef1f9bd3b06d35f6e4396a3166c4d47179975879d8f87fb",
+        "chain": "ced607d78f02f5ebd697122b8a202003378c340167b50b9eb8aaab3c787f705f",
+        "seal": {
+          "key": "087bcc41dcd575d8",
+          "signature": "pF0xwWawNSj+Usf4237kCULkGiRn0k71r5//7OEvboV13H4QIrlsiuZJuVG6DrL9z7w8l1QO2/i7/TQviJJ2Dw=="
+        }
+      }
+    ],
+    "bookedIsStored": [
+      {
+        "action": "accept",
+        "by": "demo-developer",
+        "at": "2026-11-09T03:51:16.656210Z",
+        "commit": "1b3e921204a870c83d09a6c266045a65daa985ea",
+        "reason": "Accepted with the demo key when moving to the rebuilt library.",
+        "rejected": [],
+        "content": "7593b6595845366ec0facb0c8f14c76491d236da00089f2b6b25f0f7ab71ea17",
+        "chain": "a01bad7398e02d121b61bcae8db0b3a708314517427f50b633c068289f93e482",
+        "seal": {
+          "key": "087bcc41dcd575d8",
+          "signature": "TUjUE1ZCLCT9/cssbPNFYPfTQDcoSt1yzSzigzCbM7W/oycZ4DPgM7me3TENue+6YwqrTpxqws6d4KmfFLPUBg=="
+        }
+      }
+    ],
     "bookingsEndAfterStart": [
       {
         "action": "accept",
@@ -46,6 +110,71 @@
         "seal": {
           "key": "087bcc41dcd575d8",
           "signature": "HFPiWkRrpIWqXAIIl1QIPIg2jOoSioOv3KtpYazTIT2gZNc3To0QuMqz+Fb77FeOSEaWLYS6j84RCZKxHr5HAQ=="
+        }
+      }
+    ],
+    "bookingsOfTheRoom": [
+      {
+        "action": "accept",
+        "by": "demo-developer",
+        "at": "2026-11-09T03:52:03.444413Z",
+        "commit": "1b3e921204a870c83d09a6c266045a65daa985ea",
+        "reason": "Accepted with the demo key when moving to the rebuilt library.",
+        "rejected": [],
+        "content": "fd7aa2d80b5b8af8d2a2a8e33407ef6af059942117d3e90b2b3cdf839dcafacd",
+        "chain": "9930ba877de07e914a8f87199d8701499b1e1644ae1586e4cbd1699bdfbe8d4b",
+        "seal": {
+          "key": "087bcc41dcd575d8",
+          "signature": "YW49j0Mj61XbA4bWNf7sP3NKdgfUEymKWB2ydYTX4rIonj6ppKsJbOv60Eiu9PO4gHgA7nXI0Oid405sTKlpAg=="
+        }
+      }
+    ],
+    "grantWhenFree": [
+      {
+        "action": "accept",
+        "by": "demo-developer",
+        "at": "2026-11-09T03:52:03.444413Z",
+        "commit": "1b3e921204a870c83d09a6c266045a65daa985ea",
+        "reason": "Accepted with the demo key when moving to the rebuilt library.",
+        "rejected": [],
+        "content": "acf7474f918129e876c26174b0998a81a216699501326bff628ce298f6a409ae",
+        "chain": "6216a12aca6e14c2bb4e4107574e25fe0fe060f7580d2892e81cc98ed4df29eb",
+        "seal": {
+          "key": "087bcc41dcd575d8",
+          "signature": "DSIAoBD2bKbXMyFFZby7YQ/FMdT9xGy4FMZr5cVjLSPr1cmM4hCokZCcMfgW9Hg9qTbJyyFM5FrrdZAVurpoDg=="
+        }
+      }
+    ],
+    "grantWhenNoOverlap": [
+      {
+        "action": "accept",
+        "by": "demo-developer",
+        "at": "2026-11-09T03:52:03.444413Z",
+        "commit": "1b3e921204a870c83d09a6c266045a65daa985ea",
+        "reason": "Accepted with the demo key when moving to the rebuilt library.",
+        "rejected": [],
+        "content": "5dedc4b93cdfae2018c4856f0964eb55e9d8dc6a373a7b582fcde331dfbd9ac8",
+        "chain": "9930ba877de07e914a8f87199d8701499b1e1644ae1586e4cbd1699bdfbe8d4b",
+        "code": "79023f69be3fc1be4b4c40199581cee70f19530a2ddaa47c08f5bdde27c7f7e8",
+        "seal": {
+          "key": "087bcc41dcd575d8",
+          "signature": "Lug8eQqrpRB19OdGMkMDQhxebbFMS+sUUd+VXqO9fMCsnorAZAXGw672U8Nh40Yy6lOvo4iyHibSyxJPEec1BA=="
+        }
+      }
+    ],
+    "neverOverlap": [
+      {
+        "action": "accept",
+        "by": "demo-developer",
+        "at": "2026-11-09T03:51:16.656210Z",
+        "commit": "1b3e921204a870c83d09a6c266045a65daa985ea",
+        "reason": "Accepted with the demo key when moving to the rebuilt library.",
+        "rejected": [],
+        "content": "aa76410e32129a248cc839acfaca932243a7936d26c069b46865ed78fb8ee516",
+        "chain": "ec8f6db45f120e2f57d1208b58aedf7ea0313b4ae5b5881fc06cb74eff686abb",
+        "seal": {
+          "key": "087bcc41dcd575d8",
+          "signature": "kLG0+67GftyK4dejGzz066tZdSerjYH/Lw2UZ+6a4cbydrAaD6FG9dgh1aaXzbEZQU8nSGaKoDs7g+5sUrBbDw=="
         }
       }
     ],
@@ -82,6 +211,22 @@
         }
       }
     ],
+    "roomBookingsApart": [
+      {
+        "action": "accept",
+        "by": "demo-developer",
+        "at": "2026-11-09T03:52:03.444413Z",
+        "commit": "1b3e921204a870c83d09a6c266045a65daa985ea",
+        "reason": "Accepted with the demo key when moving to the rebuilt library.",
+        "rejected": [],
+        "content": "24909ddd4cf75810930e2c266070700e0bb5342f6e8f49759bc21934cc6e8e60",
+        "chain": "9930ba877de07e914a8f87199d8701499b1e1644ae1586e4cbd1699bdfbe8d4b",
+        "seal": {
+          "key": "087bcc41dcd575d8",
+          "signature": "9PVT+pWHxpddWMrNxqexX/rcx/EoOSQA4BzHmeF/PRIlzdBSQ31Yr8ISFIMWcXbkZT7Jt1Yygo0l3FvwCZg3Aw=="
+        }
+      }
+    ],
     "startsEmpty": [
       {
         "action": "accept",
@@ -95,6 +240,22 @@
         "seal": {
           "key": "087bcc41dcd575d8",
           "signature": "RPyr9Un1Z40Z/ASrJtW/tvu0QU/NCkN+Vipit9+HOT1h+CqVmPYXwW2LWuI92xmv08q+9kNyhQt/tttONKqfDA=="
+        }
+      }
+    ],
+    "storeWhenFree": [
+      {
+        "action": "accept",
+        "by": "demo-developer",
+        "at": "2026-11-09T03:51:16.656210Z",
+        "commit": "1b3e921204a870c83d09a6c266045a65daa985ea",
+        "reason": "Accepted with the demo key when moving to the rebuilt library.",
+        "rejected": [],
+        "content": "8322ce3eceed2b35ddcc15ba663b70ca383e186217170e0d6f63ec44b63aed22",
+        "chain": "258359125155d5a56d2bf8420c12ea71c09515a1b51c83d00eb10323f75be28c",
+        "seal": {
+          "key": "087bcc41dcd575d8",
+          "signature": "9R+NA/H32Bzuz4f9cJRMxGGIHVs9uCpxi6n92Msg+HsvaI71NkNl+96/+OsSlPB+NL8vAbT4/7Fq2anA490FBQ=="
         }
       }
     ]
@@ -126,6 +287,58 @@
       "governs": [],
       "call": "accepted"
     },
+    "7f68b31b249cf485fa37403dc55eb2aba3c93b67a69eac878cdb71df6f7534af": {
+      "kind": "claim",
+      "parents": [
+        "acceptWhenFree"
+      ],
+      "parts": [],
+      "assumes": [],
+      "statement": "A request is accepted exactly when booking it answers booked.",
+      "formula": "(∀ (x : Booking), (∀ (x_1 : World), (match (book x x_1) with | (x_2, x_3) => ((accepted x x_1) = x_2))))",
+      "written": "forall((request: Term[Booking]) => accepted(request).current === book(request).result)",
+      "vocabulary": [
+        "accepted: whether a request is accepted",
+        "book: booking a request: whether it was booked"
+      ],
+      "checking": [
+        "says what accepted is: book's program, bookIfGranted, stands in it",
+        "consistent with bookedAfterIsStored, grantWhenNoOverlap: witnessed, for Lean to check"
+      ],
+      "governs": [],
+      "call": "book",
+      "implementation": "book: proven program, (request: Term[Booking]) =>\n  (for\n    held  <- inRoom(request.room)\n    booked = granted(held, request)\n    _     <- Flow.when(booked)(add(request))\n  yield booked).atomically"
+    },
+    "7811479135ed482dea575ac962aab9ee5b4aa6d32efa9f11f41133b93e0b7147": {
+      "kind": "claim",
+      "parents": [
+        "acceptWhenFree"
+      ],
+      "parts": [
+        "grantWhenFree"
+      ],
+      "assumes": [
+        "oneAtATime",
+        "bookingsEndAfterStart"
+      ],
+      "statement": "A request is answered booked exactly when its room is free for its whole time.",
+      "formula": "(∀ (x : Booking), (∀ (x_1 : World), (match (book x x_1) with | (x_2, x_3) => (x_2 = (Rooms.free x_1.storedBookings x)))))\n\n@[frflow_defs] def free (x : (List Booking)) (x_1 : Booking) : Prop :=\n  (∀ x_2 ∈ x, (Rooms.apart x_2 x_1))\n\n@[frflow_defs] def apart (x : Booking) (x_1 : Booking) : Prop :=\n  ((¬(x.room = x_1.room)) ∨ (∀ (x_2 : Int), (¬((Rooms.covers x x_2) ∧ (Rooms.covers x_1 x_2)))))\n\n@[frflow_defs] def covers (x : Booking) (x_1 : Int) : Prop :=\n  ((x.start ≤ x_1) ∧ (x_1 < x.«end»))",
+      "written": "forall((request: Term[Booking]) => book(request).result === free(storedBookings.current, request))",
+      "vocabulary": [
+        "book: booking a request: whether it was booked"
+      ],
+      "checking": [
+        "proven of book's program, bookIfGranted",
+        "assumed by the code calling book",
+        "rules it uses: bookingsEndAfterStart",
+        "rests on inRoom and add's Scala, tested against storedBookings",
+        "rests on runs on storedBookings being atomic: oneAtATime",
+        "rests on what each Booking from outside meets: bookingsEndAfterStart"
+      ],
+      "governs": [],
+      "call": "book",
+      "implementation": "book: proven program, (request: Term[Booking]) =>\n  (for\n    held  <- inRoom(request.room)\n    booked = granted(held, request)\n    _     <- Flow.when(booked)(add(request))\n  yield booked).atomically"
+    },
     "d588814189a90614b5bbd87823b3fb32e224d1a0b28c7de93ce5aafef9ae1996": {
       "kind": "claim",
       "parents": [],
@@ -152,6 +365,49 @@
       "governs": [],
       "call": "bookedAfter"
     },
+    "20cda7bbbbf59c44aef1f9bd3b06d35f6e4396a3166c4d47179975879d8f87fb": {
+      "kind": "claim",
+      "parents": [
+        "bookWhenFree"
+      ],
+      "parts": [],
+      "assumes": [],
+      "statement": "What is booked once a request is handled is what the table holds after booking it.",
+      "formula": "(∀ (x : Booking), (∀ (x_1 : World), (match (book x x_1) with | (x_2, x_3) => ((bookedAfter x x_1) = x_3.storedBookings))))",
+      "written": "forall((request: Term[Booking]) => bookedAfter(request).current === storedBookings.in(book(request).after))",
+      "vocabulary": [
+        "book: booking a request: whether it was booked",
+        "bookedAfter: the bookings made once a request is handled"
+      ],
+      "checking": [
+        "says what bookedAfter is: book's program, bookIfGranted, stands in it",
+        "consistent with acceptedIsAnswered, grantWhenNoOverlap: witnessed, for Lean to check"
+      ],
+      "governs": [],
+      "call": "book",
+      "implementation": "book: proven program, (request: Term[Booking]) =>\n  (for\n    held  <- inRoom(request.room)\n    booked = granted(held, request)\n    _     <- Flow.when(booked)(add(request))\n  yield booked).atomically"
+    },
+    "7593b6595845366ec0facb0c8f14c76491d236da00089f2b6b25f0f7ab71ea17": {
+      "kind": "claim",
+      "parents": [
+        "bookWhenFree",
+        "acceptWhenFree"
+      ],
+      "parts": [],
+      "assumes": [],
+      "statement": "What is booked is what the table holds.",
+      "formula": "(∀ (x : World), ((booked x) = x.storedBookings))",
+      "written": "booked === storedBookings.current",
+      "vocabulary": [
+        "booked: the bookings made, as the world stands"
+      ],
+      "checking": [
+        "says what booked is",
+        "consistent: witnessed, for Lean to check"
+      ],
+      "governs": [],
+      "call": "booked"
+    },
     "e48748d744e64c853e22755ede88d1a3057a5732006bf8220e0f23dda7e9794c": {
       "kind": "assumption",
       "parents": [],
@@ -166,6 +422,115 @@
         "met where a Booking is made (book, storedBookings's inRoom); assumed of every Booking in Lean",
         "met where the store starts, from what startsEmpty says: witnessed, for Lean to check",
         "not vacuous: some Booking meets it"
+      ],
+      "writers": [
+        "book"
+      ],
+      "governs": []
+    },
+    "fd7aa2d80b5b8af8d2a2a8e33407ef6af059942117d3e90b2b3cdf839dcafacd": {
+      "kind": "claim",
+      "parents": [
+        "grantWhenFree"
+      ],
+      "parts": [],
+      "assumes": [
+        "bookingsEndAfterStart"
+      ],
+      "statement": "A room's bookings are all of that room.",
+      "formula": "(∀ (x : RoomBookings), (Rooms.bookingsOfTheRoom x))\n\n@[frflow_defs] def bookingsOfTheRoom (x : RoomBookings) : Prop :=\n  (∀ x_1 ∈ x.bookings, (x_1.room = x.room))",
+      "written": "always[RoomBookings](held => held.bookings.forall(b => b.room === held.room))",
+      "vocabulary": [],
+      "checking": [
+        "met where a RoomBookings is made (storedBookings's inRoom); assumed of every RoomBookings in Lean",
+        "rules it uses: bookingsEndAfterStart",
+        "rests on inRoom's Scala, tested against storedBookings",
+        "rests on what each Booking from outside meets: bookingsEndAfterStart",
+        "not vacuous: some RoomBookings meets it"
+      ],
+      "governs": []
+    },
+    "acf7474f918129e876c26174b0998a81a216699501326bff628ce298f6a409ae": {
+      "kind": "claim",
+      "parents": [
+        "storeWhenFree",
+        "answerWhenFree"
+      ],
+      "parts": [
+        "grantWhenNoOverlap"
+      ],
+      "assumes": [
+        "bookingsEndAfterStart"
+      ],
+      "statement": "A request is granted exactly when its room is free for its whole time.",
+      "formula": "(∀ (x : RoomBookings), (∀ (x_1 : Booking), ((granted x x_1) = (Rooms.free x.bookings x_1))))\n\n@[frflow_defs] def free (x : (List Booking)) (x_1 : Booking) : Prop :=\n  (∀ x_2 ∈ x, (Rooms.apart x_2 x_1))\n\n@[frflow_defs] def apart (x : Booking) (x_1 : Booking) : Prop :=\n  ((¬(x.room = x_1.room)) ∨ (∀ (x_2 : Int), (¬((Rooms.covers x x_2) ∧ (Rooms.covers x_1 x_2)))))\n\n@[frflow_defs] def covers (x : Booking) (x_1 : Int) : Prop :=\n  ((x.start ≤ x_1) ∧ (x_1 < x.«end»))",
+      "written": "forall((held: Term[RoomBookings], request: Term[Booking]) =>\n    granted(held, request) === free(held.bookings, request))",
+      "vocabulary": [
+        "granted: whether a request is granted, given its room's bookings"
+      ],
+      "checking": [
+        "proven from its parts (grantWhenNoOverlap)",
+        "not checked against granted's Scala: the statement has no Scala value (it quantifies over every value)",
+        "assumed by the code calling granted",
+        "rules it uses: bookingsOfTheRoom, roomBookingsApart, bookingsEndAfterStart",
+        "rests on what each Booking from outside meets: bookingsEndAfterStart"
+      ],
+      "governs": [],
+      "call": "granted",
+      "implementation": "granted: Scala, _ => (held, request) => Calendar(held).grants(request)"
+    },
+    "5dedc4b93cdfae2018c4856f0964eb55e9d8dc6a373a7b582fcde331dfbd9ac8": {
+      "kind": "claim",
+      "parents": [
+        "grantWhenFree"
+      ],
+      "parts": [],
+      "assumes": [
+        "bookingsEndAfterStart"
+      ],
+      "statement": "A request is granted exactly when it overlaps no booking of its room.",
+      "formula": "(∀ (x : RoomBookings), (∀ (x_1 : Booking), ((granted x x_1) = (∀ x_2 ∈ x.bookings, (Rooms.noOverlap x_2 x_1)))))\n\n@[frflow_defs] def noOverlap (x : Booking) (x_1 : Booking) : Prop :=\n  (((¬(x.room = x_1.room)) ∨ (x.«end» ≤ x_1.start)) ∨ (x_1.«end» ≤ x.start))",
+      "written": "forall((held: Term[RoomBookings], request: Term[Booking]) =>\n    granted(held, request) === held.bookings.forall(b => noOverlap(b, request)))",
+      "vocabulary": [
+        "granted: whether a request is granted, given its room's bookings"
+      ],
+      "checking": [
+        "tested against granted's Scala on generated cases",
+        "assumed by the code calling granted",
+        "rules it uses: bookingsEndAfterStart",
+        "rests on what each Booking from outside meets: bookingsEndAfterStart",
+        "consistent with bookedAfterIsStored, acceptedIsAnswered: witnessed, for Lean to check"
+      ],
+      "governs": [],
+      "call": "granted",
+      "implementation": "granted: Scala, _ => (held, request) => Calendar(held).grants(request)"
+    },
+    "aa76410e32129a248cc839acfaca932243a7936d26c069b46865ed78fb8ee516": {
+      "kind": "claim",
+      "parents": [
+        "bookWhenFree",
+        "acceptWhenFree"
+      ],
+      "parts": [],
+      "assumes": [
+        "nothingElseWrites",
+        "oneAtATime",
+        "startsEmpty",
+        "bookingsEndAfterStart"
+      ],
+      "statement": "The bookings stored never overlap.",
+      "formula": "(∀ (x : World), (Rooms.neverOverlap x.storedBookings))\n\n@[frflow_defs] def neverOverlap (x : (List Booking)) : Prop :=\n  (List.Pairwise (fun (x_1 : Booking) (x_2 : Booking) => (Rooms.apart x_1 x_2)) x)\n\n@[frflow_defs] def apart (x : Booking) (x_1 : Booking) : Prop :=\n  ((¬(x.room = x_1.room)) ∨ (∀ (x_2 : Int), (¬((Rooms.covers x x_2) ∧ (Rooms.covers x_1 x_2)))))\n\n@[frflow_defs] def covers (x : Booking) (x_1 : Int) : Prop :=\n  ((x.start ≤ x_1) ∧ (x_1 < x.«end»))",
+      "written": "always(storedBookings)(stored => stored.pairwise(apart))",
+      "vocabulary": [],
+      "checking": [
+        "kept by every run of book, from the state it starts in",
+        "rules it uses: bookingsEndAfterStart",
+        "rests on inRoom and add's Scala, tested against storedBookings",
+        "rests on nothing outside the code changing storedBookings: nothingElseWrites",
+        "rests on runs on storedBookings being atomic: oneAtATime",
+        "rests on the state storedBookings starts in: startsEmpty",
+        "rests on what each Booking from outside meets: bookingsEndAfterStart",
+        "met where the store starts, from what startsEmpty says: witnessed, for Lean to check"
       ],
       "writers": [
         "book"
@@ -218,6 +583,28 @@
       ],
       "governs": []
     },
+    "24909ddd4cf75810930e2c266070700e0bb5342f6e8f49759bc21934cc6e8e60": {
+      "kind": "claim",
+      "parents": [
+        "grantWhenFree"
+      ],
+      "parts": [],
+      "assumes": [
+        "bookingsEndAfterStart"
+      ],
+      "statement": "A room's bookings never overlap.",
+      "formula": "(∀ (x : RoomBookings), (Rooms.roomBookingsApart x))\n\n@[frflow_defs] def roomBookingsApart (x : RoomBookings) : Prop :=\n  (List.Pairwise (fun (x_1 : Booking) (x_2 : Booking) => (Rooms.noOverlap x_1 x_2)) x.bookings)\n\n@[frflow_defs] def noOverlap (x : Booking) (x_1 : Booking) : Prop :=\n  (((¬(x.room = x_1.room)) ∨ (x.«end» ≤ x_1.start)) ∨ (x_1.«end» ≤ x.start))",
+      "written": "always[RoomBookings](held => held.bookings.pairwise(noOverlap))",
+      "vocabulary": [],
+      "checking": [
+        "met where a RoomBookings is made (storedBookings's inRoom); assumed of every RoomBookings in Lean",
+        "rules it uses: bookingsEndAfterStart",
+        "rests on inRoom's Scala, tested against storedBookings",
+        "rests on what each Booking from outside meets: bookingsEndAfterStart",
+        "not vacuous: some RoomBookings meets it"
+      ],
+      "governs": []
+    },
     "8a4a7b93e3fbe71fe6ffbf1be9b85dd62890c2796df57ad100f85b6185c44665": {
       "kind": "assumption",
       "parents": [],
@@ -230,6 +617,36 @@
         "the world outside: the state storedBookings starts in"
       ],
       "governs": []
+    },
+    "8322ce3eceed2b35ddcc15ba663b70ca383e186217170e0d6f63ec44b63aed22": {
+      "kind": "claim",
+      "parents": [
+        "bookWhenFree"
+      ],
+      "parts": [
+        "grantWhenFree"
+      ],
+      "assumes": [
+        "oneAtATime",
+        "bookingsEndAfterStart"
+      ],
+      "statement": "A request is stored exactly when its room is free for its whole time.",
+      "formula": "(∀ (x : Booking), (∀ (x_1 : World), (match (book x x_1) with | (x_2, x_3) => (x_3.storedBookings = (if (Rooms.free x_1.storedBookings x) then (x_1.storedBookings ++ [x]) else x_1.storedBookings)))))\n\n@[frflow_defs] def free (x : (List Booking)) (x_1 : Booking) : Prop :=\n  (∀ x_2 ∈ x, (Rooms.apart x_2 x_1))\n\n@[frflow_defs] def apart (x : Booking) (x_1 : Booking) : Prop :=\n  ((¬(x.room = x_1.room)) ∨ (∀ (x_2 : Int), (¬((Rooms.covers x x_2) ∧ (Rooms.covers x_1 x_2)))))\n\n@[frflow_defs] def covers (x : Booking) (x_1 : Int) : Prop :=\n  ((x.start ≤ x_1) ∧ (x_1 < x.«end»))",
+      "written": "forall((request: Term[Booking]) =>\n    val stored = storedBookings.current\n    storedBookings.in(book(request).after) === when(free(stored, request))(stored :+ request).otherwise(stored))",
+      "vocabulary": [
+        "book: booking a request: whether it was booked"
+      ],
+      "checking": [
+        "proven of book's program, bookIfGranted",
+        "assumed by the code calling book",
+        "rules it uses: bookingsEndAfterStart",
+        "rests on inRoom and add's Scala, tested against storedBookings",
+        "rests on runs on storedBookings being atomic: oneAtATime",
+        "rests on what each Booking from outside meets: bookingsEndAfterStart"
+      ],
+      "governs": [],
+      "call": "book",
+      "implementation": "book: proven program, (request: Term[Booking]) =>\n  (for\n    held  <- inRoom(request.room)\n    booked = granted(held, request)\n    _     <- Flow.when(booked)(add(request))\n  yield booked).atomically"
     }
   }
 }
