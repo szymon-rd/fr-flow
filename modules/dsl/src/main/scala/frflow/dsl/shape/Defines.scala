@@ -5,7 +5,7 @@ import frflow.core.name.{DefName, RelPath}
 import frflow.dsl.build.{AsWritten, Site, Source, SourceFiles, WrittenAt}
 import frflow.dsl.vocab.Flow
 import frflow.dsl.term.{LeanType, Term}
-import frflow.dsl.vocab.{Definition, OnTheSpot, Spot}
+import frflow.dsl.vocab.{Definition, OnTheSpot, Spot, Stating}
 
 /** `define { (a: Term[A], …) => body }`: a Definition given its meaning on the spot (owner §15), named as its val,
   * called by name in terms, its IR built when elaborated; and `program { (a: Term[A]) => for … yield … }`: a
@@ -35,6 +35,14 @@ object Defines:
       inline body: (Term[A], Term[B], Term[C], Term[D], Term[E], Term[G]) => Term[R])
       : Definition[(A, B, C, D, E, G) => R] =
     made(DefName(Source.valName), DefineShape.six[A, B, C, D, E, G, R])(body).in(WrittenAt.in(Source.here))
+
+  /** `stated { (a: Term[A], …) => body }`: a define whose body may apply a Declaration, used only in statements
+    * (`Stated`), to six inputs. One method for every arity, the lambda's shape found by its type (`Stated.Shaped`):
+    * overloads would type the lambda before giving it the `Stating` its body reads.
+    */
+  inline def stated[L](inline body: Stating ?=> L)(using l: Stated.Shaped[L]): Stated[l.F] =
+    statedOf(DefName(Source.valName), l.shape, Source.of(body(using Stating.probing)), WrittenAt.in(Source.here))(
+      st => body(using st))
 
   /** A program of no input: its steps recorded once. */
   inline def program[R: LeanType](inline body: Flow[R]): Definition[Flow[R]] =
@@ -99,10 +107,17 @@ object Defines:
     * developer's val's); its lambda's text and parameter names read where it is written.
     */
   private inline def made[F](inline name: DefName, b: DefineShape[F])(inline body: b.Lam): Definition[F] =
-    named(name) { n =>
-      val build = () => b.body(body, Source.of(body).params)
-      if Worldly.reads(build) then Worldly.define(n, b.types, build, Source.of(body))(using b.leanType)
-      else b.made(n, body, Source.of(body).params, Elab.lambda(Site.Define(n), b.types)(build, Source.of(body)))
-    }
+    named(name)(madeOf(_, b, Source.of(body))(body))
+
+  /** A define of shape `b` named `n`, its lambda written as `written` says. */
+  private def madeOf[F](n: DefName, b: DefineShape[F], written: AsWritten)(body: b.Lam): Definition[F] =
+    val build = () => b.body(body, written.params)
+    if Worldly.reads(build) then Worldly.define(n, b.types, build, written)(using b.leanType)
+    else b.made(n, body, written.params, Elab.lambda(Site.Define(n), b.types)(build, written))
+
+  /** A define over Declarations, its body read in each `Stating` it is applied in. */
+  private def statedOf[F](n: DefName, b: DefineShape[F], written: AsWritten, at: WrittenAt)(
+      body: Stating => b.Lam): Stated[F] =
+    new Stated(n, st => madeOf(n, b, written)(body(st)).in(at))
 
   private def named[A](name: DefName)(f: DefName => A): A = f(name)

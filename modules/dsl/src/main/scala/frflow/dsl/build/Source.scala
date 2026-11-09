@@ -41,15 +41,23 @@ object Source:
       Option.when(pos.end <= c.length)(c.substring(pos.start, pos.end))).getOrElse("").trim
     '{ AsWritten(${ Expr(text) }, ${ Expr(params(x)) }) }
 
-  /** A lambda's parameter names; none for an expression that is not a lambda. */
+  /** A lambda's parameter names, below the context function a `stated` define's body is; none for an expression
+    * that is not a lambda.
+    */
   private def params(x: Expr[Any])(using Quotes): List[String] =
     import quotes.reflect.*
+    def context(s: Statement): Boolean = s match
+      case ValDef(name, _, _) => name.startsWith("contextual$")
+      case _                  => false
     def go(t: Term): List[String] = t match
-      case Inlined(_, _, body)                      => go(body)
-      case Typed(body, _)                           => go(body)
-      case Block(List(DefDef(_, List(ps), _, _)), _) => ps.params.map(_.name)
-      case Block(Nil, body)                         => go(body)
-      case _                                        => Nil
+      case Inlined(_, _, body)                                => go(body)
+      case Typed(body, _)                                     => go(body)
+      case Block(List(DefDef(_, List(ps), _, Some(rhs))), _)
+          if ps.params.forall(_.name.startsWith("contextual$")) => go(rhs)
+      case Block(List(DefDef(_, List(ps), _, _)), _)          => ps.params.map(_.name)
+      case Block(Nil, body)                                   => go(body)
+      case Block(ss, body) if ss.forall(context)              => go(body)
+      case _                                                  => Nil
     go(x.asTerm)
 
   private def fileOf(using Quotes): Expr[String] =

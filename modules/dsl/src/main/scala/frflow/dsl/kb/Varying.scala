@@ -1,7 +1,7 @@
 package frflow.dsl.kb
 
 import cats.data.{NonEmptyChain, Validated, ValidatedNec}
-import frflow.core.name.{NodeId, SymbolName}
+import frflow.core.name.{DefName, NodeId, SymbolName}
 import frflow.core.spec.Range
 import frflow.core.vocab.ValueKind
 import frflow.dsl.build.{Declarations, ElabError, Fault, Site}
@@ -40,8 +40,15 @@ object Varying:
     statements.find(r => r.world && r.declarations(d)).orElse(statements.find(_.declarations(d)))
       .fold("a statement")(_.node.value)
 
-  /** The Declarations a statement mentions, its rule's (a define it declares) among them. */
+  /** The Declarations a statement mentions, those of the defines it calls among them (its rule's, a `stated`
+    * define's), through the defines they call.
+    */
   private def mentioned(ds: Declarations): Set[SymbolName] =
-    val rules = ds.defines.values.flatten.toList.flatMap(_.run.toOption.map(_._1))
-    (ds :: rules).flatMap(_.symbols.collect { case (n, ss) if ss.exists(_.kind == ValueKind.Declaration) => n })
-      .toSet
+    within(List(ds), Set.empty).flatMap(_.symbols.collect {
+      case (n, ss) if ss.exists(_.kind == ValueKind.Declaration) => n }).toSet
+
+  /** `ds` and what every define they declare declares, each define read once. */
+  private def within(ds: List[Declarations], seen: Set[DefName]): List[Declarations] =
+    val next = ds.flatMap(_.defines.toList).filterNot((n, _) => seen(n))
+    val more = next.flatMap(_._2).flatMap(_.run.toOption.map(_._1))
+    if next.isEmpty then ds else ds ++ within(more, seen ++ next.map(_._1))

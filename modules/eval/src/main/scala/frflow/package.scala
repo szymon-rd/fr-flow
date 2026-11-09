@@ -9,8 +9,8 @@ package frflow
   * Its names are an import's: a model's own top-level `val` or `def` of the same name, in scope where one is used,
   * hides it, and the use does not compile (`val after = …` hides `book(request).after`). The names it takes,
   * besides its types (`Gen` and `Wall` among them: a model's own of either name hides it): the extensions `refines`,
-  * `assuming`, `replaces`, `result`, `after`, `failing`, and `always`, `forall`, `define`, `program`, `when`, `make`,
-  * `let`. An `Int` literal is a `Term[BigInt]` where one is expected
+  * `assuming`, `replaces`, `result`, `after`, `failing`, `ifSucceeds`, `ifFails`, and `always`, `forall`, `exists`,
+  * `define`, `stated`, `program`, `when`, `make`, `let`. An `Int` literal is a `Term[BigInt]` where one is expected
   * (`given int`), and an operation applied a step where a program expects one (`Flow`'s `given asStep`).
   */
 export frflow.dsl.node.Node
