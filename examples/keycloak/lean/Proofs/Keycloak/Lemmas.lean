@@ -38,7 +38,7 @@ in its realm after it. -/
 theorem liveIn_iff (seed : List UserAccount) (hs : List AuthRequest) (x : Session) :
     liveIn seed hs x ↔ ∃ pre q post, hs = pre ++ q :: post ∧ grantedBy (accountsAfter seed pre) q = some x ∧
       AuthRequest.SignOut x.realm x.token ∉ post := by
-  simp only [liveIn, splitsAt, gotAfter, signedOutIn, Classical.not_forall, Classical.not_not, and_assoc]
+  simp only [liveIn, splitsAt, gotAfter, signedOutIn, and_assoc]
 
 /-- A history whose every sign-in carries a new token stays so without its last request, and that request is fresh
 after the others. -/

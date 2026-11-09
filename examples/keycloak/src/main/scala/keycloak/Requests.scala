@@ -47,7 +47,7 @@ val tokenTaken = define { (s: Term[ServerState], x: Term[Session]) => s.sessions
 
 /** The session a request opens: one the accounts grant, under a token no open session holds. */
 val opened = define { (s: Term[ServerState], q: Term[AuthRequest]) =>
-  grantedBy(s.accounts, q).fold(none[Session])(x => when(tokenTaken(s, x))(none[Session]).otherwise(some(x))) }
+  grantedBy(s.accounts, q).filterNot(x => tokenTaken(s, x)) }
 
 /** Whether a request ends the session: a sign-out with its token, in its realm. */
 val endedBy = define { (q: Term[AuthRequest], x: Term[Session]) =>
@@ -106,9 +106,9 @@ val noOtherSessionOpens = Node.claim("A request opens no session but the one its
   forall((s: Term[ServerState], q: Term[AuthRequest]) => opensNoOther(s, q, step(s, q))))
   .refines(handleRequest)
 
-/** The open sessions after a request: the one it opens added, or those it ends removed. */
+/** The open sessions after a request: those it does not end, and the one it opens. */
 val sessionsAfter = define { (s: Term[ServerState], q: Term[AuthRequest]) =>
-  opened(s, q).fold(s.sessions.filter(y => !endedBy(q, y)))(x => s.sessions :+ x) }
+  s.sessions.filter(y => !endedBy(q, y)) ++ opened(s, q).toList }
 
 /** The state a request leads to: the accounts as an administrator's change sets them, and the sessions after it. */
 val next = define { (s: Term[ServerState], q: Term[AuthRequest]) =>

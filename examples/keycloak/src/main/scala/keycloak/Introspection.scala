@@ -14,7 +14,7 @@ val introspect = Definition[(RealmId, String) => Flow[Option[Claims]]]("the serv
 
 /** The user and roles an answer names, if any. */
 val claimsOf = define { (c: Term[Option[Claims]]) =>
-  c.fold(none[Acceptance])(x => some(make[Acceptance](x.user, x.roles))) }
+  c.map(x => make[Acceptance](x.user, x.roles)) }
 
 // A token is a reference to a session the server holds, not a statement the application reads.
 val referenceTokens = Node.claim("A realm's application accepts a token as the server's introspection of it " +

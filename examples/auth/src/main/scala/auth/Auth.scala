@@ -44,9 +44,8 @@ val admit = Definition[(String, Path) => Option[UserId]](
 /** A grant names the user and the path. */
 val grantFor = define { (u: Term[UserId], p: Term[Path]) => grants.exists(g => g === make[Grant](u, p)) }
 
-/** The user the token was issued to, if any (an Option's map, written as its fold: the DSL has no `map` on it). */
-val holderOf = define { (t: Term[String]) =>
-  sessions.open.find(s => s.token === t).fold(none[UserId])(s => some(s.user)) }
+/** The user the token was issued to, if any. */
+val holderOf = define { (t: Term[String]) => sessions.open.find(s => s.token === t).map(s => s.user) }
 
 /** The token's holder has a grant for the path. */
 val holderGranted = define { (t: Term[String], p: Term[Path]) => holderOf(t).exists(u => grantFor(u, p)) }

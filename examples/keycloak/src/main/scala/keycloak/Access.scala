@@ -32,12 +32,22 @@ val realmAccess = Node.claim("A realm's application accepts a token as a user's,
 // Its two halves: what must never happen, and what users can do
 // ============================================================================
 
-// Its formula is its three parts' formulas, one per line: a define cannot read a Declaration, so they are not named.
+/** Whether the token is accepted in the realm only as the user signed in there with it. */
+val asSignedIn = stated { (r: Term[RealmId], t: Term[String]) => accepted(r, t).forall(a => signedIn(r, a.user, t)) }
+
+/** Whether the token is accepted in the realm only as a user enabled there now. */
+val asEnabled = stated { (r: Term[RealmId], t: Term[String]) => accepted(r, t).forall(a => enabled(r, a.user)) }
+
+/** Whether the token is accepted in the realm only with the roles the realm gives its user now. */
+val withGivenRoles = stated { (r: Term[RealmId], t: Term[String]) =>
+  accepted(r, t).forall(a => a.roles === rolesOf(r, a.user)) }
+
+// Its formula is the three ideas its parts state, one per line.
 val noUnauthorizedAccess = Node.claim("A token is accepted only as its user is authorized now.")(
   forall((r: Term[RealmId], t: Term[String]) =>
-    accepted(r, t).forall(a => signedIn(r, a.user, t)) &&
-      accepted(r, t).forall(a => enabled(r, a.user)) &&
-      accepted(r, t).forall(a => a.roles === rolesOf(r, a.user))))
+    asSignedIn(r, t) &&
+      asEnabled(r, t) &&
+      withGivenRoles(r, t)))
   .refines(realmAccess)
 
 val signedInAreAccepted = Node.claim("A user signed in to a realm with a token, and enabled, has it accepted there " +
@@ -51,13 +61,13 @@ val signedInAreAccepted = Node.claim("A user signed in to a realm with a token, 
 // ============================================================================
 
 val onlyTheSignedIn = Node.claim("A token is accepted in a realm only as the user signed in there with it.")(
-  forall((r: Term[RealmId], t: Term[String]) => accepted(r, t).forall(a => signedIn(r, a.user, t))))
+  forall((r: Term[RealmId], t: Term[String]) => asSignedIn(r, t)))
   .refines(noUnauthorizedAccess)
 
 val disabledHaveNoAccess = Node.claim("A token is never accepted as a user who is disabled now.")(
-  forall((r: Term[RealmId], t: Term[String]) => accepted(r, t).forall(a => enabled(r, a.user))))
+  forall((r: Term[RealmId], t: Term[String]) => asEnabled(r, t)))
   .refines(noUnauthorizedAccess)
 
 val rolesAsGranted = Node.claim("A token is accepted only with the roles the realm gives its user now.")(
-  forall((r: Term[RealmId], t: Term[String]) => accepted(r, t).forall(a => a.roles === rolesOf(r, a.user))))
+  forall((r: Term[RealmId], t: Term[String]) => withGivenRoles(r, t)))
   .refines(noUnauthorizedAccess)

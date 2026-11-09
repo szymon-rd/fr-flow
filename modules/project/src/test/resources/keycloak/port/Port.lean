@@ -130,7 +130,6 @@ theorem liveIn_eq : Old.liveIn = Keycloak.liveIn := by
   unfold Old.liveIn Keycloak.liveIn Keycloak.splitsAt Keycloak.gotAfter Keycloak.signedOutIn
   rw [grantedBy_eq, accountsAfter_eq]
   apply propext
-  simp only [Classical.not_forall, Classical.not_not]
   constructor
   · rintro ⟨pre, post, ⟨q, ha, hb⟩, hc⟩; exact ⟨pre, q, post, ⟨ha, hb⟩, hc⟩
   · rintro ⟨pre, q, post, ⟨ha, hb⟩, hc⟩; exact ⟨pre, post, ⟨q, ha, hb⟩, hc⟩
@@ -159,7 +158,8 @@ theorem noUnauthorizedAccess (accepted signedIn enabled rolesOf) :
     Keycloak.noUnauthorizedAccess.claim accepted signedIn enabled rolesOf ↔ ∀ w, Rules w →
       Old.NoUnauthorizedAccess.claim RealmId String String String (asPairs (fun r t => accepted r t w))
         (fun r u t => signedIn r u t w) (fun r u => enabled r u w) (fun r u => rolesOf r u w) := by
-  simp only [Keycloak.noUnauthorizedAccess.claim, Old.NoUnauthorizedAccess.claim, asPairs]
+  simp only [Keycloak.noUnauthorizedAccess.claim, Keycloak.asSignedIn, Keycloak.asEnabled, Keycloak.withGivenRoles,
+    Old.NoUnauthorizedAccess.claim, asPairs]
   have each := fun r t w => (forall_and3 (accepted r t w) (fun a => signedIn r a.user t w)
     (fun a => enabled r a.user w) (fun a => a.roles = rolesOf r a.user w)).trans
     (forall_pair (accepted r t w) (fun u rs => (signedIn r u t w ∧ enabled r u w) ∧ rs = rolesOf r u w)).symm
@@ -177,7 +177,7 @@ theorem onlyTheSignedIn (accepted signedIn) :
     Keycloak.onlyTheSignedIn.claim accepted signedIn ↔ ∀ w, Rules w →
       Old.OnlyTheSignedIn.claim RealmId String String String (asPairs (fun r t => accepted r t w))
         (fun r u t => signedIn r u t w) := by
-  simp only [Keycloak.onlyTheSignedIn.claim, Old.OnlyTheSignedIn.claim, asPairs]
+  simp only [Keycloak.onlyTheSignedIn.claim, Keycloak.asSignedIn, Old.OnlyTheSignedIn.claim, asPairs]
   exact ⟨fun h w hw r t => (forall_pair (accepted r t w) (fun u _ => signedIn r u t w)).2 (h r t w hw.1 hw.2.1 hw.2.2),
     fun h r t w h1 h2 h3 => (forall_pair (accepted r t w) (fun u _ => signedIn r u t w)).1 (h w ⟨h1, h2, h3⟩ r t)⟩
 
@@ -185,7 +185,7 @@ theorem disabledHaveNoAccess (accepted enabled) :
     Keycloak.disabledHaveNoAccess.claim accepted enabled ↔ ∀ w, Rules w →
       Old.DisabledHaveNoAccess.claim RealmId String String String (asPairs (fun r t => accepted r t w))
         (fun r u => enabled r u w) := by
-  simp only [Keycloak.disabledHaveNoAccess.claim, Old.DisabledHaveNoAccess.claim, asPairs]
+  simp only [Keycloak.disabledHaveNoAccess.claim, Keycloak.asEnabled, Old.DisabledHaveNoAccess.claim, asPairs]
   exact ⟨fun h w hw r t => (forall_pair (accepted r t w) (fun u _ => enabled r u w)).2 (h r t w hw.1 hw.2.1 hw.2.2),
     fun h r t w h1 h2 h3 => (forall_pair (accepted r t w) (fun u _ => enabled r u w)).1 (h w ⟨h1, h2, h3⟩ r t)⟩
 
@@ -193,7 +193,7 @@ theorem rolesAsGranted (accepted rolesOf) :
     Keycloak.rolesAsGranted.claim accepted rolesOf ↔ ∀ w, Rules w →
       Old.RolesAsGranted.claim RealmId String String String (asPairs (fun r t => accepted r t w))
         (fun r u => rolesOf r u w) := by
-  simp only [Keycloak.rolesAsGranted.claim, Old.RolesAsGranted.claim, asPairs]
+  simp only [Keycloak.rolesAsGranted.claim, Keycloak.withGivenRoles, Old.RolesAsGranted.claim, asPairs]
   exact ⟨fun h w hw r t => (forall_pair (accepted r t w) (fun u rs => rs = rolesOf r u w)).2
       (h r t w hw.1 hw.2.1 hw.2.2),
     fun h r t w h1 h2 h3 => (forall_pair (accepted r t w) (fun u rs => rs = rolesOf r u w)).1 (h w ⟨h1, h2, h3⟩ r t)⟩

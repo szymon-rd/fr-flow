@@ -83,12 +83,10 @@ val gotAfter = define { (start: Term[List[UserAccount]], pre: Term[List[AuthRequ
 val signedOutIn = define { (post: Term[List[AuthRequest]], x: Term[Session]) =>
   post.contains(make[AuthRequest.SignOut](x.realm, x.token)) }
 
-/** Whether a sign-in of the history got the session, with no sign-out of it after: some split of the history shows
-  * one ("some" written "not every split fails to", the formulas' quantifier being `forall`).
-  */
+/** Whether a sign-in of the history got the session, with no sign-out of it after. */
 val liveIn = define { (start: Term[List[UserAccount]], hs: Term[List[AuthRequest]], x: Term[Session]) =>
-  !forall((pre: Term[List[AuthRequest]], q: Term[AuthRequest], post: Term[List[AuthRequest]]) =>
-    !(splitsAt(hs, pre, q, post) && gotAfter(start, pre, q, x) && !signedOutIn(post, x))) }
+  exists((pre: Term[List[AuthRequest]], q: Term[AuthRequest], post: Term[List[AuthRequest]]) =>
+    splitsAt(hs, pre, q, post) && gotAfter(start, pre, q, x) && !signedOutIn(post, x)) }
 
 val signInHistory = Node.claim("A user is signed in to a realm with a token exactly when a sign-in of theirs there " +
     "got it and still stands.")(
