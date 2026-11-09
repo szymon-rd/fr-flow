@@ -64,10 +64,13 @@ val expireCode = define { (s: Term[CrmStore], now: Term[BigInt]) =>
 val idsIn = define { (s: Term[CrmStore]) =>
   s.records.map(r => r.id) ++ s.shares.map(sh => sh.record) ++ s.expiries.map(e => e.record) }
 
-/** The first store with the rows of each record the second holds differently stored again from the second. */
+/** `x` with the record's rows stored again from `t`, when `s` and `t` hold them differently. */
+val storedIfChanged = define { (s: Term[CrmStore], t: Term[CrmStore], x: Term[CrmStore], id: Term[BigInt]) =>
+  when(aboutRecord(s, id) =!= aboutRecord(t, id))(replaceAbout(x, id, aboutRecord(t, id))).otherwise(x) }
+
+/** The first store with each record either store holds stored again from the second where they differ. */
 val storedAgain = define { (s: Term[CrmStore], t: Term[CrmStore]) =>
-  (idsIn(s) ++ idsIn(t)).foldLeft(s)((x, id) =>
-    when(aboutRecord(s, id) =!= aboutRecord(t, id))(replaceAbout(x, id, aboutRecord(t, id))).otherwise(x)) }
+  (idsIn(s) ++ idsIn(t)).foldLeft(s)((x, id) => storedIfChanged(s, t, x, id)) }
 
 /** What the database holds after a run of the expiry job at `now`: the job's store stored again where it differs. */
 val jobDone = define { (s: Term[CrmStore], now: Term[BigInt]) => storedAgain(s, expireCode(s, now)) }
