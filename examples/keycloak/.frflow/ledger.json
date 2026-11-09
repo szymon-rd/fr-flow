@@ -410,6 +410,22 @@
           "key": "087bcc41dcd575d8",
           "signature": "c0rzNahOnfF1DXX7tjqmbos356RbX1EKhMG65MNkK2gfP1sWYaX/QGnSonhlHc1AaAGjapa4n+4y1zQ/Ngc8Dw=="
         }
+      },
+      {
+        "action": "accept",
+        "by": "demo-developer",
+        "at": "2026-11-09T22:50:34.825922Z",
+        "commit": "1b0e1bfcd4f428c9e2494794486f877c2e9b76ea",
+        "reason": "Accepted with the demo key when moving to the rebuilt library.",
+        "rejected": [],
+        "content": "6b0a87ace484030e1e64ff0484e13da4cf78391e012153b6467a9957bc4659de",
+        "chain": "",
+        "code": "bbffc245cfabc2393d34d191688a7a461d76c38f14243bd440d323e7ccc15ee0",
+        "after": "566e3de4ddc9c3188a064e03992915bad8bbd5bfd6fac4f771804adc2bfe0f10",
+        "seal": {
+          "key": "087bcc41dcd575d8",
+          "signature": "IQCY3wKFiCBo04I8guKetqegZPwWUVmDPbw9LYFi6ccxS3zPrOee4cjbCTIHFtv1SRFzK+s20n7CGYHOdg82Cw=="
+        }
       }
     ],
     "introspectAnswers": [
@@ -440,6 +456,23 @@
         "seal": {
           "key": "087bcc41dcd575d8",
           "signature": "dCAhbxdskIaJtAJ9fdyKJkQkEuY9FtFsnrMjas3orxOljR5P+zfOvi3jb5tPAGDj8W3nt2O4v52bK7Z3/3HRBg=="
+        }
+      }
+    ],
+    "introspectionWiring": [
+      {
+        "action": "accept",
+        "by": "demo-developer",
+        "at": "2026-11-09T22:50:34.825922Z",
+        "commit": "1b0e1bfcd4f428c9e2494794486f877c2e9b76ea",
+        "reason": "Accepted with the demo key when moving to the rebuilt library.",
+        "rejected": [],
+        "content": "b3f2c812a0ae9cd39a50cf0f77e7ae58a05669f2c69209b9807776406ca24158",
+        "chain": "",
+        "code": "b539660e4ca9e8b19f7eca00645c697439d6972349a9000fc2b8c15e5e126a11",
+        "seal": {
+          "key": "087bcc41dcd575d8",
+          "signature": "JZ9v/QdFwCKzGyoosq9waKkgiwy4au95WWo0m2f8qniub5nYZFqQn8fRDoejBJQLurR1jBAoG7sOJ7zb+YuXAQ=="
         }
       }
     ],
@@ -650,6 +683,23 @@
         }
       }
     ],
+    "randomTokens": [
+      {
+        "action": "accept",
+        "by": "demo-developer",
+        "at": "2026-11-09T22:50:34.825922Z",
+        "commit": "1b0e1bfcd4f428c9e2494794486f877c2e9b76ea",
+        "reason": "Accepted with the demo key when moving to the rebuilt library.",
+        "rejected": [],
+        "content": "b4a0aa5db829bca2b506344000a427a887ef5df132c63c8aab466608d88184ff",
+        "chain": "",
+        "code": "bbffc245cfabc2393d34d191688a7a461d76c38f14243bd440d323e7ccc15ee0",
+        "seal": {
+          "key": "087bcc41dcd575d8",
+          "signature": "TxtdeY6skH2NAHJ87Q90wQv0pMm9TCfQ8FUHOKtw80JAMifnkETmHXrRUY+Q4S6WqVpWHd0Kce6j3RnNdc86CA=="
+        }
+      }
+    ],
     "realmAccess": [
       {
         "action": "accept",
@@ -790,6 +840,23 @@
         }
       }
     ],
+    "saltedPasswords": [
+      {
+        "action": "accept",
+        "by": "demo-developer",
+        "at": "2026-11-09T22:50:34.825922Z",
+        "commit": "1b0e1bfcd4f428c9e2494794486f877c2e9b76ea",
+        "reason": "Accepted with the demo key when moving to the rebuilt library.",
+        "rejected": [],
+        "content": "b309faa8725331335a863ce5a6b36b4d41bb800fac085ec80d5f7971ed2c1c07",
+        "chain": "",
+        "code": "bbffc245cfabc2393d34d191688a7a461d76c38f14243bd440d323e7ccc15ee0",
+        "seal": {
+          "key": "087bcc41dcd575d8",
+          "signature": "KUwwuMZNtsVTe9jRhP5FzGpUdFwvKMUC3x0fwP9VQyJqMIhfF10YZh0wSJnlCJplhh+wMkv4FbZUH1B3nes7DA=="
+        }
+      }
+    ],
     "serverRun": [
       {
         "action": "accept",
@@ -837,6 +904,22 @@
         "seal": {
           "key": "087bcc41dcd575d8",
           "signature": "BoAtO5tAzjeHqpqJ11j5P8K41by07k5nFDXkFg4JdW1o8uQf6/8YYsOqnV6Dyf9c2z6gWU2zI+OkjR8FlnBgCw=="
+        }
+      },
+      {
+        "action": "accept",
+        "by": "demo-developer",
+        "at": "2026-11-09T22:50:34.825922Z",
+        "commit": "1b0e1bfcd4f428c9e2494794486f877c2e9b76ea",
+        "reason": "Accepted with the demo key when moving to the rebuilt library.",
+        "rejected": [],
+        "content": "c5bc2213e8a3be593acdde7a0235a52905032c092eb97e0ad0e793d8f1cb4fc5",
+        "chain": "",
+        "code": "b539660e4ca9e8b19f7eca00645c697439d6972349a9000fc2b8c15e5e126a11",
+        "after": "f94ab7e6210f6c1d7180c4c8c9cf0d206bf4084a74b8ef4eda3cabf91259bd1e",
+        "seal": {
+          "key": "087bcc41dcd575d8",
+          "signature": "yv7XxwTwyvPavpd1hDuNiG7F+zgKXMamzD/5QbgKOKozb3CwvI0KsSU8wWdnW/vpA4m1uWnZD6YekNLOFi4KDw=="
         }
       }
     ],
@@ -1715,6 +1798,19 @@
         "src/main/scala/keycloak/Server.scala"
       ]
     },
+    "6b0a87ace484030e1e64ff0484e13da4cf78391e012153b6467a9957bc4659de": {
+      "kind": "design",
+      "parents": [
+        "serviceWiring"
+      ],
+      "assumes": [],
+      "statement": "The HTTP API serves Keycloak's endpoints for each realm.",
+      "vocabulary": [],
+      "checking": [],
+      "governs": [
+        "src/main/scala/keycloak/Server.scala"
+      ]
+    },
     "9df28240325ef1009ebabe8af8de04d52ea36b92dd85a9316dda5948c82f61f3": {
       "kind": "claim",
       "parents": [
@@ -1778,6 +1874,19 @@
       "governs": [],
       "call": "introspect",
       "implementation": "introspect: proven program, (realm: Term[RealmId], token: Term[String]) =>\n  for\n    found <- lookup(realm, token)\n    s     <- load\n  yield found.fold(none[Claims])(x => accountOf(s.accounts, realm, x.user).fold(none[Claims])(a =>\n    when(a.enabled)(some(make[Claims](realm, x.user, a.roles))).otherwise(none[Claims])))"
+    },
+    "b3f2c812a0ae9cd39a50cf0f77e7ae58a05669f2c69209b9807776406ca24158": {
+      "kind": "design",
+      "parents": [
+        "introspectAnswers"
+      ],
+      "assumes": [],
+      "statement": "The server runs introspect on its store for each introspection.",
+      "vocabulary": [],
+      "checking": [],
+      "governs": [
+        "src/main/scala/keycloak/Wiring.scala"
+      ]
     },
     "00950e27e7fe5fadee8fe0da8ae6d396ccea4cf2fd1b28e7f5fb63a7d4d6851e": {
       "kind": "claim",
@@ -2104,6 +2213,19 @@
       ],
       "governs": []
     },
+    "b4a0aa5db829bca2b506344000a427a887ef5df132c63c8aab466608d88184ff": {
+      "kind": "design",
+      "parents": [
+        "drawnTokens"
+      ],
+      "assumes": [],
+      "statement": "The HTTP API draws each token from a secure random source.",
+      "vocabulary": [],
+      "checking": [],
+      "governs": [
+        "src/main/scala/keycloak/Server.scala"
+      ]
+    },
     "2b35ce428ed7d3de1578bdf05cdfa0f0209656b7b788969c2eb8eb23e03df37f": {
       "kind": "claim",
       "parents": [],
@@ -2322,6 +2444,19 @@
       ],
       "governs": []
     },
+    "b309faa8725331335a863ce5a6b36b4d41bb800fac085ec80d5f7971ed2c1c07": {
+      "kind": "design",
+      "parents": [
+        "serviceWiring"
+      ],
+      "assumes": [],
+      "statement": "The HTTP API hashes each password with the user's salt before handing the sign-in to the server.",
+      "vocabulary": [],
+      "checking": [],
+      "governs": [
+        "src/main/scala/keycloak/Server.scala"
+      ]
+    },
     "c166bc1929bc46329d34c17adced3a0935d809e339f2eea3d3368082fa48635d": {
       "kind": "claim",
       "parents": [
@@ -2392,6 +2527,19 @@
       ],
       "assumes": [],
       "statement": "The server takes each request the HTTP API hands it, one at a time, and runs serve's code on its store: handleRequest's step on the state it holds, stored with the request; an introspection runs introspect's code on the store.",
+      "vocabulary": [],
+      "checking": [],
+      "governs": [
+        "src/main/scala/keycloak/Wiring.scala"
+      ]
+    },
+    "c5bc2213e8a3be593acdde7a0235a52905032c092eb97e0ad0e793d8f1cb4fc5": {
+      "kind": "design",
+      "parents": [
+        "handleRequest"
+      ],
+      "assumes": [],
+      "statement": "The server runs serve on its store for each request the HTTP API hands it.",
       "vocabulary": [],
       "checking": [],
       "governs": [
