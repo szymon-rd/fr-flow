@@ -15,6 +15,21 @@
           "key": "087bcc41dcd575d8",
           "signature": "wSCKOGTGv2tk9IVrkyXN416m6QR2e+AkFlF/IDhEMMRRVBwHzmM6TDNmVTebMMeNCo68JHwBcaPek09sb3IHAA=="
         }
+      },
+      {
+        "action": "accept",
+        "by": "demo-developer",
+        "at": "2026-11-09T22:36:48.138896Z",
+        "commit": "c90b0df7a1d065e2e1c8717fc9a5bb8c006ab387",
+        "reason": "Accepted with the demo key when moving to the rebuilt library.",
+        "rejected": [],
+        "content": "78348961b7a1ef74e7f8b5f00f7ca68ea64173e259fe60b446d66cf11a5fe3bb",
+        "chain": "36827329626abed2b1462872278869a46a838365b8695feaef43bde57e3378e0",
+        "after": "3452a322d063beb4803bc97be6abff16c935fdf61a503b28e28425797baf9118",
+        "seal": {
+          "key": "087bcc41dcd575d8",
+          "signature": "/HUaQ1ylHs0SU73CaBMho3dCs95yYo7jlnotANmnoOIPEFUUjod6npj8qtn41BaQrKxvySNfcvGz3WXEBbCSBQ=="
+        }
       }
     ],
     "acceptedIsAnswered": [
@@ -30,6 +45,21 @@
         "seal": {
           "key": "087bcc41dcd575d8",
           "signature": "O5Y09LVeKyW/DD1w7MIFGS6E3Bxt39lA1yAW6IKmOLMY6elWPUsEXFuw/+nNK9fGl3pRPTDjuQNA1fj6UYnBDQ=="
+        }
+      },
+      {
+        "action": "confirm",
+        "by": "demo-developer",
+        "at": "2026-11-09T22:36:48.138896Z",
+        "commit": "c90b0df7a1d065e2e1c8717fc9a5bb8c006ab387",
+        "reason": "still holds after acceptWhenFree changed: Accepted with the demo key when moving to the rebuilt library.",
+        "rejected": [],
+        "content": "7f68b31b249cf485fa37403dc55eb2aba3c93b67a69eac878cdb71df6f7534af",
+        "chain": "5219457735a2f769e470c3c8e5de96be3c90bdc97c27aa742b50f65b916576b2",
+        "after": "da5420d21cd39fe816686c399a02f32ef710a9f1db21e86f9af986bb1710028b",
+        "seal": {
+          "key": "087bcc41dcd575d8",
+          "signature": "MF1efUay5nNpeLnA+81vbANCJ7mVvbP8e1HrFTAXlAGmkcHq1pHKIWvHsMXfO/jdeWG+z79r94zDCa3zSKEWAg=="
         }
       }
     ],
@@ -47,6 +77,21 @@
           "key": "087bcc41dcd575d8",
           "signature": "LMyZiQPlFHUUENZl9UZkxCKetFWzx0Oxo31dmO+iekyw6gCviV6UD3nhLw7ra6HTH8qjYbVX6V7v77SMRvLvBA=="
         }
+      },
+      {
+        "action": "accept",
+        "by": "demo-developer",
+        "at": "2026-11-09T22:36:48.138896Z",
+        "commit": "c90b0df7a1d065e2e1c8717fc9a5bb8c006ab387",
+        "reason": "Accepted with the demo key when moving to the rebuilt library.",
+        "rejected": [],
+        "content": "8d6b6ec194d04ba45057735c9aff6fa2aa7ef9cab424c1658d5c3a22df3477f8",
+        "chain": "f52b4b08f38669db9987e81f1101246caea73fe68e1a0d7f206b003287c26574",
+        "after": "b8405508f5f98470c555694a4f4b479ac7e917733880a8ab4bf3dce06faa481a",
+        "seal": {
+          "key": "087bcc41dcd575d8",
+          "signature": "jwFrm6ESUPiHj44cK2kVOZC5QdEJ/LfJG+g6JJFp4iGviHRmBcZWoZ9qVTc+PKQOnzMrdX6IYKN3bFajuXcaCw=="
+        }
       }
     ],
     "bookWhenFree": [
@@ -62,6 +107,21 @@
         "seal": {
           "key": "087bcc41dcd575d8",
           "signature": "9IO5FRt7e0MCFR1xfF16KxW3nY/fCki73twsMN1grq10NgbwZO740+TM5d6H1kvvRkupfqfaxM+YZF5JUWjmDg=="
+        }
+      },
+      {
+        "action": "accept",
+        "by": "demo-developer",
+        "at": "2026-11-09T22:36:48.138896Z",
+        "commit": "c90b0df7a1d065e2e1c8717fc9a5bb8c006ab387",
+        "reason": "Accepted with the demo key when moving to the rebuilt library.",
+        "rejected": [],
+        "content": "f771fc8bf45c05c95f5dcf05e19d63ddd64716befb3de2f7f85a2b31d1bd3f8b",
+        "chain": "36827329626abed2b1462872278869a46a838365b8695feaef43bde57e3378e0",
+        "after": "f278b5ec55cc570413f576918d8d11b8ab5b3864513308486fc4d6d8d7e6fa7c",
+        "seal": {
+          "key": "087bcc41dcd575d8",
+          "signature": "UZOrzn2tQQcyfH+w2tbtbYLuMSse9w3d7BDlsAEcMw5HihRlSz5nq8ndtJ3wEUsO7lTtkkjc0qCzb+sB3dReBw=="
         }
       }
     ],
@@ -79,6 +139,21 @@
           "key": "087bcc41dcd575d8",
           "signature": "pF0xwWawNSj+Usf4237kCULkGiRn0k71r5//7OEvboV13H4QIrlsiuZJuVG6DrL9z7w8l1QO2/i7/TQviJJ2Dw=="
         }
+      },
+      {
+        "action": "confirm",
+        "by": "demo-developer",
+        "at": "2026-11-09T22:36:48.138896Z",
+        "commit": "c90b0df7a1d065e2e1c8717fc9a5bb8c006ab387",
+        "reason": "still holds after bookWhenFree changed: Accepted with the demo key when moving to the rebuilt library.",
+        "rejected": [],
+        "content": "20cda7bbbbf59c44aef1f9bd3b06d35f6e4396a3166c4d47179975879d8f87fb",
+        "chain": "4c5b8cb19417264b0482a79310551fc99ac5c533d0aa5beb0a4658a1ad3e2eb6",
+        "after": "0d5d1ea31f0dcc554fc945bf09cbbe60891b0331d33711f666d0db96e5b9f186",
+        "seal": {
+          "key": "087bcc41dcd575d8",
+          "signature": "vJ1eWK89KYKx/8/4/t1/S0cUiZ/vjpxLvOq0Pf36F+k/Ip2SXQ+qxsQBN+N/Jjtxht2Bs0rE08KsTt35rnNMDA=="
+        }
       }
     ],
     "bookedIsStored": [
@@ -94,6 +169,21 @@
         "seal": {
           "key": "087bcc41dcd575d8",
           "signature": "TUjUE1ZCLCT9/cssbPNFYPfTQDcoSt1yzSzigzCbM7W/oycZ4DPgM7me3TENue+6YwqrTpxqws6d4KmfFLPUBg=="
+        }
+      },
+      {
+        "action": "confirm",
+        "by": "demo-developer",
+        "at": "2026-11-09T22:36:48.138896Z",
+        "commit": "c90b0df7a1d065e2e1c8717fc9a5bb8c006ab387",
+        "reason": "still holds after acceptWhenFree changed: Accepted with the demo key when moving to the rebuilt library.",
+        "rejected": [],
+        "content": "7593b6595845366ec0facb0c8f14c76491d236da00089f2b6b25f0f7ab71ea17",
+        "chain": "0e73451742646ae479a5f96ac3964d5e4b6b62c607ed1e99b9ff6248a2d71761",
+        "after": "1122cc98dff2e080e6bd1ed45cbe5c7a2be604c456ce9599ac25e14de915abe6",
+        "seal": {
+          "key": "087bcc41dcd575d8",
+          "signature": "Ih82uKC+94LiQf1fy3lWkwdR//4zuBEZddW3Xn6dlrPP4b8Kr5xuW865wnIifL06idgmsGKKjL865L7nmpsHDA=="
         }
       }
     ],
@@ -127,6 +217,21 @@
           "key": "087bcc41dcd575d8",
           "signature": "YW49j0Mj61XbA4bWNf7sP3NKdgfUEymKWB2ydYTX4rIonj6ppKsJbOv60Eiu9PO4gHgA7nXI0Oid405sTKlpAg=="
         }
+      },
+      {
+        "action": "confirm",
+        "by": "demo-developer",
+        "at": "2026-11-09T22:36:48.138896Z",
+        "commit": "c90b0df7a1d065e2e1c8717fc9a5bb8c006ab387",
+        "reason": "still holds after grantWhenFree changed: Accepted with the demo key when moving to the rebuilt library.",
+        "rejected": [],
+        "content": "fd7aa2d80b5b8af8d2a2a8e33407ef6af059942117d3e90b2b3cdf839dcafacd",
+        "chain": "61432f2d6acc0b473e117df70013666db10a9d8388ed3c58f121765b5adbedef",
+        "after": "c6b3d037e75017ce8fa63b187cf0fad3f982b85b7962b0fd74aab55926a15763",
+        "seal": {
+          "key": "087bcc41dcd575d8",
+          "signature": "Gc/QFw1ngINUmX4duA6yI3JOhlY6mH3lOM5hrue27FGph0VI6BFp82S643VguNjAErvihkTiJPh8C+TZ00G+AA=="
+        }
       }
     ],
     "grantWhenFree": [
@@ -142,6 +247,21 @@
         "seal": {
           "key": "087bcc41dcd575d8",
           "signature": "DSIAoBD2bKbXMyFFZby7YQ/FMdT9xGy4FMZr5cVjLSPr1cmM4hCokZCcMfgW9Hg9qTbJyyFM5FrrdZAVurpoDg=="
+        }
+      },
+      {
+        "action": "accept",
+        "by": "demo-developer",
+        "at": "2026-11-09T22:36:48.138896Z",
+        "commit": "c90b0df7a1d065e2e1c8717fc9a5bb8c006ab387",
+        "reason": "Accepted with the demo key when moving to the rebuilt library.",
+        "rejected": [],
+        "content": "8c76b822f6f5098a0f3bbf1f7973769b876eeac76056085cdd3a06146d5c6340",
+        "chain": "bed519c7135f01f248a01a5a66f65cc1ffa7db8341f90d22db4bbc211a011f96",
+        "after": "7d26183cbd3c09a3c76e4f22b4958f4df6f41ffc4f02b0b4927055092abb4ae7",
+        "seal": {
+          "key": "087bcc41dcd575d8",
+          "signature": "wpwHcWLjWpg6HH5WpiA9vKEiGJvq0JD7OW/ERJOajA5IZT8qb/wsXTEubuJroqRj9qpQeAs5dV/sKdSq8DxWCA=="
         }
       }
     ],
@@ -160,6 +280,22 @@
           "key": "087bcc41dcd575d8",
           "signature": "Lug8eQqrpRB19OdGMkMDQhxebbFMS+sUUd+VXqO9fMCsnorAZAXGw672U8Nh40Yy6lOvo4iyHibSyxJPEec1BA=="
         }
+      },
+      {
+        "action": "confirm",
+        "by": "demo-developer",
+        "at": "2026-11-09T22:36:48.138896Z",
+        "commit": "c90b0df7a1d065e2e1c8717fc9a5bb8c006ab387",
+        "reason": "still holds after grantWhenFree changed: Accepted with the demo key when moving to the rebuilt library.",
+        "rejected": [],
+        "content": "5dedc4b93cdfae2018c4856f0964eb55e9d8dc6a373a7b582fcde331dfbd9ac8",
+        "chain": "61432f2d6acc0b473e117df70013666db10a9d8388ed3c58f121765b5adbedef",
+        "code": "79023f69be3fc1be4b4c40199581cee70f19530a2ddaa47c08f5bdde27c7f7e8",
+        "after": "45313a458c97d52fc7159219acd0de322e54f5cd1eeb2521c842bf05d2f3db21",
+        "seal": {
+          "key": "087bcc41dcd575d8",
+          "signature": "lJHIOHUIoakdx1X6y0KK0dwduKEGLUu3fh8ZWi2uU0WqFfzMgom8dRxZAc93UxhQAzgAi0DtJtZBxL4Ap2wRBQ=="
+        }
       }
     ],
     "neverOverlap": [
@@ -175,6 +311,21 @@
         "seal": {
           "key": "087bcc41dcd575d8",
           "signature": "kLG0+67GftyK4dejGzz066tZdSerjYH/Lw2UZ+6a4cbydrAaD6FG9dgh1aaXzbEZQU8nSGaKoDs7g+5sUrBbDw=="
+        }
+      },
+      {
+        "action": "accept",
+        "by": "demo-developer",
+        "at": "2026-11-09T22:36:48.138896Z",
+        "commit": "c90b0df7a1d065e2e1c8717fc9a5bb8c006ab387",
+        "reason": "Accepted with the demo key when moving to the rebuilt library.",
+        "rejected": [],
+        "content": "154a34af72fbd49352d2fe89fd17230ca4bcabb5b30289f1fb19537842f23fcb",
+        "chain": "3148966d3c78c09a959b7d1d79a48ecf3b74534459cf7bce01f7635c41c40648",
+        "after": "a502bb265473a0212d72b7c9a51114b761d65ad3c3e01a0e1a7f5a7bbc1c01b9",
+        "seal": {
+          "key": "087bcc41dcd575d8",
+          "signature": "oevsqlhuhORJnV3CJH1PBJ70vVlIkLGRgpHcmTTIemAEgVg1xb4QY6PDITP9HtGDVAvKusdp18tN4PaARrdJBA=="
         }
       }
     ],
@@ -225,6 +376,21 @@
           "key": "087bcc41dcd575d8",
           "signature": "9PVT+pWHxpddWMrNxqexX/rcx/EoOSQA4BzHmeF/PRIlzdBSQ31Yr8ISFIMWcXbkZT7Jt1Yygo0l3FvwCZg3Aw=="
         }
+      },
+      {
+        "action": "confirm",
+        "by": "demo-developer",
+        "at": "2026-11-09T22:36:48.138896Z",
+        "commit": "c90b0df7a1d065e2e1c8717fc9a5bb8c006ab387",
+        "reason": "still holds after grantWhenFree changed: Accepted with the demo key when moving to the rebuilt library.",
+        "rejected": [],
+        "content": "24909ddd4cf75810930e2c266070700e0bb5342f6e8f49759bc21934cc6e8e60",
+        "chain": "61432f2d6acc0b473e117df70013666db10a9d8388ed3c58f121765b5adbedef",
+        "after": "812351278c623cc23663357f6fe3dc2579220417a486b61a7e8246abbf332e8f",
+        "seal": {
+          "key": "087bcc41dcd575d8",
+          "signature": "J0f7PQnP8dk6UTrJQ9H5rZenLqjax71RIRa08Nh3b9EZGr1zrF+77NCjajo07g6V8va5XSctacLs6zaxLaA3Ag=="
+        }
       }
     ],
     "startsEmpty": [
@@ -257,6 +423,21 @@
           "key": "087bcc41dcd575d8",
           "signature": "9R+NA/H32Bzuz4f9cJRMxGGIHVs9uCpxi6n92Msg+HsvaI71NkNl+96/+OsSlPB+NL8vAbT4/7Fq2anA490FBQ=="
         }
+      },
+      {
+        "action": "accept",
+        "by": "demo-developer",
+        "at": "2026-11-09T22:36:48.138896Z",
+        "commit": "c90b0df7a1d065e2e1c8717fc9a5bb8c006ab387",
+        "reason": "Accepted with the demo key when moving to the rebuilt library.",
+        "rejected": [],
+        "content": "894fb4b0d819b18f45a0759b876a7fd8cce772f8fff2e619f753c798a8aca1e5",
+        "chain": "aef60bb265b8414047a8537f6dfa3cfc8b8d77b91699c54fb17e1d07330b6905",
+        "after": "39ff309abe7be4288790cc496a0665db38ed6248ec65dc8576ab69a70ac717c0",
+        "seal": {
+          "key": "087bcc41dcd575d8",
+          "signature": "5xiRGlnUoFT/S3Flsl0PfWjQMDYcT9AdUDKFUQIRYB7nNg7IgEQUZElu7G12VNKhPEYTN6LhbHlgSb59B5fGDQ=="
+        }
       }
     ]
   },
@@ -274,6 +455,32 @@
       ],
       "statement": "A request is accepted exactly when its room is free for its whole time.",
       "formula": "(∀ (x : Booking), (∀ (x_1 : World), ((accepted x x_1) = (Rooms.free (booked x_1) x))))\n\n@[frflow_defs] def free (x : (List Booking)) (x_1 : Booking) : Prop :=\n  (∀ x_2 ∈ x, (Rooms.apart x_2 x_1))\n\n@[frflow_defs] def apart (x : Booking) (x_1 : Booking) : Prop :=\n  ((¬(x.room = x_1.room)) ∨ (∀ (x_2 : Int), (¬((Rooms.covers x x_2) ∧ (Rooms.covers x_1 x_2)))))\n\n@[frflow_defs] def covers (x : Booking) (x_1 : Int) : Prop :=\n  ((x.start ≤ x_1) ∧ (x_1 < x.«end»))",
+      "written": "forall((request: Term[Booking]) => accepted(request) === free(booked, request))",
+      "vocabulary": [
+        "accepted: whether a request is accepted",
+        "booked: the bookings made, as the world stands"
+      ],
+      "checking": [
+        "proven from its parts (bookedIsStored, acceptedIsAnswered, answerWhenFree)",
+        "rules it uses: neverOverlap, bookingsEndAfterStart",
+        "rests on what each Booking from outside meets: bookingsEndAfterStart"
+      ],
+      "governs": [],
+      "call": "accepted"
+    },
+    "78348961b7a1ef74e7f8b5f00f7ca68ea64173e259fe60b446d66cf11a5fe3bb": {
+      "kind": "claim",
+      "parents": [],
+      "parts": [
+        "bookedIsStored",
+        "acceptedIsAnswered",
+        "answerWhenFree"
+      ],
+      "assumes": [
+        "bookingsEndAfterStart"
+      ],
+      "statement": "A request is accepted exactly when its room is free for its whole time.",
+      "formula": "(∀ (x : Booking), (∀ (x_1 : World), ((accepted x x_1) = (Rooms.free (booked x_1) x))))\n\n@[frflow_defs] def free (x : (List Booking)) (x_1 : Booking) : Prop :=\n  (∀ x_2 ∈ x, (Rooms.apart x_2 x_1))\n\n@[frflow_defs] def apart (x : Booking) (x_1 : Booking) : Prop :=\n  ((¬(x.room = x_1.room)) ∨ (Rooms.shareNoMoment x x_1))\n\n@[frflow_defs] def shareNoMoment (x : Booking) (x_1 : Booking) : Prop :=\n  (∀ (x_2 : Int), (¬((Rooms.covers x x_2) ∧ (Rooms.covers x_1 x_2))))\n\n@[frflow_defs] def covers (x : Booking) (x_1 : Int) : Prop :=\n  ((x.start ≤ x_1) ∧ (x_1 < x.«end»))",
       "written": "forall((request: Term[Booking]) => accepted(request) === free(booked, request))",
       "vocabulary": [
         "accepted: whether a request is accepted",
@@ -339,6 +546,36 @@
       "call": "book",
       "implementation": "book: proven program, (request: Term[Booking]) =>\n  (for\n    held  <- inRoom(request.room)\n    booked = granted(held, request)\n    _     <- Flow.when(booked)(add(request))\n  yield booked).atomically"
     },
+    "8d6b6ec194d04ba45057735c9aff6fa2aa7ef9cab424c1658d5c3a22df3477f8": {
+      "kind": "claim",
+      "parents": [
+        "acceptWhenFree"
+      ],
+      "parts": [
+        "grantWhenFree"
+      ],
+      "assumes": [
+        "oneAtATime",
+        "bookingsEndAfterStart"
+      ],
+      "statement": "A request is answered booked exactly when its room is free for its whole time.",
+      "formula": "(∀ (x : Booking), (∀ (x_1 : World), (match (book x x_1) with | (x_2, x_3) => (x_2 = (Rooms.free x_1.storedBookings x)))))\n\n@[frflow_defs] def free (x : (List Booking)) (x_1 : Booking) : Prop :=\n  (∀ x_2 ∈ x, (Rooms.apart x_2 x_1))\n\n@[frflow_defs] def apart (x : Booking) (x_1 : Booking) : Prop :=\n  ((¬(x.room = x_1.room)) ∨ (Rooms.shareNoMoment x x_1))\n\n@[frflow_defs] def shareNoMoment (x : Booking) (x_1 : Booking) : Prop :=\n  (∀ (x_2 : Int), (¬((Rooms.covers x x_2) ∧ (Rooms.covers x_1 x_2))))\n\n@[frflow_defs] def covers (x : Booking) (x_1 : Int) : Prop :=\n  ((x.start ≤ x_1) ∧ (x_1 < x.«end»))",
+      "written": "forall((request: Term[Booking]) => book(request).result === free(storedBookings.current, request))",
+      "vocabulary": [
+        "book: booking a request: whether it was booked"
+      ],
+      "checking": [
+        "proven of book's program, bookIfGranted",
+        "assumed by the code calling book",
+        "rules it uses: bookingsEndAfterStart",
+        "rests on inRoom and add's Scala, tested against storedBookings",
+        "rests on runs on storedBookings being atomic: oneAtATime",
+        "rests on what each Booking from outside meets: bookingsEndAfterStart"
+      ],
+      "governs": [],
+      "call": "book",
+      "implementation": "book: proven program, (request: Term[Booking]) =>\n  (for\n    held  <- inRoom(request.room)\n    booked = granted(held, request)\n    _     <- Flow.when(booked)(add(request))\n  yield booked).atomically"
+    },
     "d588814189a90614b5bbd87823b3fb32e224d1a0b28c7de93ce5aafef9ae1996": {
       "kind": "claim",
       "parents": [],
@@ -353,6 +590,32 @@
       "statement": "A request is booked exactly when its room is free for its whole time.",
       "formula": "(∀ (x : Booking), (∀ (x_1 : World), ((bookedAfter x x_1) = (if (Rooms.free (booked x_1) x) then ((booked x_1) ++ [x]) else (booked x_1)))))\n\n@[frflow_defs] def free (x : (List Booking)) (x_1 : Booking) : Prop :=\n  (∀ x_2 ∈ x, (Rooms.apart x_2 x_1))\n\n@[frflow_defs] def apart (x : Booking) (x_1 : Booking) : Prop :=\n  ((¬(x.room = x_1.room)) ∨ (∀ (x_2 : Int), (¬((Rooms.covers x x_2) ∧ (Rooms.covers x_1 x_2)))))\n\n@[frflow_defs] def covers (x : Booking) (x_1 : Int) : Prop :=\n  ((x.start ≤ x_1) ∧ (x_1 < x.«end»))",
       "written": "forall((request: Term[Booking]) =>\n    bookedAfter(request) === when(free(booked, request))(booked :+ request).otherwise(booked))",
+      "vocabulary": [
+        "booked: the bookings made, as the world stands",
+        "bookedAfter: the bookings made once a request is handled"
+      ],
+      "checking": [
+        "proven from its parts (bookedIsStored, bookedAfterIsStored, storeWhenFree)",
+        "rules it uses: neverOverlap, bookingsEndAfterStart",
+        "rests on what each Booking from outside meets: bookingsEndAfterStart"
+      ],
+      "governs": [],
+      "call": "bookedAfter"
+    },
+    "f771fc8bf45c05c95f5dcf05e19d63ddd64716befb3de2f7f85a2b31d1bd3f8b": {
+      "kind": "claim",
+      "parents": [],
+      "parts": [
+        "bookedIsStored",
+        "bookedAfterIsStored",
+        "storeWhenFree"
+      ],
+      "assumes": [
+        "bookingsEndAfterStart"
+      ],
+      "statement": "Once a request is handled, the bookings are those before it, with the request added if its room is free for its whole time.",
+      "formula": "(∀ (x : Booking), (∀ (x_1 : World), ((bookedAfter x x_1) = (Rooms.addedIfFree (booked x_1) x))))\n\n@[frflow_defs] def addedIfFree (x : (List Booking)) (x_1 : Booking) : (List Booking) :=\n  (if (Rooms.free x x_1) then (x ++ [x_1]) else x)\n\n@[frflow_defs] def free (x : (List Booking)) (x_1 : Booking) : Prop :=\n  (∀ x_2 ∈ x, (Rooms.apart x_2 x_1))\n\n@[frflow_defs] def apart (x : Booking) (x_1 : Booking) : Prop :=\n  ((¬(x.room = x_1.room)) ∨ (Rooms.shareNoMoment x x_1))\n\n@[frflow_defs] def shareNoMoment (x : Booking) (x_1 : Booking) : Prop :=\n  (∀ (x_2 : Int), (¬((Rooms.covers x x_2) ∧ (Rooms.covers x_1 x_2))))\n\n@[frflow_defs] def covers (x : Booking) (x_1 : Int) : Prop :=\n  ((x.start ≤ x_1) ∧ (x_1 < x.«end»))",
+      "written": "forall((request: Term[Booking]) => bookedAfter(request) === addedIfFree(booked, request))",
       "vocabulary": [
         "booked: the bookings made, as the world stands",
         "bookedAfter: the bookings made once a request is handled"
@@ -479,6 +742,35 @@
       "call": "granted",
       "implementation": "granted: Scala, _ => (held, request) => Calendar(held).grants(request)"
     },
+    "8c76b822f6f5098a0f3bbf1f7973769b876eeac76056085cdd3a06146d5c6340": {
+      "kind": "claim",
+      "parents": [
+        "storeWhenFree",
+        "answerWhenFree"
+      ],
+      "parts": [
+        "grantWhenNoOverlap"
+      ],
+      "assumes": [
+        "bookingsEndAfterStart"
+      ],
+      "statement": "A request is granted exactly when its room is free for its whole time.",
+      "formula": "(∀ (x : RoomBookings), (∀ (x_1 : Booking), ((granted x x_1) = (Rooms.free x.bookings x_1))))\n\n@[frflow_defs] def free (x : (List Booking)) (x_1 : Booking) : Prop :=\n  (∀ x_2 ∈ x, (Rooms.apart x_2 x_1))\n\n@[frflow_defs] def apart (x : Booking) (x_1 : Booking) : Prop :=\n  ((¬(x.room = x_1.room)) ∨ (Rooms.shareNoMoment x x_1))\n\n@[frflow_defs] def shareNoMoment (x : Booking) (x_1 : Booking) : Prop :=\n  (∀ (x_2 : Int), (¬((Rooms.covers x x_2) ∧ (Rooms.covers x_1 x_2))))\n\n@[frflow_defs] def covers (x : Booking) (x_1 : Int) : Prop :=\n  ((x.start ≤ x_1) ∧ (x_1 < x.«end»))",
+      "written": "forall((held: Term[RoomBookings], request: Term[Booking]) =>\n    granted(held, request) === free(held.bookings, request))",
+      "vocabulary": [
+        "granted: whether a request is granted, given its room's bookings"
+      ],
+      "checking": [
+        "proven from its parts (grantWhenNoOverlap)",
+        "not checked against granted's Scala: the statement has no Scala value (it quantifies over every value)",
+        "assumed by the code calling granted",
+        "rules it uses: bookingsOfTheRoom, roomBookingsApart, bookingsEndAfterStart",
+        "rests on what each Booking from outside meets: bookingsEndAfterStart"
+      ],
+      "governs": [],
+      "call": "granted",
+      "implementation": "granted: Scala, _ => (held, request) => Calendar(held).grants(request)"
+    },
     "5dedc4b93cdfae2018c4856f0964eb55e9d8dc6a373a7b582fcde331dfbd9ac8": {
       "kind": "claim",
       "parents": [
@@ -520,6 +812,38 @@
       ],
       "statement": "The bookings stored never overlap.",
       "formula": "(∀ (x : World), (Rooms.neverOverlap x.storedBookings))\n\n@[frflow_defs] def neverOverlap (x : (List Booking)) : Prop :=\n  (List.Pairwise (fun (x_1 : Booking) (x_2 : Booking) => (Rooms.apart x_1 x_2)) x)\n\n@[frflow_defs] def apart (x : Booking) (x_1 : Booking) : Prop :=\n  ((¬(x.room = x_1.room)) ∨ (∀ (x_2 : Int), (¬((Rooms.covers x x_2) ∧ (Rooms.covers x_1 x_2)))))\n\n@[frflow_defs] def covers (x : Booking) (x_1 : Int) : Prop :=\n  ((x.start ≤ x_1) ∧ (x_1 < x.«end»))",
+      "written": "always(storedBookings)(stored => stored.pairwise(apart))",
+      "vocabulary": [],
+      "checking": [
+        "kept by every run of book, from the state it starts in",
+        "rules it uses: bookingsEndAfterStart",
+        "rests on inRoom and add's Scala, tested against storedBookings",
+        "rests on nothing outside the code changing storedBookings: nothingElseWrites",
+        "rests on runs on storedBookings being atomic: oneAtATime",
+        "rests on the state storedBookings starts in: startsEmpty",
+        "rests on what each Booking from outside meets: bookingsEndAfterStart",
+        "met where the store starts, from what startsEmpty says: witnessed, for Lean to check"
+      ],
+      "writers": [
+        "book"
+      ],
+      "governs": []
+    },
+    "154a34af72fbd49352d2fe89fd17230ca4bcabb5b30289f1fb19537842f23fcb": {
+      "kind": "claim",
+      "parents": [
+        "bookWhenFree",
+        "acceptWhenFree"
+      ],
+      "parts": [],
+      "assumes": [
+        "nothingElseWrites",
+        "oneAtATime",
+        "startsEmpty",
+        "bookingsEndAfterStart"
+      ],
+      "statement": "The bookings stored never overlap.",
+      "formula": "(∀ (x : World), (Rooms.neverOverlap x.storedBookings))\n\n@[frflow_defs] def neverOverlap (x : (List Booking)) : Prop :=\n  (List.Pairwise (fun (x_1 : Booking) (x_2 : Booking) => (Rooms.apart x_1 x_2)) x)\n\n@[frflow_defs] def apart (x : Booking) (x_1 : Booking) : Prop :=\n  ((¬(x.room = x_1.room)) ∨ (Rooms.shareNoMoment x x_1))\n\n@[frflow_defs] def shareNoMoment (x : Booking) (x_1 : Booking) : Prop :=\n  (∀ (x_2 : Int), (¬((Rooms.covers x x_2) ∧ (Rooms.covers x_1 x_2))))\n\n@[frflow_defs] def covers (x : Booking) (x_1 : Int) : Prop :=\n  ((x.start ≤ x_1) ∧ (x_1 < x.«end»))",
       "written": "always(storedBookings)(stored => stored.pairwise(apart))",
       "vocabulary": [],
       "checking": [
@@ -633,6 +957,36 @@
       "statement": "A request is stored exactly when its room is free for its whole time.",
       "formula": "(∀ (x : Booking), (∀ (x_1 : World), (match (book x x_1) with | (x_2, x_3) => (x_3.storedBookings = (if (Rooms.free x_1.storedBookings x) then (x_1.storedBookings ++ [x]) else x_1.storedBookings)))))\n\n@[frflow_defs] def free (x : (List Booking)) (x_1 : Booking) : Prop :=\n  (∀ x_2 ∈ x, (Rooms.apart x_2 x_1))\n\n@[frflow_defs] def apart (x : Booking) (x_1 : Booking) : Prop :=\n  ((¬(x.room = x_1.room)) ∨ (∀ (x_2 : Int), (¬((Rooms.covers x x_2) ∧ (Rooms.covers x_1 x_2)))))\n\n@[frflow_defs] def covers (x : Booking) (x_1 : Int) : Prop :=\n  ((x.start ≤ x_1) ∧ (x_1 < x.«end»))",
       "written": "forall((request: Term[Booking]) =>\n    val stored = storedBookings.current\n    storedBookings.in(book(request).after) === when(free(stored, request))(stored :+ request).otherwise(stored))",
+      "vocabulary": [
+        "book: booking a request: whether it was booked"
+      ],
+      "checking": [
+        "proven of book's program, bookIfGranted",
+        "assumed by the code calling book",
+        "rules it uses: bookingsEndAfterStart",
+        "rests on inRoom and add's Scala, tested against storedBookings",
+        "rests on runs on storedBookings being atomic: oneAtATime",
+        "rests on what each Booking from outside meets: bookingsEndAfterStart"
+      ],
+      "governs": [],
+      "call": "book",
+      "implementation": "book: proven program, (request: Term[Booking]) =>\n  (for\n    held  <- inRoom(request.room)\n    booked = granted(held, request)\n    _     <- Flow.when(booked)(add(request))\n  yield booked).atomically"
+    },
+    "894fb4b0d819b18f45a0759b876a7fd8cce772f8fff2e619f753c798a8aca1e5": {
+      "kind": "claim",
+      "parents": [
+        "bookWhenFree"
+      ],
+      "parts": [
+        "grantWhenFree"
+      ],
+      "assumes": [
+        "oneAtATime",
+        "bookingsEndAfterStart"
+      ],
+      "statement": "Booking a request leaves the table holding what it held, with the request added if its room is free for its whole time.",
+      "formula": "(∀ (x : Booking), (∀ (x_1 : World), (match (book x x_1) with | (x_2, x_3) => (x_3.storedBookings = (Rooms.addedIfFree x_1.storedBookings x)))))\n\n@[frflow_defs] def addedIfFree (x : (List Booking)) (x_1 : Booking) : (List Booking) :=\n  (if (Rooms.free x x_1) then (x ++ [x_1]) else x)\n\n@[frflow_defs] def free (x : (List Booking)) (x_1 : Booking) : Prop :=\n  (∀ x_2 ∈ x, (Rooms.apart x_2 x_1))\n\n@[frflow_defs] def apart (x : Booking) (x_1 : Booking) : Prop :=\n  ((¬(x.room = x_1.room)) ∨ (Rooms.shareNoMoment x x_1))\n\n@[frflow_defs] def shareNoMoment (x : Booking) (x_1 : Booking) : Prop :=\n  (∀ (x_2 : Int), (¬((Rooms.covers x x_2) ∧ (Rooms.covers x_1 x_2))))\n\n@[frflow_defs] def covers (x : Booking) (x_1 : Int) : Prop :=\n  ((x.start ≤ x_1) ∧ (x_1 < x.«end»))",
+      "written": "forall((request: Term[Booking]) =>\n    storedBookings.in(book(request).after) === addedIfFree(storedBookings.current, request))",
       "vocabulary": [
         "book: booking a request: whether it was booked"
       ],
