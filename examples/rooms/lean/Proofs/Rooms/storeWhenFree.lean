@@ -17,9 +17,9 @@ theorem impl : Obl.impl := by
   by_cases hf : free before.storedBookings request
   · have hy : granted ⟨request.room, before.storedBookings.filter (fun b => decide (b.room = request.room))⟩ request :=
       hg ▸ hf
-    simp [hy, hf]
+    simp [addedIfFree, hy, hf]
   · have hn : ¬granted ⟨request.room, before.storedBookings.filter (fun b => decide (b.room = request.room))⟩ request :=
       hg ▸ hf
-    simp [hn, hf]
+    simp [addedIfFree, hn, hf]
 
 end Rooms.storeWhenFree.Proofs

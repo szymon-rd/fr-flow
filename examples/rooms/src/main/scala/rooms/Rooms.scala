@@ -18,9 +18,9 @@ val bookingsEndAfterStart = Node.assumption("Every booking ends after it starts.
   always[Booking](b => b.start < b.end))
 
 // The roots: the purpose, over the Declarations.
-val bookWhenFree = Node.claim("A request is booked exactly when its room is free for its whole time.")(
-  forall((request: Term[Booking]) =>
-    bookedAfter(request) === when(free(booked, request))(booked :+ request).otherwise(booked)))
+val bookWhenFree = Node.claim("Once a request is handled, the bookings are those before it, with the request added " +
+    "if its room is free for its whole time.")(
+  forall((request: Term[Booking]) => bookedAfter(request) === addedIfFree(booked, request)))
   .assuming(bookingsEndAfterStart)
 
 val acceptWhenFree = Node.claim("A request is accepted exactly when its room is free for its whole time.")(
@@ -41,10 +41,10 @@ val acceptedIsAnswered = Node.claim("A request is accepted exactly when booking 
   .refines(acceptWhenFree)
 
 // What booking stores and what it answers, proven of its code.
-val storeWhenFree = Node.claim("A request is stored exactly when its room is free for its whole time.")(
+val storeWhenFree = Node.claim("Booking a request leaves the table holding what it held, with the request added if " +
+    "its room is free for its whole time.")(
   forall((request: Term[Booking]) =>
-    val stored = storedBookings.current
-    storedBookings.in(book(request).after) === when(free(stored, request))(stored :+ request).otherwise(stored)))
+    storedBookings.in(book(request).after) === addedIfFree(storedBookings.current, request)))
   .refines(bookWhenFree)
   .assuming(oneAtATime, bookingsEndAfterStart)
 
