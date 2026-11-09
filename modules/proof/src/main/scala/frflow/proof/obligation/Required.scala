@@ -73,9 +73,11 @@ object Required:
 
   /** What `impl` of a node rests on: the parts it states, or for a leaf what its code relies on; and always what is
     * assumed of an operation known only by assumptions it or its code reaches (G2, `Resolve.assumedOf`): what such a
-    * step does is nothing else. The circles `Validate` refuses are walked along the same (`Resolve.below`).
+    * step does is nothing else. The circles `Validate` refuses are walked along the same (`Resolve.circles`), a claim
+    * about other code that would close one left out (`Relying`).
     */
-  def hypotheses(r: Resolved, n: NodeId): List[NodeId] = Resolve.below(r.theory, n)
+  def hypotheses(r: Resolved, n: NodeId): List[NodeId] =
+    (r.provenFrom(n) ++ Resolve.assumedOf(r.theory, n)).distinct
 
   /** A claim about operations on a state alone, or about the World as it stands (a model's state read, owner §45 D:
     * sharing's deadlines), at the bottom with no code standing in it: asked `impl`, given what is assumed of those

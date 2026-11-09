@@ -15,7 +15,7 @@ object Resolve:
   def apply(v: Valid): Resolved =
     val t = IrCheck.checked(Failing.typed(v.theory))
     val ids = t.nodes.map(_.node.id)
-    val relies = ids.map(id => id -> reliesOn(t, id)).toMap
+    val relies = Relying.of(t)
     Resolved(t, ids.map(id => id -> constrainingCalled(t, SaysWhat.checkedAgainst(t, id)).filterNot(_ == id)).toMap,
       relies,
       ids.map(id => id -> provenFrom(t, id, relies(id))).toMap)
@@ -76,15 +76,22 @@ object Resolve:
       case Nil    => relies
       case stated => stated
 
-  /** The circles of proofs (`below`), each once in the theory's order: nodes each proven, through the others, from
-    * itself. A circle of parts alone is the refinement's (`AboveItself`), not counted here.
+  /** The circles of proofs (what each is proven from below it, a claim about other code that would close one left
+    * out, `Relying`), each once in the theory's order: nodes each proven, through the others, from itself. A circle
+    * of parts alone is the refinement's (`AboveItself`), not counted here.
     */
   def circles(t: Theory): List[List[NodeId]] =
     val ids = t.nodes.map(_.node.id)
-    val below = ids.map(id => id -> Resolve.below(t, id)).toMap.withDefaultValue(Nil)
+    val relies = Relying.of(t)
+    val below = ids.map(id => id -> (provenFrom(t, id, relies.getOrElse(id, Nil)) ++ assumedOf(t, id)).distinct)
+      .toMap.withDefaultValue(Nil)
     val reach = ids.map(id => id -> Walk.breadthFirst(below(id), identity)(below).toSet).toMap
     val circling = ids.filter(id => reach(id)(id) && !t.refinement.ancestors(id).contains(id))
     circling.map(id => circling.filter(m => reach(id)(m) && reach(m)(id))).distinct
+
+  /** The nodes reaching themselves through `below`. */
+  def circling(ids: List[NodeId], below: NodeId => List[NodeId]): List[NodeId] =
+    ids.filter(id => Walk.breadthFirst(below(id), identity)(below).contains(id))
 
   /** A callee fixing a word left open above, whose Definition the caller's statement names. */
   private def leftOpenAndNamed(t: Theory, caller: NodeId)(callee: NodeId): Boolean =

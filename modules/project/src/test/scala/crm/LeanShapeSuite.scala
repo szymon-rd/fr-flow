@@ -85,3 +85,13 @@ class LeanShapeSuite extends munit.FunSuite:
       impl.contains(s"(h_$n : (Crm.$n.claim fetch))")), impl)
     assert(a.decided.theory.refinement.parts(NodeId("visibility")).nonEmpty)
   }
+
+  test("root_impl names once a proof it applies twice: the expiry's facts, which the job's own proof and the " +
+    "expiry contract's both take") {
+    val root = Projects.bare(Projects.elaborated(knowledge)).modules.find(_.name.dotted == "FrFlowGen.Crm.RootImpl")
+      .map(Print.module).getOrElse(fail("no RootImpl"))
+    val let = "let p_expiryKeepsRecords : (Crm.expiryKeepsRecords.claim Crm.expireCode) := " +
+      "(Crm.expiryKeepsRecords.Impl.impl);"
+    assertEquals(root.split(java.util.regex.Pattern.quote(let)).length - 1, 1, root)
+    assert(root.contains("(h_expiryKeepsRecords := p_expiryKeepsRecords)"), root)
+  }

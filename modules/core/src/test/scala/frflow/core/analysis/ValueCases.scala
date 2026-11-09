@@ -54,6 +54,20 @@ object ValueCases:
     .declaring(_.copy(defines = List(calling("fCode", "inc"))))
     .coding(name("f") -> Code.Proven(DefName("fCode")), name("inc") -> Code.Provided)
 
+  /** `∀ x, w(x) ∧ d(x)`: a claim on `d` that mentions the word `w` too. */
+  def withWord(id: String, d: String): frflow.core.spec.Node = claim(id)(Lang.formula([T[_]] => (l: Lang[T]) =>
+    l.forall[BigInt]("x", Lang.big)(x => l.s.and(l.call(l.sym[BigInt => Boolean]("w", test), x),
+      l.call(l.sym[BigInt => Boolean](d, test), x)))))
+
+  /** `f`'s code and `g`'s each call `w`, and the claim on each mentions `w`: each claim is among the statements
+    * constraining what the other's code calls, though it is about code the other's does not reach.
+    */
+  val sharedWord: Kb = Kb.of(withWord("aboutF", "f"), withWord("aboutG", "g"))
+    .naming(definition("f", test), definition("g", test), definition("w", test))
+    .declaring(_.copy(defines = List(calling("fCode", "w"), calling("gCode", "w"))))
+    .coding(name("f") -> Code.Proven(DefName("fCode")), name("g") -> Code.Proven(DefName("gCode")),
+      name("w") -> Code.Provided)
+
   private val int = Ty.Num(frflow.core.ty.NumKind.Int32)
   /** `¬ ∀ (x : Int), x = x`: a Scala `Int` said to exist. */
   private val notAll = claim("notAll")(Lang.formula([T[_]] => (l: Lang[T]) =>
