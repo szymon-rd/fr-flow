@@ -38,7 +38,7 @@ val expiriesBut = define { (s: Term[CrmStore], id: Term[BigInt], to: Term[Tenant
 
 /** The expiry a share given until a time has, or none for a share for good. */
 val expiryOf = define { (id: Term[BigInt], to: Term[TenantId], until: Term[Option[BigInt]]) =>
-  until.fold(Nil: Term[List[Expiry]])(u => make[Expiry](id, to, u) :: (Nil: Term[List[Expiry]])) }
+  until.map(u => make[Expiry](id, to, u)).toList }
 
 /** An add: the record added, when the write may add it. */
 val addRecord = define { (s: Term[CrmStore], w: Term[WriteCmd], r: Term[CrmRecord]) =>

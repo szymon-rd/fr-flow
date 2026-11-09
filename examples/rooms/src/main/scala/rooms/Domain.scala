@@ -34,7 +34,7 @@ val free = define { (bookings: Term[List[Booking]], request: Term[Booking]) =>
 val addedIfFree = define { (bookings: Term[List[Booking]], request: Term[Booking]) =>
   when(free(bookings, request))(bookings :+ request).otherwise(bookings) }
 
-/** Two bookings are in different rooms or one ends by the time the other starts: `apart`, by times code compares. */
+/** Two bookings do not overlap: they are in different rooms, or one ends by the time the other starts. */
 val noOverlap = define { (a: Term[Booking], b: Term[Booking]) =>
   a.room =!= b.room || a.end <= b.start || b.end <= a.start }
 

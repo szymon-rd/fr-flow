@@ -74,7 +74,7 @@ val expiryJobWiring = Node.design("The expiry job runs its proven program on SQL
 
 val expirySchedule = Node.design("The expiry job runs every minute.")(
   "src/main/scala/crm/Job.scala")
-  .refines(sharesMirrorGrants)
+  .refines(jobStoresExpired)
 
 val databaseLock = Node.design("Every program on the database holds the database's lock for its whole run.")(
   "src/main/scala/crm/WriteSide.scala", "src/main/scala/crm/Job.scala")
