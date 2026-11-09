@@ -1,0 +1,1274 @@
+{
+  "version": 1,
+  "decisions": {
+    "addedIsFound": [
+      {
+        "action": "accept",
+        "by": "demo-developer",
+        "at": "2026-11-09T04:32:47.217485Z",
+        "commit": "e7fdafc0d4d3b2fe118ac12bebf7b94d2a11c940",
+        "reason": "Accepted with the demo key when moving to the rebuilt library.",
+        "rejected": [],
+        "content": "2d83886dc5a428e9ddd0b77dd301840cb9d32a03c5442094025e076d5d3278be",
+        "chain": "d50974d9a1f45eff74b6919e393d773585570a10f6203979b23532d98369e4e8",
+        "seal": {
+          "key": "087bcc41dcd575d8",
+          "signature": "kg50r1/UNN/M9G9BRC6/We47RDpAXnd0SkXq5h1rKQnJ9q7hMksmrTskoXYAnp+EOZ+E7zy75qQdfZ/o4ldCCQ=="
+        }
+      }
+    ],
+    "adding": [
+      {
+        "action": "accept",
+        "by": "demo-developer",
+        "at": "2026-11-09T04:32:47.217485Z",
+        "commit": "e7fdafc0d4d3b2fe118ac12bebf7b94d2a11c940",
+        "reason": "Accepted with the demo key when moving to the rebuilt library.",
+        "rejected": [],
+        "content": "f25981b44a540ed75daf522d5fbf5b07a2d4b58517a37b03920d2f79c90837a1",
+        "chain": "2d25cb52931cea9ca639112a02177b0895bd78441fe9c43719659421b95ecf4a",
+        "seal": {
+          "key": "087bcc41dcd575d8",
+          "signature": "Mx/9A5GVG9L8eOHEZ/ttIrEjrjpxPz0sqBNrnPefmSZywj5bkF4meLpDdihfYDTyHEERPIibOgqZ5P2V7qZRAQ=="
+        }
+      }
+    ],
+    "companies": [
+      {
+        "action": "accept",
+        "by": "demo-developer",
+        "at": "2026-11-09T04:32:47.217485Z",
+        "commit": "e7fdafc0d4d3b2fe118ac12bebf7b94d2a11c940",
+        "reason": "Accepted with the demo key when moving to the rebuilt library.",
+        "rejected": [],
+        "content": "4f8ba6de6113398cd64b7b5b70dc73509c9809abf29c354a9b1f4362e1284da4",
+        "chain": "2d25cb52931cea9ca639112a02177b0895bd78441fe9c43719659421b95ecf4a",
+        "seal": {
+          "key": "087bcc41dcd575d8",
+          "signature": "CsOgpAgT95coBapsUWSgc8BTm+ZwcXdmuR2asTlVkRbiSuWrdVPS3yNjqiocAY9ioVa2jWhBMe8aYAJEEPdkCg=="
+        }
+      }
+    ],
+    "crmRun": [
+      {
+        "action": "accept",
+        "by": "demo-developer",
+        "at": "2026-11-09T04:32:47.217485Z",
+        "commit": "e7fdafc0d4d3b2fe118ac12bebf7b94d2a11c940",
+        "reason": "Accepted with the demo key when moving to the rebuilt library.",
+        "rejected": [],
+        "content": "1d4b15af60942611d2ca085d2aba171e001da49c1a6015bc0089ea3ad350f6db",
+        "chain": "e25a5d29747ae0b4a6333cda5e21aff5148446f590e3b2d8fd0147f9fe1567e5",
+        "seal": {
+          "key": "087bcc41dcd575d8",
+          "signature": "tGt/mByrw1bVLRAX295t6EaGgKOe2Tywf7xgSdKGaPB3tpOLbJ0ehrCKMYynUDanrggEVkG61NltHKHL/pfCCw=="
+        }
+      }
+    ],
+    "dealSearch": [
+      {
+        "action": "accept",
+        "by": "demo-developer",
+        "at": "2026-11-09T04:32:47.217485Z",
+        "commit": "e7fdafc0d4d3b2fe118ac12bebf7b94d2a11c940",
+        "reason": "Accepted with the demo key when moving to the rebuilt library.",
+        "rejected": [],
+        "content": "73b7e314c6b98afd50c62f9559fad43e6a433b52fbc3cb6e4cc64758d08e7d5f",
+        "chain": "925ff9da7a366576022f4e6e1d2cdf80676c007306c00e0b6d55ce51547328d7",
+        "seal": {
+          "key": "087bcc41dcd575d8",
+          "signature": "FUcqxeBaHk/zFNxNGo9Wt4zGBsmuHRAT6JNSsjSI7Fpss773pCefRG1xwbyhfJpgq7NyhiSDnigTArZ4OHG0Bg=="
+        }
+      }
+    ],
+    "expiryJob": [
+      {
+        "action": "accept",
+        "by": "demo-developer",
+        "at": "2026-11-09T04:32:47.217485Z",
+        "commit": "e7fdafc0d4d3b2fe118ac12bebf7b94d2a11c940",
+        "reason": "Accepted with the demo key when moving to the rebuilt library.",
+        "rejected": [],
+        "content": "2ad17398461413137c9c3078af4a2605e9767870368dd53915f91fb153c963a7",
+        "chain": "8d56c4db87a19e3501ae0609bd30758514985d6b44d375e8d1687a46c3c1f448",
+        "seal": {
+          "key": "087bcc41dcd575d8",
+          "signature": "YFu0D/27H4xRHUWXQIVchA+XjURh4eTBrwV3CNdoFPUOUXFPPCOlfZ5M9CWdBL0bNKdmuEoqllypFT23xIfqAw=="
+        }
+      }
+    ],
+    "keyedTables": [
+      {
+        "action": "accept",
+        "by": "demo-developer",
+        "at": "2026-11-09T04:32:47.217485Z",
+        "commit": "e7fdafc0d4d3b2fe118ac12bebf7b94d2a11c940",
+        "reason": "Accepted with the demo key when moving to the rebuilt library.",
+        "rejected": [],
+        "content": "4b9c5ae5ad8d54c32ad4c590168f4edcf3ccc820d5c7677d83cb44bf749be455",
+        "chain": "",
+        "seal": {
+          "key": "087bcc41dcd575d8",
+          "signature": "dSWqsi5nlcXm0b4BnczmGP+81JaW6oDDdDJAj9FCPRaAHpHftsvTh/7tTOCIhx8P4kn21AXe65WNpmsMb7rVAw=="
+        }
+      }
+    ],
+    "noCrossTenantRead": [
+      {
+        "action": "accept",
+        "by": "demo-developer",
+        "at": "2026-11-09T04:32:47.217485Z",
+        "commit": "e7fdafc0d4d3b2fe118ac12bebf7b94d2a11c940",
+        "reason": "Accepted with the demo key when moving to the rebuilt library.",
+        "rejected": [],
+        "content": "4b58b985c8e80b3a327b7d7838fdfcb1045e7651f08097eb1dc1239f3a2c88ec",
+        "chain": "d50974d9a1f45eff74b6919e393d773585570a10f6203979b23532d98369e4e8",
+        "seal": {
+          "key": "087bcc41dcd575d8",
+          "signature": "KOMpfI38+93SE68SSwYpcd1Vu3G7f18whJb9Ds1tt8Z4ymBfnmX2CvKr8XnpcNZJ996QhRvWem/acRukg7oIDA=="
+        }
+      }
+    ],
+    "oneRowPerKey": [
+      {
+        "action": "accept",
+        "by": "demo-developer",
+        "at": "2026-11-09T04:32:47.217485Z",
+        "commit": "e7fdafc0d4d3b2fe118ac12bebf7b94d2a11c940",
+        "reason": "Accepted with the demo key when moving to the rebuilt library.",
+        "rejected": [],
+        "content": "3251fca89392c4aade500dc65384bc4bcbf4e32e2faa230bb17e279410aecee5",
+        "chain": "e25a5d29747ae0b4a6333cda5e21aff5148446f590e3b2d8fd0147f9fe1567e5",
+        "seal": {
+          "key": "087bcc41dcd575d8",
+          "signature": "uAdH7vbPZ/aYl9zCdXplxGENVueXja0LujZjHN2M2Rt5gzo3+JsT0pZ9GAfZ47Ql+qT54EaZEroxpaOLRlslAQ=="
+        }
+      }
+    ],
+    "ownership": [
+      {
+        "action": "accept",
+        "by": "demo-developer",
+        "at": "2026-11-09T04:32:47.217485Z",
+        "commit": "e7fdafc0d4d3b2fe118ac12bebf7b94d2a11c940",
+        "reason": "Accepted with the demo key when moving to the rebuilt library.",
+        "rejected": [],
+        "content": "c6ee5d0abb34cce228c208edcec483adf9a7d252c503be55533b1737eb2755bf",
+        "chain": "2d25cb52931cea9ca639112a02177b0895bd78441fe9c43719659421b95ecf4a",
+        "seal": {
+          "key": "087bcc41dcd575d8",
+          "signature": "xp2cP8ijLnZN/ExCzrLsol4YxmfTw7w1jZohItRLKXcVTJmVYcrVXbyMQUVhVu5SpVpMeTq7Bkd40MXtIy8eDA=="
+        }
+      }
+    ],
+    "readContract": [
+      {
+        "action": "accept",
+        "by": "demo-developer",
+        "at": "2026-11-09T04:32:47.217485Z",
+        "commit": "e7fdafc0d4d3b2fe118ac12bebf7b94d2a11c940",
+        "reason": "Accepted with the demo key when moving to the rebuilt library.",
+        "rejected": [],
+        "content": "714b0f364a034570041889a0e8b0c716d50bd69bd7022d2e2dc41fceb601155e",
+        "chain": "925ff9da7a366576022f4e6e1d2cdf80676c007306c00e0b6d55ce51547328d7",
+        "seal": {
+          "key": "087bcc41dcd575d8",
+          "signature": "XZEfHvyx8Gy1L/mp0b+SvvEcackOZdnAcme0Ox/RXT8tUOKzNbjj9SjlSN5kR2Kxvel3nJBNuOKmnIGiyg3eDQ=="
+        }
+      }
+    ],
+    "recordsByQuery": [
+      {
+        "action": "accept",
+        "by": "demo-developer",
+        "at": "2026-11-09T04:32:47.217485Z",
+        "commit": "e7fdafc0d4d3b2fe118ac12bebf7b94d2a11c940",
+        "reason": "Accepted with the demo key when moving to the rebuilt library.",
+        "rejected": [],
+        "content": "8a60da656af4704de2aca080983d43ea28fc59d2ef38df3c6a8ef10ec1d7e7df",
+        "chain": "",
+        "seal": {
+          "key": "087bcc41dcd575d8",
+          "signature": "rf5nB2CTTllDBLIXPZJVjOItolin5WW1B9PIuJpVRqiByDt5bxtC2l+v9/luSzoo7wPGnhkw4jIsSceK0sOUAA=="
+        }
+      }
+    ],
+    "recordsKept": [
+      {
+        "action": "accept",
+        "by": "demo-developer",
+        "at": "2026-11-09T04:32:47.217485Z",
+        "commit": "e7fdafc0d4d3b2fe118ac12bebf7b94d2a11c940",
+        "reason": "Accepted with the demo key when moving to the rebuilt library.",
+        "rejected": [],
+        "content": "1a0845400520d304bbcae6e5034776840a4045bfe1b222a76769345d5622cf10",
+        "chain": "d9d0e2ccbea6aa688d0415811c6ba21645f89c2b9b5cc817865feaa8128e1755",
+        "seal": {
+          "key": "087bcc41dcd575d8",
+          "signature": "zAkLByO00Ad0mGy8q6xZlH8DwZIsJNrr4kFoXUo3JTq/Lefhtbz5FzLy+aNxrDbj7t2rwyVG6TdlwORTm+HwDA=="
+        }
+      }
+    ],
+    "runsOneAtATime": [
+      {
+        "action": "accept",
+        "by": "demo-developer",
+        "at": "2026-11-09T04:32:47.217485Z",
+        "commit": "e7fdafc0d4d3b2fe118ac12bebf7b94d2a11c940",
+        "reason": "Accepted with the demo key when moving to the rebuilt library.",
+        "rejected": [],
+        "content": "f6ea67704e1c16abed36d28a85e283def54fc42a43b684bf9d2984e2be8d32b1",
+        "chain": "",
+        "seal": {
+          "key": "087bcc41dcd575d8",
+          "signature": "2Eg4SujLRJNEfDa9KLxtcxZuaBF+EE1UyOi52zik27yappsRy85jIfTeV6cL9Zx4lPhZ728UAxmKd7NejX4HAA=="
+        }
+      }
+    ],
+    "saveWrite": [
+      {
+        "action": "accept",
+        "by": "demo-developer",
+        "at": "2026-11-09T04:32:47.217485Z",
+        "commit": "e7fdafc0d4d3b2fe118ac12bebf7b94d2a11c940",
+        "reason": "Accepted with the demo key when moving to the rebuilt library.",
+        "rejected": [],
+        "content": "03ddb54cbbf85662da254a9efe4bdeaa4bbd525cea0117120a5c7aa8a5377199",
+        "chain": "8d56c4db87a19e3501ae0609bd30758514985d6b44d375e8d1687a46c3c1f448",
+        "seal": {
+          "key": "087bcc41dcd575d8",
+          "signature": "w1/lC9biRDN5V+ylHXGuylA6JMzxB2aJdt4vl2DZntMSOWcjh4B+M+RygCjpH/r2avxaUHmabVt9PO56JNEgDA=="
+        }
+      }
+    ],
+    "searchKeeps": [
+      {
+        "action": "accept",
+        "by": "demo-developer",
+        "at": "2026-11-09T04:32:47.217485Z",
+        "commit": "e7fdafc0d4d3b2fe118ac12bebf7b94d2a11c940",
+        "reason": "Accepted with the demo key when moving to the rebuilt library.",
+        "rejected": [],
+        "content": "0712db76188e1eaa8442393129f954978837794133b90621f000a4008ee4e849",
+        "chain": "",
+        "seal": {
+          "key": "087bcc41dcd575d8",
+          "signature": "DbxAmjOsJUkMibL3DGJsVCYEu52J70RRZdHmQ5hVwfpuRNsQRMittXvKOcSOwkmmD3EuE4KejTNH3w3w+l7KAw=="
+        }
+      }
+    ],
+    "searches": [
+      {
+        "action": "accept",
+        "by": "demo-developer",
+        "at": "2026-11-09T04:32:47.217485Z",
+        "commit": "e7fdafc0d4d3b2fe118ac12bebf7b94d2a11c940",
+        "reason": "Accepted with the demo key when moving to the rebuilt library.",
+        "rejected": [],
+        "content": "d7d8570e4657b0cdbabfb2d08f8671d70b3eb2ddc5ec4fbe0066fbfde1488c71",
+        "chain": "2d25cb52931cea9ca639112a02177b0895bd78441fe9c43719659421b95ecf4a",
+        "seal": {
+          "key": "087bcc41dcd575d8",
+          "signature": "y0WvyB9kYoxiPQjQEyzvH5UfRqSYRX+x/UVnnLtWXwgQZfGCzd1RnkB8tYg2MvbIMuslZyHb/tcp289L+uKFAg=="
+        }
+      }
+    ],
+    "searchesAsk": [
+      {
+        "action": "accept",
+        "by": "demo-developer",
+        "at": "2026-11-09T04:32:47.217485Z",
+        "commit": "e7fdafc0d4d3b2fe118ac12bebf7b94d2a11c940",
+        "reason": "Accepted with the demo key when moving to the rebuilt library.",
+        "rejected": [],
+        "content": "c40be1465e94eed23374510c6a4e7c2f5bf5cd939cb952c3ca34e4a11957a38a",
+        "chain": "2d25cb52931cea9ca639112a02177b0895bd78441fe9c43719659421b95ecf4a",
+        "seal": {
+          "key": "087bcc41dcd575d8",
+          "signature": "3ZHuyPh6teqwQsXIIH/CnBrnGiuOofL0uPdj0Ls7jgSlISCK1q6Ixg7uBuwG5QOIOVUMXVnLt74Ko3FuxDg1AQ=="
+        }
+      }
+    ],
+    "searchesMatch": [
+      {
+        "action": "accept",
+        "by": "demo-developer",
+        "at": "2026-11-09T04:32:47.217485Z",
+        "commit": "e7fdafc0d4d3b2fe118ac12bebf7b94d2a11c940",
+        "reason": "Accepted with the demo key when moving to the rebuilt library.",
+        "rejected": [],
+        "content": "203adaeb8513fd38e57351aa5e2ce44c728e745bf745e460c5a47728207690e3",
+        "chain": "2d03f84766f6edbd13bd09e639b0d16840ec9f89219ef791ea59249c3f8fa38b",
+        "seal": {
+          "key": "087bcc41dcd575d8",
+          "signature": "Y0bIORiGB8wccu31CLMaQPXasFX2LR0Z89yj7JDGEtt0q1wUqaI4njcoKsglkoChJTNSxEdB+s7n9Up+CHnHBQ=="
+        }
+      }
+    ],
+    "sharedCrm": [
+      {
+        "action": "accept",
+        "by": "demo-developer",
+        "at": "2026-11-09T04:32:47.217485Z",
+        "commit": "e7fdafc0d4d3b2fe118ac12bebf7b94d2a11c940",
+        "reason": "Accepted with the demo key when moving to the rebuilt library.",
+        "rejected": [],
+        "content": "cb2821e8aa29e0c67ed14362a4713e5754c68eec7b2e263315aca1fb2db6adcd",
+        "chain": "da3aaa3dd23f43f56ad91bf15e0ee4768c8ec0fc577e3a57ed7f507dbf9d07bf",
+        "seal": {
+          "key": "087bcc41dcd575d8",
+          "signature": "5rLfTmfaqDTUksC2Co0i+V81rE598KNhUFHRJHOwcPva91GtGq+Za4Hwe6Dwh40x0gxWO1QyA6dsEzPcejVHBA=="
+        }
+      }
+    ],
+    "sharesExpire": [
+      {
+        "action": "accept",
+        "by": "demo-developer",
+        "at": "2026-11-09T04:32:47.217485Z",
+        "commit": "e7fdafc0d4d3b2fe118ac12bebf7b94d2a11c940",
+        "reason": "Accepted with the demo key when moving to the rebuilt library.",
+        "rejected": [],
+        "content": "59eaf7dff1ffadc581f2ceaa76f99ec0145ed650c898dbe95c7d1e74dea17b7a",
+        "chain": "58b306aabb650402441dc3cdebbd24670c1ec3ee25bb9ce9b7ec77b9faab8aeb",
+        "seal": {
+          "key": "087bcc41dcd575d8",
+          "signature": "aZsmUs8lsQBYJC6HGl1vfTbSlET+rynP6Nsl2gOwZfUYVSOUAD5ucjFcFRhWng5FZGi/+Jcb5wLDh60EGiJJDw=="
+        }
+      }
+    ],
+    "sharing": [
+      {
+        "action": "accept",
+        "by": "demo-developer",
+        "at": "2026-11-09T04:32:47.217485Z",
+        "commit": "e7fdafc0d4d3b2fe118ac12bebf7b94d2a11c940",
+        "reason": "Accepted with the demo key when moving to the rebuilt library.",
+        "rejected": [],
+        "content": "1b8e64595f1bdb66aeac207ec31ed3b2912b59fa259a066f75bcd6c5129ffecf",
+        "chain": "2d25cb52931cea9ca639112a02177b0895bd78441fe9c43719659421b95ecf4a",
+        "seal": {
+          "key": "087bcc41dcd575d8",
+          "signature": "E5FwRxRTGB1fH9CxMadLk8N9BpvyZ7pwpix5fvy3xbmVfvknCv6ZUaJ5MYVL1R+994cEAlDYjXN/BUCPswc6AA=="
+        }
+      }
+    ],
+    "storeMirrorsRequests": [
+      {
+        "action": "accept",
+        "by": "demo-developer",
+        "at": "2026-11-09T04:32:47.217485Z",
+        "commit": "e7fdafc0d4d3b2fe118ac12bebf7b94d2a11c940",
+        "reason": "Accepted with the demo key when moving to the rebuilt library.",
+        "rejected": [],
+        "content": "0e06b10ebeb45b63ccfcaff0de2348ebd098600acc03e7bfcdae5facb723f645",
+        "chain": "1393eac2c922d71c79faf95e0460bdce58286e9aae1eb887728a668c82de9cf4",
+        "seal": {
+          "key": "087bcc41dcd575d8",
+          "signature": "jV6MMV+0YHUarvZXcu1vN+4SOiQ4GDvJ2lPgYDz/BJbAnY06t1VX0PQsGrRQIpWi/CyJLVhS7vFGSQaktAgpDw=="
+        }
+      }
+    ],
+    "tablesModel": [
+      {
+        "action": "accept",
+        "by": "demo-developer",
+        "at": "2026-11-09T04:32:47.217485Z",
+        "commit": "e7fdafc0d4d3b2fe118ac12bebf7b94d2a11c940",
+        "reason": "Accepted with the demo key when moving to the rebuilt library.",
+        "rejected": [],
+        "content": "4460e5dccb40e5ac8a6171a17a8b8c4e39201dc57dc0452607b098392344bd8c",
+        "chain": "",
+        "code": "4bb1061a9c34aa0fb254a3edea74a42f19b620b71dfbc51b635cd5ae64dc2d56",
+        "seal": {
+          "key": "087bcc41dcd575d8",
+          "signature": "yqlJSXyTfZWG0/IpDi9mAU5go4dq2srkEkex+4KOOwrHqOIPE/qGvooBbQJarU80D/5D5opn22o+vMq2f80BCQ=="
+        }
+      }
+    ],
+    "tablesStartEmpty": [
+      {
+        "action": "accept",
+        "by": "demo-developer",
+        "at": "2026-11-09T04:32:47.217485Z",
+        "commit": "e7fdafc0d4d3b2fe118ac12bebf7b94d2a11c940",
+        "reason": "Accepted with the demo key when moving to the rebuilt library.",
+        "rejected": [],
+        "content": "35acfb90f298a2f51efa90b41472d37e1310a3412cd2c8c97852db8cf96ae453",
+        "chain": "",
+        "seal": {
+          "key": "087bcc41dcd575d8",
+          "signature": "QkfCNVs3pVM3kzBZGlN6WnQ+bl2CnJYdMM0B7X3yluQ7HwXmsYVzBeNw9++8LKl9Mp6V5m4EmSfuLa38s700Bg=="
+        }
+      }
+    ],
+    "visibility": [
+      {
+        "action": "accept",
+        "by": "demo-developer",
+        "at": "2026-11-09T04:32:47.217485Z",
+        "commit": "e7fdafc0d4d3b2fe118ac12bebf7b94d2a11c940",
+        "reason": "Accepted with the demo key when moving to the rebuilt library.",
+        "rejected": [],
+        "content": "6691a8c8df89ac4c63fec179ec84fc7d520fa7696625451d23170345dd716ba5",
+        "chain": "8441b13c671715ddabca73dfeb0dd078a6b28ac7585e7db9227c83c5b55a4d89",
+        "seal": {
+          "key": "087bcc41dcd575d8",
+          "signature": "+FM0XK5dXMAaxjipq6xSVUsSDRE7v1wodhye6haJ3DbVhZG5VUgYQkiRy8GJnJcL2YhQeJMyfTNXrUWDmIUSBQ=="
+        }
+      }
+    ],
+    "writeContract": [
+      {
+        "action": "accept",
+        "by": "demo-developer",
+        "at": "2026-11-09T04:32:47.217485Z",
+        "commit": "e7fdafc0d4d3b2fe118ac12bebf7b94d2a11c940",
+        "reason": "Accepted with the demo key when moving to the rebuilt library.",
+        "rejected": [],
+        "content": "4633dcce10b728c0e96a77fb29af23feed8eef64118c2c8ae3d7a91ff37c867a",
+        "chain": "48995b271bcafbd15114246cff4fdf4134a3351528007b72de53fa0db3343730",
+        "seal": {
+          "key": "087bcc41dcd575d8",
+          "signature": "mxBLsWdXNZzsxkQZXUVRI+4bitTMBbJSL6DzAlU/jFTrOLiYCMS5BXNX0SEcLL/GC1XTMH9O4Z9cZK7Mmsh0Bw=="
+        }
+      }
+    ],
+    "writesLeaveOthers": [
+      {
+        "action": "accept",
+        "by": "demo-developer",
+        "at": "2026-11-09T04:32:47.217485Z",
+        "commit": "e7fdafc0d4d3b2fe118ac12bebf7b94d2a11c940",
+        "reason": "Accepted with the demo key when moving to the rebuilt library.",
+        "rejected": [],
+        "content": "a3d0ba183f2aa54affca7cc2b08ca1fdce19e53ca389d1192e4e97c22869bd6b",
+        "chain": "d50974d9a1f45eff74b6919e393d773585570a10f6203979b23532d98369e4e8",
+        "seal": {
+          "key": "087bcc41dcd575d8",
+          "signature": "qvKtLoYxDPgw/Gfa+wrcCV2uVjY79ER2dcmzEUP2lDqIpM8gS82+ucavCa6ZygPlkHvtCsjWqAebgiQ2w9sCDQ=="
+        }
+      }
+    ],
+    "writesOnlyAsAsked": [
+      {
+        "action": "accept",
+        "by": "demo-developer",
+        "at": "2026-11-09T04:32:47.217485Z",
+        "commit": "e7fdafc0d4d3b2fe118ac12bebf7b94d2a11c940",
+        "reason": "Accepted with the demo key when moving to the rebuilt library.",
+        "rejected": [],
+        "content": "c4e3b3220ed4cec8f24162c65ca6e6e4fe2fa3c7e77b36008a27f9fe392c555d",
+        "chain": "d9d0e2ccbea6aa688d0415811c6ba21645f89c2b9b5cc817865feaa8128e1755",
+        "seal": {
+          "key": "087bcc41dcd575d8",
+          "signature": "WYJC2+WNg3Xb/hynd+a6GwgnHTvQ166otwwQaikE0yqjvCQ4pFwxIEHvf7PKNCVQIjr70OWDfTdVM9RN6ZS1AA=="
+        }
+      }
+    ],
+    "writesTakeEffect": [
+      {
+        "action": "accept",
+        "by": "demo-developer",
+        "at": "2026-11-09T04:32:47.217485Z",
+        "commit": "e7fdafc0d4d3b2fe118ac12bebf7b94d2a11c940",
+        "reason": "Accepted with the demo key when moving to the rebuilt library.",
+        "rejected": [],
+        "content": "391a8f444557226b5ed6a38042a9fe0d3f6b9ae972285c24ecb1232a037e5a4a",
+        "chain": "d9d0e2ccbea6aa688d0415811c6ba21645f89c2b9b5cc817865feaa8128e1755",
+        "seal": {
+          "key": "087bcc41dcd575d8",
+          "signature": "S2O1Tj5e8cl8BqeuREm7cSsTKFgEt1MQlJNW7zQbi1AEw0RsMugPcR4xe+X8coZ6DZYZ94RpuqWr4F1DzlBsBg=="
+        }
+      }
+    ]
+  },
+  "contents": {
+    "2d83886dc5a428e9ddd0b77dd301840cb9d32a03c5442094025e076d5d3278be": {
+      "kind": "claim",
+      "parents": [],
+      "parts": [
+        "storeMirrorsRequests",
+        "visibility"
+      ],
+      "assumes": [
+        "keyedTables",
+        "runsOneAtATime"
+      ],
+      "statement": "A record a user adds to their company, under an id no record added before has, is found from then on by each of their searches that asks for it.",
+      "formula": "(∀ (x : Account), (∀ (x_1 : CrmRecord), (∀ (x_2 : (List Event)), (∀ (x_3 : (List Event)), (∀ (x_4 : Ask), (∀ (x_5 : World), (match (read x x_4.search x_5) with | (x_6, x_7) => (match (deals x x_4.search x_5) with | (x_8, x_9) => ((((x_5.databaseModel.events = (x_2 ++ ((Event.Wrote (WriteCmd.mk x (Change.Add x_1))) :: x_3))) ∧ (x_1.tenant = x.tenant)) ∧ (¬(∃ x_10 ∈ (Crm.askedIn x_2).records, (x_10.id_ = x_1.id_)))) → ((Crm.askMatches x_4 x_1) → (x_1 ∈ (Crm.onScreen x_4 x_6 x_8))))))))))))\n\n@[frflow_defs] def askedIn (x : (List Event)) : Asked :=\n  (List.foldl (fun (x_1 : Asked) (x_2 : Event) => (Crm.askedStep x_1 x_2)) (Asked.mk ([] : (List CrmRecord)) ([] : (List Grant))) x)\n\n@[frflow_defs] def askedStep (x : Asked) (x_1 : Event) : Asked :=\n  (match x_1 with | Event.Wrote x_2 => (match (x_2 : WriteCmd).change with | Change.Add x_3 => (if (((x_3 : CrmRecord).tenant = (x_2 : WriteCmd).«by».tenant) ∧ (¬(∃ x_4 ∈ x.records, (x_4.id_ = (x_3 : CrmRecord).id_)))) then (Asked.mk (x.records ++ [(x_3 : CrmRecord)]) x.grants) else x) | Change.ShareWith x_3 x_4 x_5 => (if (∃ x_6 ∈ x.records, ((x_6.id_ = (x_3 : Int)) ∧ (x_6.tenant = (x_2 : WriteCmd).«by».tenant))) then (Asked.mk x.records ((List.filter (fun x_6 => decide (¬((x_6.record = (x_3 : Int)) ∧ (x_6.to = (x_4 : TenantId))))) x.grants) ++ [(Grant.mk (x_3 : Int) (x_4 : TenantId) (x_5 : (Option Int)))])) else x) | Change.Unshare x_3 x_4 => (if (∃ x_5 ∈ x.records, ((x_5.id_ = (x_3 : Int)) ∧ (x_5.tenant = (x_2 : WriteCmd).«by».tenant))) then (Asked.mk x.records (List.filter (fun x_5 => decide (¬((x_5.record = (x_3 : Int)) ∧ (x_5.to = (x_4 : TenantId))))) x.grants)) else x)) | Event.Expired x_2 => (Asked.mk x.records (List.filter (fun x_3 => decide (∀ (x_4 : Int), (x_3.«until» = (some x_4)) → ((x_2 : Int) < x_4))) x.grants)))\n\n@[frflow_defs] def askMatches (x : Ask) (x_1 : CrmRecord) : Prop :=\n  (match x.screen with | Screen.Records => (Crm.«matches» x.search x_1) | Screen.Sales => ((x_1.kind = Kind.Deal) ∧ (Crm.«matches» x.search x_1)))\n\n@[frflow_defs] def «matches» (x : Search) (x_1 : CrmRecord) : Prop :=\n  (match x with | Search.ById x_2 => (x_1.id_ = (x_2 : Int)) | Search.OfKind x_2 => (x_1.kind = (x_2 : Kind)) | Search.Everything => True)\n\n@[frflow_defs] def onScreen (x : Ask) (x_1 : (List CrmRecord)) (x_2 : (List CrmRecord)) : (List CrmRecord) :=\n  (match x.screen with | Screen.Records => x_1 | Screen.Sales => x_2)",
+      "written": "forall((u: Term[Account], r: Term[CrmRecord], pre: Term[List[Event]], post: Term[List[Event]], q: Term[Ask]) =>\n    (history === pre ++ (make[Event.Wrote](make[WriteCmd](u, make[Change.Add](r))) :: post) &&\n      r.tenant === u.tenant && !askedIn(pre).records.exists(x => x.id === r.id)) implies\n      askMatches(q, r).implies(results(u, q).contains(r)))",
+      "vocabulary": [
+        "deals: the sales screen: the deals a user's search returns, run on the database at the time now",
+        "read: the records screen: the records a user's search returns, run on the database at the time now"
+      ],
+      "checking": [
+        "proven of read's program, search",
+        "proven of deals's program, dealsOf",
+        "assumed by the code calling read, deals",
+        "rules it uses: keyedTables",
+        "rests on load and fetch's Scala, tested against databaseModel",
+        "rests on now's Scala, tested against clockModel",
+        "rests on runs on databaseModel being atomic: runsOneAtATime",
+        "rests on what each CrmStore from outside meets: keyedTables",
+        "not vacuous: condition 1 can hold, condition 2 can hold"
+      ],
+      "governs": [],
+      "implementation": "deals: proven program, (user: Term[Account], query: Term[Search]) =>\n  readSteps(user, query).map(rs => rs.filter(r => r.kind === (Kind.Deal: Kind)))\nread: proven program, (user: Term[Account], query: Term[Search]) => readSteps(user, query)"
+    },
+    "f25981b44a540ed75daf522d5fbf5b07a2d4b58517a37b03920d2f79c90837a1": {
+      "kind": "claim",
+      "parents": [
+        "sharedCrm"
+      ],
+      "parts": [],
+      "assumes": [],
+      "statement": "A user of a company has added a record when a write of theirs in the CRM's history asked to add it, of their company, under an id no record added before it had.",
+      "formula": "(∀ (x : TenantId), (∀ (x_1 : CrmRecord), (∀ (x_2 : World), ((added x x_1 x_2) = ((x_1.tenant = x) ∧ (x_1 ∈ (Crm.askedIn x_2.databaseModel.events).records))))))\n\n@[frflow_defs] def askedIn (x : (List Event)) : Asked :=\n  (List.foldl (fun (x_1 : Asked) (x_2 : Event) => (Crm.askedStep x_1 x_2)) (Asked.mk ([] : (List CrmRecord)) ([] : (List Grant))) x)\n\n@[frflow_defs] def askedStep (x : Asked) (x_1 : Event) : Asked :=\n  (match x_1 with | Event.Wrote x_2 => (match (x_2 : WriteCmd).change with | Change.Add x_3 => (if (((x_3 : CrmRecord).tenant = (x_2 : WriteCmd).«by».tenant) ∧ (¬(∃ x_4 ∈ x.records, (x_4.id_ = (x_3 : CrmRecord).id_)))) then (Asked.mk (x.records ++ [(x_3 : CrmRecord)]) x.grants) else x) | Change.ShareWith x_3 x_4 x_5 => (if (∃ x_6 ∈ x.records, ((x_6.id_ = (x_3 : Int)) ∧ (x_6.tenant = (x_2 : WriteCmd).«by».tenant))) then (Asked.mk x.records ((List.filter (fun x_6 => decide (¬((x_6.record = (x_3 : Int)) ∧ (x_6.to = (x_4 : TenantId))))) x.grants) ++ [(Grant.mk (x_3 : Int) (x_4 : TenantId) (x_5 : (Option Int)))])) else x) | Change.Unshare x_3 x_4 => (if (∃ x_5 ∈ x.records, ((x_5.id_ = (x_3 : Int)) ∧ (x_5.tenant = (x_2 : WriteCmd).«by».tenant))) then (Asked.mk x.records (List.filter (fun x_5 => decide (¬((x_5.record = (x_3 : Int)) ∧ (x_5.to = (x_4 : TenantId))))) x.grants)) else x)) | Event.Expired x_2 => (Asked.mk x.records (List.filter (fun x_3 => decide (∀ (x_4 : Int), (x_3.«until» = (some x_4)) → ((x_2 : Int) < x_4))) x.grants)))",
+      "written": "forall((c: Term[TenantId], r: Term[CrmRecord]) =>\n    added(c, r) === (r.tenant === c && askedIn(history).records.contains(r)))",
+      "vocabulary": [
+        "added: whether a user of the company has added the record to the CRM, for that company"
+      ],
+      "checking": [
+        "says what added is",
+        "consistent: witnessed, for Lean to check"
+      ],
+      "governs": [],
+      "call": "added"
+    },
+    "4f8ba6de6113398cd64b7b5b70dc73509c9809abf29c354a9b1f4362e1284da4": {
+      "kind": "claim",
+      "parents": [
+        "sharedCrm"
+      ],
+      "parts": [],
+      "assumes": [],
+      "statement": "Companies are named by ids; a user is an account of one company.",
+      "formula": "(∀ (x : Account), (∀ (x_1 : World), ((companyOf x x_1) = x.tenant)))",
+      "written": "forall((a: Term[Account]) => companyOf(a) === a.tenant)",
+      "vocabulary": [
+        "companyOf: the company a user works for"
+      ],
+      "checking": [
+        "says what companyOf is",
+        "consistent: witnessed, for Lean to check"
+      ],
+      "governs": [],
+      "call": "companyOf"
+    },
+    "1d4b15af60942611d2ca085d2aba171e001da49c1a6015bc0089ea3ad350f6db": {
+      "kind": "claim",
+      "parents": [
+        "storeMirrorsRequests"
+      ],
+      "parts": [],
+      "assumes": [
+        "tablesModel",
+        "runsOneAtATime",
+        "tablesStartEmpty",
+        "keyedTables"
+      ],
+      "statement": "What the CRM holds now, its records, their shares and the shares' expiries, is what its history led to: from empty, each write saved by the write side, the rows about its record replaced by those it stored, and each run of the expiry job, in turn.",
+      "formula": "(∀ (x : World), (Crm.crmRun x.databaseModel))\n\n@[frflow_defs] def crmRun (x : Tables) : Prop :=\n  (x.store = (Crm.runOf x.events))\n\n@[frflow_defs] def runOf (x : (List Event)) : CrmStore :=\n  (List.foldl (fun (x_1 : CrmStore) (x_2 : Event) => (Crm.stepOf x_1 x_2)) (CrmStore.mk ([] : (List CrmRecord)) ([] : (List Share)) ([] : (List Expiry))) x)\n\n@[frflow_defs] def stepOf (x : CrmStore) (x_1 : Event) : CrmStore :=\n  (match x_1 with | Event.Wrote x_2 => (Crm.afterSave x (x_2 : WriteCmd)) | Event.Expired x_2 => (Crm.jobDone x (x_2 : Int)))\n\n@[frflow_defs] def afterSave (x : CrmStore) (x_1 : WriteCmd) : CrmStore :=\n  (Crm.replaceAbout x (Crm.about x_1) (Crm.aboutRecord (Crm.applyWrite x x_1) (Crm.about x_1)))\n\n@[frflow_defs] def replaceAbout (x : CrmStore) (x_1 : Int) (x_2 : CrmStore) : CrmStore :=\n  (CrmStore.mk ((List.filter (fun x_3 => decide (¬(x_3.id_ = x_1))) x.records) ++ x_2.records) ((List.filter (fun x_3 => decide (¬(x_3.record = x_1))) x.shares) ++ x_2.shares) ((List.filter (fun x_3 => decide (¬(x_3.record = x_1))) x.expiries) ++ x_2.expiries))\n\n@[frflow_defs] def about (x : WriteCmd) : Int :=\n  (match x.change with | Change.Add x_1 => (x_1 : CrmRecord).id_ | Change.ShareWith x_1 x_2 x_3 => (x_1 : Int) | Change.Unshare x_1 x_2 => (x_1 : Int))\n\n@[frflow_defs] def aboutRecord (x : CrmStore) (x_1 : Int) : CrmStore :=\n  (CrmStore.mk (List.filter (fun x_2 => decide (x_2.id_ = x_1)) x.records) (List.filter (fun x_2 => decide (x_2.record = x_1)) x.shares) (List.filter (fun x_2 => decide (x_2.record = x_1)) x.expiries))\n\n@[frflow_defs] def applyWrite (x : CrmStore) (x_1 : WriteCmd) : CrmStore :=\n  (match x_1.change with | Change.Add x_2 => (if (((x_2 : CrmRecord).tenant = x_1.«by».tenant) ∧ (¬(∃ x_3 ∈ x.records, (x_3.id_ = (x_2 : CrmRecord).id_)))) then (CrmStore.mk (x.records ++ [(x_2 : CrmRecord)]) x.shares x.expiries) else x) | Change.ShareWith x_2 x_3 x_4 => (if (Crm.ownRecord x x_1 (x_2 : Int)) then (CrmStore.mk x.records ((List.filter (fun x_5 => decide (¬(x_5 = (Share.mk (x_2 : Int) (x_3 : TenantId))))) x.shares) ++ [(Share.mk (x_2 : Int) (x_3 : TenantId))]) ((List.filter (fun x_5 => decide (¬((x_5.record = (x_2 : Int)) ∧ (x_5.to = (x_3 : TenantId))))) x.expiries) ++ (match (x_4 : (Option Int)) with | none => ([] : (List Expiry)) | some x_5 => [(Expiry.mk (x_2 : Int) (x_3 : TenantId) x_5)]))) else x) | Change.Unshare x_2 x_3 => (if (Crm.ownRecord x x_1 (x_2 : Int)) then (CrmStore.mk x.records (List.filter (fun x_4 => decide (¬(x_4 = (Share.mk (x_2 : Int) (x_3 : TenantId))))) x.shares) (List.filter (fun x_4 => decide (¬((x_4.record = (x_2 : Int)) ∧ (x_4.to = (x_3 : TenantId))))) x.expiries)) else x))\n\n@[frflow_defs] def ownRecord (x : CrmStore) (x_1 : WriteCmd) (x_2 : Int) : Prop :=\n  (∃ x_3 ∈ x.records, ((x_3.id_ = x_2) ∧ (x_3.tenant = x_1.«by».tenant)))\n\n@[frflow_defs] def jobDone (x : CrmStore) (x_1 : Int) : CrmStore :=\n  (List.foldl (fun (x_2 : CrmStore) (x_3 : Int) => (if (¬((Crm.aboutRecord x x_3) = (Crm.aboutRecord (Crm.expireCode x x_1) x_3))) then (Crm.replaceAbout x_2 x_3 (Crm.aboutRecord (Crm.expireCode x x_1) x_3)) else x_2)) x ((Crm.idsIn x) ++ (Crm.idsIn (Crm.expireCode x x_1))))\n\n@[frflow_defs] def idsIn (x : CrmStore) : (List Int) :=\n  (((List.map (fun x_1 => x_1.id_) x.records) ++ (List.map (fun x_1 => x_1.record) x.shares)) ++ (List.map (fun x_1 => x_1.record) x.expiries))\n\n@[frflow_defs] def expireCode (x : CrmStore) (x_1 : Int) : CrmStore :=\n  (CrmStore.mk x.records (List.filter (fun x_2 => decide (¬(Crm.ended x_2 x x_1))) x.shares) (List.filter (fun x_2 => decide (¬(Crm.ended (Share.mk x_2.record x_2.to) x x_1))) x.expiries))\n\n@[frflow_defs] def ended (x : Share) (x_1 : CrmStore) (x_2 : Int) : Prop :=\n  (∃ x_3 ∈ x_1.expiries, (((x_3.record = x.record) ∧ (x_3.to = x.to)) ∧ (x_3.«until» ≤ x_2)))",
+      "written": "always(databaseModel)(t => t.store === runOf(t.events))",
+      "vocabulary": [],
+      "checking": [
+        "kept by every run of read, runExpiry, deals, save, from the state it starts in",
+        "rules it uses: keyedTables",
+        "rests on load, storeAbout, logEvent and fetch's Scala, tested against databaseModel",
+        "rests on now's Scala, tested against clockModel",
+        "rests on nothing outside the code changing databaseModel: tablesModel",
+        "rests on runs on databaseModel being atomic: runsOneAtATime",
+        "rests on the state databaseModel starts in: tablesStartEmpty",
+        "rests on what each CrmStore from outside meets: keyedTables",
+        "met where the store starts, from what tablesStartEmpty says: witnessed, for Lean to check"
+      ],
+      "writers": [
+        "read",
+        "runExpiry",
+        "deals",
+        "save"
+      ],
+      "governs": []
+    },
+    "73b7e314c6b98afd50c62f9559fad43e6a433b52fbc3cb6e4cc64758d08e7d5f": {
+      "kind": "claim",
+      "parents": [
+        "searchesMatch",
+        "noCrossTenantRead"
+      ],
+      "parts": [],
+      "assumes": [
+        "keyedTables",
+        "runsOneAtATime"
+      ],
+      "statement": "A deal search returns exactly the stored deals that match it and the user may read.",
+      "formula": "(∀ (x : Account), (∀ (x_1 : Search), (∀ (x_2 : World), (match (deals x x_1 x_2) with | (x_3, x_4) => ((∀ x_5 ∈ x_3, ((((x_5 ∈ x_2.databaseModel.store.records) ∧ (x_5.kind = Kind.Deal)) ∧ (Crm.«matches» x_1 x_5)) ∧ (Crm.mayRead x_2.databaseModel.store x_2.clockModel x x_5))) ∧ (∀ x_5 ∈ x_2.databaseModel.store.records, ((((x_5.kind = Kind.Deal) ∧ (Crm.«matches» x_1 x_5)) ∧ (Crm.mayRead x_2.databaseModel.store x_2.clockModel x x_5)) → (x_5 ∈ x_3))))))))\n\n@[frflow_defs] def «matches» (x : Search) (x_1 : CrmRecord) : Prop :=\n  (match x with | Search.ById x_2 => (x_1.id_ = (x_2 : Int)) | Search.OfKind x_2 => (x_1.kind = (x_2 : Kind)) | Search.Everything => True)\n\n@[frflow_defs] def mayRead (x : CrmStore) (x_1 : Int) (x_2 : Account) (x_3 : CrmRecord) : Prop :=\n  ((x_3.tenant = x_2.tenant) ∨ (Crm.sharedNow x x_1 x_3.id_ x_2.tenant))\n\n@[frflow_defs] def sharedNow (x : CrmStore) (x_1 : Int) (x_2 : Int) (x_3 : TenantId) : Prop :=\n  (((Share.mk x_2 x_3) ∈ x.shares) ∧ (¬(∃ x_4 ∈ x.expiries, (((x_4.record = x_2) ∧ (x_4.to = x_3)) ∧ (x_4.«until» ≤ x_1)))))",
+      "written": "forall((user: Term[Account], query: Term[Search]) =>\n    deals(user, query).result.forall(r =>\n      held.records.contains(r) && r.kind === (Kind.Deal: Kind) && matches(query, r) && mayReadNow(user, r)) &&\n      held.records.forall(r => (r.kind === (Kind.Deal: Kind) && matches(query, r) && mayReadNow(user, r)) implies\n        deals(user, query).result.contains(r)))",
+      "vocabulary": [
+        "deals: the sales screen: the deals a user's search returns, run on the database at the time now"
+      ],
+      "checking": [
+        "proven of deals's program, dealsOf",
+        "assumed by the code calling deals",
+        "rules it uses: keyedTables",
+        "rests on load and fetch's Scala, tested against databaseModel",
+        "rests on now's Scala, tested against clockModel",
+        "rests on runs on databaseModel being atomic: runsOneAtATime",
+        "rests on what each CrmStore from outside meets: keyedTables",
+        "consistent with searches, recordsByQuery, searchKeeps, readContract: consistency not proven",
+        "not vacuous: condition 1 can hold"
+      ],
+      "governs": [],
+      "call": "deals",
+      "implementation": "deals: proven program, (user: Term[Account], query: Term[Search]) =>\n  readSteps(user, query).map(rs => rs.filter(r => r.kind === (Kind.Deal: Kind)))"
+    },
+    "2ad17398461413137c9c3078af4a2605e9767870368dd53915f91fb153c963a7": {
+      "kind": "claim",
+      "parents": [],
+      "parts": [],
+      "assumes": [
+        "runsOneAtATime",
+        "keyedTables"
+      ],
+      "statement": "A run of the expiry job at a time leaves the database holding, about each record, what sharesExpire's run on what it held gives, logs the run at the end of the event log, and returns that store.",
+      "formula": "(∀ (x : Int), (∀ (x_1 : World), (match (runExpiry x x_1) with | (x_2, x_3) => (((Crm.sameRows x_3.databaseModel.store (expire x_1.databaseModel.store x)) ∧ (x_3.databaseModel.events = (x_1.databaseModel.events ++ [(Event.Expired x)]))) ∧ (x_2 = (expire x_1.databaseModel.store x))))))\n\n@[frflow_defs] def sameRows (x : CrmStore) (x_1 : CrmStore) : Prop :=\n  (∀ x_2 ∈ ((Crm.idsIn x) ++ (Crm.idsIn x_1)), ((Crm.aboutRecord x x_2) = (Crm.aboutRecord x_1 x_2)))\n\n@[frflow_defs] def idsIn (x : CrmStore) : (List Int) :=\n  (((List.map (fun x_1 => x_1.id_) x.records) ++ (List.map (fun x_1 => x_1.record) x.shares)) ++ (List.map (fun x_1 => x_1.record) x.expiries))\n\n@[frflow_defs] def aboutRecord (x : CrmStore) (x_1 : Int) : CrmStore :=\n  (CrmStore.mk (List.filter (fun x_2 => decide (x_2.id_ = x_1)) x.records) (List.filter (fun x_2 => decide (x_2.record = x_1)) x.shares) (List.filter (fun x_2 => decide (x_2.record = x_1)) x.expiries))",
+      "written": "forall((now: Term[BigInt]) =>\n    val (held, left) = (databaseModel.current, databaseModel.in(runExpiry(now).after))\n    sameRows(left.store, expire(held.store, now)) && left.events === held.events :+ make[Event.Expired](now) &&\n      runExpiry(now).result === expire(held.store, now))",
+      "vocabulary": [
+        "expire: a run of the expiry job at a time (in seconds) on a store: the store it leads to",
+        "runExpiry: a run of the expiry job at a time (in seconds), on the database: the store it computes; the database holds it after"
+      ],
+      "checking": [
+        "proven of runExpiry's program, expireOnce",
+        "proven of expire's code, expireCode",
+        "assumed by the code calling runExpiry, expire",
+        "rules it uses: keyedTables",
+        "rests on load, storeAbout and logEvent's Scala, tested against databaseModel",
+        "rests on runs on databaseModel being atomic: runsOneAtATime",
+        "rests on what each CrmStore from outside meets: keyedTables"
+      ],
+      "governs": [],
+      "call": "runExpiry",
+      "implementation": "expire: proven, (s: Term[CrmStore], now: Term[BigInt]) =>\n  make[CrmStore](s.records, s.shares.filter(sh => !ended(sh, s, now)),\n    s.expiries.filter(e => !ended(make[Share](e.record, e.to), s, now)))\nrunExpiry: proven program, (now: Term[BigInt]) =>\n  for\n    s <- load\n    t  = expire(s, now)\n    _ <- Flow.each(idsIn(s) ++ idsIn(t))(id =>\n           Flow.ifM[Unit](Flow.pure(aboutRecord(s, id) =!= aboutRecord(t, id)))(storeAbout(id, t), Flow.unit))\n    _ <- logEvent(make[Event.Expired](now))\n  yield t"
+    },
+    "4b9c5ae5ad8d54c32ad4c590168f4edcf3ccc820d5c7677d83cb44bf749be455": {
+      "kind": "assumption",
+      "parents": [],
+      "parts": [],
+      "assumes": [],
+      "statement": "The database's tables hold one row per key, by their keys: a record by its id, a share and an expiry by record and company.",
+      "formula": "(∀ (x : CrmStore), (Crm.keyedTables x))\n\n@[frflow_defs] def keyedTables (x : CrmStore) : Prop :=\n  (Crm.onePerKey x)\n\n@[frflow_defs] def onePerKey (x : CrmStore) : Prop :=\n  (((List.Pairwise (fun (x_1 : CrmRecord) (x_2 : CrmRecord) => (¬(x_1.id_ = x_2.id_))) x.records) ∧ (List.Pairwise (fun (x_1 : Share) (x_2 : Share) => (¬(x_1 = x_2))) x.shares)) ∧ (List.Pairwise (fun (x_1 : Expiry) (x_2 : Expiry) => (¬((x_1.record = x_2.record) ∧ (x_1.to = x_2.to)))) x.expiries))",
+      "written": "always[CrmStore](s => onePerKey(s))",
+      "vocabulary": [],
+      "checking": [
+        "trusted",
+        "met where a CrmStore is made (read, runExpiry, write, expire, deals, save, databaseModel's load); assumed of every CrmStore in Lean",
+        "met where the store starts, from what tablesStartEmpty says: witnessed, for Lean to check",
+        "not vacuous: some CrmStore meets it"
+      ],
+      "writers": [
+        "read",
+        "runExpiry",
+        "deals",
+        "save"
+      ],
+      "governs": []
+    },
+    "4b58b985c8e80b3a327b7d7838fdfcb1045e7651f08097eb1dc1239f3a2c88ec": {
+      "kind": "claim",
+      "parents": [],
+      "parts": [
+        "readContract",
+        "dealSearch"
+      ],
+      "assumes": [
+        "keyedTables",
+        "runsOneAtATime"
+      ],
+      "statement": "No search returns a record of another company unless that company shared it with the reader's, for good or until a time not yet come.",
+      "formula": "(∀ (x : Account), (∀ (x_1 : Search), (∀ (x_2 : World), (match (read x x_1 x_2) with | (x_3, x_4) => (match (deals x x_1 x_2) with | (x_5, x_6) => ((∀ x_7 ∈ x_3, (Crm.mayRead x_2.databaseModel.store x_2.clockModel x x_7)) ∧ (∀ x_7 ∈ x_5, (Crm.mayRead x_2.databaseModel.store x_2.clockModel x x_7))))))))\n\n@[frflow_defs] def mayRead (x : CrmStore) (x_1 : Int) (x_2 : Account) (x_3 : CrmRecord) : Prop :=\n  ((x_3.tenant = x_2.tenant) ∨ (Crm.sharedNow x x_1 x_3.id_ x_2.tenant))\n\n@[frflow_defs] def sharedNow (x : CrmStore) (x_1 : Int) (x_2 : Int) (x_3 : TenantId) : Prop :=\n  (((Share.mk x_2 x_3) ∈ x.shares) ∧ (¬(∃ x_4 ∈ x.expiries, (((x_4.record = x_2) ∧ (x_4.to = x_3)) ∧ (x_4.«until» ≤ x_1)))))",
+      "written": "forall((u: Term[Account], q: Term[Search]) =>\n    read(u, q).result.forall(r => mayReadNow(u, r)) && deals(u, q).result.forall(r => mayReadNow(u, r)))",
+      "vocabulary": [
+        "deals: the sales screen: the deals a user's search returns, run on the database at the time now",
+        "read: the records screen: the records a user's search returns, run on the database at the time now"
+      ],
+      "checking": [
+        "proven of read's program, search",
+        "proven of deals's program, dealsOf",
+        "assumed by the code calling read, deals",
+        "rules it uses: keyedTables",
+        "rests on load and fetch's Scala, tested against databaseModel",
+        "rests on now's Scala, tested against clockModel",
+        "rests on runs on databaseModel being atomic: runsOneAtATime",
+        "rests on what each CrmStore from outside meets: keyedTables"
+      ],
+      "governs": [],
+      "call": "read",
+      "implementation": "deals: proven program, (user: Term[Account], query: Term[Search]) =>\n  readSteps(user, query).map(rs => rs.filter(r => r.kind === (Kind.Deal: Kind)))\nread: proven program, (user: Term[Account], query: Term[Search]) => readSteps(user, query)"
+    },
+    "3251fca89392c4aade500dc65384bc4bcbf4e32e2faa230bb17e279410aecee5": {
+      "kind": "claim",
+      "parents": [
+        "storeMirrorsRequests"
+      ],
+      "parts": [],
+      "assumes": [
+        "keyedTables",
+        "tablesModel",
+        "runsOneAtATime",
+        "tablesStartEmpty"
+      ],
+      "statement": "Every store the CRM makes holds one row per key, as the database's tables do: a record by its id, a share and an expiry by record and company.",
+      "formula": "(∀ (x : CrmStore), (Crm.oneRowPerKey x))\n\n@[frflow_defs] def oneRowPerKey (x : CrmStore) : Prop :=\n  (Crm.onePerKey x)\n\n@[frflow_defs] def onePerKey (x : CrmStore) : Prop :=\n  (((List.Pairwise (fun (x_1 : CrmRecord) (x_2 : CrmRecord) => (¬(x_1.id_ = x_2.id_))) x.records) ∧ (List.Pairwise (fun (x_1 : Share) (x_2 : Share) => (¬(x_1 = x_2))) x.shares)) ∧ (List.Pairwise (fun (x_1 : Expiry) (x_2 : Expiry) => (¬((x_1.record = x_2.record) ∧ (x_1.to = x_2.to)))) x.expiries))",
+      "written": "always[CrmStore](s => onePerKey(s))",
+      "vocabulary": [],
+      "checking": [
+        "met where a CrmStore is made (read, runExpiry, write, expire, deals, save, databaseModel's load); assumed of every CrmStore in Lean",
+        "rules it uses: keyedTables",
+        "rests on load, storeAbout, logEvent and fetch's Scala, tested against databaseModel",
+        "rests on now's Scala, tested against clockModel",
+        "rests on what each CrmStore from outside meets: keyedTables",
+        "rests on nothing outside the code changing databaseModel: tablesModel",
+        "rests on runs on databaseModel being atomic: runsOneAtATime",
+        "rests on the state databaseModel starts in: tablesStartEmpty",
+        "met where the store starts, from what tablesStartEmpty says: witnessed, for Lean to check",
+        "not vacuous: some CrmStore meets it"
+      ],
+      "writers": [
+        "read",
+        "runExpiry",
+        "deals",
+        "save"
+      ],
+      "governs": []
+    },
+    "c6ee5d0abb34cce228c208edcec483adf9a7d252c503be55533b1737eb2755bf": {
+      "kind": "claim",
+      "parents": [
+        "sharedCrm"
+      ],
+      "parts": [],
+      "assumes": [],
+      "statement": "A record, a contact or a deal, belongs to the company stored on it.",
+      "formula": "(∀ (x : CrmRecord), (∀ (x_1 : World), ((owner x x_1) = x.tenant)))",
+      "written": "forall((r: Term[CrmRecord]) => owner(r) === r.tenant)",
+      "vocabulary": [
+        "owner: the company a record belongs to"
+      ],
+      "checking": [
+        "says what owner is",
+        "consistent: witnessed, for Lean to check"
+      ],
+      "governs": [],
+      "call": "owner"
+    },
+    "714b0f364a034570041889a0e8b0c716d50bd69bd7022d2e2dc41fceb601155e": {
+      "kind": "claim",
+      "parents": [
+        "searchesMatch",
+        "noCrossTenantRead"
+      ],
+      "parts": [],
+      "assumes": [
+        "keyedTables",
+        "runsOneAtATime"
+      ],
+      "statement": "A search on the records screen returns exactly the stored records that match it and the user may read: each of the user's company or shared with it now.",
+      "formula": "(∀ (x : Account), (∀ (x_1 : Search), (∀ (x_2 : World), (match (read x x_1 x_2) with | (x_3, x_4) => ((∀ x_5 ∈ x_3, (((x_5 ∈ x_2.databaseModel.store.records) ∧ (Crm.«matches» x_1 x_5)) ∧ (Crm.mayRead x_2.databaseModel.store x_2.clockModel x x_5))) ∧ (∀ x_5 ∈ x_2.databaseModel.store.records, (((Crm.«matches» x_1 x_5) ∧ (Crm.mayRead x_2.databaseModel.store x_2.clockModel x x_5)) → (x_5 ∈ x_3))))))))\n\n@[frflow_defs] def «matches» (x : Search) (x_1 : CrmRecord) : Prop :=\n  (match x with | Search.ById x_2 => (x_1.id_ = (x_2 : Int)) | Search.OfKind x_2 => (x_1.kind = (x_2 : Kind)) | Search.Everything => True)\n\n@[frflow_defs] def mayRead (x : CrmStore) (x_1 : Int) (x_2 : Account) (x_3 : CrmRecord) : Prop :=\n  ((x_3.tenant = x_2.tenant) ∨ (Crm.sharedNow x x_1 x_3.id_ x_2.tenant))\n\n@[frflow_defs] def sharedNow (x : CrmStore) (x_1 : Int) (x_2 : Int) (x_3 : TenantId) : Prop :=\n  (((Share.mk x_2 x_3) ∈ x.shares) ∧ (¬(∃ x_4 ∈ x.expiries, (((x_4.record = x_2) ∧ (x_4.to = x_3)) ∧ (x_4.«until» ≤ x_1)))))",
+      "written": "forall((user: Term[Account], query: Term[Search]) =>\n    read(user, query).result.forall(r => held.records.contains(r) && matches(query, r) && mayReadNow(user, r)) &&\n      held.records.forall(r =>\n        (matches(query, r) && mayReadNow(user, r)) implies read(user, query).result.contains(r)))",
+      "vocabulary": [
+        "read: the records screen: the records a user's search returns, run on the database at the time now"
+      ],
+      "checking": [
+        "proven of read's program, search",
+        "assumed by the code calling read",
+        "rules it uses: keyedTables",
+        "rests on load and fetch's Scala, tested against databaseModel",
+        "rests on now's Scala, tested against clockModel",
+        "rests on runs on databaseModel being atomic: runsOneAtATime",
+        "rests on what each CrmStore from outside meets: keyedTables",
+        "consistent with searches, recordsByQuery, searchKeeps, dealSearch: consistency not proven",
+        "not vacuous: condition 1 can hold"
+      ],
+      "governs": [],
+      "call": "read",
+      "implementation": "read: proven program, (user: Term[Account], query: Term[Search]) => readSteps(user, query)"
+    },
+    "8a60da656af4704de2aca080983d43ea28fc59d2ef38df3c6a8ef10ec1d7e7df": {
+      "kind": "assumption",
+      "parents": [],
+      "parts": [],
+      "assumes": [],
+      "statement": "The database returns exactly the stored records that match a search, of every company.",
+      "formula": "(∀ (x : Account), (∀ (x_1 : Search), (∀ (x_2 : World), (match (DatabaseModel.fetch_run fetch x x_1 x_2) with | (x_3, x_4) => ((∀ x_5 ∈ x_3, ((x_5 ∈ x_2.databaseModel.store.records) ∧ (Crm.«matches» x_1 x_5))) ∧ (∀ x_5 ∈ x_2.databaseModel.store.records, ((Crm.«matches» x_1 x_5) → (x_5 ∈ x_3))))))))\n\n@[frflow_defs] def «matches» (x : Search) (x_1 : CrmRecord) : Prop :=\n  (match x with | Search.ById x_2 => (x_1.id_ = (x_2 : Int)) | Search.OfKind x_2 => (x_1.kind = (x_2 : Kind)) | Search.Everything => True)",
+      "written": "forall((user: Term[Account], query: Term[Search]) =>\n    fetch(user, query).result.forall(r => held.records.contains(r) && matches(query, r)) &&\n      held.records.forall(r => matches(query, r) implies fetch(user, query).result.contains(r)))",
+      "vocabulary": [
+        "fetch: the database's answer to a search: the stored records, of every company, that match it"
+      ],
+      "checking": [
+        "trusted",
+        "assumed by the code calling fetch",
+        "consistent with searches, searchKeeps, readContract, dealSearch: consistency not proven"
+      ],
+      "governs": [],
+      "call": "fetch",
+      "implementation": "fetch: meant by databaseModel, its Scala tested against it: (start = SqliteDatabase.holding, observe = _.tables)(d =>\n    (d.load, d.storeAbout, d.logEvent, d.fetch))"
+    },
+    "1a0845400520d304bbcae6e5034776840a4045bfe1b222a76769345d5622cf10": {
+      "kind": "claim",
+      "parents": [
+        "storeMirrorsRequests"
+      ],
+      "parts": [
+        "writeContract",
+        "sharesExpire"
+      ],
+      "assumes": [
+        "keyedTables"
+      ],
+      "statement": "No write and no run of the expiry job removes a record: after each, the CRM holds every record it held before.",
+      "formula": "(∀ (x : CrmStore), (∀ (x_1 : Event), (∀ x_2 ∈ x.records, (x_2 ∈ (Crm.stepOf x x_1).records))))\n\n@[frflow_defs] def stepOf (x : CrmStore) (x_1 : Event) : CrmStore :=\n  (match x_1 with | Event.Wrote x_2 => (Crm.afterSave x (x_2 : WriteCmd)) | Event.Expired x_2 => (Crm.jobDone x (x_2 : Int)))\n\n@[frflow_defs] def afterSave (x : CrmStore) (x_1 : WriteCmd) : CrmStore :=\n  (Crm.replaceAbout x (Crm.about x_1) (Crm.aboutRecord (Crm.applyWrite x x_1) (Crm.about x_1)))\n\n@[frflow_defs] def replaceAbout (x : CrmStore) (x_1 : Int) (x_2 : CrmStore) : CrmStore :=\n  (CrmStore.mk ((List.filter (fun x_3 => decide (¬(x_3.id_ = x_1))) x.records) ++ x_2.records) ((List.filter (fun x_3 => decide (¬(x_3.record = x_1))) x.shares) ++ x_2.shares) ((List.filter (fun x_3 => decide (¬(x_3.record = x_1))) x.expiries) ++ x_2.expiries))\n\n@[frflow_defs] def about (x : WriteCmd) : Int :=\n  (match x.change with | Change.Add x_1 => (x_1 : CrmRecord).id_ | Change.ShareWith x_1 x_2 x_3 => (x_1 : Int) | Change.Unshare x_1 x_2 => (x_1 : Int))\n\n@[frflow_defs] def aboutRecord (x : CrmStore) (x_1 : Int) : CrmStore :=\n  (CrmStore.mk (List.filter (fun x_2 => decide (x_2.id_ = x_1)) x.records) (List.filter (fun x_2 => decide (x_2.record = x_1)) x.shares) (List.filter (fun x_2 => decide (x_2.record = x_1)) x.expiries))\n\n@[frflow_defs] def applyWrite (x : CrmStore) (x_1 : WriteCmd) : CrmStore :=\n  (match x_1.change with | Change.Add x_2 => (if (((x_2 : CrmRecord).tenant = x_1.«by».tenant) ∧ (¬(∃ x_3 ∈ x.records, (x_3.id_ = (x_2 : CrmRecord).id_)))) then (CrmStore.mk (x.records ++ [(x_2 : CrmRecord)]) x.shares x.expiries) else x) | Change.ShareWith x_2 x_3 x_4 => (if (Crm.ownRecord x x_1 (x_2 : Int)) then (CrmStore.mk x.records ((List.filter (fun x_5 => decide (¬(x_5 = (Share.mk (x_2 : Int) (x_3 : TenantId))))) x.shares) ++ [(Share.mk (x_2 : Int) (x_3 : TenantId))]) ((List.filter (fun x_5 => decide (¬((x_5.record = (x_2 : Int)) ∧ (x_5.to = (x_3 : TenantId))))) x.expiries) ++ (match (x_4 : (Option Int)) with | none => ([] : (List Expiry)) | some x_5 => [(Expiry.mk (x_2 : Int) (x_3 : TenantId) x_5)]))) else x) | Change.Unshare x_2 x_3 => (if (Crm.ownRecord x x_1 (x_2 : Int)) then (CrmStore.mk x.records (List.filter (fun x_4 => decide (¬(x_4 = (Share.mk (x_2 : Int) (x_3 : TenantId))))) x.shares) (List.filter (fun x_4 => decide (¬((x_4.record = (x_2 : Int)) ∧ (x_4.to = (x_3 : TenantId))))) x.expiries)) else x))\n\n@[frflow_defs] def ownRecord (x : CrmStore) (x_1 : WriteCmd) (x_2 : Int) : Prop :=\n  (∃ x_3 ∈ x.records, ((x_3.id_ = x_2) ∧ (x_3.tenant = x_1.«by».tenant)))\n\n@[frflow_defs] def jobDone (x : CrmStore) (x_1 : Int) : CrmStore :=\n  (List.foldl (fun (x_2 : CrmStore) (x_3 : Int) => (if (¬((Crm.aboutRecord x x_3) = (Crm.aboutRecord (Crm.expireCode x x_1) x_3))) then (Crm.replaceAbout x_2 x_3 (Crm.aboutRecord (Crm.expireCode x x_1) x_3)) else x_2)) x ((Crm.idsIn x) ++ (Crm.idsIn (Crm.expireCode x x_1))))\n\n@[frflow_defs] def idsIn (x : CrmStore) : (List Int) :=\n  (((List.map (fun x_1 => x_1.id_) x.records) ++ (List.map (fun x_1 => x_1.record) x.shares)) ++ (List.map (fun x_1 => x_1.record) x.expiries))\n\n@[frflow_defs] def expireCode (x : CrmStore) (x_1 : Int) : CrmStore :=\n  (CrmStore.mk x.records (List.filter (fun x_2 => decide (¬(Crm.ended x_2 x x_1))) x.shares) (List.filter (fun x_2 => decide (¬(Crm.ended (Share.mk x_2.record x_2.to) x x_1))) x.expiries))\n\n@[frflow_defs] def ended (x : Share) (x_1 : CrmStore) (x_2 : Int) : Prop :=\n  (∃ x_3 ∈ x_1.expiries, (((x_3.record = x.record) ∧ (x_3.to = x.to)) ∧ (x_3.«until» ≤ x_2)))",
+      "written": "forall((s: Term[CrmStore], e: Term[Event]) => s.records.forall(r => stepOf(s, e).records.contains(r)))",
+      "vocabulary": [],
+      "checking": [
+        "proven from its parts (writeContract, sharesExpire)",
+        "rules it uses: keyedTables",
+        "rests on what each CrmStore from outside meets: keyedTables"
+      ],
+      "governs": []
+    },
+    "f6ea67704e1c16abed36d28a85e283def54fc42a43b684bf9d2984e2be8d32b1": {
+      "kind": "assumption",
+      "parents": [],
+      "assumes": [],
+      "statement": "Runs on the database never interleave: the expiry job holds the database's lock during a run, and the write side saves one write at a time.",
+      "formula": "databaseModel.atomic",
+      "written": "databaseModel.atomic",
+      "vocabulary": [],
+      "checking": [
+        "the world outside: runs on databaseModel never interleave"
+      ],
+      "governs": []
+    },
+    "03ddb54cbbf85662da254a9efe4bdeaa4bbd525cea0117120a5c7aa8a5377199": {
+      "kind": "claim",
+      "parents": [],
+      "parts": [],
+      "assumes": [
+        "runsOneAtATime",
+        "keyedTables"
+      ],
+      "statement": "Saving a write leaves the database holding, about the written record, what the store the write leads to holds about it, logs the write at the end of the event log, and returns those rows.",
+      "formula": "(∀ (x : WriteCmd), (∀ (x_1 : World), (match (save x x_1) with | (x_2, x_3) => ((x_3.databaseModel = (Tables.mk (Crm.afterSave x_1.databaseModel.store x) (x_1.databaseModel.events ++ [(Event.Wrote x)]))) ∧ (x_2 = (Crm.aboutRecord (Crm.afterSave x_1.databaseModel.store x) (Crm.about x)))))))\n\n@[frflow_defs] def afterSave (x : CrmStore) (x_1 : WriteCmd) : CrmStore :=\n  (Crm.replaceAbout x (Crm.about x_1) (Crm.aboutRecord (Crm.applyWrite x x_1) (Crm.about x_1)))\n\n@[frflow_defs] def replaceAbout (x : CrmStore) (x_1 : Int) (x_2 : CrmStore) : CrmStore :=\n  (CrmStore.mk ((List.filter (fun x_3 => decide (¬(x_3.id_ = x_1))) x.records) ++ x_2.records) ((List.filter (fun x_3 => decide (¬(x_3.record = x_1))) x.shares) ++ x_2.shares) ((List.filter (fun x_3 => decide (¬(x_3.record = x_1))) x.expiries) ++ x_2.expiries))\n\n@[frflow_defs] def about (x : WriteCmd) : Int :=\n  (match x.change with | Change.Add x_1 => (x_1 : CrmRecord).id_ | Change.ShareWith x_1 x_2 x_3 => (x_1 : Int) | Change.Unshare x_1 x_2 => (x_1 : Int))\n\n@[frflow_defs] def aboutRecord (x : CrmStore) (x_1 : Int) : CrmStore :=\n  (CrmStore.mk (List.filter (fun x_2 => decide (x_2.id_ = x_1)) x.records) (List.filter (fun x_2 => decide (x_2.record = x_1)) x.shares) (List.filter (fun x_2 => decide (x_2.record = x_1)) x.expiries))\n\n@[frflow_defs] def applyWrite (x : CrmStore) (x_1 : WriteCmd) : CrmStore :=\n  (match x_1.change with | Change.Add x_2 => (if (((x_2 : CrmRecord).tenant = x_1.«by».tenant) ∧ (¬(∃ x_3 ∈ x.records, (x_3.id_ = (x_2 : CrmRecord).id_)))) then (CrmStore.mk (x.records ++ [(x_2 : CrmRecord)]) x.shares x.expiries) else x) | Change.ShareWith x_2 x_3 x_4 => (if (Crm.ownRecord x x_1 (x_2 : Int)) then (CrmStore.mk x.records ((List.filter (fun x_5 => decide (¬(x_5 = (Share.mk (x_2 : Int) (x_3 : TenantId))))) x.shares) ++ [(Share.mk (x_2 : Int) (x_3 : TenantId))]) ((List.filter (fun x_5 => decide (¬((x_5.record = (x_2 : Int)) ∧ (x_5.to = (x_3 : TenantId))))) x.expiries) ++ (match (x_4 : (Option Int)) with | none => ([] : (List Expiry)) | some x_5 => [(Expiry.mk (x_2 : Int) (x_3 : TenantId) x_5)]))) else x) | Change.Unshare x_2 x_3 => (if (Crm.ownRecord x x_1 (x_2 : Int)) then (CrmStore.mk x.records (List.filter (fun x_4 => decide (¬(x_4 = (Share.mk (x_2 : Int) (x_3 : TenantId))))) x.shares) (List.filter (fun x_4 => decide (¬((x_4.record = (x_2 : Int)) ∧ (x_4.to = (x_3 : TenantId))))) x.expiries)) else x))\n\n@[frflow_defs] def ownRecord (x : CrmStore) (x_1 : WriteCmd) (x_2 : Int) : Prop :=\n  (∃ x_3 ∈ x.records, ((x_3.id_ = x_2) ∧ (x_3.tenant = x_1.«by».tenant)))",
+      "written": "forall((w: Term[WriteCmd]) =>\n    databaseModel.in(save(w).after) === make[Tables](afterSave(held, w), history :+ make[Event.Wrote](w)) &&\n      save(w).result === aboutRecord(afterSave(held, w), about(w)))",
+      "vocabulary": [
+        "save: the write side: a write applied to the store the database holds, the rows about its record stored and the write logged; it returns those rows"
+      ],
+      "checking": [
+        "proven of save's program, saved",
+        "assumed by the code calling save",
+        "rules it uses: keyedTables",
+        "rests on load, storeAbout and logEvent's Scala, tested against databaseModel",
+        "rests on runs on databaseModel being atomic: runsOneAtATime",
+        "rests on what each CrmStore from outside meets: keyedTables"
+      ],
+      "governs": [],
+      "call": "save",
+      "implementation": "save: proven program, (w: Term[WriteCmd]) =>\n  for\n    s <- load\n    t  = applyWrite(s, w)\n    _ <- storeAbout(about(w), t)\n    _ <- logEvent(make[Event.Wrote](w))\n  yield aboutRecord(t, about(w))"
+    },
+    "0712db76188e1eaa8442393129f954978837794133b90621f000a4008ee4e849": {
+      "kind": "assumption",
+      "parents": [],
+      "parts": [],
+      "assumes": [],
+      "statement": "A search changes nothing the database holds.",
+      "formula": "(∀ (x : Account), (∀ (x_1 : Search), (∀ (x_2 : World), (match (DatabaseModel.fetch_run fetch x x_1 x_2) with | (x_3, x_4) => (x_4.databaseModel = x_2.databaseModel)))))",
+      "written": "forall((user: Term[Account], query: Term[Search]) =>\n    databaseModel.in(fetch(user, query).after) === databaseModel.current)",
+      "vocabulary": [
+        "fetch: the database's answer to a search: the stored records, of every company, that match it"
+      ],
+      "checking": [
+        "trusted",
+        "assumed by the code calling fetch",
+        "consistent with searches, recordsByQuery, readContract, dealSearch: consistency not proven"
+      ],
+      "governs": [],
+      "call": "fetch",
+      "implementation": "fetch: meant by databaseModel, its Scala tested against it: (start = SqliteDatabase.holding, observe = _.tables)(d =>\n    (d.load, d.storeAbout, d.logEvent, d.fetch))"
+    },
+    "d7d8570e4657b0cdbabfb2d08f8671d70b3eb2ddc5ec4fbe0066fbfde1488c71": {
+      "kind": "claim",
+      "parents": [
+        "sharedCrm"
+      ],
+      "parts": [],
+      "assumes": [],
+      "statement": "A user searches by id, by kind or for everything, on the records screen or on the sales screen, and finds what the search returns.",
+      "formula": "(∀ (x : Account), (∀ (x_1 : Ask), (∀ (x_2 : CrmRecord), (∀ (x_3 : World), (match (read x x_1.search x_3) with | (x_4, x_5) => (match (deals x x_1.search x_3) with | (x_6, x_7) => ((finds x x_1 x_2 x_3) = (x_2 ∈ (Crm.onScreen x_1 x_4 x_6)))))))))\n\n@[frflow_defs] def onScreen (x : Ask) (x_1 : (List CrmRecord)) (x_2 : (List CrmRecord)) : (List CrmRecord) :=\n  (match x.screen with | Screen.Records => x_1 | Screen.Sales => x_2)",
+      "written": "forall((u: Term[Account], q: Term[Ask], r: Term[CrmRecord]) => finds(u, q, r).current === results(u, q).contains(r))",
+      "vocabulary": [
+        "deals: the sales screen: the deals a user's search returns, run on the database at the time now",
+        "finds: whether the user's search, run now, returns the record",
+        "read: the records screen: the records a user's search returns, run on the database at the time now"
+      ],
+      "checking": [
+        "says what finds is: read's program, search, stands in it: deals's program, dealsOf, stands in it",
+        "consistent with recordsByQuery, searchKeeps, readContract, dealSearch: consistency not proven"
+      ],
+      "governs": [],
+      "call": "finds",
+      "implementation": "deals: proven program, (user: Term[Account], query: Term[Search]) =>\n  readSteps(user, query).map(rs => rs.filter(r => r.kind === (Kind.Deal: Kind)))\nread: proven program, (user: Term[Account], query: Term[Search]) => readSteps(user, query)"
+    },
+    "c40be1465e94eed23374510c6a4e7c2f5bf5cd939cb952c3ca34e4a11957a38a": {
+      "kind": "claim",
+      "parents": [
+        "sharedCrm"
+      ],
+      "parts": [],
+      "assumes": [],
+      "statement": "A search on the records screen asks for what it matches, on the sales screen for the deals it matches.",
+      "formula": "(∀ (x : Ask), (∀ (x_1 : CrmRecord), (∀ (x_2 : World), ((asksFor x x_1 x_2) = (Crm.askMatches x x_1)))))\n\n@[frflow_defs] def askMatches (x : Ask) (x_1 : CrmRecord) : Prop :=\n  (match x.screen with | Screen.Records => (Crm.«matches» x.search x_1) | Screen.Sales => ((x_1.kind = Kind.Deal) ∧ (Crm.«matches» x.search x_1)))\n\n@[frflow_defs] def «matches» (x : Search) (x_1 : CrmRecord) : Prop :=\n  (match x with | Search.ById x_2 => (x_1.id_ = (x_2 : Int)) | Search.OfKind x_2 => (x_1.kind = (x_2 : Kind)) | Search.Everything => True)",
+      "written": "forall((q: Term[Ask], r: Term[CrmRecord]) => asksFor(q, r) === askMatches(q, r))",
+      "vocabulary": [
+        "asksFor: whether the record is one the search asks for"
+      ],
+      "checking": [
+        "says what asksFor is",
+        "consistent: witnessed, for Lean to check"
+      ],
+      "governs": [],
+      "call": "asksFor"
+    },
+    "203adaeb8513fd38e57351aa5e2ce44c728e745bf745e460c5a47728207690e3": {
+      "kind": "claim",
+      "parents": [
+        "visibility"
+      ],
+      "parts": [
+        "readContract",
+        "dealSearch"
+      ],
+      "assumes": [
+        "keyedTables",
+        "runsOneAtATime"
+      ],
+      "statement": "A search, on either screen, returns only stored records it asks for, and every stored record it asks for that the user may read.",
+      "formula": "(∀ (x : Account), (∀ (x_1 : Ask), (∀ (x_2 : World), (match (read x x_1.search x_2) with | (x_3, x_4) => (match (deals x x_1.search x_2) with | (x_5, x_6) => ((∀ x_7 ∈ (Crm.onScreen x_1 x_3 x_5), ((x_7 ∈ x_2.databaseModel.store.records) ∧ (Crm.askMatches x_1 x_7))) ∧ (∀ x_7 ∈ x_2.databaseModel.store.records, (((Crm.askMatches x_1 x_7) ∧ (Crm.mayRead x_2.databaseModel.store x_2.clockModel x x_7)) → (x_7 ∈ (Crm.onScreen x_1 x_3 x_5))))))))))\n\n@[frflow_defs] def onScreen (x : Ask) (x_1 : (List CrmRecord)) (x_2 : (List CrmRecord)) : (List CrmRecord) :=\n  (match x.screen with | Screen.Records => x_1 | Screen.Sales => x_2)\n\n@[frflow_defs] def askMatches (x : Ask) (x_1 : CrmRecord) : Prop :=\n  (match x.screen with | Screen.Records => (Crm.«matches» x.search x_1) | Screen.Sales => ((x_1.kind = Kind.Deal) ∧ (Crm.«matches» x.search x_1)))\n\n@[frflow_defs] def «matches» (x : Search) (x_1 : CrmRecord) : Prop :=\n  (match x with | Search.ById x_2 => (x_1.id_ = (x_2 : Int)) | Search.OfKind x_2 => (x_1.kind = (x_2 : Kind)) | Search.Everything => True)\n\n@[frflow_defs] def mayRead (x : CrmStore) (x_1 : Int) (x_2 : Account) (x_3 : CrmRecord) : Prop :=\n  ((x_3.tenant = x_2.tenant) ∨ (Crm.sharedNow x x_1 x_3.id_ x_2.tenant))\n\n@[frflow_defs] def sharedNow (x : CrmStore) (x_1 : Int) (x_2 : Int) (x_3 : TenantId) : Prop :=\n  (((Share.mk x_2 x_3) ∈ x.shares) ∧ (¬(∃ x_4 ∈ x.expiries, (((x_4.record = x_2) ∧ (x_4.to = x_3)) ∧ (x_4.«until» ≤ x_1)))))",
+      "written": "forall((u: Term[Account], q: Term[Ask]) => results(u, q).forall(r => held.records.contains(r) && askMatches(q, r)) &&\n    held.records.forall(r => (askMatches(q, r) && mayReadNow(u, r)) implies results(u, q).contains(r)))",
+      "vocabulary": [
+        "deals: the sales screen: the deals a user's search returns, run on the database at the time now",
+        "read: the records screen: the records a user's search returns, run on the database at the time now"
+      ],
+      "checking": [
+        "proven of read's program, search",
+        "proven of deals's program, dealsOf",
+        "assumed by the code calling read, deals",
+        "rules it uses: keyedTables",
+        "rests on load and fetch's Scala, tested against databaseModel",
+        "rests on now's Scala, tested against clockModel",
+        "rests on runs on databaseModel being atomic: runsOneAtATime",
+        "rests on what each CrmStore from outside meets: keyedTables",
+        "not vacuous: condition 1 can hold"
+      ],
+      "governs": [],
+      "implementation": "deals: proven program, (user: Term[Account], query: Term[Search]) =>\n  readSteps(user, query).map(rs => rs.filter(r => r.kind === (Kind.Deal: Kind)))\nread: proven program, (user: Term[Account], query: Term[Search]) => readSteps(user, query)"
+    },
+    "cb2821e8aa29e0c67ed14362a4713e5754c68eec7b2e263315aca1fb2db6adcd": {
+      "kind": "claim",
+      "parents": [],
+      "parts": [
+        "companies",
+        "ownership",
+        "searches",
+        "searchesAsk",
+        "adding",
+        "sharing",
+        "storeMirrorsRequests",
+        "visibility"
+      ],
+      "assumes": [
+        "keyedTables"
+      ],
+      "statement": "A user's search finds a record exactly when it asks for that record, a user of the record's company added it, and it is of the user's company or currently shared with it by its own.",
+      "formula": "(∀ (x : Account), (∀ (x_1 : Ask), (∀ (x_2 : CrmRecord), (∀ (x_3 : World), ((finds x x_1 x_2 x_3) = (((asksFor x_1 x_2 x_3) ∧ (added (owner x_2 x_3) x_2 x_3)) ∧ (((owner x_2 x_3) = (companyOf x x_3)) ∨ (sharedWith x_2 (companyOf x x_3) x_3))))))))",
+      "written": "forall((u: Term[Account], q: Term[Ask], r: Term[CrmRecord]) => finds(u, q, r) ===\n    (asksFor(q, r) && added(owner(r), r) && (owner(r) === companyOf(u) || sharedWith(r, companyOf(u)))))",
+      "vocabulary": [
+        "added: whether a user of the company has added the record to the CRM, for that company",
+        "asksFor: whether the record is one the search asks for",
+        "companyOf: the company a user works for",
+        "finds: whether the user's search, run now, returns the record",
+        "owner: the company a record belongs to",
+        "sharedWith: whether the record's company has shared it with the company, and that share holds now"
+      ],
+      "checking": [
+        "proven from its parts (companies, ownership, searches, searchesAsk, adding, sharing, storeMirrorsRequests, visibility)",
+        "rules it uses: keyedTables",
+        "rests on what each CrmStore from outside meets: keyedTables"
+      ],
+      "governs": [],
+      "call": "finds"
+    },
+    "59eaf7dff1ffadc581f2ceaa76f99ec0145ed650c898dbe95c7d1e74dea17b7a": {
+      "kind": "claim",
+      "parents": [
+        "storeMirrorsRequests",
+        "recordsKept"
+      ],
+      "parts": [],
+      "assumes": [
+        "keyedTables"
+      ],
+      "statement": "A run of the expiry job at a time removes exactly the shares given until then or earlier, with their times, and keeps every record and every other share's time.",
+      "formula": "(∀ (x : CrmStore), (∀ (x_1 : Int), (Crm.endsDueAt x x_1 (expire x x_1))))\n\n@[frflow_defs] def endsDueAt (x : CrmStore) (x_1 : Int) (x_2 : CrmStore) : Prop :=\n  (((x_2.records = x.records) ∧ (x_2.shares = (List.filter (fun x_3 => decide (¬(Crm.ended x_3 x x_1))) x.shares))) ∧ (x_2.expiries = (List.filter (fun x_3 => decide (¬(Crm.ended (Share.mk x_3.record x_3.to) x x_1))) x.expiries)))\n\n@[frflow_defs] def ended (x : Share) (x_1 : CrmStore) (x_2 : Int) : Prop :=\n  (∃ x_3 ∈ x_1.expiries, (((x_3.record = x.record) ∧ (x_3.to = x.to)) ∧ (x_3.«until» ≤ x_2)))",
+      "written": "forall((s: Term[CrmStore], now: Term[BigInt]) => endsDueAt(s, now, expire(s, now)))",
+      "vocabulary": [
+        "expire: a run of the expiry job at a time (in seconds) on a store: the store it leads to"
+      ],
+      "checking": [
+        "proven of expire's code, expireCode",
+        "assumed by the code calling expire",
+        "rules it uses: keyedTables",
+        "rests on what each CrmStore from outside meets: keyedTables"
+      ],
+      "governs": [],
+      "call": "expire",
+      "implementation": "expire: proven, (s: Term[CrmStore], now: Term[BigInt]) =>\n  make[CrmStore](s.records, s.shares.filter(sh => !ended(sh, s, now)),\n    s.expiries.filter(e => !ended(make[Share](e.record, e.to), s, now)))"
+    },
+    "1b8e64595f1bdb66aeac207ec31ed3b2912b59fa259a066f75bcd6c5129ffecf": {
+      "kind": "claim",
+      "parents": [
+        "sharedCrm"
+      ],
+      "parts": [],
+      "assumes": [],
+      "statement": "A record is shared with a company now when the last share or unshare of it with that company, by a user of its company once it was added, was a share, and neither the clock now nor a run of the expiry job since has reached that share's time.",
+      "formula": "(∀ (x : CrmRecord), (∀ (x_1 : TenantId), (∀ (x_2 : World), ((sharedWith x x_1 x_2) = (Crm.sharedIn x_2.databaseModel.events x.id_ x_1 x_2.clockModel)))))\n\n@[frflow_defs] def sharedIn (x : (List Event)) (x_1 : Int) (x_2 : TenantId) (x_3 : Int) : Prop :=\n  (∃ x_4 ∈ (Crm.askedIn x).grants, (((x_4.record = x_1) ∧ (x_4.to = x_2)) ∧ (∀ (x_5 : Int), (x_4.«until» = (some x_5)) → (x_3 < x_5))))\n\n@[frflow_defs] def askedIn (x : (List Event)) : Asked :=\n  (List.foldl (fun (x_1 : Asked) (x_2 : Event) => (Crm.askedStep x_1 x_2)) (Asked.mk ([] : (List CrmRecord)) ([] : (List Grant))) x)\n\n@[frflow_defs] def askedStep (x : Asked) (x_1 : Event) : Asked :=\n  (match x_1 with | Event.Wrote x_2 => (match (x_2 : WriteCmd).change with | Change.Add x_3 => (if (((x_3 : CrmRecord).tenant = (x_2 : WriteCmd).«by».tenant) ∧ (¬(∃ x_4 ∈ x.records, (x_4.id_ = (x_3 : CrmRecord).id_)))) then (Asked.mk (x.records ++ [(x_3 : CrmRecord)]) x.grants) else x) | Change.ShareWith x_3 x_4 x_5 => (if (∃ x_6 ∈ x.records, ((x_6.id_ = (x_3 : Int)) ∧ (x_6.tenant = (x_2 : WriteCmd).«by».tenant))) then (Asked.mk x.records ((List.filter (fun x_6 => decide (¬((x_6.record = (x_3 : Int)) ∧ (x_6.to = (x_4 : TenantId))))) x.grants) ++ [(Grant.mk (x_3 : Int) (x_4 : TenantId) (x_5 : (Option Int)))])) else x) | Change.Unshare x_3 x_4 => (if (∃ x_5 ∈ x.records, ((x_5.id_ = (x_3 : Int)) ∧ (x_5.tenant = (x_2 : WriteCmd).«by».tenant))) then (Asked.mk x.records (List.filter (fun x_5 => decide (¬((x_5.record = (x_3 : Int)) ∧ (x_5.to = (x_4 : TenantId))))) x.grants)) else x)) | Event.Expired x_2 => (Asked.mk x.records (List.filter (fun x_3 => decide (∀ (x_4 : Int), (x_3.«until» = (some x_4)) → ((x_2 : Int) < x_4))) x.grants)))",
+      "written": "forall((r: Term[CrmRecord], c: Term[TenantId]) => sharedWith(r, c) === sharedIn(history, r.id, c, clock))",
+      "vocabulary": [
+        "sharedWith: whether the record's company has shared it with the company, and that share holds now"
+      ],
+      "checking": [
+        "says what sharedWith is",
+        "consistent: witnessed, for Lean to check"
+      ],
+      "governs": [],
+      "call": "sharedWith"
+    },
+    "0e06b10ebeb45b63ccfcaff0de2348ebd098600acc03e7bfcdae5facb723f645": {
+      "kind": "claim",
+      "parents": [
+        "sharedCrm",
+        "addedIsFound",
+        "writesLeaveOthers"
+      ],
+      "parts": [
+        "writesTakeEffect",
+        "writesOnlyAsAsked",
+        "recordsKept",
+        "sharesExpire"
+      ],
+      "assumes": [
+        "keyedTables"
+      ],
+      "statement": "The CRM holds exactly the records its users added, and holds a share of a record as current exactly when the record's company shared it so.",
+      "formula": "(∀ (x : World), ((∀ (x_1 : CrmRecord), ((x_1 ∈ x.databaseModel.store.records) = (x_1 ∈ (Crm.askedIn x.databaseModel.events).records))) ∧ (∀ (x_1 : Int), (∀ (x_2 : TenantId), ((Crm.sharedNow x.databaseModel.store x.clockModel x_1 x_2) = (Crm.sharedIn x.databaseModel.events x_1 x_2 x.clockModel))))))\n\n@[frflow_defs] def askedIn (x : (List Event)) : Asked :=\n  (List.foldl (fun (x_1 : Asked) (x_2 : Event) => (Crm.askedStep x_1 x_2)) (Asked.mk ([] : (List CrmRecord)) ([] : (List Grant))) x)\n\n@[frflow_defs] def askedStep (x : Asked) (x_1 : Event) : Asked :=\n  (match x_1 with | Event.Wrote x_2 => (match (x_2 : WriteCmd).change with | Change.Add x_3 => (if (((x_3 : CrmRecord).tenant = (x_2 : WriteCmd).«by».tenant) ∧ (¬(∃ x_4 ∈ x.records, (x_4.id_ = (x_3 : CrmRecord).id_)))) then (Asked.mk (x.records ++ [(x_3 : CrmRecord)]) x.grants) else x) | Change.ShareWith x_3 x_4 x_5 => (if (∃ x_6 ∈ x.records, ((x_6.id_ = (x_3 : Int)) ∧ (x_6.tenant = (x_2 : WriteCmd).«by».tenant))) then (Asked.mk x.records ((List.filter (fun x_6 => decide (¬((x_6.record = (x_3 : Int)) ∧ (x_6.to = (x_4 : TenantId))))) x.grants) ++ [(Grant.mk (x_3 : Int) (x_4 : TenantId) (x_5 : (Option Int)))])) else x) | Change.Unshare x_3 x_4 => (if (∃ x_5 ∈ x.records, ((x_5.id_ = (x_3 : Int)) ∧ (x_5.tenant = (x_2 : WriteCmd).«by».tenant))) then (Asked.mk x.records (List.filter (fun x_5 => decide (¬((x_5.record = (x_3 : Int)) ∧ (x_5.to = (x_4 : TenantId))))) x.grants)) else x)) | Event.Expired x_2 => (Asked.mk x.records (List.filter (fun x_3 => decide (∀ (x_4 : Int), (x_3.«until» = (some x_4)) → ((x_2 : Int) < x_4))) x.grants)))\n\n@[frflow_defs] def sharedNow (x : CrmStore) (x_1 : Int) (x_2 : Int) (x_3 : TenantId) : Prop :=\n  (((Share.mk x_2 x_3) ∈ x.shares) ∧ (¬(∃ x_4 ∈ x.expiries, (((x_4.record = x_2) ∧ (x_4.to = x_3)) ∧ (x_4.«until» ≤ x_1)))))\n\n@[frflow_defs] def sharedIn (x : (List Event)) (x_1 : Int) (x_2 : TenantId) (x_3 : Int) : Prop :=\n  (∃ x_4 ∈ (Crm.askedIn x).grants, (((x_4.record = x_1) ∧ (x_4.to = x_2)) ∧ (∀ (x_5 : Int), (x_4.«until» = (some x_5)) → (x_3 < x_5))))",
+      "written": "forall((r: Term[CrmRecord]) => held.records.contains(r) === askedIn(history).records.contains(r)) &&\n    forall((id: Term[BigInt], c: Term[TenantId]) => sharedNow(held, clock, id, c) === sharedIn(history, id, c, clock))",
+      "vocabulary": [],
+      "checking": [
+        "proven from its parts (writesTakeEffect, writesOnlyAsAsked, recordsKept, sharesExpire)",
+        "rules it uses: crmRun, oneRowPerKey, keyedTables",
+        "rests on what each CrmStore from outside meets: keyedTables"
+      ],
+      "governs": []
+    },
+    "4460e5dccb40e5ac8a6171a17a8b8c4e39201dc57dc0452607b098392344bd8c": {
+      "kind": "assumption",
+      "parents": [],
+      "assumes": [],
+      "statement": "Nothing but the CRM's programs changes the store and the event log the database holds.",
+      "formula": "databaseModel.onlyCodeChanges",
+      "written": "databaseModel.onlyCodeChanges",
+      "vocabulary": [],
+      "checking": [
+        "the world outside: nothing but the code changes databaseModel",
+        "the programs changing it, derived: read, runExpiry, deals, save"
+      ],
+      "governs": [],
+      "model": [
+        "namespace DatabaseModel",
+        "",
+        "@[frflow_defs] def load : StateM Tables CrmStore :=",
+        "  do",
+        "    let r ← get",
+        "    pure r.store",
+        "",
+        "@[frflow_defs] def storeAbout : Int → CrmStore → StateM Tables Unit :=",
+        "  fun (id_ : Int) (s : CrmStore) => do",
+        "    let r ← get",
+        "    set (Tables.mk (Crm.replaceAbout r.store id_ (Crm.aboutRecord s id_)) r.events)",
+        "    pure ()",
+        "",
+        "@[frflow_defs] def logEvent : Event → StateM Tables Unit :=",
+        "  fun (e : Event) => do",
+        "    let r ← get",
+        "    set (Tables.mk r.store (r.events ++ [e]))",
+        "    pure ()",
+        "",
+        "end DatabaseModel"
+      ],
+      "implementations": [
+        "(start = SqliteDatabase.holding, observe = _.tables)(d =>\n    (d.load, d.storeAbout, d.logEvent, d.fetch))"
+      ]
+    },
+    "35acfb90f298a2f51efa90b41472d37e1310a3412cd2c8c97852db8cf96ae453": {
+      "kind": "assumption",
+      "parents": [],
+      "assumes": [],
+      "statement": "The database starts with no record, share or expiry, and an empty event log.",
+      "formula": "databaseModel.initially(tablesStartEmpty)\n\n@[frflow_defs] def tablesStartEmpty (x : Tables) : Prop :=\n  (x = (Tables.mk (CrmStore.mk ([] : (List CrmRecord)) ([] : (List Share)) ([] : (List Expiry))) ([] : (List Event))))",
+      "written": "databaseModel.initially(t => t === make[Tables](make[CrmStore](Nil: Term[List[CrmRecord]], Nil: Term[List[Share]],\n    Nil: Term[List[Expiry]]), Nil: Term[List[Event]]))",
+      "vocabulary": [],
+      "checking": [
+        "the world outside: the state databaseModel starts in"
+      ],
+      "governs": []
+    },
+    "6691a8c8df89ac4c63fec179ec84fc7d520fa7696625451d23170345dd716ba5": {
+      "kind": "claim",
+      "parents": [
+        "sharedCrm",
+        "addedIsFound",
+        "writesLeaveOthers"
+      ],
+      "parts": [
+        "searchesMatch"
+      ],
+      "assumes": [
+        "keyedTables",
+        "runsOneAtATime"
+      ],
+      "statement": "A search, on either screen, returns exactly the stored records it asks for that the user may read now: of their company, or shared with it now.",
+      "formula": "(∀ (x : Account), (∀ (x_1 : Ask), (∀ (x_2 : CrmRecord), (∀ (x_3 : World), (match (read x x_1.search x_3) with | (x_4, x_5) => (match (deals x x_1.search x_3) with | (x_6, x_7) => ((x_2 ∈ (Crm.onScreen x_1 x_4 x_6)) = (((x_2 ∈ x_3.databaseModel.store.records) ∧ (Crm.askMatches x_1 x_2)) ∧ (Crm.mayRead x_3.databaseModel.store x_3.clockModel x x_2)))))))))\n\n@[frflow_defs] def onScreen (x : Ask) (x_1 : (List CrmRecord)) (x_2 : (List CrmRecord)) : (List CrmRecord) :=\n  (match x.screen with | Screen.Records => x_1 | Screen.Sales => x_2)\n\n@[frflow_defs] def askMatches (x : Ask) (x_1 : CrmRecord) : Prop :=\n  (match x.screen with | Screen.Records => (Crm.«matches» x.search x_1) | Screen.Sales => ((x_1.kind = Kind.Deal) ∧ (Crm.«matches» x.search x_1)))\n\n@[frflow_defs] def «matches» (x : Search) (x_1 : CrmRecord) : Prop :=\n  (match x with | Search.ById x_2 => (x_1.id_ = (x_2 : Int)) | Search.OfKind x_2 => (x_1.kind = (x_2 : Kind)) | Search.Everything => True)\n\n@[frflow_defs] def mayRead (x : CrmStore) (x_1 : Int) (x_2 : Account) (x_3 : CrmRecord) : Prop :=\n  ((x_3.tenant = x_2.tenant) ∨ (Crm.sharedNow x x_1 x_3.id_ x_2.tenant))\n\n@[frflow_defs] def sharedNow (x : CrmStore) (x_1 : Int) (x_2 : Int) (x_3 : TenantId) : Prop :=\n  (((Share.mk x_2 x_3) ∈ x.shares) ∧ (¬(∃ x_4 ∈ x.expiries, (((x_4.record = x_2) ∧ (x_4.to = x_3)) ∧ (x_4.«until» ≤ x_1)))))",
+      "written": "forall((u: Term[Account], q: Term[Ask], r: Term[CrmRecord]) =>\n    results(u, q).contains(r) === (held.records.contains(r) && askMatches(q, r) && mayReadNow(u, r)))",
+      "vocabulary": [
+        "deals: the sales screen: the deals a user's search returns, run on the database at the time now",
+        "read: the records screen: the records a user's search returns, run on the database at the time now"
+      ],
+      "checking": [
+        "proven of read's program, search",
+        "proven of deals's program, dealsOf",
+        "assumed by the code calling read, deals",
+        "rules it uses: keyedTables",
+        "rests on load and fetch's Scala, tested against databaseModel",
+        "rests on now's Scala, tested against clockModel",
+        "rests on runs on databaseModel being atomic: runsOneAtATime",
+        "rests on what each CrmStore from outside meets: keyedTables"
+      ],
+      "governs": [],
+      "implementation": "deals: proven program, (user: Term[Account], query: Term[Search]) =>\n  readSteps(user, query).map(rs => rs.filter(r => r.kind === (Kind.Deal: Kind)))\nread: proven program, (user: Term[Account], query: Term[Search]) => readSteps(user, query)"
+    },
+    "4633dcce10b728c0e96a77fb29af23feed8eef64118c2c8ae3d7a91ff37c867a": {
+      "kind": "claim",
+      "parents": [
+        "writesTakeEffect",
+        "writesOnlyAsAsked",
+        "recordsKept"
+      ],
+      "parts": [],
+      "assumes": [
+        "keyedTables"
+      ],
+      "statement": "A write keeps every record, leaves the records of other companies as they were, does what its author asked of their company's records, and changes nothing else.",
+      "formula": "(∀ (x : CrmStore), (∀ (x_1 : WriteCmd), ((((∀ x_2 ∈ x.records, (x_2 ∈ (write x x_1).records)) ∧ ((List.filter (fun x_2 => decide (¬(x_2.tenant = x_1.«by».tenant))) (write x x_1).records) = (List.filter (fun x_2 => decide (¬(x_2.tenant = x_1.«by».tenant))) x.records))) ∧ (Crm.takesEffect x x_1 (write x x_1))) ∧ (Crm.onlyAsked x x_1 (write x x_1)))))\n\n@[frflow_defs] def takesEffect (x : CrmStore) (x_1 : WriteCmd) (x_2 : CrmStore) : Prop :=\n  (match x_1.change with | Change.Add x_3 => ((((x_3 : CrmRecord).tenant = x_1.«by».tenant) ∧ (¬(∃ x_4 ∈ x.records, (x_4.id_ = (x_3 : CrmRecord).id_)))) → ((x_3 : CrmRecord) ∈ x_2.records)) | Change.ShareWith x_3 x_4 x_5 => ((Crm.ownRecord x x_1 (x_3 : Int)) → (((Share.mk (x_3 : Int) (x_4 : TenantId)) ∈ x_2.shares) ∧ (match (x_5 : (Option Int)) with | none => (¬(∃ x_6 ∈ x_2.expiries, ((x_6.record = (x_3 : Int)) ∧ (x_6.to = (x_4 : TenantId))))) | some x_6 => (((Expiry.mk (x_3 : Int) (x_4 : TenantId) x_6) ∈ x_2.expiries) ∧ (∀ x_7 ∈ x_2.expiries, (((x_7.record = (x_3 : Int)) ∧ (x_7.to = (x_4 : TenantId))) → (x_7.«until» = x_6))))))) | Change.Unshare x_3 x_4 => ((Crm.ownRecord x x_1 (x_3 : Int)) → (¬((Share.mk (x_3 : Int) (x_4 : TenantId)) ∈ x_2.shares))))\n\n@[frflow_defs] def ownRecord (x : CrmStore) (x_1 : WriteCmd) (x_2 : Int) : Prop :=\n  (∃ x_3 ∈ x.records, ((x_3.id_ = x_2) ∧ (x_3.tenant = x_1.«by».tenant)))\n\n@[frflow_defs] def onlyAsked (x : CrmStore) (x_1 : WriteCmd) (x_2 : CrmStore) : Prop :=\n  (((((∀ x_3 ∈ x_2.records, ((x_3 ∈ x.records) ∨ (Crm.addsRecord x x_1 x_3))) ∧ (∀ x_3 ∈ x_2.shares, ((x_3 ∈ x.shares) ∨ (Crm.changesShare x x_1 x_3.record x_3.to)))) ∧ (∀ x_3 ∈ x.shares, ((x_3 ∈ x_2.shares) ∨ (Crm.changesShare x x_1 x_3.record x_3.to)))) ∧ (∀ x_3 ∈ x_2.expiries, ((x_3 ∈ x.expiries) ∨ (Crm.changesShare x x_1 x_3.record x_3.to)))) ∧ (∀ x_3 ∈ x.expiries, ((x_3 ∈ x_2.expiries) ∨ (Crm.changesShare x x_1 x_3.record x_3.to))))\n\n@[frflow_defs] def addsRecord (x : CrmStore) (x_1 : WriteCmd) (x_2 : CrmRecord) : Prop :=\n  (match x_1.change with | Change.Add x_3 => ((((x_3 : CrmRecord) = x_2) ∧ (x_2.tenant = x_1.«by».tenant)) ∧ (¬(∃ x_4 ∈ x.records, (x_4.id_ = x_2.id_)))) | Change.ShareWith x_3 x_4 x_5 => False | Change.Unshare x_3 x_4 => False)\n\n@[frflow_defs] def changesShare (x : CrmStore) (x_1 : WriteCmd) (x_2 : Int) (x_3 : TenantId) : Prop :=\n  (match x_1.change with | Change.Add x_4 => False | Change.ShareWith x_4 x_5 x_6 => ((((x_4 : Int) = x_2) ∧ ((x_5 : TenantId) = x_3)) ∧ (Crm.ownRecord x x_1 x_2)) | Change.Unshare x_4 x_5 => ((((x_4 : Int) = x_2) ∧ ((x_5 : TenantId) = x_3)) ∧ (Crm.ownRecord x x_1 x_2)))",
+      "written": "forall((s: Term[CrmStore], w: Term[WriteCmd]) => s.records.forall(r => write(s, w).records.contains(r)) &&\n    write(s, w).records.filter(r => r.tenant =!= w.by.tenant) === s.records.filter(r => r.tenant =!= w.by.tenant) &&\n    takesEffect(s, w, write(s, w)) && onlyAsked(s, w, write(s, w)))",
+      "vocabulary": [
+        "write: a write applied to a store: the store it leads to"
+      ],
+      "checking": [
+        "proven of write's code, applyWrite",
+        "assumed by the code calling write",
+        "rules it uses: keyedTables",
+        "rests on what each CrmStore from outside meets: keyedTables"
+      ],
+      "governs": [],
+      "call": "write",
+      "implementation": "write: proven, (s: Term[CrmStore], w: Term[WriteCmd]) =>\n  val noExpiries: Term[List[Expiry]] = Nil\n  val othersOf = (id: Term[BigInt], to: Term[TenantId]) => s.expiries.filter(e => !(e.record === id && e.to === to))\n  w.change\n    .on[Change.Add](r => when(r.tenant === w.by.tenant && !s.records.exists(x => x.id === r.id))(\n      make[CrmStore](s.records :+ r, s.shares, s.expiries)).otherwise(s))\n    .on[Change.ShareWith]((id, to, until) => when(ownRecord(s, w, id))(make[CrmStore](s.records,\n      s.shares.filter(sh => sh =!= make[Share](id, to)) :+ make[Share](id, to),\n      othersOf(id, to) ++ until.fold(noExpiries)(u => make[Expiry](id, to, u) :: noExpiries))).otherwise(s))\n    .on[Change.Unshare]((id, to) => when(ownRecord(s, w, id))(make[CrmStore](s.records,\n      s.shares.filter(sh => sh =!= make[Share](id, to)), othersOf(id, to))).otherwise(s))"
+    },
+    "a3d0ba183f2aa54affca7cc2b08ca1fdce19e53ca389d1192e4e97c22869bd6b": {
+      "kind": "claim",
+      "parents": [],
+      "parts": [
+        "storeMirrorsRequests",
+        "visibility"
+      ],
+      "assumes": [
+        "keyedTables",
+        "runsOneAtATime"
+      ],
+      "statement": "Nothing a user writes changes what anyone finds of another company's records: after the write, a search finds of them what the history before it entitled it to.",
+      "formula": "(∀ (x : (List Event)), (∀ (x_1 : WriteCmd), (∀ (x_2 : Account), (∀ (x_3 : Ask), (∀ (x_4 : CrmRecord), (∀ (x_5 : World), (match (read x_2 x_3.search x_5) with | (x_6, x_7) => (match (deals x_2 x_3.search x_5) with | (x_8, x_9) => (((x_5.databaseModel.events = (x ++ [(Event.Wrote x_1)])) ∧ (¬(x_4.tenant = x_1.«by».tenant))) → ((x_4 ∈ (Crm.onScreen x_3 x_6 x_8)) = (((Crm.askMatches x_3 x_4) ∧ (x_4 ∈ (Crm.askedIn x).records)) ∧ ((x_4.tenant = x_2.tenant) ∨ (Crm.sharedIn x x_4.id_ x_2.tenant x_5.clockModel)))))))))))))\n\n@[frflow_defs] def onScreen (x : Ask) (x_1 : (List CrmRecord)) (x_2 : (List CrmRecord)) : (List CrmRecord) :=\n  (match x.screen with | Screen.Records => x_1 | Screen.Sales => x_2)\n\n@[frflow_defs] def askMatches (x : Ask) (x_1 : CrmRecord) : Prop :=\n  (match x.screen with | Screen.Records => (Crm.«matches» x.search x_1) | Screen.Sales => ((x_1.kind = Kind.Deal) ∧ (Crm.«matches» x.search x_1)))\n\n@[frflow_defs] def «matches» (x : Search) (x_1 : CrmRecord) : Prop :=\n  (match x with | Search.ById x_2 => (x_1.id_ = (x_2 : Int)) | Search.OfKind x_2 => (x_1.kind = (x_2 : Kind)) | Search.Everything => True)\n\n@[frflow_defs] def askedIn (x : (List Event)) : Asked :=\n  (List.foldl (fun (x_1 : Asked) (x_2 : Event) => (Crm.askedStep x_1 x_2)) (Asked.mk ([] : (List CrmRecord)) ([] : (List Grant))) x)\n\n@[frflow_defs] def askedStep (x : Asked) (x_1 : Event) : Asked :=\n  (match x_1 with | Event.Wrote x_2 => (match (x_2 : WriteCmd).change with | Change.Add x_3 => (if (((x_3 : CrmRecord).tenant = (x_2 : WriteCmd).«by».tenant) ∧ (¬(∃ x_4 ∈ x.records, (x_4.id_ = (x_3 : CrmRecord).id_)))) then (Asked.mk (x.records ++ [(x_3 : CrmRecord)]) x.grants) else x) | Change.ShareWith x_3 x_4 x_5 => (if (∃ x_6 ∈ x.records, ((x_6.id_ = (x_3 : Int)) ∧ (x_6.tenant = (x_2 : WriteCmd).«by».tenant))) then (Asked.mk x.records ((List.filter (fun x_6 => decide (¬((x_6.record = (x_3 : Int)) ∧ (x_6.to = (x_4 : TenantId))))) x.grants) ++ [(Grant.mk (x_3 : Int) (x_4 : TenantId) (x_5 : (Option Int)))])) else x) | Change.Unshare x_3 x_4 => (if (∃ x_5 ∈ x.records, ((x_5.id_ = (x_3 : Int)) ∧ (x_5.tenant = (x_2 : WriteCmd).«by».tenant))) then (Asked.mk x.records (List.filter (fun x_5 => decide (¬((x_5.record = (x_3 : Int)) ∧ (x_5.to = (x_4 : TenantId))))) x.grants)) else x)) | Event.Expired x_2 => (Asked.mk x.records (List.filter (fun x_3 => decide (∀ (x_4 : Int), (x_3.«until» = (some x_4)) → ((x_2 : Int) < x_4))) x.grants)))\n\n@[frflow_defs] def sharedIn (x : (List Event)) (x_1 : Int) (x_2 : TenantId) (x_3 : Int) : Prop :=\n  (∃ x_4 ∈ (Crm.askedIn x).grants, (((x_4.record = x_1) ∧ (x_4.to = x_2)) ∧ (∀ (x_5 : Int), (x_4.«until» = (some x_5)) → (x_3 < x_5))))",
+      "written": "forall((es: Term[List[Event]], w: Term[WriteCmd], u: Term[Account], q: Term[Ask], r: Term[CrmRecord]) =>\n    (history === es :+ make[Event.Wrote](w) && r.tenant =!= w.by.tenant) implies\n      (results(u, q).contains(r) === (askMatches(q, r) && askedIn(es).records.contains(r) &&\n        (r.tenant === u.tenant || sharedIn(es, r.id, u.tenant, clock)))))",
+      "vocabulary": [
+        "deals: the sales screen: the deals a user's search returns, run on the database at the time now",
+        "read: the records screen: the records a user's search returns, run on the database at the time now"
+      ],
+      "checking": [
+        "proven of read's program, search",
+        "proven of deals's program, dealsOf",
+        "assumed by the code calling read, deals",
+        "rules it uses: keyedTables",
+        "rests on load and fetch's Scala, tested against databaseModel",
+        "rests on now's Scala, tested against clockModel",
+        "rests on runs on databaseModel being atomic: runsOneAtATime",
+        "rests on what each CrmStore from outside meets: keyedTables",
+        "not vacuous: condition 1 can hold"
+      ],
+      "governs": [],
+      "implementation": "deals: proven program, (user: Term[Account], query: Term[Search]) =>\n  readSteps(user, query).map(rs => rs.filter(r => r.kind === (Kind.Deal: Kind)))\nread: proven program, (user: Term[Account], query: Term[Search]) => readSteps(user, query)"
+    },
+    "c4e3b3220ed4cec8f24162c65ca6e6e4fe2fa3c7e77b36008a27f9fe392c555d": {
+      "kind": "claim",
+      "parents": [
+        "storeMirrorsRequests"
+      ],
+      "parts": [
+        "writeContract"
+      ],
+      "assumes": [
+        "keyedTables"
+      ],
+      "statement": "A write changes nothing its author did not ask of their company's records: it adds no other record, and changes no other share or share's time.",
+      "formula": "(∀ (x : CrmStore), (∀ (x_1 : WriteCmd), (Crm.onlyAsked x x_1 (Crm.afterSave x x_1))))\n\n@[frflow_defs] def onlyAsked (x : CrmStore) (x_1 : WriteCmd) (x_2 : CrmStore) : Prop :=\n  (((((∀ x_3 ∈ x_2.records, ((x_3 ∈ x.records) ∨ (Crm.addsRecord x x_1 x_3))) ∧ (∀ x_3 ∈ x_2.shares, ((x_3 ∈ x.shares) ∨ (Crm.changesShare x x_1 x_3.record x_3.to)))) ∧ (∀ x_3 ∈ x.shares, ((x_3 ∈ x_2.shares) ∨ (Crm.changesShare x x_1 x_3.record x_3.to)))) ∧ (∀ x_3 ∈ x_2.expiries, ((x_3 ∈ x.expiries) ∨ (Crm.changesShare x x_1 x_3.record x_3.to)))) ∧ (∀ x_3 ∈ x.expiries, ((x_3 ∈ x_2.expiries) ∨ (Crm.changesShare x x_1 x_3.record x_3.to))))\n\n@[frflow_defs] def addsRecord (x : CrmStore) (x_1 : WriteCmd) (x_2 : CrmRecord) : Prop :=\n  (match x_1.change with | Change.Add x_3 => ((((x_3 : CrmRecord) = x_2) ∧ (x_2.tenant = x_1.«by».tenant)) ∧ (¬(∃ x_4 ∈ x.records, (x_4.id_ = x_2.id_)))) | Change.ShareWith x_3 x_4 x_5 => False | Change.Unshare x_3 x_4 => False)\n\n@[frflow_defs] def changesShare (x : CrmStore) (x_1 : WriteCmd) (x_2 : Int) (x_3 : TenantId) : Prop :=\n  (match x_1.change with | Change.Add x_4 => False | Change.ShareWith x_4 x_5 x_6 => ((((x_4 : Int) = x_2) ∧ ((x_5 : TenantId) = x_3)) ∧ (Crm.ownRecord x x_1 x_2)) | Change.Unshare x_4 x_5 => ((((x_4 : Int) = x_2) ∧ ((x_5 : TenantId) = x_3)) ∧ (Crm.ownRecord x x_1 x_2)))\n\n@[frflow_defs] def ownRecord (x : CrmStore) (x_1 : WriteCmd) (x_2 : Int) : Prop :=\n  (∃ x_3 ∈ x.records, ((x_3.id_ = x_2) ∧ (x_3.tenant = x_1.«by».tenant)))\n\n@[frflow_defs] def afterSave (x : CrmStore) (x_1 : WriteCmd) : CrmStore :=\n  (Crm.replaceAbout x (Crm.about x_1) (Crm.aboutRecord (Crm.applyWrite x x_1) (Crm.about x_1)))\n\n@[frflow_defs] def replaceAbout (x : CrmStore) (x_1 : Int) (x_2 : CrmStore) : CrmStore :=\n  (CrmStore.mk ((List.filter (fun x_3 => decide (¬(x_3.id_ = x_1))) x.records) ++ x_2.records) ((List.filter (fun x_3 => decide (¬(x_3.record = x_1))) x.shares) ++ x_2.shares) ((List.filter (fun x_3 => decide (¬(x_3.record = x_1))) x.expiries) ++ x_2.expiries))\n\n@[frflow_defs] def about (x : WriteCmd) : Int :=\n  (match x.change with | Change.Add x_1 => (x_1 : CrmRecord).id_ | Change.ShareWith x_1 x_2 x_3 => (x_1 : Int) | Change.Unshare x_1 x_2 => (x_1 : Int))\n\n@[frflow_defs] def aboutRecord (x : CrmStore) (x_1 : Int) : CrmStore :=\n  (CrmStore.mk (List.filter (fun x_2 => decide (x_2.id_ = x_1)) x.records) (List.filter (fun x_2 => decide (x_2.record = x_1)) x.shares) (List.filter (fun x_2 => decide (x_2.record = x_1)) x.expiries))\n\n@[frflow_defs] def applyWrite (x : CrmStore) (x_1 : WriteCmd) : CrmStore :=\n  (match x_1.change with | Change.Add x_2 => (if (((x_2 : CrmRecord).tenant = x_1.«by».tenant) ∧ (¬(∃ x_3 ∈ x.records, (x_3.id_ = (x_2 : CrmRecord).id_)))) then (CrmStore.mk (x.records ++ [(x_2 : CrmRecord)]) x.shares x.expiries) else x) | Change.ShareWith x_2 x_3 x_4 => (if (Crm.ownRecord x x_1 (x_2 : Int)) then (CrmStore.mk x.records ((List.filter (fun x_5 => decide (¬(x_5 = (Share.mk (x_2 : Int) (x_3 : TenantId))))) x.shares) ++ [(Share.mk (x_2 : Int) (x_3 : TenantId))]) ((List.filter (fun x_5 => decide (¬((x_5.record = (x_2 : Int)) ∧ (x_5.to = (x_3 : TenantId))))) x.expiries) ++ (match (x_4 : (Option Int)) with | none => ([] : (List Expiry)) | some x_5 => [(Expiry.mk (x_2 : Int) (x_3 : TenantId) x_5)]))) else x) | Change.Unshare x_2 x_3 => (if (Crm.ownRecord x x_1 (x_2 : Int)) then (CrmStore.mk x.records (List.filter (fun x_4 => decide (¬(x_4 = (Share.mk (x_2 : Int) (x_3 : TenantId))))) x.shares) (List.filter (fun x_4 => decide (¬((x_4.record = (x_2 : Int)) ∧ (x_4.to = (x_3 : TenantId))))) x.expiries)) else x))",
+      "written": "forall((s: Term[CrmStore], w: Term[WriteCmd]) => onlyAsked(s, w, afterSave(s, w)))",
+      "vocabulary": [],
+      "checking": [
+        "proven from its parts (writeContract)",
+        "rules it uses: keyedTables",
+        "rests on what each CrmStore from outside meets: keyedTables"
+      ],
+      "governs": []
+    },
+    "391a8f444557226b5ed6a38042a9fe0d3f6b9ae972285c24ecb1232a037e5a4a": {
+      "kind": "claim",
+      "parents": [
+        "storeMirrorsRequests"
+      ],
+      "parts": [
+        "writeContract"
+      ],
+      "assumes": [
+        "keyedTables"
+      ],
+      "statement": "A user's write about their company's record does what they asked: it adds the record, shares it (until a time, or for good), or unshares it.",
+      "formula": "(∀ (x : CrmStore), (∀ (x_1 : WriteCmd), (Crm.takesEffect x x_1 (Crm.afterSave x x_1))))\n\n@[frflow_defs] def takesEffect (x : CrmStore) (x_1 : WriteCmd) (x_2 : CrmStore) : Prop :=\n  (match x_1.change with | Change.Add x_3 => ((((x_3 : CrmRecord).tenant = x_1.«by».tenant) ∧ (¬(∃ x_4 ∈ x.records, (x_4.id_ = (x_3 : CrmRecord).id_)))) → ((x_3 : CrmRecord) ∈ x_2.records)) | Change.ShareWith x_3 x_4 x_5 => ((Crm.ownRecord x x_1 (x_3 : Int)) → (((Share.mk (x_3 : Int) (x_4 : TenantId)) ∈ x_2.shares) ∧ (match (x_5 : (Option Int)) with | none => (¬(∃ x_6 ∈ x_2.expiries, ((x_6.record = (x_3 : Int)) ∧ (x_6.to = (x_4 : TenantId))))) | some x_6 => (((Expiry.mk (x_3 : Int) (x_4 : TenantId) x_6) ∈ x_2.expiries) ∧ (∀ x_7 ∈ x_2.expiries, (((x_7.record = (x_3 : Int)) ∧ (x_7.to = (x_4 : TenantId))) → (x_7.«until» = x_6))))))) | Change.Unshare x_3 x_4 => ((Crm.ownRecord x x_1 (x_3 : Int)) → (¬((Share.mk (x_3 : Int) (x_4 : TenantId)) ∈ x_2.shares))))\n\n@[frflow_defs] def ownRecord (x : CrmStore) (x_1 : WriteCmd) (x_2 : Int) : Prop :=\n  (∃ x_3 ∈ x.records, ((x_3.id_ = x_2) ∧ (x_3.tenant = x_1.«by».tenant)))\n\n@[frflow_defs] def afterSave (x : CrmStore) (x_1 : WriteCmd) : CrmStore :=\n  (Crm.replaceAbout x (Crm.about x_1) (Crm.aboutRecord (Crm.applyWrite x x_1) (Crm.about x_1)))\n\n@[frflow_defs] def replaceAbout (x : CrmStore) (x_1 : Int) (x_2 : CrmStore) : CrmStore :=\n  (CrmStore.mk ((List.filter (fun x_3 => decide (¬(x_3.id_ = x_1))) x.records) ++ x_2.records) ((List.filter (fun x_3 => decide (¬(x_3.record = x_1))) x.shares) ++ x_2.shares) ((List.filter (fun x_3 => decide (¬(x_3.record = x_1))) x.expiries) ++ x_2.expiries))\n\n@[frflow_defs] def about (x : WriteCmd) : Int :=\n  (match x.change with | Change.Add x_1 => (x_1 : CrmRecord).id_ | Change.ShareWith x_1 x_2 x_3 => (x_1 : Int) | Change.Unshare x_1 x_2 => (x_1 : Int))\n\n@[frflow_defs] def aboutRecord (x : CrmStore) (x_1 : Int) : CrmStore :=\n  (CrmStore.mk (List.filter (fun x_2 => decide (x_2.id_ = x_1)) x.records) (List.filter (fun x_2 => decide (x_2.record = x_1)) x.shares) (List.filter (fun x_2 => decide (x_2.record = x_1)) x.expiries))\n\n@[frflow_defs] def applyWrite (x : CrmStore) (x_1 : WriteCmd) : CrmStore :=\n  (match x_1.change with | Change.Add x_2 => (if (((x_2 : CrmRecord).tenant = x_1.«by».tenant) ∧ (¬(∃ x_3 ∈ x.records, (x_3.id_ = (x_2 : CrmRecord).id_)))) then (CrmStore.mk (x.records ++ [(x_2 : CrmRecord)]) x.shares x.expiries) else x) | Change.ShareWith x_2 x_3 x_4 => (if (Crm.ownRecord x x_1 (x_2 : Int)) then (CrmStore.mk x.records ((List.filter (fun x_5 => decide (¬(x_5 = (Share.mk (x_2 : Int) (x_3 : TenantId))))) x.shares) ++ [(Share.mk (x_2 : Int) (x_3 : TenantId))]) ((List.filter (fun x_5 => decide (¬((x_5.record = (x_2 : Int)) ∧ (x_5.to = (x_3 : TenantId))))) x.expiries) ++ (match (x_4 : (Option Int)) with | none => ([] : (List Expiry)) | some x_5 => [(Expiry.mk (x_2 : Int) (x_3 : TenantId) x_5)]))) else x) | Change.Unshare x_2 x_3 => (if (Crm.ownRecord x x_1 (x_2 : Int)) then (CrmStore.mk x.records (List.filter (fun x_4 => decide (¬(x_4 = (Share.mk (x_2 : Int) (x_3 : TenantId))))) x.shares) (List.filter (fun x_4 => decide (¬((x_4.record = (x_2 : Int)) ∧ (x_4.to = (x_3 : TenantId))))) x.expiries)) else x))",
+      "written": "forall((s: Term[CrmStore], w: Term[WriteCmd]) => takesEffect(s, w, afterSave(s, w)))",
+      "vocabulary": [],
+      "checking": [
+        "proven from its parts (writeContract)",
+        "rules it uses: keyedTables",
+        "rests on what each CrmStore from outside meets: keyedTables"
+      ],
+      "governs": []
+    }
+  }
+}
