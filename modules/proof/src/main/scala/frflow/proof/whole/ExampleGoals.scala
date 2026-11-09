@@ -14,7 +14,8 @@ import frflow.proof.obligation.{Discharge, Hyp, Obligation, ObligationName, Prop
   * Definitions is checked against the code only (its values as hypotheses: not planned). The statements at the
   * bottom come first: what the code is held to, in its own terms (`grantWhenNoOverlap` before `grantWhenFree`, which
   * its step gives), is what FrFlow's automation decides an example by. A rule is no hypothesis: Lean has it of every
-  * value as a guard, and its claim says nothing (`NodeModules`). Each is tried with its opposite,
+  * value as a guard, and its claim says nothing (`NodeModules`). Nor is a parent whose parts are all among them
+  * (`Hyp.withoutGiven`). Each is tried with its opposite,
   * `example_<set>_<i>_opposite` (today's `eval_<i>_opposite`): the same statements giving the fact's negation, which
   * Lean shows only when the claims contradict the example.
   */
@@ -30,14 +31,14 @@ object ExampleGoals:
   private def goals(r: Resolved, e: Example): List[Obligation] =
     val about = Exprs.mentions(e.fact.value).symbols
     val reached = about.flatMap(Consistency.reach(r.theory, _)).distinct
-    val hyps = (about ++ reached).flatMap(Constrained.statements(r.theory, _)).distinct
+    val stated = (about ++ reached).flatMap(Constrained.statements(r.theory, _)).distinct
       .filter(n => r.theory.node(n).exists(s => s.statement.stated && !s.statement.rule))
-      .sortBy(r.theory.refinement.parts(_).nonEmpty)
-    def stated(fact: Prop) =
+    val hyps = Hyp.withoutGiven(r.theory.refinement, stated).sortBy(r.theory.refinement.parts(_).nonEmpty)
+    def underClaims(fact: Prop) =
       Prop.ForEvery(about, NonEmptyList.fromList(hyps).fold(fact)(hs => Prop.Implies(Hyp.parts(hs.toList), fact)))
     val fact = Prop.Formula(e.fact, Stands.of(r, about))
     List(
-      Obligation(ObligationName.Example(e.of, e.at), stated(fact), Discharge.Attempt(Heartbeats),
+      Obligation(ObligationName.Example(e.of, e.at), underClaims(fact), Discharge.Attempt(Heartbeats),
         s"${e.name}: what the claims say gives it."),
-      Obligation(ObligationName.ExampleOpposite(e.of, e.at), stated(Prop.Not(fact)), Discharge.Attempt(Heartbeats),
+      Obligation(ObligationName.ExampleOpposite(e.of, e.at), underClaims(Prop.Not(fact)), Discharge.Attempt(Heartbeats),
         s"${e.name}: what the claims say contradicts it."))

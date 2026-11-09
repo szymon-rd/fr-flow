@@ -42,7 +42,7 @@ object Made:
       case (kept, Range.Made(ty)) => CallingCode.of(r.theory).flatMap(c => c.calls.zipWithIndex.collect {
           case (tys, i) if tys.exists(Guards.applies(r.theory, ty, _)) =>
             val at = LeanNames.call(c.code, i)
-            val hyps = r.reliedOnBy(c.definition)
+            val hyps = Hyp.withoutGiven(r.theory.refinement, r.reliedOnBy(c.definition))
             Obligation(ObligationName.Made(at), Prop.over(Nil, Prop.Implies(Hyp.parts(hyps) ++
               madeBy(r, n, (kept, guards.map(_._2)), c.definition), Prop.Makes(n, SymbolName(at),
                 c.formula(i, kept), Map.empty))), Discharge.Auto,
@@ -143,7 +143,7 @@ object Made:
 
   /** `made_<maker>` of a maker's code, given what the code relies on and what its callees make (`madeBy`). */
   private def relying(r: Resolved, goal: Prop.Makes, made: List[Hyp], says: String): Obligation =
-    val hyps = r.reliedOnBy(goal.maker)
+    val hyps = Hyp.withoutGiven(r.theory.refinement, r.reliedOnBy(goal.maker))
     Obligation(ObligationName.Made(goal.maker.value), Prop.over(Nil, Prop.Implies(Hyp.parts(hyps) ++ made, goal)),
       Discharge.Auto, says + Required.givenWhat(hyps))
 

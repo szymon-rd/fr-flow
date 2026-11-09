@@ -283,7 +283,7 @@ or calls an outside system. Three shapes:
   `inRoom(request.room)`; its plain Scala is tested against the model on generated sequences of calls (3.8). The
   operations of one system are separate Definitions, not a trait (owner §36: "A for now").
 - **A Definition known only by assumptions**: plain Scala with assumptions saying what is trusted of it (keycloak's
-  `lookup` with `sessionLookup`, crm's `fetch` with `recordsByQuery`). Lean takes it as unknown with the assumptions as
+  `lookup` with `lookupOnlyHeld` and `lookupFindsHeld`, crm's `fetch` with `recordsByQuery`). Lean takes it as unknown with the assumptions as
   hypotheses; its Scala is tested against them where a case can be evaluated, trusted otherwise (`show`, `check` and
   `status` say "trusted, not tested", `Assumed.untested`). An operation on a state with no `StateModel` is the same
   case: its assumptions are written as runs (`op(x).result`, `op(x).after`), and Lean takes it as an unknown run that
@@ -762,7 +762,13 @@ An example is a closed fact (`core.example.Example(name, givens, fact, of, at)`:
 place there); `example(name, d := v)` sets provided Definitions. Checked against the code (`ExampleRun`:
 `OnCode.Holds`, `Fails`, `NotEvaluated`, or `Abstract` for a fact about Declarations) and against the claims in Lean
 (`example_<of>_<at>`, a try met by `frflow_auto`: its name does not depend on the order the classes are found in, so a
-hand proof of one in `Whole.lean` names it whoever reads them); one that sets values is shown "checked in Scala only". A value an example writes that breaks a rule on its type (an `always[T]`, evaluated
+hand proof of one in `Whole.lean` names it whoever reads them); one that sets values is shown "checked in Scala only".
+Its hypotheses are the statements constraining what it mentions, less each parent whose parts are all among them
+(`Hyp.withoutGiven`): the parts give the parent, and taking both only makes the automation's work grow, past its
+budget where a parent stands beside its parts (keycloak's `handleRequest` and its five). Leaving a hypothesis out
+cannot show an example wrongly; it could leave one undecided that needed the parent's own formula. The same rule
+thins the hypotheses of `made_<code>_call_<i>` and `made_<maker>` (what the code relies on); `impl` and `cover_`
+keep theirs, as the developers' proofs of them name them in order. A value an example writes that breaks a rule on its type (an `always[T]`, evaluated
 on each `T` the value holds, `Made.breaks`) is no value the code is ever given, so the example is refused
 (`OnCode.BreaksRule`) rather than judged: on such a value the code is neither right nor wrong (semantics review,
 finding 10). An example reads no world and states no `isConstant` (2.2). Nothing depends on examples: the theory and
@@ -1416,7 +1422,7 @@ An assumption about it that its model's runs cannot evaluate (not read as a run 
 value) is trusted, not tested, and `show`, `check` and `status` say so (`Checking.TrustedUntested`,
 `Assumed.Untested`, `Warning.TrustedUntested`). Crm's screens are programs calling the database's `fetch` (`recordsByQuery`, `searchKeeps`)
 and reading the clock, its write side and expiry job programs over the database; keycloak's server programs over its
-store, whose storing and index are assumed (`storeLogs`, `lookupKeeps`): so their histories and what they hold are
+store, whose storing and index are assumed (`storeHoldsState`, `storeAppendsLog`, `lookupKeeps`): so their histories and what they hold are
 the World's (owner §45 D), the rules of what each holds (crm's `crmRun`, `oneRowPerKey`; keycloak's `serverRun`,
 `freshTokens`, `oneSignInPerToken`) claims proven of the code that changes it. Keycloak's server reads the log
 (`logged`) and hands it to the draw, whose freshness against it is what `freshTokens` is kept by: the two ways the
