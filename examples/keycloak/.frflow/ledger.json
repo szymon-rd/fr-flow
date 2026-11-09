@@ -937,6 +937,21 @@
           "key": "087bcc41dcd575d8",
           "signature": "749ZAFjEHRmWK33bwWR5524X4kFSYcR+D2Pk1G7rWM0ntRqpR4yHr9xxHt5Jp84RqxX3Qf8hd5AjwJYqqyQoBQ=="
         }
+      },
+      {
+        "action": "remove",
+        "by": "demo-developer",
+        "at": "2026-11-09T23:03:56.807027Z",
+        "commit": "953fcf1ca5428995ad19e8dcdfea6e475fad75d5",
+        "reason": "Split into smaller statements when moving to the rebuilt library.",
+        "rejected": [],
+        "content": "d146952aedf14281b65b8ce1218d86375e2b5c6a275b39f0933f3eee2121f4b5",
+        "chain": "",
+        "after": "3a4b4e7d31ae75f1378706c14ee08abd20eb3723c3bd8ca97a27d50fc26046a5",
+        "seal": {
+          "key": "087bcc41dcd575d8",
+          "signature": "bCb4zN4Px6RHeO6OJizURTqDDOtjeAwG3qd4ou4/QGlW8zuUcW3WFkoL7Gi7sUPkmIOqm5ipS1dRJgRLBTFmBg=="
+        }
       }
     ],
     "sessionsMirrorSignIns": [
@@ -1124,6 +1139,21 @@
         "seal": {
           "key": "087bcc41dcd575d8",
           "signature": "FfidAL4jn3pq2wkO6eufyP/3lpRD5aIr/RLxbRAXWTW8MrF8HEOBY5hEL7zv/+loxXjjE/0EG9XNQ+DWo7WtBA=="
+        }
+      },
+      {
+        "action": "remove",
+        "by": "demo-developer",
+        "at": "2026-11-09T23:04:18.109858Z",
+        "commit": "953fcf1ca5428995ad19e8dcdfea6e475fad75d5",
+        "reason": "Split into smaller statements when moving to the rebuilt library.",
+        "rejected": [],
+        "content": "670aa838ee953f4adc4f9efe446a467f61e7d176c346eff048c904907f8274ff",
+        "chain": "",
+        "after": "3113ef76b27208a8f157c51f5795bb4432833d1f1560114a53497698410822ee",
+        "seal": {
+          "key": "087bcc41dcd575d8",
+          "signature": "FVVZIT5+OpdL3XksfXAk2t2SwszSV2viyxJtAEKbI20bhdUI6VMt0WxkmrtUM/sRBhA0Y42Mc9laOuDIJ8n8Dg=="
         }
       }
     ],
