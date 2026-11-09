@@ -11,7 +11,29 @@ object Judged:
     "identities" -> ("gone" ->
       "it fixed four open types to realms and strings, which the Declarations' types now say (owner §15)"),
     "introspect" -> ("gone" -> "its claim is introspectAnswers, named apart from the Definition (owner §40)"),
-    "introspectAnswers" -> ("new" -> "today's introspect, named apart from the Definition it is about (owner §40)"),
+    "introspectAnswers" -> ("new" -> ("today's introspect, named apart from the Definition it is about (owner §40); " +
+      "split into smaller statements: realmIsolation, answersNameASession, answersOnlyEnabled, answersWithRoles, " +
+      "answersTheSession, its formula their named ideas together")),
+    "answersOnlyEnabled" -> ("new" -> split("introspectAnswers")),
+    "answersWithRoles" -> ("new" -> split("introspectAnswers")),
+    "answersTheSession" -> ("new" -> split("introspectAnswers")),
+    "handleRequest" -> ("requestSetsAccounts, endedSessionsClose, unendedSessionsStay, grantedSessionOpens, " +
+      "noOtherSessionOpens are parts" -> ("split into smaller statements: requestSetsAccounts, endedSessionsClose, " +
+        "unendedSessionsStay, grantedSessionOpens, noOtherSessionOpens; today's \"every session after was kept, not " +
+        "ended, or opened\" is endedSessionsClose and noOtherSessionOpens, a request ending a session opening none")),
+    "requestSetsAccounts" -> ("new" -> split("handleRequest")),
+    "endedSessionsClose" -> ("new" -> split("handleRequest")),
+    "unendedSessionsStay" -> ("new" -> split("handleRequest")),
+    "grantedSessionOpens" -> ("new" -> split("handleRequest")),
+    "noOtherSessionOpens" -> ("new" -> split("handleRequest")),
+    "sessionLookup" -> ("gone" -> ("split into smaller statements: lookupOnlyHeld, lookupFindsHeld; its answer's " +
+      "realm being the realm asked is implied, a session the realm holds being of it")),
+    "lookupOnlyHeld" -> ("new" -> split("sessionLookup")),
+    "lookupFindsHeld" -> ("new" -> split("sessionLookup")),
+    "saltedPasswords" -> ("new" -> httpSplit),
+    "randomTokens" -> ("new" -> httpSplit),
+    "introspectionWiring" -> ("new" -> ("today's serviceWiring split into smaller statements: serviceWiring for the " +
+      "requests, introspectionWiring for the introspections")),
     "accountRoles" -> ("new" ->
       "today's accounts defined two words, enabled and rolesOf: a claim says what each Declaration is (2.7)"),
     "onlyTheSignedIn" -> ("signInHistory, referenceTokens are parts" -> words),
@@ -19,8 +41,8 @@ object Judged:
     "rolesAsGranted" -> ("accountRoles, referenceTokens, introspectAnswers are parts" -> words),
     "signedInAreAccepted" -> ("accounts, accountRoles, signInHistory, referenceTokens, introspectAnswers are " +
       "parts; oneSignInPerToken no part" -> (words + "; and " + rule("oneSignInPerToken"))),
-    "answersNameASession" -> ("introspectAnswers is a part; assumes +storeOneAtATime" -> (renamed + "; and " + runs)),
-    "realmIsolation" -> ("introspectAnswers is a part; assumes +storeOneAtATime" -> (renamed + "; and " + runs)),
+    "answersNameASession" -> ("assumes +storeOneAtATime" -> (part + "; and " + runs)),
+    "realmIsolation" -> ("assumes +storeOneAtATime" -> (part + "; and " + runs)),
     "sessionsMirrorSignIns" -> ("freshTokens no part" -> rule("freshTokens")),
     "oneSignInPerToken" -> ("freshTokens no part; assumes +storeOnlyCode +storeOneAtATime +storeStarts" ->
       (rule("oneSignInPerToken itself, a rule of the store") + ", kept by the server's code, so it rests on the " +
@@ -32,9 +54,10 @@ object Judged:
     "storeOnlyCode" -> ("new" -> "nothing but the code changes the store, the World's model of it (owner §31, §36)"),
     "storeOneAtATime" -> ("new" -> "runs on the store never interleave, an assumption of the model (owner §32)"),
     "storeStarts" -> ("new" -> "what the store starts in, which its rules rest on (2.6, Problem.NoStart)"),
-    "storeLogs" -> ("new" -> ("what storing a request leaves, known only by what is assumed of it (G2): the state " +
-      "stored, the request logged; the store's rules need it (Problem.LeavesUnsaid)")),
-    "lookupKeeps" -> ("new" -> "what looking a token up leaves, as storeLogs is for storing (G2, LeavesUnsaid)"),
+    "storeHoldsState" -> ("new" -> leaves("the state stored")),
+    "storeAppendsLog" -> ("new" -> leaves("the request logged at the end")),
+    "storeKeepsLoaded" -> ("new" -> leaves("the accounts as loaded kept")),
+    "lookupKeeps" -> ("new" -> "what looking a token up leaves, as storeHoldsState is for storing (G2, LeavesUnsaid)"),
     "drawnTokens" -> ("new" -> ("what is trusted of each request the HTTP API hands the server, shown the requests " +
       "the server has handled: today's freshTokens over the history, said of what enters it, so the history's rule " +
       "is proven of the code; said of what the draw is shown, not of the store, which its runs do not read " +
@@ -47,7 +70,11 @@ object Judged:
 
   private def words = "today's definitions of the purpose's words are claims saying what each Declaration is, below " +
     "the steps they are used in (2.7), with today's introspect, renamed (owner §40)"
-  private def renamed = "today's introspect, which refined and kept it, renamed (owner §40)"
+  private def part = "a part of today's introspect, which refined it, a part of introspectAnswers now (owner §40)"
+  private def split(n: String) = s"split into smaller statements: a part of $n"
+  private def httpSplit = "today's httpApi split into smaller statements: httpApi, saltedPasswords, randomTokens"
+  private def leaves(what: String) = s"what storing a request leaves, known only by what is assumed of it (G2): " +
+    s"$what; the store's rules need it (Problem.LeavesUnsaid); split into smaller statements"
   private def runs = "a claim about a program's runs rests on the store's runs being atomic (2.6)"
   private def rule(n: String) = s"$n is a rule of the store's state (owner §45 D: the history the World's), a " +
     "hypothesis of every statement reading the store, no part of its step (owner §27)"
@@ -75,9 +102,13 @@ object Judged:
     "IntrospectAnswers" -> List("claim", "proven", "proven", ""),
     // The store's storing and index, operations known only by what is assumed of them (G2): their Scala tested
     // against it on the store's generated runs, today's 1,000, reported beside storeOnlyCode.
-    "SessionLookup" -> List("assumption", "assumed", "proven", ""),
+    "SessionLookup" -> Nil,
+    "LookupOnlyHeld" -> List("assumption", "assumed", "proven", ""),
+    "LookupFindsHeld" -> List("assumption", "assumed", "proven", ""),
     "StoreKeepsState" -> List("assumption", "assumed", "proven", ""),
-    "StoreLogs" -> List("assumption", "assumed", "proven", ""),
+    "StoreHoldsState" -> List("assumption", "assumed", "proven", ""),
+    "StoreAppendsLog" -> List("assumption", "assumed", "proven", ""),
+    "StoreKeepsLoaded" -> List("assumption", "assumed", "proven", ""),
     "LookupKeeps" -> List("assumption", "assumed", "proven", ""),
     "StoreOnlyCode" -> List("assumption", "assumed", "", "1000"),
     "StoreOneAtATime" -> List("assumption", "assumed", "", ""),
@@ -87,7 +118,19 @@ object Judged:
     "HandedOneAtATime" -> List("assumption", "assumed", "", ""),
     // New claims of the server's programs.
     "LoadedKept" -> List("claim", "proven", "proven", ""),
-    "AnswersWhatItStores" -> List("claim", "proven", "proven", ""))
+    "AnswersWhatItStores" -> List("claim", "proven", "proven", ""),
+    // Parts of today's larger nodes, split into smaller statements, each proven of the code as its parent was.
+    "RequestSetsAccounts" -> List("claim", "proven", "proven", ""),
+    "EndedSessionsClose" -> List("claim", "proven", "proven", ""),
+    "UnendedSessionsStay" -> List("claim", "proven", "proven", ""),
+    "GrantedSessionOpens" -> List("claim", "proven", "proven", ""),
+    "NoOtherSessionOpens" -> List("claim", "proven", "proven", ""),
+    "AnswersOnlyEnabled" -> List("claim", "proven", "proven", ""),
+    "AnswersWithRoles" -> List("claim", "proven", "proven", ""),
+    "AnswersTheSession" -> List("claim", "proven", "proven", ""),
+    "SaltedPasswords" -> List("design", "nothing to prove", "", ""),
+    "IntrospectionWiring" -> List("design", "nothing to prove", "", ""),
+    "RandomTokens" -> List("design", "nothing to prove", "", ""))
 
   /** None now: the history, the state now and the accounts as loaded are the server's store's, the World's. */
   val provided: Map[String, Ported.OnD] = Map.empty

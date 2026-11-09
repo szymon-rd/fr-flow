@@ -2,7 +2,8 @@ import FrFlowGen.Keycloak.serverRun.Spec
 import Proofs.Keycloak.Lemmas
 
 /-! The server's state is what its requests led to, kept by its code: handling a request stores what `next` makes of
-the state it held, the request logged at the end (`storeLogs`), which is the history one request on; an
+the state it held (`storeHoldsState`), the request logged at the end (`storeAppendsLog`), which is the history one
+request on, the accounts as loaded kept (`storeKeepsLoaded`); an
 introspection changes nothing the store holds (`lookupKeeps`). -/
 
 set_option autoImplicit false
@@ -13,8 +14,8 @@ namespace Keycloak.serverRun.Proofs
 open Keycloak
 
 theorem cover_serve : Obl.cover_serve := by
-  intro nextRequest record hD hK hL w h1 h2 h3
-  obtain ⟨hAfter, -, -⟩ := Lemmas.served nextRequest record hD hK hL w h1 h2 h3
+  intro nextRequest record hD hK hH hA hKL w h1 h2 h3
+  obtain ⟨hAfter, -, -⟩ := Lemmas.served nextRequest record hD hK hH hA hKL w h1 h2 h3
   revert hAfter
   generalize serving_run nextRequest record w = p
   rcases p with ⟨res, aft⟩
@@ -25,7 +26,7 @@ theorem cover_serve : Obl.cover_serve := by
   rw [h1]
 
 theorem cover_introspect : Obl.cover_introspect := by
-  intro lookup _ hK r t w h1 h2 h3
+  intro lookup _ _ hK r t w h1 h2 h3
   have hAfter := Lemmas.introspected lookup hK r t w h1 h2 h3
   revert hAfter
   generalize introspecting_run lookup r t w = p

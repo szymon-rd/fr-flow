@@ -47,22 +47,30 @@ val state: Term[ServerState] = serverStore.current.state
 
 val storeOnlyCode = Node.assumption("Nothing but the server's programs changes what its store holds.")(
   serverStore.onlyCodeChanges)
-val storeOneAtATime = Node.assumption("Runs on the store never interleave: the server handles one request at a " +
-  "time, and an introspection reads the store between two.")(serverStore.atomic)
-val storeStarts = Node.assumption("The store starts with the accounts loaded at start, no session and an empty " +
-  "event log.")(serverStore.initially(s => s.state === make[ServerState](s.loaded, Nil: Term[List[Session]]) &&
-    s.log === (Nil: Term[List[AuthRequest]])))
+// The server handles one request at a time, and an introspection reads the store between two.
+val storeOneAtATime = Node.assumption("Runs on the store never interleave.")(serverStore.atomic)
 
-val storeKeepsState = Node.assumption("Storing a request with the state it led to keeps that state: read back, the " +
-    "store holds exactly it.")(
+/** The store as loaded, before any request: the accounts given, no session, an empty event log. */
+val freshStore = define { (as: Term[List[UserAccount]]) =>
+  make[Stored](as, make[ServerState](as, Nil: Term[List[Session]]), Nil: Term[List[AuthRequest]]) }
+
+val storeStarts = Node.assumption("The store starts as loaded, before any request.")(
+  serverStore.initially(s => s === freshStore(s.loaded)))
+
+val storeKeepsState = Node.assumption("Storing a request with a state reads that state back.")(
   forall((q: Term[AuthRequest], after: Term[ServerState]) => record(q, after).result === after))
 
-val storeLogs = Node.assumption("Storing a request with the state it led to holds that state, logs the request at " +
-    "the end of the event log, and keeps the accounts as loaded.")(
-  forall((q: Term[AuthRequest], after: Term[ServerState]) =>
-    serverStore.in(record(q, after).after) === make[Stored](seed, after, history :+ q)))
+val storeHoldsState = Node.assumption("Storing a request with a state leaves the store holding that state.")(
+  forall((q: Term[AuthRequest], after: Term[ServerState]) => serverStore.in(record(q, after).after).state === after))
 
-val handedOneAtATime = Node.assumption("The HTTP API hands the server one request at a time, each once.")(inbox.atomic)
+val storeAppendsLog = Node.assumption("Storing a request logs it at the end of the event log.")(
+  forall((q: Term[AuthRequest], after: Term[ServerState]) =>
+    serverStore.in(record(q, after).after).log === history :+ q))
+
+val storeKeepsLoaded = Node.assumption("Storing a request keeps the accounts as loaded.")(
+  forall((q: Term[AuthRequest], after: Term[ServerState]) => serverStore.in(record(q, after).after).loaded === seed))
+
+val handedOneAtATime = Node.assumption("The HTTP API hands the server one request at a time.")(inbox.atomic)
 
 val loadedKept = Node.claim("The accounts as loaded at start never change.")(seed.isConstant)
   .assuming(storeOnlyCode, storeOneAtATime, handedOneAtATime)

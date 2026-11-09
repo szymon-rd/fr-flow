@@ -35,7 +35,8 @@ import FrFlowGen.Keycloak.freshTokens.Spec
 import FrFlowGen.Keycloak.handleRequest.Spec
 import FrFlowGen.Keycloak.storeKeepsState.Spec
 import FrFlowGen.Keycloak.introspectAnswers.Spec
-import FrFlowGen.Keycloak.sessionLookup.Spec
+import FrFlowGen.Keycloak.lookupOnlyHeld.Spec
+import FrFlowGen.Keycloak.lookupFindsHeld.Spec
 
 /-! No statement of keycloak is weakened by the port (ARCHITECTURE section 9, equivalence 4): each node's claim as
 today's library stated it (`reference/keycloak`, put in namespace `Old` over the port's types) is equivalent to the
@@ -47,7 +48,10 @@ today's pair by `asPair`. Today's definitions of the purpose's words are the por
 equivalent to the word being today's define. Today's sessions and accounts were defines over the history replayed by
 the step; the port's are those of the state the store holds, which the store's rule `serverRun` says is the history
 replayed by the step's code (`next`): under it, each claim about them is today's. Today's definition `serverRun` and
-assumption `freshTokens` over the history are the port's rules of the store, `freshTokens` stated pairwise. -/
+assumption `freshTokens` over the history are the port's rules of the store, `freshTokens` stated pairwise. Today's
+handleRequest, introspect and sessionLookup are split into smaller statements: the first two are the port's parents,
+the conjunction of their parts' named ideas, equivalent to today's; today's sessionLookup is the port's two
+assumptions on the index together. -/
 
 set_option autoImplicit false
 noncomputable section
@@ -94,8 +98,17 @@ theorem administer_eq : Old.administer = Keycloak.administer := by
 theorem accountsAfter_eq : Old.accountsAfter = Keycloak.accountsAfter := by
   funext seed hs; unfold Old.accountsAfter Keycloak.accountsAfter; rw [administer_eq]
 
+theorem accountOf_eq : Old.accountOf = Keycloak.accountOf := rfl
+
+/-- Today's grant, its password check written out; the port's, named `passwordAccepted`. -/
 theorem grantedBy_eq : Old.grantedBy = Keycloak.grantedBy := by
-  funext as q; cases q <;> rfl
+  funext as q
+  cases q with
+  | SignIn r u h t =>
+    simp only [Old.grantedBy, Keycloak.grantedBy, Keycloak.passwordAccepted, accountOf_eq]
+    by_cases hc : ∃ a, Keycloak.accountOf as r u = some a ∧ a.enabled ∧ a.passwordHash = h <;> simp [hc]
+  | SignOut r t => rfl
+  | SetEnabled r u on => rfl
 
 theorem rolesIn_eq : Old.rolesIn = Keycloak.rolesIn := by
   funext a; cases a <;> rfl
@@ -108,12 +121,13 @@ theorem endedBy_eq : Old.endedBy = Keycloak.endedBy := by
   funext q x; cases q <;> rfl
 
 theorem opened_eq : Old.opened = Keycloak.opened := by
-  funext s q; unfold Old.opened Keycloak.opened; rw [grantedBy_eq]; cases Keycloak.grantedBy s.accounts q <;> rfl
+  funext s q; unfold Old.opened Keycloak.opened Keycloak.tokenTaken; rw [grantedBy_eq]
+  cases Keycloak.grantedBy s.accounts q <;> simp
 
 /-- Today's sign-in that still stands, stated as some split of the history; the port's, as no split failing. -/
 theorem liveIn_eq : Old.liveIn = Keycloak.liveIn := by
   funext seed hs x
-  unfold Old.liveIn Keycloak.liveIn
+  unfold Old.liveIn Keycloak.liveIn Keycloak.splitsAt Keycloak.gotAfter Keycloak.signedOutIn
   rw [grantedBy_eq, accountsAfter_eq]
   apply propext
   simp only [Classical.not_forall, Classical.not_not]
@@ -130,15 +144,27 @@ theorem realmAccess (accepted rolesOf signedIn enabled) :
   simp only [Keycloak.realmAccess.claim, Old.RealmAccess.claim, asPairs, pair_some]
   exact ⟨fun h w hw r t u => h r t u w hw.1 hw.2.1 hw.2.2, fun h r t u w h1 h2 h3 => h w ⟨h1, h2, h3⟩ r t u⟩
 
+/-- Three statements of every acceptance, one per line, are one of each. -/
+theorem forall_and3 (o : Option Acceptance) (P Q R : Acceptance → Prop) :
+    (((∀ a, o = some a → P a) ∧ (∀ a, o = some a → Q a)) ∧ (∀ a, o = some a → R a)) ↔
+      (∀ a, o = some a → (P a ∧ Q a) ∧ R a) := by
+  constructor
+  · rintro ⟨⟨hp, hq⟩, hr⟩ a ha
+    exact ⟨⟨hp a ha, hq a ha⟩, hr a ha⟩
+  · intro h
+    exact ⟨⟨fun a ha => (h a ha).1.1, fun a ha => (h a ha).1.2⟩, fun a ha => (h a ha).2⟩
+
+/-- Today's noUnauthorizedAccess, one statement of every acceptance; the port's, its three parts' statements. -/
 theorem noUnauthorizedAccess (accepted signedIn enabled rolesOf) :
     Keycloak.noUnauthorizedAccess.claim accepted signedIn enabled rolesOf ↔ ∀ w, Rules w →
       Old.NoUnauthorizedAccess.claim RealmId String String String (asPairs (fun r t => accepted r t w))
         (fun r u t => signedIn r u t w) (fun r u => enabled r u w) (fun r u => rolesOf r u w) := by
   simp only [Keycloak.noUnauthorizedAccess.claim, Old.NoUnauthorizedAccess.claim, asPairs]
-  exact ⟨fun h w hw r t => (forall_pair (accepted r t w) (fun u rs => (signedIn r u t w ∧ enabled r u w) ∧
-      rs = rolesOf r u w)).2 (h r t w hw.1 hw.2.1 hw.2.2),
-    fun h r t w h1 h2 h3 => (forall_pair (accepted r t w) (fun u rs => (signedIn r u t w ∧ enabled r u w) ∧
-      rs = rolesOf r u w)).1 (h w ⟨h1, h2, h3⟩ r t)⟩
+  have each := fun r t w => (forall_and3 (accepted r t w) (fun a => signedIn r a.user t w)
+    (fun a => enabled r a.user w) (fun a => a.roles = rolesOf r a.user w)).trans
+    (forall_pair (accepted r t w) (fun u rs => (signedIn r u t w ∧ enabled r u w) ∧ rs = rolesOf r u w)).symm
+  exact ⟨fun h w hw r t => (each r t w).1 (h r t w hw.1 hw.2.1 hw.2.2),
+    fun h r t w h1 h2 h3 => (each r t w).2 (h w ⟨h1, h2, h3⟩ r t)⟩
 
 theorem signedInAreAccepted (signedIn enabled accepted rolesOf) :
     Keycloak.signedInAreAccepted.claim signedIn enabled accepted rolesOf ↔ ∀ w, Rules w →
@@ -227,7 +253,7 @@ theorem serverRun (s : Stored) (h : Keycloak.serverRun s) :
 
 /-- No two sign-ins of the log share a token, pairwise; today's, every sign-in fresh after those before it. -/
 theorem freshTokens (s : Stored) : Keycloak.freshTokens s ↔ Old.FreshTokens.claim s.log := by
-  unfold Keycloak.freshTokens Old.FreshTokens.claim
+  unfold Keycloak.freshTokens Keycloak.newToken Old.FreshTokens.claim
   generalize s.log = log
   constructor
   · intro h pre post q hq t ht ⟨p, hp, hpt⟩
@@ -243,22 +269,36 @@ theorem freshTokens (s : Stored) : Keycloak.freshTokens s ↔ Old.FreshTokens.cl
       exact h (a :: pre) post b (by simp [hl]) t ht ⟨a, List.mem_cons_self, hat⟩
 
 theorem oneSignInPerToken (s : Stored) : Keycloak.oneSignInPerToken s ↔ Old.OneSignInPerToken.claim s.log s.loaded := by
-  unfold Old.OneSignInPerToken.claim; rw [liveIn_eq]; exact Iff.rfl
+  unfold Old.OneSignInPerToken.claim Keycloak.oneSignInPerToken Keycloak.oneStandsPerToken; rw [liveIn_eq]
 
 -- The claims about the sessions and accounts the server holds: today's, of the history replayed, in every world.
+
+/-- A state's sessions, each open exactly when it stands; today's, each open in a realm exactly when of it and
+standing. -/
+theorem mirror_body (st : ServerState) (L : Session → Prop) :
+    (∀ x, (x ∈ st.sessions) = L x) ↔ ∀ r x, (x ∈ Keycloak.sessions st r) = (x.realm = r ∧ L x) := by
+  simp only [Keycloak.sessions, List.mem_filter, decide_eq_true_eq]
+  constructor
+  · intro h r x
+    rw [h x]
+    exact propext ⟨fun ⟨a, b⟩ => ⟨b, a⟩, fun ⟨a, b⟩ => ⟨b, a⟩⟩
+  · intro h x
+    have hx := h x.realm x
+    simp only [and_true, true_and] at hx
+    exact hx
 
 theorem sessionsMirrorSignIns : Keycloak.sessionsMirrorSignIns.claim ↔ ∀ w, Rules w →
     Old.SessionsMirrorSignIns.claim (Old.sessions w.serverStore.log next w.serverStore.loaded) w.serverStore.log
       w.serverStore.loaded := by
   unfold Old.SessionsMirrorSignIns.claim; rw [liveIn_eq]
   constructor
-  · intro h w hw r x
+  · intro h w hw
     rw [← (serverRun _ hw.1).1]
-    exact h r x w hw.1 hw.2.1 hw.2.2
-  · intro h r x w h1 h2 h3
-    have hx := h w ⟨h1, h2, h3⟩ r x
+    exact (mirror_body _ _).1 (fun x => h x w hw.1 hw.2.1 hw.2.2)
+  · intro h x w h1 h2 h3
+    have hx := h w ⟨h1, h2, h3⟩
     rw [← (serverRun _ h1).1] at hx
-    exact hx
+    exact (mirror_body _ _).2 hx x
 
 theorem accountsAsAdministered : Keycloak.accountsAsAdministered.claim ↔ ∀ w, Rules w →
     Old.AccountsAsAdministered.claim (Old.account w.serverStore.log next w.serverStore.loaded) w.serverStore.log
@@ -298,14 +338,31 @@ theorem answersNameASession (introspect : RealmId → String → World → Optio
     rcases p with ⟨res, aft⟩
     exact id
 
+/-- Today's introspect of one answer, over the sessions and accounts of a state: the port's five parts' named ideas
+together. -/
+theorem introspect_body (st : ServerState) (realm : RealmId) (token : String) (res : Option Claims) :
+    Old.Introspect.post (Keycloak.sessions st) (Keycloak.account st) realm token res ↔
+      ((((Keycloak.ofRealm realm res ∧ Keycloak.ofSessionHeld st token res) ∧ Keycloak.ofEnabledUser st realm res) ∧
+        Keycloak.withAccountRoles st realm res) ∧ Keycloak.forSoleSession st realm token res) := by
+  unfold Old.Introspect.post Keycloak.ofRealm Keycloak.ofSessionHeld Keycloak.ofEnabledUser Keycloak.withAccountRoles
+    Keycloak.forSoleSession Keycloak.soleUnder Keycloak.heldUnder Keycloak.claimsFor
+  rw [rolesIn_eq, isEnabled_eq, onlyOne_eq]
+  constructor
+  · rintro ⟨h, hx⟩
+    exact ⟨⟨⟨⟨fun c hc => (h c hc).1.1.1, fun c hc => (h c hc).1.1.2⟩, fun c hc => (h c hc).1.2⟩,
+      fun c hc => (h c hc).2⟩, fun x hm ⟨⟨⟨_, ht⟩, hone⟩, he⟩ => hx x hm ⟨⟨ht, he⟩, hone⟩⟩
+  · rintro ⟨⟨⟨⟨hr, hn⟩, he⟩, hw⟩, hx⟩
+    exact ⟨fun c hc => ⟨⟨⟨hr c hc, hn c hc⟩, he c hc⟩, hw c hc⟩,
+      fun x hm ⟨⟨ht, hen⟩, hone⟩ => hx x hm ⟨⟨⟨hm, ht⟩, hone⟩, hen⟩⟩
+
 theorem introspectAnswers (introspect : RealmId → String → World → Option Claims × World) :
     Keycloak.introspectAnswers.claim introspect ↔ ∀ w, Rules w →
       Old.Introspect.claim (Old.sessions w.serverStore.log next w.serverStore.loaded)
         (Old.account w.serverStore.log next w.serverStore.loaded) (fun r t => (introspect r t w).1) := by
-  unfold Old.Introspect.claim Old.Introspect.post; rw [rolesIn_eq, isEnabled_eq, onlyOne_eq]
+  unfold Old.Introspect.claim
   constructor
   · intro h w hw r t
-    rw [← (serverRun _ hw.1).1, ← (serverRun _ hw.1).2]
+    rw [← (serverRun _ hw.1).1, ← (serverRun _ hw.1).2, introspect_body]
     have hr := h r t w hw.1 hw.2.1 hw.2.2
     revert hr
     dsimp only
@@ -314,35 +371,64 @@ theorem introspectAnswers (introspect : RealmId → String → World → Option 
     exact id
   · intro h r t w h1 h2 h3
     have hr := h w ⟨h1, h2, h3⟩ r t
-    rw [← (serverRun _ h1).1, ← (serverRun _ h1).2] at hr
+    rw [← (serverRun _ h1).1, ← (serverRun _ h1).2, introspect_body] at hr
     revert hr
     dsimp only
     generalize introspect r t w = p
     rcases p with ⟨res, aft⟩
     exact id
 
+/-- Today's sessionLookup of one answer, over the sessions of a state: the port's two assumptions on the index
+together; its answer's realm is the realm asked, as a session the realm holds is of it. -/
+theorem lookup_body (st : ServerState) (realm : RealmId) (token : String) (r : Option Session) :
+    Old.SessionLookup.post (Keycloak.sessions st) realm token r ↔
+      (∀ x, r = some x → Keycloak.heldUnder st realm token x) ∧ (Keycloak.holdsUnder st realm token → r ≠ none) := by
+  unfold Old.SessionLookup.post Keycloak.heldUnder Keycloak.holdsUnder
+  constructor
+  · rintro ⟨h, hf⟩
+    exact ⟨fun x hx => (h x hx).1, hf⟩
+  · rintro ⟨h, hf⟩
+    refine ⟨fun x hx => ⟨h x hx, ?_⟩, hf⟩
+    have hm := (h x hx).1
+    simp only [Keycloak.sessions, List.mem_filter, decide_eq_true_eq] at hm
+    exact hm.2
+
+/-- Today's sessionLookup, split into smaller statements: the port's lookupOnlyHeld and lookupFindsHeld together. -/
 theorem sessionLookup (lookup : RealmId → String → StateM Stored (Option Session)) :
-    Keycloak.sessionLookup.claim lookup ↔ ∀ w, Rules w →
+    (Keycloak.lookupOnlyHeld.claim lookup ∧ Keycloak.lookupFindsHeld.claim lookup) ↔ ∀ w, Rules w →
       Old.SessionLookup.claim (Old.sessions w.serverStore.log next w.serverStore.loaded)
         (fun r t => (ServerStore.lookup_run lookup r t w).1) := by
-  unfold Old.SessionLookup.claim Old.SessionLookup.post
+  unfold Old.SessionLookup.claim
   constructor
-  · intro h w hw r t
-    rw [← (serverRun _ hw.1).1]
-    have hr := h r t w hw.1 hw.2.1 hw.2.2
-    revert hr
+  · rintro ⟨hO, hF⟩ w hw r t
+    rw [← (serverRun _ hw.1).1, lookup_body]
+    have ho := hO r t w hw.1 hw.2.1 hw.2.2
+    have hf := hF r t w hw.1 hw.2.1 hw.2.2
+    revert ho hf
     dsimp only
     generalize ServerStore.lookup_run lookup r t w = p
     rcases p with ⟨res, aft⟩
-    exact id
-  · intro h r t w h1 h2 h3
-    have hr := h w ⟨h1, h2, h3⟩ r t
-    rw [← (serverRun _ h1).1] at hr
-    revert hr
-    dsimp only
-    generalize ServerStore.lookup_run lookup r t w = p
-    rcases p with ⟨res, aft⟩
-    exact id
+    exact fun ho hf => ⟨ho, hf⟩
+  · intro h
+    have each : ∀ r t w, Keycloak.serverRun w.serverStore → Keycloak.oneSignInPerToken w.serverStore →
+        Keycloak.freshTokens w.serverStore →
+        (∀ x, (ServerStore.lookup_run lookup r t w).1 = some x → Keycloak.heldUnder w.serverStore.state r t x) ∧
+          (Keycloak.holdsUnder w.serverStore.state r t → (ServerStore.lookup_run lookup r t w).1 ≠ none) := by
+      intro r t w h1 h2 h3
+      have hr := h w ⟨h1, h2, h3⟩ r t
+      rw [← (serverRun _ h1).1, lookup_body] at hr
+      exact hr
+    refine ⟨fun r t w h1 h2 h3 => ?_, fun r t w h1 h2 h3 => ?_⟩
+    · have he := (each r t w h1 h2 h3).1
+      revert he
+      generalize ServerStore.lookup_run lookup r t w = p
+      rcases p with ⟨res, aft⟩
+      exact id
+    · have he := (each r t w h1 h2 h3).2
+      revert he
+      generalize ServerStore.lookup_run lookup r t w = p
+      rcases p with ⟨res, aft⟩
+      exact id
 
 theorem realmIsolation (introspect : RealmId → String → World → Option Claims × World) :
     Keycloak.realmIsolation.claim introspect ↔ ∀ w, Rules w →
@@ -371,8 +457,34 @@ theorem realmIsolation (introspect : RealmId → String → World → Option Cla
 
 -- One request, and the store: as today stated them, storing a request's run from each world.
 
+/-- A request that ends a session opens none: only a sign-out ends one, only a sign-in opens one. -/
+theorem ended_opens_none (s : ServerState) (q : AuthRequest) (x y : Session) (h : Keycloak.endedBy q x) :
+    Keycloak.opened s q ≠ some y := by
+  cases q <;> simp_all [Keycloak.endedBy, Keycloak.opened, Keycloak.grantedBy]
+
+/-- Today's handleRequest: the port's five parts' named ideas together. Today's "every session after was kept, not
+ended, or opened" is two parts, the ended ones closing and no other opening: a request ending a session opens none. -/
 theorem handleRequest (step) : Old.HandleRequest.claim step ↔ Keycloak.handleRequest.claim step := by
-  unfold Old.HandleRequest.claim Old.HandleRequest.post; rw [administer_eq, endedBy_eq, opened_eq]; exact Iff.rfl
+  unfold Old.HandleRequest.claim Old.HandleRequest.post; rw [administer_eq, endedBy_eq, opened_eq]
+  unfold Keycloak.handleRequest.claim Keycloak.accountsAsAsked Keycloak.endedGone Keycloak.keepsTheRest
+    Keycloak.opensItsOwn Keycloak.opensNoOther
+  dsimp only
+  constructor
+  · intro h s q
+    obtain ⟨⟨⟨ha, hb⟩, hc⟩, hd⟩ := h s q
+    refine ⟨⟨⟨⟨ha, fun x hx he => ?_⟩, hc⟩, hd⟩, fun x hx => ?_⟩
+    · rcases hb x hx with ⟨_, hne⟩ | ho
+      · exact hne he
+      · exact ended_opens_none s q x x he ho
+    · rcases hb x hx with ⟨hs, _⟩ | ho
+      · exact Or.inl hs
+      · exact Or.inr ho
+  · intro h s q
+    obtain ⟨⟨⟨⟨ha, he⟩, hc⟩, hd⟩, hn⟩ := h s q
+    refine ⟨⟨⟨ha, fun x hx => ?_⟩, hc⟩, hd⟩
+    rcases hn x hx with hs | ho
+    · exact Or.inl ⟨hs, he x hx⟩
+    · exact Or.inr ho
 
 theorem storeKeepsState (record : AuthRequest → ServerState → StateM Stored ServerState) :
     Keycloak.storeKeepsState.claim record ↔ ∀ w : World,

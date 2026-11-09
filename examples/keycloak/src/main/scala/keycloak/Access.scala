@@ -23,9 +23,8 @@ val signedIn = Declaration[(RealmId, String, String) => Boolean]("whether the us
 val enabled = Declaration[(RealmId, String) => Boolean]("whether the user's account in the realm is enabled now")
 val rolesOf = Declaration[(RealmId, String) => List[String]]("the roles the realm gives the user now")
 
-val realmAccess = Node.claim("A realm's application accepts a token as a user's, with the user's roles, exactly " +
-    "when the user signed in to that realm and got the token, has not signed out with it since, and is still " +
-    "enabled.")(
+val realmAccess = Node.claim("A realm's application accepts a token as a user's, with their roles, exactly when " +
+    "the user is signed in there with it and enabled.")(
   forall((r: Term[RealmId], t: Term[String], u: Term[String]) =>
     (accepted(r, t) === some(make[Acceptance](u, rolesOf(r, u)))) === (signedIn(r, u, t) && enabled(r, u))))
 
@@ -33,14 +32,16 @@ val realmAccess = Node.claim("A realm's application accepts a token as a user's,
 // Its two halves: what must never happen, and what users can do
 // ============================================================================
 
-val noUnauthorizedAccess = Node.claim("A token is accepted only as a user who signed in to that realm with it, has " +
-    "not signed out since and is still enabled, and only with that user's roles.")(
-  forall((r: Term[RealmId], t: Term[String]) => accepted(r, t).forall(a =>
-    signedIn(r, a.user, t) && enabled(r, a.user) && a.roles === rolesOf(r, a.user))))
+// Its formula is its three parts' formulas, one per line: a define cannot read a Declaration, so they are not named.
+val noUnauthorizedAccess = Node.claim("A token is accepted only as its user is authorized now.")(
+  forall((r: Term[RealmId], t: Term[String]) =>
+    accepted(r, t).forall(a => signedIn(r, a.user, t)) &&
+      accepted(r, t).forall(a => enabled(r, a.user)) &&
+      accepted(r, t).forall(a => a.roles === rolesOf(r, a.user))))
   .refines(realmAccess)
 
-val signedInAreAccepted = Node.claim("A user who signed in to a realm and got a token, has not signed out with it " +
-    "since and is still enabled, has it accepted there as theirs, with their roles.")(
+val signedInAreAccepted = Node.claim("A user signed in to a realm with a token, and enabled, has it accepted there " +
+    "as theirs, with their roles.")(
   forall((r: Term[RealmId], t: Term[String], u: Term[String]) =>
     (signedIn(r, u, t) && enabled(r, u)) implies (accepted(r, t) === some(make[Acceptance](u, rolesOf(r, u))))))
   .refines(realmAccess)
@@ -49,13 +50,11 @@ val signedInAreAccepted = Node.claim("A user who signed in to a realm and got a 
 // No unauthorized access, in three independent rules
 // ============================================================================
 
-val onlyTheSignedIn = Node.claim("A token is accepted in a realm only as the user who signed in to that realm with " +
-    "it and has not signed out with it since.")(
+val onlyTheSignedIn = Node.claim("A token is accepted in a realm only as the user signed in there with it.")(
   forall((r: Term[RealmId], t: Term[String]) => accepted(r, t).forall(a => signedIn(r, a.user, t))))
   .refines(noUnauthorizedAccess)
 
-val disabledHaveNoAccess = Node.claim("A token is never accepted as a user who is disabled now, whenever they " +
-    "signed in.")(
+val disabledHaveNoAccess = Node.claim("A token is never accepted as a user who is disabled now.")(
   forall((r: Term[RealmId], t: Term[String]) => accepted(r, t).forall(a => enabled(r, a.user))))
   .refines(noUnauthorizedAccess)
 

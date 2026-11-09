@@ -16,7 +16,7 @@ class PinnedSuite extends munit.FunSuite:
 
   test("keycloak: nothing is provided, the server's state the World's (owner §45 D); what is assumed of the store's " +
     "operations known only by assumptions is asked to hold together, each open") {
-    val g = group(keycloak.knowledge, "sessionLookup")
+    val g = group(keycloak.knowledge, "lookupOnlyHeld")
     assertEquals(g.provided, Nil)
     assert(List("lookup", "record").map(SymbolName(_)).forall(g.open.contains), g)
   }

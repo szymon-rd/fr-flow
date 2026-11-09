@@ -31,9 +31,10 @@ theorem complete : Obl.complete := by
     subst ha
     have hcr : c.realm = r := hi c rfl
     have hx := hn c rfl
-    rw [hMirror c.realm _ w h1 h2 h3] at hx
+    simp only [Keycloak.sessions, List.mem_filter, decide_eq_true_eq] at hx
+    rw [hMirror _ w h1 h2 h3] at hx
     rw [hSigned r c.user t w h1 h2 h3, ← hcr]
-    exact hx.2
+    exact hx.1
 
 /-- Some world meets the parts: an introspection answering nothing, nothing accepted; the server's sessions
 mirroring the sign-ins, as its code keeps them. -/

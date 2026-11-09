@@ -13,16 +13,16 @@ theorem complete : Obl.complete := by
   apply propext
   constructor
   · intro h
-    have hn := hNo r t w h1 h2 h3 _ h
-    exact ⟨hn.1.1, hn.1.2⟩
+    have hn := hNo r t w h1 h2 h3
+    exact ⟨hn.1.1 _ h, hn.1.2 _ h⟩
   · intro h
     exact hYes r t u w h1 h2 h3 h
 
 /-- Some world meets the parts: nothing accepted, no one signed in. -/
 theorem feasible : Obl.feasible := by
   refine ⟨fun _ _ _ => none, fun _ _ _ => [], fun _ _ _ _ => False, fun _ _ _ => False, ?_, ?_⟩
-  · intro _ _ _ _ _ _ a ha
-    cases ha
+  · intro _ _ _ _ _ _
+    exact ⟨⟨fun a ha => (by cases ha), fun a ha => (by cases ha)⟩, fun a ha => (by cases ha)⟩
   · intro _ _ _ _ _ _ _ h
     exact h.1.elim
 
