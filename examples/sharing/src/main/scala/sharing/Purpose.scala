@@ -44,6 +44,15 @@ val mayEditCode = define { (lib: Term[Library], t: Term[BigInt], p: Term[PersonI
 val inTrashCode = define { (lib: Term[Library], d: Term[DocumentId]) =>
   lib.documents.exists(doc => doc.id === d && doc.trashed.isDefined) }
 
+// The ideas the purpose and its branches are stated in, each named once.
+
+/** Whether an operation changed the library: what it leaves is not what it was given. */
+val changes = define { (before: Term[Library], after: Term[Library]) => after =!= before }
+
+/** Whether two libraries share, offer and keep the same: the same shares, invitations and documents. */
+val sameKept = define { (before: Term[Library], after: Term[Library]) =>
+  after.shares === before.shares && after.invitations === before.invitations && after.documents === before.documents }
+
 val ownedByCode = define { (lib: Term[Library], what: Term[Target], withWhom: Term[Grantee]) =>
   what.on[Target.Doc](d => lib.documents.exists(doc => doc.id === d && withWhom === make[Grantee.Person](doc.owner)))
     .on[Target.InFolder](_ => False) }

@@ -19,6 +19,10 @@ object Trash:
     when(mayEdit(lib, t, by, make[Target.Doc](d)))(lib.updated(_.documents, lib.documents.map(doc =>
       when(doc.id === d && !doc.trashed.isDefined)(doc.updated(_.trashed, some(t))).otherwise(doc)))).otherwise(lib) }
 
+  /** Whether a document is in the trash and not yet gone at a moment. */
+  val restorable = define { (lib: Term[Library], t: Term[BigInt], d: Term[DocumentId]) =>
+    lib.documents.exists(doc => doc.id === d && doc.trashed.isDefined && !gone(doc, t)) }
+
   /** Whether `by` may restore the document now: they may edit it, and it is in the trash and not yet gone. */
   val mayRestore = define { (lib: Term[Library], t: Term[BigInt], by: Term[PersonId], d: Term[DocumentId]) =>
     mayEdit(lib, t, by, make[Target.Doc](d)) &&

@@ -19,6 +19,7 @@ open Sharing
 set_option maxHeartbeats 4000000 in
 theorem impl : Obl.impl := by
   unfold Obl.impl
+  intro _ _ _ _
   exact Lemmas.delivery_job
 
 /-- Two notices of the outbox's first ones sent at once, each with its own faults, commute: one notice, or two

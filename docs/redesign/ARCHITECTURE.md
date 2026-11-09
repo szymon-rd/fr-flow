@@ -203,7 +203,7 @@ What a statement may say, so that its Lean meaning is the one written wherever i
   time, which the world moves on between runs and at each of the clock's steps; sharing's history and "now" are the
   World's, what its store, its mail server and its clock hold and when housekeeping last ran, its deadlines statements
   of every moment over rules of the World, each `cover_` with the code of what the program calls put in (2.7:
-  housekeeping keeping `nothingEndedAtHousekeeping` reads what "gone", "open" and "pending" mean as their code), its
+  housekeeping keeping `trashNotGoneAtHousekeeping` reads what "gone", "open" and "pending" mean as their code), its
   scheduler's tests run on a virtual clock (`ScheduleSuite`). The rule of housekeeping running beside the other
   programs (`housekeptLately`) is stopped, with what takes it as given, an open point for the owner (4.4, "Time").
   Auth's two tables, read in one moment only, stay provided (owner §48). Configuration fixed for the run (keycloak's
@@ -543,7 +543,7 @@ everything it reaches put in (`Callees.within`): each callee whose meaning is pr
 as that code, a fixed value as its value; a callee tested, assumed or provided stays open, and what is said of it enters
 only as a hypothesis, as `impl`'s `reliesOn` gives it (`Resolve.constrainingCalled`), each with the same code put in
 where it mentions a callee. So what a program keeps follows from what its callees do, not only from what is promised of
-them: housekeeping keeps sharing's `nothingEndedAtHousekeeping` by tidying as its code does. No hypothesis is the rule
+them: housekeeping keeps sharing's `trashNotGoneAtHousekeeping` by tidying as its code does. No hypothesis is the rule
 covered or rests on it (`Reads.restsOn`: the rule itself, or a claim taking the rule, or one among what such a claim is
 proven from), since the rule would then be kept by being assumed; an assumption taking the rule is trusted and rests on
 nothing (`CoverCircleSuite`: the picking's claim, read where every stamp is not negative, is no hypothesis of that

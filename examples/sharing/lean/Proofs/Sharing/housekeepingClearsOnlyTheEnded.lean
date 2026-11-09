@@ -1,8 +1,8 @@
 import FrFlowGen.Sharing.housekeepingClearsOnlyTheEnded.Spec
+import Proofs.Sharing.Lemmas
 
-/-! What tidying keeps is tidyContract's: a share it drops is not in force or of a document gone, an invitation not
-open, a document gone. And what has ended stays ended: each lifetime's end, once passed, stays passed as time goes
-on, whatever the lifetimes are. -/
+/-! What tidying keeps is tidyContract's: a share it drops is not in force or of a document gone, an invitation
+not open, a document gone. -/
 
 set_option autoImplicit false
 noncomputable section
@@ -13,19 +13,9 @@ open Sharing
 
 theorem impl : Obl.impl := by
   unfold Obl.impl
-  intros
-  refine ⟨fun lib t => ⟨⟨fun s hs => ?_, fun i hi => ?_⟩, fun doc hd => ?_⟩, fun t u htu => ⟨⟨?_, ?_⟩, ?_⟩⟩
-  all_goals try (simp only [tidyCode, ofGone, List.mem_filter, decide_eq_true_eq, decide_eq_true_iff]; grind)
-  · intro s hs hu
-    apply hs
-    intro e he
-    have := hu e he
-    omega
-  · intro i hi hu
-    apply hi
-    simp only [isOpenCode] at hu ⊢
-    omega
-  · intro doc ⟨a, ha, hat⟩
-    exact ⟨a, ha, by omega⟩
+  intro _ lib t
+  simp only [clearsOnlyTheEnded, endedShare]
+  refine ⟨⟨fun s hs => ?_, fun i hi => ?_⟩, fun doc hd => ?_⟩
+  all_goals (simp only [tidyCode, ofGone, List.mem_filter, decide_eq_true_eq, decide_eq_true_iff]; grind)
 
 end Sharing.housekeepingClearsOnlyTheEnded.Proofs

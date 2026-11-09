@@ -9,18 +9,16 @@ import sharing.time.Lifetimes.isOpen
 
 /** Invitations's claims: what its code is proven to do, each refining a branch or the purpose. */
 object InvitationsClaims:
-  val inviteContract = Node.claim("Someone who may edit a document or folder invites a person to it at a level: the " +
-      "invitation, sent now, takes the place of any earlier invitation of them to it. When anyone else asks, nothing " +
-      "changes.")(
+  val inviteContract = Node.claim("Inviting, asked by someone who may edit, puts an invitation sent now in place of " +
+      "any earlier invitation of the person to the same document or folder, and otherwise changes nothing.")(
     forall((lib: Term[Library], t: Term[BigInt], by: Term[PersonId], to: Term[PersonId], what: Term[Target],
         level: Term[Level]) => invite(lib, t, by, to, what, level) === when(mayEdit(lib, t, by, what))(
       lib.updated(_.invitations, make[Invitation](to, what, level, by, t) :: invitationsWithout(lib.invitations, to,
         what))).otherwise(lib)))
-    .refines(invitationsAreOffers)
+    .refines(onlyEditorsInvite, invitingGivesNoAccess)
 
-  val acceptContract = Node.claim("A person accepts their open invitation to a document or folder: they then have a " +
-      "share of it at the invitation's level, in place of any share of it they had, and the invitation goes. Without " +
-      "an open invitation, or when the document is their own (their share of it is the owner's), nothing changes.")(
+  val acceptContract = Node.claim("Accepting an open invitation to anything but the person's own document turns it " +
+      "into a share at its level, in place of any share they had, and otherwise changes nothing.")(
     forall((lib: Term[Library], t: Term[BigInt], p: Term[PersonId], what: Term[Target]) =>
       accept(lib, t, p, what) ===
         lib.invitations.find(i => i.to === p && i.what === what && isOpen(i, t)).fold(lib)(i =>
@@ -28,11 +26,11 @@ object InvitationsClaims:
             .updated(_.shares, make[Share](what, make[Grantee.Person](p), i.level, none[BigInt]) ::
               sharesWithout(lib.shares, what, make[Grantee.Person](p)))
             .updated(_.invitations, invitationsWithout(lib.invitations, p, what))))))
-    .refines(invitationsAreOffers)
+    .refines(onlyTheInvitedAccept)
 
-  val withdrawContract = Node.claim("Someone who may edit a document or folder withdraws a person's invitation to " +
-      "it: the invitation goes. When anyone else asks, nothing changes.")(
+  val withdrawContract = Node.claim("Withdrawing, asked by someone who may edit, removes the person's invitation to " +
+      "the document or folder, and otherwise changes nothing.")(
     forall((lib: Term[Library], t: Term[BigInt], by: Term[PersonId], to: Term[PersonId], what: Term[Target]) =>
       withdraw(lib, t, by, to, what) === when(mayEdit(lib, t, by, what))(
         lib.updated(_.invitations, invitationsWithout(lib.invitations, to, what))).otherwise(lib)))
-    .refines(invitationsAreOffers)
+    .refines(onlyEditorsInvite)

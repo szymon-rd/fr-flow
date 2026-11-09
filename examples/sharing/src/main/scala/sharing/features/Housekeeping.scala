@@ -19,6 +19,18 @@ object Housekeeping:
   val ofGone = define { (lib: Term[Library], t: Term[BigInt], s: Term[Share]) =>
     lib.documents.exists(doc => gone(doc, t) && s.what === make[Target.Doc](doc.id)) }
 
+  /** Whether a share has ended at a moment: it is no longer in force, or its document is gone. */
+  val endedShare = define { (lib: Term[Library], t: Term[BigInt], s: Term[Share]) =>
+    !inForce(s, t) || ofGone(lib, t, s) }
+
+  /** Whether whatever went from one library to another at a moment had ended: shares ended, invitations no longer
+    * open, documents gone.
+    */
+  val clearsOnlyTheEnded = define { (before: Term[Library], after: Term[Library], t: Term[BigInt]) =>
+    before.shares.forall(s => after.shares.contains(s) || endedShare(before, t, s)) &&
+      before.invitations.forall(i => after.invitations.contains(i) || !isOpen(i, t)) &&
+      before.documents.forall(doc => after.documents.contains(doc) || gone(doc, t)) }
+
   val tidyCode = define { (lib: Term[Library], t: Term[BigInt]) =>
     lib.updated(_.documents, lib.documents.filter(doc => !gone(doc, t)))
       .updated(_.shares, lib.shares.filter(s => inForce(s, t) && !ofGone(lib, t, s)))

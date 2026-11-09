@@ -122,13 +122,11 @@ import FrFlowGen.Sharing.declineContract.Spec
 import FrFlowGen.Old.ForgetContract.Spec
 import FrFlowGen.Sharing.forgetContract.Spec
 import FrFlowGen.Old.HousekeepingClearsOnlyTheEnded.Spec
-import FrFlowGen.Sharing.housekeepingClearsOnlyTheEnded.Spec
 import FrFlowGen.Old.InviteContract.Spec
 import FrFlowGen.Sharing.inviteContract.Spec
 import FrFlowGen.Old.MoveContract.Spec
 import FrFlowGen.Sharing.moveContract.Spec
 import FrFlowGen.Old.OwnersKeepTheirDocuments.Spec
-import FrFlowGen.Sharing.ownersKeepTheirDocuments.Spec
 import FrFlowGen.Old.RecordContract.Spec
 import FrFlowGen.Sharing.recordContract.Spec
 import FrFlowGen.Old.RestoreContract.Spec
@@ -407,13 +405,6 @@ theorem forgetContract_eq (forget : Library → Int → Library) :
     | exact Iff.rfl
     | (constructor <;> intro h <;> intros <;> rw [h] <;> (first | rfl | (congr 1) | simp))
 
-theorem housekeepingClearsOnlyTheEnded_eq (tidy : Library → Int → Library) (inForce : Share → Int → Prop) (gone : Document → Int → Prop) (isOpen : Invitation → Int → Prop) :
-    Old.HousekeepingClearsOnlyTheEnded.claim tidy inForce gone isOpen ↔ Sharing.housekeepingClearsOnlyTheEnded.claim tidy inForce gone isOpen := by
-  simp only [Old.HousekeepingClearsOnlyTheEnded.claim, Sharing.housekeepingClearsOnlyTheEnded.claim, PortEq.askCode_eq, PortEq.chaseCode_eq, PortEq.chaseNotices_eq, PortEq.chased_eq, PortEq.declineCode_eq, PortEq.holds_eq, PortEq.isFor_eq, PortEq.requestsWithout_eq, PortEq.recordCode_eq, PortEq.ofGone_eq, PortEq.tidyCode_eq, PortEq.invitationsWithout_eq, PortEq.inviteCode_eq, PortEq.withdrawCode_eq, PortEq.isOpenCode_eq, PortEq.isPendingCode_eq, PortEq.reminderDueCode_eq, PortEq.announceCode_eq, PortEq.endingNotices_eq, PortEq.endsInADay_eq, PortEq.firstOfEach_eq, PortEq.mailbox_eq, PortEq.noticesOf_eq, PortEq.reachedBy_eq, PortEq.taken_eq, PortEq.warnCode_eq, PortEq.accessCode_eq, PortEq.canEditCode_eq, PortEq.canViewCode_eq, PortEq.granteesOf_eq, PortEq.placesOf_eq, PortEq.shareCode_eq, PortEq.sharesWithout_eq, PortEq.strongest_eq, PortEq.unshareCode_eq, PortEq.owns_eq, PortEq.transferCode_eq, PortEq.mayRestore_eq, PortEq.restoreCode_eq, PortEq.trashCode_eq, PortEq.inForceCode_eq, PortEq.goneCode_eq, PortEq.mayMove_eq, PortEq.foldersAt_eq, PortEq.acceptCode_eq, PortEq.moveCode_eq, PortEq.makes_eq, PortEq.explains_eq, PortEq.forgetCode_eq, PortEq.approveCode_eq, PortEq.answerTo_eq]
-  all_goals first
-    | exact Iff.rfl
-    | (constructor <;> intro h <;> intros <;> rw [h] <;> (first | rfl | (congr 1) | simp))
-
 theorem inviteContract_eq (invite : Library → Int → PersonId → PersonId → Target → Level → Library) (mayEdit : Library → Int → PersonId → Target → Prop) :
     Old.InviteContract.claim mayEdit invite ↔ Sharing.inviteContract.claim invite mayEdit := by
   simp only [Old.InviteContract.claim, Sharing.inviteContract.claim, Old.InviteContract.post, PortEq.askCode_eq, PortEq.chaseCode_eq, PortEq.chaseNotices_eq, PortEq.chased_eq, PortEq.declineCode_eq, PortEq.holds_eq, PortEq.isFor_eq, PortEq.requestsWithout_eq, PortEq.recordCode_eq, PortEq.ofGone_eq, PortEq.tidyCode_eq, PortEq.invitationsWithout_eq, PortEq.inviteCode_eq, PortEq.withdrawCode_eq, PortEq.isOpenCode_eq, PortEq.isPendingCode_eq, PortEq.reminderDueCode_eq, PortEq.announceCode_eq, PortEq.endingNotices_eq, PortEq.endsInADay_eq, PortEq.firstOfEach_eq, PortEq.mailbox_eq, PortEq.noticesOf_eq, PortEq.reachedBy_eq, PortEq.taken_eq, PortEq.warnCode_eq, PortEq.accessCode_eq, PortEq.canEditCode_eq, PortEq.canViewCode_eq, PortEq.granteesOf_eq, PortEq.placesOf_eq, PortEq.shareCode_eq, PortEq.sharesWithout_eq, PortEq.strongest_eq, PortEq.unshareCode_eq, PortEq.owns_eq, PortEq.transferCode_eq, PortEq.mayRestore_eq, PortEq.restoreCode_eq, PortEq.trashCode_eq, PortEq.inForceCode_eq, PortEq.goneCode_eq, PortEq.mayMove_eq, PortEq.foldersAt_eq, PortEq.acceptCode_eq, PortEq.moveCode_eq, PortEq.makes_eq, PortEq.explains_eq, PortEq.forgetCode_eq, PortEq.approveCode_eq, PortEq.answerTo_eq]
@@ -424,13 +415,6 @@ theorem inviteContract_eq (invite : Library → Int → PersonId → PersonId �
 theorem moveContract_eq (move : Library → Int → PersonId → DocumentId → (Option FolderId) → Library) (mayEdit : Library → Int → PersonId → Target → Prop) :
     Old.MoveContract.claim mayEdit move ↔ Sharing.moveContract.claim move mayEdit := by
   simp only [Old.MoveContract.claim, Sharing.moveContract.claim, Old.MoveContract.post, PortEq.askCode_eq, PortEq.chaseCode_eq, PortEq.chaseNotices_eq, PortEq.chased_eq, PortEq.declineCode_eq, PortEq.holds_eq, PortEq.isFor_eq, PortEq.requestsWithout_eq, PortEq.recordCode_eq, PortEq.ofGone_eq, PortEq.tidyCode_eq, PortEq.invitationsWithout_eq, PortEq.inviteCode_eq, PortEq.withdrawCode_eq, PortEq.isOpenCode_eq, PortEq.isPendingCode_eq, PortEq.reminderDueCode_eq, PortEq.announceCode_eq, PortEq.endingNotices_eq, PortEq.endsInADay_eq, PortEq.firstOfEach_eq, PortEq.mailbox_eq, PortEq.noticesOf_eq, PortEq.reachedBy_eq, PortEq.taken_eq, PortEq.warnCode_eq, PortEq.accessCode_eq, PortEq.canEditCode_eq, PortEq.canViewCode_eq, PortEq.granteesOf_eq, PortEq.placesOf_eq, PortEq.shareCode_eq, PortEq.sharesWithout_eq, PortEq.strongest_eq, PortEq.unshareCode_eq, PortEq.owns_eq, PortEq.transferCode_eq, PortEq.mayRestore_eq, PortEq.restoreCode_eq, PortEq.trashCode_eq, PortEq.inForceCode_eq, PortEq.goneCode_eq, PortEq.mayMove_eq, PortEq.foldersAt_eq, PortEq.acceptCode_eq, PortEq.moveCode_eq, PortEq.makes_eq, PortEq.explains_eq, PortEq.forgetCode_eq, PortEq.approveCode_eq, PortEq.answerTo_eq]
-  all_goals first
-    | exact Iff.rfl
-    | (constructor <;> intro h <;> intros <;> rw [h] <;> (first | rfl | (congr 1) | simp))
-
-theorem ownersKeepTheirDocuments_eq (transfer : Library → Int → PersonId → DocumentId → PersonId → Library) (mayEdit : Library → Int → PersonId → Target → Prop) (ownedBy : Library → Target → Grantee → Prop) (unshare : Library → Int → PersonId → Target → Grantee → Library) (share : Library → Int → PersonId → Share → Library) :
-    Old.OwnersKeepTheirDocuments.claim transfer mayEdit ownedBy unshare share ↔ Sharing.ownersKeepTheirDocuments.claim transfer mayEdit ownedBy unshare share := by
-  simp only [Old.OwnersKeepTheirDocuments.claim, Sharing.ownersKeepTheirDocuments.claim, PortEq.askCode_eq, PortEq.chaseCode_eq, PortEq.chaseNotices_eq, PortEq.chased_eq, PortEq.declineCode_eq, PortEq.holds_eq, PortEq.isFor_eq, PortEq.requestsWithout_eq, PortEq.recordCode_eq, PortEq.ofGone_eq, PortEq.tidyCode_eq, PortEq.invitationsWithout_eq, PortEq.inviteCode_eq, PortEq.withdrawCode_eq, PortEq.isOpenCode_eq, PortEq.isPendingCode_eq, PortEq.reminderDueCode_eq, PortEq.announceCode_eq, PortEq.endingNotices_eq, PortEq.endsInADay_eq, PortEq.firstOfEach_eq, PortEq.mailbox_eq, PortEq.noticesOf_eq, PortEq.reachedBy_eq, PortEq.taken_eq, PortEq.warnCode_eq, PortEq.accessCode_eq, PortEq.canEditCode_eq, PortEq.canViewCode_eq, PortEq.granteesOf_eq, PortEq.placesOf_eq, PortEq.shareCode_eq, PortEq.sharesWithout_eq, PortEq.strongest_eq, PortEq.unshareCode_eq, PortEq.owns_eq, PortEq.transferCode_eq, PortEq.mayRestore_eq, PortEq.restoreCode_eq, PortEq.trashCode_eq, PortEq.inForceCode_eq, PortEq.goneCode_eq, PortEq.mayMove_eq, PortEq.foldersAt_eq, PortEq.acceptCode_eq, PortEq.moveCode_eq, PortEq.makes_eq, PortEq.explains_eq, PortEq.forgetCode_eq, PortEq.approveCode_eq, PortEq.answerTo_eq]
   all_goals first
     | exact Iff.rfl
     | (constructor <;> intro h <;> intros <;> rw [h] <;> (first | rfl | (congr 1) | simp))

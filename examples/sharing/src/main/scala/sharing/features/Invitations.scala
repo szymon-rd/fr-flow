@@ -21,6 +21,10 @@ object Invitations:
   val invitationsWithout = define { (is: Term[List[Invitation]], to: Term[PersonId], what: Term[Target]) =>
     is.filter(i => !(i.to === to && i.what === what)) }
 
+  /** Whether the library holds an open invitation of a person to a document or folder at a moment. */
+  val openInvitation = define { (lib: Term[Library], t: Term[BigInt], p: Term[PersonId], what: Term[Target]) =>
+    lib.invitations.exists(i => i.to === p && i.what === what && isOpen(i, t)) }
+
   val inviteCode = define { (lib: Term[Library], t: Term[BigInt], by: Term[PersonId], to: Term[PersonId],
       what: Term[Target], level: Term[Level]) =>
     when(mayEdit(lib, t, by, what))(lib.updated(_.invitations,
