@@ -283,7 +283,7 @@ or calls an outside system. Three shapes:
   `inRoom(request.room)`; its plain Scala is tested against the model on generated sequences of calls (3.8). The
   operations of one system are separate Definitions, not a trait (owner §36: "A for now").
 - **A Definition known only by assumptions**: plain Scala with assumptions saying what is trusted of it (keycloak's
-  `lookup` with `sessionLookup`, crm's `fetch` with `recordsByQuery`). Lean takes it as unknown with the assumptions as
+  `lookup` with `sessionLookup`, crm's `fetch` with `fetchesOnlyMatches`). Lean takes it as unknown with the assumptions as
   hypotheses; its Scala is tested against them where a case can be evaluated, trusted otherwise (`show`, `check` and
   `status` say "trusted, not tested", `Assumed.untested`). An operation on a state with no `StateModel` is the same
   case: its assumptions are written as runs (`op(x).result`, `op(x).after`), and Lean takes it as an unknown run that
@@ -591,7 +591,7 @@ its callee's `m_<callee>` (`Made.taken`); `holds` and `root_impl` thread the sam
 `made_` is not proven, or the `made_` of a maker it calls in turn (`Made.resting`), is unproven (`Unproven.Kept`),
 so a maker breaking its rule, itself or through its callee, leaves the step red (`SeededSuite`). A `made_` that
 rests on the statement being proven (`Resolve.provenFrom` and parts, from what relies on the maker and its callees)
-is not taken: no circle. crm's `storeMirrorsRequests` is proven so, given `oneRowPerKey` and `keyedTables` of `save`
+is not taken: no circle. crm's `sharesMirrorGrants` is proven so, given `oneRowPerKey` and `keyedTables` of `save`
 and `expire`.
 (step 12 ruling)
 
@@ -695,7 +695,7 @@ enum Witness:
   (`booked(now) === storedBookings.in(now)` beside `booked(now) === Nil`) would prove any root; only their group shows
   they cannot both hold. What makes a group proven is an equation, a bound, a fixed value, proven code, or the
   developer's proof of `consistent_<i>`; tested Scala alone (`Evidence`) is not. A hand-written proof is how a group
-  of promises that are not equations is proven (keycloak's `sessionLookup`, crm's `recordsByQuery`, with today's
+  of promises that are not equations is proven (keycloak's `sessionLookup`, crm's `fetchesOnlyMatches`, with today's
   `storedSession` and `storedMatching` as witnesses); an agent may write it, Lean checks it, and the developer decides
   the nodes as usual (owner §39).
 - **Of an operation known only by assumptions** (4.4), a group binds the operation, a function of its own model's
@@ -1414,7 +1414,7 @@ no proof takes as given what it is to show (the review's B3); the circles `Valid
 `complete` and `impl` takes (`Resolve.below`). Its results are values from outside (owner §37, `AssumedMakes`, 2.3).
 An assumption about it that its model's runs cannot evaluate (not read as a run of it, or its post with no Scala
 value) is trusted, not tested, and `show`, `check` and `status` say so (`Checking.TrustedUntested`,
-`Assumed.Untested`, `Warning.TrustedUntested`). Crm's screens are programs calling the database's `fetch` (`recordsByQuery`, `searchKeeps`)
+`Assumed.Untested`, `Warning.TrustedUntested`). Crm's screens are programs calling the database's `fetch` (`fetchesOnlyMatches`, `fetchesEveryMatch`, `searchKeeps`)
 and reading the clock, its write side and expiry job programs over the database; keycloak's server programs over its
 store, whose storing and index are assumed (`storeLogs`, `lookupKeeps`): so their histories and what they hold are
 the World's (owner §45 D), the rules of what each holds (crm's `crmRun`, `oneRowPerKey`; keycloak's `serverRun`,
@@ -1863,7 +1863,7 @@ went:
 
 - a contract's result, the rules it keeps: `PropertyTests` (every claim, each `always[T]` of the call's values) and
   the examples, the same judgement (`CallCheck`) before production;
-- an outside system's adapter (crm's `recordsByQuery`, keycloak's `sessionLookup`): `PropertyTests` against its
+- an outside system's adapter (crm's `fetchesOnlyMatches`, keycloak's `sessionLookup`): `PropertyTests` against its
   assumption, examples, `ModelTests`; crm's seeded SQL bug is caught by `check`, but a bug only real data shows is no
   longer caught when it happens;
 - facts about a service's values (sharing's `HousekeepingOnTime`): checked under examples' and tests' values only,

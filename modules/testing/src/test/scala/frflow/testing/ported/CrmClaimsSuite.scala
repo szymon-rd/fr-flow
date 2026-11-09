@@ -10,18 +10,18 @@ import rooms.RoomsIr
   * a run from the world before. (Their Lean, byte for byte as today's, is `proof`'s.)
   */
 class CrmClaimsSuite extends munit.FunSuite:
-  test("saveWrite, a run from the world it holds in: it reads as a run of save, its post over w, result, world, " +
+  test("saveReturns, a run from the world it holds in: it reads as a run of save, its post over w, result, world, " +
     "after, with no failing side") {
-    RoomsIr.call(saveWrite.alone) match
+    RoomsIr.call(saveReturns.alone) match
       case CallForm.Run(op, post, failure) =>
         assertEquals((op, post.value.params.map(_.hint), failure), (SymbolName("save"),
           List("w", "result", "world", "after"), None))
       case other => fail(other.toString)
   }
 
-  test("expiryJob, a run from the world it holds in: it reads as a run of runExpiry, its post over now, result, " +
-    "world, after, with no failing side") {
-    RoomsIr.call(expiryJob.alone) match
+  test("jobReturnsExpired, a run from the world it holds in: it reads as a run of runExpiry, its post over now, " +
+    "result, world, after, with no failing side") {
+    RoomsIr.call(jobReturnsExpired.alone) match
       case CallForm.Run(op, post, failure) =>
         assertEquals((op, post.value.params.map(_.hint), failure), (SymbolName("runExpiry"),
           List("now", "result", "world", "after"), None))

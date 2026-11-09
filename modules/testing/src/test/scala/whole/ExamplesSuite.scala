@@ -55,11 +55,21 @@ class ExamplesSuite extends munit.FunSuite:
     "time, an assumption; the tables' one row per key a claim, with what the stores from outside meet and what the " +
     "database starts with (owner §40, 2.6); what the CRM holds the World's (owner §45 D): storing the rows about a " +
     "record the model's, no assumption, the search known only by what is assumed of it; the clock the World's time " +
-    "(owner §47), no assumption") {
-    assertEquals(ids(crm.knowledge), renamed(Today.crm, Set("storeEdits"), Set("addedIsFound", "writesLeaveOthers",
-      "ownership", "searchesAsk", "runsOneAtATime", "keyedTables", "tablesStartEmpty", "oneRowPerKey",
-      "searchKeeps")))
+    "(owner §47), no assumption; each node bundling several facts split into parts, searchesMatch implied by " +
+    "visibility") {
+    assertEquals(ids(crm.knowledge), renamed(Today.crm, Set("storeEdits", "searchesMatch", "recordsByQuery",
+      "saveWrite", "expiryJob"),
+      Set("addedIsFound", "writesLeaveOthers", "ownership", "searchesAsk", "runsOneAtATime", "keyedTables",
+        "tablesStartEmpty", "oneRowPerKey", "searchKeeps", "readers", "expirySchedule", "databaseLock") ++
+        crmParts))
   }
+
+  /** Crm's parts: each one fact of a node of today's that bundled several. */
+  private val crmParts = Set("recordsMirrorAdds", "sharesMirrorGrants", "fetchesOnlyMatches", "fetchesEveryMatch",
+    "readsOnlyMatching", "readsOnlyReadable", "readsAllReadable", "dealsOnlyMatching", "dealsOnlyDeals",
+    "dealsOnlyReadable", "dealsAllReadable", "writeKeepsRecords", "writeKeepsOthers", "writeDoesAsked",
+    "writeOnlyAsked", "saveStores", "saveLogs", "saveReturns", "expiryKeepsRecords", "expiryKeepsLiveShares",
+    "expiryKeepsLiveTimes", "jobStoresExpired", "jobLogsRun", "jobReturnsExpired")
 
   test("crm: the purpose and its two general expectations are roots (owner §22), each expectation proven from what " +
     "a search returns and what the CRM holds") {
@@ -139,12 +149,17 @@ class ExamplesSuite extends munit.FunSuite:
     yield n.value -> part.value
 
   test("crm: the roots and the read side's claims, each about the screens' runs, rest on parts about those runs, " +
-    "not read as calls of what the code calls") {
+    "not read as calls of what the code calls; each node split into parts rests on its parts, about its own code") {
     assertEquals(notAboutCallees(crm.knowledge), List("addedIsFound" -> "storeMirrorsRequests",
       "addedIsFound" -> "visibility", "writesLeaveOthers" -> "storeMirrorsRequests",
       "writesLeaveOthers" -> "visibility",
-      "visibility" -> "searchesMatch", "noCrossTenantRead" -> "readContract", "noCrossTenantRead" -> "dealSearch",
-      "searchesMatch" -> "readContract", "searchesMatch" -> "dealSearch"))
+      "visibility" -> "readContract", "visibility" -> "dealSearch", "noCrossTenantRead" -> "readsOnlyReadable",
+      "noCrossTenantRead" -> "dealsOnlyReadable", "readContract" -> "readsOnlyMatching",
+      "readContract" -> "readsOnlyReadable", "readContract" -> "readsAllReadable", "dealSearch" -> "dealsOnlyMatching",
+      "dealSearch" -> "dealsOnlyDeals", "dealSearch" -> "dealsOnlyReadable", "dealSearch" -> "dealsAllReadable",
+      "writeContract" -> "writeKeepsRecords", "writeContract" -> "writeKeepsOthers",
+      "writeContract" -> "writeDoesAsked", "writeContract" -> "writeOnlyAsked", "sharesExpire" -> "expiryKeepsRecords",
+      "sharesExpire" -> "expiryKeepsLiveShares", "sharesExpire" -> "expiryKeepsLiveTimes"))
   }
 
   test("sharing: its branches rest on the claims on their own operations' code, not on what that code calls") {
