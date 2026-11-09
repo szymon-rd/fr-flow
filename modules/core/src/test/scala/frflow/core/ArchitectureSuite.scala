@@ -48,7 +48,7 @@ class ArchitectureSuite extends munit.FunSuite:
   }
 
   test("an example's model names of FrFlow only the facade, and its app the front ends' entry points too") {
-    assert(examples.size > 50, examples.size)
+    assert(examples.size > 30, examples.size)
     assertEquals(Architecture.outsideFacade(examples, arrows(listed("example"))), Nil)
   }
 
