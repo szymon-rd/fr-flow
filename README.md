@@ -425,7 +425,7 @@ sbt "frflowInit toy --as NAME"       # an empty project in examples/toy, NAME it
 sbt reload
 bin/frflow toy status                # compiles on first use
 sbt "toy/serve --as NAME"            # the web view on localhost, deciding as NAME
-bin/frflow rooms status              # an example: rooms, auth, keycloak, crm, sharing
+bin/frflow rooms status              # an example: rooms, auth, keycloak, crm
 ```
 
 `sbt "frflowInitAgent toy --as NAME"` creates one with the agent layer enabled. `sbt test` runs FrFlow's fast tests;
@@ -445,8 +445,6 @@ yet: each starts with no ledger, for its developer to decide. FrFlow's own suite
   history of requests, and its store's lookup is known only by what is assumed of it.
 - `crm` is a multi-tenant CRM on SQLite with an HTTP API. Its expiry job is a program over the database, proven from
   the database's model.
-- `sharing` shares documents, folders and teams between people, with expiring shares, invitations, a trash, access
-  requests, notifications and an audit log. Time, failures and concurrency are modelled.
 
 ## References
 

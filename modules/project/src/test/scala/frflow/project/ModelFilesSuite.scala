@@ -79,21 +79,4 @@ class ModelFilesSuite extends munit.FunSuite:
     assertEquals(Governance.governed(Set(own), CodeFile(own, List("free"))), Some(Governed.Named(own, List("free"))))
   }
 
-  test("sharing: Delivery, a program's steps, needs no node and is not the model's own; Mailer, vocabulary, is; " +
-    "the SQLite store is neither") {
-    // As the model records them: relative to the build.
-    val t = Projects.elaborated(_root_.sharing.knowledge).theory
-    val sources = Using.resource(Files.walk(Projects.base.resolve("examples/sharing/src/main")))(_.iterator.asScala
-      .toList).filter(p => p.toString.endsWith(".scala"))
-      .map(p => path(Projects.base.relativize(p).toString) -> Files.readString(p)).toMap
-    val (own, accounted) = (ModelFiles.own(t, sources), ModelFiles.accounted(t, sources))
-    val at = "examples/sharing/src/main/scala/sharing/"
-    val (delivery, mailer, store) = (path(at + "notifications/Delivery.scala"), path(at + "notifications/Mailer.scala"),
-      path(at + "store/SqliteLibraryStore.scala"))
-    assert(t.own.referred.get(delivery).exists(_.contains("Delivery")), t.own.referred)
-    assertEquals((own(delivery), accounted(delivery)), (false, true))
-    assertEquals((own(mailer), accounted(mailer)), (true, true))
-    assertEquals((own(store), accounted(store)), (false, false))
-  }
-
   private def path(p: String): RelPath = RelPath.parse(p).getOrElse(fail(s"no path $p"))

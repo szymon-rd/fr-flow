@@ -8,8 +8,7 @@ import frflow.project.check.CheckPlan
   * on among them, but its ancestors and, of a root proven of code, the other such roots (no circle orders them).
   */
 class CheckPlanSuite extends munit.FunSuite:
-  // Elaborating and laying out sharing takes about 8 s alone, past munit's 30 s when the whole build runs at once
-  // (the step 13d sixth pass's C1).
+  // Elaborating and laying out crm takes several seconds; past munit's 30 s when the whole build runs at once.
   override val munitTimeout: scala.concurrent.duration.Duration = scala.concurrent.duration.Duration(2, "minutes")
   private val models: List[(String, () => Elaborated)] = List("crm" -> (() => Projects.elaborated(crm.knowledge)),
     "keycloak" -> (() => Projects.elaborated(keycloak.knowledge)), "rooms" -> (() => Projects.rooms))
@@ -26,11 +25,3 @@ class CheckPlanSuite extends munit.FunSuite:
     }
   }
 
-  test("sharing: what its code relies on goes round (claims about callees mentioning what housekeeping's code " +
-    "calls); every node is still checked after each of its parts") {
-    val a = Projects.bare(Projects.elaborated(sharing.knowledge))
-    val level = CheckPlan.levels(a, None).zipWithIndex.flatMap((ns, i) => ns.map(_ -> i)).toMap
-    val late = level.keys.toList.flatMap(n => a.decided.theory.refinement.parts(n).filter(level.contains)
-      .filterNot(p => level(p) < level(n)).map(n.value -> _.value))
-    assertEquals(late, Nil)
-  }

@@ -7,8 +7,7 @@ import frflow.dsl.kb.FrModel
   */
 object Today:
   val all: List[(String, FrModel)] = List("rooms" -> _root_.rooms.rooms,
-    "auth" -> _root_.auth.knowledge, "keycloak" -> _root_.keycloak.knowledge, "crm" -> _root_.crm.knowledge,
-    "sharing" -> _root_.sharing.knowledge)
+    "auth" -> _root_.auth.knowledge, "keycloak" -> _root_.keycloak.knowledge, "crm" -> _root_.crm.knowledge)
 
   /** Today's rooms as `reference/rooms` captured it (526fe35): seventeen nodes. */
   val rooms: Set[String] = Set("bookWhenFree", "acceptWhenFree", "bookedIsStored", "bookedAfterIsStored",
@@ -31,14 +30,3 @@ object Today:
     "saveWrite", "storeEdits", "writeSideWiring", "sharesExpire", "tablesModel", "expiryJob", "expiryJobWiring",
     "httpApi")
 
-  val sharing: Set[String] = Set("reach", "cover", "permission", "inTrash", "ownersShare", "accessFollowsShares",
-    "invitationsAreOffers", "trashUntilGone", "housekeepingClearsOnlyTheEnded", "accessRequestsAreAsks",
-    "ownersKeepTheirDocuments", "auditTrail", "noticesFollowChanges", "accessContract", "canViewContract",
-    "canEditContract", "shareContract", "unshareContract", "moveContract", "inviteContract", "acceptContract",
-    "withdrawContract", "trashContract", "restoreContract", "askContract", "approveContract", "declineContract",
-    "chaseContract", "transferContract", "recordContract", "forgetContract", "announceContract", "warnContract",
-    "tidyContract", "housekeepingJob", "deliveryJob", "invitationLifetime", "trashLifetime", "requestLifetime",
-    "housekeepingPeriod", "inForceContract", "isOpenContract", "goneContract", "pendingContract",
-    "reminderDueContract", "trashPurgedOnTime", "invitationsLapseOnTime", "requestsAnsweredOnTime",
-    "endedStaysEnded", "clockNeverGoesBack", "housekeepingOnTime", "libraryKept", "transactions", "mailerKept",
-    "clockKept", "handleContract", "serverWiring", "domainTypes")

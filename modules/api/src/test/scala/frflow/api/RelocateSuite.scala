@@ -67,13 +67,4 @@ class RelocateSuite extends munit.CatsEffectSuite:
       assertEquals(warnings, Nil)
   }
 
-  test("what a model's vocabulary and programs refer to is made relative to the project too: sharing's delivery") {
-    val sharing = Relocate(Projects.elaborated(_root_.sharing.knowledge), Projects.base,
-      Projects.base.resolve("examples/sharing"))
-    assert(sharing.theory.own.referred.contains(path("src/main/scala/sharing/notifications/Delivery.scala")),
-      sharing.theory.own.referred.keySet)
-    assert(sharing.theory.own.vocabulary.contains(path("src/main/scala/sharing/notifications/Mailer.scala")),
-      sharing.theory.own.vocabulary.keySet)
-  }
-
   private def path(p: String): RelPath = RelPath.parse(p).getOrElse(fail(s"no path $p"))

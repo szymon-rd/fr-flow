@@ -95,3 +95,11 @@ class LeanShapeSuite extends munit.FunSuite:
     assertEquals(root.split(java.util.regex.Pattern.quote(let)).length - 1, 1, root)
     assert(root.contains("(h_expiryKeepsRecords := p_expiryKeepsRecords)"), root)
   }
+
+  test("a cover_ puts in the code of what the program calls, as impl does: the expiry job's run keeps one row per key " +
+    "with expire's own code put in") {
+    val covers = Projects.bare(Projects.elaborated(knowledge)).modules.map(Print.module)
+      .flatMap(_.linesIterator.dropWhile(!_.contains("def cover_runExpiry")).take(3)).mkString("\n")
+    assert(covers.contains("def cover_runExpiry"), covers)
+    assert(covers.contains("Crm.expireCode"), covers)
+  }

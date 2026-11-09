@@ -15,7 +15,7 @@ on top, which a project enables, for an agent that proposes the nodes and writes
 Requirements: JDK 17+, sbt, and Lean 4.35.0 (`lake` on the `PATH`, or `FRFLOW_LAKE`). `bin/frflow PROJECT COMMAND`
 runs a project's CLI on the terminal, with colors and the interactive review, compiling with sbt on first use and
 after a change; `sbt "PROJECT/run COMMAND"` runs it through sbt, plain. `--help` lists the commands. A project is
-`examples/PROJECT`; FrFlow's own five (`rooms`, `auth`, `keycloak`, `crm`, `sharing`) are there too.
+`examples/PROJECT`; FrFlow's own four (`rooms`, `auth`, `keycloak`, `crm`) are there too.
 
 FrFlow's own tests: `sbt test` runs the fast ones (a few minutes); the ones that run Lean end to end (tagged `Lean`)
 run with `sbt leanTest`; `sbt testAll` runs both. Per module, `sbt core/test`, `sbt project/test` and so on; eval's
@@ -302,7 +302,7 @@ parametrised set, for a variant of the model) turns `status` red: give it a cons
 the model as written, or keep it out of the test classes `check` reads (a suite's own test sources, not the
 model's). Two classes of one
 model of one name are refused (their theorems would be one). In a project `init` made, the examples also run with `sbt PROJECT/test` (FrFlow's test framework,
-which `init` adds). FrFlow's own five are not run that way: their model projects (`roomsModel`, …) have no test
+which `init` adds). FrFlow's own four are not run that way: their model projects (`roomsModel`, …) have no test
 framework, since testing's tests depend on them; their examples run in testing's `ExamplesSuite` and in each one's
 `PortSuite` (`sbt test`).
 

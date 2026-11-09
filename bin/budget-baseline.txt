@@ -42,8 +42,6 @@ params modules/eval/src/main/scala/frflow/eval/term/Evaluate.scala fails
 params modules/eval/src/main/scala/frflow/eval/term/Evaluate.scala runs
 params modules/eval/src/main/scala/frflow/eval/term/RunContainers.scala foldEither
 params modules/eval/src/main/scala/frflow/eval/term/RunLists.scala foldLeft
-params modules/project/src/test/scala/sharing/SeededSuite.scala ran
-params modules/project/src/test/scala/sharing/SeededSuite.scala timed
 params modules/proof/src/main/scala/frflow/proof/lean/lower/LowerModels.scala lemma
 params modules/proof/src/main/scala/frflow/proof/lean/lower/LowerProp.scala inner
 params modules/proof/src/main/scala/frflow/proof/lean/lower/LowerProp.scala named

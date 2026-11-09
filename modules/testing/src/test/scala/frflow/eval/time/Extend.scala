@@ -29,6 +29,6 @@ object Extend:
   val model: FrModel = FrModel("Extend")(stays, extends_, onTime, clockStarts, housekeptStarts, housekeptKept,
       housekeptOne)
     .implementProven(extend)(extendCode)
-    .implementTested(ranAt)(start = sharing.time.Housekept.at, observe = _.last)(h => Tuple1(h.ranAt))
+    .implementTested(ranAt)(start = Housekept.at, observe = _.last)(h => Tuple1(h.ranAt))
     .implementTested(Clock.now, Clock.sleep, Clock.elapse)(start = Wall.at[IO], observe = _.time)(c =>
       (c.now, c.sleep, c.elapse))

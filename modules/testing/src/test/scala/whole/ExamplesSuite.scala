@@ -94,37 +94,13 @@ class ExamplesSuite extends munit.FunSuite:
     assertEquals(written.map(_.examples.size), List(2, 5, 11, 6, 4))
   }
 
-  test("sharing: today's, with the store's and the mail server's runs one at a time, assumptions; the definitions " +
-    "of two words each are a claim per word, today's id kept for the first; the pool of connections a run of " +
-    "delivery takes from and gives back (its bracket), its model's assumptions and its claim; the purpose's may edit " +
-    "and is in the trash, Declarations, each with the claim saying what it is; the run the World's (owner §45 D, " +
-    "§47): time never going back a claim of the clock, today's schedule a schedule of it, when housekeeping last ran " +
-    "a model with its assumptions, what the branches hold at every moment rules of the World, each model's start; " +
-    "every statement small: each composite statement a parent of its smaller statements") {
-    val newParts = Set("viewFollowsShares", "editFollowsShares", "onlyEditorsShare", "onlyEditorsUnshare",
-      "onlyEditorsMove", "onlyEditorsInvite", "invitingGivesNoAccess", "onlyTheInvitedAccept", "onlyEditorsTrash",
-      "restoredOnlyBeforeGone", "askingChangesNothingKept", "onlyEditorsAnswer", "approvedOnlyWhilePending",
-      "onlyTheOwnerHandsOn", "newOwnerOwnsForGood", "nobodyUnsharesAnOwner", "nobodyReplacesAnOwner",
-      "viewingRestsOnTheLog", "remindersOnTime",
-      "endedSharesStayEnded", "lapsedInvitationsStayLapsed", "goneDocumentsStayGone", "trashNotGoneAtHousekeeping",
-      "invitationsOpenAtHousekeeping", "requestsPendingAtHousekeeping", "remindedAtHousekeeping", "sharesLogged",
-      "noticesLogged", "housekeepingRunsCleanly", "failedHousekeepingChangesNothing", "housekeepingNotesItsRun",
-      "housekeepingSendsNoMail", "failedDeliveryChangesNothing", "deliveryOnlyEmptiesTheOutbox",
-      "deliveryTakesOutOnlyWhatWasSent", "deliveryTouchesOnlyWhatItSends", "jobsWiring")
-    assertEquals(ids(sharing.knowledge), renamed(Today.sharing, Set("clockNeverGoesBack", "clockKept"), Set(
-      "oneTransactionAtATime", "mailOneAtATime", "editPermission", "reminderTime", "deliveryGivesBack",
-      "poolKept", "poolOneAtATime", "whoMayEdit", "whatIsTrashed", "timeMovesOn", "housekeptLately",
-      "clockStarts", "housekeptStarts", "housekeptKept", "housekeptOneAtATime", "libraryStarts") ++ newParts))
-    assertEquals(kinds(sharing.knowledge), Map("claim" -> 93, "assumption" -> 12, "design" -> 4))
+  test("the four examples are valid as written") {
+    assertEquals(List(rooms.rooms, auth.knowledge, keycloak.knowledge, crm.knowledge)
+      .map(Theories.problems), List.fill(4)(Nil))
   }
 
-  test("the five examples are valid as written") {
-    assertEquals(List(rooms.rooms, auth.knowledge, keycloak.knowledge, crm.knowledge, sharing.knowledge)
-      .map(Theories.problems), List.fill(5)(Nil))
-  }
-
-  test("no example's proofs go round: what each node is proven from, followed down, never reaches it (crm and " +
-    "sharing had circles through what their leaves relied on)") {
+  test("no example's proofs go round: what each node is proven from, followed down, never reaches it (crm had " +
+    "circles through what their leaves relied on)") {
     Today.all.foreach { (name, kb) =>
       val r = Theories.resolved(kb)
       val ids = r.theory.nodes.map(_.node.id)
@@ -142,11 +118,8 @@ class ExamplesSuite extends munit.FunSuite:
         n.value -> Ty.errorOf(ty)
     }.toMap
 
-  test("each program's type says what it may fail with: sharing's, over the store and the mail server that may be " +
-    "down, their failure; rooms' and crm's (the screens, the write side, the expiry job) nothing") {
-    val failure = frflow.dsl.term.LeanType[sharing.domain.Failure].ty
-    assertEquals(errors(sharing.knowledge), Map("handle" -> Some(failure), "housekeep" -> Some(failure),
-      "deliver" -> Some(failure)))
+  test("each program's type says what it may fail with: rooms' and crm's (the screens, the write side, the expiry " +
+    "job) nothing") {
     assertEquals((errors(rooms.rooms), errors(crm.knowledge)), (Map("book" -> None),
       Map("read" -> None, "deals" -> None, "save" -> None, "runExpiry" -> None)))
   }
@@ -178,13 +151,3 @@ class ExamplesSuite extends munit.FunSuite:
       "sharesExpire" -> "expiryKeepsLiveShares", "sharesExpire" -> "expiryKeepsLiveTimes"))
   }
 
-  test("sharing: its branches, and their parts, rest on the claims on their own operations' code, not on what that " +
-    "code calls") {
-    val parts = notAboutCallees(sharing.knowledge)
-    assertEquals(parts.map(_._1).distinct.toSet, Set("accessFollowsShares", "viewFollowsShares", "editFollowsShares",
-      "onlyEditorsMove", "invitationsAreOffers", "onlyEditorsInvite", "trashUntilGone", "onlyEditorsTrash",
-      "housekeepingClearsOnlyTheEnded", "accessRequestsAreAsks", "askingChangesNothingKept", "onlyEditorsAnswer",
-      "ownersKeepTheirDocuments", "onlyTheOwnerHandsOn", "auditTrail", "viewingRestsOnTheLog", "endedStaysEnded",
-      "endedSharesStayEnded", "housekeepingRunsCleanly", "deliveryJob"))
-    assertEquals(parts.size, 54)
-  }

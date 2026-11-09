@@ -47,7 +47,7 @@ def module(name: String, libraries: ModuleID*) = Project(name, file(s"modules/$n
 
 lazy val root = project.in(file("."))
   .aggregate(core, dsl, proof, eval, testing, decision, wire, shell, api, cli, web, agent,
-    roomsModel, rooms, authModel, auth, keycloakModel, keycloak, crmModel, crm, sharingModel, sharing)
+    roomsModel, rooms, authModel, auth, keycloakModel, keycloak, crmModel, crm)
   .configs(LeanTest).settings(leanTagged)
   .settings(publish / skip := true)
 
@@ -78,7 +78,7 @@ lazy val testing = module("testing", cats, catsEffect, roomsTable, "org.scala-sb
   .settings(libraryDependencies ++= lawTests :+ "org.typelevel" %% "cats-laws" % "2.13.0" % Test,
     testFrameworks += TestFramework("frflow.testing.examples.ExamplesFramework"))
   .dependsOn(eval % "compile->compile;test->test", roomsModel % "test->test", authModel % "test->test",
-    keycloakModel % "test->test", crmModel % "test->test", sharingModel % "test->test")
+    keycloakModel % "test->test", crmModel % "test->test")
 
 /** The developer's decisions: content, the ledger, the deciders, review, the rules of each command. */
 lazy val decision = module("decision", cats).dependsOn(core)
@@ -200,5 +200,3 @@ lazy val crmModel = exampleModel("crm")
 lazy val crm = exampleApp("crm", crmModel)
 
 /** People, teams, documents and folders: who can view and edit what, and who may change it. */
-lazy val sharingModel = exampleModel("sharing")
-lazy val sharing = exampleApp("sharing", sharingModel)
