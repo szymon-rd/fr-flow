@@ -1,5 +1,5 @@
 formula:
-  (∀ (x : Booking), (∀ (x_1 : World), ((bookedAfter x x_1) = (if (Rooms.free (booked x_1) x) then ((booked x_1) ++ [x]) else (booked x_1)))))
+  (∀ (x : Booking), (∀ (x_1 : World), ((bookedAfter x x_1) = (Rooms.addedIfFree (booked x_1) x))))
   
   ...
   

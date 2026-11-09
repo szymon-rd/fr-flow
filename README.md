@@ -317,7 +317,7 @@ but the change reaches every claim, so all 12 go back to the developer. `bin/frf
 
 ```text
 ! bookWhenFree  claim (a root)  to review
-  A request is booked exactly when its room is free for its whole time.
+  Once a request is handled, the bookings are those before it, with the request added if its room is free for its whole time.
 
 Decision
   to review: it changed
@@ -327,7 +327,7 @@ Decision
 
 ```text
 formula:
-  (∀ (x : Booking), (∀ (x_1 : World), ((bookedAfter x x_1) = (if (Rooms.free (booked x_1) x) then ((booked x_1) ++ [x]) else (booked x_1)))))
+  (∀ (x : Booking), (∀ (x_1 : World), ((bookedAfter x x_1) = (Rooms.addedIfFree (booked x_1) x))))
   
   ...
   

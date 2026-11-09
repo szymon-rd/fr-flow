@@ -1,7 +1,7 @@
-o bookWhenFree  claim  accepted  A request is booked exactly when its room is free for its whole time.
+o bookWhenFree  claim  accepted  Once a request is handled, the bookings are those before it, with the request added if its room is free for its whole time.
   o bookedIsStored  claim  accepted  What is booked is what the table holds.
   o bookedAfterIsStored  claim  accepted  What is booked once a request is handled is what the table holds after booking it.
-  o storeWhenFree  claim  accepted  A request is stored exactly when its room is free for its whole time.
+  o storeWhenFree  claim  accepted  Booking a request leaves the table holding what it held, with the request added if its room is free for its whole time.
     x grantWhenFree  claim  accepted  A request is granted exactly when its room is free for its whole time.
       ! grantWhenNoOverlap  claim  to review  A request is granted exactly when it overlaps no booking of its room.
       o bookingsOfTheRoom  claim  accepted  A room's bookings are all of that room.
