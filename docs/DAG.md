@@ -36,8 +36,10 @@ Three kinds of nodes, two kinds of values, two quantifiers (§15); nothing else,
   about code no proof covers.
 - **Values.** `Declaration[A](means)`: abstract, known only through the statements about it; no code, define or
   program uses it, nothing implements it. `Definition[A](means)`: of any type, what code and programs use; it must get
-  a meaning (§15). `define { … }` and `program { … }` are Definitions given their meaning on the spot.
-- **Quantifiers.** `forall` is every possible value. `always` is every value the code FrFlow covers can produce
+  a meaning (§15). `define { … }` and `program { … }` are Definitions given their meaning on the spot. `stated { … }`
+  is a define whose body may apply a Declaration, so a statement can name a line over Declarations; only statements
+  call it.
+- **Quantifiers.** `forall` is every possible value, `exists` some possible value. `always` is every value the code FrFlow covers can produce
   (§19): `always[T](x => …)` every value of `T` that can be made, a hypothesis of every statement about such values
   wherever they are held, met wherever covered code makes one; `always(stored)(s => …)` every state a model reaches,
   kept by every program writing it, from a start that meets it. Values from outside are covered by an assumption of

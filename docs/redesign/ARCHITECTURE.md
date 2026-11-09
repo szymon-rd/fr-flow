@@ -147,10 +147,24 @@ val signedIn = Declaration[UserId => Boolean]("whether the user has signed in")
 The message a Declaration in code gets (`dsl/frflow/dsl/vocab/Stating.scala`):
 
 ```scala
-@implicitNotFound("FrFlow: a Declaration is used only in statements (Node.claim, Node.assumption, an example); " +
-  "code, defines and programs use Definitions")
+@implicitNotFound("FrFlow: a Declaration is used only in statements (Node.claim, Node.assumption, an example, a " +
+  "stated define); code, defines and programs use Definitions")
 final class Stating private (val varies: Set[SymbolName], val closing: Boolean)
 ```
+
+**A define over Declarations** (`stated`, `shape.Stated`). `stated { (lib: Term[Library], p: Term[PersonId], d:
+Term[DocId]) => mayView(p, d) === letsView(lib, p, d) }` is a define whose body may apply a Declaration, so a statement
+can name a line over Declarations (`viewFollows && editFollows`) instead of restating it. Its body is a context
+function of `Stating`, read in the `Stating` of the statement calling it (one define per reading, kept once by the
+vocabulary): a Declaration changing with the World is applied in the world the define then takes last, as it would
+be written in the statement, and `kb.Varying` reads a statement's Declarations through the defines it calls, each in
+turn, so one read only through a `stated` define counts. Its `apply` asks for a `Stating`, as a Declaration's does,
+and it is no `Definition`: a program, plain code, `implementProven` and a `define` calling it do not compile
+(`StatedLeanSuite`). `Meanings.declarationsInCode` (`Problem.DeclarationInCode`) still refuses any define reached from
+proven code that mentions a Declaration. In Lean it is a `def` like any other, taking the Declarations it applies as
+its first inputs (`def aboveThree (above : Int → Prop) (n : Int) : Prop`). One method serves every arity
+(`Stated.Shaped` finds the lambda's shape by its type): overloads would type the lambda before giving it the
+`Stating`.
 
 **What changes with the World** (owner §41, §43, §45). A statement holds in every world meeting what always holds
 (the reachable worlds are among them: `cover_` and `start_` show it, 2.3), and what changes with the world is read in
@@ -188,7 +202,8 @@ What a statement may say, so that its Lean meaning is the one written wherever i
 - **A program that can fail says so on its Definition, and its run is read with both outcomes** (owner §45 B, §46):
   `Definition[Time => Flow[Unit]]("…").failsWith[StoreDown]` (`Definition.Fails`). Applied in a statement it is a
   `Run`, whose `result` is an `Either[StoreDown, Unit]` and whose `after` is the world either outcome leaves (`runs ∧
-  fails`), so a statement about it says what a failing run does; read plainly, it would say nothing of the runs that
+  fails`), so a statement about it says what a failing run does (`p(x).ifSucceeds(r => …)` and `p(x).ifFails(e =>
+  …)` name each outcome: `result.fold` with `True` on the other side, the same Lean); read plainly, it would say nothing of the runs that
   fail, and a program that always fails would meet it, which the type no longer allows (`Problem.SucceedingOnly` stays
   for a theory built otherwise). FrFlow checks the declared error against what the proven code may end in
   (`Problem.FailsWithDiffers`: code raising on a Definition declaring nothing, declaring an error it never ends in, or
@@ -263,7 +278,13 @@ val granted = Definition[(RoomBookings, Booking) => Boolean]("whether a request 
 A provided value is bound by an example, drawn by a test, passed in production. `define` (to six inputs) and `program`
 return a Definition carrying its meaning (`Definition.onTheSpot`); a define is called by name (`covers(b, t)`), passed
 as a function (`held.pairwise(apart)`), and run in plain code by the evaluator (`d.fn(env)`). Plain code reads a
-Definition's value with `env(d)`; a Declaration has none.
+Definition's value with `env(d)`; a Declaration has none. A `stated` define (above) is no Definition: only a
+statement calls it.
+
+**Short forms on terms.** An option's `map`, `filter`, `filterNot`, `contains`, `isEmpty` and `toList` are its
+`fold` as an author writes it (`o.map(f)` is `o.fold(none)(x => some(f(x)))`, `filterNot` the fold
+`when(p(x))(none).otherwise(some(x))`), so Lean reads the `match` the fold is and nothing changes beneath; `getOrElse`
+and `isDefined` stay Lean's `Option.getD` and `≠ none`.
 
 Elaboration and validation check what the types cannot: a meaning given twice (`Fault.MeantWhereWritten`),
 `implementProven` of no define or program (`NotProvenCode`), a program named in a claim (`ProgramMentioned`), a
@@ -294,8 +315,13 @@ owner §30's "a boundary must have a model or an assumption".
 
 ### 2.3 Quantifiers: forall and always
 
-`forall` ranges over every possible value; `always[T](x => …)` over every value of `T` that can be made;
-`always(stored)(s => …)` over every state the store reaches. What a statement ranges over is read off its formula
+`forall` ranges over every possible value, and `exists` (to six variables, `Terms.exists`) says some possible value
+meets its body; `always[T](x => …)` ranges over every value of `T` that can be made; `always(stored)(s => …)` over
+every state the store reaches. What always holds of a variable's type is a premise below a `forall` and a conjunct
+below an `exists` (`Guarded`: `∃ b, bookingsEndAfterStart b ∧ …`, the same premise a `forall` needs listed with
+`.assuming`); an `exists` is not opened where a statement is closed, so `isConstant` under one is refused
+(`ConstantInside`), as under `!`. It is a formula with no Scala value, as `forall` is: the evaluator does not range
+over a type. What a statement ranges over is read off its formula
 (`core/frflow/core/spec/Range.scala`):
 
 ```scala

@@ -93,15 +93,18 @@ Statements are about two kinds of values:
 
 | Value | Written | What it is |
 |---|---|---|
-| `Declaration` | `val booked = Declaration[List[Booking]]("the bookings made, as the world stands")` | abstract: known only by what the statements say of it; never called by code, a define or a program (`Stating` is asked for, which only statements and examples give) |
+| `Declaration` | `val booked = Declaration[List[Booking]]("the bookings made, as the world stands")` | abstract: known only by what the statements say of it; never called by code, a `define` or a program (`Stating` is asked for, which only statements, examples and a `stated` define's body give) |
 | `Definition` | `val granted = Definition[(RoomBookings, Booking) => Boolean]("…")` | what code and programs use, of any type; it must get a meaning, once (`Undefined` otherwise) |
 | `define { … }` | `val free = define { (bookings: Term[List[Booking]], request: Term[Booking]) => … }` | a Definition given its meaning on the spot, up to six inputs: a Lean `def`, run as Scala by the evaluator |
 | `program { … }` | `val bookIfGranted = program { (request: Term[Booking]) => (for … yield …).atomically }` | a program given its meaning on the spot, its type `A => Flow[R]` |
+| `stated { … }` | `val viewFollows = stated { (lib: Term[Library], p: Term[PersonId], d: Term[DocId]) => mayView(p, d) === letsView(lib, p, d) }` | a define whose body may apply a Declaration, so a statement can name a line over Declarations; used only in statements, as a Declaration is (a program, plain code or a `define` calling it does not compile); a Lean `def` taking the Declarations it applies, and the world last where one of them changes with it |
 
-Two quantifiers: `forall((x: Term[A]) => …)`, every possible value (to six variables), and `always`, every value that
-the code FrFlow covers can produce: `always[T](x => …)` of a type (every value of `T` that can be made),
-`always(stored)(s => …)` of a model's state (every state it reaches; `always(a, b)((s, u) => …)` relates two). An
-`always` is a node's whole formula, one rule per node.
+Quantifiers: `forall((x: Term[A]) => …)`, every possible value (to six variables); `exists((x: Term[A]) => …)`, some
+value (to six variables; Lean's `∃`); and `always`, every value that the code FrFlow covers can produce:
+`always[T](x => …)` of a type (every value of `T` that can be made), `always(stored)(s => …)` of a model's state
+(every state it reaches; `always(a, b)((s, u) => …)` relates two). What always holds of a variable's type is a
+premise below a `forall` and a conjunct below an `exists` (`∃ b, bookingsEndAfterStart b ∧ …`). An `always` is a
+node's whole formula, one rule per node.
 
 ### Writing formulas
 
@@ -118,7 +121,8 @@ the lambda.
 | `when(c)(a).otherwise(b)` | a conditional on a term (a term has no truth value while the formula is built) | `if c then a else b` |
 | `e.on[Event.Expired](at => …)` | a match on an enum, its cases named, `.type` for a case without fields | `match` |
 | `let(v)(x => …)` | a value shared, named | `let x := v; …` |
-| `some(x)`, `none[A]`, `o.getOrElse(d)`, `o.isDefined`, `o.forall(…)` | options | `Option` |
+| `some(x)`, `none[A]`, `o.getOrElse(d)`, `o.isDefined`, `o.forall(…)`, `o.exists(…)` | options | `Option` |
+| `o.fold(d)(x => …)`, and as its fold: `o.map(…)`, `o.filter(…)`, `o.filterNot(…)`, `o.contains(x)`, `o.isEmpty`, `o.toList` | an option's value, or `d` | `match o with \| none => … \| some x => …` |
 | `xs.forall(…)`, `exists`, `filter`, `map`, `foldLeft`, `contains`, `isEmpty`, `length`, `::`, `++`, `:+` | lists | `List` |
 | `xs.pairwise(r)`, `xs.allDistinct` | `r` of every two elements, the earlier first; no element twice | `List.Pairwise`, `List.Nodup` |
 | `m.get(k)`, `m.getOrElse(k, d)`, `m.updated(k, v)`, `s.contains(x)`, `s.union(t)` | maps and sets (not iterated) | `Map`, `Set` |
@@ -137,6 +141,9 @@ state. A program applied in a statement is a run from the current world:
 - `p(x).result` is what it returns (an `Either[E, R]` where `p` is declared `.failsWith[E]`, so a statement about it
   covers the runs that fail);
 - `p(x).after` is the world it leaves, read with `stored.in(p(x).after)`;
+- `p(x).ifSucceeds(r => …)` says what a run that succeeds gives, and is true of one that fails; `p(x).ifFails(e => …)`
+  what a failed run does, true of one that succeeds (`p(x).ifFails(_ => p(x).changesNothing)`). Each is
+  `p(x).result.fold(…)` with `True` on the other side, so Lean reads the same;
 - beside a run, every world read is named: `t.current` for the world before it (`accepted(request).current`).
 
 `t.isConstant`, of any value, says no run of any program from the current world changes it (where a condition holds:

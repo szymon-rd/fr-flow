@@ -5,10 +5,11 @@ description: >-
   of small statements in the domain's words, each proven in Lean from its parts and decided by the developer. Use
   when turning an idea into roots, proposing or changing nodes, introducing domain types and values, adding
   examples, answering the developer's requests, proving a step, or giving code its meaning; or when the work touches
-  `Node.claim`, `Node.assumption`, `Node.design`, `Declaration`, `Definition`, `define`, `program`, `forall`,
-  `always`, `FrModel`, `FrFlowExamples`, `.refines`, `.assuming`, `.replaces`, `implementProven`, `implementTested`,
+  `Node.claim`, `Node.assumption`, `Node.design`, `Declaration`, `Definition`, `define`, `stated`, `program`,
+  `forall`, `exists`, `always`, `FrModel`, `FrFlowExamples`, `.refines`, `.assuming`, `.replaces`, `implementProven`, `implementTested`,
   `implementValue`, `implementProvided`, `withGenerator`, `Flow`, `StateModel`, `onlyCodeChanges`, `initially`,
-  `atomic`, `.assumed`, `.failsWith`, `.current`, `.in`, `.after`, `.result`, `isConstant` or `Clock`.
+  `atomic`, `.assumed`, `.failsWith`, `.current`, `.in`, `.after`, `.result`, `.ifSucceeds`, `.ifFails`,
+  `isConstant` or `Clock`.
 ---
 
 # Developing with FrFlow
@@ -132,7 +133,10 @@ contract, invariant, model or definition node, no boundary, no `Program`. Never 
   tested), an operation's `StateModel` with `implementTested(ops*)(start, observe)(calls)` (proven on the model, the
   Scala tested against it), `op.assumed` (known by its assumptions), `implementValue(d)(v)`,
   `implementProvided(d*)`. `define { … }` and `program { … }` are Definitions given their meaning on the spot.
-- **Quantifiers.** `forall(x => …)`: every possible value. `always[T](x => …)`: every value of `T` that can be made:
+  `stated { … }` is a define whose body may apply a Declaration: name a line over Declarations with it, so a
+  statement reads `viewFollows && editFollows`; only statements call it (code calling it does not compile).
+- **Quantifiers.** `forall(x => …)`: every possible value. `exists(x => …)`: some value (Lean's `∃`; write it
+  rather than `!forall(x => !…)`). `always[T](x => …)`: every value of `T` that can be made:
   a hypothesis in Lean of every statement about such values, met wherever covered code makes one (`made_`), and the
   tests draw only values meeting it. `always(stored)(s => …)`: every state the model reaches, kept by every program
   writing it (`cover_`), from a start that meets it (`start_`). An `always` is a node's whole formula; a claim of
@@ -140,7 +144,9 @@ contract, invariant, model or definition node, no boundary, no `Program`. Never 
 - **The World.** A statement holds in every reachable world and never names it. Read what changes in the current
   one: `stored.current`, a Declaration, a define reading state. A program in a statement runs from it:
   `book(request).result`, and `stored.in(book(request).after)` the state it leaves; beside a run, name the world
-  before it with `.current` (`accepted(request).current`). `t.isConstant`: no run changes `t` (of a Declaration, an
+  before it with `.current` (`accepted(request).current`). Of a program that `.failsWith[E]`,
+  `p(x).ifSucceeds(r => …)` and `p(x).ifFails(e => …)` say what each outcome does (each its `result.fold` with
+  `True` on the other side): `handle(r).ifFails(_ => handle(r).changesNothing)`. `t.isConstant`: no run changes `t` (of a Declaration, an
   assumption). Two runs in sequence, and "eventually", cannot be stated.
 - **A claim constrains every Definition and Declaration it mentions.** One applying a Definition to exactly its
   leading `forall` variables is a claim about its calls: the code given the Definition is checked against it, and
@@ -209,7 +215,8 @@ error.
 - **Conditionals**: `when(c)(a).otherwise(b)` (a term has no truth value while the formula is built);
   `let(v)(x => ...)` names a shared value; `some(x)`, `none[A]`.
 - Operations on lists (`forall`, `exists`, `filter`, `map`, `foldLeft`, `contains`, `isEmpty`, `length`, `::`, `++`,
-  `:+`, `pairwise`, `allDistinct`), options (`getOrElse`, `isDefined`, `forall`, `exists`), maps (`get`,
+  `:+`, `pairwise`, `allDistinct`), options (`fold`, `getOrElse`, `isDefined`, `forall`, `exists`, and as their
+  folds `map`, `filter`, `filterNot`, `contains`, `isEmpty`, `toList`), maps (`get`,
   `getOrElse`, `updated`), sets (`contains`, `union`), and `BigInt` arithmetic and comparisons. Maps and sets are
   not iterated.
 - **In plain Scala** (implementations, wiring, tests): `d.fn(env)` runs a define, `env(d)` reads a Definition's value.
