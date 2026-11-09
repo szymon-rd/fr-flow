@@ -1,6 +1,8 @@
 import FrFlowGen.Keycloak.realmIsolation.Spec
+import Proofs.Keycloak.Lemmas
 
-/-! An introspection names the realm asking: what introspectAnswers says of every answer. -/
+/-! An introspection names the realm asking: the index returns only a session the realm holds under the token (`lookupOnlyHeld`), and one whenever
+the realm holds one (`lookupFindsHeld`), changing nothing the store holds (`lookupKeeps`); `Lemmas.isolated`. -/
 
 set_option autoImplicit false
 noncomputable section
@@ -8,13 +10,6 @@ open Classical
 
 namespace Keycloak.realmIsolation.Proofs
 
-theorem impl : Obl.impl := by
-  intro lookup hA _ _ asking t world h1 h2 h3
-  have h := hA asking t world h1 h2 h3
-  revert h
-  generalize Keycloak.introspecting_run lookup asking t world = p
-  rcases p with ⟨res, aft⟩
-  rintro ⟨h, -⟩ c hc
-  exact (h c hc).1.1.1
+theorem impl : Obl.impl := fun lookup hO hF hK => Keycloak.Lemmas.isolated lookup hO hF hK
 
 end Keycloak.realmIsolation.Proofs

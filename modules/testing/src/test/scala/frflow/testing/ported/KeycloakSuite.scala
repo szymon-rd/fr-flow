@@ -35,15 +35,16 @@ class KeycloakSuite extends munit.FunSuite:
     assertEquals((r.count.tried, r.outcome), (1000, Outcome.Passed))
   }
 
-  test("a store that drops the sessions it is given breaks storeKeepsState and storeLogs on a generated run") {
+  test("a store that drops the sessions it is given breaks storeKeepsState and storeHoldsState on a generated run") {
     val dropping = runs(d => (d.load, d.logged, (q: AuthRequest, after: ServerState) =>
       d.record(q, after.copy(sessions = Nil)), d.lookup))
     assertEquals(broke(dropping).map(_._1), Some(SymbolName("record")))
-    assert(broke(dropping).exists(_._2.contains(NodeId("storeKeepsState"))), dropping)
+    assert(broke(dropping).exists(b => b._2.contains(NodeId("storeKeepsState")) &&
+      b._2.contains(NodeId("storeHoldsState"))), dropping)
   }
 
-  test("an index answering with another realm's session breaks sessionLookup on a generated run") {
+  test("an index answering with another realm's session breaks lookupOnlyHeld on a generated run") {
     val leaky = runs(d => (d.load, d.logged, d.record, (_: RealmId, token: String) =>
       IO.pure(Option(Session(token, globex, "carol")))))
-    assertEquals(broke(leaky), Some(SymbolName("lookup") -> List(NodeId("sessionLookup"))))
+    assertEquals(broke(leaky), Some(SymbolName("lookup") -> List(NodeId("lookupOnlyHeld"))))
   }

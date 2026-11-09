@@ -64,8 +64,8 @@ class PortSuite extends munit.CatsEffectSuite:
 
   private val proofs = List("Lemmas", "realmAccess", "noUnauthorizedAccess", "signedInAreAccepted", "onlyTheSignedIn",
     "disabledHaveNoAccess", "rolesAsGranted", "sessionsMirrorSignIns", "accountsAsAdministered", "serverRun",
-    "freshTokens", "oneSignInPerToken", "realmIsolation", "answersNameASession", "introspectAnswers", "loadedKept",
-    "answersWhatItStores", "Whole")
+    "freshTokens", "oneSignInPerToken", "realmIsolation", "answersNameASession", "introspectAnswers",
+    "answersOnlyEnabled", "answersWithRoles", "answersTheSession", "loadedKept", "answersWhatItStores", "Whole")
   private val lean = Lean(proofs.map(n => n -> Ported.proof("keycloak", "Keycloak", n)),
     reference.old("Keycloak", identity) :+ ("FrFlowGen/Port.lean" -> Ported.resource("keycloak/port/Port.lean")),
     Some("FrFlowGen.Port"))

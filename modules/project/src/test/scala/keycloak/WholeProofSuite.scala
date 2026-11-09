@@ -1,6 +1,7 @@
 package keycloak
 
 import cats.effect.IO
+import frflow.core.graph.Refinement
 import frflow.core.name.NodeId
 import frflow.project.Projects
 import frflow.project.check.WholeChecker
@@ -8,7 +9,7 @@ import frflow.eval.run.OnCode
 import frflow.project.pipeline.{Analysis, Computed}
 import frflow.project.port.memory.ScriptedLake
 import frflow.proof.lean.print.Print
-import frflow.proof.obligation.{Discharge, ObligationName}
+import frflow.proof.obligation.{Discharge, Hyp, ObligationName}
 import frflow.proof.reading.ProofFile
 import frflow.proof.verdict.{ObligationStatus, ProverRun}
 
@@ -67,6 +68,21 @@ class WholeProofSuite extends munit.CatsEffectSuite:
     val a = Analysis(bare.valid, bare.inputs, Computed(examples.map(_ -> OnCode.Holds), Map.empty))
     val spec = module(a, "Whole.Spec").getOrElse(fail("no statements"))
     val first = spec.linesIterator.dropWhile(!_.contains("def example_RequestExamples_0 ")).slice(1, 2).mkString
-    assert(first.contains("(Keycloak.handleRequest.claim step)") && first.contains("((Keycloak.next ") &&
+    assert(first.contains("(Keycloak.endedSessionsClose.claim step)") && first.contains("((Keycloak.next ") &&
       !first.contains("record"), first)
+  }
+
+  test("an example's hypotheses leave out a parent whose parts are all among them; one missing a part, it stays") {
+    val r = Projects.elaborated(knowledge).theory.refinement
+    val parent = NodeId("handleRequest")
+    val parts = r.parts(parent)
+    def leavesOutGiven(choose: (Refinement, List[NodeId]) => List[NodeId]): Boolean =
+      choose(r, parent :: parts) == parts && choose(r, parent :: parts.tail) == parent :: parts.tail
+    assert(parts.size == 5 && leavesOutGiven(Hyp.withoutGiven), parts)
+    assert(!leavesOutGiven((_, ns) => ns), "a mutant taking every statement, the fix reverted, is not caught")
+    val examples = RequestExamples().elaborated.fold(e => fail(e.toString), identity)
+    val a = Analysis(bare.valid, bare.inputs, Computed(examples.map(_ -> OnCode.Holds), Map.empty))
+    val spec = module(a, "Whole.Spec").getOrElse(fail("no statements"))
+    val first = spec.linesIterator.dropWhile(!_.contains("def example_RequestExamples_0 ")).slice(1, 2).mkString
+    assert(!first.contains("handleRequest.claim") && parts.forall(p => first.contains(s"${p.value}.claim")), first)
   }

@@ -27,16 +27,16 @@ theorem complete : Obl.complete := by
   | some c =>
     simp only [claimsOf, Option.some.injEq] at ha
     subst ha
-    obtain ⟨⟨_, hen⟩, _⟩ := hi.1 c rfl
+    have hen := hi.1.1.2 c rfl
     rw [hEnabled r c.user w h1 h2 h3, ← hAcc r c.user w h1 h2 h3]
     exact hen
 
 /-- Some world meets the parts: an index answering from the store's sessions, what is accepted what is answered. -/
 theorem feasible : Obl.feasible := by
-  obtain ⟨lookup, hS, hK⟩ := Lemmas.some_index
+  obtain ⟨lookup, hO, hF, hK⟩ := Lemmas.some_index
   exact ⟨fun r t w => claimsOf (introspecting_run lookup r t w).1,
     fun r u w => isEnabled (accountOf (accountsAfter w.serverStore.loaded w.serverStore.log) r u),
     introspecting_run lookup, fun _ _ _ _ _ _ => rfl, Lemmas.reference (introspecting_run lookup),
-    Lemmas.accounts_administered, Lemmas.introspect_answers lookup hS hK⟩
+    Lemmas.accounts_administered, Lemmas.introspect_answers lookup hO hF hK⟩
 
 end Keycloak.disabledHaveNoAccess.Proofs

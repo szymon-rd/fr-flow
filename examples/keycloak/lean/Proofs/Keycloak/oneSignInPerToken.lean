@@ -22,8 +22,8 @@ theorem apart {loaded : List UserAccount} {log : List AuthRequest} {q : AuthRequ
   exact hFresh y.token (Lemmas.grantedBy_token hy) ⟨p, hp, by rw [hpt, ht]⟩
 
 theorem cover_serve : Obl.cover_serve := by
-  intro nextRequest record hD hK hL w h1 h2 h3
-  obtain ⟨hAfter, hFresh, -⟩ := Lemmas.served nextRequest record hD hK hL w h1 h2 h3
+  intro nextRequest record hD hK hH hA hKL w h1 h2 h3
+  obtain ⟨hAfter, hFresh, -⟩ := Lemmas.served nextRequest record hD hK hH hA hKL w h1 h2 h3
   revert hAfter
   generalize serving_run nextRequest record w = p
   rcases p with ⟨res, aft⟩
@@ -40,7 +40,7 @@ theorem cover_serve : Obl.cover_serve := by
     exact Option.some.inj hy
 
 theorem cover_introspect : Obl.cover_introspect := by
-  intro lookup _ hK r t w h1 h2 h3
+  intro lookup _ _ hK r t w h1 h2 h3
   have hAfter := Lemmas.introspected lookup hK r t w h1 h2 h3
   revert hAfter
   generalize introspecting_run lookup r t w = p

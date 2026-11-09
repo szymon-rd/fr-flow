@@ -44,10 +44,16 @@ class ExamplesSuite extends munit.FunSuite:
 
   test("keycloak: today's, but the definition of four open types; the definition of `enabled` and `rolesOf` is two " +
     "claims; the claim on `introspect` named apart from it (owner §40); the server's store a model of the World, its " +
-    "operations' assumptions, its rules' premises, its loaded accounts kept, the requests handed to it (owner §45 D)") {
-    assertEquals(ids(keycloak.knowledge), renamed(Today.keycloak, Set("identities", "introspect"),
-      Set("accountRoles", "introspectAnswers", "storeLogs", "lookupKeeps", "drawnTokens", "storeOnlyCode",
-        "storeOneAtATime", "storeStarts", "loadedKept", "answersWhatItStores", "handedOneAtATime")))
+    "operations' assumptions, its rules' premises, its loaded accounts kept, the requests handed to it (owner §45 " +
+    "D); and each node a smaller statement: handleRequest's, introspect's, sessionLookup's, httpApi's and " +
+    "serviceWiring's facts each a node") {
+    assertEquals(ids(keycloak.knowledge), renamed(Today.keycloak, Set("identities", "introspect", "sessionLookup"),
+      Set("accountRoles", "introspectAnswers", "lookupKeeps", "drawnTokens", "storeOnlyCode", "storeOneAtATime",
+        "storeStarts", "loadedKept", "answersWhatItStores", "handedOneAtATime") ++
+        Set("requestSetsAccounts", "endedSessionsClose", "unendedSessionsStay", "grantedSessionOpens",
+          "noOtherSessionOpens", "answersOnlyEnabled", "answersWithRoles", "answersTheSession", "storeHoldsState",
+          "storeAppendsLog", "storeKeepsLoaded", "lookupOnlyHeld", "lookupFindsHeld", "saltedPasswords",
+          "randomTokens", "introspectionWiring")))
   }
 
   test("crm: today's, with the root's two general expectations claims of their own (its scenario an example, and the " +

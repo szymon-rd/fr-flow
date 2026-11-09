@@ -9,8 +9,8 @@ open Classical
 namespace Keycloak.noUnauthorizedAccess.Proofs
 
 theorem complete : Obl.complete := by
-  intro accepted signedIn enabled rolesOf hOnly hDis hRoles r t w h1 h2 h3 a ha
-  exact ⟨⟨hOnly r t w h1 h2 h3 a ha, hDis r t w h1 h2 h3 a ha⟩, hRoles r t w h1 h2 h3 a ha⟩
+  intro accepted signedIn enabled rolesOf hOnly hDis hRoles r t w h1 h2 h3
+  exact ⟨⟨hOnly r t w h1 h2 h3, hDis r t w h1 h2 h3⟩, hRoles r t w h1 h2 h3⟩
 
 /-- Some world meets the parts: nothing accepted. -/
 theorem feasible : Obl.feasible := by

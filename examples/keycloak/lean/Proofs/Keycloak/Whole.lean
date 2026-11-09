@@ -47,14 +47,44 @@ theorem drawn_signs_in : ∃ nextRequest, drawnTokens.claim nextRequest ∧
   ⟨_, signing_in_drawn, fun _ _ => rfl⟩
 
 theorem consistent_3 : Obl.consistent_3 := by
-  obtain ⟨lookup, hS, hLk⟩ := Lemmas.some_index
+  obtain ⟨lookup, hO, hF, hLk⟩ := Lemmas.some_index
   let storing : AuthRequest → ServerState → StateM Stored ServerState :=
     fun q after s => (after, Stored.mk s.loaded after (s.log ++ [q]))
   have hK : storeKeepsState.claim storing := fun q a w => rfl
-  have hL : storeLogs.claim storing := fun q a w _ _ _ => rfl
-  exact ⟨_, storing, fun r t w => claimsOf (introspecting_run lookup r t w).1, lookup, signing_in_drawn, hK, hL,
-    Lemmas.reference (introspecting_run lookup), Lemmas.introspect_answers lookup hS hLk, hS, hLk,
-    Lemmas.loaded_kept _ storing lookup signing_in_drawn hK hL hLk,
-    Lemmas.answers_stored _ storing signing_in_drawn hK hL⟩
+  have hH : storeHoldsState.claim storing := fun q a w _ _ _ => rfl
+  have hA : storeAppendsLog.claim storing := fun q a w _ _ _ => rfl
+  have hKL : storeKeepsLoaded.claim storing := fun q a w _ _ _ => rfl
+  exact ⟨_, storing, fun r t w => claimsOf (introspecting_run lookup r t w).1, lookup, signing_in_drawn, hK, hH, hA,
+    hKL, Lemmas.reference (introspecting_run lookup), Lemmas.isolated lookup hO hF hLk,
+    Lemmas.names_session lookup hO hF hLk, Lemmas.only_enabled lookup hO hF hLk, Lemmas.with_roles lookup hO hF hLk,
+    Lemmas.the_session lookup hO hF hLk, hO, hF, hLk,
+    Lemmas.loaded_kept _ storing lookup signing_in_drawn hK hH hA hKL hLk,
+    Lemmas.answers_stored _ storing signing_in_drawn hK hH hA hKL⟩
+
+/-- A store that starts as loaded: the accounts loaded and no session, an empty log. -/
+theorem fresh_store {s : Stored} (h : storeStarts s) : ∃ l, s = Stored.mk l (ServerState.mk l []) [] := by
+  obtain ⟨l, st, lg⟩ := s
+  simp only [storeStarts, freshStore, Stored.mk.injEq] at h
+  obtain ⟨-, rfl, rfl⟩ := h
+  exact ⟨l, rfl⟩
+
+/-! The store's rules hold where it starts. FrFlow's own try, rewriting the store with what starts it, which names the
+store again, does not end. -/
+
+theorem start_serverRun : Obl.start_serverRun := by
+  intro s h
+  obtain ⟨l, rfl⟩ := fresh_store h
+  simp [serverRun, stateAfter]
+
+theorem start_oneSignInPerToken : Obl.start_oneSignInPerToken := by
+  intro s h
+  obtain ⟨l, rfl⟩ := fresh_store h
+  intro x y hxy
+  exact absurd hxy.1.1 Lemmas.liveIn_nil
+
+theorem start_freshTokens : Obl.start_freshTokens := by
+  intro s h
+  obtain ⟨l, rfl⟩ := fresh_store h
+  exact List.Pairwise.nil
 
 end Keycloak.Whole.Proofs

@@ -1,10 +1,18 @@
 import FrFlowGen.Keycloak.Domain
 import FrFlowGen.Keycloak.drawnTokens.Spec
 import FrFlowGen.Keycloak.storeKeepsState.Spec
-import FrFlowGen.Keycloak.storeLogs.Spec
+import FrFlowGen.Keycloak.storeHoldsState.Spec
+import FrFlowGen.Keycloak.storeAppendsLog.Spec
+import FrFlowGen.Keycloak.storeKeepsLoaded.Spec
 import FrFlowGen.Keycloak.lookupKeeps.Spec
-import FrFlowGen.Keycloak.sessionLookup.Spec
+import FrFlowGen.Keycloak.lookupOnlyHeld.Spec
+import FrFlowGen.Keycloak.lookupFindsHeld.Spec
 import FrFlowGen.Keycloak.introspectAnswers.Spec
+import FrFlowGen.Keycloak.realmIsolation.Spec
+import FrFlowGen.Keycloak.answersNameASession.Spec
+import FrFlowGen.Keycloak.answersOnlyEnabled.Spec
+import FrFlowGen.Keycloak.answersWithRoles.Spec
+import FrFlowGen.Keycloak.answersTheSession.Spec
 import FrFlowGen.Keycloak.loadedKept.Spec
 import FrFlowGen.Keycloak.answersWhatItStores.Spec
 import FrFlowGen.Keycloak.handleRequest.Spec
@@ -30,7 +38,7 @@ in its realm after it. -/
 theorem liveIn_iff (seed : List UserAccount) (hs : List AuthRequest) (x : Session) :
     liveIn seed hs x ↔ ∃ pre q post, hs = pre ++ q :: post ∧ grantedBy (accountsAfter seed pre) q = some x ∧
       AuthRequest.SignOut x.realm x.token ∉ post := by
-  simp only [liveIn, Classical.not_forall, Classical.not_not, and_assoc]
+  simp only [liveIn, splitsAt, gotAfter, signedOutIn, Classical.not_forall, Classical.not_not, and_assoc]
 
 /-- A history whose every sign-in carries a new token stays so without its last request, and that request is fresh
 after the others. -/
@@ -149,12 +157,21 @@ theorem serving_run_eq (nextRequest : List AuthRequest → StateM (List AuthRequ
     ServerStore.Ops.onState_onWorld, ServerStore.Ops.load_onWorld, ServerStore.Ops.logged_onWorld,
     FrFlow.runOn_within, ServerStore.load, ServerStore.logged, FrFlow.runOn_get]
 
+/-- A store is its three fields. -/
+theorem stored_eq {s : Stored} {loaded : List UserAccount} {state : ServerState} {log : List AuthRequest}
+    (h1 : s.loaded = loaded) (h2 : s.state = state) (h3 : s.log = log) : s = Stored.mk loaded state log := by
+  obtain ⟨l, st, lg⟩ := s
+  simp only at h1 h2 h3
+  subst h1 h2 h3
+  rfl
+
 /-- The store after the server handles a request, of a store meeting its rules: the accounts as loaded, the state
 `next` makes of the one it held, the request logged at the end; the request fresh against the log; the answer the
 state stored. -/
 theorem served (nextRequest : List AuthRequest → StateM (List AuthRequest) AuthRequest)
     (record : AuthRequest → ServerState → StateM Stored ServerState)
-    (hD : drawnTokens.claim nextRequest) (hK : storeKeepsState.claim record) (hL : storeLogs.claim record)
+    (hD : drawnTokens.claim nextRequest) (hK : storeKeepsState.claim record) (hH : storeHoldsState.claim record)
+    (hA : storeAppendsLog.claim record) (hKL : storeKeepsLoaded.claim record)
     (w : World) (h1 : serverRun w.serverStore) (h2 : oneSignInPerToken w.serverStore)
     (h3 : freshTokens w.serverStore) :
     (serving_run nextRequest record w).2.serverStore = Stored.mk w.serverStore.loaded
@@ -166,11 +183,14 @@ theorem served (nextRequest : List AuthRequest → StateM (List AuthRequest) Aut
   rw [next_run_eq] at hd
   let q := (FrFlow.runOn (nextRequest w.serverStore.log) w.inbox).1
   let w' : World := { w with inbox := (FrFlow.runOn (nextRequest w.serverStore.log) w.inbox).2 }
-  have hl := hL q (next w.serverStore.state q) w' h1 h2 h3
+  have hh := hH q (next w.serverStore.state q) w' h1 h2 h3
+  have ha := hA q (next w.serverStore.state q) w' h1 h2 h3
+  have hl := hKL q (next w.serverStore.state q) w' h1 h2 h3
   have hk := hK q (next w.serverStore.state q) w'
-  rw [record_run_eq] at hl hk
+  rw [record_run_eq] at hh ha hl hk
   rw [serving_run_eq]
-  exact ⟨hl, hd, by simp only at hl hk ⊢; rw [hk, hl]⟩
+  simp only at hh ha hl hk
+  exact ⟨stored_eq hl hh ha, hd, by simp only; rw [hk, hh]⟩
 
 /-- The store after an introspection: as it was. -/
 theorem introspected (lookup : RealmId → String → StateM Stored (Option Session)) (hK : lookupKeeps.claim lookup)
@@ -181,28 +201,42 @@ theorem introspected (lookup : RealmId → String → StateM Stored (Option Sess
   rw [introspecting_run_eq]
   exact hk
 
-/-- An introspection on an index keeping what is assumed of it answers as introspectAnswers says. -/
-theorem introspect_answers (lookup : RealmId → String → StateM Stored (Option Session))
-    (hS : sessionLookup.claim lookup) (hK : lookupKeeps.claim lookup) :
-    introspectAnswers.claim (introspecting_run lookup) := by
-  intro realm token world h1 h2 h3
-  have hs := hS realm token world h1 h2 h3
+/-- A session a realm holds is of that realm. -/
+theorem realm_of {st : ServerState} {r : RealmId} {x : Session} (h : x ∈ sessions st r) : x.realm = r := by
+  simp only [sessions, List.mem_filter, decide_eq_true_eq] at h
+  exact h.2
+
+/-- What an introspection answers, on an index keeping what is assumed of it, from a world meeting the rules: every
+answer names the realm asking, a session it holds under the token, a user enabled there with their roles; and the
+one session under the token, its user enabled, is answered for. Each part of introspectAnswers reads one of these. -/
+theorem answer_facts (lookup : RealmId → String → StateM Stored (Option Session))
+    (hO : lookupOnlyHeld.claim lookup) (hF : lookupFindsHeld.claim lookup) (hK : lookupKeeps.claim lookup)
+    (realm : RealmId) (token : String) (world : World) (h1 : serverRun world.serverStore)
+    (h2 : oneSignInPerToken world.serverStore) (h3 : freshTokens world.serverStore) :
+    (∀ c, (introspecting_run lookup realm token world).1 = some c →
+      c.realm = realm ∧ Session.mk token c.realm c.user ∈ sessions world.serverStore.state c.realm ∧
+        isEnabled (account world.serverStore.state realm c.user) ∧
+        c.roles = rolesIn (account world.serverStore.state realm c.user)) ∧
+    (∀ x, soleUnder world.serverStore.state realm token x → isEnabled (account world.serverStore.state realm x.user) →
+      (introspecting_run lookup realm token world).1 = some (claimsFor world.serverStore.state realm x.user)) := by
+  have ho := hO realm token world h1 h2 h3
+  have hf := hF realm token world h1 h2 h3
   have hk := hK realm token world h1 h2 h3
-  rw [lookup_run_eq] at hs hk
-  simp only at hs hk
+  rw [lookup_run_eq] at ho hf hk
+  simp only at ho hf hk
   rw [introspecting_run_eq, hk]
   simp only
-  obtain ⟨hFound, hAny⟩ := hs
-  revert hFound hAny
+  revert ho hf
   generalize (FrFlow.runOn (lookup realm token) world.serverStore).1 = r
   intro hFound hAny
   cases r with
   | none =>
-    refine ⟨fun c hc => by simp at hc, fun x hx ⟨⟨ht, _⟩, _⟩ => ?_⟩
+    refine ⟨fun c hc => by simp at hc, fun x ⟨⟨hx, ht⟩, _⟩ _ => ?_⟩
     exact absurd rfl (hAny ⟨x, hx, ht⟩)
   | some x =>
-    obtain ⟨⟨hxIn, hxt⟩, hxr⟩ := hFound x rfl
-    refine ⟨fun c hc => ?_, fun y hy ⟨⟨hyt, hye⟩, hone⟩ => ?_⟩
+    obtain ⟨hxIn, hxt⟩ := hFound x rfl
+    have hxr := realm_of hxIn
+    refine ⟨fun c hc => ?_, fun y ⟨⟨hy, hyt⟩, hone⟩ hye => ?_⟩
     · simp only at hc
       split at hc
       · cases hc
@@ -210,7 +244,7 @@ theorem introspect_answers (lookup : RealmId → String → StateM Stored (Optio
         split at hc
         · rename_i hen
           cases hc
-          refine ⟨⟨⟨rfl, ?_⟩, ⟨a, ?_, hen⟩⟩, ?_⟩
+          refine ⟨rfl, ?_, ⟨a, ?_, hen⟩, ?_⟩
           · have hx : Session.mk token realm x.user = x := by cases x; simp_all
             simpa only [hx] using hxIn
           · simp only [account, ha]
@@ -220,18 +254,103 @@ theorem introspect_answers (lookup : RealmId → String → StateM Stored (Optio
       subst hxy
       obtain ⟨a, ha, hen⟩ := hye
       simp only [account] at ha
-      simp only [ha, hen, ite_true, rolesIn, account]
+      simp only [ha, hen, ite_true, rolesIn, account, claimsFor]
+
+/-- An introspection names the realm asking (realmIsolation). -/
+theorem isolated (lookup : RealmId → String → StateM Stored (Option Session)) (hO : lookupOnlyHeld.claim lookup)
+    (hF : lookupFindsHeld.claim lookup) (hK : lookupKeeps.claim lookup) :
+    realmIsolation.claim (introspecting_run lookup) := by
+  intro realm token w h1 h2 h3
+  have h := (answer_facts lookup hO hF hK realm token w h1 h2 h3).1
+  revert h
+  generalize introspecting_run lookup realm token w = p
+  rcases p with ⟨res, aft⟩
+  simp only [ofRealm]
+  exact fun h c hc => (h c hc).1
+
+/-- An introspection names a session held under the token (answersNameASession). -/
+theorem names_session (lookup : RealmId → String → StateM Stored (Option Session))
+    (hO : lookupOnlyHeld.claim lookup) (hF : lookupFindsHeld.claim lookup) (hK : lookupKeeps.claim lookup) :
+    answersNameASession.claim (introspecting_run lookup) := by
+  intro realm token w h1 h2 h3
+  have h := (answer_facts lookup hO hF hK realm token w h1 h2 h3).1
+  revert h
+  generalize introspecting_run lookup realm token w = p
+  rcases p with ⟨res, aft⟩
+  simp only [ofSessionHeld]
+  exact fun h c hc => (h c hc).2.1
+
+/-- An introspection names an enabled user (answersOnlyEnabled). -/
+theorem only_enabled (lookup : RealmId → String → StateM Stored (Option Session))
+    (hO : lookupOnlyHeld.claim lookup) (hF : lookupFindsHeld.claim lookup) (hK : lookupKeeps.claim lookup) :
+    answersOnlyEnabled.claim (introspecting_run lookup) := by
+  intro realm token w h1 h2 h3
+  have h := (answer_facts lookup hO hF hK realm token w h1 h2 h3).1
+  revert h
+  generalize introspecting_run lookup realm token w = p
+  rcases p with ⟨res, aft⟩
+  simp only [ofEnabledUser]
+  exact fun h c hc => (h c hc).2.2.1
+
+/-- An introspection gives the roles of the user's account (answersWithRoles). -/
+theorem with_roles (lookup : RealmId → String → StateM Stored (Option Session))
+    (hO : lookupOnlyHeld.claim lookup) (hF : lookupFindsHeld.claim lookup) (hK : lookupKeeps.claim lookup) :
+    answersWithRoles.claim (introspecting_run lookup) := by
+  intro realm token w h1 h2 h3
+  have h := (answer_facts lookup hO hF hK realm token w h1 h2 h3).1
+  revert h
+  generalize introspecting_run lookup realm token w = p
+  rcases p with ⟨res, aft⟩
+  simp only [withAccountRoles]
+  exact fun h c hc => (h c hc).2.2.2
+
+/-- An introspection answers for the one session under the token, its user enabled (answersTheSession). -/
+theorem the_session (lookup : RealmId → String → StateM Stored (Option Session))
+    (hO : lookupOnlyHeld.claim lookup) (hF : lookupFindsHeld.claim lookup) (hK : lookupKeeps.claim lookup) :
+    answersTheSession.claim (introspecting_run lookup) := by
+  intro realm token w h1 h2 h3
+  have h := (answer_facts lookup hO hF hK realm token w h1 h2 h3).2
+  revert h
+  generalize introspecting_run lookup realm token w = p
+  rcases p with ⟨res, aft⟩
+  simp only [forSoleSession]
+  exact fun h x _ ⟨hs, he⟩ => h x hs he
+
+/-- introspectAnswers is its five parts together, of any introspection. -/
+theorem answers_of_parts (introspect : RealmId → String → World → Option Claims × World)
+    (hR : realmIsolation.claim introspect) (hN : answersNameASession.claim introspect)
+    (hE : answersOnlyEnabled.claim introspect) (hW : answersWithRoles.claim introspect)
+    (hT : answersTheSession.claim introspect) : introspectAnswers.claim introspect := by
+  intro realm token w h1 h2 h3
+  have r := hR realm token w h1 h2 h3
+  have n := hN realm token w h1 h2 h3
+  have e := hE realm token w h1 h2 h3
+  have o := hW realm token w h1 h2 h3
+  have t := hT realm token w h1 h2 h3
+  revert r n e o t
+  generalize introspect realm token w = p
+  rcases p with ⟨res, aft⟩
+  simp only
+  intro r n e o t
+  exact ⟨⟨⟨⟨r, n⟩, e⟩, o⟩, t⟩
+
+/-- An introspection on an index keeping what is assumed of it answers as introspectAnswers says. -/
+theorem introspect_answers (lookup : RealmId → String → StateM Stored (Option Session))
+    (hO : lookupOnlyHeld.claim lookup) (hF : lookupFindsHeld.claim lookup) (hK : lookupKeeps.claim lookup) :
+    introspectAnswers.claim (introspecting_run lookup) :=
+  answers_of_parts _ (isolated lookup hO hF hK) (names_session lookup hO hF hK) (only_enabled lookup hO hF hK)
+    (with_roles lookup hO hF hK) (the_session lookup hO hF hK)
 
 /-- The server's and the introspection's runs keep the accounts as loaded. -/
 theorem loaded_kept (nextRequest : List AuthRequest → StateM (List AuthRequest) AuthRequest)
     (record : AuthRequest → ServerState → StateM Stored ServerState)
     (lookup : RealmId → String → StateM Stored (Option Session))
-    (hD : drawnTokens.claim nextRequest) (hK : storeKeepsState.claim record) (hL : storeLogs.claim record)
-    (hLk : lookupKeeps.claim lookup) :
+    (hD : drawnTokens.claim nextRequest) (hK : storeKeepsState.claim record) (hH : storeHoldsState.claim record)
+    (hA : storeAppendsLog.claim record) (hKL : storeKeepsLoaded.claim record) (hLk : lookupKeeps.claim lookup) :
     loadedKept.claim (serving_run nextRequest record) (introspecting_run lookup) := by
   intro w h1 h2 h3
   refine ⟨?_, fun r t => ?_⟩
-  · obtain ⟨hAfter, -, -⟩ := served nextRequest record hD hK hL w h1 h2 h3
+  · obtain ⟨hAfter, -, -⟩ := served nextRequest record hD hK hH hA hKL w h1 h2 h3
     revert hAfter
     generalize serving_run nextRequest record w = p
     rcases p with ⟨res, aft⟩
@@ -249,10 +368,11 @@ theorem loaded_kept (nextRequest : List AuthRequest → StateM (List AuthRequest
 /-- The server answers with the state it stores. -/
 theorem answers_stored (nextRequest : List AuthRequest → StateM (List AuthRequest) AuthRequest)
     (record : AuthRequest → ServerState → StateM Stored ServerState)
-    (hD : drawnTokens.claim nextRequest) (hK : storeKeepsState.claim record) (hL : storeLogs.claim record) :
+    (hD : drawnTokens.claim nextRequest) (hK : storeKeepsState.claim record) (hH : storeHoldsState.claim record)
+    (hA : storeAppendsLog.claim record) (hKL : storeKeepsLoaded.claim record) :
     answersWhatItStores.claim (serving_run nextRequest record) := by
   intro w h1 h2 h3
-  obtain ⟨-, -, hAnswer⟩ := served nextRequest record hD hK hL w h1 h2 h3
+  obtain ⟨-, -, hAnswer⟩ := served nextRequest record hD hK hH hA hKL w h1 h2 h3
   revert hAnswer
   generalize serving_run nextRequest record w = p
   rcases p with ⟨res, aft⟩
@@ -267,11 +387,11 @@ theorem next_handles : handleRequest.claim next := by frflow_auto
 sign-ins of the log carry one) are what make a granted sign-in open: no open session holds a token no earlier sign-in
 carried. -/
 theorem sessions_mirror : sessionsMirrorSignIns.claim := by
-  intro r x w hRun _ hFresh
+  intro x w hRun _ hFresh
   have hStep := next_handles
   unfold handleRequest.claim at hStep
   simp only [serverRun] at hRun
-  simp only [freshTokens] at hFresh
+  simp only [freshTokens, newToken] at hFresh
   have key := FrFlow.tracks (step := fun s q => next s q) (init := ServerState.mk w.serverStore.loaded [])
     (R := fun s es => es.Pairwise (fun p q => ∀ (t : String), tokenOf q = some t → ¬ tokenOf p = some t) →
       s.accounts = accountsAfter w.serverStore.loaded es ∧ ∀ x, x ∈ s.sessions ↔ liveIn w.serverStore.loaded es x)
@@ -286,13 +406,16 @@ theorem sessions_mirror : sessionsMirrorSignIns.claim := by
       have hfe : fresh es e := fun t ht ⟨p, hp, hpt⟩ => hall p hp e (List.mem_singleton_self e) t ht hpt
       simp only [fresh] at hfe
       obtain ⟨hacc, hmem⟩ := ih hf0
-      obtain ⟨⟨⟨tacc, tout⟩, tkeep⟩, topen⟩ := hStep s e
+      have hse := hStep s e
+      simp only [accountsAsAsked, endedGone, keepsTheRest, opensItsOwn, opensNoOther] at hse
+      obtain ⟨⟨⟨⟨tacc, tends⟩, tkeep⟩, topen⟩, tno⟩ := hse
       refine ⟨by rw [tacc, hacc, accountsAfter_snoc], fun x => ?_⟩
       rw [liveIn_snoc]
       constructor
       · intro hx
-        rcases tout x hx with ⟨hxs, hne⟩ | ho
-        · refine Or.inl ⟨(hmem x).1 hxs, ?_⟩
+        rcases tno x hx with hxs | ho
+        · have hne := tends x hx
+          refine Or.inl ⟨(hmem x).1 hxs, ?_⟩
           rintro rfl
           exact hne (by simp [endedBy])
         · refine Or.inr ?_
@@ -321,13 +444,11 @@ theorem sessions_mirror : sessionsMirrorSignIns.claim := by
             rintro ⟨y, hy, hyt⟩
             obtain ⟨p, hp, hpt⟩ := liveIn_token ((hmem y).1 hy)
             exact hfe x.token (grantedBy_token hg) ⟨p, hp, by rw [hpt, hyt]⟩
-          simp only [opened, hg, hnone, ite_false])
+          simp only [opened, tokenTaken, hg, hnone, ite_false])
   obtain ⟨_, hmem⟩ := key w.serverStore.log hFresh
   rw [hRun]
-  apply propext
-  simp only [Keycloak.sessions, Keycloak.stateAfter, List.mem_filter, decide_eq_true_eq]
-  rw [hmem x]
-  exact ⟨fun ⟨a, b⟩ => ⟨b, a⟩, fun ⟨a, b⟩ => ⟨b, a⟩⟩
+  simp only [Keycloak.stateAfter]
+  exact propext (hmem x)
 
 /-- The server holds the accounts as administered: its state is its requests handled in turn by `next`
 (`serverRun`), a simulation (`FrFlow.simulates`) whose abstraction is the accounts, since each request handled
@@ -342,30 +463,29 @@ theorem accounts_administered : accountsAsAdministered.claim := by
   simp only [Keycloak.account, Keycloak.stateAfter, Keycloak.accountsAfter]
   rw [h]
 
-/-- A session the realm holds under the token: of the realm, under the token. -/
+/-- A session the realm holds under the token, found: held under it. -/
 theorem found {state : ServerState} {realm : RealmId} {token : String} {x : Session}
     (h : (sessions state realm).find? (fun y => decide (y.token = token)) = some x) :
-    x ∈ sessions state realm ∧ x.token = token ∧ x.realm = realm := by
-  have hm := List.mem_of_find?_eq_some h
+    heldUnder state realm token x := by
   have ht := List.find?_some h
   simp only [decide_eq_true_eq] at ht
-  refine ⟨hm, ht, ?_⟩
-  simp only [sessions, List.mem_filter, decide_eq_true_eq] at hm
-  exact hm.2
+  exact ⟨List.mem_of_find?_eq_some h, ht⟩
 
 /-- An index keeping what is assumed of it: answering from the sessions the store holds (today's `storedSession`),
 changing nothing. -/
 theorem some_index : ∃ (lookup : RealmId → String → StateM Stored (Option Session)),
-    sessionLookup.claim lookup ∧ lookupKeeps.claim lookup := by
-  refine ⟨fun realm token s => ((sessions s.state realm).find? (fun y => decide (y.token = token)), s), ?_,
+    lookupOnlyHeld.claim lookup ∧ lookupFindsHeld.claim lookup ∧ lookupKeeps.claim lookup := by
+  refine ⟨fun realm token s => ((sessions s.state realm).find? (fun y => decide (y.token = token)), s), ?_, ?_,
     fun _ _ _ _ _ _ => rfl⟩
-  intro realm token w _ _ _
-  rw [lookup_run_eq]
-  simp only [FrFlow.runOn, StateT.run, Id.run]
-  refine ⟨fun x hx => ?_, fun ⟨y, hy, ht⟩ hn => ?_⟩
-  · obtain ⟨hm, ht, hr⟩ := found hx
-    exact ⟨⟨hm, ht⟩, hr⟩
-  · rw [List.find?_eq_none] at hn
+  · intro realm token w _ _ _
+    rw [lookup_run_eq]
+    simp only [FrFlow.runOn, StateT.run, Id.run]
+    exact fun x hx => found hx
+  · intro realm token w _ _ _
+    rw [lookup_run_eq]
+    simp only [FrFlow.runOn, StateT.run, Id.run]
+    intro ⟨y, hy, ht⟩ hn
+    rw [List.find?_eq_none] at hn
     exact hn y hy (by simpa using ht)
 
 /-- What applications accept, read off what an introspection answers, is what it answers. -/

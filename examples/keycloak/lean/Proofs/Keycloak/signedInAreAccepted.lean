@@ -20,11 +20,13 @@ theorem complete : Obl.complete := by
   rw [hSigned r u t w h1 h2 h3] at hs
   rw [hEnabled r u w h1 h2 h3, ← hAcc r u w h1 h2 h3] at he
   have hx : Session.mk t r u ∈ sessions w.serverStore.state r := by
-    rw [hMirror r _ w h1 h2 h3]; exact ⟨rfl, hs⟩
+    simp only [sessions, List.mem_filter, decide_eq_true_eq]
+    rw [hMirror _ w h1 h2 h3]; exact ⟨hs, trivial⟩
   have hone : onlyOne (sessions w.serverStore.state r) (Session.mk t r u) := by
     intro y hy hyt
-    rw [hMirror r y w h1 h2 h3] at hy
-    exact h2 y (Session.mk t r u) ⟨⟨hy.2, hs⟩, hyt⟩
+    simp only [sessions, List.mem_filter, decide_eq_true_eq] at hy
+    rw [hMirror y w h1 h2 h3] at hy
+    exact h2 y (Session.mk t r u) ⟨⟨hy.1, hs⟩, hyt⟩
   have hr := hRef r t w h1 h2 h3
   have hi := hIntro r t w h1 h2 h3
   revert hr hi
@@ -32,20 +34,20 @@ theorem complete : Obl.complete := by
   rcases p with ⟨res, aft⟩
   simp only
   intro hr hi
-  have hans := hi.2 _ hx ⟨⟨rfl, he⟩, hone⟩
+  have hans := hi.2 _ hx ⟨⟨⟨hx, rfl⟩, hone⟩, he⟩
   rw [hr, hans, hRoles r u w h1 h2 h3, ← hAcc r u w h1 h2 h3]
   rfl
 
 /-- Some world meets the parts: the words as the server's store says them, an index answering from its sessions,
 what is accepted what is answered. -/
 theorem feasible : Obl.feasible := by
-  obtain ⟨lookup, hS, hK⟩ := Lemmas.some_index
+  obtain ⟨lookup, hO, hF, hK⟩ := Lemmas.some_index
   exact ⟨fun r u t w => liveIn w.serverStore.loaded w.serverStore.log (Session.mk t r u),
     fun r u w => isEnabled (accountOf (accountsAfter w.serverStore.loaded w.serverStore.log) r u),
     fun r t w => claimsOf (introspecting_run lookup r t w).1,
     fun r u w => rolesIn (accountOf (accountsAfter w.serverStore.loaded w.serverStore.log) r u),
     introspecting_run lookup, fun _ _ _ _ _ _ => rfl, fun _ _ _ _ _ _ => rfl, fun _ _ _ _ _ _ _ => rfl,
     Lemmas.reference (introspecting_run lookup), Lemmas.sessions_mirror, Lemmas.accounts_administered,
-    Lemmas.introspect_answers lookup hS hK⟩
+    Lemmas.introspect_answers lookup hO hF hK⟩
 
 end Keycloak.signedInAreAccepted.Proofs
