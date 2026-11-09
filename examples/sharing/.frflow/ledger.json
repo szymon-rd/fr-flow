@@ -257,6 +257,23 @@
         }
       }
     ],
+    "domainTypes": [
+      {
+        "action": "accept",
+        "by": "demo-developer",
+        "at": "2026-11-09T04:47:55.541474Z",
+        "commit": "1b26990060033eab74ac447b624d64be2e185c1e",
+        "reason": "Accepted with the demo key when moving to the rebuilt library.",
+        "rejected": [],
+        "content": "1fc533322c4dd259e1be0ef854251388fcd68b4dd35873fbcf53b307a7cfca89",
+        "chain": "",
+        "code": "01dc6b4c761d3c32f580567374e7f32b7b1c4e6fc54d4903455fdaa9b5286f91",
+        "seal": {
+          "key": "087bcc41dcd575d8",
+          "signature": "vnPlKY4zBhc5EWyqDod7HEnBtfvXm87lIyKy/63Bee5C4ZBdViOTj4bAc5DmZruUBp9lQRsRYGvb8kANkuRqAA=="
+        }
+      }
+    ],
     "editPermission": [
       {
         "action": "accept",
@@ -932,6 +949,23 @@
         }
       }
     ],
+    "serverWiring": [
+      {
+        "action": "accept",
+        "by": "demo-developer",
+        "at": "2026-11-09T04:47:55.541474Z",
+        "commit": "1b26990060033eab74ac447b624d64be2e185c1e",
+        "reason": "Accepted with the demo key when moving to the rebuilt library.",
+        "rejected": [],
+        "content": "12cb67378922bc8052f0e31ef42eb4eb4bbd83bb417babdddde55dca312ceb4e",
+        "chain": "",
+        "code": "b203a5b777c56aa2e554935ab7f4c64b5c8dd0b35db4f7196f1f29ac0a747b16",
+        "seal": {
+          "key": "087bcc41dcd575d8",
+          "signature": "G7IWw5Q9pC6PQyp+KeH/56Os8bpFPukOBeEaKMl+3O0X8bkmyQ44YnubjuIHVs5Gz/3VCKfmEFOjkDL+c1UXAQ=="
+        }
+      }
+    ],
     "shareContract": [
       {
         "action": "accept",
@@ -977,6 +1011,23 @@
         "seal": {
           "key": "087bcc41dcd575d8",
           "signature": "tMMSENzBbzoA9SygqllHbjsPL4ByWy5YdkzGvXG088chYvLeEopN8M/0iLm0KgHfzkVqh2JKTiqiVm89zMxBBQ=="
+        }
+      }
+    ],
+    "transactions": [
+      {
+        "action": "accept",
+        "by": "demo-developer",
+        "at": "2026-11-09T04:47:55.541474Z",
+        "commit": "1b26990060033eab74ac447b624d64be2e185c1e",
+        "reason": "Accepted with the demo key when moving to the rebuilt library.",
+        "rejected": [],
+        "content": "6771857d89c237d5001e71e380058e8a53ad5c2f2c8d3c239407bc05f55b591a",
+        "chain": "",
+        "code": "3bc8a1c848a2ba5dd86d078ab1a05ca114f0df0f889e915fc14ea5b9e55ecc26",
+        "seal": {
+          "key": "087bcc41dcd575d8",
+          "signature": "jgGmrscig5nUNDADqgLAtjUMHdCa9TuRCBSp6Q8PiNHk2ckQWtsnXPVQikWIcR346AxIxAMJHj6bz5oRwibIDg=="
         }
       }
     ],
@@ -1613,6 +1664,20 @@
       "call": "deliver",
       "failure": "fails with Failure: {\n    val after = deliver.after\n    deliver.result.fold(\n      _ => libraryModel.in(after) === libraryModel.current && mailerModel.in(after) === mailerModel.current,\n      _ =>\n        val (was, is) = (libraryModel.current, libraryModel.in(after))\n        let(firstOfEach(was.outbox))(heads =>\n          is === was.updated(_.outbox, was.outbox.filter(n => is.outbox.contains(n))) &&\n            was.outbox.forall(n => is.outbox.contains(n) ||\n              (heads.contains(n) && mailbox(mailerModel.in(after), n.to).contains(n))) &&\n            heads.forall(n => mailbox(mailerModel.in(after), n.to) === mailbox(mailerModel.current, n.to) ||\n              mailbox(mailerModel.in(after), n.to) === taken(mailbox(mailerModel.current, n.to), n))))\n  }",
       "implementation": "deliver: proven program, Delivery.run"
+    },
+    "1fc533322c4dd259e1be0ef854251388fcd68b4dd35873fbcf53b307a7cfca89": {
+      "kind": "design",
+      "parents": [
+        "accessFollowsShares"
+      ],
+      "assumes": [],
+      "statement": "People, teams, documents, folders, shares, invitations, access requests, log entries and notices are plain data: a document and a folder each list the folders around them, outermost first; a document names its owner; a team lists its people; a share may carry its end, a document the time it went to the trash, an invitation the time it was sent, a request the time it was made, all in seconds. The library keeps its log and its outbox with it.",
+      "vocabulary": [],
+      "checking": [],
+      "governs": [
+        "src/main/scala/sharing/domain",
+        "src/main/scala/sharing/Demo.scala"
+      ]
     },
     "716786a64fe03c1bedffb0ce91d15916fc5020d7b097c6e798bee8b0d4992b1f": {
       "kind": "claim",
@@ -2682,6 +2747,27 @@
       "call": "restore",
       "implementation": "gone: proven, (doc: Term[Document], t: Term[BigInt]) => doc.trashed.exists(at => at + trashKeeps <= t)\nmayEdit: proven, (lib: Term[Library], t: Term[BigInt], p: Term[PersonId], x: Term[Target]) =>\n  lib.shares.exists(s => inForce(s, t) && reaches(lib, s, p) && covers(lib, s, x) && s.level === Level.Edit)\nrestore: proven, (lib: Term[Library], t: Term[BigInt], by: Term[PersonId], d: Term[DocumentId]) =>\n    when(mayRestore(lib, t, by, d))(lib.updated(_.documents, lib.documents.map(doc =>\n      when(doc.id === d && !gone(doc, t))(doc.updated(_.trashed, none[BigInt])).otherwise(doc)))).otherwise(lib)"
     },
+    "12cb67378922bc8052f0e31ef42eb4eb4bbd83bb417babdddde55dca312ceb4e": {
+      "kind": "design",
+      "parents": [
+        "handleContract"
+      ],
+      "assumes": [],
+      "statement": "The server reads each HTTP request into a request, answers it with handleContract's program on the store and the clock, in IO, as many at once as its workers take, and writes the answer as JSON; requests run on a pool of workers with a time limit each, a request the store fails is answered 503 and changes nothing. On the computer's clock, housekeeping runs every minute and delivery every ten seconds; a run that fails is tried again at its next start.",
+      "vocabulary": [],
+      "checking": [],
+      "governs": [
+        "src/main/scala/sharing/http/Server.scala",
+        "src/main/scala/sharing/http/HttpCodec.scala",
+        "src/main/scala/sharing/service/SharingService.scala",
+        "src/main/scala/sharing/invitations/InvitationsService.scala",
+        "src/main/scala/sharing/trash/TrashService.scala",
+        "src/main/scala/sharing/housekeeping/HousekeepingService.scala",
+        "src/main/scala/sharing/time/LifetimesService.scala",
+        "src/main/scala/sharing/requests/AccessRequestsService.scala",
+        "src/main/scala/sharing/ownership/OwnershipService.scala"
+      ]
+    },
     "e82b54dbd242b231121199909f00f3ee1ce1120930c474d33fa54f44eb1df570": {
       "kind": "claim",
       "parents": [
@@ -2775,6 +2861,21 @@
       ],
       "governs": [],
       "implementation": "deliver: proven program, Delivery.run\nelapse: meant by clockModel, its Scala tested against it: (start = Wall.at[IO], observe = _.time)(c =>\n      (c.now, c.sleep, c.elapse))\nhandle: proven program, (r: Term[Request]) =>\n    (for\n      read <- Flow.parTupled(Flow.step(Clock.now), Flow.step(LibraryStore.load))\n      next  = served(read._2, read._1, r)\n      _    <- Flow.when(next =!= read._2)(LibraryStore.save(next))\n    yield answerTo(read._2, read._1, r)).atomically.timeout(Clock.now, limit)\nhousekeep: proven program, (for\n      t   <- Clock.now\n      lib <- LibraryStore.load\n      next = Notifications.warn(AccessRequests.chase(Audit.forget(tidy(lib, t), t), t), t)\n      _   <- Flow.when(next =!= lib)(LibraryStore.save(Audit.record(next, t, Change.Housekept)))\n      _   <- Flow.step(sharing.time.ClockKept.ranAt(t))\n    yield Flow.done).atomically"
+    },
+    "6771857d89c237d5001e71e380058e8a53ad5c2f2c8d3c239407bc05f55b591a": {
+      "kind": "design",
+      "parents": [
+        "handleContract",
+        "housekeepingJob",
+        "deliveryJob"
+      ],
+      "assumes": [],
+      "statement": "Each request, each run of housekeeping and each notice's removal from the outbox is one transaction on the store (atomically): requests at once leave the store as one after the other leaves it, in the order they take the store; once begun, a transaction runs to its end. Reading the clock is not part of the store's transaction.",
+      "vocabulary": [],
+      "checking": [],
+      "governs": [
+        "src/main/scala/sharing/store/MemoryLibraryStore.scala"
+      ]
     },
     "6107964d4a04f8977cbd893b19f91129a3d7da0018d9fa82d57692adb31a2cc2": {
       "kind": "claim",
