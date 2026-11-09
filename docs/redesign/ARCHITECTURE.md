@@ -557,8 +557,15 @@ step 3b, `impl` takes every part it states as a hypothesis (a design states noth
 the part mentions that Definition: this is sound, since each part is itself checked against the same code and no proof
 goes round. A leaf's hypotheses are its `reliesOn` as written, the code not put in: the statements about what its code
 calls, leaving out its ancestors, its descendants and every statement about its own Definitions (proven of the same
-code, not facts about a callee). A circle that remains over what each node is proven from (`Resolve.provenFrom`: stated
-parts, or a leaf's `reliesOn`) is refused (`RestsOnItself`). `PartNotCalled` is dropped (step 3b): narrowed to a part
+code, not facts about a callee). A statement about what the code calls is one mentioning, through the defines it
+calls, a Definition the code calls, so a claim about another program's runs can be among them though no proof needs
+it (sharing's `handle` and `housekeep` call the same words, which a claim about each mentions). Such a claim about other
+code, one constraining a function or program with code that the code checked does not reach, is left out where it would
+close a circle, the nodes and what each relies on taken in the theory's order (`Relying`); a theory with no circle keeps
+every one. A circle that remains over what each node is proven from (`Resolve.provenFrom`: stated parts, or a leaf's
+`reliesOn`) is refused (`RestsOnItself`). `root_impl` composes each node's proof once: one applied more than once is
+named once before the root's (`let p_<node> : claim := …`, `Composition.proven`), so the term grows with the nodes
+below a root, not with the paths to them. `PartNotCalled` is dropped (step 3b): narrowed to a part
 sharing no Declaration or Definition with the claim or what its code calls, it would still refuse crm's `sharedCrm`
 under the root's two expectations and 16 of sharing's parts, sound hypotheses all. `complete` is not asked of it.
 Neither `impl` nor `complete` takes a rule (an `always`, claimed or assumed) as a hypothesis: Lean has its rule on every
