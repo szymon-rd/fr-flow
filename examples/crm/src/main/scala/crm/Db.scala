@@ -4,9 +4,9 @@ import java.sql.{Connection, PreparedStatement, ResultSet}
 import scala.util.Using
 
 /** The CRM's records, shares, expiries and event log in SQLite: the plain Scala behind the database model's
-  * operations, tested against `databaseModel` and what is assumed of its search (`recordsByQuery`). Its tables have
-  * one row per key (their keys unique), as `keyedTables` trusts, each read in the order its rows were stored. One
-  * connection, its calls one at a time.
+  * operations, tested against `databaseModel` and what is assumed of its search (`fetchesOnlyMatches`,
+  * `fetchesEveryMatch`). Its tables have one row per key (their keys unique), as `keyedTables` trusts, each read in
+  * the order its rows were stored. One connection, its calls one at a time.
   */
 final class Db private (conn: Connection, select: Search => (String, List[Any])):
   /** The stored records a search asks for, by SQL. */

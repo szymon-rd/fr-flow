@@ -6,10 +6,30 @@ import frflow.*
 // Expiring shares: a job clears the shares whose time has come
 // ============================================================================
 
-val sharesExpire = Node.claim("A run of the expiry job at a time removes exactly the shares given until then or " +
-    "earlier, with their times, and keeps every record and every other share's time.")(
-  forall((s: Term[CrmStore], now: Term[BigInt]) => endsDueAt(s, now, expire(s, now))))
-  .refines(storeMirrorsRequests, recordsKept)
+val sharesExpire = Node.claim("A run of the expiry job changes a store only by ending the shares whose time has " +
+    "come.")(
+  forall((s: Term[CrmStore], now: Term[BigInt]) =>
+    val left = expire(s, now)
+    sameRecords(s, left) &&
+      onlyLiveShares(s, now, left) &&
+      onlyLiveTimes(s, now, left)))
+  .refines(sharesMirrorGrants, recordsKept)
+  .assuming(keyedTables)
+
+val expiryKeepsRecords = Node.claim("A run of the expiry job keeps the records as they are.")(
+  forall((s: Term[CrmStore], now: Term[BigInt]) => sameRecords(s, expire(s, now))))
+  .refines(sharesExpire)
+  .assuming(keyedTables)
+
+val expiryKeepsLiveShares = Node.claim("A run of the expiry job keeps exactly the shares that have not ended.")(
+  forall((s: Term[CrmStore], now: Term[BigInt]) => onlyLiveShares(s, now, expire(s, now))))
+  .refines(sharesExpire)
+  .assuming(keyedTables)
+
+val expiryKeepsLiveTimes = Node.claim("A run of the expiry job keeps exactly the times of the shares that have not " +
+    "ended.")(
+  forall((s: Term[CrmStore], now: Term[BigInt]) => onlyLiveTimes(s, now, expire(s, now))))
+  .refines(sharesExpire)
   .assuming(keyedTables)
 
 // ============================================================================
@@ -32,15 +52,30 @@ val expireOnce = program { (now: Term[BigInt]) =>
     _ <- logEvent(make[Event.Expired](now))
   yield t }
 
-val expiryJob = Node.claim("A run of the expiry job at a time leaves the database holding, about each record, what " +
-    "sharesExpire's run on what it held gives, logs the run at the end of the event log, and returns that store.")(
-  forall((now: Term[BigInt]) =>
-    val (held, left) = (databaseModel.current, databaseModel.in(runExpiry(now).after))
-    sameRows(left.store, expire(held.store, now)) && left.events === held.events :+ make[Event.Expired](now) &&
-      runExpiry(now).result === expire(held.store, now)))
+/** What the database holds after a run of the expiry job at `now`. */
+private def afterJob(now: Term[BigInt]): Term[Tables] = databaseModel.in(runExpiry(now).after)
+
+val jobStoresExpired = Node.claim("A run of the expiry job leaves the database holding, about each record, what " +
+    "expire gives of what it held.")(
+  forall((now: Term[BigInt]) => sameRows(afterJob(now).store, expire(held, now))))
   .assuming(runsOneAtATime, keyedTables)
 
-val expiryJobWiring = Node.design("The expiry job runs every minute, holding the database's lock during a run so no " +
-    "write interleaves with it; its code is the program expiryJob is proven of, run on SQLite.")(
+val jobLogsRun = Node.claim("A run of the expiry job is appended to the event log.")(
+  forall((now: Term[BigInt]) => afterJob(now).events === history :+ make[Event.Expired](now)))
+  .assuming(runsOneAtATime, keyedTables)
+
+val jobReturnsExpired = Node.claim("A run of the expiry job returns what expire gives of what the database held.")(
+  forall((now: Term[BigInt]) => runExpiry(now).result === expire(held, now)))
+  .assuming(runsOneAtATime, keyedTables)
+
+val expiryJobWiring = Node.design("The expiry job runs its proven program on SQLite.")(
   "src/main/scala/crm/Job.scala")
-  .refines(expiryJob)
+  .refines(jobStoresExpired, jobLogsRun, jobReturnsExpired)
+
+val expirySchedule = Node.design("The expiry job runs every minute.")(
+  "src/main/scala/crm/Job.scala")
+  .refines(sharesMirrorGrants)
+
+val databaseLock = Node.design("Every program on the database holds the database's lock for its whole run.")(
+  "src/main/scala/crm/WriteSide.scala", "src/main/scala/crm/Job.scala")
+  .refines(saveStores, jobStoresExpired)

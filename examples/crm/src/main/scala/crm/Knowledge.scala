@@ -4,8 +4,7 @@ import cats.effect.IO
 import cats.syntax.all.*
 import frflow.*
 
-val httpApi = Node.design("The HTTP API answers searches through the records screen and the sales screen, and " +
-    "writes through the write side; who calls is the account in the request's headers.")(
+val httpApi = Node.design("The HTTP API serves the screens and the write side to the account each request names.")(
   "src/main/scala/crm/Server.scala")
   .refines(sharedCrm)
 
@@ -34,7 +33,11 @@ def withCode(kb: FrModel): FrModel = kb
   .withGenerator(tablesAsRun)
 
 val knowledge = withCode(FrModel("Crm")(sharedCrm, addedIsFound, writesLeaveOthers, companies, ownership, searches,
-  searchesAsk, adding, sharing, crmRun, storeMirrorsRequests, visibility, noCrossTenantRead, searchesMatch,
-  recordsByQuery, searchKeeps, readContract, dealSearch, readSideWiring, writesTakeEffect, writesOnlyAsAsked,
-  recordsKept, writeContract, saveWrite, writeSideWiring, sharesExpire, tablesModel, runsOneAtATime,
-  expiryJob, expiryJobWiring, keyedTables, tablesStartEmpty, oneRowPerKey, httpApi))
+  searchesAsk, readers, adding, sharing, crmRun, storeMirrorsRequests, recordsMirrorAdds, sharesMirrorGrants,
+  visibility, noCrossTenantRead, fetchesOnlyMatches, fetchesEveryMatch, searchKeeps, readContract, readsOnlyMatching,
+  readsOnlyReadable, readsAllReadable, dealSearch, dealsOnlyMatching, dealsOnlyDeals, dealsOnlyReadable,
+  dealsAllReadable, readSideWiring, writesTakeEffect, writesOnlyAsAsked, recordsKept, writeContract,
+  writeKeepsRecords, writeKeepsOthers, writeDoesAsked, writeOnlyAsked, saveStores, saveLogs, saveReturns,
+  writeSideWiring, sharesExpire, expiryKeepsRecords, expiryKeepsLiveShares, expiryKeepsLiveTimes, tablesModel,
+  runsOneAtATime, jobStoresExpired, jobLogsRun, jobReturnsExpired, expiryJobWiring, expirySchedule, databaseLock,
+  keyedTables, tablesStartEmpty, oneRowPerKey, httpApi))
