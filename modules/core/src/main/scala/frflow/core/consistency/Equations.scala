@@ -1,16 +1,18 @@
 package frflow.core.consistency
 
 import frflow.core.expr.{Binder, Expr, Exprs, PrimOp, Quantifier}
-import frflow.core.name.{NodeId, SymbolName}
+import frflow.core.name.{DefName, NodeId, SymbolName}
 import frflow.core.ty.Ty
 
 /** A formula read, on its IR, as defining one open value (owner §18: `f(x) === e`, lower and upper bounds): `∀ xs,
   * s(xs) R e` with `R` an equation or an order, `s` applied to exactly the leading variables, on either side, and `e`
-  * mentioning no value still open (`open`: those not witnessed yet, `Consistency` solving the group in order), read
-  * also inside a run's post (`Defining` then gives the value at the run's outcome).
+  * mentioning no value still open (`open`: those not witnessed yet, `Consistency` solving the group in order), itself
+  * or through the defines it calls (`called`), read also inside a run's post (`Defining` then gives the value at the
+  * run's outcome).
   * `term.interpret.Defining` then builds the witness from the term.
   */
-final class Equations(open: List[SymbolName], reach: SymbolName => List[SymbolName]):
+final class Equations(open: List[SymbolName], reach: SymbolName => List[SymbolName],
+    called: DefName => List[SymbolName]):
   import Equations.*
 
   /** `∀ xs, s(xs) R e` in `f`, `e` mentioning nothing open, a proven Definition closed only once what its code leaves
@@ -27,7 +29,9 @@ final class Equations(open: List[SymbolName], reach: SymbolName => List[SymbolNa
         picked.map(p => if op == PrimOp.Eq then Witness.Equation(s, from, p) else Witness.Bound(s, from, p))
       case _ => None
 
-  private def closed(e: Expr): Boolean = Exprs.mentions(e).symbols.flatMap(x => x :: reach(x)).forall(!open.contains(_))
+  private def closed(e: Expr): Boolean =
+    val said = Exprs.mentions(e)
+    (said.symbols ++ said.defines.flatMap(called)).flatMap(x => x :: reach(x)).forall(!open.contains(_))
 
 object Equations:
 

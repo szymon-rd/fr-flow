@@ -137,7 +137,7 @@ object Consistency:
     */
   private def pins(t: Theory, id: NodeId, p: SymbolName): Boolean =
     t.node(id).filter(_.statement.kind == NodeKind.Assumption).flatMap(_.statement.said).exists(f =>
-      Equations(Nil, _ => Nil).defining(id, f.value, p).exists {
+      Equations(Nil, _ => Nil, _ => Nil).defining(id, f.value, p).exists {
         case Witness.Equation(_, _, _) => true
         case _                         => false
       })
@@ -155,8 +155,9 @@ object Consistency:
     */
   private def witnesses(t: Theory, ids: List[NodeId], opens: List[SymbolName]): List[Witness] =
     def solve(left: List[SymbolName], solved: List[Witness]): List[Witness] =
+      val equations = Equations(left, reach(t, _), Callees.calledBy(t, _))
       left.iterator.flatMap(s => ids.iterator.flatMap(id => t.node(id).flatMap(_.statement.said)
-        .flatMap(f => Equations(left, reach(t, _)).defining(id, f.value, s)))).nextOption() match
+        .flatMap(f => equations.defining(id, f.value, s)))).nextOption() match
         case Some(w) => solve(left.filterNot(_ == w.meaningOf), solved :+ w)
         case None    => solved ++ left.map(s => if tested(t, s) then Witness.Tested(s) else Witness.Missing(s))
     solve(opens, Nil)
