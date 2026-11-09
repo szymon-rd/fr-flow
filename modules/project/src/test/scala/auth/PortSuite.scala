@@ -52,7 +52,7 @@ class PortSuite extends munit.CatsEffectSuite:
     assertEquals(differences, Judged.differences.view.mapValues(_._1).toMap)
   }
 
-  private val proofs = List("Lemmas", "tokenNamesHolder", "accessNeedsGrant", "grantLetsIn")
+  private val proofs = List("Lemmas", "accessExactly", "tokenNamesHolder", "accessNeedsGrant", "grantLetsIn")
   private val lean = Lean(proofs.map(n => n -> Ported.proof("auth", "Auth", n)),
     reference.old("Auth", identity) :+ ("FrFlowGen/Port.lean" -> Ported.resource("auth/port/Port.lean")),
     Some("FrFlowGen.Port"))

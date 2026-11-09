@@ -34,5 +34,4 @@ Whole consistent_0
 Whole consistent_1
 Whole consistent_2
 Whole satisfiable_1_grantLetsIn
-Whole satisfiable_2_grantLetsIn
 Whole inhabited_tokensIssuedOnce
