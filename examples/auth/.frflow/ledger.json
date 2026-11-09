@@ -1,0 +1,384 @@
+{
+  "version": 1,
+  "decisions": {
+    "accessExactly": [
+      {
+        "action": "accept",
+        "by": "demo-developer",
+        "at": "2026-11-09T03:54:08.425727Z",
+        "commit": "43c024fb7e34a0c7ccea07c27b7917119b8bb5f3",
+        "reason": "Accepted with the demo key when moving to the rebuilt library.",
+        "rejected": [],
+        "content": "5584e643221a3425613f20ede35ceae73fa20ad5bf240a0875dc7dd3fc773072",
+        "chain": "",
+        "seal": {
+          "key": "087bcc41dcd575d8",
+          "signature": "PDPKiJqtjwCQAwWI3ykPp9IwdQs3xjEQPZWGI1vBzBNHGvGYJ0Sfi7Y6Q2PqBAg9OE2M/JBoIu+idDnI+GkOBQ=="
+        }
+      }
+    ],
+    "accessNeedsGrant": [
+      {
+        "action": "accept",
+        "by": "demo-developer",
+        "at": "2026-11-09T03:54:08.425727Z",
+        "commit": "43c024fb7e34a0c7ccea07c27b7917119b8bb5f3",
+        "reason": "Accepted with the demo key when moving to the rebuilt library.",
+        "rejected": [],
+        "content": "c1f40921583e333254a7a6b27952aadd0712aeab0170e3365f81337fbc458dc2",
+        "chain": "481f3b5f2d77b7a6988425cde95c57b9d49cbc04c94bcf970fc960a4049f99f6",
+        "code": "eb61d412f3c51b612b5d53b865f2e51cdecc7700e179aca3a28c5e4ac53c7fe1",
+        "seal": {
+          "key": "087bcc41dcd575d8",
+          "signature": "14oQLa6Cnq6xuk7riDNV9EiquiCg/4AGtk5DfrDxJxOCW6REDcz/1l//dp3f+4zlEHSGdwsMeutCdgUEgDoZDg=="
+        }
+      }
+    ],
+    "decisionContract": [
+      {
+        "action": "accept",
+        "by": "demo-developer",
+        "at": "2026-11-09T03:54:08.425727Z",
+        "commit": "43c024fb7e34a0c7ccea07c27b7917119b8bb5f3",
+        "reason": "Accepted with the demo key when moving to the rebuilt library.",
+        "rejected": [],
+        "content": "d43b81fb2fec413382ffff1c298b0f2dde8a6caf6ac05e8ef1de23e121345cf5",
+        "chain": "c2b96d054c1890d7e798e339ee152da7299e5a8a254b7d71aeb9621e80a74339",
+        "code": "eb61d412f3c51b612b5d53b865f2e51cdecc7700e179aca3a28c5e4ac53c7fe1",
+        "seal": {
+          "key": "087bcc41dcd575d8",
+          "signature": "aBqLEUZMj7bNvnucDEFtYrBl/bQGU2bwUJYjLVbkOiVIfCaJzfI7HZbaOYsAS8G7TLMnbXbTgtcJ2i29bLapBw=="
+        }
+      }
+    ],
+    "grantLetsIn": [
+      {
+        "action": "accept",
+        "by": "demo-developer",
+        "at": "2026-11-09T03:54:08.425727Z",
+        "commit": "43c024fb7e34a0c7ccea07c27b7917119b8bb5f3",
+        "reason": "Accepted with the demo key when moving to the rebuilt library.",
+        "rejected": [],
+        "content": "8f83600fa7bf1d12aa7d6b4a0270ec24266d69cd893b64518f089a0aa87b40c5",
+        "chain": "a94e7321a2eb45dc7f9bc81593d25bffc0d40ef0305116aae559ee0050d8f5fb",
+        "code": "eb61d412f3c51b612b5d53b865f2e51cdecc7700e179aca3a28c5e4ac53c7fe1",
+        "seal": {
+          "key": "087bcc41dcd575d8",
+          "signature": "+Wwpf0KegHsIfR8kTE0QNcziynuZnSzdcAbW1EWn1E5GFm89amzhdRysXjzT8UcpPyDEPbL/s29Td6Q3EWvABQ=="
+        }
+      }
+    ],
+    "grantTable": [
+      {
+        "action": "accept",
+        "by": "demo-developer",
+        "at": "2026-11-09T03:54:08.425727Z",
+        "commit": "43c024fb7e34a0c7ccea07c27b7917119b8bb5f3",
+        "reason": "Accepted with the demo key when moving to the rebuilt library.",
+        "rejected": [],
+        "content": "60be77398c099a367f702ca57f4287c93682dadb6c10233d16ca73a6bce9adf9",
+        "chain": "481f3b5f2d77b7a6988425cde95c57b9d49cbc04c94bcf970fc960a4049f99f6",
+        "seal": {
+          "key": "087bcc41dcd575d8",
+          "signature": "QQbODtx5Iz2nHdeE1yvPbhMwbnqBXT/YcIO2OPrC83pv1XGpgMOEPR07J6kOP7NtysHHMpHgetzJ7e22xFDoDQ=="
+        }
+      }
+    ],
+    "requests": [
+      {
+        "action": "accept",
+        "by": "demo-developer",
+        "at": "2026-11-09T03:54:08.425727Z",
+        "commit": "43c024fb7e34a0c7ccea07c27b7917119b8bb5f3",
+        "reason": "Accepted with the demo key when moving to the rebuilt library.",
+        "rejected": [],
+        "content": "7fe087b5b3f6dde10a8381cdf7777e970b4d1082e0619d9de214f1e925d1d4be",
+        "chain": "481f3b5f2d77b7a6988425cde95c57b9d49cbc04c94bcf970fc960a4049f99f6",
+        "seal": {
+          "key": "087bcc41dcd575d8",
+          "signature": "gZCNzW42qMIKqyUZ+NicTcbOFNEBSuLfpEUel0LZLFKAK3hetErAcstYB3oVdKzul9onPLMrx5cxgMLwYhU/Bw=="
+        }
+      }
+    ],
+    "sessionTable": [
+      {
+        "action": "accept",
+        "by": "demo-developer",
+        "at": "2026-11-09T03:54:08.425727Z",
+        "commit": "43c024fb7e34a0c7ccea07c27b7917119b8bb5f3",
+        "reason": "Accepted with the demo key when moving to the rebuilt library.",
+        "rejected": [],
+        "content": "7f6876820281dcba7bbfa05952d2797ee4680d72f8217562383055308928e7bc",
+        "chain": "481f3b5f2d77b7a6988425cde95c57b9d49cbc04c94bcf970fc960a4049f99f6",
+        "seal": {
+          "key": "087bcc41dcd575d8",
+          "signature": "9TU6+38Mt/mXGcbgC0GIjZqiPK1WNZrVpfMVWisQPf4eoz3SJVCNJqxOfIeuRjdVdjT+hVI2ldk0Wauozoo7Bg=="
+        }
+      }
+    ],
+    "tokenNamesHolder": [
+      {
+        "action": "accept",
+        "by": "demo-developer",
+        "at": "2026-11-09T03:54:08.425727Z",
+        "commit": "43c024fb7e34a0c7ccea07c27b7917119b8bb5f3",
+        "reason": "Accepted with the demo key when moving to the rebuilt library.",
+        "rejected": [],
+        "content": "ebcde121ccff4dfdca195ed247c75e3ebecebc6a5d117d318e8f40bf2c52d363",
+        "chain": "a94e7321a2eb45dc7f9bc81593d25bffc0d40ef0305116aae559ee0050d8f5fb",
+        "code": "eb61d412f3c51b612b5d53b865f2e51cdecc7700e179aca3a28c5e4ac53c7fe1",
+        "seal": {
+          "key": "087bcc41dcd575d8",
+          "signature": "rspRwwCsAGO1ImYEfX5kHqCflxmrjQi5f/FFvp74tN59bEyWrmCFvaj5QCixqYfCk9MyjWmamJJlqrwp2sO9Cg=="
+        }
+      }
+    ],
+    "tokensIssuedOnce": [
+      {
+        "action": "accept",
+        "by": "demo-developer",
+        "at": "2026-11-09T03:54:08.425727Z",
+        "commit": "43c024fb7e34a0c7ccea07c27b7917119b8bb5f3",
+        "reason": "Accepted with the demo key when moving to the rebuilt library.",
+        "rejected": [],
+        "content": "a8df76b0605132b2b6e591e2775701057a1d7d9713dc7789de251610f5cf3c7a",
+        "chain": "",
+        "seal": {
+          "key": "087bcc41dcd575d8",
+          "signature": "RNIxE7EaOgTYrJccouKgzWO1t6hm4BDrvbkRqwvPBCQTsg3+U+IKlyrdEpC6oAMCgIgSfba0TSPudj+WUx0tDg=="
+        }
+      }
+    ]
+  },
+  "contents": {
+    "5584e643221a3425613f20ede35ceae73fa20ad5bf240a0875dc7dd3fc773072": {
+      "kind": "claim",
+      "parents": [],
+      "parts": [
+        "grantTable",
+        "sessionTable",
+        "requests",
+        "tokenNamesHolder",
+        "accessNeedsGrant",
+        "grantLetsIn"
+      ],
+      "assumes": [],
+      "statement": "A user gets access to a resource exactly when they are signed in and authorized for it.",
+      "formula": "(∀ (x : UserId), (∀ (x_1 : Path), ((access x x_1) = ((signedIn x) ∧ (authorized x x_1)))))",
+      "written": "forall((u: Term[UserId], r: Term[Path]) => access(u, r) === (signedIn(u) && authorized(u, r)))",
+      "vocabulary": [
+        "access: whether the system lets the user access the resource",
+        "authorized: whether the user is allowed the resource, by whatever rule the system adopts",
+        "signedIn: whether the user has signed in, so can present who they are"
+      ],
+      "checking": [
+        "proven from its parts (grantTable, sessionTable, requests, tokenNamesHolder, accessNeedsGrant, grantLetsIn)"
+      ],
+      "governs": [],
+      "call": "access"
+    },
+    "c1f40921583e333254a7a6b27952aadd0712aeab0170e3365f81337fbc458dc2": {
+      "kind": "claim",
+      "parents": [
+        "accessExactly"
+      ],
+      "parts": [
+        "decisionContract"
+      ],
+      "assumes": [],
+      "statement": "A request is admitted on behalf of a user only if a grant names that user and the path.",
+      "formula": "(∀ (x : String), (∀ (x_1 : Path), (match (admit x x_1) with | none => True | some x_2 => (Auth.grantFor grants x_2 x_1))))\n\n@[frflow_defs] def grantFor (grants : (List Grant)) (x : UserId) (x_1 : Path) : Prop :=\n  (∃ x_2 ∈ grants, (x_2 = (Grant.mk x x_1)))",
+      "written": "forall((t: Term[String], p: Term[Path]) => admit(t, p).fold(True)(u => grantFor(u, p)))",
+      "vocabulary": [
+        "admit: the system's decision on a request (a token and a path): the user it is admitted on behalf of, if any",
+        "grants: the grant table as stored when the request is decided"
+      ],
+      "checking": [
+        "proven from its parts (decisionContract)",
+        "tested against admit's Scala on generated cases",
+        "stated for every value of grants provided where the code runs",
+        "assumed by the code calling admit, grants"
+      ],
+      "governs": [],
+      "call": "admit",
+      "implementation": "admit: Scala, env => SessionStore(env(grants), env(sessions)).decide\ngrants: provided where the code runs"
+    },
+    "d43b81fb2fec413382ffff1c298b0f2dde8a6caf6ac05e8ef1de23e121345cf5": {
+      "kind": "claim",
+      "parents": [
+        "tokenNamesHolder",
+        "accessNeedsGrant",
+        "grantLetsIn"
+      ],
+      "parts": [],
+      "assumes": [
+        "tokensIssuedOnce"
+      ],
+      "statement": "A request is admitted on behalf of the user its token was issued to, exactly when a grant names that user and the path.",
+      "formula": "(∀ (x : String), (∀ (x_1 : Path), ((admit x x_1) = (List.foldl (fun (x_2 : (Option UserId)) (x_3 : Session) => (if ((x_3.token = x) ∧ (Auth.grantFor grants x_3.user x_1)) then (some x_3.user) else x_2)) (none : (Option UserId)) sessions.«open»))))\n\n@[frflow_defs] def grantFor (grants : (List Grant)) (x : UserId) (x_1 : Path) : Prop :=\n  (∃ x_2 ∈ grants, (x_2 = (Grant.mk x x_1)))",
+      "written": "forall((token: Term[String], path: Term[Path]) =>\n    admit(token, path) === sessions.open.foldLeft(none[UserId])((found, s) =>\n      when(s.token === token && grantFor(s.user, path))(some(s.user)).otherwise(found)))",
+      "vocabulary": [
+        "admit: the system's decision on a request (a token and a path): the user it is admitted on behalf of, if any",
+        "grants: the grant table as stored when the request is decided",
+        "sessions: the session table as stored when the request is decided: a token to the user it was issued to at login"
+      ],
+      "checking": [
+        "tested against admit's Scala on generated cases",
+        "stated for every value of sessions provided where the code runs",
+        "stated for every value of grants provided where the code runs",
+        "assumed by the code calling admit, sessions, grants",
+        "rules it uses: tokensIssuedOnce",
+        "rests on what each Sessions from outside meets: tokensIssuedOnce",
+        "consistent with requests: witnessed, for Lean to check"
+      ],
+      "governs": [],
+      "call": "admit",
+      "implementation": "admit: Scala, env => SessionStore(env(grants), env(sessions)).decide\ngrants: provided where the code runs\nsessions: provided where the code runs"
+    },
+    "8f83600fa7bf1d12aa7d6b4a0270ec24266d69cd893b64518f089a0aa87b40c5": {
+      "kind": "claim",
+      "parents": [
+        "accessExactly"
+      ],
+      "parts": [
+        "decisionContract"
+      ],
+      "assumes": [
+        "tokensIssuedOnce"
+      ],
+      "statement": "A request whose token was issued to a user with a grant for the path is admitted on their behalf.",
+      "formula": "(∀ (x : String), (∀ (x_1 : Path), (∀ x_2 ∈ sessions.«open», ((x_2.token = x) → ((Auth.grantFor grants x_2.user x_1) → ((admit x x_1) = (some x_2.user)))))))\n\n@[frflow_defs] def grantFor (grants : (List Grant)) (x : UserId) (x_1 : Path) : Prop :=\n  (∃ x_2 ∈ grants, (x_2 = (Grant.mk x x_1)))",
+      "written": "forall((t: Term[String], p: Term[Path]) => sessions.open.forall(s => s.token === t implies\n    (grantFor(s.user, p) implies (admit(t, p) === some(s.user)))))",
+      "vocabulary": [
+        "admit: the system's decision on a request (a token and a path): the user it is admitted on behalf of, if any",
+        "grants: the grant table as stored when the request is decided",
+        "sessions: the session table as stored when the request is decided: a token to the user it was issued to at login"
+      ],
+      "checking": [
+        "proven from its parts (decisionContract)",
+        "stated for every value of sessions provided where the code runs",
+        "tested against admit's Scala on generated cases",
+        "stated for every value of grants provided where the code runs",
+        "assumed by the code calling sessions, admit, grants",
+        "rules it uses: tokensIssuedOnce",
+        "rests on what each Sessions from outside meets: tokensIssuedOnce",
+        "not vacuous: condition 1 can hold, condition 2 can hold"
+      ],
+      "governs": [],
+      "call": "admit",
+      "implementation": "admit: Scala, env => SessionStore(env(grants), env(sessions)).decide\ngrants: provided where the code runs\nsessions: provided where the code runs"
+    },
+    "60be77398c099a367f702ca57f4287c93682dadb6c10233d16ca73a6bce9adf9": {
+      "kind": "claim",
+      "parents": [
+        "accessExactly"
+      ],
+      "parts": [],
+      "assumes": [],
+      "statement": "A user is authorized for a path when a grant names that user and that path.",
+      "formula": "(∀ (x : UserId), (∀ (x_1 : Path), ((authorized x x_1) = (Auth.grantFor grants x x_1))))\n\n@[frflow_defs] def grantFor (grants : (List Grant)) (x : UserId) (x_1 : Path) : Prop :=\n  (∃ x_2 ∈ grants, (x_2 = (Grant.mk x x_1)))",
+      "written": "forall((u: Term[UserId], p: Term[Path]) => authorized(u, p) === grantFor(u, p))",
+      "vocabulary": [
+        "authorized: whether the user is allowed the resource, by whatever rule the system adopts",
+        "grants: the grant table as stored when the request is decided"
+      ],
+      "checking": [
+        "says what authorized is",
+        "consistent: witnessed, for Lean to check"
+      ],
+      "governs": [],
+      "call": "authorized",
+      "implementation": "grants: provided where the code runs"
+    },
+    "7fe087b5b3f6dde10a8381cdf7777e970b4d1082e0619d9de214f1e925d1d4be": {
+      "kind": "claim",
+      "parents": [
+        "accessExactly"
+      ],
+      "parts": [],
+      "assumes": [],
+      "statement": "A user has access to a path when some request for it is admitted on their behalf.",
+      "formula": "(∀ (x : UserId), (∀ (x_1 : Path), ((access x x_1) = (¬(∀ (x_2 : String), (¬((admit x_2 x_1) = (some x))))))))",
+      "written": "forall((u: Term[UserId], p: Term[Path]) =>\n    access(u, p) === !forall((t: Term[String]) => admit(t, p) =!= some(u)))",
+      "vocabulary": [
+        "access: whether the system lets the user access the resource",
+        "admit: the system's decision on a request (a token and a path): the user it is admitted on behalf of, if any"
+      ],
+      "checking": [
+        "says what access is",
+        "consistent with decisionContract: witnessed, for Lean to check"
+      ],
+      "governs": [],
+      "call": "access",
+      "implementation": "admit: Scala, env => SessionStore(env(grants), env(sessions)).decide"
+    },
+    "7f6876820281dcba7bbfa05952d2797ee4680d72f8217562383055308928e7bc": {
+      "kind": "claim",
+      "parents": [
+        "accessExactly"
+      ],
+      "parts": [],
+      "assumes": [],
+      "statement": "A user is signed in when some session token was issued to them.",
+      "formula": "(∀ (x : UserId), ((signedIn x) = (∃ x_1 ∈ sessions.«open», (x_1.user = x))))",
+      "written": "forall((u: Term[UserId]) => signedIn(u) === sessions.open.exists(s => s.user === u))",
+      "vocabulary": [
+        "sessions: the session table as stored when the request is decided: a token to the user it was issued to at login",
+        "signedIn: whether the user has signed in, so can present who they are"
+      ],
+      "checking": [
+        "says what signedIn is",
+        "consistent: witnessed, for Lean to check"
+      ],
+      "governs": [],
+      "call": "signedIn",
+      "implementation": "sessions: provided where the code runs"
+    },
+    "ebcde121ccff4dfdca195ed247c75e3ebecebc6a5d117d318e8f40bf2c52d363": {
+      "kind": "claim",
+      "parents": [
+        "accessExactly"
+      ],
+      "parts": [
+        "decisionContract"
+      ],
+      "assumes": [
+        "tokensIssuedOnce"
+      ],
+      "statement": "A request is admitted only on behalf of the user its token was issued to.",
+      "formula": "(∀ (x : String), (∀ (x_1 : Path), (match (admit x x_1) with | none => True | some x_2 => (Auth.issuedTo sessions x x_2))))\n\n@[frflow_defs] def issuedTo (sessions : Sessions) (x : String) (x_1 : UserId) : Prop :=\n  (∃ x_2 ∈ sessions.«open», ((x_2.token = x) ∧ (x_2.user = x_1)))",
+      "written": "forall((t: Term[String], p: Term[Path]) => admit(t, p).fold(True)(u => issuedTo(t, u)))",
+      "vocabulary": [
+        "admit: the system's decision on a request (a token and a path): the user it is admitted on behalf of, if any",
+        "sessions: the session table as stored when the request is decided: a token to the user it was issued to at login"
+      ],
+      "checking": [
+        "proven from its parts (decisionContract)",
+        "tested against admit's Scala on generated cases",
+        "stated for every value of sessions provided where the code runs",
+        "assumed by the code calling admit, sessions",
+        "rules it uses: tokensIssuedOnce",
+        "rests on what each Sessions from outside meets: tokensIssuedOnce"
+      ],
+      "governs": [],
+      "call": "admit",
+      "implementation": "admit: Scala, env => SessionStore(env(grants), env(sessions)).decide\nsessions: provided where the code runs"
+    },
+    "a8df76b0605132b2b6e591e2775701057a1d7d9713dc7789de251610f5cf3c7a": {
+      "kind": "assumption",
+      "parents": [],
+      "parts": [],
+      "assumes": [],
+      "statement": "The session table issues each token to one user.",
+      "formula": "(∀ (x : Sessions), (Auth.tokensIssuedOnce x))\n\n@[frflow_defs] def tokensIssuedOnce (x : Sessions) : Prop :=\n  (List.Pairwise (fun (x_1 : Session) (x_2 : Session) => (¬(x_1.token = x_2.token))) x.«open»)",
+      "written": "always[Sessions](s => s.open.pairwise((a, b) => a.token =!= b.token))",
+      "vocabulary": [],
+      "checking": [
+        "trusted",
+        "met where a Sessions is made; assumed of every Sessions in Lean",
+        "not vacuous: some Sessions meets it"
+      ],
+      "governs": []
+    }
+  }
+}
