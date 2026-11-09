@@ -47,20 +47,30 @@ val grantFor = define { (u: Term[UserId], p: Term[Path]) => grants.exists(g => g
 /** The token was issued to the user. */
 val issuedTo = define { (t: Term[String], u: Term[UserId]) => sessions.open.exists(s => s.token === t && s.user === u) }
 
+/** The user the token was issued to, if any. */
+val holderOf = define { (t: Term[String]) =>
+  sessions.open.find(s => s.token === t).fold(none[UserId])(s => some(s.user)) }
+
+/** The token's holder has a grant for the path. */
+val holderGranted = define { (t: Term[String], p: Term[Path]) => holderOf(t).exists(u => grantFor(u, p)) }
+
+/** Some request for the path is admitted on the user's behalf. */
+val admittedTo = define { (u: Term[UserId], p: Term[Path]) => !forall((t: Term[String]) => admit(t, p) =!= some(u)) }
+
 val tokensIssuedOnce = Node.assumption("The session table issues each token to one user.")(
   always[Sessions](s => s.open.pairwise((a, b) => a.token =!= b.token)))
 
-val grantTable = Node.claim("A user is authorized for a path when a grant names that user and that path.")(
+val grantTable = Node.claim("A user is authorized for a path exactly when a grant names that user and that path.")(
   forall((u: Term[UserId], p: Term[Path]) => authorized(u, p) === grantFor(u, p)))
   .refines(accessExactly)
 
-val sessionTable = Node.claim("A user is signed in when some session token was issued to them.")(
+val sessionTable = Node.claim("A user is signed in exactly when some session token was issued to them.")(
   forall((u: Term[UserId]) => signedIn(u) === sessions.open.exists(s => s.user === u)))
   .refines(accessExactly)
 
-val requests = Node.claim("A user has access to a path when some request for it is admitted on their behalf.")(
-  forall((u: Term[UserId], p: Term[Path]) =>
-    access(u, p) === !forall((t: Term[String]) => admit(t, p) =!= some(u))))
+val requests = Node.claim(
+    "A user has access to a path exactly when some request for it is admitted on their behalf.")(
+  forall((u: Term[UserId], p: Term[Path]) => access(u, p) === admittedTo(u, p)))
   .refines(accessExactly)
 
 // ============================================================================
@@ -68,19 +78,18 @@ val requests = Node.claim("A user has access to a path when some request for it 
 // ============================================================================
 
 val tokenNamesHolder = Node.claim("A request is admitted only on behalf of the user its token was issued to.")(
-  forall((t: Term[String], p: Term[Path]) => admit(t, p).fold(True)(u => issuedTo(t, u))))
+  forall((t: Term[String], p: Term[Path]) => admit(t, p).forall(u => issuedTo(t, u))))
   .refines(accessExactly)
   .assuming(tokensIssuedOnce)
 
 val accessNeedsGrant = Node.claim(
     "A request is admitted on behalf of a user only if a grant names that user and the path.")(
-  forall((t: Term[String], p: Term[Path]) => admit(t, p).fold(True)(u => grantFor(u, p))))
+  forall((t: Term[String], p: Term[Path]) => admit(t, p).forall(u => grantFor(u, p))))
   .refines(accessExactly)
 
 val grantLetsIn = Node.claim(
-    "A request whose token was issued to a user with a grant for the path is admitted on their behalf.")(
-  forall((t: Term[String], p: Term[Path]) => sessions.open.forall(s => s.token === t implies
-    (grantFor(s.user, p) implies (admit(t, p) === some(s.user))))))
+    "A request whose token's holder has a grant for the path is admitted on the holder's behalf.")(
+  forall((t: Term[String], p: Term[Path]) => holderGranted(t, p) implies (admit(t, p) === holderOf(t))))
   .refines(accessExactly)
   .assuming(tokensIssuedOnce)
 
@@ -88,11 +97,10 @@ val grantLetsIn = Node.claim(
 // What every call of the decision must satisfy
 // ============================================================================
 
-val decisionContract = Node.claim("A request is admitted on behalf of the user its token was issued to, exactly " +
-    "when a grant names that user and the path.")(
-  forall((token: Term[String], path: Term[Path]) =>
-    admit(token, path) === sessions.open.foldLeft(none[UserId])((found, s) =>
-      when(s.token === token && grantFor(s.user, path))(some(s.user)).otherwise(found))))
+val decisionContract = Node.claim(
+    "A request is admitted on behalf of its token's holder exactly when they have a grant for the path.")(
+  forall((t: Term[String], p: Term[Path]) =>
+    admit(t, p) === when(holderGranted(t, p))(holderOf(t)).otherwise(none[UserId])))
   .refines(tokenNamesHolder, accessNeedsGrant, grantLetsIn)
   .assuming(tokensIssuedOnce)
 
@@ -101,7 +109,7 @@ val decisionContract = Node.claim("A request is admitted on behalf of the user i
 // ============================================================================
 
 val inMemorySessions = Node.design(
-  "Sessions and grants are loaded into memory, in one process that decides every request.")(
+  "One process decides every request, from the sessions and grants it holds in memory.")(
   "src/main/scala/auth/Server.scala").refines(decisionContract)
 
 val knowledge = FrModel("Auth")(accessExactly, grantTable, sessionTable, requests, tokenNamesHolder,

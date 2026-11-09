@@ -38,6 +38,11 @@ class AuthSuite extends munit.FunSuite:
       Set("access" -> "requests", "admit" -> "decisionContract"))
   }
 
+  test("an equation calling a define that reaches an open value waits for it: admit, then access (admittedTo)") {
+    val (_, _, witnesses) = groups(knowledge).find(_._2.contains(SymbolName("access"))).get
+    assertEquals(witnesses.map(_.meaningOf), names("admit", "access"))
+  }
+
   test("with no equation for it, a Declaration leaves its group unwitnessed: consistency not proven, said so") {
     val alone = Theories.resolved(FrModel("Auth")(accessExactly)).theory
     assertEquals(Consistency.of(alone).map(_.standing),
