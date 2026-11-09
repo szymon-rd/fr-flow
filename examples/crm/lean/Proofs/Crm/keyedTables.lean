@@ -52,7 +52,7 @@ theorem made_saved_call_1 : Obl.made_saved_call_1 := fun c s h => applyWrite_one
 
 /-- What the job hands the database to store is its expire's store, which keeps the rule (`m_expire`). -/
 theorem made_expireOnce_call_1 : Obl.made_expireOnce_call_1 := by
-  intro expire _ _ _ _ _ _ _ mX now s h _ _ _
+  intro expire _ _ _ _ _ _ mX now s h _ _ _
   exact mX s h.1 h.2 now
 
 theorem made_save : Obl.made_save := by
@@ -61,7 +61,7 @@ theorem made_save : Obl.made_save := by
   exact aboutRecord_onePerKey _ _ (applyWrite_onePerKey _ c h2)
 
 theorem made_runExpiry : Obl.made_runExpiry := by
-  intro expire _ _ _ _ _ _ _ mX now w _ h2 h3
+  intro expire _ _ _ _ _ _ mX now w _ h2 h3
   rw [Runs.expireOnce_run_eq]
   exact mX _ h2 h3 now
 

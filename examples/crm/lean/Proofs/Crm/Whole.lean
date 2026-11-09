@@ -41,25 +41,4 @@ theorem example_ExpireExamples_2 : Obl.example_ExpireExamples_2 := by
 theorem example_ExpireExamples_3 : Obl.example_ExpireExamples_3 := by
   intro _ _ _ _; simp [expireCode, ended, liveShares, liveExpiries]
 
--- Today's examples of a write, each the write's code on the store given (`frflow_auto` decided them within an
--- example's budget while one claim spoke of `write`; with its parts beside it, it does not).
-
-theorem example_WriteExamples_0 : Obl.example_WriteExamples_0 := by
-  intro _ _ _ _ _ _; simp [applyWrite, freshAdd, addRecord]
-
-theorem example_WriteExamples_1 : Obl.example_WriteExamples_1 := by
-  intro _ _ _ _ _ _; simp [applyWrite, ownRecord, shareRecord, sharesBut, expiriesBut, expiryOf]
-
-theorem example_WriteExamples_2 : Obl.example_WriteExamples_2 := by
-  intro _ _ _ _ _ _; simp [applyWrite, ownRecord, shareRecord, sharesBut, expiriesBut, expiryOf]
-
-theorem example_WriteExamples_3 : Obl.example_WriteExamples_3 := by
-  intro _ _ _ _ _ _; simp [applyWrite, ownRecord, shareRecord]
-
-theorem example_WriteExamples_4 : Obl.example_WriteExamples_4 := by
-  intro _ _ _ _ _ _; simp [applyWrite, freshAdd, addRecord]
-
-theorem example_WriteExamples_5 : Obl.example_WriteExamples_5 := by
-  intro _ _ _ _ _ _; simp [applyWrite, freshAdd, addRecord]
-
 end Crm.Whole.Proofs
