@@ -16,6 +16,34 @@ namespace Sharing.Lemmas
 theorem changed {α : Type} {c : Prop} {inst : Decidable c} {a b : α} (h : ¬ (@ite α c inst a b = b)) : c :=
   Classical.byContradiction fun hn => h (ite_eq_right hn)
 
+/-- Who a share must be with, as accessContract lists them, is whom it reaches. -/
+theorem with_iff (lib : Library) (p : PersonId) (g : Grantee) :
+    g ∈ granteesOf lib p ↔ (match g with
+      | Grantee.Person q => q = p
+      | Grantee.Team t => ∃ team ∈ lib.teams, team.id_ = t ∧ p ∈ team.members) := by
+  cases g with
+  | Person q => simp [granteesOf]
+  | Team t =>
+    simp only [granteesOf, List.mem_cons, List.mem_map, List.mem_filter, decide_eq_true_eq, reduceCtorEq, false_or,
+      Grantee.Team.injEq]
+    constructor
+    · rintro ⟨a, ⟨h1, h2⟩, h3⟩; exact ⟨a, h1, h3, h2⟩
+    · rintro ⟨a, h1, h3, h2⟩; exact ⟨a, ⟨h1, h2⟩, h3⟩
+
+/-- What a share must be of, as accessContract lists it, is what covers the document. -/
+theorem of_iff (lib : Library) (d : DocumentId) (t : Target) :
+    t ∈ placesOf lib d ↔ (match t with
+      | Target.Doc e => Target.Doc d = Target.Doc e
+      | Target.InFolder f => ∃ doc ∈ lib.documents, doc.id_ = d ∧ f ∈ doc.folders) := by
+  cases t with
+  | Doc e => simp [placesOf, eq_comm]
+  | InFolder f =>
+    simp only [placesOf, List.mem_cons, List.mem_flatMap, List.mem_map, List.mem_filter, decide_eq_true_eq,
+      reduceCtorEq, false_or, Target.InFolder.injEq]
+    constructor
+    · rintro ⟨a, ⟨h1, h2⟩, b, h3, rfl⟩; exact ⟨a, h1, h2, h3⟩
+    · rintro ⟨a, h1, h2, h3⟩; exact ⟨a, ⟨h1, h2⟩, f, h3, rfl⟩
+
 /-- A request served: as it was, or what its operation left, recorded and announced, which changes the documents,
 the invitations, the requests and the shares no more. -/
 theorem served_cases (mayEdit : Library → Int → PersonId → Target → Prop) (ownedBy : Library → Target → Grantee → Prop)
@@ -344,12 +372,13 @@ theorem removals_commute (n₁ n₂ : Notice) (w : World) (f₁ r₁ f₂ r₂ :
       | rfl
       | (congr 2; funext m; exact Bool.and_comm _ _)
 
-/-- A request served keeps the log's account (`logKept`): a share it makes comes with its entry, the entries before
-stay (the operations leave the log alone), and its notices are of its entry. -/
+/-- A request served keeps the log's account (`sharesLogged`, `noticesLogged`): a share it makes comes with its entry,
+the entries before stay (the operations leave the log alone), and its notices are of its entry. -/
 theorem served_logKept (mayEdit : Library → Int → PersonId → Target → Prop) (ownedBy : Library → Target → Grantee → Prop)
     (isOpen : Invitation → Int → Prop) (gone : Document → Int → Prop) (isPending : AccessRequest → Int → Prop)
-    (lib : Library) (t : Int) (r : Request) (h : logKept lib) :
-    logKept ((served announceCode recordCode (shareCode mayEdit ownedBy) (unshareCode mayEdit ownedBy) (moveCode mayEdit) (inviteCode mayEdit) (acceptCode isOpen ownedBy) (withdrawCode mayEdit) (trashCode mayEdit) (restoreCode gone mayEdit) askCode (approveCode isPending mayEdit ownedBy) (declineCode mayEdit) (transferCode mayEdit) lib t r)) := by
+    (lib : Library) (t : Int) (r : Request) (h : sharesLogged lib ∧ noticesLogged lib) :
+    sharesLogged (served announceCode recordCode (shareCode mayEdit ownedBy) (unshareCode mayEdit ownedBy) (moveCode mayEdit) (inviteCode mayEdit) (acceptCode isOpen ownedBy) (withdrawCode mayEdit) (trashCode mayEdit) (restoreCode gone mayEdit) askCode (approveCode isPending mayEdit ownedBy) (declineCode mayEdit) (transferCode mayEdit) lib t r) ∧ noticesLogged (served announceCode recordCode (shareCode mayEdit ownedBy) (unshareCode mayEdit ownedBy) (moveCode mayEdit) (inviteCode mayEdit) (acceptCode isOpen ownedBy) (withdrawCode mayEdit) (trashCode mayEdit) (restoreCode gone mayEdit) askCode (approveCode isPending mayEdit ownedBy) (declineCode mayEdit) (transferCode mayEdit) lib t r) := by
+  simp only [sharesLogged, noticesLogged, logged, noticeLogged] at h ⊢
   rcases served_logged mayEdit ownedBy isOpen gone isPending lib t r with hc | ⟨hsh, hlog, hout⟩
   · rw [hc]; exact h
   · rw [answered_log] at hlog hout
@@ -376,8 +405,11 @@ theorem served_logKept (mayEdit : Library → Int → PersonId → Target → Pr
 which forgetting keeps (it explains a share held); the notices before stay, each with its entry, which forgetting keeps
 too (it explains a notice); its own notices are of no logged change; and its record goes at the end. -/
 theorem housekept_logKept (isPending reminderDue : AccessRequest → Int → Prop) (gone : Document → Int → Prop)
-    (inForce : Share → Int → Prop) (isOpen : Invitation → Int → Prop) (lib : Library) (t : Int) (h : logKept lib) :
-    logKept ((housekeptAt warnCode (chaseCode isPending reminderDue) forgetCode (tidyCode gone inForce isOpen) recordCode lib t)) := by
+    (inForce : Share → Int → Prop) (isOpen : Invitation → Int → Prop) (lib : Library) (t : Int)
+    (h : sharesLogged lib ∧ noticesLogged lib) :
+    sharesLogged (housekeptAt warnCode (chaseCode isPending reminderDue) forgetCode (tidyCode gone inForce isOpen) recordCode lib t) ∧
+      noticesLogged (housekeptAt warnCode (chaseCode isPending reminderDue) forgetCode (tidyCode gone inForce isOpen) recordCode lib t) := by
+  simp only [sharesLogged, noticesLogged, logged, noticeLogged] at h ⊢
   simp only [housekeptAt]
   split
   · refine ⟨fun s hs => ?_, fun n hn => ?_⟩
@@ -408,9 +440,15 @@ theorem housekept_logKept (isPending reminderDue : AccessRequest → Int → Pro
 /-- A world meeting every rule of the World: nothing held, housekeeping just run. What a branch says of every such
 world and of no part of it holds through this one. -/
 theorem quiet_world : ∃ w : World, housekeptLately w.clockModel w.housekeptModel ∧
-    nothingEndedAtHousekeeping w.libraryModel w.housekeptModel ∧ logKept w.libraryModel :=
+    trashNotGoneAtHousekeeping w.libraryModel w.housekeptModel ∧
+    invitationsOpenAtHousekeeping w.libraryModel w.housekeptModel ∧
+    requestsPendingAtHousekeeping w.libraryModel w.housekeptModel ∧
+    remindedAtHousekeeping w.libraryModel w.housekeptModel ∧ sharesLogged w.libraryModel ∧
+    noticesLogged w.libraryModel :=
   ⟨⟨fun _ => none, 0, 0, Library.mk [] [] [] [] [] [] [] [], 0, [], [], []⟩, by simp [housekeptLately],
-    by simp [nothingEndedAtHousekeeping], by simp [logKept]⟩
+    by simp [trashNotGoneAtHousekeeping], by simp [invitationsOpenAtHousekeeping],
+    by simp [requestsPendingAtHousekeeping], by simp [remindedAtHousekeeping], by simp [sharesLogged],
+    by simp [noticesLogged]⟩
 
 /-- The world's tick never takes the time back. -/
 theorem tick_le (w : World) : w.clockModel ≤ (FrFlow.Clock.ticked (fun (w : World) => w.ticks) (fun (w : World) s => { w with ticks := s }) (fun (w : World) => w.clockModel) (fun (w : World) s => { w with clockModel := s }) (fun (w : World) s => True) w).clockModel := by
@@ -428,12 +466,15 @@ sends or asks, it does now; the rest the library held. -/
 theorem served_nothingEnded (mayEdit : Library → Int → PersonId → Target → Prop)
     (ownedBy : Library → Target → Grantee → Prop) (isOpen : Invitation → Int → Prop) (gone : Document → Int → Prop)
     (isPending : AccessRequest → Int → Prop) (lib : Library) (t : Int) (r : Request) (ran : Int)
-    (h : nothingEndedAtHousekeeping lib ran) (ht : ran ≤ t) :
-    nothingEndedAtHousekeeping ((served announceCode recordCode (shareCode mayEdit ownedBy) (unshareCode mayEdit ownedBy) (moveCode mayEdit) (inviteCode mayEdit) (acceptCode isOpen ownedBy) (withdrawCode mayEdit) (trashCode mayEdit) (restoreCode gone mayEdit) askCode (approveCode isPending mayEdit ownedBy) (declineCode mayEdit) (transferCode mayEdit) lib t r)) ran := by
+    (h1 : trashNotGoneAtHousekeeping lib ran) (h2 : invitationsOpenAtHousekeeping lib ran)
+    (h3 : requestsPendingAtHousekeeping lib ran) (h4 : remindedAtHousekeeping lib ran) (ht : ran ≤ t) :
+    trashNotGoneAtHousekeeping (served announceCode recordCode (shareCode mayEdit ownedBy) (unshareCode mayEdit ownedBy) (moveCode mayEdit) (inviteCode mayEdit) (acceptCode isOpen ownedBy) (withdrawCode mayEdit) (trashCode mayEdit) (restoreCode gone mayEdit) askCode (approveCode isPending mayEdit ownedBy) (declineCode mayEdit) (transferCode mayEdit) lib t r) ran ∧
+      invitationsOpenAtHousekeeping (served announceCode recordCode (shareCode mayEdit ownedBy) (unshareCode mayEdit ownedBy) (moveCode mayEdit) (inviteCode mayEdit) (acceptCode isOpen ownedBy) (withdrawCode mayEdit) (trashCode mayEdit) (restoreCode gone mayEdit) askCode (approveCode isPending mayEdit ownedBy) (declineCode mayEdit) (transferCode mayEdit) lib t r) ran ∧
+      requestsPendingAtHousekeeping (served announceCode recordCode (shareCode mayEdit ownedBy) (unshareCode mayEdit ownedBy) (moveCode mayEdit) (inviteCode mayEdit) (acceptCode isOpen ownedBy) (withdrawCode mayEdit) (trashCode mayEdit) (restoreCode gone mayEdit) askCode (approveCode isPending mayEdit ownedBy) (declineCode mayEdit) (transferCode mayEdit) lib t r) ran ∧
+      remindedAtHousekeeping (served announceCode recordCode (shareCode mayEdit ownedBy) (unshareCode mayEdit ownedBy) (moveCode mayEdit) (inviteCode mayEdit) (acceptCode isOpen ownedBy) (withdrawCode mayEdit) (trashCode mayEdit) (restoreCode gone mayEdit) askCode (approveCode isPending mayEdit ownedBy) (declineCode mayEdit) (transferCode mayEdit) lib t r) ran := by
   rcases served_cases mayEdit ownedBy isOpen gone isPending lib t r with hc | ⟨hd, hi, hq, _⟩
-  · rw [hc]; exact h
-  · obtain ⟨⟨h1, h2⟩, h3⟩ := h
-    refine ⟨⟨fun doc hdoc a ha => ?_, fun i hin => ?_⟩, fun q hq' => ?_⟩
+  · rw [hc]; exact ⟨h1, h2, h3, h4⟩
+  · refine ⟨fun doc hdoc a ha => ?_, fun i hin => ?_, fun q hq' => ?_, fun q hq' => ?_⟩
     · rw [hd] at hdoc
       rcases answered_documents mayEdit ownedBy isOpen gone isPending lib t r doc hdoc with e | e | ⟨x, hx, e⟩
       · rw [e] at ha; cases ha
@@ -446,7 +487,11 @@ theorem served_nothingEnded (mayEdit : Library → Int → PersonId → Target �
     · rw [hq] at hq'
       rcases answered_requests mayEdit ownedBy isOpen gone isPending lib t r q hq' with e | ⟨e, _⟩
       · exact h3 q e
-      · exact ⟨by omega, Or.inr (by omega)⟩
+      · omega
+    · rw [hq] at hq'
+      rcases answered_requests mayEdit ownedBy isOpen gone isPending lib t r q hq' with e | ⟨e, _⟩
+      · exact h4 q e
+      · exact Or.inr (by omega)
 
 /-- A notice's delivery keeps what a run of delivery keeps once it has sent `done` (from the library `lib` and
 the mailboxes `boxes` it began with: the library is it, some of its outbox kept; each notice of the outbox is still
@@ -545,7 +590,8 @@ set_option maxHeartbeats 4000000 in
 /-- A run of delivery does what deliveryJob says, for the proof of deliveryJob and of what delivery keeps. -/
 theorem delivery_job : Sharing.deliveryJob.claim delivery_run := by
   unfold Sharing.deliveryJob.claim
-  intro w _ _ _
+  intro w _ _ _ _ _ _ _
+  simp only [onlyTakenOut, sentFrom, tookAtMost]
   rcases w with ⟨boxes, hk, clock, lib, pool, faults, races, ticks⟩
   rcases races with _ | ⟨_ | _, _ | ⟨_ | _, rs⟩⟩ <;> rcases faults with _ | ⟨_ | _, fs⟩
   all_goals simp only [delivery_run, delivery, FrFlow.runOnE_bind, FrFlow.runOnE_pure, FrFlow.runOnE_lift,
@@ -760,10 +806,13 @@ theorem run_clock (w : World) :
 /-- A run of housekeeping leaves nothing ended as of the time it ran: tidying keeps only the documents not gone and
 the invitations open, chasing only the requests pending, each reminded once it is due. -/
 theorem housekept_nothingEnded (lib : Library) (t : Int) :
-    nothingEndedAtHousekeeping (housekeptAt warnCode (chaseCode (isPendingCode 604800) (reminderDueCode 172800)) forgetCode (tidyCode (goneCode 2592000) inForceCode (isOpenCode 604800)) recordCode lib t) t := by
+    trashNotGoneAtHousekeeping (housekeptAt warnCode (chaseCode (isPendingCode 604800) (reminderDueCode 172800)) forgetCode (tidyCode (goneCode 2592000) inForceCode (isOpenCode 604800)) recordCode lib t) t ∧
+      invitationsOpenAtHousekeeping (housekeptAt warnCode (chaseCode (isPendingCode 604800) (reminderDueCode 172800)) forgetCode (tidyCode (goneCode 2592000) inForceCode (isOpenCode 604800)) recordCode lib t) t ∧
+      requestsPendingAtHousekeeping (housekeptAt warnCode (chaseCode (isPendingCode 604800) (reminderDueCode 172800)) forgetCode (tidyCode (goneCode 2592000) inForceCode (isOpenCode 604800)) recordCode lib t) t ∧
+      remindedAtHousekeeping (housekeptAt warnCode (chaseCode (isPendingCode 604800) (reminderDueCode 172800)) forgetCode (tidyCode (goneCode 2592000) inForceCode (isOpenCode 604800)) recordCode lib t) t := by
   obtain ⟨hd, hi, hq⟩ := housekept_parts (isPendingCode 604800) (reminderDueCode 172800) (goneCode 2592000)
     inForceCode (isOpenCode 604800) lib t
-  refine ⟨⟨fun doc hdoc a ha => ?_, fun i hin => ?_⟩, fun q hq' => ?_⟩
+  refine ⟨fun doc hdoc a ha => ?_, fun i hin => ?_, fun q hq' => ?_, fun q hq' => ?_⟩
   · rw [hd] at hdoc
     simp [tidyCode, goneCode] at hdoc
     have := hdoc.2 a ha
@@ -778,11 +827,20 @@ theorem housekept_nothingEnded (lib : Library) (t : Int) :
     unfold chased
     by_cases hdue : reminderDueCode 172800 q₀ t ∧ ¬q₀.reminded
     · rw [if_pos hdue]
-      exact ⟨hp', Or.inl trivial⟩
+      exact hp'
     · rw [if_neg hdue]
-      refine ⟨hp', ?_⟩
+      exact hp'
+  · rw [hq] at hq'
+    simp only [chaseCode, List.mem_map, List.mem_filter] at hq'
+    obtain ⟨q₀, ⟨_, hp⟩, rfl⟩ := hq'
+    unfold chased
+    by_cases hdue : reminderDueCode 172800 q₀ t ∧ ¬q₀.reminded
+    · rw [if_pos hdue]
+      exact Or.inl trivial
+    · rw [if_neg hdue]
       by_cases hr : q₀.reminded
       · exact Or.inl hr
       · exact Or.inr (Classical.byContradiction fun hc => hdue ⟨by simp only [reminderDueCode]; omega, hr⟩)
+
 
 end Sharing.Lemmas

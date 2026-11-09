@@ -16,7 +16,7 @@ open Sharing
 set_option maxHeartbeats 4000000 in
 theorem impl : Obl.impl := by
   unfold Obl.impl
-  intro w _ _ _
+  intro w _ _ _ _ _ _ _
   rcases w with ⟨boxes, hk, clock, lib, pool, faults, races, ticks⟩
   rcases races with _ | ⟨_ | _, _ | ⟨_ | _, rs⟩⟩ <;> rcases faults with _ | ⟨_ | _, fs⟩
   all_goals simp only [delivery_run, delivery, FrFlow.runOnE_bind, FrFlow.runOnE_pure, FrFlow.runOnE_lift,

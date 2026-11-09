@@ -16,7 +16,8 @@ open Sharing
 
 theorem impl : Obl.impl := by
   unfold Obl.impl
-  intro inForce reaches covers inTrash mayView _ _ _ _ _ r w _ _ _
+  intro inForce reaches covers inTrash mayView _ _ _ _ _ _ _ r w _ _ _ _ _ _ _
+  simp only [servedBetween]
   rcases hf : w.faults with _ | ⟨_ | _, _ | ⟨_ | _, fs⟩⟩
   all_goals simp only [handleRequest_run, handleRequest, FrFlow.runOnE_bind, FrFlow.runOnE_pure, Lemmas.now_run,
     FrFlow.runOnE_failing, FrFlow.runOnE_ite, LibraryModel.Ops.load_onWorldE,

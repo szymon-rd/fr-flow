@@ -17,7 +17,7 @@ theorem impl : Obl.impl := by
   unfold Obl.impl
   intros
   unfold Sharing.timeMovesOn.claim
-  intro t w _ _ _ ht
+  intro t w _ _ _ _ _ _ _ ht
   refine ⟨⟨⟨fun x => ?_, ?_⟩, ?_⟩, fun r => ?_⟩
   · simp only [ClockModel.elapse_run, ClockModel.Ops.elapse_onWorld, FrFlow.runOn_guard, FrFlow.runOn_within,
       ClockModel.elapse, FrFlow.runOn_bind, FrFlow.runOn_get, FrFlow.runOn_set]

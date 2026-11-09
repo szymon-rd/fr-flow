@@ -2,8 +2,7 @@ import FrFlowGen.Sharing.housekeepingJob.Spec
 import Proofs.Sharing.Lemmas
 
 /-! A run of housekeeping on the models, one fault at a time: it reads the time (the world's tick after) and the
-library, saves the library housekeeping leaves at that time when that changed it, and keeps that time as housekeeping's
-last run; a failed read changes nothing of the stores, and so does a failed save. -/
+library, and saves the library housekeeping leaves at that time when that changed it. -/
 
 set_option autoImplicit false
 noncomputable section
@@ -15,7 +14,7 @@ open Sharing
 theorem impl : Obl.impl := by
   unfold Obl.impl
   intros
-  intro w _ _ _
+  intro w _ _ _ _ _ _ _
   rcases hf : w.faults with _ | ⟨_ | _, _ | ⟨_ | _, fs⟩⟩
   all_goals simp only [housekeeping_run, housekeeping, FrFlow.runOnE_bind, FrFlow.runOnE_pure, Lemmas.now_run,
     FrFlow.runOnE_failing, FrFlow.runOnE_ite, FrFlow.runOnE_lift, LibraryModel.Ops.load_onWorldE,
