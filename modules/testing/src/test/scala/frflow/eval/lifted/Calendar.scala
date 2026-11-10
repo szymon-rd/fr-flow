@@ -51,6 +51,7 @@ object Calendar:
     forall((held: Term[RoomBookings], request: Term[Booking]) =>
       granted(held, request) === held.bookings.forall(b => noOverlap(b, request))))
     .refines(grantWhenFree)
+    .assuming(bookingsEndAfterStart)
 
   val model: FrModel = FrModel("Calendar")(grantWhenFree, grantWhenNoOverlap, bookingsEndAfterStart)
     .implementProven(granted)(grantedCode)

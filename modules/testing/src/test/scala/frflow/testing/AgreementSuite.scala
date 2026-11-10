@@ -14,6 +14,10 @@ class AgreementSuite extends munit.FunSuite:
   private val settings = Settings(300, Seed(1))
   private val elaborated = Calendar.model.elaborated.fold(es => fail(es.toChain.toList.mkString("; ")), identity)
 
+  test("the calendar's model is valid") {
+    assertEquals(frflow.core.analysis.Validate(elaborated).fold(_.toChain.toList.map(_.toString), _ => Nil), Nil)
+  }
+
   test("the calendar's Scala and the terms read from it agree on generated cases") {
     val reports = Agreement.of(elaborated, settings)(Calendar.noOverlap, Calendar.grantedCode)
     assertEquals(reports.map(r => r.code.value -> r.outcome),
