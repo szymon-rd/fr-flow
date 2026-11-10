@@ -46,3 +46,7 @@ object Calendar:
       granted(held, request) === held.bookings.forall(b => Booking.noOverlap(b, request))))
     .refines(grantWhenFree)
     .assuming(Booking.bookingsEndAfterStart)
+
+  /** `granted` is the calendar's Scala, tested against the claims on it. */
+  def implemented(model: FrModel): FrModel =
+    model.implementTested(granted)(_ => (held, request) => Calendar(held).grants(request))

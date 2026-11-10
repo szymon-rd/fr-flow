@@ -1,5 +1,8 @@
 package whole
 
+import auth.Auth.{accessExactly, authorized, signedIn}
+import auth.Grant.grants
+import auth.Sessions.sessions
 import auth.*
 import frflow.*
 import frflow.core.consistency.{Consistency, Group, Picked, Standing, Witness}
@@ -11,7 +14,7 @@ import frflow.core.vocab.ValueKind
   * `proof`'s.)
   */
 class AuthSuite extends munit.FunSuite:
-  private val t = Theories.resolved(knowledge).theory
+  private val t = Theories.resolved(Auth.model).theory
   private def names(ss: String*) = ss.toList.map(SymbolName(_))
   private def groups(kb: FrModel) = Consistency.of(Theories.resolved(kb).theory).collect {
     case g: Group.Sharing => (g.statements.map(_.value), g.open, g.witnesses) }
@@ -23,7 +26,7 @@ class AuthSuite extends munit.FunSuite:
   }
 
   test("each Declaration is in a group witnessed by the equation of what refines it, for every table given") {
-    assertEquals(groups(knowledge).filter(_._2.exists(names("authorized", "signedIn").contains)), List(
+    assertEquals(groups(Auth.model).filter(_._2.exists(names("authorized", "signedIn").contains)), List(
       (List("grantTable"), names("authorized"),
         List(Witness.Equation(SymbolName("authorized"), NodeId("grantTable"), Picked.Right(0)))),
       (List("sessionTable"), names("signedIn"),
@@ -31,7 +34,7 @@ class AuthSuite extends munit.FunSuite:
   }
 
   test("access shares its group with the decision's claim on admit: each witnessed by its own equation") {
-    val (statements, open, witnesses) = groups(knowledge).find(_._2.contains(SymbolName("access"))).get
+    val (statements, open, witnesses) = groups(Auth.model).find(_._2.contains(SymbolName("access"))).get
     assertEquals((statements.toSet, open.toSet), (Set("requests", "decisionContract"), names("access", "admit").toSet))
     assertEquals(Standing.of(witnesses), Standing.Witnessed)
     assertEquals(witnesses.collect { case Witness.Equation(s, from, _) => s.value -> from.value }.toSet,
@@ -39,7 +42,7 @@ class AuthSuite extends munit.FunSuite:
   }
 
   test("an equation calling a define that reaches an open value waits for it: admit, then access (admittedTo)") {
-    val (_, _, witnesses) = groups(knowledge).find(_._2.contains(SymbolName("access"))).get
+    val (_, _, witnesses) = groups(Auth.model).find(_._2.contains(SymbolName("access"))).get
     assertEquals(witnesses.map(_.meaningOf), names("admit", "access"))
   }
 

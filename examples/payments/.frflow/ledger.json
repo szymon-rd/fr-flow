@@ -1,0 +1,222 @@
+{
+  "version": 1,
+  "decisions": {
+    "moneyKept": [
+      {
+        "action": "accept",
+        "by": "jacua",
+        "at": "2026-11-10T14:09:45.129149Z",
+        "commit": "57a0daa89efd744bd72e84906f96050b57429689",
+        "reason": "",
+        "rejected": [],
+        "content": "498deb27760e13c94835fc6216f930bfbb3bdff7abf3c7d3cfb67f795d672ca2",
+        "chain": "",
+        "seal": {
+          "key": "568d5627f843102e",
+          "signature": "x8rDsT81yzC3ISmryk+QD8bqWbHqW7fO7dBUPN7bTFBlhz30ElFK5HarQJgATsu8zwm9pnWBWN5h6ZPw5MyDBA=="
+        }
+      }
+    ],
+    "neverBelowZero": [
+      {
+        "action": "accept",
+        "by": "jacua",
+        "at": "2026-11-10T14:09:35.500889Z",
+        "commit": "57a0daa89efd744bd72e84906f96050b57429689",
+        "reason": "",
+        "rejected": [],
+        "content": "95638f1ddbb3bd0edc37a2338afa1728e89be3777d92b855a13ea614934475b7",
+        "chain": "",
+        "seal": {
+          "key": "568d5627f843102e",
+          "signature": "7BiTecfJx85RY3UQmcQ5r5eIeriGGBTXZX8OU5xSoZ6LQHlaLh6R4STpke515J4zPXeRimHE5q8EKSGs6aN5Cg=="
+        }
+      }
+    ],
+    "onlyOwnerPays": [
+      {
+        "action": "accept",
+        "by": "jacua",
+        "at": "2026-11-10T14:10:23.949589Z",
+        "commit": "57a0daa89efd744bd72e84906f96050b57429689",
+        "reason": "",
+        "rejected": [],
+        "content": "8bcac592988675c5d08c7e481ed80d0b00199996543fea98f03d0597a447df3a",
+        "chain": "",
+        "seal": {
+          "key": "568d5627f843102e",
+          "signature": "LjIEXZHsf3p0YoJPcg384zpG+ulLf9xAaMp3vdMNJ75HTeMiZINb3GN1yF/msEPxw0BhRiRPApRGkE+iKyYYDA=="
+        }
+      }
+    ],
+    "othersUntouched": [
+      {
+        "action": "accept",
+        "by": "jacua",
+        "at": "2026-11-10T14:10:55.908998Z",
+        "commit": "57a0daa89efd744bd72e84906f96050b57429689",
+        "reason": "",
+        "rejected": [],
+        "content": "cb0f013cd58a6184b6c24ddebba991e97ac3a2c85c43a201030b82ac7005b315",
+        "chain": "",
+        "seal": {
+          "key": "568d5627f843102e",
+          "signature": "J+jniF1NaeDd+icvsK1qAgPIMgEm3RoyYraqpdiXR5OHULLmcY2uCYjr78qqQARsmMC9qmE5+MnL8VC7V7biAw=="
+        }
+      }
+    ],
+    "ownerCanPay": [
+      {
+        "action": "accept",
+        "by": "jacua",
+        "at": "2026-11-10T14:09:27.180238Z",
+        "commit": "57a0daa89efd744bd72e84906f96050b57429689",
+        "reason": "",
+        "rejected": [],
+        "content": "8690e5fdcc341844305324e71f128aeef1fde8701a9e1670f2eb06230455c961",
+        "chain": "",
+        "seal": {
+          "key": "568d5627f843102e",
+          "signature": "irFqi8Ju5hmQCSChWtNHkVP6YkIfxUevXPHwCuedsh/L1KbCRCNZs4zoERxcEKvGaYCu0Sac1CYVq0oHky/3CA=="
+        }
+      }
+    ],
+    "paidOnce": [
+      {
+        "action": "accept",
+        "by": "jacua",
+        "at": "2026-11-10T14:10:32.562872Z",
+        "commit": "57a0daa89efd744bd72e84906f96050b57429689",
+        "reason": "",
+        "rejected": [],
+        "content": "256daa9b0e24a558ab8ee29cef42be7e9f021181a1a6307370e40a50ba80389b",
+        "chain": "",
+        "seal": {
+          "key": "568d5627f843102e",
+          "signature": "7daai6wLdXQD6Q5LvrdHyuOfk35nFGqH7qc/QzKYIyWDq00ipkOgZVkSXJ4qrdJSgB+eWowQkDwEMaCXXuQWAA=="
+        }
+      }
+    ]
+  },
+  "contents": {
+    "498deb27760e13c94835fc6216f930bfbb3bdff7abf3c7d3cfb67f795d672ca2": {
+      "kind": "claim",
+      "parents": [],
+      "parts": [],
+      "assumes": [],
+      "statement": "No payment creates or loses money.",
+      "formula": "(∀ (x : Payment), (∀ (x_1 : World), (match (pay x x_1) with | (x_2, x_3) => ((Payments.total x_3.books) = (Payments.total x_1.books)))))\n\n@[frflow_defs] def total (x : Ledger) : Int :=\n  (List.foldl (fun (x_1 : Int) (x_2 : Account) => (x_1 + x_2.balance)) (0 : Int) x.accounts)",
+      "written": "forall((p: Term[Payment]) => Ledger.total(books.in(pay(p).after)) === Ledger.total(books.current))",
+      "vocabulary": [
+        "pay: paying a payment: whether it was made"
+      ],
+      "checking": [
+        "proven of pay's meaning in books",
+        "assumed by the code calling pay"
+      ],
+      "governs": [],
+      "call": "pay",
+      "implementation": "pay: meant by books, its Scala tested against it: (start = holding, observe = _.ledger)(t => Tuple1(t.pay))"
+    },
+    "95638f1ddbb3bd0edc37a2338afa1728e89be3777d92b855a13ea614934475b7": {
+      "kind": "claim",
+      "parents": [],
+      "parts": [],
+      "assumes": [],
+      "statement": "No payment takes a balance below zero.",
+      "formula": "(∀ (x : Payment), (∀ (x_1 : World), (match (pay x x_1) with | (x_2, x_3) => ((Payments.noneNegative x_1.books) → (Payments.noneNegative x_3.books)))))\n\n@[frflow_defs] def noneNegative (x : Ledger) : Prop :=\n  (∀ x_1 ∈ x.accounts, ((0 : Int) ≤ x_1.balance))",
+      "written": "forall((p: Term[Payment]) =>\n      Ledger.noneNegative(books.current) implies Ledger.noneNegative(books.in(pay(p).after)))",
+      "vocabulary": [
+        "pay: paying a payment: whether it was made"
+      ],
+      "checking": [
+        "proven of pay's meaning in books",
+        "assumed by the code calling pay",
+        "not vacuous: condition 1 can hold"
+      ],
+      "governs": [],
+      "call": "pay",
+      "implementation": "pay: meant by books, its Scala tested against it: (start = holding, observe = _.ledger)(t => Tuple1(t.pay))"
+    },
+    "8bcac592988675c5d08c7e481ed80d0b00199996543fea98f03d0597a447df3a": {
+      "kind": "claim",
+      "parents": [],
+      "parts": [],
+      "assumes": [],
+      "statement": "A payment not asked by the owner of the account it is from changes nothing.",
+      "formula": "(∀ (x : Payment), (∀ (x_1 : World), (match (pay x x_1) with | (x_2, x_3) => ((¬(Payments.owns x_1.books x.«by» x.«from»)) → (x_3.books = x_1.books)))))\n\n@[frflow_defs] def owns (x : Ledger) (x_1 : String) (x_2 : String) : Prop :=\n  (∃ x_3 ∈ x.accounts, ((x_3.id_ = x_2) ∧ (x_3.owner = x_1)))",
+      "written": "forall((p: Term[Payment]) =>\n      !Ledger.owns(books.current, p.by, p.from) implies (books.in(pay(p).after) === books.current))",
+      "vocabulary": [
+        "pay: paying a payment: whether it was made"
+      ],
+      "checking": [
+        "proven of pay's meaning in books",
+        "assumed by the code calling pay",
+        "not vacuous: condition 1 can hold"
+      ],
+      "governs": [],
+      "call": "pay",
+      "implementation": "pay: meant by books, its Scala tested against it: (start = holding, observe = _.ledger)(t => Tuple1(t.pay))"
+    },
+    "cb0f013cd58a6184b6c24ddebba991e97ac3a2c85c43a201030b82ac7005b315": {
+      "kind": "claim",
+      "parents": [],
+      "parts": [],
+      "assumes": [],
+      "statement": "A payment changes no balance but those of its two accounts.",
+      "formula": "(∀ (x : Payment), (∀ (x_1 : String), (∀ (x_2 : World), (match (pay x x_2) with | (x_3, x_4) => (((¬(x_1 = x.«from»)) ∧ (¬(x_1 = x.to))) → ((Payments.balanceOf x_4.books x_1) = (Payments.balanceOf x_2.books x_1)))))))\n\n@[frflow_defs] def balanceOf (x : Ledger) (x_1 : String) : Int :=\n  (List.foldl (fun (x_2 : Int) (x_3 : Account) => (if (x_3.id_ = x_1) then (x_2 + x_3.balance) else x_2)) (0 : Int) x.accounts)",
+      "written": "forall((p: Term[Payment], id: Term[String]) => (id =!= p.from && id =!= p.to) implies\n      (Ledger.balanceOf(books.in(pay(p).after), id) === Ledger.balanceOf(books.current, id)))",
+      "vocabulary": [
+        "pay: paying a payment: whether it was made"
+      ],
+      "checking": [
+        "proven of pay's meaning in books",
+        "assumed by the code calling pay",
+        "not vacuous: condition 1 can hold"
+      ],
+      "governs": [],
+      "call": "pay",
+      "implementation": "pay: meant by books, its Scala tested against it: (start = holding, observe = _.ledger)(t => Tuple1(t.pay))"
+    },
+    "8690e5fdcc341844305324e71f128aeef1fde8701a9e1670f2eb06230455c961": {
+      "kind": "claim",
+      "parents": [],
+      "parts": [],
+      "assumes": [],
+      "statement": "A payable payment is made: its amount moves to the other account, and it is recorded as paid.",
+      "formula": "(∀ (x : Payment), (∀ (x_1 : World), (match (pay x x_1) with | (x_2, x_3) => ((Payments.payable x_1.books x) → (Payments.made x_1.books x_3.books x)))))\n\n@[frflow_defs] def payable (x : Ledger) (x_1 : Payment) : Prop :=\n  ((((((Payments.owns x x_1.«by» x_1.«from») ∧ ((0 : Int) < x_1.amount)) ∧ (x_1.amount ≤ (Payments.balanceOf x x_1.«from»))) ∧ (¬(x_1.to = x_1.«from»))) ∧ (Payments.hasAccount x x_1.to)) ∧ (¬(Payments.hasPaid x x_1.id_)))\n\n@[frflow_defs] def owns (x : Ledger) (x_1 : String) (x_2 : String) : Prop :=\n  (∃ x_3 ∈ x.accounts, ((x_3.id_ = x_2) ∧ (x_3.owner = x_1)))\n\n@[frflow_defs] def balanceOf (x : Ledger) (x_1 : String) : Int :=\n  (List.foldl (fun (x_2 : Int) (x_3 : Account) => (if (x_3.id_ = x_1) then (x_2 + x_3.balance) else x_2)) (0 : Int) x.accounts)\n\n@[frflow_defs] def hasAccount (x : Ledger) (x_1 : String) : Prop :=\n  (∃ x_2 ∈ x.accounts, (x_2.id_ = x_1))\n\n@[frflow_defs] def hasPaid (x : Ledger) (x_1 : String) : Prop :=\n  (x_1 ∈ x.paid)\n\n@[frflow_defs] def made (x : Ledger) (x_1 : Ledger) (x_2 : Payment) : Prop :=\n  ((((Payments.balanceOf x_1 x_2.«from») = ((Payments.balanceOf x x_2.«from») - x_2.amount)) ∧ ((Payments.balanceOf x_1 x_2.to) = ((Payments.balanceOf x x_2.to) + x_2.amount))) ∧ (Payments.hasPaid x_1 x_2.id_))",
+      "written": "forall((p: Term[Payment]) =>\n      Ledger.payable(books.current, p) implies Ledger.made(books.current, books.in(pay(p).after), p))",
+      "vocabulary": [
+        "pay: paying a payment: whether it was made"
+      ],
+      "checking": [
+        "proven of pay's meaning in books",
+        "assumed by the code calling pay",
+        "not vacuous: condition 1 can hold"
+      ],
+      "governs": [],
+      "call": "pay",
+      "implementation": "pay: meant by books, its Scala tested against it: (start = holding, observe = _.ledger)(t => Tuple1(t.pay))"
+    },
+    "256daa9b0e24a558ab8ee29cef42be7e9f021181a1a6307370e40a50ba80389b": {
+      "kind": "claim",
+      "parents": [],
+      "parts": [],
+      "assumes": [],
+      "statement": "A payment already made changes nothing when asked again.",
+      "formula": "(∀ (x : Payment), (∀ (x_1 : World), (match (pay x x_1) with | (x_2, x_3) => ((Payments.hasPaid x_1.books x.id_) → (x_3.books = x_1.books)))))\n\n@[frflow_defs] def hasPaid (x : Ledger) (x_1 : String) : Prop :=\n  (x_1 ∈ x.paid)",
+      "written": "forall((p: Term[Payment]) =>\n      Ledger.hasPaid(books.current, p.id) implies (books.in(pay(p).after) === books.current))",
+      "vocabulary": [
+        "pay: paying a payment: whether it was made"
+      ],
+      "checking": [
+        "proven of pay's meaning in books",
+        "assumed by the code calling pay",
+        "not vacuous: condition 1 can hold"
+      ],
+      "governs": [],
+      "call": "pay",
+      "implementation": "pay: meant by books, its Scala tested against it: (start = holding, observe = _.ledger)(t => Tuple1(t.pay))"
+    }
+  }
+}

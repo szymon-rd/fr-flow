@@ -7,14 +7,24 @@ import frflow.project.check.CheckProgram
 import frflow.project.pipeline.{Analysis, Recorded, Testable}
 import frflow.project.program.TestProgram
 
-/** The analysis an acceptance is decided on: every node checked by Lean and tested afresh by this process, since what
-  * is recorded on disk (`checks.json`, `tests.json`) may have been written by anyone; what this process found is
-  * reused while every check and report of it is current (nothing it depends on moved). The failing cases kept
-  * (`counterexamples.json`) are only replayed first, so they are read as they are.
+/** The analysis a decision that keeps nodes is taken on, from what this process found itself, since what is recorded
+  * on disk (`checks.json`, `tests.json`) may have been written by anyone. A confirmation (`analysis`): every node
+  * checked by Lean and tested afresh, since a mechanical batch is accepted because Lean proves it again; reused while
+  * every check and report of it is current (nothing it depends on moved). An acceptance (`tested`): only the code
+  * tested afresh, since it is refused only for code that fails or is not tested, and binds to what a node says and
+  * its code, never to what Lean shows: no Lean is run for it. The failing cases kept (`counterexamples.json`) are
+  * only replayed first, so they are read as they are.
   */
 private[api] final class Fresh[F[_]: Async: Parallel](s: Session[F], found: Ref[F, Option[Recorded]]):
   def analysis: F[Analysis] = s.analysis.flatMap(a =>
     found.get.map(_.map(a.withRecorded).filter(current)).flatMap(_.fold(again(a))(_.pure[F])))
+
+  def tested: F[Analysis] = s.analysis.flatMap(a =>
+    found.get.map(_.map(a.withRecorded).filter(current)).flatMap(_.fold(testedAgain(a))(_.pure[F])))
+
+  private def testedAgain(a: Analysis): F[Analysis] =
+    val cleared = a.withRecorded(Recorded.none.copy(counterexamples = a.inputs.recorded.counterexamples))
+    s.guarded(TestProgram(s.ports.files, s.code, s.models)(cleared, None)).map(_._2)
 
   private def again(a: Analysis): F[Analysis] =
     val cleared = a.withRecorded(Recorded.none.copy(counterexamples = a.inputs.recorded.counterexamples))

@@ -1,5 +1,9 @@
 package rooms
 
+import rooms.Booking.bookingsEndAfterStart
+import rooms.Calendar.granted
+import rooms.BookingsTable.{add, inRoom, oneAtATime, storedBookings}
+import rooms.Book.{book, bookIfGranted}
 import frflow.*
 import frflow.core.name.NodeId
 import frflow.project.Projects
@@ -36,9 +40,10 @@ object Logged:
     .assuming(logOnlyCode, logOneAtATime, logStartsEmpty)
   val log: List[Node] = List(logOnlyCode, logOneAtATime, logStartsEmpty, loggedEndAfterStart)
 
-  /** Rooms with `extra` beside its nodes, its code attached as in `Knowledge.scala`. */
+  /** Rooms with `extra` beside its nodes, its code attached here, away from the parts that write it. */
   def withNodes(extra: Node*): FrModel =
-    FrModel("Rooms")((rooms.nodes ++ extra)*).copy(generators = rooms.generators, operations = rooms.operations)
+    FrModel("Rooms")((Rooms.model.nodes ++ extra)*)
+      .copy(generators = Rooms.model.generators, operations = Rooms.model.operations)
       .implementProven(book)(bookIfGranted)
       .implementTested(granted)(_ => (held, request) => Calendar(held).grants(request))
 

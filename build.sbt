@@ -131,21 +131,25 @@ lazy val agent = module("agent",
   .settings(forkedAtRoot)
   .dependsOn(cli % "compile->compile;test->test", web % "compile->compile;test->test")
 
-/** The java command that runs a project's CLI on a terminal (colors, the interactive review): what `bin/frflow` runs. */
+/** The java command that runs a project's CLI on a terminal (colors, the interactive review), written to
+  * examples/<name>/target/cli/frflow.launch: what `bin/frflow` and `bin/frflow-web` run.
+  */
 val cliLauncher = taskKey[File]("Writes the java command running this project's CLI, for bin/frflow")
 val serve = inputKey[Unit]("The project's web view on localhost, until stopped: serve [--port N] [--as NAME]")
 
-/** A project, as `init` writes its line (`frflow.cli.Init`), under examples/<name>/: its main object runs the CLI with
-  * its examples' classes on the classpath (`frflow.tests` names where they are), `cliLauncher` writes that java command
-  * for `bin/frflow`, and `serve` runs its web view; `layers`, the layers on top it uses (the AI agent's by default).
+/** A project, as `init` writes its line (`frflow.cli.Init`), under examples/<name>/: its model in src/main, its
+  * examples in src/test, and its main object in src/cli, which runs the CLI with its examples' classes on the
+  * classpath (`frflow.tests` names where they are); `cliLauncher` writes that java command for `bin/frflow`, and
+  * `serve` runs its web view; `layers`, the layers on top it uses (the AI agent's by default).
   */
 def example(name: String, layers: Seq[ClasspathDep[ProjectReference]] = Seq(agent)) =
   commandLine(Project(name, file(s"examples/$name")), layers, Def.setting((Test / classDirectory).value))
+    .settings(Compile / unmanagedSourceDirectories += baseDirectory.value / "src" / "cli" / "scala")
 
-/** One of FrFlow's own examples, in two projects, so that FrFlow's suites can test it with no cycle in the build: its
-  * model (sbt id `<name>Model`, under examples/<name>: its statements and code in src/main, its examples in src/test,
-  * its proofs in lean/Proofs), which testing's tests depend on; and its command line (`<name>`, under
-  * examples/<name>/app: its main object alone), made as `example` makes one, over the model.
+/** One of FrFlow's own examples, under examples/<name> with one src, in two sbt projects so that FrFlow's suites can
+  * test it with no cycle in the build: its model (sbt id `<name>Model`: its statements and code in src/main, its
+  * examples in src/test, its proofs in lean/Proofs), which testing's tests depend on; and its command line (`<name>`:
+  * its main object alone, in src/cli, built into target/cli), made as `example` makes one, over the model.
   */
 def exampleModel(name: String) = Project(s"${name}Model", file(s"examples/$name"))
   .configs(LeanTest).settings(leanTagged)
@@ -154,9 +158,11 @@ def exampleModel(name: String) = Project(s"${name}Model", file(s"examples/$name"
   .dependsOn(eval)
 
 def exampleApp(name: String, model: Project, layers: Seq[ClasspathDep[ProjectReference]] = Seq(agent)) =
-  commandLine(Project(name, file(s"examples/$name/app")), layers, Def.setting((model / Test / classDirectory).value))
+  commandLine(Project(name, file(s"examples/$name")), layers, Def.setting((model / Test / classDirectory).value))
     .dependsOn(model % "compile->compile;test->test")
-    .settings(Compile / run / mainClass := Some(s"$name.${name}Cli"))
+    .settings(Compile / run / mainClass := Some(s"$name.${name}Cli"), target := baseDirectory.value / "target" / "cli",
+      Compile / sourceDirectory := baseDirectory.value / "src" / "cli",
+      Test / unmanagedSourceDirectories := Nil, Test / unmanagedResourceDirectories := Nil)
 
 def commandLine(p: Project, layers: Seq[ClasspathDep[ProjectReference]], tests: Def.Initialize[File]) = p
   .dependsOn((Seq[ClasspathDep[ProjectReference]](cli, web) ++ layers)*)
@@ -165,13 +171,15 @@ def commandLine(p: Project, layers: Seq[ClasspathDep[ProjectReference]], tests: 
     libraryDependencies += munit, publish / skip := true, run / fork := true, Test / fork := true,
     run / javaOptions ++= Seq("-Dstdout.encoding=UTF-8", "-Dstderr.encoding=UTF-8", "-Dfile.encoding=UTF-8"),
     run / javaOptions += "-Dfrflow.tests=" + tests.value.getAbsolutePath,
+    // A plain IPv4 socket: WSL2 forwards Windows' localhost only to those, not to Java's default IPv6 one.
+    run / javaOptions += "-Djava.net.preferIPv4Stack=true",
     Compile / run := Defaults.runTask(Test / fullClasspath, Compile / run / mainClass, Compile / run / runner)
       .evaluated,
     Compile / runMain := Defaults.runMainTask(Test / fullClasspath, Compile / run / runner).evaluated,
     run / baseDirectory := (ThisBuild / baseDirectory).value,
     Test / baseDirectory := (ThisBuild / baseDirectory).value,
     cliLauncher := {
-      val launch = target.value / "frflow.launch"
+      val launch = baseDirectory.value / "target" / "cli" / "frflow.launch"
       val main = (Compile / run / mainClass).value.getOrElse(sys.error(s"${Keys.name.value} has no main class"))
       val classpath = (Test / fullClasspath).value.files.mkString(java.io.File.pathSeparator)
       IO.writeLines(launch, (run / javaOptions).value ++ Seq("-cp", classpath, main))
@@ -199,4 +207,6 @@ lazy val keycloak = exampleApp("keycloak", keycloakModel)
 lazy val crmModel = exampleModel("crm")
 lazy val crm = exampleApp("crm", crmModel)
 
-/** People, teams, documents and folders: who can view and edit what, and who may change it. */
+
+lazy val payments = example("payments").dependsOn(testing % Test)
+  .settings(testFrameworks += TestFramework("frflow.testing.examples.ExamplesFramework"))

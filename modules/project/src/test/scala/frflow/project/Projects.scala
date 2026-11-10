@@ -42,7 +42,7 @@ object Projects:
       .nextOption().getOrElse(throw IllegalStateException(s"no ${file.value} under $base"))
 
   def elaborated(kb: FrModel): Elaborated = kb.elaborated.fold(e => throw AssertionError(e.toString), identity)
-  lazy val rooms: Elaborated = elaborated(_root_.rooms.rooms)
+  lazy val rooms: Elaborated = elaborated(_root_.rooms.Rooms.model)
   lazy val roomsExamples: List[Example] =
     _root_.rooms.GrantedExamples().elaborated.fold(e => throw AssertionError(e.toString), identity)
 

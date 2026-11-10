@@ -1,5 +1,9 @@
 package rooms
 
+import rooms.Rooms.{acceptWhenFree, bookWhenFree, booked}
+import rooms.Calendar.granted
+import rooms.BookingsTable.storedBookings
+import rooms.Book.{book, bookIfGranted}
 import frflow.*
 import frflow.core.name.NodeId
 import frflow.project.Projects
@@ -36,8 +40,9 @@ class LeanShapeSuite extends munit.FunSuite:
     val bookedIsStored = Node.claim("What is booked is what the table holds.")(
       booked === storedBookings.current.filter(b => b.start < b.end))
       .refines(bookWhenFree, acceptWhenFree)
-    val kb = FrModel("Rooms")(rooms.nodes.map(n => if n eq _root_.rooms.bookedIsStored then bookedIsStored else n)*)
-      .copy(generators = rooms.generators).implementProven(book)(bookIfGranted)
+    val kb = FrModel("Rooms")(
+      Rooms.model.nodes.map(n => if n eq BookingsTable.bookedIsStored then bookedIsStored else n)*)
+      .copy(generators = Rooms.model.generators).implementProven(book)(bookIfGranted)
       .implementTested(granted)(_ => (held, request) => Calendar(held).grants(request))
     val moved = Projects.bare(Projects.elaborated(kb))
     assertNotEquals(moved.keys.whole, a.keys.whole)

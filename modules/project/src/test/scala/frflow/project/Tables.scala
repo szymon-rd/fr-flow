@@ -5,7 +5,8 @@ import frflow.core.Elaborated
 import frflow.eval.term.Semantics
 import frflow.project.program.ModelCheck
 import frflow.testing.model.{ModelRuns, ModelTests}
-import rooms.{Booking, RoomBookings, storedBookings}
+import rooms.{Booking, RoomBookings}
+import rooms.BookingsTable.storedBookings
 
 /** Rooms' booking table kept in memory, a stand-in for the SQLite table; and the table's checks against its model:
   * the SQLite table the rooms FrModel gives (`implementTested(inRoom, add)(…)`), as the project's checks give it,

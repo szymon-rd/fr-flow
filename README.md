@@ -69,127 +69,132 @@ example; the whole of it is in [`examples/rooms`](examples/rooms).
 
 ### The code
 
-The domain, and when a room is free: a booking covers the moments from its start up to its end; two bookings are
-apart when they are in different rooms or share no moment.
+Each concept is a file: a type or a service, with its contract in its companion. `Booking` holds the domain and when
+a room is free: a booking covers the moments from its start up to its end; two bookings are apart when they are in
+different rooms or share no moment. Bookings come from the booking form, which sends only bookings that end after
+they start. That is trusted, so it is an assumption, stated with `always`: every value of the type that can occur.
 
 ```scala
-/** What the booking form sends and the table stores. */
+/** What the booking form sends and the table stores. A request is a booking asked for. */
 final case class Booking(room: String, start: BigInt, end: BigInt) derives LeanType
 
-/** A room's bookings, as the table gives them. */
-final case class RoomBookings(room: String, bookings: List[Booking]) derives LeanType
+object Booking:
+  /** A booking covers the moments from its start up to its end. */
+  val covers = define { (b: Term[Booking], t: Term[BigInt]) => b.start <= t && t < b.end }
 
-/** A booking covers the moments from its start up to its end. */
-val covers = define { (b: Term[Booking], t: Term[BigInt]) => b.start <= t && t < b.end }
+  /** No moment is covered by both bookings. */
+  val shareNoMoment = define { (a: Term[Booking], b: Term[Booking]) =>
+    forall((t: Term[BigInt]) => !(covers(a, t) && covers(b, t))) }
 
-/** No moment is covered by both bookings. */
-val shareNoMoment = define { (a: Term[Booking], b: Term[Booking]) =>
-  forall((t: Term[BigInt]) => !(covers(a, t) && covers(b, t))) }
+  /** Two bookings are apart when they are in different rooms or share no moment. */
+  val apart = define { (a: Term[Booking], b: Term[Booking]) => a.room =!= b.room || shareNoMoment(a, b) }
 
-/** Two bookings are apart when they are in different rooms or share no moment. */
-val apart = define { (a: Term[Booking], b: Term[Booking]) => a.room =!= b.room || shareNoMoment(a, b) }
+  /** A room is free for a request when each of the bookings is apart from it. */
+  val free = define { (bookings: Term[List[Booking]], request: Term[Booking]) =>
+    bookings.forall(b => apart(b, request)) }
 
-/** A room is free for a request when each of the bookings is apart from it. */
-val free = define { (bookings: Term[List[Booking]], request: Term[Booking]) =>
-  bookings.forall(b => apart(b, request)) }
+  /** The bookings, with the request added at the end if its room is free for its whole time. */
+  val addedIfFree = define { (bookings: Term[List[Booking]], request: Term[Booking]) =>
+    when(free(bookings, request))(bookings :+ request).otherwise(bookings) }
 
-/** The bookings, with the request added at the end if its room is free for its whole time. */
-val addedIfFree = define { (bookings: Term[List[Booking]], request: Term[Booking]) =>
-  when(free(bookings, request))(bookings :+ request).otherwise(bookings) }
+  val bookingsEndAfterStart = Node.assumption("Every booking ends after it starts.")(
+    always[Booking](b => b.start < b.end))
 ```
 
-Bookings come from the booking form, which sends only bookings that end after they start. That is trusted, so it is
-an assumption, stated with `always`: every value of the type that can occur. The roots state the purpose over
-`Declaration`s: concepts known only by what the statements say of them. A statement holds in every state the service
-reaches, and reads what changes, such as what is booked, in the current one.
+`Rooms` is the purpose. Its roots are stated over `Declaration`s: concepts known only by what the statements say of
+them. A statement holds in every state the service reaches, and reads what changes, such as what is booked, in the
+current one.
 
 ```scala
-val bookingsEndAfterStart = Node.assumption("Every booking ends after it starts.")(
-  always[Booking](b => b.start < b.end))
+object Rooms:
+  val booked = Declaration[List[Booking]]("the bookings made, as the world stands")
+  val bookedAfter = Declaration[Booking => List[Booking]]("the bookings made once a request is handled")
+  val accepted = Declaration[Booking => Boolean]("whether a request is accepted")
 
-val booked = Declaration[List[Booking]]("the bookings made, as the world stands")
+  val bookWhenFree = Node.claim("Once a request is handled, the bookings are those before it, with the request " +
+      "added if its room is free for its whole time.")(
+    forall((request: Term[Booking]) => bookedAfter(request) === Booking.addedIfFree(booked, request)))
+    .assuming(Booking.bookingsEndAfterStart)
 
-val bookedAfter = Declaration[Booking => List[Booking]]("the bookings made once a request is handled")
-
-val accepted = Declaration[Booking => Boolean]("whether a request is accepted")
-
-val bookWhenFree = Node.claim("Once a request is handled, the bookings are those before it, with the request added " +
-    "if its room is free for its whole time.")(
-  forall((request: Term[Booking]) => bookedAfter(request) === addedIfFree(booked, request)))
-  .assuming(bookingsEndAfterStart)
-
-val acceptWhenFree = Node.claim("A request is accepted exactly when its room is free for its whole time.")(
-  forall((request: Term[Booking]) => accepted(request) === free(booked, request)))
-  .assuming(bookingsEndAfterStart)
+  val acceptWhenFree = Node.claim("A request is accepted exactly when its room is free for its whole time.")(
+    forall((request: Term[Booking]) => accepted(request) === Booking.free(booked, request)))
+    .assuming(Booking.bookingsEndAfterStart)
 ```
 
-Booking a request is a `Definition`: what the code provides. Its program reads the room's bookings from the table,
-asks the calendar, and adds the booking if it is granted, in one transaction. The table's two operations are
-`Definition`s too, given their meaning by a model of what it stores. Lean proves the program against its claims. A
-program that can fail says so where it is declared (`Definition[Booking => Flow[Boolean]]("…").failsWith[StoreDown]`);
-a claim about its run then covers the runs that fail too, its `result` an `Either[StoreDown, Boolean]`, and FrFlow
-checks the error against what the code raises.
+The SQLite table is a class, and its companion is its contract. Its two operations are `Definition`s: what the code
+provides, given their meaning by a model of what it stores. What the world outside does with the table is assumed,
+and so is what always holds of it: nothing but the code changes it, it starts empty, and runs on it never interleave.
+A claim of `always` on the table's state is a rule below the roots: Lean has it of every state a statement reads, and
+proves that every program writing the table keeps it. The table's Scala is tested against its model on generated
+runs.
 
 ```scala
-val book = Definition[Booking => Flow[Boolean]]("booking a request: whether it was booked")
+object BookingsTable:
+  val inRoom = Definition[String => Flow[RoomBookings]]("a room's bookings, as the SQLite table gives them")
+  val add = Definition[Booking => Flow[Unit]]("a booking added to the SQLite table")
 
-val inRoom = Definition[String => Flow[RoomBookings]]("a room's bookings, as the SQLite table gives them")
-val add = Definition[Booking => Flow[Unit]]("a booking added to the SQLite table")
+  object storedBookings extends StateModel[List[Booking]]("every booking stored, oldest first"):
+    inRoom.means(room => state.get.map(stored => make[RoomBookings](room, stored.filter(b => b.room === room))))
+    add.means(booking => state.update(stored => stored :+ booking))
 
-object storedBookings extends StateModel[List[Booking]]("every booking stored, oldest first"):
-  inRoom.means(room => state.get.map(stored => make[RoomBookings](room, stored.filter(b => b.room === room))))
-  add.means(booking => state.update(stored => stored :+ booking))
+  val nothingElseWrites = Node.assumption("Nothing but the booking code changes the table.")(
+    storedBookings.onlyCodeChanges)
 
-val bookIfGranted = program { (request: Term[Booking]) =>
-  (for
-    held  <- inRoom(request.room)
-    booked = granted(held, request)
-    _     <- Flow.when(booked)(add(request))
-  yield booked).atomically }
+  val startsEmpty = Node.assumption("The table starts empty.")(storedBookings.initially(stored => stored === Nil))
+
+  val oneAtATime = Node.assumption("Bookings are processed one at a time.")(storedBookings.atomic)
+
+  val neverOverlap = Node.claim("The bookings stored never overlap.")(
+    always(storedBookings)(stored => stored.pairwise(Booking.apart)))
+    .refines(Rooms.bookWhenFree, Rooms.acceptWhenFree)
+    .assuming(nothingElseWrites, oneAtATime, startsEmpty, Booking.bookingsEndAfterStart)
+
+  def implemented(model: FrModel): FrModel =
+    model.implementTested(inRoom, add)(start = holding, observe = _.bookings)(t => (t.inRoom, t.add))
 ```
 
-What the world outside does with the table is assumed, and so is what always holds of it: nothing but the code
-changes it, it starts empty, and runs on it never interleave. A claim of `always` on the table's state is a rule
-below the roots: Lean has it of every state a statement reads, and proves that every program writing the table keeps
-it.
-
-```scala
-val nothingElseWrites = Node.assumption("Nothing but the booking code changes the table.")(
-  storedBookings.onlyCodeChanges)
-
-val startsEmpty = Node.assumption("The table starts empty.")(storedBookings.initially(stored => stored === Nil))
-
-val oneAtATime = Node.assumption("Bookings are processed one at a time.")(storedBookings.atomic)
-
-val neverOverlap = Node.claim("The bookings stored never overlap.")(
-  always(storedBookings)(stored => stored.pairwise(apart)))
-  .refines(bookWhenFree, acceptWhenFree)
-  .assuming(nothingElseWrites, oneAtATime, startsEmpty, bookingsEndAfterStart)
-```
-
-Claims say what each `Declaration` is in the code, as these do for `accepted` and `bookedAfter`: what `book` returns,
+Booking a request is a `Definition` too. Its claims say what each `Declaration` is in the code: what `book` returns,
 run in the current state, answers whether a request is accepted, and the table in the state the run leaves
 (`book(request).after`) is what is booked once it is handled. A statement reading the state a run leaves names the
-state each value is read in, `.current` for the one before the run.
+state each value is read in, `.current` for the one before the run. Its program reads the room's bookings from the
+table, asks the calendar, and adds the booking if it is granted, in one transaction; Lean proves it against its
+claims. A program that can fail says so where it is declared
+(`Definition[Booking => Flow[Boolean]]("…").failsWith[StoreDown]`); a claim about its run then covers the runs that
+fail too, its `result` an `Either[StoreDown, Boolean]`, and FrFlow checks the error against what the code raises.
 
 ```scala
-val acceptedIsAnswered = Node.claim("A request is accepted exactly when booking it answers booked.")(
-  forall((request: Term[Booking]) => accepted(request).current === book(request).result))
-  .refines(acceptWhenFree)
+object Book:
+  val book = Definition[Booking => Flow[Boolean]]("booking a request: whether it was booked")
 
-val bookedAfterIsStored =
-  Node.claim("What is booked once a request is handled is what the table holds after booking it.")(
-    forall((request: Term[Booking]) => bookedAfter(request).current === storedBookings.in(book(request).after)))
-  .refines(bookWhenFree)
+  val acceptedIsAnswered = Node.claim("A request is accepted exactly when booking it answers booked.")(
+    forall((request: Term[Booking]) => Rooms.accepted(request).current === book(request).result))
+    .refines(Rooms.acceptWhenFree)
+
+  val bookedAfterIsStored =
+    Node.claim("What is booked once a request is handled is what the table holds after booking it.")(
+      forall((request: Term[Booking]) =>
+        Rooms.bookedAfter(request).current === storedBookings.in(book(request).after)))
+    .refines(Rooms.bookWhenFree)
+
+  lazy val bookIfGranted = program { (request: Term[Booking]) =>
+    (for
+      held  <- BookingsTable.inRoom(request.room)
+      booked = Calendar.granted(held, request)
+      _     <- Flow.when(booked)(BookingsTable.add(request))
+    yield booked).atomically }
+
+  def implemented(model: FrModel): FrModel = model.implementProven(book)(bookIfGranted)
 ```
 
+The program is a `lazy val` because it calls the calendar, whose contract is a part of booking's claims: a node names
+its parents, so a part's object initialises after its parent's.
+
 The calendar decides whether a request is granted. It is plain Scala and is not proven: FrFlow tests it
-automatically with property-based testing, on a thousand generated cases, against its claim `grantWhenNoOverlap`
-below.
+automatically with property-based testing, on a thousand generated cases, against its claim `grantWhenNoOverlap`.
+Its companion holds what booking needs from it (it refines booking's claims, not shown), refined into a claim over
+start and end times, which code can compare. Lean proves each step.
 
 ```scala
-val granted = Definition[(RoomBookings, Booking) => Boolean]("whether a request is granted, given its room's bookings")
-
 final class Calendar(held: RoomBookings):
   private val startOrder: Ordering[Booking] = Ordering.by(_.start)
   private val byStart = held.bookings.sorted(using startOrder).toVector
@@ -201,49 +206,45 @@ final class Calendar(held: RoomBookings):
     val endsInTime = before.forall(_.end <= request.start)
     val startsAfter = after.forall(_.start >= request.end)
     request.room != held.room || (endsInTime && startsAfter)
+
+object Calendar:
+  val granted = Definition[(RoomBookings, Booking) => Boolean](
+    "whether a request is granted, given its room's bookings")
+
+  val grantWhenFree = Node.claim("A request is granted exactly when its room is free for its whole time.")(
+    forall((held: Term[RoomBookings], request: Term[Booking]) =>
+      granted(held, request) === Booking.free(held.bookings, request)))
+    .refines(Book.storeWhenFree, Book.answerWhenFree)
+    .assuming(Booking.bookingsEndAfterStart)
+
+  val grantWhenNoOverlap = Node.claim("A request is granted exactly when it overlaps no booking of its room.")(
+    forall((held: Term[RoomBookings], request: Term[Booking]) =>
+      granted(held, request) === held.bookings.forall(b => Booking.noOverlap(b, request))))
+    .refines(grantWhenFree)
+    .assuming(Booking.bookingsEndAfterStart)
+
+  def implemented(model: FrModel): FrModel =
+    model.implementTested(granted)(_ => (held, request) => Calendar(held).grants(request))
 ```
 
-What booking needs from the calendar (it refines booking's claims, not shown), refined into a claim over start and
-end times, which code can compare. Lean proves each step.
+The FrModel, in `Rooms`, lists the statements; each part attaches its own code (booking's program to be proven, the
+calendar and the table to be tested), and the domain's types add the generators the tests draw cases from. It is lazy
+because it names the nodes below the roots, which name the roots.
 
 ```scala
-val grantWhenFree = Node.claim("A request is granted exactly when its room is free for its whole time.")(
-  forall((held: Term[RoomBookings], request: Term[Booking]) =>
-    granted(held, request) === free(held.bookings, request)))
-  .refines(storeWhenFree, answerWhenFree)
-  .assuming(bookingsEndAfterStart)
-
-/** Two bookings do not overlap: they are in different rooms, or one ends by the time the other starts. */
-val noOverlap = define { (a: Term[Booking], b: Term[Booking]) =>
-  a.room =!= b.room || a.end <= b.start || b.end <= a.start }
-
-val grantWhenNoOverlap = Node.claim("A request is granted exactly when it overlaps no booking of its room.")(
-  forall((held: Term[RoomBookings], request: Term[Booking]) =>
-    granted(held, request) === held.bookings.forall(b => noOverlap(b, request))))
-  .refines(grantWhenFree)
-  .assuming(bookingsEndAfterStart)
-```
-
-The FrModel lists the statements and attaches the code: booking's program to be proven, the calendar to be tested on
-cases drawn from the generators given for the domain's types, and the SQLite table's Scala to be tested against its
-model on generated runs.
-
-```scala
-val rooms = FrModel("Rooms")(bookWhenFree, acceptWhenFree, bookedIsStored, bookedAfterIsStored, acceptedIsAnswered,
-  storeWhenFree, answerWhenFree, neverOverlap, grantWhenFree, bookingsOfTheRoom, roomBookingsApart, grantWhenNoOverlap,
-  nothingElseWrites, oneAtATime, startsEmpty, bookingsEndAfterStart)
-  .implementProven(book)(bookIfGranted)
-  .implementTested(granted)(_ => (held, request) => Calendar(held).grants(request))
-  .implementTested(inRoom, add)(start = BookingsTable.holding, observe = _.bookings)(t => (t.inRoom, t.add))
-  .withGenerator(roomNames.describedAs("Oak or Elm"))
-  .withGenerator(requests.describedAs("requests for Oak or Elm that end after they start"))
-  .withGenerator(roomBookings.describedAs("a room's bookings, laid end to end, some back to back"))
+  lazy val model: FrModel = FrModel("Rooms")(bookWhenFree, acceptWhenFree,
+    BookingsTable.bookedIsStored, Book.bookedAfterIsStored, Book.acceptedIsAnswered, Book.storeWhenFree,
+    Book.answerWhenFree, BookingsTable.neverOverlap, Calendar.grantWhenFree, Calendar.bookingsOfTheRoom,
+    Calendar.roomBookingsApart, Calendar.grantWhenNoOverlap, BookingsTable.nothingElseWrites,
+    BookingsTable.oneAtATime, BookingsTable.startsEmpty, Booking.bookingsEndAfterStart)
+    .pipe(Book.implemented).pipe(Calendar.implemented).pipe(BookingsTable.implemented)
+    .pipe(Booking.generated).pipe(RoomBookings.generated)
 ```
 
 Examples are ordinary tests:
 
 ```scala
-class GrantedExamples extends FrFlowExamples(rooms):
+class GrantedExamples extends FrFlowExamples(Rooms.model):
   example("back to back: granted"):
     granted(RoomBookings("Oak", List(Booking("Oak", 9, 10))), Booking("Oak", 10, 11)) is true
 

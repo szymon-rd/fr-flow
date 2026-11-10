@@ -1,5 +1,7 @@
 package rooms
 
+import rooms.Calendar.granted
+import rooms.Book.{book, bookIfGranted}
 import frflow.*
 import frflow.core.code.Values
 import frflow.core.example.Gen
@@ -20,7 +22,7 @@ import frflow.testing.report.Seed
   * not, and nothing says it should.
   */
 class CalendarSuite extends munit.FunSuite:
-  private val e = rooms.elaborated.fold(es => fail(es.toString), identity)
+  private val e = Rooms.model.elaborated.fold(es => fail(es.toString), identity)
   private val semantics = Semantics(e)
   private val draw = Derive.of(e, Nil)
   private val plan = Plan(Settings(500, Seed(14)), Nil)
@@ -30,7 +32,7 @@ class CalendarSuite extends munit.FunSuite:
       .getOrElse(fail(s"$claim is not tested"))
 
   test("on what the store can give, the binary-search calendar meets the calendar's claim on 500 generated cases") {
-    val report = tested(rooms, "grantWhenNoOverlap")
+    val report = tested(Rooms.model, "grantWhenNoOverlap")
     assertEquals((report.failure, report.cases), (None, 500))
     val drawn = (0 until 500).flatMap(i => draw(Gen.Derived[RoomBookings](LeanType[RoomBookings].ty), 3,
       Seed(14).forCase(i)))
@@ -53,7 +55,7 @@ class CalendarSuite extends munit.FunSuite:
   }
 
   test("README step 4: a calendar that forgets the booking after the request is found by a generated case") {
-    val forgets = FrModel("Rooms")(rooms.nodes*).copy(generators = rooms.generators)
+    val forgets = FrModel("Rooms")(Rooms.model.nodes*).copy(generators = Rooms.model.generators)
       .implementProven(book)(bookIfGranted)
       .implementTested(granted)(_ => (held, request) =>
         val room = held.bookings.sortBy(_.start).toVector
@@ -67,7 +69,7 @@ class CalendarSuite extends munit.FunSuite:
     val moved = Definition[Booking => Booking]("the booking a request is moved to")
     val sameRoom = Node.claim("A request is moved within its room.")(
       forall((r: Term[Booking]) => moved(r).room === r.room))
-    val endFirst = FrModel("Rooms")((rooms.nodes :+ sameRoom)*).implementProven(book)(bookIfGranted)
+    val endFirst = FrModel("Rooms")((Rooms.model.nodes :+ sameRoom)*).implementProven(book)(bookIfGranted)
       .implementTested(granted)(_ => (held, request) => Calendar(held).grants(request))
       .implementTested(moved)(_ => r => Booking(r.room, r.end, r.start))
     assertEquals(tested(endFirst, "sameRoom").failure.collect { case Failure.Call(_, _, b, _) => b },

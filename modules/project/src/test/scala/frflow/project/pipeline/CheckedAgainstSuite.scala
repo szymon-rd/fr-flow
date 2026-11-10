@@ -10,7 +10,7 @@ import frflow.proof.obligation.ObligationName
   */
 class CheckedAgainstSuite extends munit.FunSuite:
   test("a claim saying what a Declaration is is not tested, though it mentions tested Scala: auth's") {
-    val t = Projects.elaborated(auth.knowledge).theory
+    val t = Projects.elaborated(auth.Auth.model).theory
     val saying = t.nodes.map(_.node.id).filter(id => SaysWhat.is(t, id) &&
       Constrained.of(t, id).flatMap(t.code.attached.get).exists(_.code.scala.nonEmpty))
     assert(saying.nonEmpty)

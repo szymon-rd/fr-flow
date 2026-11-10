@@ -19,3 +19,6 @@ object Sessions:
   val sessionTable = Node.claim("A user is signed in exactly when some session token was issued to them.")(
     forall((u: Term[UserId]) => Auth.signedIn(u) === sessions.open.exists(s => s.user === u)))
     .refines(Auth.accessExactly)
+
+  /** The session table is provided where the code runs. */
+  def implemented(model: FrModel): FrModel = model.implementProvided(sessions)

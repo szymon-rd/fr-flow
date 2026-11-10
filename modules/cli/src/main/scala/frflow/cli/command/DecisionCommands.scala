@@ -19,7 +19,10 @@ final class DecisionCommands(api: FrFlowApi[IO], term: Terminal, st: Style):
   private val decisions = Decisions(api, term, st)
 
   def decide(make: String => Decide, about: Option[NodeId], a: Asked): IO[ExitCode] =
-    reason(a).flatMap {
+    val needed = make("").why.isDefined
+    if !needed && a.reason.exists(_.trim.nonEmpty) then
+      term.err("an acceptance takes no reason: accepting is all it says").as(Exit.Usage)
+    else reason(a, needed).flatMap {
       case None      => term.err("give the reason: --reason TEXT (it is kept as part of the theory)").as(Exit.Usage)
       case Some(why) => decisions.developer(a.as).flatMap(_.fold(IO.pure, by =>
           onGone(make(why), about).flatMap(_.fold(IO.pure, c =>
@@ -38,7 +41,8 @@ final class DecisionCommands(api: FrFlowApi[IO], term: Terminal, st: Style):
   /** Each decision that does not count because the committed history was rewritten, as a line. */
   private def accepted: IO[List[String]] = api.reading.view.map(_.warnings.collect {
     case Warning.NotCounted(id, d, why @ (Uncounted.Rewritten | Uncounted.Unreadable)) =>
-      s"  ${st.bullet} ${Unprovens.verb(d.action)} $id by ${d.author.by} (${d.reason.text}): " +
+      s"  ${st.bullet} ${Unprovens.verb(d.action)} $id by ${d.author.by}" +
+        Option(d.reason.text).filter(_.nonEmpty).fold("")(r => s" ($r)") + ": " +
         Warnings.uncounted(why, d)
   })
 
@@ -49,10 +53,13 @@ final class DecisionCommands(api: FrFlowApi[IO], term: Terminal, st: Style):
       case None        => term.err("rebase is confirmed on a terminal; without one, pass --yes").as(Exit.Usage)
     }
 
-  /** The reason given, else asked for on a terminal; none without one. */
-  private def reason(a: Asked): IO[Option[String]] =
+  /** The reason given, else asked for on a terminal, where the decision turns a node away; none without one. An
+    * acceptance takes none.
+    */
+  private def reason(a: Asked, needed: Boolean): IO[Option[String]] =
     def typed(r: Option[String]) = r.map(_.trim).filter(_.nonEmpty)
-    if typed(a.reason).isDefined || !term.interactive then IO.pure(typed(a.reason))
+    if !needed then IO.pure(Some(""))
+    else if typed(a.reason).isDefined || !term.interactive then IO.pure(typed(a.reason))
     else term.read("Why (kept as part of the theory)? ").map(typed)
 
   /** A node gone from the model: rejecting it agrees it is gone (`Gone`); accepting or revisiting it is refused. A

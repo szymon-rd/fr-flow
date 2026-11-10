@@ -52,3 +52,7 @@ object Admission:
       admit(t, p) === when(holderGranted(t, p))(holderOf(t)).otherwise(none[UserId])))
     .refines(tokenNamesHolder, accessNeedsGrant, grantLetsIn)
     .assuming(tokensIssuedOnce)
+
+  /** `admit` is the decision's Scala over the tables, tested against the claims on it. */
+  def implemented(model: FrModel): FrModel =
+    model.implementTested(admit)(env => Admission(env(Grant.grants), env(sessions)).decide)

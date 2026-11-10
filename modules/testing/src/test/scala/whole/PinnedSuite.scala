@@ -29,6 +29,6 @@ class PinnedSuite extends munit.FunSuite:
   }
 
   test("a provided value no assumption equates to a term is asked of every value: auth's session table") {
-    val g = group(auth.knowledge, "decisionContract")
+    val g = group(auth.Auth.model, "decisionContract")
     assert(g.provided.contains(SymbolName("sessions")) && !g.open.contains(SymbolName("sessions")), g)
   }

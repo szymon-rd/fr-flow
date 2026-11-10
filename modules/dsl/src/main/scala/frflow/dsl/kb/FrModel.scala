@@ -10,11 +10,13 @@ import frflow.dsl.node.{Node, Spans}
 import frflow.dsl.term.LeanType
 
 /** The nodes as the model writes them, what gives each Definition its meaning, the plain Scala given operations on
-  * a state (`implementTested(ops*)(…)`), the generators given for the tests, and the file it is assembled in
-  * (`FrModel("Rooms")(…)`, made relative as a node's is).
+  * a state (`implementTested(ops*)(…)`), the generators given for the tests, the file it is assembled in
+  * (`FrModel("Rooms")(…)`, made relative as a node's is), and what the system is, in a sentence or two
+  * (`FrModel("Payments", "Users … pay each other.")(…)`): the system its nodes are about, which nothing checks.
   */
 final case class FrModel(name: KbName, nodes: List[Node], meanings: List[(SymbolName, Deferred[Attachment])],
-    operations: List[Operations], generators: List[Generator[?]], writtenIn: Option[RelPath]):
+    operations: List[Operations], generators: List[Generator[?]], writtenIn: Option[RelPath],
+    about: Option[String] = None):
   /** Elaborated once per value (a `lazy val`: the FrModel is immutable), for every check and run of it. */
   lazy val elaborated: ValidatedNec[ElabError, Elaborated] = Elaborate(this)
 
@@ -27,3 +29,7 @@ final case class FrModel(name: KbName, nodes: List[Node], meanings: List[(Symbol
 object FrModel:
   inline def apply(name: String)(nodes: Node*): FrModel =
     FrModel(KbName(name), nodes.toList, Nil, Nil, Nil, Some(Spans.relative(Source.file)))
+
+  /** The system named and said in a sentence or two, then its nodes. */
+  inline def apply(name: String, about: String)(nodes: Node*): FrModel =
+    FrModel(KbName(name), nodes.toList, Nil, Nil, Nil, Some(Spans.relative(Source.file)), Some(about))

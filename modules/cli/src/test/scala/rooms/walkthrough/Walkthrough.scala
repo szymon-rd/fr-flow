@@ -22,7 +22,7 @@ object Walkthrough:
   def steps(project: (FrModel, List[Example]) => Project, examples: FrFlowExamples => List[Example])
       : List[(String, Project)] =
     val granted = examples(rooms.GrantedExamples())
-    List("base" -> project(rooms.rooms, granted),
+    List("base" -> project(rooms.Rooms.model, granted),
       "4-code-forgets-the-next-booking" -> project(forgets, granted),
       "5-misread-overlap" -> project(misread.misread, examples(misread.GrantedExamples())),
       "6-misread-reaches-the-claim" -> project(reaches.reaches,

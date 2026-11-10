@@ -1,6 +1,7 @@
 package rooms
 
 import frflow.*
+import scala.util.chaining.*
 
 /** Booking meeting rooms: a request is booked, and accepted, exactly when its room is free for its whole time.
   *
@@ -26,18 +27,13 @@ object Rooms:
     forall((request: Term[Booking]) => accepted(request) === Booking.free(booked, request)))
     .assuming(Booking.bookingsEndAfterStart)
 
-  /** Rooms' FrModel: every node, and what gives each Definition its meaning. Lazy, because it names the nodes below
-    * the roots, which name the roots.
+  /** Rooms' FrModel: every node, each Definition given its meaning by the part it belongs to, and the cases the
+    * tests draw. Lazy, because it names the nodes below the roots, which name the roots.
     */
   lazy val model: FrModel = FrModel("Rooms")(bookWhenFree, acceptWhenFree,
     BookingsTable.bookedIsStored, Book.bookedAfterIsStored, Book.acceptedIsAnswered, Book.storeWhenFree,
     Book.answerWhenFree, BookingsTable.neverOverlap, Calendar.grantWhenFree, Calendar.bookingsOfTheRoom,
     Calendar.roomBookingsApart, Calendar.grantWhenNoOverlap, BookingsTable.nothingElseWrites,
     BookingsTable.oneAtATime, BookingsTable.startsEmpty, Booking.bookingsEndAfterStart)
-    .implementProven(Book.book)(Book.bookIfGranted)
-    .implementTested(Calendar.granted)(_ => (held, request) => Calendar(held).grants(request))
-    .implementTested(BookingsTable.inRoom, BookingsTable.add)(start = BookingsTable.holding,
-      observe = _.bookings)(t => (t.inRoom, t.add))
-    .withGenerator(Booking.roomNames.describedAs("Oak or Elm"))
-    .withGenerator(Booking.requests.describedAs("requests for Oak or Elm that end after they start"))
-    .withGenerator(RoomBookings.laidOut.describedAs("a room's bookings, laid end to end, some back to back"))
+    .pipe(Book.implemented).pipe(Calendar.implemented).pipe(BookingsTable.implemented)
+    .pipe(Booking.generated).pipe(RoomBookings.generated)

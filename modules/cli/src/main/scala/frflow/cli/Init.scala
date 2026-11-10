@@ -44,19 +44,32 @@ object Init extends IOApp:
         .as(ExitCode.Success))
 
   /** What a new project is made of, relative to the build's directory. */
-  def files(name: String, extensions: Option[String]): List[(String, String)] = List(
-    s"examples/$name/src/main/scala/$name/Model.scala" -> model(name, extensions.fold("")(e => s", extensions = $e")),
-    s"examples/$name/src/test/scala/$name/${name.capitalize}Examples.scala" -> examples(name))
+  def files(name: String, extensions: Option[String]): List[(String, String)] =
+    val (at, upper) = (s"examples/$name/src", name.capitalize)
+    val layers = extensions.fold("")(e => s", extensions = $e")
+    List(s"$at/main/scala/$name/$upper.scala" -> purpose(name),
+      s"$at/cli/scala/$name/${upper}Cli.scala" -> cli(name, layers),
+      s"$at/test/scala/$name/${upper}Examples.scala" -> examples(name))
 
-  private def model(name: String, layers: String): String =
+  /** The purpose: an object named after the project, its root statements to come, and the FrModel. */
+  private def purpose(name: String): String =
     s"""package $name
          |
          |import frflow.*
          |
-         |/** ${name.capitalize}: its root statements come next, each decided by the developer. */
-         |val frModel = FrModel("${name.capitalize}")()
+         |/** ${name.capitalize}: the purpose. Its root statements come next, each decided by the developer. */
+         |object ${name.capitalize}:
+         |  /** ${name.capitalize}'s FrModel: every node, and each Definition given its meaning by the part it belongs
+         |    * to. Lazy, because it names the nodes below the roots, which name the roots.
+         |    */
+         |  lazy val model: FrModel = FrModel("${name.capitalize}")()
+         |""".stripMargin
+
+  private def cli(name: String, layers: String): String =
+    s"""package $name
          |
-         |object ${name}Cli extends frflow.cli.FrFlowApp(frModel, root = "examples/$name"$layers)
+         |/** ${name.capitalize}'s command line (`bin/frflow $name COMMAND`). */
+         |object ${name}Cli extends frflow.cli.FrFlowApp(${name.capitalize}.model, root = "examples/$name"$layers)
          |""".stripMargin
 
   private def examples(name: String): String =
@@ -65,7 +78,7 @@ object Init extends IOApp:
          |import frflow.*
          |
          |/** The FrModel's examples, ordinary tests (`sbt $name/test`), checked against the claims and the code. */
-         |class ${name.capitalize}Examples extends FrFlowExamples(frModel)
+         |class ${name.capitalize}Examples extends FrFlowExamples(${name.capitalize}.model)
          |""".stripMargin
 
   /** The project's line in build.sbt: the examples' test framework and the Test dependency it runs from; no layer on

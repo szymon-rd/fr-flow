@@ -1,5 +1,9 @@
 package auth
 
+import auth.Grant.grants
+import auth.Sessions.sessions
+import auth.Admission.admit
+import auth.Server.service
 import frflow.*
 import frflow.core.expr.Value
 import frflow.core.name.NodeId
@@ -22,7 +26,7 @@ import scala.concurrent.duration.*
 class PortSuite extends munit.CatsEffectSuite:
   override val munitIOTimeout: Duration = 40.minutes
   private val reference = Captured("auth")
-  private val elaborated = Projects.elaborated(knowledge)
+  private val elaborated = Projects.elaborated(Auth.model)
   private val t = elaborated.theory
 
   test("every value provided where the code runs stands under owner §45 D: the tables stay provided (owner §48)") {
@@ -77,7 +81,7 @@ class PortSuite extends munit.CatsEffectSuite:
   }
 
   test("the seeded bug: a decision that ignores the grant table fails a generated case of decisionContract") {
-    val careless = FrModel("Auth")(knowledge.nodes*).implementProvided(grants, sessions)
+    val careless = FrModel("Auth")(Auth.model.nodes*).implementProvided(grants, sessions)
       .implementTested(admit)(env => (t, _) => env(sessions).open.find(_.token == t).map(_.user))
     Tested.failure(careless, "decisionContract") match
       case Failure.Call(List(Value.Str(_), _), _, Broken.Post, _) => ()
@@ -89,7 +93,7 @@ class PortSuite extends munit.CatsEffectSuite:
   }
 
   test("the code is tested with today's seed and cases: every claim on admit, 1,000 cases from seed 1") {
-    assertEquals(Tested.nodes(knowledge).map(n => n -> Tested.passes(knowledge, n, List(DecisionExamples())).seed
+    assertEquals(Tested.nodes(Auth.model).map(n => n -> Tested.passes(Auth.model, n, List(DecisionExamples())).seed
       .value).toMap, Map("tokenNamesHolder" -> 1L, "accessNeedsGrant" -> 1L, "grantLetsIn" -> 1L,
       "decisionContract" -> 1L))
   }

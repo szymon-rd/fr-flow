@@ -8,14 +8,16 @@ import frflow.core.consistency.Standing
 import frflow.core.expr.OutsideFact
 import frflow.core.name.{DefName, ModelName, NodeId, SymbolName, TypeName}
 import frflow.core.ty.Ty
-import rooms.{Booking, Calendar, RoomBookings, free, granted}
+import rooms.{Booking, Calendar, RoomBookings}
+import rooms.Booking.free
+import rooms.Calendar.granted
 
 /** How each of rooms' claims is checked (owner §15): `show` lists these beside the statement, all derived from its
   * formula, its place and what defines the Definitions it mentions; nothing of it is written beside the claim. (The
   * lines `show` prints from them are `project`'s.)
   */
 class CheckingSuite extends munit.FunSuite:
-  private val t = Theories.resolved(rooms.rooms).theory
+  private val t = Theories.resolved(rooms.Rooms.model).theory
   private def checking(n: String): List[Checking] = Checking.of(t, NodeId(n))
   private val (book, held) = (SymbolName("book"), ModelName("storedBookings"))
 

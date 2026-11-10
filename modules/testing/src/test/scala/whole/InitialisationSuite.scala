@@ -12,8 +12,9 @@ import scala.concurrent.duration.*
 class InitialisationSuite extends munit.FunSuite:
   /** Each example's vals, from its first words to its FrModel, each read by touching it. */
   private val examples: List[(String, List[() => Any])] = List(
-    "rooms" -> List(() => rooms.free, () => rooms.bookIfGranted, () => rooms.bookWhenFree, () => rooms.rooms),
-    "auth" -> List(() => auth.knowledge),
+    "rooms" -> List(() => rooms.Booking.free, () => rooms.Book.bookIfGranted, () => rooms.Rooms.bookWhenFree,
+      () => rooms.Rooms.model),
+    "auth" -> List(() => auth.Auth.model),
     "keycloak" -> List(() => keycloak.history, () => keycloak.state, () => keycloak.realmAccess,
       () => keycloak.introspectAnswers, () => keycloak.knowledge),
     "crm" -> List(() => crm.history, () => crm.results, () => crm.databaseModel, () => crm.sharedCrm,

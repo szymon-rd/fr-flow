@@ -9,14 +9,17 @@ import frflow.core.consistency.{Consistency, Group, Picked, Vacuity, Witness}
 import frflow.core.name.{NodeId, SymbolName}
 import frflow.core.ty.Ty
 import frflow.proof.obligation.{ObligationName, Required}
-import rooms.{Booking, accepted, book, granted}
+import rooms.Booking
+import rooms.Rooms.accepted
+import rooms.Book.book
+import rooms.Calendar.granted
 
 /** What a Declaration is (2.7): a claim at the bottom mentioning one says what it is, with no `impl` and no premise
   * list, the proven code standing in it; its consistency group is joined through that code and solved in order, a
   * witness read inside a run (2.8); and an assumption of `always` is asked `start_` and `inhabited_` as a claim is.
   */
 class MeaningsSuite extends munit.FunSuite:
-  private val r = Theories.resolved(rooms.rooms)
+  private val r = Theories.resolved(rooms.Rooms.model)
   private val t = r.theory
   private def ids(ns: String*): List[NodeId] = ns.toList.map(NodeId(_))
   private def s(n: String) = SymbolName(n)
@@ -47,9 +50,9 @@ class MeaningsSuite extends munit.FunSuite:
   test("a premise listed by a claim saying what a Declaration is is not needed") {
     val listing = Node.claim("A request is accepted exactly when booking it answers booked.")(
       forall((request: Term[Booking]) => accepted(request).current === book(request).result))
-      .refines(rooms.acceptWhenFree).assuming(rooms.oneAtATime)
-    val kb = FrModel("Rooms")((rooms.rooms.nodes.filterNot(_ eq rooms.acceptedIsAnswered) :+ listing)*)
-      .copy(generators = rooms.rooms.generators).implementProven(book)(rooms.bookIfGranted)
+      .refines(rooms.Rooms.acceptWhenFree).assuming(rooms.BookingsTable.oneAtATime)
+    val kb = FrModel("Rooms")((rooms.Rooms.model.nodes.filterNot(_ eq rooms.Book.acceptedIsAnswered) :+ listing)*)
+      .copy(generators = rooms.Rooms.model.generators).implementProven(book)(rooms.Book.bookIfGranted)
       .implementTested(granted)(_ => (held, request) => rooms.Calendar(held).grants(request))
     assertEquals(Theories.problems(kb), List(Problem.PremiseNotNeeded(NodeId("listing"), NodeId("oneAtATime"))))
   }

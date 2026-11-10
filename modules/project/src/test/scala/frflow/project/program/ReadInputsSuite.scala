@@ -20,7 +20,7 @@ class ReadInputsSuite extends munit.CatsEffectSuite:
       p         <- Projects.inMemory(Map.empty)
       a         <- Projects.analysed(p, Projects.rooms, Nil)
       id         = a.subjects.inOrder.headOption.fold(fail("no subject"))(_.id)
-      _         <- DecideProgram(p.ports)(a.subjects, Command.Accept(List(id), "it says what is trusted", Nil,
+      _         <- DecideProgram(p.ports)(a.subjects, Command.Accept(List(id), Nil,
                      Map.empty), "ann")
       working   <- p.ports.ledger.load
       committed  = working.add(id, working.current(id).fold(fail("none"))(_.copy(reason = Reason("revised", Nil))))
@@ -38,7 +38,7 @@ class ReadInputsSuite extends munit.CatsEffectSuite:
       id    = a.subjects.inOrder.headOption.fold(fail("no subject"))(_.id)
       _    <- p.git.commit(Map(Records.path(LedgerFile.format) -> Files.print(LedgerFile.format,
                 frflow.decision.ledger.Ledger.empty)))
-      _    <- DecideProgram(p.ports)(a.subjects, Command.Accept(List(id), "it says what is trusted", Nil, Map.empty),
+      _    <- DecideProgram(p.ports)(a.subjects, Command.Accept(List(id), Nil, Map.empty),
                 "ann")
       read <- Projects.analysed(p, Projects.rooms, Nil)
     yield assertEquals((read.inputs.ledger.others, read.reading.state(id)), (Nil, ReviewState.Accepted))
@@ -49,11 +49,11 @@ class ReadInputsSuite extends munit.CatsEffectSuite:
       p    <- Projects.inMemory(Map.empty)
       a    <- Projects.analysed(p, Projects.rooms, Nil)
       id    = a.subjects.inOrder.headOption.fold(fail("no subject"))(_.id)
-      _    <- DecideProgram(p.ports)(a.subjects, Command.Accept(List(id), "it says what is trusted", Nil, Map.empty),
+      _    <- DecideProgram(p.ports)(a.subjects, Command.Accept(List(id), Nil, Map.empty),
                 "ann")
       _    <- p.git.commit(Map(Records.path(LedgerFile.format) -> "{ not a ledger"))
       read <- Projects.analysed(p, Projects.rooms, Nil)
-      out  <- DecideProgram(p.ports)(read.subjects, Command.Accept(List(id), "again", Nil, Map.empty), "ann")
+      out  <- DecideProgram(p.ports)(read.subjects, Command.Accept(List(id), Nil, Map.empty), "ann")
     yield
       assertEquals(read.inputs.ledger.others.map(x => (x._1, x._3)), List(id -> Uncounted.Unreadable))
       assertEquals(read.reading.state(id), ReviewState.Proposed)

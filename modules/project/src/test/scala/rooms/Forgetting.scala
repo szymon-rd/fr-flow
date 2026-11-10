@@ -1,5 +1,8 @@
 package rooms
 
+import rooms.Calendar.granted
+import rooms.BookingsTable.{add, inRoom}
+import rooms.Book.{book, bookIfGranted}
 import cats.effect.{IO, Ref}
 import frflow.*
 
@@ -16,13 +19,13 @@ object Forgetting:
 
   private val dropped = Set("neverOverlap", "nothingElseWrites")
 
-  val kb: FrModel = forgetting(rooms.nodes.filterNot(n => dropped(n.head.id.value)))
+  val kb: FrModel = forgetting(Rooms.model.nodes.filterNot(n => dropped(n.head.id.value)))
 
   /** Rooms as it is, every node kept, its table's Scala the one that forgets to add (review 11b, R2). */
-  val everyNode: FrModel = forgetting(rooms.nodes)
+  val everyNode: FrModel = forgetting(Rooms.model.nodes)
 
   private def forgetting(nodes: List[Node]): FrModel = FrModel("Rooms")(nodes*)
-    .copy(generators = rooms.generators)
+    .copy(generators = Rooms.model.generators)
     .implementProven(book)(bookIfGranted)
     .implementTested(granted)(_ => (held, request) => Calendar(held).grants(request))
     .implementTested(inRoom, add)(start = (bs: List[Booking]) => Ref[IO].of(bs).map(Table(_)),

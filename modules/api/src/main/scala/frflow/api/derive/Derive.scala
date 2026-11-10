@@ -1,6 +1,6 @@
 package frflow.api.derive
 
-import frflow.api.view.{View, Views, Warning}
+import frflow.api.view.{SystemView, View, Views, Warning}
 import frflow.core.analysis.outside.Outsides
 import frflow.core.checking.{Assumed, Checking}
 import frflow.project.pipeline.Analysis
@@ -14,7 +14,9 @@ private[api] object Derive:
     val nodes = a.subjects.inOrder.flatMap(s => a.decided.theory.node(s.id)).map(views.of)
     val whole = Wholes.of(a)
     val gone = a.reading.gone
-    View(nodes, a.decided.theory.refinement.roots.map(_.id), whole, Views.overview(nodes, whole, gone),
+    val t = a.decided.theory
+    View(SystemView(t.name.value, t.about), nodes, t.refinement.roots.map(_.id), whole,
+      Views.overview(nodes, whole, gone),
       shell ++ Warnings.of(a) ++ Wholes.warnings(whole) ++ unchecked(a), gone)
 
   /** `status` says it of each claim nothing checks (`Checking.unchecked`): its parts do not prove it, and the plain

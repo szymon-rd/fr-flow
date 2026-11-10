@@ -6,8 +6,8 @@ import frflow.dsl.kb.FrModel
   * FrModels written in the three kinds.
   */
 object Today:
-  val all: List[(String, FrModel)] = List("rooms" -> _root_.rooms.rooms,
-    "auth" -> _root_.auth.knowledge, "keycloak" -> _root_.keycloak.knowledge, "crm" -> _root_.crm.knowledge)
+  val all: List[(String, FrModel)] = List("rooms" -> _root_.rooms.Rooms.model,
+    "auth" -> _root_.auth.Auth.model, "keycloak" -> _root_.keycloak.knowledge, "crm" -> _root_.crm.knowledge)
 
   /** Today's rooms as `reference/rooms` captured it (526fe35): seventeen nodes. */
   val rooms: Set[String] = Set("bookWhenFree", "acceptWhenFree", "bookedIsStored", "bookedAfterIsStored",

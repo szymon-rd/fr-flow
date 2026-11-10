@@ -152,7 +152,7 @@ open while a rule it takes is open, for any reason (its `cover_`, its `made_`, i
 
 ## 3b. Examples written as tests
 
-Examples are ordinary tests (`class GrantedExamples extends FrFlowExamples(rooms)`, `example(name): fact`), read by
+Examples are ordinary tests (`class GrantedExamples extends FrFlowExamples(Rooms.model)`, `example(name): fact`), read by
 `check`, evaluated against the code and in Lean against the claims (`example_<set>_<i>`, the `i`th of its class). Nothing depends on them (§18): the
 theory and its Lean are the same without them. An example whose values break a rule on their type is refused.
 

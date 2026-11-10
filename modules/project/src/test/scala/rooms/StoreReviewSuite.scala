@@ -14,7 +14,8 @@ import java.time.Instant
   */
 class StoreReviewSuite extends munit.CatsEffectSuite:
   private val grant = NodeId("grantWhenNoOverlap")
-  private val attached = Projects.rooms.theory.code.attached(SymbolName("granted"))
+  /** The calendar attached away from its file (in `StoresSuite.scala`), as a model may attach it. */
+  private val attached = Projects.elaborated(Logged.withNodes()).theory.code.attached(SymbolName("granted"))
 
   /** Analysed with the files' own directories as the sources, so their text is read. */
   private def analysed(p: Projects.InMemory, m: frflow.dsl.kb.FrModel, files: List[RelPath]) =

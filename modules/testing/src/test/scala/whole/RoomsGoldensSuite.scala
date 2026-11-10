@@ -12,7 +12,7 @@ import java.nio.file.{Files, Path}
   * the obligations declare. With `FRFLOW_GOLDEN` set, they are written there instead.
   */
 class RoomsGoldensSuite extends munit.FunSuite:
-  private val r = Theories.resolved(rooms.rooms)
+  private val r = Theories.resolved(rooms.Rooms.model)
   private val laid = Laid(r, Map.empty, Nil)
   private val layout = Layout(KbName("Rooms"))
 

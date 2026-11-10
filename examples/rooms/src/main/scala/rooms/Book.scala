@@ -39,3 +39,6 @@ object Book:
       booked = Calendar.granted(held, request)
       _     <- Flow.when(booked)(BookingsTable.add(request))
     yield booked).atomically }
+
+  /** `book` is the program above, proven against the claims on it. */
+  def implemented(model: FrModel): FrModel = model.implementProven(book)(bookIfGranted)

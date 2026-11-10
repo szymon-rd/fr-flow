@@ -60,13 +60,15 @@ class CaptureSuite extends munit.FunSuite:
   }
 
   test("a fact about the outside is said whole by an assumption, and is no part of a formula: it does not compile") {
-    assertEquals(compileErrors("Node.assumption(\"one at a time\")(rooms.storedBookings.atomic)"), "")
-    assert(compileErrors("Node.assumption(\"x\")(!rooms.storedBookings.atomic)").nonEmpty)
+    assertEquals(compileErrors("Node.assumption(\"one at a time\")(rooms.BookingsTable.storedBookings.atomic)"), "")
+    assert(compileErrors("Node.assumption(\"x\")(!rooms.BookingsTable.storedBookings.atomic)").nonEmpty)
     assert(compileErrors(
-      "Node.assumption(\"x\")(rooms.storedBookings.atomic implies forall((n: Term[BigInt]) => n === n))").nonEmpty)
+      "Node.assumption(\"x\")(rooms.BookingsTable.storedBookings.atomic implies " +
+        "forall((n: Term[BigInt]) => n === n))").nonEmpty)
     assert(compileErrors(
-      "Node.assumption(\"x\")(rooms.storedBookings.onlyCodeChanges && rooms.storedBookings.atomic)").nonEmpty)
-    assert(compileErrors("Node.claim(\"x\")(rooms.storedBookings.atomic)").nonEmpty)
+      "Node.assumption(\"x\")(rooms.BookingsTable.storedBookings.onlyCodeChanges && " +
+        "rooms.BookingsTable.storedBookings.atomic)").nonEmpty)
+    assert(compileErrors("Node.claim(\"x\")(rooms.BookingsTable.storedBookings.atomic)").nonEmpty)
   }
 
   test("Int and Long compare only: no ordering, no arithmetic, nothing to tell Lean's Int from Scala's") {

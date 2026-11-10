@@ -35,7 +35,7 @@ configuration, say) would place them wrongly: `status` would warn of the model's
 | | `show NODE [--full]`, `diff NODE` | a node in about a screen (`--full`: all of it); what moved since it was decided |
 | | `inbox`, `find WORDS\|PATH` | what waits for the developer, in the order to decide it; the nodes that govern a file, or mention some words |
 | decide | `review` | decide what waits, node by node: `[a]ccept [r]eject [s]kip [v]iew [q]uit` |
-| | `accept NODE... [--revisit NODE...]`, `reject NODE`, `confirm`, `revisit NODE`, `gone NODE` | one decision, with `-m REASON`; asked to confirm on a terminal, `--yes` without one |
+| | `accept NODE... [--revisit NODE...]`, `reject NODE`, `confirm`, `revisit NODE`, `gone NODE` | one decision: an acceptance takes no reason; reject, revisit and gone say why with `-m REASON`; asked to confirm on a terminal, `--yes` without one |
 | | `deciders --as NAME`, `rebase` | list your key as the project's first decider; accept the ledger as it reads now as where its history starts |
 | prove | `render`, `check [NODE]`, `scaffold NODE` | write the Lean; prove each node and test its code, recording the results; stubs for what the last check left open |
 | | `status`, `ci`, `export` | the tree, the warnings and the summary (exit 1 unless complete); `check` then `status`; the snapshot `.frflow/kb.json` |
@@ -200,8 +200,8 @@ type, and what is trusted of it is an assumption of `always` on that type
 (`Node.assumption("Every booking ends after it starts.")(always[Booking](b => b.start < b.end))`). Every value covered
 code makes or stores of that type is still proven to meet it, so an assumption cannot hide a bug in the code.
 
-**In production**, nothing is checked: `knowledge.code(admit)(grants := table, sessions := tokens)` gives a
-Definition's meaning as plain code calls it, and `knowledge.running[IO](storedBookings := table)` what programs run
+**In production**, nothing is checked: `Auth.model.code(admit)(grants := table, sessions := tokens)` gives a
+Definition's meaning as plain code calls it, and `Rooms.model.running[IO](storedBookings := table)` what programs run
 with, each model's Scala bound, `run(bookIfGranted)(request)` running one.
 
 ### Programs
@@ -277,7 +277,7 @@ Examples are ordinary tests beside the model, read by `check` and checked agains
 claims:
 
 ```scala
-class GrantedExamples extends FrFlowExamples(rooms):
+class GrantedExamples extends FrFlowExamples(Rooms.model):
   example("back to back: granted"):
     granted(RoomBookings("Oak", List(Booking("Oak", 9, 10))), Booking("Oak", 10, 11)) is true
 ```
@@ -319,9 +319,10 @@ signature, and the decision before it.
   what assumes it.
 - **Mechanical decisions.** A node under review whose own content did not change, that Lean proves again: one batch,
   `confirm`.
-- **Refused.** A decision on a node that moved since the developer saw it; a reason of fewer than three words; code
-  that fails a generated case, or is not tested since it moved; a decider not listed; a ledger whose committed
-  history was rewritten (a listed decider runs `rebase`).
+- **Refused.** A decision on a node that moved since the developer saw it; a rejection, a revisit or agreeing a node
+  is gone without a reason of at least three words (an acceptance needs none); code that fails a generated case, or
+  is not tested since it moved; a decider not listed; a ledger whose committed history was rewritten (a listed
+  decider runs `rebase`).
 
 A decision binds the reason to the hash of what the developer saw. Whatever moves under it brings the node back, with
 the cause:
@@ -390,6 +391,15 @@ The page is a client of the same API as the CLI (`FrFlowApi`), so a decision is 
 records it, and the CLI can run beside it. Once the model's sources change, the page says so and refuses decisions
 until it is restarted.
 
+`bin/frflow-web PROJECT [--port N] [--as NAME]` serves the same page and follows the model: whenever a source changes
+it rebuilds the project through the project's sbt server (as `bin/frflow` does), and starts the server again on the
+same port with the same link. The page polls `GET /api/version` (this server's start and the files under
+`.frflow/`) and, when it moves, reads the project again without a reload: a decision taken in the CLI, a request, a
+node the agent added. What is new is drawn as it arrives: each new node's line grows from its parent to its place,
+then the node appears; a node just accepted fills. Accepted nodes are filled green; nodes to review are hollow. The
+system the model describes (`FrModel("Payments", "Users hold accounts … and pay each other.")(…)`) is drawn as the
+root every root statement hangs from: its name and what it is, not a node anyone decides.
+
 ### Modules
 
 One sbt project each, under `modules/`, each with its own top package (`frflow.<module>`) and its name as sbt id, but
@@ -425,7 +435,7 @@ One sbt project each, under `modules/`, each with its own top package (`frflow.<
 
 FrFlow's examples are projects under `examples/<name>`, each in two sbt projects so FrFlow's suites can test it
 with no cycle in the build: its model (`<name>Model`: `src/main`, its examples in `src/test`, its proofs in
-`lean/Proofs`), which testing's tests depend on, and its command line (`<name>`, its main object in `app`). Each is
+`lean/Proofs`), which testing's tests depend on, and its command line (`<name>`, its main object in `src/cli`). Each is
 checked whole by its `PortSuite` (project's tests) against what the library before the rebuild recorded
 (`reference/`), and rooms' walk-through by `WalkthroughSuite` (cli's tests).
 
@@ -442,7 +452,7 @@ A project enables it on its main object, and depends on the module in `build.sbt
 `example(NAME, layers = Nil)` does not):
 
 ```scala
-object toyCli extends frflow.cli.FrFlowApp(frModel, root = "examples/toy", extensions = List(frflow.agent.Agent))
+object toyCli extends frflow.cli.FrFlowApp(Toy.model, root = "examples/toy", extensions = List(frflow.agent.Agent))
 ```
 
 `sbt "frflowInitAgent NAME --as YOU"` sets up a new project this way. The layer is an `Extension` of the core's: a
@@ -458,9 +468,12 @@ object toyCli extends frflow.cli.FrFlowApp(frModel, root = "examples/toy", exten
 | agent | `said TEXT`, `asked QUESTION --assume ANSWER`, `replied QUESTION TEXT` | record the conversation the idea comes from |
 | | `context NODE` | everything on a node (`show --full`), with its requests |
 | | `answer REQUEST\|NODE TEXT` | reply to a request, or tell the developer of work they did not ask for |
+| | `wait [--minutes N]` | block until the developer decides a node or asks for something, then print what moved |
 
 A node asked of the agent waits with the agent, not in the developer's queue, until it answers or the node changes.
-A rejected node, and a revisit, are listed for the agent in `inbox`.
+A rejected node, and a revisit, are listed for the agent in `inbox`. `wait` is the agent's hook on the developer: run
+in the background, it ends once a node is accepted, rejected (with the reason) or sent back to be revisited, or a
+request is asked, so the agent is woken to carry on.
 
 ### Starting a project with the agent
 
@@ -475,4 +488,4 @@ A rejected node, and a revisit, are listed for the agent in `inbox`.
 
 With the layer, the page lists the agent's open questions (answered in chat) and the requests, offers to ask the
 agent for a change on a node or on the whole idea, and shows the nodes with the agent. Agents use the CLI, not the web
-view.
+view; they `wait` for what the developer decides there.

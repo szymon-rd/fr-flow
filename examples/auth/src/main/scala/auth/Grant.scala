@@ -15,3 +15,6 @@ object Grant:
   val grantTable = Node.claim("A user is authorized for a path exactly when a grant names that user and that path.")(
     forall((u: Term[UserId], p: Term[Path]) => Auth.authorized(u, p) === grantFor(u, p)))
     .refines(Auth.accessExactly)
+
+  /** The grant table is provided where the code runs. */
+  def implemented(model: FrModel): FrModel = model.implementProvided(grants)

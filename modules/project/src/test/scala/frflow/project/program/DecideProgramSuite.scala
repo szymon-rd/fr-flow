@@ -18,7 +18,7 @@ import frflow.wire.ledger.LedgerFile
   */
 class DecideProgramSuite extends munit.CatsEffectSuite:
   private def first(a: Analysis): NodeId = a.subjects.inOrder.headOption.fold(fail("no subject"))(_.id)
-  private def accept(a: Analysis) = Command.Accept(List(first(a)), "the booking form is trusted to send these", Nil,
+  private def accept(a: Analysis) = Command.Accept(List(first(a)), Nil,
     Map.empty)
 
   test("a key not listed under the name given is refused before any rule") {
@@ -70,7 +70,7 @@ class DecideProgramSuite extends munit.CatsEffectSuite:
       tested <- TestProgram[IO](p.files, RunCode.inline[IO], Tables.sqlite(Projects.rooms))(a, None)
       ids     = tested._2.subjects.inOrder.map(_.id)
       out    <- ids.traverse(id => DecideProgram(p.ports)(tested._2.subjects,
-                  Command.Accept(List(id), "it says what the service must do", Nil, Map.empty), "ann"))
+                  Command.Accept(List(id), Nil, Map.empty), "ann"))
       after  <- Projects.analysed(p, Projects.rooms, Projects.roomsExamples)
     yield
       assertEquals(out.collect { case Left(r) => r }, Nil)
@@ -106,7 +106,7 @@ class DecideProgramSuite extends munit.CatsEffectSuite:
       _       <- commit(p)
       _       <- p.ports.ledger.update[String, Unit](dropLast(x))
       dropped <- Projects.analysed(p, Projects.rooms, Nil)
-      out     <- DecideProgram(p.ports)(dropped.subjects, Command.Accept(List(y), "it is so", Nil, Map.empty), "ann")
+      out     <- DecideProgram(p.ports)(dropped.subjects, Command.Accept(List(y), Nil, Map.empty), "ann")
       _       <- commit(p)
       read    <- Projects.analysed(p, Projects.rooms, Nil)
     yield

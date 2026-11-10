@@ -1,0 +1,17 @@
+[
+  {
+    "id" : "Rmwarkruh",
+    "node" : "ownerCanPay",
+    "text" : "So it means \"every instantiated Payment is made if possible\"?",
+    "asked" : {
+      "by" : "jacua",
+      "at" : "2026-11-10T14:07:05.465020Z",
+      "seen" : "1eb8223d15862ff9"
+    },
+    "status" : "answered",
+    "answer" : {
+      "text" : "Almost. It says: whenever someone asks for a payment that is payable in the books as they stand, paying it goes through (the amount moves and it is recorded); the system may not refuse or half-do it. It quantifies over every possible payment and every state the books can be in, but it only speaks of what happens when pay(p) is run. It does not say payments happen by themselves, nor that anyone must ask. If the sentence reads wrong, I can reword it to: 'Asking for a payable payment makes it: its amount moves to the other account, and it is recorded as paid.'",
+      "at" : "2026-11-10T14:07:33.904036Z"
+    }
+  }
+]

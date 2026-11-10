@@ -48,13 +48,13 @@ object Commands:
   private val deciding = List(
     command("review", "decide what waits, node by node: [a]ccept [r]eject [s]kip [v]iew [q]uit (layers add keys)")(
       as.map(Command.Review(_))),
-    decision("accept", "accept nodes (rejecting their rivals), checked and tested afresh first; --revisit names " +
+    decision("accept", "accept nodes (rejecting their rivals), their code tested afresh first; --revisit names " +
       "decisions below the change to review again")((nodes, revisit).mapN((ns, r) =>
-        ((why: String) => Decide.Accept(ns, why, r, Map.empty), ns.headOption.filter(_ => ns.size == 1)))),
+        ((_: String) => Decide.Accept(ns, r, Map.empty), ns.headOption.filter(_ => ns.size == 1)))),
     decision("reject", "reject a proposal, saying why: what the reason asks for is proposed instead, or it is removed")(
       node().map(n => ((why: String) => Decide.Reject(n, why, None), Some(n)))),
     decision("confirm", "accept the mechanical decisions in one batch (Lean proves them again; nothing in them is a " +
-      "choice)")(Opts(((why: String) => Decide.Confirm(why), None))),
+      "choice)")(Opts(((_: String) => Decide.Confirm, None))),
     decision("revisit", "ask that an accepted node be reviewed again: a change elsewhere may affect it")(
       node().map(n => ((why: String) => Decide.Revisit(n, why), Some(n)))),
     decision("gone", "agree that a decided node is gone from the model")(

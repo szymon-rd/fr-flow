@@ -9,7 +9,8 @@ import frflow.proof.obligation.Prop
 import frflow.proof.obligation.tried.Tries
 import frflow.proof.terms.TermTable
 import frflow.proof.whole.ExampleGoals
-import rooms.{Booking, RoomBookings, granted}
+import rooms.{Booking, RoomBookings}
+import rooms.Calendar.granted
 
 /** What a rule's own claim says: nothing, `True` (Lean has the rule of every value as a guard). Its `∀` over every
   * value is false of any rule some value breaks, so it is never tried (`unsat` would mark a correct rule failed)
@@ -19,10 +20,12 @@ class RuleClaimSuite extends munit.FunSuite:
   /** A rule over Bookings mentioning a Definition, as an example's would. */
   private val grantedAlone = Node.claim("A room with no bookings grants a request for it.")(
     always[Booking](b => granted(make[RoomBookings](b.room, Nil: Term[List[Booking]]), b)))
-    .refines(rooms.grantWhenFree)
-    .assuming(rooms.nothingElseWrites, rooms.oneAtATime, rooms.startsEmpty, rooms.bookingsEndAfterStart)
-  private val kb = FrModel("Rooms")((rooms.rooms.nodes :+ grantedAlone)*).copy(generators = rooms.rooms.generators)
-    .implementProven(rooms.book)(rooms.bookIfGranted)
+    .refines(rooms.Calendar.grantWhenFree)
+    .assuming(rooms.BookingsTable.nothingElseWrites, rooms.BookingsTable.oneAtATime, rooms.BookingsTable.startsEmpty,
+      rooms.Booking.bookingsEndAfterStart)
+  private val kb = FrModel("Rooms")((rooms.Rooms.model.nodes :+ grantedAlone)*)
+    .copy(generators = rooms.Rooms.model.generators)
+    .implementProven(rooms.Book.book)(rooms.Book.bookIfGranted)
     .implementTested(granted)(_ => (held, request) => rooms.Calendar(held).grants(request))
   private val r = Theories.resolved(kb)
   private val rules = r.theory.nodes.map(_.node).filter(_.statement.rule).map(_.id)

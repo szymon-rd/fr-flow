@@ -61,6 +61,10 @@ object BookingsTable:
     .refines(Rooms.bookWhenFree, Rooms.acceptWhenFree)
     .assuming(nothingElseWrites, oneAtATime, startsEmpty, Booking.bookingsEndAfterStart)
 
+  /** `inRoom` and `add` are the table's Scala, tested against `storedBookings` on generated runs. */
+  def implemented(model: FrModel): FrModel =
+    model.implementTested(inRoom, add)(start = holding, observe = _.bookings)(t => (t.inRoom, t.add))
+
   /** A table in a file, or `:memory:`: through SQLite's driver itself, not `DriverManager`, which finds drivers by
     * the calling thread's class loader.
     */

@@ -51,6 +51,7 @@ final class Decisions(api: FrFlowApi[IO], term: Terminal, st: Style):
       term.read("Record it? [y/N] ").map(x => Some(x.exists(a => Set("y", "yes")(a.trim.toLowerCase))))
 
   private def afresh(c: Decide): IO[Unit] = c match
-    case Decide.Accept(_, _, _, _) | Decide.Confirm(_) =>
-      term.err(st.dim("checking and testing afresh before accepting (only what moved since this process last did)"))
-    case _                                             => IO.unit
+    case Decide.Accept(_, _, _) => term.err(st.dim("testing the code afresh before accepting"))
+    case Decide.Confirm         =>
+      term.err(st.dim("checking and testing afresh before confirming (only what moved since this process last did)"))
+    case _                      => IO.unit

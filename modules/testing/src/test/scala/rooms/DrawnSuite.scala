@@ -1,5 +1,6 @@
 package rooms
 
+import rooms.BookingsTable.storedBookings
 import frflow.*
 import frflow.core.example.Gen
 import frflow.eval.ScalaValue
@@ -12,7 +13,7 @@ import frflow.testing.report.Seed
   */
 class DrawnSuite extends munit.FunSuite:
   /** Rooms without the generators it gives: every value derived from its type. */
-  private val derivedOnly = rooms.copy(generators = Nil)
+  private val derivedOnly = Rooms.model.copy(generators = Nil)
   private def derive(kb: FrModel) = Derive.of(kb.elaborated.fold(es => fail(es.toString), identity), Nil)
   private def drawn(d: Derive, n: Int): List[RoomBookings] = (0 until n).toList.flatMap(i =>
     d(Gen.Derived[RoomBookings](LeanType[RoomBookings].ty), Seed.sizeOf(i, n), Seed(1).forCase(i)))
@@ -89,7 +90,7 @@ class DrawnSuite extends munit.FunSuite:
   }
 
   test("a type with a generator given is drawn from it three times in four, the rest derived") {
-    val all = drawn(derive(rooms), 400)
+    val all = drawn(derive(Rooms.model), 400)
     val laidEndToEnd = all.count(r => r.bookings.zip(r.bookings.drop(1)).forall((a, b) => a.end <= b.start) &&
       r.bookings.headOption.forall(_.start >= 0) && Set("Oak", "Elm")(r.room))
     assert(laidEndToEnd > 250 && laidEndToEnd < 400, s"$laidEndToEnd of ${all.size} as the given generator lays them")

@@ -16,7 +16,7 @@ import frflow.decision.rules.{Command, Refusal}
   */
 class DecidingSuite extends munit.CatsEffectSuite:
   private val (nonNegative, sameAbove) = (id("nonNegative"), id("sameAbove"))
-  private val accept = Command.Accept(List(nonNegative, sameAbove), "it says what the service must do", Nil, Map.empty)
+  private val accept = Command.Accept(List(nonNegative, sameAbove), Nil, Map.empty)
 
   test("who decides: the name given, else the name the key at hand is listed under; else no one") {
     for
@@ -42,7 +42,7 @@ class DecidingSuite extends munit.CatsEffectSuite:
       assertEquals(taken(done).map(_.map(_._1)), Right(List(nonNegative, sameAbove)))
       assertEquals(still.nodes.map(_.review.standing.state).distinct, List(ReviewState.Proposed))
       assertEquals(after.nodes.map(_.review.standing.state).distinct, List(ReviewState.Accepted))
-      assertEquals(after.node(sameAbove).flatMap(_.says.reason), Some("it says what the service must do"))
+      assertEquals(after.node(sameAbove).flatMap(_.says.reason), None)
       assertEquals(after.node(sameAbove).flatMap(_.review.decisions.binding).map(_.action), Some(Action.Accept))
   }
 

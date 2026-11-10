@@ -1,5 +1,9 @@
 package rooms
 
+import rooms.Booking.noOverlap
+import rooms.Calendar.granted
+import rooms.BookingsTable.{add, storedBookings}
+import rooms.Book.{book, bookIfGranted}
 import frflow.*
 import frflow.core.name.NodeId
 import frflow.eval.EvalError
@@ -30,8 +34,8 @@ class RunsSuite extends munit.FunSuite:
         when(stored.forall(b => noOverlap(b, request)))(stored :+ request).otherwise(stored)))
 
   private def booking(meaning: Definition[Booking => Flow[Boolean]]) =
-    FrModel("Rooms")((rooms.nodes :+ answerWhenApart :+ storeWhenApart)*).copy(generators = rooms.generators,
-      operations = rooms.operations)
+    FrModel("Rooms")((Rooms.model.nodes :+ answerWhenApart :+ storeWhenApart)*)
+      .copy(generators = Rooms.model.generators, operations = Rooms.model.operations)
       .implementProven(book)(meaning)
       .implementTested(granted)(_ => (held, request) => Calendar(held).grants(request))
 
@@ -47,7 +51,7 @@ class RunsSuite extends munit.FunSuite:
 
   test("a claim over every moment has no Scala value: rooms' own are not checked, no case failing or saved") {
     List("storeWhenFree", "answerWhenFree", "grantWhenFree").foreach { c =>
-      val r = tested(rooms, c)
+      val r = tested(Rooms.model, c)
       assertEquals((r.outcome, r.failure), (Outcome.NotChecked(EvalError.Quantified), None), c)
     }
   }

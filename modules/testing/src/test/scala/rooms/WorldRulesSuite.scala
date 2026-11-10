@@ -1,5 +1,8 @@
 package rooms
 
+import rooms.Rooms.booked
+import rooms.Calendar.granted
+import rooms.BookingsTable.storedBookings
 import frflow.*
 import frflow.core.expr.{Expr, Exprs, PrimOp}
 import frflow.core.name.SymbolName
@@ -89,7 +92,7 @@ class WorldRulesSuite extends munit.FunSuite:
   }
 
   test("an example reads no world: one over a Declaration that changes with the World is refused, no FrFlow bug") {
-    class Varying extends FrFlowExamples(rooms):
+    class Varying extends FrFlowExamples(Rooms.model):
       example("what is booked is itself")(booked === booked)
       example("back to back: granted"):
         granted(RoomBookings("Oak", List(Booking("Oak", 9, 10))), Booking("Oak", 10, 11)) is true

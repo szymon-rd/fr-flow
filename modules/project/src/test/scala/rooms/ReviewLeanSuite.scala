@@ -1,5 +1,9 @@
 package rooms
 
+import rooms.Booking.{free, noOverlap}
+import rooms.Calendar.granted
+import rooms.BookingsTable.{add, inRoom, storedBookings}
+import rooms.Book.{book, bookIfGranted}
 import frflow.*
 import frflow.core.name.NodeId
 import frflow.eval.flow.{Shelf, Trouble}

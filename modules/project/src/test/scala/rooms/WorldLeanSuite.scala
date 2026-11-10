@@ -1,5 +1,6 @@
 package rooms
 
+import rooms.BookingsTable.storedBookings
 import frflow.*
 import frflow.core.name.NodeId
 import frflow.project.{Live, Ported, Projects}

@@ -1,7 +1,8 @@
 package rooms.walkthrough.reaches
 
 import frflow.*
-import rooms.{Booking, RoomBookings, granted}
+import rooms.{Booking, RoomBookings}
+import rooms.Calendar.granted
 
 /** The examples as step 5 changed them. */
 class GrantedExamples extends FrFlowExamples(reaches):

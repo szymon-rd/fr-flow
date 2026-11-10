@@ -1,5 +1,7 @@
 package rooms
 
+import rooms.BookingsTable.storedBookings
+import rooms.Book.bookIfGranted
 import cats.effect.{IO, Ref}
 import cats.effect.unsafe.implicits.global
 import frflow.*
@@ -27,7 +29,7 @@ class StoreModelSuite extends munit.FunSuite:
     def add(booking: Booking): IO[Unit] = if adds then held.update(_ :+ booking) else IO.unit
     def bookings: IO[List[Booking]] = held.get
 
-  private val elaborated = rooms.elaborated.fold(e => fail(e.toString), identity)
+  private val elaborated = Rooms.model.elaborated.fold(e => fail(e.toString), identity)
   private val semantics = Semantics(elaborated)
   private val draw = Derive.of(elaborated, Nil)
   private val model = elaborated.theory.vocabulary.model(storedBookings.name).getOrElse(fail("no model"))
@@ -82,7 +84,7 @@ class StoreModelSuite extends munit.FunSuite:
   test("in production the program runs on the table's Scala bound, unchecked: a free request booked, a clash not") {
     val booked = for
       table  <- BookingsTable.holding(Nil)
-      run    <- rooms.running[IO](storedBookings := table)
+      run    <- Rooms.model.running[IO](storedBookings := table)
       book    = (r: Booking) => run(bookIfGranted)(r)
       first  <- book(Booking("Oak", 9, 11))
       clash  <- book(Booking("Oak", 10, 12))

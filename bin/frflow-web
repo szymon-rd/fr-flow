@@ -1,0 +1,80 @@
+#!/bin/sh
+# A project's web view that follows its model: whenever a source changes, sbt rebuilds the project and the server is
+# started again on the same port with the same link, and the open page reads the project again by itself.
+#   bin/frflow-web PROJECT [--port N] [--as NAME]       (port 8765 by default)
+# The page's link is printed once. The server is stopped while sbt rebuilds (sbt writes the classes it runs from), and
+# the page waits for it; a source that does not compile brings the last model back, sbt's errors printed here. It
+# builds through the project's sbt server (`sbt --client`), as bin/frflow does: an sbt session busy running something
+# else, such as `sbt serve`, holds it up. Ctrl-C stops it.
+set -e
+here=$(cd "$(dirname "$0")/.." && pwd)
+project=${1:?usage: bin/frflow-web PROJECT [--port N] [--as NAME]}
+shift
+port=8765
+args=""
+while [ $# -gt 0 ]; do
+  case "$1" in
+    --port) port=${2:?--port takes a number}; shift 2 ;;
+    --as) args="$args --as ${2:?--as takes a name}"; shift 2 ;;
+    *) echo "frflow-web: unknown argument: $1" >&2; exit 2 ;;
+  esac
+done
+launch="$here/examples/$project/target/cli/frflow.launch"
+sources="$here/modules $here/examples/$project/src $here/build.sbt"
+
+# The project rebuilt, and its java command written again (`<project>/cliLauncher`); false, with sbt's errors
+# printed, when it does not compile.
+build() {
+  command -v sbt > /dev/null || { echo "frflow-web: sbt is not on the PATH" >&2; exit 2; }
+  out=$(cd "$here" && mkdir -p target && flock target/frflow-sbt.lock sbt --client "$project/cliLauncher" \
+    < /dev/null 2>&1) && return 0
+  printf '%s\n' "$out" | grep -E '\[error\]' | head -n 40 >&2
+  return 1
+}
+stale() {
+  [ ! -s "$launch" ] || [ -n "$(find $sources \( -name '*.scala' -o -name '*.sbt' -o -name '*.html' -o -name '*.js' \) \
+    -newer "$launch" 2>/dev/null | head -n 1)" ]
+}
+
+# The link's token: the one given (FRFLOW_WEB_TOKEN, to keep a link across runs), else a new one.
+FRFLOW_WEB_TOKEN=${FRFLOW_WEB_TOKEN:-$(head -c 18 /dev/urandom | base64 | tr '+/' '-_' | tr -d '=\n')}
+FRFLOW_WEB_RELOADS=1
+export FRFLOW_WEB_TOKEN FRFLOW_WEB_RELOADS
+server=""
+# The server stopped, if it runs (`wait` gives its exit status, a TERM's, which is no failure here).
+stop() { if [ -n "$server" ]; then kill "$server" 2> /dev/null || :; wait "$server" 2> /dev/null || :; fi; server=""; }
+trap 'stop; exit 0' INT TERM
+trap stop EXIT
+
+# The server: the java command's options and classpath (every line but its main class), then serve's main.
+start() {
+  main=$(tail -n 1 "$launch")
+  set --
+  while IFS= read -r arg; do set -- "$@" "$arg"; done < "$launch"
+  n=$(($# - 1)); i=0
+  while [ "$i" -lt "$n" ]; do a=$1; shift; set -- "$@" "$a"; i=$((i + 1)); done
+  shift
+  (cd "$here" && exec java "$@" frflow.web.Serve "$main" --port "$port" $args) &
+  server=$!
+}
+
+if stale; then echo "frflow-web: building $project with sbt..." >&2; build || exit 1; fi
+start
+echo "frflow-web: open http://127.0.0.1:$port/?token=$FRFLOW_WEB_TOKEN  (it stays the same across restarts)"
+while :; do
+  sleep 1
+  # A server that stopped by itself (a class read while sbt was writing it) is started again.
+  if ! kill -0 "$server" 2> /dev/null; then
+    echo "frflow-web: the server stopped; starting it again" >&2; sleep 2; start; continue
+  fi
+  stale || continue
+  echo "frflow-web: a source changed; rebuilding $project..." >&2
+  stop
+  if build; then
+    echo "frflow-web: started again on the rebuilt model" >&2
+  else
+    touch "$launch"
+    echo "frflow-web: $project does not compile; serving the last model again" >&2
+  fi
+  start
+done

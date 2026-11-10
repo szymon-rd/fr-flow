@@ -9,4 +9,4 @@ import frflow.*
 
 /** Rooms' nodes, `changed` in place of those of the same names. */
 def nodes(changed: Node*): List[Node] =
-  rooms.rooms.nodes.map(n => changed.find(_.head.id == n.head.id).getOrElse(n))
+  rooms.Rooms.model.nodes.map(n => changed.find(_.head.id == n.head.id).getOrElse(n))

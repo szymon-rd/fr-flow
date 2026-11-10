@@ -11,7 +11,7 @@ import scala.util.Using
 
 /** A project under a directory of the build (`examples/NAME`, as `init` makes it): the files its model records are
   * read relative to the build, made relative to the project, so its own model file is not warned ungoverned; nor is
-  * a file holding only its vocabulary (rooms' `Domain.scala`, `Book.scala`).
+  * a file holding only its vocabulary (rooms' `Booking.scala`).
   */
 class RelocateSuite extends munit.CatsEffectSuite:
   private val e = Opened.before.model
@@ -63,7 +63,7 @@ class RelocateSuite extends munit.CatsEffectSuite:
       checked  <- Opened.checked(api.proving.check(None))
       warnings <- api.reading.view.map(_.warnings)
     yield
-      assert(checked.nodes.size >= 16 && files.exists(_._1.value.endsWith("Domain.scala")), files.map(_._1))
+      assert(checked.nodes.size >= 16 && files.exists(_._1.value.endsWith("Booking.scala")), files.map(_._1))
       assertEquals(warnings, Nil)
   }
 

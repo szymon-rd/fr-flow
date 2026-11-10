@@ -66,7 +66,8 @@ final class NodeText(v: View, style: Style, layers: Contribution):
     else List("decisions below it that accepting it acts on (accept --revisit NODE reviews one again): " +
       ids.mkString(", "))
 
-  private def reason(n: NodeView): List[String] = n.review.decisions.binding.map(d =>
+  /** The reason a node was decided with; none for an acceptance, which takes none. */
+  private def reason(n: NodeView): List[String] = n.review.decisions.binding.filter(_.reason.text.nonEmpty).map(d =>
     s"${d.reason.text}  (${Unprovens.verb(d.action)} by ${d.author.by}, ${d.author.at.toString.take(16)
       .replace('T', ' ')})").toList
 

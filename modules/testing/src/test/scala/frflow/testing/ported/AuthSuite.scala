@@ -1,5 +1,8 @@
 package frflow.testing.ported
 
+import auth.Grant.grants
+import auth.Sessions.sessions
+import auth.Admission.admit
 import auth.*
 import frflow.*
 import frflow.core.expr.Value
@@ -14,15 +17,15 @@ class AuthSuite extends munit.FunSuite:
   // A thousand generated cases a claim, the suites beside it running at once: on CI's two cores, minutes, not 30 s.
   override val munitTimeout: scala.concurrent.duration.Duration = scala.concurrent.duration.Duration(5, "minutes")
   test("the decision is tested against its contract: every generated case meets it, every part of it is reached") {
-    assertEquals(Tested.nodes(knowledge).sorted,
+    assertEquals(Tested.nodes(Auth.model).sorted,
       List("accessNeedsGrant", "decisionContract", "grantLetsIn", "tokenNamesHolder"))
-    Tested.nodes(knowledge).foreach { n =>
-      assertEquals(Tested.passes(knowledge, n, List(DecisionExamples())).against, Against.Claim(NodeId(n)), n)
+    Tested.nodes(Auth.model).foreach { n =>
+      assertEquals(Tested.passes(Auth.model, n, List(DecisionExamples())).against, Against.Claim(NodeId(n)), n)
     }
   }
 
   test("an implementation that ignores the grant table fails a generated case, shrunk to its smallest") {
-    val careless = FrModel("Auth")(knowledge.nodes*).implementProvided(grants, sessions)
+    val careless = FrModel("Auth")(Auth.model.nodes*).implementProvided(grants, sessions)
       .implementTested(admit)(env => (t, _) => env(sessions).open.find(_.token == t).map(_.user))
     // A token issued to a user, no grant at all: the user is let in.
     Tested.failure(careless, "decisionContract") match

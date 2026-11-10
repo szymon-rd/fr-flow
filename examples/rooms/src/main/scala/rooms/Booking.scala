@@ -1,5 +1,6 @@
 package rooms
 
+import cats.syntax.all.*
 import frflow.*
 
 /** What the booking form sends and the table stores. A request is a booking asked for. */
@@ -39,3 +40,8 @@ object Booking:
   val requests: Gen[Booking] = for
     room <- roomNames; start <- Gen.oneOf[BigInt](0, 1, 2, 3, 4, 5, 6, 7, 8); length <- Gen.oneOf[BigInt](1, 2, 3)
   yield Booking(room, start, start + length)
+
+  /** The rooms and requests the tests draw. */
+  def generated(model: FrModel): FrModel =
+    model.withGenerator(roomNames.describedAs("Oak or Elm"))
+      .withGenerator(requests.describedAs("requests for Oak or Elm that end after they start"))

@@ -32,17 +32,17 @@ class DecideSuite extends munit.FunSuite:
     assert(rejected.current(id("B")).exists(_.reason.text.startsWith("A, which it rested on, was rejected")))
   }
 
-  test("someone decides, with a reason in a few words") {
+  test("someone decides; an acceptance is only that, with no reason recorded") {
     assertEquals(decide(shelf, Ledger.empty, accept("R"), name = " "), Left(NoOneDecides))
-    assertEquals(decide(shelf, Ledger.empty, accept("R", reason = "ok")), Left(NoReason))
+    val l = right(decide(shelf, Ledger.empty, accept("R")))
+    assertEquals(l.current(id("R")).map(_.reason.text), Some(""))
   }
 
-  test("a reason of a word or two is refused, whatever the command") {
+  test("a reason of a word or two is refused where a decision turns a node away") {
     val gone = Reading(Subjects(Nil), accepted)
     assertEquals(Decide(gone, Command.Gone(id("R"), "ok"), by(20)), Left(NoReason))
     assertEquals(decide(shelf, accepted, Command.Revisit(id("R"), "changed")), Left(NoReason))
     assertEquals(decide(shelf, Ledger.empty, Command.Reject(id("R"), "too vague", None)), Left(NoReason))
-    assertEquals(decide(moved, onlyR, Command.Confirm("fine")), Left(NoReason))
   }
 
   test("a decision on a node that moved since the developer looked is refused") {
@@ -106,10 +106,9 @@ class DecideSuite extends munit.FunSuite:
     assertEquals(states(moved, all).values.toSet, Set(ReviewState.Accepted))
   }
 
-  test("accepting a node under review only for what moved above it confirms it, keeping the reason it was chosen") {
-    val l = right(decide(moved, onlyR, accept("A", "it still holds")))
+  test("accepting a node under review only for what moved above it confirms it") {
+    val l = right(decide(moved, onlyR, accept("A")))
     assertEquals(actions(l, "A"), List(Action.Accept, Action.Confirm))
-    assertEquals(l.history(id("A")).map(_.reason.text), List("A holds for this reason", "it still holds"))
   }
 
   test("only a decided node is revisited, once") {
@@ -119,7 +118,7 @@ class DecideSuite extends munit.FunSuite:
     assertEquals(revisit(l, "R", "the purpose changed again"), Left(AlreadyRevisited(id("R"))))
     assertEquals(revisit(l, "Nowhere", "the purpose changed"), Left(UnknownNode(id("Nowhere"))))
     // Accepted again: confirmed.
-    assertEquals(actions(right(decide(shelf, l, accept("R", "it still holds as it is"))), "R").last, Action.Confirm)
+    assertEquals(actions(right(decide(shelf, l, accept("R"))), "R").last, Action.Confirm)
   }
 
   test("a decided node gone from the model is agreed to be gone; one still in it is not") {
@@ -143,23 +142,23 @@ class DecideSuite extends munit.FunSuite:
   }
 
   test("the mechanical batch is confirmed in one go") {
-    val done = right(decide(moved, onlyR, Command.Confirm("the change above leaves them as they were")))
+    val done = right(decide(moved, onlyR, Command.Confirm))
     assertEquals((actions(done, "A").last, actions(done, "B").last), (Action.Confirm, Action.Confirm))
     assertEquals(Decide.added(Reading(moved, onlyR), onlyR, done).map(_._1), ids("A", "B"))
-    assertEquals(decide(shelf, accepted, Command.Confirm("nothing to see here")), Left(NothingToConfirm))
+    assertEquals(decide(shelf, accepted, Command.Confirm), Left(NothingToConfirm))
   }
 
   test("the mechanical batch makes no choice: a rival still standing is left to the developer") {
     val a2 = node("A2", "Every book asked for is found by its title.", List("R"), Nil).rivalling("A")
     val s = Subjects(List(movedR, a.rivalling("A2"), b, a2))
-    val done = right(decide(s, onlyR, Command.Confirm("the change above leaves them as they were")))
+    val done = right(decide(s, onlyR, Command.Confirm))
     assertEquals((actions(done, "A").last, actions(done, "A2")), (Action.Confirm, Nil))
     assertEquals(done.current(id("A")).map(_.reason.rejected), Some(Nil))
   }
 
   test("several nodes accepted at once are taken in order, all or none, a refusal saying which") {
     def all(nodes: List[NodeId]) =
-      decide(shelf, Ledger.empty, Command.Accept(nodes, "they hold as written", Nil, Map.empty))
+      decide(shelf, Ledger.empty, Command.Accept(nodes, Nil, Map.empty))
     assertEquals(states(shelf, right(all(ids("B", "R", "A")))).values.toSet, Set(ReviewState.Accepted))
     assertEquals(all(ids("R", "Nowhere")), Left(Within(id("Nowhere"), UnknownNode(id("Nowhere")))))
     assertEquals(all(Nil), Left(NoNodes))

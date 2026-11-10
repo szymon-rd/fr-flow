@@ -8,14 +8,16 @@ import frflow.proof.layout.{Composition, Lowering, RootImplModule}
 import frflow.proof.obligation.{Prop, Required}
 import frflow.proof.terms.TermTable
 import frflow.proof.whole.Joint
-import rooms.{Booking, granted, noOverlap}
+import rooms.Booking
+import rooms.Calendar.granted
+import rooms.Booking.noOverlap
 
 /** A rule below a statement is no part of its step (2.4, owner §27): a claim or an assumption of `always` placed with
   * `.refines` sits in the tree and in review, but `complete`, `impl`, `holds`, the tries and `root_impl` leave it out,
   * since Lean states it of every value already; and `.assuming` lists only assumptions.
   */
 class RulesSuite extends munit.FunSuite:
-  private val r = Theories.resolved(rooms.rooms)
+  private val r = Theories.resolved(rooms.Rooms.model)
   private val g = r.theory.refinement
   private def ids(ns: String*): List[NodeId] = ns.toList.map(NodeId(_))
   private val rules = r.theory.nodes.map(_.node).filter(_.statement.rule).map(_.id).toSet
@@ -63,16 +65,16 @@ class RulesSuite extends munit.FunSuite:
   test("what a node's code relies on leaves the rules out: storeWhenFree's impl rests on grantWhenFree alone") {
     assertEquals(r.reliesOn(NodeId("storeWhenFree")), Nil)
     assertEquals(Required.hypotheses(r, NodeId("storeWhenFree")), ids("grantWhenFree"))
-    assertEquals(r.reliedOnBy(rooms.book.name).filter(rules), Nil)
+    assertEquals(r.reliedOnBy(rooms.Book.book.name).filter(rules), Nil)
   }
 
   test(".assuming lists only assumptions: a claim of always listed is refused, placed below with .refines it is not") {
     val asPremise = Node.claim("Granted only when no booking held overlaps it.")(
       forall((held: Term[rooms.RoomBookings], request: Term[Booking]) =>
         granted(held, request) === held.bookings.forall(b => noOverlap(b, request))))
-      .assuming(rooms.roomBookingsApart, rooms.bookingsEndAfterStart)
-    val kb = FrModel("Rooms")((rooms.rooms.nodes :+ asPremise)*).copy(generators = rooms.rooms.generators)
-      .implementProven(rooms.book)(rooms.bookIfGranted)
+      .assuming(rooms.Calendar.roomBookingsApart, rooms.Booking.bookingsEndAfterStart)
+    val kb = FrModel("Rooms")((rooms.Rooms.model.nodes :+ asPremise)*).copy(generators = rooms.Rooms.model.generators)
+      .implementProven(rooms.Book.book)(rooms.Book.bookIfGranted)
       .implementTested(granted)(_ => (held, request) => rooms.Calendar(held).grants(request))
     assertEquals(Theories.problems(kb), List(Problem.PremiseNotAssumed(NodeId("asPremise"),
       NodeId("roomBookingsApart"))))
@@ -80,9 +82,9 @@ class RulesSuite extends munit.FunSuite:
 
   test("an assumption of always placed with .refines is a fact about the outside as a part: refused") {
     val ends = Node.assumption("Every booking ends after it starts.")(always[Booking](b => b.start < b.end))
-      .refines(rooms.grantWhenFree)
-    val kb = FrModel("Rooms")((rooms.rooms.nodes.filterNot(_ eq rooms.bookingsEndAfterStart) :+ ends)*)
-      .copy(generators = rooms.rooms.generators).implementProven(rooms.book)(rooms.bookIfGranted)
+      .refines(rooms.Calendar.grantWhenFree)
+    val kb = FrModel("Rooms")((rooms.Rooms.model.nodes.filterNot(_ eq rooms.Booking.bookingsEndAfterStart) :+ ends)*)
+      .copy(generators = rooms.Rooms.model.generators).implementProven(rooms.Book.book)(rooms.Book.bookIfGranted)
       .implementTested(granted)(_ => (held, request) => rooms.Calendar(held).grants(request))
     assert(Theories.problems(kb).contains(Problem.OutsideAsPart(NodeId("ends"), NodeId("grantWhenFree"))),
       Theories.problems(kb))

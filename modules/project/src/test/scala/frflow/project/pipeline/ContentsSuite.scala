@@ -12,7 +12,7 @@ class ContentsSuite extends munit.FunSuite:
   // Three examples analysed and lowered, crm's with its models: beside the other suites, near 30 s.
   override val munitTimeout: scala.concurrent.duration.Duration = scala.concurrent.duration.Duration(2, "minutes")
   private def lowered(e: Elaborated) = Projects.bare(e).canonical
-  private val examples = List(Projects.rooms, Projects.elaborated(auth.knowledge), Projects.elaborated(crm.knowledge))
+  private val examples = List(Projects.rooms, Projects.elaborated(auth.Auth.model), Projects.elaborated(crm.knowledge))
   private val order = List("kind", "parents", "parts", "assumes", "statement", "formula", "written", "vocabulary",
     "checking", "writers", "governs", "call", "replaces", "reliance", "failure", "implementation", "model",
     "implementations")
@@ -49,5 +49,5 @@ class ContentsSuite extends munit.FunSuite:
           lines.exists(_.contains("inRoom"))
       case _                       => false
     }, model)
-    assert(contents.texts("implementations").exists(_.contains("BookingsTable.holding")), contents)
+    assert(contents.texts("implementations").exists(_.contains("start = holding")), contents)
   }

@@ -1,7 +1,8 @@
 package rooms.walkthrough.misread
 
 import frflow.*
-import rooms.{Booking, RoomBookings, granted}
+import rooms.{Booking, RoomBookings}
+import rooms.Calendar.granted
 
 /** The examples as step 5 changes them: back to back is refused. */
 class GrantedExamples extends FrFlowExamples(misread):

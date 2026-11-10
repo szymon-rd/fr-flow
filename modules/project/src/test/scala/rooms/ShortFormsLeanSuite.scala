@@ -1,5 +1,6 @@
 package rooms
 
+import rooms.Booking.bookingsEndAfterStart
 import frflow.*
 import frflow.core.name.NodeId
 import frflow.dsl.build.Fault

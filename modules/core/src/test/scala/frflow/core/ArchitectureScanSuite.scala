@@ -35,7 +35,7 @@ class ArchitectureScanSuite extends munit.FunSuite:
 
   test("an example's model may name the facade only, its app the front ends' entry points too") {
     val model = "examples/x/src/main/scala/x/K.scala"
-    val app = "examples/x/app/src/main/scala/x/XCli.scala"
+    val app = "examples/x/src/cli/scala/x/XCli.scala"
     val files = Sources(List(model -> "package x\n\nimport frflow.*\nimport frflow.eval.flow.Wall\n",
       app -> "package x\n\nimport frflow.*\nobject XCli extends frflow.cli.FrFlowApp(k)\nval c = frflow.cli.text.X\n"))
     val allowed = Map("model" -> List("frflow"), "app" -> List("frflow", "frflow.cli", "frflow.agent"))

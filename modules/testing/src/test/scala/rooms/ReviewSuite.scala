@@ -1,9 +1,9 @@
 package rooms
 
+import rooms.Book.{acceptedIsAnswered, book, bookIfGranted}, rooms.Calendar.granted, rooms.Rooms.accepted
+import rooms.BookingsTable.{add, inRoom, storedBookings}
 import frflow.*
-import frflow.core.analysis.outside.Constancy
-import frflow.core.analysis.outside.Premise
-import frflow.core.analysis.Problem
+import frflow.core.analysis.Problem, frflow.core.analysis.outside.{Constancy, Premise}
 import frflow.core.consistency.{Consistency, Vacuity}
 import frflow.core.expr.{Expr, Exprs}
 import frflow.core.name.{ModelName, NodeId, SymbolName}
@@ -108,7 +108,7 @@ class ReviewSuite extends munit.FunSuite:
   }
 
   test("owner §45 A: isConstant in an example or a define is refused") {
-    class Fixed extends FrFlowExamples(rooms):
+    class Fixed extends FrFlowExamples(Rooms.model):
       example("the opening hour is fixed")(opening.isConstant)
     assertEquals(Fixed().elaborated.fold(_.iterator.map(_.fault).toList, _ => Nil),
       List(Fault.ConstantInside("in an example")))
@@ -174,16 +174,16 @@ class ReviewSuite extends munit.FunSuite:
   }
 
   test("finding 8, owner §45 D: no port reads a value provided where the code runs beside the World") {
-    List(rooms, auth.knowledge, crm.knowledge, keycloak.knowledge).foreach(kb =>
+    List(Rooms.model, auth.Auth.model, crm.knowledge, keycloak.knowledge).foreach(kb =>
       assertEquals(frflow.core.analysis.Validate.providedBesideWorld(Theories.theory(kb)), Nil, kb.name.value))
   }
 
   test("finding 10: an example whose value breaks a rule on its type is refused, not judged on the code") {
-    class Overlapping extends FrFlowExamples(rooms):
+    class Overlapping extends FrFlowExamples(Rooms.model):
       example("overlapping held: granted"):
         granted(RoomBookings("Oak", List(Booking("Oak", 9, 11), Booking("Oak", 10, 12))), Booking("Oak", 12, 13)) is
           true
-    val e = Theories.elaborated(rooms)
+    val e = Theories.elaborated(Rooms.model)
     val run = ExampleRun(Semantics(e), e.theory)
     assertEquals(Overlapping().elaborated.fold(es => fail(es.iterator.mkString), identity).map(run.of),
       List(OnCode.BreaksRule(NodeId("roomBookingsApart"))))

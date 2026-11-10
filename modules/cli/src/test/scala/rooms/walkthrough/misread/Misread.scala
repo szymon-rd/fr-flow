@@ -1,7 +1,10 @@
 package rooms.walkthrough.misread
 
 import frflow.*
-import rooms.{Booking, RoomBookings, book, bookIfGranted, bookingsEndAfterStart, grantWhenFree, granted}
+import rooms.{Booking, RoomBookings}
+import rooms.Book.{book, bookIfGranted}
+import rooms.Booking.bookingsEndAfterStart
+import rooms.Calendar.{grantWhenFree, granted}
 
 // Step 5: touching meetings taken to overlap, in the claim over times, the code and the examples. The rule of a
 // room's bookings is over the same times (section 2.3), so it changes too.
@@ -31,6 +34,6 @@ val grantWhenNoOverlap = Node.claim("A request is granted exactly when it overla
   .assuming(bookingsEndAfterStart)
 
 val misread = FrModel("Rooms")(rooms.walkthrough.nodes(roomBookingsApart, grantWhenNoOverlap)*)
-  .copy(generators = rooms.rooms.generators, operations = rooms.rooms.operations)
+  .copy(generators = rooms.Rooms.model.generators, operations = rooms.Rooms.model.operations)
   .implementProven(book)(bookIfGranted)
   .implementTested(granted)(_ => (held, request) => Calendar(held).grants(request))

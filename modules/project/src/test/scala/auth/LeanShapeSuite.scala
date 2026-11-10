@@ -1,5 +1,9 @@
 package auth
 
+import auth.Auth.accessExactly
+import auth.Grant.grants
+import auth.Sessions.{holderOf, sessions}
+import auth.Admission.admit
 import frflow.*
 import frflow.core.analysis.Problem
 import frflow.core.analysis.Validate
@@ -17,7 +21,7 @@ import frflow.proof.obligation.{ObligationName, TryKind}
   * root over Declarations is asked no idle try (a Declaration is no code to do nothing).
   */
 class LeanShapeSuite extends munit.FunSuite:
-  private val a = Projects.bare(Projects.elaborated(knowledge))
+  private val a = Projects.bare(Projects.elaborated(Auth.model))
 
   private def module(on: Analysis, name: String): String =
     on.modules.find(_.name.dotted == s"FrFlowGen.Auth.$name").map(Print.module).getOrElse(fail(s"no module $name"))
@@ -59,9 +63,9 @@ class LeanShapeSuite extends munit.FunSuite:
     val unlisted = Node.claim("A request is let in only for the user its token was issued to.")(
       forall((t: Term[String], p: Term[Path]) => admit(t, p).forall(u => holderOf(t) === some(u))))
       .refines(accessExactly)
-    val kb = FrModel("Auth")((knowledge.nodes :+ unlisted)*)
+    val kb = FrModel("Auth")((Auth.model.nodes :+ unlisted)*)
       .implementProvided(grants, sessions)
-      .implementTested(admit)(env => SessionStore(env(grants), env(sessions)).decide)
+      .implementTested(admit)(env => Admission(env(grants), env(sessions)).decide)
     val problems = Validate(Projects.elaborated(kb)).fold(_.iterator.toList, _ => Nil)
     assertEquals(problems, List(Problem.PremiseMissing(NodeId("unlisted"),
       Premise.FromOutside(LeanType[Sessions].ty), Some(NodeId("tokensIssuedOnce")))))

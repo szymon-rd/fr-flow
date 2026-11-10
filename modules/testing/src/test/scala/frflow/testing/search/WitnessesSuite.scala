@@ -14,7 +14,7 @@ import rooms.{Booking, RoomBookings}
   * each judged by the evaluator, deterministically.
   */
 class WitnessesSuite extends munit.FunSuite:
-  private val e = rooms.rooms.elaborated.fold(es => fail(es.toString), identity)
+  private val e = rooms.Rooms.model.elaborated.fold(es => fail(es.toString), identity)
   private val semantics = Semantics(e)
   private val derive = Derive.of(e, Nil)
   private def search(drawn: Ty => List[Value]) = Witnesses(semantics, e.theory, drawn)

@@ -5,9 +5,11 @@ import frflow.core.analysis.Problem
 import frflow.core.name.NodeId
 import frflow.dsl.build.Fault
 import frflow.eval.flow.{Shelf, Trouble}
-import rooms.{Booking, BookingsTable, Calendar, add, book, bookIfGranted, booked, bookedIsStored, granted,
-
-  inRoom, storedBookings}
+import rooms.{Booking, BookingsTable, Calendar}
+import rooms.BookingsTable.{add, bookedIsStored, inRoom, storedBookings}
+import rooms.Book.{book, bookIfGranted}
+import rooms.Rooms.booked
+import rooms.Calendar.granted
 import whole.Theories
 
 /** The second 13b review's probes (scratchpad rebuild-review-step13b-2.md), as the reviewer wrote them: a world read

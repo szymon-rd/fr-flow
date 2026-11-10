@@ -22,13 +22,15 @@ class InitSuite extends munit.CatsEffectSuite:
       again <- Init.write(d, "toy", None)
       upper <- Init.write(d, "Toy", None)
       build <- IO.blocking(Files.readString(d.resolve("build.sbt"), UTF_8))
-      model <- IO.blocking(Files.readString(d.resolve("examples/toy/src/main/scala/toy/Model.scala"), UTF_8))
+      model <- IO.blocking(Files.readString(d.resolve("examples/toy/src/main/scala/toy/Toy.scala"), UTF_8))
+      cli   <- IO.blocking(Files.readString(d.resolve("examples/toy/src/cli/scala/toy/ToyCli.scala"), UTF_8))
     yield
-      assertEquals(first.map(_.size), Right(3))
+      assertEquals(first.map(_.size), Right(4))
       assertEquals(again, Left("examples/toy exists already"))
       assert(build.contains("lazy val toy = example(\"toy\", layers = Nil).dependsOn(testing % Test)"), build)
       assert(build.contains("testFrameworks += TestFramework(\"frflow.testing.examples.ExamplesFramework\")"), build)
-      assert(model.contains("object toyCli extends frflow.cli.FrFlowApp(frModel, root = \"examples/toy\")"), model)
+      assert(model.contains("object Toy:") && model.contains("lazy val model: FrModel = FrModel(\"Toy\")()"), model)
+      assert(cli.contains("object toyCli extends frflow.cli.FrFlowApp(Toy.model, root = \"examples/toy\")"), cli)
       assert(upper.left.exists(_.startsWith("Toy is not a lowercase name")), upper)
   }
 

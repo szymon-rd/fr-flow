@@ -3,7 +3,9 @@ package frflow.eval
 import cats.effect.IO
 import cats.effect.unsafe.implicits.global
 import frflow.*
-import rooms.{Booking, BookingsTable, bookIfGranted, storedBookings}
+import rooms.{Booking, BookingsTable}
+import rooms.Book.bookIfGranted
+import rooms.BookingsTable.storedBookings
 
 /** A program in production as the developer runs it: `knowledge.running[F](storedBookings := table)`, its conditions
   * evaluated over every Definition's meaning (rooms' `granted`, plain Scala), its operations' Scala bound (the SQLite
@@ -12,7 +14,7 @@ import rooms.{Booking, BookingsTable, bookIfGranted, storedBookings}
 class CodeSyntaxSuite extends munit.FunSuite:
   private def booked(requests: List[Booking]): (List[Boolean], List[Booking]) = (for
     table  <- BookingsTable.holding(List(Booking("Oak", 9, 10)))
-    run    <- rooms.rooms.running[IO](storedBookings := table)
+    run    <- rooms.Rooms.model.running[IO](storedBookings := table)
     asked  <- IO.parTraverseN(1)(requests)(r => run(bookIfGranted)(r))
     stored <- table.bookings
   yield (asked, stored)).unsafeRunSync()
@@ -23,6 +25,6 @@ class CodeSyntaxSuite extends munit.FunSuite:
   }
 
   test("a proven program is run by running it, not called: its code called from plain code has no value (Steps)") {
-    val book = rooms.rooms.code(rooms.book)()
+    val book = rooms.Rooms.model.code(rooms.Book.book)()
     assertEquals(intercept[NotEvaluated](book(Booking("Oak", 1, 2))).error, EvalError.Steps)
   }

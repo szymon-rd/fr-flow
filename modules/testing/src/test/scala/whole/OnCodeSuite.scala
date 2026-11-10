@@ -21,36 +21,38 @@ class OnCodeSuite extends munit.FunSuite:
   }
 
   test("an example reading a provided value it does not give: no Scala value, it is checked in Lean only") {
-    val open = new FrFlowExamples(auth.knowledge):
+    val open = new FrFlowExamples(auth.Auth.model):
       example("no session is open"):
-        auth.sessions is auth.Sessions(Nil)
-    assertEquals(onCode(open).map(_._2), List(OnCode.NotEvaluated(frflow.eval.EvalError.Unbound(auth.sessions.name))))
+        auth.Sessions.sessions is auth.Sessions(Nil)
+    assertEquals(onCode(open).map(_._2),
+      List(OnCode.NotEvaluated(frflow.eval.EvalError.Unbound(auth.Sessions.sessions.name))))
   }
 
   test("an example the code does not meet fails on it") {
-    val wrong = new FrFlowExamples(auth.knowledge):
-      example("Alice gets into /b", auth.grants := Nil, auth.sessions := auth.Sessions(Nil)):
-        auth.admit("t1", auth.Path("/b")) is Some(auth.UserId("alice"))
+    val wrong = new FrFlowExamples(auth.Auth.model):
+      example("Alice gets into /b", auth.Grant.grants := Nil, auth.Sessions.sessions := auth.Sessions(Nil)):
+        auth.Admission.admit("t1", auth.Path("/b")) is Some(auth.UserId("alice"))
     assertEquals(onCode(wrong).map(_._2), List(OnCode.Fails))
   }
 
   test("knowledge.code: a Definition's plain code over the values given, as production calls it") {
-    val admit = auth.knowledge.code(auth.admit)(auth.grants := List(auth.Grant(auth.UserId("alice"), auth.Path("/a"))),
-      auth.sessions := auth.Sessions(List(auth.Session("t1", auth.UserId("alice")))))
+    val admit = auth.Auth.model.code(auth.Admission.admit)(
+      auth.Grant.grants := List(auth.Grant(auth.UserId("alice"), auth.Path("/a"))),
+      auth.Sessions.sessions := auth.Sessions(List(auth.Session("t1", auth.UserId("alice")))))
     val decided = (admit("t1", auth.Path("/a")), admit("t1", auth.Path("/b")))
     assertEquals(decided, (Some(auth.UserId("alice")), None))
   }
 
   test("knowledge.code: a value given wins, and a Definition with no meaning given none is refused") {
     val grants = List(auth.Grant(auth.UserId("bob"), auth.Path("/c")))
-    assertEquals(auth.knowledge.code(auth.grants)(auth.grants := grants), grants)
-    intercept[IllegalArgumentException](auth.knowledge.code(auth.grants)())
+    assertEquals(auth.Auth.model.code(auth.Grant.grants)(auth.Grant.grants := grants), grants)
+    intercept[IllegalArgumentException](auth.Auth.model.code(auth.Grant.grants)())
   }
 
   test("d.fn: a define called from plain code, over the values it is given") {
-    val env = frflow.core.code.Values(Map(auth.grants.name -> (() => List(auth.Grant(auth.UserId("ann"),
+    val env = frflow.core.code.Values(Map(auth.Grant.grants.name -> (() => List(auth.Grant(auth.UserId("ann"),
       auth.Path("/d"))))))
-    val grantFor = auth.grantFor.fn(env)
+    val grantFor = auth.Grant.grantFor.fn(env)
     val decided = (grantFor(auth.UserId("ann"), auth.Path("/d")), grantFor(auth.UserId("ann"), auth.Path("/e")))
     assertEquals(decided, (true, false))
   }

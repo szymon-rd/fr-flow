@@ -17,6 +17,8 @@ import java.nio.file.Path
   */
 trait AgentApi[F[_]]:
   def read(v: View): F[AgentView]
+  /** The developer's requests and the agent's answers, as kept. */
+  def requests: F[List[Request]]
   /** The developer asks for a change, on a node (as they see it now) or on the whole idea. */
   def ask(node: Option[NodeId], text: String, by: String): F[Either[AgentRefusal, Request]]
   /** An answer read, or a request withdrawn: the developer's. */
@@ -38,24 +40,25 @@ object AgentApi:
   def inMemory[F[_]: Async](api: Reading[F]): F[AgentApi[F]] =
     (MemoryStore[F, List[Request]](Nil), MemoryStore[F, Conversation](Conversation.empty)).mapN(Over(api, _, _))
 
-  private final class Over[F[_]: Monad: Clock](api: Reading[F], requests: Store[F, List[Request]],
+  private final class Over[F[_]: Monad: Clock](api: Reading[F], kept: Store[F, List[Request]],
       talk: Store[F, Conversation]) extends AgentApi[F]:
-    def read(v: View): F[AgentView] = (requests.load, talk.load).mapN(AgentView(v, _, _))
+    def read(v: View): F[AgentView] = (kept.load, talk.load).mapN(AgentView(v, _, _))
+    def requests: F[List[Request]] = kept.load
 
     def ask(node: Option[NodeId], text: String, by: String): F[Either[AgentRefusal, Request]] =
       if text.trim.isEmpty then AgentRefusal.NoText.asLeft[Request].pure[F]
       else api.view.flatMap { v =>
         node.filter(v.node(_).isEmpty) match
           case Some(id) => AgentRefusal.UnknownNode(id).asLeft[Request].pure[F]
-          case None     => Clock[F].realTimeInstant.flatMap(now => requests.update[AgentRefusal, Request](rs =>
+          case None     => Clock[F].realTimeInstant.flatMap(now => kept.update[AgentRefusal, Request](rs =>
               Right(Requests.ask(rs, node, text.trim, Asked(by, now, node.flatMap(v.node).map(_.review.version))))))
       }
 
-    def close(ids: List[RequestId]): F[Either[AgentRefusal, List[Request]]] = requests.update(Requests.close(_, ids))
+    def close(ids: List[RequestId]): F[Either[AgentRefusal, List[Request]]] = kept.update(Requests.close(_, ids))
 
     def answer(to: String, text: String): F[Either[AgentRefusal, RequestId]] =
       (api.view, Clock[F].realTimeInstant).flatMapN((v, now) =>
-        requests.update(Requests.answer(_, to, Answer(text, now), v.node(_).isDefined))).map(_.map(_.id))
+        kept.update(Requests.answer(_, to, Answer(text, now), v.node(_).isDefined))).map(_.map(_.id))
 
     def said(text: String): F[Either[AgentRefusal, Said]] =
       Clock[F].realTimeInstant.flatMap(now => talk.update(Talk.say(_, text, now)))

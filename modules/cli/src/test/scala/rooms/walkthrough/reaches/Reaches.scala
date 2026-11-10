@@ -1,8 +1,12 @@
 package rooms.walkthrough.reaches
 
 import frflow.*
-import rooms.{Booking, RoomBookings, accepted, book, bookIfGranted, booked, bookedAfter, bookingsEndAfterStart,
-  granted, nothingElseWrites, oneAtATime, startsEmpty, storedBookings}
+import rooms.{Booking, RoomBookings}
+import rooms.Rooms.{accepted, booked, bookedAfter}
+import rooms.Book.{book, bookIfGranted}
+import rooms.Booking.bookingsEndAfterStart
+import rooms.Calendar.granted
+import rooms.BookingsTable.{nothingElseWrites, oneAtATime, startsEmpty, storedBookings}
 import rooms.walkthrough.misread.Calendar
 
 // Step 6: step 5, and `covers` includes the end moment, so touching meetings share a moment: every statement over
@@ -43,6 +47,6 @@ val grantWhenFree = Node.claim("A request is granted exactly when its room is fr
 val reaches = FrModel("Rooms")(rooms.walkthrough.nodes(bookWhenFree, acceptWhenFree, storeWhenFree, answerWhenFree,
   neverOverlap, grantWhenFree, rooms.walkthrough.misread.roomBookingsApart,
   rooms.walkthrough.misread.grantWhenNoOverlap)*)
-  .copy(generators = rooms.rooms.generators, operations = rooms.rooms.operations)
+  .copy(generators = rooms.Rooms.model.generators, operations = rooms.Rooms.model.operations)
   .implementProven(book)(bookIfGranted)
   .implementTested(granted)(_ => (held, request) => Calendar(held).grants(request))

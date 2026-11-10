@@ -32,14 +32,14 @@ class ExamplesSuite extends munit.FunSuite:
 
   test("rooms: today's nodes, named as today's, but onlyBookingWrites: the programs changing a store are derived " +
     "(owner §31); and the table's model is no assumption, nothing but the code changing it is (owner §36)") {
-    assertEquals(ids(rooms.rooms), renamed(Today.rooms, Set("onlyBookingWrites", "tableMatchesModel"),
+    assertEquals(ids(rooms.Rooms.model), renamed(Today.rooms, Set("onlyBookingWrites", "tableMatchesModel"),
       Set("nothingElseWrites")))
-    assertEquals(kinds(rooms.rooms), Map("claim" -> 12, "assumption" -> 4))
+    assertEquals(kinds(rooms.Rooms.model), Map("claim" -> 12, "assumption" -> 4))
   }
 
   test("auth: today's, but the definition of two open types, which the types now say; and the session table's one " +
     "token per user, which today's function type said") {
-    assertEquals(ids(auth.knowledge), renamed(Today.auth, Set("identities"), Set("tokensIssuedOnce")))
+    assertEquals(ids(auth.Auth.model), renamed(Today.auth, Set("identities"), Set("tokensIssuedOnce")))
   }
 
   test("keycloak: today's, but the definition of four open types; the definition of `enabled` and `rolesOf` is two " +
@@ -95,7 +95,7 @@ class ExamplesSuite extends munit.FunSuite:
   }
 
   test("the four examples are valid as written") {
-    assertEquals(List(rooms.rooms, auth.knowledge, keycloak.knowledge, crm.knowledge)
+    assertEquals(List(rooms.Rooms.model, auth.Auth.model, keycloak.knowledge, crm.knowledge)
       .map(Theories.problems), List.fill(4)(Nil))
   }
 
@@ -120,7 +120,7 @@ class ExamplesSuite extends munit.FunSuite:
 
   test("each program's type says what it may fail with: rooms' and crm's (the screens, the write side, the expiry " +
     "job) nothing") {
-    assertEquals((errors(rooms.rooms), errors(crm.knowledge)), (Map("book" -> None),
+    assertEquals((errors(rooms.Rooms.model), errors(crm.knowledge)), (Map("book" -> None),
       Map("read" -> None, "deals" -> None, "save" -> None, "runExpiry" -> None)))
   }
 

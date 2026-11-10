@@ -1,7 +1,9 @@
 package rooms.walkthrough
 
 import frflow.*
-import rooms.{Booking, RoomBookings, book, bookIfGranted, granted}
+import rooms.{Booking, RoomBookings}
+import rooms.Book.{book, bookIfGranted}
+import rooms.Calendar.granted
 
 /** Step 4: the calendar forgets the booking after the request. */
 final class Calendar(held: RoomBookings):
@@ -15,6 +17,6 @@ final class Calendar(held: RoomBookings):
     request.room != held.room || endsInTime
 
 val forgets = FrModel("Rooms")(rooms.walkthrough.nodes()*)
-  .copy(generators = rooms.rooms.generators, operations = rooms.rooms.operations)
+  .copy(generators = rooms.Rooms.model.generators, operations = rooms.Rooms.model.operations)
   .implementProven(book)(bookIfGranted)
   .implementTested(granted)(_ => (held, request) => Calendar(held).grants(request))

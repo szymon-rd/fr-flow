@@ -1,5 +1,6 @@
 package rooms
 
+import cats.syntax.all.*
 import frflow.*
 
 /** A room's bookings, as the table gives them. */
@@ -11,6 +12,10 @@ object RoomBookings:
   val laidOut: Gen[RoomBookings] = for
     room <- Booking.roomNames; count <- Gen.oneOf(0, 1, 2, 3, 4); bookings <- laidEndToEnd(room, 0, count)
   yield RoomBookings(room, bookings)
+
+  /** The rooms' bookings the tests draw. */
+  def generated(model: FrModel): FrModel =
+    model.withGenerator(laidOut.describedAs("a room's bookings, laid end to end, some back to back"))
 
   /** `count` bookings of a room, laid end to end from `from`, each after a gap of 0 or 1. */
   private def laidEndToEnd(room: String, from: BigInt, count: Int): Gen[List[Booking]] =

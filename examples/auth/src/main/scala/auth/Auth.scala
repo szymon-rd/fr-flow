@@ -1,6 +1,7 @@
 package auth
 
 import frflow.*
+import scala.util.chaining.*
 
 /** Access control: a user gets access to a resource exactly when they are signed in and authorized for it.
   *
@@ -20,11 +21,10 @@ object Auth:
       "A user gets access to a resource exactly when they are signed in and authorized for it.")(
     forall((u: Term[UserId], r: Term[Path]) => access(u, r) === (signedIn(u) && authorized(u, r))))
 
-  /** Auth's FrModel: every node, and what gives each Definition its meaning. Lazy, because it names the nodes below
-    * the root, which name the root.
+  /** Auth's FrModel: every node, and each Definition given its meaning by the part it belongs to. Lazy, because it
+    * names the nodes below the root, which name the root.
     */
   lazy val model: FrModel = FrModel("Auth")(accessExactly, Grant.grantTable, Sessions.sessionTable,
     Admission.requests, Admission.tokenNamesHolder, Admission.accessNeedsGrant, Admission.grantLetsIn,
     Admission.decisionContract, Server.inMemorySessions, Sessions.tokensIssuedOnce)
-    .implementProvided(Grant.grants, Sessions.sessions)
-    .implementTested(Admission.admit)(env => Admission(env(Grant.grants), env(Sessions.sessions)).decide)
+    .pipe(Grant.implemented).pipe(Sessions.implemented).pipe(Admission.implemented)

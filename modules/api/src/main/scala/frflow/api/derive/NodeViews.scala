@@ -20,7 +20,7 @@ private[api] final class NodeViews(a: Analysis):
   def says(n: Node): Says =
     val written = a.subjects.get(n.id).flatMap(_.content.get("written")).collect { case FieldValue.Text(f) => f }
     Says(n.statement.kind, n.says, written, Texts.checking(r.theory, n.id), Resolve.mentions(r.theory, n.id),
-      counting.binding(n.id).map(_.reason.text), governs(n))
+      counting.binding(n.id).map(_.reason.text).filter(_.nonEmpty), governs(n))
 
   /** A design's paths, each with the project's files under it. */
   private def governs(n: Node): List[Governs] = n.statement match

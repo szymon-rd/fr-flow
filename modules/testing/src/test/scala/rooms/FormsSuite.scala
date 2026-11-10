@@ -1,5 +1,8 @@
 package rooms
 
+import rooms.Booking.{covers, free}
+import rooms.Calendar.granted
+import rooms.Book.{book, bookIfGranted}
 import frflow.*
 import frflow.core.analysis.Problem
 import frflow.core.code.{Code, Values}
@@ -62,13 +65,15 @@ class FormsSuite extends munit.FunSuite:
   }
 
   test("the facts said of a model (owner §31, §32, §36): the programs changing it are derived; there is no boundary") {
-    fails(compileErrors("storedBookings.writtenOnlyBy(book)"), "value writtenOnlyBy is not a member of")
-    fails(compileErrors("storedBookings.changedOneRunAtATime"), "value changedOneRunAtATime is not a member of")
-    fails(compileErrors("storedBookings.behavesAs(storedBookings)"), "value behavesAs is not a member of")
+    fails(compileErrors("BookingsTable.storedBookings.writtenOnlyBy(book)"), "value writtenOnlyBy is not a member of")
+    fails(compileErrors("BookingsTable.storedBookings.changedOneRunAtATime"),
+      "value changedOneRunAtATime is not a member of")
+    fails(compileErrors("BookingsTable.storedBookings.behavesAs(BookingsTable.storedBookings)"),
+      "value behavesAs is not a member of")
     fails(compileErrors("""Boundary[Plain]("s")"""), "Not found: Boundary")
     fails(compileErrors("trait Table[F[_], T[_]] derives BoundaryOps"), "BoundaryOps")
-    assert(compileErrors("""Node.assumption("s")(storedBookings.atomic)""").isEmpty)
-    assert(compileErrors("""Node.assumption("s")(storedBookings.onlyCodeChanges)""").isEmpty)
+    assert(compileErrors("""Node.assumption("s")(BookingsTable.storedBookings.atomic)""").isEmpty)
+    assert(compileErrors("""Node.assumption("s")(BookingsTable.storedBookings.onlyCodeChanges)""").isEmpty)
   }
 
   test("a model gives operations on a state their meaning: `means` of a Definition that is no operation is refused") {
@@ -83,7 +88,8 @@ class FormsSuite extends munit.FunSuite:
     val w = "forall((r: Term[Booking]) => "
     fails(compileErrors(w + "book(r).from(r) { (answer, after) => answer === answer })"), "value from is not a member")
     fails(compileErrors("forall((w: Term[World]) => True)"), "Not found: type World")
-    assert(compileErrors(w + "book(r).result === True && storedBookings.in(book(r).after) === Nil)").isEmpty)
+    assert(compileErrors(
+      w + "book(r).result === True && BookingsTable.storedBookings.in(book(r).after) === Nil)").isEmpty)
   }
 
   test("one Definition: `define` and `program` make a Definition carrying its meaning; no Def type remains") {
@@ -105,20 +111,21 @@ class FormsSuite extends munit.FunSuite:
   test("a meaning is given once: proven code is a define or a program, and one written on the spot takes no other") {
     def faults(kb: FrModel) = kb.elaborated.fold(_.iterator.map(_.fault).toList, _ => Nil)
     val notCode = Definition[Booking => Flow[Boolean]]("a program nothing gives a meaning")
-    assertEquals(faults(rooms.implementProven(book)(notCode)), List(Fault.NotProvenCode("notCode")))
-    assertEquals(faults(rooms.implementTested(free)(_ => (_, _) => true)), List(Fault.MeantWhereWritten("free")))
+    assertEquals(faults(Rooms.model.implementProven(book)(notCode)), List(Fault.NotProvenCode("notCode")))
+    assertEquals(faults(Rooms.model.implementTested(free)(_ => (_, _) => true)), List(Fault.MeantWhereWritten("free")))
     val runsItself = Node.claim("The program answers.")(
       forall((r: Term[Booking]) => bookIfGranted(r).result === bookIfGranted(r).result))
     assertEquals(faults(FrModel("R")(runsItself)), List(Fault.ProgramMentioned("bookIfGranted")))
   }
 
   test("a Declaration is used only in statements: in a define or a program it does not compile, saying why") {
-    val errors = compileErrors("""define { (u: Term[auth.UserId], p: Term[auth.Path]) => auth.authorized(u, p) }""")
+    val errors = compileErrors(
+      """define { (u: Term[auth.UserId], p: Term[auth.Path]) => auth.Auth.authorized(u, p) }""")
     assert(errors.contains("a Declaration is used only in statements"), errors)
   }
 
   test("only a Definition takes a meaning: code for a Declaration does not compile") {
-    fails(compileErrors("""auth.knowledge.implementTested(auth.authorized)(_ => (_, _) => true)"""),
+    fails(compileErrors("""auth.Auth.model.implementTested(auth.Auth.authorized)(_ => (_, _) => true)"""),
       "Required: frflow.dsl.vocab.Definition[?]")
   }
 
@@ -150,7 +157,7 @@ class FormsSuite extends munit.FunSuite:
     val connection = Definition[Connection]("the connection the code is given where it runs")
     val connected = Node.claim("The connection is the one given.")(connection === connection)
     assert(connection.codeOnly && !granted.codeOnly)
-    assertEquals(Theories.problems(rooms.implementProvided(connection)), Nil)
+    assertEquals(Theories.problems(Rooms.model.implementProvided(connection)), Nil)
     assertEquals(Theories.problems(FrModel("Wired")(connected).implementProvided(connection)),
       List(Problem.CodeOnlyInStatement(NodeId("connected"), SymbolName("connection"), "Connection")))
     val db = Connection("jdbc:sqlite:rooms.db")

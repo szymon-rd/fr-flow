@@ -14,7 +14,7 @@ import frflow.testing.report.*
 import frflow.wire.file.Depth
 import frflow.decision.review.Unproven
 import frflow.eval.term.Semantics
-import rooms.storedBookings
+import rooms.BookingsTable.storedBookings
 
 /** Testing before production on rooms in memory: the calendar's Scala tested against each claim on `granted`, the
   * report recorded with its key and not run again while current; the failing cases kept newest first, at most

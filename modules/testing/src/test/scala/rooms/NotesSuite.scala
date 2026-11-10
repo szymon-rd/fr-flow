@@ -12,7 +12,7 @@ import frflow.testing.report.Seed
   * given generator never makes; and the cases the examples show of the call, counted before the generated ones.
   */
 class NotesSuite extends munit.FunSuite:
-  private val e = rooms.elaborated.fold(es => fail(es.toString), identity)
+  private val e = Rooms.model.elaborated.fold(es => fail(es.toString), identity)
   private val examples = GrantedExamples().elaborated.fold(es => fail(es.toString), identity)
   private val draw = Derive.of(e, examples)
 

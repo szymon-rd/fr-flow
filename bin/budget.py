@@ -9,7 +9,7 @@ The exceptions are the scala-fp skill's (its "Size budgets"), each read off the 
 - an `apply` in an extension on a `Declaration`'s, a `Definition`'s, a failing Definition's (`Fails`) or a `stated`
   define's (`Stated`) function type, taking one parameter per input of that type (ARCHITECTURE.md section 11, rule 4), may take more than four;
 - the facade package `frflow` (`modules/eval/src/main/scala/frflow`) may hold fewer than three files;
-- an example's app and tests (`examples/NAME/app/src/…`, `examples/NAME/src/test/…`) may hold fewer than three
+- an example's app and tests (`examples/NAME/src/cli/…`, `examples/NAME/src/test/…`) may hold fewer than three
   files a package: they are its model's package (`rooms`), which the layout splits across the example's projects.
 Parameters are counted over every list of a def but `using` ones, as the skill's `measure.py` counts them. The
 one-`match` rule does not check that the match is over an ADT.
@@ -50,7 +50,7 @@ def facade(d): return d.endswith(os.path.join('eval', 'src', 'main', 'scala', 'f
 
 def split(d):
     """A package of an example's app or tests: its model's package, split across the example's projects."""
-    return re.search(r'(^|/)examples/[^/]+/(app/src|src/test)(/|$)', d.replace(os.sep, '/')) is not None
+    return re.search(r'(^|/)examples/[^/]+/src/(cli|test)(/|$)', d.replace(os.sep, '/')) is not None
 
 
 def explicit(sig):

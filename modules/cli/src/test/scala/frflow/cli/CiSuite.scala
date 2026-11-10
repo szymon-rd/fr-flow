@@ -66,7 +66,7 @@ class CiSuite extends munit.CatsEffectSuite:
       assertEquals(none ++ done, List(ExitCode(1), ExitCode(0)))
       assert(n.contains("there is nothing to rebase"), n)
       assert(t.contains("Rebasing accepts the ledger as it reads now, which no longer holds what was committed:\n" +
-        "  - accepted nonNegative by ann (it says what the service must do): what was committed"), t)
+        "  - accepted nonNegative by ann: what was committed"), t)
       assert(t.contains("wrote .frflow/ledger-base"), t)
   }
 

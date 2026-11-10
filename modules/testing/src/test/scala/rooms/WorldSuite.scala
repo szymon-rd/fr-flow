@@ -1,5 +1,10 @@
 package rooms
 
+import rooms.Booking.bookingsEndAfterStart
+import rooms.Rooms.booked
+import rooms.Calendar.granted
+import rooms.BookingsTable.{add, inRoom, oneAtATime, storedBookings}
+import rooms.Book.{answerWhenFree, book, bookIfGranted}
 import frflow.*
 import frflow.core.expr.{Expr, Exprs, Quantifier}
 import frflow.core.name.SymbolName
@@ -18,15 +23,15 @@ class WorldSuite extends munit.FunSuite:
     Theories.theory(kb).vocabulary.symbol(SymbolName(n)).map(_.ty).collect { case SymbolType.Typed(t) => t }
 
   test("rooms' Declarations change with the World, read beside the table: a function of the world, its last input") {
-    assertEquals(typeOf(_root_.rooms.rooms, "booked"), Some(Ty.FnOf(List(Ty.World), Ty.ListOf(Ty.Data(
+    assertEquals(typeOf(_root_.rooms.Rooms.model, "booked"), Some(Ty.FnOf(List(Ty.World), Ty.ListOf(Ty.Data(
       frflow.core.name.TypeName("Booking"))))))
-    assertEquals(typeOf(_root_.rooms.rooms, "accepted").map { case Ty.FnOf(ins, _) => ins.last; case t => t },
+    assertEquals(typeOf(_root_.rooms.Rooms.model, "accepted").map { case Ty.FnOf(ins, _) => ins.last; case t => t },
       Some(Ty.World))
   }
 
   test("a Declaration no statement reads beside what changes is a value in Lean, as auth's is; crm's finds, read " +
     "beside the screens' runs, changes with the World") {
-    assertEquals(typeOf(auth.knowledge, "access").map { case Ty.FnOf(ins, _) => ins.contains(Ty.World); case _ => true
+    assertEquals(typeOf(auth.Auth.model, "access").map { case Ty.FnOf(ins, _) => ins.contains(Ty.World); case _ => true
       }, Some(false))
     assertEquals(typeOf(crm.knowledge, "finds").map { case Ty.FnOf(ins, _) => ins.last; case t => t }, Some(Ty.World))
   }
@@ -35,10 +40,10 @@ class WorldSuite extends munit.FunSuite:
     def quantified(e: Expr): List[Ty] = e match
       case Expr.Quant(Quantifier.Forall, List(x), body) => x.ty :: quantified(body)
       case _                                           => Nil
-    val stored = Theories.theory(_root_.rooms.rooms).nodes.map(_.node).find(_.id.value == "storeWhenFree").get
+    val stored = Theories.theory(_root_.rooms.Rooms.model).nodes.map(_.node).find(_.id.value == "storeWhenFree").get
     assertEquals(stored.statement.said.map(f => quantified(f.value)), Some(List(Ty.Data(
       frflow.core.name.TypeName("Booking")), Ty.World)))
-    val grant = Theories.theory(_root_.rooms.rooms).nodes.map(_.node).find(_.id.value == "grantWhenFree").get
+    val grant = Theories.theory(_root_.rooms.Rooms.model).nodes.map(_.node).find(_.id.value == "grantWhenFree").get
     assert(grant.statement.said.exists(f => !quantified(f.value).contains(Ty.World)))
   }
 
