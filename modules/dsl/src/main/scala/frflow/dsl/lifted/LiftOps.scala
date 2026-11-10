@@ -2,7 +2,6 @@ package frflow.dsl.lifted
 
 import frflow.core.term.language.Sym
 import frflow.dsl.term.{LeanType, Notes, Term, Terms, TermSyntax}
-import frflow.dsl.vocab.Definition
 
 /** The term language's operations as the reader writes them (`Reader`): each binder's variable named as the Scala
   * named it, each operation one of `TermSyntax`'s, so lifted code and a model's own terms are the same terms.
@@ -46,14 +45,6 @@ object LiftOps:
   /** A case of a sum as a value of the sum (`Shape.Circle` where a `Shape` is used): the same term. */
   def widened[C, S: LeanType](t: Term[C]): Term[S] =
     Term([T[_]] => (s: Sym[T]) => t.run(s).asInstanceOf[T[S]]) // a case's term is its sum's in every interpreter
-
-  def call1[A, R: LeanType](d: Definition[A => R], a: Term[A]): Term[R] = d(a)
-  def call2[A: LeanType, B: LeanType, R: LeanType](d: Definition[(A, B) => R], a: Term[A], b: Term[B]): Term[R] =
-    d(a, b)
-  def call3[A: LeanType, B: LeanType, C: LeanType, R: LeanType](d: Definition[(A, B, C) => R])(a: Term[A],
-      b: Term[B], c: Term[C]): Term[R] = d(a, b, c)
-  def call4[A: LeanType, B: LeanType, C: LeanType, D: LeanType, R: LeanType](d: Definition[(A, B, C, D) => R])(
-      a: Term[A], b: Term[B], c: Term[C], e: Term[D]): Term[R] = d(a, b, c, e)
 
   def cons[A](x: Term[A], xs: Term[List[A]]): Term[List[A]] = TermSyntax.::(xs)(x)
   def orElse[A](o: Term[Option[A]], default: Term[A]): Term[A] =

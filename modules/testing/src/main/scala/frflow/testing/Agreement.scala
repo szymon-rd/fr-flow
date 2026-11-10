@@ -21,9 +21,14 @@ import scala.util.Try
   * size, as a claim's are; the first case that differs is the report.
   */
 final class Agreement(e: Elaborated):
-  def of(code: Lifted[?], settings: Settings): Agreement.Report =
-    val read = code.onTheSpot.flatMap(_.lambda.run.toOption)
-    Agreement.Report(code.name, read.fold(Agreement.Outcome.NotRead)((ds, w) => tested(code, settings)(ds, w)))
+  def of(code: Lifted[?], settings: Settings): Agreement.Report = between(code, code, settings)
+
+  /** The term read from one lifted function against the Scala of another of its type: of one function, its law
+    * (`of`); of two, whether they are one function on the cases drawn.
+    */
+  def between[F](term: Lifted[F], scala: Lifted[F], settings: Settings): Agreement.Report =
+    val read = term.onTheSpot.flatMap(_.lambda.run.toOption)
+    Agreement.Report(term.name, read.fold(Agreement.Outcome.NotRead)((ds, w) => tested(scala, settings)(ds, w)))
 
   private def tested(code: Lifted[?], settings: Settings)(ds: Declarations, w: Written[Lambda]): Agreement.Outcome =
     val all = holding(ds)

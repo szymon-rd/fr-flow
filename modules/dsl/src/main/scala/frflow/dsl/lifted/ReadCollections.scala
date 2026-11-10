@@ -21,21 +21,19 @@ private[lifted] trait ReadCollections extends Reading:
   private def joined(c: Calling)(using Env)(using Quotes): Option[Expr[DTerm[?]]] =
     elementOf(c.own, ListClass).map(_.asType).flatMap { case '[b] =>
       (c.name, c.args) match
-        case ("++" | ":::", List(ys)) if c.name == "++" =>
-          Some('{ TermSyntax.++(${ readAs[List[b]](c.on) })(${ readAs[List[b]](ys) }) })
-        case (":+", List(x))          => Some('{ TermSyntax.:+(${ readAs[List[b]](c.on) })(${ readAs[b](x) }) })
-        case ("::", List(x))          => Some('{ LiftOps.cons[b](${ readAs[b](x) }, ${ readAs[List[b]](c.on) }) })
-        case _                        => None
+        case ("++", List(ys)) => Some('{ TermSyntax.++(${ readAs[List[b]](c.on) })(${ readAs[List[b]](ys) }) })
+        case (":+", List(x))  => Some('{ TermSyntax.:+(${ readAs[List[b]](c.on) })(${ readAs[b](x) }) })
+        case ("::", List(x))  => Some('{ LiftOps.cons[b](${ readAs[b](x) }, ${ readAs[List[b]](c.on) }) })
+        case _                => None
     }
 
   private def asked[A: Type](c: Calling)(using Env)(using Quotes): Option[Expr[DTerm[?]]] =
     lazy val (xs, a) = (readAs[List[A]](c.on), spec[A](c.on))
     (c.name, c.args) match
-      case ("forall", List(p))   => Some('{ LiftOps.all[A]($xs, ${ hint(p) })(${ function[A, Boolean](p) })(using $a) })
-      case ("exists", List(p))   => Some('{ LiftOps.any[A]($xs, ${ hint(p) })(${ function[A, Boolean](p) })(using $a) })
-      case ("filter", List(p))   =>
-        Some('{ LiftOps.filter[A]($xs, ${ hint(p) })(${ function[A, Boolean](p) })(using $a) })
-      case ("find", List(p))     => Some('{ LiftOps.find[A]($xs, ${ hint(p) })(${ function[A, Boolean](p) })(using $a) })
+      case ("forall", List(p))   => Some('{ LiftOps.all[A]($xs, ${ hint(p) })(${ rule[A](p) })(using $a) })
+      case ("exists", List(p))   => Some('{ LiftOps.any[A]($xs, ${ hint(p) })(${ rule[A](p) })(using $a) })
+      case ("filter", List(p))   => Some('{ LiftOps.filter[A]($xs, ${ hint(p) })(${ rule[A](p) })(using $a) })
+      case ("find", List(p))     => Some('{ LiftOps.find[A]($xs, ${ hint(p) })(${ rule[A](p) })(using $a) })
       case ("contains", List(x)) => Some('{ LiftOps.contains[A]($xs, ${ readAs[A](x) }) })
       case ("isEmpty", Nil)      => Some('{ LiftOps.isEmpty[A]($xs) })
       case ("nonEmpty", Nil)     => Some('{ TermSyntax.unary_!(LiftOps.isEmpty[A]($xs)) })
@@ -61,9 +59,9 @@ private[lifted] trait ReadCollections extends Reading:
     lazy val (o, a) = (readAs[Option[A]](c.on), spec[A](c.on))
     (c.name, c.args) match
       case ("forall", List(p))            =>
-        Some('{ LiftOps.optionAll[A]($o, ${ hint(p) })(${ function[A, Boolean](p) })(using $a) })
+        Some('{ LiftOps.optionAll[A]($o, ${ hint(p) })(${ rule[A](p) })(using $a) })
       case ("exists", List(p))            =>
-        Some('{ LiftOps.optionAny[A]($o, ${ hint(p) })(${ function[A, Boolean](p) })(using $a) })
+        Some('{ LiftOps.optionAny[A]($o, ${ hint(p) })(${ rule[A](p) })(using $a) })
       case ("isDefined" | "nonEmpty", Nil) => Some('{ TermSyntax.isDefined[A]($o) })
       case ("isEmpty", Nil)               => Some('{ LiftOps.isNone[A]($o)(using $a) })
       case ("contains", List(x))          => Some('{ LiftOps.optionContains[A]($o, ${ readAs[A](x) })(using $a) })
@@ -113,3 +111,7 @@ private[lifted] trait ReadCollections extends Reading:
       case _           => None
 
   private def hint(f: Term)(using Quotes): Expr[String] = Expr(hints(f).headOption.getOrElse("x"))
+
+  /** A rule of each element: a function to a truth value. */
+  private def rule[A: Type](p: Term)(using Env)(using Quotes): Expr[DTerm[A] => DTerm[Boolean]] =
+    function[A, Boolean](p)

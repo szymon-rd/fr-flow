@@ -1,14 +1,14 @@
 package frflow.testing
 
 import frflow.*
-import frflow.dsl.lifted.Misread
-import frflow.eval.lifted.Calendar
-import frflow.eval.lifted.Calendar.{Booking, RoomBookings}
+import frflow.eval.Calendar
+import frflow.eval.Calendar.{Booking, RoomBookings}
 import frflow.testing.Agreement.Outcome
 import frflow.testing.report.Seed
 
 /** Lifted code's law, tested: the Scala the JVM runs and the term read from it give one value on generated cases
-  * (`Agreement`); and a term that is not the Scala's (another function's body under its name) is found.
+  * (`Agreement`); and a term that is not the Scala's (another function's, as a reader that misread it would make)
+  * is found.
   */
 class AgreementSuite extends munit.FunSuite:
   private val settings = Settings(300, Seed(1))
@@ -28,12 +28,12 @@ class AgreementSuite extends munit.FunSuite:
     val before = lifted { (b: Booking) => b.start < b.end }
     val notAfter = lifted { (b: Booking) => b.start <= b.end }
     // The term of `before` under the Scala of `notAfter`: they differ only on a booking ending as it starts.
-    assertEquals(Agreement(elaborated).of(Misread.of(before, notAfter.native), settings).outcome, Outcome.Agree(300))
+    assertEquals(Agreement(elaborated).between(before, notAfter, settings).outcome, Outcome.Agree(300))
   }
 
   test("a term that is not the Scala's is found, with the case") {
     val touching = lifted { (a: Booking, b: Booking) => a.room != b.room || a.end < b.start || b.end < a.start }
-    Agreement(elaborated).of(Misread.of(Calendar.noOverlap, touching.native), settings).outcome match
+    Agreement(elaborated).between(Calendar.noOverlap, touching, settings).outcome match
       case Outcome.Differ(inputs, scala, term, _) =>
         assertEquals((scala, term), (Right("false"), Right("true")), inputs.toString)
       case other                                  => fail(s"not found: $other")

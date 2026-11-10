@@ -1,6 +1,7 @@
 package frflow.dsl.lifted
 
 import frflow.dsl.term.Term as DTerm
+import frflow.dsl.vocab.Definition as Defined
 import scala.quoted.*
 
 /** What every part of the reader shares (`Reader`): the Scala is read with the compiler's view where the code is
@@ -100,7 +101,7 @@ private[lifted] trait Reading:
   def function[A: Type, B: Type](f: Term)(using env: Env)(using Quotes): Expr[DTerm[A] => DTerm[B]] = bare(f) match
     case Lambda(List(p), body) => '{ (x: DTerm[A]) => ${ readAs[B](body)(using env + ((p.symbol, 'x))) } }
     case g if g.tpe <:< TypeRepr.of[Lifted.Of1[A, B]] =>
-      '{ (x: DTerm[A]) => LiftOps.call1(${ g.asExprOf[Lifted.Of1[A, B]] }, x)(using ${ spec[B](f) }) }
+      '{ (x: DTerm[A]) => Defined.apply[A, B](${ g.asExprOf[Lifted.Of1[A, B]] })(x)(using ${ spec[B](f) }) }
     case other                 => refuse("a function that is neither a lambda written out nor a lifted one", other)
 
   def function2[A: Type, B: Type, R: Type](f: Term)(using env: Env)(using Quotes)

@@ -72,7 +72,8 @@ private[lifted] trait ReadMatch extends Reading:
     case b @ Bind(_, Typed(_, tpt))                => Some(Arm(tpt.tpe, Nil, Some(b.symbol), c.rhs))
     case b @ Bind(_, TypedOrTest(Wildcard(), tpt)) => Some(Arm(tpt.tpe, Nil, Some(b.symbol), c.rhs))
     case Typed(_, tpt)                             => Some(Arm(tpt.tpe, Nil, None, c.rhs))
-    case other                                     => refuse("this pattern: a case's fields or the case are bound", other)
+    case other                                     =>
+      refuse("this pattern: a case's fields or the case are bound", other)
 
   private def fields(ps: List[Tree], c: CaseDef): List[Option[Symbol]] =
     ps.map(p => bound(p).getOrElse(refuse("a pattern inside a pattern: bind the field and match it in the body", c)))

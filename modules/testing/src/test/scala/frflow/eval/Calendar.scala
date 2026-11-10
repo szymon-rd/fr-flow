@@ -1,4 +1,4 @@
-package frflow.eval.lifted
+package frflow.eval
 
 import frflow.*
 

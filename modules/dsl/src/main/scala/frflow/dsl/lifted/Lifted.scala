@@ -24,10 +24,10 @@ object Lifted:
       extends Lifted[(A, B) => R](d), ((A, B) => R):
     def apply(a: A, b: B): R = native(a, b)
 
-  final class Of3[A, B, C, R] @publicInBinary private[lifted] (d: Definition[(A, B, C) => R], val native: (A, B, C) => R)
-      extends Lifted[(A, B, C) => R](d), ((A, B, C) => R):
+  final class Of3[A, B, C, R] @publicInBinary private[lifted] (d: Definition[(A, B, C) => R],
+      val native: (A, B, C) => R) extends Lifted[(A, B, C) => R](d), ((A, B, C) => R):
     def apply(a: A, b: B, c: C): R = native(a, b, c)
 
-  final class Of4[A, B, C, D, R] @publicInBinary private[lifted] (d: Definition[(A, B, C, D) => R], val native: (A, B, C, D) => R)
-      extends Lifted[(A, B, C, D) => R](d), ((A, B, C, D) => R):
+  final class Of4[A, B, C, D, R] @publicInBinary private[lifted] (d: Definition[(A, B, C, D) => R],
+      val native: (A, B, C, D) => R) extends Lifted[(A, B, C, D) => R](d), ((A, B, C, D) => R):
     def apply(a: A, b: B, c: C, e: D): R = native(a, b, c, e)

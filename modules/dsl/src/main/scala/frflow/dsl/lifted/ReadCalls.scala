@@ -2,6 +2,7 @@ package frflow.dsl.lifted
 
 import frflow.dsl.term.{Lift, TermSyntax}
 import frflow.dsl.term.Term as DTerm
+import frflow.dsl.vocab.Definition as Defined
 import scala.quoted.*
 
 /** What lifted code calls: another lifted function (a call of its Definition, by name), and the operations of truth
@@ -44,18 +45,18 @@ private[lifted] trait ReadCalls extends Reading:
 
   private def few(c: Calling)(using Env)(using Quotes): Option[Expr[DTerm[?]]] = (c.on.asExpr, c.args) match
     case ('{ $d: Lifted.Of1[a, r] }, List(x))       =>
-      Some('{ LiftOps.call1[a, r]($d, ${ readAs[a](x) })(using ${ spec[r](c.whole) }) })
+      Some('{ Defined.apply[a, r]($d)(${ readAs[a](x) })(using ${ spec[r](c.whole) }) })
     case ('{ $d: Lifted.Of2[a, b, r] }, List(x, y)) =>
-      Some('{ LiftOps.call2[a, b, r]($d, ${ readAs[a](x) }, ${ readAs[b](y) })(
+      Some('{ Defined.apply[a, b, r]($d)(${ readAs[a](x) }, ${ readAs[b](y) })(
         using ${ spec[a](x) }, ${ spec[b](y) }, ${ spec[r](c.whole) }) })
     case _                                          => None
 
   private def more(c: Calling)(using Env)(using Quotes): Option[Expr[DTerm[?]]] = (c.on.asExpr, c.args) match
     case ('{ $d: Lifted.Of3[a, b, c, r] }, List(x, y, z))       =>
-      Some('{ LiftOps.call3[a, b, c, r]($d)(${ readAs[a](x) }, ${ readAs[b](y) }, ${ readAs[c](z) })(
+      Some('{ Defined.apply[a, b, c, r]($d)(${ readAs[a](x) }, ${ readAs[b](y) }, ${ readAs[c](z) })(
         using ${ spec[a](x) }, ${ spec[b](y) }, ${ spec[c](z) }, ${ spec[r](c.whole) }) })
     case ('{ $d: Lifted.Of4[a, b, c, e, r] }, List(w, x, y, z)) =>
-      Some('{ LiftOps.call4[a, b, c, e, r]($d)(${ readAs[a](w) }, ${ readAs[b](x) }, ${ readAs[c](y) },
+      Some('{ Defined.apply[a, b, c, e, r]($d)(${ readAs[a](w) }, ${ readAs[b](x) }, ${ readAs[c](y) },
         ${ readAs[e](z) })(using ${ spec[a](w) }, ${ spec[b](x) }, ${ spec[c](y) }, ${ spec[e](z) },
         ${ spec[r](c.whole) }) })
     case _                                                      => None

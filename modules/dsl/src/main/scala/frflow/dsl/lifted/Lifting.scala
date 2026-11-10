@@ -11,25 +11,24 @@ import frflow.dsl.vocab.Definition
   */
 object Lifting:
   def one[A: FrSpec, R: FrSpec](name: DefName, at: WrittenAt, written: AsWritten)(body: Term[A] => Term[R])
-      : Definition[A => R] = made(name, at, written)(DefineShape.one[A, R])(body)
+      : Definition[A => R] = made(DefineShape.one[A, R])(name, written)(body).in(at)
 
   def two[A: FrSpec, B: FrSpec, R: FrSpec](name: DefName, at: WrittenAt, written: AsWritten)(
       body: (Term[A], Term[B]) => Term[R]): Definition[(A, B) => R] =
-    made(name, at, written)(DefineShape.two[A, B, R])(body)
+    made(DefineShape.two[A, B, R])(name, written)(body).in(at)
 
   def three[A: FrSpec, B: FrSpec, C: FrSpec, R: FrSpec](name: DefName, at: WrittenAt, written: AsWritten)(
       body: (Term[A], Term[B], Term[C]) => Term[R]): Definition[(A, B, C) => R] =
-    made(name, at, written)(DefineShape.three[A, B, C, R])(body)
+    made(DefineShape.three[A, B, C, R])(name, written)(body).in(at)
 
   def four[A: FrSpec, B: FrSpec, C: FrSpec, D: FrSpec, R: FrSpec](name: DefName, at: WrittenAt, written: AsWritten)(
       body: (Term[A], Term[B], Term[C], Term[D]) => Term[R]): Definition[(A, B, C, D) => R] =
-    made(name, at, written)(DefineShape.four[A, B, C, D, R])(body)
+    made(DefineShape.four[A, B, C, D, R])(name, written)(body).in(at)
 
   /** A contract written with the DSL (`FrSpec.whereStated`): a define of the value's term. */
   def stated[A: LeanType](name: DefName, at: WrittenAt, written: AsWritten)(rule: Term[A] => Term[Boolean])
-      : Definition[A => Boolean] = made(name, at, written)(DefineShape.one[A, Boolean])(rule)
+      : Definition[A => Boolean] = made(DefineShape.one[A, Boolean])(name, written)(rule).in(at)
 
-  private def made[F](name: DefName, at: WrittenAt, written: AsWritten)(shape: DefineShape[F])(body: shape.Lam)
-      : Definition[F] =
+  private def made[F](shape: DefineShape[F])(name: DefName, written: AsWritten)(body: shape.Lam): Definition[F] =
     shape.made(name, body, written.params,
-      Elab.lambda(Site.Define(name), shape.types)(() => shape.body(body, written.params), written)).in(at)
+      Elab.lambda(Site.Define(name), shape.types)(() => shape.body(body, written.params), written))

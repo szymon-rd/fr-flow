@@ -1,9 +1,8 @@
-package frflow.project.lifted
+package frflow.project
 
 import frflow.core.name.NodeId
-import frflow.eval.lifted.Calendar
+import frflow.eval.Calendar
 import frflow.eval.run.OnCode
-import frflow.project.{Live, Ported, Projects}
 import frflow.proof.obligation.ObligationName
 import frflow.proof.verdict.ObligationStatus
 import frflow.testing.{Settings, Vectors}
