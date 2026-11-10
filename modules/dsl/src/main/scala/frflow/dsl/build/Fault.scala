@@ -83,6 +83,8 @@ enum Fault:
     * a condition, a define, a rule, a model's `initially`, a program, an example, or of a run.
     */
   case ConstantInside(where: String)
+  /** `contractOf[T]` of a type whose `FrSpec` states no contract (`FrSpec.derived[T].where(v => …)` states one). */
+  case NoContract(scalaType: String)
   case Thrown(message: String)
   /** Two classes of examples of one model of one name (`setName`): their examples' theorems would be one. */
   case ExampleSetsClash(name: String, classes: List[String])

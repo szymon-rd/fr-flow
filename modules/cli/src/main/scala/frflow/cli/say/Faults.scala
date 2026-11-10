@@ -62,6 +62,8 @@ object Faults:
     case Fault.NotProvenCode(d)       => s"implementProven is given $d, which is not a define or a program"
     case Fault.MeantWhereWritten(d)   => s"$d has its meaning where it is written (a define, a program): it is " +
         "given another"
+    case Fault.NoContract(t)          => s"$t's FrSpec states no contract: state one where the spec is given " +
+        "(`FrSpec.derived[…].where(v => …)`)"
     case Fault.Thrown(message)        => s"building it threw: $message"
     case Fault.ExampleSetsClash(n, cs) => s"the classes of examples ${cs.mkString(" and ")} are both named $n, " +
         "as their examples' theorems are: rename one"
