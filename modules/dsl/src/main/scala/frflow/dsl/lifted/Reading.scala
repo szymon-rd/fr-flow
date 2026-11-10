@@ -101,6 +101,16 @@ private[lifted] trait Reading:
     c.isClassDef && !List("scala.", "java.").exists(c.fullName.startsWith) &&
       c.declaredMethod("equals").exists(m => !m.flags.is(Flags.Synthetic)))
 
+  /** A port: a class of Scala's `caps.Mutable`, whose state its `update` methods change. In the Scala that changes
+    * one (`steps.StepReader`) the port's variable stands for its state, the value of its one `var`.
+    */
+  def isPort(t: TypeRepr): Boolean = t.baseClasses.exists(_.fullName == "scala.caps.Mutable")
+
+  /** The one `var` a port's state is, or the compile error of a port with none or several. */
+  def stateOf(port: Symbol, at: Tree): Symbol = port.declaredFields.filter(_.flags.is(Flags.Mutable)) match
+    case List(state) => state
+    case found       => refuse(s"the port ${port.name}, whose state is not one `var` (it has ${found.size})", at)
+
   /** A case class's fields, by name and type, in order. */
   def fieldsOf(t: TypeRepr): List[(String, TypeRepr)] = t.typeSymbol.caseFields.map(f => f.name -> t.memberType(f))
 

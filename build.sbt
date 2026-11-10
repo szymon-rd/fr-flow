@@ -81,6 +81,9 @@ lazy val testing = module("testing", cats, catsEffect, roomsTable, "org.scala-sb
     testFrameworks += TestFramework("frflow.testing.examples.ExamplesFramework"))
   .dependsOn(eval % "compile->compile;test->test", roomsModel % "test->test", authModel % "test->test",
     keycloakModel % "test->test", crmModel % "test->test")
+  // Its tests hold a model whose service changes a port (`frflow.eval.Desk`), read through its methods' bodies:
+  // the compiler keeps them.
+  .settings(Test / scalacOptions += "-Yretain-trees")
 
 /** The developer's decisions: content, the ledger, the deciders, review, the rules of each command. */
 lazy val decision = module("decision", cats).dependsOn(core)

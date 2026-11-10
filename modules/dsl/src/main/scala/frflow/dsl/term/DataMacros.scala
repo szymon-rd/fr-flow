@@ -29,7 +29,11 @@ object DataMacros:
   def named[T: Type](using Quotes): Expr[(String, Option[String])] =
     import quotes.reflect.*
     val file = TypeRepr.of[T].typeSymbol.pos.map(p => Source.relative(p.sourceFile.path))
-    '{ (${ Expr(Type.show[T]) }, ${ Expr(file) }) }
+    // Under capture checking a type carries the compiler's annotations (`Slot @inferred`): the name is the type's.
+    def bare(t: TypeRepr): TypeRepr = t match
+      case AnnotatedType(under, _) => bare(under)
+      case other                   => other
+    '{ (${ Expr(bare(TypeRepr.of[T]).show(using Printer.TypeReprCode)) }, ${ Expr(file) }) }
 
   /** A case class's fields, each a selector with its `LeanType`. */
   def fields[T: Type](using Quotes): Expr[List[LeanType.Field[T, ?]]] =

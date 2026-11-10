@@ -28,7 +28,7 @@ private[lifted] trait ReadMethods extends Reading:
     }
 
   /** The method's definition with its body, when it is the developer's and the compiler kept it. */
-  private def kept(m: Symbol): Option[DefDef] =
+  def kept(m: Symbol): Option[DefDef] =
     Option.when(isOwn(m))(m.tree).collect { case d: DefDef if d.rhs.nonEmpty => d }
 
   /** A method of the developer's code: no library's, none the compiler made. */

@@ -1,4 +1,4 @@
-package frflow.testing
+package frflow.eval
 
 import frflow.*
 import scala.compiletime.testing.typeCheckErrors

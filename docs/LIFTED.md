@@ -262,8 +262,9 @@ In the order they would be taken:
 4. **Members known by their contract.** A method whose body is not read (a class with its own data structure, a
    library's) as an open function of the term language, known to Lean only by the type's contract, its Scala tested
    against the contract. This is `implementTested`'s meaning, given per member by the type's `FrSpec`.
-5. **Effects.** A program's steps in plain Scala (`for`-comprehensions over a store's operations) read into
-   `Prog`, as `program { … }` records them today.
+5. **Code that changes state.** A service method over a port, read into a function of the port's state with no
+   state monad, as Aeneas reads `&mut`. [SEPARATION-SPIKE.md](SEPARATION-SPIKE.md) is a spike of it, with Scala's
+   separation checking saying the port is the code's alone: one port, direct style, proven end to end.
 6. **More of Scala.** `Int` and `Long` with their bounds proven, strings' operations, tuples taken apart in a
    pattern, generic functions, the rest of the collections.
 7. **Validation by proof.** For this fragment the reader could emit, per function, the claim that the term's value

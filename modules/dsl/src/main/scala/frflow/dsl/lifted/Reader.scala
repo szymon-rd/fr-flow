@@ -14,7 +14,7 @@ private[lifted] final class Reader(val q: Quotes) extends Reading, ReadValues, R
   import q.reflect.*
 
   /** The val the lifted code is the meaning of: a call of it from its own body is a recursion. */
-  val defining: Symbol =
+  lazy val defining: Symbol =
     def owner(s: Symbol): Symbol = if s.isNoSymbol || (s.isValDef && !s.flags.is(Flags.Synthetic)) then s else
       owner(s.owner)
     owner(Symbol.spliceOwner)
@@ -29,6 +29,7 @@ private[lifted] final class Reader(val q: Quotes) extends Reading, ReadValues, R
     case id: Ident if env.contains(id.symbol)            => env(id.symbol)
     case id: Ident if ownMember(id)                      => read(Select(This(id.symbol.owner), id.symbol), as)
     case self: This if env.contains(self.tpe.typeSymbol) => env(self.tpe.typeSymbol)
+    case Select(on, _) if isPort(on.tpe) && t.symbol == stateOf(on.tpe.typeSymbol, t) => read(on, on.tpe.widen)
     case _                                               => applied(t, as), as, t)
 
   /** A member named without `this.` in a method's body being read (`start` in `Booking`'s `span`). */
@@ -37,6 +38,7 @@ private[lifted] final class Reader(val q: Quotes) extends Reading, ReadValues, R
 
   /** A term at the type it is used at: its own, or, of a case of a sum, the sum's. */
   private def fitted(e: Expr[DTerm[?]], as: TypeRepr, at: Term)(using Quotes): Expr[DTerm[?]] = as.asType match
+    case _ if isPort(as)              => e // a port's variable stands for its state
     case '[x] if e.isExprOf[DTerm[x]] => e
     case '[x]                         => e match
       case '{ $c: DTerm[c] } if TypeRepr.of[c] <:< as && isCase(TypeRepr.of[c]) =>
