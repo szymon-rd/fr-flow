@@ -169,6 +169,30 @@ where the code runs beside the World. FrFlow states safety properties: "eventual
 A `define` or a `program` is its own meaning. `.withGenerator(gen.describedAs("…"))` gives the tests' cases of a type
 (`Gen.oneOf`, `for` over generators); the values drawn meet every `always` on their type.
 
+**Plain Scala, read.** `lifted { (a: A, b: B) => … }` is a Definition given its meaning where it is written, as a
+`define` is, from an ordinary Scala function of one to four inputs: the compiler reads the function's body into the
+term a `define` would build (a compile error at any Scala it does not read: state, effects, calls that can fail,
+`Int` arithmetic, recursion), and the function stays the Scala it is (`noOverlap(a, b)` on values is a `Boolean`).
+It may call other lifted functions, `inline def`s, and, where the project compiles with `-Yretain-trees`, ordinary
+methods of the developer's code, whose bodies are read where they are called.
+
+```scala
+final case class Booking(room: String, start: BigInt, end: BigInt)
+object Booking:
+  given FrSpec[Booking] = FrSpec.derived[Booking].where(b => b.start < b.end)
+
+val noOverlap = lifted { (a: Booking, b: Booking) => a.room != b.room || a.end <= b.start || b.end <= a.start }
+val bookingsEndAfterStart = Node.assumption("Every booking ends after it starts.")(contractOf[Booking])
+```
+
+Every type of a value in it has an `FrSpec`: the type's `LeanType` with its contract, a rule over the value's
+members written in Scala (`where`) or with the DSL (`whereStated`); `derives FrSpec` gives one with no contract. A
+node states the contract (`contractOf[T]`, an `always[T]`). `lifted { noOverlap(x, y) }` of a closed expression is a
+`Term[Boolean]`, an example's fact in plain Scala. `testing.Agreement` tests each lifted function's Scala against
+its term on generated cases, and `testing.Vectors` gives Lean what the Scala gave as examples to decide; `check`
+does not run them yet. [LIFTED.md](LIFTED.md) says what is read, and what holds the Scala, the term and the Lean to
+one meaning.
+
 **An operation on a state** is a Definition of type `A => Flow[R]`, given its meaning in Lean by a `StateModel`, which
 says what it does to the model's state, a field of the World:
 

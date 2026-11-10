@@ -33,6 +33,8 @@ follows the method of stepwise refinement (Wirth, 1971) and the refinement calcu
      driven by the statements about it.
    - As code in FrFlow's monadic DSL, which compiles both to executable code and to a Lean model, which is then used
      in a strict proof.
+   - As plain Scala that FrFlow reads (`lifted { … }`): at compile time the function is read into the same model the
+     DSL builds, so Lean proves it, and it stays the Scala the JVM runs ([docs/LIFTED.md](docs/LIFTED.md)).
 
 The logical model sits alongside the code that performs the given functions, and acts as its contract: an interface
 the code conforms to, albeit stricter and more powerful than has been usual for software.
@@ -370,7 +372,9 @@ statement can refine several others, and there can be several roots, so the stat
 The code at the bottom of the graph is in one of three states, and `status` reports which:
 
 - **Proven** code is written in the DSL (a `program { … }` over a `Flow`, or a `define`), and Lean proves that it
-  meets its claims.
+  meets its claims. A function of plain Scala that has no state, no effect and cannot fail can be proven as it is
+  written: `lifted { (a: Booking, b: Booking) => … }` is read at compile time into the term a `define` builds, and
+  its Scala is tested against that term on generated cases ([docs/LIFTED.md](docs/LIFTED.md)).
 - **Tested** code is plain Scala. It is tested against its claims with property-based testing on generated cases; an
   operation on a state is tested against its model on generated runs, two of its calls at once among them.
 - **Assumed** code is known only by the assumptions about it, such as an outside system's search: Lean takes them as
@@ -464,4 +468,6 @@ yet: each starts with no ledger, for its developer to decide. FrFlow's own suite
 - [docs/USAGE.md](docs/USAGE.md) describes the DSL, the commands, their output and exit codes, what Lean proves, the
   warnings, the web view and the modules.
 - [docs/DAG.md](docs/DAG.md) describes the design of the refinement graph.
+- [docs/LIFTED.md](docs/LIFTED.md) describes plain Scala read into the model (`lifted`, `FrSpec`): what is read, how
+  the Scala, the term and the Lean are held to one meaning, and what is not built yet.
 - [docs/redesign/](docs/redesign/ARCHITECTURE.md) is the design record of the library as it was rebuilt.

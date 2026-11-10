@@ -56,6 +56,8 @@ lazy val core = module("core", cats).settings(libraryDependencies ++= lawTests)
 
 /** The DSL a model is written in: terms, nodes, flows, state models, models, macros; its elaboration. */
 lazy val dsl = module("dsl", cats).dependsOn(core)
+  // Its tests call ordinary methods from lifted code (`lifted.ReadMethods`): the compiler keeps their bodies.
+  .settings(Test / scalacOptions += "-Yretain-trees")
 
 /** Obligations, the Lean AST, the one term printer, lowering, layout, reading Lean's output, the judges. */
 lazy val proof = module("proof", cats).dependsOn(core % "compile->compile;test->test")

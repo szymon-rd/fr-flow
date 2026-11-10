@@ -12,18 +12,20 @@ private[lifted] trait Reading:
   val q: Quotes
   import q.reflect.*
 
-  /** The Scala variables in scope, each the term it is bound to; and `kept`, the values the compiler names a
-    * copy's unchanged fields by (`unchanged`), which are no values of the Scala as written.
+  /** The Scala variables in scope, each the term it is bound to (a method's `this` by its class); `kept`, the
+    * values the compiler names a copy's unchanged fields by (`unchanged`), which are no values of the Scala as
+    * written; and `reading`, the methods whose bodies are being read (`ReadMethods`).
     */
-  final case class Env(bound: Map[Symbol, Expr[DTerm[?]]], kept: Set[Symbol]):
+  final case class Env(bound: Map[Symbol, Expr[DTerm[?]]], kept: Set[Symbol], reading: Set[Symbol]):
     def contains(s: Symbol): Boolean = bound.contains(s)
     def apply(s: Symbol): Expr[DTerm[?]] = bound(s)
     def +(x: (Symbol, Expr[DTerm[?]])): Env = copy(bound = bound + x)
     def ++(xs: List[(Symbol, Expr[DTerm[?]])]): Env = copy(bound = bound ++ xs)
     def keeping(s: Symbol): Env = copy(kept = kept + s)
+    def entering(method: Symbol): Env = copy(reading = reading + method)
 
   object Env:
-    def of(xs: (Symbol, Expr[DTerm[?]])*): Env = Env(xs.toMap, Set.empty)
+    def of(xs: (Symbol, Expr[DTerm[?]])*): Env = Env(xs.toMap, Set.empty, Set.empty)
 
   /** A method applied: its receiver, its name, its arguments (every list's, in order), and the whole call. */
   final case class Calling(on: Term, name: String, args: List[Term], whole: Term):

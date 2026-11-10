@@ -6,6 +6,7 @@ description: >-
   when turning an idea into roots, proposing or changing nodes, introducing domain types and values, adding
   examples, answering the developer's requests, proving a step, or giving code its meaning; or when the work touches
   `Node.claim`, `Node.assumption`, `Node.design`, `Declaration`, `Definition`, `define`, `stated`, `program`,
+  `lifted`, `FrSpec`, `contractOf`,
   `forall`, `exists`, `always`, `FrModel`, `FrFlowExamples`, `.refines`, `.assuming`, `.replaces`, `implementProven`, `implementTested`,
   `implementValue`, `implementProvided`, `withGenerator`, `Flow`, `StateModel`, `onlyCodeChanges`, `initially`,
   `atomic`, `.assumed`, `.failsWith`, `.current`, `.in`, `.after`, `.result`, `.ifSucceeds`, `.ifFails`,
@@ -266,7 +267,21 @@ val bookIfGranted = program { (request: Term[Booking]) =>
 ## Terms or plain Scala
 
 Write terms where the code is small and worth proving (a decision rule, a program's steps); write plain Scala for the
-lowest-level code (a lookup through an index, a parser, SQL), and attach it with `implementTested`:
+lowest-level code (a lookup through an index, a parser, SQL), and attach it with `implementTested`.
+
+A decision rule can also be proven as the Scala it is: `val noOverlap = lifted { (a: Booking, b: Booking) => … }` is
+a Definition given its meaning on the spot, read at compile time from an ordinary function of one to four inputs
+(`docs/LIFTED.md`). Use it for a function with no state, no effect and no failing call, over `BigInt`, `Boolean`,
+`String`, case classes, enums, lists, options, maps and sets, calling other lifted functions and `inline def`s
+(ordinary methods too where the project compiles with `-Yretain-trees`); give it to a Definition with
+`implementProven`. A
+compile error names the Scala it does not read (a `var`, `Int` arithmetic, `head`, a value from outside, recursion):
+rewrite that part, or keep the function as tested plain Scala. Every type in it has an `FrSpec`
+(`derives FrSpec`, or `given FrSpec[T] = FrSpec.derived[T].where(v => …)` with its contract); the contract enters
+the model only when a node states it (`Node.assumption("…")(contractOf[T])`, the developer's to decide). Statements
+stay in the DSL.
+
+Plain Scala attached with `implementTested`:
 
 ```scala
 .implementTested(granted)(_ => (held, request) => Calendar(held).grants(request))                  // rooms

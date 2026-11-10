@@ -10,7 +10,7 @@ import scala.quoted.*
   * it in cannot be told from the term's.
   */
 private[lifted] final class Reader(val q: Quotes) extends Reading, ReadValues, ReadCalls, ReadCollections, ReadData,
-    ReadMatch:
+    ReadMatch, ReadMethods:
   import q.reflect.*
 
   /** The val the lifted code is the meaning of: a call of it from its own body is a recursion. */
@@ -27,7 +27,13 @@ private[lifted] final class Reader(val q: Quotes) extends Reading, ReadValues, R
     case Match(on, cases)                     => matched(on, cases, as)
     case Literal(c)                           => literal(c, t)
     case id: Ident if env.contains(id.symbol) => env(id.symbol)
+    case id: Ident if ownMember(id)           => read(Select(This(id.symbol.owner), id.symbol), as)
+    case self: This if env.contains(self.tpe.typeSymbol) => env(self.tpe.typeSymbol)
     case _                                    => applied(t, as), as, t)
+
+  /** A member named without `this.` in a method's body being read (`start` in `Booking`'s `span`). */
+  private def ownMember(id: Ident)(using env: Env): Boolean =
+    id.symbol.owner.isClassDef && env.contains(id.symbol.owner)
 
   /** A term at the type it is used at: its own, or, of a case of a sum, the sum's. */
   private def fitted(e: Expr[DTerm[?]], as: TypeRepr, at: Term)(using Quotes): Expr[DTerm[?]] = as.asType match

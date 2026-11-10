@@ -15,7 +15,7 @@ private[lifted] trait ReadCalls extends Reading:
 
   /** A value made, or a method called; anything else is not read. */
   def applied(t: Term, as: TypeRepr)(using Env)(using Quotes): Expr[DTerm[?]] =
-    made(t, as).orElse(called(t)).getOrElse(refuse(unread(t), t))
+    made(t, as).orElse(called(t)).orElse(method(t, as)).getOrElse(refuse(unread(t), t))
 
   private def called(t: Term)(using Env)(using Quotes): Option[Expr[DTerm[?]]] = t match
     case _ if isEnumValue(t)  => Some(caseValue(t))
@@ -26,6 +26,9 @@ private[lifted] trait ReadCalls extends Reading:
     case _                    => None
 
   private def unread(t: Term): String = t match
+    case _ if isOwn(t.symbol)                                                        =>
+      s"a call of `${t.symbol.name}`, whose body the compiler did not keep: make it `inline` or a lifted `val`, " +
+        "or compile with -Yretain-trees"
     case Call(_, name, Nil) if t.symbol.isValDef || t.symbol.flags.is(Flags.Module)  => outside(name)
     case Call(on, name, _)                                                           =>
       s"`$name` of a ${on.tpe.widen.show}: the reader has no term for it"

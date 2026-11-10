@@ -87,6 +87,13 @@ class ReaderSuite extends munit.FunSuite:
       case other                                                        => fail(s"not a rule: $other")
   }
 
+  test("a contract over a member that is an inline method") {
+    val spec = FrSpec.derived[Booking].where(b => BigInt(0) < b.length)
+    assert(spec.holds(Booking("Oak", 9, 10)) && !spec.holds(Booking("Oak", 10, 9)))
+    val everyBookingLasts = contractOf[Booking](using spec)
+    assertEquals(everyBookingLasts.notes.faults.toList, Nil)
+  }
+
   test("a type whose spec states no contract has none to state: a fault on the node") {
     val nothing = contractOf[RoomBookings]
     assertEquals(nothing.notes.faults.toList.map(_.toString), List("NoContract(RoomBookings)"))
