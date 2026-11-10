@@ -228,7 +228,7 @@ enters when a node states it.
   library's methods are never read this way: only the operations in the table are.
 
 A lifted function takes one to four inputs. A closed expression is read too (`lifted { noOverlap(a, b) }` with `a`
-and `b` written out is a `Term[Boolean]`): an example's fact in plain Scala.
+and `b` written out is a `Term[Boolean]`): an example's fact in plain Scala (`CalendarExamples`).
 
 Anything else is a compile error at the construct, saying what is not read and what to write. `RefusedSuite` holds
 each.
@@ -278,4 +278,4 @@ In the order they would be taken:
 | The reader | `Reader.scala`, `Reading.scala` and `Read*.scala` there |
 | `Lifted`, the Definition with its Scala | `Lifted.scala` there |
 | `Agreement`, `Vectors` | `modules/testing/src/main/scala/frflow/testing/` |
-| The suites | `modules/dsl/src/test/scala/frflow/dsl/lifted/`, `AgreementSuite`, `CalendarLeanSuite` |
+| The suites | `modules/dsl/src/test/scala/frflow/dsl/lifted/`, `AgreementSuite`, `CalendarSuite`, `CalendarLeanSuite` |

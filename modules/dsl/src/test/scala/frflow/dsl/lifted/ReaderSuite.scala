@@ -94,6 +94,18 @@ class ReaderSuite extends munit.FunSuite:
     assertEquals(everyBookingLasts.notes.faults.toList, Nil)
   }
 
+  test("a contract written with the DSL says what plain Scala cannot, and checks no value where the code runs") {
+    import frflow.dsl.term.TermSyntax.*
+    val spec = FrSpec.derived[RoomBookings].whereStated(held =>
+      forall((t: frflow.dsl.term.Term[BigInt]) => held.bookings.forall(b => b.start <= t || t < b.start)))
+    val everyTime = contractOf[RoomBookings](using spec)
+    assert(spec.holds(RoomBookings("Oak", Nil)))
+    everyTime.expr match
+      case Expr.Quant(Quantifier.Always, List(x), Expr.Call(rule, _, _)) =>
+        assertEquals((x.hint, rule.value), ("held", "everyTime"))
+      case other                                                        => fail(s"not a rule: $other")
+  }
+
   test("a type whose spec states no contract has none to state: a fault on the node") {
     val nothing = contractOf[RoomBookings]
     assertEquals(nothing.notes.faults.toList.map(_.toString), List("NoContract(RoomBookings)"))

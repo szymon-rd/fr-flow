@@ -24,6 +24,10 @@ and in them.
 5. **Proofs are central.** Every step is a Lean theorem; the code at the leaves is proven where it is written in the
    DSL, and tested where it is plain Scala; what is trusted is a named, visible list of assumptions. Nothing is
    checked when the code runs (§2): FrFlow is for testing before production and strict static guarantees.
+   A departure, on the branch that adds it: plain Scala the compiler reads (`lifted { … }`) is proven too, as the
+   term read from it ([LIFTED.md](LIFTED.md) says what holds the Scala to that term). It adds no concept: lifted
+   code is a Definition given its meaning on the spot, and a type's contract (`FrSpec`) is an `always[T]` a node
+   states.
 
 ## 0a. The core concepts
 
@@ -53,11 +57,13 @@ Three kinds of nodes, two kinds of values, two quantifiers (§15); nothing else,
 
 ## 1. Vocabulary
 
-- A domain type is a case class or an enum deriving `LeanType`: a Lean `structure` or `inductive`.
+- A domain type is a case class or an enum deriving `LeanType`: a Lean `structure` or `inductive`. One deriving
+  `FrSpec` instead is the same, with a contract a node may state, and can be a value of lifted code.
 - A Declaration may change with the World: Lean takes it as a function of the world where a statement reads it
   beside something that changes, and as a value otherwise. A rule (`always`) may not read one that changes (§45 C).
 - A Definition gets its meaning once: in the FrModel (`implementProven`, `implementTested`, `implementValue`,
-  `implementProvided`), on the spot (`define`, `program`), or from a `StateModel` for an operation on a state.
+  `implementProvided`), on the spot (`define`, `program`, `lifted`), or from a `StateModel` for an operation on a
+  state.
   `check` refuses one nothing defines, one defined twice, and code using a Declaration.
 - A define changes with the World exactly when its body reads state; it then takes the world last and is read in its
   caller's world, or in the one it names (`ofRoom(room).in(w)`).

@@ -20,16 +20,16 @@ private[lifted] final class Reader(val q: Quotes) extends Reading, ReadValues, R
     owner(Symbol.spliceOwner)
 
   def read(t: Term, as: TypeRepr)(using env: Env)(using Quotes): Expr[DTerm[?]] = fitted(t match
-    case Inlined(_, bindings, body)           => block(bindings, body, as)
-    case Typed(e, _)                          => read(e, as)
-    case Block(stats, e)                      => block(stats, e, as)
-    case If(c, a, b)                          => cond(c, a, b, as)
-    case Match(on, cases)                     => matched(on, cases, as)
-    case Literal(c)                           => literal(c, t)
-    case id: Ident if env.contains(id.symbol) => env(id.symbol)
-    case id: Ident if ownMember(id)           => read(Select(This(id.symbol.owner), id.symbol), as)
+    case Inlined(_, bindings, body)                      => block(bindings, body, as)
+    case Typed(e, _)                                     => read(e, as)
+    case Block(stats, e)                                 => block(stats, e, as)
+    case If(c, a, b)                                     => cond(c, a, b, as)
+    case Match(on, cases)                                => matched(on, cases, as)
+    case Literal(c)                                      => literal(c, t)
+    case id: Ident if env.contains(id.symbol)            => env(id.symbol)
+    case id: Ident if ownMember(id)                      => read(Select(This(id.symbol.owner), id.symbol), as)
     case self: This if env.contains(self.tpe.typeSymbol) => env(self.tpe.typeSymbol)
-    case _                                    => applied(t, as), as, t)
+    case _                                               => applied(t, as), as, t)
 
   /** A member named without `this.` in a method's body being read (`start` in `Booking`'s `span`). */
   private def ownMember(id: Ident)(using env: Env): Boolean =

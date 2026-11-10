@@ -1,7 +1,7 @@
 package frflow.project
 
 import frflow.core.name.NodeId
-import frflow.eval.Calendar
+import frflow.eval.{Calendar, CalendarExamples}
 import frflow.eval.run.OnCode
 import frflow.proof.obligation.ObligationName
 import frflow.proof.verdict.ObligationStatus
@@ -18,11 +18,15 @@ class CalendarLeanSuite extends munit.CatsEffectSuite:
 
   private val proofs = List("grantWhenFree" -> Ported.resource("lifted/grantWhenFree.lean"))
 
-  test("the calendar's plain Scala is proven to meet its claims".tag(Live)) {
-    Ported.run(Projects.elaborated(Calendar.model), Nil, Ported.Lean(proofs, Nil, None), Nil).map { r =>
+  test("the calendar's plain Scala is proven to meet its claims, and its examples hold".tag(Live)) {
+    val examples = CalendarExamples().elaborated.fold(e => throw AssertionError(e.toString), identity)
+    Ported.run(Projects.elaborated(Calendar.model), examples, Ported.Lean(proofs, Nil, None), Nil).map { r =>
       List("grantWhenFree", "grantWhenNoOverlap").foreach(n =>
         assertEquals(Ported.row(r.analysis, NodeId(n)).take(3).drop(1), List("proven", "proven"),
           s"$n\n${Ported.table(r.analysis)}"))
+      assertEquals(r.analysis.computed.examples.map(_._2).distinct, List(OnCode.Holds))
+      examples.foreach(e => assertEquals(r.analysis.wholeCheck.flatMap(_.results.find(_.name ==
+        ObligationName.Example(e.of, e.at))).map(_.status), Some(ObligationStatus.Shown), e.name))
     }
   }
 

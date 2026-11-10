@@ -373,8 +373,9 @@ The code at the bottom of the graph is in one of three states, and `status` repo
 
 - **Proven** code is written in the DSL (a `program { … }` over a `Flow`, or a `define`), and Lean proves that it
   meets its claims. A function of plain Scala that has no state, no effect and cannot fail can be proven as it is
-  written: `lifted { (a: Booking, b: Booking) => … }` is read at compile time into the term a `define` builds, and
-  its Scala is tested against that term on generated cases ([docs/LIFTED.md](docs/LIFTED.md)).
+  written: `lifted { (a: Booking, b: Booking) => … }` is read at compile time into the term a `define` builds.
+  `testing.Agreement` tests its Scala against that term on generated cases; `check` does not run it yet
+  ([docs/LIFTED.md](docs/LIFTED.md)).
 - **Tested** code is plain Scala. It is tested against its claims with property-based testing on generated cases; an
   operation on a state is tested against its model on generated runs, two of its calls at once among them.
 - **Assumed** code is known only by the assumptions about it, such as an outside system's search: Lean takes them as
