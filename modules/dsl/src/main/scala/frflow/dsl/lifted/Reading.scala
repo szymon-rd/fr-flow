@@ -94,6 +94,13 @@ private[lifted] trait Reading:
     val s = bare(arg).symbol
     !s.isNoSymbol && (s.name.startsWith("copy$default$") || env.kept(s))
 
+  /** Whether a type of the developer's (or a case of it) declares its own `equals`: its `==` is then not data's
+    * structural equality, which is what the term's and Lean's equality are.
+    */
+  def ownEquals(t: TypeRepr): Boolean = t.classSymbol.toList.flatMap(c => c :: c.children).exists(c =>
+    c.isClassDef && !List("scala.", "java.").exists(c.fullName.startsWith) &&
+      c.declaredMethod("equals").exists(m => !m.flags.is(Flags.Synthetic)))
+
   /** A case class's fields, by name and type, in order. */
   def fieldsOf(t: TypeRepr): List[(String, TypeRepr)] = t.typeSymbol.caseFields.map(f => f.name -> t.memberType(f))
 

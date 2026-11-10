@@ -83,6 +83,12 @@ private[lifted] final class Reader(val q: Quotes) extends Reading, ReadValues, R
         ${ rest(env + ((v.symbol, 'y))).asExprOf[DTerm[r]] })(using ${ spec[r](rhs) }) }
     case _            => refuse(s"the value ${v.name}", v)
 
+  /** Nothing, or the compile error of a type whose equality is its own. */
+  def structural[T: Type](using Quotes): Expr[Unit] =
+    if ownEquals(TypeRepr.of[T]) then report.errorAndAbort(s"FrFlow: ${Type.show[T]} declares its own `equals`, " +
+      "so it can have no FrSpec: a value of lifted code is data, equal exactly when its parts are")
+    '{ () }
+
   /** A closed expression (an example's fact) as its term. */
   def fact(holds: Expr[Boolean])(using Quotes): Expr[DTerm[Boolean]] = readAs[Boolean](holds.asTerm)(using Env.of())
 

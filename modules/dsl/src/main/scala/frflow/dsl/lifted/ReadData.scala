@@ -13,12 +13,17 @@ private[lifted] trait ReadData extends Reading:
   this: Reader =>
   import q.reflect.*
 
-  /** `C(…)` or `new C(…)` of a case class `C` with no type parameters. */
+  /** `C(…)` or `new C(…)` of a case class `C` with no type parameters: the compiler's own `apply` and the class's
+    * first constructor only (an `apply` the developer wrote is a method, read as one).
+    */
   def record(c: Calling)(using Env)(using Quotes): Option[Expr[DTerm[?]]] =
     val cls = c.on match
-      case New(tpt) if c.name == "<init>" => tpt.tpe.typeSymbol
-      case on if c.name == "apply"        => on.tpe.termSymbol.companionClass
-      case _                              => Symbol.noSymbol
+      case New(tpt) if c.name == "<init>" && c.whole.symbol == tpt.tpe.typeSymbol.primaryConstructor =>
+        tpt.tpe.typeSymbol
+      case on if c.name == "apply" && c.whole.symbol.flags.is(Flags.Synthetic)                       =>
+        on.tpe.termSymbol.companionClass
+      case _                                                                                         =>
+        Symbol.noSymbol
     Option.when(isRecord(cls))(construct(cls, c.args, c.whole))
 
   private def isRecord(cls: Symbol): Boolean =
@@ -37,7 +42,8 @@ private[lifted] trait ReadData extends Reading:
   def field(c: Calling)(using Env)(using Quotes): Option[Expr[DTerm[?]]] =
     val own = c.on.tpe.widen
     val i = fieldsOf(own).indexWhere(_._1 == c.name)
-    if c.name == "copy" && isRecord(own.typeSymbol) then Some(copied(c, own))
+    if c.name == "copy" && isRecord(own.typeSymbol) && c.whole.symbol.flags.is(Flags.Synthetic) then
+      Some(copied(c, own))
     else Option.when(c.args.isEmpty && i >= 0 && own.typeSymbol.flags.is(Flags.Case))(selected(c, i))
 
   private def selected(c: Calling, i: Int)(using Env)(using Quotes): Expr[DTerm[?]] =

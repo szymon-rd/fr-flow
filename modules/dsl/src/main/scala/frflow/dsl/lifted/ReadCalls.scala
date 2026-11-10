@@ -102,9 +102,7 @@ private[lifted] trait ReadCalls extends Reading:
     val (l, r) = (a.tpe.widen, b.tpe.widen)
     val both = if r <:< l then l else if l <:< r then r else
       refuse(s"`==` of a ${l.show} and a ${r.show}: two values of one type are compared", a)
-    val own = both.classSymbol.filter(_.flags.is(Flags.Case)).toList.flatMap(_.declaredMethod("equals"))
-      .filterNot(_.flags.is(Flags.Synthetic))
-    if own.nonEmpty then refuse(s"`==` of a ${both.show}, whose `equals` is its own: Lean's `=` is data's", a)
+    if ownEquals(both) then refuse(s"`==` of a ${both.show}, whose `equals` is its own: Lean's `=` is data's", a)
     both.asType match
       case '[x] =>
         val _ = spec[x](a)

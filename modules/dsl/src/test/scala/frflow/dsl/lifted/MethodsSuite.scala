@@ -36,6 +36,13 @@ class MethodsSuite extends munit.FunSuite:
     assert(free(List(Booking("Oak", 9, 10)), Booking("Oak", 10, 11)))
   }
 
+  test("an `apply` the developer wrote beside the compiler's is a method, read as one") {
+    val hour = lifted { (start: BigInt) => Slot(start) }
+    val written = define { (start: Term[BigInt]) => make[Slot](start, start + 1) }
+    assertEquals(lambda(hour), lambda(written))
+    assertEquals(hour(9), Slot(9, 10))
+  }
+
   test("a method that calls itself is a recursion, which is not read") {
     val errors = typeCheckErrors("lifted { (n: BigInt) => Rules.countdown(n) }").map(_.message)
     assert(errors.exists(_.contains("calling itself: recursion is not read yet")), errors.mkString(" | "))

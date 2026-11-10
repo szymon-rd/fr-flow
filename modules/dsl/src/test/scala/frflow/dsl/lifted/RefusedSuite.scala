@@ -46,6 +46,10 @@ class RefusedSuite extends munit.FunSuite:
     refused(typeCheckErrors("lifted { (a: String, b: String) => a + b }").map(_.message), "`+` of a")
   }
 
+  test("a type whose equality is its own has no spec") {
+    refused(typeCheckErrors("FrSpec.derived[Loose]").map(_.message), "declares its own `equals`")
+  }
+
   test("equality of two types") {
     refused(typeCheckErrors("lifted { (b: Booking, s: Shape) => b == s }").map(_.message),
       "two values of one type are compared")

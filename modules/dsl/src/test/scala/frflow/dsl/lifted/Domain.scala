@@ -25,3 +25,16 @@ object Rules:
   def apart(a: Booking, b: Booking): Boolean = a.room != b.room || a.endsBy(b) || b.endsBy(a)
   def free(held: List[Booking], request: Booking): Boolean = held.forall(b => apart(b, request))
   def countdown(n: BigInt): BigInt = if n < BigInt(1) then n else countdown(n - BigInt(1))
+
+/** A case class with an `apply` of its own beside the compiler's: lifted code reads it as the method it is. */
+final case class Slot(start: BigInt, end: BigInt) derives FrSpec
+
+object Slot:
+  def apply(start: BigInt): Slot = Slot(start, start + BigInt(1))
+
+/** A type whose equality is not data's: it can have no `FrSpec`. */
+final case class Loose(name: String):
+  override def equals(that: Any): Boolean = that match
+    case l: Loose => l.name.equalsIgnoreCase(name)
+    case _        => false
+  override def hashCode: Int = name.toLowerCase.hashCode

@@ -50,8 +50,12 @@ object FrSpec:
   /** A type's spec with no contract: every value of the type is one that can occur. */
   def of[A](t: LeanType[A]): FrSpec[A] = new FrSpec(t, None)
 
-  /** A case class's or an enum's, derived where it is declared (`derives FrSpec`), as its `LeanType` is. */
-  inline def derived[T](using Mirror.Of[T]): FrSpec[T] = of(LeanType.derived[T])
+  /** A case class's or an enum's, derived where it is declared (`derives FrSpec`), as its `LeanType` is; refused
+    * of a type that declares its own `equals` (lifted code's `==` is data's).
+    */
+  inline def derived[T](using Mirror.Of[T]): FrSpec[T] =
+    LiftMacro.structural[T]
+    of(LeanType.derived[T])
 
   given FrSpec[Boolean] = of(LeanType[Boolean])
   given FrSpec[BigInt] = of(LeanType[BigInt])

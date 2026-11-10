@@ -19,6 +19,13 @@ object LiftMacro:
 
   def closed(holds: Expr[Boolean])(using q: Quotes): Expr[Term[Boolean]] = Reader(q).fact(holds)
 
+  /** A compile error where `T`'s equality is not data's (`FrSpec.derived`): a spec is of a type whose `==` is the
+    * compiler's, so equal values are equal terms.
+    */
+  inline def structural[T]: Unit = ${ data[T] }
+
+  def data[T: Type](using q: Quotes): Expr[Unit] = Reader(q).structural[T]
+
   def one[A: Type, R: Type](f: Expr[A => R])(using q: Quotes): Expr[Term[A] => Term[R]] = Reader(q).lambda1(f)
   def two[A: Type, B: Type, R: Type](f: Expr[(A, B) => R])(using q: Quotes): Expr[(Term[A], Term[B]) => Term[R]] =
     Reader(q).lambda2(f)
