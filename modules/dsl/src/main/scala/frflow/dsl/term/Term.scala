@@ -83,7 +83,9 @@ object Term:
 
   private def field[A](t: Term[A], name: String): Term[?] =
     t.leanType.codeOnly.foreach(scala => throw Failure(Fault.CodeOnlyInStatement(scala)))
-    t.leanType.fields.find(_.selector.name == name).fold(throw Failure(Fault.NoField(name)))(f => select(t, f))
+    // a pair's sides are named `1` and `2`, as Lean names them: Scala's `_1` and `_2`
+    val named = if t.leanType.fields.exists(_.selector.record == Selector.pair) then name.stripPrefix("_") else name
+    t.leanType.fields.find(_.selector.name == named).fold(throw Failure(Fault.NoField(name)))(f => select(t, f))
 
   /** A record's field, as `b.start` reads it: typed by the field's own `LeanType`. */
   def select[R, F](t: Term[R], f: LeanType.Field[R, F]): Term[F] =

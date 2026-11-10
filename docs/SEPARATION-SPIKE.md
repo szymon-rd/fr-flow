@@ -24,7 +24,7 @@ val book = updating { (table: Table^, request: Booking) =>
 ```
 
 `updating` (`dsl.lifted.steps`) reads the method into a function of the port's state that gives its result with the
-state after it, a lifted function as any other (`book.model`). Lean is given (its parentheses and type
+state after it, a lifted function as any other. Lean is given (its parentheses and type
 annotations left out here):
 
 ```lean
@@ -61,9 +61,10 @@ gives the state either branch leaves. Nothing of FrFlow's `Flow`, `Prog` or `Sta
    (`FrSpec[Table^{}]` found, `FrSpec[Table^{any.rd}]` required): FrFlow is not capture-checked, and its type classes
    are invariant. So a port is not data: its *state* is data with an `FrSpec`, and the port has a witness of its
    state's type the compiler finds (`PortState`).
-2. **FrFlow's own function types lose the capability.** `book.run` is typed `(Table^{}, Booking) => Boolean`, so
-   checked code cannot give it an exclusive `Table^`. The service method should stay the developer's `def`
-   (what works, 4), or FrFlow's port API be compiled with capture checking.
+2. **FrFlow's own function types lose the capability.** A function value FrFlow hands back over the port would be
+   typed `(Table^{}, Booking) => Boolean`, so checked code could not give it an exclusive `Table^`. The service
+   method stays the developer's `def` (what works, 4); what `updating` gives is a function of the port's state.
+   For the same reason a `Definition`'s function type is written with the pure arrow (`->`) in a checked file.
 3. **Experimental marking spreads.** Under `-experimental` every definition of a module is experimental, and a
    module using it without the flag does not compile. Marking the definitions written with the checkers
    (`@experimental`), and what uses them, needs no flag; the spike does that.
@@ -76,13 +77,13 @@ gives the state either branch leaves. Nothing of FrFlow's `Flow`, `Prog` or `Sta
 
 ## What the spike does not cover
 
-- One port, whose state is one `var` given to its constructor, and one input. No second port, no port held in a
-  service class's field, no port given on to other code: the cases where exclusivity is needed for the reading to
-  be right. With one port the reader's own limits already rule aliasing out, so the spike shows the checker beside
+- One port, whose state is one `var` given to its constructor, and one input. No second port, no port given on to
+  other code: the cases where exclusivity is needed for the reading to be right. With one port the reader's own limits already rule aliasing out, so the spike shows the checker beside
   the reader, not yet a reading that depends on it.
 - A port that is its own model. A port with an adapter (SQL behind a trait) needs its model given apart, and the
   adapter tested against it, as `implementTested` does for a store's operations.
-- No loop, no change inside a function given to an operation, no failure (Aeneas's `Result`), no concurrency.
+- No loop, no change inside a function given to an operation, no failure (Aeneas's `Result`). Concurrency is read
+  as one call among others under a rely ("Since the spike"), not as threads.
 - The world outside: another process writing the same store is an assumption, as it is today.
 - `check` knows nothing of it; `Agreement` and `Vectors` are called by the suites.
 
@@ -93,6 +94,15 @@ parameters of Scala's checkers give the reader what Rust's `&mut` gives Aeneas. 
 idea is a service class holding two ports, where the reading is only right because separation is checked; then a
 port with an adapter; then failure. `IO`-style services would need a capture-checked effect type, or stay outside
 what is read.
+
+## Since the spike
+
+[The wallet example](../examples/wallet/README.md) takes the next steps on one store. A port may be a service class
+holding a store in a field. A service's call of a store's method is read as a call of the Definition of that name
+in the store's companion, so the service is proven from the store's contracts. And `interleaving` reads a method
+among other calls: before each step after the first, a schedule may replace the store's state with one a rely
+admits, and the reading gives every step taken; contracts proven for every schedule rule out the check-then-act
+race the example's second service has. Still not covered: two stores, an adapter, loops, failure.
 
 Where it is: `modules/dsl/src/main/scala/frflow/dsl/lifted/steps/`, the suites `dsl`'s `lifted.sep.SepSuite`,
 `frflow.eval.DeskSuite` and `frflow.project.DeskLeanSuite`, and the model `frflow.eval.Desk`.

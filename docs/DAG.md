@@ -27,7 +27,10 @@ and in them.
    A departure, on the branch that adds it: plain Scala the compiler reads (`lifted { … }`) is proven too, as the
    term read from it ([LIFTED.md](LIFTED.md) says what holds the Scala to that term). It adds no concept: lifted
    code is a Definition given its meaning on the spot, and a type's contract (`FrSpec`) is an `always[T]` a node
-   states.
+   states. A second departure on that branch: a method that changes a store is read as a function of the store's
+   state (`updating`), and among other calls as a function of a schedule too (`interleaving`); both are lifted
+   code, and what the reading takes for granted (a store's method is one step, other calls keep a rely) is said by
+   design nodes.
 
 ## 0a. The core concepts
 

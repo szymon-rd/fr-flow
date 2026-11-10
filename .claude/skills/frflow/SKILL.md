@@ -281,6 +281,15 @@ rewrite that part, or keep the function as tested plain Scala. Every type in it 
 the model only when a node states it (`Node.assumption("…")(contractOf[T])`, the developer's to decide). Statements
 stay in the DSL.
 
+A service method that changes a store can be proven as written too (`examples/wallet`, `docs/LIFTED.md`
+"Services"): the store is a `caps.Mutable` class with one `var`, the service a class holding it (`Ledger^`), in files
+with capture and separation checking. Put the contracts in the companions: a `Definition` per method, the method
+read with `updating { (service: S^, input: A) => service.method(input) }` and attached with `implementProven`, and
+claims over the Definition. For races, read it with `interleaving { … }(others)` and claim over every schedule;
+state what the reading takes for granted as design nodes (each store method is one transaction; other calls keep
+the rely), and prove the service's own steps keep the rely for others. Bind a value whose type has a contract last
+in a `forall`.
+
 Plain Scala attached with `implementTested`:
 
 ```scala

@@ -101,15 +101,33 @@ private[lifted] trait Reading:
     c.isClassDef && !List("scala.", "java.").exists(c.fullName.startsWith) &&
       c.declaredMethod("equals").exists(m => !m.flags.is(Flags.Synthetic)))
 
-  /** A port: a class of Scala's `caps.Mutable`, whose state its `update` methods change. In the Scala that changes
-    * one (`steps.StepReader`) the port's variable stands for its state, the value of its one `var`.
-    */
-  def isPort(t: TypeRepr): Boolean = t.baseClasses.exists(_.fullName == "scala.caps.Mutable")
+  /** A store: a class of Scala's `caps.Mutable`, whose state (its one `var`) its `update` methods change. */
+  def isStore(t: TypeRepr): Boolean = t.baseClasses.exists(_.fullName == "scala.caps.Mutable")
 
-  /** The one `var` a port's state is, or the compile error of a port with none or several. */
-  def stateOf(port: Symbol, at: Tree): Symbol = port.declaredFields.filter(_.flags.is(Flags.Mutable)) match
-    case List(state) => state
-    case found       => refuse(s"the port ${port.name}, whose state is not one `var` (it has ${found.size})", at)
+  /** A port: a store, or a service, a class of the developer's that holds one port. In the Scala that changes one
+    * (`steps.StepReader`) a port's variable stands for the state of the store it is or holds.
+    */
+  def isPort(t: TypeRepr): Boolean = isStore(t) || held(t.typeSymbol).size == 1
+
+  /** The fields of a class of the developer's that are ports; none of a case class, which is data. */
+  private def held(c: Symbol): List[Symbol] =
+    if !c.isClassDef || c.flags.is(Flags.Case) || List("scala.", "java.").exists(c.fullName.startsWith) then Nil
+    else c.declaredFields.filter(f => isPort(c.typeRef.memberType(f)))
+
+  /** Where a port's state is: a store's one `var`, a service's one port; or the compile error of a port with none
+    * or several.
+    */
+  def stateOf(port: Symbol, at: Tree): Symbol =
+    val found = if isStore(port.typeRef) then port.declaredFields.filter(_.flags.is(Flags.Mutable)) else held(port)
+    found match
+      case List(state) => state
+      case _           => refuse(s"the port ${port.name}, whose state is not one `var` or one port it holds " +
+        s"(it has ${found.size})", at)
+
+  /** The type of a port's state: of the store it is or holds. */
+  def stateType(port: TypeRepr, at: Tree): TypeRepr =
+    val inner = port.memberType(stateOf(port.typeSymbol, at))
+    if isStore(port) then inner else stateType(inner, at)
 
   /** A case class's fields, by name and type, in order. */
   def fieldsOf(t: TypeRepr): List[(String, TypeRepr)] = t.typeSymbol.caseFields.map(f => f.name -> t.memberType(f))

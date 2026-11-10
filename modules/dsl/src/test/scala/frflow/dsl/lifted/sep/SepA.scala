@@ -27,6 +27,18 @@ import scala.annotation.experimental
     if ok then table.add(request)
     ok
 
+  /** A service: a class over the port it holds, its methods direct-style Scala. */
+  final class Desk(table: Table^):
+    def take(request: Slot): Boolean =
+      val held = table.inRoom(request.room)
+      val ok = free(held, request)
+      if ok then table.add(request)
+      ok
+
+  /** What other calls may do to the table between two steps of one call: they only add rows. */
+  val others = lifted { (request: Slot, before: List[Slot], after: List[Slot]) =>
+    before.forall(s => after.contains(s)) && !after.contains(request) }
+
   /** Production's call of it, in checked code: the table is the caller's alone. */
   def reserveBoth(first: Slot, second: Slot): List[Slot] =
     val table: Table^ = Table(Nil)

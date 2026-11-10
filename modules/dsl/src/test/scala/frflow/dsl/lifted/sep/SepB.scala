@@ -2,7 +2,7 @@ package frflow.dsl.lifted.sep
 
 import language.experimental.captureChecking
 import language.experimental.separationChecking
-import frflow.dsl.lifted.steps.StepSyntax.updating
+import frflow.dsl.lifted.steps.StepSyntax.{interleaving, updating}
 import scala.annotation.experimental
 import scala.compiletime.testing.typeCheckErrors
 
@@ -10,7 +10,7 @@ import scala.compiletime.testing.typeCheckErrors
   * separation checking refuses of such code, which the reader's state passing rests on.
   */
 @experimental object SepB:
-  import SepA.{Slot, Table, free, reserve}
+  import SepA.{Desk, Slot, Table, free, reserve}
 
   val book = updating { (table: Table^, request: Slot) =>
     val held = table.inRoom(request.room)
@@ -26,6 +26,10 @@ import scala.compiletime.testing.typeCheckErrors
 
   /** A service method that is an ordinary `def`, read where it is named: the `def` stays what production calls. */
   val reserved = updating { (table: Table^, request: Slot) => reserve(table, request) }
+
+  /** A service's method, alone and among other calls. */
+  val take = updating { (desk: Desk^, request: Slot) => desk.take(request) }
+  val takeAmongOthers = interleaving { (desk: Desk^, request: Slot) => desk.take(request) }(SepA.others)
 
   /** What the reader does not read of Scala that changes a port. */
   val inLambda: List[String] = typeCheckErrors(

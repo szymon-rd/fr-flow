@@ -18,13 +18,13 @@ import scala.annotation.experimental
     assertEquals(Validate(elaborated).fold(_.toChain.toList.map(_.toString), _ => Nil), Nil)
   }
 
-  test("the service method as written changes the table it is given") {
+  test("the table as production uses it is changed by its methods; the model's Scala gives the rows it leaves") {
     val table = Table(List(Booking("Oak", 9, 10)))
-    assert(Desk.book.run(table, Booking("Oak", 10, 11)))
-    assert(!Desk.book.run(table, Booking("Oak", 9, 11)))
+    table.add(Booking("Oak", 10, 11))
     assertEquals(table.rows, List(Booking("Oak", 9, 10), Booking("Oak", 10, 11)))
+    assertEquals(Desk.book(List(Booking("Oak", 9, 10)), Booking("Oak", 9, 11)), (false, List(Booking("Oak", 9, 10))))
   }
 
   test("its Scala, run on a table made from the rows, agrees with the term read from it on generated cases") {
-    assertEquals(Agreement(elaborated).of(Desk.book.model, Settings(300, Seed(1))).outcome, Outcome.Agree(300))
+    assertEquals(Agreement(elaborated).of(Desk.book, Settings(300, Seed(1))).outcome, Outcome.Agree(300))
   }

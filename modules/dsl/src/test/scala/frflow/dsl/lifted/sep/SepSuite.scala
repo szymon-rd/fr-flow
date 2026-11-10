@@ -9,37 +9,43 @@ import scala.annotation.experimental
   * rests on still refuses a port aliased or changed through a reference that only reads.
   */
 @experimental class SepSuite extends munit.FunSuite:
-  import SepA.{Slot, Table}
+  import SepA.Slot
 
   private def lambda(d: frflow.dsl.vocab.Definition[?]): Lambda =
     d.onTheSpot.fold(fail("no meaning"))(_.lambda.run.fold(es => fail(es.toChain.toList.mkString("; ")), _._2.value))
 
   test("a service method reads as a function of the port's state: its result, with the state after it") {
-    val read = lambda(SepB.book.model)
+    val read = lambda(SepB.book)
     val rows = Ty.ListOf(Ty.Data(frflow.core.name.TypeName("Slot")))
     assertEquals((read.params.map(p => p.hint -> p.ty), read.result),
-      (List("table" -> rows, "request" -> Ty.Data(frflow.core.name.TypeName("Slot"))),
+      (List("rows" -> rows, "request" -> Ty.Data(frflow.core.name.TypeName("Slot"))),
         Ty.TupleOf(List(Ty.Bool, rows))))
   }
 
   test("what follows a change reads the state the change left") {
-    lambda(SepB.replace.model).body match
+    lambda(SepB.replace).body match
       case Expr.Let(cleared, Expr.ListOf(Nil, _), Expr.Let(added, Expr.Prim(_, List(Expr.Var(from), _), _), _)) =>
         assertEquals(from.id, cleared.id, s"$added is not made from $cleared")
       case other => fail(s"not two changes in sequence: $other")
   }
 
-  test("the Scala as written changes the port; its model, run on a port made from the state, gives the state") {
-    val table = Table(List(Slot("Oak", 9, 10)))
-    assert(SepB.book.run(table, Slot("Oak", 10, 11)))
-    assertEquals(table.rows, List(Slot("Oak", 9, 10), Slot("Oak", 10, 11)))
-    assertEquals(SepB.book.model(List(Slot("Oak", 9, 10)), Slot("Oak", 9, 11)), (false, List(Slot("Oak", 9, 10))))
-    assertEquals(SepB.replace.model(List(Slot("Oak", 9, 10)), Slot("Elm", 1, 2)), (true, List(Slot("Elm", 1, 2))))
+  test("the model's Scala is the code run on a port made from the state: its result, with the state it leaves") {
+    assertEquals(SepB.book(List(Slot("Oak", 9, 10)), Slot("Oak", 9, 11)), (false, List(Slot("Oak", 9, 10))))
+    assertEquals(SepB.replace(List(Slot("Oak", 9, 10)), Slot("Elm", 1, 2)), (true, List(Slot("Elm", 1, 2))))
+  }
+
+  test("a service's method reads as the function written out does; among others it gives each step's states") {
+    assertEquals(lambda(SepB.take), lambda(SepB.book).copy(params = lambda(SepB.take).params))
+    assertEquals(SepB.take(Nil, Slot("Oak", 9, 10)), (true, List(Slot("Oak", 9, 10))))
+    val among = lambda(SepB.takeAmongOthers)
+    val rows = Ty.ListOf(Ty.Data(frflow.core.name.TypeName("Slot")))
+    assertEquals(among.params.map(_.hint), List("rows", "between", "request"))
+    assertEquals(among.result, Ty.TupleOf(List(Ty.Bool, Ty.ListOf(Ty.TupleOf(List(rows, rows))))))
   }
 
   test("a service method that is an ordinary def reads as the lambda written out does") {
-    assertEquals(lambda(SepB.reserved.model).result, lambda(SepB.book.model).result)
-    assertEquals(SepB.reserved.model(List(Slot("Oak", 9, 10)), Slot("Oak", 10, 11)),
+    assertEquals(lambda(SepB.reserved).result, lambda(SepB.book).result)
+    assertEquals(SepB.reserved(List(Slot("Oak", 9, 10)), Slot("Oak", 10, 11)),
       (true, List(Slot("Oak", 9, 10), Slot("Oak", 10, 11))))
     assertEquals(SepA.reserveBoth(Slot("Oak", 9, 10), Slot("Oak", 10, 11)).size, 2)
   }

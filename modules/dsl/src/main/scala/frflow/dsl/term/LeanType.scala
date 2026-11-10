@@ -39,7 +39,12 @@ object LeanType:
   given either[A, B](using a: LeanType[A], b: LeanType[B]): LeanType[Either[A, B]] = of(Ty.EitherOf(a.ty, b.ty), a, b)
 
   given [K, V](using k: LeanType[K], v: LeanType[V]): LeanType[Map[K, V]] = of(Ty.MapOf(k.ty, v.ty), k, v)
-  given [A, B](using a: LeanType[A], b: LeanType[B]): LeanType[(A, B)] = of(Ty.TupleOf(List(a.ty, b.ty)), a, b)
+  /** A pair's: its two sides its fields (`p._1`, `p._2`), each typed by its own `LeanType`. */
+  given [A, B](using a: LeanType[A], b: LeanType[B]): LeanType[(A, B)] = new LeanType[(A, B)]:
+    val ty: Ty = Ty.TupleOf(List(a.ty, b.ty))
+    val declares: Declarations = a.declares |+| b.declares
+    override val fields: List[Field[(A, B), ?]] =
+      List(Field(Selector.first[A, B](a.ty), a), Field(Selector.second[A, B](b.ty), b))
   /** A case class's or an enum's, derived once where it is declared (`enum Request derives LeanType`: the given in its
     * companion, which every use finds), by `DataMacros`. Not an inline given: one re-derived at every use expands a
     * type's whole structure into each, and sharing's largest file then passed the JVM's limits on a method's and a

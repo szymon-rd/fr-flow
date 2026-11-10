@@ -1,7 +1,6 @@
 package frflow.testing
 
 import frflow.core.Elaborated
-import frflow.core.code.Values
 import frflow.core.expr.{Lambda, Value}
 import frflow.core.name.SymbolName
 import frflow.core.spec.Written
@@ -9,6 +8,7 @@ import frflow.core.ty.Ty
 import frflow.dsl.build.Declarations
 import frflow.dsl.lifted.Lifted
 import frflow.eval.{Env, EvalError, Fn, ScalaValue}
+import frflow.eval.run.Wiring
 import frflow.eval.term.Semantics
 import frflow.testing.derive.Derive
 import frflow.testing.report.{Drawn, Seed}
@@ -17,8 +17,9 @@ import scala.util.Try
 /** Lifted code's Scala against the term read from it (`Lifted`'s law): on generated inputs, each meeting what always
   * holds of its type in the model, the Scala the JVM runs (`native`) gives what the evaluator gives of the term,
   * which is the term Lean is printed from. So the reader's translation of each function is tested, not trusted:
-  * a construct it read as a term of another value shows as a case here. Case `i` is drawn from `(seed, i)` at its
-  * size, as a claim's are; the first case that differs is the report.
+  * a construct it read as a term of another value shows as a case here. A Definition the code calls has the meaning
+  * the model gives it. Case `i` is drawn from `(seed, i)` at its size, as a claim's are; the first case that differs
+  * is the report.
   */
 final class Agreement(e: Elaborated):
   def of(code: Lifted[?], settings: Settings): Agreement.Report = between(code, code, settings)
@@ -34,11 +35,13 @@ final class Agreement(e: Elaborated):
     val all = holding(ds)
     val (semantics, types) = (Semantics(all), w.value.params.map(_.ty))
     val (draw, term) = (Derive.of(all, Nil), semantics.lambda(w))
+    val wiring = Wiring(semantics, all.theory)
+    val meanings = Env.of(wiring.values(wiring.supplied(Nil)))
     val cases = Iterator.range(0, settings.cases).flatMap { i =>
       val from = Drawn(settings.seed, i, Seed.sizeOf(i, settings.cases))
       draw.all(types, from.size, from.seed.forCase(i)).map(_.map(ScalaValue(_)) -> from)
     }.toList
-    val differ = cases.iterator.flatMap((args, from) => differing(code, term.run(Env.of(Values.none), _))(args).map(
+    val differ = cases.iterator.flatMap((args, from) => differing(code, term.run(meanings, _))(args).map(
       (scala, read) => Agreement.Outcome.Differ(args.zip(types).map(semantics.reflect), scala, read, from)))
     differ.nextOption().getOrElse(if cases.isEmpty then Agreement.Outcome.NoCases else
       Agreement.Outcome.Agree(cases.size))

@@ -191,7 +191,10 @@ node states the contract (`contractOf[T]`, an `always[T]`). `lifted { noOverlap(
 `Term[Boolean]`, an example's fact in plain Scala. `testing.Agreement` tests each lifted function's Scala against
 its term on generated cases, and `testing.Vectors` gives Lean what the Scala gave as examples to decide; `check`
 does not run them yet. [LIFTED.md](LIFTED.md) says what is read, and what holds the Scala, the term and the Lean to
-one meaning.
+one meaning. A service method that changes a store (a `caps.Mutable` class, under capture and separation checking)
+is read by `updating { (service: S^, input: A) => service.method(input) }`, a function of the store's state, and by
+`interleaving { … }(others)`, the same among other calls that keep the rely `others`
+([the wallet example](../examples/wallet/README.md)).
 
 **An operation on a state** is a Definition of type `A => Flow[R]`, given its meaning in Lean by a `StateModel`, which
 says what it does to the model's state, a field of the World:

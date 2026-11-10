@@ -233,6 +233,44 @@ and `b` written out is a `Term[Boolean]`): an example's fact in plain Scala (`Ca
 Anything else is a compile error at the construct, saying what is not read and what to write. `RefusedSuite` holds
 each.
 
+## Services: code that changes a store
+
+A service method that changes state is read the way Aeneas reads `&mut`: the state passed in and returned, with no
+state monad. [SEPARATION-SPIKE.md](SEPARATION-SPIKE.md) records the spike; [the wallet
+example](../examples/wallet/README.md) uses it for a transfer service.
+
+```scala
+final class Ledger(var books: Books) extends caps.Mutable:        // a store: its state is its one `var`
+  update def claim(request: String): Boolean = …
+
+final class Transfers(ledger: Ledger^):                           // a service: it holds one store, exclusively
+  def transfer(t: Transfer): Outcome = …
+
+object Transfers:
+  val transfer = Definition[(Books, Transfer) -> (Outcome, Books)]("a transfer, alone: …")
+  val transferCode = updating { (service: Transfers^, t: Transfer) => service.transfer(t) }
+  val transferAmongOthersCode = interleaving { (service: Transfers^, t: Transfer) => service.transfer(t) }(others)
+```
+
+- `updating { (port: P^, input: A) => … }` is a lifted function from the store's state and the input to the result
+  with the state after. The port is a store, or a class holding one. Its Scala (`native`) makes the store from the
+  state, runs the method, and gives back what the store holds.
+- `interleaving { … }(others)` is a Definition from the state, a schedule (`Map[BigInt, S]`: what other calls left
+  before each step, by the step's number) and the input, to the result with every step taken (the state it started
+  from, the state it left). Before each step after the first, the schedule's state replaces the call's own when the
+  rely `others(input, before, after)` holds of it. A claim over every schedule is a claim over every interleaving
+  the rely allows. Each call of a store's method is one step; that it is atomic is a design node's to say.
+- A service's call of a store's method is a call of the Definition of that name in the store's companion, when
+  there is one: the service is then proven from the store's contracts, not from its code. The store's own readings
+  (`updating { (ledger: Ledger^, …) => ledger.claim(…) }`) are the methods' bodies.
+- The files compile with capture and separation checking, and the project with `-Yretain-trees`; what uses the
+  checkers is experimental (`-experimental` for the project, or `@experimental` on the definitions). In a
+  capture-checked file a Definition's function type is written with the pure arrow (`->`).
+
+One limit of the proof side shows here: a claim that quantifies a value whose type has a contract a node states
+must bind that value last (`forall((books, request, t: Term[Transfer]) => …)`), or the witness FrFlow derives for
+"its condition can hold" is not accepted by Lean and the check stays open.
+
 ## Compared with Aeneas, and with Stainless
 
 Aeneas reads Rust's MIR after borrow checking and turns loans into values passed and returned, so the pure
@@ -262,9 +300,9 @@ In the order they would be taken:
 4. **Members known by their contract.** A method whose body is not read (a class with its own data structure, a
    library's) as an open function of the term language, known to Lean only by the type's contract, its Scala tested
    against the contract. This is `implementTested`'s meaning, given per member by the type's `FrSpec`.
-5. **Code that changes state.** A service method over a port, read into a function of the port's state with no
-   state monad, as Aeneas reads `&mut`. [SEPARATION-SPIKE.md](SEPARATION-SPIKE.md) is a spike of it, with Scala's
-   separation checking saying the port is the code's alone: one port, direct style, proven end to end.
+5. **More of code that changes state.** A service method over one store is read ("Services" above). Not yet: two
+   stores, a store with an adapter, a loop, a failing call, and a contract over two calls at once (a call among
+   others is read against a rely, one call at a time).
 6. **More of Scala.** `Int` and `Long` with their bounds proven, strings' operations, tuples taken apart in a
    pattern, generic functions, the rest of the collections.
 7. **Validation by proof.** For this fragment the reader could emit, per function, the claim that the term's value
@@ -280,3 +318,5 @@ In the order they would be taken:
 | `Lifted`, the Definition with its Scala | `Lifted.scala` there |
 | `Agreement`, `Vectors` | `modules/testing/src/main/scala/frflow/testing/` |
 | The suites | `modules/dsl/src/test/scala/frflow/dsl/lifted/`, `AgreementSuite`, `CalendarSuite`, `CalendarLeanSuite` |
+| `updating`, `interleaving` | `modules/dsl/src/main/scala/frflow/dsl/lifted/steps/` |
+| A service proven among other calls | `examples/wallet/`, `WalletSuite`, `WalletLeanSuite` |
