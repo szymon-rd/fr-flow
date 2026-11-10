@@ -1,23 +1,41 @@
 package rooms
 
 import frflow.*
+import rooms.BookingsTable.storedBookings
 
-// The table's operations, its model, and the program `book` is, over the words of `Domain.scala`; the nodes that
-// name them are in `Rooms.scala`.
+/** Booking a request: its contract, what it stores and answers, and the program it is, proven against them. */
+object Book:
+  /** Booking a request: whether it was booked. */
+  val book = Definition[Booking => Flow[Boolean]]("booking a request: whether it was booked")
 
-/** The table's two operations: a room's bookings as it gives them, and a booking added. */
-val inRoom = Definition[String => Flow[RoomBookings]]("a room's bookings, as the SQLite table gives them")
-val add = Definition[Booking => Flow[Unit]]("a booking added to the SQLite table")
+  val bookedAfterIsStored =
+    Node.claim("What is booked once a request is handled is what the table holds after booking it.")(
+      forall((request: Term[Booking]) =>
+        Rooms.bookedAfter(request).current === storedBookings.in(book(request).after)))
+    .refines(Rooms.bookWhenFree)
 
-/** The bookings stored, as the proofs see them: every booking, oldest first. */
-object storedBookings extends StateModel[List[Booking]]("every booking stored, oldest first"):
-  inRoom.means(room => state.get.map(stored => make[RoomBookings](room, stored.filter(b => b.room === room))))
-  add.means(booking => state.update(stored => stored :+ booking))
+  val acceptedIsAnswered = Node.claim("A request is accepted exactly when booking it answers booked.")(
+    forall((request: Term[Booking]) => Rooms.accepted(request).current === book(request).result))
+    .refines(Rooms.acceptWhenFree)
 
-/** The program `book` is: the room's bookings read, the request added when granted, in one transaction. */
-val bookIfGranted = program { (request: Term[Booking]) =>
-  (for
-    held  <- inRoom(request.room)
-    booked = granted(held, request)
-    _     <- Flow.when(booked)(add(request))
-  yield booked).atomically }
+  val storeWhenFree = Node.claim("Booking a request leaves the table holding what it held, with the request added " +
+      "if its room is free for its whole time.")(
+    forall((request: Term[Booking]) =>
+      storedBookings.in(book(request).after) === Booking.addedIfFree(storedBookings.current, request)))
+    .refines(Rooms.bookWhenFree)
+    .assuming(BookingsTable.oneAtATime, Booking.bookingsEndAfterStart)
+
+  val answerWhenFree = Node.claim("A request is answered booked exactly when its room is free for its whole time.")(
+    forall((request: Term[Booking]) => book(request).result === Booking.free(storedBookings.current, request)))
+    .refines(Rooms.acceptWhenFree)
+    .assuming(BookingsTable.oneAtATime, Booking.bookingsEndAfterStart)
+
+  /** The program `book` is: the room's bookings read, the request added when granted, in one transaction. Lazy,
+    * because it calls the calendar, whose contract is a part of the claims above.
+    */
+  lazy val bookIfGranted = program { (request: Term[Booking]) =>
+    (for
+      held  <- BookingsTable.inRoom(request.room)
+      booked = Calendar.granted(held, request)
+      _     <- Flow.when(booked)(BookingsTable.add(request))
+    yield booked).atomically }

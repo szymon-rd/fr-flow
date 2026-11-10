@@ -1,0 +1,14 @@
+{
+  "version": 1,
+  "deciders": [
+    {
+      "name": "jacua",
+      "key": "568d5627f843102e",
+      "publicKey": "MCowBQYDK2VwAyEAhSPmRbC4mhQ2sr5orTV8TonfSsm1bJezjz0IZqi2ZHk="
+    }
+  ],
+  "seal": {
+    "key": "568d5627f843102e",
+    "signature": "ICv7F1zz3afGlIXOtOOCFuil0hGpiUp7x4Fbt3WyOl29ZFhhrLdp6Rr6xMtYIRpGY7+WnJJGZEmsdMbwtL4AAA=="
+  }
+}

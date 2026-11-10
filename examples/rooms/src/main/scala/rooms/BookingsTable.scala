@@ -1,11 +1,12 @@
 package rooms
 
 import cats.effect.IO
+import frflow.*
 import java.sql.Connection
 import scala.util.Using
 
 /** The bookings in SQLite, a row each, read back in the order they were added: the table's operations' plain Scala,
-  * tested against `storedBookings` (`Knowledge.scala`). One connection, its calls one at a time.
+  * tested against `storedBookings`. One connection, its calls one at a time.
   */
 final class BookingsTable private (conn: Connection):
   def inRoom(room: String): IO[RoomBookings] =
@@ -28,7 +29,38 @@ final class BookingsTable private (conn: Connection):
       .map(r => Booking(r.getString(1), BigInt(r.getString(2)), BigInt(r.getString(3)))).toList)
   }
 
+/** The table's contract: its two operations, the model the proofs see them on, what the world outside does to it,
+  * and what it always holds.
+  */
 object BookingsTable:
+  /** A room's bookings, as the table gives them. */
+  val inRoom = Definition[String => Flow[RoomBookings]]("a room's bookings, as the SQLite table gives them")
+
+  /** A booking added to the table. */
+  val add = Definition[Booking => Flow[Unit]]("a booking added to the SQLite table")
+
+  /** The bookings stored, as the proofs see them: every booking, oldest first. */
+  object storedBookings extends StateModel[List[Booking]]("every booking stored, oldest first"):
+    inRoom.means(room => state.get.map(stored => make[RoomBookings](room, stored.filter(b => b.room === room))))
+    add.means(booking => state.update(stored => stored :+ booking))
+
+  val nothingElseWrites = Node.assumption("Nothing but the booking code changes the table.")(
+    storedBookings.onlyCodeChanges)
+
+  val startsEmpty = Node.assumption("The table starts empty.")(storedBookings.initially(stored => stored === Nil))
+
+  val oneAtATime = Node.assumption("Bookings are processed one at a time.")(storedBookings.atomic)
+
+  val bookedIsStored = Node.claim("What is booked is what the table holds.")(
+    Rooms.booked === storedBookings.current)
+    .refines(Rooms.bookWhenFree, Rooms.acceptWhenFree)
+
+  /** A rule below both roots: every world they are about holds it, and booking keeps it. */
+  val neverOverlap = Node.claim("The bookings stored never overlap.")(
+    always(storedBookings)(stored => stored.pairwise(Booking.apart)))
+    .refines(Rooms.bookWhenFree, Rooms.acceptWhenFree)
+    .assuming(nothingElseWrites, oneAtATime, startsEmpty, Booking.bookingsEndAfterStart)
+
   /** A table in a file, or `:memory:`: through SQLite's driver itself, not `DriverManager`, which finds drivers by
     * the calling thread's class loader.
     */
