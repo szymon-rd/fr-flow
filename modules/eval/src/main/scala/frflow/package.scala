@@ -10,8 +10,9 @@ package frflow
   * hides it, and the use does not compile (`val after = …` hides `book(request).after`). The names it takes,
   * besides its types (`Gen` and `Wall` among them: a model's own of either name hides it): the extensions `refines`,
   * `assuming`, `replaces`, `result`, `after`, `failing`, `ifSucceeds`, `ifFails`, and `always`, `forall`, `exists`,
-  * `define`, `stated`, `program`, `when`, `make`, `let`. An `Int` literal is a `Term[BigInt]` where one is expected
-  * (`given int`), and an operation applied a step where a program expects one (`Flow`'s `given asStep`).
+  * `define`, `stated`, `program`, `lifted`, `contractOf`, `when`, `make`, `let`. An `Int` literal is a
+  * `Term[BigInt]` where one is expected (`given int`), and an operation applied a step where a program expects one
+  * (`Flow`'s `given asStep`).
   */
 export frflow.dsl.node.Node
 export frflow.dsl.node.NodeSyntax.*
@@ -26,6 +27,8 @@ export frflow.dsl.vocab.DefinitionSyntax.*
 export frflow.dsl.kb.Gens
 export frflow.core.example.Gen
 export frflow.dsl.shape.Defines.*
+export frflow.dsl.lifted.{Contract, FrSpec, Lifted}
+export frflow.dsl.lifted.LiftSyntax.*
 export frflow.dsl.term.TermSyntax.*
 export frflow.dsl.kb.ValuesSyntax.*
 export frflow.dsl.vocab.Flow

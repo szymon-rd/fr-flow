@@ -1,11 +1,8 @@
 package frflow.dsl.lifted
 
-import frflow.core.name.DefName
 import frflow.core.ty.Ty
-import frflow.dsl.build.{Declarations, Fault, Source, WrittenAt}
-import frflow.dsl.node.AlwaysSyntax
-import frflow.dsl.term.{LeanType, Notes, Term, Terms, TermSyntax}
-import frflow.dsl.vocab.Definition
+import frflow.dsl.build.{Declarations, Source}
+import frflow.dsl.term.{LeanType, Term}
 import scala.annotation.implicitNotFound
 import scala.deriving.Mirror
 
@@ -13,33 +10,39 @@ import scala.deriving.Mirror
   * `LeanType`), and its contract, the rule every value of the type meets, written in Scala over the type's members
   * (`where`). Every type a value of lifted code has must have one: the standard types' are given here; a case class
   * or an enum derives its own (`derives FrSpec`), or gives it in its companion with its contract
-  * (`given FrSpec[Booking] = FrSpec.derived[Booking].where(b => b.start < b.end)`).
+  * (`given FrSpec[Booking] = FrSpec.derived[Booking].where(b => b.start < b.end)`). A node states the contract
+  * (`contractOf[Booking]`): an assumption of a type from outside, a claim of one the code makes.
   *
-  * Laws: `where` changes the contract only (`ty`, `declares` and `fields` stay the type's); a spec made by `derived`
-  * or given here has no contract.
+  * Laws: `where` and `whereStated` change the contract only (`ty`, `declares` and `fields` stay the type's); a spec
+  * made by `derived`, or given here, has no contract.
   */
 @implicitNotFound("FrFlow: ${A} is used in lifted code but has no FrSpec: add `derives FrSpec` to its declaration, " +
   "or give one in its companion (`given FrSpec[…] = FrSpec.derived[…].where(v => …)`). Scala's Int and Long have " +
   "none (they wrap around; Lean's numbers do not): use BigInt")
-final class FrSpec[A] private (of: LeanType[A], val contract: Option[Definition[A => Boolean]]) extends LeanType[A]:
+final class FrSpec[A] private (of: LeanType[A], val contract: Option[Contract[A]]) extends LeanType[A]:
   def ty: Ty = of.ty
   def declares: Declarations = of.declares
   override def fields: List[LeanType.Field[A, ?]] = of.fields
 
   /** The same type, every value of it meeting `rule`: plain Scala over the value's members, read into a term
-    * (`Reader`) and kept as the Scala it is, so the rule can be run on a value too (`contract`'s `native`).
+    * (`Reader`) and kept as the Scala it is.
     */
   inline def where(inline rule: A => Boolean): FrSpec[A] =
-    ruled(Lifted.Of1(Lifting.one[A, Boolean](FrSpec.contractName(Source.typeName[A]), WrittenAt.in(Source.here),
-      Source.of(rule))(LiftMacro.read1[A, Boolean](rule))(using this, FrSpec[Boolean]), rule))
+    ruled(Contract.Plain(LiftMacro.read1[A, Boolean](rule), rule, Source.of(rule)))
 
   /** The same, the rule written with the DSL: what plain Scala cannot say (`forall`, `exists`). */
   inline def whereStated(inline rule: Term[A] => Term[Boolean]): FrSpec[A] =
-    ruled(Lifting.stated[A](FrSpec.contractName(Source.typeName[A]), WrittenAt.in(Source.here), Source.of(rule))(rule)(
-      using this))
+    ruled(Contract.Stated(rule, Source.of(rule)))
 
-  /** Made by `where` and `whereStated` only: a spec has one contract. */
-  def ruled(rule: Definition[A => Boolean]): FrSpec[A] = new FrSpec(of, Some(rule))
+  /** What `where` and `whereStated` make: a spec has one contract, the last given. */
+  def ruled(c: Contract[A]): FrSpec[A] = new FrSpec(of, Some(c))
+
+  /** Whether `a` meets the contract, where it is plain Scala; a value of a type with none, or with one only Lean
+    * reads, meets it.
+    */
+  def holds(a: A): Boolean = contract match
+    case Some(Contract.Plain(_, native, _)) => native(a)
+    case _                                  => true
 
 object FrSpec:
   def apply[A](using s: FrSpec[A]): FrSpec[A] = s
@@ -49,18 +52,6 @@ object FrSpec:
 
   /** A case class's or an enum's, derived where it is declared (`derives FrSpec`), as its `LeanType` is. */
   inline def derived[T](using Mirror.Of[T]): FrSpec[T] = of(LeanType.derived[T])
-
-  /** `always` of a type's contract: a node's whole formula (an assumption of a type from outside, a claim of one
-    * the code makes); of a type whose spec states none, a fault on the node.
-    */
-  def contractOf[A](using s: FrSpec[A]): Term[Boolean] = s.contract.fold(
-    Term.noted(Notes.fault(Fault.NoContract(Ty.names(s.ty).headOption.fold(s.ty.toString)(_.value))))(TermSyntax.True.run))(rule =>
-    Terms.always[A]("x", AlwaysSyntax.applied(rule)))
-
-  /** The name of a type's contract, the define its rule is: `bookingContract` of `Booking`. */
-  def contractName(scalaType: String): DefName =
-    val simple = scalaType.split('.').last
-    DefName(simple.take(1).toLowerCase + simple.drop(1) + "Contract")
 
   given FrSpec[Boolean] = of(LeanType[Boolean])
   given FrSpec[BigInt] = of(LeanType[BigInt])
