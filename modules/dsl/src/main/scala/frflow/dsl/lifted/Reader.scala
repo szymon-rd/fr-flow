@@ -77,6 +77,9 @@ private[lifted] final class Reader(val q: Quotes) extends Reading, ReadValues, R
         ${ rest(env + ((v.symbol, 'y))).asExprOf[DTerm[r]] })(using ${ spec[r](rhs) }) }
     case _            => refuse(s"the value ${v.name}", v)
 
+  /** A closed expression (an example's fact) as its term. */
+  def fact(holds: Expr[Boolean])(using Quotes): Expr[DTerm[Boolean]] = readAs[Boolean](holds.asTerm)(using Env.of())
+
   /** A function's body as a function of its inputs' terms: what `lifted` gives its Definition. */
   def lambda1[A: Type, R: Type](f: Expr[A => R])(using Quotes): Expr[DTerm[A] => DTerm[R]] =
     function[A, R](f.asTerm)(using Env.of())

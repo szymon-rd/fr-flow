@@ -14,6 +14,11 @@ object LiftMacro:
   inline def read4[A, B, C, D, R](inline f: (A, B, C, D) => R): (Term[A], Term[B], Term[C], Term[D]) => Term[R] =
     ${ four[A, B, C, D, R]('f) }
 
+  /** A closed expression as its term: an example's fact written in plain Scala. */
+  inline def fact(inline holds: Boolean): Term[Boolean] = ${ closed('holds) }
+
+  def closed(holds: Expr[Boolean])(using q: Quotes): Expr[Term[Boolean]] = Reader(q).fact(holds)
+
   def one[A: Type, R: Type](f: Expr[A => R])(using q: Quotes): Expr[Term[A] => Term[R]] = Reader(q).lambda1(f)
   def two[A: Type, B: Type, R: Type](f: Expr[(A, B) => R])(using q: Quotes): Expr[(Term[A], Term[B]) => Term[R]] =
     Reader(q).lambda2(f)

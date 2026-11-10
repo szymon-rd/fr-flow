@@ -11,3 +11,6 @@ enum Shape derives FrSpec:
   case Circle(radius: BigInt)
   case Rect(width: BigInt, height: BigInt)
   case Empty
+
+/** A type with no `FrSpec`: lifted code cannot hold a value of it. */
+final case class Unspecified(x: BigInt)

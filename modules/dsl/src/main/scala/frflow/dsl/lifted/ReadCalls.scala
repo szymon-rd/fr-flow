@@ -25,10 +25,15 @@ private[lifted] trait ReadCalls extends Reading:
     case _                    => None
 
   private def unread(t: Term): String = t match
-    case Call(on, name, _) => s"`$name` of a ${on.tpe.widen.show}: the reader has no term for it"
-    case id: Ident         => s"`${id.name}`, a value from outside the function: give it as an input, or make it " +
-      "a lifted function or an `inline val`"
-    case other             => s"this expression (${other.show.take(60)})"
+    case Call(_, name, Nil) if t.symbol.isValDef || t.symbol.flags.is(Flags.Module)  => outside(name)
+    case Call(on, name, _)                                                           =>
+      s"`$name` of a ${on.tpe.widen.show}: the reader has no term for it"
+    case id: Ident                                                                   => outside(id.name)
+    case other                                                                       =>
+      s"this expression (${other.show.take(60)})"
+
+  private def outside(name: String): String = s"`$name`, a value from outside the function: give it as an input, " +
+    "or make it a lifted function or an `inline val`"
 
   private def call(c: Calling)(using Env)(using Quotes): Option[Expr[DTerm[?]]] =
     Option.when(c.name == "apply" && c.on.tpe <:< TypeRepr.of[Lifted[?]]) {
