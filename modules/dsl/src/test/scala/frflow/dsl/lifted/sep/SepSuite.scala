@@ -50,6 +50,19 @@ import scala.annotation.experimental
     assertEquals(SepA.reserveBoth(Slot("Oak", 9, 10), Slot("Oak", 10, 11)).size, 2)
   }
 
+  test("a service over two ports reads over a state with a field for each: a call changes its port's part") {
+    val read = lambda(SepB.move)
+    assertEquals(read.params.map(_.hint), List("rooms", "s"))
+    assertEquals(read.result, Ty.TupleOf(List(Ty.Bool, Ty.Data(frflow.core.name.TypeName("Rooms")))))
+    val oak = Slot("Oak", 9, 10)
+    assertEquals(SepB.move(SepA.Rooms(List(oak), Nil), oak), (true, SepA.Rooms(Nil, List(oak))))
+    assertEquals(SepB.move(SepA.Rooms(Nil, List(oak)), oak), (false, SepA.Rooms(Nil, List(oak))))
+  }
+
+  test("a service over several ports that names no state is refused") {
+    assert(SepB.nameless.exists(_.contains("PortState")), SepB.nameless.mkString(" | "))
+  }
+
   test("a change of a port inside a function given to an operation is not read") {
     assert(SepB.inLambda.exists(_.contains("lifted code cannot hold")), SepB.inLambda.mkString(" | "))
   }

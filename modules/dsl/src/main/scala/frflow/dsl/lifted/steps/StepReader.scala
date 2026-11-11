@@ -16,16 +16,16 @@ import scala.quoted.*
   * trace. Sound because the port is the code's alone, which Scala's separation checking checks where the code is
   * compiled, and each of the store's methods is one step of the world, which the developer assumes of the store.
   */
-private[steps] final class StepReader(val r: Reader, val others: Option[Expr[Any]], val ofStore: Boolean)
-    extends StepCalls, StepWalk:
+private[steps] final class StepReader(val r: Reader, val others: Option[Expr[Any]]) extends StepCalls, StepWalk:
   import r.q.reflect.*
 
   def updating[P: Type, S: Type, A: Type, R: Type](f: Expr[(P, A) => R])(using Quotes)
       : Expr[Lifted.Of2[S, A, (R, S)]] =
     val (p, a, code) = lambda(f)
     val steps = '{ (state: DTerm[S], x: DTerm[A]) => ${
-      run[(R, S)](code, TypeRepr.of[R], p.symbol)((v, w) => packed(v, TypeRepr.of[R], p.symbol)(using w)
-        .asExprOf[DTerm[(R, S)]])(using Walk(r.Env.of((p.symbol, 'state), (a.symbol, 'x)), 0, None, false)) } }
+      run[(R, S)](code, TypeRepr.of[R], p.symbol)((v, w) => packed(v, TypeRepr.of[R])(using w)
+        .asExprOf[DTerm[(R, S)]])(using Walk(r.Env.of((p.symbol, 'state), (a.symbol, 'x)), 0, None,
+        Ports(p.symbol, Map.empty, false))) } }
     '{ Lifted.Of2(Lifting.two[S, A, (R, S)](DefName(${ Expr(r.defining.name) }), WrittenAt.in(Source.path(
       ${ Expr(file) })), ${ written(f, List(stateName[P](p), a.name)) })($steps)(using ${ r.spec[S](p) },
       ${ r.spec[A](a) }, ${ r.spec[(R, S)](code) }), (before: S, x: A) => ${ pure[P, S, A, R](f, 'before, 'x) }) }
@@ -38,7 +38,8 @@ private[steps] final class StepReader(val r: Reader, val others: Option[Expr[Any
         ${ r.spec[(S, S)](p) }) }))
       run[(R, List[(S, S)])](code, TypeRepr.of[R], p.symbol)((v, w) => '{ LiftOps.pair[R, List[(S, S)]](
         ${ v.asExprOf[DTerm[R]] }, ${ w.env(trace).asExprOf[DTerm[List[(S, S)]]] })(using
-        ${ r.spec[(R, List[(S, S)])](code) }) })(using Walk(start, 0, Some(('between, 'x)), false)) } }
+        ${ r.spec[(R, List[(S, S)])](code) }) })(using Walk(start, 0, Some(('between, 'x)),
+        Ports(p.symbol, Map.empty, false))) } }
     '{ Lifting.three[S, Map[BigInt, S], A, (R, List[(S, S)])](DefName(${ Expr(r.defining.name) }),
       WrittenAt.in(Source.path(${ Expr(file) })), ${ written(f, List(stateName[P](p), "between", a.name)) })(
       $steps)(using ${ r.spec[S](p) }, ${ r.spec[Map[BigInt, S]](p) }, ${ r.spec[A](a) },
@@ -59,26 +60,43 @@ private[steps] final class StepReader(val r: Reader, val others: Option[Expr[Any
   private def written(f: Expr[Any], names: List[String])(using Quotes): Expr[AsWritten] =
     '{ AsWritten(Source.of($f).text, ${ Expr(names) }) }
 
+  /** The name the state is given: a store's `var`'s, or the state's type's of a service holding several ports. */
   private def stateName[P: Type](at: Tree): String =
     def of(port: TypeRepr): String =
-      val state = r.stateOf(port.typeSymbol, at)
-      if r.isStore(port) then state.name else of(port.memberType(state))
+      if r.isStore(port) then r.storeVar(port.typeSymbol, at).name
+      else r.held(port.typeSymbol) match
+        case List(one) => of(port.memberType(one))
+        case _         => decapitalized(r.stateType(port, at).typeSymbol.name)
     of(TypeRepr.of[P])
 
-  /** The Scala run on a port made from a state: its result, with the store's state after it. */
+  def decapitalized(name: String): String = name.take(1).toLowerCase + name.drop(1)
+
+  /** The Scala run on a port made from a state: its result, with the state the port's stores hold after it. */
   private def pure[P: Type, S: Type, A: Type, R: Type](f: Expr[(P, A) => R], before: Expr[S], a: Expr[A])(
       using Quotes): Expr[(R, S)] =
-    def made(port: TypeRepr, store: Term): Term =
-      val under = port.memberType(r.stateOf(port.typeSymbol, f.asTerm))
-      if r.isStore(port) then store
-      else Apply(Select(New(Inferred(port)), port.typeSymbol.primaryConstructor), List(made(under, store)))
-    def storeOf(port: TypeRepr): TypeRepr =
-      if r.isStore(port) then port else storeOf(port.memberType(r.stateOf(port.typeSymbol, f.asTerm)))
-    val kind = storeOf(TypeRepr.of[P])
-    val fresh = Apply(Select(New(Inferred(kind)), kind.typeSymbol.primaryConstructor), List(before.asTerm))
-    ValDef.let(Symbol.spliceOwner, "store", fresh)(store =>
-      '{ val out = $f(${ made(TypeRepr.of[P], store).asExprOf[P] }, $a)
-         (out, ${ Select(store, r.stateOf(kind.typeSymbol, f.asTerm)).asExprOf[S] }) }.asTerm).asExprOf[(R, S)]
+    over(TypeRepr.of[P], before.asTerm, f.asTerm)((port, after) =>
+      '{ val out = $f(${ port.asExprOf[P] }, $a)
+         (out, ${ after().asExprOf[S] }) }.asTerm).asExprOf[(R, S)]
+
+  private def made(of: TypeRepr, args: List[Term]): Term =
+    Apply(Select(New(Inferred(of)), of.typeSymbol.primaryConstructor), args)
+
+  /** A port made from its state, each store it holds made from its part, given to `use` with what reads the
+    * state back from the stores.
+    */
+  private def over(port: TypeRepr, state: Term, at: Term)(use: (Term, () => Term) => Term): Term =
+    if r.isStore(port) then ValDef.let(Symbol.spliceOwner, "store", made(port, List(state)))(store =>
+      use(store, () => Select(store, r.storeVar(port.typeSymbol, at))))
+    else r.held(port.typeSymbol) match
+      case List(one) => over(port.memberType(one), state, at)((inner, after) => use(made(port, List(inner)), after))
+      case several   =>
+        val whole = r.stateType(port, at)
+        val parts = several.zip(whole.typeSymbol.caseFields)
+        def each(left: List[(Symbol, Symbol)], ports: List[Term], afters: List[() => Term]): Term = left match
+          case Nil                 => use(made(port, ports), () => made(whole, afters.map(_())))
+          case (held, field) :: xs => over(port.memberType(held), Select(state, field), at)((inner, after) =>
+            each(xs, ports :+ inner, afters :+ after))
+        each(parts, Nil, Nil)
 
   /** `t` run from the state `key` is bound to: its value and where the reading is after it, given to the rest. */
   def run[Out: Type](t: Term, as: TypeRepr, key: Symbol)(rest: Rest[Out])(using walk: Walk)(using Quotes)
@@ -89,29 +107,30 @@ private[steps] final class StepReader(val r: Reader, val others: Option[Expr[Any
       named[Out](v.name, tpt.tpe.widen, x)(y => run(Block(ss, e), as, key)(rest)(using after.bound(v.symbol, y))))
     case Block((s: Term) :: ss, e)                       =>
       run(s, s.tpe.widen, key)((_, after) => run(Block(ss, e), as, key)(rest)(using after))
-    case Assign(to, value) if to.symbol == r.stateOf(portOf(key), t) => assigned(value, to, key)(rest)
+    case Assign(to, value) if r.partOf(portOf(key).typeRef, to.symbol, t).nonEmpty => assigned(value, to, key)(rest)
     case branch @ If(c, _, _) if quiet(c)                => either(branch, as, key)(rest)
-    case call if storeCall(call)                         => step(call, as, key)(rest)
-    case call if serviceCall(call)                       => called(call, key)(rest)
+    case call if storeCall(call)                         => step(call, as)(rest)
+    case call if serviceCall(call)                       => called(call)(rest)
     case other                                           => r.refuse("a use of a port here: a port is used in a " +
       "statement of its own (`val x = port.call(…)`), an `if`'s branch, or an `update` method's body", other)
 
   /** The state a `var`'s assignment leaves: the value assigned, named for what follows. */
   private def assigned[Out: Type](value: Term, to: Term, key: Symbol)(rest: Rest[Out])(using Walk)(using Quotes)
       : Expr[DTerm[Out]] = run(value, to.tpe.widen, key)((x, after) =>
-    named[Out](to.symbol.name, to.tpe.widen, x)(y => rest('{ Lift.constant[Unit](()) }, after.bound(key, y))))
+    named[Out](to.symbol.name, to.tpe.widen, x)(y => put[Out](key, y)(rest('{ Lift.constant[Unit](()) }, _))(
+      using after)))
 
   /** A conditional that changes the state: its value with what either branch leaves, named for what follows. */
   private def either[Out: Type](branch: If, as: TypeRepr, key: Symbol)(rest: Rest[Out])(using walk: Walk)(
-      using Quotes): Expr[DTerm[Out]] = packedType(as, key).asType match
+      using Quotes): Expr[DTerm[Out]] = packedType(as).asType match
     case '[j] =>
-      def side(t: Term): Expr[DTerm[j]] = run[j](t, as, key)((x, w) => packed(x, as, key)(using w)
-        .asExprOf[DTerm[j]])
+      def side(t: Term): Expr[DTerm[j]] = run[j](t, as, key)((x, w) => packed(x, as)(using w).asExprOf[DTerm[j]])
       val steps = walk.step + count(branch.thenp).max(count(branch.elsep))
       '{ Terms.let[j, Out](TermSyntax.when(${ r.readAs[Boolean](branch.cond)(using walk.env) })(
         ${ side(branch.thenp) }).otherwise(${ side(branch.elsep) }), "after", (p: DTerm[j]) =>
-        ${ val (v, carried) = unpacked('p, as, key)
-           rest(v, walk.copy(env = walk.env ++ carried, step = steps)) })(using ${ r.spec[Out](branch) }) }
+        ${ val (v, carried) = unpacked('p, as)
+           rest(v, derived(key)(using walk.copy(env = walk.env ++ carried, step = steps))) })(using
+        ${ r.spec[Out](branch) }) }
 
   def named[Out: Type](name: String, ty: TypeRepr, value: Expr[DTerm[?]])(
       rest: Expr[DTerm[?]] => Quotes ?=> Expr[DTerm[Out]])(using Quotes): Expr[DTerm[Out]] = ty.asType match
@@ -130,6 +149,4 @@ private[steps] object StepReader:
   def state[P: Type](using q: Quotes): Expr[PortState[P]] = of[P](None).state[P]
 
   /** The reader of code over the port `P`: a store's own code, or a service's. */
-  private def of[P: Type](others: Option[Expr[Any]])(using q: Quotes): StepReader =
-    val r = Reader(q)
-    StepReader(r, others, r.isStore(r.q.reflect.TypeRepr.of[P]))
+  private def of[P: Type](others: Option[Expr[Any]])(using q: Quotes): StepReader = StepReader(Reader(q), others)

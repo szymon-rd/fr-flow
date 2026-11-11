@@ -35,6 +35,27 @@ import scala.annotation.experimental
       if ok then table.add(request)
       ok
 
+  /** The state of a service holding two ports: a field for each, in order. */
+  final case class Rooms(front: List[Slot], back: List[Slot]) derives FrSpec
+
+  /** A service over two ports, each its own: its state is named in its companion. */
+  final class Halls(front: Table^, back: Table^):
+    def move(s: Slot): Boolean =
+      val there = front.inRoom(s.room).contains(s)
+      if there then
+        front.clear()
+        back.add(s)
+      there
+
+  object Halls:
+    type State = Rooms
+
+  /** A service over two ports that names no state. */
+  final class Nameless(front: Table^, back: Table^):
+    def add(s: Slot): Unit =
+      front.add(s)
+      back.add(s)
+
   /** What other calls may do to the table between two steps of one call: they only add rows. */
   val others = lifted { (request: Slot, before: List[Slot], after: List[Slot]) =>
     before.forall(s => after.contains(s)) && !after.contains(request) }

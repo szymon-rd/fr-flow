@@ -52,82 +52,108 @@ private[steps] trait StepCalls:
   /** One step: a store's method called (an `update` method's body run as one, its `this` the store), or its state
     * read; among other calls, from the state they left.
     */
-  def step[Out: Type](call: Term, as: TypeRepr, key: Symbol)(rest: Rest[Out])(using walk: Walk)(using Quotes)
-      : Expr[DTerm[Out]] = interfered[Out](key) { at =>
-    val m = call.symbol
-    if !isUpdate(m) then rest(r.read(call, as)(using at.env), at)
-    else
-      val d = r.kept(m).getOrElse(r.refuse(s"a call of `${m.name}`, whose body the compiler did not keep", call))
-      modelled[Out](call, d, key)(rest)(using at).getOrElse {
-        val given_ = d.termParamss.flatMap(_.params).zip(arguments(call, Nil)).map((p, a) =>
-          (p.symbol, r.read(a, p.tpt.tpe)(using at.env)))
-        val inside = at.copy(env = at.env ++ given_ + ((m.owner, at.env(key))), atomic = true)
-        run(d.rhs.get, d.returnTpt.tpe, m.owner)((v, after) =>
-          traced[Out](at, key, after.env(m.owner))(rest(v, _)))(using inside)
-      }
-  }
+  def step[Out: Type](call: Term, as: TypeRepr)(rest: Rest[Out])(using walk: Walk)(using Quotes)
+      : Expr[DTerm[Out]] =
+    val at = placeOf(receiver(call).getOrElse(r.refuse("a store used with no receiver", call)))
+    interfered[Out](at.key) { now =>
+      if !isUpdate(call.symbol) then rest(r.read(call, as)(using now.env), now)
+      else modelled[Out](call, at)(rest)(using now).getOrElse(inlined[Out](call, at)(rest)(using now))
+    }
 
-  /** A call of a store's method from a service's code as a call of the method's Definition, the one of its name
-    * in the store's companion (from the state and the argument, the result with the state left): the service is
-    * then proven from what the store's contracts say of it. A store's own code is its methods' bodies.
+  /** An `update` method's body, run as one step from the store's state: a reading of its own, the store its root. */
+  private def inlined[Out: Type](call: Term, at: Place)(rest: Rest[Out])(using walk: Walk)(using Quotes)
+      : Expr[DTerm[Out]] =
+    val m = call.symbol
+    val d = r.kept(m).getOrElse(r.refuse(s"a call of `${m.name}`, whose body the compiler did not keep", call))
+    val given_ = d.termParamss.flatMap(_.params).zip(arguments(call, Nil)).map((p, a) =>
+      (p.symbol, r.read(a, p.tpt.tpe)(using walk.env)))
+    val inside = Walk(walk.env ++ given_ + ((m.owner, stateIn(at))), walk.step, walk.between,
+      Ports(m.owner, Map.empty, true))
+    run(d.rhs.get, d.returnTpt.tpe, m.owner)((v, after) =>
+      traced[Out](at, after.env(m.owner))(rest(v, _)))(using inside)
+
+  /** Whether a call is read as a call of its method's Definition: of a store's method always, of a service's
+    * when the code is read alone (among other calls a service's method is its steps); and never of a method of
+    * the port the code is read of, whose code this is.
     */
-  private def modelled[Out: Type](call: Term, d: DefDef, key: Symbol)(rest: Rest[Out])(using at: Walk)(using Quotes)
+  private def known(call: Term)(using walk: Walk): Boolean =
+    val owner = call.symbol.owner
+    owner != portOf(walk.ports.root) && (r.isStore(owner.typeRef) || walk.between.isEmpty)
+
+  /** A call of a port's method as a call of the method's Definition, the one of its name in the port's companion
+    * (from the state and the argument, the result with the state left): the code is then proven from what the
+    * port's contracts say of the method, not from the method's body.
+    */
+  def modelled[Out: Type](call: Term, at: Place)(rest: Rest[Out])(using walk: Walk)(using Quotes)
       : Option[Expr[DTerm[Out]]] =
     val model = call.symbol.owner.companionModule.declaredField(call.symbol.name)
-    (d.termParamss.flatMap(_.params), arguments(call, Nil)) match
-      case (List(p), List(arg)) if !model.isNoSymbol && !ofStore =>
-        (stateOf(key).asType, p.tpt.tpe.asType, d.returnTpt.tpe.asType) match
+    val params = r.kept(call.symbol).toList.flatMap(_.termParamss.flatMap(_.params))
+    (params, arguments(call, Nil)) match
+      case (List(p), List(arg)) if !model.isNoSymbol && known(call) =>
+        val result = r.kept(call.symbol).get.returnTpt.tpe
+        (stateAt(at).asType, p.tpt.tpe.asType, result.asType) match
           case ('[s], '[a], '[v]) if model.termRef.widen <:< TypeRepr.of[Defined[(s, a) => (v, s)]] =>
             val site = Literal(UnitConstant())
             Some('{ Terms.let[(v, s), Out](Defined.apply[s, a, (v, s)](${ Ref(model).asExprOf[Defined[(s, a) =>
-              (v, s)]] })(${ at.env(key).asExprOf[DTerm[s]] }, ${ r.readAs[a](arg)(using at.env) })(using
+              (v, s)]] })(${ stateIn(at).asExprOf[DTerm[s]] }, ${ r.readAs[a](arg)(using walk.env) })(using
               ${ r.spec[s](site) }, ${ r.spec[a](site) }, ${ r.spec[(v, s)](site) }), "did", (did: DTerm[(v, s)]) =>
-              ${ traced[Out](at, key, '{ TermSyntax._2[v, s](did)(using ${ r.spec[s](site) }) })(
+              ${ traced[Out](at, '{ TermSyntax._2[v, s](did)(using ${ r.spec[s](site) }) })(
                 rest('{ TermSyntax._1[v, s](did)(using ${ r.spec[v](site) }) }, _)) })(using ${ r.spec[Out](site) }) })
           case _ => None
       case _ => None
 
-  /** Where the reading is once a step left the state `left`: the state bound, and, among other calls, the step
-    * (the state it started from, the state it left) added to the trace.
+  /** Where the reading is once a step left the state `left` at a place: the states it is part of made again, and,
+    * among other calls, the step (the whole state it started from, the whole state it left) added to the trace.
     */
-  private def traced[Out: Type](at: Walk, key: Symbol, left: Expr[DTerm[?]])(rest: Walk => Quotes ?=> Expr[DTerm[Out]])(
-      using Quotes): Expr[DTerm[Out]] = stateOf(key).asType match
-    case '[s] if at.interleaved => named[Out]("trace", TypeRepr.of[List[(s, s)]], '{ TermSyntax.:+[(s, s)](
-      ${ at.env(trace).asExprOf[DTerm[List[(s, s)]]] })(LiftOps.pair[s, s](${ at.env(key).asExprOf[DTerm[s]] },
-      ${ left.asExprOf[DTerm[s]] })(using ${ r.spec[(s, s)](Literal(UnitConstant())) })) })(t =>
-      rest(at.bound(key, left).bound(trace, t)))
-    case _                      => rest(at.bound(key, left))
+  private def traced[Out: Type](at: Place, left: Expr[DTerm[?]])(rest: Walk => Quotes ?=> Expr[DTerm[Out]])(
+      using walk: Walk)(using Quotes): Expr[DTerm[Out]] =
+    val before = walk.whole
+    putAt[Out](at, left) { after =>
+      stateOf(walk.ports.root).asType match
+        case '[s] if walk.interleaved => named[Out]("trace", TypeRepr.of[List[(s, s)]], '{ TermSyntax.:+[(s, s)](
+          ${ walk.env(trace).asExprOf[DTerm[List[(s, s)]]] })(LiftOps.pair[s, s](${ before.asExprOf[DTerm[s]] },
+          ${ after.whole.asExprOf[DTerm[s]] })(using ${ r.spec[(s, s)](Literal(UnitConstant())) })) })(t =>
+          rest(after.bound(trace, t)))
+        case _                        => rest(after)
+    }
 
-  /** The state a step starts from: among other calls, and after the call's first step, what they left. */
+  /** The state a step starts from: among other calls, and after the call's first step, what they left of the
+    * whole state, with the state at `key` and those above it read from that.
+    */
   private def interfered[Out: Type](key: Symbol)(body: Walk => Quotes ?=> Expr[DTerm[Out]])(using walk: Walk)(
       using Quotes): Expr[DTerm[Out]] =
     val next = walk.copy(step = walk.step + 1)
-    (walk.between, others, stateOf(key).asType) match
+    (walk.between, others, stateOf(walk.ports.root).asType) match
       case (Some((between, input)), Some(rely), '[s]) if walk.interleaved && walk.step >= 1 => input match
         case '{ $x: DTerm[a] } =>
           val site = Literal(UnitConstant())
-          val before = walk.env(key).asExprOf[DTerm[s]]
+          val before = walk.whole.asExprOf[DTerm[s]]
           '{ Terms.let[s, Out](Among.admitted[a, s]($before, Among.left[s]($before,
             ${ between.asExprOf[DTerm[Map[BigInt, s]]] }, BigInt(${ Expr(next.step) })))(
             ${ rely.asExprOf[Defined[(a, s, s) => Boolean]] }, $x)(using ${ r.spec[a](site) }, ${ r.spec[s](site) }),
-            "now", (now: DTerm[s]) => ${ body(next.bound(key, 'now)) })(using ${ r.spec[Out](site) }) }
+            "now", (now: DTerm[s]) => ${ body(derived(key)(using next.bound(next.ports.root, 'now))) })(using
+            ${ r.spec[Out](site) }) }
       case _                                                                                => body(next)
 
-  /** A call of a method of the developer's that uses a port: its body run where it is called, the port the
-    * parameter it is given to, or the method's `this`.
+  /** A call of a method of the developer's that uses a port: a call of its Definition when it has one (`modelled`),
+    * else its body run where it is called, the port its `this` or the parameter it is given to.
     */
-  def called[Out: Type](call: Term, key: Symbol)(rest: Rest[Out])(using walk: Walk)(using Quotes)
-      : Expr[DTerm[Out]] =
+  def called[Out: Type](call: Term)(rest: Rest[Out])(using walk: Walk)(using Quotes): Expr[DTerm[Out]] =
     val m = call.symbol
     if walk.env.reading(m) then r.refuse(s"`${m.name}` calling itself: recursion is not read yet", call)
     val d = r.kept(m).getOrElse(r.refuse(s"a call of `${m.name}`, whose body the compiler did not keep", call))
     val given_ = d.termParamss.flatMap(_.params).zip(arguments(call, Nil))
-    val port = given_.collectFirst { case (p, _) if r.isPort(p.tpt.tpe) => p.symbol }.getOrElse(m.owner)
-    val self = receiver(call).filter(_ => port == m.owner).map(on => (m.owner, r.read(on, on.tpe.widen)(
-      using walk.env))).toList
-    val from = walk.env.entering(m) ++ given_.map((p, a) => (p.symbol, r.read(a, p.tpt.tpe)(using walk.env))) ++ self
-    run(d.rhs.get, d.returnTpt.tpe, port)((v, after) => rest(v, after.copy(env = walk.env ++ carried(port)(
-      using after).map((k, term) => (if k == port then key else k, term)))))(using walk.copy(env = from))
+    val (key, at) = given_.collectFirst { case (p, a) if r.isPort(p.tpt.tpe) => (p.symbol, placeOf(a)) }
+      .getOrElse((m.owner, receiver(call).fold(Place(m.owner, Nil))(placeOf)))
+    def body(using Quotes): Expr[DTerm[Out]] =
+      val up = if at == Place(key, Nil) then walk.ports.up else walk.ports.up + ((key, at))
+      val from = walk.env.entering(m) ++ given_.map((p, a) => (p.symbol, r.read(a, p.tpt.tpe)(using walk.env))) +
+        ((key, stateIn(at)))
+      run(d.rhs.get, d.returnTpt.tpe, key)((v, after) => rest(v, walk.copy(env = walk.env ++ walk.ports.chain(
+        at.key).map(k => (k, after.env(k))) ++ after.env.bound.get(trace).map((trace, _)).toList, step = after.step)))(
+        using walk.copy(env = from, ports = walk.ports.copy(up = up)))
+    Option.when(key == m.owner && !r.isStore(m.owner.typeRef))(at).flatMap(modelled[Out](call, _)(rest))
+      .getOrElse(body)
 
   /** What a method is called on, if anything. */
   def receiver(t: Term): Option[Term] = r.bare(t) match

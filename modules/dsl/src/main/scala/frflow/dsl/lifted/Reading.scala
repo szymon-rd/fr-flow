@@ -104,30 +104,51 @@ private[lifted] trait Reading:
   /** A store: a class of Scala's `caps.Mutable`, whose state (its one `var`) its `update` methods change. */
   def isStore(t: TypeRepr): Boolean = t.baseClasses.exists(_.fullName == "scala.caps.Mutable")
 
-  /** A port: a store, or a service, a class of the developer's that holds one port. In the Scala that changes one
-    * (`steps.StepReader`) a port's variable stands for the state of the store it is or holds.
+  /** A port: a store, or a service, a class of the developer's that holds ports. In the Scala that changes one
+    * (`steps.StepReader`) a port's variable stands for its state: the store's, or the states of the ports held.
     */
-  def isPort(t: TypeRepr): Boolean = isStore(t) || held(t.typeSymbol).size == 1
+  def isPort(t: TypeRepr): Boolean = isStore(t) || held(t.typeSymbol).nonEmpty
 
-  /** The fields of a class of the developer's that are ports; none of a case class, which is data. */
-  private def held(c: Symbol): List[Symbol] =
+  /** The fields of a class of the developer's that are ports, in order; none of a case class, which is data. */
+  def held(c: Symbol): List[Symbol] =
     if !c.isClassDef || c.flags.is(Flags.Case) || List("scala.", "java.").exists(c.fullName.startsWith) then Nil
     else c.declaredFields.filter(f => isPort(c.typeRef.memberType(f)))
 
-  /** Where a port's state is: a store's one `var`, a service's one port; or the compile error of a port with none
-    * or several.
-    */
-  def stateOf(port: Symbol, at: Tree): Symbol =
-    val found = if isStore(port.typeRef) then port.declaredFields.filter(_.flags.is(Flags.Mutable)) else held(port)
-    found match
-      case List(state) => state
-      case _           => refuse(s"the port ${port.name}, whose state is not one `var` or one port it holds " +
-        s"(it has ${found.size})", at)
+  /** A store's one `var`, where its state is; or the compile error of a store with none or several. */
+  def storeVar(store: Symbol, at: Tree): Symbol = store.declaredFields.filter(_.flags.is(Flags.Mutable)) match
+    case List(state) => state
+    case found       => refuse(s"the store ${store.name}, whose state is not one `var` (it has ${found.size})", at)
 
-  /** The type of a port's state: of the store it is or holds. */
+  /** Where, in the state of the port `on`, the state its member `f` names is: the whole of it (`Some(None)`: a
+    * store's `var`, the one port a service holds), a field of it (`Some(Some(name))`: one of several ports held);
+    * `None` of a member that is no part of the state.
+    */
+  def partOf(on: TypeRepr, f: Symbol, at: Tree): Option[Option[String]] =
+    if isStore(on) then Option.when(storeVar(on.typeSymbol, at) == f)(None)
+    else held(on.typeSymbol) match
+      case List(one) => Option.when(one == f)(None)
+      case several   => Option(several.indexOf(f)).filter(_ >= 0).map(i => Some(fieldsOf(stateType(on, at))(i)._1))
+
+  /** The type of a port's state: a store's `var`'s; of a service holding one port, that port's; of a service
+    * holding several, the case class its companion names (`type State = …`), one field per port in order.
+    */
   def stateType(port: TypeRepr, at: Tree): TypeRepr =
-    val inner = port.memberType(stateOf(port.typeSymbol, at))
-    if isStore(port) then inner else stateType(inner, at)
+    if isStore(port) then port.memberType(storeVar(port.typeSymbol, at))
+    else held(port.typeSymbol) match
+      case List(one) => stateType(port.memberType(one), at)
+      case several   => namedState(port, several.map(f => stateType(port.memberType(f), at)), at)
+
+  private def namedState(port: TypeRepr, parts: List[TypeRepr], at: Tree): TypeRepr =
+    val c = port.typeSymbol
+    val alias = c.companionModule.moduleClass.typeMember("State")
+    if alias.isNoSymbol then refuse(s"the service ${c.name}, which holds ${parts.size} ports and names no state: " +
+      "say `type State = …` in its companion, a case class with one field per port, in order", at)
+    val state = c.companionModule.termRef.select(alias).dealias
+    val fields = fieldsOf(state).map(_._2)
+    if fields.size != parts.size || !fields.zip(parts).forall(_ =:= _) then refuse(s"the service ${c.name}, whose " +
+      s"state ${state.show} is not a case class of its ports' states in order (${parts.map(_.show).mkString(", ")})",
+      at)
+    state
 
   /** A case class's fields, by name and type, in order. */
   def fieldsOf(t: TypeRepr): List[(String, TypeRepr)] = t.typeSymbol.caseFields.map(f => f.name -> t.memberType(f))

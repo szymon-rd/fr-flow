@@ -47,7 +47,7 @@ def module(name: String, libraries: ModuleID*) = Project(name, file(s"modules/$n
 
 lazy val root = project.in(file("."))
   .aggregate(core, dsl, proof, eval, testing, decision, wire, shell, api, cli, web, agent,
-    roomsModel, rooms, authModel, auth, keycloakModel, keycloak, crmModel, crm, walletModel, wallet)
+    roomsModel, rooms, authModel, auth, keycloakModel, keycloak, crmModel, crm, walletModel, wallet, shopModel, shop)
   .configs(LeanTest).settings(leanTagged)
   .settings(publish / skip := true)
 
@@ -80,7 +80,8 @@ lazy val testing = module("testing", cats, catsEffect, roomsTable, "org.scala-sb
   .settings(libraryDependencies ++= lawTests :+ "org.typelevel" %% "cats-laws" % "2.13.0" % Test,
     testFrameworks += TestFramework("frflow.testing.examples.ExamplesFramework"))
   .dependsOn(eval % "compile->compile;test->test", roomsModel % "test->test", authModel % "test->test",
-    keycloakModel % "test->test", crmModel % "test->test", walletModel % "test->test")
+    keycloakModel % "test->test", crmModel % "test->test", walletModel % "test->test",
+    shopModel % "test->test")
   // Its tests hold a model whose service changes a port (`frflow.eval.Desk`), read through its methods' bodies:
   // the compiler keeps them.
   .settings(Test / scalacOptions += "-Yretain-trees")
@@ -213,3 +214,9 @@ lazy val crm = exampleApp("crm", crmModel)
 val readServices = Seq(scalacOptions ++= Seq("-Yretain-trees", "-experimental"))
 lazy val walletModel = exampleModel("wallet").settings(readServices)
 lazy val wallet = exampleApp("wallet", walletModel, layers = Nil).settings(readServices)
+
+/** A shop: a checkout placing orders across an inventory service, a payments service and its own journal, each
+  * over a store of its own. Read as the wallet's services are; the checkout is proven from its services' contracts.
+  */
+lazy val shopModel = exampleModel("shop").settings(readServices)
+lazy val shop = exampleApp("shop", shopModel, layers = Nil).settings(readServices)

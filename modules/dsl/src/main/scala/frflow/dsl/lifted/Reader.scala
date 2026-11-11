@@ -1,6 +1,6 @@
 package frflow.dsl.lifted
 
-import frflow.dsl.term.{Lift, Terms, TermSyntax}
+import frflow.dsl.term.{DataMacros, Lift, Terms, TermSyntax}
 import frflow.dsl.term.Term as DTerm
 import scala.quoted.*
 
@@ -29,8 +29,19 @@ private[lifted] final class Reader(val q: Quotes) extends Reading, ReadValues, R
     case id: Ident if env.contains(id.symbol)            => env(id.symbol)
     case id: Ident if ownMember(id)                      => read(Select(This(id.symbol.owner), id.symbol), as)
     case self: This if env.contains(self.tpe.typeSymbol) => env(self.tpe.typeSymbol)
-    case Select(on, _) if isPort(on.tpe) && t.symbol == stateOf(on.tpe.typeSymbol, t) => read(on, on.tpe.widen)
+    case Select(on, _) if isPort(on.tpe) && partOf(on.tpe, t.symbol, t).nonEmpty => memberState(on, t)
     case _                                               => applied(t, as), as, t)
+
+  /** The state of what a port's member names: the port's own state, or the field of it the member's is. */
+  private def memberState(on: Term, member: Term)(using Env)(using Quotes): Expr[DTerm[?]] =
+    partOf(on.tpe, member.symbol, member).flatten.fold(read(on, on.tpe.widen)) { name =>
+      val whole = stateType(on.tpe, member)
+      val (field, i) = fieldsOf(whole).zipWithIndex.find(_._1._1 == name).get
+      (whole.asType, field._2.asType) match
+        case ('[s], '[f]) => '{ DTerm.select(${ read(on, on.tpe.widen).asExprOf[DTerm[s]] },
+          ${ DataMacros.typedField[s, f](name, i) }) }
+        case _            => refuse(s"the port ${member.symbol.name}", member)
+    }
 
   /** A member named without `this.` in a method's body being read (`start` in `Booking`'s `span`). */
   private def ownMember(id: Ident)(using env: Env): Boolean =
