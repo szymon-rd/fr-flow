@@ -47,7 +47,8 @@ def module(name: String, libraries: ModuleID*) = Project(name, file(s"modules/$n
 
 lazy val root = project.in(file("."))
   .aggregate(core, dsl, proof, eval, testing, decision, wire, shell, api, cli, web, agent,
-    roomsModel, rooms, authModel, auth, keycloakModel, keycloak, crmModel, crm, walletModel, wallet, shopModel, shop)
+    roomsModel, rooms, authModel, auth, keycloakModel, keycloak, crmModel, crm, walletModel, wallet, shopModel, shop,
+    paymentsModel, payments)
   .configs(LeanTest).settings(leanTagged)
   .settings(publish / skip := true)
 
@@ -81,7 +82,7 @@ lazy val testing = module("testing", cats, catsEffect, roomsTable, "org.scala-sb
     testFrameworks += TestFramework("frflow.testing.examples.ExamplesFramework"))
   .dependsOn(eval % "compile->compile;test->test", roomsModel % "test->test", authModel % "test->test",
     keycloakModel % "test->test", crmModel % "test->test", walletModel % "test->test",
-    shopModel % "test->test")
+    shopModel % "test->test", paymentsModel % "test->test")
   // Its tests hold a model whose service changes a port (`frflow.eval.Desk`), read through its methods' bodies:
   // the compiler keeps them.
   .settings(Test / scalacOptions += "-Yretain-trees")
@@ -220,3 +221,10 @@ lazy val wallet = exampleApp("wallet", walletModel, layers = Nil).settings(readS
   */
 lazy val shopModel = exampleModel("shop").settings(readServices)
 lazy val shop = exampleApp("shop", shopModel, layers = Nil).settings(readServices)
+
+/** A payment stream: a processor handling card payments from a log, across a limits service, an accounts service
+  * and a checkpoint. Proven to apply each payment once through redelivery, a crash at any step, and two instances
+  * at once.
+  */
+lazy val paymentsModel = exampleModel("payments").settings(readServices)
+lazy val payments = exampleApp("payments", paymentsModel, layers = Nil).settings(readServices)
