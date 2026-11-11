@@ -77,8 +77,8 @@ gives the state either branch leaves. Nothing of FrFlow's `Flow`, `Prog` or `Sta
 
 ## What the spike does not cover
 
-- One port, whose state is one `var` given to its constructor, and one input. No second port, no port given on to
-  other code: the cases where exclusivity is needed for the reading to be right. With one port the reader's own limits already rule aliasing out, so the spike shows the checker beside
+- One port, whose state is one `var` given to its constructor, and one input. No second port (see "Since the
+  spike"), no port given on to other code: the cases where exclusivity is needed for the reading to be right. With one port the reader's own limits already rule aliasing out, so the spike shows the checker beside
   the reader, not yet a reading that depends on it.
 - A port that is its own model. A port with an adapter (SQL behind a trait) needs its model given apart, and the
   adapter tested against it, as `implementTested` does for a store's operations.
@@ -102,7 +102,14 @@ holding a store in a field. A service's call of a store's method is read as a ca
 in the store's companion, so the service is proven from the store's contracts. And `interleaving` reads a method
 among other calls: before each step after the first, a schedule may replace the store's state with one a rely
 admits, and the reading gives every step taken; contracts proven for every schedule rule out the check-then-act
-race the example's second service has. Still not covered: two stores, an adapter, loops, failure.
+race the example's second service has.
+
+[The payment stream](../examples/payments/README.md) and [the shop](../examples/shop/README.md) take the step this
+spike named next: a service holding several ports. Its state is a case class its companion names (`type State`),
+one field per port, and a call on a port leaves the state with that field replaced; that two ports are two
+stores, never one reached twice, is what separation checking says of the class. Read alone, a call of another
+service is a call of its Definition, so a processor over three services is proven from their contracts. Still
+not covered: an adapter, loops, failure.
 
 Where it is: `modules/dsl/src/main/scala/frflow/dsl/lifted/steps/`, the suites `dsl`'s `lifted.sep.SepSuite`,
-`frflow.eval.DeskSuite` and `frflow.project.DeskLeanSuite`, and the model `frflow.eval.Desk`.
+`frflow.eval.DeskSuite` and `frflow.project.services.DeskLeanSuite`, and the model `frflow.eval.Desk`.

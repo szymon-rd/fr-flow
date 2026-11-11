@@ -193,8 +193,10 @@ its term on generated cases, and `testing.Vectors` gives Lean what the Scala gav
 does not run them yet. [LIFTED.md](LIFTED.md) says what is read, and what holds the Scala, the term and the Lean to
 one meaning. A service method that changes a store (a `caps.Mutable` class, under capture and separation checking)
 is read by `updating { (service: S^, input: A) => service.method(input) }`, a function of the store's state, and by
-`interleaving { … }(others)`, the same among other calls that keep the rely `others`
-([the wallet example](../examples/wallet/README.md)).
+`interleaving { … }(others)`, the same among other calls that keep the rely `others`. A service may hold several
+stores or services; its companion then names its state (`type State = …`), and its calls of other services are
+read as calls of their Definitions ([the payment stream](../examples/payments/README.md),
+[the wallet](../examples/wallet/README.md)).
 
 **An operation on a state** is a Definition of type `A => Flow[R]`, given its meaning in Lean by a `StateModel`, which
 says what it does to the model's state, a field of the World:

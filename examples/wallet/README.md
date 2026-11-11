@@ -108,7 +108,7 @@ sbt "testing/testOnly frflow.eval.WalletSuite"
 ```
 
 ```bash
-sbt "project/Lean/testOnly frflow.project.WalletLeanSuite"
+sbt "project/Lean/testOnly frflow.project.services.WalletLeanSuite"
 ```
 
 ```bash

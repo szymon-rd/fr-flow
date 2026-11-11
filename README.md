@@ -36,7 +36,8 @@ follows the method of stepwise refinement (Wirth, 1971) and the refinement calcu
    - As plain Scala that FrFlow reads (`lifted { … }`): at compile time the function is read into the same model the
      DSL builds, so Lean proves it, and it stays the Scala the JVM runs ([docs/LIFTED.md](docs/LIFTED.md)). A
      service method that changes a store is read the same way, alone and among other calls
-     ([examples/wallet](examples/wallet/README.md): a transfer service proven against retries and races).
+     ([examples/payments](examples/payments/README.md): a stream processor proven to apply each payment once,
+     through redelivery, a crash at any step and a second instance).
 
 The logical model sits alongside the code that performs the given functions, and acts as its contract: an interface
 the code conforms to, albeit stricter and more powerful than has been usual for software.
@@ -473,6 +474,8 @@ yet: each starts with no ledger, for its developer to decide. FrFlow's own suite
 - [docs/DAG.md](docs/DAG.md) describes the design of the refinement graph.
 - [docs/LIFTED.md](docs/LIFTED.md) describes plain Scala read into the model (`lifted`, `FrSpec`): what is read, how
   the Scala, the term and the Lean are held to one meaning, and what is not built yet.
-- [examples/wallet/README.md](examples/wallet/README.md) is a service-level example: a wallet's transfer service
-  in direct-style Scala, its contracts in the companions, proven alone and among other calls.
+- Service-level examples, in direct-style Scala with each class's contracts in its companion, proven alone and
+  among other calls: [examples/payments](examples/payments/README.md) (a payment stream processor over three
+  services), [examples/wallet](examples/wallet/README.md) (one transfer service, the smallest) and
+  [examples/shop](examples/shop/README.md) (a checkout over two services and a store).
 - [docs/redesign/](docs/redesign/ARCHITECTURE.md) is the design record of the library as it was rebuilt.
