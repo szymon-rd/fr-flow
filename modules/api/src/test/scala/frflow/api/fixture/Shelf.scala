@@ -7,13 +7,13 @@ import frflow.api.*
   * same with the claim's formula changed (its meaning moves; its part's does not).
   */
 object Shelf:
-  val d = Definition[BigInt => BigInt]("a number the service gives for another")
+  val d = Declaration[BigInt => BigInt]("a number the service gives for another")
 
   object Before:
     val nonNegative = Node.claim("The service never gives a negative number.")(forall((n: Term[BigInt]) => d(n) >= 0))
     val sameAbove = Node.claim("Above zero, the service gives the number itself.")(
       forall((n: Term[BigInt]) => (n > 0) implies (d(n) === n))).refines(nonNegative)
-    val kb = FrModel("Shelf")(nonNegative, sameAbove).implementTested(d)(_ => n => n.abs)
+    val kb = FrModel("Shelf")(nonNegative, sameAbove).defining(d.defineTested(_ => n => n.abs))
 
   /** An example of the service, checked against its claims and its code. */
   class BeforeExamples extends FrFlowExamples(Before.kb):
@@ -26,7 +26,7 @@ object Shelf:
     val sameAbove = Node.claim("Above zero, the service gives the number itself.")(
       forall((n: Term[BigInt]) => (n > 0) implies (d(n) === n))).refines(nonNegative)
     val inShelf = Node.design("The service's code is the shelf package.")("src/main/shelf").refines(sameAbove)
-    val kb = FrModel("Governed")(nonNegative, sameAbove, inShelf).implementTested(d)(_ => n => n.abs)
+    val kb = FrModel("Governed")(nonNegative, sameAbove, inShelf).defining(d.defineTested(_ => n => n.abs))
 
   val outside = Declaration[BigInt => BigInt]("a number an outside service gives for another")
 
@@ -54,17 +54,18 @@ object Shelf:
 
   /** `Before` with code that gives a negative number: the same nodes, its claim broken by a generated case. */
   object Careless:
-    val kb = FrModel("Shelf")(Before.nonNegative, Before.sameAbove).implementTested(d)(_ => n => -n.abs - 1)
+    val kb = FrModel("Shelf")(Before.nonNegative, Before.sameAbove).defining(d.defineTested(_ => n => -n.abs - 1))
 
   /** `Before` with a part added under the claim: its parts moved, its meaning did not (deciding it again is
     * mechanical once Lean proves its parts make it).
     */
   object Grown:
     val zeroGivesZero = Node.claim("At zero, the service gives zero.")(d(0) === 0).refines(Before.nonNegative)
-    val kb = FrModel("Shelf")(Before.nonNegative, Before.sameAbove, zeroGivesZero).implementTested(d)(_ => n => n.abs)
+    val kb = FrModel("Shelf")(Before.nonNegative, Before.sameAbove, zeroGivesZero)
+      .defining(d.defineTested(_ => n => n.abs))
 
   object After:
     val nonNegative = Node.claim("The service never gives a negative number.")(forall((n: Term[BigInt]) => d(n) > -1))
     val sameAbove = Node.claim("Above zero, the service gives the number itself.")(
       forall((n: Term[BigInt]) => (n > 0) implies (d(n) === n))).refines(nonNegative)
-    val kb = FrModel("Shelf")(nonNegative, sameAbove).implementTested(d)(_ => n => n.abs)
+    val kb = FrModel("Shelf")(nonNegative, sameAbove).defining(d.defineTested(_ => n => n.abs))

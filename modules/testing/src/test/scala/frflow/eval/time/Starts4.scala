@@ -8,12 +8,12 @@ import frflow.*
   * (`Kept(yZero)`).
   */
 object Starts4:
-  val setY = Definition[BigInt => Flow[Unit]]("y set")
+  val setY = Declaration[BigInt => Flow[Unit]]("y set")
 
   object ys extends StateModel[BigInt]("y"):
     setY.means(t => state.set(t))
 
-  val zeroY = Definition[Flow[Unit]]("y put to zero")
+  val zeroY = Declaration[Flow[Unit]]("y put to zero")
   val zeroYCode = program { Flow.step(setY(0)) }
 
   val yKept = Node.assumption("Only the code changes y.")(ys.onlyCodeChanges)
@@ -26,5 +26,6 @@ object Starts4:
   val zeroes = Node.claim("Zeroing puts y to zero.")(ys.in(zeroY.after) === 0).assuming(yOne)
 
   val model: FrModel = FrModel("Starts4")(yZero, yIsZero, yKept, yOne, yStarts)
-    .implementProven(zeroY)(zeroYCode)
-    .implementTested(setY)(start = (n: BigInt) => IO.ref(n), observe = _.get)(r => Tuple1((t: BigInt) => r.set(t)))
+    .defining(zeroY.define(zeroYCode))
+    .defining(defineOperations(setY)(start = (n: BigInt) => IO.ref(n), observe = _.get)(
+      r => Tuple1((t: BigInt) => r.set(t))))

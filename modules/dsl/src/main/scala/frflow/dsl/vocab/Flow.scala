@@ -5,6 +5,7 @@ import frflow.dsl.term.{LeanType, Lift, Term}
 import frflow.dsl.run.Recorded
 import frflow.dsl.term.TermSyntax.*
 import frflow.dsl.vocab.Definition
+import scala.util.NotGiven
 
 /** A program (owner §42): what may read or change state, written as a `for` comprehension over its steps, its values
   * `Term`s as everywhere in a model. An operation on a state applied (`inRoom(request.room)`, a `Term[Flow[R]]`) is a
@@ -59,6 +60,15 @@ object Flow:
   extension [R](op: Term[Flow[R]])(using LeanType[R])
     def flatMap[B](f: Term[R] => Flow[B]): Flow[B] = step(op).flatMap(f)
     def map[B](f: Term[R] => Term[B]): Flow[B] = step(op).map(f)
+
+  /** The same of an operation's word of no input (`load`), where code names it: one that is no term already (a
+    * Definition is one, and is read as above).
+    */
+  given wordAsStep[R, D <: Declaration[Flow[R]]](using NotGiven[D <:< Term[?]], LeanType[R]): Conversion[D, Flow[R]] =
+    d => step(d.word)
+  extension [R, D <: Declaration[Flow[R]]](op: D)(using NotGiven[D <:< Term[?]], LeanType[R])
+    def flatMap[B](f: Term[R] => Flow[B]): Flow[B] = step(op.word).flatMap(f)
+    def map[B](f: Term[R] => Term[B]): Flow[B] = step(op.word).map(f)
 
   /** One of two programs by a condition at hand. */
   def cond[A](c: Term[Boolean])(ifTrue: => Flow[A], ifFalse: => Flow[A]): Flow[A] =

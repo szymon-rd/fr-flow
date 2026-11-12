@@ -30,9 +30,12 @@ and in them.
    states. A second departure on that branch: a method that changes a store is read as a function of the store's
    state (`updating`), and among other calls as a function of a schedule too (`interleaving`); both are lifted
    code, and what the reading takes for granted (a store's method is one step, other calls keep a rely) is said by
-   design nodes. A service whole is a Definition too: of a trait's type, its members called in claims, the class
-   that implements the trait the value `implementProven` gives it; a claim on it is said of the service in every
-   state.
+   design nodes. A service whole is a word too: a Declaration of a trait's type, its members called in claims, the
+   class that implements the trait its Definition; a claim on it is said of the service in every state. A third:
+   the two kinds of value are one. Every word is a Declaration, and a Definition is a Declaration with a meaning
+   (`granted.define { … }`, listed in the FrModel beside the nodes; or `define { … }`, declared and defined at
+   once). Code calls Declarations; which of them are fixed (given a meaning, or called by code) and which may
+   change with the World (read by statements alone) is read off the model.
 
 ## 0a. The core concepts
 
@@ -43,9 +46,10 @@ Three kinds of nodes, two kinds of values, two quantifiers (§15); nothing else,
   code (what a model's state starts in, that only the code changes it, that runs on it never interleave, a
   schedule), an outside system's promise, what values from outside meet. `Node.design(statement)(files*)`: a decision
   about code no proof covers.
-- **Values.** `Declaration[A](means)`: abstract, known only through the statements about it; no code, define or
-  program uses it, nothing implements it. `Definition[A](means)`: of any type, what code and programs use; it must get
-  a meaning (§15). `define { … }` and `program { … }` are Definitions given their meaning on the spot. `stated { … }`
+- **Values.** `Declaration[A](means)`: a word, of any type, what statements speak of and code and programs call. A
+  Definition is a Declaration with a meaning (§15): `d.define(…)` of one already declared, listed in the FrModel
+  beside the nodes, or `define { … }` and `program { … }`, declared and defined at once. A word nothing defines
+  is known through the statements about it. `stated { … }`
   is a define whose body may apply a Declaration, so a statement can name a line over Declarations; only statements
   call it.
 - **Quantifiers.** `forall` is every possible value, `exists` some possible value. `always` is every value the code FrFlow covers can produce
@@ -64,12 +68,13 @@ Three kinds of nodes, two kinds of values, two quantifiers (§15); nothing else,
 
 - A domain type is a case class or an enum deriving `LeanType`: a Lean `structure` or `inductive`. One deriving
   `FrSpec` instead is the same, with a contract a node may state, and can be a value of lifted code.
-- A Declaration may change with the World: Lean takes it as a function of the world where a statement reads it
-  beside something that changes, and as a value otherwise. A rule (`always`) may not read one that changes (§45 C).
-- A Definition gets its meaning once: in the FrModel (`implementProven`, `implementTested`, `implementValue`,
-  `implementProvided`), on the spot (`define`, `program`, `lifted`), or from a `StateModel` for an operation on a
-  state.
-  `check` refuses one nothing defines, one defined twice, and code using a Declaration.
+- A word the model gives no meaning and no code calls may change with the World: Lean takes it as a function of
+  the world where a statement reads it beside something that changes, and as a value otherwise. One code calls is
+  a function from outside, the same in every world, known by the assumptions about it. A rule (`always`) may not read one that changes (§45 C).
+- A word gets its meaning once: from a Definition of it listed in the FrModel (`d.define`, `d.defineTested`,
+  `d.defineValue`, `d.provided`, `defineOperations`), on the spot (`define`, `program`, `lifted`), or from a
+  `StateModel` for an operation on a state.
+  `check` refuses one defined twice, and code that reaches a word only statements read.
 - A define changes with the World exactly when its body reads state; it then takes the world last and is read in its
   caller's world, or in the one it names (`ofRoom(room).in(w)`).
 - Names come from the `val`s: a node's id is its val's name, a Definition's and a Declaration's too. Renaming a val

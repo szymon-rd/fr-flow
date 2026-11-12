@@ -2,7 +2,7 @@ package frflow.core.code
 
 import frflow.core.name.{SourceText, SymbolName}
 
-/** The plain Scala of a model's operations (`implementTested(ops*)(start, observe)(calls)`), whoever wrote it (owner
+/** The plain Scala of a model's operations (`defineOperations(ops*)(start, observe)(calls)`), whoever wrote it (owner
   * §36): the operations, in the order `calls` gives their functions; the Scala itself (`Implementation.Scala`); the
   * effect each function's result is in, by its `MonadThrow` instance (what tests it against the model and what binds
   * it where the code runs refuse another effect); and the code as written, with the files it refers to (governed).

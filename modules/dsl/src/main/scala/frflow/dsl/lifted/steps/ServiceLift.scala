@@ -1,7 +1,7 @@
 package frflow.dsl.lifted.steps
 
 import frflow.dsl.lifted.{FrSpec, Reader}
-import frflow.dsl.service.{ServiceDefinition, ServiceMacros, Services}
+import frflow.dsl.service.{ServiceDeclaration, ServiceMacros, Services}
 import frflow.dsl.term.Lift
 import frflow.dsl.term.Term as DTerm
 import frflow.dsl.vocab.Definition as Defined
@@ -14,7 +14,15 @@ import scala.quoted.*
   * call of that Definition's, so the class is proven from the claims on the services it is made with.
   */
 object ServiceLift:
-  def read[T: Type](service: Expr[T])(using q: Quotes): Expr[ServiceImplementation[T]] =
+  def read[C: Type](service: Expr[C])(using q: Quotes): Expr[ServiceImplementation[C]] =
+    val plain = Reader(q)
+    import plain.q.reflect.*
+    val (cls, _) = made(plain)(service.asTerm)
+    implemented(plain)(cls, service.asTerm).typeRef.asType match
+      case '[t] => '{ ${ of[t](q, service) }.asInstanceOf[ServiceImplementation[C]] } // typed by its class
+
+  /** The same, typed by the service `T` the class implements. */
+  private def of[T: Type](q: Quotes, service: Expr[Any])(using Quotes): Expr[ServiceImplementation[T]] =
     val plain = Reader(q)
     import plain.q.reflect.*
     val (cls, args) = made(plain)(service.asTerm)
@@ -64,7 +72,7 @@ object ServiceLift:
     import r.q.reflect.*
     val found = new TreeAccumulator[Option[Term]]:
       def foldTree(seen: Option[Term], tree: Tree)(owner: Symbol): Option[Term] = seen.orElse(tree match
-        case t: Term if t.tpe <:< TypeRepr.of[ServiceDefinition[?]] => Some(t)
+        case t: Term if t.tpe <:< TypeRepr.of[ServiceDeclaration[?]] => Some(t)
         case other                                                  => foldOverTree(None, other)(owner))
     found.foldTree(None, arg)(Symbol.spliceOwner).fold(r.refuse("a service given to a class FrFlow reads that " +
       "is not a service's Definition (`lifted(StreamProcessor(limits, …))`)", arg))(_.asExpr)

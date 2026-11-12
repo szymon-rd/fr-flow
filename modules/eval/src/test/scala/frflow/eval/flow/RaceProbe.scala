@@ -10,7 +10,7 @@ import scala.concurrent.duration.*
   * and must stay unproven.
   */
 object RaceProbe:
-  val addN = Definition[BigInt => Flow[Unit]]("a number added to the box")
+  val addN = Declaration[BigInt => Flow[Unit]]("a number added to the box")
 
   object box extends StateModel[List[BigInt]]("the numbers in the box"):
     addN.means(n => state.update(h => h :+ n))
@@ -29,7 +29,7 @@ object RaceProbe:
     def elapse(seconds: BigInt): IO[Unit] = t.update(_ + seconds.max(0))
     def time: IO[BigInt] = t.get)
 
-  val racer = Definition[Flow[Either[Unit, Unit]]]("two adds raced against a second's sleep")
+  val racer = Declaration[Flow[Either[Unit, Unit]]]("two adds raced against a second's sleep")
   /** The racer's steps. */
   def racing: Flow[Either[Unit, Unit]] =
     Flow.step(addN(1)).flatMap(_ => Flow.step(addN(2))).race(Flow.step(Clock.sleep(1)))
@@ -46,10 +46,10 @@ object RaceProbe:
     .assuming(boxOne)
 
   private def boxes(root: Node) = FrModel("Boxes")(root, boxOnly, boxOne)
-    .implementProven(racer)(racerCode)
-    .implementTested(addN)(start = SlowBox.holding, observe = _.numbers)(b => Tuple1(b.add))
-    .implementTested(Clock.now, Clock.sleep, Clock.elapse)(start = Wall.at[IO], observe = _.time)(c =>
-      (c.now, c.sleep, c.elapse))
+    .defining(racer.define(racerCode))
+    .defining(defineOperations(addN)(start = SlowBox.holding, observe = _.numbers)(b => Tuple1(b.add)))
+    .defining(defineOperations(Clock.now, Clock.sleep, Clock.elapse)(start = Wall.at[IO], observe = _.time)(c =>
+      (c.now, c.sleep, c.elapse)))
 
   /** The probe as the review wrote it. */
   val knowledge = boxes(limitWinsUntouched)

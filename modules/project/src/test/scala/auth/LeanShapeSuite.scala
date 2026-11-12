@@ -60,8 +60,8 @@ class LeanShapeSuite extends munit.FunSuite:
       forall((t: Term[String], p: Term[Path]) => admit(t, p).forall(u => holderOf(t) === some(u))))
       .refines(accessExactly)
     val kb = FrModel("Auth")((knowledge.nodes :+ unlisted)*)
-      .implementProvided(grants, sessions)
-      .implementTested(admit)(env => SessionStore(env(grants), env(sessions)).decide)
+      .defining(grants.provided, sessions.provided)
+      .defining(admit.defineTested(env => SessionStore(env(grants), env(sessions)).decide))
     val problems = Validate(Projects.elaborated(kb)).fold(_.iterator.toList, _ => Nil)
     assertEquals(problems, List(Problem.PremiseMissing(NodeId("unlisted"),
       Premise.FromOutside(LeanType[Sessions].ty), Some(NodeId("tokensIssuedOnce")))))

@@ -4,7 +4,7 @@ import frflow.core.analysis.resolution.{Callees, Resolved}
 import frflow.core.code.Code
 import frflow.core.name.SymbolName
 
-/** The fixed values (`implementValue`) among `symbols` and what the proven code standing for them reaches, each
+/** The fixed values (`defineValue`) among `symbols` and what the proven code standing for them reaches, each
   * standing as its value: a claim mentioning a fixed Definition is stated for that value (2.7).
   */
 object Fixed:

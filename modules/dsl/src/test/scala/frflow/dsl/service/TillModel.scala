@@ -1,19 +1,19 @@
 package frflow.dsl.service
 
 import frflow.dsl.kb.FrModel
-import frflow.dsl.kb.Implementing.*
+import frflow.dsl.kb.Defining.*
 import frflow.dsl.lifted.steps.StepSyntax.lifted
 import frflow.dsl.node.Node
 import frflow.dsl.term.Term
 import frflow.dsl.term.TermSyntax.*
-import frflow.dsl.service.Defining as Definition
+import frflow.dsl.service.Declaring as Declaration
 import scala.annotation.experimental
 
 /** A service's Definition, and claims on it through its members. */
 @experimental object TillModel:
   import Till.{CashTill, Sale, Till}
 
-  val till = Definition[Till]("the till: it takes each sale once")
+  val till = Declaration[Till]("the till: it takes each sale once")
 
   val takenIsRecorded = Node.claim("A sale taken is recorded.")(
     forall((s: Term[Sale]) => till.taken(s.id).in(till.take(s).after)))
@@ -32,4 +32,4 @@ import scala.annotation.experimental
         till.taken(id).in(step._1) implies till.taken(id).in(step._2)))))
 
   val model: FrModel = FrModel("Tills")(takenIsRecorded, takenOnce, takingAddsItsAmount, noStepForgetsASale)
-    .implementProven(till)(lifted(CashTill(Nil)))
+    .defining(till.define(lifted(CashTill(Nil))))

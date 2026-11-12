@@ -77,8 +77,8 @@ class PortSuite extends munit.CatsEffectSuite:
   }
 
   test("the seeded bug: a decision that ignores the grant table fails a generated case of decisionContract") {
-    val careless = FrModel("Auth")(knowledge.nodes*).implementProvided(grants, sessions)
-      .implementTested(admit)(env => (t, _) => env(sessions).open.find(_.token == t).map(_.user))
+    val careless = FrModel("Auth")(knowledge.nodes*).defining(grants.provided, sessions.provided)
+      .defining(admit.defineTested(env => (t, _) => env(sessions).open.find(_.token == t).map(_.user)))
     Tested.failure(careless, "decisionContract") match
       case Failure.Call(List(Value.Str(_), _), _, Broken.Post, _) => ()
       case other                                                 => fail(s"not caught: $other")

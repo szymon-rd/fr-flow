@@ -1,7 +1,7 @@
 # Plain Scala, read: `lifted` and `FrSpec`
 
 This is a third way to write the code at the bottom of the refinement graph, beside plain Scala that is tested
-(`implementTested`) and code written with the DSL that is proven (`define`, `program`): plain Scala that is proven.
+(`defineTested`) and code written with the DSL that is proven (`define`, `program`): plain Scala that is proven.
 The developer writes an ordinary Scala function. At compile time FrFlow reads the function's body into a term of
 its term language, the same term a `define` builds. Lean is printed from that term and the evaluator runs it, as
 before; the function itself stays the Scala it is, and the JVM runs it.
@@ -36,10 +36,10 @@ val grantedCode = lifted { (held: RoomBookings, request: Booking) =>
 
 `noOverlap` and `grantedCode` are Scala functions (`noOverlap(a, b)` is a `Boolean`, computed by the JVM), and they
 are Definitions given their meaning where they are written, as a `define` is. Statements mention them as any other
-Definition, and the model gives them to a Definition with `implementProven`:
+Definition, and the model lists the one a Declaration is defined by:
 
 ```scala
-val granted = Definition[(RoomBookings, Booking) => Boolean]("whether a request is granted, given its room's bookings")
+val granted = Declaration[(RoomBookings, Booking) => Boolean]("whether a request is granted, given its room's bookings")
 
 val bookingsEndAfterStart = Node.assumption("Every booking ends after it starts.")(contractOf[Booking])
 
@@ -48,7 +48,7 @@ val grantWhenNoOverlap = Node.claim("A request is granted exactly when it overla
     granted(held, request) === held.bookings.forall(b => noOverlap(b, request))))
   .assuming(bookingsEndAfterStart)
 
-val model = FrModel("Calendar")(grantWhenNoOverlap, bookingsEndAfterStart).implementProven(granted)(grantedCode)
+val model = FrModel("Calendar")(grantWhenNoOverlap, bookingsEndAfterStart, granted.define(grantedCode))
 ```
 
 Lean is given these `def`s, printed from the terms read:
@@ -237,9 +237,9 @@ each.
 
 A service method that changes state is read the way Aeneas reads `&mut`: the state passed in and returned, with no
 state monad. [SEPARATION-SPIKE.md](SEPARATION-SPIKE.md) records the spike. It is written two ways. A service as a
-Definition of a trait, given a class ("A service as a Definition" below), is the one to write:
+Declaration of a trait, defined by a class ("A service as a Declaration" below), is the one to write:
 [the payment stream](../examples/payments/README.md) (a processor over three services, proven through redelivery,
-a crash at any step and a second instance). The first way, a Definition and a reading per method, is what
+a crash at any step and a second instance). The first way, a word and a reading per method, is what
 [the wallet](../examples/wallet/README.md) (one service over one store) and
 [the shop](../examples/shop/README.md) (a checkout over two services and a store) use, and is described first.
 
@@ -251,7 +251,7 @@ final class Transfers(ledger: Ledger^):                           // a service: 
   def transfer(t: Transfer): Outcome = …
 
 object Transfers:
-  val transfer = Definition[(Books, Transfer) -> (Outcome, Books)]("a transfer, alone: …")
+  val transfer = Declaration[(Books, Transfer) -> (Outcome, Books)]("a transfer, alone: …")
   val transferCode = updating { (service: Transfers^, t: Transfer) => service.transfer(t) }
   val transferAmongOthersCode = interleaving { (service: Transfers^, t: Transfer) => service.transfer(t) }(others)
 ```
@@ -290,11 +290,11 @@ Three things about the proof side show in these examples:
   model's proofs share one lemma that walks its steps (`every_step` in the examples' `Lemmas.lean`): each
   contract over every step is then a few lines saying what each store's method keeps.
 
-### A service as a Definition
+### A service as a Declaration
 
-A service is a value: a trait says what members it has, a `Definition` of the trait's type is the service in the
-model, the claims are on that Definition through its members, and a class that implements the trait is the value
-given for it.
+A service is a value: a trait says what members it has, a `Declaration` of the trait's type is the service in the
+model, the claims are on that word through its members, and a class that implements the trait is its
+Definition.
 
 ```scala
 trait Limits extends caps.Mutable:                                 // the service: nothing of FrFlow's
@@ -302,29 +302,29 @@ trait Limits extends caps.Mutable:                                 // the servic
   def decided(id: String): Boolean
 
 object Limits:
-  val limits = Definition[Limits]("the limits service: …")         // the service in the model
+  val limits = Declaration[Limits]("the limits service: …")         // the service in the model
   val authorisedIsRecorded = Node.claim("A payment authorised is decided.")(
     forall((p: Term[Payment]) => limits.decided(p.id).in(limits.authorise(p).after)))
 
 final class SpendLimits(val limit: BigInt, var decisions: List[Decision]) extends Limits: …   // a value for it
 
-FrModel("Payments")(…).implementProven(limits)(lifted(SpendLimits(BigInt(100), Nil)))
+FrModel("Payments")(…, limits.define(lifted(SpendLimits(BigInt(100), Nil))))
 ```
 
-- `Definition[T]` of a trait that is a `caps.Mutable` is typed by the trait's members: each is called in a
+- `Declaration[T]` of a trait that is a `caps.Mutable` is typed by the trait's members: each is called in a
   statement as the trait declares it and gives a `Call`. A `Call` is the member's result (`result`); `after` is
   the service once it is made; `in(state)` makes it on a given state of the service; called plainly it is made on
-  the service as it stands (`limits.current`). Each member is a Definition of its own (`limits_authorise`): a
+  the service as it stands (`limits.current`). Each member is a word of its own (`limits_authorise`): a
   function of the service that gives the result, and of an `update` member the service after it.
 - A claim is said of the service in every state: "the service as it stands" is a variable the claim is closed
   over. So a claim is one that code holding the service can rely on, whatever state it holds it in; and a fact of
   every state ("no card is over its limit") is stated as what each call keeps.
 - `lifted(SpendLimits(…))` reads the class member by member. Its state is a record named as the trait, a field for
-  each of the constructor's; each member's body is read into a function of that record. `implementProven` gives
-  each member's Definition its code, and Lean proves the code meets every claim that mentions the member.
-- A class made with other services is given their Definitions:
+  each of the constructor's; each member's body is read into a function of that record. `limits.define(…)`
+  gives each member's word its code, and Lean proves the code meets every claim that mentions the member.
+- A class made with other services is given their words:
   `lifted(StreamProcessor(limits, accounts, checkpoint))`. A call of a member of a service it holds is a call of
-  that Definition's member, so in Lean the class's code is a function of any members that meet the claims on them,
+  that word's member, so in Lean the class's code is a function of any members that meet the claims on them,
   and it is proven from those claims. One class is given for a trait in a model: the trait's record is that
   class's fields.
 - A member that changes the service takes steps: a class that holds no service makes its change in one, a class
@@ -341,7 +341,7 @@ FrModel("Payments")(…).implementProven(limits)(lifted(SpendLimits(BigInt(100),
 - A service's states are typed by the service's name (`limits.State`, `limits.Schedule`), not by its trait:
   Scala's capture checking reads a `caps.Mutable` trait named in a type as a capability.
 
-Not built in this shape: `implementTested` for a service (a class FrFlow cannot read, tested against the claims);
+Not built in this shape: `defineTested` for a service (a class FrFlow cannot read, tested against the claims);
 the class's Scala run against the term read from it on generated cases (`Agreement`); two classes for one trait in
 one model; a member of more than three inputs (two, for its steps).
 
@@ -373,7 +373,7 @@ In the order they would be taken:
    would give each `def` its Lean `def` with no marking and no option.
 4. **Members known by their contract.** A method whose body is not read (a class with its own data structure, a
    library's) as an open function of the term language, known to Lean only by the type's contract, its Scala tested
-   against the contract. This is `implementTested`'s meaning, given per member by the type's `FrSpec`.
+   against the contract. This is `defineTested`'s meaning, given per member by the type's `FrSpec`.
 5. **More of code that changes state.** Service methods over stores, and over other services, are read
    ("Services" above). Not yet: a class FrFlow cannot read given for a service and tested against its claims, a
    loop, a failing call, a search for the schedule that breaks a contract, and a contract over two calls at once

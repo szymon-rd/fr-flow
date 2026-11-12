@@ -10,7 +10,7 @@ import frflow.dsl.build.{Declarations, Deferred, Fault, Site, Source}
 import frflow.dsl.run.{Recorded, Worlds}
 import frflow.dsl.shape.{Defines, Elab}
 import frflow.dsl.term.{LeanType, Notes, Reify, Term}
-import frflow.dsl.vocab.Definition
+import frflow.dsl.vocab.{Declaration, Definition}
 import frflow.dsl.vocab.Flow
 import scala.annotation.publicInBinary
 import scala.collection.mutable
@@ -20,7 +20,7 @@ import scala.collection.mutable
   * each operation on the state, a Definition, its meaning over `state` (`inRoom.means(room => state.get.map(…))`);
   * the state is a field of the World, read in a statement as `storedBookings.current`, in the world it holds in.
   * The operations' plain Scala is
-  * given in the FrModel (`implementTested(ops*)(start, observe)(calls)`) and tested against the model, and bound
+  * given in the FrModel (`defineOperations(ops*)(start, observe)(calls)`) and tested against the model, and bound
   * where the code runs (`storedBookings := table`). What the world outside does with the state is said of it:
   * `onlyCodeChanges`, `initially(…)`, `atomic`. The meanings are kept in the order given, read once when the model is
   * first declared (`model`): an object's body gives them one statement at a time, so they are the one buffer of the
@@ -37,39 +37,39 @@ abstract class StateModel[S](description: String)(using named: StateModel.Named,
   /** What makes it the clock (FrFlow's own, `Clock.clockModel`, owner §47). */
   protected def timed: Option[Timed] = None
 
-  extension [R](op: Definition[Flow[R]])
-    inline def means(inline body: Flow[R]): Unit = meant(op, Nil, Nil)(_ => body.steps)
-  extension [A, R](op: Definition[A => Flow[R]])
+  extension [R](op: Declaration[Flow[R]])
+    inline def means(inline body: Flow[R]): Unit = meant(op.word, Nil, Nil)(_ => body.steps)
+  extension [A, R](op: Declaration[A => Flow[R]])
     inline def means(inline body: Term[A] => Flow[R])(using a: LeanType[A]): Unit =
-      meant(op, List(a), Source.of(body).params)(xs => body(Term.free(xs(0))(using a)).steps)
-  extension [A, B, R](op: Definition[(A, B) => Flow[R]])
+      meant(op.word, List(a), Source.of(body).params)(xs => body(Term.free(xs(0))(using a)).steps)
+  extension [A, B, R](op: Declaration[(A, B) => Flow[R]])
     inline def means(inline body: (Term[A], Term[B]) => Flow[R])(using a: LeanType[A], b: LeanType[B]): Unit =
-      meant(op, List(a, b), Source.of(body).params)(xs =>
+      meant(op.word, List(a, b), Source.of(body).params)(xs =>
         body(Term.free(xs(0))(using a), Term.free(xs(1))(using b)).steps)
-  extension [A, B, C, R](op: Definition[(A, B, C) => Flow[R]])
+  extension [A, B, C, R](op: Declaration[(A, B, C) => Flow[R]])
     inline def means(inline body: (Term[A], Term[B], Term[C]) => Flow[R])(
         using a: LeanType[A], b: LeanType[B], c: LeanType[C]): Unit =
-      meant(op, List(a, b, c), Source.of(body).params)(xs =>
+      meant(op.word, List(a, b, c), Source.of(body).params)(xs =>
         body(Term.free(xs(0))(using a), Term.free(xs(1))(using b), Term.free(xs(2))(using c)).steps)
-  extension [A, B, C, D, R](op: Definition[(A, B, C, D) => Flow[R]])
+  extension [A, B, C, D, R](op: Declaration[(A, B, C, D) => Flow[R]])
     inline def means(inline body: (Term[A], Term[B], Term[C], Term[D]) => Flow[R])(
         using a: LeanType[A], b: LeanType[B], c: LeanType[C], d: LeanType[D]): Unit =
-      meant(op, List(a, b, c, d), Source.of(body).params)(xs => body(Term.free(xs(0))(using a),
+      meant(op.word, List(a, b, c, d), Source.of(body).params)(xs => body(Term.free(xs(0))(using a),
         Term.free(xs(1))(using b), Term.free(xs(2))(using c), Term.free(xs(3))(using d)).steps)
-  extension [A, B, C, D, E, R](op: Definition[(A, B, C, D, E) => Flow[R]])
+  extension [A, B, C, D, E, R](op: Declaration[(A, B, C, D, E) => Flow[R]])
     inline def means(inline body: (Term[A], Term[B], Term[C], Term[D], Term[E]) => Flow[R])(using a: LeanType[A],
         b: LeanType[B], c: LeanType[C], d: LeanType[D], e: LeanType[E]): Unit =
-      meant(op, List(a, b, c, d, e), Source.of(body).params)(xs => body(Term.free(xs(0))(using a),
+      meant(op.word, List(a, b, c, d, e), Source.of(body).params)(xs => body(Term.free(xs(0))(using a),
         Term.free(xs(1))(using b), Term.free(xs(2))(using c), Term.free(xs(3))(using d),
         Term.free(xs(4))(using e)).steps)
-  extension [A, B, C, D, E, G, R](op: Definition[(A, B, C, D, E, G) => Flow[R]])
+  extension [A, B, C, D, E, G, R](op: Declaration[(A, B, C, D, E, G) => Flow[R]])
     inline def means(inline body: (Term[A], Term[B], Term[C], Term[D], Term[E], Term[G]) => Flow[R])(
         using a: LeanType[A], b: LeanType[B], c: LeanType[C], d: LeanType[D], e: LeanType[E], h: LeanType[G]): Unit =
-      meant(op, List(a, b, c, d, e, h), Source.of(body).params)(xs => body(Term.free(xs(0))(using a),
+      meant(op.word, List(a, b, c, d, e, h), Source.of(body).params)(xs => body(Term.free(xs(0))(using a),
         Term.free(xs(1))(using b), Term.free(xs(2))(using c), Term.free(xs(3))(using d), Term.free(xs(4))(using e),
         Term.free(xs(5))(using h)).steps)
 
-  extension (op: Definition[?])
+  extension (op: Declaration[?])
     /** The operation known only by the assumptions about it (G2, owner §36: "the assumed case"), given no steps: on
       * this model's state it may give any result and leave any state but what those assumptions say
       * (`forall((q: Term[Search]) => fetch(q).result === …)`). It is a function of this model's state and its inputs:
@@ -81,7 +81,7 @@ abstract class StateModel[S](description: String)(using named: StateModel.Named,
       * itself: each call made again from the state before it must give and leave the same (`Difference.Twice`); an
       * assumption no run can evaluate is trusted, not tested, and said so.
       */
-    def assumed: Unit = unmeant += op
+    def assumed: Unit = unmeant += op.word
 
   /** An operation's meaning, its steps recorded on its parameters' variables when the model is read. */
   @publicInBinary private[model] def meant(op: Definition[?], inputs: List[LeanType[?]], params: List[String])(

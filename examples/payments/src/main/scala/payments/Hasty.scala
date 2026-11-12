@@ -12,7 +12,7 @@ trait Hasty extends Mutable:
   def posted(id: String): Boolean
 
 object Hasty:
-  val hasty = Definition[Hasty]("the processor's hasty version: it checks the limit itself, then has the " +
+  val hasty = Declaration[Hasty]("the processor's hasty version: it checks the limit itself, then has the " +
     "payment recorded")
 
   val hastyPostsWhatItApproves = Node.claim("A payment the hasty processor approves is posted.")(

@@ -22,8 +22,8 @@ class RuleClaimSuite extends munit.FunSuite:
     .refines(rooms.grantWhenFree)
     .assuming(rooms.nothingElseWrites, rooms.oneAtATime, rooms.startsEmpty, rooms.bookingsEndAfterStart)
   private val kb = FrModel("Rooms")((rooms.rooms.nodes :+ grantedAlone)*).copy(generators = rooms.rooms.generators)
-    .implementProven(rooms.book)(rooms.bookIfGranted)
-    .implementTested(granted)(_ => (held, request) => rooms.Calendar(held).grants(request))
+    .defining(rooms.book.define(rooms.bookIfGranted))
+    .defining(granted.defineTested(_ => (held, request) => rooms.Calendar(held).grants(request)))
   private val r = Theories.resolved(kb)
   private val rules = r.theory.nodes.map(_.node).filter(_.statement.rule).map(_.id)
 

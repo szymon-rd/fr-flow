@@ -10,9 +10,9 @@ final class Inventory(warehouse: Warehouse^):
   def release(o: Order): Unit = warehouse.putBack(o)
 
 object Inventory:
-  val reserve = Definition[(Stock, Order) -> (Boolean, Stock)]("reserving an order's units: whether they were " +
+  val reserve = Declaration[(Stock, Order) -> (Boolean, Stock)]("reserving an order's units: whether they were " +
     "there, and the stock after")
-  val release = Definition[(Stock, Order) -> (Unit, Stock)]("releasing an order's units: the stock after")
+  val release = Declaration[(Stock, Order) -> (Unit, Stock)]("releasing an order's units: the stock after")
 
   val reserveCode = updating { (inventory: Inventory^, o: Order) => inventory.reserve(o) }
   val releaseCode = updating { (inventory: Inventory^, o: Order) => inventory.release(o) }

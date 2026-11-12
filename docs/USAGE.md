@@ -93,9 +93,9 @@ Statements are about two kinds of values:
 
 | Value | Written | What it is |
 |---|---|---|
-| `Declaration` | `val booked = Declaration[List[Booking]]("the bookings made, as the world stands")` | abstract: known only by what the statements say of it; never called by code, a `define` or a program (`Stating` is asked for, which only statements, examples and a `stated` define's body give) |
-| `Definition` | `val granted = Definition[(RoomBookings, Booking) => Boolean]("…")` | what code and programs use, of any type; it must get a meaning, once (`Undefined` otherwise) |
-| `define { … }` | `val free = define { (bookings: Term[List[Booking]], request: Term[Booking]) => … }` | a Definition given its meaning on the spot, up to six inputs: a Lean `def`, run as Scala by the evaluator |
+| `Declaration` | `val booked = Declaration[List[Booking]]("the bookings made, as the world stands")`, `val granted = Declaration[(RoomBookings, Booking) => Boolean]("…")` | a word of the model, of any type: what statements speak of and code calls. One the model gives no meaning is known by what the statements say of it; read only by statements, it may change with the World; called by code, it is a function from outside, the same in every world |
+| `Definition` | `granted.define { (held, request) => … }`, `book.define(bookIfGranted)` | a Declaration with a meaning (a subtype of it), listed in the FrModel beside the nodes; a word gets one, once |
+| `define { … }` | `val free = define { (bookings: Term[List[Booking]], request: Term[Booking]) => … }` | a Definition declared and defined at once, named as its val, up to six inputs: a Lean `def`, run as Scala by the evaluator |
 | `program { … }` | `val bookIfGranted = program { (request: Term[Booking]) => (for … yield …).atomically }` | a program given its meaning on the spot, its type `A => Flow[R]` |
 | `stated { … }` | `val viewFollows = stated { (lib: Term[Library], p: Term[PersonId], d: Term[DocId]) => mayView(p, d) === letsView(lib, p, d) }` | a define whose body may apply a Declaration, so a statement can name a line over Declarations; used only in statements, as a Declaration is (a program, plain code or a `define` calling it does not compile); a Lean `def` taking the Declarations it applies, and the world last where one of them changes with it |
 
@@ -129,7 +129,7 @@ the lambda.
 | `+`, `-`, `<`, `<=`, `>`, `>=` on `BigInt` | arithmetic; an `Int` literal is a `Term[BigInt]` where one is expected | `Int` |
 
 A define is called by name (`covers(b, t)`) and passed where a function is expected (`held.pairwise(apart)`,
-`xs.forall(isOpen)`). In plain Scala, `d.fn(env)` runs a define and `env(d)` reads a Definition's value.
+`xs.forall(isOpen)`). In plain Scala, `d.fn(env)` runs a define and `env(d)` reads a word's value.
 
 ### The World
 
@@ -156,17 +156,21 @@ What a statement may not say, each refused where it is written: an `always` insi
 Declaration that changes with the World; two runs in sequence (a sequence is a program doing both); a value provided
 where the code runs beside the World. FrFlow states safety properties: "eventually" is out of scope for now.
 
-### Giving a Definition its meaning
+### Giving a Declaration its meaning
 
-| Written, on the FrModel | Code | Claims mentioning it are |
+Each is a Definition of the Declaration, listed in the FrModel beside its nodes
+(`FrModel("Rooms")(bookWhenFree, …, book.define(bookIfGranted), …)`); `kb.defining(…)` is the same model with more
+listed.
+
+| Written | Code | Claims mentioning it are |
 |---|---|---|
-| `.implementProven(book)(bookIfGranted)` | a `program { … }` or a `define` | proven of the code in Lean |
-| `.implementTested(granted)(env => (held, request) => …)` | plain Scala, given the other Definitions' values | tested on generated cases (1,000 by default) |
-| `.implementTested(inRoom, add)(start = …, observe = …)(t => (t.inRoom, t.add))` | the plain Scala of a model's operations, over a store `start` makes from a state and `observe` reads back | proven on the model in Lean; the Scala tested against the model on generated runs |
-| `.implementValue(trashKeeps)(BigInt(30 * 86400))` | a value | stated with the value |
-| `.implementProvided(grants, sessions)` | a value given where the code runs | stated for every value provided |
+| `book.define(bookIfGranted)`, `granted.define { (held, request) => … }` | a `program { … }`, a `define`, lifted code, or a define written there | proven of the code in Lean |
+| `granted.defineTested(env => (held, request) => …)` | plain Scala, given the other words' values | tested on generated cases (1,000 by default) |
+| `defineOperations(inRoom, add)(start = …, observe = …)(t => (t.inRoom, t.add))` | the plain Scala of a model's operations, over a store `start` makes from a state and `observe` reads back | proven on the model in Lean; the Scala tested against the model on generated runs |
+| `trashKeeps.defineValue(BigInt(30 * 86400))` | a value | stated with the value |
+| `grants.provided` | a value given where the code runs | stated for every value provided |
 
-A `define` or a `program` is its own meaning. `.withGenerator(gen.describedAs("…"))` gives the tests' cases of a type
+A `define` or a `program` is its own meaning, and needs no listing. `.withGenerator(gen.describedAs("…"))` gives the tests' cases of a type
 (`Gen.oneOf`, `for` over generators); the values drawn meet every `always` on their type.
 
 **Plain Scala, read.** `lifted { (a: A, b: B) => … }` is a Definition given its meaning where it is written, as a
@@ -197,10 +201,10 @@ is read by `updating { (service: S^, input: A) => service.method(input) }`, a fu
 stores or services; its companion then names its state (`type State = …`), and its calls of other services are
 read as calls of their Definitions ([the wallet](../examples/wallet/README.md),
 [the shop](../examples/shop/README.md)). A service is also written as one value: a trait of its members (a
-`caps.Mutable`), `Definition[Trait]("…")` typed by them (`limits.authorise(p).result`, `.after`, `.in(state)`,
-`.steps`, `.amongOthers(run => …)`), claims on that Definition, and `implementProven(limits)(lifted(Class(…)))`
-giving the class that implements it, which Lean proves meets them
-([the payment stream](../examples/payments/README.md), [LIFTED.md](LIFTED.md) "A service as a Definition").
+`caps.Mutable`), `Declaration[Trait]("…")` typed by them (`limits.authorise(p).result`, `.after`, `.in(state)`,
+`.steps`, `.amongOthers(run => …)`), claims on that word, and its Definition `limits.define(lifted(Class(…)))`,
+the class that implements it, which Lean proves meets them
+([the payment stream](../examples/payments/README.md), [LIFTED.md](LIFTED.md) "A service as a Declaration").
 
 **An operation on a state** is a Definition of type `A => Flow[R]`, given its meaning in Lean by a `StateModel`, which
 says what it does to the model's state, a field of the World:
@@ -253,7 +257,7 @@ Lean reads the steps, and production folds them into any `F: Async`.
 | `Flow.raise(e)`, `fa.handle[E](e => …)`, `fa.attempt[E]`, `fa.guarantee[E](fin)`, `Flow.bracket[E, R, A](acquire)(use)(release)` | errors and finalizers |
 | `fa.timeout(Clock.now, seconds)`, `Flow.retry[E, A](Clock.sleep, waits)(fa)` | a time limit (`None` once it is past); a retry after each wait |
 
-A program that can fail declares its error on its Definition: `Definition[Time => Flow[Unit]]("…").failsWith[E]`.
+A program that can fail declares its error on its word: `Declaration[Time => Flow[Unit]]("…").failsWith[E]`.
 FrFlow checks the declared error against what the code may end in (`FailsWithDiffers`); a program over two error types
 is refused. `p.changesNothing`, of a program declared to fail, says every model's state is as before.
 

@@ -4,7 +4,7 @@ import frflow.core.name.SymbolName
 import frflow.core.ty.{NumKind, Ty}
 import frflow.dsl.build.WrittenAt
 import frflow.dsl.term.{LeanType, Lift, Term}
-import frflow.dsl.vocab.{Definition, Stating}
+import frflow.dsl.vocab.{Declaration, Definition, Stating}
 import scala.annotation.publicInBinary
 
 /** A member of a service as its Definition has it: its name, whether it changes the service (Scala's `update`),
@@ -12,14 +12,16 @@ import scala.annotation.publicInBinary
   */
 final case class Member(name: String, changes: Boolean, params: List[LeanType[?]], result: LeanType[?])
 
-/** A Definition of a service: a value of a trait's type (`val limits = Definition[Limits]("…")`). As a term it is
-  * the service as it stands. Its members are called in statements as the trait declares them
-  * (`limits.authorise(p)`, a `Call`): each is a Definition of its own (`limits_authorise`), a function of the
-  * service that gives the member's result, and, of a member that changes the service, the service after it. The
-  * value provided for the Definition (`implementProven`) gives each member its code, checked against every claim.
+/** A service's word: a Declaration of a trait's type (`val limits = Declaration[Limits]("…")`). Its members are
+  * called in statements as the trait declares them (`limits.authorise(p)`, a `Call`): each is a word of its own
+  * (`limits_authorise`), a function of the service that gives the member's result, and, of a member that changes
+  * the service, the service after it. A Definition of it (`limits.define(lifted(SpendLimits(…)))`) gives each
+  * member its code, checked against every claim.
   */
-final class ServiceDefinition[T] @publicInBinary private[dsl] (name: SymbolName, described: String, at: WrittenAt,
-    val members: List[Member])(using t: LeanType[T]) extends Definition[T](name, described, None, at):
+final class ServiceDeclaration[T] @publicInBinary private[dsl] (val name: SymbolName, val described: String,
+    at: WrittenAt, val members: List[Member])(using t: LeanType[T]) extends Declaration[T], Selectable:
+  def leanType: LeanType[T] = t
+  val word: Definition[T] = new Definition[T](name, described, None, at)
   /** What the service's states are typed by in a statement: `service.State` of its name, as `Definition[T]`
     * says.
     */
@@ -64,10 +66,10 @@ final class ServiceDefinition[T] @publicInBinary private[dsl] (name: SymbolName,
     */
   def current(using st: Stating): State = st.standing(this).asInstanceOf[State] // a state is typed by the name
 
-object ServiceDefinition:
-  /** Where code FrFlow reads names a service by its Definition (`lifted(StreamProcessor(limits, …))`), the
-    * Definition stands for the service. Nothing runs it: FrFlow reads the code, it does not call it.
+object ServiceDeclaration:
+  /** Where code FrFlow reads names a service by its word (`lifted(StreamProcessor(limits, …))`), the word
+    * stands for the service. Nothing runs it: FrFlow reads the code, it does not call it.
     */
-  given standsFor[T]: Conversion[ServiceDefinition[T], T] = d =>
-    throw IllegalStateException(s"FrFlow: ${d.name.value} is a service's Definition: it stands for the service " +
+  given standsFor[T]: Conversion[ServiceDeclaration[T], T] = d =>
+    throw IllegalStateException(s"FrFlow: ${d.name.value} is a service's word: it stands for the service " +
       "only in code FrFlow reads (`lifted(…)`), and is not the service itself")

@@ -10,14 +10,14 @@ import frflow.*
   * rule: it relies on more than the assumption says, and stays unproven.
   */
 object Lookup:
-  val put = Definition[BigInt => Flow[Unit]]("a number put in the register, at its end")
-  val has = Definition[BigInt => Flow[Boolean]]("whether the register's index holds a number")
+  val put = Declaration[BigInt => Flow[Unit]]("a number put in the register, at its end")
+  val has = Declaration[BigInt => Flow[Boolean]]("whether the register's index holds a number")
 
   object register extends StateModel[List[BigInt]]("the numbers in the register, oldest first"):
     put.means(n => state.update(xs => xs :+ n))
     has.assumed
 
-  val putOnce = Definition[BigInt => Flow[Unit]]("a number put in the register unless its index holds it")
+  val putOnce = Declaration[BigInt => Flow[Unit]]("a number put in the register unless its index holds it")
   val putOnceCode = program { (n: Term[BigInt]) =>
     for
       held <- has(n)
@@ -54,8 +54,8 @@ object Lookup:
 
   private def registers(answer: Node*) = FrModel("Registers")((List(noDuplicates, putOnceStores, registerOnly,
     registerOne, startsEmpty) ++ answer :+ hasKeeps)*)
-    .implementProven(putOnce)(putOnceCode)
-    .implementTested(put, has)(start = Indexed.holding(_), observe = _.numbers)(i => (i.put, i.has))
+    .defining(putOnce.define(putOnceCode))
+    .defining(defineOperations(put, has)(start = Indexed.holding(_), observe = _.numbers)(i => (i.put, i.has)))
 
   /** The index assumed to answer exactly: the rule kept, the number stored. */
   val knowledge: FrModel = registers(hasAnswers)

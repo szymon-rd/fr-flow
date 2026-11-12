@@ -4,26 +4,25 @@ import frflow.core.name.SymbolName
 import frflow.dsl.build.{Source, WrittenAt}
 import frflow.dsl.term.LeanType
 import frflow.dsl.term.Term as DTerm
+import frflow.dsl.vocab.Declaration
 import frflow.dsl.vocab.Definition as Defined
 import scala.quoted.*
 
-/** `Definition[T]("…")` of a service: a trait of the developer's that is one of Scala's `caps.Mutable`, whose
-  * methods are the service's members. The Definition is typed by them, each taking terms and giving a `Call`, so a
+/** `Declaration[T]("…")` of a service: a trait of the developer's that is one of Scala's `caps.Mutable`, whose
+  * methods are the service's members. The word is typed by them, each taking terms and giving a `Call`, so a
   * statement calls a member as the trait declares it; and by what its states are typed by (`State`). Of any other
-  * type, the Definition it always was.
+  * type, the word `vocab.Declaration` makes.
   */
-object Defining:
-  /** `Definition[A]("…")` as the facade has it: of a service, typed by the trait's members; of any other type, the
-    * Definition `vocab.Definition` makes.
-    */
-  transparent inline def apply[A](inline means: String): Defined[A] =
-    ${ ServiceMacros.defined[A]('{ SymbolName(Source.valName) }, 'means, '{ WrittenAt.in(Source.here) }) }
+object Declaring:
+  /** `Declaration[A]("…")` as the facade has it. */
+  transparent inline def apply[A](inline means: String): Declaration[A] =
+    ${ ServiceMacros.declared[A]('{ SymbolName(Source.valName) }, 'means, '{ WrittenAt.in(Source.here) }) }
 
 object ServiceMacros:
-  def defined[A: Type](name: Expr[SymbolName], means: Expr[String], at: Expr[WrittenAt])(using Quotes)
-      : Expr[Defined[A]] =
+  def declared[A: Type](name: Expr[SymbolName], means: Expr[String], at: Expr[WrittenAt])(using Quotes)
+      : Expr[Declaration[A]] =
     import quotes.reflect.*
-    if !isService(TypeRepr.of[A]) then '{ Defined.plain[A]($name, $means, $at) }
+    if !isService(TypeRepr.of[A]) then '{ (Defined.plain[A]($name, $means, $at): Declaration[A]) }
     else service[A](name, means, at)
 
   /** Whether a type is a service: a trait of the developer's that is a `caps.Mutable`. */
@@ -50,13 +49,13 @@ object ServiceMacros:
     }
 
   private def service[A: Type](name: Expr[SymbolName], means: Expr[String], at: Expr[WrittenAt])(using Quotes)
-      : Expr[Defined[A]] =
+      : Expr[Declaration[A]] =
     import quotes.reflect.*
     val t = TypeRepr.of[A]
     val all = described(t)
     refined(t).asType match
-      case '[d] => '{ new ServiceDefinition[A]($name, $means, $at, $all)(using
-        State.typed[A](${ Expr(t.typeSymbol.name) })).asInstanceOf[d & Defined[A]] }
+      case '[d] => '{ new ServiceDeclaration[A]($name, $means, $at, $all)(using
+        State.typed[A](${ Expr(t.typeSymbol.name) })).asInstanceOf[d & Declaration[A]] }
 
   /** The service's members as the Definition keeps them: each one's name, whether it changes the service, and the
     * domain types of its inputs and its result.
@@ -79,7 +78,7 @@ object ServiceMacros:
     val state = constructor(TypeRepr.of[State["s"]]).appliedTo(ConstantType(StringConstant(t.typeSymbol.name)))
     t.asType match
       case '[a] =>
-        val typed = Refinement(TypeRepr.of[ServiceDefinition[a]], "Is", TypeBounds(state, state))
+        val typed = Refinement(TypeRepr.of[ServiceDeclaration[a]], "Is", TypeBounds(state, state))
         members(t).foldLeft(typed) { case (parent, (m, inputs, result)) =>
           val gives = call.appliedTo(List(state, result))
           if inputs.isEmpty then Refinement(parent, m.name, gives)

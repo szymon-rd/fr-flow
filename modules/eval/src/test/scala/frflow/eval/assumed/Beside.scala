@@ -10,8 +10,8 @@ import frflow.*
 object Beside:
   import Lookup.{put, has, register, hasKeeps, registerOnly}
 
-  val draw = Definition[Flow[BigInt]]("a number drawn from outside")
-  val drawAgainst = Definition[List[BigInt] => Flow[BigInt]]("a number drawn from outside, none of those given")
+  val draw = Declaration[Flow[BigInt]]("a number drawn from outside")
+  val drawAgainst = Declaration[List[BigInt] => Flow[BigInt]]("a number drawn from outside, none of those given")
   object drawer extends StateModel[BigInt]("how many numbers were drawn"):
     draw.assumed
     drawAgainst.assumed
@@ -30,9 +30,10 @@ object Beside:
     def drawn: IO[BigInt] = r.get
 
   private def kb(nodes: Node*): FrModel = FrModel("Beside")(nodes*)
-    .implementTested(put, has)(start = Lookup.Indexed.holding(_), observe = _.numbers)(i => (i.put, i.has))
-    .implementTested(draw, drawAgainst)(start = (n: BigInt) => Ref[IO].of(n).map(Drawer(_)), observe = _.drawn)(
-      d => (d.draw, d.drawAgainst))
+    .defining(defineOperations(put, has)(start = Lookup.Indexed.holding(_), observe = _.numbers)(i => (i.put, i.has)))
+    .defining(defineOperations(draw, drawAgainst)(start = (n: BigInt) => Ref[IO].of(n).map(Drawer(_)),
+      observe = _.drawn)(
+      d => (d.draw, d.drawAgainst)))
 
   /** What a claim can say of it, handed the register's numbers: proven from what is assumed of it. */
   val drawnNew = Node.claim("A number drawn against the register's numbers is none of them.")(

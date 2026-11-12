@@ -7,7 +7,7 @@ import frflow.dsl.build.{Deferred, Source, SourceFiles}
 import frflow.dsl.node.Spans
 import frflow.dsl.vocab.Definition
 
-/** `implementTested(ds*)` waiting for its Scala, typed by the Definitions (`TestedMacro`): `F` the first one's type,
+/** `defineOperations(ds*)` waiting for its Scala, typed by the Definitions (`TestedMacro`): `F` the first one's type,
   * `Ss` each one's shape as an operation on a state. One argument gives the first its plain Scala; two, `start` and
   * `observe`, begin the Scala of operations on one state.
   */

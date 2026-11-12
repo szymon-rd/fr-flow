@@ -49,8 +49,8 @@ class MeaningsSuite extends munit.FunSuite:
       forall((request: Term[Booking]) => accepted(request).current === book(request).result))
       .refines(rooms.acceptWhenFree).assuming(rooms.oneAtATime)
     val kb = FrModel("Rooms")((rooms.rooms.nodes.filterNot(_ eq rooms.acceptedIsAnswered) :+ listing)*)
-      .copy(generators = rooms.rooms.generators).implementProven(book)(rooms.bookIfGranted)
-      .implementTested(granted)(_ => (held, request) => rooms.Calendar(held).grants(request))
+      .copy(generators = rooms.rooms.generators).defining(book.define(rooms.bookIfGranted))
+      .defining(granted.defineTested(_ => (held, request) => rooms.Calendar(held).grants(request)))
     assertEquals(Theories.problems(kb), List(Problem.PremiseNotNeeded(NodeId("listing"), NodeId("oneAtATime"))))
   }
 

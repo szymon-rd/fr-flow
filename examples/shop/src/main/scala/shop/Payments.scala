@@ -16,7 +16,7 @@ final class Payments(ledger: Ledger^):
       if paid then Charged.Done else Charged.Refused
 
 object Payments:
-  val charge = Definition[(Books, Order) -> (Charged, Books)]("charging an order: its answer, and the books " +
+  val charge = Declaration[(Books, Order) -> (Charged, Books)]("charging an order: its answer, and the books " +
     "after")
 
   val chargeCode = updating { (payments: Payments^, o: Order) => payments.charge(o) }

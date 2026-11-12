@@ -30,10 +30,11 @@ yield RoomBookings(room, bookings)
 
 val rooms = FrModel("Rooms")(bookWhenFree, acceptWhenFree, bookedIsStored, bookedAfterIsStored, acceptedIsAnswered,
   storeWhenFree, answerWhenFree, neverOverlap, grantWhenFree, bookingsOfTheRoom, roomBookingsApart, grantWhenNoOverlap,
-  nothingElseWrites, oneAtATime, startsEmpty, bookingsEndAfterStart)
-  .implementProven(book)(bookIfGranted)
-  .implementTested(granted)(_ => (held, request) => Calendar(held).grants(request))
-  .implementTested(inRoom, add)(start = BookingsTable.holding, observe = _.bookings)(t => (t.inRoom, t.add))
+  nothingElseWrites, oneAtATime, startsEmpty, bookingsEndAfterStart,
+  // The Definitions of the model's words.
+  book.define(bookIfGranted),
+  granted.defineTested(_ => (held, request) => Calendar(held).grants(request)),
+  defineOperations(inRoom, add)(start = BookingsTable.holding, observe = _.bookings)(t => (t.inRoom, t.add)))
   .withGenerator(roomNames.describedAs("Oak or Elm"))
   .withGenerator(requests.describedAs("requests for Oak or Elm that end after they start"))
   .withGenerator(roomBookings.describedAs("a room's bookings, laid end to end, some back to back"))

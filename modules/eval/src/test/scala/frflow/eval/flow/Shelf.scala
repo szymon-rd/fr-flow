@@ -7,8 +7,8 @@ import frflow.*
   * their plain Scala (`PlainShelf`, `Wall`).
   */
 object Shelf:
-  val items = Definition[Flow[List[BigInt]]]("the numbers on the shelf, oldest first")
-  val put = Definition[BigInt => Flow[Unit]]("a number put on the shelf")
+  val items = Declaration[Flow[List[BigInt]]]("the numbers on the shelf, oldest first")
+  val put = Declaration[BigInt => Flow[Unit]]("a number put on the shelf")
 
   object kept extends StateModel.failing[List[BigInt], Trouble]("the numbers on the shelf, oldest first",
       Trouble.Down):
@@ -19,9 +19,9 @@ object Shelf:
   val knowledge: FrModel = FrModel("Shelves")(
     Node.assumption("Nothing but the programs change the shelf.")(kept.onlyCodeChanges),
     Node.assumption("The clock moves only when a program sleeps.")(Clock.clockModel.onlyCodeChanges))
-    .implementTested(items, put)(start = PlainShelf.holding, observe = _.held)(s => (s.items, s.put))
-    .implementTested(Clock.now, Clock.sleep, Clock.elapse)(start = Wall.at[IO], observe = _.time)(c =>
-      (c.now, c.sleep, c.elapse))
+    .defining(defineOperations(items, put)(start = PlainShelf.holding, observe = _.held)(s => (s.items, s.put)))
+    .defining(defineOperations(Clock.now, Clock.sleep, Clock.elapse)(start = Wall.at[IO], observe = _.time)(c =>
+      (c.now, c.sleep, c.elapse)))
 
   /** The shelf's and the clock's operations as a program's steps. */
   def held: Flow[List[BigInt]] = Flow.step(items)

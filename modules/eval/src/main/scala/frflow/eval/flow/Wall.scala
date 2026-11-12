@@ -7,7 +7,7 @@ import cats.ApplicativeThrow
 /** A clock as plain Scala, a virtual one (as Cats Effect's `TestControl`): the time now, in seconds, a wait moving it
   * on by exactly its seconds, and the world's own step between runs (`elapse`, `TestControl.advance`), neither ever
   * by less than none (`Wall.at`); or one whose every call fails (`Wall.stopped`, a service that is down). What a
-  * model's tests give FrFlow's clock (`implementTested(Clock.now, Clock.sleep, Clock.elapse)(start = Wall.at[IO],
+  * model's tests give FrFlow's clock (`defineOperations(Clock.now, Clock.sleep, Clock.elapse)(start = Wall.at[IO],
   * …)`): public, in the facade beside `Clock`, because that line is the model's own main code, which no test-only
   * package reaches (the examples' models are main sources; their tests run in testing's).
   */

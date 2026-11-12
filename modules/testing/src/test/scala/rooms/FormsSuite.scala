@@ -22,8 +22,8 @@ final case class Connection(url: String)
 final case class Wire(host: String)
 
 class FormsSuite extends munit.FunSuite:
-  private val bookable = Definition[(Boolean, Booking) => Boolean]("whether a booking can be made after another")
-  val refused = Definition[(RoomBookings, Booking) => Boolean]("whether a request is refused")
+  private val bookable = Declaration[(Boolean, Booking) => Boolean]("whether a booking can be made after another")
+  val refused = Declaration[(RoomBookings, Booking) => Boolean]("whether a request is refused")
 
   private val elsewhere = Node.claim("Granted only for a request no booking repeats.")(
     forall((held: Term[RoomBookings], request: Term[Booking]) => granted(held, request) implies
@@ -75,7 +75,7 @@ class FormsSuite extends munit.FunSuite:
     fails(compileErrors("""object counted extends StateModel[BigInt]("s"):
       granted.means(n => state.get)"""), "value means is not a member of")
     assert(compileErrors("""object counted extends StateModel[BigInt]("s"):
-      val tally = Definition[Flow[BigInt]]("a count")
+      val tally = Declaration[Flow[BigInt]]("a count")
       tally.means(state.get)""").isEmpty)
   }
 
@@ -104,22 +104,26 @@ class FormsSuite extends munit.FunSuite:
 
   test("a meaning is given once: proven code is a define or a program, and one written on the spot takes no other") {
     def faults(kb: FrModel) = kb.elaborated.fold(_.iterator.map(_.fault).toList, _ => Nil)
-    val notCode = Definition[Booking => Flow[Boolean]]("a program nothing gives a meaning")
-    assertEquals(faults(rooms.implementProven(book)(notCode)), List(Fault.NotProvenCode("notCode")))
-    assertEquals(faults(rooms.implementTested(free)(_ => (_, _) => true)), List(Fault.MeantWhereWritten("free")))
+    val notCode = Declaration[Booking => Flow[Boolean]]("a program nothing gives a meaning")
+    assertEquals(faults(rooms.defining(book.define(notCode.provided))), List(Fault.NotProvenCode("notCode")))
+    assertEquals(faults(rooms.defining(free.defineTested(_ => (_, _) => true))), List(Fault.MeantWhereWritten("free")))
     val runsItself = Node.claim("The program answers.")(
       forall((r: Term[Booking]) => bookIfGranted(r).result === bookIfGranted(r).result))
     assertEquals(faults(FrModel("R")(runsItself)), List(Fault.ProgramMentioned("bookIfGranted")))
   }
 
-  test("a Declaration is used only in statements: in a define or a program it does not compile, saying why") {
-    val errors = compileErrors("""define { (u: Term[auth.UserId], p: Term[auth.Path]) => auth.authorized(u, p) }""")
-    assert(errors.contains("a Declaration is used only in statements"), errors)
+  test("code calls a Declaration: a word a define calls is one the model fixes, a statement's alone is not") {
+    val allowed = define { (u: Term[auth.UserId], p: Term[auth.Path]) => auth.authorized(u, p) }
+    val byCode = Node.claim("Access is what the define allows.")(
+      forall((u: Term[auth.UserId], p: Term[auth.Path]) => auth.access(u, p) === allowed(u, p)))
+    val fixed = FrModel("Called")(byCode).fixed.map(_.value)
+    assert(fixed.contains("authorized") && !fixed.contains("access"), fixed)
   }
 
-  test("only a Definition takes a meaning: code for a Declaration does not compile") {
-    fails(compileErrors("""auth.knowledge.implementTested(auth.authorized)(_ => (_, _) => true)"""),
-      "Required: frflow.dsl.vocab.Definition[?]")
+  test("every Declaration takes a meaning: a Definition of it listed in the model fixes it; no word is code") {
+    val defined = auth.knowledge.defining(auth.authorized.defineTested(_ => (_, _) => true))
+    assert(defined.fixed(SymbolName("authorized")) && !auth.knowledge.fixed(SymbolName("authorized")))
+    fails(compileErrors("""auth.access.define(auth.authorized)"""), "define is not a member")
   }
 
   test("a claim reads as a call of the Definition applied to its leading variables; another is an ordinary mention") {
@@ -147,20 +151,20 @@ class FormsSuite extends munit.FunSuite:
   }
 
   test("a Definition of a type with no LeanType is code-only: provided to code, read there; never in a statement") {
-    val connection = Definition[Connection]("the connection the code is given where it runs")
+    val connection = Declaration[Connection]("the connection the code is given where it runs")
     val connected = Node.claim("The connection is the one given.")(connection === connection)
-    assert(connection.codeOnly && !granted.codeOnly)
-    assertEquals(Theories.problems(rooms.implementProvided(connection)), Nil)
-    assertEquals(Theories.problems(FrModel("Wired")(connected).implementProvided(connection)),
+    assert(connection.word.codeOnly && !granted.word.codeOnly)
+    assertEquals(Theories.problems(rooms.defining(connection.provided)), Nil)
+    assertEquals(Theories.problems(FrModel("Wired")(connected).defining(connection.provided)),
       List(Problem.CodeOnlyInStatement(NodeId("connected"), SymbolName("connection"), "Connection")))
     val db = Connection("jdbc:sqlite:rooms.db")
     assertEquals(Values(Map(SymbolName("connection") -> (() => db))).apply(connection), db)
   }
 
   test("a record whose derives LeanType is forgotten: its field selected in a statement names the type, code-only") {
-    val wire = Definition[Wire]("the wire the code is given where it runs")
-    val wired = Node.claim("The wire goes to the database.")(wire.host === "db")
-    assertEquals(Theories.errors(FrModel("Wired")(wired).implementProvided(wire)).map(_.fault),
+    val wire = Declaration[Wire]("the wire the code is given where it runs")
+    val wired = Node.claim("The wire goes to the database.")(wire.term.host === "db")
+    assertEquals(Theories.errors(FrModel("Wired")(wired).defining(wire.provided)).map(_.fault),
       List(Fault.CodeOnlyInStatement("Wire")))
   }
 

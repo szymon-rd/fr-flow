@@ -35,23 +35,24 @@ final case class Session(token: String, user: UserId) derives LeanType
 /** The session table: each token with the user it was issued to at login. */
 final case class Sessions(open: List[Session]) derives LeanType
 
-val grants = Definition[List[Grant]]("the grant table as stored when the request is decided")
-val sessions = Definition[Sessions](
+val grants = Declaration[List[Grant]]("the grant table as stored when the request is decided")
+val sessions = Declaration[Sessions](
   "the session table as stored when the request is decided: a token to the user it was issued to at login")
-val admit = Definition[(String, Path) => Option[UserId]](
+val admit = Declaration[(String, Path) => Option[UserId]](
   "the system's decision on a request (a token and a path): the user it is admitted on behalf of, if any")
 
 /** A grant names the user and the path. */
 val grantFor = define { (u: Term[UserId], p: Term[Path]) => grants.exists(g => g === make[Grant](u, p)) }
 
 /** The user the token was issued to, if any. */
-val holderOf = define { (t: Term[String]) => sessions.open.find(s => s.token === t).map(s => s.user) }
+val holderOf = define { (t: Term[String]) => sessions.term.open.find(s => s.token === t).map(s => s.user) }
 
 /** The token's holder has a grant for the path. */
 val holderGranted = define { (t: Term[String], p: Term[Path]) => holderOf(t).exists(u => grantFor(u, p)) }
 
 /** Some session's token is admitted for the path on the user's behalf. */
-val admittedTo = define { (u: Term[UserId], p: Term[Path]) => sessions.open.exists(s => admit(s.token, p) === some(u)) }
+val admittedTo = define { (u: Term[UserId], p: Term[Path]) =>
+  sessions.term.open.exists(s => admit(s.token, p) === some(u)) }
 
 val tokensIssuedOnce = Node.assumption("The session table issues each token to one user.")(
   always[Sessions](s => s.open.pairwise((a, b) => a.token =!= b.token)))
@@ -61,7 +62,7 @@ val grantTable = Node.claim("A user is authorized for a path exactly when a gran
   .refines(accessExactly)
 
 val sessionTable = Node.claim("A user is signed in exactly when some session token was issued to them.")(
-  forall((u: Term[UserId]) => signedIn(u) === sessions.open.exists(s => s.user === u)))
+  forall((u: Term[UserId]) => signedIn(u) === sessions.term.open.exists(s => s.user === u)))
   .refines(accessExactly)
 
 val requests = Node.claim(
@@ -109,6 +110,7 @@ val inMemorySessions = Node.design(
   "src/main/scala/auth/Server.scala").refines(decisionContract)
 
 val knowledge = FrModel("Auth")(accessExactly, grantTable, sessionTable, requests, tokenNamesHolder,
-  accessNeedsGrant, grantLetsIn, decisionContract, inMemorySessions, tokensIssuedOnce)
-  .implementProvided(grants, sessions)
-  .implementTested(admit)(env => SessionStore(env(grants), env(sessions)).decide)
+  accessNeedsGrant, grantLetsIn, decisionContract, inMemorySessions, tokensIssuedOnce,
+  // The Definitions of the model's words.
+  grants.provided, sessions.provided,
+  admit.defineTested(env => SessionStore(env(grants), env(sessions)).decide))

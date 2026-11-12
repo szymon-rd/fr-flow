@@ -35,7 +35,7 @@ abstract class FrFlowExamples(val knowledge: FrModel):
 
   /** What changes with the World in the FrModel, so a Declaration is applied as its statements apply it. */
   protected lazy val stating: Stating =
-    Stating.varying(Varying.of(knowledge.nodes).getOrElse(Set.empty))
+    Stating.varying(Varying.of(knowledge.nodes, knowledge.fixed).getOrElse(Set.empty), knowledge.fixed)
 
   /** An example's fact is a closed fact about the code, read in no world: one reading what changes with the World
     * (a model's state, a run, a Declaration that changes) is refused.

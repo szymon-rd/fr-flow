@@ -6,8 +6,8 @@ import frflow.*
 // name them are in `Rooms.scala`.
 
 /** The table's two operations: a room's bookings as it gives them, and a booking added. */
-val inRoom = Definition[String => Flow[RoomBookings]]("a room's bookings, as the SQLite table gives them")
-val add = Definition[Booking => Flow[Unit]]("a booking added to the SQLite table")
+val inRoom = Declaration[String => Flow[RoomBookings]]("a room's bookings, as the SQLite table gives them")
+val add = Declaration[Booking => Flow[Unit]]("a booking added to the SQLite table")
 
 /** The bookings stored, as the proofs see them: every booking, oldest first. */
 object storedBookings extends StateModel[List[Booking]]("every booking stored, oldest first"):

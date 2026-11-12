@@ -30,7 +30,7 @@ final class Forgetful(inventory: Inventory^, payments: Payments^, orders: OrderB
 object Forgetful:
   type State = ShopState
 
-  val forgetfulPlace = Definition[(ShopState, Order) -> (Placement, ShopState)]("the forgetful checkout placing " +
+  val forgetfulPlace = Declaration[(ShopState, Order) -> (Placement, ShopState)]("the forgetful checkout placing " +
     "an order: its answer, and the shop after")
 
   val forgetfulCode = updating { (checkout: Forgetful^, o: Order) => checkout.place(o) }

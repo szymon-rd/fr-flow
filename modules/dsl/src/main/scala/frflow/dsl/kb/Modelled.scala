@@ -8,7 +8,7 @@ import frflow.core.vocab.Vocabulary
 import frflow.dsl.build.{ElabError, Fault, Site}
 
 /** The code table of an elaborated FrModel: what it gives each Definition, and each operation on a state its model
-  * (`Code.Modelled`), with the Scala given each model's operations (`implementTested(ops*)`). Refused: an operation
+  * (`Code.Modelled`), with the Scala given each model's operations (`defineOperations(ops*)`). Refused: an operation
   * two models give a meaning, or given another meaning beside its model's; Scala given operations no one model
   * gives a meaning, or given some of a model's operations only.
   */

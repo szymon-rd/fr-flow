@@ -69,7 +69,7 @@ object Ported:
       yield Run(t, built)
     }
 
-  /** The Definitions given a value provided where the code runs (`implementProvided`), by name: what each port
+  /** The Definitions given a value provided where the code runs (`provided`), by name: what each port
     * judges under owner §45 D (a value standing for "now" or the history so far, in statements about the state over
     * time, is the World's; configuration fixed for the run stays provided).
     */

@@ -22,8 +22,8 @@ class AuthSuite extends munit.FunSuite:
   }
 
   test("an implementation that ignores the grant table fails a generated case, shrunk to its smallest") {
-    val careless = FrModel("Auth")(knowledge.nodes*).implementProvided(grants, sessions)
-      .implementTested(admit)(env => (t, _) => env(sessions).open.find(_.token == t).map(_.user))
+    val careless = FrModel("Auth")(knowledge.nodes*).defining(grants.provided, sessions.provided)
+      .defining(admit.defineTested(env => (t, _) => env(sessions).open.find(_.token == t).map(_.user)))
     // A token issued to a user, no grant at all: the user is let in.
     Tested.failure(careless, "decisionContract") match
       case Failure.Call(List(Value.Str(token), _), givens, Broken.Post, _) =>

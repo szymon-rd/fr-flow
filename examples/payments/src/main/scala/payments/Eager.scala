@@ -12,7 +12,7 @@ trait Eager extends Mutable:
   def position: BigInt
 
 object Eager:
-  val eager = Definition[Eager]("the processor's first version: it commits the position, then applies the payment")
+  val eager = Declaration[Eager]("the processor's first version: it commits the position, then applies the payment")
 
   val eagerAppliesThePayment = Node.claim("Run to its end, the eager processor leaves the payment applied.")(
     forall((p: Term[Payment]) => eager.applied(p.id).in(eager.handle(p).after)))

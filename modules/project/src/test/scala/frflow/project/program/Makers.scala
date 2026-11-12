@@ -10,8 +10,8 @@ final case class Box(items: List[BigInt]) derives LeanType
 final class Makers(name: String, breaksInner: Boolean):
   val distinct = define { (b: Term[Box]) => b.items.pairwise((x, y) => x =!= y) }
   val boxesFromOutside = Node.assumption("Boxes from outside hold each item once.")(always[Box](b => distinct(b)))
-  val inner = Definition[(Box, BigInt) => Box]("puts an item in a box")
-  val outer = Definition[(Box, BigInt) => Box]("puts an item in a box, through inner")
+  val inner = Declaration[(Box, BigInt) => Box]("puts an item in a box")
+  val outer = Declaration[(Box, BigInt) => Box]("puts an item in a box, through inner")
   val holds = Declaration[(Box, BigInt) => Boolean]("whether putting the item in the box leaves it there")
   val good = define { (b: Term[Box], x: Term[BigInt]) =>
     when(b.items.contains(x))(b).otherwise(make[Box](b.items :+ x)) }
@@ -35,5 +35,5 @@ final class Makers(name: String, breaksInner: Boolean):
     .refines(top).assuming(boxesFromOutside)
 
   val knowledge = FrModel(name)(purpose, top, holdsIs, outerAdds, innerAdds, noDups, boxesFromOutside)
-    .implementProven(inner)(if breaksInner then twice else good)
-    .implementProven(outer)(if breaksInner then through else again)
+    .defining(inner.define(if breaksInner then twice else good))
+    .defining(outer.define(if breaksInner then through else again))

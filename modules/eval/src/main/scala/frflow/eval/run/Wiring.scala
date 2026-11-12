@@ -39,7 +39,7 @@ final class Wiring(semantics: Semantics, t: Theory, programs: Programs):
     (Resolve.mentions(t, node).symbols ++ own.toList.flatMap(reads)).distinct.filterNot(s => own.contains(s) || made(s))
 
   /** Each Definition with a meaning wiring can make: plain code, its proven define run by `Semantics`, its value;
-    * and each define plain code says it calls (`implementTested(c, define)`), run by `Semantics`, read as `env(d)`.
+    * and each define plain code says it calls (`c.defineTestedCalling(define)`), run by `Semantics`, read as `env(d)`.
     */
   private def meanings(values: () => Values): Map[SymbolName, () => Any] =
     (calledDefines ++ t.code.attached.toList.flatMap((d, a) => runs(d, a.code).map(d -> _)))

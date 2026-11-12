@@ -10,16 +10,16 @@ import frflow.*
 object MadeLeans:
   final case class Pos(v: BigInt) derives LeanType
 
-  val setC = Definition[BigInt => Flow[Unit]]("the cell set")
-  val getC = Definition[Flow[BigInt]]("the cell read")
+  val setC = Declaration[BigInt => Flow[Unit]]("the cell set")
+  val getC = Declaration[Flow[BigInt]]("the cell read")
 
   object cell extends StateModel[BigInt]("a number"):
     setC.means(t => state.set(t))
     getC.means(state.get)
 
-  val zero = Definition[Flow[Unit]]("the cell put to zero")
+  val zero = Declaration[Flow[Unit]]("the cell put to zero")
   val zeroCode = program { Flow.step(setC(0)) }
-  val mk = Definition[Flow[Pos]]("a Pos made of the cell")
+  val mk = Declaration[Flow[Pos]]("a Pos made of the cell")
   val mkCode = program { for c <- Flow.step(getC) yield make[Pos](c) }
 
   val cellKept = Node.assumption("Only the code changes the cell.")(cell.onlyCodeChanges)
@@ -34,7 +34,7 @@ object MadeLeans:
   val made = Node.claim("Making reads the cell.")(mk.result.v === cell.current).assuming(cellOne)
 
   val model: FrModel = FrModel("MadeLeans")(cellPositive, posMade, zeroes, made, cellKept, cellOne, cellStarts)
-    .implementProven(zero)(zeroCode)
-    .implementProven(mk)(mkCode)
-    .implementTested(setC, getC)(start = (n: BigInt) => IO.ref(n), observe = _.get)(r =>
-      ((t: BigInt) => r.set(t), r.get))
+    .defining(zero.define(zeroCode))
+    .defining(mk.define(mkCode))
+    .defining(defineOperations(setC, getC)(start = (n: BigInt) => IO.ref(n), observe = _.get)(r =>
+      ((t: BigInt) => r.set(t), r.get)))

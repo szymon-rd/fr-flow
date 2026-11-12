@@ -10,7 +10,7 @@ import frflow.eval.time.Lapse.{housekeptOne, ranAt}
   * started from: `readsStart` must stay unproven, while the code meets `readsLater`, the time never going back.
   */
 object Late:
-  val late = Definition[Flow[BigInt]]("the last run noted, then the time read")
+  val late = Declaration[Flow[BigInt]]("the last run noted, then the time read")
   val lateCode = program {
     for
       _ <- Flow.step(ranAt(7))
@@ -27,7 +27,7 @@ object Late:
     .assuming(housekeptOne)
 
   val model: FrModel = FrModel("Late")(readsStart, readsLater, housekeptOne)
-    .implementProven(late)(lateCode)
-    .implementTested(ranAt)(start = Housekept.at, observe = _.last)(h => Tuple1(h.ranAt))
-    .implementTested(Clock.now, Clock.sleep, Clock.elapse)(start = Wall.at[IO], observe = _.time)(c =>
-      (c.now, c.sleep, c.elapse))
+    .defining(late.define(lateCode))
+    .defining(defineOperations(ranAt)(start = Housekept.at, observe = _.last)(h => Tuple1(h.ranAt)))
+    .defining(defineOperations(Clock.now, Clock.sleep, Clock.elapse)(start = Wall.at[IO], observe = _.time)(c =>
+      (c.now, c.sleep, c.elapse)))

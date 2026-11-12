@@ -15,7 +15,7 @@ import frflow.proof.lean.laws.DoBlocks
 import frflow.proof.lean.print.Print
 
 /** A count replaced, the old one given; its parameter named `s`, as the back end once named the state beside it. */
-val keep = Definition[BigInt => Flow[BigInt]]("the count replaced, the old one given")
+val keep = Declaration[BigInt => Flow[BigInt]]("the count replaced, the old one given")
 object tally extends StateModel[BigInt]("a count"):
   keep.means(s => state.get.flatMap(old => state.set(s).map(_ => old)))
 
@@ -46,8 +46,8 @@ class ParamsCaptureSuite extends munit.FunSuite:
   private val keepsOld = Node.claim("Replacing gives the old count.")(
     forall((x: Term[BigInt]) => keep(x).result === tally.current))
   private val tallied = FrModel("Tallies")(keepsOld)
-    .implementTested(keep)(start = (n: BigInt) => IO(Counter(n)), observe = (t: Counter) => IO(t.n))(t =>
-      Tuple1(t.keep))
+    .defining(defineOperations(keep)(start = (n: BigInt) => IO(Counter(n)), observe = (t: Counter) => IO(t.n))(t =>
+      Tuple1(t.keep)))
 
   test("an operation's parameter named s is apart from the state its result is run on: keep_of (s) (s_1)") {
     val printed = Laid(Resolve(Validate(elaborated(tallied)).toOption.get), Map.empty, Nil).modules

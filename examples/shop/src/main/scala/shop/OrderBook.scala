@@ -17,9 +17,9 @@ final class OrderBook(var journal: Journal) extends Mutable:
   update def settle(s: Settlement): Unit = journal = journal.copy(settled = journal.settled :+ s)
 
 object OrderBook:
-  val register = Definition[(Journal, String) -> (Boolean, Journal)]("registering an order: whether it was new, " +
+  val register = Declaration[(Journal, String) -> (Boolean, Journal)]("registering an order: whether it was new, " +
     "and the journal after")
-  val settle = Definition[(Journal, Settlement) -> (Unit, Journal)]("recording how an order ended: the journal " +
+  val settle = Declaration[(Journal, Settlement) -> (Unit, Journal)]("recording how an order ended: the journal " +
     "after")
 
   val registerCode = updating { (orders: OrderBook^, order: String) => orders.register(order) }

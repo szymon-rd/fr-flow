@@ -9,7 +9,7 @@ import frflow.dsl.vocab.FlowSyntax.*
 import frflow.dsl.model.Clock
 import frflow.dsl.term.{Lift, Term}
 import frflow.dsl.term.TermSyntax.*
-import frflow.dsl.vocab.Definition
+import frflow.dsl.vocab.{Declaration, Definition}
 import frflow.eval.flow.{Bound, PlainShelf, Runs, Shelf, Trouble, Wall}
 import frflow.eval.run.Running
 import java.io.IOException
@@ -24,13 +24,13 @@ class RunningSuite extends munit.FunSuite:
     identity))
   private def running: IO[Running[IO]] = Running.make[IO](Values.none, literals, Map.empty)
   /** Production's interpreter with each operation's Scala the function given. */
-  private def binding(ops: (Definition[?], List[Any] => IO[Any])*): IO[Running[IO]] =
+  private def binding(ops: (Declaration[?], List[Any] => IO[Any])*): IO[Running[IO]] =
     Running.make[IO](Values.none, literals, ops.map((d, f) => d.name -> Bound[IO](f, None)).toMap)
 
-  private val bump = Definition[Flow[Unit]]("the counter bumped, slowly")
-  private val busy = Definition[BigInt => Flow[BigInt]]("a number, given back after a while")
-  private val slowly = Definition[Flow[BigInt]]("two, after a second")
-  private val finish = Definition[Flow[Unit]]("the finish noted")
+  private val bump = Declaration[Flow[Unit]]("the counter bumped, slowly")
+  private val busy = Declaration[BigInt => Flow[BigInt]]("a number, given back after a while")
+  private val slowly = Declaration[Flow[BigInt]]("two, after a second")
+  private val finish = Declaration[Flow[Unit]]("the finish noted")
 
   test("a condition picks a branch by its term's value, and parTupled pairs both results") {
     val p = Flow.cond(Lift.constant(true))(Flow.parTupled(Flow.pure(n(1)), Flow.pure(n(2))),
@@ -96,12 +96,12 @@ class RunningSuite extends munit.FunSuite:
     assertEquals(ran.unsafeRunSync(), (Left(BigInt(1)), true))
   }
 
-  private val twoMarks = Definition[Flow[Unit]]("a mark made twice, a while apart")
-  private val mark = Definition[Flow[Unit]]("a mark made")
-  private val pause = Definition[Flow[Unit]]("a while")
+  private val twoMarks = Declaration[Flow[Unit]]("a mark made twice, a while apart")
+  private val mark = Declaration[Flow[Unit]]("a mark made")
+  private val pause = Declaration[Flow[Unit]]("a while")
   private def soon = Flow.step(slowly)
   /** The marks a race's loser made, `soon` winning while it runs, and the winner. */
-  private def lost(loser: Flow[Unit], ops: (IO[Unit], IO[Unit]) => List[(Definition[?], List[Any] => IO[Any])]) =
+  private def lost(loser: Flow[Unit], ops: (IO[Unit], IO[Unit]) => List[(Declaration[?], List[Any] => IO[Any])]) =
     (for
       marks <- IO.ref(0)
       made   = marks.update(_ + 1)
@@ -157,7 +157,7 @@ class RunningSuite extends munit.FunSuite:
   }
 
   test("an argument with no value fails in F, not where the call is built, and is no model's error") {
-    val unbound = Definition[BigInt]("a value nothing gives")
+    val unbound = Declaration[BigInt]("a value nothing gives")
     val ran = bound(Nil, ticking).flatMap(run => run.flow(Shelf.putting(unbound)).attempt)
     assert(ran.unsafeRunSync().left.exists(_.isInstanceOf[NotEvaluated]))
   }

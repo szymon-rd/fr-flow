@@ -1,4 +1,4 @@
-# Payments: a stream processor whose services are Definitions
+# Payments: a stream processor whose services are declared, then defined
 
 A consumer reads card payments from a log and, for each, checks the card's daily limit, posts the money, and
 commits its position. Every team that has written one knows the ways it goes wrong:
@@ -14,10 +14,10 @@ once, in order, is a decision the model names.
 It is the example of the service shape:
 
 - **A trait** says what members a service has. It extends nothing of FrFlow's.
-- **A `Definition` of the trait's type** is the service in the model.
-- **The claims** are ordinary `Node.claim`s on that Definition, written through its members.
-- **A class that implements the trait** is the value given for the Definition (`implementProven`). FrFlow reads the
-  class into Lean, and Lean proves it meets every claim on the Definition.
+- **A `Declaration` of the trait's type** is the service in the model.
+- **The claims** are ordinary `Node.claim`s on that word, written through its members.
+- **A class that implements the trait** is its Definition (`limits.define(lifted(SpendLimits(…)))`), listed in the
+  model beside the nodes. FrFlow reads the class into Lean, and Lean proves it meets every claim on the word.
 
 ## A service
 
@@ -30,7 +30,7 @@ trait Limits extends Mutable:
   def limit: BigInt
 
 object Limits:
-  val limits = Definition[Limits]("the limits service: it decides each payment against its card's limit of the day")
+  val limits = Declaration[Limits]("the limits service: it decides each payment against its card's limit of the day")
 
   val authorisedIsRecorded = Node.claim("A payment authorised is decided, and the answer is the decision recorded.")(
     forall((p: Term[Payment]) =>
@@ -65,14 +65,14 @@ final class StreamProcessor(limits: Limits^, accounts: Accounts^, checkpoint: Ch
     approved
 ```
 
-The model gives each Definition its class. The processor is made with the other services' Definitions:
+The model lists each service's Definition beside its nodes. The processor is made with the other services' words:
 
 ```scala
-val payments: FrModel = FrModel("Payments")(…)
-  .implementProven(limits)(lifted(SpendLimits(BigInt(100), Nil)))
-  .implementProven(accounts)(lifted(LedgerAccounts(Nil, Nil)))
-  .implementProven(checkpoint)(lifted(OffsetCheckpoint(BigInt(0))))
-  .implementProven(processor)(lifted(StreamProcessor(limits, accounts, checkpoint)))
+val payments: FrModel = FrModel("Payments")(…,
+  limits.define(lifted(SpendLimits(BigInt(100), Nil))),
+  accounts.define(lifted(LedgerAccounts(Nil, Nil))),
+  checkpoint.define(lifted(OffsetCheckpoint(BigInt(0)))),
+  processor.define(lifted(StreamProcessor(limits, accounts, checkpoint))))
 ```
 
 So in Lean the processor's code is a function of *any* `authorise`, `post` and `commit`, and its claims are proven
@@ -82,10 +82,10 @@ from the claims on `limits`, `accounts` and `checkpoint`, not from `SpendLimits`
 | File | What it holds |
 | --- | --- |
 | `Domain.scala` | `Payment` (contract: the amount is positive), `Decision`, `Posting` |
-| `Limits.scala`, `Accounts.scala`, `Checkpoint.scala` | A service each: the trait, its Definition and claims in the companion, the class |
+| `Limits.scala`, `Accounts.scala`, `Checkpoint.scala` | A service each: the trait, its Declaration and claims in the companion, the class |
 | `Processor.scala` | The processor: the same, over the three services |
 | `Eager.scala`, `Hasty.scala` | Two first versions of the processor, each with one of the bugs |
-| `Payments.scala` | The model: which claim rests on which, the class given for each Definition, what is trusted |
+| `Payments.scala` | The model: which claim rests on which, each service's Definition, what is trusted |
 
 ## Every step of a call: a crash, a second instance
 
@@ -143,7 +143,7 @@ after a restart.
 
 ## The two first versions
 
-Each is the processor with its lines in another order, is given for a Definition of its own, does one thing
+Each is the processor with its lines in another order, defines a word of its own, does one thing
 provably right, and passes any test of one call run to its end. An example shows what it gets wrong.
 
 | Version | The difference | Proven of it | What an example shows |
@@ -198,7 +198,7 @@ accepted: deciding them is the developer's, with their signing key.
   a class over a database does it with a transaction, and the model does not check that it does.
 - **One class for a trait.** A model gives one class for each service's trait, so a second implementation of
   `Accounts` cannot stand beside the first in this model; the first versions are traits of their own.
-- **A class FrFlow cannot read.** `implementTested` for a service, a class tested against the claims, is not
+- **A class FrFlow cannot read.** `defineTested` for a service, a class tested against the claims, is not
   built; nor is the classes' Scala tested against the terms read from them on generated cases.
 - **A member no claim mentions** has its code, and nothing is proven of it.
 - **The breaking schedules are written by hand.** Lean proves or does not; nothing searches for the schedule.

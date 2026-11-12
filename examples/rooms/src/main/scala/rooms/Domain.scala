@@ -12,9 +12,9 @@ final case class Booking(room: String, start: BigInt, end: BigInt) derives LeanT
 /** A room's bookings, as the table gives them. */
 final case class RoomBookings(room: String, bookings: List[Booking]) derives LeanType
 
-val granted = Definition[(RoomBookings, Booking) => Boolean]("whether a request is granted, given its room's bookings")
+val granted = Declaration[(RoomBookings, Booking) => Boolean]("whether a request is granted, given its room's bookings")
 
-val book = Definition[Booking => Flow[Boolean]]("booking a request: whether it was booked")
+val book = Declaration[Booking => Flow[Boolean]]("booking a request: whether it was booked")
 
 /** A booking covers the moments from its start up to its end. */
 val covers = define { (b: Term[Booking], t: Term[BigInt]) => b.start <= t && t < b.end }

@@ -24,23 +24,23 @@ enum Fault:
     * is an operation on a state applied (`inRoom(request.room)`).
     */
   case NotAnOperation(what: String)
-  /** The Scala of operations on a state given for Definitions no one model gives a meaning (`implementTested(ops*)`
+  /** The Scala of operations on a state given for Definitions no one model gives a meaning (`defineOperations(ops*)`
     * of an operation no model's body means, or of operations of two models).
     */
   case NotOneModel(definitions: List[String])
   /** The Scala of a model's operations given for some of them only: `missing` have none. */
   case OperationsMissing(model: String, missing: List[String])
-  /** An operation on a state given another meaning than its model's (`implementProven`, `implementValue`, …): its
-    * Scala is given with `implementTested(ops*)(start, observe)(calls)`.
+  /** An operation on a state given another meaning than its model's (`define`, `defineValue`, …): its
+    * Scala is given with `defineOperations(ops*)(start, observe)(calls)`.
     */
   case ModelledElsewhere(definition: String)
   /** An operation on a state given a meaning by two models. */
   case MeantByTwo(definition: String, models: List[String])
-  /** A program given on the spot mentioned in a statement: it is the meaning `implementProven` gives the Definition
-    * the statements speak of.
+  /** A program given on the spot mentioned in a statement: it is the meaning a Declaration is given
+    * (`book.define(…)`), the word the statements speak of.
     */
   case ProgramMentioned(program: String)
-  /** `implementProven` given a Definition that is not a `define` or a `program`. */
+  /** `define` given a Definition that carries no proven code: neither a `define` nor a `program`. */
   case NotProvenCode(definition: String)
   /** A meaning given to a Definition that has its own where it is written (`define`, `program`). */
   case MeantWhereWritten(definition: String)

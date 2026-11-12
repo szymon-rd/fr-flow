@@ -10,19 +10,19 @@ import frflow.eval.flow.Wall
   * must stay unproven (as `lately`, which time passing inside a run breaks).
   */
 object Lapse:
-  val ranAt = Definition[BigInt => Flow[Unit]]("the time housekeeping ran at, kept")
+  val ranAt = Declaration[BigInt => Flow[Unit]]("the time housekeeping ran at, kept")
 
   object housekept extends StateModel[BigInt]("when housekeeping last ran"):
     ranAt.means(t => state.set(t))
 
-  val housekeep = Definition[Flow[Unit]]("a run of housekeeping")
+  val housekeep = Declaration[Flow[Unit]]("a run of housekeeping")
   val housekeepCode = program {
     for
       t <- Clock.now
       _ <- Flow.step(ranAt(t))
     yield Flow.done }
 
-  val slow = Definition[Flow[BigInt]]("a wait of five minutes, timed by the clock")
+  val slow = Declaration[Flow[BigInt]]("a wait of five minutes, timed by the clock")
   val slowCode = program {
     for
       t0 <- Clock.now
@@ -51,8 +51,8 @@ object Lapse:
 
   val lapse: FrModel = FrModel("Lapse")(quick, records, lately, onTime, clockStarts, housekeptStarts, housekeptKept,
       housekeptOne)
-    .implementProven(slow)(slowCode)
-    .implementProven(housekeep)(housekeepCode)
-    .implementTested(ranAt)(start = Housekept.at, observe = _.last)(h => Tuple1(h.ranAt))
-    .implementTested(Clock.now, Clock.sleep, Clock.elapse)(start = Wall.at[IO], observe = _.time)(c =>
-      (c.now, c.sleep, c.elapse))
+    .defining(slow.define(slowCode))
+    .defining(housekeep.define(housekeepCode))
+    .defining(defineOperations(ranAt)(start = Housekept.at, observe = _.last)(h => Tuple1(h.ranAt)))
+    .defining(defineOperations(Clock.now, Clock.sleep, Clock.elapse)(start = Wall.at[IO], observe = _.time)(c =>
+      (c.now, c.sleep, c.elapse)))

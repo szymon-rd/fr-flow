@@ -52,11 +52,11 @@ val payments: FrModel = FrModel("Payments")(
   Checkpoint.commitMovesPast.refines(Processor.positionMovesPastTheHandled, Processor.redeliveryChangesNothing),
   Checkpoint.commitElsewhereChangesNothing.refines(Processor.redeliveryChangesNothing),
   // The decision no proof covers.
-  deliveryIsAtLeastOnce.refines(Processor.handledIsApplied, Processor.redeliveryChangesNothing))
-  // The value given for each Definition: a class FrFlow reads, proven to meet the claims on the Definition.
-  .implementProven(limits)(lifted(SpendLimits(BigInt(100), Nil)))
-  .implementProven(accounts)(lifted(LedgerAccounts(Nil, Nil)))
-  .implementProven(checkpoint)(lifted(OffsetCheckpoint(BigInt(0))))
-  .implementProven(processor)(lifted(StreamProcessor(limits, accounts, checkpoint)))
-  .implementProven(eager)(lifted(EagerProcessor(limits, accounts, checkpoint)))
-  .implementProven(hasty)(lifted(HastyProcessor(limits, accounts, checkpoint)))
+  deliveryIsAtLeastOnce.refines(Processor.handledIsApplied, Processor.redeliveryChangesNothing),
+  // The Definition of each service: a class FrFlow reads, proven to meet the claims on the service's word.
+  limits.define(lifted(SpendLimits(BigInt(100), Nil))),
+  accounts.define(lifted(LedgerAccounts(Nil, Nil))),
+  checkpoint.define(lifted(OffsetCheckpoint(BigInt(0)))),
+  processor.define(lifted(StreamProcessor(limits, accounts, checkpoint))),
+  eager.define(lifted(EagerProcessor(limits, accounts, checkpoint))),
+  hasty.define(lifted(HastyProcessor(limits, accounts, checkpoint))))

@@ -35,8 +35,8 @@ follows the method of stepwise refinement (Wirth, 1971) and the refinement calcu
      in a strict proof.
    - As plain Scala that FrFlow reads (`lifted { … }`): at compile time the function is read into the same model the
      DSL builds, so Lean proves it, and it stays the Scala the JVM runs ([docs/LIFTED.md](docs/LIFTED.md)). A
-     service is read the same way: a trait says its members, a `Definition` of the trait is the service the claims
-     are about, and the class that implements it is the value Lean proves meets them, alone and among other calls
+     service is read the same way: a trait says its members, a `Declaration` of the trait is the service the claims
+     are about, and the class that implements it is its Definition, which Lean proves meets them, alone and among other calls
      ([examples/payments](examples/payments/README.md): a stream processor proven to apply each payment once,
      through redelivery, a crash at any step and a second instance).
 
@@ -106,7 +106,7 @@ val addedIfFree = define { (bookings: Term[List[Booking]], request: Term[Booking
 
 Bookings come from the booking form, which sends only bookings that end after they start. That is trusted, so it is
 an assumption, stated with `always`: every value of the type that can occur. The roots state the purpose over
-`Declaration`s: concepts known only by what the statements say of them. A statement holds in every state the service
+`Declaration`s nothing defines: concepts known only by what the statements say of them. A statement holds in every state the service
 reaches, and reads what changes, such as what is booked, in the current one.
 
 ```scala
@@ -129,18 +129,18 @@ val acceptWhenFree = Node.claim("A request is accepted exactly when its room is 
   .assuming(bookingsEndAfterStart)
 ```
 
-Booking a request is a `Definition`: what the code provides. Its program reads the room's bookings from the table,
-asks the calendar, and adds the booking if it is granted, in one transaction. The table's two operations are
-`Definition`s too, given their meaning by a model of what it stores. Lean proves the program against its claims. A
-program that can fail says so where it is declared (`Definition[Booking => Flow[Boolean]]("…").failsWith[StoreDown]`);
-a claim about its run then covers the runs that fail too, its `result` an `Either[StoreDown, Boolean]`, and FrFlow
+Booking a request is a `Declaration` too, one the code defines. Its program reads the room's bookings from the
+table, asks the calendar, and adds the booking if it is granted, in one transaction. The table's two operations are
+declared the same way, and given their meaning by a model of what it stores. Lean proves the program against its
+claims. A program that can fail says so where it is declared
+(`Declaration[Booking => Flow[Boolean]]("…").failsWith[StoreDown]`); a claim about its run then covers the runs that fail too, its `result` an `Either[StoreDown, Boolean]`, and FrFlow
 checks the error against what the code raises.
 
 ```scala
-val book = Definition[Booking => Flow[Boolean]]("booking a request: whether it was booked")
+val book = Declaration[Booking => Flow[Boolean]]("booking a request: whether it was booked")
 
-val inRoom = Definition[String => Flow[RoomBookings]]("a room's bookings, as the SQLite table gives them")
-val add = Definition[Booking => Flow[Unit]]("a booking added to the SQLite table")
+val inRoom = Declaration[String => Flow[RoomBookings]]("a room's bookings, as the SQLite table gives them")
+val add = Declaration[Booking => Flow[Unit]]("a booking added to the SQLite table")
 
 object storedBookings extends StateModel[List[Booking]]("every booking stored, oldest first"):
   inRoom.means(room => state.get.map(stored => make[RoomBookings](room, stored.filter(b => b.room === room))))
@@ -194,7 +194,7 @@ automatically with property-based testing, on a thousand generated cases, agains
 below.
 
 ```scala
-val granted = Definition[(RoomBookings, Booking) => Boolean]("whether a request is granted, given its room's bookings")
+val granted = Declaration[(RoomBookings, Booking) => Boolean]("whether a request is granted, given its room's bookings")
 
 final class Calendar(held: RoomBookings):
   private val startOrder: Ordering[Booking] = Ordering.by(_.start)
@@ -230,17 +230,18 @@ val grantWhenNoOverlap = Node.claim("A request is granted exactly when it overla
   .assuming(bookingsEndAfterStart)
 ```
 
-The FrModel lists the statements and attaches the code: booking's program to be proven, the calendar to be tested on
-cases drawn from the generators given for the domain's types, and the SQLite table's Scala to be tested against its
-model on generated runs.
+The FrModel lists the statements and, beside them, the Definitions of its words: booking's program to be proven,
+the calendar to be tested on cases drawn from the generators given for the domain's types, and the SQLite table's
+Scala to be tested against its model on generated runs.
 
 ```scala
 val rooms = FrModel("Rooms")(bookWhenFree, acceptWhenFree, bookedIsStored, bookedAfterIsStored, acceptedIsAnswered,
   storeWhenFree, answerWhenFree, neverOverlap, grantWhenFree, bookingsOfTheRoom, roomBookingsApart, grantWhenNoOverlap,
-  nothingElseWrites, oneAtATime, startsEmpty, bookingsEndAfterStart)
-  .implementProven(book)(bookIfGranted)
-  .implementTested(granted)(_ => (held, request) => Calendar(held).grants(request))
-  .implementTested(inRoom, add)(start = BookingsTable.holding, observe = _.bookings)(t => (t.inRoom, t.add))
+  nothingElseWrites, oneAtATime, startsEmpty, bookingsEndAfterStart,
+  // The Definitions of the model's words.
+  book.define(bookIfGranted),
+  granted.defineTested(_ => (held, request) => Calendar(held).grants(request)),
+  defineOperations(inRoom, add)(start = BookingsTable.holding, observe = _.bookings)(t => (t.inRoom, t.add)))
   .withGenerator(roomNames.describedAs("Oak or Elm"))
   .withGenerator(requests.describedAs("requests for Oak or Elm that end after they start"))
   .withGenerator(roomBookings.describedAs("a room's bookings, laid end to end, some back to back"))
@@ -360,8 +361,8 @@ Statements are about two kinds of values:
 
 | Value | Written | What it is |
 |---|---|---|
-| Declaration | `Declaration[A](means)` | a concept known only by what the statements say of it, such as `booked`; never called by code. It may change as the service runs; `d.isConstant`, as an assumption, says it does not |
-| Definition | `Definition[A](means)`, or `define { … }` given its meaning on the spot | what the code provides, such as `book`, and must be given a meaning: a program or a `define` (proven in Lean), plain Scala (tested), a value, or, for an operation on a state, a `StateModel` saying what it does (its Scala tested against the model) or the assumptions about it alone (`op.assumed`) |
+| Declaration | `Declaration[A](means)` | a word of the model: what statements speak of and code calls. One nothing defines is known only by what the statements say of it, such as `booked`; if only statements read it, it may change as the service runs (`d.isConstant`, as an assumption, says it does not) |
+| Definition | `d.define(…)` of a Declaration, listed in the model beside the nodes; or `define { … }`, declared and defined at once | a Declaration with a meaning, such as `book`: a program or a `define` (`d.define`, proven in Lean), plain Scala (`d.defineTested`, tested), a value (`d.defineValue`, `d.provided`), or, for an operation on a state, a `StateModel` saying what it does (its Scala, `defineOperations`, tested against the model) or the assumptions about it alone (`op.assumed`) |
 
 They use two quantifiers: `forall`, every possible value, and `always`, every value the code FrFlow covers can produce
 (`always[T](x => …)`, of a type; `always(stored)(s => …)`, every state a model reaches). A statement holds in every
@@ -477,8 +478,8 @@ yet: each starts with no ledger, for its developer to decide. FrFlow's own suite
   the Scala, the term and the Lean are held to one meaning, and what is not built yet.
 - Service-level examples, in direct-style Scala with each service's contracts in its companion, proven alone and
   among other calls: [examples/payments](examples/payments/README.md) (a payment stream processor over three
-  services, each a `Definition` of a trait given the class that implements it),
+  services, each a `Declaration` of a trait, defined by the class that implements it),
   [examples/wallet](examples/wallet/README.md) (one transfer service, the smallest) and
   [examples/shop](examples/shop/README.md) (a checkout over two services and a store); the last two have a
-  Definition per method.
+  word per method.
 - [docs/redesign/](docs/redesign/ARCHITECTURE.md) is the design record of the library as it was rebuilt.

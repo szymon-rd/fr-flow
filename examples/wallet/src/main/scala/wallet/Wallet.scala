@@ -48,11 +48,12 @@ val wallet: FrModel = FrModel("Wallet")(
   transfersArePositive,
   ledgerIsTransactional.refines(Transfers.neverOverdrawn, Transfers.moneyIsConserved, Transfers.carriedOutOnce,
     Transfers.leavesOthersUndisturbed, Transfers.postsOnlyOnceClaimed),
-  othersLeaveARequestAlone.refines(Transfers.neverOverdrawn, Transfers.carriedOutOnce))
+  othersLeaveARequestAlone.refines(Transfers.neverOverdrawn, Transfers.carriedOutOnce),
+  // The Definitions of the model's words.
+  Ledger.claim.define(Ledger.claimCode),
+  Ledger.moveIfCovered.define(Ledger.moveIfCoveredCode),
+  Transfers.transfer.define(Transfers.transferCode),
+  Transfers.transferAmongOthers.define(Transfers.transferAmongOthersCode),
+  Hasty.hastyTransfer.define(Hasty.hastyCode),
+  Hasty.hastyAmongOthers.define(Hasty.hastyAmongOthersCode))
   // Each Definition is the code of the method of its name, read by FrFlow.
-  .implementProven(Ledger.claim)(Ledger.claimCode)
-  .implementProven(Ledger.moveIfCovered)(Ledger.moveIfCoveredCode)
-  .implementProven(Transfers.transfer)(Transfers.transferCode)
-  .implementProven(Transfers.transferAmongOthers)(Transfers.transferAmongOthersCode)
-  .implementProven(Hasty.hastyTransfer)(Hasty.hastyCode)
-  .implementProven(Hasty.hastyAmongOthers)(Hasty.hastyAmongOthersCode)

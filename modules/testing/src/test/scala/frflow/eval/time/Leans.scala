@@ -7,9 +7,9 @@ import frflow.*
   * `yZero` must stay unproven while `xZero` is (`Kept(xZero)`). Found where time passing left a port's rule open.
   */
 object Leans:
-  val setX = Definition[BigInt => Flow[Unit]]("x set")
-  val getX = Definition[Flow[BigInt]]("x read")
-  val setY = Definition[BigInt => Flow[Unit]]("y set")
+  val setX = Declaration[BigInt => Flow[Unit]]("x set")
+  val getX = Declaration[Flow[BigInt]]("x read")
+  val setY = Declaration[BigInt => Flow[Unit]]("y set")
 
   object xs extends StateModel[BigInt]("x"):
     setX.means(t => state.set(t))
@@ -18,9 +18,9 @@ object Leans:
   object ys extends StateModel[BigInt]("y"):
     setY.means(t => state.set(t))
 
-  val bump = Definition[Flow[Unit]]("x put to one")
+  val bump = Declaration[Flow[Unit]]("x put to one")
   val bumpCode = program { Flow.step(setX(1)) }
-  val copy = Definition[Flow[Unit]]("y put to x")
+  val copy = Declaration[Flow[Unit]]("y put to x")
   val copyCode = program {
     for
       x <- Flow.step(getX)
@@ -41,9 +41,9 @@ object Leans:
   val bumps = Node.claim("Bumping puts x to one.")(xs.in(bump.after) === 1).assuming(xOne)
 
   val model: FrModel = FrModel("Leans")(xZero, yZero, copies, bumps, xKept, xOne, xStarts, yKept, yOne, yStarts)
-    .implementProven(bump)(bumpCode)
-    .implementProven(copy)(copyCode)
-    .implementTested(setX, getX)(start = (n: BigInt) => cats.effect.IO.ref(n), observe = _.get)(r =>
-      ((t: BigInt) => r.set(t), r.get))
-    .implementTested(setY)(start = (n: BigInt) => cats.effect.IO.ref(n), observe = _.get)(r =>
-      Tuple1((t: BigInt) => r.set(t)))
+    .defining(bump.define(bumpCode))
+    .defining(copy.define(copyCode))
+    .defining(defineOperations(setX, getX)(start = (n: BigInt) => cats.effect.IO.ref(n), observe = _.get)(r =>
+      ((t: BigInt) => r.set(t), r.get)))
+    .defining(defineOperations(setY)(start = (n: BigInt) => cats.effect.IO.ref(n), observe = _.get)(r =>
+      Tuple1((t: BigInt) => r.set(t))))

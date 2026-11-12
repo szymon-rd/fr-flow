@@ -23,7 +23,7 @@ class ReviewLeanSuite extends munit.CatsEffectSuite:
   private def module(kb: FrModel, name: String): String = Projects.bare(Projects.elaborated(kb)).modules
     .find(_.name.dotted == s"FrFlowGen.${kb.name.value}.$name").map(Print.module).getOrElse(fail(s"no $name"))
 
-  val store = Definition[BigInt => Flow[Unit]]("a number stored on the shelf").failsWith[Trouble]
+  val store = Declaration[BigInt => Flow[Unit]]("a number stored on the shelf").failsWith[Trouble]
   val storeCode = program { (n: Term[BigInt]) => Flow.step(Shelf.put(n)) }
   val oneShelf = Node.assumption("One at a time.")(Shelf.kept.atomic)
   val nothingElse = Node.assumption("Nothing but the programs change the shelf.")(Shelf.kept.onlyCodeChanges)
@@ -32,7 +32,7 @@ class ReviewLeanSuite extends munit.CatsEffectSuite:
     forall((n: Term[BigInt]) => store(n).result.fold(
       _ => Shelf.kept.in(store(n).after) === Shelf.kept.current, _ => n === n))).assuming(oneShelf)
   private def shelf(c: frflow.dsl.node.Node): FrModel = FrModel("Shelves")(c.assuming(oneShelf, nothingElse),
-    failedKeeps, nothingElse, oneShelf).implementProven(store)(storeCode)
+    failedKeeps, nothingElse, oneShelf).defining(store.define(storeCode))
 
   val stays = Node.claim("The shelf stays as it is.")(Shelf.kept.current.isConstant)
   val neverRemoved = Node.claim("A number on the shelf is never taken off it.")(
@@ -86,9 +86,10 @@ class ReviewLeanSuite extends munit.CatsEffectSuite:
       granted(held, request) === held.bookings.forall(b => noOverlap(b, request)))).assuming(ends)
   private def rooms1(ns: frflow.dsl.node.Node*): FrModel =
     FrModel("Rooms")((ns.toList ++ List(gStart, gAtomic, gOnly, ends))*)
-      .implementProven(book)(bookIfGranted)
-      .implementTested(granted)(_ => (held, request) => Calendar(held).grants(request))
-      .implementTested(inRoom, add)(start = BookingsTable.holding, observe = _.bookings)(t => (t.inRoom, t.add))
+      .defining(book.define(bookIfGranted))
+      .defining(granted.defineTested(_ => (held, request) => Calendar(held).grants(request)))
+      .defining(defineOperations(inRoom, add)(start = BookingsTable.holding, observe = _.bookings)(
+        t => (t.inRoom, t.add)))
   private val ofRoomD = define { (room: Term[String]) => storedBookings.current.filter(b => b.room === room) }
 
   test("second review S1: conditions below book's run build in Lean, its code calling the tested calendar"

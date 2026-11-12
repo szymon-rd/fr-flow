@@ -51,11 +51,11 @@ class AuthSuite extends munit.FunSuite:
 
   test("a group solved in substitution order: access is witnessed once signedIn and authorized are") {
     val signedInBySessions = Node.claim("A user is signed in exactly when a session is open for them.")(
-      forall((u: Term[UserId]) => signedIn(u) === sessions.open.exists(s => s.user === u)))
+      forall((u: Term[UserId]) => signedIn(u) === sessions.term.open.exists(s => s.user === u)))
     val authorizedByGrants = Node.claim("A user is authorized for a path exactly when a grant names them and it.")(
       forall((u: Term[UserId], p: Term[Path]) => authorized(u, p) === grants.exists(g => g === make[Grant](u, p))))
     val bottom = FrModel("Auth")(accessExactly, signedInBySessions, authorizedByGrants)
-      .implementProvided(grants, sessions)
+      .defining(grants.provided, sessions.provided)
     assertEquals(groups(bottom), List((List("accessExactly", "signedInBySessions", "authorizedByGrants"),
       names("access", "signedIn", "authorized"), List(
         Witness.Equation(SymbolName("signedIn"), NodeId("signedInBySessions"), Picked.Right(0)),

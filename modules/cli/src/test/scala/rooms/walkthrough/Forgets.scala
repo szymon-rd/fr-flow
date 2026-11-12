@@ -16,5 +16,5 @@ final class Calendar(held: RoomBookings):
 
 val forgets = FrModel("Rooms")(rooms.walkthrough.nodes()*)
   .copy(generators = rooms.rooms.generators, operations = rooms.rooms.operations)
-  .implementProven(book)(bookIfGranted)
-  .implementTested(granted)(_ => (held, request) => Calendar(held).grants(request))
+  .defining(book.define(bookIfGranted))
+  .defining(granted.defineTested(_ => (held, request) => Calendar(held).grants(request)))

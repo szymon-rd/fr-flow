@@ -8,7 +8,7 @@ import frflow.testing.model.{ModelRuns, ModelTests}
 import rooms.{Booking, RoomBookings, storedBookings}
 
 /** Rooms' booking table kept in memory, a stand-in for the SQLite table; and the table's checks against its model:
-  * the SQLite table the rooms FrModel gives (`implementTested(inRoom, add)(…)`), as the project's checks give it,
+  * the SQLite table the rooms FrModel gives (`defineOperations(inRoom, add)(…)`), as the project's checks give it,
   * and the stand-in, as a variant.
   */
 final class Tables(held: Ref[IO, List[Booking]]):

@@ -22,8 +22,8 @@ class WorldsSuite extends munit.FunSuite:
   private def racesIt(n: Term[BigInt]): Flow[Either[List[BigInt], List[BigInt]]] =
     Shelf.putting(n).flatMap(_ => Shelf.held).race(Shelf.held)
 
-  private val putting = Definition[BigInt => Flow[Boolean]]("putting a number on the shelf")
-  private val racing = Definition[BigInt => Flow[Either[List[BigInt], List[BigInt]]]]("reading, raced")
+  private val putting = Declaration[BigInt => Flow[Boolean]]("putting a number on the shelf")
+  private val racing = Declaration[BigInt => Flow[Either[List[BigInt], List[BigInt]]]]("reading, raced")
   private val puts = program { (n: Term[BigInt]) => putsIt(n) }
   private val races = program { (n: Term[BigInt]) => racesIt(n) }
 
@@ -33,7 +33,7 @@ class WorldsSuite extends munit.FunSuite:
     forall((n: Term[BigInt]) => racing(n).result.fold(xs => xs.contains(n), ys => ys.contains(n))))
 
   private val kb = FrModel("Shelves")((Shelf.knowledge.nodes ++ List(putIsKept, readSeesPut))*)
-    .copy(operations = Shelf.knowledge.operations).implementProven(putting)(puts).implementProven(racing)(races)
+    .copy(operations = Shelf.knowledge.operations).defining(putting.define(puts)).defining(racing.define(races))
   private val e = kb.elaborated.fold(es => fail(es.toString), identity)
 
   private def failingWorld(claim: String): List[(Value, Option[Value])] =

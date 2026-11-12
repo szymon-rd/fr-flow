@@ -1,6 +1,6 @@
 package frflow.dsl.kb
 
-/** What an operation on a state is, as `implementTested(ops*)` reads its Definition's type at compile time
+/** What an operation on a state is, as `defineOperations(ops*)` reads its Definition's type at compile time
   * (`TestedMacro`): its inputs and result, one type per number of inputs. The plain Scala given it is a function of
   * its inputs to its result in the effect (`Shape.Scala`). Types only: no value of them is made.
   */

@@ -2,13 +2,13 @@ package frflow.dsl.flow
 
 import frflow.dsl.model.StateModel
 import frflow.dsl.term.Term
-import frflow.dsl.vocab.Definition
+import frflow.dsl.vocab.{Declaration, Definition}
 import frflow.dsl.vocab.Flow
 
 /** Operations on a state of the tests, Definitions, and their model: a number kept, given back and replaced. */
 object Store:
-  val load = Definition[Flow[BigInt]]("the number kept")
-  val save = Definition[BigInt => Flow[Unit]]("the number kept replaced")
+  val load = Declaration[Flow[BigInt]]("the number kept")
+  val save = Declaration[BigInt => Flow[Unit]]("the number kept replaced")
 
   object kept extends StateModel[BigInt]("the number the tests keep"):
     load.means(state.get)

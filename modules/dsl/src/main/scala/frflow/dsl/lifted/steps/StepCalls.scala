@@ -4,7 +4,7 @@ import frflow.dsl.lifted.LiftOps
 import frflow.dsl.service.Call as ServiceCall
 import frflow.dsl.term.{Terms, TermSyntax}
 import frflow.dsl.term.Term as DTerm
-import frflow.dsl.vocab.Definition as Defined
+import frflow.dsl.vocab.{Declaration, Reading}
 import scala.quoted.*
 
 /** The calls the reader of Scala that changes a port follows (`StepReader`): of a store's method (one step: among
@@ -112,11 +112,11 @@ private[steps] trait StepCalls:
       case (List(p), List(arg)) if !model.isNoSymbol && known(call) =>
         val result = r.kept(call.symbol).get.returnTpt.tpe
         (stateAt(at).asType, p.tpt.tpe.asType, result.asType) match
-          case ('[s], '[a], '[v]) if model.termRef.widen <:< TypeRepr.of[Defined[(s, a) => (v, s)]] =>
+          case ('[s], '[a], '[v]) if model.termRef.widen <:< TypeRepr.of[Declaration[(s, a) => (v, s)]] =>
             val site = Literal(UnitConstant())
-            Some('{ Terms.let[(v, s), Out](Defined.apply[s, a, (v, s)](${ Ref(model).asExprOf[Defined[(s, a) =>
-              (v, s)]] })(${ stateIn(at).asExprOf[DTerm[s]] }, ${ r.readAs[a](arg)(using walk.env) })(using
-              ${ r.spec[s](site) }, ${ r.spec[a](site) }, ${ r.spec[(v, s)](site) }), "did", (did: DTerm[(v, s)]) =>
+            Some('{ Terms.let[(v, s), Out](Declaration.apply[s, a, (v, s)](${ Ref(model).asExprOf[Declaration[
+              (s, a) => (v, s)]] })(${ stateIn(at).asExprOf[DTerm[s]] }, ${ r.readAs[a](arg)(using walk.env) })(using
+              Reading.code, ${ r.spec[(v, s)](site) }), "did", (did: DTerm[(v, s)]) =>
               ${ traced[Out](at, '{ TermSyntax._2[v, s](did)(using ${ r.spec[s](site) }) })(
                 rest('{ TermSyntax._1[v, s](did)(using ${ r.spec[v](site) }) }, _)) })(using ${ r.spec[Out](site) }) })
           case _ => None

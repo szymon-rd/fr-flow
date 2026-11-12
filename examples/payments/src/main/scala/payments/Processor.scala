@@ -23,7 +23,7 @@ trait Processor extends Mutable:
   def postingsOf(id: String): List[Posting]
 
 object Processor:
-  val processor = Definition[Processor]("the processor: it handles one payment from the log")
+  val processor = Declaration[Processor]("the processor: it handles one payment from the log")
 
   val handledIsApplied = Node.claim("A payment handled is applied: decided, and posted if approved.")(
     forall((p: Term[Payment]) => processor.applied(p.id).in(processor.handle(p).after)))

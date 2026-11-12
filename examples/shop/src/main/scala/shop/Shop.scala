@@ -75,17 +75,18 @@ val shop: FrModel = FrModel("Shop")(
   ordersAreSensible,
   storesAreTransactional.refines(Checkout.neverOversold, Checkout.neverOverdrawn, Checkout.chargedOnce,
     Checkout.duplicateDoesNothing, Checkout.leavesOthersUndisturbed),
-  othersLeaveAnOrderAlone.refines(Checkout.neverOversold, Checkout.neverOverdrawn, Checkout.chargedOnce))
+  othersLeaveAnOrderAlone.refines(Checkout.neverOversold, Checkout.neverOverdrawn, Checkout.chargedOnce),
+  // The Definitions of the model's words.
+  Ledger.claim.define(Ledger.claimCode),
+  Ledger.chargeIfCovered.define(Ledger.chargeIfCoveredCode),
+  Warehouse.hold.define(Warehouse.holdCode),
+  Warehouse.putBack.define(Warehouse.putBackCode),
+  OrderBook.register.define(OrderBook.registerCode),
+  OrderBook.settle.define(OrderBook.settleCode),
+  Inventory.reserve.define(Inventory.reserveCode),
+  Inventory.release.define(Inventory.releaseCode),
+  Payments.charge.define(Payments.chargeCode),
+  Checkout.place.define(Checkout.placeCode),
+  Checkout.placeAmongOthers.define(Checkout.placeAmongOthersCode),
+  Forgetful.forgetfulPlace.define(Forgetful.forgetfulCode))
   // Each Definition is the code of the method of its name, read by FrFlow.
-  .implementProven(Ledger.claim)(Ledger.claimCode)
-  .implementProven(Ledger.chargeIfCovered)(Ledger.chargeIfCoveredCode)
-  .implementProven(Warehouse.hold)(Warehouse.holdCode)
-  .implementProven(Warehouse.putBack)(Warehouse.putBackCode)
-  .implementProven(OrderBook.register)(OrderBook.registerCode)
-  .implementProven(OrderBook.settle)(OrderBook.settleCode)
-  .implementProven(Inventory.reserve)(Inventory.reserveCode)
-  .implementProven(Inventory.release)(Inventory.releaseCode)
-  .implementProven(Payments.charge)(Payments.chargeCode)
-  .implementProven(Checkout.place)(Checkout.placeCode)
-  .implementProven(Checkout.placeAmongOthers)(Checkout.placeAmongOthersCode)
-  .implementProven(Forgetful.forgetfulPlace)(Forgetful.forgetfulCode)

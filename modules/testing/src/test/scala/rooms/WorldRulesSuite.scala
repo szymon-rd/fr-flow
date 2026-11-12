@@ -49,9 +49,9 @@ class WorldRulesSuite extends munit.FunSuite:
       List(Fault.RuleOverChanging("opening", "startsOpen", "openingAssumed")))
   }
 
-  val store = Definition[BigInt => Flow[Unit]]("a number stored on the shelf").failsWith[Trouble]
+  val store = Declaration[BigInt => Flow[Unit]]("a number stored on the shelf").failsWith[Trouble]
   val storeCode = program { (n: Term[BigInt]) => Flow.step(Shelf.put(n)) }
-  private def shelf(c: frflow.dsl.node.Node): FrModel = FrModel("Shelves")(c).implementProven(store)(storeCode)
+  private def shelf(c: frflow.dsl.node.Node): FrModel = FrModel("Shelves")(c).defining(store.define(storeCode))
 
   test("a run of a program declared to fail is read one way, with both outcomes, its result and its world after") {
     val mixed = Node.claim("A store that fails leaves the shelf holding the number twice more.")(

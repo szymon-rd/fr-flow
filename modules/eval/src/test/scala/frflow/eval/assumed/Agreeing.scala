@@ -11,7 +11,7 @@ import frflow.*
 object Agreeing:
   import Lookup.{has, registerOne, registerOnly, hasKeeps, put}
 
-  val agree = Definition[BigInt => Flow[Boolean]]("whether two lookups of a number agree")
+  val agree = Declaration[BigInt => Flow[Boolean]]("whether two lookups of a number agree")
   val agreeCode = program { (n: Term[BigInt]) =>
     for
       a <- has(n)
@@ -29,5 +29,5 @@ object Agreeing:
     def holding(xs: List[BigInt]): IO[Coin] = Ref[IO].of(xs).map(Coin(_))
 
   val knowledge: FrModel = FrModel("Twice")(lookupsAgree, registerOne, hasKeeps, registerOnly)
-    .implementProven(agree)(agreeCode)
-    .implementTested(put, has)(start = Coin.holding, observe = _.numbers)(c => (c.put, c.has))
+    .defining(agree.define(agreeCode))
+    .defining(defineOperations(put, has)(start = Coin.holding, observe = _.numbers)(c => (c.put, c.has)))

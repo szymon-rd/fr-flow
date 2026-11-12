@@ -18,20 +18,22 @@ export frflow.dsl.node.Node
 export frflow.dsl.node.NodeSyntax.*
 export frflow.dsl.node.AlwaysSyntax.*
 export frflow.dsl.kb.FrModel
-export frflow.dsl.kb.Implementing.*
+export frflow.dsl.kb.Defining.*
 export frflow.dsl.example.FrFlowExamples
 export frflow.dsl.example.ExampleSyntax.*
 export frflow.dsl.term.{Data, LeanType, Term}
-export frflow.dsl.vocab.{Declaration, Opaque, Stating}
+export frflow.dsl.vocab.{Definition, Opaque, Stating}
 
-/** A word of the model given a meaning (`dsl.vocab.Definition`). */
-type Definition[A] = frflow.dsl.vocab.Definition[A]
+/** A word of the model (`dsl.vocab.Declaration`): what statements speak of and code calls. A `Definition` is one
+  * with a meaning.
+  */
+type Declaration[A] = frflow.dsl.vocab.Declaration[A]
 
-object Definition:
-  /** `val granted = Definition[(RoomBookings, Booking) => Boolean]("…")`; of a service (a trait that is one of
-    * Scala's `caps.Mutable`), `val limits = Definition[Limits]("…")`, typed by the trait's members.
+object Declaration:
+  /** `val granted = Declaration[(RoomBookings, Booking) => Boolean]("…")`; of a service (a trait that is one of
+    * Scala's `caps.Mutable`), `val limits = Declaration[Limits]("…")`, typed by the trait's members.
     */
-  transparent inline def apply[A](inline means: String): Definition[A] = frflow.dsl.service.Defining[A](means)
+  transparent inline def apply[A](inline means: String): Declaration[A] = frflow.dsl.service.Declaring[A](means)
 export frflow.dsl.vocab.DefinitionSyntax.*
 export frflow.dsl.kb.Gens
 export frflow.core.example.Gen
@@ -39,7 +41,7 @@ export frflow.dsl.shape.Defines.*
 export frflow.dsl.lifted.{Contract, FrSpec, Lifted}
 export frflow.dsl.lifted.LiftSyntax.*
 export frflow.dsl.lifted.steps.StepSyntax.*
-export frflow.dsl.service.{Call, ServiceDefinition}
+export frflow.dsl.service.{Call, ServiceDeclaration}
 export frflow.dsl.term.TermSyntax.*
 export frflow.dsl.kb.ValuesSyntax.*
 export frflow.dsl.vocab.Flow

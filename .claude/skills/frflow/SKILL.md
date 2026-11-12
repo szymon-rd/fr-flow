@@ -7,8 +7,8 @@ description: >-
   examples, answering the developer's requests, proving a step, or giving code its meaning; or when the work touches
   `Node.claim`, `Node.assumption`, `Node.design`, `Declaration`, `Definition`, `define`, `stated`, `program`,
   `lifted`, `FrSpec`, `contractOf`,
-  `forall`, `exists`, `always`, `FrModel`, `FrFlowExamples`, `.refines`, `.assuming`, `.replaces`, `implementProven`, `implementTested`,
-  `implementValue`, `implementProvided`, `withGenerator`, `Flow`, `StateModel`, `onlyCodeChanges`, `initially`,
+  `forall`, `exists`, `always`, `FrModel`, `FrFlowExamples`, `.refines`, `.assuming`, `.replaces`, `.define`,
+  `.defineTested`, `.defineValue`, `.provided`, `defineOperations`, `.defining`, `withGenerator`, `Flow`, `StateModel`, `onlyCodeChanges`, `initially`,
   `atomic`, `.assumed`, `.failsWith`, `.current`, `.in`, `.after`, `.result`, `.ifSucceeds`, `.ifFails`,
   `isConstant` or `Clock`.
 ---
@@ -66,8 +66,9 @@ requests. Do not add it to a project whose developer set it up without the layer
    `bookedAfterIsStored`).
 6. **The first split is ⇒/⇐** (safety and capability) **or state/reads**, not one part per conjunct.
 7. **Introduce the domain as it is needed**: a domain type (a case class or an enum deriving `LeanType`) where the
-   idea needs one, a `Declaration` where a concept is known only by what is said of it, a `Definition` where code
-   provides it. Every Declaration and Definition says what it means and where its value comes from.
+   idea needs one, a `Declaration` for each word of the model: a concept known only by what is said of it, or one
+   code provides, which then gets a Definition. Every Declaration says what it means, and every Definition where
+   its value comes from.
 8. **What comes from outside has a type of its own**, and what is trusted of it is an assumption of `always` on that
    type. Never state an assumption about a function's inputs.
 9. **Offer real alternatives**: the second `.replaces` the first; say the trade-off in your `answer`.
@@ -128,12 +129,17 @@ contract, invariant, model or definition node, no boundary, no `Program`. Never 
   outside the code (`stored.onlyCodeChanges`, `stored.initially(s => …)`, `stored.atomic`, a clock's `schedule`), an
   outside system's promise (an assumed operation's runs), what values from outside meet (`always[T]`).
   `Node.design(statement)(files*)`: a decision about code no proof covers.
-- **Values.** `Declaration[A](means)`: abstract, known only through the statements about it; no code, define or
-  program uses it. `Definition[A](means)`: what code and programs use, of any type; it must get a meaning, once:
-  `implementProven(d)(code)` (a `program` or a `define`, proven), `implementTested(d)(env => …)` (plain Scala,
-  tested), an operation's `StateModel` with `implementTested(ops*)(start, observe)(calls)` (proven on the model, the
-  Scala tested against it), `op.assumed` (known by its assumptions), `implementValue(d)(v)`,
-  `implementProvided(d*)`. `define { … }` and `program { … }` are Definitions given their meaning on the spot.
+- **Values.** `Declaration[A](means)`: a word of the model, of any type, what statements speak of and code and
+  programs call. A Definition is a Declaration with a meaning; list it in the `FrModel` beside the nodes
+  (`FrModel("Rooms")(bookWhenFree, …, book.define(bookIfGranted))`). A word gets one, once: `d.define(code)` or
+  `d.define { (a, b) => … }` (a `program`, a `define`, lifted code: proven), `d.defineTested(env => …)` (plain
+  Scala, tested), an operation's `StateModel` with `defineOperations(ops*)(start, observe)(calls)` (proven on the
+  model, the Scala tested against it), `op.assumed` (known by its assumptions), `d.defineValue(v)`, `d.provided`.
+  `define { … }` and `program { … }` are Definitions declared and defined at once, named as their vals; they need
+  no listing. A word the model gives no meaning is known by the statements about it: if code calls it, it is a
+  function from outside (say what is assumed of it); if only statements read it, it may change with the World.
+  Type what calls a word by `Declaration`; never write `Definition[A]("…")` or `implement…`, which no longer
+  exist. Read a field of a declared record as `d.term.field`.
   `stated { … }` is a define whose body may apply a Declaration: name a line over Declarations with it, so a
   statement reads `viewFollows && editFollows`; only statements call it (code calling it does not compile).
 - **Quantifiers.** `forall(x => …)`: every possible value. `exists(x => …)`: some value (Lean's `∃`; write it
@@ -169,7 +175,7 @@ From rooms (`examples/rooms`):
 ```scala
 val booked = Declaration[List[Booking]]("the bookings made, as the world stands")
 val accepted = Declaration[Booking => Boolean]("whether a request is accepted")
-val book = Definition[Booking => Flow[Boolean]]("booking a request: whether it was booked")
+val book = Declaration[Booking => Flow[Boolean]]("booking a request: whether it was booked")
 
 val bookingsEndAfterStart = Node.assumption("Every booking ends after it starts.")(
   always[Booking](b => b.start < b.end))
@@ -220,7 +226,7 @@ error.
   folds `map`, `filter`, `filterNot`, `contains`, `isEmpty`, `toList`), maps (`get`,
   `getOrElse`, `updated`), sets (`contains`, `union`), and `BigInt` arithmetic and comparisons. Maps and sets are
   not iterated.
-- **In plain Scala** (implementations, wiring, tests): `d.fn(env)` runs a define, `env(d)` reads a Definition's value.
+- **In plain Scala** (implementations, wiring, tests): `d.fn(env)` runs a define, `env(d)` reads a word's value.
 
 ## Programs and models
 
@@ -228,8 +234,8 @@ Use a program when code takes several steps against a state (load, store, log): 
 transaction are then proven, not only reviewed.
 
 ```scala
-val inRoom = Definition[String => Flow[RoomBookings]]("a room's bookings, as the SQLite table gives them")
-val add = Definition[Booking => Flow[Unit]]("a booking added to the SQLite table")
+val inRoom = Declaration[String => Flow[RoomBookings]]("a room's bookings, as the SQLite table gives them")
+val add = Declaration[Booking => Flow[Unit]]("a booking added to the SQLite table")
 
 object storedBookings extends StateModel[List[Booking]]("every booking stored, oldest first"):
   inRoom.means(room => state.get.map(stored => make[RoomBookings](room, stored.filter(b => b.room === room))))
@@ -244,7 +250,7 @@ val bookIfGranted = program { (request: Term[Booking]) =>
 ```
 
 - **A model** says what each operation does to its state (`state.get`, `state.set`, `state.update`). Its Scala is
-  attached with `implementTested(ops*)(start = …, observe = …)(t => (t.op1, t.op2))` and tested against it on
+  given with `defineOperations(ops*)(start = …, observe = …)(t => (t.op1, t.op2))` and tested against it on
   generated runs, two calls at once among them. Say of the model, as assumptions, what the world does: nothing else
   changes it (`onlyCodeChanges`), what it starts in (`initially`), runs never interleave (`atomic`). Which programs
   change it FrFlow derives from the code.
@@ -252,7 +258,7 @@ val bookIfGranted = program { (request: Term[Booking]) =>
   runs (`op(x).result`, `model.in(op(x).after)`). It reads only its own model; what it needs of another is handed to
   it as an input. Its results are values from outside.
 - **Failures**: a model whose calls may fail is `StateModel.failing[S, E](means, error)`; a program that can fail is
-  declared `Definition[…]("…").failsWith[E]`, and its `.result` is an `Either[E, R]`. FrFlow checks the declaration
+  declared `Declaration[…]("…").failsWith[E]`, and its `.result` is an `Either[E, R]`. FrFlow checks the declaration
   against the code.
 - **Combinators**: `Flow.when`, `cond`, `ifM`, `each`, `collect`, `fold`, `parCollect(N)`, `(a, b).parTupled`,
   `race`, `raise`, `handle`, `attempt`, `guarantee`, `bracket`, `timeout(Clock.now, s)`, `retry(Clock.sleep, waits)`.
@@ -267,14 +273,14 @@ val bookIfGranted = program { (request: Term[Booking]) =>
 ## Terms or plain Scala
 
 Write terms where the code is small and worth proving (a decision rule, a program's steps); write plain Scala for the
-lowest-level code (a lookup through an index, a parser, SQL), and attach it with `implementTested`.
+lowest-level code (a lookup through an index, a parser, SQL), and give it with `defineTested`.
 
 A decision rule can also be proven as the Scala it is: `val noOverlap = lifted { (a: Booking, b: Booking) => … }` is
 a Definition given its meaning on the spot, read at compile time from an ordinary function of one to four inputs
 (`docs/LIFTED.md`). Use it for a function with no state, no effect and no failing call, over `BigInt`, `Boolean`,
 `String`, case classes, enums, lists, options, maps and sets, calling other lifted functions and `inline def`s
-(ordinary methods too where the project compiles with `-Yretain-trees`); give it to a Definition with
-`implementProven`. A
+(ordinary methods too where the project compiles with `-Yretain-trees`); a Declaration is defined by it with
+`d.define(code)`. A
 compile error names the Scala it does not read (a `var`, `Int` arithmetic, `head`, a value from outside, recursion):
 rewrite that part, or keep the function as tested plain Scala. Every type in it has an `FrSpec`
 (`derives FrSpec`, or `given FrSpec[T] = FrSpec.derived[T].where(v => …)` with its contract); the contract enters
@@ -282,11 +288,11 @@ the model only when a node states it (`Node.assumption("…")(contractOf[T])`, t
 stay in the DSL.
 
 A service can be proven as written. Write it as a value (`examples/payments`, `docs/LIFTED.md` "A service as a
-Definition"): a trait of its members that extends `caps.Mutable`, what changes it marked `update`, in a file with
-capture and separation checking; in the trait's companion `val limits = Definition[Limits]("…")` and the claims,
+Declaration"): a trait of its members that extends `caps.Mutable`, what changes it marked `update`, in a file with
+capture and separation checking; in the trait's companion `val limits = Declaration[Limits]("…")` and the claims,
 through the members (`limits.authorise(p).result`, `.after`, `limits.decided(id).in(state)`, `limits.current`); a
-class that implements the trait; and in the model `.implementProven(limits)(lifted(SpendLimits(…)))`. A class made
-of services is given their Definitions (`lifted(StreamProcessor(limits, accounts, checkpoint))`) and is proven from
+class that implements the trait; and in the model its Definition, `limits.define(lifted(SpendLimits(…)))`. A class
+made of services is given their words (`lifted(StreamProcessor(limits, accounts, checkpoint))`) and is proven from
 the claims on them, so wire those claims under its own with `.refines`. A claim holds of the service in every
 state: state an invariant as what each call keeps. For a crash and for other callers, claim over the call's steps
 (`call.steps`, `call.amongOthers(run => run.steps.forall(step => …))`, `run.others` for what it takes of them),
@@ -294,23 +300,24 @@ and claim that each of its own steps grants what it takes. Name a state's type `
 `Term[Limits]`. In an example give a state with `limits.holding(SpendLimits(…))`. Give one class per trait in a
 model.
 
-The earlier way, a Definition per method, is still read (`examples/wallet`, `examples/shop`,
+The earlier way, a word per method, is still read (`examples/wallet`, `examples/shop`,
 `docs/LIFTED.md` "Services"): the store is a `caps.Mutable` class with one `var`, the service a class holding it
 (`Ledger^`), in files with capture and separation checking. A service holding several stores or services names
 its state in its companion (`type State = …`, a case class with a field per port, in order); give every port's
-methods names of their own, each of one argument, so a call of one is read as a call of its Definition. Put the contracts in the companions: a `Definition` per method, the method
-read with `updating { (service: S^, input: A) => service.method(input) }` and attached with `implementProven`, and
-claims over the Definition. For races, read it with `interleaving { … }(others)` and claim over every schedule;
+methods names of their own, each of one argument, so a call of one is read as a call of its word. Put the contracts in the
+companions: a `Declaration` per method, the method read with
+`updating { (service: S^, input: A) => service.method(input) }` and listed as its Definition
+(`Ledger.claim.define(Ledger.claimCode)`), and claims over the word. For races, read it with `interleaving { … }(others)` and claim over every schedule;
 state what the reading takes for granted as design nodes (each store method is one transaction; other calls keep
 the rely), and prove the service's own steps keep the rely for others. Bind a value whose type has a contract last
 in a `forall`. In the hand proofs, take a method read among other calls apart with `extract_lets` and share one
 lemma over its steps (`every_step` in the examples); a proof file holds theorems only, no `def`.
 
-Plain Scala attached with `implementTested`:
+Plain Scala given with `defineTested`, each listed in the model:
 
 ```scala
-.implementTested(granted)(_ => (held, request) => Calendar(held).grants(request))                  // rooms
-.implementTested(inRoom, add)(start = BookingsTable.holding, observe = _.bookings)(t => (t.inRoom, t.add))
+granted.defineTested(_ => (held, request) => Calendar(held).grants(request)),                      // rooms
+defineOperations(inRoom, add)(start = BookingsTable.holding, observe = _.bookings)(t => (t.inRoom, t.add))
 ```
 
 The test's property is the claim's own formula; its cases are drawn from the generators given for the types

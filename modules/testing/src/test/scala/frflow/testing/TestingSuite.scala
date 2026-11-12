@@ -103,29 +103,29 @@ class TestingSuite extends munit.FunSuite:
   }
 
   test("a proven define has nothing to test") {
-    val proven = FrModel("Shelf")(pick).implementProvided(minPages)
-      .implementProven(picks)(define((shelf: Term[List[Book]], _: Term[BigInt]) =>
-        shelf.filter(b => b.pages >= minPages)))
+    val proven = FrModel("Shelf")(pick).defining(minPages.provided)
+      .defining(picks.define(define((shelf: Term[List[Book]], _: Term[BigInt]) =>
+        shelf.filter(b => b.pages >= minPages))))
     assertEquals(tested(proven), None)
   }
 
   test("one input: a generated test finds a bug and shrinks it") {
     val wrong = FrModel("Shelf")(noLonger)
-      .implementTested(longest)(_ => shelf => shelf.headOption.fold(BigInt(0))(_.pages))
+      .defining(longest.defineTested(_ => shelf => shelf.headOption.fold(BigInt(0))(_.pages)))
     assertEquals(failing(wrong, "noLonger").inputs.map(shrunkBooks), List(2))
   }
 
   test("three inputs: a generated test finds a bug and shrinks it") {
-    val wrong = FrModel("Shelf")(inRange).implementTested(between)(_ => (shelf, lo, _) =>
-      shelf.filter(_.pages >= lo))
+    val wrong = FrModel("Shelf")(inRange).defining(between.defineTested(_ => (shelf, lo, _) =>
+      shelf.filter(_.pages >= lo)))
     val f = failing(wrong, "inRange")
     assertEquals((f.inputs.size, f.broke), (3, Broken.Post))
     assertEquals(f.inputs.headOption.map(shrunkBooks), Some(1))
   }
 
   test("no input: a generated test under the values given finds a bug and shrinks it") {
-    val wrong = FrModel("Shelf")(todayLong).implementProvided(minPages)
-      .implementTested(today)(_ => List(Book("Short", 1)))
+    val wrong = FrModel("Shelf")(todayLong).defining(minPages.provided)
+      .defining(today.defineTested(_ => List(Book("Short", 1))))
     val f = failing(wrong, "todayLong")
     assertEquals((f.inputs, f.givens.map(_.value)), (Nil, List(Value.Num(2))))
   }

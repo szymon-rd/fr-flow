@@ -35,14 +35,14 @@ object Checkout:
   val others = lifted { (o: Order, before: ShopState, after: ShopState) => undisturbed(o.id, before, after) }
 
   /** Placing an order alone, as the statements speak of it: from the shop, the answer with the shop after. */
-  val place = Definition[(ShopState, Order) -> (Placement, ShopState)]("placing an order, alone: its answer, " +
+  val place = Declaration[(ShopState, Order) -> (Placement, ShopState)]("placing an order, alone: its answer, " +
     "and the shop after")
 
   /** Placing an order among other calls: from the shop and what the others leave before each step (`between`, by
     * the step's number), the answer with every step taken: the shop the step started from and the one it left.
     */
   val placeAmongOthers =
-    Definition[(ShopState, Map[BigInt, ShopState], Order) -> (Placement, List[(ShopState, ShopState)])](
+    Declaration[(ShopState, Map[BigInt, ShopState], Order) -> (Placement, List[(ShopState, ShopState)])](
       "placing an order among other calls: its answer, and each of its steps")
 
   val placeCode = updating { (checkout: Checkout^, o: Order) => checkout.place(o) }

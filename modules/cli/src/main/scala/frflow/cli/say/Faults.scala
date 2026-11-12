@@ -50,16 +50,16 @@ object Faults:
   private val meaning: PartialFunction[Fault, String] =
     case Fault.NotAnOperation(what)   => s"a program's step $what applies no Definition: a step is an operation on a " +
         "state applied (inRoom(request.room))"
-    case Fault.NotOneModel(ds)        => s"implementTested is given ${ds.mkString(", ")}, which are not operations " +
+    case Fault.NotOneModel(ds)        => s"defineOperations is given ${ds.mkString(", ")}, which are not operations " +
         "one model gives a meaning"
     case Fault.OperationsMissing(m, ds) => s"the Scala of $m's operations is given without ${ds.mkString(", ")}: " +
         "give each one"
     case Fault.ModelledElsewhere(d)   => s"$d is an operation on a state, its meaning its model's: give its Scala " +
-        "with implementTested"
+        "with defineOperations"
     case Fault.MeantByTwo(d, ms)      => s"$d is given a meaning by two models (${ms.mkString(", ")})"
     case Fault.ProgramMentioned(p)    => s"the program $p is mentioned in a statement: it is the meaning " +
-        "implementProven gives the Definition; speak of the Definition"
-    case Fault.NotProvenCode(d)       => s"implementProven is given $d, which is not a define or a program"
+        "a Declaration is given (book.define(…)); speak of that word"
+    case Fault.NotProvenCode(d)       => s"define is given $d, which is not a define or a program"
     case Fault.MeantWhereWritten(d)   => s"$d has its meaning where it is written (a define, a program): it is " +
         "given another"
     case Fault.NoContract(t)          => s"$t's FrSpec states no contract: state one where the spec is given " +

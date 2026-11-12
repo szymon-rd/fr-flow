@@ -21,13 +21,13 @@ object Transfers:
   val others = lifted { (t: Transfer, before: Books, after: Books) => undisturbed(t.request, before, after) }
 
   /** A transfer alone, as the statements speak of it: from the books, its answer with the books after it. */
-  val transfer = Definition[(Books, Transfer) -> (Outcome, Books)]("a transfer, alone: its answer, and the books " +
+  val transfer = Declaration[(Books, Transfer) -> (Outcome, Books)]("a transfer, alone: its answer, and the books " +
     "after")
 
   /** A transfer among other calls: from the books and what the others leave before each of its steps (`between`,
     * by the step's number), its answer with every step it took: the books the step started from and those it left.
     */
-  val transferAmongOthers = Definition[(Books, Map[BigInt, Books], Transfer) -> (Outcome, List[(Books, Books)])](
+  val transferAmongOthers = Declaration[(Books, Map[BigInt, Books], Transfer) -> (Outcome, List[(Books, Books)])](
     "a transfer among other calls: its answer, and each of its steps")
 
   /** The method `transfer`, read both ways: what each Definition above is. */

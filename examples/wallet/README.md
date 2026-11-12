@@ -42,8 +42,8 @@ that changes the ledger as a function from the books to the books, with no state
 
 `updating { … }` reads a method as a function of the store's state: its answer with the state after.
 `interleaving { … }(others)` reads it among other calls: before each step after the first, other calls may have
-replaced the books, and the method's answer comes with every step it took. Each reading is attached to a
-`Definition` the contracts speak of (`implementProven`), so the Lean definition is printed from the method's body.
+replaced the books, and the method's answer comes with every step it took. Each reading is the Definition of a
+word the contracts speak of (`Ledger.claim.define(Ledger.claimCode)`), so the Lean definition is printed from the method's body.
 
 The ledger's contracts are proven of its methods' bodies. The service's contracts are proven from the ledger's
 contracts only: in Lean the service is a function of *any* `claim` and `moveIfCovered` that meet them. A ledger

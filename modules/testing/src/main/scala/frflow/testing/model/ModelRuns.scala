@@ -17,7 +17,7 @@ import frflow.testing.report.*
 import frflow.testing.report.Seed
 import frflow.testing.steps.{Difference, Step}
 
-/** A model's operations' plain Scala tested against the model (`implementTested(ops*)(start, observe)(calls)`,
+/** A model's operations' plain Scala tested against the model (`defineOperations(ops*)(start, observe)(calls)`,
   * whoever wrote it, owner §36): at most `most` runs of its operations (`ModelRuns.Runs` unless a port gives today's
   * count), each from a state of the model drawn by its type and meeting every `always(stored)` about it, on the
   * Scala and on the model (`ModelTests.run`), then its first two calls at once on the Scala, against the model's two

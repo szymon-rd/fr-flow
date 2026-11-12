@@ -23,7 +23,7 @@ object Forgetting:
 
   private def forgetting(nodes: List[Node]): FrModel = FrModel("Rooms")(nodes*)
     .copy(generators = rooms.generators)
-    .implementProven(book)(bookIfGranted)
-    .implementTested(granted)(_ => (held, request) => Calendar(held).grants(request))
-    .implementTested(inRoom, add)(start = (bs: List[Booking]) => Ref[IO].of(bs).map(Table(_)),
-      observe = (t: Table) => t.bookings)(t => (t.inRoom, t.add))
+    .defining(book.define(bookIfGranted))
+    .defining(granted.defineTested(_ => (held, request) => Calendar(held).grants(request)))
+    .defining(defineOperations(inRoom, add)(start = (bs: List[Booking]) => Ref[IO].of(bs).map(Table(_)),
+      observe = (t: Table) => t.bookings)(t => (t.inRoom, t.add)))

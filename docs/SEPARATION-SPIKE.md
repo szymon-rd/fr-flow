@@ -81,7 +81,7 @@ gives the state either branch leaves. Nothing of FrFlow's `Flow`, `Prog` or `Sta
   spike"), no port given on to other code: the cases where exclusivity is needed for the reading to be right. With one port the reader's own limits already rule aliasing out, so the spike shows the checker beside
   the reader, not yet a reading that depends on it.
 - A port that is its own model. A port with an adapter (SQL behind a trait) needs its model given apart, and the
-  adapter tested against it, as `implementTested` does for a store's operations.
+  adapter tested against it, as `defineOperations` does for a store's operations.
 - No loop, no change inside a function given to an operation, no failure (Aeneas's `Result`). Concurrency is read
   as one call among others under a rely ("Since the spike"), not as threads.
 - The world outside: another process writing the same store is an assumption, as it is today.
@@ -106,7 +106,8 @@ race the example's second service has.
 
 [The shop](../examples/shop/README.md) takes the step this spike named next: a service holding several ports.
 ([The payment stream](../examples/payments/README.md) is written the way that followed: each service a
-`Definition` of a trait, given the class that implements it; [LIFTED.md](LIFTED.md) "A service as a Definition".) Its state is a case class its companion names (`type State`),
+`Declaration` of a trait, defined by the class that implements it; [LIFTED.md](LIFTED.md) "A service as a
+Declaration".) Its state is a case class its companion names (`type State`),
 one field per port, and a call on a port leaves the state with that field replaced; that two ports are two
 stores, never one reached twice, is what separation checking says of the class. Read alone, a call of another
 service is a call of its Definition, so a processor over three services is proven from their contracts. Still

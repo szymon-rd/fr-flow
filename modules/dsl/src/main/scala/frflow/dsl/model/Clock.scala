@@ -19,7 +19,7 @@ import frflow.dsl.vocab.Definition
   * time on at each of the clock's steps, and reads waits at once as taking the longest of them, not the sum
   * (`Waits`). `Flow.timeout` and `Flow.retry` take `now` and `sleep`. A program calling either declares the model,
   * so Lean has its field of the World; its plain Scala, a virtual clock where it is tested, is given as any model's
-  * (`implementTested(now, sleep, elapse)(…)`). Written without the DSL's macros, which do not expand in the module
+  * (`defineOperations(now, sleep, elapse)(…)`). Written without the DSL's macros, which do not expand in the module
   * defining them, but for `schedule`'s rule.
   */
 object Clock:

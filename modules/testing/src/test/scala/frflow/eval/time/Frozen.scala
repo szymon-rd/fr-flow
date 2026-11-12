@@ -19,7 +19,7 @@ object Frozen:
     .assuming(housekeptOne, never)
 
   val model: FrModel = FrModel("Frozen")(records, never, clockStarts, housekeptStarts, housekeptKept, housekeptOne)
-    .implementProven(housekeep)(housekeepCode)
-    .implementTested(ranAt)(start = Housekept.at, observe = _.last)(h => Tuple1(h.ranAt))
-    .implementTested(Clock.now, Clock.sleep, Clock.elapse)(start = Wall.at[IO], observe = _.time)(c =>
-      (c.now, c.sleep, c.elapse))
+    .defining(housekeep.define(housekeepCode))
+    .defining(defineOperations(ranAt)(start = Housekept.at, observe = _.last)(h => Tuple1(h.ranAt)))
+    .defining(defineOperations(Clock.now, Clock.sleep, Clock.elapse)(start = Wall.at[IO], observe = _.time)(c =>
+      (c.now, c.sleep, c.elapse)))

@@ -23,10 +23,10 @@ final class Hasty(ledger: Ledger^):
       else Outcome.Refused
 
 object Hasty:
-  val hastyTransfer = Definition[(Books, Transfer) -> (Outcome, Books)]("the hasty transfer, alone: its answer, " +
+  val hastyTransfer = Declaration[(Books, Transfer) -> (Outcome, Books)]("the hasty transfer, alone: its answer, " +
     "and the books after")
 
-  val hastyAmongOthers = Definition[(Books, Map[BigInt, Books], Transfer) -> (Outcome, List[(Books, Books)])](
+  val hastyAmongOthers = Declaration[(Books, Map[BigInt, Books], Transfer) -> (Outcome, List[(Books, Books)])](
     "the hasty transfer among other calls: its answer, and each of its steps")
 
   val hastyCode = updating { (service: Hasty^, t: Transfer) => service.transfer(t) }

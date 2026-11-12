@@ -21,8 +21,8 @@ object Varying:
   /** What one statement read open tells: its Declarations, whether it reads the world, whether it is a rule. */
   private final case class Read(node: NodeId, declarations: Set[SymbolName], world: Boolean, rule: Boolean)
 
-  def of(nodes: List[Node]): ValidatedNec[ElabError, Set[SymbolName]] =
-    val read = nodes.flatMap(n => n.statement(Stating.probing).run.toOption.flatMap((ds, s) =>
+  def of(nodes: List[Node], fixed: Set[SymbolName]): ValidatedNec[ElabError, Set[SymbolName]] =
+    val read = nodes.flatMap(n => n.statement(Stating.probing(fixed)).run.toOption.flatMap((ds, s) =>
       s.said.map(f => Read(n.head.id, mentioned(ds), Worlds.in(f.value), s.range.exists(_ != Range.Possible)))))
     val statements = read.filterNot(_.rule)
     val varying = closure(statements.filter(_.world).flatMap(_.declarations).toSet, statements.map(_.declarations))

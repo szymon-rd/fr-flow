@@ -24,7 +24,7 @@ object Calendar:
     held.bookings.forall(b => noOverlap(b, request)) }
 
   val granted =
-    Definition[(RoomBookings, Booking) => Boolean]("whether a request is granted, given its room's bookings")
+    Declaration[(RoomBookings, Booking) => Boolean]("whether a request is granted, given its room's bookings")
 
   /** A booking covers the moments from its start up to its end. */
   val covers = define { (b: Term[Booking], t: Term[BigInt]) => b.start <= t && t < b.end }
@@ -54,4 +54,4 @@ object Calendar:
     .assuming(bookingsEndAfterStart)
 
   val model: FrModel = FrModel("Calendar")(grantWhenFree, grantWhenNoOverlap, bookingsEndAfterStart)
-    .implementProven(granted)(grantedCode)
+    .defining(granted.define(grantedCode))

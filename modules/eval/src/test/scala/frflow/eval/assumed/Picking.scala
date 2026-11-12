@@ -10,18 +10,18 @@ import frflow.*
 object Picking:
   final case class Pos(v: BigInt) derives LeanType
 
-  val put = Definition[BigInt => Flow[Unit]]("a number put in the register")
-  val keep = Definition[Pos => Flow[Unit]]("a positive number's value put in the register")
-  val pick = Definition[Flow[Pos]]("a number picked from outside")
+  val put = Declaration[BigInt => Flow[Unit]]("a number put in the register")
+  val keep = Declaration[Pos => Flow[Unit]]("a positive number's value put in the register")
+  val pick = Declaration[Flow[Pos]]("a number picked from outside")
 
   object register extends StateModel[List[BigInt]]("the numbers in the register"):
     put.means(n => state.update(xs => xs :+ n))
     keep.means(p => state.update(xs => xs :+ p.v))
     pick.assumed
 
-  val take = Definition[Flow[Pos]]("a picked number, taken")
+  val take = Declaration[Flow[Pos]]("a picked number, taken")
   val takeCode = program { for p <- pick yield p }
-  val pass = Definition[Flow[Unit]]("a picked number, kept in the register")
+  val pass = Declaration[Flow[Unit]]("a picked number, kept in the register")
   val passCode = program { for p <- pick; _ <- keep(p) yield () }
 
   val registerOne = Node.assumption("One run at a time on the register.")(register.atomic)
@@ -39,8 +39,8 @@ object Picking:
     def pick: IO[Pos] = IO.pure(Pos(-1))
     def numbers: IO[List[BigInt]] = r.get
 
-  private def coded(kb: FrModel): FrModel = kb.implementTested(put, keep, pick)(
-    start = (xs: List[BigInt]) => Ref[IO].of(xs).map(Negative(_)), observe = _.numbers)(c => (c.put, c.keep, c.pick))
+  private def coded(kb: FrModel): FrModel = kb.defining(defineOperations(put, keep, pick)(
+    start = (xs: List[BigInt]) => Ref[IO].of(xs).map(Negative(_)), observe = _.numbers)(c => (c.put, c.keep, c.pick)))
 
   /** Picked2: a claim of always on what `pick` gives, below the claim that a picked number is positive. */
   object Ruled:
@@ -52,18 +52,18 @@ object Picking:
     val posRule = Node.claim("Every Pos is positive.")(always[Pos](p => !(p.v <= BigInt(0))))
       .refines(pickedPositive, takenPositive)
     val knowledge: FrModel = coded(FrModel("Picked")(pickedPositive, takenPositive, posRule, registerOne, pickKeeps,
-      registerOnly)).implementProven(take)(takeCode)
+      registerOnly)).defining(take.define(takeCode))
 
   /** A claim about `take` and, apart, one about `pick`: the program relies on what is assumed of `pick` only. */
   val apart: FrModel = coded(FrModel("Apart")(takenPositive, pickedPositive, registerOne, pickKeeps, registerOnly))
-    .implementProven(take)(takeCode)
+    .defining(take.define(takeCode))
 
   /** The claim about `pick` a part of the claim about `take`: proven from the part, the part proven of nothing. */
   object AsPart:
     val pickedPositive = Node.claim("A picked number is positive.")(!(pick.result.v <= BigInt(0)))
       .refines(takenPositive)
     val knowledge: FrModel = coded(FrModel("AsPart")(takenPositive, pickedPositive, registerOne, pickKeeps,
-      registerOnly)).implementProven(take)(takeCode)
+      registerOnly)).defining(take.define(takeCode))
 
   /** The claim about `pick` alone. */
   val lone: FrModel = coded(FrModel("Lone")(pickedPositive, pickKeeps, registerOnly))
@@ -85,4 +85,4 @@ object Picking:
     val passes = Node.claim("Passing keeps the register's numbers.")(register.current.forall(n =>
       register.in(pass.after).contains(n))).assuming(registerOne)
     val knowledge: FrModel = coded(FrModel("Handed")(passes, posRule, posFromOutside, registerOne, pickKeeps,
-      registerOnly)).implementProven(pass)(passCode)
+      registerOnly)).defining(pass.define(passCode))

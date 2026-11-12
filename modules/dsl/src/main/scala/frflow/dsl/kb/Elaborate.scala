@@ -10,7 +10,7 @@ import frflow.core.code.{Attachment, Own}
 import frflow.core.name.{DefName, LeanNames, ModelName, SymbolName}
 import frflow.core.spec.{Form, Node as Spec, Written}
 import frflow.core.typing.IrCheck
-import frflow.core.vocab.{Define, DefineForm, StateModel, Vocabulary}
+import frflow.core.vocab.{Define, DefineForm, StateModel, ValueKind, Vocabulary}
 import frflow.dsl.build.{Declarations, Deferred, ElabError}
 import frflow.dsl.node.{Edges, Node}
 import frflow.dsl.vocab.Stating
@@ -23,7 +23,18 @@ import frflow.dsl.vocab.Stating
 object Elaborate:
   def apply(kb: FrModel): ValidatedNec[ElabError, Elaborated] =
     val attached = kb.meanings.traverse((id, a) => a.map(id -> _))
-    Varying.of(kb.nodes).andThen(varying => elaborated(kb, Stating.varying(varying), attached))
+    Varying.of(kb.nodes, kb.fixed).andThen(varying =>
+      elaborated(kb, Stating.varying(varying, kb.fixed), attached))
+
+  /** The words the model fixes: those it gives a meaning (a Definition listed in it, an operation's Scala), and
+    * those its code calls, read off the model written once with only the first known. A word that is neither is
+    * known by the statements alone, and may change with the World (`Varying`).
+    */
+  def fixed(kb: FrModel): Set[SymbolName] =
+    val given_ = kb.meanings.map(_._1).toSet ++ kb.operations.flatMap(_.definitions)
+    val written = (kb.nodes.traverse(_.statement(Stating.probing(given_))), kb.meanings.traverse(_._2)).tupled.run
+    given_ ++ written.andThen((d, _) => closed(d)).toOption.toList.flatMap(_._1.symbols.collect {
+      case (name, ss) if ss.exists(_.kind == ValueKind.Definition) => name })
 
   private def elaborated(kb: FrModel, stating: Stating, attached: Deferred[List[(SymbolName, Attachment)]])
       : ValidatedNec[ElabError, Elaborated] =

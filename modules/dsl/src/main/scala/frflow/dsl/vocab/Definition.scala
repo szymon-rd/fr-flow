@@ -13,22 +13,24 @@ import frflow.dsl.vocab.{Flow, Run}
 import scala.annotation.publicInBinary
 import scala.compiletime.summonFrom
 
-/** A value code and programs use (owner §15), of any type: a function (`val granted =
-  * Definition[(RoomBookings, Booking) => Boolean]("whether …")`), a program (`Booking => Flow[Boolean]`), an
-  * operation on a state (`String => Flow[RoomBookings]`), a plain value. Named as its val, `described` by its
-  * sentence. It gets its meaning once: from the FrModel (`implementProven`, `implementTested`, `implementValue`,
-  * `implementProvided`), from a model's body (an operation's, `inRoom.means(…)` in a `StateModel`, its Scala tested
-  * against it), or where it is written: `define { … }` and `program { … }` are
-  * Definitions carrying their proven code (`onTheSpot`). Every claim mentioning it constrains it, and its code is
-  * checked against them. Of a type with no `LeanType` (a connection), it is code-only: provided where the code runs
-  * and read there (`env(d)`), never mentioned in a statement (`CodeOnlyInStatement`). `at`: where it is written, and
-  * what a program's body refers to (`WrittenAt`).
+/** A Declaration with a meaning (owner §15): the word, and what it is. Made of a Declaration already written
+  * (`granted.define { … }`, `book.define(bookIfGranted)`, `granted.defineTested(…)`, `limit.defineValue(…)`,
+  * `connection.provided`, each listed in the FrModel beside the nodes), or declared and defined at once, named as
+  * its val and carrying its proven code (`define { … }`, `program { … }`, `lifted { … }`: `onTheSpot`). An
+  * operation on a state gets its meaning from its model's body (`inRoom.means(…)` in a `StateModel`, its Scala
+  * tested against it). Every claim mentioning the word constrains it, and its code is checked against them. This
+  * class also carries a word that has no meaning yet (what `Declaration[A]("…")` makes, typed as a Declaration):
+  * its symbol as a term. Of a type with no `LeanType` (a connection), a word is code-only: provided where the
+  * code runs and read there (`env(d)`), never mentioned in a statement (`CodeOnlyInStatement`). `at`: where it is
+  * written, and what a program's body refers to (`WrittenAt`).
   */
 class Definition[A] @publicInBinary private[dsl] (val name: SymbolName, val described: String,
     val onTheSpot: Option[OnTheSpot], val at: WrittenAt)(using t: LeanType[A])
-    extends Term[A](Symbols.written(at.declares(name.value), Definition.called[A](name, described, onTheSpot, t))):
+    extends Term[A](Symbols.written(at.declares(name.value), Definition.called[A](name, described, onTheSpot, t)))
+    with Declaration[A]:
+  def word: Definition[A] = this
   /** The term as a curried function (`F` the curried type of `A`): what `Functions.app` applies. */
-  def curried[F: LeanType]: Term[F] =
+  override def curried[F: LeanType]: Term[F] =
     Term(Symbols.written(at.declares(name.value), Definition.called[F](name, described, onTheSpot, t)))
   /** A define whose body reads state, which takes the world as its last input (owner §43). */
   def readsWorld: Boolean = onTheSpot.exists(_.spot match
@@ -40,7 +42,7 @@ class Definition[A] @publicInBinary private[dsl] (val name: SymbolName, val desc
     * `Either[E, R]` and its `after` the world either outcome leaves. FrFlow checks the error against what the code
     * raises (`Problem.FailsWithDiffers`).
     */
-  def failsWith[E](using e: LeanType[E]): Definition.Fails[A, E] =
+  override def failsWith[E](using e: LeanType[E]): Definition.Fails[A, E] =
     Definition.Fails[A, E](this, LeanType.of[A](Ty.failing(t.ty, Some(e.ty)), t, e))
   /** The same Definition, written `at` (`define` and `program` say where). */
   private[dsl] def in(at: WrittenAt): Definition[A] = new Definition[A](name, described, onTheSpot, at)
@@ -65,15 +67,9 @@ object Definition:
       run[R].ifFails(p)
     private def run[R](using A <:< Flow[R], LeanType[R]): Run[E, R] = Run[E, R](this.asInstanceOf[Term[Flow[R]]])
 
-  /** A Definition of a domain type; of a type with no `LeanType`, a code-only one, whose term has no type of its own
-    * (one `apply`: two overloads differing only in what they are given are ambiguous to Scala). The facade's
-    * `Definition[A]("…")` gives a service's (a trait that is one of Scala's `caps.Mutable`) its own
-    * (`service.Defining`).
+  /** A word named and written as given: of a domain type, or of a type with no `LeanType`, a code-only one, whose
+    * term has no type of its own.
     */
-  inline def apply[A](means: String): Definition[A] = plain[A](SymbolName(Source.valName), means,
-    WrittenAt.in(Source.here))
-
-  /** The same, named and written as given. */
   inline def plain[A](name: SymbolName, means: String, at: WrittenAt): Definition[A] = summonFrom {
     case t: LeanType[A] => new Definition[A](name, means, None, at)(using t)
     case _              => new Definition[A](name, means, None, at)(using NoLeanType[A](Source.typeName[A]))
@@ -109,6 +105,16 @@ object Definition:
     val applied =
       if d.readsWorld then Term.app(t.asInstanceOf[Term[World => R]], Worlds.current)(using t.leanType) else t
     Called(d.name, args, applied.run)(using t.leanType)
+
+  /** `d` applied to `args` as the function it is: what the extensions below make of a Definition whose type Scala
+    * knows; of none, the Definition itself.
+    */
+  private[dsl] def applied[R: LeanType](d: Definition[?], args: List[Term[?]]): Term[R] =
+    if args.isEmpty then d.asInstanceOf[Term[R]] // a word of no input is its own value
+    else
+      val f = d.curried[Any](using d.leanType.asInstanceOf[LeanType[Any]])
+      called(d, args, Term[R]([T[_]] => (s: Sym[T]) => args.foldLeft(f.run(s))((g, a) =>
+        s.app[Any, Any](g.asInstanceOf[T[Any => Any]], a.run(s).asInstanceOf[T[Any]])).asInstanceOf[T[R]]))
 
   extension [A, R, E](d: Fails[A => Flow[R], E])
     def apply(a: Term[A])(using LeanType[R]): Run[E, R] = Run(Definition.apply(d: Definition[A => Flow[R]])(a))(

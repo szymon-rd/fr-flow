@@ -46,9 +46,10 @@ class WorldSuite extends munit.FunSuite:
     val holds = Node.claim("What is booked is what the table holds.")(booked === storedBookings.current)
     val fixed = Node.assumption("What is booked never changes.")(booked.isConstant)
     val kb = FrModel("Rooms")(holds, fixed, answerWhenFree, oneAtATime, bookingsEndAfterStart)
-      .implementProven(book)(bookIfGranted)
-      .implementTested(granted)(_ => (held, request) => Calendar(held).grants(request))
-      .implementTested(inRoom, add)(start = BookingsTable.holding, observe = _.bookings)(t => (t.inRoom, t.add))
+      .defining(book.define(bookIfGranted))
+      .defining(granted.defineTested(_ => (held, request) => Calendar(held).grants(request)))
+      .defining(defineOperations(inRoom, add)(start = BookingsTable.holding, observe = _.bookings)(
+        t => (t.inRoom, t.add)))
     val said = Theories.theory(kb).nodes.map(_.node).find(_.id.value == "fixed").flatMap(_.statement.said)
       .getOrElse(fail("no fixed"))
     assertEquals(Exprs.all(said.value).collect { case Expr.Quant(_, List(x), _) if x.ty == Ty.World => x }.size, 1)

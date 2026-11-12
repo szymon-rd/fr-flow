@@ -13,7 +13,7 @@ import frflow.testing.report.Seed
 import frflow.testing.steps.{Difference, Ran}
 
 /** The model-based test the owner asked for (§7, §36): the plain Scala of the table's operations tested against
-  * `storedBookings` (`implementTested(inRoom, add)(start, observe)(calls)`), on generated runs of its operations, from
+  * `storedBookings` (`defineOperations(inRoom, add)(start, observe)(calls)`), on generated runs of its operations, from
   * states meeting what always holds of the store, whose bookings meet what always holds of them, call by call and then
   * by the state each holds (`ModelRuns`). The rooms FrModel's own Scala is the SQLite table; the variants here are
   * an in-memory stand-in, two of them with a seeded bug. In production `bookIfGranted` runs on the table's Scala

@@ -10,12 +10,12 @@ import frflow.*
 object Outside4:
   final case class Pos(v: BigInt) derives LeanType
 
-  val putB = Definition[BigInt => Flow[Unit]]("the box set")
+  val putB = Declaration[BigInt => Flow[Unit]]("the box set")
 
   object box extends StateModel[BigInt]("a number"):
     putB.means(t => state.set(t))
 
-  val store = Definition[Pos => Flow[Unit]]("a Pos's value put in the box")
+  val store = Declaration[Pos => Flow[Unit]]("a Pos's value put in the box")
   val storeCode = program { (p: Term[Pos]) => Flow.step(putB(p.v)) }
 
   val boxOne = Node.assumption("One run at a time on the box.")(box.atomic)
@@ -27,5 +27,6 @@ object Outside4:
     forall((p: Term[Pos]) => box.in(store(p).after) > 0)).assuming(boxOne, posFromOutside)
 
   val model: FrModel = FrModel("Outside4")(posRule, posFromOutside, storesPositive, boxOne)
-    .implementProven(store)(storeCode)
-    .implementTested(putB)(start = (n: BigInt) => IO.ref(n), observe = _.get)(r => Tuple1((t: BigInt) => r.set(t)))
+    .defining(store.define(storeCode))
+    .defining(defineOperations(putB)(start = (n: BigInt) => IO.ref(n), observe = _.get)(
+      r => Tuple1((t: BigInt) => r.set(t))))

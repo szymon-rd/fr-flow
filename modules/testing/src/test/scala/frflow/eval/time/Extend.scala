@@ -10,7 +10,7 @@ import frflow.eval.time.Lapse.{housekept, ranAt, onTime, clockStarts, housekeptS
   * stay unproven.
   */
 object Extend:
-  val extend = Definition[Flow[Unit]]("the last run put far ahead, then the time read")
+  val extend = Declaration[Flow[Unit]]("the last run put far ahead, then the time read")
   val extendCode = program {
     for
       _ <- Flow.step(ranAt(100000))
@@ -28,7 +28,7 @@ object Extend:
 
   val model: FrModel = FrModel("Extend")(stays, extends_, onTime, clockStarts, housekeptStarts, housekeptKept,
       housekeptOne)
-    .implementProven(extend)(extendCode)
-    .implementTested(ranAt)(start = Housekept.at, observe = _.last)(h => Tuple1(h.ranAt))
-    .implementTested(Clock.now, Clock.sleep, Clock.elapse)(start = Wall.at[IO], observe = _.time)(c =>
-      (c.now, c.sleep, c.elapse))
+    .defining(extend.define(extendCode))
+    .defining(defineOperations(ranAt)(start = Housekept.at, observe = _.last)(h => Tuple1(h.ranAt)))
+    .defining(defineOperations(Clock.now, Clock.sleep, Clock.elapse)(start = Wall.at[IO], observe = _.time)(c =>
+      (c.now, c.sleep, c.elapse)))

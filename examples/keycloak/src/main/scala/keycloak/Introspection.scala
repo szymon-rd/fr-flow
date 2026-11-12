@@ -9,7 +9,7 @@ import frflow.*
 /** What the server tells a realm's application about a token: the realm, the user, their realm roles. */
 final case class Claims(realm: RealmId, user: String, roles: List[String]) derives LeanType
 
-val introspect = Definition[(RealmId, String) => Flow[Option[Claims]]]("the server's answer to a realm's " +
+val introspect = Declaration[(RealmId, String) => Flow[Option[Claims]]]("the server's answer to a realm's " +
   "application asking about a token: the claims it is active with, or none (not active)")
 
 /** The user and roles an answer names, if any. */

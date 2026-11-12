@@ -18,9 +18,9 @@ final class Warehouse(var stock: Stock) extends Mutable:
     stock = stock.copy(movements = stock.movements :+ Movement(o.id, o.sku, o.units))
 
 object Warehouse:
-  val hold = Definition[(Stock, Order) -> (Boolean, Stock)]("holding an order's units if its product has them " +
+  val hold = Declaration[(Stock, Order) -> (Boolean, Stock)]("holding an order's units if its product has them " +
     "to sell: whether it did, and the stock after")
-  val putBack = Definition[(Stock, Order) -> (Unit, Stock)]("putting an order's units back among those to sell: " +
+  val putBack = Declaration[(Stock, Order) -> (Unit, Stock)]("putting an order's units back among those to sell: " +
     "the stock after")
 
   val holdCode = updating { (warehouse: Warehouse^, o: Order) => warehouse.hold(o) }

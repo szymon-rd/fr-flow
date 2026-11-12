@@ -9,7 +9,7 @@ import frflow.testing.model.{ModelRuns, ModelTests}
 import frflow.testing.Plan
 import frflow.testing.report.TestReport
 
-/** A model's operations' plain Scala tested against the model (`implementTested(ops*)(start, observe)(calls)`), as the
+/** A model's operations' plain Scala tested against the model (`defineOperations(ops*)(start, observe)(calls)`), as the
   * project gives it to the checker: the node its runs are reported under, and the runs.
   */
 final case class ModelCheck[F[_]](node: NodeId, run: (Plan, Draw) => F[TestReport])

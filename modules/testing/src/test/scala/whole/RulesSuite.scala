@@ -72,8 +72,8 @@ class RulesSuite extends munit.FunSuite:
         granted(held, request) === held.bookings.forall(b => noOverlap(b, request))))
       .assuming(rooms.roomBookingsApart, rooms.bookingsEndAfterStart)
     val kb = FrModel("Rooms")((rooms.rooms.nodes :+ asPremise)*).copy(generators = rooms.rooms.generators)
-      .implementProven(rooms.book)(rooms.bookIfGranted)
-      .implementTested(granted)(_ => (held, request) => rooms.Calendar(held).grants(request))
+      .defining(rooms.book.define(rooms.bookIfGranted))
+      .defining(granted.defineTested(_ => (held, request) => rooms.Calendar(held).grants(request)))
     assertEquals(Theories.problems(kb), List(Problem.PremiseNotAssumed(NodeId("asPremise"),
       NodeId("roomBookingsApart"))))
   }
@@ -82,8 +82,8 @@ class RulesSuite extends munit.FunSuite:
     val ends = Node.assumption("Every booking ends after it starts.")(always[Booking](b => b.start < b.end))
       .refines(rooms.grantWhenFree)
     val kb = FrModel("Rooms")((rooms.rooms.nodes.filterNot(_ eq rooms.bookingsEndAfterStart) :+ ends)*)
-      .copy(generators = rooms.rooms.generators).implementProven(rooms.book)(rooms.bookIfGranted)
-      .implementTested(granted)(_ => (held, request) => rooms.Calendar(held).grants(request))
+      .copy(generators = rooms.rooms.generators).defining(rooms.book.define(rooms.bookIfGranted))
+      .defining(granted.defineTested(_ => (held, request) => rooms.Calendar(held).grants(request)))
     assert(Theories.problems(kb).contains(Problem.OutsideAsPart(NodeId("ends"), NodeId("grantWhenFree"))),
       Theories.problems(kb))
   }

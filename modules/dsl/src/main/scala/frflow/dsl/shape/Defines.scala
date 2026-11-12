@@ -6,13 +6,14 @@ import frflow.dsl.build.{AsWritten, Site, Source, SourceFiles, WrittenAt}
 import frflow.dsl.vocab.Flow
 import frflow.dsl.term.{LeanType, Term}
 import frflow.dsl.vocab.{Definition, OnTheSpot, Spot, Stating}
+import scala.compiletime.summonInline
 
 /** `define { (a: Term[A], …) => body }`: a Definition given its meaning on the spot (owner §15), named as its val,
   * called by name in terms, its IR built when elaborated; and `program { (a: Term[A]) => for … yield … }`: a
   * Definition whose meaning is a program (owner §42), its steps recorded once on its inputs' variables and read into
-  * a define whose body is its steps (`Expr.Do`), the meaning `implementProven` gives the Definition the claims speak
-  * of; production runs the same steps on its inputs' values (`Spot.Steps`). Each records the file it is written in
-  * (`Definition.in`), a program the files its body refers to too.
+  * a define whose body is its steps (`Expr.Do`), the meaning a Declaration is given (`book.define(…)`), the word
+  * the claims speak of; production runs the same steps on its inputs' values (`Spot.Steps`). Each records the file
+  * it is written in (`Definition.in`), a program the files its body refers to too.
   */
 object Defines:
   inline def define[A: LeanType, R: LeanType](inline body: Term[A] => Term[R]): Definition[A => R] =
@@ -35,6 +36,26 @@ object Defines:
       inline body: (Term[A], Term[B], Term[C], Term[D], Term[E], Term[G]) => Term[R])
       : Definition[(A, B, C, D, E, G) => R] =
     made(DefName(Source.valName), DefineShape.six[A, B, C, D, E, G, R])(body).in(WrittenAt.in(Source.here))
+
+  /** A define of the type `F`, its lambda's shape found by that type: what a Declaration is given
+    * (`granted.define { (held, request) => … }`).
+    */
+  inline def of[F](inline body: Lam[F]): Definition[F] =
+    named(DefName(Source.valName))(shaped(_, summonInline[DefineShape[F]], Source.of(body))(body))
+      .in(WrittenAt.in(Source.here))
+
+  /** A define's lambda over its inputs' terms, by the define's type. */
+  type Lam[F] = F match
+    case Function1[a, r]                => Term[a] => Term[r]
+    case Function2[a, b, r]             => (Term[a], Term[b]) => Term[r]
+    case Function3[a, b, c, r]          => (Term[a], Term[b], Term[c]) => Term[r]
+    case Function4[a, b, c, d, r]       => (Term[a], Term[b], Term[c], Term[d]) => Term[r]
+    case Function5[a, b, c, d, e, r]    => (Term[a], Term[b], Term[c], Term[d], Term[e]) => Term[r]
+    case Function6[a, b, c, d, e, g, r] => (Term[a], Term[b], Term[c], Term[d], Term[e], Term[g]) => Term[r]
+
+  /** The define of shape `b` whose lambda is `body`: `Lam[F]` is `b.Lam`, each read off the one type `F`. */
+  def shaped[F](n: DefName, b: DefineShape[F], written: AsWritten)(body: Any): Definition[F] =
+    madeOf(n, b, written)(body.asInstanceOf[b.Lam])
 
   /** `stated { (a: Term[A], …) => body }`: a define whose body may apply a Declaration, used only in statements
     * (`Stated`), to six inputs. One method for every arity, the lambda's shape found by its type (`Stated.Shaped`):

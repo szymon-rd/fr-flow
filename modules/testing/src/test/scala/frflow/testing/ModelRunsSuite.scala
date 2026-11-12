@@ -101,7 +101,7 @@ class ModelRunsSuite extends munit.FunSuite:
 
 object ModelRunsSuite:
   /** A tally, known only by what is assumed of it: a positive number adds to it. */
-  val tally = Definition[BigInt => Flow[Unit]]("the tally bumped by a number, when it is positive")
+  val tally = Declaration[BigInt => Flow[Unit]]("the tally bumped by a number, when it is positive")
 
   object tallied extends StateModel[BigInt]("the tally so far"):
     tally.assumed
@@ -110,7 +110,7 @@ object ModelRunsSuite:
     tallied.in(tally(by).after) === when(by > 0)(tallied.current + by).otherwise(tallied.current)))
 
   /** A counter, bumped by a number: only a positive bump counts. */
-  val bump = Definition[BigInt => Flow[Unit]]("the counter bumped by a number, when it is positive")
+  val bump = Declaration[BigInt => Flow[Unit]]("the counter bumped by a number, when it is positive")
 
   /** The counter as the proofs see it. */
   object counted extends StateModel[BigInt]("the count so far"):

@@ -12,14 +12,14 @@ import scala.concurrent.duration.*
   * with each of the other's (`commute_i`); these do not, and the claims they would prove are false of the code.
   */
 object InterferenceProbe:
-  val setA = Definition[BigInt => Flow[Unit]]("a set to a number")
-  val getA = Definition[Flow[BigInt]]("a read")
+  val setA = Declaration[BigInt => Flow[Unit]]("a set to a number")
+  val getA = Declaration[Flow[BigInt]]("a read")
   object aModel extends StateModel[BigInt]("the number a"):
     setA.means(n => state.set(n))
     getA.means(state.get)
 
-  val setB = Definition[BigInt => Flow[Unit]]("b set to a number")
-  val idleB = Definition[Flow[Unit]]("a long wait at b")
+  val setB = Declaration[BigInt => Flow[Unit]]("b set to a number")
+  val idleB = Declaration[Flow[Unit]]("a long wait at b")
   object bModel extends StateModel[BigInt]("the number b"):
     setB.means(n => state.set(n))
     idleB.means(state.update(x => x))
@@ -56,17 +56,17 @@ object InterferenceProbe:
     yield (A(r, A.Pace(landed.get, IO.unit, landed.complete(()) *> copied.get)), B(s, copied.complete(()).void))
 
   /** RB1: a set of a raced against a copy of a into b, then a long wait. */
-  val racer = Definition[Flow[Either[Unit, Unit]]]("a set raced against a copy of a into b")
+  val racer = Declaration[Flow[Either[Unit, Unit]]]("a set raced against a copy of a into b")
   val racerCode = program {
     Flow.step(setA(1)).race(Flow.step(getA).flatMap(x => Flow.step(setB(x))).flatMap(_ => Flow.step(idleB))) }
 
   /** RB2: a bumped twice at once, each bump a read then a set. */
-  val twice = Definition[Flow[(Unit, Unit)]]("a bumped twice at once")
+  val twice = Declaration[Flow[(Unit, Unit)]]("a bumped twice at once")
   def bump: Flow[Unit] = Flow.step(getA).flatMap(x => Flow.step(setA(x + 1)))
   val twiceCode = program { Flow.parTupled(bump, bump) }
 
   /** Two sets at once, one of each model: steps on models apart, which commute by construction. */
-  val apart = Definition[Flow[(Unit, Unit)]]("a and b set at once")
+  val apart = Declaration[Flow[(Unit, Unit)]]("a and b set at once")
   val apartCode = program { Flow.parTupled(Flow.step(setA(1)), Flow.step(setB(2))) }
 
   val aOnly = Node.assumption("Only programs change a.")(aModel.onlyCodeChanges)
@@ -84,12 +84,12 @@ object InterferenceProbe:
     .assuming(aOne, bOne)
 
   private def pair(root: Node) = FrModel("Pair")(root, aOnly, aOne, bOnly, bOne)
-    .implementTested(setA, getA)(start = A.holding, observe = _.value)(a => (a.set, a.get))
-    .implementTested(setB, idleB)(start = B.holding, observe = _.value)(b => (b.set, b.idle))
+    .defining(defineOperations(setA, getA)(start = A.holding, observe = _.value)(a => (a.set, a.get)))
+    .defining(defineOperations(setB, idleB)(start = B.holding, observe = _.value)(b => (b.set, b.idle)))
 
   /** RB1's probe as the review wrote it. */
-  val raced = pair(copiesOld).implementProven(racer)(racerCode)
+  val raced = pair(copiesOld).defining(racer.define(racerCode))
   /** RB2's probe, its branches giving the unit. */
-  val bumped = pair(upByTwo).implementProven(twice)(twiceCode)
+  val bumped = pair(upByTwo).defining(twice.define(twiceCode))
   /** Steps at once on models apart. */
-  val separate = pair(bothSet).implementProven(apart)(apartCode)
+  val separate = pair(bothSet).defining(apart.define(apartCode))

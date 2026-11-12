@@ -10,7 +10,7 @@ import frflow.eval.time.Lapse.{clockStarts, housekept, housekeptKept, housekeptO
   * the start the world lets no more time pass: `status` warns of it (`Outsides.unwritten`).
   */
 object Unwritten:
-  val look = Definition[Flow[BigInt]]("the time read")
+  val look = Declaration[Flow[BigInt]]("the time read")
   val lookCode = program { Clock.now }
 
   val stale = Node.assumption("The time never passes two minutes after housekeeping's last run.")(
@@ -19,6 +19,6 @@ object Unwritten:
   val looks = Node.claim("A look reads the time now.")(look.result === Clock.clockModel.current).assuming(stale)
 
   val model: FrModel = FrModel("Unwritten")(looks, stale, clockStarts, housekeptStarts, housekeptKept, housekeptOne)
-    .implementProven(look)(lookCode)
-    .implementTested(Clock.now, Clock.sleep, Clock.elapse)(start = Wall.at[IO], observe = _.time)(c =>
-      (c.now, c.sleep, c.elapse))
+    .defining(look.define(lookCode))
+    .defining(defineOperations(Clock.now, Clock.sleep, Clock.elapse)(start = Wall.at[IO], observe = _.time)(c =>
+      (c.now, c.sleep, c.elapse)))

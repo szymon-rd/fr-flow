@@ -30,9 +30,9 @@ class ReviewSuite extends munit.FunSuite:
   private val gOnly = Node.assumption("Only code.")(storedBookings.onlyCodeChanges)
   private def withCode(ns: frflow.dsl.node.Node*): FrModel =
     FrModel("Rooms")((ns.toList ++ List(gAtomic, gOnly, ends))*)
-      .implementProven(book)(bookIfGranted)
-      .implementTested(granted)(_ => (held, request) => Calendar(held).grants(request))
-      .implementTested(inRoom, add)(start = BookingsTable.holding, observe = _.bookings)(t => (t.inRoom, t.add))
+      .defining(book.define(bookIfGranted),
+        granted.defineTested(_ => (held, request) => Calendar(held).grants(request)),
+        defineOperations(inRoom, add)(start = BookingsTable.holding, observe = _.bookings)(t => (t.inRoom, t.add)))
 
   test("finding 1: always anywhere but as a node's whole formula is refused") {
     val underImplies = Node.claim("Under implies.")(
@@ -116,10 +116,10 @@ class ReviewSuite extends munit.FunSuite:
       val constancy = define((x: Term[String]) => ofRoom(x).isConstant)
       constancy(room)))
     assert(faults(withCode(inDefine)).contains(Fault.ConstantInside("in a define")), faults(withCode(inDefine)))
-    assert(compileErrors("define((x: Term[String]) => ofRoom(x).isConstant)").contains("used only in statements"))
+    assert(compileErrors("define((x: Term[String]) => ofRoom(x).isConstant)").contains("said only in a statement"))
   }
 
-  val store = Definition[BigInt => Flow[Unit]]("a number stored on the shelf").failsWith[Trouble]
+  val store = Declaration[BigInt => Flow[Unit]]("a number stored on the shelf").failsWith[Trouble]
   val storeCode = program { (n: Term[BigInt]) => Flow.step(Shelf.put(n)) }
   val shelfOnly = Node.assumption("Nothing but the programs change the shelf.")(Shelf.kept.onlyCodeChanges)
   val shelfOne = Node.assumption("One at a time.")(Shelf.kept.atomic)
@@ -129,7 +129,7 @@ class ReviewSuite extends munit.FunSuite:
     val mentioned = Node.claim("Storing a number keeps it.")(
       forall((n: Term[BigInt]) => store(n).result.fold(_ => True,
         _ => Shelf.kept.in(store(n).after).contains(n)))).assuming(shelfOne)
-    val kb = FrModel("Shelves")(stays, mentioned, shelfOnly, shelfOne).implementProven(store)(storeCode)
+    val kb = FrModel("Shelves")(stays, mentioned, shelfOnly, shelfOne).defining(store.define(storeCode))
     val programs = Exprs.all(formula(kb, "stays")).collect { case r: Expr.Runs => r.run -> r.failing }.collect {
       case (Expr.Apply(Expr.Sym(n, _), _, _), failing) => n -> failing
     }
@@ -138,7 +138,7 @@ class ReviewSuite extends munit.FunSuite:
     assertEquals(Constancy.models(written), List(Shelf.kept.name))
     assertEquals(Theories.problems(kb), Nil)
     val unassumed = Node.claim("The shelf stays as it is.")(Shelf.kept.current.isConstant)
-    val missing = Theories.problems(FrModel("Shelves")(unassumed, mentioned).implementProven(store)(storeCode))
+    val missing = Theories.problems(FrModel("Shelves")(unassumed, mentioned).defining(store.define(storeCode)))
     assert(missing.exists {
       case Problem.PremiseMissing(id, Premise.OnlyCodeChanges(m), _) => id == NodeId("unassumed") && m == ModelName(
           Shelf.kept.name.value)
@@ -155,18 +155,18 @@ class ReviewSuite extends munit.FunSuite:
 
   test("finding 3, owner §46: a program that can fail declares it, and its run is read with both outcomes") {
     val neverStores = program { (n: Term[BigInt]) => Flow.raise[Trouble, Unit](make[Trouble.TooBig](n)) }
-    val undeclared = Definition[BigInt => Flow[Unit]]("a number stored on the shelf, failing undeclared")
+    val undeclared = Declaration[BigInt => Flow[Unit]]("a number stored on the shelf, failing undeclared")
     val puts = Node.claim("Storing a number puts it on the shelf.")(
       forall((n: Term[BigInt]) => Shelf.kept.in(undeclared(n).after) === Shelf.kept.current :+ n))
-    assertEquals(Theories.problems(FrModel("Shelves")(puts, shelfOnly).implementProven(undeclared)(neverStores)),
+    assertEquals(Theories.problems(FrModel("Shelves")(puts, shelfOnly).defining(undeclared.define(neverStores))),
       List(Problem.FailsWithDiffers(SymbolName("undeclared"), None, List(summon[LeanType[Trouble]].ty))))
     val putsDeclared = Node.claim("Storing a number puts it on the shelf.")(
       forall((n: Term[BigInt]) => Shelf.kept.in(store(n).after) === Shelf.kept.current :+ n))
-    val runs = Exprs.all(formula(FrModel("Shelves")(putsDeclared, shelfOnly).implementProven(store)(neverStores),
+    val runs = Exprs.all(formula(FrModel("Shelves")(putsDeclared, shelfOnly).defining(store.define(neverStores)),
       "putsDeclared")).collect { case r: Expr.Runs => r.failing }
     assertEquals(runs, List(false, true))
     val never = program { (n: Term[BigInt]) => Flow.step(Shelf.put(n)).handle[Trouble](_ => Flow.unit) }
-    val neverProblems = Theories.problems(FrModel("Shelves")(putsDeclared, shelfOnly).implementProven(store)(never))
+    val neverProblems = Theories.problems(FrModel("Shelves")(putsDeclared, shelfOnly).defining(store.define(never)))
     assert(neverProblems.contains(Problem.FailsWithDiffers(SymbolName("store"), Some(summon[LeanType[Trouble]].ty),
       Nil)), neverProblems)
     val result: Term[Either[Trouble, Unit]] = store(5).result

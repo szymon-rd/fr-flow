@@ -19,16 +19,17 @@ private val tablesAsRun = Gens.derived[List[Event]].map(History.tables).describe
 
 /** The FrModel's code, apart from its nodes: a variant keeps all but one. */
 def withCode(kb: FrModel): FrModel = kb
-  .implementTested(load, storeAbout, logEvent, fetch)(start = SqliteDatabase.holding, observe = _.tables)(d =>
-    (d.load, d.storeAbout, d.logEvent, d.fetch))
-  .implementTested(Clock.now, Clock.sleep, Clock.elapse)(start = Wall.at[IO], observe = _.time)(c =>
-      (c.now, c.sleep, c.elapse))
-  .implementProven(read)(search)
-  .implementProven(deals)(dealsOf)
-  .implementProven(write)(applyWrite)
-  .implementProven(save)(saved)
-  .implementProven(expire)(expireCode)
-  .implementProven(runExpiry)(expireOnce)
+  .defining(
+    defineOperations(load, storeAbout, logEvent, fetch)(start = SqliteDatabase.holding, observe = _.tables)(d =>
+    (d.load, d.storeAbout, d.logEvent, d.fetch)),
+    defineOperations(Clock.now, Clock.sleep, Clock.elapse)(start = Wall.at[IO], observe = _.time)(c =>
+      (c.now, c.sleep, c.elapse)),
+    read.define(search),
+    deals.define(dealsOf),
+    write.define(applyWrite),
+    save.define(saved),
+    expire.define(expireCode),
+    runExpiry.define(expireOnce))
   .withGenerator(tableStores)
   .withGenerator(tablesAsRun)
 

@@ -38,12 +38,13 @@ val idleRequest: AuthRequest = AuthRequest.SignOut(RealmId(""), "")
 
 /** The FrModel's code, apart from its nodes: a variant keeps all but one. */
 def withCode(kb: FrModel): FrModel = kb
-  .implementProven(step)(next)
-  .implementProven(serve)(serving)
-  .implementProven(introspect)(introspecting)
-  .implementTested(load, logged, record, lookup)(start = SessionDb.holding, observe = _.stored)(d =>
-    (d.load, d.logged, d.record, d.lookup))
-  .implementTested(nextRequest)(start = HttpInbox.holding, observe = _.left)(i => Tuple1(i.nextOr(idleRequest)))
+  .defining(
+    step.define(next),
+    serve.define(serving),
+    introspect.define(introspecting),
+    defineOperations(load, logged, record, lookup)(start = SessionDb.holding, observe = _.stored)(d =>
+    (d.load, d.logged, d.record, d.lookup)),
+    defineOperations(nextRequest)(start = HttpInbox.holding, observe = _.left)(i => Tuple1(i.nextOr(idleRequest))))
   .withGenerator(Replay.stores)
 
 val knowledge = withCode(FrModel("Keycloak")(realmAccess, noUnauthorizedAccess, signedInAreAccepted,

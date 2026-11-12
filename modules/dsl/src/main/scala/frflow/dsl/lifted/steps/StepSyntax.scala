@@ -1,7 +1,7 @@
 package frflow.dsl.lifted.steps
 
 import frflow.dsl.lifted.Lifted
-import frflow.dsl.service.ServiceDefinition
+import frflow.dsl.service.ServiceDeclaration
 import frflow.dsl.term.Term
 import frflow.dsl.vocab.Definition
 
@@ -20,7 +20,7 @@ import frflow.dsl.vocab.Definition
   * A call of a method of a port the code holds is a call of the Definition of the method's name in that port's
   * companion (`object Ledger { val claim = Definition[(Books, String) => (Boolean, Books)]("…") }`), when there
   * is one: the code's claims are then proven from the port's contracts, and the port's own code (`updating` over
-  * the port itself, its methods' bodies) is given the Definition with `implementProven`. Read alone that is so of
+  * the port itself, its methods' bodies) is given that word with `define`. Read alone that is so of
   * stores and of services; read among other calls, of stores, a service's method being its steps.
   */
 object StepSyntax:
@@ -33,12 +33,12 @@ object StepSyntax:
     ${ StepReader.interleaving[P, s.S, A, R]('f, 'others) }
 
   /** `lifted(SpendLimits(BigInt(100), Nil))`: a class that implements a service, read member by member: what a
-    * service's Definition is given (`implementProven(limits)(lifted(…))`), each member checked against every
+    * service's Definition is given (`limits.define(lifted(…))`), each member checked against every
     * claim on it (`ServiceLift`).
     */
-  inline def lifted[T](inline service: T): ServiceImplementation[T] = ${ ServiceLift.read[T]('service) }
+  inline def lifted[C](inline service: C): ServiceImplementation[C] = ${ ServiceLift.read[C]('service) }
 
-  extension [T](service: ServiceDefinition[T])
+  extension [T](service: ServiceDeclaration[T])
     /** The service as an object of a class that implements it has it, for an example
       * (`limits.holding(SpendLimits(BigInt(100), Nil))`): the object made where it is given.
       */

@@ -1,6 +1,6 @@
 package frflow.dsl.lifted
 
-import frflow.dsl.service.{ServiceDefinition, Services, Call as ServiceCall}
+import frflow.dsl.service.{ServiceDeclaration, Services, Call as ServiceCall}
 import frflow.dsl.term.{DataMacros, LeanType, Lift, Terms, TermSyntax}
 import frflow.dsl.term.Term as DTerm
 import scala.quoted.*
@@ -57,9 +57,9 @@ private[lifted] final class Reader(val q: Quotes, val services: Services = Servi
     !m.isNoSymbol && m.isDefDef && m.flags.is(Flags.Deferred) && isService(m.owner.typeRef)
 
   /** The Definition the service a field holds was made with (`services.wiring`). */
-  def wired(on: Term)(using Quotes): Expr[ServiceDefinition[?]] = services.wiring.get(bare(on).symbol.name).fold(
+  def wired(on: Term)(using Quotes): Expr[ServiceDeclaration[?]] = services.wiring.get(bare(on).symbol.name).fold(
     refuse("a call of a service FrFlow does not know the Definition of: a class read by FrFlow calls the " +
-      "services it is made with (`lifted(StreamProcessor(limits, …))`)", on))(_.asExprOf[ServiceDefinition[?]])
+      "services it is made with (`lifted(StreamProcessor(limits, …))`)", on))(_.asExprOf[ServiceDeclaration[?]])
 
   /** What a call of a service's member gives its inputs' types. */
   def inputsOf(on: Term, member: Symbol): List[TypeRepr] = on.tpe.widen.memberType(member) match

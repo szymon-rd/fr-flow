@@ -14,12 +14,12 @@ final case class ServerState(accounts: List[UserAccount], sessions: List[Session
   */
 final case class Stored(loaded: List[UserAccount], state: ServerState, log: List[AuthRequest]) derives LeanType
 
-val load = Definition[Flow[ServerState]]("the state the store holds now: its accounts and open sessions")
-val logged = Definition[Flow[List[AuthRequest]]]("the event log the store holds now: the requests handled since it " +
+val load = Declaration[Flow[ServerState]]("the state the store holds now: its accounts and open sessions")
+val logged = Declaration[Flow[List[AuthRequest]]]("the event log the store holds now: the requests handled since it " +
   "started, in order")
-val record = Definition[(AuthRequest, ServerState) => Flow[ServerState]]("storing a request in the event log, with " +
+val record = Declaration[(AuthRequest, ServerState) => Flow[ServerState]]("storing a request in the event log, with " +
   "the state it led to: what the store holds afterwards, read back")
-val lookup = Definition[(RealmId, String) => Flow[Option[Session]]]("the store's answer to looking up a token's " +
+val lookup = Declaration[(RealmId, String) => Flow[Option[Session]]]("the store's answer to looking up a token's " +
   "session in a realm, from its index by realm and token")
 
 /** The server's store as the proofs see it: what it holds now is read; storing a request and looking a token up are
@@ -32,7 +32,7 @@ object serverStore extends StateModel[Stored]("the server's store: every realm's
   record.assumed
   lookup.assumed
 
-val nextRequest = Definition[List[AuthRequest] => Flow[AuthRequest]]("the next request the HTTP API hands the " +
+val nextRequest = Declaration[List[AuthRequest] => Flow[AuthRequest]]("the next request the HTTP API hands the " +
   "server, shown the requests the server has handled: a sign-in, its token drawn, a sign-out or an administrator's " +
   "change")
 

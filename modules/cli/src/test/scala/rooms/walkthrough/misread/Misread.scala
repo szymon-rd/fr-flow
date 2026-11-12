@@ -32,5 +32,5 @@ val grantWhenNoOverlap = Node.claim("A request is granted exactly when it overla
 
 val misread = FrModel("Rooms")(rooms.walkthrough.nodes(roomBookingsApart, grantWhenNoOverlap)*)
   .copy(generators = rooms.rooms.generators, operations = rooms.rooms.operations)
-  .implementProven(book)(bookIfGranted)
-  .implementTested(granted)(_ => (held, request) => Calendar(held).grants(request))
+  .defining(book.define(bookIfGranted))
+  .defining(granted.defineTested(_ => (held, request) => Calendar(held).grants(request)))

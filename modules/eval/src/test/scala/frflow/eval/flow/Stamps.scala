@@ -7,15 +7,15 @@ import frflow.*
   * time passing finds. `Stamps.kept` holds of the code; each of `Stamps.seeded` must stay unproven.
   */
 object Stamps:
-  val stampAt = Definition[BigInt => Flow[Unit]]("a time added to the stamps")
+  val stampAt = Declaration[BigInt => Flow[Unit]]("a time added to the stamps")
 
   object stamps extends StateModel[List[BigInt]]("the times stamped, oldest first"):
     stampAt.means(t => state.update(h => h :+ t))
 
-  val stamp = Definition[Flow[Unit]]("the time now, stamped")
-  val limited = Definition[Flow[Option[Unit]]]("the time now stamped, within five seconds by the clock")
-  val raced = Definition[Flow[Either[Unit, Unit]]]("a wait of a second raced against a wait of five seconds")
-  val waited = Definition[Flow[(Unit, Unit)]]("two waits of ten seconds at once")
+  val stamp = Declaration[Flow[Unit]]("the time now, stamped")
+  val limited = Declaration[Flow[Option[Unit]]]("the time now stamped, within five seconds by the clock")
+  val raced = Declaration[Flow[Either[Unit, Unit]]]("a wait of a second raced against a wait of five seconds")
+  val waited = Declaration[Flow[(Unit, Unit)]]("two waits of ten seconds at once")
 
   private def stamping: Flow[Unit] = Flow.step(Clock.now).flatMap(t => Flow.step(stampAt(t)))
   val stampCode = program { stamping }
@@ -106,28 +106,28 @@ object Stamps:
 
   private def stamped(nodes: Node*): FrModel = FrModel("Stamping")((nodes ++
       List(stampsKept, stampsOne, noStamps, clockStarts))*)
-    .implementProven(stamp)(stampCode)
-    .implementProven(limited)(limitedCode)
-    .implementProven(raced)(racedCode)
-    .implementProven(waited)(waitedCode)
-    .implementTested(stampAt)(start = PlainShelf.holding, observe = _.held)(s => Tuple1(s.put))
-    .implementTested(Clock.now, Clock.sleep, Clock.elapse)(start = Wall.at[IO], observe = _.time)(c =>
-      (c.now, c.sleep, c.elapse))
+    .defining(stamp.define(stampCode))
+    .defining(limited.define(limitedCode))
+    .defining(raced.define(racedCode))
+    .defining(waited.define(waitedCode))
+    .defining(defineOperations(stampAt)(start = PlainShelf.holding, observe = _.held)(s => Tuple1(s.put)))
+    .defining(defineOperations(Clock.now, Clock.sleep, Clock.elapse)(start = Wall.at[IO], observe = _.time)(c =>
+      (c.now, c.sleep, c.elapse)))
 
   /** A schedule kept: one rule time passing breaks alone, kept where the world moves the time as scheduled. */
   val scheduled: FrModel = FrModel("Stamping")(freshWhileScheduled, pastWhileScheduled, stampsScheduled, tenSeconds,
       stampsKept, stampsOne, noStamps, clockStarts)
-    .implementProven(stamp)(stampCode)
-    .implementTested(stampAt)(start = PlainShelf.holding, observe = _.held)(s => Tuple1(s.put))
-    .implementTested(Clock.now, Clock.sleep, Clock.elapse)(start = Wall.at[IO], observe = _.time)(c =>
-      (c.now, c.sleep, c.elapse))
+    .defining(stamp.define(stampCode))
+    .defining(defineOperations(stampAt)(start = PlainShelf.holding, observe = _.held)(s => Tuple1(s.put)))
+    .defining(defineOperations(Clock.now, Clock.sleep, Clock.elapse)(start = Wall.at[IO], observe = _.time)(c =>
+      (c.now, c.sleep, c.elapse)))
 
   /** A circle a `cover_` must not close: a time picked by plain Scala and stamped, a rule that every stamp is not
     * negative, and a claim about the picking read where the rule holds, which rests on the rule: the rule's `cover_`
     * of the picking may not take it.
     */
-  val picked = Definition[BigInt => BigInt]("a time picked to stamp")
-  val picking = Definition[Flow[Unit]]("a time picked from now, stamped")
+  val picked = Declaration[BigInt => BigInt]("a time picked to stamp")
+  val picking = Declaration[Flow[Unit]]("a time picked from now, stamped")
   val pickingCode = program { Flow.step(Clock.now).flatMap(t => Flow.step(stampAt(picked(t)))) }
 
   val nonNegative = Node.claim("Every stamp is not negative.")(always(stamps)(held => held.forall(x => x >= 0)))
@@ -154,11 +154,11 @@ object Stamps:
 
   val circling: FrModel = FrModel("Picking")(nonNegative, pickedAlways, pickedNonNegative, pickingKeeps, pickingStamps,
       stampsKept, stampsOne, noStamps, clockStarts)
-    .implementProven(picking)(pickingCode)
-    .implementTested(picked)(_ => (t: BigInt) => t.abs)
-    .implementTested(stampAt)(start = PlainShelf.holding, observe = _.held)(s => Tuple1(s.put))
-    .implementTested(Clock.now, Clock.sleep, Clock.elapse)(start = Wall.at[IO], observe = _.time)(c =>
-      (c.now, c.sleep, c.elapse))
+    .defining(picking.define(pickingCode))
+    .defining(picked.defineTested(_ => (t: BigInt) => t.abs))
+    .defining(defineOperations(stampAt)(start = PlainShelf.holding, observe = _.held)(s => Tuple1(s.put)))
+    .defining(defineOperations(Clock.now, Clock.sleep, Clock.elapse)(start = Wall.at[IO], observe = _.time)(c =>
+      (c.now, c.sleep, c.elapse)))
 
   /** What holds of the code as time passes. */
   val kept: FrModel = stamped(pastStamps, stampsTheTime, firesLate, waitWins, waitsAtOnce)

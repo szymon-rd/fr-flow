@@ -32,8 +32,8 @@ class RunsSuite extends munit.FunSuite:
   private def booking(meaning: Definition[Booking => Flow[Boolean]]) =
     FrModel("Rooms")((rooms.nodes :+ answerWhenApart :+ storeWhenApart)*).copy(generators = rooms.generators,
       operations = rooms.operations)
-      .implementProven(book)(meaning)
-      .implementTested(granted)(_ => (held, request) => Calendar(held).grants(request))
+      .defining(book.define(meaning))
+      .defining(granted.defineTested(_ => (held, request) => Calendar(held).grants(request)))
 
   private def tested(kb: FrModel, claim: String) =
     val e = kb.elaborated.fold(es => fail(es.toString), identity)

@@ -21,7 +21,7 @@ class BoundedSuite extends munit.FunSuite:
 
   private val positive = Node.claim("Every tally is itself.")(forall((t: Term[Score]) => t === t))
   private val counted = Node.claim("A tally always counts.")(always[Score](t => t === t))
-  private val big = Definition[Score => Boolean]("whether a tally is big")
+  private val big = Declaration[Score => Boolean]("whether a tally is big")
   private val bigIsBig = Node.assumption("A tally is big exactly when it is itself.")(
     forall((t: Term[Score]) => big(t) === (t === t)))
   private val noneOther = define { (t: Term[Score]) => !forall((u: Term[Score]) => u === t) }
@@ -29,7 +29,7 @@ class BoundedSuite extends munit.FunSuite:
   private val conditioned = Node.claim("A tally equal to another is it.")(
     forall((t: Term[Score], u: Term[Score]) => (t === u) implies (u === t)))
 
-  private val read = Definition[Flow[Score]]("the tally")
+  private val read = Declaration[Flow[Score]]("the tally")
   object tallied extends StateModel[Score]("a tally kept"):
     read.means(state.get)
   private val kept = Node.claim("The kept tally is itself.")(always(tallied)(t => t === t))
@@ -43,7 +43,7 @@ class BoundedSuite extends munit.FunSuite:
       List(Problem.SaidToExist(tally, Problem.Place.Variable(NodeId("counted")))))
     assertEquals(problems(FrModel("Tallies")(conditioned)),
       List(Problem.SaidToExist(tally, Problem.Place.Variable(NodeId("conditioned")))))
-    val tested = FrModel("Tallies")(bigIsBig).implementTested(big)(_ => (t: Score) => t.count > 9)
+    val tested = FrModel("Tallies")(bigIsBig).defining(big.defineTested(_ => (t: Score) => t.count > 9))
     assertEquals(problems(tested), List(Problem.SaidToExist(Ty.FnOf(List(tally), Ty.Bool),
       Problem.Place.Value("big"))))
   }

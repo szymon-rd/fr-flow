@@ -98,7 +98,7 @@ enum Problem:
     * one raising an error on a Definition declaring none, or declaring one its code never ends in, or another.
     */
   case FailsWithDiffers(program: SymbolName, declared: Option[Ty], raised: List[Ty])
-  /** A value provided where the code runs (`implementProvided`), read beside the World: it is the same in every
+  /** A value provided where the code runs (`provided`), read beside the World: it is the same in every
     * world, so a "now" it stands for is no world's (owner §45 D): model it as part of the World, a state model.
     */
   case ProvidedBesideWorld(id: NodeId, provided: SymbolName)

@@ -52,10 +52,10 @@ class StatedLeanSuite extends munit.CatsEffectSuite:
   }
 
   test("code cannot call a stated define: a program, a define and plain code calling one do not compile") {
-    val message = "a Declaration is used only in statements"
+    val message = "said only in a statement"
     assert(compileErrors("program { (n: Term[BigInt]) => Flow.pure(aboveThree(n)) }").contains(message))
     assert(compileErrors("define { (n: Term[BigInt]) => aboveThree(n) }").contains(message))
-    assert(compileErrors("implementProven(Definition[BigInt => Boolean](\"x\"))(aboveThree)").nonEmpty)
+    assert(compileErrors("Declaration[BigInt => Boolean](\"x\").define(aboveThree)").nonEmpty)
   }
 
   test("Lean proves an exists claim from a part stated with a stated define, and the part feasible".tag(Live)) {

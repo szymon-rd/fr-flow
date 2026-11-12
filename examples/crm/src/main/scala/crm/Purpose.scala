@@ -74,14 +74,14 @@ val added = Declaration[(TenantId, CrmRecord) => Boolean](
 
 // The operations: what the system does (what the CRM holds now, its history and the clock are the World's:
 // `Database.scala`)
-val read = Definition[(Account, Search) => Flow[List[CrmRecord]]](
+val read = Declaration[(Account, Search) => Flow[List[CrmRecord]]](
   "the records screen: the records a user's search returns, run on the database at the time now")
-val deals = Definition[(Account, Search) => Flow[List[CrmRecord]]](
+val deals = Declaration[(Account, Search) => Flow[List[CrmRecord]]](
   "the sales screen: the deals a user's search returns, run on the database at the time now")
-val write = Definition[(CrmStore, WriteCmd) => CrmStore]("a write applied to a store: the store it leads to")
-val save = Definition[WriteCmd => Flow[CrmStore]]("the write side: a write applied to the store the database " +
+val write = Declaration[(CrmStore, WriteCmd) => CrmStore]("a write applied to a store: the store it leads to")
+val save = Declaration[WriteCmd => Flow[CrmStore]]("the write side: a write applied to the store the database " +
   "holds, the rows about its record stored and the write logged; it returns those rows")
-val expire = Definition[(CrmStore, BigInt) => CrmStore](
+val expire = Declaration[(CrmStore, BigInt) => CrmStore](
   "a run of the expiry job at a time (in seconds) on a store: the store it leads to")
-val runExpiry = Definition[BigInt => Flow[CrmStore]](
+val runExpiry = Declaration[BigInt => Flow[CrmStore]](
   "a run of the expiry job at a time (in seconds), on the database: the store it computes; the database holds it after")

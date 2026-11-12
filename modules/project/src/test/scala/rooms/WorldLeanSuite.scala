@@ -62,13 +62,13 @@ class WorldLeanSuite extends munit.CatsEffectSuite:
       assert(valued.nonEmpty && valued.forall(_ == ObligationStatus.Proven), valued))
   }
 
-  val store = Definition[BigInt => Flow[Unit]]("a number stored on the shelf").failsWith[frflow.eval.flow.Trouble]
+  val store = Declaration[BigInt => Flow[Unit]]("a number stored on the shelf").failsWith[frflow.eval.flow.Trouble]
   val storeCode = program { (n: Term[BigInt]) => Flow.step(frflow.eval.flow.Shelf.put(n)) }
   val oneShelf = Node.assumption("One at a time.")(frflow.eval.flow.Shelf.kept.atomic)
   val nothingElse = Node.assumption("Nothing but the programs change the shelf.")(
     frflow.eval.flow.Shelf.kept.onlyCodeChanges)
   private def failingRun(c: frflow.dsl.node.Node): FrModel =
-    FrModel("Shelves")(c.assuming(oneShelf), nothingElse, oneShelf).implementProven(store)(storeCode)
+    FrModel("Shelves")(c.assuming(oneShelf), nothingElse, oneShelf).defining(store.define(storeCode))
 
   test("a run read as failing: Lean proves what a failed run leaves, and not a false one".tag(Live)) {
     import frflow.eval.flow.{Shelf, Trouble}

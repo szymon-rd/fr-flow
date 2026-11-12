@@ -31,11 +31,11 @@ class NotesSuite extends munit.FunSuite:
     assert(shown.size < alone.size, s"$shown of $alone")
   }
 
-  private val answer = Definition[BigInt]("the answer the service gives")
+  private val answer = Declaration[BigInt]("the answer the service gives")
   private val fixed = Node.claim("The service answers 42.")(answer === BigInt(42))
 
   test("a claim with no input whose code is given nothing has nothing to vary, and says so") {
-    val kb = FrModel("Answer")(fixed).implementTested(answer)(_ => BigInt(42))
+    val kb = FrModel("Answer")(fixed).defining(answer.defineTested(_ => BigInt(42)))
     val k = kb.elaborated.fold(es => fail(es.toString), identity)
     val report = PropertyTests(Semantics(k), k.theory).of(NodeId("fixed"), Plan(Settings(3, Seed(1)), Nil),
       Derive.of(k, Nil))

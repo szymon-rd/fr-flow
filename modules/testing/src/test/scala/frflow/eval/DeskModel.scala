@@ -7,7 +7,7 @@ import scala.annotation.experimental
 @experimental object DeskModel:
   import Desk.{Booking, noOverlap}
 
-  val booked = Definition[(List[Booking], Booking) => (Boolean, List[Booking])](
+  val booked = Declaration[(List[Booking], Booking) => (Boolean, List[Booking])](
     "booking a request, from the table's rows: whether it was booked, and the rows after it")
 
   /** Whether a request overlaps no booking of its room among the rows. */
@@ -23,4 +23,4 @@ import scala.annotation.experimental
     forall((rows: Term[List[Booking]], request: Term[Booking]) =>
       booked(rows, request)._2 === when(roomFree(rows, request))(rows :+ request).otherwise(rows)))
 
-  val model: FrModel = FrModel("Desk")(answersWhenFree, storesWhenFree).implementProven(booked)(Desk.book)
+  val model: FrModel = FrModel("Desk")(answersWhenFree, storesWhenFree).defining(booked.define(Desk.book))

@@ -48,7 +48,7 @@ object Call:
   /** A call as written: the service's Definition, the member, the state it is made on, what it is given, and,
     * made among other calls, their schedule. `T` is what the service's states are typed by (`State`).
     */
-  private final case class Made[T](service: ServiceDefinition[?], called: String, state: Term[T],
+  private final case class Made[T](service: ServiceDeclaration[?], called: String, state: Term[T],
       args: List[Term[?]], between: Option[Term[Map[BigInt, T]]] = None):
     given LeanType[T] = service.leanType.asInstanceOf[LeanType[T]] // the service's type, by its name
     val steps: LeanType[List[(T, T)]] = LeanType[List[(T, T)]]
@@ -62,7 +62,7 @@ object Call:
   private final case class Ran[T, R](value: Term[R], after: Term[T], traces: Option[Term[Traces[T]]])
 
   /** A member called with what a statement gives it: terms, or values a term is made of. */
-  def of(service: ServiceDefinition[?], called: String, state: Term[?], args: List[Any]): Call[Any, Any] =
+  def of(service: ServiceDeclaration[?], called: String, state: Term[?], args: List[Any]): Call[Any, Any] =
     over(Made[Any](service, called, state.asInstanceOf[Term[Any]], args.map {
       case t: Term[?] => t
       case other      => throw IllegalStateException(s"FrFlow bug: $called given $other, which is no term")

@@ -21,10 +21,11 @@ class SecondReviewSuite extends munit.FunSuite:
   private val gOnly = Node.assumption("Only code.")(storedBookings.onlyCodeChanges)
   private def withCode(ns: frflow.dsl.node.Node*): FrModel =
     FrModel("Rooms")((ns.toList ++ List(gAtomic, gOnly, ends))*)
-      .implementProven(book)(bookIfGranted)
-      .implementTested(granted)(_ => (held, request) => Calendar(held).grants(request))
-      .implementTested(inRoom, add)(start = BookingsTable.holding, observe = _.bookings)(t => (t.inRoom, t.add))
-  private val store = Definition[BigInt => Flow[Unit]]("a number stored on the shelf").failsWith[Trouble]
+      .defining(book.define(bookIfGranted))
+      .defining(granted.defineTested(_ => (held, request) => Calendar(held).grants(request)))
+      .defining(defineOperations(inRoom, add)(start = BookingsTable.holding, observe = _.bookings)(
+        t => (t.inRoom, t.add)))
+  private val store = Declaration[BigInt => Flow[Unit]]("a number stored on the shelf").failsWith[Trouble]
   private val shelfOnly = Node.assumption("Nothing but the programs change the shelf.")(Shelf.kept.onlyCodeChanges)
 
   private val ofRoomD = define { (room: Term[String]) => storedBookings.current.filter(b => b.room === room) }
@@ -68,12 +69,12 @@ class SecondReviewSuite extends munit.FunSuite:
     val neverStores = program { (n: Term[BigInt]) => Flow.raise[Trouble, Unit](make[Trouble.TooBig](n)) }
     val putsFive = define { (n: Term[BigInt]) => Shelf.kept.in(store(5).after).contains(n) }
     val c1 = Node.claim("Five is put.")(putsFive(5))
-    assertEquals(faults(FrModel("Shelves")(c1, shelfOnly).implementProven(store)(neverStores)),
+    assertEquals(faults(FrModel("Shelves")(c1, shelfOnly).defining(store.define(neverStores))),
       List(Fault.RunInside("store")))
     val c2 = Node.claim("Storing puts, via a define.")(forall((n: Term[BigInt]) =>
       val puts = define { (m: Term[BigInt]) => Shelf.kept.in(store(n).after).contains(m) }
       puts(n)))
-    assertEquals(faults(FrModel("Shelves")(c2, shelfOnly).implementProven(store)(neverStores)),
+    assertEquals(faults(FrModel("Shelves")(c2, shelfOnly).defining(store.define(neverStores))),
       List(Fault.RunInside("store")))
     val unstarted = FrModel("Rooms")(ends, Node.claim("The table holds bookings.")(
       storedBookings.current === storedBookings.current))
@@ -89,7 +90,7 @@ class SecondReviewSuite extends munit.FunSuite:
     val kept = Node.claim("A number in the jar is never taken out.")(
       forall((n: Term[BigInt]) => jar.current.contains(n) implies jar.current.contains(n).isConstant))
       .assuming(jarOnly, jarOne)
-    val kb = FrModel("Jars")(kept, says, jarOnly, jarOne).implementProven(emptying)(emptyCode)
+    val kb = FrModel("Jars")(kept, says, jarOnly, jarOne).defining(emptying.define(emptyCode))
     assert(Theories.problems(kb).exists {
       case Problem.WritesState(_, m) => m == jar.name
       case _                         => false
@@ -97,7 +98,7 @@ class SecondReviewSuite extends munit.FunSuite:
   }
 
   test("re-review RS1: a failing program of four inputs is read with both outcomes, its result an Either") {
-    val four = Definition[(BigInt, BigInt, BigInt, BigInt) => Flow[Unit]]("four numbers stored").failsWith[Trouble]
+    val four = Declaration[(BigInt, BigInt, BigInt, BigInt) => Flow[Unit]]("four numbers stored").failsWith[Trouble]
     val each = Node.claim("Storing four numbers ends one way or the other.")(
       forall((a: Term[BigInt], b: Term[BigInt], c: Term[BigInt], d: Term[BigInt]) =>
         val result: Term[Either[Trouble, Unit]] = four(a, b, c, d).result
@@ -109,10 +110,10 @@ class SecondReviewSuite extends munit.FunSuite:
 
 object SecondReviewSuite:
   /** A model whose state a program writes without an operation (the second review's `Direct.scala`). */
-  val addD = Definition[BigInt => Flow[Unit]]("a number added to the jar")
+  val addD = Declaration[BigInt => Flow[Unit]]("a number added to the jar")
   object jar extends StateModel[List[BigInt]]("the numbers in the jar"):
     addD.means(n => state.update(h => h :+ n))
     def raw: frflow.dsl.model.Model[List[BigInt]] = state
 
-  val emptying = Definition[BigInt => Flow[Unit]]("the jar emptied directly")
+  val emptying = Declaration[BigInt => Flow[Unit]]("the jar emptied directly")
   val emptyCode = program { (n: Term[BigInt]) => jar.raw.set(Nil).map(_ => n).map(_ => ()) }

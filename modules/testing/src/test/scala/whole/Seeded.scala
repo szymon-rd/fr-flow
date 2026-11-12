@@ -8,7 +8,7 @@ object Seeded:
     * they must hold together, and no witness meets it.
     */
   object TwoPins:
-    val n = Definition[BigInt]("a value provided where the code runs")
+    val n = Declaration[BigInt]("a value provided where the code runs")
     val d1 = Declaration[BigInt => BigInt]("one reading of n")
     val d2 = Declaration[BigInt => BigInt]("another reading of n")
 
@@ -20,22 +20,22 @@ object Seeded:
     val d2IsOne = Node.assumption("d2 is one.")(forall((x: Term[BigInt]) => d2(x) === (1: Term[BigInt])))
       .refines(five)
 
-    val knowledge = FrModel("TwoPins")(five, nIsD1, d1IsZero, nIsD2, d2IsOne).implementProvided(n)
+    val knowledge = FrModel("TwoPins")(five, nIsD1, d1IsZero, nIsD2, d2IsOne).defining(n.provided)
 
   /** Assumptions with no open value, each pinning the provided `n` apart: a group of their own. */
   object Closed:
-    val n = Definition[BigInt]("a value provided where the code runs")
+    val n = Declaration[BigInt]("a value provided where the code runs")
     val five = Node.claim("n is five.")(n === (5: Term[BigInt]))
     val nIsZero = Node.assumption("n is zero.")(n === (0: Term[BigInt])).refines(five)
     val nIsOne = Node.assumption("n is one.")(n === (1: Term[BigInt])).refines(five)
-    val knowledge = FrModel("Closed")(five, nIsZero, nIsOne).implementProvided(n)
+    val knowledge = FrModel("Closed")(five, nIsZero, nIsOne).defining(n.provided)
 
   /** `inner`'s code reached only through `outer`'s: with the real code `holdsIs` and `holdsOne` contradict each
     * other (`twice` leaves the bag two long and holding the item), so no proof may show their group consistent.
     */
   object Hidden:
-    val inner = Definition[(Bag, BigInt) => Bag]("puts an item in a bag")
-    val outer = Definition[(Bag, BigInt) => Bag]("puts an item in a bag, through inner")
+    val inner = Declaration[(Bag, BigInt) => Bag]("puts an item in a bag")
+    val outer = Declaration[(Bag, BigInt) => Bag]("puts an item in a bag, through inner")
     val holds = Declaration[(Bag, BigInt) => Boolean]("whether putting the item in the bag leaves it there")
     val twice = define { (b: Term[Bag], x: Term[BigInt]) => make[Bag](b.items :+ x :+ x) }
     val through = define { (b: Term[Bag], x: Term[BigInt]) => inner(b, x) }
@@ -55,7 +55,7 @@ object Seeded:
       forall((b: Term[Bag], x: Term[BigInt]) => inner(b, x).items.length >= (2: Term[BigInt]))).refines(outerLong)
 
     val knowledge = FrModel("Hidden")(purpose, seen, holdsIs, holdsOne, outerLong, innerLong)
-      .implementProven(inner)(twice).implementProven(outer)(through)
+      .defining(inner.define(twice)).defining(outer.define(through))
 
     /** The proof the review wrote: `inner` chosen as a bag of the item alone, `holds` as always. */
     val proof: String = """import FrFlowGen.Hidden.Whole.Spec
@@ -81,9 +81,9 @@ end Hidden.Whole.Proofs
     * proof may choose `k` to show their group consistent.
     */
   object Through:
-    val k = Definition[BigInt]("a value provided where the code runs")
-    val inner = Definition[(Sack, BigInt) => Sack]("puts an item in a sack, if k says so")
-    val outer = Definition[(Sack, BigInt) => Sack]("puts an item in a sack, through inner")
+    val k = Declaration[BigInt]("a value provided where the code runs")
+    val inner = Declaration[(Sack, BigInt) => Sack]("puts an item in a sack, if k says so")
+    val outer = Declaration[(Sack, BigInt) => Sack]("puts an item in a sack, through inner")
     val holds = Declaration[(Sack, BigInt) => Boolean]("whether the item is in the sack")
     val maybe = define { (b: Term[Sack], x: Term[BigInt]) =>
       when(k > (0: Term[BigInt]))(make[Sack](b.items :+ x)).otherwise(b) }
@@ -104,7 +104,7 @@ end Hidden.Whole.Proofs
     val kPositive = Node.assumption("k is positive.")(k > (0: Term[BigInt])).refines(innerAdds)
 
     val knowledge = FrModel("Through")(emptyHoldsNothing, emptyHoldsIt, holdsB, holdsA, outerAdds, innerAdds,
-      kPositive).implementProvided(k).implementProven(inner)(maybe).implementProven(outer)(through)
+      kPositive).defining(k.provided).defining(inner.define(maybe)).defining(outer.define(through))
 
     /** The proof the re-review wrote: `k` chosen as 0, where inner adds nothing. */
     val proof: String = """import FrFlowGen.Through.Whole.Spec
@@ -134,8 +134,8 @@ end Through.Whole.Proofs
     val kNegative = Node.assumption("k is negative.")(k < (0: Term[BigInt])).refines(kSmall)
 
     val knowledge = FrModel("Vacuous")(emptyHoldsNothing, emptyHoldsIt, kSmall, holdsB, holdsA, outerAdds,
-      innerAdds, kPositive, kNegative).implementProvided(k).implementProven(inner)(maybe).implementProven(outer)(
-      through)
+      innerAdds, kPositive, kNegative).defining(k.provided).defining(inner.define(maybe)).defining(outer.define(
+      through))
 
     /** The proof the second re-review wrote: the group, vacuously, from premises no `k` meets. */
     val proof: String = """import FrFlowGen.Vacuous.Whole.Spec
@@ -173,7 +173,7 @@ end Vacuous.Whole.Proofs
       inner(b, x).items.length === b.items.length + (2: Term[BigInt]))).refines(outerLong)
 
     val knowledge = FrModel("Trusted")(emptyHoldsNothing, holdsIs, outerKeeps, outerLong, innerLong)
-      .implementProven(inner)(twice).implementProven(outer)(through)
+      .defining(inner.define(twice)).defining(outer.define(through))
 
   /** An assumption with no word at all, `∀ xs, xs.length ≠ n`, a part of a root over `holds` (`xs.length = n`):
     * false for `n = 3` (no try builds a list to refute it), so a step resting on it would hold for nothing, and it

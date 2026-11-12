@@ -14,7 +14,7 @@ trait Checkpoint extends Mutable:
   def position: BigInt
 
 object Checkpoint:
-  val checkpoint = Definition[Checkpoint]("the checkpoint service: it keeps the position in the log")
+  val checkpoint = Declaration[Checkpoint]("the checkpoint service: it keeps the position in the log")
 
   val commitMovesPast = Node.claim("Committing the offset the position is at moves the position one past it.")(
     forall((offset: Term[BigInt]) =>

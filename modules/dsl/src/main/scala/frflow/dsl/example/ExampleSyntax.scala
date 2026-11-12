@@ -2,13 +2,13 @@ package frflow.dsl.example
 
 import frflow.dsl.term.{Lift, Reify, Term}
 import frflow.dsl.term.TermSyntax.*
-import frflow.dsl.vocab.Definition
+import frflow.dsl.vocab.Declaration
 
 /** What an example's fact is written with (`FrFlowExamples`): `granted(…) is true`, `t is value`, and a value given
   * to a provided Definition, `example("Alice gets in", grants := List(Grant(alice, a)))(…)`.
   */
 object ExampleSyntax:
-  extension [A](d: Definition[A])
+  extension [A](d: Declaration[A])
     /** The value an example gives `d`. */
     def :=(value: A): Binding = Binding(d.name, Reify(d.leanType, value))
 

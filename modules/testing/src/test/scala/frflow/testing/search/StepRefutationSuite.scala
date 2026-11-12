@@ -23,14 +23,14 @@ class StepRefutationSuite extends munit.FunSuite:
     assertEquals(StepRefutation.answerOf(post.copy(body = Expr.Var(post.params.head)), Echo.op), None)
   }
 
-  private val d = Definition[BigInt => BigInt]("a number the service gives for another")
+  private val d = Declaration[BigInt => BigInt]("a number the service gives for another")
   private val nonNegative = Node.claim("The service never gives a negative number.")(
     forall((n: Term[BigInt]) => d(n) >= 0))
   private val sameAbove = Node.claim("Above zero, the service gives the number itself.")(
     forall((n: Term[BigInt]) => (n > 0) implies (d(n) === n))).refines(nonNegative)
 
   test("a step whose part fixes the answer only above zero is refuted at a case below it, with that answer") {
-    val e = FrModel("Steps")(nonNegative, sameAbove).implementTested(d)(_ => n => n.abs).elaborated
+    val e = FrModel("Steps")(nonNegative, sameAbove).defining(d.defineTested(_ => n => n.abs)).elaborated
       .fold(es => fail(es.toString), identity)
     val r = Resolve(Validate(e).fold(ps => fail(ps.toString), identity))
     val cases = List(1, 0, -1, -2).map(n => Case(List(Value.Num(n)), Nil))

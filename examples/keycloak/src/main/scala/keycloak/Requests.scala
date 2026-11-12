@@ -6,7 +6,7 @@ import frflow.*
 // The server's state: what its requests led to, one at a time
 // ============================================================================
 
-val step = Definition[(ServerState, AuthRequest) => ServerState]("the server's handling of one request: the state " +
+val step = Declaration[(ServerState, AuthRequest) => ServerState]("the server's handling of one request: the state " +
   "it leads to, from the state before it")
 
 /** The sessions a realm has open, of a state the server holds (`state`, now). */
@@ -144,7 +144,7 @@ val drawnTokens = Node.assumption("A sign-in the HTTP API hands the server carri
 // The server, a program over its store
 // ============================================================================
 
-val serve = Definition[Flow[ServerState]]("the server handling the next request it is handed: the state it leads " +
+val serve = Declaration[Flow[ServerState]]("the server handling the next request it is handed: the state it leads " +
   "to, stored with the request and read back")
 
 /** The next request, drawn against the requests the store has logged, handled on the state the store holds, stored

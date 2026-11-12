@@ -23,9 +23,9 @@ final class Ledger(var books: Books) extends Mutable:
     covered
 
 object Ledger:
-  val claim = Definition[(Books, String) -> (Boolean, Books)]("claiming an order's payment: whether it was " +
+  val claim = Declaration[(Books, String) -> (Boolean, Books)]("claiming an order's payment: whether it was " +
     "free, and the books after")
-  val chargeIfCovered = Definition[(Books, Order) -> (Boolean, Books)]("moving an order's amount to the shop if " +
+  val chargeIfCovered = Declaration[(Books, Order) -> (Boolean, Books)]("moving an order's amount to the shop if " +
     "its customer can cover it: whether it did, and the books after")
 
   val claimCode = updating { (ledger: Ledger^, order: String) => ledger.claim(order) }

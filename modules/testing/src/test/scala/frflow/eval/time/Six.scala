@@ -14,16 +14,17 @@ object Six:
   val mkWrong = Node.claim("A made Pos holds one more than its number.")(forall((n: Term[BigInt]) =>
     mkPos(n).v === n + 1))
   val postFirst: FrModel = FrModel("SixA")(posRule, mkStores, mkWrong, allPos, boxOne)
-    .implementProven(putMk)(putMkCode)
-    .implementProven(vOf)(vOfCode)
-    .implementTested(mkPos)(_ => (n: BigInt) => Pos(n))
-    .implementTested(putB)(start = (n: BigInt) => IO.ref(n), observe = _.get)(r => Tuple1((t: BigInt) => r.set(t)))
+    .defining(putMk.define(putMkCode))
+    .defining(vOf.define(vOfCode))
+    .defining(mkPos.defineTested(_ => (n: BigInt) => Pos(n)))
+    .defining(defineOperations(putB)(start = (n: BigInt) => IO.ref(n), observe = _.get)(
+      r => Tuple1((t: BigInt) => r.set(t))))
 
   // (b)
-  val setC = Definition[BigInt => Flow[Unit]]("the cell set, never below zero")
+  val setC = Declaration[BigInt => Flow[Unit]]("the cell set, never below zero")
   object cell extends StateModel[BigInt]("a number"):
     setC.means(t => state.set(when(t >= 0)(t).otherwise(0)))
-  val put = Definition[BigInt => Flow[Unit]]("a number put in the cell")
+  val put = Declaration[BigInt => Flow[Unit]]("a number put in the cell")
   val putCode = program { (n: Term[BigInt]) => Flow.step(setC(n)) }
   val cellKept = Node.assumption("Only the code changes the cell.")(cell.onlyCodeChanges)
   val cellOne = Node.assumption("One run at a time on the cell.")(cell.atomic)
@@ -35,10 +36,10 @@ object Six:
   /** False of the plain Scala, which stores a negative number as it is. */
   val nowNonNeg = Node.claim("The cell is not negative now.")(cell.current >= 0)
 
-  val setB = Definition[BigInt => Flow[Unit]]("the other box set")
+  val setB = Declaration[BigInt => Flow[Unit]]("the other box set")
   object box2 extends StateModel[BigInt]("another number"):
     setB.means(t => state.set(t))
-  val put2 = Definition[BigInt => Flow[Unit]]("a number put in the other box")
+  val put2 = Declaration[BigInt => Flow[Unit]]("a number put in the other box")
   val put2Code = program { (n: Term[BigInt]) => Flow.step(setB(n)) }
   val box2One = Node.assumption("One run at a time on the other box.")(box2.atomic)
   /** Rests on nonNeg on the world it starts from, and runs on the other box only; false of the plain Scala cell. */
@@ -52,11 +53,12 @@ object Six:
 
   val wrongScala: FrModel = FrModel("SixB")(nonNeg, puts, sumAtLeast, box2One, cellKept, cellOne,
       cellStarts)
-    .implementProven(put)(putCode)
-    .implementProven(put2)(put2Code)
-    .implementTested(setB)(start = (n: BigInt) => IO.ref(n), observe = _.get)(r => Tuple1((t: BigInt) => r.set(t)))
-    .implementTested(setC)(start = (n: BigInt) => Ref[IO].of(n).map(RawCell(_)), observe = _.held)(c =>
-      Tuple1(c.set))
+    .defining(put.define(putCode))
+    .defining(put2.define(put2Code))
+    .defining(defineOperations(setB)(start = (n: BigInt) => IO.ref(n), observe = _.get)(
+      r => Tuple1((t: BigInt) => r.set(t))))
+    .defining(defineOperations(setC)(start = (n: BigInt) => Ref[IO].of(n).map(RawCell(_)), observe = _.held)(c =>
+      Tuple1(c.set)))
 
   /** The step 13d seventh pass's S7-N1, seeded: the same tested maker of a `Pos`, mentioned only by a claim saying what
     * a Declaration is, which no code is tested against: its Scala is never tried against the rule, so `posRule` must
@@ -69,4 +71,4 @@ object Six:
     madeOf(n) === mkPos(n))).refines(madeSome)
   val aboveZero = Node.claim("Every Pos holds a number above zero.")(forall((p: Term[Pos]) => p.v >= 1))
   val untried: FrModel = FrModel("SevenA")(posRule, aboveZero, madeSome, madeIs)
-    .implementTested(mkPos)(_ => (n: BigInt) => Pos(n))
+    .defining(mkPos.defineTested(_ => (n: BigInt) => Pos(n)))

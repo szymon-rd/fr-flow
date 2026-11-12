@@ -15,7 +15,7 @@ trait Accounts extends Mutable:
   def total: BigInt
 
 object Accounts:
-  val accounts = Definition[Accounts]("the accounts service: it posts each payment to the books, once")
+  val accounts = Declaration[Accounts]("the accounts service: it posts each payment to the books, once")
 
   val postedIsMarked = Node.claim("A payment posted is marked as posted.")(
     forall((p: Term[Payment]) => accounts.posted(p.id).in(accounts.post(p).after)))

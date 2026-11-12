@@ -8,14 +8,14 @@ import frflow.*
 // ============================================================================
 
 /** The records, shares and expiries the database holds. */
-val load = Definition[Flow[CrmStore]]("the records, shares and expiries the database holds")
+val load = Declaration[Flow[CrmStore]]("the records, shares and expiries the database holds")
 /** Holds what a store holds about a record in place of what the database held about it. */
-val storeAbout = Definition[(BigInt, CrmStore) => Flow[Unit]](
+val storeAbout = Declaration[(BigInt, CrmStore) => Flow[Unit]](
   "what a store holds about a record, held in place of what the database held about it")
 /** Appends an event to the event log. */
-val logEvent = Definition[Event => Flow[Unit]]("an event appended to the event log")
+val logEvent = Declaration[Event => Flow[Unit]]("an event appended to the event log")
 /** The database's search: known only by what is assumed of it (G2). */
-val fetch = Definition[(Account, Search) => Flow[List[CrmRecord]]](
+val fetch = Declaration[(Account, Search) => Flow[List[CrmRecord]]](
   "the database's answer to a search: the stored records, of every company, that match it")
 
 /** What the database holds: the store, and the event log. */

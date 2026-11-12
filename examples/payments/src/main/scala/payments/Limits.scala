@@ -17,7 +17,7 @@ trait Limits extends Mutable:
   def limit: BigInt
 
 object Limits:
-  val limits = Definition[Limits]("the limits service: it decides each payment against its card's limit of the day")
+  val limits = Declaration[Limits]("the limits service: it decides each payment against its card's limit of the day")
 
   val authorisedIsRecorded = Node.claim("A payment authorised is decided, and the answer is the decision " +
       "recorded.")(

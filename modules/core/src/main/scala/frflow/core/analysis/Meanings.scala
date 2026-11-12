@@ -7,11 +7,11 @@ import frflow.core.name.{DefName, SymbolName}
 import frflow.core.Theory
 import frflow.core.vocab.ValueKind
 
-/** The calling rule of the two kinds of values (owner §15), where the types cannot enforce it. The DSL's types
-  * already keep a Declaration out of code: only a Definition takes code (`implementProven`, `implementTested`,
-  * `implementValue`, `provided`), plain code reads only Definitions (`env(d)`), and a Declaration is applied only
-  * where a statement is being written (`Stating`), a `stated` define's body among them, which code cannot call. What
-  * remains: every Definition gets a meaning, and no Declaration is reached from code through a define.
+/** The calling rule of the two kinds of values (owner §15). In the DSL every word is a Declaration; here a word
+  * is of the kind Definition when the model gives it a meaning (a Definition of it: `define`, `defineTested`,
+  * `defineValue`, `provided`) or its code calls it, and of the kind Declaration when only statements read it. A
+  * `stated` define's body is a statement's, which code cannot call. What remains to check: every word code calls
+  * gets a meaning or is assumed, and no word of the kind Declaration is reached from code through a define.
   */
 object Meanings:
   def problems(t: Theory): ValidatedNec[Problem, Unit] =

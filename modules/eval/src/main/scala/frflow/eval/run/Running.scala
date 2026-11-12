@@ -9,7 +9,7 @@ import frflow.core.vocab.Fails
 import frflow.dsl.model.Clock
 import frflow.dsl.run.Recorded
 import frflow.dsl.term.{LeanType, Lift, Term}
-import frflow.dsl.vocab.{Called, Definition, Spot}
+import frflow.dsl.vocab.{Called, Declaration, Definition, Spot}
 import frflow.dsl.vocab.{Flow, Terms}
 import frflow.eval.{Env, Fn, Literals, NotEvaluated, Raised, ScalaValue}
 import frflow.eval.flow.Bound
@@ -26,10 +26,10 @@ import frflow.eval.term.Evaluate
   */
 final class Running[F[_]] private (values: Values, literals: Literals, operations: Map[SymbolName, Bound[F]],
     lock: Mutex[F])(using F: Async[F]) extends Terms:
-  def apply[R](p: Definition[Flow[R]]): F[R] = program(p, Nil)
-  def apply[A, R](p: Definition[A => Flow[R]])(a: A): F[R] = program(p, List(a))
-  def apply[A, B, R](p: Definition[(A, B) => Flow[R]])(a: A, b: B): F[R] = program(p, List(a, b))
-  def apply[A, B, C, R](p: Definition[(A, B, C) => Flow[R]])(a: A, b: B, c: C): F[R] = program(p, List(a, b, c))
+  def apply[R](p: Declaration[Flow[R]]): F[R] = program(p.word, Nil)
+  def apply[A, R](p: Declaration[A => Flow[R]])(a: A): F[R] = program(p.word, List(a))
+  def apply[A, B, R](p: Declaration[(A, B) => Flow[R]])(a: A, b: B): F[R] = program(p.word, List(a, b))
+  def apply[A, B, C, R](p: Declaration[(A, B, C) => Flow[R]])(a: A, b: B, c: C): F[R] = program(p.word, List(a, b, c))
 
   /** A program written in plain code, its steps run: its result a term. */
   def flow[R](f: Flow[R]): F[Term[R]] = of(f.steps)

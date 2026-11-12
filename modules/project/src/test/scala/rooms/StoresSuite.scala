@@ -10,7 +10,7 @@ import frflow.proof.audit.Obligations
 import frflow.proof.terms.TermTable
 
 /** A log of the requests: a second state, its operation, its model and a rule about it, beside rooms. */
-val writeLog = Definition[Booking => Flow[Unit]]("a request written at the end of the log")
+val writeLog = Declaration[Booking => Flow[Unit]]("a request written at the end of the log")
 
 object loggedRequests extends StateModel[List[Booking]]("every request logged, oldest first"):
   writeLog.means(request => state.update(logged => logged :+ request))
@@ -18,13 +18,13 @@ object loggedRequests extends StateModel[List[Booking]]("every request logged, o
 /** A second program changing the table: the request added, granted or not. */
 def addsAnyway(request: Term[Booking]): Flow[Unit] = Flow.step(add(request)).as(Flow.done)
 
-val addAnyway = Definition[Booking => Flow[Unit]]("adding a request, granted or not")
+val addAnyway = Declaration[Booking => Flow[Unit]]("adding a request, granted or not")
 
 /** A program reading the table and writing the log: the request's room read, the request logged. */
 def logsRequest(request: Term[Booking]): Flow[Unit] =
   Flow.step(inRoom(request.room)).flatMap(_ => Flow.step(writeLog(request)).as(Flow.done))
 
-val logRequest = Definition[Booking => Flow[Unit]]("logging a request, once its room is read")
+val logRequest = Declaration[Booking => Flow[Unit]]("logging a request, once its room is read")
 
 /** The log's nodes beside rooms: what the log does, its two facts, and a rule about it. */
 object Logged:
@@ -39,8 +39,8 @@ object Logged:
   /** Rooms with `extra` beside its nodes, its code attached as in `Knowledge.scala`. */
   def withNodes(extra: Node*): FrModel =
     FrModel("Rooms")((rooms.nodes ++ extra)*).copy(generators = rooms.generators, operations = rooms.operations)
-      .implementProven(book)(bookIfGranted)
-      .implementTested(granted)(_ => (held, request) => Calendar(held).grants(request))
+      .defining(book.define(bookIfGranted))
+      .defining(granted.defineTested(_ => (held, request) => Calendar(held).grants(request)))
 
 /** One World, kept local (owner §19, §31): a statement takes only the rules of the states it reads, so a state added
   * beside rooms brings back no statement that does not read it; and the programs changing a state are derived, so a
@@ -83,8 +83,8 @@ class StoresSuite extends munit.FunSuite:
       forall((request: Term[Booking]) =>
         storedBookings.in(addAnyway(request).after) === storedBookings.current :+ request))
       .assuming(oneAtATime, bookingsEndAfterStart)
-    val adding = withNodes(addsIt).implementProven(addAnyway)(program { (request: Term[Booking]) =>
-      addsAnyway(request) })
+    val adding = withNodes(addsIt).defining(addAnyway.define(program { (request: Term[Booking]) =>
+      addsAnyway(request) }))
     assertEquals(whole.Theories.problems(adding), Nil)
     assertEquals(writers(withNodes()), List("neverOverlap" -> List("book"), "bookingsEndAfterStart" -> List("book")))
     assertEquals(writers(adding), List("neverOverlap" -> List("book", "addAnyway"),
@@ -101,8 +101,8 @@ class StoresSuite extends munit.FunSuite:
       always(loggedRequests)(logged => logged.forall(b => b.start < b.end)))
       .assuming(logOnlyCode, logOneAtATime, logStartsEmpty, bookingsEndAfterStart)
     val nodes = List(logOnlyCode, logOneAtATime, logStartsEmpty, loggedEndAfterStart, logsIt)
-    val m = withNodes(nodes*).implementProven(logRequest)(program { (request: Term[Booking]) =>
-      logsRequest(request) })
+    val m = withNodes(nodes*).defining(logRequest.define(program { (request: Term[Booking]) =>
+      logsRequest(request) }))
     assertEquals(whole.Theories.problems(m), Nil)
     val kept = lean(Projects.bare(Projects.elaborated(m)), NodeId("loggedEndAfterStart"))
     val keeps = kept.linesIterator.dropWhile(!_.contains("def keeps_logRequest")).take(2).mkString("\n")

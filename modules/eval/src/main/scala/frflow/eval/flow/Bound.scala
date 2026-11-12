@@ -15,7 +15,7 @@ final case class Bound[F[_]](call: List[Any] => F[Any], fails: Option[Fails])
 
 object Bound:
   /** Each operation of the models given (`storedBookings := table`), by Definition: the Scala the FrModel gives the
-    * model's operations (`implementTested(ops*)`), of the value given. Refused, as a mistake in how the code is run:
+    * model's operations (`defineOperations(ops*)`), of the value given. Refused, as a mistake in how the code is run:
     * a model with no Scala, or Scala in another effect than `F`.
     */
   def of[F[_]](t: Theory, bound: List[Implemented])(using F: MonadThrow[F]): Map[SymbolName, Bound[F]] =
@@ -29,7 +29,7 @@ object Bound:
   def bind[F[_]](impl: Implementation, instance: Any, fails: Option[Fails])(using F: MonadThrow[F])
       : Map[SymbolName, Bound[F]] =
     if impl.effect ne F then throw IllegalArgumentException("FrFlow: the operations' Scala runs in another effect")
-    // Each is the developer's, typed by its operation's Definition (`implementTested`): of an operation of no input,
+    // Each is the developer's, typed by its operation's word (`defineOperations`): of an operation of no input,
     // its program in the implementation's effect `F`; else a function of the inputs to one.
     impl.ops.zip(impl.scala.calls(instance)).map((op, f) => op -> Bound[F](args =>
       (if args.isEmpty then f else Fn.call(Fn.ref(ScalaValue(f)), args.map(ScalaValue(_))).unwrap)

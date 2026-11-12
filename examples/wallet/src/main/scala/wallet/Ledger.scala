@@ -36,9 +36,9 @@ object Ledger:
   // The ledger's two transactions the transfer service is made of, as the statements speak of them: from the books,
   // the answer with the books after it. Each is known to the services by its contracts below, and is the code of
   // the method of its name (`claimCode`, `moveIfCoveredCode`: the method's body, read).
-  val claim = Definition[(Books, String) -> (Boolean, Books)]("claiming a request: whether it was free, and the " +
+  val claim = Declaration[(Books, String) -> (Boolean, Books)]("claiming a request: whether it was free, and the " +
     "books after")
-  val moveIfCovered = Definition[(Books, Transfer) -> (Boolean, Books)]("moving a transfer's amount if its payer " +
+  val moveIfCovered = Declaration[(Books, Transfer) -> (Boolean, Books)]("moving a transfer's amount if its payer " +
     "can cover it: whether it did, and the books after")
 
   val claimCode = updating { (ledger: Ledger^, request: String) => ledger.claim(request) }

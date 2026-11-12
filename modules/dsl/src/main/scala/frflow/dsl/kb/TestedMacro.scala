@@ -1,33 +1,33 @@
 package frflow.dsl.kb
 
 import frflow.dsl.vocab.Flow
-import frflow.dsl.vocab.Definition as Defined
+import frflow.dsl.vocab.Declaration
 import scala.quoted.*
 
-/** `implementTested(ds*)` read at compile time: the type of the first Definition (what plain Scala given it alone is
+/** `defineOperations(ds*)` read at compile time: the type of the first Definition (what plain Scala given it alone is
   * typed by) and the shape of each (`Shape`), so the Scala given operations on a state is typed by their
   * Definitions (`Tested`).
   */
 object TestedMacro:
-  def of(kb: Expr[FrModel], ds: Expr[Seq[Defined[?]]])(using Quotes): Expr[Any] =
+  def of(kb: Expr[FrModel], ds: Expr[Seq[Declaration[?]]])(using Quotes): Expr[Any] =
     import quotes.reflect.*
     val each = ds match
       case Varargs(es) => es.toList
-      case _           => report.errorAndAbort("FrFlow: implementTested is given its Definitions one by one")
+      case _           => report.errorAndAbort("FrFlow: defineOperations is given its words one by one")
     val types = each.map(e => meant(e.asTerm.tpe))
     val shapes = types.foldRight(TypeRepr.of[EmptyTuple])((t, rest) =>
       TypeRepr.of[*:].appliedTo(List(shape(t), rest)))
-    (types.headOption.getOrElse(report.errorAndAbort("FrFlow: implementTested is given a Definition")).asType,
+    (types.headOption.getOrElse(report.errorAndAbort("FrFlow: defineOperations is given a word")).asType,
       shapes.asType) match
-      case ('[f], '[type s <: Tuple; s]) => '{ Tested[f, s]($kb, List(${ Varargs(each) }*)) }
+      case ('[f], '[type s <: Tuple; s]) => '{ Tested[f, s]($kb, List(${ Varargs(each) }*).map(_.word)) }
       case _                             => report.errorAndAbort("FrFlow bug: the operations' shapes are no tuple")
 
   /** `A` of a `Definition[A]`. */
   private def meant(using Quotes)(t: quotes.reflect.TypeRepr): quotes.reflect.TypeRepr =
     import quotes.reflect.*
-    t.widen.baseType(TypeRepr.of[Defined].typeSymbol) match
+    t.widen.baseType(TypeRepr.of[Declaration].typeSymbol) match
       case AppliedType(_, List(a)) => a
-      case other                   => report.errorAndAbort(s"FrFlow: ${other.show} is no Definition")
+      case other                   => report.errorAndAbort(s"FrFlow: ${other.show} is no Declaration")
 
   /** An operation's shape: `Op1[A, R]` of `A => Flow[R]`; `NotAnOperation[T]` of any other type. */
   private def shape(using Quotes)(t: quotes.reflect.TypeRepr): quotes.reflect.TypeRepr =

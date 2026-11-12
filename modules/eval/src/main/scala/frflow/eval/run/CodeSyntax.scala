@@ -7,7 +7,7 @@ import frflow.core.example.Given
 import frflow.dsl.example.Binding
 import frflow.dsl.kb.FrModel
 import frflow.dsl.model.Implemented
-import frflow.dsl.vocab.Definition
+import frflow.dsl.vocab.Declaration
 import frflow.eval.flow.Bound
 import frflow.eval.{Fn, Literals, ScalaValue}
 import frflow.eval.run.Wiring
@@ -22,7 +22,7 @@ object CodeSyntax:
     /** `d`'s meaning as plain code calls it (its plain Scala, its proven define run by the evaluator, its value), or
       * the value given it.
       */
-    def code[F](d: Definition[F])(bindings: Binding*): F =
+    def code[F](d: Declaration[F])(bindings: Binding*): F =
       CodeSyntax.values(kb, bindings).get(d.name).fold(throw IllegalArgumentException(
         s"FrFlow: ${d.name.value} has no meaning in ${kb.name.value} and is given none"))(v => Fn.as[F](ScalaValue(v)))
 
