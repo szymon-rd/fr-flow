@@ -119,3 +119,103 @@ Proof.
     intros Γ' HK'. exact (Keep_trans HK HK').
   - apply Keep_refl.
 Qed.
+
+Lemma reaches_Keep {t Γ Γ' h cap} : Keep t Γ Γ' -> reaches Γ t h cap -> reaches Γ' t h cap.
+Proof.
+  intros HK (Hw & Ha). split; [exact (wf_cap_Ext (k_ext HK) Hw) |].
+  destruct Ha as [Ha | (Hi & Hin)]; [left; exact (anc_Ext (k_ext HK) Ha) |].
+  right. split; [exact (innermost_Keep HK Hi) | exact (inside_Keep HK Hin)].
+Qed.
+
+(** ** The forks: a thread inside a scope's herd starts a fork of it *)
+
+Definition fork_pre (t : tid) (ox : OxError) (f : code) (Γ : gh) : Prop :=
+  g_removed Γ t = false /\ knows Γ t ox /\ callable f /\ plain f /\ main_of (hid ox) f /\
+  Forall (reaches Γ t (hid ox)) (body_caps f).
+
+Lemma fork_pre_Keep {t ox f Γ Γ'} : Keep t Γ Γ' -> fork_pre t ox f Γ -> fork_pre t ox f Γ'.
+Proof.
+  intros HK (Hrm & Hk & Hc & Hp & Hm & Hr). split; [rewrite (k_removed HK); exact Hrm |].
+  split; [exact (knows_Keep HK Hk) |]. repeat (split; trivial).
+  eapply Forall_impl; [| exact Hr]. intros cap H. exact (reaches_Keep HK H).
+Qed.
+
+(** What `startThread` is given by each fork. *)
+Lemma fork_starts t ox f b Γ0 (Q : exn + unit -> gh -> Prop) :
+  fork_pre t ox f Γ0 ->
+  callable b -> plain b -> main_of (hid ox) b -> body_caps b = ox :: body_caps f ->
+  (forall r Γ1, Keep t Γ0 Γ1 -> Q r Γ1) ->
+  wp t (ThreadHerd_startThread (OxError_herd ox) b) Γ0 Q.
+Proof.
+  intros (Hrm & (Hw & Hin) & Hc & Hp & Hm & Hr) Hcb Hpb Hmb Hcaps HQ.
+  apply ThreadHerd_startThread_spec; trivial.
+  rewrite Hcaps. constructor; [| exact Hr]. split; [exact Hw | left; constructor].
+Qed.
+
+Lemma forkUserError_spec t ox f Γ0 (Q : exn + Fork -> gh -> Prop) :
+  fork_pre t ox f Γ0 -> (forall r Γ1, Keep t Γ0 Γ1 -> Q r Γ1) -> wp t (forkUserError ox f) Γ0 Q.
+Proof.
+  intros Hpre HQ. unfold forkUserError. cbn zeta.
+  pose proof Hpre as (Hrm & _ & Hc & Hp & Hm & _).
+  apply wp_bind. apply wp_frame_res; [exact I | apply can_step_intro; exact Hrm |].
+  intros σ1 Γ1 x1 σ1' HI1 HR1 Hs1 Hstep1. cbn in Hstep1. destruct Hstep1 as (r & _ & -> & _).
+  cbn beta iota.
+  pose (K := fun Γ => Keep t Γ0 Γ).
+  apply wp_bind. apply (wp_fo t _ Γ1 _ K); [apply fo_Supervisor_forkStarts | | | exact (Rely_Keep HR1) |].
+  { intros Γ Γ' HK HR. exact (Keep_Rely HK HR). }
+  { intros Γ HK. rewrite (k_removed HK). exact Hrm. }
+  intros [e | []] Γ2 HK2; unfold K in HK2; [apply HQ; exact HK2 |].
+  apply wp_bind. apply (fork_starts t ox f); cbn; trivial.
+  - exact (fork_pre_Keep HK2 Hpre).
+  - split; trivial.
+  - intros [e | []] Γ3 HK3; apply HQ; exact (Keep_trans HK2 HK3).
+Qed.
+
+Lemma forkError_spec t ox f Γ0 (Q : exn + Fork -> gh -> Prop) :
+  fork_pre t ox f Γ0 -> (forall r Γ1, Keep t Γ0 Γ1 -> Q r Γ1) -> wp t (forkError ox f) Γ0 Q.
+Proof.
+  intros Hpre HQ. unfold forkError. cbn zeta.
+  pose proof Hpre as (Hrm & _ & Hc & Hp & Hm & _).
+  apply wp_bind. apply wp_frame_res; [exact I | apply can_step_intro; exact Hrm |].
+  intros σ1 Γ1 x1 σ1' HI1 HR1 Hs1 Hstep1. cbn in Hstep1. destruct Hstep1 as (r & _ & -> & _).
+  cbn beta iota. pose proof (Rely_Keep HR1) as HK1.
+  apply wp_bind. apply (fork_starts t ox f); cbn; trivial.
+  - exact (fork_pre_Keep HK1 Hpre).
+  - split; trivial.
+  - intros [e | []] Γ3 HK3; apply HQ; exact (Keep_trans HK1 HK3).
+Qed.
+
+Lemma forkUnsupervised_spec t ox f Γ0 (Q : exn + Fork -> gh -> Prop) :
+  fork_pre t ox f Γ0 -> (forall r Γ1, Keep t Γ0 Γ1 -> Q r Γ1) -> wp t (forkUnsupervised ox f) Γ0 Q.
+Proof.
+  intros Hpre HQ. unfold forkUnsupervised. cbn zeta.
+  pose proof Hpre as (Hrm & _ & Hc & Hp & Hm & _).
+  apply wp_bind. apply wp_frame_res; [exact I | apply can_step_intro; exact Hrm |].
+  intros σ1 Γ1 x1 σ1' HI1 HR1 Hs1 Hstep1. cbn in Hstep1. destruct Hstep1 as (r & _ & -> & _).
+  cbn beta iota. pose proof (Rely_Keep HR1) as HK1.
+  apply wp_bind. apply (fork_starts t ox f); cbn; trivial.
+  - exact (fork_pre_Keep HK1 Hpre).
+  - split; trivial.
+  - intros [e | []] Γ3 HK3; apply HQ; exact (Keep_trans HK1 HK3).
+Qed.
+
+(** ** The closure a supervised scope runs on its owner's thread *)
+
+Lemma Lam_supervisedError_1_ok t s em cap f arg Γ0 :
+  CallPre t (Lam_supervisedError_1 s em cap f) arg Γ0 ->
+  wp t (Lam_supervisedError_1_body s em cap f arg) Γ0 (fun _ Γ' => Keep t Γ0 Γ').
+Proof.
+  intros (Hc & Hrm & Hk & _ & Hinn). cbn in Hc, Hk, Hinn. unfold Lam_supervisedError_1_body.
+  apply Forall_cons_iff in Hk. destruct Hk as (Hkc & Hk). apply Forall_app in Hk. destruct Hk as (Hkf & _).
+  pose (K := fun Γ => Keep t Γ0 Γ).
+  apply wp_bind. apply forkUserError_spec.
+  - split; [exact Hrm |]. split; [exact Hkc |]. split; [exact Hc |]. split; [exact I |].
+    split; [reflexivity |]. cbn. constructor.
+    + split; [exact (proj1 Hkc) | left; constructor].
+    + eapply Forall_impl; [| exact Hkf]. intros c' (Hw & Hi). split; [exact Hw | right; split; trivial].
+  - intros [e | fk] Γ1 HK1; [exact HK1 |].
+    apply (wp_fo t _ Γ1 _ K); [| | | exact HK1 | intros x Γ2 H2; exact H2].
+    + fo1.
+    + intros Γ Γ' HK HR. exact (Keep_Rely HK HR).
+    + intros Γ HK. rewrite (k_removed HK). exact Hrm.
+Qed.
