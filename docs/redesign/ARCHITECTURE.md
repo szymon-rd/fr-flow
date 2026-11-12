@@ -1,23 +1,15 @@
 # FrFlow: architecture of the rebuild
 
-This is the approved design of FrFlow's rebuild; `review.md` is the approving review. It says what the design is, not
-how it was reached. The revision log it was first written as is kept in `history/ARCHITECTURE-r15-log.md`;
-`history/MAPPING.md` says where each of its sections went.
+This is the approved design of FrFlow's rebuild, kept as the record of why the library is built as it is. It says
+what the design was, not how it was reached, and it is not kept up with the code: the code is in `modules/`, and
+what has changed since (structures, the compiler from TASTy, Rocq, the removal of `Flow` programs) is in the
+README and in `docs/LIFTED.md` and `docs/ROCQ.md`.
 
-Beside this file, in `docs/redesign/`:
-
-| File | What it holds |
-|---|---|
-| `owner-decisions.md` | the owner's decisions, cited here as "owner §n" |
-| `review.md` | the approving review, kept as written (its paths are the design workspace's) |
-| `features.md` | every feature of today's library, its concept here, its use, what the rebuild does |
-| `dependencies.txt` | today's package and module dependencies, measured |
-| `planned/` | the planned code: nine of the twelve modules, compiled, with suites |
-| `lean-spike/` | historical: rooms' and auth's Lean as the printer gave it during the design, with proofs; it no longer builds (its `Proofs.lean` is of the §21 shape, its bundled `frflow/` older than the library) and is kept as the record |
-| `tools/` | scripts the design used; the size budgets are `bin/budget.py` since step 14 (`python3 bin/budget.py modules examples`) |
-
-Source paths below are under `planned/src/<module>/`; rooms is `planned/test/project/frflow/rooms/`, auth
-`planned/test/project/frflow/auth/`.
+`owner-decisions.md`, beside this file, holds the owner's decisions, cited here and in the sources as "owner §n".
+The other files this text names were removed once the rebuild was done, and are in the repository's history
+before that: the approving review (`review.md`), the feature audit (`features.md`), the measured dependencies
+(`dependencies.txt`), the revision log (`history/`), the planned code (`planned/`), the Lean spike
+(`lean-spike/`) and the design's scripts (`tools/`; the size budgets are `bin/budget.py`).
 
 ## 1. Summary
 

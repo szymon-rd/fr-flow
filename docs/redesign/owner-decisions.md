@@ -2,7 +2,7 @@
 
 The owner's decisions, recorded as he gave them during the design; `ARCHITECTURE.md` applies them, and its Appendix A
 says where each is applied. "§n" is a section of this file. "§4.8", "the feature audit" and "revision n" in the text
-are those of the design's revision log, `history/ARCHITECTURE-r15-log.md`; the feature audit is `features.md`.
+are those of the design's revision log and the feature audit, both removed since and in the repository's history.
 
 ## 1. No IDEA.md; the README is just a README
 The owner: "IDEA.md is weird btw. It is unstructured. I don't think we should have that. The notion of questions (Q1,

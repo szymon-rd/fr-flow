@@ -435,4 +435,5 @@ its proofs by hand in `lean/Proofs` (and `rocq/Proofs`, where it is proven in Ro
   yet.
 - [docs/ROCQ.md](docs/ROCQ.md) describes the move from Lean to Rocq: how a model reads in Rocq, what is proven
   there, and what is left.
-- [docs/redesign/](docs/redesign/ARCHITECTURE.md) is the design record of the library as it was rebuilt.
+- [docs/redesign/](docs/redesign/ARCHITECTURE.md) is the design record of the library as it was rebuilt, and the
+  owner's decisions the sources cite.
