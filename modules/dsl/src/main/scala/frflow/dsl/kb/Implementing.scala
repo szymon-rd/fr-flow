@@ -5,24 +5,24 @@ import frflow.core.code.Attachment
 import frflow.core.name.RelPath
 import frflow.core.ty.Ty
 import frflow.dsl.build.{Declarations, Deferred, Fault, Site}
-import frflow.dsl.lifted.steps.ServiceImplementation
-import frflow.dsl.service.ServiceDeclaration
+import frflow.dsl.lifted.steps.StructureCode
+import frflow.dsl.structure.StructureDeclaration
 import frflow.dsl.vocab.{Declaration, Definition}
 
 /** What a Definition listed in a FrModel gives it (`Defining`): each word's meaning, once. Only a word with no
   * meaning where it is written takes one.
   */
 object Implementing:
-  /** `d` given `proven`: a define or a program; or, of a service, the class that implements it, each member's
-    * Definition given the member's code, and of a member that changes the service, its Definition among other
-    * calls given that code, whether or not a statement mentions it. The service itself has no value in the
-    * model: a claim on it is said of the service in every state (`Serving`).
+  /** `d` given `proven`: a define or a program; or, of a structure, the class that implements it, each member's
+    * Definition given the member's code, and of a member that changes the structure, its Definition among other
+    * calls given that code, whether or not a statement mentions it. The structure itself has no value in the
+    * model: a claim on it is said of the structure in every state (`Standing`).
     */
   def proven(kb: FrModel, d: Declaration[?], proven: Definition[?], at: RelPath): FrModel = (d, proven) match
-    case (service: ServiceDeclaration[?], given_ : ServiceImplementation[?]) =>
-      val members = service.members.map(m => service.member(m.name) -> given_.code.get(m.name))
-      val among = service.members.filter(_.changes).map(m =>
-        service.among(m.name) -> given_.code.get(ServiceImplementation.among(m.name)))
+    case (structure: StructureDeclaration[?], given_ : StructureCode[?]) =>
+      val members = structure.members.map(m => structure.member(m.name) -> given_.code.get(m.name))
+      val among = structure.members.filter(_.changes).map(m =>
+        structure.among(m.name) -> given_.code.get(StructureCode.among(m.name)))
       (members ++ among).foldLeft(kb) { case (k, (symbol, read)) =>
         k.attachMember(symbol.name, declared(symbol, code(symbol, read, at).andThen(a =>
           Deferred((given_.state.declares |+| symbol.notes.declares, a).validNec))))

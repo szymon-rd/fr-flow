@@ -236,8 +236,8 @@ each.
 ## Services: code that changes a store
 
 A service method that changes state is read the way Aeneas reads `&mut`: the state passed in and returned, with no
-state monad. [SEPARATION-SPIKE.md](SEPARATION-SPIKE.md) records the spike. It is written two ways. A service as a
-Declaration of a trait, defined by a class ("A service as a Declaration" below), is the one to write:
+state monad. [SEPARATION-SPIKE.md](SEPARATION-SPIKE.md) records the spike. It is written two ways. A structure, a
+Declaration of a trait defined by a class ("A structure: a value with members" below), is the one to write:
 [the payment stream](../examples/payments/README.md) (a processor over three services, proven through redelivery,
 a crash at any step and a second instance). The first way, a word and a reading per method, is what
 [the wallet](../examples/wallet/README.md) (one service over one store) and
@@ -247,21 +247,22 @@ a crash at any step and a second instance). The first way, a word and a reading 
 final class Ledger(var books: Books) extends caps.Mutable:        // a store: its state is its one `var`
   update def claim(request: String): Boolean = …
 
-final class Transfers(ledger: Ledger^):                           // a service: it holds one store, exclusively
+final class Transfers(ledger: Ledger^):                           // a class holding one store, exclusively
   def transfer(t: Transfer): Outcome = …
 
 object Transfers:
   val transfer = Declaration[(Books, Transfer) -> (Outcome, Books)]("a transfer, alone: …")
-  val transferCode = updating { (service: Transfers^, t: Transfer) => service.transfer(t) }
-  val transferAmongOthersCode = interleaving { (service: Transfers^, t: Transfer) => service.transfer(t) }(others)
+  val transferCode = updating { (transfers: Transfers^, t: Transfer) => transfers.transfer(t) }
+  val transferAmongOthersCode =
+    interleaving { (transfers: Transfers^, t: Transfer) => transfers.transfer(t) }(others)
 ```
 
 - `updating { (port: P^, input: A) => … }` is a lifted function from the port's state and the input to the result
   with the state after. Its Scala (`native`) makes the stores from the state, runs the method, and gives back
   what the stores hold.
-- A port is a store, or a service: a class holding ports. A service holding one port has that port's state. A
-  service holding several names its state in its companion, `type State = Pipeline`, a case class with one field
-  for each port it holds, in order; a call made on a port reads its field and leaves the state with that field
+- A port is a store, or a class holding ports. A class holding one port has that port's state. A class holding
+  several names its state in its companion, `type State = Pipeline`, a case class with one field for each port
+  it holds, in order; a call made on a port reads its field and leaves the state with that field
   replaced.
 - `interleaving { … }(others)` is a Definition from the state, a schedule (`Map[BigInt, S]`: what other calls left
   before each step, by the step's number) and the input, to the result with every step taken (the state it started
@@ -270,9 +271,9 @@ object Transfers:
   the rely allows. Each call of a store's method is one step; that it is atomic is a design node's to say.
 - A call of a method of a port the code holds is a call of the Definition of that name in the port's companion,
   when there is one (a method of one argument): the code is then proven from the port's contracts, not from the
-  method's body. Read alone, that holds of a store's methods and of a service's, so a service that calls services
-  is proven from their contracts. Read among other calls, a service's method is its body, down to the stores'
-  methods, each a step. A port's own readings (`updating { (ledger: Ledger^, …) => ledger.claim(…) }`) are its
+  method's body. Read alone, that holds of a store's methods and of those of a class holding ports, so a class
+  that calls such classes is proven from their contracts. Read among other calls, such a method is its body, down
+  to the stores' methods, each a step. A port's own readings (`updating { (ledger: Ledger^, …) => ledger.claim(…) }`) are its
   methods' bodies. The Definitions' names are the methods', so two ports of one model give their methods
   different names.
 - The files compile with capture and separation checking, and the project with `-Yretain-trees`; what uses the
@@ -290,19 +291,20 @@ Three things about the proof side show in these examples:
   model's proofs share one lemma that walks its steps (`every_step` in the examples' `Lemmas.lean`): each
   contract over every step is then a few lines saying what each store's method keeps.
 
-### A service as a Declaration
+### A structure: a value with members
 
-A service is a value: a trait says what members it has, a `Declaration` of the trait's type is the service in the
-model, the claims are on that word through its members, and a class that implements the trait is its
-Definition.
+A structure is a value with members, some of them functions. A trait says what members it has, a `Declaration` of
+the trait's type is the structure in the model, the claims are on that word through its members, and a class that
+implements the trait is its Definition. The word is logic's: the trait is a signature, the claims a theory over
+it, the class a structure the theory is proven of. A service is written as one.
 
 ```scala
-trait Limits extends caps.Mutable:                                 // the service: nothing of FrFlow's
+trait Limits extends caps.Mutable:                                 // the members: nothing of FrFlow's
   update def authorise(p: Payment): Boolean
   def decided(id: String): Boolean
 
 object Limits:
-  val limits = Declaration[Limits]("the limits service: …")         // the service in the model
+  val limits = Declaration[Limits]("the limits service: …")         // the structure in the model
   val authorisedIsRecorded = Node.claim("A payment authorised is decided.")(
     forall((p: Term[Payment]) => limits.decided(p.id).in(limits.authorise(p).after)))
 
@@ -311,37 +313,42 @@ final class SpendLimits(val limit: BigInt, var decisions: List[Decision]) extend
 FrModel("Payments")(…, limits.define(lifted[SpendLimits]))
 ```
 
-- `Declaration[T]` of a trait that is a `caps.Mutable` is typed by the trait's members: each is called in a
-  statement as the trait declares it and gives a `Call`. A `Call` is the member's result (`result`); `after` is
-  the service once it is made; `in(state)` makes it on a given state of the service; called plainly it is made on
-  the service as it stands (`limits.current`). Each member is a word of its own (`limits_authorise`): a
-  function of the service that gives the result, and of an `update` member the service after it.
-- A claim is said of the service in every state: "the service as it stands" is a variable the claim is closed
-  over. So a claim is one that code holding the service can rely on, whatever state it holds it in; and a fact of
-  every state ("no card is over its limit") is stated as what each call keeps.
+- `Declaration[T]` of a trait of the developer's is typed by the trait's members: each is called in a statement
+  as the trait declares it and gives a `Call`. A `Call` is the member's result (`result`); `after` is the
+  structure once it is made; `in(state)` makes it on a given state of the structure; called plainly it is made on
+  the structure as it stands (`limits.current`). Each member is a word of its own (`limits_authorise`): a
+  function of the structure that gives the result, and of an `update` member the structure after it.
+- A trait with a member that changes it extends Scala's `caps.Mutable` and marks that member `update`, in a file
+  with capture and separation checking. A trait no member changes extends nothing (`trait Pricing { def
+  price(item: Item): BigInt }`): it is taken for a structure when it is not sealed, has no `FrSpec` of its own,
+  and its members are over domain types. Any other type declared is a plain word.
+- A claim is said of the structure in every state: "the structure as it stands" is a variable the claim is closed
+  over. So a claim is one that code holding the structure can rely on, whatever state it holds it in; and a fact
+  of every state ("no card is over its limit") is stated as what each call keeps.
 - `lifted[SpendLimits]` reads the class member by member. Its state is a record named as the trait, a field for
   each of the constructor's; each member's body is read into a function of that record. `limits.define(…)`
   gives each member's word its code, and Lean proves the code meets every claim that mentions the member.
-- A class made with other services is given their words, in the order its constructor takes them:
-  `lifted[StreamProcessor](limits, accounts, checkpoint)`. A call of a member of a service it holds is a call of
-  that word's member, so in Lean the class's code is a function of any members that meet the claims on them,
+- A class made with other structures is given their words, in the order its constructor takes them:
+  `lifted[StreamProcessor](limits, accounts, checkpoint)`. A call of a member of a structure it holds is a call of
+  that word's member, written as a statement of its own in a member that changes the class (`val cost =
+  pricing.price(item)`), so in Lean the class's code is a function of any members that meet the claims on them,
   and it is proven from those claims. One class is given for a trait in a model: the trait's record is that
   class's fields.
-- A member that changes the service takes steps: a class that holds no service makes its change in one, a class
-  made of services takes one for each call it makes of them (a query too). `call.steps` is each step that changes
-  the service, as the step found it and as it left it; a crash leaves the service as one of them did.
-  `call.among(between)` is the call made among other calls, which leave the service as `between` says before a
+- A member that changes the structure takes steps: a class that holds no structure makes its change in one, a
+  class made of structures takes one for each call it makes of them (a query too). `call.steps` is each step that
+  changes the structure, as the step found it and as it left it; a crash leaves the structure as one of them did.
+  `call.among(between)` is the call made among other calls, which leave the structure as `between` says before a
   step, by the step's number (any state at all: no rely is built in); `call.amongOthers(run => …)` says what holds
   under every such schedule; `run.others` is what the others did before each step, for a claim to say what it
-  takes of them. What it takes, a claim over the service's own steps shows it grants.
+  takes of them. What it takes, a claim over the structure's own steps shows it grants.
 - An example gives a state as an object of the class, made where it is given:
   `limits.holding(SpendLimits(BigInt(100), Nil))`, and a schedule as `limits.nobody.updated(BigInt(2), left)`.
   The evaluator holds a state as its fields' values, so two states are equal when their fields are.
 - A member no claim mentions has its code (an example may call it), and nothing is proven of it.
-- A service's states are typed by the service's name (`limits.State`, `limits.Schedule`), not by its trait:
+- A structure's states are typed by the structure's name (`limits.State`, `limits.Schedule`), not by its trait:
   Scala's capture checking reads a `caps.Mutable` trait named in a type as a capability.
 
-Not built in this shape: `defineTested` for a service (a class FrFlow cannot read, tested against the claims);
+Not built in this shape: `defineTested` for a structure (a class FrFlow cannot read, tested against the claims);
 the class's Scala run against the term read from it on generated cases (`Agreement`); two classes for one trait in
 one model; a member of more than three inputs (two, for its steps).
 
@@ -375,7 +382,7 @@ In the order they would be taken:
    library's) as an open function of the term language, known to Lean only by the type's contract, its Scala tested
    against the contract. This is `defineTested`'s meaning, given per member by the type's `FrSpec`.
 5. **More of code that changes state.** Service methods over stores, and over other services, are read
-   ("Services" above). Not yet: a class FrFlow cannot read given for a service and tested against its claims, a
+   ("Services" above). Not yet: a class FrFlow cannot read given for a structure and tested against its claims, a
    loop, a failing call, a search for the schedule that breaks a contract, and a contract over two calls at once
    (a call among others is read one call at a time).
 6. **More of Scala.** `Int` and `Long` with their bounds proven, strings' operations, tuples taken apart in a
@@ -394,5 +401,5 @@ In the order they would be taken:
 | `Agreement`, `Vectors` | `modules/testing/src/main/scala/frflow/testing/` |
 | The suites | `modules/dsl/src/test/scala/frflow/dsl/lifted/`, `AgreementSuite`, `CalendarSuite`, `CalendarLeanSuite` |
 | `updating`, `interleaving`, `lifted[Class]`, `holding` | `modules/dsl/src/main/scala/frflow/dsl/lifted/steps/` |
-| A service's Definition, `Call`, `State` | `modules/dsl/src/main/scala/frflow/dsl/service/`; `ServiceSuite` beside the reader's suites |
+| A structure's Declaration, `Call`, `State` | `modules/dsl/src/main/scala/frflow/dsl/structure/`; `StructureSuite` beside the reader's suites |
 | Services proven among other calls | `examples/wallet/`, `examples/payments/`, `examples/shop/`; `WalletSuite`, `PaymentsSuite`, `ShopSuite`; the Lean suites in `frflow.project.services` |

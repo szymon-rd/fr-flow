@@ -1,4 +1,4 @@
-package frflow.dsl.service
+package frflow.dsl.structure
 
 import language.experimental.captureChecking
 import language.experimental.separationChecking
@@ -6,7 +6,7 @@ import caps.Mutable
 import frflow.dsl.lifted.FrSpec
 import scala.annotation.experimental
 
-/** A service as a trait, and a class that implements it: what `Definition[Till]` and `lifted(CashTill(…))` read. */
+/** A structure as a trait, and a class that implements it: what `Definition[Till]` and `lifted(CashTill(…))` read. */
 @experimental object Till:
   final case class Sale(id: String, amount: BigInt) derives FrSpec
 

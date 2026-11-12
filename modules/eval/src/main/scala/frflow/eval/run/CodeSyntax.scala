@@ -15,7 +15,7 @@ import frflow.eval.term.Semantics
 
 /** `knowledge.code(d)(grants := …)` and `knowledge.running[F](…)` in production: a Definition's code, built as its
   * tests build it (the values given, over the other Definitions' meanings: `run.Wiring`), and what a program runs
-  * with. What `service` was, less the check: nothing checks a call in production.
+  * with. Nothing checks a call in production.
   */
 object CodeSyntax:
   extension (kb: FrModel)

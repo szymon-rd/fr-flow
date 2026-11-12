@@ -15,16 +15,16 @@ import scala.annotation.implicitNotFound
   "define)")
 final class Stating private (val varies: Set[SymbolName], val closing: Boolean, val fixed: Set[SymbolName],
     states: Map[SymbolName, Term[?]] = Map.empty, told: (SymbolName, LeanType[?]) => Unit = (_, _) => ()):
-  /** A service as it stands, as the statement reads it (`limits.authorise(p)`, `limits.current`): the variable the
-    * statement binds it to, so a claim holds of the service in every state (`Serving.closing`); where none is
-    * bound (an example's fact), the service's own word, a value the example gives.
+  /** A structure as it stands, as the statement reads it (`limits.authorise(p)`, `limits.current`): the variable the
+    * statement binds it to, so a claim holds of the structure in every state (`Standing.closing`); where none is
+    * bound (an example's fact), the structure's own word, a value the example gives.
     */
-  def standing[T](service: Declaration[T]): Term[T] =
-    told(service.name, service.leanType)
-    states.get(service.name).fold(service.word: Term[T])(_.asInstanceOf[Term[T]])
-  /** The same statement, each service read as the variable `bound` gives it. */
+  def standing[T](structure: Declaration[T]): Term[T] =
+    told(structure.name, structure.leanType)
+    states.get(structure.name).fold(structure.word: Term[T])(_.asInstanceOf[Term[T]])
+  /** The same statement, each structure read as the variable `bound` gives it. */
   private[dsl] def holding(bound: Map[SymbolName, Term[?]]): Stating = Stating(varies, closing, fixed, bound, told)
-  /** The same statement, `heard` told each service it reads as it stands. */
+  /** The same statement, `heard` told each structure it reads as it stands. */
   private[dsl] def asking(heard: (SymbolName, LeanType[?]) => Unit): Stating =
     Stating(varies, closing, fixed, states, heard)
 

@@ -34,11 +34,11 @@ private[steps] trait StepWalk extends StepPorts:
   def carried(using walk: Walk): List[(Symbol, Expr[DTerm[?]])] =
     (walk.ports.root, walk.whole) :: Option.when(walk.between.nonEmpty)((trace, walk.env(trace))).toList
 
-  /** Whether the reading is of a service's member among other calls (`ServiceCode`): no rely is given it. */
+  /** Whether the reading is of a structure's member among other calls (`MemberCode`): no rely is given it. */
   def serving(using walk: Walk): Boolean = walk.between.nonEmpty && others.isEmpty
 
   /** The trace's type over the state `s`: each step taken (the state it started from, the one it left); of a
-    * service's member, with what other calls did before each step (`Among.Traces`).
+    * structure's member, with what other calls did before each step (`Among.Traces`).
     */
   def traceType(s: TypeRepr)(using Walk)(using Quotes): TypeRepr = s.asType match
     case '[s] => if serving then TypeRepr.of[Among.Traces[s]] else TypeRepr.of[List[(s, s)]]
@@ -104,7 +104,7 @@ private[steps] trait StepWalk extends StepPorts:
         served[s, Out](between.asExprOf[DTerm[Map[BigInt, s]]], key, next)(body)
       case _                                                                                => body(next)
 
-  /** The same of a service's member (`ServiceCode`): whatever the schedule says the others left, with what they
+  /** The same of a structure's member (`MemberCode`): whatever the schedule says the others left, with what they
     * did kept in the traces; a claim says what it takes of them (`Call.others`).
     */
   private def served[S: Type, Out: Type](between: Expr[DTerm[Map[BigInt, S]]], key: Symbol, next: Walk)(

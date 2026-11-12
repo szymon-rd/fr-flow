@@ -3,7 +3,8 @@
 An order checkout: it registers the order, reserves the stock, charges the customer and records how the order
 ended; when the payment does not go through it releases the stock. It is the example of a service that calls
 other services, each over a store of its own, and is proven from their contracts.
-[The payments example](../payments/README.md) writes services another way: each a `Definition` of a trait, given a class.
+[The payments example](../payments/README.md) writes services another way: each a structure, a `Declaration` of a
+trait defined by a class.
 
 ```scala
 final class Checkout(inventory: Inventory^, payments: Payments^, orders: OrderBook^):

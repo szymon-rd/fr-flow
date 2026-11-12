@@ -106,8 +106,8 @@ race the example's second service has.
 
 [The shop](../examples/shop/README.md) takes the step this spike named next: a service holding several ports.
 ([The payment stream](../examples/payments/README.md) is written the way that followed: each service a
-`Declaration` of a trait, defined by the class that implements it; [LIFTED.md](LIFTED.md) "A service as a
-Declaration".) Its state is a case class its companion names (`type State`),
+structure, a `Declaration` of a trait defined by the class that implements it; [LIFTED.md](LIFTED.md) "A
+structure: a value with members".) Its state is a case class its companion names (`type State`),
 one field per port, and a call on a port leaves the state with that field replaced; that two ports are two
 stores, never one reached twice, is what separation checking says of the class. Read alone, a call of another
 service is a call of its Definition, so a processor over three services is proven from their contracts. Still

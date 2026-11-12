@@ -7,13 +7,13 @@ import frflow.dsl.term.Term as DTerm
 import frflow.dsl.vocab.Definition as Defined
 import scala.quoted.*
 
-/** One member of a class that implements a service, as code (`ServiceLift`): a function of the class's state and
-  * the member's inputs, read from the method's body. A member that changes the service gives its result with the
-  * state after it; one that only asks gives its result. A member that changes the service is also read among
-  * other calls (`among`): each call it makes of a service it holds is a step, before which the others may have
+/** One member of a class that implements a structure, as code (`StructureLift`): a function of the class's state and
+  * the member's inputs, read from the method's body. A member that changes the structure gives its result with the
+  * state after it; one that only asks gives its result. A member that changes the structure is also read among
+  * other calls (`among`): each call it makes of a structure it holds is a step, before which the others may have
   * left the state as a schedule says; it gives its result and the state after with what each step did.
   */
-private[steps] final class ServiceCode(val step: StepReader):
+private[steps] final class MemberCode(val step: StepReader):
   import step.r.q.reflect.*
 
   /** A member as the class has it: its inputs, its body, and the type of its result. */
@@ -21,9 +21,9 @@ private[steps] final class ServiceCode(val step: StepReader):
     def changes: Boolean = member.flags.is(Flags.Mutable)
     def env(state: Expr[DTerm[?]], given_ : List[Expr[DTerm[?]]]): step.r.Env =
       step.r.Env.of(((cls, state) :: inputs.map(_.symbol).zip(given_))*)
-    /** The state as the code's first input: named as the service. */
+    /** The state as the code's first input: named as the structure. */
     def state[T: Type]: (String, TypeRepr) =
-      (step.decapitalized(step.r.serviceOf(cls.typeRef).fold(cls.name)(_.name)), TypeRepr.of[T])
+      (step.decapitalized(step.r.structureOf(cls.typeRef).fold(cls.name)(_.name)), TypeRepr.of[T])
     def given_ : List[(String, TypeRepr)] = inputs.map(i => (i.name, i.tpt.tpe))
 
   private def memberOf(cls: Symbol, member: Symbol, result: TypeRepr): Member =
@@ -39,7 +39,7 @@ private[steps] final class ServiceCode(val step: StepReader):
       case '[out] => lifted[out](m, "", m.state[T] :: m.given_)(xs => alone[out](m, xs.head, xs.tail))
         .asInstanceOf[Expr[Defined[?]]]
 
-  /** The member among other calls, where it changes the service and has at most two inputs. */
+  /** The member among other calls, where it changes the structure and has at most two inputs. */
   def among[T: Type](cls: Symbol, member: Symbol, result: TypeRepr)(using Quotes): Option[Expr[Defined[?]]] =
     val m = memberOf(cls, member, result)
     Option.when(m.changes && m.inputs.sizeIs <= 2)(result.asType match
@@ -53,8 +53,8 @@ private[steps] final class ServiceCode(val step: StepReader):
     else step.run[Out](m.body, m.result, m.cls)((v, w) => step.packed(v, m.result)(using w).asExprOf[DTerm[Out]])(
       using step.Walk(m.env(state, given_), 0, None, step.Ports(m.cls, Map.empty, false)))
 
-  /** Among other calls: of a class that holds no service, the member run as one step; else each call of a held
-    * service a step, the schedule read before each but the first.
+  /** Among other calls: of a class that holds no structure, the member run as one step; else each call of a held
+    * structure a step, the schedule read before each but the first.
     */
   private def others[V: Type, T: Type](m: Member, state: Expr[DTerm[T]], between: Expr[DTerm[?]],
       given_ : List[Expr[DTerm[?]]])(using Quotes): Expr[DTerm[((V, T), Among.Traces[T])]] =

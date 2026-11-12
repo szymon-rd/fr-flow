@@ -58,10 +58,10 @@ object FrSpec:
     LiftMacro.structural[T]
     of(LeanType.derived[T])
 
-  /** A type known by its name alone (a service's: its fields are those of the class given for it). */
+  /** A type known by its name alone (a structure's: its fields are those of the class given for it). */
   def named[A](name: String): FrSpec[A] = of(LeanType.of[A](Ty.Data(TypeName(name))))
 
-  /** A pair's, a list's and a map's spec from their parts', said outright where a part has no given (a service's),
+  /** A pair's, a list's and a map's spec from their parts', said outright where a part has no given (a structure's),
     * typed by what the reading that asks knows them as.
     */
   def pair[R](a: FrSpec[?], b: FrSpec[?]): FrSpec[R] = both[Any, Any](a.asInstanceOf[FrSpec[Any]],

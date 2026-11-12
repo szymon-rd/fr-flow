@@ -1,15 +1,15 @@
 package frflow.dsl.lifted.steps
 
 import frflow.dsl.lifted.LiftOps
-import frflow.dsl.service.Call as ServiceCall
+import frflow.dsl.structure.Call as MemberCall
 import frflow.dsl.term.{Terms, TermSyntax}
 import frflow.dsl.term.Term as DTerm
 import frflow.dsl.vocab.{Declaration, Reading}
 import scala.quoted.*
 
 /** The calls the reader of Scala that changes a port follows (`StepReader`): of a store's method (one step: among
-  * other calls, they may have changed the store before it), of a service's or another of the developer's methods
-  * (its body, read where it is called), and what is carried from one step to the next: the store's state, and,
+  * other calls, they may have changed the store before it), of another of the developer's methods (its body, read
+  * where it is called), and what is carried from one step to the next: the store's state, and,
   * among other calls, the trace of what each step did.
   */
 private[steps] trait StepCalls:
@@ -37,11 +37,11 @@ private[steps] trait StepCalls:
   /** A call of a store's method, or a read of its state: one step. */
   def storeCall(t: Term): Boolean = receiver(t).exists(asked)
 
-  /** What a step is asked of: a store, or a service known by its members. */
-  private def asked(on: Term): Boolean = r.isStore(on.tpe.widen) || r.isService(on.tpe.widen)
+  /** What a step is asked of: a store, or a structure known by its members. */
+  private def asked(on: Term): Boolean = r.isStore(on.tpe.widen) || r.isStructure(on.tpe.widen)
 
-  /** A call of a method of the developer's that uses a port: a service's, or one given the port. */
-  def serviceCall(t: Term): Boolean = r.isOwn(t.symbol) && r.kept(t.symbol).exists(d => uses(d.rhs.get, false))
+  /** A call of a method of the developer's that uses a port: of a class holding one, or one given the port. */
+  def holderCall(t: Term): Boolean = r.isOwn(t.symbol) && r.kept(t.symbol).exists(d => uses(d.rhs.get, false))
 
   /** How many steps `t` takes at most: what numbers the steps after a conditional. */
   def count(t: Term): Int = r.bare(t) match
@@ -49,7 +49,7 @@ private[steps] trait StepCalls:
       count(s) }.sum + count(e)
     case If(_, a, b)                  => count(a).max(count(b))
     case call if storeCall(call)      => 1
-    case call if serviceCall(call)    => r.kept(call.symbol).fold(0)(d => count(d.rhs.get))
+    case call if holderCall(call)    => r.kept(call.symbol).fold(0)(d => count(d.rhs.get))
     case _                            => 0
 
   /** One step: a store's method called (an `update` method's body run as one, its `this` the store), or its state
@@ -61,12 +61,12 @@ private[steps] trait StepCalls:
     val at = placeOf(on)
     interfered[Out](at.key) { now =>
       if !isUpdate(call.symbol) then rest(r.read(call, as)(using now.env), now)
-      else if r.isService(on.tpe.widen) then wired[Out](call, on, at)(rest)(using now)
+      else if r.isStructure(on.tpe.widen) then wired[Out](call, on, at)(rest)(using now)
       else modelled[Out](call, at)(rest)(using now).getOrElse(inlined[Out](call, at)(rest)(using now))
     }
 
-  /** A call that changes a service the code is given: the member's Definition applied to the service's state
-    * and the call's inputs (`Services.wiring`), its result with the state it leaves.
+  /** A call that changes a structure the code is given: the member's Definition applied to the structure's state
+    * and the call's inputs (`Structures.wiring`), its result with the state it leaves.
     */
   private def wired[Out: Type](call: Term, on: Term, at: Place)(rest: Rest[Out])(using walk: Walk)(using Quotes)
       : Expr[DTerm[Out]] = (stateAt(at).asType, call.tpe.widen.asType) match
@@ -74,11 +74,11 @@ private[steps] trait StepCalls:
       val site = Literal(UnitConstant())
       val given_ = Expr.ofList(stateIn(at) :: arguments(call, Nil).zip(r.inputsOf(on, call.symbol)).map((a, p) =>
         r.read(a, p)(using walk.env)))
-      '{ Terms.let[(v, s), Out](ServiceCall.applied[(v, s)](${ r.wired(on) }.member(${ Expr(call.symbol.name) }),
+      '{ Terms.let[(v, s), Out](MemberCall.applied[(v, s)](${ r.wired(on) }.member(${ Expr(call.symbol.name) }),
         $given_)(using ${ r.spec[(v, s)](site) }), "did", (did: DTerm[(v, s)]) =>
         ${ traced[Out](at, '{ TermSyntax._2[v, s](did)(using ${ r.spec[s](site) }) })(
           rest('{ TermSyntax._1[v, s](did)(using ${ r.spec[v](site) }) }, _)) })(using ${ r.spec[Out](site) }) }
-    case _            => r.refuse("this call of a service", call)
+    case _            => r.refuse("this call of a structure", call)
 
   /** An `update` method's body, run as one step from the store's state: a reading of its own, the store its root. */
   private def inlined[Out: Type](call: Term, at: Place)(rest: Rest[Out])(using walk: Walk)(using Quotes)
@@ -92,9 +92,9 @@ private[steps] trait StepCalls:
     run(d.rhs.get, d.returnTpt.tpe, m.owner)((v, after) =>
       traced[Out](at, after.env(m.owner))(rest(v, _)))(using inside)
 
-  /** Whether a call is read as a call of its method's Definition: of a store's method always, of a service's
-    * when the code is read alone (among other calls a service's method is its steps); and never of a method of
-    * the port the code is read of, whose code this is.
+  /** Whether a call is read as a call of its method's Definition: of a store's method always, of a method of a class
+    * holding ports when the code is read alone (among other calls such a method is its steps); and never of a
+    * method of the port the code is read of, whose code this is.
     */
   private def known(call: Term)(using walk: Walk): Boolean =
     val owner = call.symbol.owner

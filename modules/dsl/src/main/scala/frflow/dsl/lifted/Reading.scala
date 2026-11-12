@@ -1,6 +1,6 @@
 package frflow.dsl.lifted
 
-import frflow.dsl.service.ReadPorts
+import frflow.dsl.structure.ReadPorts
 import frflow.dsl.term.Term as DTerm
 import frflow.dsl.vocab.Definition as Defined
 import scala.quoted.*
@@ -37,16 +37,16 @@ private[lifted] trait Reading extends ReadPorts:
   def readAs[A: Type](t: Term)(using Env)(using Quotes): Expr[DTerm[A]] =
     read(t, TypeRepr.of[A]).asExprOf[DTerm[A]]
 
-  /** The spec of a type a value of the Scala has, or the compile error naming it: the type's given; a service's,
+  /** The spec of a type a value of the Scala has, or the compile error naming it: the type's given; a structure's,
     * the record of the class being read that implements it, else its name alone; and where a part of the type is
-    * a service's, which has no given, the spec made of its parts'.
+    * a structure's, which has no given, the spec made of its parts'.
     */
   def spec[A: Type](at: Tree)(using Quotes): Expr[FrSpec[A]] =
     val t = TypeRepr.of[A]
     def of(part: TypeRepr): Expr[FrSpec[?]] = part.asType match
       case '[x] => spec[x](at)
-    serviceOf(t).map(service => services.records.get(service.fullName).fold(
-      '{ FrSpec.named[A](${ Expr(service.name) }) })(record => '{ $record.asInstanceOf[FrSpec[A]] }))
+    structureOf(t).map(structure => structures.records.get(structure.fullName).fold(
+      '{ FrSpec.named[A](${ Expr(structure.name) }) })(record => '{ $record.asInstanceOf[FrSpec[A]] }))
       .orElse(Expr.summon[FrSpec[A]]).getOrElse(t.dealias match
         case AppliedType(c, List(a, b)) if c.typeSymbol == PairClass =>
           '{ FrSpec.pair[A](${ of(a) }, ${ of(b) }) }

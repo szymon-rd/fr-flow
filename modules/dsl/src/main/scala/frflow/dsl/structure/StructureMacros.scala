@@ -1,4 +1,4 @@
-package frflow.dsl.service
+package frflow.dsl.structure
 
 import frflow.core.name.SymbolName
 import frflow.dsl.build.{Source, WrittenAt}
@@ -8,31 +8,38 @@ import frflow.dsl.vocab.Declaration
 import frflow.dsl.vocab.Definition as Defined
 import scala.quoted.*
 
-/** `Declaration[T]("…")` of a service: a trait of the developer's that is one of Scala's `caps.Mutable`, whose
-  * methods are the service's members. The word is typed by them, each taking terms and giving a `Call`, so a
-  * statement calls a member as the trait declares it; and by what its states are typed by (`State`). Of any other
-  * type, the word `vocab.Declaration` makes.
+/** `Declaration[T]("…")` of a structure: a trait of the developer's whose methods are the structure's members. The
+  * word is typed by them, each taking terms and giving a `Call`, so a statement calls a member as the trait
+  * declares it; and by what its states are typed by (`State`). Of any other type, the word `vocab.Declaration`
+  * makes.
   */
 object Declaring:
   /** `Declaration[A]("…")` as the facade has it. */
   transparent inline def apply[A](inline means: String): Declaration[A] =
-    ${ ServiceMacros.declared[A]('{ SymbolName(Source.valName) }, 'means, '{ WrittenAt.in(Source.here) }) }
+    ${ StructureMacros.declared[A]('{ SymbolName(Source.valName) }, 'means, '{ WrittenAt.in(Source.here) }) }
 
-object ServiceMacros:
+object StructureMacros:
   def declared[A: Type](name: Expr[SymbolName], means: Expr[String], at: Expr[WrittenAt])(using Quotes)
       : Expr[Declaration[A]] =
     import quotes.reflect.*
-    if !isService(TypeRepr.of[A]) then '{ (Defined.plain[A]($name, $means, $at): Declaration[A]) }
-    else service[A](name, means, at)
+    if !isStructure(TypeRepr.of[A]) then '{ (Defined.plain[A]($name, $means, $at): Declaration[A]) }
+    else structure[A](name, means, at)
 
-  /** Whether a type is a service: a trait of the developer's that is a `caps.Mutable`. */
-  def isService(using Quotes)(t: quotes.reflect.TypeRepr): Boolean =
+  /** Whether a type is a structure: a trait of the developer's that is one of Scala's `caps.Mutable` (a member
+    * marked `update` changes it); or one that is not, so no member changes it, that is open, has members, each over
+    * domain types, and is no domain type itself.
+    */
+  def isStructure(using Quotes)(t: quotes.reflect.TypeRepr): Boolean =
     import quotes.reflect.*
     val c = t.typeSymbol
+    def domain(of: TypeRepr): Boolean = of.asType match
+      case '[x] => Expr.summon[LeanType[x]].nonEmpty
+    def unchanging: Boolean = !c.flags.is(Flags.Sealed) && !domain(t) && members(t).nonEmpty &&
+      members(t).forall((_, inputs, result) => (result :: inputs).forall(domain))
     c.isClassDef && c.flags.is(Flags.Trait) && !List("scala.", "java.").exists(c.fullName.startsWith) &&
-      t.baseClasses.exists(_.fullName == "scala.caps.Mutable")
+      (t.baseClasses.exists(_.fullName == "scala.caps.Mutable") || unchanging)
 
-  /** A service's members: its abstract methods, its own in the order it declares them and then those it inherits,
+  /** A structure's members: its abstract methods, its own in the order it declares them and then those it inherits,
     * each with its inputs' types and its result's.
     */
   def members(using Quotes)(t: quotes.reflect.TypeRepr)
@@ -48,29 +55,29 @@ object ServiceMacros:
         case result                        => (m, Nil, result)
     }
 
-  private def service[A: Type](name: Expr[SymbolName], means: Expr[String], at: Expr[WrittenAt])(using Quotes)
+  private def structure[A: Type](name: Expr[SymbolName], means: Expr[String], at: Expr[WrittenAt])(using Quotes)
       : Expr[Declaration[A]] =
     import quotes.reflect.*
     val t = TypeRepr.of[A]
     val all = described(t)
     refined(t).asType match
-      case '[d] => '{ new ServiceDeclaration[A]($name, $means, $at, $all)(using
+      case '[d] => '{ new StructureDeclaration[A]($name, $means, $at, $all)(using
         State.typed[A](${ Expr(t.typeSymbol.name) })).asInstanceOf[d & Declaration[A]] }
 
-  /** The service's members as the Definition keeps them: each one's name, whether it changes the service, and the
+  /** The structure's members as the Definition keeps them: each one's name, whether it changes the structure, and the
     * domain types of its inputs and its result.
     */
   private def described(using Quotes)(t: quotes.reflect.TypeRepr): Expr[List[Member]] =
     import quotes.reflect.*
     def leanType(of: TypeRepr): Expr[LeanType[?]] = of.asType match
-      case '[x] => Expr.summon[LeanType[x]].getOrElse(report.errorAndAbort(s"FrFlow: the service " +
+      case '[x] => Expr.summon[LeanType[x]].getOrElse(report.errorAndAbort(s"FrFlow: the structure " +
         s"${t.typeSymbol.name} has a member over ${of.show}, which is no domain type: derive an FrSpec for it"))
     Expr.ofList(members(t).map((m, inputs, result) =>
       '{ Member(${ Expr(m.name) }, ${ Expr(m.flags.is(Flags.Mutable)) }, ${ Expr.ofList(inputs.map(leanType)) },
         ${ leanType(result) }) }))
 
-  /** The Definition's type: its states typed by the service's name (`State`), and a member for each of the
-    * service's, taking terms and giving a `Call`.
+  /** The Definition's type: its states typed by the structure's name (`State`), and a member for each of the
+    * structure's, taking terms and giving a `Call`.
     */
   private def refined(using Quotes)(t: quotes.reflect.TypeRepr): quotes.reflect.TypeRepr =
     import quotes.reflect.*
@@ -78,7 +85,7 @@ object ServiceMacros:
     val state = constructor(TypeRepr.of[State["s"]]).appliedTo(ConstantType(StringConstant(t.typeSymbol.name)))
     t.asType match
       case '[a] =>
-        val typed = Refinement(TypeRepr.of[ServiceDeclaration[a]], "Is", TypeBounds(state, state))
+        val typed = Refinement(TypeRepr.of[StructureDeclaration[a]], "Is", TypeBounds(state, state))
         members(t).foldLeft(typed) { case (parent, (m, inputs, result)) =>
           val gives = call.appliedTo(List(state, result))
           if inputs.isEmpty then Refinement(parent, m.name, gives)

@@ -1,4 +1,4 @@
-# Payments: a stream processor whose services are declared, then defined
+# Payments: a stream processor whose services are structures, declared, then defined
 
 A consumer reads card payments from a log and, for each, checks the card's daily limit, posts the money, and
 commits its position. Every team that has written one knows the ways it goes wrong:
@@ -11,15 +11,15 @@ None of them shows in a test that runs one call to its end. This example writes 
 services and has Lean prove what must hold of them. The log itself is not implemented: that it delivers at least
 once, in order, is a decision the model names.
 
-It is the example of the service shape:
+Each service is written as a structure, a value with members, some of them functions:
 
-- **A trait** says what members a service has. It extends nothing of FrFlow's.
-- **A `Declaration` of the trait's type** is the service in the model.
+- **A trait** says what members the structure has. It extends nothing of FrFlow's.
+- **A `Declaration` of the trait's type** is the structure in the model.
 - **The claims** are ordinary `Node.claim`s on that word, written through its members.
 - **A class that implements the trait** is its Definition (`limits.define(lifted[SpendLimits])`), listed in the
   model beside the nodes. FrFlow reads the class into Lean, and Lean proves it meets every claim on the word.
 
-## A service
+## A structure
 
 ```scala
 trait Limits extends Mutable:
@@ -45,16 +45,17 @@ final class SpendLimits(val limit: BigInt, var decisions: List[Decision]) extend
   …
 ```
 
-In a claim, a member is called as the trait declares it. A member that changes the service (`update`) has a
-`result` and the service `after` it; any member can be asked `in` a given state of the service
-(`limits.decided(id).in(limits.authorise(p).after)`); called plainly it is asked of the service as it stands. A
-claim holds of the service in every state: FrFlow binds "the service as it stands" under a `forall`.
+In a claim, a member is called as the trait declares it. A member that changes the structure (`update`) has a
+`result` and the structure `after` it; any member can be asked `in` a given state of the structure
+(`limits.decided(id).in(limits.authorise(p).after)`); called plainly it is asked of the structure as it stands. A
+claim holds of the structure in every state: FrFlow binds "the structure as it stands" under a `forall`.
 
 The trait extends Scala's `caps.Mutable` and marks what changes it `update`. That is Scala's own, and it is what
-lets the compiler check, under capture and separation checking, that a service is not aliased where it is held
-(`Limits^`), so that FrFlow may read a method that changes it as a function from the service to the service.
+lets the compiler check, under capture and separation checking, that a structure is not aliased where it is held
+(`Limits^`), so that FrFlow may read a method that changes it as a function from the structure to the structure.
+A trait no member changes needs neither: it is a plain trait, declared and defined the same way.
 
-## A service made of services
+## A structure made of structures
 
 ```scala
 final class StreamProcessor(limits: Limits^, accounts: Accounts^, checkpoint: Checkpoint^) extends Processor:
@@ -65,8 +66,8 @@ final class StreamProcessor(limits: Limits^, accounts: Accounts^, checkpoint: Ch
     approved
 ```
 
-The model lists each service's Definition beside its nodes: the class, named by its type. A class that holds
-services is given the word of each, in the order its constructor takes them:
+The model lists each structure's Definition beside its nodes: the class, named by its type. A class that holds
+structures is given the word of each, in the order its constructor takes them:
 
 ```scala
 val payments: FrModel = FrModel("Payments")(…,
@@ -83,14 +84,14 @@ from the claims on `limits`, `accounts` and `checkpoint`, not from `SpendLimits`
 | File | What it holds |
 | --- | --- |
 | `Domain.scala` | `Payment` (contract: the amount is positive), `Decision`, `Posting` |
-| `Limits.scala`, `Accounts.scala`, `Checkpoint.scala` | A service each: the trait, its Declaration and claims in the companion, the class |
-| `Processor.scala` | The processor: the same, over the three services |
+| `Limits.scala`, `Accounts.scala`, `Checkpoint.scala` | A structure each: the trait, its Declaration and claims in the companion, the class |
+| `Processor.scala` | The processor: the same, over the three |
 | `Eager.scala`, `Hasty.scala` | Two first versions of the processor, each with one of the bugs |
-| `Payments.scala` | The model: which claim rests on which, each service's Definition, what is trusted |
+| `Payments.scala` | The model: which claim rests on which, each structure's Definition, what is trusted |
 
 ## Every step of a call: a crash, a second instance
 
-`handle` makes three calls of other services. Each is a step: a crash may stop the call after any of them, and
+`handle` makes three calls of the structures it holds. Each is a step: a crash may stop the call after any of them, and
 after a rebalance another instance may run its own steps in between. A call in a claim has its steps:
 
 ```scala
@@ -100,15 +101,15 @@ val noStepMakesMoney = Node.claim("No step of handling a payment makes money or 
       processor.total.in(step._2) === processor.total.in(step._1)))))
 ```
 
-- `call.steps` is each step that changes the service: the service as the step found it, and as it left it. A class
-  that holds no service makes its change in one step; a class made of services takes one for each call it makes
-  of them.
+- `call.steps` is each step that changes the structure: the structure as the step found it, and as it left it. A
+  class that holds no structure makes its change in one step; a class made of structures takes one for each call
+  it makes of them.
 - `call.amongOthers(run => …)` says what holds of the call whatever other calls do between its steps: before each
-  step but the first they may have left the service in any state at all. `run.others` is what they did, so a claim
+  step but the first they may have left the structure in any state at all. `run.others` is what they did, so a claim
   can say what it takes of them (`neverCommitsAhead`: they leave a payment decided as it was, and posted if it
   was). `call.among(between)` is the same under one schedule.
 - What a call takes of the others, each of its own steps grants (`everyStepLeavesOthersUndisturbed`): so it holds
-  among calls of the same service.
+  among calls of the same structure.
 
 Redelivery is the member called again (`redeliveryChangesNothing`); recovery after a crash is redelivery from the
 state the crash left, and `handledIsApplied` holds from any state.
@@ -155,7 +156,7 @@ provably right, and passes any test of one call run to its end. An example shows
 There is no version that charges twice on redelivery: the processor cannot. Posting once is the accounts
 service's (`postIsRepeatable`), and a class given for `accounts` that did not keep it would fail that proof.
 
-The examples are in `PaymentsExamples`. A state is given as an object of the class that implements the service:
+The examples are in `PaymentsExamples`. A state is given as an object of the class that implements the trait:
 
 ```scala
 private val start = processor.holding(
@@ -190,16 +191,16 @@ accepted: deciding them is the developer's, with their signing key.
 
 ## What this does not cover
 
-- **State invariants as such.** A claim is said of the service in every state, so "no card is over its limit" is
+- **State invariants as such.** A claim is said of the structure in every state, so "no card is over its limit" is
   stated as what each call, and each step, keeps, not as a fact of every state.
 - **The whole log as one theorem.** What is proven is the step: each call leaves its payment applied and moves the
   position only past it. "Every payment below the position is applied" follows by induction over the log, which
   rests on `deliveryIsAtLeastOnce` and is not carried out in Lean.
-- **A step is a call of a held service.** That each such call is one transaction is the held service's to keep:
+- **A step is a call of a held structure.** That each such call is one transaction is the held structure's to keep:
   a class over a database does it with a transaction, and the model does not check that it does.
-- **One class for a trait.** A model gives one class for each service's trait, so a second implementation of
+- **One class for a trait.** A model gives one class for each structure's trait, so a second implementation of
   `Accounts` cannot stand beside the first in this model; the first versions are traits of their own.
-- **A class FrFlow cannot read.** `defineTested` for a service, a class tested against the claims, is not
+- **A class FrFlow cannot read.** `defineTested` for a structure, a class tested against the claims, is not
   built; nor is the classes' Scala tested against the terms read from them on generated cases.
 - **A member no claim mentions** has its code, and nothing is proven of it.
 - **The breaking schedules are written by hand.** Lean proves or does not; nothing searches for the schedule.

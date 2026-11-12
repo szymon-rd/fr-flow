@@ -12,7 +12,7 @@ import frflow.dsl.vocab.Definition
 
 /** The nodes as the model writes them, what gives each Definition its meaning, the plain Scala given operations on
   * a state (`defineOperations(ops*)(…)`), the generators given for the tests, the file it is assembled in
-  * (`FrModel("Rooms")(…)`, made relative as a node's is), and the Definitions that are members of a service
+  * (`FrModel("Rooms")(…)`, made relative as a node's is), and the Definitions that are members of a structure
   * given a class: their code is theirs whether or not a statement mentions them.
   */
 final case class FrModel(name: KbName, nodes: List[Node], meanings: List[(SymbolName, Deferred[Attachment])],
@@ -27,7 +27,7 @@ final case class FrModel(name: KbName, nodes: List[Node], meanings: List[(Symbol
     copy(generators = generators :+ Generator(t.ty, g))
   private[dsl] def attach(d: SymbolName, a: Deferred[Attachment]): FrModel =
     copy(meanings = meanings.filterNot(_._1 == d) :+ (d -> a))
-  /** The same of a service's member: its code is its meaning whether or not a statement mentions it. */
+  /** The same of a structure's member: its code is its meaning whether or not a statement mentions it. */
   private[dsl] def attachMember(d: SymbolName, a: Deferred[Attachment]): FrModel =
     attach(d, a).copy(members = members + d)
   /** The same model with these Definitions listed too: a word given a meaning here takes it in place of one it

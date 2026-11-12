@@ -212,19 +212,19 @@ lazy val crm = exampleApp("crm", crmModel)
   * are plain Scala over a store, read by FrFlow (`updating`, `interleaving`): the compiler keeps method bodies, and
   * checks each store is its service's alone (Scala's capture and separation checking, experimental).
   */
-val readServices = Seq(scalacOptions ++= Seq("-Yretain-trees", "-experimental"))
-lazy val walletModel = exampleModel("wallet").settings(readServices)
-lazy val wallet = exampleApp("wallet", walletModel, layers = Nil).settings(readServices)
+val readClasses = Seq(scalacOptions ++= Seq("-Yretain-trees", "-experimental"))
+lazy val walletModel = exampleModel("wallet").settings(readClasses)
+lazy val wallet = exampleApp("wallet", walletModel, layers = Nil).settings(readClasses)
 
 /** A shop: a checkout placing orders across an inventory service, a payments service and its own journal, each
   * over a store of its own. Read as the wallet's services are; the checkout is proven from its services' contracts.
   */
-lazy val shopModel = exampleModel("shop").settings(readServices)
-lazy val shop = exampleApp("shop", shopModel, layers = Nil).settings(readServices)
+lazy val shopModel = exampleModel("shop").settings(readClasses)
+lazy val shop = exampleApp("shop", shopModel, layers = Nil).settings(readClasses)
 
 /** A payment stream: a processor handling card payments from a log, across a limits service, an accounts service
   * and a checkpoint. Proven to apply each payment once through redelivery, a crash at any step, and two instances
   * at once.
   */
-lazy val paymentsModel = exampleModel("payments").settings(readServices)
-lazy val payments = exampleApp("payments", paymentsModel, layers = Nil).settings(readServices)
+lazy val paymentsModel = exampleModel("payments").settings(readClasses)
+lazy val payments = exampleApp("payments", paymentsModel, layers = Nil).settings(readClasses)

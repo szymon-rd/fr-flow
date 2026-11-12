@@ -14,7 +14,7 @@ import frflow.dsl.vocab.Stating
 /** The plain methods the DSL's inline constructors call once they have the source text and position. */
 object Nodes:
   def claim(head: Head, formula: Stating => () => Term[Boolean], written: AsWritten): Node =
-    Node(head, st => Elab.formula(Site.Node(head.id), () => closed(st, Serving.closing(st, formula)), written)
+    Node(head, st => Elab.formula(Site.Node(head.id), () => closed(st, Standing.closing(st, formula)), written)
       .map(Statement.Claim(_, Reliance.Relied)))
 
   /** A fact about the outside is said whole (`Fact`): its term is the assumption's formula. */

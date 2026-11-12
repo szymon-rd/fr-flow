@@ -5,13 +5,13 @@ import frflow.dsl.term.{LeanType, Notes, Term, Terms}
 import frflow.dsl.vocab.Stating
 import scala.collection.mutable
 
-/** A statement over the services it reads as they stand: said of each service in every state. The services are
+/** A statement over the structures it reads as they stand: said of each structure in every state. The structures are
   * found by writing the statement once and reading it open, as what changes with the World is read off one
-  * (`Closing.opened`); it is then written under a `forall` for each, the service read as that variable. So a claim
-  * on a service is one a class that uses the service can rely on, whatever state it holds it in. A statement that
-  * reads no service is written as it always was.
+  * (`Closing.opened`); it is then written under a `forall` for each, the structure read as that variable. So a claim
+  * on a structure is one a class that uses the structure can rely on, whatever state it holds it in. A statement that
+  * reads no structure is written as it always was.
   */
-object Serving:
+object Standing:
   def closing(st: Stating, formula: Stating => () => Term[Boolean]): Term[Boolean] =
     val read = mutable.LinkedHashMap.empty[SymbolName, LeanType[?]]
     Notes.in(Closing.opened(formula(st.asking((name, t) => read.update(name, t)))())).discard

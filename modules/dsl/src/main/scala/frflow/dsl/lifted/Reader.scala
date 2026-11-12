@@ -1,6 +1,6 @@
 package frflow.dsl.lifted
 
-import frflow.dsl.service.{ServiceDeclaration, Services, Call as ServiceCall}
+import frflow.dsl.structure.{StructureDeclaration, Structures, Call as MemberCall}
 import frflow.dsl.term.{DataMacros, LeanType, Lift, Terms, TermSyntax}
 import frflow.dsl.term.Term as DTerm
 import scala.quoted.*
@@ -10,7 +10,7 @@ import scala.quoted.*
   * compile error at the construct. What it reads is total, has no effect and no state, so the order Scala evaluates
   * it in cannot be told from the term's.
   */
-private[lifted] final class Reader(val q: Quotes, val services: Services = Services.none) extends Reading,
+private[lifted] final class Reader(val q: Quotes, val structures: Structures = Structures.none) extends Reading,
     ReadValues, ReadCalls, ReadCollections, ReadData, ReadMatch, ReadMethods:
   import q.reflect.*
 
@@ -31,7 +31,7 @@ private[lifted] final class Reader(val q: Quotes, val services: Services = Servi
     case id: Ident if ownMember(id)                      => read(Select(This(id.symbol.owner), id.symbol), as)
     case self: This if env.contains(self.tpe.typeSymbol) => env(self.tpe.typeSymbol)
     case Select(on, _) if isPort(on.tpe) && partOf(on.tpe, t.symbol, t).nonEmpty => memberState(on, t)
-    case call if asksService(call)                       => asked(call, as)
+    case call if asksStructure(call)                       => asked(call, as)
     case _                                               => applied(t, as), as, t)
 
   /** The state of what a port's member names: the port's own state, or the field of it the member's is. */
@@ -51,33 +51,33 @@ private[lifted] final class Reader(val q: Quotes, val services: Services = Servi
           case _            => refuse(s"the port ${member.symbol.name}", member)
     }
 
-  /** A call of a service's member: the service known by its members only. */
-  def asksService(t: Term): Boolean =
+  /** A call of a structure's member: the structure known by its members only. */
+  def asksStructure(t: Term): Boolean =
     val m = t.symbol
-    !m.isNoSymbol && m.isDefDef && m.flags.is(Flags.Deferred) && isService(m.owner.typeRef)
+    !m.isNoSymbol && m.isDefDef && m.flags.is(Flags.Deferred) && isStructure(m.owner.typeRef)
 
-  /** The Definition the service a field holds was made with (`services.wiring`). */
-  def wired(on: Term)(using Quotes): Expr[ServiceDeclaration[?]] = services.wiring.get(bare(on).symbol.name).fold(
-    refuse("a call of a service FrFlow does not know the Definition of: a class read by FrFlow calls the " +
-      "services it is made with (`lifted[StreamProcessor](limits, …)`)", on))(_.asExprOf[ServiceDeclaration[?]])
+  /** The Definition the structure a field holds was made with (`structures.wiring`). */
+  def wired(on: Term)(using Quotes): Expr[StructureDeclaration[?]] = structures.wiring.get(bare(on).symbol.name).fold(
+    refuse("a call of a structure FrFlow does not know the Definition of: a class read by FrFlow calls the " +
+      "structures it is made with (`lifted[StreamProcessor](limits, …)`)", on))(_.asExprOf[StructureDeclaration[?]])
 
-  /** What a call of a service's member gives its inputs' types. */
+  /** What a call of a structure's member gives its inputs' types. */
   def inputsOf(on: Term, member: Symbol): List[TypeRepr] = on.tpe.widen.memberType(member) match
     case MethodType(_, inputs, _) => inputs
     case _                        => Nil
 
-  /** A member that asks a service something, called inside an expression: the member's Definition applied to the
-    * service's state. One that changes the service is a statement of its own (`steps.StepCalls`).
+  /** A member that asks a structure something, called inside an expression: the member's Definition applied to the
+    * structure's state. One that changes the structure is a statement of its own (`steps.StepCalls`).
     */
   private def asked(call: Term, as: TypeRepr)(using Env)(using Quotes): Expr[DTerm[?]] = call match
     case Call(on, name, args) =>
-      if call.symbol.flags.is(Flags.Mutable) then refuse(s"a call of `$name`, which changes a service, inside " +
-        "an expression: give it a statement of its own (`val x = service.call(…)`)", call)
+      if call.symbol.flags.is(Flags.Mutable) then refuse(s"a call of `$name`, which changes a structure, inside " +
+        "an expression: give it a statement of its own (`val x = structure.call(…)`)", call)
       val given_ = Expr.ofList(read(on, on.tpe.widen) :: args.zip(inputsOf(on, call.symbol)).map(read(_, _)))
       as.asType match
-        case '[r] => '{ ServiceCall.applied[r](${ wired(on) }.member(${ Expr(name) }), $given_)(using
+        case '[r] => '{ MemberCall.applied[r](${ wired(on) }.member(${ Expr(name) }), $given_)(using
           ${ spec[r](call) }) }
-    case other                => refuse("this call of a service", other)
+    case other                => refuse("this call of a structure", other)
 
   /** A member named without `this.` in a method's body being read (`start` in `Booking`'s `span`). */
   private def ownMember(id: Ident)(using env: Env): Boolean =

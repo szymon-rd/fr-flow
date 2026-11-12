@@ -5,7 +5,7 @@ import frflow.dsl.term.Term as DTerm
 import scala.quoted.*
 
 /** The ports a reading of Scala that changes one is over (`StepReader`). The code is read of one port, the root:
-  * its variable is bound to the whole state. A service holding several ports has a state with a field for each, so
+  * its variable is bound to the whole state. A class holding several ports has a state with a field for each, so
   * the state of a port it holds is a part of it; a call made on that port reads the part and leaves the whole
   * with the part replaced.
   */
@@ -14,7 +14,7 @@ private[steps] trait StepPorts:
   import r.q.reflect.*
 
   /** Where a port's state is: in the state the variable `key` is bound to, under `path` (fields of the states of
-    * services holding several ports, outermost first).
+    * classes holding several ports, outermost first).
     */
   final case class Place(key: Symbol, path: List[String])
 
@@ -33,8 +33,8 @@ private[steps] trait StepPorts:
 
   private val nowhere: Tree = Literal(UnitConstant())
 
-  /** Where a variable's state is looked into: a class that implements a service, whose constructor's fields its
-    * state is made of; else the state's own type (a case class a service holding several ports names).
+  /** Where a variable's state is looked into: a class that implements a structure, whose constructor's fields its
+    * state is made of; else the state's own type (a case class a class holding several ports names).
     */
   def whereOf(key: Symbol): TypeRepr =
     val port = portOf(key).typeRef

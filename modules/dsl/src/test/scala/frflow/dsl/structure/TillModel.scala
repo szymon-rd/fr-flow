@@ -1,4 +1,4 @@
-package frflow.dsl.service
+package frflow.dsl.structure
 
 import frflow.dsl.kb.FrModel
 import frflow.dsl.kb.Defining.*
@@ -6,10 +6,10 @@ import frflow.dsl.lifted.steps.StepSyntax.lifted
 import frflow.dsl.node.Node
 import frflow.dsl.term.Term
 import frflow.dsl.term.TermSyntax.*
-import frflow.dsl.service.Declaring as Declaration
+import frflow.dsl.structure.Declaring as Declaration
 import scala.annotation.experimental
 
-/** A service's Definition, and claims on it through its members. */
+/** A structure's Definition, and claims on it through its members. */
 @experimental object TillModel:
   import Till.{CashTill, Sale, Till}
 

@@ -287,14 +287,15 @@ rewrite that part, or keep the function as tested plain Scala. Every type in it 
 the model only when a node states it (`Node.assumption("…")(contractOf[T])`, the developer's to decide). Statements
 stay in the DSL.
 
-A service can be proven as written. Write it as a value (`examples/payments`, `docs/LIFTED.md` "A service as a
-Declaration"): a trait of its members that extends `caps.Mutable`, what changes it marked `update`, in a file with
-capture and separation checking; in the trait's companion `val limits = Declaration[Limits]("…")` and the claims,
+A service can be proven as written. Write it as a structure, a value with members (`examples/payments`,
+`docs/LIFTED.md` "A structure: a value with members"): a trait of its members; when a member changes it, the trait
+extends `caps.Mutable`, with what changes it marked `update`, in a file with capture and separation checking; when
+none does, a plain trait that is not sealed, its members over domain types; in the trait's companion `val limits = Declaration[Limits]("…")` and the claims,
 through the members (`limits.authorise(p).result`, `.after`, `limits.decided(id).in(state)`, `limits.current`); a
 class that implements the trait; and in the model its Definition, `limits.define(lifted[SpendLimits])`. A class
-made of services is given their words (`lifted[StreamProcessor](limits, accounts, checkpoint)`) and is proven from
-the claims on them, so wire those claims under its own with `.refines`. A claim holds of the service in every
-state: state an invariant as what each call keeps. For a crash and for other callers, claim over the call's steps
+made of structures is given their words (`lifted[StreamProcessor](limits, accounts, checkpoint)`) and is proven
+from the claims on them, so wire those claims under its own with `.refines`; in a member that changes the class,
+give each call of a held structure a statement of its own. A claim holds of the structure in every state: state an invariant as what each call keeps. For a crash and for other callers, claim over the call's steps
 (`call.steps`, `call.amongOthers(run => run.steps.forall(step => …))`, `run.others` for what it takes of them),
 and claim that each of its own steps grants what it takes. Name a state's type `limits.State`, never
 `Term[Limits]`. In an example give a state with `limits.holding(SpendLimits(…))`. Give one class per trait in a
@@ -306,7 +307,7 @@ The earlier way, a word per method, is still read (`examples/wallet`, `examples/
 its state in its companion (`type State = …`, a case class with a field per port, in order); give every port's
 methods names of their own, each of one argument, so a call of one is read as a call of its word. Put the contracts in the
 companions: a `Declaration` per method, the method read with
-`updating { (service: S^, input: A) => service.method(input) }` and listed as its Definition
+`updating { (port: S^, input: A) => port.method(input) }` and listed as its Definition
 (`Ledger.claim.define(Ledger.claimCode)`), and claims over the word. For races, read it with `interleaving { … }(others)` and claim over every schedule;
 state what the reading takes for granted as design nodes (each store method is one transaction; other calls keep
 the rely), and prove the service's own steps keep the rely for others. Bind a value whose type has a contract last

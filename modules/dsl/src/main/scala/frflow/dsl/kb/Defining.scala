@@ -3,9 +3,9 @@ package frflow.dsl.kb
 import frflow.core.code.{Attachment, Code, Values}
 import frflow.core.name.RelPath
 import frflow.dsl.build.{Deferred, Site, Source}
-import frflow.dsl.lifted.steps.ServiceImplementation
+import frflow.dsl.lifted.steps.StructureCode
 import frflow.dsl.node.Spans
-import frflow.dsl.service.ServiceDeclaration
+import frflow.dsl.structure.StructureDeclaration
 import frflow.dsl.shape.Defines
 import frflow.dsl.term.Reify
 import frflow.dsl.vocab.{Declaration, Definition}
@@ -24,7 +24,7 @@ final class Definitions @publicInBinary private[kb] (private[kb] val gives: FrMo
 
 /** How a Declaration is given its meaning (owner §15), each a Definition of it, listed in the FrModel beside the
   * nodes and checked against every claim mentioning the Declaration: `define` (a define, a program, lifted code,
-  * a class read for a service; Lean proves it, `impl`), `defineTested` (plain Scala, tested on generated cases; of
+  * a class read for a structure; Lean proves it, `impl`), `defineTested` (plain Scala, tested on generated cases; of
   * operations on a state, the Scala of their model's operations, tested against it on generated runs),
   * `defineValue` (a value fixed in the model), `provided` (a value provided where the code runs).
   */
@@ -61,11 +61,11 @@ object Defining:
     inline def provided: Definition[A] = Defined(d, Implementing.attach(FrModel.part, d.word,
       Deferred.pure(Attachment(Code.Provided, Spans.relative(Source.file)))))
 
-  extension [T](d: ServiceDeclaration[T])
-    /** The service `d` is the class read here (`limits.define(lifted[SpendLimits])`): each member's code, which
+  extension [T](d: StructureDeclaration[T])
+    /** The structure `d` is the class read here (`limits.define(lifted[SpendLimits])`): each member's code, which
       * Lean proves meets each claim mentioning the member.
       */
-    inline def define[C <: T](code: ServiceImplementation[C]): Definition[T] =
+    inline def define[C <: T](code: StructureCode[C]): Definition[T] =
       Defined(d, Implementing.proven(FrModel.part, d, code, Spans.relative(Source.file)))
 
   /** `d` given `code`, in the model file `at`. */

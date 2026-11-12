@@ -30,10 +30,11 @@ export frflow.dsl.vocab.{Definition, Opaque, Stating}
 type Declaration[A] = frflow.dsl.vocab.Declaration[A]
 
 object Declaration:
-  /** `val granted = Declaration[(RoomBookings, Booking) => Boolean]("…")`; of a service (a trait that is one of
-    * Scala's `caps.Mutable`), `val limits = Declaration[Limits]("…")`, typed by the trait's members.
+  /** `val granted = Declaration[(RoomBookings, Booking) => Boolean]("…")`; of a structure (a trait of the
+    * developer's, its members over domain types), `val limits = Declaration[Limits]("…")`, typed by the trait's
+    * members.
     */
-  transparent inline def apply[A](inline means: String): Declaration[A] = frflow.dsl.service.Declaring[A](means)
+  transparent inline def apply[A](inline means: String): Declaration[A] = frflow.dsl.structure.Declaring[A](means)
 export frflow.dsl.vocab.DefinitionSyntax.*
 export frflow.dsl.kb.Gens
 export frflow.core.example.Gen
@@ -41,7 +42,7 @@ export frflow.dsl.shape.Defines.*
 export frflow.dsl.lifted.{Contract, FrSpec, Lifted}
 export frflow.dsl.lifted.LiftSyntax.*
 export frflow.dsl.lifted.steps.StepSyntax.*
-export frflow.dsl.service.{Call, ServiceDeclaration}
+export frflow.dsl.structure.{Call, StructureDeclaration}
 export frflow.dsl.term.TermSyntax.*
 export frflow.dsl.kb.ValuesSyntax.*
 export frflow.dsl.vocab.Flow

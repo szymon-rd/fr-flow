@@ -60,7 +60,7 @@ private[steps] final class StepReader(val r: Reader, val others: Option[Expr[Any
   private def written(f: Expr[Any], names: List[String])(using Quotes): Expr[AsWritten] =
     '{ AsWritten(Source.of($f).text, ${ Expr(names) }) }
 
-  /** The name the state is given: a store's `var`'s, or the state's type's of a service holding several ports. */
+  /** The name the state is given: a store's `var`'s, or the state's type's of a class holding several ports. */
   private def stateName[P: Type](at: Tree): String =
     def of(port: TypeRepr): String =
       if r.isStore(port) then r.storeVar(port.typeSymbol, at).name
@@ -110,7 +110,7 @@ private[steps] final class StepReader(val r: Reader, val others: Option[Expr[Any
     case Assign(to, value) if r.partOf(portOf(key).typeRef, to.symbol, t).nonEmpty => assigned(value, to, key)(rest)
     case branch @ If(c, _, _) if quiet(c)                => either(branch, as, key)(rest)
     case call if storeCall(call)                         => step(call, as)(rest)
-    case call if serviceCall(call)                       => called(call)(rest)
+    case call if holderCall(call)                       => called(call)(rest)
     case other                                           => r.refuse("a use of a port here: a port is used in a " +
       "statement of its own (`val x = port.call(…)`), an `if`'s branch, or an `update` method's body", other)
 
@@ -148,5 +148,5 @@ private[steps] object StepReader:
 
   def state[P: Type](using q: Quotes): Expr[PortState[P]] = of[P](None).state[P]
 
-  /** The reader of code over the port `P`: a store's own code, or a service's. */
+  /** The reader of code over the port `P`: a store's own code, or that of a class holding ports. */
   private def of[P: Type](others: Option[Expr[Any]])(using q: Quotes): StepReader = StepReader(Reader(q), others)

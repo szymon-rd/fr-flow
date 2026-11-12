@@ -35,8 +35,9 @@ follows the method of stepwise refinement (Wirth, 1971) and the refinement calcu
      in a strict proof.
    - As plain Scala that FrFlow reads (`lifted { … }`): at compile time the function is read into the same model the
      DSL builds, so Lean proves it, and it stays the Scala the JVM runs ([docs/LIFTED.md](docs/LIFTED.md)). A
-     service is read the same way: a trait says its members, a `Declaration` of the trait is the service the claims
-     are about, and the class that implements it is its Definition, which Lean proves meets them, alone and among other calls
+     service is read the same way, as a structure (a value with members): a trait says its members, a
+     `Declaration` of the trait is the value the claims are about, and the class that implements it is its
+     Definition, which Lean proves meets them, alone and among other calls
      ([examples/payments](examples/payments/README.md): a stream processor proven to apply each payment once,
      through redelivery, a crash at any step and a second instance).
 
@@ -478,7 +479,7 @@ yet: each starts with no ledger, for its developer to decide. FrFlow's own suite
   the Scala, the term and the Lean are held to one meaning, and what is not built yet.
 - Service-level examples, in direct-style Scala with each service's contracts in its companion, proven alone and
   among other calls: [examples/payments](examples/payments/README.md) (a payment stream processor over three
-  services, each a `Declaration` of a trait, defined by the class that implements it),
+  services, each a structure: a `Declaration` of a trait, defined by the class that implements it),
   [examples/wallet](examples/wallet/README.md) (one transfer service, the smallest) and
   [examples/shop](examples/shop/README.md) (a checkout over two services and a store); the last two have a
   word per method.
