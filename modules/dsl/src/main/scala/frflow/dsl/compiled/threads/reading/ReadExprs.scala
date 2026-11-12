@@ -1,10 +1,12 @@
 package frflow.dsl.compiled.threads.reading
 
 import frflow.core.threads.{Decl, Term as Rocq, Ty}
+import frflow.dsl.compiled.threads.known.Jdk
 
 /** An expression's value: a literal, a variable in scope, a field, an object, a call (`ReadCalls`), or a construct
-  * read as one program (`tail`). What the compiler expanded while typing (`summon`) is its expansion. An effect inside an expression is run before the statement it is in, what it
-  * gives named (`Reading.values`). An expression that assigns a `var` is read only where a statement is.
+  * read as one program (`tail`). What the compiler expanded while typing (`summon`) is its expansion. An effect
+  * inside an expression is run before the statement it is in, what it gives named (`Reading.values`). An
+  * expression that assigns a `var` is read only where a statement is.
   */
 private[threads] trait ReadExprs extends Coercions:
   import q.reflect.*
@@ -97,7 +99,7 @@ private[threads] trait ReadExprs extends Coercions:
   def projected(qual: Term, name: String)(using Env): Option[Res] =
     reprOf(qual).collect { case Ty.Named(c) => c }.flatMap(record).flatMap(r =>
       r.fields.map(_._2).find(_.name == name).map { f =>
-        val on = value(expr(qual))
+        val on = value(coerce(expr(qual), Ty.Named(r.name)))
         Res(on.steps, Rocq.of(Decl.projection(r.name, name), on.term), f.ty, Res.Kind.Value) })
 
   /** The type `t`'s value is read at, if its Scala type is one that is read. */
@@ -113,11 +115,20 @@ private[threads] trait ReadExprs extends Coercions:
       case Some(c)                                  => Res.value(Rocq.Ref(c.ctor), Ty.Named(typeNames(sumOf(c))))
       case None if sym.fullName.endsWith(".Nil")    => Res.value(Rocq.At("nil", Ty.Never), Ty.list(Ty.Never))
       case None if sym.fullName == "scala.None"     => Res.value(Rocq.At("None", Ty.Never), Ty.option(Ty.Never))
-      case None if reprOf(t).contains(Ty.Nat) && sym.isValDef && !sym.owner.isDefDef =>
+      case None if isGlobal(t)                      =>
         Res.value(Rocq.Ref(catalogue.global(sym.name, plain(t.tpe).typeSymbol.fullName)), Ty.Nat)
       case None if isObject                         =>
         Res.value(Rocq.of("VObj", Rocq.Ref(catalogue.singleton(sym.owner.name.stripSuffix("$"), sym.name))), Ty.Val)
       case None                                     => refuse(s"the value ${sym.fullName}")
+
+  /** A top-level value that is a handle: of a class not read, or of one whose objects need not be made. Its
+    * initialiser is not read.
+    */
+  private def isGlobal(t: Term): Boolean =
+    val cls = plain(t.tpe).typeSymbol
+    val owner = t.symbol.owner
+    t.symbol.isValDef && (owner.flags.is(Flags.Module) || owner.isPackageDef) &&
+      (isOpaque(cls) || bases(cls).exists(b => Jdk.ambient(b.fullName)))
 
   private def sumOf(c: Case): Symbol = sums.find(_.cases.contains(c)).fold(c.sym)(_.sym)
 

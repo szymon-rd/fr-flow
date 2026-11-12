@@ -7,7 +7,8 @@ import frflow.dsl.compiled.threads.reading.{Res, Step}
   *
   *   - A method's body is read for its result, in a scope of its parameters and `this`: a field of a class is `C_f
   *     this`; a trait with parameters that is a case of a sum takes `this` apart (`let (fields) := this in`).
-  *   - A class's constructor, `C_new`, runs the initialisers of its fields in order and gives the record.
+  *   - A class's constructor, `C_new`, runs the initialisers of its fields in order and gives the record. One of
+  *     a class that extends a class with a constructor of its own is not read.
   *   - A sum's method calls the method of the case `this` is.
   *   - A definition whose body is not read is `chaos` named for its method.
   *   - A method of a class not read is `extern` named for it.
@@ -55,21 +56,15 @@ private[threads] trait ReadClasses extends ReadClosures:
     Decl.Definition(sig.name, sig.on.map(on => Param(This, Ty.Named(on))).toList ++ sig.params, Decl.M(sig.result),
       body)
 
-  /** The statements of a class's body that its constructor runs: its fields' initialisers, and its expressions. */
-  private def initialised(cls: Symbol): List[Statement] = cls.tree match
-    case ClassDef(_, _, _, _, body) => body.filter {
-      case v: ValDef => v.rhs.nonEmpty
-      case _: Term   => true
-      case _         => false }
-    case _                          => Nil
-
   private def constructor(sig: Sig, record: Record): Decl.Definition =
     val fields = record.fields.map(_._2)
     val params = record.fields.filter((_, p) => sig.params.exists(_.name == p.name))
     val env = params.foldLeft(withParams(empty, sig.sym))((e, f) => e.named(f._1, f._2.name, f._2.ty))
     val made = Rocq.ret(Rocq.of(Decl.maker(record.name), fields.map(p => Rocq.Ref(p.name))*))
-    val body = orChaos(sig.sym)(Step.before(statements(initialised(record.sym), Literal(UnitConstant()))(using env)._1,
-      made))(identity)
+    val body = orChaos(sig.sym)(initialising(record.sym) match
+      case Nil     => Step.before(statements(initialised(record.sym), Literal(UnitConstant()))(using env)._1, made)
+      case parents => refuse(s"${sig.name}: the constructor of ${parents.map(_.fullName).mkString(", ")} runs too")
+    )(identity)
     Decl.Definition(sig.name, sig.params, Decl.M(sig.result), body)
 
   /** The method of a sum: the method of each case, called on what the case holds. */
@@ -92,7 +87,6 @@ private[threads] trait ReadClasses extends ReadClosures:
     Section(s"$name: not read. Its methods are taken to touch nothing of the JDK's state here.",
       methods.flatMap(m => scala.util.Try(extern(m)).toOption)) }
 
-  private def extern(m: Symbol): Decl.Definition = m.tree match
-    case d: DefDef => Decl.Definition(externName(m), Param(This, Ty.Nat) :: paramsOf(m), Decl.M(repr(d.returnTpt.tpe)),
+  private def extern(m: Symbol): Decl.Definition =
+    Decl.Definition(externName(m), Param(This, Ty.Nat) :: paramsOf(m), Decl.M(resultOf(m)),
       Rocq.of("extern", Rocq.Text(s"${m.owner.fullName}.${m.name}")))
-    case _         => refuse(s"the method ${m.fullName}")

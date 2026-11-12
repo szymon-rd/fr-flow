@@ -13,6 +13,10 @@ private[threads] trait ReadCalls extends ReadExprs:
 
   /** A closure given as an argument: a `code` (`ReadClosures`). */
   def closureArg(arg: Term)(using Env): Res
+  /** Whether `t` holds an effect of the code read: a call of a definition of the unit, of an operation of the JDK
+    * that changes or waits, of a closure, of a class not read (`ReadUses`).
+    */
+  def effects(t: Tree)(using Env): Boolean
   /** A call of a local method (`ReadVars`). */
   def local(c: Call, slot: Slot.Method)(using Env): Res
 
@@ -68,6 +72,10 @@ private[threads] trait ReadCalls extends ReadExprs:
       case _                          => fromFields(cls, c.args))
 
   private def fromFields(cls: Symbol, args: List[Term])(using Env): Option[Res] =
+    if initialised(cls).nonEmpty then refuse(s"an object of ${cls.fullName} made, whose body runs code")
+    else made(cls, args)
+
+  private def made(cls: Symbol, args: List[Term])(using Env): Option[Res] =
     val inline = sums.flatMap(s => s.cases.filter(_.sym == cls).flatMap(k => k.fields.map(fs =>
       (k.ctor, fs.map(_._2), Ty.Named(s.name))))).headOption
     val whole = records.find(_.sym == cls).map(r => (Decl.maker(r.name), r.fields.map(_._2), Ty.Named(r.name)))
@@ -82,10 +90,9 @@ private[threads] trait ReadCalls extends ReadExprs:
 
   def thrownAs(cls: Symbol): Option[Thrown] = Thrown.classes.get(cls.fullName)
 
-  /** The arguments of a call that is not read are not read; one that is an effect of the code read is refused. */
+  /** The arguments of a call that is not read are not read; one with an effect of the code read in it is refused. */
   private def unread(name: String, args: List[Term])(using Env): Unit =
-    args.foreach(a => scala.util.Try(expr(a)).toOption.filter(r => !r.isValue || r.steps.nonEmpty)
-      .foreach(_ => refuse(s"an effect in an argument of $name, which is not read")))
+    if args.exists(effects) then refuse(s"an effect in an argument of $name, which is not read")
 
   /** A call of code that is not read, taken to touch nothing of the JDK's state here: `extern`. */
   private def externally(name: String, args: List[Term], gives: Ty)(using Env): Res =
@@ -105,8 +112,7 @@ private[threads] trait ReadCalls extends ReadExprs:
   private def extern(c: Call)(using Env): Option[Res] =
     c.on.filter(q => isOpaque(plain(q.tpe).typeSymbol)).map { on =>
       val params: List[Param] = paramsOf(c.symbol)
-      val gives = repr(c.symbol.tree.asInstanceOf[DefDef].returnTpt.tpe)
-      applied(externName(c.symbol), coerce(expr(on), Ty.Nat) :: arguments(c.args, params.map(_.ty)), gives,
-        Res.Kind.Program) }
+      applied(externName(c.symbol), coerce(expr(on), Ty.Nat) :: arguments(c.args, params.map(_.ty)),
+        resultOf(c.symbol), Res.Kind.Program) }
 
   def externName(m: Symbol): String = s"${m.owner.name}_${m.name}"

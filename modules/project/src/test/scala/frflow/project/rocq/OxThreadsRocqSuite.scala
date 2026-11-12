@@ -5,7 +5,6 @@ import frflow.dsl.compiled.Inspect
 import frflow.dsl.compiled.threads.ReadThreads
 import frflow.proof.rocq.threads.{RocqAgreement, RocqThreads}
 import java.nio.file.{Files, Path}
-import scala.sys.process.{Process, ProcessLogger}
 
 /** Ox's scopes and forks, read from the TASTy of its jar into Rocq (`docs/THREADS-GENERATOR.md`): what the
   * generator prints is `examples/ox/rocq/Ox/Gen.v`, which is `Code.v`, the same unit written by hand, comments and
@@ -15,7 +14,6 @@ class OxThreadsRocqSuite extends munit.FunSuite:
   override val munitTimeout = scala.concurrent.duration.Duration(20, "min")
 
   private val ox = Path.of("examples/ox/rocq/Ox")
-  private val library = Path.of("modules/proof/rocq/FrFlow/Threads")
   private lazy val draft: Draft = Inspect(classOf[_root_.ox.Ox])(q => ReadThreads(q, OxUnit.unit))
   private lazy val program: Program = Assemble(draft)
   private lazy val gen: String = RocqThreads.file(program, OxUnit.title)
@@ -57,20 +55,5 @@ class OxThreadsRocqSuite extends munit.FunSuite:
   }
 
   test("Rocq reads Gen.v, and checks Agree.v: each definition is Code.v's by reflexivity".tag(Rocq)) {
-    val in = Files.createTempDirectory("frflow-ox")
-    val files = List("Prog", "Jdk", "Sem", "Lang").map(f => s"FrFlow/Threads/$f.v" ->
-      Files.readString(library.resolve(s"$f.v"))) ++ List("Ox/Code.v" -> code, "Ox/Gen.v" -> gen, "Ox/Agree.v" -> agree)
-    files.foreach { (file, text) =>
-      Files.createDirectories(in.resolve(file).getParent)
-      Files.writeString(in.resolve(file), text)
-      assertEquals(compiled(in, file), None, file) }
+    assertEquals(ThreadsRocq.failing(List("Ox/Code.v" -> code, "Ox/Gen.v" -> gen, "Ox/Agree.v" -> agree)), None)
   }
-
-  /** `rocq compile` on one file of `in`: what it says, if it fails. */
-  private def compiled(in: Path, file: String): Option[String] =
-    val out = StringBuilder()
-    def keep(line: String): Unit = { val _ = out.append(line).append('\n') }
-    val command = sys.env.getOrElse("FRFLOW_ROCQ", "rocq compile").split(' ').toSeq
-    val code = Process(command ++ Seq("-q", "-Q", "FrFlow", "FrFlow", "-Q", "Ox", "Ox", file), in.toFile)
-      .!(ProcessLogger(keep, keep))
-    Option.when(code != 0)(out.toString)

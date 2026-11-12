@@ -18,6 +18,9 @@ private[threads] final class Catalogue:
   def unread: List[Draft.Unread] = unreadSeen.toList
   def refused(what: String, why: String): Unit = unreadSeen += Draft.Unread(what, why)
 
+  /** Whether a definition made here is named `name`. */
+  def names(name: String): Boolean = castsMade.contains(name) || globalsMade.contains(name)
+
   def casts: List[Decl.Definition] = castsMade.values.toList
   def globals: List[Decl.Definition] = globalsMade.values.toList
   def held: List[Ctor] = heldMade.values.toList

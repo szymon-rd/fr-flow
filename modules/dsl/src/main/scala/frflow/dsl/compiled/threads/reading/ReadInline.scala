@@ -14,9 +14,6 @@ private[threads] trait ReadInline extends ReadData:
   /** An inline method's body, the scope it is read in, and what is evaluated before it. */
   final case class Expansion(steps: List[Step], body: Term, env: Env)
 
-  /** A method's name as the source has it: a top-level one without the object of its file. */
-  def displayName(m: Symbol): String = m.fullName.replaceAll("""[^.]+\$package\$?\.""", "")
-
   /** `read`, or `chaos` named for `m` if something of it is not read. */
   def orChaos[A](m: Symbol)(read: => A)(chaotic: Rocq => A): A =
     try read catch case refusal: NotRead =>

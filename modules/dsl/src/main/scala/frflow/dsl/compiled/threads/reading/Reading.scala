@@ -1,7 +1,7 @@
 package frflow.dsl.compiled.threads.reading
 
 import frflow.core.threads.{Term as Rocq, Ty}
-import frflow.dsl.compiled.threads.known.ThreadUnit
+import frflow.dsl.compiled.threads.known.{Reserved, ThreadUnit}
 import frflow.dsl.lifted.NotRead
 import scala.quoted.Quotes
 
@@ -16,6 +16,8 @@ private[threads] trait Reading:
 
   def unit: ThreadUnit
   val catalogue: Catalogue = Catalogue()
+  /** Whether `name` names a definition of the file (`ReadSigs`). */
+  def defined(name: String): Boolean
 
   /** How a Scala variable in scope is read. */
   enum Slot:
@@ -41,7 +43,9 @@ private[threads] trait Reading:
   final case class Env(vars: Map[Symbol, Slot], locals: Map[String, Ty], self: Option[Self],
       caught: Map[(Symbol, String), String], declared: List[Symbol]):
     def +(bound: (Symbol, Slot)): Env = copy(vars = vars + bound)
-    def local(name: String, ty: Ty): Env = copy(locals = locals.updated(name, ty))
+    def local(name: String, ty: Ty): Env =
+      if Reserved.free(name) && !defined(name) then copy(locals = locals.updated(name, ty))
+      else refuse(s"a variable named $name, which names something else in the Rocq")
     def named(sym: Symbol, name: String, ty: Ty): Env = (this + (sym -> Slot.Local(name, ty))).local(name, ty)
 
   /** `this` in a method: the class, the value it is, and what reads each field. */
@@ -80,7 +84,8 @@ private[threads] trait Reading:
     */
   def fresh(ty: Ty, avoid: Set[String])(using env: Env): String =
     val taken = env.locals.keySet ++ avoid
-    (if ty == Ty.Exn then List("e", "x") else List("x")).find(!taken(_)).getOrElse(numbered(avoid, 1).head)
+    (if ty == Ty.Exn then List("e", "x") else List("x")).find(!taken(_)).orElse(numbered(avoid, 1).headOption)
+      .getOrElse(refuse("a value with no name left for it"))
 
   /** `count` names `x1`, `x2`, … that no variable in scope, or `avoid`, has. */
   def numbered(avoid: Set[String], count: Int)(using env: Env): List[String] =
@@ -101,7 +106,7 @@ private[threads] trait Reading:
       if r.isValue then (done :+ r, chosen)
       else
         val avoid = chosen ++ parts.zipWithIndex.flatMap((p, j) => kept(p, i, j))
-        val name = if several then numbered(avoid, 1).head else fresh(r.ty, avoid)
+        val name = if several then fresh(Ty.Never, avoid ++ Set("x", "e")) else fresh(r.ty, avoid)
         (done :+ valueAs(r, name), chosen + name) }._1
     (named.flatMap(_.steps), named.map(_.term))
 

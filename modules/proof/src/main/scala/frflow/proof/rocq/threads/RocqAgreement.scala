@@ -21,15 +21,21 @@ object RocqAgreement:
       s"(fun ${order.mkString(" ")} => @Over.${d.name} ${d.params.map(_.name).mkString(" ")})"), code)) :+
       lemma("interp", None, code)
     List(s"(** That `$gen`, generated, and `$code`, written by hand, agree: see `RocqAgreement`. Generated. *)",
-      RocqThreads.imports.replace("Import ListNotations.", s"Require Import $code.\nRequire $gen.\nImport ListNotations."),
+      RocqThreads.imports.replace("Import ListNotations.",
+        s"Require Import $code.\nRequire $gen.\nImport ListNotations."),
       "(** ** The types: each constructor takes the same arguments in both *)",
       (types(p).map(conversion(_, Way(gen, code, "to_code", own))) ++
         types(p).map(conversion(_, Way(code, gen, "of_code", own)))).mkString("\n\n"),
       "(** ** The generated definitions, over the hand-written file's types *)",
-      "Module Over.\n\n" + p.types.collect { case d: Decl.Definition => PrintDecl(d)(using PrintTerm.Bars.Leading) }
-        .mkString("\n\n") + "\n\n" + RocqThreads.definitions(p) + "\n\n" + RocqThreads.interp(p, "") + "\n\nEnd Over.",
+      over(p),
       "(** ** Each is the hand-written definition of its name *)",
       lemmas.mkString("\n")).mkString("\n\n") + "\n"
+
+  /** The definitions of the generated file, in a module of their own: those among its types, then the others. */
+  private def over(p: Program): String =
+    val projections = p.types.collect { case d: Decl.Definition => PrintDecl(d)(using PrintTerm.Bars.Leading) }
+    (List("Module Over.") ++ projections ++ List(RocqThreads.definitions(p), RocqThreads.interp(p, ""), "End Over."))
+      .mkString("\n\n")
 
   /** That the generated definition `name` (`as`: with its parameters taken in the other file's order) is the
     * hand-written one.

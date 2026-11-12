@@ -68,6 +68,7 @@ private[threads] trait ReadVars extends ReadUses:
     case _                => refuse("an assignment where a value is used")
 
   def looping(w: While)(using Env): List[Step] =
+    if returns(w) then refuse("a return that does not end its method")
     val vars = assigned(w)
     val inner = forgetting(vars)
     val (binder, cond) = overState(vars, tail(w.cond, Goal.As(Ty.Bool))(using inner).term, Binder.Bare(_, _))

@@ -46,9 +46,7 @@ private[threads] trait ReadDefs extends ReadVars:
 
   /** A call of a local method: the `var`s it reads, then its arguments; it gives the `var`s it assigns. */
   def local(c: Call, slot: Slot.Method)(using Env): Res =
-    val gives = if slot.assigns.nonEmpty then stateOf(slot.assigns).ty else c.symbol.tree match
-      case d: DefDef => repr(d.returnTpt.tpe)
-      case _         => refuse(s"a call of ${c.name}")
+    val gives = if slot.assigns.nonEmpty then stateOf(slot.assigns).ty else resultOf(c.symbol)
     applied(slot.name, slot.vars.map(v => stateOf(List(v))) ++ arguments(c.args, paramsOf(c.symbol).map(_.ty)),
       gives, Res.Kind.Program)
 

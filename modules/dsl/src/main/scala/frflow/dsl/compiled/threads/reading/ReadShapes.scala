@@ -49,10 +49,24 @@ private[threads] trait ReadShapes extends ReadTypes:
     classes.flatMap(c => bases(c).filterNot(outside).map(_ -> c.name)).groupMap(_._1)(_._2)
       .collect { case (b, List(one)) => b -> one }
 
+  /** The fields of a class. One with a `var` is not read: a record's fields do not change. */
   private def fieldsOf(cls: Symbol): List[(Symbol, Param)] = cls.tree match
     case ClassDef(_, _, _, _, body) => body.collect { case v: ValDef if !v.symbol.flags.is(Flags.Lazy) =>
-      v.symbol -> Param(v.name, repr(v.tpt.tpe)) }
+      if v.symbol.flags.is(Flags.Mutable) then refuse(s"the class ${cls.fullName}, whose field ${v.name} is a var")
+      else v.symbol -> Param(v.name, repr(v.tpt.tpe)) }
     case _                          => Nil
+
+  /** The statements of a class's body that its constructor runs: its fields' initialisers, and its expressions. */
+  def initialised(cls: Symbol): List[Statement] = cls.tree match
+    case ClassDef(_, _, _, _, body) => body.filter {
+      case v: ValDef => v.rhs.nonEmpty && !v.symbol.flags.is(Flags.Lazy)
+      case _: Term   => true
+      case _         => false }
+    case _                          => Nil
+
+  /** The classes `cls` extends whose constructors run code that is not read with `cls`'s. */
+  def initialising(cls: Symbol): List[Symbol] = bases(cls).drop(1).filterNot(b => b.flags.is(Flags.NoInits) ||
+    b.flags.is(Flags.JavaDefined) || Set("scala.Any", "scala.Matchable", "java.lang.Object")(b.fullName))
 
   lazy val records: List[Record] = unit.types.collect { case Kind.Class(n) =>
     Record(named(n), named(n).name, fieldsOf(named(n))) }

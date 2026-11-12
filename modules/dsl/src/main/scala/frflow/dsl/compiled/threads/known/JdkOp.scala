@@ -8,6 +8,9 @@ import frflow.core.threads.Ty
 final case class JdkOp(name: String, takes: List[Ty], gives: Ty, on: JdkOp.On)
 
 object JdkOp:
+  /** The operations that change nothing, always return and never throw: one not evaluated is not missed. */
+  val silent: Set[String] = Set("CurrentThread")
+
   /** What becomes of the object a method is called on. */
   enum On:
     /** It is the operation's first argument. */

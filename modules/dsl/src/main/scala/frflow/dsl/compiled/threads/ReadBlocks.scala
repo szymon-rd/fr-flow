@@ -8,7 +8,9 @@ import frflow.dsl.compiled.threads.reading.{Res, Step}
   *   - `val x = e` is `x <- e ;;` where `e` is a program and `let x := e in` where it is a value; a `val` that
   *     only names a variable of the same name is that variable. `x` is bound at the type it is declared with: a
   *     value read at another type is cast, each step binding `x` again. One that may be null and is tested for it
-  *     is held as an option under a new name; one that is only given on where a null may be is kept as it is.
+  *     is held as an option under a new name; one that is only given on where a null may be is kept as it is; one
+  *     read first thing after, where a null is no value, is `unnull` as it is bound; any other is `unnull` where
+  *     it is read.
   *   - A statement whose value is not used is `_ <- e ;;`; one that is a value has no effect and is not written.
   *     The statements of an inner block are written among the outer ones where they bind no name in scope.
   *   - A statement that assigns `var`s gives their new values, which are bound to their names again.
@@ -27,7 +29,9 @@ private[threads] trait ReadBlocks extends ReadMatch:
   def assignment(v: Symbol, rhs: Term)(using Env): List[Step]
   /** The scope with nothing known of what the `var`s `vars` hold (`ReadVars`). */
   def forgetting(vars: List[Symbol])(using Env): Env
-  /** How the value `v` is used in `rest` (`ReadVars`). */
+  /** Whether what `rest` evaluates first is `v` (`ReadUses`). */
+  def readFirst(v: Symbol, rest: List[Tree]): Boolean
+  /** How the value `v` is used in `rest` (`ReadUses`). */
   def uses(v: Symbol, rest: List[Tree]): List[Use]
 
   /** A use of a value that may be null: tested for null, given where a null may be, or any other. */
@@ -90,7 +94,8 @@ private[threads] trait ReadBlocks extends ReadMatch:
 
   private def bound(v: ValDef, rhs: Term, rest: List[Tree])(using env: Env): (List[Step], Env) =
     val declared = repr(v.tpt.tpe)
-    if isConstruct(rhs) then
+    if returns(rhs) then refuse("a return that does not end its method")
+    else if isConstruct(rhs) then
       (List(Step.Bind(v.name, tail(rhs, Goal.As(declared)).term)), env.named(v.symbol, v.name, declared))
     else
       val r = expr(rhs)
@@ -115,7 +120,7 @@ private[threads] trait ReadBlocks extends ReadMatch:
           case Rocq.Ref(option) => Some((held.steps, (env + (v.symbol -> Slot.Tested(option, of, declared)))
             .local(option, r.ty)))
           case _                => None
-      case (Ty.Of("option", _), used) if used.forall(_ == Use.Nullable)   =>
+      case (Ty.Of("option", _), used) if used.forall(_ == Use.Nullable) || !readFirst(v.symbol, rest) =>
         val held = valueAs(r, v.name)
         Some((held.steps ++ Option.when(r.isValue)(Step.Let(v.name, r.term)), env.named(v.symbol, v.name, r.ty)))
       case _                                                              => None

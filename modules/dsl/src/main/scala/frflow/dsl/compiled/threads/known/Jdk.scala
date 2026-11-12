@@ -57,6 +57,11 @@ object Jdk:
   /** The traversal (`forEach`) of a concurrent set of `of`s. */
   def traversal(of: Ty): Option[String] = sets.get(of).map(_ + "ForEach")
 
+  /** The classes whose objects have their state without being made (`Jdk.v`: a thread-local's is a total function):
+    * a top-level value of one is a handle that needs no operation to exist.
+    */
+  val ambient: Set[String] = Set("java.lang.ThreadLocal")
+
   /** A class to the type its values are read at: a thread is its id, an object with state a reference to it. */
   val types: Map[String, Ty] = Map("java.lang.Thread" -> Ty.Tid, "scala.Boolean" -> Ty.Bool, "scala.Unit" -> Ty.Unit,
     "scala.Int" -> Ty.Z, "scala.Nothing" -> Ty.Never, atomic + "AtomicBoolean" -> Ty.Nat,

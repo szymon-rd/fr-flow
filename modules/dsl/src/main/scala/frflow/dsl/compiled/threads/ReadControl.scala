@@ -112,7 +112,7 @@ private[threads] trait ReadControl extends ReadInline:
   private def tried(body: Term, cases: List[CaseDef], finalizer: Option[Term], goal: Goal)(using Env): Done =
     val inner = if cases.isEmpty then tail(body, goal) else caught(body, cases, goal)
     finalizer.fold(inner) { f =>
-      if assigned(f).nonEmpty then refuse("a finally that assigns a variable")
+      if assigned(f).nonEmpty || returns(f) then refuse("a finally that assigns a variable, or returns")
       else Done(Rocq.of("try_finally", inner.term, tail(f, Goal.As(Ty.Unit)).term), inner.ty) }
 
   private def caught(body: Term, cases: List[CaseDef], goal: Goal)(using Env): Done =

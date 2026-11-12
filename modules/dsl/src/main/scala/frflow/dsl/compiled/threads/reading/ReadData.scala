@@ -89,11 +89,19 @@ private[threads] trait ReadData extends ReadOps:
     else (c.name, c.args) match
       case ("::", List(head))    => Some(applied("cons", List(coerce(expr(head), of), expr(on)), Ty.list(of),
         Res.Kind.Value))
-      case ("head", Nil)         => Some(applied("List_head", List(expr(on)), of, Res.Kind.Program))
-      case ("tail", Nil)         => Some(applied("List_tail", List(expr(on)), Ty.list(of), Res.Kind.Program))
-      case ("isEmpty", Nil)      => Some(applied("List_isEmpty", List(expr(on)), Ty.Bool, Res.Kind.Value))
+      case ("head", Nil)         => Some(applied("List_head", List(held(on)), of, Res.Kind.Program))
+      case ("tail", Nil)         => Some(applied("List_tail", List(held(on)), Ty.list(of), Res.Kind.Program))
+      case ("isEmpty", Nil)      => Some(applied("List_isEmpty", List(held(on)), Ty.Bool, Res.Kind.Value))
       case ("foreach", List(fn)) => Some(foreach(on, fn))
       case _                     => None
+
+  /** A list read where it must be one: not null. */
+  private def held(list: Term)(using Env): Res =
+    val r = expr(list)
+    r.ty match
+      case Ty.Of("option", Ty.Val) | Ty.Val => coerce(coerce(r, Ty.Val), Ty.list(Ty.Val))
+      case Ty.Of("option", of)              => coerce(r, of)
+      case _                                => r
 
   /** A set of threads held in a variable: a list. */
   private def threads(c: Call, on: Term)(using Env): Option[Res] =

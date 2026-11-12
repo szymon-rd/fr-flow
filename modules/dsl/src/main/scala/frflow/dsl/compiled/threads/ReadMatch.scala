@@ -16,8 +16,19 @@ import frflow.dsl.compiled.threads.reading.{Res, Step}
 private[threads] trait ReadMatch extends ReadControl:
   import q.reflect.*
 
-  /** A case: the constructor it takes (none: any), the variable it binds, its guard and its body. */
-  private final case class Clause(ctor: Option[String], binds: Option[Symbol], guard: Option[Term], body: Term)
+  /** What a case takes: anything, or what a constructor makes, with the variable bound to what it holds. */
+  private enum Takes:
+    case Any
+    case Made(by: String, binds: Option[Symbol])
+
+  /** A case: what it takes, its guard and its body. */
+  private final case class Clause(takes: Takes, guard: Option[Term], body: Term):
+    def ctor: Option[String] = takes match
+      case Takes.Made(by, _) => Some(by)
+      case Takes.Any         => None
+    def binds: Option[Symbol] = takes match
+      case Takes.Made(_, binds) => binds
+      case Takes.Any            => None
 
   private def isNull(t: Tree): Boolean = t match
     case Literal(NullConstant()) => true
@@ -67,10 +78,10 @@ private[threads] trait ReadMatch extends ReadControl:
     case _                                                                                => None
 
   private def clause(c: CaseDef): Clause = c.pattern match
-    case Wildcard()                                    => Clause(None, None, c.guard, c.rhs)
+    case Wildcard()                                    => Clause(Takes.Any, c.guard, c.rhs)
     case TypedOrTest(u: Unapply, _)                    => unapplied(u, c)
     case u: Unapply                                    => unapplied(u, c)
-    case id: Ident if id.symbol.fullName == "scala.None" => Clause(Some("None"), None, c.guard, c.rhs)
+    case id: Ident if id.symbol.fullName == "scala.None" => Clause(Takes.Made("None", None), c.guard, c.rhs)
     case other                                         => refuse(s"the pattern ${other.show}")
 
   private def unapplied(u: Unapply, c: CaseDef): Clause =
@@ -80,8 +91,8 @@ private[threads] trait ReadMatch extends ReadControl:
       case "Right" => "inr"
       case other   => refuse(s"a pattern of $other")
     u.patterns match
-      case List(b @ Bind(_, Wildcard())) => Clause(Some(ctor), Some(b.symbol), c.guard, c.rhs)
-      case List(Wildcard())              => Clause(Some(ctor), None, c.guard, c.rhs)
+      case List(b @ Bind(_, Wildcard())) => Clause(Takes.Made(ctor, Some(b.symbol)), c.guard, c.rhs)
+      case List(Wildcard())              => Clause(Takes.Made(ctor, None), c.guard, c.rhs)
       case _                             => refuse(s"the pattern ${c.pattern.show}")
 
   /** The constructors of the type matched on, each with the type of what it holds. */
@@ -108,8 +119,8 @@ private[threads] trait ReadMatch extends ReadControl:
 
   private def decide(clauses: List[Clause], goal: Goal)(using Env): Done = clauses match
     case Nil                                 => refuse("a match that does not take every case")
-    case Clause(_, _, None, body) :: _       => tail(body, goal)
-    case Clause(_, _, Some(g), body) :: rest =>
+    case Clause(_, None, body) :: _       => tail(body, goal)
+    case Clause(_, Some(g), body) :: rest =>
       val cond = value(coerce(expr(g), Ty.Bool))
       val (yes, no) = (tail(body, goal), decide(rest, goal))
       Done(Step.before(cond.steps, Rocq.If(cond.term, yes.term, no.term)), unified(List(yes, no)))

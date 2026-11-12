@@ -51,6 +51,7 @@ private[threads] trait ReadClosures extends ReadDefs:
   /** A closure made here: its body gives a `val`; a parameter it reads is `arg`, at the parameter's type. */
   private def lifted(params: List[ValDef], body: Term)(using env: Env): Res =
     if touched(body).nonEmpty then refuse("a closure that reads or assigns a var")
+    if returns(body) then refuse("a closure that returns from the method it is written in")
     val param = params match
       case Nil     => None
       case List(p) => Option.when(names(body, p.symbol))((p.symbol, itemName(p), repr(p.tpt.tpe)))
@@ -67,13 +68,18 @@ private[threads] trait ReadClosures extends ReadDefs:
   /** The name of a lambda's parameter: `x` for one the compiler made. */
   private def itemName(p: ValDef)(using Env): String = if made(p.symbol) then fresh(Ty.Val, Set.empty) else p.name
 
+  /** The body of a lambda given to a traversal: one that returns from the method it is written in is not read. */
+  private def traversed(body: Term): Term =
+    if returns(body) then refuse("a function that returns from the method it is written in") else body
+
   def traversal(name: String, set: Term, fn: Term)(using Env): Res = fn match
     case Lambda(List(p), body) =>
       val of = setOf(set.tpe).getOrElse(refuse("a traversal of what is no set"))
       val vars = assigned(body)
       val item = itemName(p)
       val inner = forgetting(vars).named(p.symbol, item, of)
-      val (state, step) = overState(vars, tail(body, Goal.State(vars))(using inner).term, Binder.Typed(_, _))
+      val (state, step) = overState(vars, tail(traversed(body), Goal.State(vars))(using inner).term,
+        Binder.Typed(_, _))
       val function = Res.value(Rocq.Fun(List(Binder.Typed(item, of), state), step), Ty.Code)
       applied(name, List(coerce(expr(set), Ty.Nat), function, stateOf(vars)), stateOf(vars).ty, Res.Kind.Program)
     case _                     => refuse("a traversal by a function that is not written where it is given")
@@ -84,7 +90,7 @@ private[threads] trait ReadClosures extends ReadDefs:
         case Some(Ty.Of("list", item)) => item
         case _                         => refuse("a traversal of a list of a type that is not read")
       val item = itemName(p)
-      val step = tail(body, Goal.As(Ty.Unit))(using env.named(p.symbol, item, of)).term
+      val step = tail(traversed(body), Goal.As(Ty.Unit))(using env.named(p.symbol, item, of)).term
       val function = Res.value(Rocq.Fun(List(Binder.Plain(item)), step), Ty.Code)
       applied("List_foreach", List(expr(list), function), Ty.Unit, Res.Kind.Program)
     case _                     => refuse("a traversal by a function that is not written where it is given")

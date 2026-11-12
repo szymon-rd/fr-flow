@@ -1,5 +1,7 @@
 package frflow.dsl.compiled.threads
 
+import frflow.dsl.compiled.threads.known.JdkOp
+
 /** What a piece of code does with the variables in scope, read off its tree before it is read: the `var`s it
   * assigns and those it reads (a local method called counts for what it assigns and reads), whether it returns
   * from its method, and how it uses a value that may be null.
@@ -17,6 +19,14 @@ private[threads] trait ReadUses extends ReadBlocks:
     env.declared.filter(found)
 
   def returns(t: Tree): Boolean = Returns.foldTree(false, t)(Symbol.spliceOwner)
+
+  def effects(t: Tree)(using env: Env): Boolean = Effects(env).foldTree(false, t)(Symbol.spliceOwner)
+
+  /** Whether what `rest` evaluates first is `v`, read where a null is no value: nothing happens between `v`'s
+    * binding and that reading.
+    */
+  def readFirst(v: Symbol, rest: List[Tree]): Boolean =
+    First(v).foldTrees(None, rest)(Symbol.spliceOwner).contains(true)
 
   /** Whether `t` names `sym`. */
   def names(t: Tree, sym: Symbol): Boolean = Named(sym).foldTree(false, t)(Symbol.spliceOwner)
@@ -38,6 +48,34 @@ private[threads] trait ReadUses extends ReadBlocks:
         case Some(Slot.Mutable(_, _, _))   => x + id.symbol
         case _                             => x
       case _         => foldOverTree(x, t)(owner)
+
+  private final class Effects(env: Env) extends TreeAccumulator[Boolean]:
+    private def effect(c: Call): Boolean =
+      scala.util.Try(opFor(c)).toOption.flatten.exists(op => !JdkOp.silent(op.name)) ||
+        sigs.exists(_.sym == c.symbol) || c.name == "throw" || c.on.exists(q => isOpaque(plain(q.tpe).typeSymbol)) ||
+        (c.name == "apply" && c.on.exists(q => isFunction(plain(q.tpe))))
+
+    def foldTree(x: Boolean, t: Tree)(owner: Symbol): Boolean = t match
+      case _ if x                                          => true
+      case id: Ident if called(id)                         => true
+      case New(tpt) if isOpaque(plain(tpt.tpe).typeSymbol) => true
+      case term: Term if callOf(term).exists(effect)       => true
+      case _                                               => foldOverTree(x, t)(owner)
+
+    /** A by-name parameter, or a local method: reading it runs it. */
+    private def called(id: Ident): Boolean = env.vars.get(id.symbol).exists {
+      case Slot.ByName(_) | Slot.Method(_, _, _) => true
+      case _                                     => false }
+
+  /** What a piece of code evaluates first: `v` (true), or anything else that is no constant (false). */
+  private final class First(v: Symbol) extends TreeAccumulator[Option[Boolean]]:
+    def foldTree(x: Option[Boolean], t: Tree)(owner: Symbol): Option[Boolean] = (x, t) match
+      case (Some(_), _)                                   => x
+      case (_, id: Ident)                                 => Some(id.symbol == v)
+      case (_, Literal(_))                                => x
+      case (_, This(_) | New(_) | Try(_, _, _) | While(_, _) | Closure(_, _)) => Some(false)
+      case (_, _: DefDef | _: ClassDef)                   => Some(false)
+      case _                                              => foldOverTree(x, t)(owner)
 
   /** A `return` of the method `t` is in: one of a method declared inside `t` is that method's. */
   private object Returns extends TreeAccumulator[Boolean]:

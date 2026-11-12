@@ -12,6 +12,3 @@ import scala.quoted.Quotes
   */
 object ReadThreads:
   def apply(q: Quotes, unit: ThreadUnit): Draft = Reader(q, unit).draft
-
-/** The reader, each part a rule or a few. */
-private final class Reader(val q: Quotes, val unit: ThreadUnit) extends ReadClasses
