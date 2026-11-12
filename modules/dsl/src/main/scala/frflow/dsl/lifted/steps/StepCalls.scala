@@ -1,7 +1,6 @@
 package frflow.dsl.lifted.steps
 
 import frflow.dsl.lifted.LiftOps
-import frflow.dsl.structure.Call as MemberCall
 import frflow.dsl.term.{Terms, TermSyntax}
 import frflow.dsl.term.Term as DTerm
 import frflow.dsl.vocab.{Declaration, Reading}
@@ -61,24 +60,9 @@ private[steps] trait StepCalls:
     val at = placeOf(on)
     interfered[Out](at.key) { now =>
       if !isUpdate(call.symbol) then rest(r.read(call, as)(using now.env), now)
-      else if r.isStructure(on.tpe.widen) then wired[Out](call, on, at)(rest)(using now)
+      else if r.isStructure(on.tpe.widen) then r.unknown(call)
       else modelled[Out](call, at)(rest)(using now).getOrElse(inlined[Out](call, at)(rest)(using now))
     }
-
-  /** A call that changes a structure the code is given: the member's Definition applied to the structure's state
-    * and the call's inputs (`Structures.wiring`), its result with the state it leaves.
-    */
-  private def wired[Out: Type](call: Term, on: Term, at: Place)(rest: Rest[Out])(using walk: Walk)(using Quotes)
-      : Expr[DTerm[Out]] = (stateAt(at).asType, call.tpe.widen.asType) match
-    case ('[s], '[v]) =>
-      val site = Literal(UnitConstant())
-      val given_ = Expr.ofList(stateIn(at) :: arguments(call, Nil).zip(r.inputsOf(on, call.symbol)).map((a, p) =>
-        r.read(a, p)(using walk.env)))
-      '{ Terms.let[(v, s), Out](MemberCall.applied[(v, s)](${ r.wired(on) }.member(${ Expr(call.symbol.name) }),
-        $given_)(using ${ r.spec[(v, s)](site) }), "did", (did: DTerm[(v, s)]) =>
-        ${ traced[Out](at, '{ TermSyntax._2[v, s](did)(using ${ r.spec[s](site) }) })(
-          rest('{ TermSyntax._1[v, s](did)(using ${ r.spec[v](site) }) }, _)) })(using ${ r.spec[Out](site) }) }
-    case _            => r.refuse("this call of a structure", call)
 
   /** An `update` method's body, run as one step from the store's state: a reading of its own, the store its root. */
   private def inlined[Out: Type](call: Term, at: Place)(rest: Rest[Out])(using walk: Walk)(using Quotes)
@@ -130,17 +114,12 @@ private[steps] trait StepCalls:
     val before = walk.whole
     putAt[Out](at, left) { after =>
       stateOf(walk.ports.root).asType match
-        case '[s] if walk.interleaved && serving =>
-          named[Out]("trace", TypeRepr.of[Among.Traces[s]], '{ Among.stepped[s](
-            ${ walk.env(trace).asExprOf[DTerm[Among.Traces[s]]] }, ${ before.asExprOf[DTerm[s]] },
-            ${ after.whole.asExprOf[DTerm[s]] })(using ${ r.spec[s](Literal(UnitConstant())) }) })(t =>
-            rest(after.bound(trace, t)))
-        case '[s] if walk.interleaved            =>
+        case '[s] if walk.interleaved =>
           named[Out]("trace", TypeRepr.of[List[(s, s)]], '{ TermSyntax.:+[(s, s)](
             ${ walk.env(trace).asExprOf[DTerm[List[(s, s)]]] })(LiftOps.pair[s, s](${ before.asExprOf[DTerm[s]] },
             ${ after.whole.asExprOf[DTerm[s]] })(using ${ r.spec[(s, s)](Literal(UnitConstant())) })) })(t =>
             rest(after.bound(trace, t)))
-        case _                                   => rest(after)
+        case _                        => rest(after)
     }
 
   /** A call of a method of the developer's that uses a port: a call of its Definition when it has one (`modelled`),

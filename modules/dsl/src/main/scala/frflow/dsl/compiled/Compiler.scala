@@ -11,7 +11,7 @@ import scala.quoted.*
   * no state, so the order Scala evaluates it in cannot be told from the term's.
   */
 final class Compiler(val q: Quotes, val known: Known) extends Compiling, CompileValues, CompileCalls,
-    CompileCollections, CompileData, CompileMethods:
+    CompileCollections, CompileData, CompileMatch, CompileMethods:
   import q.reflect.*
 
   def read(t: Term, as: TypeRepr)(using env: Env): DTerm[Any] = t match
@@ -20,7 +20,7 @@ final class Compiler(val q: Quotes, val known: Known) extends Compiling, Compile
     case Block(stats, e)                                 => block(stats, e, as)
     case If(c, a, b)                                     =>
       TermSyntax.when(read(c, TypeRepr.of[Boolean]).asInstanceOf[DTerm[Boolean]])(read(a, as)).otherwise(read(b, as))
-    case Match(on, _)                                    => refuse("a match: not read from TASTy yet", on)
+    case Match(on, cases)                                => matched(on, cases, as)
     case Literal(c)                                      => literal(c, t)
     case id: Ident if env.contains(id.symbol)            => env(id.symbol)
     case id: Ident if ownMember(id)                      => read(Select(This(id.symbol.owner), id.symbol), as)

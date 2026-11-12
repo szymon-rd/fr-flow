@@ -338,7 +338,8 @@ FrModel("Payments")(…, limits.define(lifted[RecordedLimits]))
   nothing must be kept by the compiler (`-Yretain-trees` is not needed for it); a class in a library's jar is
   compiled the same way. A type's `FrSpec` is the one its companion gives, found on the class's class loader
   (`Specs`). Each body is compiled once, while the file is open (`Once`); Scala the compiler does not read is a
-  `NotRead` there, naming the file and line.
+  `NotRead` there, naming the file and line. It reads what the table above lists, a `match` on an enum or an
+  option included (`CompileMatch`); a call of a `lifted { … }` function from a class is not read yet.
 - The class is read member by member. Its state is a record named as the trait, a field for
   each of the constructor's; each member's body is read into a function of that record. `limits.define(…)`
   gives each member's word its code, and Lean proves the code meets every claim that mentions the member.

@@ -47,7 +47,7 @@ private[steps] trait StepPorts:
 
   /** The selector of what is under a name, typed by the state it is a field of (`s`) and its own (`f`). */
   private def selector[S: Type, F: Type](where: TypeRepr, name: String)(using Quotes): Expr[LeanType.Field[S, F]] =
-    if r.isImplementation(where) then r.stateField(where, name, nowhere).asExprOf[LeanType.Field[S, F]]
+    if r.isImplementation(where) then r.implementation(where, nowhere)
     else DataMacros.typedField[S, F](name, r.fieldsOf(where).indexWhere(_._1 == name))
 
   /** The type of the state at a place. */

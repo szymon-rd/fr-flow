@@ -1,6 +1,5 @@
 package frflow.dsl.lifted
 
-import frflow.dsl.structure.{StructureDeclaration, Structures, Call as MemberCall}
 import frflow.dsl.term.{DataMacros, LeanType, Lift, Terms, TermSyntax}
 import frflow.dsl.term.Term as DTerm
 import scala.quoted.*
@@ -10,8 +9,8 @@ import scala.quoted.*
   * compile error at the construct. What it reads is total, has no effect and no state, so the order Scala evaluates
   * it in cannot be told from the term's.
   */
-private[lifted] final class Reader(val q: Quotes, val structures: Structures = Structures.none) extends Reading,
-    ReadValues, ReadCalls, ReadCollections, ReadData, ReadMatch, ReadMethods:
+private[lifted] final class Reader(val q: Quotes) extends Reading, ReadValues, ReadCalls, ReadCollections, ReadData,
+    ReadMatch, ReadMethods:
   import q.reflect.*
 
   /** The val the lifted code is the meaning of: a call of it from its own body is a recursion. */
@@ -31,18 +30,14 @@ private[lifted] final class Reader(val q: Quotes, val structures: Structures = S
     case id: Ident if ownMember(id)                      => read(Select(This(id.symbol.owner), id.symbol), as)
     case self: This if env.contains(self.tpe.typeSymbol) => env(self.tpe.typeSymbol)
     case Select(on, _) if isPort(on.tpe) && partOf(on.tpe, t.symbol, t).nonEmpty => memberState(on, t)
-    case call if asksStructure(call)                       => asked(call, as)
+    case call if asksStructure(call)                     => unknown(call)
     case _                                               => applied(t, as), as, t)
 
   /** The state of what a port's member names: the port's own state, or the field of it the member's is. */
   private def memberState(on: Term, member: Term)(using Env)(using Quotes): Expr[DTerm[?]] =
     partOf(on.tpe, member.symbol, member).flatten.fold(read(on, on.tpe.widen)) { name =>
       val whole = stateType(on.tpe, member)
-      if isImplementation(on.tpe.widen) then
-        (whole.asType, stateOfType(stateFieldType(on.tpe.widen, name), member).asType) match
-          case ('[s], '[f]) => '{ DTerm.select(${ read(on, on.tpe.widen).asExprOf[DTerm[s]] },
-            ${ stateField(on.tpe.widen, name, member).asExprOf[LeanType.Field[s, f]] }) }
-          case _            => refuse(s"the field $name", member)
+      if isImplementation(on.tpe.widen) then implementation(on.tpe.widen, member)
       else
         val (field, i) = fieldsOf(whole).zipWithIndex.find(_._1._1 == name).get
         (whole.asType, field._2.asType) match
@@ -56,29 +51,15 @@ private[lifted] final class Reader(val q: Quotes, val structures: Structures = S
     val m = t.symbol
     !m.isNoSymbol && m.isDefDef && m.flags.is(Flags.Deferred) && isStructure(m.owner.typeRef)
 
-  /** The Definition the structure a field holds was made with (`structures.wiring`). */
-  def wired(on: Term)(using Quotes): Expr[StructureDeclaration[?]] = structures.wiring.get(bare(on).symbol.name).fold(
-    refuse("a call of a structure FrFlow does not know the Definition of: a class read by FrFlow calls the " +
-      "structures it is made with (`lifted[StreamPaymentHandler](limits, …)`)", on))(
-      _.asExprOf[StructureDeclaration[?]])
+  /** A structure's member called in lifted code: a structure is called by a class that holds it. */
+  def unknown(call: Term): Nothing =
+    refuse("a call of a structure's member: a structure is called by a class made with it, lifted by its type " +
+      "(`lifted[StreamPaymentHandler](limits, …)`)", call)
 
-  /** What a call of a structure's member gives its inputs' types. */
-  def inputsOf(on: Term, member: Symbol): List[TypeRepr] = on.tpe.widen.memberType(member) match
-    case MethodType(_, inputs, _) => inputs
-    case _                        => Nil
-
-  /** A member that asks a structure something, called inside an expression: the member's Definition applied to the
-    * structure's state. One that changes the structure is a statement of its own (`steps.StepCalls`).
-    */
-  private def asked(call: Term, as: TypeRepr)(using Env)(using Quotes): Expr[DTerm[?]] = call match
-    case Call(on, name, args) =>
-      if call.symbol.flags.is(Flags.Mutable) then refuse(s"a call of `$name`, which changes a structure, inside " +
-        "an expression: give it a statement of its own (`val x = structure.call(…)`)", call)
-      val given_ = Expr.ofList(read(on, on.tpe.widen) :: args.zip(inputsOf(on, call.symbol)).map(read(_, _)))
-      as.asType match
-        case '[r] => '{ MemberCall.applied[r](${ wired(on) }.member(${ Expr(name) }), $given_)(using
-          ${ spec[r](call) }) }
-    case other                => refuse("this call of a structure", other)
+  /** The state of a class that implements a structure, read in lifted code: such a class is lifted by its type. */
+  def implementation(of: TypeRepr, at: Tree): Nothing =
+    refuse(s"the state of ${of.show}, a class that implements a structure: lift the class by its type " +
+      "(`lifted[…]`)", at)
 
   /** A member named without `this.` in a method's body being read (`start` in `Booking`'s `span`). */
   private def ownMember(id: Ident)(using env: Env): Boolean =

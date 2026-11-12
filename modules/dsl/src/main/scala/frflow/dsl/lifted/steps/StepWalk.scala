@@ -34,14 +34,9 @@ private[steps] trait StepWalk extends StepPorts:
   def carried(using walk: Walk): List[(Symbol, Expr[DTerm[?]])] =
     (walk.ports.root, walk.whole) :: Option.when(walk.between.nonEmpty)((trace, walk.env(trace))).toList
 
-  /** Whether the reading is of a structure's member among other calls (`MemberCode`): no rely is given it. */
-  def serving(using walk: Walk): Boolean = walk.between.nonEmpty && others.isEmpty
-
-  /** The trace's type over the state `s`: each step taken (the state it started from, the one it left); of a
-    * structure's member, with what other calls did before each step (`Among.Traces`).
-    */
-  def traceType(s: TypeRepr)(using Walk)(using Quotes): TypeRepr = s.asType match
-    case '[s] => if serving then TypeRepr.of[Among.Traces[s]] else TypeRepr.of[List[(s, s)]]
+  /** The trace's type over the state `s`: each step taken (the state it started from, the one it left). */
+  def traceType(s: TypeRepr)(using Quotes): TypeRepr = s.asType match
+    case '[s] => TypeRepr.of[List[(s, s)]]
 
   private def carriedType(using walk: Walk)(using Quotes): TypeRepr =
     val s = stateOf(walk.ports.root)
@@ -100,19 +95,4 @@ private[steps] trait StepWalk extends StepPorts:
             ${ rely.asExprOf[Defined[(a, s, s) => Boolean]] }, $x)(using ${ r.spec[a](site) }, ${ r.spec[s](site) }),
             "now", (now: DTerm[s]) => ${ body(derived(key)(using next.bound(next.ports.root, 'now))) })(using
             ${ r.spec[Out](site) }) }
-      case (Some((between, _)), None, '[s]) if walk.interleaved && walk.step >= 1           =>
-        served[s, Out](between.asExprOf[DTerm[Map[BigInt, s]]], key, next)(body)
       case _                                                                                => body(next)
-
-  /** The same of a structure's member (`MemberCode`): whatever the schedule says the others left, with what they
-    * did kept in the traces; a claim says what it takes of them (`Call.others`).
-    */
-  private def served[S: Type, Out: Type](between: Expr[DTerm[Map[BigInt, S]]], key: Symbol, next: Walk)(
-      body: Walk => Quotes ?=> Expr[DTerm[Out]])(using Quotes): Expr[DTerm[Out]] =
-    val site = Literal(UnitConstant())
-    val before = next.whole.asExprOf[DTerm[S]]
-    '{ Terms.let[S, Out](Among.left[S]($before, $between, BigInt(${ Expr(next.step) })), "now", (now: DTerm[S]) =>
-      ${ named[Out]("trace", TypeRepr.of[Among.Traces[S]], '{ Among.moved[S](
-        ${ next.env(trace).asExprOf[DTerm[Among.Traces[S]]] }, $before, now)(using ${ r.spec[S](site) }) })(t =>
-        body(derived(key)(using next.bound(next.ports.root, 'now).bound(trace, t)))) })(using
-      ${ r.spec[Out](site) }) }

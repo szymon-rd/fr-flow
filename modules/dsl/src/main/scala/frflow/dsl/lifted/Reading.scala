@@ -1,6 +1,6 @@
 package frflow.dsl.lifted
 
-import frflow.dsl.structure.{ReadPorts, Structures}
+import frflow.dsl.structure.ReadPorts
 import frflow.dsl.term.Term as DTerm
 import frflow.dsl.vocab.Definition as Defined
 import scala.quoted.*
@@ -12,21 +12,8 @@ import scala.quoted.*
 private[lifted] trait Reading extends ReadPorts:
   import q.reflect.*
 
-  /** What the reading knows of structures: the record of the class being read, the Definitions it is given. */
-  def structures: Structures
-  def inPlay: Set[String] = structures.traits
-
-  /** The same field's selector, read off the record the implementation's state is (`structures.records`). */
-  def stateField(implementation: TypeRepr, name: String, at: Tree)(using Quotes): Expr[Any] =
-    val structure = structureOf(implementation).get
-    val record = structures.records.getOrElse(structure.fullName, refuse(s"the state of ${implementation.show}, " +
-      "a class that implements a structure, read where FrFlow is not reading that class (`lifted[…]`)", at))
-    val i = stateFields(implementation.typeSymbol).indexWhere(_.name == name)
-    (structure.typeRef.asType, stateOfType(stateFieldType(implementation, name), at).asType) match
-      case ('[s], '[f]) => '{ ${ record.asExprOf[frflow.dsl.term.LeanType[s]] }.fields(${ Expr(i) })
-        .asInstanceOf[frflow.dsl.term.LeanType.Field[s, f]] }
-      case _            => refuse(s"the field $name", at)
-
+  /** No trait is in play as a structure here: a class that implements one is compiled (`dsl.compiled`). */
+  def inPlay: Set[String] = Set.empty
 
   /** The Scala variables in scope, each the term it is bound to (a method's `this` by its class); `kept`, the
     * values the compiler names a copy's unchanged fields by (`unchanged`), which are no values of the Scala as
@@ -54,15 +41,14 @@ private[lifted] trait Reading extends ReadPorts:
     read(t, TypeRepr.of[A]).asExprOf[DTerm[A]]
 
   /** The spec of a type a value of the Scala has, or the compile error naming it: the type's given; a structure's,
-    * the record of the class being read that implements it, else its name alone; and where a part of the type is
-    * a structure's, which has no given, the spec made of its parts'.
+    * its name alone; and where a part of the type is a structure's, which has no given, the spec made of its
+    * parts'.
     */
   def spec[A: Type](at: Tree)(using Quotes): Expr[FrSpec[A]] =
     val t = TypeRepr.of[A]
     def of(part: TypeRepr): Expr[FrSpec[?]] = part.asType match
       case '[x] => spec[x](at)
-    structureOf(t).map(structure => structures.records.get(structure.fullName).fold(
-      '{ FrSpec.named[A](${ Expr(structure.name) }) })(record => '{ $record.asInstanceOf[FrSpec[A]] }))
+    structureOf(t).map(structure => '{ FrSpec.named[A](${ Expr(structure.name) }) })
       .orElse(Expr.summon[FrSpec[A]]).getOrElse(t.dealias match
         case AppliedType(c, List(a, b)) if c.typeSymbol == PairClass =>
           '{ FrSpec.pair[A](${ of(a) }, ${ of(b) }) }
