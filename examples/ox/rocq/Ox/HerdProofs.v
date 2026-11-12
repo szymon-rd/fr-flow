@@ -149,3 +149,143 @@ Proof.
     split; [| apply HQ; exact HK7].
     intros v c _ Hst. exfalso. eapply no_starts_th; [| exact Hst]. reflexivity.
 Qed.
+
+(** ** A fork's thread: it runs its body, then takes itself out of the set *)
+
+Lemma runnable_spec u th b Γ0 :
+  StartPre u (Lam_ThreadHerd_startThread_1 th b) Γ0 ->
+  wp u (Lam_ThreadHerd_startThread_1_body th b VUnit) Γ0 (Done u).
+Proof.
+  intros ((b0 & Hrole) & Hrm & Hop & Hcal & Hpl & Hcaps). unfold Lam_ThreadHerd_startThread_1_body.
+  set (h := ThreadHerd_threads th) in *.
+  assert (Hin : inside Γ0 u h).
+  { exists h. split; [left; split; [eauto | exact Hrm] | constructor]. }
+  apply wp_try_finally. apply wp_invoke.
+  - apply can_step_intro. exact Hrm.
+  - unfold CallPre. split; [exact Hcal |]. split; [exact Hrm |]. split; [| split].
+    + rewrite app_nil_r. eapply Forall_impl; [| exact Hcaps]. intros cap (Hw & Ha).
+      split; [exact Hw | exact (inside_anc Hin Ha)].
+    + intros cap E. discriminate.
+    + destruct b; cbn in *; trivial; contradiction.
+  - intros r Γ1 HK1.
+    assert (Hrm1 : g_removed Γ1 u = false) by (rewrite (k_removed HK1); exact Hrm).
+    apply wp_bind. apply wp_frame_res; [exact I | apply can_step_intro; exact Hrm1 |].
+    intros σ2 Γ2 x σ2' HI2 HR2 Hs2 Hstep2. cbn in Hstep2. destruct Hstep2 as (-> & _).
+    assert (HK2 : Keep u Γ0 Γ2) by exact (Keep_Rely HK1 HR2).
+    apply wp_bind. apply wp_op. intros σ3 Γ3 HI3 HR3 Hs3.
+    assert (HK3 : Keep u Γ0 Γ3) by exact (Keep_Rely HK2 HR3).
+    assert (Hrm3 : g_removed Γ3 u = false) by (rewrite (k_removed HK3); exact Hrm).
+    assert (Hop3 : g_open Γ3 u = []) by (rewrite (k_open HK3); exact Hop).
+    pose proof (e_fork (k_ext HK3) Hrole) as Hrole3.
+    split; [exact Hrm3 |].
+    intros x3 σ3' Hstep3. cbn in Hstep3. destruct Hstep3 as (s & Hs & -> & ->).
+    exists (set_removed Γ3 u).
+    split; [eapply inv_remove; eauto |].
+    split; [apply guar_remove |].
+    split; [intros v c _ Hst; exfalso; eapply no_starts_th; [| exact Hst]; reflexivity |].
+    apply wp_ret. destruct r; unfold Done; cbn; exact Hop3.
+Qed.
+
+(** ** The closing loop: when it finds the set empty, the herd is exited *)
+
+Definition popped (t : tid) (Γ0 Γ1 : gh) (rest : list nat) : Prop :=
+  Ext Γ0 Γ1 /\ g_removed Γ1 t = false /\ g_open Γ1 t = rest.
+
+(** A program that throws nothing and keeps what its thread knew. *)
+Definition quiet {X : Type} (A : gh -> Prop) : exn + X -> gh -> Prop :=
+  fun r Γ => match r with inl _ => False | inr _ => A Γ end.
+
+Lemma TsForEach_quiet {S} t r (f : tid -> S -> M S) (s : S) Γ (A : gh -> Prop) :
+  stable t A -> (forall Γ1, A Γ1 -> g_removed Γ1 t = false) -> A Γ ->
+  (forall u s1 Γ1, A Γ1 -> wp t (f u s1) Γ1 (quiet A)) ->
+  wp t (TsForEach r f s) Γ (quiet A).
+Proof.
+  intros Hst Hact HA Hf. unfold TsForEach. apply wp_loop with (J := fun _ Γ1 => A Γ1); [exact HA |].
+  intros [seen s1] Γ1 HA1. split; [apply can_step_intro; auto |].
+  apply wp_bind. apply wp_frame_res; [exact I | apply can_step_intro; auto |].
+  intros σ Γ2 x σ' HI HR Hs Hstep. cbn in Hstep. destruct Hstep as (_ & _ & Hx).
+  assert (HA2 : A Γ2) by (eapply Hst; eauto).
+  destruct x as [e | [u |]]; [contradiction | |].
+  - apply wp_bind. eapply wp_mono; [| apply Hf; exact HA2].
+    intros [e | s2] Γ3 H3; cbn in H3; [contradiction |]. apply wp_ret. exact H3.
+  - apply wp_ret. exact HA2.
+Qed.
+
+Lemma interruptAll_spec t th rest Γ0 (Q : exn + unit -> gh -> Prop) :
+  g_removed Γ0 t = false -> g_open Γ0 t = ThreadHerd_threads th :: rest -> ThreadHerd_herdOwner th = t ->
+  (forall r Γ1, popped t Γ0 Γ1 rest -> Q r Γ1) ->
+  wp t (ThreadHerd_interruptAllAndJoinUntilCompleted th) Γ0 Q.
+Proof.
+  intros Hrm Hop Hown HQ. unfold ThreadHerd_interruptAllAndJoinUntilCompleted.
+  set (h := ThreadHerd_threads th) in *.
+  pose (A := fun Γ => Ext Γ0 Γ /\ g_removed Γ t = false /\ g_open Γ t = h :: rest).
+  assert (HAst : stable t A).
+  { intros Γ Γ' (HE & Hr & Ho) HR. split; [exact (Ext_trans HE (Rely_Ext HR)) |].
+    split; [rewrite (r_removed HR); exact Hr | rewrite (r_open HR); exact Ho]. }
+  assert (HAact : forall Γ, A Γ -> g_removed Γ t = false) by (intros Γ (_ & Hr & _); exact Hr).
+  assert (HA0 : A Γ0) by (split; [apply Ext_refl | split; assumption]).
+  (* the owner check passes *)
+  apply wp_bind. unfold ThreadHerd_assertOnOwnerThread.
+  apply wp_bind. apply wp_frame_res; [exact I | apply can_step_intro; exact Hrm |].
+  intros σ1 Γ1 x1 σ1' HI1 HR1 Hs1 Hstep1. cbn in Hstep1. destruct Hstep1 as (-> & _).
+  rewrite Hown, Nat.eqb_refl. cbn [negb]. apply wp_ret. cbn beta iota.
+  assert (HA1 : A Γ1) by (eapply HAst; eauto).
+  (* the flag is set *)
+  apply wp_bind. apply wp_frame_res; [exact I | apply can_step_intro; auto |].
+  intros σ2 Γ2 x2 σ2' HI2 HR2 Hs2 Hstep2. cbn in Hstep2. destruct Hstep2 as (_ & -> & _).
+  assert (HA2 : A Γ2) by (eapply HAst; eauto).
+  (* the loop *)
+  cbn zeta. apply wp_bind. unfold while.
+  apply wp_loop with (J := fun _ Γ => A Γ); [exact HA2 |].
+  intros st Γ3 HA3. split; [apply can_step_intro; auto |].
+  apply wp_bind. apply wp_bind. apply wp_op. intros σ4 Γ4 HI4 HR4 Hs4.
+  assert (HA4 : A Γ4) by (eapply HAst; eauto). destruct HA4 as (HE4 & Hrm4 & Hop4).
+  split; [exact Hrm4 |].
+  intros x4 σ4' Hstep4. cbn in Hstep4. destruct Hstep4 as (s & Hs & -> & Hx).
+  assert (Hin : In h (g_open Γ4 t)) by (rewrite Hop4; left; trivial).
+  apply (i_open HI4) in Hin. destruct Hin as (hr & Hh & Hho & Hhx).
+  destruct Hx as [(-> & Hempty) | (-> & Hsome)].
+  - (* empty: the herd is exited, and the loop ends *)
+    exists (exit_herd Γ4 t h hr rest).
+    split; [eapply inv_exit; eauto |].
+    split; [apply guar_exit; assumption |].
+    split; [intros v c _ Hst; exfalso; eapply no_starts_th; [| exact Hst]; reflexivity |].
+    apply wp_ret. cbn beta iota. cbn [negb]. apply wp_ret. cbn beta iota.
+    assert (Hpop : popped t Γ0 (exit_herd Γ4 t h hr rest) rest).
+    { split; [exact (Ext_trans HE4 (ext_exit Γ4 t h hr rest Hh)) |]. split; [exact Hrm4 |]. cbn. apply upd_eq. }
+    destruct st as [its [e |]]; [apply wp_throw | apply wp_ret]; apply HQ; exact Hpop.
+  - (* not empty: every thread in the set is interrupted and joined *)
+    exists Γ4. split; [exact HI4 |]. split; [intros v _; apply Rely_refl |].
+    split; [intros v c _ Hst; exfalso; eapply no_starts_th; [| exact Hst]; reflexivity |].
+    apply wp_ret. cbn beta iota. cbn [negb]. apply wp_bind.
+    assert (HA4 : A Γ4) by (split; [| split]; assumption).
+    assert (Hint : forall its u Γ, A Γ ->
+      wp t (if negb (tset_contains its u) then bind (call (ThreadInterrupt u)) (fun _ => ret (tset_add its u))
+            else ret its) Γ (quiet A)).
+    { intros its u Γ HAΓ. destruct (negb (tset_contains its u)).
+      - apply wp_bind. apply wp_frame_res; [exact I | apply can_step_intro; auto |].
+        intros σ Γ' x σ' HI HR Hsx Hstep. cbn in Hstep. destruct Hstep as (-> & _).
+        cbn beta iota. apply wp_ret. unfold quiet. eapply HAst; eauto.
+      - apply wp_ret. exact HAΓ. }
+    apply wp_mono with (Q := quiet A).
+    { intros [e | s'] Γ5 H5; [exact (False_ind _ H5) | apply wp_ret; exact H5]. }
+    destruct st as [its ie]. cbn beta iota. apply wp_bind. apply wp_mono with (Q := quiet A).
+    2: { apply TsForEach_quiet; [exact HAst | exact HAact | exact HA4 |].
+         intros u s1 Γ HAΓ. apply Hint. exact HAΓ. }
+    intros [e | its'] Γ5 H5; [exact H5 |]. cbn beta iota.
+    apply TsForEach_quiet; [exact HAst | exact HAact | exact H5 |].
+    intros u [its1 ie1] Γ HAΓ. apply wp_bind. apply wp_mono with (Q := quiet A).
+    2: { apply Hint. exact HAΓ. }
+    intros [e | its2] Γ6 H6; [exact H6 |]. cbn beta iota.
+    apply wp_bind. apply wp_try_catch. apply wp_bind.
+    apply wp_frame_res; [exact I | apply can_step_intro; auto |].
+    intros σ Γ7 x σ' HI HR Hsx Hstep. cbn in Hstep.
+    assert (HA7 : A Γ7) by (eapply HAst; eauto).
+    destruct Hstep as [(-> & _) | (-> & _)].
+    + cbn beta iota. apply wp_ret. cbn beta iota. apply wp_ret. exact HA7.
+    + cbn beta iota. destruct ie1 as [e1 |].
+      * apply wp_bind. apply wp_frame_res; [exact I | apply can_step_intro; auto |].
+        intros σ8 Γ8 x8 σ8' HI8 HR8 Hs8 Hstep8. cbn in Hstep8. destruct Hstep8 as (-> & _).
+        cbn beta iota. apply wp_ret. cbn beta iota. apply wp_ret. unfold quiet. eapply HAst; eauto.
+      * apply wp_ret. cbn beta iota. apply wp_ret. exact HA7.
+Qed.
