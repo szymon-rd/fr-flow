@@ -1,80 +1,129 @@
 # Ox, proven in Rocq against the JDK's contracts
 
-Work in progress. The aim: that no fork outlives its scope ("containment"), proven of Ox 1.1.0's code as it is
-compiled, for every client and any nesting of scopes, from contracts on the JDK's classes and nothing else.
-
-## The files, in the order they are compiled
-
-Library (`modules/proof/rocq/FrFlow/Threads/`, logical path `FrFlow.Threads`):
-
-| File | What it is |
-|---|---|
-| `Prog.v` | A program: returns, calls one operation of a library (`Vis`), loops (`Iter`), calls a closure (`Call`). |
-| `Jdk.v` | The assumptions. Each JDK class Ox uses: its state, and a contract per method (`opstep`). |
-| `Sem.v` | Threads: a configuration, and one thread's step at a time, in any order. |
-| `Logic.v` | `wp`: an invariant, ghost state, a rely; one rule per kind of step. `sound`: no axioms. |
-| `Lang.v` | What Scala's constructs are read as (`bind`, `try_catch`, `try_finally`, `loop`, `while`, traversals). |
-
-Ox (`examples/ox/rocq/Ox/`, logical path `Ox`):
-
-| File | What it is |
-|---|---|
-| `Code.v` | Ox's scopes and forks as programs. Written by hand; the generator (in progress) must reproduce it from TASTy. |
-| `Ghost.v` | The ghost state, the invariant `Inv`, the rely `Rely`. |
-| (to come) | The specifications of the closures, the proof of each method, the theorem. |
-
-Compile from the repository root:
+That no fork outlives its scope ("containment"), proven of Ox 1.1.0's scope and fork code, for every client that
+keeps one stated condition and any nesting of scopes, from contracts on the JDK's classes. Rocq 9.3, its standard
+library, no axioms.
 
 ```bash
-for f in Prog Jdk Sem Logic Lang; do rocq compile -Q modules/proof/rocq/FrFlow FrFlow modules/proof/rocq/FrFlow/Threads/$f.v; done
+sh examples/ox/rocq/check.sh
 ```
 
-```bash
-for f in Code Ghost; do rocq compile -Q modules/proof/rocq/FrFlow FrFlow -Q examples/ox/rocq/Ox Ox examples/ox/rocq/Ox/$f.v; done
-```
+## What is proven
 
-## The theorem aimed at
+`Main.contained`. Take any client whose closures meet `client_ok` (below). Start the first thread on a closure of
+the client's that holds no capability. In every configuration the threads reach, by any order of their steps:
+once the first thread has ended, every other thread's remaining program is a return. No thread has an operation
+of Ox's, of the JDK's or of the client's left to perform.
 
-For every client whose closures keep to the precondition below: in every configuration reached from the first
-thread running the client, by any order of the threads' steps, once the first thread has ended, no other thread
-has an operation left (each thread's remaining program is `Ret`).
+`Example.example_contained`. The same with nothing assumed of the client, for one client: a supervised scope
+whose user fork forks again and opens an inner unsupervised scope, whose own fork holds the outer scope's
+capability.
 
-The client's precondition (confinement): a closure given to `fork` on a scope captures only that scope's
-capability and those of scopes enclosing it. Lexical scoping does not give this: `fork(using outer) { fork(using
-inner) { … } }` type-checks and Ox's run-time check passes it.
+Along the way, of each method (the "claims on members" the theorem is built from):
 
-## The design of the proof
+| Method | Needs | Gives |
+|---|---|---|
+| `new ThreadHerd` | the caller has not ended | a herd is opened, owned by the caller, innermost of its open herds |
+| `startThread` | the caller is inside the herd; the body holds only capabilities of herds enclosing it | the ghost state as the caller left it; the new thread has what it needs |
+| a fork's thread | what `startThread` handed it | it ends owning no open herd, out of its herd's set |
+| `interruptAllAndJoinUntilCompleted` | the caller owns the herd, innermost | the herd is exited and popped, in every outcome; nothing is thrown before the set is found empty |
+| `forkError`, `forkUserError`, `forkUnsupervised`, `fork`, `forkUser` | as `startThread` | as `startThread` |
+| `scopedWithCapability` | the capability's herd is the caller's innermost open herd | the herd is exited and popped, whatever the body and the closing do |
+| `unsupervised`, `supervisedError`, `supervised` | the caller is inside the herd of every capability the closure holds | the ghost state as the caller left it |
+| `DefaultSupervisor`, `NoOpSupervisor`, `Fork.join`, the casts | nothing | they touch nothing the invariant reads (found by a tactic) |
 
-- **Ghost state** (`Ghost.v`). Per herd (named by the reference of its `threads` set): owner, `h_exited` (its
-  closing loop has found the set empty), `h_parent` (the herd it was opened inside), `h_stamp`. Per thread:
-  `g_role` (`Main`, `Created t th b`: made by `t`, not yet in a set; `ForkOf h b`: in herd `h`'s set or once in
-  it), `g_removed` (it has run its `threads.remove`), `g_open` (the herds it owns that are not exited, innermost
-  first). `g_fin`: the references that hold a scope's finalizers.
-- **Where the ghost state changes.** `TsNew` (in `ThreadHerd_new`): the herd is registered, owner the caller,
-  parent the head of the caller's `g_open` or else the herd the caller is a fork of, pushed on the caller's
-  `g_open`. `NewThread`: role `Created`. `TsAdd`: role `ForkOf`. `TsRemove` by the fork itself: `g_removed`.
-  `TsIsEmpty` answering `true` in the closing loop: `h_exited`, popped from `g_open`. `ArNew`: `g_fin`.
-- **Inside.** `anc Γ h h'`: `h'` is `h` or an ancestor by `h_parent`. `inside Γ u h`: `u` is an unremoved fork of
-  some `h0`, or owns an open `h0`, with `anc Γ h0 h`. Key lemma: `Inv σ Γ -> inside Γ u h -> h` is not exited.
-  It is what `TsAdd` needs (a thread added to an exited herd would break `i_exit`), and it is stable for `u`
-  (its own role, flags and open herds; parent links never change).
-- **Preconditions.** `startThread` on herd `h` by `t`: `inside Γ t h`, and for the body `b` every capability it
-  captures is well formed with `anc Γ h (its herd)`. A closure called by `t`: `t` is not removed, and every
-  capability it captures or is given is well formed with `t` inside its herd.
-- **Postconditions.** A call of a closure, and every method but those that open or close a herd, leaves the
-  ghost state as another thread's step could have (`Rely t Γ Γ'`), so what the caller knew stays.
-  `scopedWithCapability` pops the herd it is given, in both outcomes.
-- **Most of the code touches nothing the invariant reads** (futures, counters, the thread-local, `ErrorMode`):
-  it is dispatched by one lemma over a syntactic class of programs (`frameonly`), not operation by operation.
-- **The end.** `Active t Γ := g_removed Γ t = false` is required at every step that is not a thread's end, so a
-  removed thread's program is `Ret`. When the first thread has ended it owns no open herd (`i_done`); then no
-  fork is unremoved, by descent on `h_stamp` along owners.
+## What is asked of a client
+
+`client_ok`: each closure of the client, called by a thread that is inside the herd of every capability the
+closure holds or is given, leaves the ghost state as its caller left it. A client meets it by calling Ox through
+the rules above. The rule for a fork carries the condition that matters:
+
+> A closure forked in a scope holds only that scope's capability and those of scopes enclosing it.
+
+Lexical scoping does not give this: `fork(using outer) { fork(using inner) { … } }` type-checks, and Ox's
+run-time check passes it (it asks whether the caller is in the tree of its own scope, not of the scope it forks
+in). The proof shows where it is needed: `threads.add(thread)` on a herd whose closing loop has already found
+the set empty.
 
 ## What is assumed
 
-`Jdk.v`, read in full: each contract is an assumption. Two are stronger than the JDK's documentation or rest on
-the reference implementation: `TsIsEmpty` (exact at one moment), and that the JVM's type safety makes the casts
-the compiler inserted succeed (`TypeError` has no step). Not modelled: integer overflow, `Thread.stop`, errors
-of the JVM, a `Throwable`'s identity and suppressed list. `ErrorMode` and `ForkLocalMap` are not read: their
-methods are taken to touch nothing of the JDK state here (`Extern`). `uninterruptible` inside `runFinalizers`
-is not read (`Chaos`): the proof must show it unreachable, which holds for clients that register no finalizer.
+1. **`Jdk.v`, every line.** Each JDK class Ox uses is its state and a contract per method; a call is one step
+   among other threads' steps (linearizability, and the memory model's guarantee for code without data races).
+   Two contracts say more than the JDK's documentation:
+   - `TsIsEmpty`: `ConcurrentHashMap`'s `isEmpty` answers `true` only of a set empty at that moment. Its
+     documentation says the method is "not for program control" under concurrent updates.
+   - `TypeError`: a cast the compiler inserted does not fail (the JVM's type safety).
+2. **`Code.v` is Ox.** It was written by hand, method by method and statement by statement, from Ox's Scala. A
+   generator that reads Ox's TASTy and must reproduce it is being built; until it does, that `Code.v` is what
+   Ox's compiled classes do rests on reading.
+3. **Code that is not read.** `ErrorMode` and `ForkLocalMap`: their methods are taken to touch nothing of the
+   state here (`Extern`: any result, no effect). `uninterruptible` inside `runFinalizers`: `Chaos` (anything may
+   happen); the proof shows it is not reached when no finalizer is registered, and the client model has no way to
+   register one.
+4. **Not modelled**: integer overflow, a thread ended from outside (`Thread.stop`), errors of the JVM itself, a
+   `Throwable`'s identity and its suppressed exceptions (`addSuppressed` does nothing).
+
+## What is not proven
+
+- That anything ends. `contained` says what holds once the first thread has ended, not that it does.
+- The outcome of a scope (the body's result or the first failure), that forks are interrupted, that no wake-up is
+  lost: on Ox's code. (`docs/threads/` has the last two on hand-written models.)
+- `forkCancellable`, `par`, `race`, `timeout`, resources and finalizers, channels, `Flow`.
+
+## The files
+
+Library, `modules/proof/rocq/FrFlow/Threads/` (logical path `FrFlow.Threads`):
+
+| File | What it is |
+|---|---|
+| `Prog.v` | A program: returns, calls one operation of a library, loops, calls a closure. |
+| `Jdk.v` | The assumptions: each JDK class Ox uses, its state and a contract per method. |
+| `Sem.v` | Threads: a configuration, and one thread's step at a time, in any order. |
+| `Logic.v` | `wp`: an invariant, ghost state, a rely; a rule per kind of step. `sound`. |
+| `Lang.v` | What Scala's constructs are read as. |
+
+Ox, `examples/ox/rocq/Ox/` (logical path `Ox`):
+
+| File | What it is |
+|---|---|
+| `Code.v` | Ox's scopes and forks as programs. |
+| `Ghost.v` | The ghost state, the invariant `Inv`, the rely `Rely`. |
+| `Facts.v` | Being inside a herd; a herd with a thread inside it is not exited. |
+| `Specs.v` | What is asked of and given by each closure; the rules for throwing programs. |
+| `Frame.v` | Operations and programs that touch nothing the invariant reads. |
+| `Updates.v` | Each step that changes what the invariant reads keeps it. |
+| `Steps.v`, `Inner.v` | Rules for one operation; the innermost herd; the order of herds. |
+| `HerdProofs.v` | `ThreadHerd`, method by method. |
+| `ScopeProofs.v` | The forks and the closures Ox makes. |
+| `Main.v` | Every closure meets what is said of it; `contained`. |
+| `ApiProofs.v` | `scopedWithCapability`, `unsupervised`, `supervised`, `fork`, `forkUser`, `join`. |
+| `Example.v` | A client, and containment for it. |
+
+## The design of the proof
+
+- **Ghost state.** Per herd (named by the reference of its `threads` set): owner, `h_exited` (its closing loop
+  has found the set empty), `h_parent` (the herd it was opened inside), `h_stamp`. Per thread: `g_role` (`Main`;
+  `Created t th b`: made by `t`, not yet in a set; `ForkOf h b`: in herd `h`'s set, or once in it), `g_removed`
+  (it has run its `threads.remove`), `g_open` (the herds it owns that are not exited, innermost first).
+- **Where it changes.** `newKeySet` in `ThreadHerd`'s constructor: the herd is registered and pushed.
+  `newThread`: `Created`. `threads.add`: `ForkOf`. `threads.remove` by the fork: `g_removed`. `isEmpty`
+  answering `true` in the closing loop: `h_exited`, popped.
+- **Inside.** `inside Γ u h`: `u` is an unremoved fork of some `h0`, or owns `h0` open, and `h` is `h0` or an
+  ancestor of it. `Facts.inside_open`: a herd with a thread inside it is not exited. It is what `threads.add`
+  needs, and it is the thread's own to know: its role, its flags, its open herds, and parent links that never
+  change.
+- **A call leaves the ghost state as its caller left it** (`Keep`): what every step keeps (`Ext`), and the
+  caller's own flags and open herds. Only opening and closing a herd say more.
+- **The end.** A thread that has taken itself out may not step (`Active`), so its program is a return. When the
+  first thread has ended it owns no open herd; then no herd is open, by descent on `h_stamp` along owners
+  (`Inner.no_open_herd`); then every fork has taken itself out.
+
+## In FrFlow's terms
+
+| Here | In a FrFlow model |
+|---|---|
+| a JDK class in `Jdk.v`: its state and its methods' contracts | a `provided` structure with an assumption per member |
+| a method's rule in `HerdProofs.v`, `ScopeProofs.v`, `ApiProofs.v` | a claim on a member of a structure read from its class |
+| `client_ok` | an assumption on what comes from outside |
+| `contained` | the root |
+| `Inv` | an `always` over every step of every thread |

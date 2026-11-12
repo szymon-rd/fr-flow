@@ -19,6 +19,33 @@ needs separation logic: Iris. Liveness ("a closing scope completes") needs no Ir
 Ox compiled to steps it is a rank and an assumption of fairness in plain Rocq (`Closing.v`), with assumptions
 about the forks' bodies and the scheduler that are stronger than those of safety.
 
+## The proof on Ox's code
+
+Since this page was first written, containment has been proven of Ox's scope and fork code itself, not of a
+model: [examples/ox/rocq/Ox/README.md](../examples/ox/rocq/Ox/README.md) says what is proven, what is assumed
+and what is not. In short:
+
+- **The design is the one this page proposes.** The JDK's classes are contracts taken as assumptions
+  (`modules/proof/rocq/FrFlow/Threads/Jdk.v`: a state per class, a contract per method). Ox's methods are
+  programs that call them (`examples/ox/rocq/Ox/Code.v`). Each method gets a claim proven from the contracts and
+  from the claims on the methods it calls, and the theorem is proven from those.
+- **The theorem** (`Main.contained`, no axioms): for every client that forks into a scope only closures holding
+  capabilities of that scope or of scopes enclosing it, once the first thread has ended no thread has an
+  operation left, by every order of the threads' steps, at any nesting of scopes. `Example.example_contained` is
+  the same for one client with nothing assumed of it.
+- **It is plain Rocq.** The rules of proof are an invariant with ghost state and a rely, proven sound once
+  (`Logic.v`, 200 lines). Framing, which separation logic gives for nothing, is done by a syntactic class of
+  programs that touch nothing the invariant reads; a tactic finds that the supervisor, the error mode and the
+  futures are in it.
+- **What it rests on that is not the JDK**: `Code.v` is still a translation by hand, statement for statement. The
+  generator that must reproduce it from Ox's TASTy is in progress.
+- **What the proof found, beyond the reading below**: lexical scoping does not confine a capability
+  (`fork(using outer) { fork(using inner) { … } }` type-checks and passes Ox's run-time check), so the
+  condition on the client is about what a forked closure holds, not about where it is written.
+
+The three models in `docs/threads/` stay as they were: `Herd.v` is superseded for containment by the proof on
+the code; `Closing.v` (liveness) and `Wakeup.v` (no lost wake-up) are still models only.
+
 ## Ox's shape
 
 - **A scope** (`supervised`, `supervisedError`, `unsupervised`) is a capability (`Ox`, given to the body as a
@@ -397,8 +424,11 @@ its invariants are what the second needs.
 
 ## Where it stands
 
-- [threads/Herd.v](threads/Herd.v): the model and its two theorems; `rocq compile docs/threads/Herd.v` (Rocq 9.3,
-  about a second). It is not part of `sbt rocqTest`.
+- [examples/ox/rocq/Ox](../examples/ox/rocq/Ox/README.md): containment proven of Ox's code against the JDK's
+  contracts; `sh examples/ox/rocq/check.sh` (Rocq 9.3, under a minute). About 3,900 lines with the library in
+  `modules/proof/rocq/FrFlow/Threads`. Not part of `sbt rocqTest` yet.
+- [threads/Herd.v](threads/Herd.v): the first model and its two theorems; `rocq compile docs/threads/Herd.v`
+  (about a second). It is not part of `sbt rocqTest`.
 - [threads/Closing.v](threads/Closing.v): the closing phase and that it ends under fairness;
   `rocq compile docs/threads/Closing.v`. It uses excluded middle (`classic`), as FrFlow's Rocq library does, and
   is a model of its own: it is not derived from `Herd.v`'s, whose forks have no interrupt and no bound.
