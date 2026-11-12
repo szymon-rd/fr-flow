@@ -36,7 +36,7 @@ Definition client (n : nat) (caps : list OxError) (arg : val) : M val :=
       _ <- fork (Client 3 []) cap ;;
       unsupervised_1 (Client 4 [cap])
   | 4, [outer], VObj (O_OxError inner) =>
-      _ <- forkUnsupervised inner (Client 3 [outer]) ;;
+      _ <- forkUnsupervised (Client 3 [outer]) inner ;;
       ret VUnit
   | _, _, _ => work
   end.

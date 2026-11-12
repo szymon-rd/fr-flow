@@ -186,7 +186,7 @@ Proof.
 Qed.
 
 Lemma forkUnsupervised_spec t ox f Γ0 (Q : exn + Fork -> gh -> Prop) :
-  fork_pre t ox f Γ0 -> (forall r Γ1, Keep t Γ0 Γ1 -> Q r Γ1) -> wp t (forkUnsupervised ox f) Γ0 Q.
+  fork_pre t ox f Γ0 -> (forall r Γ1, Keep t Γ0 Γ1 -> Q r Γ1) -> wp t (forkUnsupervised f ox) Γ0 Q.
 Proof.
   intros Hpre HQ. unfold forkUnsupervised. cbn zeta.
   pose proof Hpre as (Hrm & _ & Hc & Hp & Hm & _).

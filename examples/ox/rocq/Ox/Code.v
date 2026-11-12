@@ -78,7 +78,10 @@ Definition cast_OxError (v : val) : M OxError :=
 Definition cast_option_OxError (v : option val) : M (option OxError) :=
   match v with Some v => x <- cast_OxError v ;; ret (Some x) | None => ret None end.
 Definition cast_DefaultSupervisor (s : Supervisor) : M DefaultSupervisor :=
-  match s with Supervisor_DefaultSupervisor x => ret x | _ => type_error end.
+  match s with
+  | Supervisor_DefaultSupervisor x => ret x
+  | _ => throw (Other "java.lang.ClassCastException")
+  end.
 Definition cast_list (v : val) : M (list val) :=
   match v with VList xs => ret xs | _ => type_error end.
 Definition is_Success (v : val) : bool :=
@@ -349,7 +352,7 @@ Definition Lam_forkUserError_1_body (oxError : OxError) (f : code) (result : nat
       if negb x then _ <- call (CfCompleteExceptionally result e) ;; ret tt else ret tt) ;;
   ret VUnit.
 
-Definition forkUnsupervised (x1 : OxError) (f : code) : M Fork :=
+Definition forkUnsupervised (f : code) (x1 : OxError) : M Fork :=
   let oxUnsupervised := x1 in
   result <- call CfNew ;;
   _ <- ThreadHerd_startThread (OxError_herd oxUnsupervised) (Lam_forkUnsupervised_1 oxUnsupervised f result) ;;
