@@ -62,7 +62,7 @@ object Defining:
       Deferred.pure(Attachment(Code.Provided, Spans.relative(Source.file)))))
 
   extension [T](d: StructureDeclaration[T])
-    /** The structure `d` is the class read here (`limits.define(lifted[SpendLimits])`): each member's code, which
+    /** The structure `d` is the class read here (`limits.define(lifted[RecordedLimits])`): each member's code, which
       * Lean proves meets each claim mentioning the member.
       */
     inline def define[C <: T](code: StructureCode[C]): Definition[T] =

@@ -11,7 +11,7 @@ import frflow.dsl.term.LeanType
 
 /** What a structure's type is to the term language: a record named as the structure's trait, whose fields are those of
   * the class that implements it. A statement about the structure needs the name only (`FrSpec.named`); the class
-  * brings the fields (`record`), declared with the class it is given (`limits.define(lifted[SpendLimits])`).
+  * brings the fields (`record`), declared with the class it is given (`limits.define(lifted[RecordedLimits])`).
   */
 object StructureType:
   /** A structure's state as the evaluator holds it: the values of its fields, equal when they are. An object of

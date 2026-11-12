@@ -31,7 +31,7 @@ type Declaration[A] = frflow.dsl.vocab.Declaration[A]
 
 object Declaration:
   /** `val granted = Declaration[(RoomBookings, Booking) => Boolean]("…")`; of a structure (a trait of the
-    * developer's, its members over domain types), `val limits = Declaration[Limits]("…")`, typed by the trait's
+    * developer's, its members over domain types), `val limits = Declaration[CardLimits]("…")`, typed by the trait's
     * members.
     */
   transparent inline def apply[A](inline means: String): Declaration[A] = frflow.dsl.structure.Declaring[A](means)
@@ -43,6 +43,10 @@ export frflow.dsl.lifted.{Contract, FrSpec, Lifted}
 export frflow.dsl.lifted.LiftSyntax.*
 export frflow.dsl.lifted.steps.StepSyntax.*
 export frflow.dsl.structure.{Call, StructureDeclaration}
+/** What a state of the structure whose trait is named `N` is typed by (`Term[StateOf[N]]`): for what a model says
+  * of any structure's state (`def applied[H <: String](id: Term[PaymentId], in: Term[StateOf[H]])`).
+  */
+type StateOf[N <: String] = frflow.dsl.structure.State[N]
 export frflow.dsl.term.TermSyntax.*
 export frflow.dsl.kb.ValuesSyntax.*
 export frflow.dsl.vocab.Flow

@@ -1,105 +1,108 @@
-# Payments: a stream processor whose services are structures, declared, then defined
+# Payments: a stream handler proven through redelivery, a crash and a second instance
 
 A consumer reads card payments from a log and, for each, checks the card's daily limit, posts the money, and
-commits its position. Every team that has written one knows the ways it goes wrong:
+commits its offset. Every team that has written one knows the ways it goes wrong:
 
-- **A crash loses a payment.** The position was committed before the payment was posted.
+- **A crash loses a payment.** The offset was committed before the payment was posted.
 - **A redelivery charges twice.** The log delivers at least once, and the posting was not guarded.
 - **Two instances take a card over its limit.** After a rebalance both run; each checks the limit, each approves.
 
 None of them shows in a test that runs one call to its end. This example writes the consumer as ordinary Scala
-services and has Lean prove what must hold of them. The log itself is not implemented: that it delivers at least
-once, in order, is a decision the model names.
+and has Lean prove what must hold of it. The log itself is not implemented: that it delivers at least once, in
+order, is a decision the model names.
 
-Each service is written as a structure, a value with members, some of them functions:
+## The code
 
-- **A trait** says what members the structure has. It extends nothing of FrFlow's.
-- **A `Declaration` of the trait's type** is the structure in the model.
-- **The claims** are ordinary `Node.claim`s on that word, written through its members.
-- **A class that implements the trait** is its Definition (`limits.define(lifted[SpendLimits])`), listed in the
-  model beside the nodes. FrFlow reads the class into Lean, and Lean proves it meets every claim on the word.
-
-## A structure
+Four interfaces, each with the members such a service has, and nothing added for the proofs:
 
 ```scala
-trait Limits extends Mutable:
-  update def authorise(p: Payment): Boolean
-  def decided(id: PaymentId): Boolean
-  def approved(id: PaymentId): Boolean
-  def spent(card: CardId, day: BigInt): BigInt
-  def limit: BigInt
+trait PaymentHandler extends Mutable:
+  /** Handles one payment: has it authorised, posts it if it is approved, and commits its offset. */
+  update def handle(payment: Payment): Boolean
 
-object Limits:
-  val limits = Declaration[Limits]("the limits service: it decides each payment against its card's limit of the day")
+trait CardLimits extends Mutable:        // authorise, decided, approved, spent, dailyLimit
+trait Ledger extends Mutable:            // post, posted, postingsOf, total
+trait ConsumerOffsets extends Mutable:   // commit, committed
 
-  val authorisedIsRecorded = Node.claim("A payment authorised is decided, and the answer is the decision recorded.")(
-    forall((p: Term[Payment]) =>
-      limits.decided(p.id).in(limits.authorise(p).after) &&
-        (limits.authorise(p).result === limits.approved(p.id).in(limits.authorise(p).after))))
-
-final class SpendLimits(val limit: BigInt, var decisions: List[Decision]) extends Limits:
-  update def authorise(p: Payment): Boolean =
-    val fits = spent(p.card, p.day) + p.amount <= limit
-    if !decided(p.id) then decisions = decisions :+ Decision(p.id, p.card, p.day, p.amount, fits)
-    approved(p.id)
-  …
-```
-
-In a claim, a member is called as the trait declares it. A member that changes the structure (`update`) has a
-`result` and the structure `after` it; any member can be asked `in` a given state of the structure
-(`limits.decided(id).in(limits.authorise(p).after)`); called plainly it is asked of the structure as it stands. A
-claim holds of the structure in every state: FrFlow binds "the structure as it stands" under a `forall`.
-
-The trait extends Scala's `caps.Mutable` and marks what changes it `update`. That is Scala's own, and it is what
-lets the compiler check, under capture and separation checking, that a structure is not aliased where it is held
-(`Limits^`), so that FrFlow may read a method that changes it as a function from the structure to the structure.
-A trait no member changes needs neither: it is a plain trait, declared and defined the same way.
-
-## A structure made of structures
-
-```scala
-final class StreamProcessor(limits: Limits^, accounts: Accounts^, checkpoint: Checkpoint^) extends Processor:
-  update def handle(p: Payment): Boolean =
-    val approved = limits.authorise(p)
-    if approved then accounts.post(p)
-    checkpoint.commit(p.offset)
+final class StreamPaymentHandler(limits: CardLimits^, ledger: Ledger^, offsets: ConsumerOffsets^)
+    extends PaymentHandler:
+  update def handle(payment: Payment): Boolean =
+    val approved = limits.authorise(payment)
+    if approved then ledger.post(payment)
+    offsets.commit(payment.offset)
     approved
 ```
 
-The model lists each structure's Definition beside its nodes: the class, named by its type. A class that holds
-structures is given the word of each, in the order its constructor takes them:
+The traits extend Scala's `caps.Mutable` and mark what changes them `update`. That is Scala's own: it lets the
+compiler check, under capture and separation checking, that a service is not aliased where it is held
+(`Ledger^`), so FrFlow may read a method that changes it as a function from its state to its state. Ids are
+opaque types (`PaymentId`, `CardId`, `MerchantId`), so one is never given where another is meant.
+
+## The claims
+
+Each trait is declared as a word of the model (`Declaration[Ledger]("…")`: a structure, a value with members),
+and a claim is an ordinary `Node.claim` written through the members:
+
+```scala
+object Ledger:
+  val ledger = Declaration[Ledger]("the ledger: each payment posted to the books once")
+
+  val postIsRepeatable = Node.claim("Posting a payment again changes nothing.")(
+    forall((p: Term[Payment]) => ledger.post(p).in(ledger.post(p).after).after === ledger.post(p).after))
+```
+
+A member that changes the structure (`update`) has a `result` and the structure `after` it; any member can be
+asked `in` a given state; called plainly it is asked of the structure as it stands. A claim holds in every state.
+
+What matters about `handle` is what it does to the ledger, the limits and the offsets. So the claims on the
+handler are said through *their* interfaces, asked as the handler has them:
+
+```scala
+val moneyIsConserved = Node.claim("Handling a payment makes no money and destroys none.")(
+  forall((p: Term[Payment]) => ledger.total.in(handler.handle(p).after) === ledger.total))
+```
+
+`ledger.total.in(handler.handle(p).after)` is the total of the ledger the handler holds, after the call; the
+plain `ledger.total` beside it is that same ledger as it stands. What a claim needs more than once is a
+definition in the model, not a member of a trait: "a payment is applied" is `PaymentHandler.applied`, decided and
+posted if approved.
+
+## The model
 
 ```scala
 val payments: FrModel = FrModel("Payments")(…,
-  limits.define(lifted[SpendLimits]),
-  accounts.define(lifted[LedgerAccounts]),
-  checkpoint.define(lifted[OffsetCheckpoint]),
-  processor.define(lifted[StreamProcessor](limits, accounts, checkpoint)))
+  limits.define(lifted[RecordedLimits]),
+  ledger.define(lifted[PostingLedger]),
+  offsets.define(lifted[CommittedOffset]),
+  handler.define(lifted[StreamPaymentHandler](limits, ledger, offsets)))
 ```
 
-So in Lean the processor's code is a function of *any* `authorise`, `post` and `commit`, and its claims are proven
-from the claims on `limits`, `accounts` and `checkpoint`, not from `SpendLimits`' body. Another class given for
-`limits` (one over a database) is held to the same claims; the processor's proofs do not change.
+The model lists each word's Definition beside its nodes: the class, named by its type. A class that holds
+structures is given the word of each, in the order its constructor takes them; that is also what says which
+ledger a claim on the handler speaks of. In Lean the handler's code is a function of *any* `authorise`, `post`
+and `commit`, and its claims are proven from the claims on `limits`, `ledger` and `offsets`, not from the classes'
+bodies. Another class given for `ledger` (one over a database) is held to the same claims; the handler's proofs
+do not change.
 
 | File | What it holds |
 | --- | --- |
-| `Ids.scala` | `PaymentId`, `CardId`, `MerchantId`: opaque types over a string, so one is never given for another |
+| `Ids.scala` | `PaymentId`, `CardId`, `MerchantId`: opaque types over a string |
 | `Domain.scala` | `Payment` (contract: the amount is positive), `Decision`, `Account`, `Posting` |
-| `Limits.scala`, `Accounts.scala`, `Checkpoint.scala` | A structure each: the trait, its Declaration and claims in the companion, the class |
-| `Processor.scala` | The processor: the same, over the three |
-| `Eager.scala`, `Hasty.scala` | Two first versions of the processor, each with one of the bugs |
-| `Payments.scala` | The model: which claim rests on which, each structure's Definition, what is trusted |
+| `CardLimits.scala`, `Ledger.scala`, `ConsumerOffsets.scala` | Each: the trait, its word and claims in the companion, a class |
+| `PaymentHandler.scala` | The handler: the trait, its word, the claims on it, the class |
+| `EagerHandler.scala`, `HastyHandler.scala` | Two first versions of the handler, each with one of the bugs |
+| `Payments.scala` | The model: which claim rests on which, each word's Definition, what is trusted |
 
 ## Every step of a call: a crash, a second instance
 
-`handle` makes three calls of the structures it holds. Each is a step: a crash may stop the call after any of them, and
+`handle` makes three calls of what it holds. Each is a step: a crash may stop the call after any of them, and
 after a rebalance another instance may run its own steps in between. A call in a claim has its steps:
 
 ```scala
 val noStepMakesMoney = Node.claim("No step of handling a payment makes money or destroys it.")(
   forall((p: Term[Payment]) =>
-    processor.handle(p).amongOthers(run => run.steps.forall(step =>
-      processor.total.in(step._2) === processor.total.in(step._1)))))
+    handler.handle(p).amongOthers(run => run.steps.forall(step =>
+      ledger.total.in(step._2) === ledger.total.in(step._1)))))
 ```
 
 - `call.steps` is each step that changes the structure: the structure as the step found it, and as it left it. A
@@ -119,22 +122,22 @@ state the crash left, and `handledIsApplied` holds from any state.
 
 | Claim | Says | Proof |
 | --- | --- | --- |
-| `Processor.handledIsApplied` | A payment handled is decided, and posted if approved, from any state | automatic |
-| `Processor.appliedStaysApplied` | Handling a payment leaves every payment applied before applied | automatic |
-| `Processor.positionMovesPastTheHandled` | Handling the payment the position is at moves it one past | automatic |
-| `Processor.redeliveryChangesNothing` | Handled again, a payment gets the answer it got and changes nothing | automatic |
-| `Processor.fittingIsApproved` | A new payment that fits the limit is approved | automatic |
-| `Processor.handlingKeepsWithinLimit` | A card within its limit of a day stays within it | automatic |
-| `Processor.moneyIsConserved` | Handling a payment makes no money and destroys none | automatic |
-| `Processor.handlingKeepsMarks`, `postedOnce` | A payment with postings stays marked, and gets no more | automatic |
-| `Processor.everyStepKeepsWithinLimit` | No step takes a card over its limit, whatever other calls do between | automatic |
-| `Processor.noStepMakesMoney` | No step makes money or destroys it | automatic |
-| `Processor.noStepPostsTwice` | No step adds to the postings of a payment that has some | automatic |
-| `Processor.everyStepLeavesOthersUndisturbed` | Each step leaves what was decided decided, what was posted posted | automatic |
-| `Processor.neverCommitsAhead` | No step moves the position but one that leaves the payment applied: a crash after any step loses no payment | by hand |
-| `Limits.authorisedIsRecorded`, `authoriseIsRepeatable` | The answer is what is recorded; a second call changes nothing | by hand |
-| `Limits` (3 more), `Accounts` (6), `Checkpoint` (2) | What each call does and keeps | automatic |
-| `Eager.eagerAppliesThePayment`, `Hasty.hastyPostsWhatItApproves` | What each first version does right | automatic |
+| `PaymentHandler.handledIsApplied` | A payment handled is decided, and posted if approved, from any state | automatic |
+| `PaymentHandler.appliedStaysApplied` | Handling a payment leaves every payment applied before applied | automatic |
+| `PaymentHandler.offsetMovesPastTheHandled` | Handling the payment at the committed offset moves it one past | automatic |
+| `PaymentHandler.redeliveryChangesNothing` | Handled again, a payment gets the answer it got and changes nothing | automatic |
+| `PaymentHandler.fittingIsApproved` | A new payment that fits the limit is approved | automatic |
+| `PaymentHandler.handlingKeepsWithinLimit` | A card within its limit of a day stays within it | automatic |
+| `PaymentHandler.moneyIsConserved` | Handling a payment makes no money and destroys none | automatic |
+| `PaymentHandler.handlingKeepsMarks`, `postedOnce` | A payment with postings stays marked, and gets no more | automatic |
+| `PaymentHandler.everyStepKeepsWithinLimit` | No step takes a card over its limit, whatever other calls do between | automatic |
+| `PaymentHandler.noStepMakesMoney` | No step makes money or destroys it | automatic |
+| `PaymentHandler.noStepPostsTwice` | No step adds to the postings of a payment that has some | automatic |
+| `PaymentHandler.everyStepLeavesOthersUndisturbed` | Each step leaves what was decided decided, what was posted posted | automatic |
+| `PaymentHandler.neverCommitsAhead` | No step moves the committed offset but one that leaves the payment applied: a crash after any step loses no payment | by hand |
+| `CardLimits.authorisedIsRecorded`, `authoriseIsRepeatable` | The answer is what is recorded; a second call changes nothing | by hand |
+| `CardLimits` (3 more), `Ledger` (6), `ConsumerOffsets` (2) | What each call does and keeps | automatic |
+| `EagerHandler.eagerAppliesThePayment`, `HastyHandler.hastyPostsWhatItApproves` | What each first version does right | automatic |
 
 29 claims: 26 by FrFlow's own tactic, 3 by hand. The hand proofs, two lemmas, the witnesses and the examples'
 proofs are about 260 lines of Lean under `lean/Proofs/Payments/`. Lean checks both kinds; no proof uses `sorry` or
@@ -146,27 +149,27 @@ after a restart.
 
 ## The two first versions
 
-Each is the processor with its lines in another order, defines a word of its own, does one thing
+Each is the handler with its lines in another order, defines a word of its own, does one thing
 provably right, and passes any test of one call run to its end. An example shows what it gets wrong.
 
 | Version | The difference | Proven of it | What an example shows |
 | --- | --- | --- | --- |
-| `EagerProcessor` | Commits first | Run to its end it leaves the payment applied | Stopped after its first step, the position is past a payment never applied |
-| `HastyProcessor` | Reads what the card spent and the limit, decides itself, then has the payment recorded | A payment it approves is posted | Another payment approved between its check and its record: it approves and posts a payment the limits service declined |
+| `CommitFirstHandler` | Commits first | Run to its end it leaves the payment applied | Stopped after its first step, the committed offset is past a payment never applied |
+| `CheckThenActHandler` | Reads what the card spent and the limit, decides itself, then has the payment recorded | A payment it approves is posted | Another payment approved between its check and its record: it approves and posts a payment the card limits declined |
 
-There is no version that charges twice on redelivery: the processor cannot. Posting once is the accounts
-service's (`postIsRepeatable`), and a class given for `accounts` that did not keep it would fail that proof.
+There is no version that charges twice on redelivery: the handler cannot. Posting once is the ledger's
+(`postIsRepeatable`), and a class given for `ledger` that did not keep it would fail that proof.
 
 The examples are in `PaymentsExamples`. A state is given as an object of the class that implements the trait:
 
 ```scala
-private val start = processor.holding(
-  StreamProcessor(SpendLimits(BigInt(100), Nil), LedgerAccounts(Nil, Nil), OffsetCheckpoint(BigInt(0))))
+private val start = handler.holding(
+  StreamPaymentHandler(RecordedLimits(BigInt(100), Nil), PostingLedger(Nil, Nil), CommittedOffset(BigInt(0))))
 
-example("a payment within the limit: approved, posted, the position past it"):
-  val done = processor.handle(coffee).in(start)
-  done.result && (processor.postingsOf(p1).in(done.after) is charged) &&
-    (processor.position.in(done.after) is BigInt(1))
+example("a payment within the limit: approved, posted, its offset committed"):
+  val done = handler.handle(coffee).in(start)
+  done.result && (ledger.postingsOf(p1).in(done.after) is charged) &&
+    (offsets.committed.in(done.after) is BigInt(1))
 ```
 
 The Scala evaluator computes each of the eight on the code read from the classes, and Lean proves each from the
@@ -195,12 +198,15 @@ accepted: deciding them is the developer's, with their signing key.
 - **State invariants as such.** A claim is said of the structure in every state, so "no card is over its limit" is
   stated as what each call, and each step, keeps, not as a fact of every state.
 - **The whole log as one theorem.** What is proven is the step: each call leaves its payment applied and moves the
-  position only past it. "Every payment below the position is applied" follows by induction over the log, which
-  rests on `deliveryIsAtLeastOnce` and is not carried out in Lean.
+  committed offset only past it. "Every payment below the committed offset is applied" follows by induction over
+  the log, which rests on `deliveryIsAtLeastOnce` and is not carried out in Lean.
 - **A step is a call of a held structure.** That each such call is one transaction is the held structure's to keep:
   a class over a database does it with a transaction, and the model does not check that it does.
 - **One class for a trait.** A model gives one class for each structure's trait, so a second implementation of
-  `Accounts` cannot stand beside the first in this model; the first versions are traits of their own.
+  `Ledger` cannot stand beside the first in this model; that is why the two first versions have traits of their
+  own (`EagerHandler`, `HastyHandler`) where plain Scala would have them implement `PaymentHandler`.
+- **Amounts, days and offsets are plain numbers.** Only ids have types of their own; the reader does not yet read
+  arithmetic on an opaque type.
 - **A class FrFlow cannot read.** `defineTested` for a structure, a class tested against the claims, is not
   built; nor is the classes' Scala tested against the terms read from them on generated cases.
 - **A member no claim mentions** has its code, and nothing is proven of it.

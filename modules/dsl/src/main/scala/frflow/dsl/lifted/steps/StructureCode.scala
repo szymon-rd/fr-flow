@@ -6,10 +6,10 @@ import frflow.dsl.lifted.FrSpec
 import frflow.dsl.vocab.Definition
 import scala.annotation.publicInBinary
 
-/** A class that implements a structure, read by FrFlow (`lifted[SpendLimits]`): the record its state is, and
+/** A class that implements a structure, read by FrFlow (`lifted[RecordedLimits]`): the record its state is, and
   * each member's code, a function of that record read from the method's body; of a member that changes the
   * structure, also its code among other calls (under `among(member)`). What a structure's word is given
-  * (`limits.define(lifted[SpendLimits])`), typed by the class; it is no word to mention in a statement. `held`
+  * (`limits.define(lifted[RecordedLimits])`), typed by the class; it is no word to mention in a statement. `held`
   * is each structure the class holds: the word given for it, and how a state of the class gives its state.
   */
 final class StructureCode[T] @publicInBinary private[dsl] (called: String, val state: FrSpec[T],
@@ -17,10 +17,10 @@ final class StructureCode[T] @publicInBinary private[dsl] (called: String, val s
     extends Definition[T](SymbolName(called), "", None, WrittenAt.none)(using state)
 
 object StructureCode:
-  /** A structure a class holds: its word's name, the word that is "what the class holds as it"
-    * (`StructureDeclaration.held`), and that word's code, the class's field read.
+  /** A structure a class holds: its word's name and its members' words, the word that is "what the class holds
+    * as it" (`StructureDeclaration.held`), and that word's code, the class's field read.
     */
-  final case class Held(part: SymbolName, word: Definition[?], code: Definition[?])
+  final case class Held(part: SymbolName, members: List[SymbolName], word: Definition[?], code: Definition[?])
 
   /** What a member's code among other calls is kept under. */
   def among(member: String): String = s"$member among"

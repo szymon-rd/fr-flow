@@ -42,7 +42,7 @@ object Elaborate:
       vocabulary(declared).andThen { (all, v) =>
         Modelled.table(v, code.toMap, kb.operations, kb.writtenIn).map { table =>
           val theory = IrCheck.checked(Constancy.expanded(Theory(kb.name, v, ns.map(_._1), ns.flatMap(_._2),
-            table.copy(unclaimed = kb.members), kb.writtenIn, Own(all.written, all.referred))))
+            table.copy(unclaimed = kb.members, held = kb.reached), kb.writtenIn, Own(all.written, all.referred))))
           Elaborated(theory, all.types.collect { case (n, d :: _) => n -> d.rep }, kb.generators)
         }
       }

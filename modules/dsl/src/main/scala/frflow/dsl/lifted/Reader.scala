@@ -59,7 +59,8 @@ private[lifted] final class Reader(val q: Quotes, val structures: Structures = S
   /** The Definition the structure a field holds was made with (`structures.wiring`). */
   def wired(on: Term)(using Quotes): Expr[StructureDeclaration[?]] = structures.wiring.get(bare(on).symbol.name).fold(
     refuse("a call of a structure FrFlow does not know the Definition of: a class read by FrFlow calls the " +
-      "structures it is made with (`lifted[StreamProcessor](limits, …)`)", on))(_.asExprOf[StructureDeclaration[?]])
+      "structures it is made with (`lifted[StreamPaymentHandler](limits, …)`)", on))(
+      _.asExprOf[StructureDeclaration[?]])
 
   /** What a call of a structure's member gives its inputs' types. */
   def inputsOf(on: Term, member: Symbol): List[TypeRepr] = on.tpe.widen.memberType(member) match

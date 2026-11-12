@@ -17,7 +17,11 @@ import frflow.dsl.vocab.Definition
   */
 final case class FrModel(name: KbName, nodes: List[Node], meanings: List[(SymbolName, Deferred[Attachment])],
     operations: List[Operations], generators: List[Generator[?]], writtenIn: Option[RelPath],
-    members: Set[SymbolName] = Set.empty, holds: Map[SymbolName, Set[SymbolName]] = Map.empty):
+    members: Set[SymbolName] = Set.empty, holdings: List[FrModel.Holding] = Nil):
+  /** Which structures hold each structure, by their words (`Stating.holds`). */
+  def holds: Map[SymbolName, Set[SymbolName]] = holdings.groupMap(_.part)(_.holder).view.mapValues(_.toSet).toMap
+  /** What each word of "what a structure holds" gives: the held structure's members' words (`CodeTable.held`). */
+  def reached: Map[SymbolName, Set[SymbolName]] = holdings.map(h => h.word -> h.members.toSet).toMap
   /** Elaborated once per value (a `lazy val`: the FrModel is immutable), for every check and run of it. */
   lazy val elaborated: ValidatedNec[ElabError, Elaborated] = Elaborate(this)
   /** The words the model fixes: those it gives a meaning, and those its code calls (`Elaborate.fixed`). */
@@ -30,9 +34,8 @@ final case class FrModel(name: KbName, nodes: List[Node], meanings: List[(Symbol
   /** The same of a structure's member: its code is its meaning whether or not a statement mentions it. */
   private[dsl] def attachMember(d: SymbolName, a: Deferred[Attachment]): FrModel =
     attach(d, a).copy(members = members + d)
-  /** The same, the structure `holder` holding the structures of the words `parts` (`Stating.holds`). */
-  private[dsl] def holding(holder: SymbolName, parts: List[SymbolName]): FrModel =
-    copy(holds = parts.foldLeft(holds)((all, p) => all.updated(p, all.getOrElse(p, Set.empty) + holder)))
+  /** The same, with what a structure's class holds. */
+  private[dsl] def holding(held: List[FrModel.Holding]): FrModel = copy(holdings = (holdings ++ held).distinct)
   /** The same model with these Definitions listed too: a word given a meaning here takes it in place of one it
     * had.
     */
@@ -46,10 +49,15 @@ final case class FrModel(name: KbName, nodes: List[Node], meanings: List[(Symbol
   private def taking(given_ : FrModel): FrModel =
     given_.meanings.foldLeft(this)((kb, m) => kb.attach(m._1, m._2))
       .copy(operations = operations ++ given_.operations, members = members ++ given_.members,
-        holds = given_.holds.foldLeft(holds)((all, h) => all.updated(h._1, all.getOrElse(h._1, Set.empty) ++ h._2)))
+        holdings = (holdings ++ given_.holdings).distinct)
   private[dsl] def implement(o: Operations): FrModel = copy(operations = operations :+ o)
 
 object FrModel:
+  /** A structure held by another's class: the holder's word, the held one's, the word that is what the holder
+    * holds as it, and the held structure's members' words.
+    */
+  final case class Holding(holder: SymbolName, part: SymbolName, word: SymbolName, members: List[SymbolName])
+
   /** What a FrModel is made of: its nodes, and the Definitions of its words (`granted.define { … }`,
     * `defineOperations(inRoom, add)(…)(…)`). A Definition declared and defined at once (`define { … }`) needs no
     * listing: a statement or code that mentions it brings it.

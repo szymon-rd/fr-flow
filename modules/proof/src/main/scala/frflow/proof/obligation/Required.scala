@@ -54,10 +54,12 @@ object Required:
     * it mentions the Definition: a part about a Definition the code calls, or about the node's own Definitions and
     * Declarations (sound: each part is checked against the same code, and `Validate` refuses a circle). A leaf's is
     * what its code relies on, as written: the statements about what the code calls (`Resolved.reliesOn`). A fixed
-    * value the claim or its code reads stands as that value (2.7), in the claim and in each part reading it.
+    * value the claim or its code reads stands as that value (2.7), in the claim and in each part reading it. The
+    * members of a structure the claim reaches through its holder (`CodeTable.held`) are left as they are stated:
+    * known by the parts, as what the holder's code calls is.
     */
   def impl(r: Resolved, n: NodeId): List[Obligation] =
-    SaysWhat.checkedAgainst(r.theory, n).orElse(ofModels(r, n)).toList.map { c =>
+    SaysWhat.checkedAgainst(r.theory, n).orElse(ofModels(r, n)).toList.map(reached(r, n, _)).map { c =>
       val hyps = hypotheses(r, n)
       val fixed = Fixed.of(r, (n :: hyps).flatMap(Constrained.of(r.theory, _)) ++ c.standsFor.keys)
       val code = c.standsFor.view.mapValues(Substitute.Code(_)).toMap ++ fixed
@@ -70,6 +72,11 @@ object Required:
           else s"Every result of ${c.standsFor.values.map(_.value).mkString(" and ")} meets ${n.value}") +
           givenWhat(hyps))
     }
+
+  /** The code a node is asked of, less that of the structures it reaches through their holder. */
+  private def reached(r: Resolved, n: NodeId, c: Callees): Callees =
+    val through = Constrained.of(r.theory, n).flatMap(r.theory.code.held.getOrElse(_, Set.empty)).toSet
+    c.copy(standsFor = c.standsFor.filterNot((s, _) => through(s)))
 
   /** What `impl` of a node rests on: the parts it states, or for a leaf what its code relies on; and always what is
     * assumed of an operation known only by assumptions it or its code reaches (G2, `Resolve.assumedOf`): what such a

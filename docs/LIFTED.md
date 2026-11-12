@@ -304,18 +304,18 @@ implements the trait is its Definition. The word is logic's: the trait is a sign
 it, the class a structure the theory is proven of. A service is written as one.
 
 ```scala
-trait Limits extends caps.Mutable:                                 // the members: nothing of FrFlow's
+trait CardLimits extends caps.Mutable:                                 // the members: nothing of FrFlow's
   update def authorise(p: Payment): Boolean
   def decided(id: String): Boolean
 
 object Limits:
-  val limits = Declaration[Limits]("the limits service: …")         // the structure in the model
+  val limits = Declaration[CardLimits]("the card limits: …")         // the structure in the model
   val authorisedIsRecorded = Node.claim("A payment authorised is decided.")(
     forall((p: Term[Payment]) => limits.decided(p.id).in(limits.authorise(p).after)))
 
-final class SpendLimits(val limit: BigInt, var decisions: List[Decision]) extends Limits: …   // a value for it
+final class RecordedLimits(val dailyLimit: BigInt, var decisions: List[Decision]) extends CardLimits: …   // a value for it
 
-FrModel("Payments")(…, limits.define(lifted[SpendLimits]))
+FrModel("Payments")(…, limits.define(lifted[RecordedLimits]))
 ```
 
 - `Declaration[T]` of a trait of the developer's is typed by the trait's members: each is called in a statement
@@ -330,15 +330,21 @@ FrModel("Payments")(…, limits.define(lifted[SpendLimits]))
 - A claim is said of the structure in every state: "the structure as it stands" is a variable the claim is closed
   over. So a claim is one that code holding the structure can rely on, whatever state it holds it in; and a fact
   of every state ("no card is over its limit") is stated as what each call keeps.
-- `lifted[SpendLimits]` reads the class member by member. Its state is a record named as the trait, a field for
+- `lifted[RecordedLimits]` reads the class member by member. Its state is a record named as the trait, a field for
   each of the constructor's; each member's body is read into a function of that record. `limits.define(…)`
   gives each member's word its code, and Lean proves the code meets every claim that mentions the member.
 - A class made with other structures is given their words, in the order its constructor takes them:
-  `lifted[StreamProcessor](limits, accounts, checkpoint)`. A call of a member of a structure it holds is a call of
+  `lifted[StreamPaymentHandler](limits, ledger, offsets)`. A call of a member of a structure it holds is a call of
   that word's member, written as a statement of its own in a member that changes the class (`val cost =
   pricing.price(item)`), so in Lean the class's code is a function of any members that meet the claims on them,
   and it is proven from those claims. One class is given for a trait in a model: the trait's record is that
   class's fields.
+- A claim on a structure made of others is said through their interfaces, asked as it has them:
+  `ledger.posted(p.id).in(handler.handle(p).after)` is `posted` of the ledger the handler holds, after the call,
+  and a structure read as it stands beside its holder (`ledger.total` beside `handler.handle(p)`) is the one
+  held. So a trait needs no member for the proofs' sake: `PaymentHandler` has `handle` alone, and what a claim
+  needs more than once ("a payment is applied") is a definition in the model. Which structure holds which is said
+  where the class is lifted with their words; one read as it stands beside two holders is refused.
 - A member that changes the structure takes steps: a class that holds no structure makes its change in one, a
   class made of structures takes one for each call it makes of them (a query too). `call.steps` is each step that
   changes the structure, as the step found it and as it left it; a crash leaves the structure as one of them did.
@@ -347,7 +353,7 @@ FrModel("Payments")(…, limits.define(lifted[SpendLimits]))
   under every such schedule; `run.others` is what the others did before each step, for a claim to say what it
   takes of them. What it takes, a claim over the structure's own steps shows it grants.
 - An example gives a state as an object of the class, made where it is given:
-  `limits.holding(SpendLimits(BigInt(100), Nil))`, and a schedule as `limits.nobody.updated(BigInt(2), left)`.
+  `limits.holding(RecordedLimits(BigInt(100), Nil))`, and a schedule as `limits.nobody.updated(BigInt(2), left)`.
   The evaluator holds a state as its fields' values, so two states are equal when their fields are.
 - A member no claim mentions has its code (an example may call it), and nothing is proven of it.
 - A structure's states are typed by the structure's name (`limits.State`, `limits.Schedule`), not by its trait:

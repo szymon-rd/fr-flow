@@ -5,10 +5,10 @@ import language.experimental.separationChecking
 import caps.Mutable
 import frflow.*
 
-/** The limits service: it decides each payment against its card's limit of the day, once. */
-trait Limits extends Mutable:
-  /** Decides a payment not yet decided, and answers what is decided of it: whether it is approved. */
-  update def authorise(p: Payment): Boolean
+/** Card limits: each payment is authorised once, against what its card may spend in a day. */
+trait CardLimits extends Mutable:
+  /** Authorises a payment not yet decided, and answers what is decided of it: whether it is approved. */
+  update def authorise(payment: Payment): Boolean
   /** Whether a payment has been decided, approved or declined. */
   def decided(id: PaymentId): Boolean
   /** Whether a payment has been decided and approved. */
@@ -16,10 +16,11 @@ trait Limits extends Mutable:
   /** What a card has spent on a day: the sum of its approved payments of that day. */
   def spent(card: CardId, day: BigInt): BigInt
   /** What a card may spend in a day. */
-  def limit: BigInt
+  def dailyLimit: BigInt
 
-object Limits:
-  val limits = Declaration[Limits]("the limits service: it decides each payment against its card's limit of the day")
+object CardLimits:
+  val limits = Declaration[CardLimits]("the card limits: each payment authorised once against its card's limit of " +
+    "the day")
 
   val authorisedIsRecorded = Node.claim("A payment authorised is decided, and the answer is the decision " +
       "recorded.")(
@@ -36,14 +37,14 @@ object Limits:
   val fittingIsAuthorised = Node.claim("A payment not yet decided that fits its card's limit of the day is " +
       "authorised.")(
     forall((p: Term[Payment]) =>
-      (!limits.decided(p.id) && limits.spent(p.card, p.day) + p.amount <= limits.limit) implies
+      (!limits.decided(p.id) && limits.spent(p.card, p.day) + p.amount <= limits.dailyLimit) implies
         limits.authorise(p).result))
 
   val authoriseKeepsWithinLimit = Node.claim("Authorising a payment leaves a card within its limit of a day " +
       "within it.")(
     forall((card: Term[CardId], day: Term[BigInt], p: Term[Payment]) =>
-      (limits.spent(card, day) <= limits.limit) implies
-        (limits.spent(card, day).in(limits.authorise(p).after) <= limits.limit.in(limits.authorise(p).after))))
+      (limits.spent(card, day) <= limits.dailyLimit) implies
+        (limits.spent(card, day).in(limits.authorise(p).after) <= limits.dailyLimit.in(limits.authorise(p).after))))
 
   val authoriseKeepsDecisions = Node.claim("Authorising a payment leaves every payment decided before decided " +
       "as it was.")(
@@ -52,12 +53,13 @@ object Limits:
         (limits.decided(id).in(limits.authorise(p).after) &&
           (limits.approved(id).in(limits.authorise(p).after) === limits.approved(id)))))
 
-/** The limits service over a list of decisions. */
-final class SpendLimits(val limit: BigInt, var decisions: List[Decision]) extends Limits:
-  update def authorise(p: Payment): Boolean =
-    val fits = spent(p.card, p.day) + p.amount <= limit
-    if !decided(p.id) then decisions = decisions :+ Decision(p.id, p.card, p.day, p.amount, fits)
-    approved(p.id)
+/** Card limits kept as the decisions made, in the order made. */
+final class RecordedLimits(val dailyLimit: BigInt, var decisions: List[Decision]) extends CardLimits:
+  update def authorise(payment: Payment): Boolean =
+    val fits = spent(payment.card, payment.day) + payment.amount <= dailyLimit
+    if !decided(payment.id) then
+      decisions = decisions :+ Decision(payment.id, payment.card, payment.day, payment.amount, fits)
+    approved(payment.id)
 
   def decided(id: PaymentId): Boolean = decisions.exists(d => d.id == id)
   def approved(id: PaymentId): Boolean = decisions.exists(d => d.id == id && d.approved)

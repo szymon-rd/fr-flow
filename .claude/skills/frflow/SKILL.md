@@ -292,15 +292,18 @@ stay in the DSL.
 A service can be proven as written. Write it as a structure, a value with members (`examples/payments`,
 `docs/LIFTED.md` "A structure: a value with members"): a trait of its members; when a member changes it, the trait
 extends `caps.Mutable`, with what changes it marked `update`, in a file with capture and separation checking; when
-none does, a plain trait that is not sealed, its members over domain types; in the trait's companion `val limits = Declaration[Limits]("…")` and the claims,
+none does, a plain trait that is not sealed, its members over domain types; in the trait's companion `val limits = Declaration[CardLimits]("…")` and the claims,
 through the members (`limits.authorise(p).result`, `.after`, `limits.decided(id).in(state)`, `limits.current`); a
-class that implements the trait; and in the model its Definition, `limits.define(lifted[SpendLimits])`. A class
-made of structures is given their words (`lifted[StreamProcessor](limits, accounts, checkpoint)`) and is proven
+class that implements the trait; and in the model its Definition, `limits.define(lifted[RecordedLimits])`. A class
+made of structures is given their words (`lifted[StreamPaymentHandler](limits, ledger, offsets)`) and is proven
 from the claims on them, so wire those claims under its own with `.refines`; in a member that changes the class,
-give each call of a held structure a statement of its own. A claim holds of the structure in every state: state an invariant as what each call keeps. For a crash and for other callers, claim over the call's steps
+give each call of a held structure a statement of its own. Never add a member to a trait for a claim's sake: say
+what the holder does through the interfaces of what it holds, asked as it has them
+(`ledger.posted(p.id).in(handler.handle(p).after)`; `ledger.total` beside `handler.handle(p)` is the held
+ledger's), and write shared vocabulary ("a payment is applied") as a definition in the model. A claim holds of the structure in every state: state an invariant as what each call keeps. For a crash and for other callers, claim over the call's steps
 (`call.steps`, `call.amongOthers(run => run.steps.forall(step => …))`, `run.others` for what it takes of them),
 and claim that each of its own steps grants what it takes. Name a state's type `limits.State`, never
-`Term[Limits]`. In an example give a state with `limits.holding(SpendLimits(…))`. Give one class per trait in a
+`Term[CardLimits]`. In an example give a state with `limits.holding(RecordedLimits(…))`. Give one class per trait in a
 model.
 
 The earlier way, a word per method, is still read (`examples/wallet`, `examples/shop`,

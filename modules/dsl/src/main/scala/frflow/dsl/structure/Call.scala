@@ -34,7 +34,7 @@ final class Call[T, R] private (made: Call.Made[T], ran: Call.Ran[T, R])
     */
   def among(between: Term[Map[BigInt, T]]): Call[T, R] = Call.over(made.copy(between = Some(between)))
   /** What holds of the call made among other calls, whatever they do: `holds` of the call under every schedule
-    * (`processor.handle(p).amongOthers(run => run.steps.forall(step => …))`).
+    * (`handler.handle(p).amongOthers(run => run.steps.forall(step => …))`).
     */
   def amongOthers(holds: Call[T, R] => Term[Boolean]): Term[Boolean] =
     Terms.forall[Map[BigInt, T]]("between", between => holds(among(between)))(using made.schedule)

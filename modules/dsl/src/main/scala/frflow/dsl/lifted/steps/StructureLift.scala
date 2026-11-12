@@ -7,10 +7,10 @@ import frflow.dsl.term.Term as DTerm
 import frflow.dsl.vocab.Definition as Defined
 import scala.quoted.*
 
-/** `lifted[SpendLimits]`: a class that implements a structure, read member by member. Its state is the record of
+/** `lifted[RecordedLimits]`: a class that implements a structure, read member by member. Its state is the record of
   * its constructor's fields; each member's body is read into a function of that record: what it gives, and, of a
   * member that changes the structure, the record after it. A class that holds structures is given the word of each,
-  * in the order its constructor takes them (`lifted[StreamProcessor](limits, accounts, checkpoint)`): a call of a
+  * in the order its constructor takes them (`lifted[StreamPaymentHandler](limits, ledger, offsets)`): a call of a
   * held structure's member is a call of that word's, so the class is proven from the claims on the structures it is
   * made with.
   */
@@ -65,7 +65,7 @@ object StructureLift:
     }
     held
 
-  /** `limits.holding(SpendLimits(BigInt(100), Nil))`: an object of a class that implements a structure, as a state
+  /** `limits.holding(RecordedLimits(BigInt(100), Nil))`: an object of a class that implements a structure, as a state
     * of the structure: the record of its constructor's fields, a structure it is made with the record of the object
     * given for it.
     */
@@ -92,7 +92,7 @@ object StructureLift:
     r.bare(structure) match
       case Apply(Select(New(tpt), _), args) => (tpt.tpe.typeSymbol, args)
       case other                            => r.refuse("a structure that is not made where it is given " +
-        "(`limits.holding(SpendLimits(…))`)", other)
+        "(`limits.holding(RecordedLimits(…))`)", other)
 
   /** The structure a class implements. */
   private def implemented(r: Reader)(cls: r.q.reflect.Symbol): r.q.reflect.Symbol =
@@ -107,7 +107,7 @@ object StructureLift:
     val impl = cls.asInstanceOf[Symbol]
     Expr.ofList(structures.wiring.toList.map((field, word) =>
       '{ val part = ${ word.asExprOf[StructureDeclaration[?]] }
-         StructureCode.Held(part.name, StructureDeclaration.held($state, part.name, part.leanType),
+         StructureCode.Held(part.name, part.words, StructureDeclaration.held($state, part.name, part.leanType),
            ${ code.held[T](impl, impl.fieldMember(field)) }) }))
 
   /** Each member's code, by the member's name. */

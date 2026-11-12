@@ -8,8 +8,8 @@ import payments.PaymentsExamples
 import scala.annotation.experimental
 import scala.concurrent.duration.*
 
-/** The payment stream (`examples/payments`), checked by Lean end to end: the class given for each service is
-  * proven to meet the claims on the service's Definition, the processor's from the claims on the services it is
+/** The payment stream (`examples/payments`), checked by Lean end to end: the class given for each word is
+  * proven to meet the claims on it, the handler's from the claims on the card limits, the ledger and the offsets it is
   * made with; its examples hold in Lean too, those the two first versions fail on among them.
   */
 @experimental class PaymentsLeanSuite extends munit.CatsEffectSuite:

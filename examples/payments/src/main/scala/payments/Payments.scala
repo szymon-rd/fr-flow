@@ -1,62 +1,65 @@
 package payments
 
 import frflow.*
-import Accounts.accounts
-import Checkpoint.checkpoint
-import Eager.eager
-import Hasty.hasty
-import Limits.limits
-import Processor.processor
+import CardLimits.limits
+import ConsumerOffsets.offsets
+import EagerHandler.eager
+import HastyHandler.hasty
+import Ledger.ledger
+import PaymentHandler.handler
 
-// The stream's model: the claims on the processor are its roots; each rests on the claims on the services the
-// processor is made with; the class given for each service is proven to meet the claims on it; and the decision
-// no proof covers.
+// The stream's model: the claims on the payment handler are its roots; each rests on the claims on the card
+// limits, the ledger and the consumer's offsets the handler holds; the class given for each is proven to meet the
+// claims on it; and the decision no proof covers.
 
 val deliveryIsAtLeastOnce = Node.design("The log delivers every payment at least once, in order from the " +
   "committed position, and again from there after a restart or a rebalance: so a payment may be handled twice, " +
-  "and none is skipped.")("src/main/scala/payments/Processor.scala")
+  "and none is skipped.")("src/main/scala/payments/PaymentHandler.scala")
 
 val payments: FrModel = FrModel("Payments")(
-  // The claims on the processor: the stream's purpose.
-  Processor.handledIsApplied,
-  Processor.appliedStaysApplied,
-  Processor.positionMovesPastTheHandled,
-  Processor.redeliveryChangesNothing,
-  Processor.fittingIsApproved,
-  Processor.handlingKeepsWithinLimit,
-  Processor.moneyIsConserved,
-  Processor.handlingKeepsMarks,
-  Processor.postedOnce,
-  Processor.everyStepKeepsWithinLimit,
-  Processor.noStepMakesMoney,
-  Processor.noStepPostsTwice,
-  Processor.everyStepLeavesOthersUndisturbed,
-  Processor.neverCommitsAhead,
+  // The claims on the payment handler: the stream's purpose.
+  PaymentHandler.handledIsApplied,
+  PaymentHandler.appliedStaysApplied,
+  PaymentHandler.offsetMovesPastTheHandled,
+  PaymentHandler.redeliveryChangesNothing,
+  PaymentHandler.fittingIsApproved,
+  PaymentHandler.handlingKeepsWithinLimit,
+  PaymentHandler.moneyIsConserved,
+  PaymentHandler.handlingKeepsMarks,
+  PaymentHandler.postedOnce,
+  PaymentHandler.everyStepKeepsWithinLimit,
+  PaymentHandler.noStepMakesMoney,
+  PaymentHandler.noStepPostsTwice,
+  PaymentHandler.everyStepLeavesOthersUndisturbed,
+  PaymentHandler.neverCommitsAhead,
   // What is proven of the two first versions: each does one thing right.
-  Eager.eagerAppliesThePayment,
-  Hasty.hastyPostsWhatItApproves,
-  // What they rest on: the claims on the services the processor is made with.
-  Limits.authorisedIsRecorded.refines(Processor.handledIsApplied, Processor.neverCommitsAhead,
-    Eager.eagerAppliesThePayment),
-  Limits.authoriseIsRepeatable.refines(Processor.redeliveryChangesNothing),
-  Limits.fittingIsAuthorised.refines(Processor.fittingIsApproved),
-  Limits.authoriseKeepsWithinLimit.refines(Processor.handlingKeepsWithinLimit, Processor.everyStepKeepsWithinLimit),
-  Limits.authoriseKeepsDecisions.refines(Processor.appliedStaysApplied, Processor.everyStepLeavesOthersUndisturbed),
-  Accounts.postedIsMarked.refines(Processor.handledIsApplied, Processor.neverCommitsAhead,
-    Eager.eagerAppliesThePayment, Hasty.hastyPostsWhatItApproves),
-  Accounts.postIsRepeatable.refines(Processor.redeliveryChangesNothing),
-  Accounts.postKeepsTotal.refines(Processor.moneyIsConserved, Processor.noStepMakesMoney),
-  Accounts.postKeepsPosted.refines(Processor.appliedStaysApplied, Processor.everyStepLeavesOthersUndisturbed),
-  Accounts.postKeepsMarks.refines(Processor.handlingKeepsMarks),
-  Accounts.postAddsToNoPayment.refines(Processor.postedOnce, Processor.noStepPostsTwice),
-  Checkpoint.commitMovesPast.refines(Processor.positionMovesPastTheHandled, Processor.redeliveryChangesNothing),
-  Checkpoint.commitElsewhereChangesNothing.refines(Processor.redeliveryChangesNothing),
+  EagerHandler.eagerAppliesThePayment,
+  HastyHandler.hastyPostsWhatItApproves,
+  // What they rest on: the claims on what the handler holds.
+  CardLimits.authorisedIsRecorded.refines(PaymentHandler.handledIsApplied, PaymentHandler.neverCommitsAhead,
+    EagerHandler.eagerAppliesThePayment),
+  CardLimits.authoriseIsRepeatable.refines(PaymentHandler.redeliveryChangesNothing),
+  CardLimits.fittingIsAuthorised.refines(PaymentHandler.fittingIsApproved),
+  CardLimits.authoriseKeepsWithinLimit.refines(PaymentHandler.handlingKeepsWithinLimit,
+    PaymentHandler.everyStepKeepsWithinLimit),
+  CardLimits.authoriseKeepsDecisions.refines(PaymentHandler.appliedStaysApplied,
+    PaymentHandler.everyStepLeavesOthersUndisturbed),
+  Ledger.postedIsMarked.refines(PaymentHandler.handledIsApplied, PaymentHandler.neverCommitsAhead,
+    EagerHandler.eagerAppliesThePayment, HastyHandler.hastyPostsWhatItApproves),
+  Ledger.postIsRepeatable.refines(PaymentHandler.redeliveryChangesNothing),
+  Ledger.postKeepsTotal.refines(PaymentHandler.moneyIsConserved, PaymentHandler.noStepMakesMoney),
+  Ledger.postKeepsPosted.refines(PaymentHandler.appliedStaysApplied, PaymentHandler.everyStepLeavesOthersUndisturbed),
+  Ledger.postKeepsMarks.refines(PaymentHandler.handlingKeepsMarks),
+  Ledger.postAddsToNoPayment.refines(PaymentHandler.postedOnce, PaymentHandler.noStepPostsTwice),
+  ConsumerOffsets.commitMovesPast.refines(PaymentHandler.offsetMovesPastTheHandled,
+    PaymentHandler.redeliveryChangesNothing),
+  ConsumerOffsets.commitElsewhereChangesNothing.refines(PaymentHandler.redeliveryChangesNothing),
   // The decision no proof covers.
-  deliveryIsAtLeastOnce.refines(Processor.handledIsApplied, Processor.redeliveryChangesNothing),
-  // The Definition of each service: a class FrFlow reads, proven to meet the claims on the service's word.
-  limits.define(lifted[SpendLimits]),
-  accounts.define(lifted[LedgerAccounts]),
-  checkpoint.define(lifted[OffsetCheckpoint]),
-  processor.define(lifted[StreamProcessor](limits, accounts, checkpoint)),
-  eager.define(lifted[EagerProcessor](limits, accounts, checkpoint)),
-  hasty.define(lifted[HastyProcessor](limits, accounts, checkpoint)))
+  deliveryIsAtLeastOnce.refines(PaymentHandler.handledIsApplied, PaymentHandler.redeliveryChangesNothing),
+  // The Definition of each: a class FrFlow reads, proven to meet the claims on its word.
+  limits.define(lifted[RecordedLimits]),
+  ledger.define(lifted[PostingLedger]),
+  offsets.define(lifted[CommittedOffset]),
+  handler.define(lifted[StreamPaymentHandler](limits, ledger, offsets)),
+  eager.define(lifted[CommitFirstHandler](limits, ledger, offsets)),
+  hasty.define(lifted[CheckThenActHandler](limits, ledger, offsets)))

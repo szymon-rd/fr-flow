@@ -25,10 +25,10 @@ object StructureDeclaration:
       s"the ${part.value} a $of holds", None, WrittenAt.none)(
       using LeanType.of[Any](Ty.FnOf(List(holder.ty), is.ty), holder, is))
 
-/** A structure's word: a Declaration of a trait's type (`val limits = Declaration[Limits]("…")`). Its members are
+/** A structure's word: a Declaration of a trait's type (`val limits = Declaration[CardLimits]("…")`). Its members are
   * called in statements as the trait declares them (`limits.authorise(p)`, a `Call`): each is a word of its own
   * (`limits_authorise`), a function of the structure that gives the member's result, and, of a member that changes
-  * the structure, the structure after it. A Definition of it (`limits.define(lifted[SpendLimits])`) gives each
+  * the structure, the structure after it. A Definition of it (`limits.define(lifted[RecordedLimits])`) gives each
   * member its code, checked against every claim.
   */
 final class StructureDeclaration[T] @publicInBinary private[dsl] (val name: SymbolName, val described: String,
@@ -49,6 +49,10 @@ final class StructureDeclaration[T] @publicInBinary private[dsl] (val name: Symb
     */
   def nobody: Schedule = Lift.constant(Map.empty[BigInt, Is])(using
     LeanType[Map[BigInt, T]].asInstanceOf[LeanType[Map[BigInt, Is]]]) // a state is typed by the structure's name
+
+  /** The words of its members, and of those that change it among other calls. */
+  def words: List[SymbolName] =
+    members.map(m => member(m.name).name) ++ members.filter(_.changes).map(m => among(m.name).name)
 
   /** The Definition a member is: named after the structure's and the member's. */
   def member(called: String): Definition[Any] =

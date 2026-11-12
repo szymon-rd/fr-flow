@@ -25,7 +25,7 @@ object Implementing:
       val among = structure.members.filter(_.changes).map(m =>
         structure.among(m.name) -> given_.code.get(StructureCode.among(m.name)))
       val held = given_.held.map(h => h.word.asInstanceOf[Definition[Any]] -> Option(h.code))
-      val holding = kb.holding(structure.name, given_.held.map(_.part))
+      val holding = kb.holding(given_.held.map(h => FrModel.Holding(structure.name, h.part, h.word.name, h.members)))
       (members ++ among ++ held).foldLeft(holding) { case (k, (symbol, read)) =>
         k.attachMember(symbol.name, declared(symbol, code(symbol, read, at).andThen(a =>
           Deferred((given_.state.declares |+| symbol.notes.declares, a).validNec))))

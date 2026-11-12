@@ -3,8 +3,8 @@ package frflow.eval
 import frflow.core.analysis.Validate
 import frflow.eval.run.{ExampleRun, OnCode}
 import frflow.eval.term.Semantics
-import payments.{Decision, LedgerAccounts, OffsetCheckpoint, Payment, PaymentsExamples, Posting, SpendLimits}
-import payments.{Account, CardId, MerchantId, PaymentId, StreamProcessor}
+import payments.{CommittedOffset, Decision, Payment, PaymentsExamples, PostingLedger, Posting, RecordedLimits}
+import payments.{Account, CardId, MerchantId, PaymentId, StreamPaymentHandler}
 import scala.annotation.experimental
 
 /** The payment stream (`examples/payments`): its model, each service a Definition given a class FrFlow reads, is
@@ -25,17 +25,17 @@ import scala.annotation.experimental
   }
 
   test("the services as production calls them: objects changed by one delivery after another") {
-    val (limits, accounts, checkpoint) = (SpendLimits(100, Nil), LedgerAccounts(Nil, Nil), OffsetCheckpoint(0))
-    val processor = StreamProcessor(limits, accounts, checkpoint)
+    val (limits, ledger, offsets) = (RecordedLimits(100, Nil), PostingLedger(Nil, Nil), CommittedOffset(0))
+    val handler = StreamPaymentHandler(limits, ledger, offsets)
     val (p1, card, cafe) = (PaymentId("p1"), CardId("card-1"), MerchantId("cafe"))
     val coffee = Payment(0, p1, card, cafe, 80, 1)
-    assertEquals(processor.handle(coffee), true)
-    assertEquals(processor.handle(coffee), true)
-    assertEquals(processor.handle(Payment(1, PaymentId("p2"), card, MerchantId("bar"), 80, 1)), false)
-    assertEquals(accounts.postings,
+    assertEquals(handler.handle(coffee), true)
+    assertEquals(handler.handle(coffee), true)
+    assertEquals(handler.handle(Payment(1, PaymentId("p2"), card, MerchantId("bar"), 80, 1)), false)
+    assertEquals(ledger.postings,
       List(Posting(p1, Account.OfCard(card), -80), Posting(p1, Account.OfMerchant(cafe), 80)))
     assertEquals(limits.decisions.map(_.approved), List(true, false))
-    assertEquals(checkpoint.position, BigInt(2))
-    assertEquals(processor.total, BigInt(0))
+    assertEquals(offsets.committed, BigInt(2))
+    assertEquals(ledger.total, BigInt(0))
     assertEquals(limits.decisions.head, Decision(p1, card, 1, 80, true))
   }

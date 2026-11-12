@@ -32,20 +32,20 @@ object StepSyntax:
       : Definition[(s.S, Map[BigInt, s.S], A) => (R, List[(s.S, s.S)])] =
     ${ StepReader.interleaving[P, s.S, A, R]('f, 'others) }
 
-  /** `lifted[SpendLimits]`: a class that implements a structure, read member by member: what the structure's word is
-    * defined by (`limits.define(lifted[SpendLimits])`), each member checked against every claim on it
+  /** `lifted[RecordedLimits]`: a class that implements a structure, read member by member: what the structure's word is
+    * defined by (`limits.define(lifted[RecordedLimits])`), each member checked against every claim on it
     * (`StructureLift`).
     */
   inline def lifted[C]: StructureCode[C] = ${ StructureLift.alone[C] }
 
   /** The same of a class that holds structures, given the word of each in the order its constructor takes them
-    * (`lifted[StreamProcessor](limits, accounts, checkpoint)`).
+    * (`lifted[StreamPaymentHandler](limits, ledger, offsets)`).
     */
   inline def lifted[C](inline words: StructureDeclaration[?]*): StructureCode[C] =
     ${ StructureLift.read[C]('words) }
 
   extension [T](structure: StructureDeclaration[T])
     /** The structure as an object of a class that implements it has it, for an example
-      * (`limits.holding(SpendLimits(BigInt(100), Nil))`): the object made where it is given.
+      * (`limits.holding(RecordedLimits(BigInt(100), Nil))`): the object made where it is given.
       */
     inline def holding(inline made: T): Term[structure.Is] = ${ StructureLift.held[T, structure.Is]('made) }
