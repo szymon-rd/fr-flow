@@ -9,8 +9,8 @@ What was done: the sources of Ox's core were read (`com.softwaremill.ox:core_3:1
 forks, the supervisor, the thread set, `par`, `race`, `uninterruptible`, fork locals), and the argument that a
 scope's forks have finished when it completes was modelled and proven in Rocq with its standard library
 ([threads/Herd.v](threads/Herd.v)), as was the argument that a closing scope completes
-([threads/Closing.v](threads/Closing.v)). Nothing was built in FrFlow. Ox was read; later two of the findings were run (below). Iris is not installed on
-the machine this was written on ("Where it stands" at the end).
+([threads/Closing.v](threads/Closing.v)). Nothing was built in FrFlow. Ox was read; later two of the findings
+were run (below). Iris is not installed on the machine this was written on ("Where it stands" at the end).
 
 The short answer: yes for safety, in two layers. The protocol inside a scope is a state machine whose invariant
 FrFlow's `always` nearly states already, and a first-order proof of it works today (`Herd.v`). The rule Ox's users
