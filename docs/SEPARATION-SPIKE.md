@@ -97,7 +97,7 @@ what is read.
 
 ## Since the spike
 
-[The wallet example](../examples/wallet/README.md) takes the next steps on one store. A port may be a service class
+[The shop example](../examples/shop/README.md) takes the next steps. A port may be a service class
 holding a store in a field. A service's call of a store's method is read as a call of the Definition of that name
 in the store's companion, so the service is proven from the store's contracts. And `interleaving` reads a method
 among other calls: before each step after the first, a schedule may replace the store's state with one a rely

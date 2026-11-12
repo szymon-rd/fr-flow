@@ -65,11 +65,10 @@ The newest Rocq is installed through opam (`opam install rocq-prover`), on the s
    theorem, the rules a hand proof file must keep (no `Axiom`, `Admitted`, `Parameter`), and the audit
    (`Print Assumptions`).
 3. **Hand proofs**: a proof file is `rocq/Proofs/<Model>/<node>.v`; its lemma `<node>_Proofs_<obligation>`
-   proves that obligation. The examples other than payments and auth (90 Lean proof files) stay on Lean
-   until they are moved.
-4. **Programs** (`Flow`: rooms, keycloak, crm): the printer does not print a `do` block, a class or an instance
-   yet (`RocqProject.unprinted` names each such module). They are lowered to state-passing terms, and the
-   library's `Flow`, `Faults`, `Races`, `Clock`, `Commute` and `Machine` are written in Rocq.
+   proves that obligation. Rooms and shop stay on Lean until they are moved.
+4. **Programs** (`Flow`) are being dropped from FrFlow, so they are not printed as Rocq: the printer does not
+   print a `do` block, a class or an instance (`RocqProject.unprinted` names each such module). Rooms is the one
+   example still written with them.
 5. **Lean removed**: the Lean printer, library, proofs and `Lake`.
 
 A node's signed content is today its printed Lean. It stays printed by that printer through the move, so no

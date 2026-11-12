@@ -199,8 +199,8 @@ And from the others:
 ```scala
 val inMemorySessions = Node.design("One process decides every request, from the sessions and grants it holds " +
   "in memory.")("src/main/scala/auth/Server.scala")                                       // auth
-val loadedKept = Node.claim("The accounts as loaded at start never change.")(seed.isConstant)  // keycloak
-val searchKeeps = Node.assumption("A search changes nothing the database holds.")(           // crm
+val loadedKept = Node.claim("The accounts as loaded at start never change.")(seed.isConstant)
+val searchKeeps = Node.assumption("A search changes nothing the database holds.")(
   forall((user: Term[Account], query: Term[Search]) =>
     databaseModel.in(fetch(user, query).after) === databaseModel.current))
 ```
@@ -308,7 +308,7 @@ and claim that each of its own steps grants what it takes. Name a state's type `
 `Term[CardLimits]`. In an example give a state with `limits.holding(RecordedLimits(…))`. Give one class per trait in a
 model.
 
-The earlier way, a word per method, is still read (`examples/wallet`, `examples/shop`,
+The earlier way, a word per method, is still read (`examples/shop`,
 `docs/LIFTED.md` "Services"): the store is a `caps.Mutable` class with one `var`, the service a class holding it
 (`Ledger^`), in files with capture and separation checking. A service holding several stores or services names
 its state in its companion (`type State = …`, a case class with a field per port, in order); give every port's

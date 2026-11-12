@@ -245,8 +245,7 @@ state monad. [SEPARATION-SPIKE.md](SEPARATION-SPIKE.md) records the spike. It is
 Declaration of a trait defined by a class ("A structure: a value with members" below), is the one to write:
 [the payment stream](../examples/payments/README.md) (a processor over three services, proven through redelivery,
 a crash at any step and a second instance). The first way, a word and a reading per method, is what
-[the wallet](../examples/wallet/README.md) (one service over one store) and
-[the shop](../examples/shop/README.md) (a checkout over two services and a store) use, and is described first.
+[the shop](../examples/shop/README.md) (a checkout over two services and a store) uses, and is described first.
 
 ```scala
 final class Ledger(var books: Books) extends caps.Mutable:        // a store: its state is its one `var`
@@ -429,4 +428,4 @@ In the order they would be taken:
 | `updating`, `interleaving` | `modules/dsl/src/main/scala/frflow/dsl/lifted/steps/` |
 | `lifted[Class]`, `holding`: a class compiled from its TASTy as the model is built | `modules/dsl/src/main/scala/frflow/dsl/compiled/` (expressions) and `compiled/steps/` (state, steps, members) |
 | A structure's Declaration, `Call`, `State` | `modules/dsl/src/main/scala/frflow/dsl/structure/`; `StructureSuite` beside the reader's suites |
-| Services proven among other calls | `examples/wallet/`, `examples/payments/`, `examples/shop/`; `WalletSuite`, `PaymentsSuite`, `ShopSuite`; the Lean suites in `frflow.project.services` |
+| Services proven among other calls | `examples/payments/`, `examples/shop/`; `PaymentsSuite`, `ShopSuite`; the Lean suites in `frflow.project.services` |

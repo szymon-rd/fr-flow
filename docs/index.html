@@ -168,8 +168,8 @@ sbt reload
 bin/frflow toy status
 sbt &quot;toy/serve --as NAME&quot;          # the web view on localhost</code></pre></div>
 <p><code>--as NAME</code> lists your key as the project's first decider (<code>.frflow/deciders</code>, signed by it):
-commit it. The examples FrFlow ships are projects in <code>examples/&lt;name&gt;</code> (rooms, auth, keycloak, crm): <code>bin/frflow rooms status</code>. Each is checked whole by its <code>PortSuite</code>:
-<code>sbt "project/Lean/testOnly rooms.PortSuite"</code>.</p>
+commit it. The examples FrFlow ships are projects in <code>examples/&lt;name&gt;</code> (rooms, auth, payments, shop): <code>bin/frflow rooms status</code>. FrFlow's own suites check each whole:
+<code>sbt leanTest</code>.</p>
 </section>
 
 <section aria-labelledby="tutorial">

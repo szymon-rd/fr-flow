@@ -15,7 +15,7 @@ on top, which a project enables, for an agent that proposes the nodes and writes
 Requirements: JDK 17+, sbt, and Lean 4.35.0 (`lake` on the `PATH`, or `FRFLOW_LAKE`). `bin/frflow PROJECT COMMAND`
 runs a project's CLI on the terminal, with colors and the interactive review, compiling with sbt on first use and
 after a change; `sbt "PROJECT/run COMMAND"` runs it through sbt, plain. `--help` lists the commands. A project is
-`examples/PROJECT`; FrFlow's own four (`rooms`, `auth`, `keycloak`, `crm`) are there too.
+`examples/PROJECT`; FrFlow's own (`rooms`, `auth`, `payments`, `shop`) are there too.
 
 FrFlow's own tests: `sbt test` runs the fast ones (a few minutes); the ones that run Lean end to end (tagged `Lean`)
 run with `sbt leanTest`; `sbt testAll` runs both. Per module, `sbt core/test`, `sbt project/test` and so on; eval's
@@ -199,8 +199,7 @@ one meaning. A service method that changes a store (a `caps.Mutable` class, unde
 is read by `updating { (port: S^, input: A) => port.method(input) }`, a function of the store's state, and by
 `interleaving { … }(others)`, the same among other calls that keep the rely `others`. A service may hold several
 stores or services; its companion then names its state (`type State = …`), and its calls of other services are
-read as calls of their Definitions ([the wallet](../examples/wallet/README.md),
-[the shop](../examples/shop/README.md)). A service is also written as one value, a structure: a trait of its
+read as calls of their Definitions ([the shop](../examples/shop/README.md)). A service is also written as one value, a structure: a trait of its
 members (a `caps.Mutable` when a member changes it, a plain trait when none does), `Declaration[Trait]("…")` typed
 by them (`limits.authorise(p).result`, `.after`, `.in(state)`,
 `.steps`, `.amongOthers(run => …)`), claims on that word, and its Definition `limits.define(lifted[Class])`,
