@@ -2,9 +2,11 @@ package frflow.dsl.kb
 
 import cats.syntax.all.*
 import frflow.core.code.{Attachment, Code}
+import frflow.core.name.RelPath
 import frflow.core.ty.Ty
 import frflow.dsl.build.{Declarations, Deferred, Fault, Site, Source}
 import frflow.dsl.node.Spans
+import frflow.dsl.service.{ServiceDefinition, ServiceImplementation}
 import frflow.dsl.term.Reify
 import frflow.dsl.vocab.Definition
 
@@ -21,11 +23,7 @@ object Implementing:
       * files `proven` is written in are the model's own.
       */
     inline def implementProven[F](d: Definition[F])(proven: Definition[F]): FrModel =
-      val at = Spans.relative(Source.file)
-      Implementing.attach(kb, d, proven.onTheSpot.fold(Deferred.failed(Site.Meaning(d.name),
-        Fault.NotProvenCode(proven.name.value)))(spot =>
-          Deferred((Declarations.define(spot.name, spot.lambda) |+| proven.at.declares(proven.name.value),
-            Attachment(spot.code, at)).validNec)))
+      Implementing.proven(kb, d, proven, Spans.relative(Source.file))
 
     /** Plain Scala for the Definitions `ds`, as the next argument list says (`Tested`): the first one's, built from
       * the values it is given and calling the others (`implementTested(granted)(env => …)`), or the operations on one
@@ -46,6 +44,24 @@ object Implementing:
     inline def implementProvided(ds: Definition[?]*): FrModel =
       ds.foldLeft(kb)((k, d) =>
         Implementing.attach(k, d, Deferred.pure(Attachment(Code.Provided, Spans.relative(Source.file)))))
+
+  /** `d` given `proven`: a define or a program; or, of a service, the class that implements it, each member's
+    * Definition given the member's code. The service itself has no value in the model: a claim on it is said of
+    * the service in every state (`Serving`).
+    */
+  def proven(kb: FrModel, d: Definition[?], proven: Definition[?], at: RelPath): FrModel = (d, proven) match
+    case (service: ServiceDefinition[?], given_ : ServiceImplementation[?]) =>
+      service.members.foldLeft(kb)((k, m) => attach(k, service.member(m.name),
+        code(service.member(m.name), given_.code.get(m.name), at).andThen(a =>
+          Deferred((given_.state.declares, a).validNec))))
+    case _                                                                  => attach(kb, d, code(d, Some(proven), at))
+
+  private def code(d: Definition[?], proven: Option[Definition[?]], at: RelPath): Deferred[Attachment] =
+    proven.flatMap(p => p.onTheSpot.map(p -> _)).fold(Deferred.failed(Site.Meaning(d.name),
+      Fault.NotProvenCode(proven.fold(d.name.value)(_.name.value)))) { (p, spot) =>
+      Deferred((Declarations.define(spot.name, spot.lambda) |+| p.at.declares(p.name.value),
+        Attachment(spot.code, at)).validNec)
+    }
 
   /** The meaning given `d`, unless `d` has its own where it is written; a code-only `d` declared with it. */
   def attach(kb: FrModel, d: Definition[?], a: Deferred[Attachment]): FrModel =

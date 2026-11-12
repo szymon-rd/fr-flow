@@ -30,6 +30,7 @@ export frflow.dsl.shape.Defines.*
 export frflow.dsl.lifted.{Contract, FrSpec, Lifted}
 export frflow.dsl.lifted.LiftSyntax.*
 export frflow.dsl.lifted.steps.StepSyntax.*
+export frflow.dsl.service.{Call, ServiceDefinition}
 export frflow.dsl.term.TermSyntax.*
 export frflow.dsl.kb.ValuesSyntax.*
 export frflow.dsl.vocab.Flow

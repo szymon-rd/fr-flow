@@ -1,6 +1,7 @@
 package frflow.dsl.lifted.steps
 
 import frflow.dsl.lifted.LiftOps
+import frflow.dsl.service.Call as ServiceCall
 import frflow.dsl.term.{Terms, TermSyntax}
 import frflow.dsl.term.Term as DTerm
 import frflow.dsl.vocab.Definition as Defined
@@ -27,7 +28,7 @@ private[steps] trait StepCalls:
       def foldTree(seen: Boolean, tree: Tree)(owner: Symbol): Boolean = seen || (tree match
         case Assign(_, _)                                              => true
         case a: Apply if isUpdate(a.symbol) || through(a.symbol)        => true
-        case Select(on, _) if !changing && r.isStore(on.tpe.widen)     => true
+        case Select(on, _) if !changing && asked(on)                   => true
         case s: Select if through(s.symbol)                            => true
         case other                                                     => foldOverTree(seen, other)(owner))
       def through(m: Symbol): Boolean =
@@ -35,7 +36,10 @@ private[steps] trait StepCalls:
     found.foldTree(false, t)(Symbol.spliceOwner)
 
   /** A call of a store's method, or a read of its state: one step. */
-  def storeCall(t: Term): Boolean = receiver(t).exists(on => r.isStore(on.tpe.widen))
+  def storeCall(t: Term): Boolean = receiver(t).exists(asked)
+
+  /** What a step is asked of: a store, or a service known by its members. */
+  private def asked(on: Term): Boolean = r.isStore(on.tpe.widen) || r.isService(on.tpe.widen)
 
   /** A call of a method of the developer's that uses a port: a service's, or one given the port. */
   def serviceCall(t: Term): Boolean = r.isOwn(t.symbol) && r.kept(t.symbol).exists(d => uses(d.rhs.get, false))
@@ -54,11 +58,28 @@ private[steps] trait StepCalls:
     */
   def step[Out: Type](call: Term, as: TypeRepr)(rest: Rest[Out])(using walk: Walk)(using Quotes)
       : Expr[DTerm[Out]] =
-    val at = placeOf(receiver(call).getOrElse(r.refuse("a store used with no receiver", call)))
+    val on = receiver(call).getOrElse(r.refuse("a store used with no receiver", call))
+    val at = placeOf(on)
     interfered[Out](at.key) { now =>
       if !isUpdate(call.symbol) then rest(r.read(call, as)(using now.env), now)
+      else if r.isService(on.tpe.widen) then wired[Out](call, on, at)(rest)(using now)
       else modelled[Out](call, at)(rest)(using now).getOrElse(inlined[Out](call, at)(rest)(using now))
     }
+
+  /** A call that changes a service the code is given: the member's Definition applied to the service's state
+    * and the call's inputs (`Services.wiring`), its result with the state it leaves.
+    */
+  private def wired[Out: Type](call: Term, on: Term, at: Place)(rest: Rest[Out])(using walk: Walk)(using Quotes)
+      : Expr[DTerm[Out]] = (stateAt(at).asType, call.tpe.widen.asType) match
+    case ('[s], '[v]) =>
+      val site = Literal(UnitConstant())
+      val given_ = Expr.ofList(stateIn(at) :: arguments(call, Nil).zip(r.inputsOf(on, call.symbol)).map((a, p) =>
+        r.read(a, p)(using walk.env)))
+      '{ Terms.let[(v, s), Out](ServiceCall.applied[(v, s)](${ r.wired(on) }.member(${ Expr(call.symbol.name) }),
+        $given_)(using ${ r.spec[(v, s)](site) }), "did", (did: DTerm[(v, s)]) =>
+        ${ traced[Out](at, '{ TermSyntax._2[v, s](did)(using ${ r.spec[s](site) }) })(
+          rest('{ TermSyntax._1[v, s](did)(using ${ r.spec[v](site) }) }, _)) })(using ${ r.spec[Out](site) }) }
+    case _            => r.refuse("this call of a service", call)
 
   /** An `update` method's body, run as one step from the store's state: a reading of its own, the store its root. */
   private def inlined[Out: Type](call: Term, at: Place)(rest: Rest[Out])(using walk: Walk)(using Quotes)

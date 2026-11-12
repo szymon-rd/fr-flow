@@ -2,22 +2,30 @@ package payments
 
 import language.experimental.captureChecking
 import language.experimental.separationChecking
+import caps.Mutable
 import frflow.*
 
-/** The checkpoint service: it commits the position in the log past a payment handled. */
-final class Checkpoint(offsets: Offsets^):
-  def commit(offset: BigInt): Unit = offsets.advance(offset)
+/** The checkpoint service: it keeps the position in the log, the offset of the next payment to handle. */
+trait Checkpoint extends Mutable:
+  /** Moves the position past an offset if the position is at it: a compare-and-set, so the position moves one
+    * payment at a time and an instance that is behind moves nothing.
+    */
+  update def commit(offset: BigInt): Unit
+  def position: BigInt
 
 object Checkpoint:
-  val commit = Definition[(BigInt, BigInt) -> (Unit, BigInt)]("committing the position past an offset: the " +
-    "position after")
+  val checkpoint = Definition[Checkpoint]("the checkpoint service: it keeps the position in the log")
 
-  val commitCode = updating { (checkpoint: Checkpoint^, offset: BigInt) => checkpoint.commit(offset) }
+  val commitMovesPast = Node.claim("Committing the offset the position is at moves the position one past it.")(
+    forall((offset: Term[BigInt]) =>
+      (checkpoint.position === offset) implies
+        (checkpoint.position.in(checkpoint.commit(offset).after) === offset + 1)))
 
-  val commitMovesPast = Node.claim("Committing an offset the position is at moves the position one past it.")(
-    forall((committed: Term[BigInt], offset: Term[BigInt]) =>
-      (committed === offset) implies (commit(committed, offset)._2 === offset + 1)))
+  val commitElsewhereChangesNothing = Node.claim("Committing an offset the position is not at changes nothing.")(
+    forall((offset: Term[BigInt]) =>
+      (checkpoint.position =!= offset) implies (checkpoint.commit(offset).after === checkpoint.current)))
 
-  val commitIsRepeatable = Node.claim("Committing an offset again changes nothing.")(
-    forall((committed: Term[BigInt], offset: Term[BigInt]) =>
-      commit(commit(committed, offset)._2, offset)._2 === commit(committed, offset)._2))
+/** The checkpoint service over the position itself. */
+final class OffsetCheckpoint(var position: BigInt) extends Checkpoint:
+  update def commit(offset: BigInt): Unit =
+    if position == offset then position = offset + BigInt(1)

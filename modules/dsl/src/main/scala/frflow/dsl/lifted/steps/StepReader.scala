@@ -117,8 +117,8 @@ private[steps] final class StepReader(val r: Reader, val others: Option[Expr[Any
   /** The state a `var`'s assignment leaves: the value assigned, named for what follows. */
   private def assigned[Out: Type](value: Term, to: Term, key: Symbol)(rest: Rest[Out])(using Walk)(using Quotes)
       : Expr[DTerm[Out]] = run(value, to.tpe.widen, key)((x, after) =>
-    named[Out](to.symbol.name, to.tpe.widen, x)(y => put[Out](key, y)(rest('{ Lift.constant[Unit](()) }, _))(
-      using after)))
+    named[Out](to.symbol.name, to.tpe.widen, x)(y => putAt[Out](Place(key, r.partOf(portOf(key).typeRef, to.symbol,
+      to).flatten.toList), y)(rest('{ Lift.constant[Unit](()) }, _))(using after)))
 
   /** A conditional that changes the state: its value with what either branch leaves, named for what follows. */
   private def either[Out: Type](branch: If, as: TypeRepr, key: Symbol)(rest: Rest[Out])(using walk: Walk)(

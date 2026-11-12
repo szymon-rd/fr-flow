@@ -8,6 +8,7 @@ import frflow.core.ty.Ty
 import frflow.core.vocab.{Symbol, SymbolType, ValueKind}
 import frflow.dsl.build.{Declarations, Fault, Source, WrittenAt}
 import frflow.dsl.run.Worlds
+import frflow.dsl.service.ServiceMacros
 import frflow.dsl.term.{LeanType, Notes, Term}
 import frflow.dsl.vocab.{Flow, Run}
 import scala.annotation.publicInBinary
@@ -66,13 +67,16 @@ object Definition:
     private def run[R](using A <:< Flow[R], LeanType[R]): Run[E, R] = Run[E, R](this.asInstanceOf[Term[Flow[R]]])
 
   /** A Definition of a domain type; of a type with no `LeanType`, a code-only one, whose term has no type of its own
-    * (one `apply`: two overloads differing only in what they are given are ambiguous to Scala).
+    * (one `apply`: two overloads differing only in what they are given are ambiguous to Scala); of a service (a
+    * trait that is one of Scala's `caps.Mutable`), a `ServiceDefinition`, typed by the trait's members.
     */
-  inline def apply[A](means: String): Definition[A] = summonFrom {
-    case t: LeanType[A] =>
-      new Definition[A](SymbolName(Source.valName), means, None, WrittenAt.in(Source.here))(using t)
-    case _              => new Definition[A](SymbolName(Source.valName), means, None, WrittenAt.in(Source.here))(
-      using NoLeanType[A](Source.typeName[A]))
+  transparent inline def apply[A](inline means: String): Definition[A] =
+    ${ ServiceMacros.defined[A]('{ SymbolName(Source.valName) }, 'means, '{ WrittenAt.in(Source.here) }) }
+
+  /** A Definition of any type but a service: named and written as given. */
+  inline def plain[A](name: SymbolName, means: String, at: WrittenAt): Definition[A] = summonFrom {
+    case t: LeanType[A] => new Definition[A](name, means, None, at)(using t)
+    case _              => new Definition[A](name, means, None, at)(using NoLeanType[A](Source.typeName[A]))
   }
 
   /** What a code-only Definition is typed by, made only here: no type has it as its given. */

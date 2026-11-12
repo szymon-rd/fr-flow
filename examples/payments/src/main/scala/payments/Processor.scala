@@ -2,98 +2,90 @@ package payments
 
 import language.experimental.captureChecking
 import language.experimental.separationChecking
+import caps.Mutable
 import frflow.*
 
-/** The processor: it handles one payment from the log. It has the limits service decide it, has the accounts
-  * service post it if it is approved, and only then commits the position past it. Each step can be repeated, so a
-  * payment delivered again, to this instance after a crash or to another after a rebalance, is applied once.
+/** The processor: it handles one payment from the log, and says where the stream stands. */
+trait Processor extends Mutable:
+  /** Handles a payment: whether it is approved. */
+  update def handle(p: Payment): Boolean
+  /** A payment is applied: it was decided, and if it was approved it is posted. */
+  def applied(id: String): Boolean
+  /** A payment not yet decided fits its card's limit of the day. */
+  def fits(p: Payment): Boolean
+  def position: BigInt
+  def spent(card: String, day: BigInt): BigInt
+  def limit: BigInt
+  def total: BigInt
+  def posted(id: String): Boolean
+  def postingsOf(id: String): List[Posting]
+
+object Processor:
+  val processor = Definition[Processor]("the processor: it handles one payment from the log")
+
+  val handledIsApplied = Node.claim("A payment handled is applied: decided, and posted if approved.")(
+    forall((p: Term[Payment]) => processor.applied(p.id).in(processor.handle(p).after)))
+
+  val appliedStaysApplied = Node.claim("Handling a payment leaves every payment applied before applied.")(
+    forall((id: Term[String], p: Term[Payment]) =>
+      processor.applied(id) implies processor.applied(id).in(processor.handle(p).after)))
+
+  val positionMovesPastTheHandled = Node.claim("Handling the payment the position is at moves the position " +
+      "one past it.")(
+    forall((p: Term[Payment]) =>
+      (processor.position === p.offset) implies
+        (processor.position.in(processor.handle(p).after) === p.offset + 1)))
+
+  val redeliveryChangesNothing = Node.claim("A payment handled again gets the answer it got and changes " +
+      "nothing.")(
+    forall((p: Term[Payment]) =>
+      (processor.handle(p).in(processor.handle(p).after).result === processor.handle(p).result) &&
+        (processor.handle(p).in(processor.handle(p).after).after === processor.handle(p).after)))
+
+  val fittingIsApproved = Node.claim("A payment not yet decided that fits its card's limit of the day is " +
+      "approved.")(
+    forall((p: Term[Payment]) => processor.fits(p) implies processor.handle(p).result))
+
+  val handlingKeepsWithinLimit = Node.claim("Handling a payment leaves a card within its limit of a day within " +
+      "it.")(
+    forall((card: Term[String], day: Term[BigInt], p: Term[Payment]) =>
+      (processor.spent(card, day) <= processor.limit) implies
+        (processor.spent(card, day).in(processor.handle(p).after) <=
+          processor.limit.in(processor.handle(p).after))))
+
+  val moneyIsConserved = Node.claim("Handling a payment makes no money and destroys none.")(
+    forall((p: Term[Payment]) => processor.total.in(processor.handle(p).after) === processor.total))
+
+  val handlingKeepsMarks = Node.claim("Handling a payment leaves a payment that has postings only if it is " +
+      "marked so.")(
+    forall((id: Term[String], p: Term[Payment]) =>
+      (processor.postingsOf(id).isEmpty || processor.posted(id)) implies
+        (processor.postingsOf(id).in(processor.handle(p).after).isEmpty ||
+          processor.posted(id).in(processor.handle(p).after))))
+
+  val postedOnce = Node.claim("Handling a payment adds nothing to the postings of a payment that has some, " +
+      "where a payment with postings is marked.")(
+    forall((id: Term[String], p: Term[Payment]) =>
+      (processor.postingsOf(id).isEmpty || processor.posted(id)) implies
+        (processor.postingsOf(id).isEmpty ||
+          processor.postingsOf(id).in(processor.handle(p).after) === processor.postingsOf(id))))
+
+/** The processor over the three services. It has the limits service decide the payment, has the accounts service
+  * post it if it is approved, and only then commits the position past it. Each step can be repeated, so a payment
+  * delivered again, to this instance after a crash or to another after a rebalance, is applied once.
   */
-final class Processor(limits: Limits^, accounts: Accounts^, checkpoint: Checkpoint^):
-  def handle(p: Payment): Boolean =
+final class StreamProcessor(limits: Limits^, accounts: Accounts^, checkpoint: Checkpoint^) extends Processor:
+  update def handle(p: Payment): Boolean =
     val approved = limits.authorise(p)
     if approved then accounts.post(p)
     checkpoint.commit(p.offset)
     approved
 
-object Processor:
-  /** The state the processor works on: its three services' stores'. */
-  type State = Pipeline
-
-  /** What other calls may do between two steps of handling a payment: leave it undisturbed. */
-  val others = lifted { (p: Payment, before: Pipeline, after: Pipeline) => undisturbed(p.id, before, after) }
-
-  /** Handling a payment alone, as the statements speak of it: from the pipeline, whether it is approved, with
-    * the pipeline after.
-    */
-  val handle = Definition[(Pipeline, Payment) -> (Boolean, Pipeline)]("handling a payment, alone: whether it " +
-    "is approved, and the pipeline after")
-
-  /** Handling a payment among other calls: from the pipeline and what the others leave before each step
-    * (`between`, by the step's number), the answer with every step taken: the pipeline the step started from and
-    * the one it left. A crash is the call stopping after any of its steps.
-    */
-  val handleAmongOthers =
-    Definition[(Pipeline, Map[BigInt, Pipeline], Payment) -> (Boolean, List[(Pipeline, Pipeline)])](
-      "handling a payment among other calls: its answer, and each of its steps")
-
-  val handleCode = updating { (processor: Processor^, p: Payment) => processor.handle(p) }
-  val handleAmongOthersCode = interleaving { (processor: Processor^, p: Payment) => processor.handle(p) }(others)
-
-  // Alone, from any pipeline: one a crash left half-way among them.
-
-  val handledIsApplied = Node.claim("A payment handled is applied: decided, and posted if approved.")(
-    forall((pipeline: Term[Pipeline], p: Term[Payment]) => Pipeline.applied(handle(pipeline, p)._2, p.id)))
-
-  val positionMovesPastTheHandled = Node.claim("Handling the payment the position is at moves the position " +
-      "one past it.")(
-    forall((pipeline: Term[Pipeline], p: Term[Payment]) =>
-      (pipeline.committed === p.offset) implies (handle(pipeline, p)._2.committed === p.offset + 1)))
-
-  val redeliveryChangesNothing = Node.claim("A payment handled again gets the answer it got and changes " +
-      "nothing.")(
-    forall((pipeline: Term[Pipeline], p: Term[Payment]) =>
-      handle(handle(pipeline, p)._2, p) === handle(pipeline, p)))
-
-  val fittingIsApproved = Node.claim("A payment not yet decided that fits its card's limit of the day is " +
-      "approved.")(
-    forall((pipeline: Term[Pipeline], p: Term[Payment]) =>
-      (!Spending.decided(pipeline.spending, p.id) &&
-        Spending.spent(pipeline.spending.decisions, p.card, p.day) + p.amount <= pipeline.spending.limit) implies
-        handle(pipeline, p)._1))
-
-  // Among other calls: each holds of every step, whatever the others do between steps.
-
-  val neverOverTheLimit = Node.claim("Handling a payment leaves no card over its limit at any step, whatever " +
-      "other calls do between them.")(
-    forall((pipeline: Term[Pipeline], between: Term[Map[BigInt, Pipeline]], p: Term[Payment]) =>
-      Spending.withinLimits(pipeline.spending) implies
-        handleAmongOthers(pipeline, between, p)._2.forall(step => Spending.withinLimits(step._2.spending))))
-
-  val moneyIsConserved = Node.claim("No step of handling a payment makes money or destroys it.")(
-    forall((pipeline: Term[Pipeline], between: Term[Map[BigInt, Pipeline]], p: Term[Payment]) =>
-      handleAmongOthers(pipeline, between, p)._2.forall(step =>
-        Books.total(step._2.books.postings) === Books.total(step._1.books.postings))))
-
-  val postedOnce = Node.claim("No step of handling a payment adds to the postings of a payment that has some, " +
-      "whatever other calls do between its steps.")(
-    forall((pipeline: Term[Pipeline], between: Term[Map[BigInt, Pipeline]], id: Term[String], p: Term[Payment]) =>
-      Books.orderly(pipeline.books) implies handleAmongOthers(pipeline, between, p)._2.forall(step =>
-        Books.made(step._1.books.postings, id).isEmpty ||
-          Books.made(step._2.books.postings, id) === Books.made(step._1.books.postings, id))))
-
-  val neverCommitsAhead = Node.claim("No step moves the position but the last, from the payment's offset to " +
-      "one past it, and by then the payment is applied: a crash after any step loses no payment.")(
-    forall((pipeline: Term[Pipeline], between: Term[Map[BigInt, Pipeline]], p: Term[Payment]) =>
-      handleAmongOthers(pipeline, between, p)._2.forall(step =>
-        step._2.committed === step._1.committed ||
-          (step._1.committed === p.offset && step._2.committed === p.offset + 1 &&
-            Pipeline.applied(step._2, p.id)))))
-
-  // What handling a payment grants other calls: what it relies on of them (`others`), each of its steps keeps.
-
-  val leavesOthersUndisturbed = Node.claim("Each step of handling a payment leaves every payment undisturbed: " +
-      "no card over its limit, the books orderly, what was decided decided as it was, what was posted posted.")(
-    forall((pipeline: Term[Pipeline], between: Term[Map[BigInt, Pipeline]], other: Term[String],
-        p: Term[Payment]) =>
-      (Spending.withinLimits(pipeline.spending) && Books.orderly(pipeline.books)) implies
-        handleAmongOthers(pipeline, between, p)._2.forall(step => undisturbed(other, step._1, step._2))))
+  def applied(id: String): Boolean = limits.decided(id) && (!limits.approved(id) || accounts.posted(id))
+  def fits(p: Payment): Boolean = !limits.decided(p.id) && limits.spent(p.card, p.day) + p.amount <= limits.limit
+  def position: BigInt = checkpoint.position
+  def spent(card: String, day: BigInt): BigInt = limits.spent(card, day)
+  def limit: BigInt = limits.limit
+  def total: BigInt = accounts.total
+  def posted(id: String): Boolean = accounts.posted(id)
+  def postingsOf(id: String): List[Posting] = accounts.postingsOf(id)

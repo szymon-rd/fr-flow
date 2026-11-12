@@ -5,6 +5,7 @@ import cats.syntax.all.*
 import frflow.core.name.RelPath
 import frflow.core.spec.{Reliance, Statement}
 import frflow.core.term.language.Sym
+import frflow.dsl.service.Serving
 import frflow.dsl.build.{AsWritten, Deferred, Fault, Site}
 import frflow.dsl.shape.Elab
 import frflow.dsl.model.Fact
@@ -14,7 +15,7 @@ import frflow.dsl.vocab.Stating
 /** The plain methods the DSL's inline constructors call once they have the source text and position. */
 object Nodes:
   def claim(head: Head, formula: Stating => () => Term[Boolean], written: AsWritten): Node =
-    Node(head, st => Elab.formula(Site.Node(head.id), () => closed(st, formula(st)()), written)
+    Node(head, st => Elab.formula(Site.Node(head.id), () => closed(st, Serving.closing(st, formula)), written)
       .map(Statement.Claim(_, Reliance.Relied)))
 
   /** A fact about the outside is said whole (`Fact`): its term is the assumption's formula. */

@@ -1,6 +1,7 @@
 package frflow.dsl.vocab
 
 import frflow.core.name.SymbolName
+import frflow.dsl.term.{LeanType, Term}
 import scala.annotation.implicitNotFound
 
 /** That a statement is being written: inside `Node.claim`, `Node.assumption` or an example, and in the body of a
@@ -12,7 +13,19 @@ import scala.annotation.implicitNotFound
   */
 @implicitNotFound("FrFlow: a Declaration is used only in statements (Node.claim, Node.assumption, an example, a " +
   "stated define); code, defines and programs use Definitions")
-final class Stating private (val varies: Set[SymbolName], val closing: Boolean)
+final class Stating private (val varies: Set[SymbolName], val closing: Boolean,
+    states: Map[SymbolName, Term[?]] = Map.empty, told: (SymbolName, LeanType[?]) => Unit = (_, _) => ()):
+  /** A service as it stands, as the statement reads it (`limits.authorise(p)`, `limits.current`): the variable the
+    * statement binds it to, so a claim holds of the service in every state (`Serving.closing`); where none is
+    * bound (an example's fact), the service's own Definition, a value the example gives.
+    */
+  def standing[T](service: Definition[T]): Term[T] =
+    told(service.name, service.leanType)
+    states.get(service.name).fold(service: Term[T])(_.asInstanceOf[Term[T]])
+  /** The same statement, each service read as the variable `bound` gives it. */
+  private[dsl] def holding(bound: Map[SymbolName, Term[?]]): Stating = Stating(varies, closing, bound, told)
+  /** The same statement, `heard` told each service it reads as it stands. */
+  private[dsl] def asking(heard: (SymbolName, LeanType[?]) => Unit): Stating = Stating(varies, closing, states, heard)
 
 object Stating:
   /** A statement written alone (an example's fact): nothing it mentions is read as changing with the World. */
