@@ -32,11 +32,17 @@ object StepSyntax:
       : Definition[(s.S, Map[BigInt, s.S], A) => (R, List[(s.S, s.S)])] =
     ${ StepReader.interleaving[P, s.S, A, R]('f, 'others) }
 
-  /** `lifted(SpendLimits(BigInt(100), Nil))`: a class that implements a service, read member by member: what a
-    * service's Definition is given (`limits.define(lifted(…))`), each member checked against every
-    * claim on it (`ServiceLift`).
+  /** `lifted[SpendLimits]`: a class that implements a service, read member by member: what the service's word is
+    * defined by (`limits.define(lifted[SpendLimits])`), each member checked against every claim on it
+    * (`ServiceLift`).
     */
-  inline def lifted[C](inline service: C): ServiceImplementation[C] = ${ ServiceLift.read[C]('service) }
+  inline def lifted[C]: ServiceImplementation[C] = ${ ServiceLift.alone[C] }
+
+  /** The same of a class that holds services, given the word of each in the order its constructor takes them
+    * (`lifted[StreamProcessor](limits, accounts, checkpoint)`).
+    */
+  inline def lifted[C](inline words: ServiceDeclaration[?]*): ServiceImplementation[C] =
+    ${ ServiceLift.read[C]('words) }
 
   extension [T](service: ServiceDeclaration[T])
     /** The service as an object of a class that implements it has it, for an example

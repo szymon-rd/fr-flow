@@ -54,9 +54,9 @@ val payments: FrModel = FrModel("Payments")(
   // The decision no proof covers.
   deliveryIsAtLeastOnce.refines(Processor.handledIsApplied, Processor.redeliveryChangesNothing),
   // The Definition of each service: a class FrFlow reads, proven to meet the claims on the service's word.
-  limits.define(lifted(SpendLimits(BigInt(100), Nil))),
-  accounts.define(lifted(LedgerAccounts(Nil, Nil))),
-  checkpoint.define(lifted(OffsetCheckpoint(BigInt(0)))),
-  processor.define(lifted(StreamProcessor(limits, accounts, checkpoint))),
-  eager.define(lifted(EagerProcessor(limits, accounts, checkpoint))),
-  hasty.define(lifted(HastyProcessor(limits, accounts, checkpoint))))
+  limits.define(lifted[SpendLimits]),
+  accounts.define(lifted[LedgerAccounts]),
+  checkpoint.define(lifted[OffsetCheckpoint]),
+  processor.define(lifted[StreamProcessor](limits, accounts, checkpoint)),
+  eager.define(lifted[EagerProcessor](limits, accounts, checkpoint)),
+  hasty.define(lifted[HastyProcessor](limits, accounts, checkpoint)))

@@ -88,7 +88,7 @@ trait ReadPorts:
   def stateField(implementation: TypeRepr, name: String, at: Tree)(using Quotes): Expr[Any] =
     val service = serviceOf(implementation).get
     val record = services.records.getOrElse(service.fullName, refuse(s"the state of ${implementation.show}, " +
-      "a class that implements a service, read where FrFlow is not reading that class (`lifted(…)`)", at))
+      "a class that implements a service, read where FrFlow is not reading that class (`lifted[…]`)", at))
     val i = stateFields(implementation.typeSymbol).indexWhere(_.name == name)
     (service.typeRef.asType, stateOfType(stateFieldType(implementation, name), at).asType) match
       case ('[s], '[f]) => '{ ${ record.asExprOf[LeanType[s]] }.fields(${ Expr(i) })

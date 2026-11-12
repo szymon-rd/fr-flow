@@ -308,7 +308,7 @@ object Limits:
 
 final class SpendLimits(val limit: BigInt, var decisions: List[Decision]) extends Limits: …   // a value for it
 
-FrModel("Payments")(…, limits.define(lifted(SpendLimits(BigInt(100), Nil))))
+FrModel("Payments")(…, limits.define(lifted[SpendLimits]))
 ```
 
 - `Declaration[T]` of a trait that is a `caps.Mutable` is typed by the trait's members: each is called in a
@@ -319,11 +319,11 @@ FrModel("Payments")(…, limits.define(lifted(SpendLimits(BigInt(100), Nil))))
 - A claim is said of the service in every state: "the service as it stands" is a variable the claim is closed
   over. So a claim is one that code holding the service can rely on, whatever state it holds it in; and a fact of
   every state ("no card is over its limit") is stated as what each call keeps.
-- `lifted(SpendLimits(…))` reads the class member by member. Its state is a record named as the trait, a field for
+- `lifted[SpendLimits]` reads the class member by member. Its state is a record named as the trait, a field for
   each of the constructor's; each member's body is read into a function of that record. `limits.define(…)`
   gives each member's word its code, and Lean proves the code meets every claim that mentions the member.
-- A class made with other services is given their words:
-  `lifted(StreamProcessor(limits, accounts, checkpoint))`. A call of a member of a service it holds is a call of
+- A class made with other services is given their words, in the order its constructor takes them:
+  `lifted[StreamProcessor](limits, accounts, checkpoint)`. A call of a member of a service it holds is a call of
   that word's member, so in Lean the class's code is a function of any members that meet the claims on them,
   and it is proven from those claims. One class is given for a trait in a model: the trait's record is that
   class's fields.
@@ -393,6 +393,6 @@ In the order they would be taken:
 | `Lifted`, the Definition with its Scala | `Lifted.scala` there |
 | `Agreement`, `Vectors` | `modules/testing/src/main/scala/frflow/testing/` |
 | The suites | `modules/dsl/src/test/scala/frflow/dsl/lifted/`, `AgreementSuite`, `CalendarSuite`, `CalendarLeanSuite` |
-| `updating`, `interleaving`, `lifted(Class(…))`, `holding` | `modules/dsl/src/main/scala/frflow/dsl/lifted/steps/` |
+| `updating`, `interleaving`, `lifted[Class]`, `holding` | `modules/dsl/src/main/scala/frflow/dsl/lifted/steps/` |
 | A service's Definition, `Call`, `State` | `modules/dsl/src/main/scala/frflow/dsl/service/`; `ServiceSuite` beside the reader's suites |
 | Services proven among other calls | `examples/wallet/`, `examples/payments/`, `examples/shop/`; `WalletSuite`, `PaymentsSuite`, `ShopSuite`; the Lean suites in `frflow.project.services` |

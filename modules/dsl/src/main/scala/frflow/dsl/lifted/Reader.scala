@@ -59,7 +59,7 @@ private[lifted] final class Reader(val q: Quotes, val services: Services = Servi
   /** The Definition the service a field holds was made with (`services.wiring`). */
   def wired(on: Term)(using Quotes): Expr[ServiceDeclaration[?]] = services.wiring.get(bare(on).symbol.name).fold(
     refuse("a call of a service FrFlow does not know the Definition of: a class read by FrFlow calls the " +
-      "services it is made with (`lifted(StreamProcessor(limits, …))`)", on))(_.asExprOf[ServiceDeclaration[?]])
+      "services it is made with (`lifted[StreamProcessor](limits, …)`)", on))(_.asExprOf[ServiceDeclaration[?]])
 
   /** What a call of a service's member gives its inputs' types. */
   def inputsOf(on: Term, member: Symbol): List[TypeRepr] = on.tpe.widen.memberType(member) match

@@ -32,4 +32,4 @@ import scala.annotation.experimental
         till.taken(id).in(step._1) implies till.taken(id).in(step._2)))))
 
   val model: FrModel = FrModel("Tills")(takenIsRecorded, takenOnce, takingAddsItsAmount, noStepForgetsASale)
-    .defining(till.define(lifted(CashTill(Nil))))
+    .defining(till.define(lifted[CashTill]))

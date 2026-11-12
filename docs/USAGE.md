@@ -202,7 +202,7 @@ stores or services; its companion then names its state (`type State = …`), and
 read as calls of their Definitions ([the wallet](../examples/wallet/README.md),
 [the shop](../examples/shop/README.md)). A service is also written as one value: a trait of its members (a
 `caps.Mutable`), `Declaration[Trait]("…")` typed by them (`limits.authorise(p).result`, `.after`, `.in(state)`,
-`.steps`, `.amongOthers(run => …)`), claims on that word, and its Definition `limits.define(lifted(Class(…)))`,
+`.steps`, `.amongOthers(run => …)`), claims on that word, and its Definition `limits.define(lifted[Class])`,
 the class that implements it, which Lean proves meets them
 ([the payment stream](../examples/payments/README.md), [LIFTED.md](LIFTED.md) "A service as a Declaration").
 

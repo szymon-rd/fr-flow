@@ -11,7 +11,7 @@ import frflow.dsl.term.LeanType
 
 /** What a service's type is to the term language: a record named as the service's trait, whose fields are those of
   * the class that implements it. A statement about the service needs the name only (`FrSpec.named`); the class
-  * brings the fields (`record`), declared with the class it is given (`limits.define(lifted(…))`).
+  * brings the fields (`record`), declared with the class it is given (`limits.define(lifted[SpendLimits])`).
   */
 object ServiceType:
   /** A service's state as the evaluator holds it: the values of its fields, equal when they are. An object of

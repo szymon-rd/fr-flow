@@ -37,3 +37,14 @@ import scala.annotation.experimental
       List(service, Ty.MapOf(Ty.Num(frflow.core.ty.NumKind.Big), service), Ty.Data(frflow.core.name.TypeName("Sale"))),
       Ty.TupleOf(List(Ty.TupleOf(List(Ty.Bool, service)), Ty.TupleOf(List(steps, steps))))))
   }
+
+  test("a class is lifted by its type, with the word of each service it holds: any other number is refused") {
+    val errors = compileErrors("""
+      import frflow.dsl.lifted.steps.StepSyntax.lifted
+      lifted[Till.CashTill](TillModel.till)""")
+    assert(errors.contains("CashTill holds 0 services and is given 1 words"), errors)
+    val made = compileErrors("""
+      import frflow.dsl.lifted.steps.StepSyntax.lifted
+      lifted(Till.CashTill(Nil))""")
+    assert(made.nonEmpty, "a class made where it is lifted is no longer read")
+  }

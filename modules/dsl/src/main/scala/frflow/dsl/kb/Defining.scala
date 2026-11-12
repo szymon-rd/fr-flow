@@ -62,7 +62,7 @@ object Defining:
       Deferred.pure(Attachment(Code.Provided, Spans.relative(Source.file)))))
 
   extension [T](d: ServiceDeclaration[T])
-    /** The service `d` is the class read here (`limits.define(lifted(SpendLimits(…)))`): each member's code, which
+    /** The service `d` is the class read here (`limits.define(lifted[SpendLimits])`): each member's code, which
       * Lean proves meets each claim mentioning the member.
       */
     inline def define[C <: T](code: ServiceImplementation[C]): Definition[T] =

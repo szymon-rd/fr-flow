@@ -16,7 +16,7 @@ It is the example of the service shape:
 - **A trait** says what members a service has. It extends nothing of FrFlow's.
 - **A `Declaration` of the trait's type** is the service in the model.
 - **The claims** are ordinary `Node.claim`s on that word, written through its members.
-- **A class that implements the trait** is its Definition (`limits.define(lifted(SpendLimits(…)))`), listed in the
+- **A class that implements the trait** is its Definition (`limits.define(lifted[SpendLimits])`), listed in the
   model beside the nodes. FrFlow reads the class into Lean, and Lean proves it meets every claim on the word.
 
 ## A service
@@ -65,14 +65,15 @@ final class StreamProcessor(limits: Limits^, accounts: Accounts^, checkpoint: Ch
     approved
 ```
 
-The model lists each service's Definition beside its nodes. The processor is made with the other services' words:
+The model lists each service's Definition beside its nodes: the class, named by its type. A class that holds
+services is given the word of each, in the order its constructor takes them:
 
 ```scala
 val payments: FrModel = FrModel("Payments")(…,
-  limits.define(lifted(SpendLimits(BigInt(100), Nil))),
-  accounts.define(lifted(LedgerAccounts(Nil, Nil))),
-  checkpoint.define(lifted(OffsetCheckpoint(BigInt(0)))),
-  processor.define(lifted(StreamProcessor(limits, accounts, checkpoint))))
+  limits.define(lifted[SpendLimits]),
+  accounts.define(lifted[LedgerAccounts]),
+  checkpoint.define(lifted[OffsetCheckpoint]),
+  processor.define(lifted[StreamProcessor](limits, accounts, checkpoint)))
 ```
 
 So in Lean the processor's code is a function of *any* `authorise`, `post` and `commit`, and its claims are proven

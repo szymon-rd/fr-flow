@@ -15,7 +15,7 @@ final case class Member(name: String, changes: Boolean, params: List[LeanType[?]
 /** A service's word: a Declaration of a trait's type (`val limits = Declaration[Limits]("…")`). Its members are
   * called in statements as the trait declares them (`limits.authorise(p)`, a `Call`): each is a word of its own
   * (`limits_authorise`), a function of the service that gives the member's result, and, of a member that changes
-  * the service, the service after it. A Definition of it (`limits.define(lifted(SpendLimits(…)))`) gives each
+  * the service, the service after it. A Definition of it (`limits.define(lifted[SpendLimits])`) gives each
   * member its code, checked against every claim.
   */
 final class ServiceDeclaration[T] @publicInBinary private[dsl] (val name: SymbolName, val described: String,
@@ -65,11 +65,3 @@ final class ServiceDeclaration[T] @publicInBinary private[dsl] (val name: Symbol
     * checkpoint.current`).
     */
   def current(using st: Stating): State = st.standing(this).asInstanceOf[State] // a state is typed by the name
-
-object ServiceDeclaration:
-  /** Where code FrFlow reads names a service by its word (`lifted(StreamProcessor(limits, …))`), the word
-    * stands for the service. Nothing runs it: FrFlow reads the code, it does not call it.
-    */
-  given standsFor[T]: Conversion[ServiceDeclaration[T], T] = d =>
-    throw IllegalStateException(s"FrFlow: ${d.name.value} is a service's word: it stands for the service " +
-      "only in code FrFlow reads (`lifted(…)`), and is not the service itself")

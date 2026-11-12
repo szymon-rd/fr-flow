@@ -291,8 +291,8 @@ A service can be proven as written. Write it as a value (`examples/payments`, `d
 Declaration"): a trait of its members that extends `caps.Mutable`, what changes it marked `update`, in a file with
 capture and separation checking; in the trait's companion `val limits = Declaration[Limits]("…")` and the claims,
 through the members (`limits.authorise(p).result`, `.after`, `limits.decided(id).in(state)`, `limits.current`); a
-class that implements the trait; and in the model its Definition, `limits.define(lifted(SpendLimits(…)))`. A class
-made of services is given their words (`lifted(StreamProcessor(limits, accounts, checkpoint))`) and is proven from
+class that implements the trait; and in the model its Definition, `limits.define(lifted[SpendLimits])`. A class
+made of services is given their words (`lifted[StreamProcessor](limits, accounts, checkpoint)`) and is proven from
 the claims on them, so wire those claims under its own with `.refines`. A claim holds of the service in every
 state: state an invariant as what each call keeps. For a crash and for other callers, claim over the call's steps
 (`call.steps`, `call.amongOthers(run => run.steps.forall(step => …))`, `run.others` for what it takes of them),
