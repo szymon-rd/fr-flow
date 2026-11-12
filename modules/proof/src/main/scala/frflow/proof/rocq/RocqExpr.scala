@@ -98,14 +98,17 @@ private[rocq] final class RocqExpr(names: RocqNames):
     }
     s"ltac:(${parts.mkString("; ")})"
 
-  /** `f (x := v) (h := p)`: a theorem with what it is given by name. Rocq gives no explicit input by name, so
-    * the theorem is applied to what is to be proven, which fixes the inputs the statement names, and each
+  /** `f (x := v) (h := p)`: a theorem with what it is given by name. Rocq gives no explicit input by name. The
+    * lowering names every input, in the statement's order, so the theorem is applied to them in that order;
+    * failing that, it is applied to what is to be proven, which fixes the inputs the statement names, and each
     * hypothesis left is one of the values given.
     */
   private def named(e: LExpr, values: List[LExpr])(using Scope): String = e match
     case LExpr.Named(f, _, v) => named(f, v :: values)
     case f                    =>
-      s"ltac:(eapply (${apply(f)}); first [${values.map(v => s"exact (${apply(v)})").mkString(" | ")}])"
+      val given_ = values.map(v => s"(${apply(v)})")
+      s"ltac:(first [exact (${apply(f)} ${given_.mkString(" ")}) | eapply (${apply(f)}); first [${
+        given_.map(v => s"exact $v").mkString(" | ")}]])"
 
 private[rocq] object RocqExpr:
   /** A form of the generated AST Rocq is not printed from yet: a module that holds one is not printed. */

@@ -10,7 +10,7 @@ import scala.sys.process.{Process, ProcessLogger}
   */
 object RocqRun:
   final case class Checked(compiled: List[String], open: Map[String, List[String]], broken: Map[String, String],
-      stated: Map[String, List[String]] = Map.empty):
+      stated: Map[String, List[String]] = Map.empty, assumed: Set[String] = Set.empty):
     def proven(file: String, lemma: String): Boolean =
       compiled.contains(file) && !open.get(file).exists(_.contains(lemma))
 
@@ -34,7 +34,8 @@ object RocqRun:
       val proven = imported(text, proofs).foldLeft(done)(authored(in, proofs))
       admitting(in, file, Nil) match
         case Right(open)  => proven.copy(compiled = proven.compiled :+ file, open = proven.open + (file -> open),
-          stated = proven.stated + (file -> named(text)))
+          stated = proven.stated + (file -> named(text)),
+          assumed = proven.assumed ++ compiled(in, file).fold(_ => Set.empty, axioms))
         case Left(error)  => proven.copy(broken = proven.broken + (file -> error))
     }
 
@@ -65,6 +66,8 @@ object RocqRun:
         at.filter(i => i >= 1 && lines(i).startsWith("Proof.") && !lines(i).endsWith("Admitted.") &&
           lines(i - 1).startsWith("Lemma ")) match
           case Some(i) =>
+            // what Rocq said of the proof, and the proof, kept beside the file for whoever looks into it
+            Files.writeString(in.resolve(file + s".${lemma(lines(i - 1))}.failed"), lines(i) + "\n\n" + error)
             Files.writeString(in.resolve(file), lines.updated(i, "Proof. Admitted.").mkString("\n"))
             admitting(in, file, open :+ lemma(lines(i - 1)))
           case None    => Left(error.linesIterator.take(6).mkString(" | "))
@@ -73,12 +76,19 @@ object RocqRun:
     text.linesIterator.filter(_.startsWith("Lemma ")).map(lemma).toList
   private def lemma(line: String): String = line.stripPrefix("Lemma ").takeWhile(c => c != ' ' && c != ':')
 
-  /** `coqc` on one file: its error, if it has one. */
-  private def compile(in: Path, file: String): Option[String] =
+  private def compile(in: Path, file: String): Option[String] = compiled(in, file).left.toOption
+
+  /** The axioms a file's `Print Assumptions` name, of what Rocq printed. */
+  private def axioms(printed: String): Set[String] =
+    printed.linesIterator.dropWhile(_ != "Axioms:").drop(1)
+      .flatMap("^([A-Za-z_][A-Za-z0-9_.']*)\\s*(?::|$)".r.findFirstMatchIn(_).map(_.group(1))).toSet
+
+  /** `coqc` on one file: its error, or what it printed. */
+  private def compiled(in: Path, file: String): Either[String, String] =
     val out = StringBuilder()
     def keep(line: String): Unit = { val _ = out.append(line).append('\n') }
     val log = ProcessLogger(keep, keep)
     val code = Process(command ++ Seq("-q", "-Q", "FrFlow", "FrFlow", "-Q", "FrFlowGen", "FrFlowGen", "-Q", "Proofs",
       "Proofs", file),
       in.toFile).!(log)
-    Option.when(code != 0)(out.toString)
+    Either.cond(code == 0, out.toString, out.toString)

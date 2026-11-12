@@ -40,10 +40,12 @@ proven equal, `propositional_extensionality` and `functional_extensionality`.
 
 `ModelsRocqSuite` prints two examples and checks them with Rocq 9.3:
 
-- `examples/payments`: Rocq reads all 122 generated files, and `frflow_auto` proves 26 of the 29 code
-  obligations (`impl`), as many as Lean's `frflow_auto`. The two are built differently: Lean's rests on `simp`
-  and `grind`; Rocq's is a set of rewrites, case splits, `lia`, first-order search and a search for the witness
-  that refutes a "there is no such" hypothesis. Three obligations and the root's are left to proof files.
+- `examples/payments`: proven. Rocq reads all 122 generated files. Of the 29 code obligations (`impl`),
+  `frflow_auto` proves 27 and two proof files prove the others (`examples/payments/rocq/Proofs/Payments`:
+  `redeliveryChangesNothing`, `neverCommitsAhead`); the root theorem follows from them. Lean's `frflow_auto`
+  proves 26 and three are by hand. The two tactics are built differently: Lean's rests on `simp` and `grind`;
+  Rocq's is a set of rewrites, case splits, `lia`, first-order search and a search for the witness that refutes
+  a "there is no such" hypothesis.
 - `examples/auth`: proven. Each node follows from its parts by its proof file
   (`examples/auth/rocq/Proofs/Auth`, five files ported from the Lean ones), and the tactic proves the
   statements about the theory as a whole.
@@ -58,8 +60,7 @@ The newest Rocq is installed through opam (`opam install rocq-prover`), on the s
 
 ## What is left, in order
 
-1. **Payments**: the three obligations still open and the root's, by proof files; then its examples
-   (`Whole`).
+1. **The examples' facts** (`FrFlowExamples`, the theorems of `Whole`) of payments and auth.
 2. **The run in the product**: a `Prover` port beside `Lake`, `_CoqProject`, reading `coqc`'s output per
    theorem, the rules a hand proof file must keep (no `Axiom`, `Admitted`, `Parameter`), and the audit
    (`Print Assumptions`).

@@ -28,14 +28,27 @@ import scala.annotation.experimental
     assertEquals(checked.broken, Map.empty[String, String])
     (checked, checked.compiled.filter(f => f.endsWith("/Impl.v") && checked.open(f).isEmpty))
 
-  test("the payments model is read by Rocq, and its tactic proves obligations".tag(Rocq)) {
-    val (_, shown) = read(payments.payments, "payments")
-    assert(shown.sizeIs >= 26, s"frflow_auto proves ${shown.size} of the code obligations, where it proved 26")
+  /** The axioms a proof may rest on: the classical `if` of a model's Booleans, and equal propositions and
+    * functions taken as equal.
+    */
+  private val allowed = Set("classic", "constructive_definite_description", "propositional_extensionality",
+    "functional_extensionality_dep")
+
+  /** The lemmas left open, by file, but those of a node's checks: tries that are not to be proven. */
+  private def open(checked: RocqRun.Checked): Map[String, List[String]] =
+    checked.open.filterNot((file, lemmas) => file.endsWith("/Checks.v") || lemmas.isEmpty)
+
+  test("the payments model is proven in Rocq: the code meets every claim, and the roots follow".tag(Rocq)) {
+    val (checked, shown) = read(payments.payments, "payments")
+    assertEquals(open(checked), Map.empty[String, List[String]])
+    assertEquals(shown.size, 29)
+    assertEquals(checked.assumed.diff(allowed), Set.empty[String])
+    assert(RocqRun.lemmas(checked, "FrFlowGen/Payments/RootImpl.v").contains("RootImpl_root_impl"))
   }
 
   test("the auth model is proven in Rocq: each node from its parts by its proof file, the whole consistent".tag(Rocq)) {
     val (checked, _) = read(auth.knowledge, "auth")
-    val open = checked.open.filterNot((file, lemmas) => file.endsWith("/Checks.v") || lemmas.isEmpty)
-    assertEquals(open, Map.empty[String, List[String]])
+    assertEquals(open(checked), Map.empty[String, List[String]])
     assertEquals(checked.stated.keySet.count(_.endsWith("/Theorems.v")), 4)
+    assertEquals(checked.assumed.diff(allowed), Set.empty[String])
   }

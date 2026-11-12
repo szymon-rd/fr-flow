@@ -88,8 +88,18 @@ Ltac frflow_under := repeat first
   | match goal with H : _ |- _ => progress (setoid_rewrite List_filter_In in H) end
   | match goal with H : _ |- _ => progress (setoid_rewrite frflow_eq_is_iff in H) end ].
 
+(** What is known by cases, taken by cases: a hypothesis that is one of several things (a step that is one of a
+    run's steps), and an option matched on (what a schedule says the others left, if anything). *)
+Ltac frflow_cases := repeat match goal with
+  | H : _ \/ _ |- _ => destruct H
+  | H : False |- _ => destruct H
+  | H : _ /\ _ |- _ => destruct H
+  | |- context [match ?o with Some _ => _ | None => _ end] => destruct o eqn:?
+  | H : context [match ?o with Some _ => _ | None => _ end] |- _ => destruct o eqn:?
+  end.
+
 Ltac frflow_simpl :=
-  repeat (progress (autorewrite with frflow in *; cbn in *; frflow_split; subst; frflow_under)).
+  repeat (progress (autorewrite with frflow in *; cbn in *; frflow_split; subst; frflow_under; frflow_cases)).
 
 Ltac frflow_refute search := solve [match goal with H : ~ _ |- _ =>
   exfalso; apply H; eexists; split; [ solve [search] | first [reflexivity | lia] ] end].
