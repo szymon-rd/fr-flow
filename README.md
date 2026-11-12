@@ -245,14 +245,12 @@ Statements are about two kinds of values:
 
 | Value | Written | What it is |
 |---|---|---|
-| Declaration | `Declaration[A](means)` | a word of the model: what statements speak of and code calls. One nothing defines is known only by what the statements say of it, such as `booked`; if only statements read it, it may change as the service runs (`d.isConstant`, as an assumption, says it does not) |
+| Declaration | `Declaration[A](means)` | a word of the model: what statements speak of and code calls. One nothing defines is known only by what the statements say of it, such as `booked` |
 | Structure | `Declaration[Trait](means)`, of a trait of the developer's | a value with members: a service, a store. Its members are called on terms as the trait declares them: `limits.authorise(p).result` is what the call gives, `.after` the structure after it, `.in(state)` the same from a given state, `limits.current` the structure as it stands, `.amongOthers(run => …)` every step of the call among other calls. A claim on a class that holds it asks it as the holder has it: `ledger.total.in(handler.handle(p).after)` |
-| Definition | `d.define(…)` of a Declaration, listed in the model beside the nodes; or `define { … }`, declared and defined at once | a Declaration with a meaning, such as `book`: a class that implements a structure's trait (`d.define(lifted[Class])`, compiled from its TASTy and proven), a program or a `define` (`d.define`, proven), plain Scala (`d.defineTested`, tested), a value (`d.defineValue`, `d.provided`), or, for an operation on a state, a `StateModel` saying what it does (its Scala, `defineOperations`, tested against the model) or the assumptions about it alone (`op.assumed`) |
+| Definition | `d.define(…)` of a Declaration, listed in the model beside the nodes; or `define { … }`, declared and defined at once | a Declaration with a meaning, such as `book`: a class that implements a structure's trait (`d.define(lifted[Class])`, compiled from its TASTy and proven), a `define` (`d.define`, proven), plain Scala (`d.defineTested`, tested), or a value (`d.defineValue`, `d.provided`) |
 
-They use two quantifiers: `forall`, every possible value, and `always`, every value the code FrFlow covers can produce
-(`always[T](x => …)`, of a type; `always(stored)(s => …)`, every state a model reaches). A statement holds in every
-state the service reaches, the World, which it never names: `stored.current` is a model's state as it stands,
-`p(x).result` what a run of a program from it returns, `p(x).after` the state it leaves, read with `stored.in(…)`.
+They use two quantifiers: `forall`, every possible value, and `always`, every value of a type the code FrFlow covers
+can produce (`always[T](x => …)`). A claim on a structure is said of the structure in every state.
 
 A statement refines the statements it serves (`.refines`) and lists the assumptions it rests on (`.assuming`). A
 statement can refine several others, and there can be several roots, so the statements form a directed acyclic graph.
@@ -265,12 +263,11 @@ The code at the bottom of the graph is in one of three states, and `status` repo
   (`limits.define(lifted[RecordedLimits])`): it is compiled from its TASTy as the model is built, and each member is
   proven to meet every claim on it, alone and among other calls. A function of plain Scala that has no state, no
   effect and cannot fail, read at compile time (`lifted { (a: Booking, b: Booking) => … }`); `testing.Agreement`
-  tests its Scala against its term on generated cases. Or code in the DSL (a `program { … }` over a `Flow`, or a
-  `define`). [docs/LIFTED.md](docs/LIFTED.md) lists the Scala that is read.
-- **Tested** code is plain Scala. It is tested against its claims with property-based testing on generated cases; an
-  operation on a state is tested against its model on generated runs, two of its calls at once among them.
+  tests its Scala against its term on generated cases. Or a `define` written in the DSL.
+  [docs/LIFTED.md](docs/LIFTED.md) lists the Scala that is read.
+- **Tested** code is plain Scala. It is tested against its claims with property-based testing on generated cases.
 - **Assumed** code is known only by the assumptions about it, such as an outside system's search: Lean takes them as
-  given, and its Scala is tested against them where a generated run can tell. A structure with no class is known
+  given, and its Scala is tested against them. A structure with no class is known
   the same way (`pricing.provided`); a model that holds one is valid, and the prover does not build it yet.
 
 Everything above the code is proven from these, and Lean proves the statements consistent: some meaning of every
@@ -282,9 +279,8 @@ Lean 4 is the prover that checks a project (`check`). FrFlow is moving to Rocq: 
 printed as Rocq from the same generated modules and proven by Rocq 9 (`sbt rocqTest`); the other examples stay on
 Lean until they are moved ([docs/ROCQ.md](docs/ROCQ.md)).
 
-Time is modelled as Cats Effect models it: the clock is a model of FrFlow's own (`Clock.now`, `Clock.sleep`), steps of
-code take no time of their own, and the world moves the time on between runs and at each of the clock's steps.
-FrFlow states safety properties: "eventually", and two runs in sequence in one statement, are out of scope for now.
+FrFlow states safety properties: "eventually" is out of scope for now. Effectful programs written in the DSL
+(`Flow`), state models and the clock were removed; a service's state is a structure's.
 
 ## Decisions
 

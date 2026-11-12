@@ -55,11 +55,9 @@ class CompletenessSuite extends munit.FunSuite:
     assertEquals(Audit.checked(a.decided, built, a.modules), a.modules)
   }
 
-  test("every complete, impl and commute_ the ports and the programs at once state, gone, is missed: of its node") {
-    val asked = "complete|impl|commute_[0-9]+".r
-    val programs = frflow.proof.layout.Broken.resolved
-    val all = analyses.map(_._2).map(a => a.decided -> a.modules) :+
-      (programs -> frflow.proof.layout.Laid(programs, Map.empty, Nil).modules)
+  test("every complete and impl the ports state, gone, is missed: of its node") {
+    val asked = "complete|impl".r
+    val all = analyses.map(_._2).map(a => a.decided -> a.modules)
     val seen = all.flatMap { (r, modules) =>
       val layout = Layout(r.theory.name)
       r.theory.refinement.nodes.flatMap(n => modules.filter(_.name == layout.ofNode(n.id, NodePart.Spec))
@@ -71,5 +69,5 @@ class CompletenessSuite extends munit.FunSuite:
         obligation.takeWhile(_ != '_')
       }
     }
-    assertEquals(seen.distinct.sorted, List("commute", "complete", "impl"))
+    assertEquals(seen.distinct.sorted, List("complete", "impl"))
   }

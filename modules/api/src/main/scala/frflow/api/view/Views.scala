@@ -1,7 +1,6 @@
 package frflow.api.view
 
 import cats.syntax.all.*
-import frflow.api.node.lean.ObligationState
 import frflow.api.node.{CodeView, NodeView, Relation}
 import frflow.api.view.whole.WholeView
 import frflow.core.name.NodeId
@@ -21,12 +20,13 @@ object Views:
     nodes.foldMap(n => Tally.one(n.review.standing.state)), nodes.foldMap(n => Tally.one(n.proof.state)),
     nodes.foldMap(_.code.foldMap(pieces)), whole.groups.foldMap(g => Tally.one(g.status)),
     whole.examples.foldMap(e => Tally.one(e.outcome)),
-    nodes.nonEmpty && gone.isEmpty && whole.starts.forall(_.check.state == ObligationState.Proven) &&
+    nodes.nonEmpty && gone.isEmpty &&
       nodes.forall(n => n.review.standing.state == ReviewState.Accepted && n.proof.unproven.isEmpty))
 
   private def pieces(c: CodeView): Tally[Piece] =
-    c.shown.proven.foldMap(_ => Tally.one(Piece.Proven)) |+| c.shown.tested.foldMap(_ => Tally.one(Piece.Tested)) |+|
-      c.shown.assumed.foldMap(_ => Tally.one(Piece.Assumed))
+    c.shown.proven.foldMap(_ => Tally.one(Piece.Proven)) |+|
+      Option.when(c.shown.tested)(Piece.Tested).foldMap(Tally.one) |+|
+      Option.when(c.shown.assumed)(Piece.Assumed).foldMap(Tally.one)
 
   /** What sits below a node in the tree: its parts, then the rules placed below it. */
   def under(n: NodeView): List[NodeId] =

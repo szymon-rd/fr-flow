@@ -23,9 +23,9 @@ object ModelFiles:
 
   /** Whether every top-level definition of `source` is one of `names`, a helper building terms, or an object or
     * class whose body holds only such definitions (recursively), and there is one. A helper building terms is a
-    * `def` or `val` whose result type, as written, is a `Term[…]` or a `Flow[…]`, or a function whose final result
-    * is one (crm's `def results(u: Term[Account], q: Term[Ask]): Term[List[CrmRecord]]`): it only builds a
-    * statement's or a program's terms, so what it says reaches Lean through the nodes that use it. A statement in a
+    * `def` or `val` whose result type, as written, is a `Term[…]`, or a function whose final result is one
+    * (`def results(u: Term[Account], q: Term[Ask]): Term[List[CrmRecord]]`): it only builds a statement's terms,
+    * so what it says reaches the prover through the nodes that use it. A statement in a
     * body that is no definition (an initialiser, a call made for its effect) is plain code: the file is mixed.
     */
   def only(source: String, names: Set[String]): Boolean =
@@ -65,13 +65,13 @@ object ModelFiles:
       Def(name, i, end, indent, valued && resultType(lines.slice(i, end).mkString(" ")).exists(buildsTerms))
     }).toList
 
-  /** A term's or a program's type, or a function's whose final result is one, as written: `Term[A]`,
-    * `A => Flow[B]`; not `Term[A] => IO[Unit]`. The type is read with its brackets balanced: its final result is
-    * what follows its last `=>` at no depth, and it is `Term[…]` or `Flow[…]` exactly, the bracket closing at its end.
+  /** A term's type, or a function's whose final result is one, as written: `Term[A]`, `A => Term[B]`; not
+    * `Term[A] => IO[Unit]`. The type is read with its brackets balanced: its final result is what follows its last
+    * `=>` at no depth, and it is `Term[…]` exactly, the bracket closing at its end.
     */
   def buildsTerms(t: String): Boolean =
     val last = arrows(t, 0, 0, 0, Nil).last.trim
-    List("Term[", "Flow[").exists(p => last.startsWith(p) && closing(last, p.length - 1).contains(last.length - 1))
+    last.startsWith("Term[") && closing(last, "Term[".length - 1).contains(last.length - 1)
 
   /** The parts of a type between its `=>`s at no depth. */
   @tailrec private def arrows(t: String, k: Int, depth: Int, from: Int, done: List[String]): List[String] =

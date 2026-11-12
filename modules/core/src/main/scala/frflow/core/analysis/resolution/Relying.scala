@@ -6,10 +6,10 @@ import frflow.core.Theory
 
 /** What each node's proof of its code relies on (`Resolve.reliesOn`), a claim about other code left out where it
   * would close a circle. A node checked against code relies on every statement constraining a Definition the code
-  * calls, through the defines the statement calls, so a statement about another program can be among them though no
-  * proof needs it: a claim about `handle`'s runs mentions a word `housekeep` calls, a claim about `housekeep`'s runs a
-  * word `handle` calls, and each would rest on the other. A claim is about other code when it constrains a function
-  * or a program with code that the code checked does not reach. Taking the nodes and what each relies on in the
+  * calls, through the defines the statement calls, so a statement about other code can be among them though no proof
+  * needs it: a claim about `handle` mentions a word `housekeep` calls, a claim about `housekeep` a word `handle`
+  * calls, and each would rest on the other. A claim is about other code when it constrains a function with code that
+  * the code checked does not reach. Taking the nodes and what each relies on in the
   * theory's order, such a claim is kept unless what it rests on reaches back to the node; a theory with no circle
   * keeps every one. A circle that remains, through parts or claims about what the code calls, rests on itself
   * (`Resolve.circles`).
@@ -19,9 +19,8 @@ object Relying:
     val ids = t.nodes.map(_.node.id)
     val raw = ids.map(id => id -> Resolve.reliesOn(t, id)).toMap
     val fixed = ids.map(id => id -> fromParts(t, id)).toMap
-    val assumed = ids.map(id => id -> Resolve.assumedOf(t, id)).toMap
     def below(relies: Map[NodeId, List[NodeId]])(id: NodeId): List[NodeId] =
-      (fixed(id).getOrElse(relies.getOrElse(id, Nil)) ++ assumed(id)).distinct
+      fixed(id).getOrElse(relies.getOrElse(id, Nil))
     if Resolve.circling(ids, below(raw)).isEmpty then raw
     else
       val other = ids.map(id => id -> aboutOtherCode(t, id, raw(id))).toMap
@@ -41,8 +40,7 @@ object Relying:
   /** Of what a node relies on, the claims about code its own does not reach. */
   private def aboutOtherCode(t: Theory, id: NodeId, relies: List[NodeId]): Set[NodeId] =
     SaysWhat.checkedAgainst(t, id).fold(Set.empty[NodeId]) { c =>
-      val reached: Set[SymbolName] =
-        (Callees.reaching(t, c.calls.symbols ++ c.calls.operations) ++ c.standsFor.keys).toSet
+      val reached: Set[SymbolName] = (Callees.reaching(t, c.calls.symbols) ++ c.standsFor.keys).toSet
       relies.filter(m => Constrained.of(t, m).exists(s => Constrained.isFunction(t, s) &&
         t.code.attached.contains(s) && !reached(s))).toSet
     }

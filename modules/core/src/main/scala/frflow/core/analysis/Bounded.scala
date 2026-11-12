@@ -14,9 +14,9 @@ import frflow.core.vocab.SymbolType
   * has no arithmetic on them), and nothing may be said to exist of a type that holds one, since Lean could find one
   * Scala cannot hold. Said to exist, by the statement or by what FrFlow asks of it: a `forall` or an `always` under a
   * negation, on the left of `implies` or in a condition (where it reads as an `∃`), one over a condition
-  * (`satisfiable_` asks that it can hold), a rule of `always` (`inhabited_` asks a value meeting it, and of a store's
-  * state one it starts in), a Declaration, and a Definition Lean has no meaning for (plain Scala, known by its
-  * statements: consistency asks Lean for a meaning of its type).
+  * (`satisfiable_` asks that it can hold), a rule of `always` (`inhabited_` asks a value meeting it), a Declaration,
+  * and a Definition the prover has no meaning for (plain Scala, known by its statements: consistency asks the prover
+  * for a meaning of its type).
   */
 object Bounded:
   def problems(t: Theory): List[Problem] = (said(t) ++ rules(t) ++ declared(t)).distinct
@@ -38,11 +38,9 @@ object Bounded:
       .flatMap(d => existing(d.lambda.body, Polarity.Both))).filter(holds(t, _)).distinct
     .map(Problem.SaidToExist(_, Problem.Place.Variable(n.id))))
 
-  /** Each rule of `always[T]` over a `T` holding one, and of `always(stored)` over a state holding one. */
+  /** Each rule of `always[T]` over a `T` holding one. */
   private def rules(t: Theory): List[Problem] = t.nodes.map(_.node).flatMap(n => n.statement.range.toList.flatMap {
     case Range.Made(ty) if holds(t, ty) => List(Problem.SaidToExist(ty, Problem.Place.Variable(n.id)))
-    case Range.Reached(ms)              => ms.flatMap(t.vocabulary.model).filter(m => holds(t, m.state))
-        .map(m => Problem.SaidToExist(m.state, Problem.Place.State(m.name)))
     case _                              => Nil
   })
 
@@ -81,6 +79,4 @@ object Bounded:
         existing(body, if how == Iteration.Forall || how == Iteration.Exists then p else Polarity.Both)
     case Expr.Match(on, arms, _)              => existing(on, Polarity.Both) ++ arms.flatMap(a => existing(a.body, p))
     case Expr.Let(_, v, b)                    => existing(v, Polarity.Both) ++ existing(b, p)
-    case Expr.Runs(r, w, _, _, _, post)       => existing(r, Polarity.Both) ++ existing(w, Polarity.Both) ++
-        existing(post, p)
     case other                                => Exprs.children(other).flatMap(existing(_, Polarity.Both))

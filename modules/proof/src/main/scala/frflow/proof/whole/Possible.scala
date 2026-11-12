@@ -17,10 +17,9 @@ object Possible:
     val by = found.get(v).fold(Discharge.Unwitnessed)(cs => Discharge.Witnessed(cs.map(Supplied.Value(_))))
     v match
       case Vacuity.Inhabited(n, ty)     =>
-        val meets = Consistency.meets(r.theory, n, ty)
+        val meets = Consistency.meets(r.theory, ty)
         Some(Obligation(ObligationName.Inhabited(n), Prop.Inhabited(meets, ty), by,
-          if !meets.contains(DefName(n.value)) then s"Some state meets what ${n.value} says the store starts in."
-          else if meets.size > 1 then s"Some value meets ${meets.map(_.value).mkString(", ")} together."
+          if meets.size > 1 then s"Some value meets ${meets.map(_.value).mkString(", ")} together."
           else s"Some value meets ${n.value}."))
       case Vacuity.Satisfiable(n, i, _) => Consistency.condition(r.theory, n, i).map { c =>
         val opens = Consistency.opens(r.theory, c)
@@ -37,7 +36,6 @@ object Possible:
       : Option[String] =
     val mentioned = Constrained.of(r.theory, n)
     val reached = Callees.reaching(r.theory, mentioned).filter(s => !opens.contains(s) && !mentioned.contains(s) &&
-      (r.theory.vocabulary.modelOf(s).isEmpty || r.theory.vocabulary.isAssumed(s)) &&
       r.theory.code.attached.get(s).forall(_.code.proven.isEmpty))
     if opens.exists(Constrained.isDeclaration(r.theory, _)) then
       Some("It is about Declarations: a witness would choose what they mean, whatever the claims say, so it is not " +

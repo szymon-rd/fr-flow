@@ -20,7 +20,7 @@ class CalendarLeanSuite extends munit.CatsEffectSuite:
 
   test("the calendar's plain Scala is proven to meet its claims, and its examples hold".tag(Live)) {
     val examples = CalendarExamples().elaborated.fold(e => throw AssertionError(e.toString), identity)
-    Ported.run(Projects.elaborated(Calendar.model), examples, Ported.Lean(proofs, Nil, None), Nil).map { r =>
+    Ported.run(Projects.elaborated(Calendar.model), examples, Ported.Lean(proofs, Nil, None)).map { r =>
       List("grantWhenFree", "grantWhenNoOverlap").foreach(n =>
         assertEquals(Ported.row(r.analysis, NodeId(n)).take(3).drop(1), List("proven", "proven"),
           s"$n\n${Ported.table(r.analysis)}"))
@@ -33,7 +33,7 @@ class CalendarLeanSuite extends munit.CatsEffectSuite:
   test("what the Scala gives on generated cases, the term gives and Lean decides from the def printed".tag(Live)) {
     val e = Projects.elaborated(Calendar.model)
     val vectors = List(Calendar.noOverlap, Calendar.grantedCode).flatMap(Vectors.of(e, _, Settings(12, Seed(1))))
-    Ported.run(e, vectors, Ported.Lean(proofs, Nil, None), Nil).map { r =>
+    Ported.run(e, vectors, Ported.Lean(proofs, Nil, None)).map { r =>
       def lean(name: ObligationName) = r.analysis.wholeCheck.flatMap(_.results.find(_.name == name)).map(_.status)
       assert(vectors.size >= 12, vectors.map(_.name).mkString("\n"))
       assertEquals(r.analysis.computed.examples.map(_._2).distinct, List(OnCode.Holds))

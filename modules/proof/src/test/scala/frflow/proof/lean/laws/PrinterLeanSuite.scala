@@ -23,16 +23,13 @@ class PrinterLeanSuite extends munit.FunSuite:
   private def x(s: String, t: LExpr): LBinder = LBinder.Explicit(Names.ident(s), t)
   private val prop = LExpr.Name(n("Prop"))
   private val int = LExpr.Name(n("Int"))
-  /** The symbols the generators name, each at its type; `attempt` a program that may fail. */
+  /** The symbols the generators name, each at its type. */
   private val symbols: List[LBinder] = List(x("p", LowerType.binder(Terms.fnTy)), x("k", int),
     x("xs", LowerType(frflow.core.ty.Ty.ListOf(frflow.core.Lang.big))),
     x("o", LowerType(frflow.core.ty.Ty.OptionOf(frflow.core.Lang.big))), x("slot", LowerType(Booking.ty)),
     x("s", LowerType(frflow.core.ty.Ty.SetOf(frflow.core.Lang.big))),
     x("m", LowerType(frflow.core.ty.Ty.MapOf(frflow.core.Lang.big, frflow.core.Lang.big))),
-    x("ev", LowerType(MoreTerms.eventTy)), x("outcome", LowerType(MoreTerms.outcomeTy)),
-    x("run", LowerType.binder(MoreTerms.runTy)), x("attempt", LExpr.Infix(LOp.Arrow, int, LExpr.Infix(LOp.Arrow,
-      LExpr.Name(n("World")), LExpr.Paren(LExpr.Infix(LOp.Times, LExpr.App(LExpr.Name(n("Except")),
-      List(LExpr.Name(n("String")), int)), LExpr.Name(n("World"))))))))
+    x("ev", LowerType(MoreTerms.eventTy)), x("outcome", LowerType(MoreTerms.outcomeTy)))
 
   private def types: List[Decl] = List(
     Decl.Structure(n("Booking"), Booking.data match

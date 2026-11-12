@@ -5,12 +5,10 @@ description: >-
   of small statements in the domain's words, each proven in Lean from its parts and decided by the developer. Use
   when turning an idea into roots, proposing or changing nodes, introducing domain types and values, adding
   examples, answering the developer's requests, proving a step, or giving code its meaning; or when the work touches
-  `Node.claim`, `Node.assumption`, `Node.design`, `Declaration`, `Definition`, `define`, `stated`, `program`,
-  `lifted`, `FrSpec`, `contractOf`,
-  `forall`, `exists`, `always`, `FrModel`, `FrFlowExamples`, `.refines`, `.assuming`, `.replaces`, `.define`,
-  `.defineTested`, `.defineValue`, `.provided`, `defineOperations`, `.defining`, `withGenerator`, `Flow`, `StateModel`, `onlyCodeChanges`, `initially`,
-  `atomic`, `.assumed`, `.failsWith`, `.current`, `.in`, `.after`, `.result`, `.ifSucceeds`, `.ifFails`,
-  `isConstant` or `Clock`.
+  `Node.claim`, `Node.assumption`, `Node.design`, `Declaration`, `Definition`, `define`, `stated`, `lifted`,
+  `FrSpec`, `contractOf`, `forall`, `exists`, `always`, `FrModel`, `FrFlowExamples`, `.refines`, `.assuming`,
+  `.replaces`, `.define`, `.defineTested`, `.defineValue`, `.provided`, `.defining`, `withGenerator`, `.holding`,
+  `.current`, `.in`, `.after`, `.result`, `.steps` or `.amongOthers`.
 ---
 
 # Developing with FrFlow
@@ -122,22 +120,20 @@ output is plain ASCII and not cut; `--json` on `check` and `status` prints JSON.
 ## The core concepts
 
 Three kinds of nodes, two kinds of values, two quantifiers (the owner's decisions §15). There is nothing else: no
-contract, invariant, model or definition node, no boundary, no `Program`. Never work around them.
+contract, invariant, model or definition node, no boundary, no program type, no state model. Never work around
+them.
 
 - **Nodes.** `Node.claim(statement)(formula)`: proven from its parts or of the proven code it mentions, tested where
-  that code is plain Scala. `Node.assumption(statement)(formula)`: trusted, decided by the developer: the world
-  outside the code (`stored.onlyCodeChanges`, `stored.initially(s => …)`, `stored.atomic`, a clock's `schedule`), an
-  outside system's promise (an assumed operation's runs), what values from outside meet (`always[T]`).
+  that code is plain Scala. `Node.assumption(statement)(formula)`: trusted, decided by the developer: an outside
+  system's promise, what values from outside meet (`always[T]`).
   `Node.design(statement)(files*)`: a decision about code no proof covers.
-- **Values.** `Declaration[A](means)`: a word of the model, of any type, what statements speak of and code and
-  programs call. A Definition is a Declaration with a meaning; list it in the `FrModel` beside the nodes
-  (`FrModel("Rooms")(bookWhenFree, …, book.define(bookIfGranted))`). A word gets one, once: `d.define(code)` or
-  `d.define { (a, b) => … }` (a `program`, a `define`, lifted code: proven), `d.defineTested(env => …)` (plain
-  Scala, tested), an operation's `StateModel` with `defineOperations(ops*)(start, observe)(calls)` (proven on the
-  model, the Scala tested against it), `op.assumed` (known by its assumptions), `d.defineValue(v)`, `d.provided`.
-  `define { … }` and `program { … }` are Definitions declared and defined at once, named as their vals; they need
-  no listing. A word the model gives no meaning is known by the statements about it: if code calls it, it is a
-  function from outside (say what is assumed of it); if only statements read it, it may change with the World.
+- **Values.** `Declaration[A](means)`: a word of the model, of any type, what statements speak of and code calls.
+  A Definition is a Declaration with a meaning; list it in the `FrModel` beside the nodes
+  (`FrModel("Rooms")(bookWhenFree, …, bookings.define(lifted[StoredBookings]))`). A word gets one, once:
+  `d.define(code)` or `d.define { (a, b) => … }` (a `define`, lifted code, a class read for a structure: proven),
+  `d.defineTested(env => …)` (plain Scala, tested), `d.defineValue(v)`, `d.provided`. `define { … }` is a Definition
+  declared and defined at once, named as its val; it needs no listing. A word the model gives no meaning is known
+  by the statements about it: if code calls it, it is a function from outside (say what is assumed of it).
   Type what calls a word by `Declaration`; never write `Definition[A]("…")` or `implement…`, which no longer
   exist. Read a field of a declared record as `d.term.field`.
   `stated { … }` is a define whose body may apply a Declaration: name a line over Declarations with it, so a
@@ -145,16 +141,14 @@ contract, invariant, model or definition node, no boundary, no `Program`. Never 
 - **Quantifiers.** `forall(x => …)`: every possible value. `exists(x => …)`: some value (Lean's `∃`; write it
   rather than `!forall(x => !…)`). `always[T](x => …)`: every value of `T` that can be made:
   a hypothesis in Lean of every statement about such values, met wherever covered code makes one (`made_`), and the
-  tests draw only values meeting it. `always(stored)(s => …)`: every state the model reaches, kept by every program
-  writing it (`cover_`), from a start that meets it (`start_`). An `always` is a node's whole formula; a claim of
+  tests draw only values meeting it. An `always` is a node's whole formula; a claim of
   one placed with `.refines` is a rule below the statement it serves, no part of its step.
-- **The World.** A statement holds in every reachable world and never names it. Read what changes in the current
-  one: `stored.current`, a Declaration, a define reading state. A program in a statement runs from it:
-  `book(request).result`, and `stored.in(book(request).after)` the state it leaves; beside a run, name the world
-  before it with `.current` (`accepted(request).current`). Of a program that `.failsWith[E]`,
-  `p(x).ifSucceeds(r => …)` and `p(x).ifFails(e => …)` say what each outcome does (each its `result.fold` with
-  `True` on the other side): `handle(r).ifFails(_ => handle(r).changesNothing)`. `t.isConstant`: no run changes `t` (of a Declaration, an
-  assumption). Two runs in sequence, and "eventually", cannot be stated.
+- **Structures.** A value with members (a service, a store) is a trait of the developer's and a
+  `Declaration[Trait]("…")` typed by its members: `bookings.book(request).result` is what a call gives,
+  `bookings.booked.in(bookings.book(request).after)` a member read after it, `bookings.current` the structure as it
+  stands. A claim on a structure holds of it in every state, so state an invariant as what each call keeps. Its
+  Definition is the class that implements the trait, `bookings.define(lifted[StoredBookings])`, compiled from its
+  TASTy and proven. "Eventually" cannot be stated.
 - **A claim constrains every Definition and Declaration it mentions.** One applying a Definition to exactly its
   leading `forall` variables is a claim about its calls: the code given the Definition is checked against it, and
   code calling it is proven from it. When a claim holds only of some inputs (a room's bookings never overlap), give
@@ -173,25 +167,28 @@ contract, invariant, model or definition node, no boundary, no `Program`. Never 
 From rooms (`examples/rooms`):
 
 ```scala
-val booked = Declaration[List[Booking]]("the bookings made, as the world stands")
-val accepted = Declaration[Booking => Boolean]("whether a request is accepted")
-val book = Declaration[Booking => Flow[Boolean]]("booking a request: whether it was booked")
+trait Bookings extends Mutable:
+  update def book(request: Booking): Boolean
+  def booked: List[Booking]
 
-val bookingsEndAfterStart = Node.assumption("Every booking ends after it starts.")(
-  always[Booking](b => b.start < b.end))
+val bookings = Declaration[Bookings]("the bookings of the meeting rooms")
 
 val acceptWhenFree = Node.claim("A request is accepted exactly when its room is free for its whole time.")(
-  forall((request: Term[Booking]) => accepted(request) === free(booked, request)))
-  .assuming(bookingsEndAfterStart)
+  forall((request: Term[Booking]) =>
+    wellFormed(bookings.booked, request) implies
+      (bookings.book(request).result === free(bookings.booked, request))))
 
-val acceptedIsAnswered = Node.claim("A request is accepted exactly when booking it answers booked.")(
-  forall((request: Term[Booking]) => accepted(request).current === book(request).result))
-  .refines(acceptWhenFree)
+val neverOverlap = Node.claim("Booking a request leaves bookings that do not overlap not overlapping.")(
+  forall((request: Term[Booking]) =>
+    (wellFormed(bookings.booked, request) && bookings.booked.pairwise(apart)) implies
+      bookings.booked.in(bookings.book(request).after).pairwise(apart)))
 
-val neverOverlap = Node.claim("The bookings stored never overlap.")(
-  always(storedBookings)(stored => stored.pairwise(apart)))
-  .refines(bookWhenFree, acceptWhenFree)
-  .assuming(nothingElseWrites, oneAtATime, startsEmpty, bookingsEndAfterStart)
+val answerWhenNoOverlap = Node.claim("A request is answered booked exactly when it overlaps no booking.")(
+  forall((request: Term[Booking]) =>
+    bookings.book(request).result === bookings.booked.forall(b => noOverlap(b, request))))
+
+val rooms: FrModel = FrModel("Rooms")(acceptWhenFree, neverOverlap,
+  answerWhenNoOverlap.refines(acceptWhenFree), bookings.define(lifted[StoredBookings]))
 ```
 
 And from the others:
@@ -199,10 +196,8 @@ And from the others:
 ```scala
 val inMemorySessions = Node.design("One process decides every request, from the sessions and grants it holds " +
   "in memory.")("src/main/scala/auth/Server.scala")                                       // auth
-val loadedKept = Node.claim("The accounts as loaded at start never change.")(seed.isConstant)
-val searchKeeps = Node.assumption("A search changes nothing the database holds.")(
-  forall((user: Term[Account], query: Term[Search]) =>
-    databaseModel.in(fetch(user, query).after) === databaseModel.current))
+val bookingsEndAfterStart = Node.assumption("Every booking ends after it starts.")(
+  always[Booking](b => b.start < b.end))
 ```
 
 - **Order.** Declare a `val` before its use (one used before it is defined is `null`): parents first.
@@ -228,51 +223,20 @@ error.
   not iterated.
 - **In plain Scala** (implementations, wiring, tests): `d.fn(env)` runs a define, `env(d)` reads a word's value.
 
-## Programs and models
+## Services with state
 
-Use a program when code takes several steps against a state (load, store, log): its order, its loop and its
-transaction are then proven, not only reviewed.
+A service with state is a structure: write its interface as a trait (a `caps.Mutable` when a member changes it),
+its claims on the `Declaration` of that trait, and its code as a class that implements it; `lifted[Class]` reads the
+class. `examples/rooms` is the smallest one, `examples/payments` one made of several structures.
 
-```scala
-val inRoom = Declaration[String => Flow[RoomBookings]]("a room's bookings, as the SQLite table gives them")
-val add = Declaration[Booking => Flow[Unit]]("a booking added to the SQLite table")
-
-object storedBookings extends StateModel[List[Booking]]("every booking stored, oldest first"):
-  inRoom.means(room => state.get.map(stored => make[RoomBookings](room, stored.filter(b => b.room === room))))
-  add.means(booking => state.update(stored => stored :+ booking))
-
-val bookIfGranted = program { (request: Term[Booking]) =>
-  (for
-    held  <- inRoom(request.room)
-    booked = granted(held, request)
-    _     <- Flow.when(booked)(add(request))
-  yield booked).atomically }
-```
-
-- **A model** says what each operation does to its state (`state.get`, `state.set`, `state.update`). Its Scala is
-  given with `defineOperations(ops*)(start = …, observe = …)(t => (t.op1, t.op2))` and tested against it on
-  generated runs, two calls at once among them. Say of the model, as assumptions, what the world does: nothing else
-  changes it (`onlyCodeChanges`), what it starts in (`initially`), runs never interleave (`atomic`). Which programs
-  change it FrFlow derives from the code.
-- **An outside system known only by its promises**: `op.assumed` in its model, its promises assumptions about its
-  runs (`op(x).result`, `model.in(op(x).after)`). It reads only its own model; what it needs of another is handed to
-  it as an input. Its results are values from outside.
-- **Failures**: a model whose calls may fail is `StateModel.failing[S, E](means, error)`; a program that can fail is
-  declared `Declaration[…]("…").failsWith[E]`, and its `.result` is an `Either[E, R]`. FrFlow checks the declaration
-  against the code.
-- **Combinators**: `Flow.when`, `cond`, `ifM`, `each`, `collect`, `fold`, `parCollect(N)`, `(a, b).parTupled`,
-  `race`, `raise`, `handle`, `attempt`, `guarantee`, `bracket`, `timeout(Clock.now, s)`, `retry(Clock.sleep, waits)`.
-  Steps at once are proven to commute where they touch a model in common (`commute_<i>`); a side that may let an
-  error out beside one that may fail or writes is refused.
-- **Time** is Cats Effect's: `Clock.now`, `Clock.sleep(d)`; the world moves the time between runs (`elapse`) and at
-  each of the clock's steps, so a program may not rely on taking no time. A schedule
-  (`Clock.clockModel.schedule(other)((now, o) => …)`) is a trusted fact restricting the world's steps.
-- **Production** runs programs with `knowledge.running[IO](model := impl, …)` and plain code with
-  `knowledge.code(d)(bindings*)`; nothing checks a call there. Wire it in a file a design node governs.
+- **An outside system known only by its promises** is a structure given no class (`pricing.provided`), its promises
+  assumptions on its members.
+- **Production** calls the classes themselves, and plain code with `knowledge.code(d)(bindings*)`; nothing checks a
+  call there. Wire it in a file a design node governs.
 
 ## Terms or plain Scala
 
-Write terms where the code is small and worth proving (a decision rule, a program's steps); write plain Scala for the
+Write terms where the code is small and worth proving (a decision rule); write plain Scala for the
 lowest-level code (a lookup through an index, a parser, SQL), and give it with `defineTested`.
 
 A decision rule can also be proven as the Scala it is: `val noOverlap = lifted { (a: Booking, b: Booking) => … }` is
@@ -324,8 +288,7 @@ lemma over its steps (`every_step` in the examples); a proof file holds theorems
 Plain Scala given with `defineTested`, each listed in the model:
 
 ```scala
-granted.defineTested(_ => (held, request) => Calendar(held).grants(request)),                      // rooms
-defineOperations(inRoom, add)(start = BookingsTable.holding, observe = _.bookings)(t => (t.inRoom, t.add))
+admit.defineTested(env => SessionStore(env(grants), env(sessions)).decide)                           // auth
 ```
 
 The test's property is the claim's own formula; its cases are drawn from the generators given for the types
@@ -336,8 +299,6 @@ property by hand, and never weaken a claim or an example to make a test pass.
   run `check` again.
 - **A generator** for a type says what values can occur (a table: one row per key); say in its description what it
   leaves out. `check` notes a generator that never makes the examples' values.
-- **A model's Scala failing its model** reads as the calls, the state and what each gave: fix the Scala, or tell the
-  developer the model is wrong; never change the model to match the code without their decision.
 
 ## What check reports, and what to do
 
@@ -352,10 +313,9 @@ A try is `shown` (Lean proved it) or `not shown`. Never write that Lean shows a 
 | `clash`, `unsat` shown | the parts contradict each other; nothing meets the node | Fix the parts, or the node. |
 | `idle` shown | doing nothing meets the roots | State what users can do. |
 | `impl` open | the code does not provably meet the claim | Fix the code, or prove `impl` by hand. |
-| `cover_`, `made_`, `start_` open; "keeping R is not proven" | a rule is not kept, made or started | Fix the code, the start, or the rule; a statement taking an open rule stays open. |
+| `made_` open; "keeping R is not proven" | a rule is not met by what the code makes | Fix the code or the rule; a statement taking an open rule stays open. |
 | consistency not proven | no meaning is shown for a group | Add an equation or bound a witness comes from, or prove `consistent_<i>` by hand. |
 | fails a generated case | tested code does not meet its claim | Add the case as an example; fix the code. |
-| trusted, not tested | an assumption no generated run can evaluate | Write it as a run of one operation with a Scala value, or tell the developer it is trusted. |
 | `PremiseMissing`, `PremiseNotNeeded` | the `.assuming` list differs from what the check rests on | List what it names, or drop what it does not. |
 | an example fails (`x`: the code does not hold it, or the claims contradict it) | the code or the claim is wrong | Fix the code or the claim before any proof; never the example to make it pass. |
 | an example not decided by the claims (`o`) | Lean's automation did not decide it within its budget | Nothing to fix: leave the example as it is; prove `example_<set>_<i>` in `Whole.lean` only if the developer asks. |
@@ -367,7 +327,7 @@ A try is `shown` (Lean proved it) or `not shown`. Never write that Lean shows a 
    `<Model>.<node>.Proofs`): per obligation the last check left open, `theorem <name> : Obl.<name> := by sorry`,
    whose proof you write (`unfold Obl.<name>` first; `check` prints the goal Lean is left with).
 2. Iterate with `lake env lean Proofs/<Model>/<node>.lean` in `lean/`, then `check`. `simp only [frflow_defs]`
-   unfolds the model's definitions and a program's run on the models.
+   unfolds the model's definitions.
 3. Shared lemmas go in `lean/Proofs/<Model>/Lemmas.lean`, which imports no lemmas of its own. Lean 4.35 deprecates
    `if_pos`/`if_neg`: use `ite_eq_left`/`ite_eq_right`, or `split`.
 4. A proof file holds only `import`, `set_option` (`maxHeartbeats`, `maxRecDepth`, `autoImplicit`, `linter.*`),

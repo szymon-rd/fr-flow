@@ -5,9 +5,9 @@ import frflow.core.ty.Ty
 
 /** The essential operations of the term language: its children, its type, and what it mentions. Pure and total. */
 object Exprs:
-  /** The immediate subexpressions, in order (a `Do` block's: the expressions of its steps). */
+  /** The immediate subexpressions, in order. */
   def children(e: Expr): List[Expr] = e match
-    case Expr.Var(_) | Expr.Lit(_, _) | Expr.Sym(_, _) | Expr.Outside(_) => Nil
+    case Expr.Var(_) | Expr.Lit(_, _) | Expr.Sym(_, _) => Nil
     case Expr.Call(_, as, _)       => as
     case Expr.Apply(f, as, _)      => f :: as
     case Expr.Fun(l)               => List(l.body)
@@ -26,11 +26,6 @@ object Exprs:
     case Expr.Fold(on, z, _, _, b) => List(on, z, b)
     case Expr.Pairwise(on, _, _, b) => List(on, b)
     case Expr.Prim(_, as, _)       => as
-    case Expr.Do(p, _)             => Progs.terms(p)
-    case Expr.Runs(r, w, _, _, _, b) => List(r, w, b)
-    case Expr.Part(w, _, _)        => List(w)
-    case Expr.Unchanged(a, b)      => List(a, b)
-    case Expr.Constant(w, _, v)    => List(w, v)
 
   /** Every subexpression, `e` first. */
   def all(e: Expr): List[Expr] = e :: children(e).flatMap(all)
@@ -39,20 +34,11 @@ object Exprs:
   def mentions(e: Expr): Mentions = all(e).foldMap(here)
 
   private def here(e: Expr): Mentions = e match
-    case Expr.Sym(n, t)        => Mentions(List(n), Nil, Ty.names(t), Nil, Nil)
-    case Expr.Call(d, _, t)    => Mentions(Nil, List(d), Ty.names(t), Nil, Nil)
+    case Expr.Sym(n, t)        => Mentions(List(n), Nil, Ty.names(t))
+    case Expr.Call(d, _, t)    => Mentions(Nil, List(d), Ty.names(t))
     case Expr.Lit(_, t)        => Mentions.empty.copy(types = Ty.names(t))
     case Expr.Make(n, _, _)    => Mentions.empty.copy(types = List(n))
-    case Expr.Part(_, m, t)    => Mentions(Nil, Nil, Ty.names(t), Nil, List(m))
-    case Expr.Do(p, _)         => Progs.mentions(p)
-    case Expr.Outside(f)       => outside(f)
     case other                 => Mentions.empty.copy(types = binders(other).flatMap(x => Ty.names(x.ty)).distinct)
-
-  private def outside(f: OutsideFact): Mentions = f match
-    case OutsideFact.OnlyCodeChanges(m)   => Mentions(Nil, Nil, Nil, Nil, List(m))
-    case OutsideFact.Atomic(m)            => Mentions(Nil, Nil, Nil, Nil, List(m))
-    case OutsideFact.Initially(m, d)      => Mentions(Nil, List(d), Nil, Nil, List(m))
-    case OutsideFact.Schedule(m, os, d)   => Mentions(Nil, List(d), Nil, Nil, m :: os)
 
   /** The variables `e` binds itself (not those of its subexpressions). */
   def binders(e: Expr): List[Binder] = e match
@@ -62,8 +48,6 @@ object Exprs:
     case Expr.Iterate(_, _, x, _, _) => List(x)
     case Expr.Fold(_, _, acc, x, _) => List(acc, x)
     case Expr.Pairwise(_, x, y, _)  => List(x, y)
-    case Expr.Runs(_, _, _, o, a, _) => List(o, a)
-    case Expr.Constant(_, a, _)     => List(a)
     case Expr.Match(_, arms, _)     => arms.flatMap(_.pattern.binders)
     case _                          => Nil
 
@@ -76,7 +60,7 @@ object Exprs:
     case Expr.Apply(_, _, t)      => t
     case Expr.Fun(l)              => Ty.FnOf(l.params.map(_.ty), l.result)
     case Expr.Quant(_, _, _)      => Ty.Bool
-    case Expr.If(_, a, b)         => Ty.join(typeOf(a), typeOf(b))
+    case Expr.If(_, a, _)         => typeOf(a)
     case Expr.Match(_, _, t)      => t
     case Expr.Let(_, _, b)        => typeOf(b)
     case Expr.Field(_, _, _, t)   => t
@@ -90,12 +74,6 @@ object Exprs:
     case Expr.Fold(_, z, _, _, _) => typeOf(z)
     case Expr.Pairwise(_, _, _, _) => Ty.Bool
     case Expr.Prim(_, _, t)       => t
-    case Expr.Do(_, t)            => t
-    case Expr.Runs(_, _, _, _, _, _) => Ty.Bool
-    case Expr.Part(_, _, t)       => t
-    case Expr.Outside(_)          => Ty.Bool
-    case Expr.Unchanged(_, _)     => Ty.Bool
-    case Expr.Constant(_, _, _)   => Ty.Bool
 
   /** The top-level conjuncts of a proposition (`a && (b && c)` gives `a`, `b`, `c`); itself when it is not a
     * conjunction.

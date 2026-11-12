@@ -1,25 +1,23 @@
 package frflow.dsl.shape
 
-import frflow.core.name.{DefName, SymbolName}
+import frflow.core.name.DefName
 import frflow.dsl.build.WrittenAt
 import frflow.dsl.term.{LeanType, Term}
 import frflow.dsl.vocab.{Definition, Stating}
 import scala.collection.concurrent.TrieMap
 
 /** `stated { (a: Term[A], …) => body }`: a define whose body may apply a Declaration, so it is used only where a
-  * statement is written (`Stating`), as a Declaration is: a program, plain code and a define not itself `stated` do
-  * not compile calling it, and it is no Definition code could be given. Its body is read in the statement's
-  * `Stating`, so a Declaration changing with the World is applied in the world the define reads, as written in the
-  * statement it would be: the define then takes the world last, as one reading state does (`Worldly`). It is a
-  * define like any other in the vocabulary and in Lean.
+  * statement is written (`Stating`), as a Declaration is: plain code and a define not itself `stated` do not compile
+  * calling it, and it is no Definition code could be given. Its body is read in the statement's `Stating`. It is a
+  * define like any other in the vocabulary and to the prover.
   */
 final class Stated[F] private[shape] (val name: DefName, build: Stating => Definition[F]):
-  // One define per reading of the statements (what changes with the World, whether they are closed), so every
+  // One define per reading of the statements (whether they are closed), so every
   // statement of one elaboration names the same define, which the vocabulary keeps once (`Declarations`).
-  private val built = TrieMap.empty[(Set[SymbolName], Boolean), Definition[F]]
+  private val built = TrieMap.empty[Boolean, Definition[F]]
 
   /** The define as the statements being written read it. */
-  private[shape] def in(st: Stating): Definition[F] = built.getOrElseUpdate((st.varies, st.closing), build(st))
+  private[shape] def in(st: Stating): Definition[F] = built.getOrElseUpdate(st.closing, build(st))
 
 object Stated:
   /** The define named `name` written `at`, its body read in each `Stating` it is applied in by `build`. */

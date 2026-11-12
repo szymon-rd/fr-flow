@@ -27,7 +27,7 @@ import scala.concurrent.duration.*
 
   private def proven(model: FrModel, written: FrFlowExamples) =
     val examples = written.elaborated.fold(e => throw AssertionError(e.toString), identity)
-    Ported.run(Projects.elaborated(model), examples, Ported.Lean(Nil, Nil, None), Nil).map { r =>
+    Ported.run(Projects.elaborated(model), examples, Ported.Lean(Nil, Nil, None)).map { r =>
       assertEquals(Ported.unproven(r.analysis), Map.empty, Ported.table(r.analysis))
       assertEquals(r.analysis.computed.examples.map(_._2).distinct, List(OnCode.Holds))
       examples.foreach(e => assertEquals(r.analysis.wholeCheck.flatMap(_.results.find(_.name ==

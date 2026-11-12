@@ -4,7 +4,6 @@ import frflow.core.analysis.resolution.Resolve
 import frflow.core.checking.Checking
 import frflow.core.code.Code
 import frflow.core.consistency.{Standing, Vacuity}
-import frflow.core.expr.OutsideFact
 import frflow.core.name.NodeId
 import frflow.core.Theory
 import frflow.core.ty.Ty
@@ -36,14 +35,13 @@ object Texts:
     case Checking.NotTested(d)         =>
       s"not checked against ${d.value}'s Scala: the statement has no Scala value (it quantifies over every value)"
     case Checking.AssumedByCallers(ds) => s"assumed by the code calling ${names(ds.map(_.value))}"
-    case Checking.WhereMade(ty, ds, ms) =>
-      val makers = ds.map(_.value) ++ ms.map((m, op) => s"${m.value}'s ${op.value}")
+    case Checking.WhereMade(ty, ds)    =>
+      val makers = ds.map(_.value)
       s"met where a ${typeName(ty)} is made" + (if makers.isEmpty then "" else s" (${names(makers)})") +
         s"; assumed of every ${typeName(ty)} in Lean"
-    case Checking.KeptBy(ds)           => s"kept by every run of ${names(ds.map(_.value))}, from the state it starts in"
     case Checking.Unchecked            => "not checked yet: no parts, no code"
 
-  /** What it says of a Declaration, the rules and the world it rests on, and its consistency. */
+  /** What it says of a Declaration, the rules and what from outside it rests on, and its consistency. */
   private def world(id: NodeId): PartialFunction[Checking, String] =
     case Checking.SaysWhatIs(ds, code) => s"says what ${ds.map(_.value).mkString(", ")} " +
       (if ds.size == 1 then "is" else "are") + code.map((d, c) => s": ${d.value}'s ${kind(c)} stands in it").mkString
@@ -53,42 +51,22 @@ object Texts:
     case Checking.Consistent(g, s)     => g.filterNot(_ == id) match
         case Nil    => s"consistent: ${standing(s)}"
         case others => s"consistent with ${names(others.map(_.value))}: ${standing(s)}"
-    case Checking.Starts(from, s)      =>
-      s"met where the store starts, from what ${from.fold("nothing")(_.value)} says: ${standing(s)}"
     case Checking.Possible(vs)         => s"not vacuous: ${vs.map(vacuity).mkString(", ")}"
     case Checking.Trusted              => "trusted"
-    case Checking.TrustedUntested(os)  => s"trusted, not tested: the generated runs of ${names(os.map(_.value))} " +
-        "cannot evaluate it"
-    case Checking.Outside(f)           => outside(f)
-    case Checking.ChangedBy(ps)        => s"the programs changing it, derived: ${names(ps.map(_.value))}"
-    case Checking.TestedOnModel(m, os) => s"rests on ${listed(os.map(_.value))}'s Scala, tested against ${m.value}"
 
-  /** What proven code is: `program, bookIfGranted`, `code, free`. */
+  /** What proven code is: `code, free`. */
   private def kind(code: Code): String = code match
-    case Code.ProvenFlow(c) => s"program, ${c.value},"
     case Code.Proven(c)     => s"code, ${c.value},"
     case _                  => "value"
 
   private def against(d: String, code: Code): String = code match
     case Code.Proven(c)     => s"proven of $d's code, ${c.value}"
-    case Code.ProvenFlow(c) => s"proven of $d's program, ${c.value}"
     case Code.Tested(_, _)  => s"tested against $d's Scala on generated cases"
     case Code.Valued(_)     => s"proven of $d's value"
     case Code.Provided      => s"stated for every value of $d provided where the code runs"
-    case Code.Modelled(m)   => s"proven of $d's meaning in ${m.value}"
 
   private def premise(p: Premise): String = p match
-    case Premise.OnlyCodeChanges(m) => s"nothing outside the code changing ${m.value}"
-    case Premise.Atomic(m)        => s"runs on ${m.value} being atomic"
-    case Premise.Initially(m)     => s"the state ${m.value} starts in"
-    case Premise.FromOutside(ty)  => s"what each ${typeName(ty)} from outside meets"
-    case Premise.Schedule(m, by)  => s"where the world moves ${m.value}'s time (${by.value})"
-
-  private def outside(f: OutsideFact): String = f match
-    case OutsideFact.OnlyCodeChanges(m)   => s"the world outside: nothing but the code changes ${m.value}"
-    case OutsideFact.Atomic(m)            => s"the world outside: runs on ${m.value} never interleave"
-    case OutsideFact.Initially(m, _)      => s"the world outside: the state ${m.value} starts in"
-    case OutsideFact.Schedule(m, _, _)    => s"the world outside: where the world moves ${m.value}'s time"
+    case Premise.FromOutside(ty) => s"what each ${typeName(ty)} from outside meets"
 
   private def standing(s: Standing): String = s match
     case Standing.Witnessed      => "witnessed, for Lean to check"
@@ -100,8 +78,4 @@ object Texts:
     case Vacuity.Satisfiable(_, i, _)  => s"condition ${i + 1} can hold"
 
   private def names(ns: List[String]): String = if ns.isEmpty then "none yet" else ns.mkString(", ")
-  /** `inRoom and add`, `a, b and c`. */
-  private def listed(ns: List[String]): String = ns match
-    case init :+ last if init.nonEmpty => s"${init.mkString(", ")} and $last"
-    case _                             => ns.mkString
   private def typeName(ty: Ty): String = Ty.names(ty).headOption.fold(ty.toString)(_.value)

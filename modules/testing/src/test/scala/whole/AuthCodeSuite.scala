@@ -4,7 +4,7 @@ import auth.*
 import frflow.*
 import frflow.core.expr.Value
 import frflow.eval.run.Broken
-import frflow.testing.report.{Against, Failure}
+import frflow.testing.report.{Failure}
 import frflow.core.name.NodeId
 
 /** Auth's generated tests (today's `AuthSuite`, its testing cases' names kept): `admit`'s plain code against every
@@ -17,7 +17,7 @@ class AuthCodeSuite extends munit.FunSuite:
     assertEquals(Tested.nodes(knowledge).sorted,
       List("accessNeedsGrant", "decisionContract", "grantLetsIn", "tokenNamesHolder"))
     Tested.nodes(knowledge).foreach { n =>
-      assertEquals(Tested.passes(knowledge, n, List(DecisionExamples())).against, Against.Claim(NodeId(n)), n)
+      assertEquals(Tested.passes(knowledge, n, List(DecisionExamples())).against, NodeId(n), n)
     }
   }
 
@@ -26,7 +26,7 @@ class AuthCodeSuite extends munit.FunSuite:
       .defining(admit.defineTested(env => (t, _) => env(sessions).open.find(_.token == t).map(_.user)))
     // A token issued to a user, no grant at all: the user is let in.
     Tested.failure(careless, "decisionContract") match
-      case Failure.Call(List(Value.Str(token), _), givens, Broken.Post, _) =>
+      case Failure(List(Value.Str(token), _), givens, Broken.Post, _) =>
         val byName = givens.map(g => g.symbol.value -> g.value).toMap
         assertEquals(byName.get("grants"), Some(Value.Many(Nil)))
         val held = byName.get("sessions").collect { case Value.Data(_, List(Value.Many(open))) => open }

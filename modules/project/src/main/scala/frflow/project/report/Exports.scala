@@ -55,6 +55,6 @@ object Exports:
     case Some(Statement.Design(gs)) => Body.Design(gs.toList.map(_.value))
     case statement                  =>
       val shown = Shown.of(a.decided.theory, id)
-      val coded = shown.proven.nonEmpty || shown.tested.nonEmpty || shown.assumed.nonEmpty
+      val coded = shown.proven.nonEmpty || shown.tested || shown.assumed
       Body.Stated(Texts.checking(a.decided.theory, id), statement.flatMap(_.definition).map(_.value),
         Option.when(coded)(Rows.code(shown)), a.tested(id).map(Rows.test))

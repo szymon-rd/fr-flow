@@ -47,7 +47,7 @@ class CaptureLawsSuite extends munit.FunSuite:
     val hints = terms.flatMap(t => Exprs.all(ToExpr.of(t)).flatMap(Exprs.binders)).map(_.hint).toSet
     assert(Set("some", "some_", "by", "x_1", "Laws", "Booking", "World", "a$b", "Except").subsetOf(hints), hints)
     val named = terms.flatMap(t => Exprs.mentions(ToExpr.of(t)).symbols.map(_.value)).toSet
-    assert(Set("some", "by", "x_1", "a$b", "some_").subsetOf(named), named)
+    assert(Set("some", "by", "x_1", "a$b").subsetOf(named), named)
   }
 
   test("every term reads as it does with its variables named afresh: no variable takes another's name") {

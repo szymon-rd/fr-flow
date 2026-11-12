@@ -10,5 +10,5 @@ import frflow.core.term.language.Named
   * gives `None`, and the term runs the operation's meaning in this bundle.
   */
 trait Sym[T[_]] extends Logic[T], Equality[T], Arith[T], Constants[T], Lists[T], Options[T], Maps[T], Sets[T],
-    Eithers[T], Quantifiers[T], Records[T], Sums[T], Functions[T], Named[T], Variables[T], Worlds[T], Annotations[T]:
+    Eithers[T], Quantifiers[T], Records[T], Sums[T], Functions[T], Named[T], Variables[T], Annotations[T]:
   def extension[E[_[_]]](key: Ext[E]): Option[E[T]] = None

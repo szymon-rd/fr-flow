@@ -1,7 +1,7 @@
 package frflow.proof.terms
 
 import frflow.core.expr.Binder
-import frflow.core.name.{DefName, ModelName, SymbolName, VarId}
+import frflow.core.name.{DefName, SymbolName, VarId}
 import frflow.core.spec.Form
 import frflow.core.term.*
 import frflow.core.term.interpret.Forward
@@ -119,17 +119,6 @@ final class Calls[T[_]](s: Sym[T], covered: Covered, env: Map[VarId, T[Any]], in
     case _                                     => None, None)
   // `env` holds the value the binder was bound to, of its type `A`.
   override def free[A](x: Binder): C[A] = fwd(env.get(x.id).fold(s.free[A](x))(_.asInstanceOf[T[A]]))
-  override def part[S](w: C[World], model: ModelName, ty: Ty): C[S] = kept(s.part(w.t, model, ty), w)
-  override def runs[R](p: C[Program[R]], before: C[World], result: Bound[R], after: Bound[World])(
-      post: (C[R], C[World]) => C[Boolean]): C[Boolean] =
-    plus(kept(super.runs(p, before, result, after)(post).t, p, before), AtCall.under(s, result, None)(r =>
-      AtCall.under(s, after, None)(w => post(fwd(r), fwd(w)).calls)))
-  override def fails[R, E](p: C[Program[R]], before: C[World], error: Bound[E], after: Bound[World])(
-      post: (C[E], C[World]) => C[Boolean]): C[Boolean] =
-    plus(kept(super.fails(p, before, error, after)(post).t, p, before), AtCall.under(s, error, None)(e =>
-      AtCall.under(s, after, None)(w => post(fwd(e), fwd(w)).calls)))
-  override def unchanged(after: C[World], before: C[World]): C[Boolean] =
-    kept(s.unchanged(after.t, before.t), after, before)
   override def noted[A](n: Annotation, t: C[A]): C[A] = t.copy(t = s.noted(n, t.t))
 
   /** Once its last argument is given: a Definition given plain Scala, a call; one whose proven code is a define, its
@@ -151,7 +140,6 @@ final class Calls[T[_]](s: Sym[T], covered: Covered, env: Map[VarId, T[Any]], in
   private def inlined(d: Define, args: List[(Ty, T[Any])]): List[AtCall[T]] = d.written.form match
     case Form.Term(term) => Calls.of(s, covered, d.lambda.params.map(_.id).zip(args.map(_._2)).toMap,
         inlining + d.name)(term).calls
-    case Form.Steps(_)   => Nil
 
   // A term of `A` is one of `Any` to every interpreter: the type parameter is Scala's only.
   private def widen[A](t: T[A]): T[Any] = t.asInstanceOf[T[Any]]

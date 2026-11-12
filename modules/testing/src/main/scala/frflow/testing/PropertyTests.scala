@@ -11,7 +11,7 @@ import frflow.eval.run.{Broken, CallCheck, Made, Wiring}
 import frflow.eval.term.Semantics
 import frflow.testing.derive.{Case, Draw}
 import frflow.testing.derive.ExampleCases
-import frflow.testing.report.{Against, Count, Drawn, Failure, Note, TestReport}
+import frflow.testing.report.{Count, Drawn, Failure, Note, TestReport}
 import frflow.testing.report.Seed
 
 /** Plain code tested against the claims about its Definition on generated cases: each case's inputs drawn, the
@@ -21,7 +21,7 @@ import frflow.testing.report.Seed
   * failing case is shrunk (`Cases`). Today's run-time check of a call is this judgement, made before production.
   */
 final class PropertyTests(semantics: Semantics, t: Theory):
-  private val wiring = Wiring.onModels(semantics, t)
+  private val wiring = Wiring(semantics, t)
   private val made = Made.of(semantics, t)
 
   def of(node: NodeId, plan: Plan, draw: Draw): Option[TestReport] = of(node, plan, draw, Nil)
@@ -32,16 +32,16 @@ final class PropertyTests(semantics: Semantics, t: Theory):
       val needed = givenTypes(node)
       val found = searched(node, plan, draw, judge)(needed, examples)
       val still = Option.when(judge.inputs.isEmpty && needed.isEmpty)(Note.NothingToVary).toList
-      val replayed = plan.replay.collect { case f: Failure.Call => f }.size
+      val replayed = plan.replay.collect { case f => f }.size
       TestReport(Count(replayed + plan.settings.cases, found.tried), plan.settings.seed,
-        Against.Claim(node), found.outcome, found.hits.unreached, draw.notes ++ still)
+        node, found.outcome, found.hits.unreached, draw.notes ++ still)
     }
 
   /** The failing cases kept, then case `i` of `cases` drawn from `(seed, i)`, judged up to the first failing. */
   private def searched(node: NodeId, plan: Plan, draw: Draw, judge: Judge)(needed: List[(SymbolName, Ty)],
       examples: List[Example]): Searched =
     val cases = Cases(semantics, judge, needed, made)
-    val replayed = plan.replay.collect { case Failure.Call(ins, gs, _, from) => Case(ins, gs) -> from }
+    val replayed = plan.replay.collect { case Failure(ins, gs, _, from) => Case(ins, gs) -> from }
     val drawn = Iterator.range(0, plan.settings.cases).flatMap { i =>
       val from = Drawn(plan.settings.seed, i, Seed.sizeOf(i, plan.settings.cases))
       cases.drawn(draw, from).map(_ -> from)

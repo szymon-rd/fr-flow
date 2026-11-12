@@ -1,6 +1,6 @@
 package frflow.wire.test
 
-import frflow.core.name.{DefName, ModelName, NodeId, SymbolName}
+import frflow.core.name.{DefName, NodeId, SymbolName}
 import frflow.eval.EvalError
 import frflow.eval.run.Broken
 import frflow.wire.file.Names.given
@@ -15,8 +15,6 @@ object BrokenCodecs:
     case EvalError.Unbound(s)  => Tagged("unbound", "symbol" -> s.asJson)
     case EvalError.NoDefine(d) => Tagged("no-define", "define" -> d.asJson)
     case EvalError.NoCase      => Tagged("no-case")
-    case EvalError.NoModel(m)  => Tagged("no-model", "model" -> m.asJson)
-    case EvalError.Steps       => Tagged("steps")
   }
 
   given Decoder[EvalError] = Tagged.decoder("evaluation error") {
@@ -24,8 +22,6 @@ object BrokenCodecs:
     case "unbound"    => _.get[SymbolName]("symbol").map(EvalError.Unbound(_))
     case "no-define"  => _.get[DefName]("define").map(EvalError.NoDefine(_))
     case "no-case"    => _ => Right(EvalError.NoCase)
-    case "no-model"   => _.get[ModelName]("model").map(EvalError.NoModel(_))
-    case "steps"      => _ => Right(EvalError.Steps)
   }
 
   given Encoder[Broken] = Encoder.instance {

@@ -22,7 +22,7 @@ import shop.ShopExamples
 
   test("every claim of the shop is proven, and its examples hold in Lean".tag(Live)) {
     val examples = ShopExamples().elaborated.fold(e => throw AssertionError(e.toString), identity)
-    Ported.run(Projects.elaborated(shop.shop), examples, Ported.Lean(proofs, Nil, None), Nil).map { r =>
+    Ported.run(Projects.elaborated(shop.shop), examples, Ported.Lean(proofs, Nil, None)).map { r =>
       assertEquals(Ported.unproven(r.analysis), Map.empty, Ported.table(r.analysis))
       assertEquals(r.analysis.computed.examples.map(_._2).distinct, List(OnCode.Holds))
       // An example is shown by FrFlow's automation, or proven by hand (`Proofs/Shop/Whole.lean`).

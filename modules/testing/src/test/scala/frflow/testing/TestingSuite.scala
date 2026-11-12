@@ -8,7 +8,7 @@ import frflow.eval.run.Broken
 import frflow.eval.term.Semantics
 import frflow.testing.derive.Derive
 import frflow.testing.derive.Draw
-import frflow.testing.report.{Against, Count, Failure, Made, Outcome, Reach, TestReport}
+import frflow.testing.report.{Count, Failure, Made, Outcome, Reach, TestReport}
 import frflow.testing.report.Seed
 import frflow.testing.Shelf.*
 import java.util.SplittableRandom
@@ -22,13 +22,13 @@ class TestingSuite extends munit.FunSuite:
       replay: List[Failure] = Nil): Option[TestReport] =
     val e = kb.elaborated.fold(es => fail(es.iterator.mkString("\n")), identity)
     PropertyTests(Semantics(e), e.theory).of(NodeId(node), Plan(settings, replay), Derive.of(e, Nil))
-  private def failing(kb: FrModel, node: String = "pick"): Failure.Call =
-    tested(kb, node).flatMap(_.failure).collect { case f: Failure.Call => f }.getOrElse(fail("the bug was not found"))
+  private def failing(kb: FrModel, node: String = "pick"): Failure =
+    tested(kb, node).flatMap(_.failure).collect { case f: Failure => f }.getOrElse(fail("the bug was not found"))
   private val offByOne = withCode(min => (shelf, _) => shelf.filter(_.pages > min))
 
   test("code that meets its contract passes, and every part of the contract is reached") {
     val r = tested(kb).getOrElse(fail("pick is not tested"))
-    assertEquals((r.failure, r.unreached, r.against, r.cases), (None, Nil, Against.Claim(NodeId("pick")), 300))
+    assertEquals((r.failure, r.unreached, r.against, r.cases), (None, Nil, NodeId("pick"), 300))
     val e = kb.elaborated.fold(es => fail(es.toString), identity)
     val counted = Coverage(Semantics(e), e.theory, NodeId("pick"), List(LeanType[List[Book]].ty, LeanType[BigInt].ty))
     assertEquals(counted.zero.counts.keySet.map(_.reach), Set(Reach.NonEmpty, Reach.Premise))
@@ -48,7 +48,7 @@ class TestingSuite extends munit.FunSuite:
     val f = failing(offByOne)
     // One book, at the length asked, the rest as small as the shrinker goes; the length given as minPages.
     f match
-      case Failure.Call(List(Value.Many(List(Value.Data(_, List(Value.Str(""), Value.Num(pages))))), Value.Num(n)),
+      case Failure(List(Value.Many(List(Value.Data(_, List(Value.Str(""), Value.Num(pages))))), Value.Num(n)),
           List(asked), Broken.Post, _) =>
         assertEquals((n, asked.value, asked.symbol), (BigInt(0), Value.Num(pages), minPages.name))
       case other => fail(s"not shrunk: $other")

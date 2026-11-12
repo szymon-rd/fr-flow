@@ -16,8 +16,8 @@ object CheckDraws:
 
   val obligation: Gen[ObligationName] = Gen.oneOf(
     Gen.oneOf(ObligationName.Complete, ObligationName.Feasible, ObligationName.Impl, ObligationName.RootImpl),
-    word.map(ObligationName.Cover(_)), word.map(ObligationName.Made(_)), tryKind.map(ObligationName.Tried(_)),
-    small.map(ObligationName.Commute(_)), small.map(ObligationName.Consistent(_)), node.map(ObligationName.Start(_)),
+    word.map(ObligationName.Made(_)), tryKind.map(ObligationName.Tried(_)),
+    small.map(ObligationName.Consistent(_)),
     node.map(ObligationName.Inhabited(_)), Gen.zip(node, small).map(ObligationName.Satisfiable(_, _)),
     small.map(ObligationName.Example("GrantedExamples", _)), small.map(ObligationName.ExampleOpposite("Set1", _)))
 

@@ -1,6 +1,6 @@
 package frflow.core.expr
 
-import frflow.core.name.{CtorName, DefName, ModelName, SymbolName, TypeName}
+import frflow.core.name.{CtorName, DefName, SymbolName, TypeName}
 import frflow.core.ty.Ty
 
 /** An expression of the term language, the initial form of a term (`ToExpr`): a simply typed lambda calculus over
@@ -29,19 +29,3 @@ enum Expr:
   /** `body` of every element with each later one (Lean's `List.Pairwise`). */
   case Pairwise(over: Expr, x: Binder, y: Binder, body: Expr)
   case Prim(op: PrimOp, args: List[Expr], ty: Ty)
-  /** A flow's steps: the body of a `def` over a monad with the models' classes. */
-  case Do(prog: Prog[Expr], ty: Ty)
-  /** A run of a program on the models from the world `before`: `post` of what it gives (the result, or the error when
-    * `failing`) and the world after.
-    */
-  case Runs(run: Expr, before: Expr, failing: Boolean, outcome: Binder, after: Binder, post: Expr)
-  /** A model's state in a world. */
-  case Part(world: Expr, model: ModelName, ty: Ty)
-  /** A fact about the world outside the code, as an assumption says it. */
-  case Outside(fact: OutsideFact)
-  /** Every model's state in `after` is its state in `before`, the faults aside (`Worlds.unchanged`). */
-  case Unchanged(after: Expr, before: Expr)
-  /** That no run of any program from `before` changes `value`, read in the world `at` (`Worlds.constant`): as
-    * written, before the FrModel states it per program (`analysis.Constancy`).
-    */
-  case Constant(before: Expr, at: Binder, value: Expr)

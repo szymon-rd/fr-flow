@@ -1,16 +1,15 @@
 package frflow.core.analysis
 
-import frflow.core.{Kb, Lang, Store}
+import frflow.core.{Booking, Kb, Lang}
 import frflow.core.Nodes.*
-import frflow.core.expr.OutsideFact
 import frflow.core.name.NodeId
 
 /** One theory per problem of the graph: its shape, and what may be a premise or a part. */
 object GraphCases:
   private def id(s: String) = NodeId(s)
   private val root = plain("root")
-  private val fact = outside("fact")(OutsideFact.Atomic(Store.model))
-  private val saysFact = Lang.formula([T[_]] => (l: Lang[T]) => l.s.outside(OutsideFact.Atomic(Store.model)))
+  /** What bookings from outside meet: an assumption of `always[Booking]`. */
+  private val fact = always("fact", claimed = false)
 
   val all: List[ProblemCase] = List(
     ProblemCase(Kb.of(plain("a"), plain("a")), List(Problem.DuplicateId(id("a")))),
@@ -25,6 +24,5 @@ object GraphCases:
       List(Problem.PremiseNotAssumed(id("root"), id("other")))),
     ProblemCase(Kb.of(root, assumption("premise")(Lang.truth)).linking(assumes("root", "premise"),
       partOf("premise", "root")), List(Problem.PremiseBelow(id("root"), id("premise")))),
-    ProblemCase(Kb.of(root, fact).linking(partOf("fact", "root")), List(Problem.OutsideAsPart(id("fact"), id("root")))),
-    ProblemCase(Kb.of(root, claim("claimedFact")(saysFact)),
-      List(Problem.OutsideClaimed(id("claimedFact")))))
+    ProblemCase(Kb.of(root, fact).declaring(_.copy(types = List(Booking.data))).linking(partOf("fact", "root")),
+      List(Problem.OutsideAsPart(id("fact"), id("root")))))

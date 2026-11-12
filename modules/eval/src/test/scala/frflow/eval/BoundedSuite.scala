@@ -2,14 +2,14 @@ package frflow.eval
 
 import frflow.*
 import frflow.core.analysis.{Problem, Validate}
-import frflow.core.name.{ModelName, NodeId}
+import frflow.core.name.NodeId
 import frflow.core.ty.Ty
 
 /** A counter held as a Scala `Int`. */
 final case class Score(count: Int) derives LeanType
 
 /** Nothing FrFlow asks to exist is of a type holding a Scala `Int` or `Long` (`Bounded`): not a rule of `always` over
-  * one (`inhabited_`), nor a store's state holding one, nor a Definition given plain Scala (its consistency), nor a
+  * one (`inhabited_`), nor a Definition given plain Scala (its consistency), nor a
   * value over a condition (`satisfiable_`); each refused with a pointer to BigInt. A `forall` over one, with no
   * condition, is not.
   */
@@ -29,10 +29,6 @@ class BoundedSuite extends munit.FunSuite:
   private val conditioned = Node.claim("A tally equal to another is it.")(
     forall((t: Term[Score], u: Term[Score]) => (t === u) implies (u === t)))
 
-  private val read = Declaration[Flow[Score]]("the tally")
-  object tallied extends StateModel[Score]("a tally kept"):
-    read.means(state.get)
-  private val kept = Node.claim("The kept tally is itself.")(always(tallied)(t => t === t))
 
   test("a forall over a type holding an Int, with no condition, says nothing exists") {
     assertEquals(problems(FrModel("Tallies")(positive)), Nil)
@@ -51,10 +47,5 @@ class BoundedSuite extends munit.FunSuite:
   test("an exists inside a define a statement calls is refused, however the statement reads it") {
     assertEquals(problems(FrModel("Tallies")(inDefine)),
       List(Problem.SaidToExist(tally, Problem.Place.Variable(NodeId("inDefine")))))
-  }
-
-  test("a rule of always over a store's state holding one is refused, its store named") {
-    assert(problems(FrModel("Tallies")(kept)).contains(Problem.SaidToExist(tally,
-      Problem.Place.State(ModelName("tallied")))), problems(FrModel("Tallies")(kept)))
   }
 

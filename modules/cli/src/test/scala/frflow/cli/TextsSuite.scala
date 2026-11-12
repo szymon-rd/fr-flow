@@ -41,8 +41,7 @@ class TextsSuite extends munit.FunSuite:
     distinct(List(Warning.NoKey, Warning.DecidersUncommitted, Warning.BaseNotCommitted,
       Warning.GovernedTwice(file, List(a, b)),
       Warning.Ungoverned(file), Warning.GovernedMissing(file, a), Warning.ProofFileOfNoNode(file),
-      Warning.ConsistencyNotProven(List(a)), Warning.StartNotProven(a), Warning.NotChecked(a), Warning.Restates(a, b),
-      Warning.TrustedUntested(a, Nil), Warning.ScheduleUnwritten(a, Nil))
+      Warning.ConsistencyNotProven(List(a)), Warning.NotChecked(a), Warning.Restates(a, b))
       .map(Warnings.text) ++ Uncounted.values.toList.map(u => Warnings.text(Warning.NotCounted(a, decision, u))))
   }
 
@@ -77,7 +76,7 @@ class TextsSuite extends munit.FunSuite:
   test("a statement with no Scala value is said not checked, with no count of cases nor a shortfall") {
     import frflow.api.node.tests.*
     val cases = Cases(1000, 4, 1)
-    def view(o: TestOutcome) = TestView(cases, Against.Claim(a), o, Nil, List(Note.NothingToVary))
+    def view(o: TestOutcome) = TestView(cases, a, o, Nil, List(Note.NothingToVary))
     assertEquals(Tested.lines(view(TestOutcome.NotChecked(frflow.eval.EvalError.Quantified)), movedUnderCode = false),
       List("not checked: the statement has no Scala value to test against (it quantifies over a type)"))
     assert(Tested.lines(view(TestOutcome.Passed), movedUnderCode = false).contains(

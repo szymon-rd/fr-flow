@@ -15,8 +15,8 @@ import frflow.proof.obligation.{Constant, Substitute}
 object Stands:
   def of(r: Resolved, symbols: List[SymbolName]): Map[SymbolName, Substitute] =
     Callees.reaching(r.theory, symbols.distinct).flatMap(s => r.theory.code.attached.get(s).map(_.code).collect {
-      case Code.Valued(v)                       => s -> Substitute.Fixed(Constant(v, typeOf(r, s)))
-      case Code.Proven(_) | Code.ProvenFlow(_) =>
+      case Code.Valued(v) => s -> Substitute.Fixed(Constant(v, typeOf(r, s)))
+      case Code.Proven(_) =>
         s -> Callees.ofDefinition(r.theory, s).flatMap(_.standsFor.get(s)).fold(Substitute.Nothing)(Substitute.Code(_))
     }).toMap
 

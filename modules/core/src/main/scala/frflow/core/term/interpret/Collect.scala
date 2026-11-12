@@ -1,7 +1,7 @@
 package frflow.core.term.interpret
 
-import frflow.core.expr.{Binder, OutsideFact, Value}
-import frflow.core.name.{ModelName, SymbolName}
+import frflow.core.expr.{Binder, Value}
+import frflow.core.name.SymbolName
 import frflow.core.term.*
 import frflow.core.term.language.{Body, Final, Sym}
 import frflow.core.ty.Ty
@@ -76,12 +76,4 @@ object Collect extends Sym[Collect.N]:
   def param[A](name: SymbolName, ty: Ty): N[A] = Nil
   def define[F](d: Body[F]): N[F] = Nil
   def free[A](x: Binder): N[A] = Nil
-  def part[S](w: N[World], model: ModelName, ty: Ty): N[S] = w
-  def runs[R](p: N[Program[R]], before: N[World], result: Bound[R], after: Bound[World])(
-      post: (N[R], N[World]) => N[Boolean]): N[Boolean] = p ++ before ++ post(Nil, Nil)
-  def fails[R, E](p: N[Program[R]], before: N[World], error: Bound[E], after: Bound[World])(
-      post: (N[E], N[World]) => N[Boolean]): N[Boolean] = p ++ before ++ post(Nil, Nil)
-  def outside(fact: OutsideFact): N[Boolean] = Nil
-  def unchanged(after: N[World], before: N[World]): N[Boolean] = after ++ before
-  def constant[A](before: N[World], at: Bound[World])(value: N[World] => N[A]): N[Boolean] = before ++ value(Nil)
   def noted[A](n: Annotation, t: N[A]): N[A] = n :: t

@@ -1,10 +1,10 @@
 package frflow.core.expr
 
 import frflow.core.{Booking, Lang}
-import frflow.core.name.{ModelName, SourceText, SymbolName, VarId}
+import frflow.core.name.{SourceText, SymbolName, VarId}
 import frflow.core.spec.Written
 import frflow.core.term.interpret.ToExpr
-import frflow.core.ty.{NumKind, Ty}
+import frflow.core.ty.Ty
 import frflow.core.typing.{IrCheck, IrContext, IrError, Local}
 
 /** The laws of `Exprs.typeOf` on generated terms of every sort: the IR of a term is typed as the term is, and every
@@ -59,17 +59,9 @@ class TypeOfSuite extends munit.FunSuite:
 
   test("each case of Expr has the type its data says") {
     val (n, b) = (Expr.Lit(Value.Num(1), Lang.big), Expr.Lit(Value.Bool(true), Ty.Bool))
-    val raise = Expr.Do(Prog.Raise(n), Ty.FlowOf(Ty.Never, None))
-    val give = Expr.Do(Prog.Pure(n), Ty.FlowOf(Lang.big, None))
-    val stop = Expr.Sym(SymbolName("stop"), Ty.Never)
     val x = Binder(VarId.level(0), "x", Lang.big)
-    val w = Binder(VarId.level(1), "w", Ty.World)
-    val store = Expr.Var(w)
     List(
-      Expr.If(b, stop, n) -> Lang.big,
-      Expr.If(b, n, stop) -> Lang.big,
-      Expr.If(b, raise, give) -> Ty.FlowOf(Lang.big, None),
-      Expr.If(b, give, raise) -> Ty.FlowOf(Lang.big, None),
+      Expr.If(b, n, n) -> Lang.big,
       Expr.Fun(Lambda(List(x), b, Ty.Bool)) -> Terms.fnTy,
       Expr.Tuple(List(n, b)) -> Ty.TupleOf(List(Lang.big, Ty.Bool)),
       Expr.SomeOf(n) -> Ty.OptionOf(Lang.big),
@@ -78,13 +70,7 @@ class TypeOfSuite extends munit.FunSuite:
       Expr.Make(Booking.name, Booking.make.ctor, Nil) -> Booking.ty,
       Expr.Fold(Expr.ListOf(Nil, Lang.big), n, x, x, n) -> Lang.big,
       Expr.Let(x, n, b) -> Ty.Bool,
-      Expr.Pairwise(Expr.ListOf(Nil, Lang.big), x, x, b) -> Ty.Bool,
-      Expr.Runs(Expr.Sym(SymbolName("book"), Ty.FlowOf(Ty.Unit, None)), store, false, x, w, b) -> Ty.Bool,
-      Expr.Part(store, ModelName("stored"), Ty.ListOf(Booking.ty)) -> Ty.ListOf(Booking.ty),
-      Expr.Do(Prog.Call(SymbolName("add"), Nil, Ty.Unit), Ty.FlowOf(Ty.Unit, None)) ->
-        Ty.FlowOf(Ty.Unit, None),
-      Expr.Outside(Terms.stored) -> Ty.Bool,
-      Expr.Unchanged(store, store) -> Ty.Bool
+      Expr.Pairwise(Expr.ListOf(Nil, Lang.big), x, x, b) -> Ty.Bool
     ).foreach((e, t) => assertEquals(Exprs.typeOf(e), t, e))
   }
 
@@ -101,42 +87,4 @@ class TypeOfSuite extends munit.FunSuite:
       Expr.Make(Booking.name, Booking.make.ctor, List(n)), Expr.Let(x, b, b))
     mistyped.foreach(e => assertEquals(problems(e), List(IrError.Mistyped(e)), e))
     assert(check(Expr.Quant(Quantifier.Forall, List(x), Expr.Prim(PrimOp.Lt, List(Expr.Var(x), n), Ty.Bool))).isValid)
-  }
-
-  test("the checker's rules, none a catch-all: a constant of its type, a symbol and a define the vocabulary has, a " +
-    "step typed by its operation and its model, each step over the steps before it, a fact about the outside whole") {
-    val (n, b) = (Expr.Lit(Value.Num(1), Lang.big), Expr.Lit(Value.Bool(true), Ty.Bool))
-    val (counter, add, limit) = (ModelName("counter"), SymbolName("add"), SymbolName("limit"))
-    val strict = IrCheck(Local(IrContext(_ => None, d => Option.when(d == Terms.positive.name)(Terms.fnTy),
-      (s, t) => s == limit && t == Lang.big, op => Option.when(op == add)(frflow.core.vocab.OpSig(add,
-        List("n" -> Lang.big), Ty.Unit)), m => Option.when(m == counter)(Lang.big))))
-    def errs(e: Expr) = strict(e).fold(_.iterator.toList, _ => Nil)
-    val flow = Ty.FlowOf(Ty.Unit, None)
-    List(Expr.Lit(Value.Bool(true), Lang.big), Expr.Lit(Value.Num(BigInt(2).pow(40)), Ty.Num(NumKind.Int32)),
-      Expr.Sym(limit, Ty.Bool), Expr.Sym(SymbolName("other"), Lang.big),
-      Expr.Call(frflow.core.name.DefName("unknown"), Nil, Ty.Bool)).foreach(e =>
-      assertEquals(errs(e), List(IrError.Mistyped(e)), e))
-    assertEquals(List(Expr.Sym(limit, Lang.big), Expr.Lit(Value.Num(BigInt(2).pow(40)), Ty.Num(NumKind.Int64)))
-      .flatMap(errs), Nil)
-    List(Prog.Call(add, List(b), Ty.Unit), Prog.Write(counter, b), Prog.Read(ModelName("nowhere"))).foreach(p =>
-      assertEquals(errs(Expr.Do(p, flow)), List(IrError.MistypedStep(p)), p))
-    // a call of what no model gives an operation is Validate's to refuse (StepNotOperation, R-N3), no type error
-    assertEquals(errs(Expr.Do(Prog.Call(SymbolName("remove"), List(n), Ty.Unit), flow)), Nil)
-    assertEquals(errs(Expr.Do(Prog.Bind(Prog.Call(add, List(n), Ty.Unit), Binder(VarId.level(0), "u", Ty.Unit),
-      Prog.Write(counter, n)), flow)), Nil)
-    val y = Binder(VarId.level(0), "y", Lang.big)
-    val early = Prog.Bind(Prog.Write(counter, Expr.Var(y)), y.copy(ty = Ty.Unit), Prog.Pure(Expr.Var(y)))
-    assertEquals(errs(Expr.Do(early, flow)), List(IrError.Unbound(y), IrError.AtAnotherType(y, Ty.Unit)))
-    val atomic = Expr.Outside(OutsideFact.Atomic(counter))
-    assertEquals((errs(atomic), errs(Expr.Outside(OutsideFact.Atomic(ModelName("nowhere")))).size), (Nil, 1))
-    assertEquals(errs(Expr.Prim(PrimOp.Not, List(atomic), Ty.Bool)), List(IrError.Mistyped(atomic)))
-  }
-
-  test("applying a value that is no function, or joining branches of two types, is a FrFlow bug, never a guess") {
-    assert(intercept[IllegalStateException](Ty.applied(Ty.Bool)).getMessage.startsWith("FrFlow bug"))
-    assert(intercept[IllegalStateException](Ty.join(Ty.Bool, Lang.big)).getMessage.startsWith("FrFlow bug"))
-    assertEquals((Ty.join(Lang.big, Ty.Never), Ty.join(Ty.Never, Ty.Str)), (Lang.big, Ty.Str))
-    // A program applied to a world is its run, as Lean types it: the outcome and the world after.
-    assertEquals((Ty.applied(Ty.FlowOf(Ty.Bool, None)), Ty.applied(Ty.FlowOf(Ty.Bool, Some(Ty.Str)))),
-      (Ty.TupleOf(List(Ty.Bool, Ty.World)), Ty.TupleOf(List(Ty.EitherOf(Ty.Str, Ty.Bool), Ty.World))))
   }

@@ -1,7 +1,6 @@
 package frflow.core.analysis.resolution
 
 import frflow.core.name.{NodeId, SymbolName}
-import frflow.core.spec.NodeKind
 import frflow.core.ty.Ty
 import frflow.core.vocab.{SymbolType, ValueKind}
 import frflow.core.Theory
@@ -13,10 +12,10 @@ object Constrained:
   def of(t: Theory, id: NodeId): List[SymbolName] =
     Resolve.mentions(t, id).symbols.filter(t.vocabulary.symbol(_).nonEmpty)
 
-  /** A function's or a program's: what code calls. */
+  /** A function's: what code calls. */
   def isFunction(t: Theory, s: SymbolName): Boolean = t.vocabulary.symbol(s).map(_.ty).exists {
-    case SymbolType.Typed(Ty.FnOf(_, _) | Ty.FlowOf(_, _)) => true
-    case _                                                 => false
+    case SymbolType.Typed(Ty.FnOf(_, _)) => true
+    case _                               => false
   }
 
   /** A value only plain code reads (a connection): it has no Lean type, so no statement can mention it. */
@@ -32,9 +31,3 @@ object Constrained:
 
   /** The statements constraining `s`: its claims and assumptions. */
   def statements(t: Theory, s: SymbolName): List[NodeId] = t.nodes.map(_.node.id).filter(of(t, _).contains(s))
-
-  /** The assumptions constraining `s`: of an operation known only by assumptions (G2), all that is known of it; a
-    * claim about one is proven from them, never taken in their place.
-    */
-  def assumptions(t: Theory, s: SymbolName): List[NodeId] =
-    statements(t, s).filter(id => t.node(id).exists(_.statement.kind == NodeKind.Assumption))

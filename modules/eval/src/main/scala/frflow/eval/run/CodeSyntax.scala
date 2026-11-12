@@ -1,21 +1,17 @@
 package frflow.eval.run
 
-import cats.effect.kernel.Async
 import frflow.core.code.Values
 import frflow.core.Elaborated
 import frflow.core.example.Given
 import frflow.dsl.example.Binding
 import frflow.dsl.kb.FrModel
-import frflow.dsl.model.Implemented
 import frflow.dsl.vocab.Declaration
-import frflow.eval.flow.Bound
-import frflow.eval.{Fn, Literals, ScalaValue}
+import frflow.eval.{Fn, ScalaValue}
 import frflow.eval.run.Wiring
 import frflow.eval.term.Semantics
 
-/** `knowledge.code(d)(grants := …)` and `knowledge.running[F](…)` in production: a Definition's code, built as its
-  * tests build it (the values given, over the other Definitions' meanings: `run.Wiring`), and what a program runs
-  * with. Nothing checks a call in production.
+/** `knowledge.code(d)(grants := …)` in production: a Definition's code, built as its tests build it (the values
+  * given, over the other Definitions' meanings: `run.Wiring`). Nothing checks a call in production.
   */
 object CodeSyntax:
   extension (kb: FrModel)
@@ -25,17 +21,6 @@ object CodeSyntax:
     def code[F](d: Declaration[F])(bindings: Binding*): F =
       CodeSyntax.values(kb, bindings).get(d.name).fold(throw IllegalArgumentException(
         s"FrFlow: ${d.name.value} has no meaning in ${kb.name.value} and is given none"))(v => Fn.as[F](ScalaValue(v)))
-
-    /** What programs run with in production: `Running` over the values given, each model's operations their Scala
-      * of the value given (`storedBookings := table`); `run(bookIfGranted)(request)` runs one.
-      */
-    def running[F[_]](bindings: (Binding | Implemented)*)(using F: Async[F]): F[Running[F]] =
-      F.defer {
-        val e = elaborated(kb)
-        val values = CodeSyntax.values(kb, bindings.collect { case b: Binding => b })
-        val bound = Bound.of[F](e.theory, bindings.toList.collect { case i: Implemented => i })
-        Running.make[F](values, Literals(e), bound)
-      }
 
   /** Every Definition's meaning, and the values given, which win. */
   private def values(kb: FrModel, bindings: Seq[Binding]): Values =

@@ -12,7 +12,7 @@ class JudgeSuite extends munit.FunSuite:
   private val file = "FrFlowGen/K/N/Checks.lean"
   private val source = """namespace K.N.Checks
     |
-    |theorem cover_book : Obl.cover_book := by
+    |theorem made_book : Obl.made_book := by
     |  frflow_auto
     |
     |theorem clash : Obl.clash := by
@@ -25,7 +25,7 @@ class JudgeSuite extends munit.FunSuite:
     |""".stripMargin
   private val failing = s"error: $file:7:2: frflow_auto found no proof"
   private def run(output: String) = Elaboration(source, output, file)
-  private val (cover, clash) = (ObligationName.Cover("book"), ObligationName.Tried(TryKind.Clash))
+  private val (cover, clash) = (ObligationName.Made("book"), ObligationName.Tried(TryKind.Clash))
 
   test("the model: built, broken, or Lean timed out") {
     assertEquals(Judge.model(ProverRun.Built("")), None)

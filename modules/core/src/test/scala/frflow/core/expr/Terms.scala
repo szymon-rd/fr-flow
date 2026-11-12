@@ -2,7 +2,7 @@ package frflow.core.expr
 
 import frflow.core.{Booking, Lang}
 import frflow.core.expr.Tm.*
-import frflow.core.name.{DefName, ModelName, SymbolName, TypeName}
+import frflow.core.name.{DefName, SymbolName, TypeName}
 import frflow.core.term.Bound
 import frflow.core.term.language.{Body, Sym}
 import frflow.core.ty.Ty
@@ -19,11 +19,9 @@ final class Terms(seed: Long):
   private val named = mutable.ListBuffer.empty[SymbolName]
   private val called = mutable.ListBuffer.empty[DefName]
   private val typed = mutable.ListBuffer.empty[TypeName]
-  private val modelled = mutable.ListBuffer.empty[ModelName]
 
   /** What the terms made so far mention, as `Mentions` should say it. */
-  def mentioned: Mentions = Mentions(named.toList.distinct, called.toList.distinct, typed.toList.distinct,
-    Nil, modelled.toList.distinct)
+  def mentioned: Mentions = Mentions(named.toList.distinct, called.toList.distinct, typed.toList.distinct)
 
   def bool(d: Int, k: Int): Tm[Boolean] = if d <= 0 then boolLeaf(k) else r.nextInt(20) match
     case 0  => and(bool(d - 1, k), bool(d - 1, k))
@@ -106,7 +104,7 @@ final class Terms(seed: Long):
 
   private def boolLeaf(k: Int): Tm[Boolean] = r.nextInt(3) match
     case 0 => Tm.bool(r.nextBoolean())
-    case 1 => Tm.forall(Tm.bool(true)) // where a fact about the outside stood (a whole assumption only): no value
+    case 1 => Tm.forall(Tm.bool(true))
     case _ => lt(numLeaf(k), numLeaf(k))
 
   private def numLeaf(k: Int): Tm[BigInt] = r.nextInt(3) match
@@ -128,6 +126,5 @@ final class Terms(seed: Long):
 
 object Terms:
   val fnTy: Ty = Ty.FnOf(List(Lang.big), Ty.Bool)
-  val stored: OutsideFact.Atomic = OutsideFact.Atomic(ModelName("stored"))
   val positive: Body[BigInt => Boolean] = Body(DefName("positive"), fnTy, [T[_]] => (s: Sym[T]) =>
     s.lam(Bound[BigInt]("n", Lang.big))(n => s.lt(Lang(s).num(0), n)))

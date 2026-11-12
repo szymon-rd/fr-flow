@@ -34,7 +34,6 @@ object Term:
 
   /** The DSL's implicit conversions on values, where Scala finds them unimported (a term's companion): a value where
     * a term is expected is the constant (Booleans are written `True` and `False`), an `Int` literal a `BigInt` term.
-    * An operation applied is a step where a program expects one (`flow.Flow`'s companion).
     */
   given value[A](using t: LeanType[A], notBoolean: NotGiven[A =:= Boolean]): Conversion[A, Term[A]] = Lift.constant(_)
   given int[A <: Int]: Conversion[A, Term[BigInt]] = i => Lift.constant(BigInt(i))

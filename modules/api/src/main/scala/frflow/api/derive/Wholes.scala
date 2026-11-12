@@ -14,8 +14,7 @@ import frflow.proof.obligation.ObligationName
 private[api] object Wholes:
   def of(a: Analysis): WholeView =
     val groups = Consistency.of(a.decided.theory).zipWithIndex
-    WholeView(groups.flatMap(group(a, _, _)),
-      groups.collect { case (Group.Start(n, start), _) => StartView(n, start, check(a, ObligationName.Start(n))) },
+    WholeView(groups.map(group(a, _, _)),
       Consistency.vacuity(a.decided.theory).map(v => v -> check(a, possible(v))),
       a.computed.examples.map { (e, onCode) =>
         ExampleView(e.name, if e.givens.nonEmpty then OnClaims.ScalaOnly
@@ -23,19 +22,17 @@ private[api] object Wholes:
             check(a, ObligationName.ExampleOpposite(e.of, e.at))), onCode)
       })
 
-  /** A group of statements or of premises, with Lean's check of it; none of a start. */
-  private def group(a: Analysis, g: Group, i: Int): Option[GroupView] =
+  /** A group of statements or of premises, with the prover's check of it. */
+  private def group(a: Analysis, g: Group, i: Int): GroupView =
     val c = check(a, ObligationName.Consistent(i))
-    (g match
-      case Group.Sharing(ids, _, _, ws, _) => Some(ids -> ws)
-      case Group.Premises(ids, _, ws)      => Some(ids -> ws)
-      case Group.Start(_, _)               => None)
-      .map((ids, ws) => GroupView(ids, ws, standing(g.standing, c.state), c))
+    val (ids, ws) = g match
+      case Group.Sharing(ids, _, _, ws, _) => ids -> ws
+      case Group.Premises(ids, _, ws)      => ids -> ws
+    GroupView(ids, ws, standing(g.standing, c.state), c)
 
-  /** `status` says it of each group Lean has not checked witnesses for, and each start not proven. */
+  /** `status` says it of each group the prover has not checked witnesses for. */
   def warnings(w: WholeView): List[Warning] =
-    w.groups.filter(_.status != GroupStatus.Proven).map(g => Warning.ConsistencyNotProven(g.statements)) ++
-      w.starts.filter(_.check.state != ObligationState.Proven).map(s => Warning.StartNotProven(s.statement))
+    w.groups.filter(_.status != GroupStatus.Proven).map(g => Warning.ConsistencyNotProven(g.statements))
 
   private def standing(s: Standing, lean: ObligationState): GroupStatus = (s, lean) match
     case (_, ObligationState.Proven) => GroupStatus.Proven

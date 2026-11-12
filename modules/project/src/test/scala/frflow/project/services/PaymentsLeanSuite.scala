@@ -20,7 +20,7 @@ import scala.concurrent.duration.*
 
   test("every claim of the stream is proven, and its examples hold in Lean".tag(Live)) {
     val examples = PaymentsExamples().elaborated.fold(e => throw AssertionError(e.toString), identity)
-    Ported.run(Projects.elaborated(payments.payments), examples, Ported.Lean(proofs, Nil, None), Nil).map { r =>
+    Ported.run(Projects.elaborated(payments.payments), examples, Ported.Lean(proofs, Nil, None)).map { r =>
       assertEquals(Ported.unproven(r.analysis), Map.empty, Ported.table(r.analysis))
       assertEquals(r.analysis.computed.examples.map(_._2).distinct, List(OnCode.Holds))
       // An example is shown by FrFlow's automation, or proven by hand (`Proofs/Payments/Whole.lean`).

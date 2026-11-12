@@ -15,8 +15,8 @@ import frflow.proof.lean.term.Printed
   * programs; and Lean's verdict on each theorem.
   */
 object LawModules:
-  /** The laws' environment, its world holding the faults beside `stored`, and `Spare` among its types. */
-  val env: LowerEnv = LawsEnv.env.copy(faulty = true, models = List(Names.builtin("stored")),
+  /** The laws' environment, `Spare` among its types. */
+  val env: LowerEnv = LawsEnv.env.copy(
     data = n => (List(Booking.data, MoreTerms.event, Spare.data) ++ DslTerms.types).find(_.typeName == n))
   /** As a FrModel's: no variable takes the FrModel's namespace, a program's name, or a name Lean writes itself. */
   private val naming = Naming.over(Set("Laws", "run", "attempt") ++ frflow.core.analysis.Reserved.names,
@@ -33,12 +33,8 @@ object LawModules:
   private val types: List[Decl] = List(
     Decl.Structure(n("Booking"), fields(Booking.data)), Decl.Structure(n("Spare"), fields(Spare.data)),
     Decl.Inductive(n("Event"), List(n("Booked") -> List(x("at", LExpr.Name(n("Int")))), n("Cleared") -> Nil)),
-    Decl.Structure(n("World"), List(n("stored") -> LExpr.Name(n("Int")), n("faults") -> LExpr.App(n0("List"),
-      List(n0("Bool"))))),
     Decl.Def(List(Attr.FrflowDefs), n("positive"), Nil, LowerType.binder(frflow.core.expr.Terms.fnTy),
-      Printed.formula(env, naming)(frflow.core.expr.Terms.positive.body))) ++ LawPrograms.decls ++
-    DslTerms.decls(env, naming)
-  private def n0(s: String): LExpr = LExpr.Name(n(s))
+      Printed.formula(env, naming)(frflow.core.expr.Terms.positive.body))) ++ DslTerms.decls(env, naming)
 
   /** The term as `holds` says: itself when true, its negation when false. */
   private def theorem(t: Final[Boolean], holds: Boolean, i: Int): Decl =

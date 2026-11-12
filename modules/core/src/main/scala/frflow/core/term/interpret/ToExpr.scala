@@ -1,7 +1,7 @@
 package frflow.core.term.interpret
 
 import frflow.core.expr.*
-import frflow.core.name.{ModelName, SymbolName, VarId}
+import frflow.core.name.{SymbolName, VarId}
 import frflow.core.term.*
 import frflow.core.term.language.{Body, Final, Sym}
 import frflow.core.ty.{NumKind, Ty}
@@ -112,15 +112,6 @@ object ToExpr extends Sym[ToExpr.IR]:
   def param[A](name: SymbolName, ty: Ty): IR[A] = _ => Expr.Sym(name, ty)
   def define[F](df: Body[F]): IR[F] = _ => Expr.Call(df.name, Nil, df.ty)
   def free[A](x: Binder): IR[A] = _ => Expr.Var(x)
-  def part[S](w: IR[World], model: ModelName, ty: Ty): IR[S] = d => Expr.Part(w(d), model, ty)
-  def outside(fact: OutsideFact): IR[Boolean] = _ => Expr.Outside(fact)
-  def unchanged(after: IR[World], before: IR[World]): IR[Boolean] = d => Expr.Unchanged(after(d), before(d))
-  def runs[R](p: IR[Program[R]], before: IR[World], result: Bound[R], after: Bound[World])(
-      post: (IR[R], IR[World]) => IR[Boolean]): IR[Boolean] = run(false, result, after)(p, before)(post)
-  def fails[R, E](p: IR[Program[R]], before: IR[World], error: Bound[E], after: Bound[World])(
-      post: (IR[E], IR[World]) => IR[Boolean]): IR[Boolean] = run(true, error, after)(p, before)(post)
-  def constant[A](before: IR[World], at: Bound[World])(value: IR[World] => IR[A]): IR[Boolean] = d =>
-    Expr.Constant(before(d), binder(at, d), value(variable(binder(at, d)))(d + 1))
   def noted[A](n: Annotation, t: IR[A]): IR[A] = t
 
   private val big = Ty.Num(NumKind.Big)
@@ -141,11 +132,6 @@ object ToExpr extends Sym[ToExpr.IR]:
     val fields = a.c.fields.zipWithIndex.map { case ((hint, ty), i) => Binder(VarId.level(d + i), hint, ty) }
     val whole: IR[C] = _ => Expr.Make(a.c.sum, a.c.ctor, fields.map(Expr.Var(_)))
     Arm(Pattern.Ctor(a.c.sum, a.c.ctor, fields), a.body(whole)(d + fields.size))
-
-  private def run[O](failing: Boolean, outcome: Bound[O], after: Bound[World])(p: IR[?], before: IR[World])(
-      post: (IR[O], IR[World]) => IR[Boolean]): IR[Boolean] = d =>
-    val (o, w) = (binder(outcome, d), binder(after, d + 1))
-    Expr.Runs(p(d), before(d), failing, o, w, post(variable(o), variable(w))(d + 2))
 
   /** A body over a list's or an option's elements, typed from the receiver's type and the body's. */
   private def iterate[A, B, R](how: Iteration, xs: IR[?], x: Bound[A], p: IR[A] => IR[B])(ty: (Ty, Ty) => Ty): IR[R] =

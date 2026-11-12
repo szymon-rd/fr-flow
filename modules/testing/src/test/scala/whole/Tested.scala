@@ -35,8 +35,8 @@ object Tested:
       case _ => false } => d }.toSet
     e.theory.nodes.map(_.node).filter(_.statement.definition.exists(tested)).map(_.id.value)
 
-  def failure(kb: FrModel, node: String): Failure.Call =
-    report(kb, node).flatMap(_.failure).collect { case f: Failure.Call => f }
+  def failure(kb: FrModel, node: String): Failure =
+    report(kb, node).flatMap(_.failure).collect { case f: Failure => f }
       .getOrElse(throw AssertionError(s"no case of $node fails"))
 
   /** Each example of a class, what the code says of it. */

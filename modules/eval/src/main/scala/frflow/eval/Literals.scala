@@ -2,8 +2,6 @@ package frflow.eval
 
 import frflow.core.Elaborated
 import frflow.core.expr.{Side, Value}
-import frflow.core.name.ModelName
-import frflow.core.term.World
 import frflow.core.ty.{NumKind, Ty}
 
 /** A constant as Scala holds it: data built through its type's `DataRep`, its fields typed by its declaration; a map
@@ -32,11 +30,4 @@ final class Literals(e: Elaborated):
     case (Value.Pairs(es), Ty.MapOf(k, w)) => es.map((a, b) => scala(a, k) -> scala(b, w)).toMap
     case (Value.Maybe(x), Ty.OptionOf(a))  => x.map(scala(_, a))
     case (Value.Data(c, fs), Ty.Data(n))   => e.reps(n).make(c, fs.zip(Fields.of(e, n, c)).map(scala(_, _)))
-    case (Value.World(ss, faults), Ty.World) => world(ss, faults)
     case _ => throw IllegalStateException(s"FrFlow bug: the constant $v read at type $t")
-
-  /** Each model's state at its model's type, and the faults when there are any. */
-  private def world(states: List[(ModelName, Value)], faults: List[Boolean]): World =
-    val held = states.map((m, s) => m -> scala(s, Races.typeOf(m).getOrElse(e.theory.vocabulary.model(m)
-      .fold(Ty.Unit)(_.state)))).toMap
-    World.of(if faults.isEmpty then held else held.updated(Faults.model, faults))

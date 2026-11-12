@@ -16,8 +16,7 @@ class ModelFilesSuite extends munit.FunSuite:
     val domain = "package rooms\n\nimport frflow.*\n\n/** A booking. */\nfinal case class Booking(room: String) " +
       "derives LeanType\nobject Booking extends Data[Booking]\n\nval granted = Definition[Booking => Boolean](\"\")\n" +
       "val free = define { (b: Term[Booking]) =>\n  true }\n"
-    val inObject = "package sharing\n\nobject Mailer:\n  val send = Definition[Int => Flow[Unit]](\"\")\n\n" +
-      "  object mailerModel extends StateModel[Int](\"\"):\n    send.means(_ => state.get.steps)\n"
+    val inObject = "package sharing\n\nobject Mailer:\n  val send = Definition[Int => Boolean](\"\")\n"
     assert(ModelFiles.only(domain, vocabulary) && ModelFiles.only(inObject, vocabulary))
   }
 
@@ -33,7 +32,7 @@ class ModelFilesSuite extends munit.FunSuite:
   test("a helper building terms counts as vocabulary; a plain def beside it still makes the file mixed") {
     val helpers = "package crm\n\nval granted = Definition[Int => Boolean](\"\")\n\n" +
       "def results(u: Term[Int],\n    q: Term[Int]): Term[List[Int]] =\n  someOf(u, q)\n" +
-      "val held: Term[Int] = model.current\nobject Steps:\n  def run(n: Term[Int]): Flow[Unit] = go(n)\n" +
+      "val held: Term[Int] = limit\nobject Steps:\n  def run(n: Term[Int]): Term[Boolean] = go(n)\n" +
       "  val pick: Term[Int] => Term[Boolean] = n => n > 0\n"
     val mixed = helpers + "def plain(n: Int): Int = n + 1\n"
     assert(ModelFiles.only(helpers, vocabulary), helpers)
@@ -43,16 +42,16 @@ class ModelFilesSuite extends munit.FunSuite:
       .map(ModelFiles.resultType), List(Some("Term[Int]"), Some("Int"), None))
   }
 
-  test("a helper's type is read with its brackets balanced: its final result is a term or a program, or it is none") {
-    assertEquals(List("Term[A]", "A => Flow[B]", "(Term[A], Term[B]) => Term[List[C]]", "Term[A] => Term[B]",
-      "Term[A] => IO[Unit]", "Flow[A] => Future[B]", "Term[A] | Int", "IO[Term[A]]").map(ModelFiles.buildsTerms),
+  test("a helper's type is read with its brackets balanced: its final result is a term, or it is none") {
+    assertEquals(List("Term[A]", "A => Term[B]", "(Term[A], Term[B]) => Term[List[C]]", "Term[A] => Term[B]",
+      "Term[A] => IO[Unit]", "Term[A] => Future[B]", "Term[A] | Int", "IO[Term[A]]").map(ModelFiles.buildsTerms),
       List(true, true, true, true, false, false, false, false))
     val effect = "package crm\n\ndef deliver(t: Term[Int]): Term[Int] => IO[Unit] = _ => IO.unit\n"
     assert(!ModelFiles.only(effect, vocabulary), effect)
   }
 
   test("an object of helpers whose body also runs a statement is mixed: the statement is plain code") {
-    val pure = "package crm\n\nobject Steps:\n  def run(n: Term[Int]): Flow[Unit] = go(n)\n" +
+    val pure = "package crm\n\nobject Steps:\n  def run(n: Term[Int]): Term[Boolean] = go(n)\n" +
       "  val pick: Term[Int] => Term[Boolean] = n =>\n    n > 0\nend Steps\n"
     val running = pure.replace("end Steps", "  Registry.add(\"steps\")\nend Steps")
     assert(ModelFiles.only(pure, vocabulary), pure)

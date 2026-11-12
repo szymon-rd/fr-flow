@@ -1,7 +1,6 @@
 package frflow.proof.lean.print
 
 import frflow.proof.lean.ast.*
-import frflow.proof.reading.Sentinel
 
 /** Lean's text of the AST: a fold with no decision of its own (the lowering placed every parenthesis and line). */
 object Print:
@@ -27,7 +26,6 @@ object Print:
     case LExpr.Match(on, arms)    =>
       s"match ${expr(on)} with ${arms.map((p, b) => s"| ${expr(p)} => ${expr(b)}").mkString(" ")}"
     case LExpr.Let(n, t, v, b)    => s"let ${n.text} : ${expr(t)} := ${expr(v)}; ${expr(b)}"
-    case LExpr.Do(lines, indent)  => "do\n" + lines.flatMap(PrintDo.line(_, " " * indent)).mkString("\n")
     case LExpr.Typed(x, t)        => s"(${expr(x)} : ${expr(t)})"
     case LExpr.Named(f, n, v)     => s"${expr(f)} (${n.text} := ${expr(v)})"
     case LExpr.Anonymous(es)      => es.map(expr).mkString("⟨", ", ", "⟩")

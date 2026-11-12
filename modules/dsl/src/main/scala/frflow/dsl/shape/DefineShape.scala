@@ -110,7 +110,7 @@ object DefineShape:
   def binder(i: Int, t: LeanType[?], hints: List[String]): Binder = Binder(VarId.level(i), hint(i, hints), t.ty)
 
   private def spot[F: LeanType](name: DefName, lambda: Deferred[Written[Lambda]], b: Body[?]): Definition[F] =
-    Definition.onTheSpot(OnTheSpot(name, Code.Proven(name), lambda, Spot.Define(b, worldly = false)))
+    Definition.onTheSpot(OnTheSpot(name, Code.Proven(name), lambda, Spot.Define(b)))
 
   private def bound[A](i: Int, t: LeanType[A], hints: List[String]): Bound[A] = Bound(hint(i, hints), t.ty)
   private def hint(i: Int, hints: List[String]): String = hints.lift(i).getOrElse("x")

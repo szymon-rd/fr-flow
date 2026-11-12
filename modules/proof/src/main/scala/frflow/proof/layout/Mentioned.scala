@@ -3,7 +3,7 @@ package frflow.proof.layout
 import frflow.proof.lean.ast.*
 
 /** The names a module's declarations use, read off its AST: the qualified constants (`Rooms.covers`,
-  * `Rooms.grantWhenFree.claim`) and the plain names (`World`, a model's class), from which its imports follow.
+  * `Rooms.grantWhenFree.claim`) and the plain names, from which its imports follow.
   */
 object Mentioned:
   def of(ds: List[Decl]): List[List[LeanName]] = ds.flatMap(decl).distinct
@@ -54,17 +54,5 @@ object Mentioned:
     case LExpr.If(c, a, b)        => List(c, a, b).flatMap(expr)
     case LExpr.Match(on, arms)    => expr(on) ++ arms.flatMap((p, b) => expr(p) ++ expr(b))
     case LExpr.Let(_, t, v, b)    => List(t, v, b).flatMap(expr)
-    case LExpr.Do(lines, _)       => lines.flatMap(line)
     case LExpr.Typed(x, t)        => expr(x) ++ expr(t)
     case LExpr.Named(f, _, v)     => expr(f) ++ expr(v)
-
-  private def line(l: DoLine): List[List[LeanName]] = l match
-    case DoLine.Bind(_, s)                 => expr(s)
-    case DoLine.Let(_, v)                  => expr(v)
-    case DoLine.Step(s)                    => expr(s)
-    case DoLine.BindBlock(_, b)            => b.flatMap(line)
-    case DoLine.For(_, over, b)            => expr(over) ++ b.flatMap(line)
-    case DoLine.Branch(c, a, b)            => expr(c) ++ (a ++ b).flatMap(line)
-    case DoLine.TryCatch(_, e, b, _, h)    => expr(e) ++ (b ++ h).flatMap(line)
-    case DoLine.Traverse(_, head, _, b)    => expr(head) ++ b.flatMap(line)
-    case DoLine.Given(_, head, b)          => expr(head) ++ b.flatMap(line)

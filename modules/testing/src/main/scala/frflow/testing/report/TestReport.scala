@@ -1,12 +1,14 @@
 package frflow.testing.report
 
+import frflow.core.name.NodeId
 import frflow.testing.report.Seed
 
-/** What testing a node's code found: how many cases were asked and tried from which seed, what was tested, what was
+/** What testing a node's code found: how many cases were asked and tried from which seed, the claim (or the
+  * assumption) it was tested against, what was
   * found (`Outcome`), the targets no case reached, and the notes (each given generator and what it makes, the
   * examples' values one never makes, nothing to vary).
   */
-final case class TestReport(count: Count, seed: Seed, against: Against, outcome: Outcome, unreached: List[Target],
+final case class TestReport(count: Count, seed: Seed, against: NodeId, outcome: Outcome, unreached: List[Target],
     notes: List[Note]):
   /** The cases tried. */
   def cases: Int = count.tried

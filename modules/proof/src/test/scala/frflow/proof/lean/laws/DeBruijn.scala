@@ -42,7 +42,6 @@ object DeBruijn:
     case LExpr.Match(on, arms)     => LExpr.Match(go(on, scope), arms.map((p, b) =>
         val bound = patternVariables(p)
         (blanked(p, bound.toSet), go(b, bound.reverse ++ scope))))
-    case LExpr.Do(lines, i)        => LExpr.Do(DoBlocks.block(lines, scope), i)
     case other                     => around(other, scope)
 
   /** What binds nothing: each part read in the same scope. */

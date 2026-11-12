@@ -89,5 +89,5 @@ final class NodeText(v: View, style: Style, layers: Contribution):
 
   private def mentions(n: NodeView): List[String] =
     val m = n.says.mentions
-    List("values" -> m.symbols.map(_.value), "defines" -> m.defines.map(_.value), "types" -> m.types.map(_.value),
-      "stores" -> m.models.map(_.value)).collect { case (k, xs) if xs.nonEmpty => s"$k: ${xs.mkString(", ")}" }
+    List("values" -> m.symbols.map(_.value), "defines" -> m.defines.map(_.value), "types" -> m.types.map(_.value))
+      .collect { case (k, xs) if xs.nonEmpty => s"$k: ${xs.mkString(", ")}" }

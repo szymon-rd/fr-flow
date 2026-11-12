@@ -17,7 +17,7 @@ import frflow.testing.derive.Case
   */
 class StepRefutationSuite extends munit.FunSuite:
   private val post: Lambda = Echo.theory((s: String) => s).node(Echo.claim).flatMap(_.statement.call).collect {
-    case CallForm.Call(_, p) => p.value
+    case CallForm(_, p) => p.value
   }.getOrElse(fail("echo's claim reads as a call"))
 
   test("of `echo(x) === x`, the answer is `x`; of a claim not fixing echo's result, none") {

@@ -4,7 +4,6 @@ import frflow.api.node.lean.{ObligationState, ObligationView}
 import frflow.api.node.{CodeView, NodeView}
 import frflow.cli.say.{Findings, Tested}
 import frflow.cli.term.Style
-import frflow.core.checking.{Assumed, Tested as Piece}
 import frflow.decision.review.Cause
 
 /** What running things showed of a node: Lean's check (each obligation, why it ended where it did), and its code (how
@@ -30,17 +29,8 @@ object ProofText:
   private def code(c: CodeView, n: NodeView, st: Style): List[String] =
     val proven = c.shown.proven.map(_.value)
     val pieces = Option.when(proven.nonEmpty)(s"proven: ${proven.mkString(", ")}").toList ++
-      c.shown.tested.map(tested) ++ c.shown.assumed.map(assumed)
-    val tests = c.tests.fold(Option.when(c.shown.tested.nonEmpty)(st.yellow(Tested.NotYet)).toList)(t =>
+      Option.when(c.shown.tested)("plain Scala, tested against it on generated cases: tested, not proven") ++
+      Option.when(c.shown.assumed)("an outside system's promise: assumed, its Scala tested against it")
+    val tests = c.tests.fold(Option.when(c.shown.tested)(st.yellow(Tested.NotYet)).toList)(t =>
       Tested.lines(t, Cause.movedUnderCode(n.review.standing.causes)))
     pieces ++ tests
-
-  private def tested(t: Piece): String = t match
-    case Piece.Plain    => "plain Scala, tested against it on generated cases: tested, not proven"
-    case Piece.Model(m) => s"the plain Scala of ${m.value}'s operations, tested against the model on generated runs: " +
-        "tested, not proven"
-
-  private def assumed(a: Assumed): String = a match
-    case Assumed.Assumption => "an outside system's promise: assumed, its Scala tested against it"
-    case Assumed.Untested(os) => s"an outside system's promise: trusted, not tested (the generated runs of " +
-        s"${os.map(_.value).mkString(", ")} cannot evaluate it)"

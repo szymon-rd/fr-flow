@@ -35,14 +35,8 @@ object Warnings:
     case Warning.ProofFileOfNoNode(f)     => s"$f is no node's proof file (renamed or removed?): it proves nothing"
     case Warning.ConsistencyNotProven(ns) => s"consistency not proven: ${ns.mkString(", ")}; the proof is red " +
         "until Lean proves some meaning meets them all (an equation, a bound, a value, proven code, or a proof)"
-    case Warning.StartNotProven(id)       =>
-      s"$id: the states its store starts in are not proven to meet it (start_$id; say what it starts with)"
     case Warning.NotChecked(id)           => s"$id is not checked: no parts prove it, no proven code is checked " +
         "against it, and the plain Scala it is about has no Scala value to test against"
-    case Warning.TrustedUntested(id, os)  => s"$id is trusted, not tested: the generated runs of " +
-        s"${os.map(_.value).mkString(", ")} cannot evaluate it (read it as a run of one, its post with a Scala value)"
-    case Warning.ScheduleUnwritten(id, ms) => s"$id reads ${ms.map(_.value).mkString(", ")}, which no program " +
-        "writes: once the time reaches its bound, the world lets no more pass and every deadline holds of a still clock"
     case Warning.Restates(id, part)       => s"$id restates $part: Lean proves them equivalent, so it says nothing " +
         "of its own"
 

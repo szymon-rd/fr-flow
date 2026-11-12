@@ -1,15 +1,12 @@
 package frflow.project.pipeline
 
-import frflow.core.analysis.outside.Premises
 import frflow.core.analysis.resolution.Resolved
-import frflow.core.analysis.outside.Scope
-import frflow.core.expr.{Expr, Exprs, OutsideFact}
+import frflow.core.expr.{Expr, Exprs}
 import frflow.core.graph.Edge
 import frflow.core.name.NodeId
-import frflow.core.spec.{CallForm, FailureClause, Node, Reliance, Statement, Written}
+import frflow.core.spec.{Node, Reliance, Statement, Written}
 import frflow.decision.content.{Content, FieldValue}
 import frflow.proof.layout.{Lowering, VocabularyModules}
-import frflow.proof.lean.lower.LowerType
 import frflow.proof.lean.print.{Print, PrintDecl}
 import frflow.proof.lean.term.Printed
 
@@ -38,47 +35,26 @@ object Contents:
       n.statement.said.map(f => "written" -> text(f.source.value)),
       Some("vocabulary" -> texts(Texts.vocabulary(r.theory, n.id)))).flatten
 
-  /** A formula as Lean is given it, then each define it calls, however far, as Lean is given it: `l` canonical, its
-    * variables named by the order they are bound (`Analysis.canonical`). A fact about the outside, which Lean is
-    * never given, is the fact as said of its model (`storedBookings.atomic`).
+  /** A formula as the prover is given it, then each define it calls, however far, as the prover is given it: `l`
+    * canonical, its variables named by the order they are bound (`Analysis.canonical`).
     */
   private def meaning(l: Lowering, f: Written[Expr]): String =
     val defines = l.resolved.theory.vocabulary.closure(Exprs.mentions(f.value).defines)
-    val said = f.value match
-      case Expr.Outside(fact) => fact match
-          case OutsideFact.OnlyCodeChanges(m) => s"${m.value}.onlyCodeChanges"
-          case OutsideFact.Atomic(m)          => s"${m.value}.atomic"
-          case OutsideFact.Initially(m, d)    => s"${m.value}.initially(${d.value})"
-          case OutsideFact.Schedule(m, os, d) => s"${m.value}.schedule(${os.map(_.value).mkString(", ")})(${d.value})"
-      case _                  => Print.expr(Printed.formula(l.env, l.naming)(f.term))
+    val said = Print.expr(Printed.formula(l.env, l.naming)(f.term))
     (said :: defines.map(d => PrintDecl(VocabularyModules.declared(l, d)))).mkString("\n\n")
 
   /** How it is checked and how its code stands. */
   private def done(r: Resolved, n: Node): List[(String, FieldValue)] = List(
     Some("checking" -> texts(Texts.checking(r.theory, n.id))),
-    writers(r, n).map("writers" -> texts(_)),
     Some("governs" -> texts(governs(n.statement))),
     n.statement.definition.map(o => "call" -> text(o.value)),
     r.theory.edges.collectFirst { case Edge.Replaces(a, o) if a == n.id => "replaces" -> text(o.value) },
     Option.when(n.statement.relied == Reliance.LeftOpen)("reliance" -> text("left open above")),
-    failure(n.statement).map("failure" -> text(_)),
-    CodeTexts.implementation(r, n.id).map("implementation" -> text(_)),
-    CodeTexts.model(r, n.id).map("model" -> texts(_)),
-    CodeTexts.implementations(r, n.id).map("implementations" -> texts(_))).flatten
-
-  /** Of a rule about a store, the programs changing the store, derived (owner §31): one added brings it back. */
-  private def writers(r: Resolved, n: Node): Option[List[String]] =
-    val models = n.statement.range.filter(_ => n.statement.rule).toList.flatMap(Scope.models(r.theory, _))
-    Option.when(models.nonEmpty)(models.flatMap(Premises.writers(r.theory, _)).map(_.value).distinct)
+    CodeTexts.implementation(r, n.id).map("implementation" -> text(_))).flatten
 
   private def governs(s: Statement): List[String] = s match
     case Statement.Design(gs) => gs.toList.map(_.value)
     case _                    => Nil
-
-  private def failure(s: Statement): Option[String] = s.call.collect {
-    case CallForm.Run(_, _, Some(FailureClause(e, post))) =>
-      s"fails with ${Print.expr(LowerType(e))}: ${post.source.value}"
-  }
 
   private def text(s: String): FieldValue = FieldValue.Text(s)
   private def texts(ss: List[String]): FieldValue = FieldValue.Texts(ss)

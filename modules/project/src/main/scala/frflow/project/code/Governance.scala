@@ -1,10 +1,9 @@
 package frflow.project.code
 
 import frflow.core.analysis.resolution.Constrained
-import frflow.core.analysis.outside.Outsides
 import frflow.core.checking.Checking
 import frflow.core.code.CodeFile
-import frflow.core.name.{ModelName, NodeId, RelPath, SymbolName}
+import frflow.core.name.{NodeId, RelPath, SymbolName}
 import frflow.core.spec.Statement
 import frflow.core.Theory
 
@@ -15,7 +14,7 @@ import frflow.core.Theory
 object Governance:
   def of(t: Theory, files: List[RelPath], own: Set[RelPath]): Map[NodeId, List[Governed]] =
     val designs = t.nodes.flatMap(s => declared(s.node.statement).map(s.node.id -> _))
-    val implied = (attachedFiles(t) ++ implementedFiles(t))
+    val implied = attachedFiles(t)
       .filterNot((_, f) => designs.exists((_, g) => f.path.isUnder(g)))
       .flatMap((n, f) => governed(own, f).map(n -> _))
     (designs.flatMap((n, g) => under(g, files).map(n -> Governed.Whole(_))) ++ implied).groupMap(_._1)(_._2)
@@ -53,13 +52,3 @@ object Governance:
     case Checking.TestedAgainst(`d`, _) => true
     case _                              => false
   }
-
-  /** A model's operations' plain Scala's files, governed by the assumption that only the code changes its state, or,
-    * with none, by each statement resting on that Scala (`TestedOnModel`).
-    */
-  private def implementedFiles(t: Theory): List[(NodeId, CodeFile)] =
-    t.code.implemented.toList.flatMap((m, i) =>
-      Outsides.onlyCodeChanges(t, m).fold(resting(t, m))(List(_)).flatMap(n => i.files.map(n -> _)))
-
-  private def resting(t: Theory, m: ModelName): List[NodeId] = t.nodes.map(_.node.id).filter(n =>
-    Checking.of(t, n).exists { case Checking.TestedOnModel(`m`, _) => true; case _ => false })

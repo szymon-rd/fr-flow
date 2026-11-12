@@ -17,7 +17,6 @@ object Leaves:
   given Encoder[SymbolName] = Encoder.encodeString.contramap(_.value)
   given Encoder[DefName] = Encoder.encodeString.contramap(_.value)
   given Encoder[TypeName] = Encoder.encodeString.contramap(_.value)
-  given Encoder[ModelName] = Encoder.encodeString.contramap(_.value)
   given Encoder[Value] = Encoder.encodeString.contramap(value)
   given Encoder[Ty] = Encoder.encodeString.contramap(ty)
 
@@ -42,7 +41,6 @@ object Leaves:
     case Value.Tuple(es)             => es.map(value).mkString("(", ", ", ")")
     case Value.Inject(Side.Error, e) => s"Left(${value(e)})"
     case Value.Inject(Side.Value, e) => s"Right(${value(e)})"
-    case Value.World(states, _)      => states.map((m, s) => s"${m.value}: ${value(s)}").mkString("{", "; ", "}")
 
   def ty(t: Ty): String = t match
     case Ty.Num(k)         => k match { case NumKind.Int32 => "Int"; case NumKind.Int64 => "Long"; case _ => "BigInt" }
@@ -55,10 +53,7 @@ object Leaves:
     case Ty.FnOf(ps, r)    => s"${ps.map(ty).mkString("(", ", ", ")")} => ${ty(r)}"
     case Ty.Sort(n)        => n.value
     case Ty.Data(n)        => n.value
-    case Ty.FlowOf(r, e)   => s"F[${e.fold("")(x => s"${ty(x)} or ")}${ty(r)}]"
     case Ty.Bool           => "Boolean"
     case Ty.Str            => "String"
     case Ty.Unit           => "Unit"
-    case Ty.World          => "World"
-    case Ty.Never          => "Nothing"
 

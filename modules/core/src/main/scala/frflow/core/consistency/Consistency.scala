@@ -1,11 +1,10 @@
 package frflow.core.consistency
 
 import cats.syntax.all.*
-import frflow.core.analysis.outside.{Guards, Outsides}
+import frflow.core.analysis.outside.Guards
 import frflow.core.analysis.resolution.{Callees, Constrained}
-import frflow.core.analysis.outside.Scope
 import frflow.core.code.Code
-import frflow.core.expr.{Expr, Exprs, OutsideFact}
+import frflow.core.expr.{Expr, Exprs}
 import frflow.core.name.{DefName, NodeId, SourceText, SymbolName}
 import frflow.core.spec.{NodeKind, Range, Written}
 import frflow.core.term.interpret.{Guarded, ToExpr}
@@ -15,17 +14,15 @@ import frflow.core.vocab.SymbolType
 
 /** The consistency and vacuity obligations of a theory (owner §15, §18), derived from it alone: no example is read.
   * The bottom statements and the premises beside them, split into groups that share open values, each with the
-  * witnesses derived for it; each `always(stored)` with the state the store starts in; each `always[T]` and each
-  * claim's condition, to be shown possible.
+  * witnesses derived for it; each `always[T]` and each claim's condition, to be shown possible.
   */
 object Consistency:
   def of(t: Theory): List[Group] =
     val r = read(t)
-    sharing(t, r) ++ premised(t, r) ++ starts(t)
+    sharing(t, r) ++ premised(t, r)
 
-  /** `inhabited_` of every `always[T]`, claimed or assumed, with every other rule on its type (`meets`), and of every
-    * assumption saying what a store's state starts in; `satisfiable_` of every claim's condition. Reported, not gated
-    * (2.9).
+  /** `inhabited_` of every `always[T]`, claimed or assumed, with every other rule on its type (`meets`);
+    * `satisfiable_` of every claim's condition. Reported, not gated (2.9).
     */
   def vacuity(t: Theory): List[Vacuity] = t.nodes.map(_.node).flatMap(n => n.statement.range.toList.flatMap {
     case Range.Made(ty)                                       => List(Vacuity.Inhabited(n.id, ty))
@@ -33,19 +30,16 @@ object Consistency:
       n.statement.said.toList.flatMap(f => Conditions.of(f.term, ToExpr).zipWithIndex.map((c, i) =>
         Vacuity.Satisfiable(n.id, i, c.over.map(_.ty))))
     case _                                                   => Nil
-  }) ++ Outsides.all(t).collect { case (id, OutsideFact.Initially(m, _)) => id -> m }.distinctBy(_._1)
-    .flatMap((id, m) => t.vocabulary.model(m).map(model => Vacuity.Inhabited(id, model.state)))
+  })
 
   /** What the value an `inhabited_` asks for meets: every `always[T]` on its type together, so two that contradict
-    * show; or, of an assumption saying what a store starts in, that.
+    * show.
     */
-  def meets(t: Theory, n: NodeId, ty: Ty): List[DefName] =
-    t.node(n).flatMap(_.statement.outside).collect { case OutsideFact.Initially(_, rule) => List(rule) }
-      .getOrElse(t.nodes.map(_.node).collect {
-        case x if x.statement.range.contains(Range.Made(ty)) => DefName(x.id.value)
-      })
+  def meets(t: Theory, ty: Ty): List[DefName] = t.nodes.map(_.node).collect {
+    case x if x.statement.range.contains(Range.Made(ty)) => DefName(x.id.value)
+  }
 
-  /** The statements no proven step gives: Lean states them, about every possible value, with no parts. The claims
+  /** The statements no proven step gives: the prover states them, about every possible value, with no parts. The claims
     * among them and the assumptions beside them (an outside system's promise) are the bottom of the theory.
     */
   def bottom(t: Theory): List[NodeId] = t.nodes.map(_.node).collect {
@@ -55,7 +49,7 @@ object Consistency:
 
   /** What a statement leaves open: the Declarations it mentions, and the Definitions no proof or fixed value gives
     * a meaning (plain Scala, tested; or none), its own and those the proven code standing in it leaves open, through
-    * the proven code that code calls (`bookedAfterIsStored` mentions `book`, whose program calls `granted`).
+    * the proven code that code calls.
     */
   def open(t: Theory, id: NodeId): List[SymbolName] =
     Callees.reaching(t, Constrained.of(t, id)).filter(isOpen(t, _))
@@ -64,10 +58,8 @@ object Consistency:
   def reach(t: Theory, s: SymbolName): List[SymbolName] =
     Callees.reaching(t, List(s)).filter(x => x != s && isOpen(t, x))
 
-  /** An operation known only by assumptions (G2) is open: its model gives it no meaning, the assumptions are all. */
   private def isOpen(t: Theory, s: SymbolName): Boolean = t.vocabulary.symbol(s).nonEmpty &&
-    (Constrained.isDeclaration(t, s) || t.vocabulary.isAssumed(s) ||
-      t.code.attached.get(s).forall(a => a.code.proven.isEmpty && !fixed(a.code)))
+    (Constrained.isDeclaration(t, s) || t.code.attached.get(s).forall(a => a.code.proven.isEmpty && !fixed(a.code)))
 
   /** What a statement takes for every value code is given: the Definitions provided where the code runs, its own and
     * those the proven code standing in it reaches, through the code that code calls.
@@ -77,9 +69,9 @@ object Consistency:
 
   private def isProvided(t: Theory, s: SymbolName): Boolean = t.code.attached.get(s).exists(_.code == Code.Provided)
 
-  /** A value fixed in the model or provided, or an operation its model gives the meaning. */
+  /** A value fixed in the model or provided. */
   private def fixed(c: Code): Boolean = c match
-    case Code.Valued(_) | Code.Provided | Code.Modelled(_) => true
+    case Code.Valued(_) | Code.Provided => true
     case _                              => false
 
   /** Joined by open values and by the provided values an assumption pins: every statement mentioning a pinned value
@@ -165,27 +157,12 @@ object Consistency:
   private def tested(t: Theory, s: SymbolName): Boolean =
     t.code.attached.get(s).exists(_.code.scala.nonEmpty)
 
-  /** Each `always` about a store's state (of the state, or of the values it holds), claimed or assumed, with the
-    * assumption saying what the state the store starts in meets.
-    */
-  private def starts(t: Theory): List[Group] = t.nodes.map(_.node).flatMap(n =>
-    n.statement.range.filter(_ => n.statement.rule).toList.flatMap { r =>
-      val each = Scope.models(t, r).map(m => Outsides.all(t).collectFirst {
-        case (id, OutsideFact.Initially(s, _)) if s == m.name => id
-      })
-      r match
-        // a rule relating several models' states (owner §47): one start, of each model's start together
-        case Range.Reached(_ :: _ :: _) => List(Group.Start(n.id, each.sequence.flatMap(_.headOption)))
-        case _                          => each.map(Group.Start(n.id, _))
-    })
-
   /** `∃ xs, A`: the `i`-th condition of `n`'s claim with the variables above it, written as the claim is, each
-    * variable with what always holds of it, as the claim's own (`Guards`): a value code can make, a world meeting the
-    * rules of the stores it reads.
+    * variable with what always holds of it, as the claim's own (`Guards`): a value code can make.
     */
   def condition(t: Theory, n: NodeId, i: Int): Option[Written[Expr]] =
     t.node(n).flatMap(_.statement.said).map(f => Written.formula(Guarded.of(Conditions.satisfiable(f.term, i),
-      Guards.of(t, n)), SourceText(s"${f.source.value} (condition ${i + 1})")))
+      Guards.of(t)), SourceText(s"${f.source.value} (condition ${i + 1})")))
 
   /** What a condition leaves open, in order: the Definitions and Declarations it mentions, through the defines it
     * calls too, but proven code.

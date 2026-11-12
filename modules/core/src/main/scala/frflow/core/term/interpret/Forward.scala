@@ -1,7 +1,7 @@
 package frflow.core.term.interpret
 
-import frflow.core.expr.{Binder, OutsideFact, Value}
-import frflow.core.name.{ModelName, SymbolName}
+import frflow.core.expr.{Binder, Value}
+import frflow.core.name.SymbolName
 import frflow.core.term.*
 import frflow.core.term.language.{Body, Sym}
 import frflow.core.ty.Ty
@@ -83,17 +83,6 @@ trait Forward[T[_], U[_]] extends Sym[U]:
   def param[A](name: SymbolName, ty: Ty): U[A] = fwd(base.param(name, ty))
   def define[F](d: Body[F]): U[F] = fwd(base.define(d))
   def free[A](x: Binder): U[A] = fwd(base.free(x))
-  def part[S](w: U[World], model: ModelName, ty: Ty): U[S] = fwd(base.part(bwd(w), model, ty))
-  def runs[R](p: U[Program[R]], before: U[World], result: Bound[R], after: Bound[World])(
-      post: (U[R], U[World]) => U[Boolean]): U[Boolean] =
-    fwd(base.runs(bwd(p), bwd(before), result, after)((r, w) => bwd(post(fwd(r), fwd(w)))))
-  def fails[R, E](p: U[Program[R]], before: U[World], error: Bound[E], after: Bound[World])(
-      post: (U[E], U[World]) => U[Boolean]): U[Boolean] =
-    fwd(base.fails(bwd(p), bwd(before), error, after)((e, w) => bwd(post(fwd(e), fwd(w)))))
-  def outside(fact: OutsideFact): U[Boolean] = fwd(base.outside(fact))
-  def unchanged(after: U[World], before: U[World]): U[Boolean] = fwd(base.unchanged(bwd(after), bwd(before)))
-  def constant[A](before: U[World], at: Bound[World])(value: U[World] => U[A]): U[Boolean] =
-    fwd(base.constant(bwd(before), at)(body(value)))
   /** A note passes through; a transformer whose representation holds more than `T` keeps it (overrides this). */
   def noted[A](n: Annotation, t: U[A]): U[A] = fwd(base.noted(n, bwd(t)))
 

@@ -5,7 +5,7 @@ import frflow.core.name.NodeId
 import frflow.core.spec.{CallForms, Form, Written}
 import frflow.core.Theory
 import frflow.core.ty.Ty
-import frflow.eval.{Env, EvalError}
+import frflow.eval.Env
 import frflow.eval.run.Wiring
 import frflow.eval.term.Run
 import frflow.eval.term.Semantics
@@ -20,7 +20,7 @@ import scala.util.Try
   * Definition given its meaning; counted only when the case gives every variable it binds (`counted`).
   */
 final class Coverage(semantics: Semantics, t: Theory, node: NodeId, inputs: List[Ty]):
-  private val wiring = Wiring.onModels(semantics, t)
+  private val wiring = Wiring(semantics, t)
   private val claim: Option[Written[Lambda]] = t.node(node).flatMap(_.statement.said).map(CallForms.whole)
     .filter(_.value.params.map(_.ty) == inputs)
 
@@ -41,7 +41,6 @@ final class Coverage(semantics: Semantics, t: Theory, node: NodeId, inputs: List
   }
 
   private def built(w: Written[Lambda], watching: Watching): Run[Any] = w.form match
-    case Form.Term(s)  =>
+    case Form.Term(s) =>
       val run = s.run[Run](watching)
       env => run(env)
-    case Form.Steps(_) => _ => Left(EvalError.Steps)

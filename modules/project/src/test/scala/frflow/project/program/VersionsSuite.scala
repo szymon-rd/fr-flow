@@ -25,7 +25,7 @@ class VersionsSuite extends munit.CatsEffectSuite:
     for
       p      <- Projects.inMemory(Map.empty)
       a      <- Projects.analysed(p, first, Nil)
-      tested <- TestProgram[IO](p.files, RunCode.inline[IO], Nil)(a, None)
+      tested <- TestProgram[IO](p.files, RunCode.inline[IO])(a, None)
       out    <- DecideProgram(p.ports)(tested._2.subjects, Command.Accept(List(id), "never below zero", Nil,
                   Map.empty), "ann")
       _       = assert(out.isRight, out)

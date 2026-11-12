@@ -2,8 +2,7 @@ package frflow.proof.audit
 
 import cats.data.ValidatedNec
 import frflow.core.analysis.resolution.Resolved
-import frflow.core.expr.{Binder, Expr}
-import frflow.core.name.VarId
+import frflow.core.expr.Expr
 import frflow.core.spec.Written
 import frflow.core.term.interpret.ToExpr
 import frflow.core.ty.Ty
@@ -12,10 +11,8 @@ import frflow.core.vocab.SymbolType
 import frflow.proof.obligation.{Discharge, Obligation, ObligationName, Prop, Supplied}
 
 /** The terms the compiler builds into obligations, checked as elaboration's are (`IrCheck`, over the theory's
-  * vocabulary): the guards, the `keeps_` and `makes_` formulas of `cover_` and `made_` (`Keeping`, `Making`, at a call
-  * `CallingCode`), the conditions and formulas of the whole theory's (`Conditions`), a store's start under its guard,
-  * and the values a witness supplies (`Defining`). A commutation's two orders are lowered from the program's own
-  * steps, which `IrCheck.theory` checks.
+  * vocabulary): the guards, the `makes_` formulas of `made_` (`Making`, at a call `CallingCode`), the conditions and
+  * formulas of the whole theory's (`Conditions`), and the values a witness supplies (`Defining`).
   */
 object WellFormed:
   def of(r: Resolved, obligations: List[Obligation]): List[(ObligationName, IrError)] =
@@ -24,12 +21,7 @@ object WellFormed:
     def typed(v: ValidatedNec[IrError, Ty], at: Ty, e: Expr) =
       all(v) ++ v.toOption.filter(uncurried(_) != uncurried(at)).map(_ => IrError.Mistyped(e))
     obligations.flatMap { o =>
-      val formulas = terms(o.goal).flatMap {
-        case Left(w)              => typed(check(w.value), Ty.Bool, w.value)
-        case Right((state, rule)) =>
-          val e = ToExpr.of(rule, 1)
-          typed(check(e, List(Binder(VarId.level(0), "s", state))), Ty.Bool, e)
-      }
+      val formulas = terms(o.goal).flatMap(w => typed(check(w.value), Ty.Bool, w.value))
       val supplied = o.discharge match
         case Discharge.Witnessed(by) => by.collect { case Supplied.Term(t, of) => (ToExpr.of(t.run), of) }.flatMap(
             (e, of) => r.theory.vocabulary.symbol(of).map(_.ty).collect { case SymbolType.Typed(at) =>
@@ -45,20 +37,16 @@ object WellFormed:
         case s              => Ty.FnOf(as, s)
     case other          => other
 
-  /** The formulas a statement holds, and each start's rule under its guard (over the state, at level 0). */
-  private def terms(p: Prop): List[Either[Written[Expr], (Ty, frflow.core.term.language.Final[Boolean])]] = p match
-    case Prop.Keeps(_, _, f, _)          => List(Left(f))
-    case Prop.Makes(_, _, f, _)          => List(Left(f))
-    case Prop.Formula(w, _)              => List(Left(w))
-    case Prop.Starts(_, inits, guard)    => (inits, guard) match
-        case ((_, state) :: Nil, Some(g)) => List(Right(state -> g))
-        case _                            => Nil
-    case Prop.Implies(hs, c)             => hs.flatMap(h => terms(h.prop)) ++ terms(c)
-    case Prop.Iff(a, b)                  => terms(a) ++ terms(b)
-    case Prop.Both(ps)                   => ps.toList.flatMap(terms)
-    case Prop.Not(a)                     => terms(a)
-    case Prop.Forall(_, b)               => terms(b)
-    case Prop.Exists(_, b)               => terms(b)
-    case Prop.ForEvery(_, b)             => terms(b)
-    case Prop.ForSome(_, b)              => terms(b)
-    case _                               => Nil
+  /** The formulas a statement holds. */
+  private def terms(p: Prop): List[Written[Expr]] = p match
+    case Prop.Makes(_, _, f, _) => List(f)
+    case Prop.Formula(w, _)     => List(w)
+    case Prop.Implies(hs, c)    => hs.flatMap(h => terms(h.prop)) ++ terms(c)
+    case Prop.Iff(a, b)         => terms(a) ++ terms(b)
+    case Prop.Both(ps)          => ps.toList.flatMap(terms)
+    case Prop.Not(a)            => terms(a)
+    case Prop.Forall(_, b)      => terms(b)
+    case Prop.Exists(_, b)      => terms(b)
+    case Prop.ForEvery(_, b)    => terms(b)
+    case Prop.ForSome(_, b)     => terms(b)
+    case _                      => Nil

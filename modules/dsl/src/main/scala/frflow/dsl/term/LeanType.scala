@@ -1,7 +1,7 @@
 package frflow.dsl.term
 
 import cats.syntax.all.*
-import frflow.core.term.{Selector, World}
+import frflow.core.term.Selector
 import frflow.core.ty.{NumKind, Ty}
 import frflow.dsl.build.Declarations
 import scala.annotation.implicitNotFound
@@ -33,7 +33,6 @@ object LeanType:
   given LeanType[Int] = of(Ty.Num(NumKind.Int32))
   given LeanType[Long] = of(Ty.Num(NumKind.Int64))
   given LeanType[BigInt] = of(Ty.Num(NumKind.Big))
-  given LeanType[World] = of(Ty.World)
   given [A](using a: LeanType[A]): LeanType[List[A]] = of(Ty.ListOf(a.ty), a)
   given option[A](using a: LeanType[A]): LeanType[Option[A]] = of(Ty.OptionOf(a.ty), a)
   given either[A, B](using a: LeanType[A], b: LeanType[B]): LeanType[Either[A, B]] = of(Ty.EitherOf(a.ty, b.ty), a, b)

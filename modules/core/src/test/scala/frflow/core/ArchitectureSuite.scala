@@ -77,7 +77,7 @@ class ArchitectureSuite extends munit.FunSuite:
   }
 
   test("the exceptions architecture.conf lists are these many: a new one changes this suite too") {
-    assertEquals((listed("cycle").size, listed("lock").size, listed("io").size), (2, 7, 2))
+    assertEquals((listed("cycle").size, listed("lock").size, listed("io").size), (2, 3, 2))
   }
 
   test("the owner's concepts stay the only ones (§15): three kinds of node, two of value, two quantifiers") {

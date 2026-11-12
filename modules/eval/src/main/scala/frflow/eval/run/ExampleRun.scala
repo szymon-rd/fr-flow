@@ -35,5 +35,5 @@ final class ExampleRun(semantics: Semantics, t: Theory):
     Made.of(semantics, t).find(_.breaks(values.map(_._1), values.map(_._2), at)).map(_.always)
 
   private def env(gs: List[Given]): Env =
-    val wiring = Wiring.onModels(semantics, t)
+    val wiring = Wiring(semantics, t)
     Env.of(wiring.values(wiring.supplied(gs)))

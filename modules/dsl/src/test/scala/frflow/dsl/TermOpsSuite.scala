@@ -100,18 +100,3 @@ class TermOpsSuite extends munit.FunSuite:
     assertEquals(folded(o.toList)._3, Ty.ListOf(big))
     assertEquals(folded(o.map(x => x === one))._3, Ty.OptionOf(Ty.Bool))
   }
-
-  test("a failing run's ifSucceeds and ifFails are the folds of its result, true on the other side") {
-    val store = frflow.dsl.vocab.Declaration[BigInt => frflow.dsl.vocab.Flow[Unit]]("a number stored")
-      .failsWith[BigInt]
-    def closed(t: Term[Boolean]): Option[Expr] =
-      frflow.dsl.node.Node.claim("Holds.")(t).alone.run.toOption.flatMap(_._2.said).map(_.value)
-    assertEquals(closed(forall((n: Term[BigInt]) => store(n).ifSucceeds(r => r === r))),
-      closed(forall((n: Term[BigInt]) => store(n).result.fold(_ => True, r => r === r))))
-    assertEquals(closed(forall((n: Term[BigInt]) => store(n).ifFails(e => e === n))),
-      closed(forall((n: Term[BigInt]) => store(n).result.fold(e => e === n, _ => True))))
-    val tidy = frflow.dsl.vocab.Declaration[frflow.dsl.vocab.Flow[Unit]]("tidying").failsWith[BigInt]
-    assertEquals(closed(tidy.ifSucceeds(r => r === r)), closed(tidy.result.fold(_ => True, r => r === r)))
-    assertEquals(closed(tidy.ifFails(e => one < e)), closed(tidy.result.fold(e => one < e, _ => True)))
-    assert(closed(tidy.ifFails(e => one < e)).nonEmpty)
-  }

@@ -75,17 +75,6 @@ class UnreadableSuite extends munit.FunSuite:
     }, Left(s".frflow/counterexamples.json: nested deeper than ${Depth.limit}"))
   }
 
-  test("the tests' files of version 1 still read: a step's boundary left unread, a model's runs named by their node") {
-    val tests = Files.read(TestsFile.format, golden("tests.v1.json", "\"version\": 1", "\"version\": 1"))
-      .getOrElse(fail("tests.json of version 1 does not read"))
-    assert(tests.values.exists(_._2.against == frflow.testing.report.Against.Model(NodeId("Store"),
-      frflow.core.name.ModelName("Store"))), tests)
-    val failures = Files.read(TestsFile.counterexamples, golden("counterexamples.v1.json", "\"version\": 1",
-      "\"version\": 1")).getOrElse(fail("counterexamples.json of version 1 does not read"))
-    assertEquals(failures.keySet, Files.read(TestsFile.counterexamples, golden("counterexamples.json", "\"version\"",
-      "\"version\"")).toOption.get.keySet)
-  }
-
   test("a document as deep as the limit is not beyond it; one level more is") {
     assertEquals(Depth.beyond(nested(Depth.limit)), None)
     assertEquals(Depth.beyond(nested(Depth.limit + 1)), Some("[0]" * (Depth.limit + 1)))

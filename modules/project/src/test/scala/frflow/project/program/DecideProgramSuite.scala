@@ -67,7 +67,7 @@ class DecideProgramSuite extends munit.CatsEffectSuite:
     for
       p      <- Projects.inMemory(Map.empty)
       a      <- Projects.analysed(p, Projects.rooms, Projects.roomsExamples)
-      tested <- TestProgram[IO](p.files, RunCode.inline[IO], Nil)(a, None)
+      tested <- TestProgram[IO](p.files, RunCode.inline[IO])(a, None)
       ids     = tested._2.subjects.inOrder.map(_.id)
       out    <- ids.traverse(id => DecideProgram(p.ports)(tested._2.subjects,
                   Command.Accept(List(id), "it says what the service must do", Nil, Map.empty), "ann"))

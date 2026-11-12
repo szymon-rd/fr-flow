@@ -1,24 +1,16 @@
 package frflow.core.vocab
 
 import frflow.core.expr.Exprs
-import frflow.core.name.{DefName, ModelName, SymbolName, TypeName}
+import frflow.core.name.{DefName, SymbolName, TypeName}
 import frflow.core.ty.DataType
 
-/** The signature a FrModel is written over: its domain types (opaque and declared), its symbols, its defines, and
-  * the models giving its operations on a state their meaning. Each name is declared once (`analysis.Validate`
-  * checks it).
+/** The signature a FrModel is written over: its domain types (opaque and declared), its symbols and its defines.
+  * Each name is declared once (`analysis.Validate` checks it).
   */
-final case class Vocabulary(sorts: List[Sort], types: List[DataType], symbols: List[Symbol], defines: List[Define],
-    models: List[StateModel]):
+final case class Vocabulary(sorts: List[Sort], types: List[DataType], symbols: List[Symbol], defines: List[Define]):
   def symbol(n: SymbolName): Option[Symbol] = symbols.find(_.name == n)
   def define(n: DefName): Option[Define] = defines.find(_.name == n)
   def dataType(n: TypeName): Option[DataType] = types.find(_.typeName == n)
-  def model(n: ModelName): Option[StateModel] = models.find(_.name == n)
-  /** The model giving `op` its meaning, when `op` is an operation on a state. */
-  def modelOf(op: SymbolName): Option[StateModel] = models.find(_.sigOf(op).nonEmpty)
-  /** Whether `op` is an operation on a state known only by assumptions (G2). */
-  def isAssumed(op: SymbolName): Boolean = models.exists(_.isAssumed(op))
-
   /** `ds` and every define they call, each once, callers first. */
   def closure(ds: List[DefName]): List[Define] =
     def go(todo: List[DefName], seen: Set[DefName]): List[Define] = todo match

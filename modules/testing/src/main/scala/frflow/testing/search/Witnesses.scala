@@ -3,8 +3,7 @@ package frflow.testing.search
 import frflow.core.code.Values
 import frflow.core.consistency.{Conditions, Consistency, Vacuity}
 import frflow.core.expr.Value
-import frflow.core.name.{DefName, ModelName, NodeId, SymbolName}
-import frflow.core.spec.Range
+import frflow.core.name.{DefName, NodeId, SymbolName}
 import frflow.core.term.language.Stated
 import frflow.core.Theory
 import frflow.core.ty.Ty
@@ -22,8 +21,8 @@ final class Witnesses(semantics: Semantics, t: Theory, drawn: Ty => List[Value])
   private val small = Small(t.vocabulary)
 
   def of(v: Vacuity): Option[List[(Value, Ty)]] = v match
-    case Vacuity.Inhabited(n, ty)        =>
-      candidates(ty).find(x => Consistency.meets(t, n, ty).forall(holds(_, x, ty))).map(x => List(x -> ty))
+    case Vacuity.Inhabited(_, ty)        =>
+      candidates(ty).find(x => Consistency.meets(t, ty).forall(holds(_, x, ty))).map(x => List(x -> ty))
     case Vacuity.Satisfiable(n, i, over) => Consistency.condition(t, n, i).flatMap { c =>
       val opens = Consistency.opens(t, c)
       val types = opens.map(typeOf) ++ over
@@ -33,23 +32,15 @@ final class Witnesses(semantics: Semantics, t: Theory, drawn: Ty => List[Value])
 
   private def candidates(ty: Ty): List[Value] = (drawn(ty) ++ small.of(ty)).distinct
 
-  /** A condition's variable comes with what always holds of it, as Lean states it (`Consistency.condition`): its
-    * candidates meet every `always[T]` on what they hold (`Made`), and a world each `always(stored)` on its state.
+  /** A condition's variable comes with what always holds of it, as the prover is told it
+    * (`Consistency.condition`): its candidates meet every `always[T]` on what they hold (`Made`).
     */
   private def ruled(ty: Ty): List[Value] =
     val env = Env.of(Values.none)
-    candidates(ty).filter(x => made.forall(!_.breaks(List(semantics.literal(x, ty)), List(ty), env)) &&
-      (ty != Ty.World || reached.forall((m, rule) => x match
-        case Value.World(states, _) => states.collectFirst { case (`m`, s) => s }.forall(s =>
-            t.vocabulary.model(m).forall(model => holds(rule, s, model.state)))
-        case _                      => true)))
+    candidates(ty).filter(x => made.forall(!_.breaks(List(semantics.literal(x, ty)), List(ty), env)))
 
   private lazy val made = Made.of(semantics, t)
-  /** Each `always(stored)`, its rule's define, by the models it is about. */
-  private lazy val reached: List[(ModelName, DefName)] = t.nodes.map(_.node).flatMap(n =>
-    n.statement.range.toList.collect { case Range.Reached(ms) => ms.map(_ -> DefName(n.id.value)) }.flatten)
-
-  /** A rule's define (an `always[T]`'s, named as its node, or a store's start), at `x`. */
+  /** A rule's define (an `always[T]`'s, named as its node), at `x`. */
   private def holds(rule: DefName, x: Value, ty: Ty): Boolean =
     t.vocabulary.define(rule).exists(d =>
       semantics.lambda(d.written).run(Env.of(Values.none), List(semantics.literal(x, ty))).exists(Fn.bool))
@@ -60,14 +51,14 @@ final class Witnesses(semantics: Semantics, t: Theory, drawn: Ty => List[Value])
   private def satisfies(n: NodeId, i: Int, opens: List[SymbolName], literals: List[ScalaValue]): Boolean =
     t.node(n).flatMap(_.statement.said).exists { f =>
       val opened = Values(opens.zip(literals).map((s, v) => s -> (() => v.unwrap)).toMap)
-      val env = Env.of(Wiring.onModels(semantics, t).values(opened))
+      val env = Env.of(Wiring(semantics, t).values(opened))
       semantics.term(Stated(Conditions.predicate(f.term, i)))(env).exists(p =>
         try Fn.bool(literals.drop(opens.size).foldLeft(p)((g, x) => Fn.call(Fn.ref(g), List(x))))
         catch case _: NotEvaluated => false)
     }
 
   private def typeOf(s: SymbolName): Ty =
-    t.vocabulary.symbol(s).map(_.ty).collect { case SymbolType.Typed(ty) => ty }.getOrElse(Ty.Never)
+    t.vocabulary.symbol(s).map(_.ty).collect { case SymbolType.Typed(ty) => ty }.getOrElse(Ty.Unit)
 
   /** Every combination of one value per list, the first list varying slowest. */
   private def combinations(xss: List[List[Value]]): Iterator[List[Value]] = xss match

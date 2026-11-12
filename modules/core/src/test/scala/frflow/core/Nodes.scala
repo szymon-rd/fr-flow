@@ -1,10 +1,10 @@
 package frflow.core
 
 import cats.data.NonEmptyList
-import frflow.core.expr.OutsideFact
 import frflow.core.graph.Edge
 import frflow.core.name.{NodeId, RelPath, SourceText, SymbolName}
 import frflow.core.spec.{Node, Reliance, Statement, Written}
+import frflow.core.term.Bound
 import frflow.core.term.language.Final
 import frflow.core.ty.Ty
 import frflow.core.vocab.{Symbol, SymbolType, ValueKind}
@@ -15,8 +15,10 @@ object Nodes:
     Node(NodeId(id), s"$id holds.", Statement.Claim(Written.formula(f, SourceText(id)), Reliance.Relied))
   def assumption(id: String)(f: Final[Boolean]): Node =
     Node(NodeId(id), s"$id is assumed.", Statement.Assumption(Written.formula(f, SourceText(id))))
-  def outside(id: String)(fact: OutsideFact): Node =
-    assumption(id)(Lang.formula([T[_]] => (l: Lang[T]) => l.s.outside(fact)))
+  /** `always[Booking]`: a rule of every booking, claimed or assumed. */
+  def always(id: String, claimed: Boolean): Node =
+    val f = Lang.formula([T[_]] => (l: Lang[T]) => l.s.always[Booking](Bound("b", Booking.ty))(_ => l.truth))
+    if claimed then claim(id)(f) else assumption(id)(f)
   def design(id: String): Node =
     Node(NodeId(id), s"$id is decided.", Statement.Design(NonEmptyList.of(RelPath.fromIdentifiers("src", id))))
   /** A claim saying nothing about any value. */

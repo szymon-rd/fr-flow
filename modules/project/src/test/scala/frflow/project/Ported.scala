@@ -13,7 +13,7 @@ import frflow.project.pipeline.{Analysis, ReadProof}
 import frflow.project.port.*
 import frflow.project.port.memory.*
 import frflow.project.process.{Command, Output}
-import frflow.project.program.{Analyse, ModelCheck, Ports, Project, TestProgram}
+import frflow.project.program.{Analyse, Ports, Project, TestProgram}
 import frflow.proof.lean.ast.{ModuleName, Names}
 import frflow.proof.layout.LeanWorkspace
 import frflow.proof.verdict.ProverRun
@@ -48,7 +48,7 @@ object Ported:
   private val workspace: Resource[IO, (Path, Lake[IO])] =
     directory.flatMap(d => Lake.make[IO](d.resolve("lean"), Command("lake", 30.minutes, Output.Merged)).map(d -> _))
 
-  def run(e: Elaborated, examples: List[Example], lean: Lean, models: List[ModelCheck[IO]]): IO[Run] =
+  def run(e: Elaborated, examples: List[Example], lean: Lean): IO[Run] =
     workspace.use { (dir, lake) =>
       val files = ProjectFiles.make[IO](dir)
       val code = RunCode.make[IO]
@@ -63,7 +63,7 @@ object Ported:
         _       <- lean.proofs.traverse_((n, text) => write(s"Proofs/$kb/$n.lean", text))
         a       <- Analyse(ports, code, Project(Nil, Settings.default, library))(e, examples)
         (_, c)  <- CheckProgram(files, lake, library.path, code)(a, None)
-        (_, t)  <- TestProgram[IO](files, code, models)(c, None)
+        (_, t)  <- TestProgram[IO](files, code)(c, None)
         _       <- lean.old.traverse_((p, text) => write(p, text))
         built   <- lean.port.traverse(p => lake.build(NonEmptyList.one(module(p))))
       yield Run(t, built)
@@ -102,13 +102,12 @@ object Ported:
     java.nio.file.Files.readString(Projects.base.resolve(s"examples/$example/lean/Proofs/$kb/$name.lean"))
 
   /** A node's standing as today's `standings.tsv` has it: kind, standing (proven, tested or assumed), its check's
-    * status, and the cases its Scala was tested on; a model's runs shown beside its `onlyCodeChanges` assumption.
+    * status, and the cases its Scala was tested on.
     */
   def row(a: Analysis, id: NodeId): List[String] =
     val n = a.decided.theory.node(id).getOrElse(throw AssertionError(id.value))
     val status = a.current(id).fold("")(_.status.toString.toLowerCase)
-    val model = Option.when(n.statement.kind == NodeKind.Assumption)(a.models(id)).toList.flatten
-    val checked = a.tested(id).orElse(model.headOption.flatMap(a.testedModel)).filter(r => r.outcome match
+    val checked = a.tested(id).filter(r => r.outcome match
       case Outcome.NotChecked(_) => false
       case _                     => true)
     val standing = n.statement.kind match

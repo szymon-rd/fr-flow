@@ -22,11 +22,10 @@ class LeanDecidesSuite extends munit.FunSuite:
   override val munitTimeout: scala.concurrent.duration.Duration = scala.concurrent.duration.Duration(20, "minutes")
   private val generated: List[Final[Boolean]] =
     LawSeeds(600).flatMap(seed => List(Tm.closed(Terms(seed).bool(3, 0)), MoreTerms(seed).formula))
-  private val programs = Values(Closed.programs.map((p, f) => SymbolName(p) -> (() => f)))
   /** Each closed term with a Scala value, and that value. */
   private val decided: List[(Final[Boolean], Boolean)] =
     (generated.map(Closed.of) ++ Extras.terms ++ DslTerms.terms).filterNot(open)
-      .flatMap(t => Evaluate.of(t)(Env.of(programs)).toOption.map(t -> _))
+      .flatMap(t => Evaluate.of(t)(Env.of(Values.none)).toOption.map(t -> _))
 
   private def open(t: Final[Boolean]): Boolean = Exprs.all(ToExpr.of(t)).exists {
     case Expr.Quant(_, _, _) => true
@@ -38,16 +37,14 @@ class LeanDecidesSuite extends munit.FunSuite:
     assert(decided.size >= 750, decided.size)
     assert(decided.exists(_._2) && decided.exists(!_._2), decided.map(_._2).distinct)
     assert(decided.forall((t, _) => Exprs.typeOf(ToExpr.of(t)) == Ty.Bool))
-    val runs = decided.flatMap((t, _) => all(t).collect { case r: Expr.Runs => r.failing })
-    assert(runs.contains(true) && runs.contains(false), runs.distinct)
     val ops = decided.flatMap((t, _) => all(t).collect { case Expr.Prim(op, _, _) => op.toString })
     val few = List("Union", "Incl", "Contains", "Updated", "Get").map(op => op -> ops.count(_ == op)).filter(_._2 < 8)
     assertEquals(few, Nil)
   }
 
-  test("the unchanged worlds compare the models' states, the faults aside") {
+  test("the terms written by hand have the values they are written for") {
     assertEquals(Extras.terms.map(t => Evaluate.of(t)(Env.of(Values.none))),
-      List(Right(true), Right(true), Right(false), Right(true), Right(false), Right(false)))
+      List(Right(true), Right(false), Right(false)))
   }
 
   test("Lean decides each term as the evaluator does".tag(LeanTag)) {
@@ -59,7 +56,7 @@ class LeanDecidesSuite extends munit.FunSuite:
   test("each term, its binders named as Lean's keywords, prelude names, symbols and the FrModel, is decided the same"
     .tag(LeanTag)) {
     val renamed = decided.zipWithIndex.map { case ((t, v), i) => Renamed.binders(t, i.toLong) -> v }
-    assert(renamed.forall((t, v) => Evaluate.of(t)(Env.of(programs)) == Right(v)))
+    assert(renamed.forall((t, v) => Evaluate.of(t)(Env.of(Values.none)) == Right(v)))
     val (proven, out) = LawModules.verdicts("Renamed", renamed)
     assert(proven.size == renamed.size && proven.forall(identity) && !out.contains("error:"),
       out.linesIterator.take(80).mkString("\n"))

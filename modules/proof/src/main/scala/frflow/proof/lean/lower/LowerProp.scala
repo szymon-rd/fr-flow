@@ -2,13 +2,12 @@ package frflow.proof.lean.lower
 
 import cats.data.Writer
 import cats.syntax.all.*
-import frflow.core.expr.{Binder, Expr, Exprs}
-import frflow.core.name.{DefName, LeanNames, NodeId, SymbolName, TypeName, VarId}
+import frflow.core.expr.{Expr, Exprs}
+import frflow.core.name.{DefName, LeanNames, NodeId, SymbolName, TypeName}
 import frflow.core.spec.{Form, Written}
-import frflow.core.term.language.Final
 import frflow.core.ty.Ty
 import frflow.proof.lean.ast.*
-import frflow.proof.lean.term.{FrozenTry, Printed}
+import frflow.proof.lean.term.Printed
 import frflow.proof.obligation.{Constant, Hyp, Prop, Substitute}
 import frflow.proof.terms.{OpenTerms, TermTable}
 
@@ -16,7 +15,7 @@ import frflow.proof.terms.{OpenTerms, TermTable}
   * substitute; the open terms left are bound by `Forall` (or `Exists`) in the order met
   * (the claims it is about, the conclusion, the hypotheses), then the hypotheses `h_<Node>`. A value provided where
   * the code runs comes with what always holds of it (`fromOutside`), wherever it is bound. A Definition with a
-  * meaning of its own (`meant`: proven code, a fixed value, its model, or a value provided where the code runs, which
+  * meaning of its own (`meant`: proven code, a fixed value, or a value provided where the code runs, which
   * a statement takes for every value) is never bound by `∃` but where named. Every term is printed in the theory's
   * `naming`, so no variable takes a name a symbol prints as. Today's `Refinement.claim`, `stated` and
   * `Vocabulary.term`, on values.
@@ -89,13 +88,10 @@ final class LowerProp(table: TermTable, env: LowerEnv, naming: Naming, values: L
 
   def prop(p: Prop, σ: Subst): W[LExpr] = p match
     case Prop.ClaimOf(n, more)   => applied(decl(n, "claim"), table.claims.getOrElse(n, OpenTerms.empty), σ ++ more)
-    case Prop.Keeps(i, op, f, m) => applied(decl(i, LeanNames.keeps(op.value)), LowerKeeps.opens(f, table), σ ++ m)
     case Prop.Makes(i, op, f, m) => applied(decl(i, LeanNames.makes(op.value)), LowerKeeps.opens(f, table), σ ++ m)
     case Prop.ConjunctOf(n, i)   =>
       applied(decl(n, LeanNames.conjunct(i)), table.claims.getOrElse(n, OpenTerms.empty), σ)
-    case Prop.Starts(d, is, w)   => Writer.value(starts(d, is, w))
     case Prop.Inhabited(d, ty)   => Writer.value(inhabited(d, ty))
-    case Prop.Frozen(d, ss)      => Writer.value(FrozenTry(naming, opened, overOpens)(d, ss))
     case Prop.Iff(a, b)          => (prop(a, σ), prop(b, σ)).mapN((x, y) => LExpr.Paren(LExpr.Infix(LOp.Iff, x, y)))
     case Prop.Both(ps)           => ps.traverse(prop(_, σ)).map(_.toList.reduceRight(LExpr.Infix(LOp.And, _, _)))
     case Prop.Not(a)             => prop(a, σ).map(LExpr.Prefix(LPrefix.NotSpaced, _))
@@ -103,7 +99,6 @@ final class LowerProp(table: TermTable, env: LowerEnv, naming: Naming, values: L
     case Prop.Implies(hs, c)     => (hs.traverse(h => prop(h.prop, σ)), prop(c, σ)).mapN((xs, y) =>
                                       (xs :+ y).reduceRight(LExpr.Infix(LOp.Arrow, _, _)))
     case Prop.Formula(w, code)   => formula(w, σ ++ code)
-    case Prop.Commutes(c, opens)  => opens.traverse(s => Writer.tell(leaf(s))).as(LowerCommute(env, naming)(c))
     case Prop.Forall(_, _) | Prop.Exists(_, _) => Writer.value(LExpr.Paren(statement(p)))
     case Prop.ForEvery(ss, body) => inner(ss, body, σ, LOp.Arrow)(LExpr.Forall(_, _))
     case Prop.ForSome(ss, body)  => inner(ss, body, σ, LOp.And)(LExpr.Exists(_, _))
@@ -119,14 +114,13 @@ final class LowerProp(table: TermTable, env: LowerEnv, naming: Naming, values: L
     * IR (`Written.value`, made once when elaborated) mentions, through what stands for them.
     */
   private def formula(w: Written[Expr], σ: Subst): W[LExpr] = w.form match
-    case Form.Term(t)  =>
+    case Form.Term(t) =>
       val said = Exprs.mentions(w.value)
       val mentioned = (said.symbols ++ said.defines.flatMap(table.defines.getOrElse(_, OpenTerms.empty).symbols))
         .distinct
       val (opens, standing) = mentioned.traverse(x =>
         if σ.contains(x) then symbol(x, σ).map(e => List(x -> e)) else Writer(OpenTerms(Nil, List(x)), Nil)).run
       Writer(opens, Printed.standing(env, naming, 0, standing.flatten.toMap)(t))
-    case Form.Steps(_) => throw IllegalStateException("FrFlow bug: a program's steps as a formula")
 
   /** `f` applied to its open terms: `(Crm.ExpiryJob.claim expire runExpiry)`, or `f` alone over none. */
   private def applied(f: LExpr, terms: OpenTerms, σ: Subst): W[LExpr] =
@@ -149,26 +143,10 @@ final class LowerProp(table: TermTable, env: LowerEnv, naming: Naming, values: L
     case Some(Substitute.Code(d)) => applied(define(d), table.defines.getOrElse(d, OpenTerms.empty), σ)
     case Some(Substitute.Fixed(c)) => Writer.value(constant(c))
     case Some(Substitute.Nothing) => Writer.value(Atoms.nothing(naming, table.typeOf(s)))
-    case None                     =>
-      env.outside(s).fold(Writer.tell(leaf(s)).as(LExpr.Name(Names.ident(s.value))))(Writer.value(_))
+    case None                     => Writer.tell(leaf(s)).as(LExpr.Name(Names.ident(s.value)))
 
   private def leaf(s: SymbolName): OpenTerms =
     OpenTerms(Ty.parts(table.typeOf(s)).collect { case Ty.Sort(n) => n }.distinct, List(s))
-
-  /** `∀ s, init s → rule s` (or the rule at each `T` the state holds, `within`); of a rule over several models'
-    * states, `∀ s₀ s₁, init₀ s₀ → init₁ s₁ → rule s₀ s₁`. Each `initially` and the rule on their open terms (a
-    * value provided where the code runs, every value of it), bound first.
-    */
-  private def starts(rule: DefName, inits: List[(DefName, Ty)], within: Option[Final[Boolean]]): LExpr =
-    val ss = inits.indices.toList.traverse(i => Naming.helper(if inits.size == 1 then "s" else s"s$i", Set.empty))
-      .runA(naming).value
-    val (binders, meets) = (inits, within) match
-      case ((_, ty) :: Nil, Some(w)) => Printed.define(env, naming)(List(Binder(VarId.level(0), "s", ty)), w)
-      case _                         => (ss.zip(inits).map((s, i) => LBinder.Explicit(s, LowerType(i._2))),
-        call(opened(rule), ss.map(LExpr.Name(_))))
-    val named = binders.collect { case LBinder.Explicit(n, _) => LExpr.Const(List(n)) }
-    val hyps = inits.zip(named).map((i, n) => call(opened(i._1), List(n)))
-    overOpens(rule :: inits.map(_._1), LExpr.Forall(binders, (hyps :+ meets).reduceRight(LExpr.Infix(LOp.Arrow, _, _))))
 
   /** A define on its open terms, each named as itself. */
   private def opened(d: DefName): LExpr =
@@ -192,7 +170,7 @@ final class LowerProp(table: TermTable, env: LowerEnv, naming: Naming, values: L
 
   private def binders(opens: OpenTerms): List[LBinder] =
     Option.when(opens.sorts.nonEmpty)(LBinder.Several(opens.sorts.map(n => Names.ident(n.value)), name("Type")))
-      .toList ++ opens.symbols.map(s => LBinder.Explicit(Names.ident(s.value), env.openType(s, table.typeOf(s))))
+      .toList ++ opens.symbols.map(s => LBinder.Explicit(Names.ident(s.value), LowerType.binder(table.typeOf(s))))
 
 object LowerProp:
   /** What always holds of a value provided where the code runs, and whether a Definition has a meaning of its own. */

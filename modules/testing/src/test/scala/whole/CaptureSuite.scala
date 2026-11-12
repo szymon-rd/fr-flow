@@ -80,7 +80,7 @@ class CaptureSuite extends munit.FunSuite:
     assertEquals(Theories.problems(FrModel("Mods")(Whole, Lemmas)).collect { case Problem.ReservedName(n) => n },
       List("Whole", "Lemmas"))
     val l = frflow.proof.layout.Layout(frflow.core.name.KbName("K"))
-    val fixed = List(l.types, l.domain, l.models, l.rootImpl, l.whole, l.wholeSpec, l.wholeChecks, l.wholeAudit,
+    val fixed = List(l.types, l.domain, l.rootImpl, l.whole, l.wholeSpec, l.wholeChecks, l.wholeAudit,
       l.lemmas, l.wholeProofs).map(_.dotted.split('.')(2))
     assert(fixed.toSet.subsetOf(frflow.core.name.LeanNames.Modules), fixed)
   }

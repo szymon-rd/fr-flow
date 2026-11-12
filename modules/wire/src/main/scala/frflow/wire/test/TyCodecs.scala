@@ -22,8 +22,6 @@ object TyCodecs:
     case Ty.Bool           => Tagged("bool")
     case Ty.Str            => Tagged("str")
     case Ty.Unit           => Tagged("unit")
-    case Ty.World          => Tagged("world")
-    case Ty.Never          => Tagged("never")
     case Ty.Num(k)         => Tagged("num", "num" -> k.asJson)
     case Ty.ListOf(a)      => Tagged("list", "elem" -> a.asJson)
     case Ty.OptionOf(a)    => Tagged("option", "elem" -> a.asJson)
@@ -34,14 +32,11 @@ object TyCodecs:
     case Ty.FnOf(ps, r)    => Tagged("fn", "params" -> ps.asJson, "result" -> r.asJson)
     case Ty.Sort(n)        => Tagged("sort", "name" -> n.asJson)
     case Ty.Data(n)        => Tagged("data", "name" -> n.asJson)
-    case Ty.FlowOf(r, e)   => Tagged("flow", "result" -> r.asJson, "error" -> e.asJson)
 
   private def cases: PartialFunction[String, HCursor => Decoder.Result[Ty]] = {
     case "bool"   => _ => Right(Ty.Bool)
     case "str"    => _ => Right(Ty.Str)
     case "unit"   => _ => Right(Ty.Unit)
-    case "world"  => _ => Right(Ty.World)
-    case "never"  => _ => Right(Ty.Never)
     case "num"    => _.get[NumKind]("num").map(Ty.Num(_))
     case "list"   => _.get[Ty]("elem").map(Ty.ListOf(_))
     case "option" => _.get[Ty]("elem").map(Ty.OptionOf(_))
@@ -52,5 +47,4 @@ object TyCodecs:
     case "fn"     => c => c.get[List[Ty]]("params").flatMap(ps => c.get[Ty]("result").map(Ty.FnOf(ps, _)))
     case "sort"   => _.get[TypeName]("name").map(Ty.Sort(_))
     case "data"   => _.get[TypeName]("name").map(Ty.Data(_))
-    case "flow"   => c => c.get[Ty]("result").flatMap(r => c.get[Option[Ty]]("error").map(Ty.FlowOf(r, _)))
   }

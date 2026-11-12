@@ -1,22 +1,18 @@
 package frflow.proof.whole
 
 import cats.data.NonEmptyList
-import frflow.core.analysis.outside.{Guards, Outsides}
 import frflow.core.analysis.resolution.{Callees, Constrained, Resolved}
 import frflow.core.consistency.{Consistency, Defining, Group, Picked, Standing, Witness}
-import frflow.core.expr.{Binder, OutsideFact, Value}
+import frflow.core.expr.Value
 import frflow.core.graph.Walk
-import frflow.core.name.{DefName, LeanNames, ModelName, NodeId, SymbolName, VarId}
-import frflow.core.spec.Range
-import frflow.core.term.language.{Final, Stated, Sym}
-import frflow.core.ty.Ty
+import frflow.core.name.{LeanNames, NodeId, SymbolName}
+import frflow.core.term.language.Stated
 import frflow.core.vocab.SymbolType
 import frflow.proof.obligation.{Constant, Discharge, Hyp, Obligation, ObligationName, Prop, Substitute, Supplied}
 
-/** Consistency in Lean (owner §15, §18): the bottom statements and premises hold together (`consistent_<i>`, each
-  * group with the witnesses derived for it), and each store's starting state meets what always holds of it
-  * (`start_<node>`). A group nothing witnesses is still stated, and shows "consistency not proven" until the
-  * developer proves it.
+/** Consistency as the prover is asked it (owner §15, §18): the bottom statements and premises hold together
+  * (`consistent_<i>`, each group with the witnesses derived for it). A group nothing witnesses is still stated, and
+  * shows "consistency not proven" until the developer proves it.
   */
 object Joint:
   def of(r: Resolved): List[Obligation] =
@@ -35,31 +31,6 @@ object Joint:
             else s" as ${names(premises)} ${if premises.size == 1 then "says" else "say"}."))
       }
     case g @ Group.Premises(_, _, _) => premised(r, g, i)
-    case Group.Start(n, start) => start.flatMap(r.theory.node).flatMap(_.statement.outside).collect {
-      case OutsideFact.Initially(m, rule) => starts(r, n, m, rule)
-    }
-
-  /** `start_<node>`: every state the model may start in meets the rule; of a rule over several models' states, the
-    * states each may start in, together.
-    */
-  private def starts(r: Resolved, n: NodeId, m: ModelName, rule: DefName): Obligation =
-    val state = r.theory.vocabulary.model(m).fold(Ty.Unit)(_.state)
-    reached(r, n).filter(_.size > 1).fold(
-      Obligation(ObligationName.Start(n), Prop.Starts(DefName(n.value), List(rule -> state),
-        within(r, n, state)), Discharge.Auto, s"Every state ${m.value} may start in meets ${n.value}.")) { ms =>
-      Obligation(ObligationName.Start(n), Prop.Starts(DefName(n.value), ms.flatMap(started(r, _)), None),
-        Discharge.Auto, s"Every state ${ms.map(_.value).mkString(" and ")} may start in together meets " +
-          s"${n.value}.")
-    }
-
-  /** The models a rule of the world reads, in the order it reads them: several where it relates them. */
-  private def reached(r: Resolved, n: NodeId): Option[List[ModelName]] =
-    r.theory.node(n).flatMap(_.statement.range).collect { case Range.Reached(ms) => ms }
-
-  /** What a model's state starts in meets, by its `initially`, with the state's type. */
-  private def started(r: Resolved, m: ModelName): Option[(DefName, Ty)] = Outsides.all(r.theory).collectFirst {
-    case (_, OutsideFact.Initially(s, rule)) if s == m => rule -> r.theory.vocabulary.model(m).fold(Ty.Unit)(_.state)
-  }
 
   /** The premises over the same provided values: some value of each meets them all. */
   private def premised(r: Resolved, g: Group.Premises, i: Int): Option[Obligation] =
@@ -103,18 +74,6 @@ object Joint:
 
   private def term(r: Resolved, s: SymbolName, from: NodeId, picked: Picked): Option[Supplied] =
     r.theory.node(from).flatMap(_.statement.said).map(f => Supplied.Term(Stated(Defining.of(f.term, picked)), s))
-
-  /** An `always[T]`'s rule at each `T` the state holds (the state itself, each element of a list, a record's
-    * field), as the statement's guard places it on a variable of the state's type (2.6): over the state, level 0.
-    * None for an `always(stored)`, whose rule is of the state.
-    */
-  private def within(r: Resolved, n: NodeId, state: Ty): Option[Final[Boolean]] =
-    val about = r.theory.node(n).flatMap(_.statement.range).collect { case Range.Made(ty) => ty }
-    Guards.byAlways(r.theory).collectFirst { case (`n`, g) => g }
-      .filter(_ => about.exists(ty => Guards.applies(r.theory, ty, state))).map { g =>
-        val s = Binder(VarId.level(0), "s", state)
-        [T[_]] => (sym: Sym[T]) => g.of[T, Any](state, sym).fold(sym.bool(true))(_(sym.free[Any](s)))
-      }
 
   private def names(ids: List[NodeId]): String = ids.map(_.value).mkString(", ")
   private def symbols(ss: List[SymbolName]): String = ss.map(_.value).mkString(", ")

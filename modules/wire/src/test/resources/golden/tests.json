@@ -201,7 +201,7 @@
                 "elem": {
                   "kind": "set",
                   "elem": {
-                    "kind": "world"
+                    "kind": "str"
                   }
                 }
               },
@@ -209,7 +209,7 @@
                 "kind": "fn",
                 "params": [
                   {
-                    "kind": "never"
+                    "kind": "unit"
                   }
                 ],
                 "result": {
@@ -221,135 +221,6 @@
         },
         {
           "kind": "nothing-to-vary"
-        }
-      ]
-    },
-    "Store": {
-      "key": "d4e5f6",
-      "asked": 200,
-      "cases": 3,
-      "seed": "-7",
-      "against": {
-        "kind": "model",
-        "node": "Store",
-        "model": "stored"
-      },
-      "outcome": {
-        "kind": "failed",
-        "failure": {
-          "kind": "run",
-          "start": {
-            "kind": "world",
-            "states": [
-              {
-                "model": "stored",
-                "state": {
-                  "kind": "many",
-                  "elems": []
-                }
-              }
-            ],
-            "faults": [
-              false,
-              true
-            ]
-          },
-          "steps": [
-            {
-              "op": "add",
-              "args": [
-                {
-                  "kind": "data",
-                  "ctor": "mk",
-                  "fields": [
-                    {
-                      "kind": "str",
-                      "value": "Oak"
-                    },
-                    {
-                      "kind": "num",
-                      "value": 9
-                    },
-                    {
-                      "kind": "num",
-                      "value": 10
-                    }
-                  ]
-                }
-              ]
-            }
-          ],
-          "difference": {
-            "kind": "call",
-            "step": {
-              "op": "list",
-              "args": []
-            },
-            "implementation": {
-              "kind": "gave",
-              "result": {
-                "kind": "many",
-                "elems": []
-              }
-            },
-            "model": {
-              "kind": "gave",
-              "result": {
-                "kind": "many",
-                "elems": [
-                  {
-                    "kind": "data",
-                    "ctor": "mk",
-                    "fields": [
-                      {
-                        "kind": "str",
-                        "value": "Oak"
-                      },
-                      {
-                        "kind": "num",
-                        "value": 9
-                      },
-                      {
-                        "kind": "num",
-                        "value": 10
-                      }
-                    ]
-                  }
-                ]
-              }
-            }
-          },
-          "from": {
-            "seed": "-7",
-            "index": 2,
-            "size": 1
-          }
-        }
-      },
-      "unreached": [
-        {
-          "path": [
-            1
-          ],
-          "reach": {
-            "kind": "called",
-            "op": "remove"
-          }
-        }
-      ],
-      "notes": [
-        {
-          "kind": "given",
-          "type": {
-            "kind": "flow",
-            "result": {
-              "kind": "unit"
-            },
-            "error": {
-              "kind": "sort",
-              "name": "Fault"
-            }
-          }
         }
       ]
     }

@@ -1,10 +1,10 @@
 package frflow.proof.terms
 
-import frflow.core.analysis.outside.{Guards, Reads}
+import frflow.core.analysis.outside.Guards
 import frflow.core.code.Code
 import frflow.core.expr.{Binder, Expr}
 import frflow.core.name.{DefName, SourceText, SymbolName, VarId}
-import frflow.core.spec.{Form, NodeKind, Written}
+import frflow.core.spec.{Form, Written}
 import frflow.core.term.Bound
 import frflow.core.term.interpret.{Guard, ToExpr}
 import frflow.core.term.language.Sym
@@ -18,8 +18,7 @@ import frflow.core.vocab.Define
   * The code is an entry, one the FrModel attaches to a Definition, whose inputs come from outside (owner §21, what
   * always holds of them assumed); a define it calls, written on the spot or another Definition's, is read in place on
   * the arguments it is given (`Calls`), so its inputs are never assumed. Inside, nothing is assumed of a value the code
-  * binds but where it is and what `made_<op>` proves of an operation's result (`CallSites`). A program's hypotheses
-  * take the rules of the states it reads only (owner §33).
+  * binds but where it is.
   */
 final case class CallingCode(definition: SymbolName, code: DefName, calls: List[List[Ty]],
     formula: (Int, Guard) => Written[Expr])
@@ -28,16 +27,10 @@ object CallingCode:
   def of(t: Theory): List[CallingCode] =
     val covered = Covered.of(t)
     val all = Guards.byAlways(t).map(_._2)
-    val outside = Guards.byAlways(t).filter((n, _) => t.node(n).exists(_.statement.kind == NodeKind.Assumption))
-      .map(_._2)
     t.code.attached.toList.sortBy(_._1.value).flatMap((d, a) => a.code match
-      case Code.Proven(c)     => t.vocabulary.define(c).map(coded(d, _, all)(
+      case Code.Proven(c) => t.vocabulary.define(c).map(coded(d, _, all)(
           [T[_]] => (s: Sym[T], env: Map[VarId, T[Any]]) => body(s, covered, env, _)))
-      case Code.ProvenFlow(f) =>
-        val reading = Guards.reading(t, Reads.ofProgram(t, d)).map(_._2)
-        t.vocabulary.define(f).map(coded(d, _, reading)(
-          [T[_]] => (s: Sym[T], env: Map[VarId, T[Any]]) => CallSites(s, covered, all, outside).of(env)))
-      case _                  => None).filter(_.calls.nonEmpty)
+      case _              => None).filter(_.calls.nonEmpty)
 
   private type Read = [T[_]] => (Sym[T], Map[VarId, T[Any]]) => Define => List[AtCall[T]]
 
@@ -59,4 +52,3 @@ object CallingCode:
   private def body[T[_]](s: Sym[T], covered: Covered, env: Map[VarId, T[Any]], d: Define): List[AtCall[T]] =
     d.written.form match
       case Form.Term(term) => Calls.of(s, covered, env, Set(d.name))(term).calls
-      case Form.Steps(_)   => Nil

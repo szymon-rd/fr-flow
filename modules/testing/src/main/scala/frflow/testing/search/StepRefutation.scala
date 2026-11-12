@@ -4,7 +4,7 @@ import frflow.core.analysis.resolution.Resolved
 import frflow.core.consistency.{Defining, Picked}
 import frflow.core.expr.{Expr, Exprs, Lambda, PrimOp, Value}
 import frflow.core.name.{NodeId, SymbolName}
-import frflow.core.spec.{CallForm, CallForms}
+import frflow.core.spec.CallForms
 import frflow.core.spec.Written.term
 import frflow.core.term.language.Stated
 import frflow.core.vocab.SymbolType
@@ -24,12 +24,12 @@ object StepRefutation:
     val t = r.theory
     for
       part         <- Option(t.refinement.parts(node)).collect { case List(p) => p }
-      (op, post)   <- t.node(part).flatMap(_.statement.call).collect { case CallForm.Call(o, p) => (o, p) }
+      (op, post)   <- t.node(part).flatMap(_.statement.call).map(c => (c.definition, c.posted))
       (e, picked)  <- fixed(post.value, op)
       rule         <- t.node(part).flatMap(_.statement.said)
       claim        <- t.node(node).flatMap(_.statement.said).map(CallForms.whole)
       ty           <- t.vocabulary.symbol(op).map(_.ty).collect { case SymbolType.Typed(x) => x }
-      (wiring, witness) = (Wiring.onModels(semantics, t), Stated(Defining.of(rule.term, picked)))
+      (wiring, witness) = (Wiring(semantics, t), Stated(Defining.of(rule.term, picked)))
       found        <- cases.find { c =>
         val env = Env.of(wiring.values(wiring.supplied(c.givens))).watching(numbers(c.inputs))
         semantics.term(witness)(env).exists { answer =>

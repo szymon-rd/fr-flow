@@ -6,10 +6,9 @@ import cats.syntax.all.*
 import frflow.api.Project
 import frflow.api.derive.Derive
 import frflow.api.view.{View, Warning}
-import frflow.eval.term.Semantics
 import frflow.project.pipeline.Analysis
 import frflow.project.port.{KeyRing, Lake, LeanLibrary, RunCode}
-import frflow.project.program.{Analyse, Committed, ModelCheck, Ports, Project as Sources}
+import frflow.project.program.{Analyse, Committed, Ports, Project as Sources}
 import frflow.testing.Settings
 
 /** A project open in the shell: its model, the algebras it is read and written through, the Lean each check is run
@@ -22,9 +21,6 @@ private[api] final class Session[F[_]: Async: Parallel](val project: Project, va
     val lean: Analysis => F[Lake[F]], val run: Session.Run, version: String = Session.InMemory):
   val code: RunCode[F] = RunCode.make[F]
   val library: LeanLibrary = LeanLibrary(Session.library(project), version)
-  /** Each model's operations' Scala the FrModel gives, tested against the model. */
-  def models: List[ModelCheck[F]] = ModelCheck.of[F](Semantics(project.model), project.model.theory)
-
   def analysis: F[Analysis] =
     Analyse(ports, code, Sources(project.sources, run.tests, library))(project.model, project.examples)
       .adaptError(Stops.of)

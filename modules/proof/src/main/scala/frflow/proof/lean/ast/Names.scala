@@ -28,7 +28,7 @@ object Names:
     val n = s"${stem}_$i"
     LeanName.unsafe(if LeanNames.plain(n) && !Keywords(n) then n else s"«$n»")
 
-  /** A name FrFlow writes itself (`World`, `FrFlow`, `rfl`, `mk`): not escaped. */
+  /** A name FrFlow writes itself (`FrFlow`, `rfl`, `mk`): not escaped. */
   def builtin(n: String): LeanName = LeanName.unsafe(n)
 
   def path(parts: String*): List[LeanName] = parts.toList.map(builtin)

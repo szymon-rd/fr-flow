@@ -121,6 +121,11 @@ mark { background: var(--mark); color: inherit; }
 
 <section id="top" aria-labelledby="title">
 <h1 id="title">FrFlow documentation</h1>
+<div class="note"><p><strong>This page describes an earlier design.</strong> Its tutorial and how-to guides are
+written with programs (<code>Flow</code>), state models and the clock, which FrFlow no longer has: a service's state
+is now a structure, a trait with a class that implements it. The current API is in
+<a href="../README.md">README.md</a> and <a href="USAGE.md">USAGE.md</a>; the examples under
+<code>examples/</code> (payments, rooms, auth, shop) are written with it.</p></div>
 <p class="lead">FrFlow is a method and a tool for building software with AI agents without losing track of what the
 software is for. A small set of root statements is refined by a graph of small statements down to the code. Lean
 proves that each step holds, that the statements do not contradict each other, and that the code meets them. You decide

@@ -1,7 +1,6 @@
 package frflow.eval.run
 
 import frflow.core.name.{NodeId, SymbolName}
-import frflow.core.spec.CallForm
 import frflow.core.Theory
 import frflow.core.ty.Ty
 import frflow.core.vocab.SymbolType
@@ -29,7 +28,8 @@ final case class CallCheck(post: Applied, op: SymbolName, made: List[Made], inpu
 object CallCheck:
   /** Of a statement read as a call, claimed or assumed (an assumption's: its Scala is tested against it). */
   def of(semantics: Semantics, t: Theory, node: NodeId): Option[CallCheck] =
-    t.node(node).flatMap(_.statement.call).collect { case CallForm.Call(op, post) =>
+    t.node(node).flatMap(_.statement.call).map { call =>
+      val (op, post) = (call.definition, call.posted)
       val result = t.vocabulary.symbol(op).map(_.ty).collect { case SymbolType.Typed(ty) => Ty.resultOf(ty) }
       CallCheck(semantics.lambda(post), op, Made.of(semantics, t), post.value.params.map(_.ty),
         result.getOrElse(Ty.Unit))

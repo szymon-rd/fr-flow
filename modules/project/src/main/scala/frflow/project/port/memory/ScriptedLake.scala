@@ -7,7 +7,8 @@ import cats.syntax.all.*
 import frflow.project.port.Lake
 import frflow.proof.lean.ast.{LeanModule, ModuleName}
 import frflow.proof.lean.print.Print
-import frflow.proof.reading.{Elaboration, Sentinel}
+import frflow.proof.lean.print.Sentinel
+import frflow.proof.reading.Elaboration
 import frflow.proof.verdict.ProverRun
 
 /** Lake scripted: each module's build answered by `answer`, a build of several the worst of their answers (a

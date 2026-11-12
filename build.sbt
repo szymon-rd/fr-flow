@@ -6,8 +6,6 @@ val circe = "io.circe" %% "circe-core" % "0.14.17"
 val circeParser = "io.circe" %% "circe-parser" % "0.14.17"
 val cats = "org.typelevel" %% "cats-core" % "2.13.0"
 val catsEffect = "org.typelevel" %% "cats-effect" % "3.6.3"
-val catsEffectKernel = "org.typelevel" %% "cats-effect-kernel" % "3.6.3"
-val catsEffectStd = "org.typelevel" %% "cats-effect-std" % "3.6.3"
 val fs2 = Seq("co.fs2" %% "fs2-core" % "3.12.2", "co.fs2" %% "fs2-io" % "3.12.2")
 val decline = "com.monovore" %% "decline" % "2.5.0"
 val http4s = Seq("http4s-ember-server", "http4s-dsl", "http4s-circe").map("org.http4s" %% _ % "0.23.33") :+
@@ -18,9 +16,6 @@ val munitEffect = "org.typelevel" %% "munit-cats-effect" % "2.1.0" % Test
 val catsEffectTestkit = "org.typelevel" %% "cats-effect-testkit" % "3.6.3" % Test
 val lawTests = Seq("org.typelevel" %% "cats-kernel-laws" % "2.13.0" % Test,
   "org.typelevel" %% "discipline-munit" % "2.0.0" % Test)
-
-/** The SQLite driver rooms' table is kept in, for the tests that run rooms (eval's and every module's after it). */
-val roomsTable = "org.xerial" % "sqlite-jdbc" % "3.46.1.3" % Test
 
 // Tests tagged `Lean` run Lean end to end (minutes): plain `sbt test` leaves them out, `sbt leanTest` runs them,
 // `sbt testAll` runs both.
@@ -81,7 +76,7 @@ lazy val proof = module("proof", cats).dependsOn(core % "compile->compile;test->
   * core's generated terms and proof's printer (Lean decides each term as the evaluator does). Its sbt id is
   * `evaluation`: `eval` is sbt's own command, so `sbt eval/test` would evaluate `/test` as Scala.
   */
-lazy val eval = module("eval", cats, catsEffectKernel, catsEffectStd, catsEffect % Test, roomsTable)
+lazy val eval = module("eval", cats)
   .withId("evaluation")
   .dependsOn(dsl, proof % "test->test")
 
@@ -89,8 +84,7 @@ lazy val eval = module("eval", cats, catsEffectKernel, catsEffectStd, catsEffect
   * interleavings, the searches for witnesses and refutations, and the examples' runner (an sbt test framework, so
   * `sbt test` runs a project's `FrFlowExamples`). Its tests read FrFlow's examples (examples/<name>).
   */
-lazy val testing = module("testing", cats, catsEffect, roomsTable, "org.scala-sbt" % "test-interface" % "1.0",
-    munitEffect)
+lazy val testing = module("testing", cats, "org.scala-sbt" % "test-interface" % "1.0")
   .settings(libraryDependencies ++= lawTests :+ "org.typelevel" %% "cats-laws" % "2.13.0" % Test,
     testFrameworks += TestFramework("frflow.testing.examples.ExamplesFramework"))
   .dependsOn(eval % "compile->compile;test->test", roomsModel % "test->test", authModel % "test->test",
@@ -114,21 +108,21 @@ lazy val wire = module("wire", cats, circe, circeParser)
   * interpreters; the analysis of a project (contents, fingerprints, standings), and the programs (check, status,
   * decide, export) over them. Its tests read FrFlow's examples (examples/<name>).
   */
-lazy val shell = module("project", (Seq(cats, catsEffect, munitEffect, catsEffectTestkit, roomsTable) ++ fs2)*)
+lazy val shell = module("project", (Seq(cats, catsEffect, munitEffect, catsEffectTestkit) ++ fs2)*)
   .dependsOn(proof, testing % "compile->compile;test->test", decision, wire)
 
 /** The API front ends call: three algebras (`Reading`, `Deciding`, `Proving`) over a project, the views they return
   * (`api.view`, `api.node`: front ends see nothing else), and the live and in-memory interpreters. Its tests read the
   * shell's projects in memory.
   */
-lazy val api = module("api", (Seq(cats, catsEffect, munitEffect, roomsTable) ++ fs2)*)
+lazy val api = module("api", (Seq(cats, catsEffect, munitEffect) ++ fs2)*)
   .settings(libraryDependencies ++= lawTests)
   .dependsOn(shell % "compile->compile;test->test")
 
 /** The command line a project's main object extends (`FrFlowApp`, the composition root): its commands, colors, the
   * interactive review, and `init`; layers on top add their commands (`CliExtension`). Its tests read the API's.
   */
-lazy val cli = module("cli", cats, catsEffect, roomsTable, decline, munitEffect)
+lazy val cli = module("cli", cats, catsEffect, decline, munitEffect)
   .settings(forkedAtRoot)
   .dependsOn(api % "compile->compile;test->test")
 
@@ -138,7 +132,7 @@ def forkedAtRoot: Seq[Setting[?]] = Seq(run / fork := true, run / baseDirectory 
 /** The web view (`serve`): the page, and routes onto the API, over http4s on localhost; layers on top add routes and
   * a script (`WebExtension`). The CLI does not depend on it.
   */
-lazy val web = module("web", (Seq(catsEffect, circe, munitEffect, roomsTable) ++ http4s)*)
+lazy val web = module("web", (Seq(catsEffect, circe, munitEffect) ++ http4s)*)
   .dependsOn(api % "compile->compile;test->test")
 
 /** A layer on top for an AI agent building the system: the conversation a project starts from, the developer's
@@ -146,7 +140,7 @@ lazy val web = module("web", (Seq(catsEffect, circe, munitEffect, roomsTable) ++
   * deciding stays the developer's.
   */
 lazy val agent = module("agent",
-    (Seq(cats, catsEffect, circe, circeParser, decline, munitEffect, roomsTable) ++ http4s)*)
+    (Seq(cats, catsEffect, circe, circeParser, decline, munitEffect) ++ http4s)*)
   .settings(forkedAtRoot)
   .dependsOn(cli % "compile->compile;test->test", web % "compile->compile;test->test")
 
@@ -169,7 +163,7 @@ def example(name: String, layers: Seq[ClasspathDep[ProjectReference]] = Seq(agen
 def exampleModel(name: String) = Project(s"${name}Model", file(s"examples/$name"))
   .configs(LeanTest, RocqTest).settings(leanTagged)
   .settings(Keys.name := s"frflow-example-$name", scalacOptions ++= strict, publish / skip := true,
-    libraryDependencies ++= Seq(munit, inspector, catsEffect, "org.xerial" % "sqlite-jdbc" % "3.46.1.3"))
+    libraryDependencies ++= Seq(munit, inspector))
   .dependsOn(eval)
 
 def exampleApp(name: String, model: Project, layers: Seq[ClasspathDep[ProjectReference]] = Seq(agent)) =

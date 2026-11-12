@@ -3,7 +3,7 @@ package frflow.proof.layout
 import frflow.core.analysis.resolution.Resolved
 import frflow.core.name.{LeanNames, NodeId}
 import frflow.proof.lean.ast.*
-import frflow.proof.lean.lower.{Atoms, LowerKeeps, LowerObligation}
+import frflow.proof.lean.lower.{Atoms, LowerKeeps, LowerObligation, LowerType}
 import frflow.proof.lean.term.{LeanTerm, Printed, Scope}
 import frflow.proof.obligation.*
 import frflow.proof.terms.{Conjoined, TermTable}
@@ -37,7 +37,7 @@ object NodeModules:
     // of any rule some value breaks; what is asked of it is `cover_`, `made_`, `start_` and `inhabited_`.
     val claim = said.map(f => Decl.Def(defs, Names.builtin("claim"), params, Atoms.name("Prop"),
       if rule then Atoms.name("True")
-      else Printed.claim(l.env, l.naming, l.guards(o.node), l.provided(o.node))(f.term)))
+      else Printed.claim(l.env, l.naming, l.guards, l.provided(o.node))(f.term)))
     val indices = o.tried.map(_.name).collect { case ObligationName.Tried(TryKind.RestatesConjunct(_, i)) => i }
     val conjuncts = said.toList.flatMap(f => Conjoined.of(f.term, LeanTerm(l.env)).zipWithIndex.collect {
       case (c, i) if indices.contains(i + 1) =>
@@ -51,23 +51,17 @@ object NodeModules:
   private def claimParams(l: Lowering, n: NodeId): List[LBinder] =
     val terms = l.table.claims.getOrElse(n, frflow.proof.terms.OpenTerms.empty)
     Option.when(terms.sorts.nonEmpty)(LBinder.Several(terms.sorts.map(s => Names.ident(s.value)), Atoms.name("Type")))
-      .toList ++ terms.symbols.map(s => LBinder.Explicit(Names.ident(s.value), l.env.openType(s, l.table.typeOf(s))))
+      .toList ++ terms.symbols.map(s => LBinder.Explicit(Names.ident(s.value), LowerType.binder(l.table.typeOf(s))))
 
-  /** What `cover_` and `made_` state: the `keeps_<op>` and `makes_<maker>` the statement applies. */
-  private def kept(p: Prop): List[Prop] = p match
-    case k: Prop.Keeps                                  => List(k)
-    case m: Prop.Makes                                  => List(m)
-    case Prop.Forall(_, b)                              => kept(b)
-    case Prop.Implies(_, c)                             => kept(c)
-    case _                                              => Nil
+  /** What `made_` states: the `makes_<maker>` the statement applies. */
+  private def kept(p: Prop): List[Prop.Makes] = p match
+    case m: Prop.Makes      => List(m)
+    case Prop.Forall(_, b)  => kept(b)
+    case Prop.Implies(_, c) => kept(c)
+    case _                  => Nil
 
-  private def lowered(l: Lowering, p: Prop): List[Decl] =
-    val keeps = LowerKeeps(l.env, l.table, l.naming)
-    val decl = p match
-      case k: Prop.Keeps => List(keeps(k))
-      case m: Prop.Makes => List(keeps.makes(m))
-      case _             => Nil
-    decl.flatMap {
+  private def lowered(l: Lowering, m: Prop.Makes): List[Decl] =
+    List(LowerKeeps(l.env, l.table, l.naming).makes(m)).flatMap {
       case Decl.Namespace(_, ds) => ds // declared in the node's own namespace: the `always`'s
       case other                 => List(other)
     }

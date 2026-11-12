@@ -33,9 +33,6 @@ class EmittedNamesSuite extends munit.FunSuite:
       path.findAllMatchIn(text).map(_.group(1))).toSet
   /** FrFlow's own tactics, commands and attributes, named in fixed text. */
   private val own: Set[String] = """\bfrflow_\w+""".r.findAllIn(text).toSet
-  /** What the printer writes in its fixed text of a `do` block: the handler of an error (`PrintDo`). */
-  private val fixed: Set[String] = Set("tryCatchThe")
-
   /** Bound or declared by the generated Lean itself, inside a namespace of its own or a binder whose body names no
     * domain term unqualified: a lowering helper (`Naming.helper` avoids every taken name), a declaration of a node's
     * namespace (`claim`, `holds`), a named argument of FrFlow's library (`ε`, `init`), a hypothesis of fixed tactics.
@@ -44,12 +41,11 @@ class EmittedNamesSuite extends munit.FunSuite:
     "impl", "root_impl", "refutes", "answer")
 
   test("every name written unescaped is a keyword, renamed, reserved, or bound by the generated Lean only") {
-    val unsafe = (made ++ own ++ fixed)
+    val unsafe = (made ++ own)
       .filterNot(n => Names.Keywords(n) || Names.Prelude(n) || Reserved.names(n) || local(n))
     assertEquals(unsafe.toList.sorted, Nil, s"not reserved: ${unsafe.toList.sorted.mkString(", ")}")
   }
 
   test("the scan finds the names it is about") {
-    assert(Set("pure", "get", "StateM", "frflow_defs", "frflow_witness", "World").subsetOf(made ++ own), made ++ own)
-    assert(fixed.forall(w => files.exists(f => f.endsWith("print/PrintDo.scala") && read(f).contains(w))))
+    assert(Set("some", "none", "decide", "frflow_defs", "frflow_witness").subsetOf(made ++ own), made ++ own)
   }

@@ -2,16 +2,13 @@ package frflow.dsl.example
 
 import cats.data.{NonEmptyChain, Validated, ValidatedNec}
 import cats.syntax.all.*
-import frflow.core.expr.{Expr, Exprs}
 import frflow.core.example.Example as Elaborated
 import frflow.dsl.build.{ElabError, Site, Source}
 import frflow.dsl.kb.FrModel
 import frflow.dsl.node.Node
 import frflow.dsl.shape.Elab
 import frflow.dsl.build.Fault
-import frflow.dsl.kb.Varying
-import frflow.dsl.run.Worlds
-import frflow.dsl.term.{Notes, Term}
+import frflow.dsl.term.Term
 import frflow.dsl.vocab.Stating
 import scala.collection.mutable.ListBuffer
 
@@ -31,23 +28,10 @@ abstract class FrFlowExamples(val knowledge: FrModel):
   /** One example: its name, the values it gives provided Definitions, its fact. */
   protected inline def example(name: String, bindings: Binding*)(inline fact: Stating ?=> Term[Boolean]): Unit =
     register(Example(name, bindings.toList,
-      Elab.formula(Site.Example(name), () => worldless(fact(using stating)), Source.of(Node.writing(fact)))))
+      Elab.formula(Site.Example(name), () => fact(using stating), Source.of(Node.writing(fact)))))
 
-  /** What changes with the World in the FrModel, so a Declaration is applied as its statements apply it. */
-  protected lazy val stating: Stating =
-    Stating.varying(Varying.of(knowledge.nodes, knowledge.fixed).getOrElse(Set.empty), knowledge.fixed)
-
-  /** An example's fact is a closed fact about the code, read in no world: one reading what changes with the World
-    * (a model's state, a run, a Declaration that changes) is refused.
-    */
-  protected def worldless(fact: Term[Boolean]): Term[Boolean] =
-    val constant = Term.exprOf(fact).exists(e => Exprs.all(e).exists {
-      case Expr.Constant(_, _, _) => true
-      case _                      => false
-    })
-    if Worlds.reads(fact).contains(false) then fact
-    else Term.noted(Notes.fault(if constant then Fault.ConstantInside("in an example") else
-      Fault.WorldRead("an example")))(fact.run)
+  /** What the model fixes, so a word is read in an example as its statements read it. */
+  protected lazy val stating: Stating = Stating.reading(knowledge.fixed, knowledge.holds)
 
   protected def register(e: Example): Unit = written += e
 

@@ -27,7 +27,6 @@ object ViewCodecs:
   given Encoder.AsObject[Witness] = ConfiguredEncoder.derived
   given Encoder.AsObject[GroupStatus] = ConfiguredEncoder.derived
   given Encoder.AsObject[GroupView] = ConfiguredEncoder.derived
-  given Encoder.AsObject[StartView] = ConfiguredEncoder.derived
   given Encoder.AsObject[Vacuity] = ConfiguredEncoder.derived
   given Encoder.AsObject[OnCode] = ConfiguredEncoder.derived
   given Encoder.AsObject[OnClaims] = ConfiguredEncoder.derived

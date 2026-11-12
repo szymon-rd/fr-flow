@@ -1,6 +1,6 @@
 package frflow.wire.snapshot
 
-import frflow.core.checking.{Assumed, Shown, Tested}
+import frflow.core.checking.Shown
 import frflow.core.consistency.{Group, Standing, Witness}
 import frflow.core.example.Example
 import frflow.core.expr.{Side, Value}
@@ -9,7 +9,7 @@ import frflow.eval.EvalError
 import frflow.eval.run.{Broken, OnCode}
 import frflow.proof.lean.lower.LowerObligation
 import frflow.proof.verdict.{ObligationStatus, Result}
-import frflow.testing.report.{Against, TestReport}
+import frflow.testing.report.TestReport
 
 /** The one mapping from domain values to the export's rows, each written out here: a rename in the domain does not
   * move the export.
@@ -22,7 +22,8 @@ object Rows:
     case FieldValue.Texts(ts)  => FieldRow.Texts(ts)
     case FieldValue.Record(fs) => FieldRow.Record(fs)
 
-  def code(s: Shown): CodeRow = CodeRow(s.proven.map(_.value), s.tested.map(tested), s.assumed.map(assumed))
+  def code(s: Shown): CodeRow = CodeRow(s.proven.map(_.value), Option.when(s.tested)("plain").toList,
+    Option.when(s.assumed)("assumption").toList)
 
   def example(e: Example, onClaims: Option[ObligationStatus], onCode: OnCode): ExampleRow =
     ExampleRow(e.name, if e.givens.nonEmpty then "checked in Scala only" else onClaims.fold("unchecked")(status),
@@ -35,7 +36,8 @@ object Rows:
   def obligation(r: Result, statement: String): ObligationRow =
     ObligationRow(LowerObligation.name(r.name).text, status(r.status), statement)
 
-  def test(t: TestReport): TestRow = TestRow(t.cases, t.seed.value.toString, against(t.against), t.failure.isDefined)
+  def test(t: TestReport): TestRow =
+    TestRow(t.cases, t.seed.value.toString, s"claim ${t.against.value}", t.failure.isDefined)
 
   /** A value as today's `Example.show` writes it: `"text"`, `Some(x)`, `List(a, b)`, `Map(k -> v)`, `ctor(a, b)`. */
   def shown(v: Value): String = v match
@@ -50,15 +52,6 @@ object Rows:
     case Value.Pairs(es)     => es.map((k, x) => s"${shown(k)} -> ${shown(x)}").mkString("Map(", ", ", ")")
     case Value.Tuple(xs)     => xs.map(shown).mkString("(", ", ", ")")
     case Value.Inject(s, x)  => s"${if s == Side.Error then "Left" else "Right"}(${shown(x)})"
-    case Value.World(ss, fs) => ss.map((m, s) => s"${m.value}: ${shown(s)}").mkString("World(", ", ", s"; faults $fs)")
-
-  private def tested(t: Tested): String = t match
-    case Tested.Plain    => "plain"
-    case Tested.Model(m) => s"model ${m.value}"
-
-  private def assumed(a: Assumed): String = a match
-    case Assumed.Assumption => "assumption"
-    case Assumed.Untested(_) => "trusted, not tested"
 
   private def code(c: OnCode): String = c match
     case OnCode.Holds           => "holds"
@@ -92,8 +85,6 @@ object Rows:
     case EvalError.Unbound(s)  => s"${s.value} is not bound"
     case EvalError.NoDefine(d) => s"no define ${d.value}"
     case EvalError.NoCase      => "no arm for its case"
-    case EvalError.NoModel(m)  => s"no state of ${m.value}"
-    case EvalError.Steps       => "it is a program's steps"
 
   /** As today's statuses are written (`not-shown`). */
   private def status(s: ObligationStatus): String = s match
@@ -105,7 +96,3 @@ object Rows:
     case ObligationStatus.Unevaluated => "unevaluated"
     case ObligationStatus.Unchecked   => "unchecked"
     case ObligationStatus.Timeout     => "timeout"
-
-  private def against(a: Against): String = a match
-    case Against.Claim(n)    => s"claim ${n.value}"
-    case Against.Model(n, m) => s"model ${n.value} of ${m.value}"

@@ -1,5 +1,7 @@
 package frflow.proof.reading
 
+import frflow.proof.lean.print.Sentinel
+
 /** What Lean said of one file it ran on (`file`, as Lean names it, relative to the workspace): its source and the
   * output of the run, read once; the output's messages about other files are left out.
   */

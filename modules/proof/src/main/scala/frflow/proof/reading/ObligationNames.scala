@@ -14,7 +14,7 @@ object ObligationNames:
   private val fixed: Map[String, ObligationName] = List(ObligationName.Complete, ObligationName.Feasible,
     ObligationName.Impl, ObligationName.RootImpl, ObligationName.Outside).map(o => text(o) -> o).toMap
   private val fixedTries: Map[String, TryKind] =
-    List(TryKind.Vacuous, TryKind.Restates, TryKind.Clash, TryKind.Unsat, TryKind.Idle, TryKind.Frozen)
+    List(TryKind.Vacuous, TryKind.Restates, TryKind.Clash, TryKind.Unsat, TryKind.Idle)
       .map(k => text(k) -> k).toMap
 
   def tryKind(s: String): Option[TryKind] = fixedTries.get(s)
@@ -22,11 +22,8 @@ object ObligationNames:
     .orElse(after("restates_", s).flatMap(numbered).map((i, p) => TryKind.RestatesConjunct(NodeId(p), i)))
 
   def read(s: String): Option[ObligationName] = fixed.get(s).orElse(tryKind(s).map(ObligationName.Tried(_)))
-    .orElse(after(LeanNames.Cover, s).map(ObligationName.Cover(_)))
     .orElse(after(LeanNames.Made, s).map(ObligationName.Made(_)))
-    .orElse(after("commute_", s).flatMap(_.toIntOption).map(ObligationName.Commute(_)))
     .orElse(after("consistent_", s).flatMap(_.toIntOption).map(ObligationName.Consistent(_)))
-    .orElse(after(LeanNames.Start, s).map(n => ObligationName.Start(NodeId(n))))
     .orElse(after("inhabited_", s).map(n => ObligationName.Inhabited(NodeId(n))))
     .orElse(after("satisfiable_", s).flatMap(numbered).map((i, n) => ObligationName.Satisfiable(NodeId(n), i - 1)))
     .orElse(after("example_", s).flatMap(s => Option.when(s.endsWith("_opposite"))(s.stripSuffix("_opposite")))

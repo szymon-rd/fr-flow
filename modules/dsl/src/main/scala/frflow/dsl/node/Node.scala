@@ -3,41 +3,33 @@ package frflow.dsl.node
 import cats.data.NonEmptyList
 import frflow.core.spec.Statement
 import frflow.dsl.build.{Deferred, Source}
-import frflow.dsl.model.Fact
 import frflow.dsl.term.Term
 import frflow.dsl.vocab.Stating
 
 /** A node as the model writes it, its id its val's name as written (`val grantWhenFree = Node.claim(…)` is
-  * `grantWhenFree`), what it says elaborated as the FrModel's statements read what changes with the World
-  * (`Stating`, owner §43). Three kinds and no other (owner §15): a claim and an assumption are a sentence and a
-  * formula,
-  * the one proven (or tested), the other trusted; a design is a decision about code no proof covers. How a claim is
-  * checked is read off its formula and what defines the Definitions it mentions, never written beside it.
+  * `grantWhenFree`), what it says elaborated as the FrModel's statements read its words (`Stating`). Three kinds and no
+  * other (owner §15): a claim and an assumption are a sentence and a formula, the one proven (or tested), the other
+  * trusted; a design is a decision about code no proof covers. How a claim is checked is read off its formula and what
+  * defines the Definitions it mentions, never written beside it.
   */
 final case class Node(head: Head, statement: Stating => Deferred[Statement]):
-  /** What it says read alone, as if nothing it mentions changed with the World: what a test of one node reads. */
+  /** What it says read alone: what a test of one node reads. */
   def alone: Deferred[Statement] = statement(Stating.writing)
 
 object Node:
-  /** A claim: `forall` over every possible value; `always[T](x => …)`, every value of `T` that can be made;
-    * `always(stored)(s => …)`, every state the model's state reaches. It constrains every Declaration and Definition
-    * it mentions.
+  /** A claim: `forall` over every possible value; `always[T](x => …)`, every value of `T` that can be made. It
+    * constrains every Declaration and Definition it mentions.
     */
   inline def claim(statement: String)(inline formula: Stating ?=> Term[Boolean]): Node =
     Nodes.claim(Head.make(Source.valName, statement, Source.file, Source.offset), st => () => formula(using st),
       Source.of(Node.writing(formula)))
 
-  /** The same form, trusted: the world outside (`stored.onlyCodeChanges`: nothing outside the code changes the
-    * model's state; `stored.initially(held => held === Nil)`; `stored.atomic`), what values from
-    * outside always meet (`always[Booking](b => …)`), or an outside system's promise.
+  /** The same form, trusted: what values from outside always meet (`always[Booking](b => …)`), or an outside
+    * system's promise.
     */
-  inline def assumption(statement: String)(inline formula: Stating ?=> (Term[Boolean] | Fact)): Node =
+  inline def assumption(statement: String)(inline formula: Stating ?=> Term[Boolean]): Node =
     Nodes.assumption(Head.make(Source.valName, statement, Source.file, Source.offset),
-      st => () => formula(using st), Source.of(Node.assuming(formula)))
-
-  /** An assumption's formula or fact, written where a statement is being written. */
-  inline def assuming(inline formula: Stating ?=> (Term[Boolean] | Fact)): Term[Boolean] | Fact =
-    formula(using Stating.writing)
+      st => () => formula(using st), Source.of(Node.writing(formula)))
 
   /** A statement's formula, written where a statement is being written. */
   inline def writing(inline formula: Stating ?=> Term[Boolean]): Term[Boolean] = formula(using Stating.writing)

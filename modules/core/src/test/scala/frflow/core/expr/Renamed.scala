@@ -43,10 +43,6 @@ final class Renamed[T[_]](protected val base: Sym[T], hint: String => String, sy
   override def lam[A, B](x: Bound[A])(f: T[A] => T[B]): T[A => B] = base.lam(b(x))(f)
   override def let[A, B](v: T[A], x: Bound[A])(f: T[A] => T[B]): T[B] = base.let(v, b(x))(f)
   override def param[A](name: SymbolName, ty: frflow.core.ty.Ty): T[A] = base.param(symbol(name), ty)
-  override def runs[R](p: T[Program[R]], before: T[World], result: Bound[R], after: Bound[World])(
-      post: (T[R], T[World]) => T[Boolean]): T[Boolean] = base.runs(p, before, b(result), b(after))(post)
-  override def fails[R, E](p: T[Program[R]], before: T[World], error: Bound[E], after: Bound[World])(
-      post: (T[E], T[World]) => T[Boolean]): T[Boolean] = base.fails(p, before, b(error), b(after))(post)
 
 object Renamed:
   /** Lean's keywords and prelude names, their mangled forms, the laws' types, models, fields and FrModel, names a
@@ -59,7 +55,7 @@ object Renamed:
 
   /** The laws' symbols renamed, each to a name a binder may also be given (`k` is `some`, whose Lean is `some_`). */
   val symbols: Map[String, String] = Map("p" -> "x_1", "k" -> "some", "xs" -> "by", "o" -> "id", "slot" -> "a$b",
-    "s" -> "a_b", "m" -> "max", "ev" -> "__x", "outcome" -> "x_x", "run" -> "some_", "attempt" -> "id_")
+    "s" -> "a_b", "m" -> "max", "ev" -> "__x", "outcome" -> "x_x")
 
   def of[A](t: Final[A], seed: Long): Final[A] = renamed(t, seed, s => symbols.get(s.value).fold(s)(SymbolName(_)))
 

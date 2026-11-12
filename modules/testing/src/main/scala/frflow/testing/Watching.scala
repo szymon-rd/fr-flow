@@ -78,16 +78,6 @@ final class Watching(declared: Target => Unit, reached: Target => Unit, surveyin
     val scoped = body2(f)
     base.foldLeft(xs, z, acc, x)(scoped)
 
-  override def runs[R](p: Run[Program[R]], before: Run[World], result: Bound[R], after: Bound[World])(
-      post: (Run[R], Run[World]) => Run[Boolean]): Run[Boolean] =
-    val scoped = body2(post)
-    base.runs(p, before, result, after)(scoped)
-
-  override def fails[R, E](p: Run[Program[R]], before: Run[World], error: Bound[E], after: Bound[World])(
-      post: (Run[E], Run[World]) => Run[Boolean]): Run[Boolean] =
-    val scoped = body2(post)
-    base.fails(p, before, error, after)(scoped)
-
   /** A binder's body, built under the binder's place, for each value it is run on (surveyed once on a placeholder). */
   override protected def body[A, B](p: Run[A] => Run[B]): Run[A] => Run[B] =
     val here = place()

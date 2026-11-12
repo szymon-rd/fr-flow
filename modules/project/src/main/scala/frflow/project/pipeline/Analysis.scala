@@ -1,10 +1,8 @@
 package frflow.project.pipeline
 
 import frflow.core.analysis.resolution.{Resolve, Resolved, Valid}
-import frflow.core.checking.Checking
 import frflow.core.consistency.{Consistency, Group}
-import frflow.core.expr.OutsideFact
-import frflow.core.name.{ModelName, NodeId, RelPath}
+import frflow.core.name.{NodeId, RelPath}
 import frflow.decision.content.CodeNow
 import frflow.decision.review.{Reading, Standing, Subjects}
 import frflow.eval.run.Broken
@@ -18,7 +16,6 @@ import frflow.proof.reading.{ProofFile, ProofRules}
 import frflow.proof.terms.TermTable
 import frflow.proof.verdict.{CheckKey, NodeCheck, WholeCheck}
 import frflow.proof.whole.{ExampleGoals, Joint, Possible}
-import frflow.testing.model.ModelRuns
 import frflow.testing.report.{Failure, TestReport}
 
 /** The pure state of a project: every phase after elaboration, each computed once, on demand. */
@@ -74,31 +71,13 @@ final class Analysis(val valid: Valid, val inputs: Inputs, val computed: Compute
   /** Its recorded test report, while its key is the node's now. */
   def tested(id: NodeId): Option[TestReport] = currentTests.get(id)
   /** The rules a current test report found a value breaking (`Broken.Always`), on whichever node's code the value
-    * was made or handed: tested plain Scala making it (the step 13d fifth pass's P5-B1).
+    * was made or handed: tested plain Scala making it.
     */
   lazy val broken: Set[NodeId] = currentTests.values.flatMap(_.failure).collect {
-    case Failure.Call(_, _, Broken.Always(rule), _) => rule
+    case Failure(_, _, Broken.Always(rule), _) => rule
   }.toSet
   private lazy val currentTests: Map[NodeId, TestReport] =
     inputs.recorded.tests.collect { case (id, (k, r)) if k == TestKeys.of(this, id) => id -> r }
-  /** The models whose operations' Scala, tested against the model, a node rests on (owner §36): each its checking
-    * says it rests on (`TestedOnModel`), and of the assumption that only the code changes a model's state, that model.
-    */
-  def models(id: NodeId): List[ModelName] =
-    val t = decided.theory
-    (Checking.of(t, id).collect { case Checking.TestedOnModel(m, _) => m } ++
-      t.node(id).flatMap(_.statement.outside).collect { case OutsideFact.OnlyCodeChanges(m) => m })
-      .filter(t.code.implemented.contains).distinct
-  /** What a test report recorded under `id` is of: the nodes resting on a model's Scala, for a model's runs
-    * (`ModelRuns.reportedUnder`); the node itself otherwise.
-    */
-  def reportedFor(id: NodeId): List[NodeId] =
-    val t = decided.theory
-    t.code.implemented.keys.find(ModelRuns.reportedUnder(_) == id)
-      .fold(List(id))(m => t.nodes.map(_.node.id).filter(models(_).contains(m)))
-  /** A model's operations' Scala's report, by the model, while current. */
-  def testedModel(m: ModelName): Option[TestReport] = tested(ModelRuns.reportedUnder(m))
-
   def withRecorded(r: Recorded): Analysis = Analysis(valid, inputs.copy(recorded = r), computed)
 
   private def authored: Set[(NodeId, ObligationName)] =

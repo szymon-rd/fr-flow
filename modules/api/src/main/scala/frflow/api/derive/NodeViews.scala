@@ -1,10 +1,10 @@
 package frflow.api.derive
 
 import frflow.api.node.*
-import frflow.core.analysis.outside.{Outsides, Reads}
+import frflow.core.analysis.outside.Reads
 import frflow.core.analysis.resolution.{Constrained, Resolve}
 import frflow.core.checking.Shown
-import frflow.core.name.{ModelName, NodeId, SymbolName}
+import frflow.core.name.NodeId
 import frflow.core.spec.{Node, NodeKind, Statement}
 import frflow.decision.content.FieldValue
 import frflow.decision.review.{Moves, ReviewState, Standing}
@@ -50,15 +50,7 @@ private[api] final class NodeViews(a: Analysis):
 
   def code(id: NodeId): Option[CodeView] =
     val coded = Constrained.of(r.theory, id).exists(r.theory.code.attached.contains)
-    val models = a.models(id)
-    // A model's runs are shown beside the assumption that only the code changes its state, or, with none, beside
-    // each node resting on its Scala; every node resting on them is gated by them all the same (`ReadProof`).
-    val shown = models.find(m => Outsides.onlyCodeChanges(r.theory, m).forall(_ == id))
-    val tests = a.tested(id).orElse(shown.flatMap(a.testedModel))
-    Option.when(coded || models.nonEmpty)(CodeView(Shown.of(r.theory, id), tests.map(Tests.of(_, operations))))
-
-  /** A model's operations, in the order its meanings are given. */
-  private def operations(m: ModelName): List[SymbolName] = r.theory.vocabulary.model(m).toList.flatMap(_.operations)
+    Option.when(coded)(CodeView(Shown.of(r.theory, id), a.tested(id).map(Tests.of)))
 
   def review(id: NodeId): ReviewView =
     val subject = a.subjects.get(id)

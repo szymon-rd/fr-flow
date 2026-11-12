@@ -93,16 +93,14 @@ Statements are about two kinds of values:
 
 | Value | Written | What it is |
 |---|---|---|
-| `Declaration` | `val booked = Declaration[List[Booking]]("the bookings made, as the world stands")`, `val granted = Declaration[(RoomBookings, Booking) => Boolean]("…")` | a word of the model, of any type: what statements speak of and code calls. One the model gives no meaning is known by what the statements say of it; read only by statements, it may change with the World; called by code, it is a function from outside, the same in every world |
+| `Declaration` | `val booked = Declaration[List[Booking]]("the bookings made, as the world stands")`, `val granted = Declaration[(RoomBookings, Booking) => Boolean]("…")` | a word of the model, of any type: what statements speak of and code calls. One the model gives no meaning is known by what the statements say of it; called by code, it is a function from outside |
 | `Definition` | `granted.define { (held, request) => … }`, `book.define(bookIfGranted)` | a Declaration with a meaning (a subtype of it), listed in the FrModel beside the nodes; a word gets one, once |
 | `define { … }` | `val free = define { (bookings: Term[List[Booking]], request: Term[Booking]) => … }` | a Definition declared and defined at once, named as its val, up to six inputs: a Lean `def`, run as Scala by the evaluator |
-| `program { … }` | `val bookIfGranted = program { (request: Term[Booking]) => (for … yield …).atomically }` | a program given its meaning on the spot, its type `A => Flow[R]` |
-| `stated { … }` | `val viewFollows = stated { (lib: Term[Library], p: Term[PersonId], d: Term[DocId]) => mayView(p, d) === letsView(lib, p, d) }` | a define whose body may apply a Declaration, so a statement can name a line over Declarations; used only in statements, as a Declaration is (a program, plain code or a `define` calling it does not compile); a Lean `def` taking the Declarations it applies, and the world last where one of them changes with it |
+| `stated { … }` | `val viewFollows = stated { (lib: Term[Library], p: Term[PersonId], d: Term[DocId]) => mayView(p, d) === letsView(lib, p, d) }` | a define whose body may apply a Declaration, so a statement can name a line over Declarations; used only in statements, as a Declaration is (plain code or a `define` calling it does not compile); a Lean `def` taking the Declarations it applies |
 
 Quantifiers: `forall((x: Term[A]) => …)`, every possible value (to six variables); `exists((x: Term[A]) => …)`, some
 value (to six variables; Lean's `∃`); and `always`, every value that the code FrFlow covers can produce:
-`always[T](x => …)` of a type (every value of `T` that can be made), `always(stored)(s => …)` of a model's state
-(every state it reaches; `always(a, b)((s, u) => …)` relates two). What always holds of a variable's type is a
+`always[T](x => …)` of a type (every value of `T` that can be made). What always holds of a variable's type is a
 premise below a `forall` and a conjunct below an `exists` (`∃ b, bookingsEndAfterStart b ∧ …`). An `always` is a
 node's whole formula, one rule per node.
 
@@ -131,30 +129,17 @@ the lambda.
 A define is called by name (`covers(b, t)`) and passed where a function is expected (`held.pairwise(apart)`,
 `xs.forall(isOpen)`). In plain Scala, `d.fn(env)` runs a define and `env(d)` reads a word's value.
 
-### The World
+### Structures
 
-A statement holds in every world the service reaches: the application at one moment, as the proofs see it, one field
-per model's state. It is never named in a statement. What changes with it is read in the current world: a model's
-state, `stored.current`; a Declaration (every Declaration may change with the World); a define whose body reads
-state. A program applied in a statement is a run from the current world:
+A value with members (a service, a store) is a structure: a trait of the developer's, and `Declaration[Trait]("…")`
+typed by its members. In a statement, `limits.authorise(p).result` is what a call gives, `.after` the structure
+after it, `.in(state)` the same from a given state, `limits.current` the structure as it stands, and
+`.amongOthers(run => …)` every step of the call among other calls. A claim on a structure is said of the structure
+in every state. A claim on a class that holds one asks it as the holder has it
+(`ledger.total.in(handler.handle(p).after)`).
 
-- `p(x).result` is what it returns (an `Either[E, R]` where `p` is declared `.failsWith[E]`, so a statement about it
-  covers the runs that fail);
-- `p(x).after` is the world it leaves, read with `stored.in(p(x).after)`;
-- `p(x).ifSucceeds(r => …)` says what a run that succeeds gives, and is true of one that fails; `p(x).ifFails(e => …)`
-  what a failed run does, true of one that succeeds (`p(x).ifFails(_ => p(x).changesNothing)`). Each is
-  `p(x).result.fold(…)` with `True` on the other side, so Lean reads the same;
-- beside a run, every world read is named: `t.current` for the world before it (`accepted(request).current`).
-
-`t.isConstant`, of any value, says no run of any program from the current world changes it (where a condition holds:
-`closed(room) implies bookingsOf(room).isConstant`, the condition read before the step). Of a Declaration, which no
-code gives a value, it is an assumption: `Node.assumption("The opening hour never changes.")(openingHour.isConstant)`.
-Two idioms: "a booking once made is never removed", `forall(b => stored.contains(b) implies
-stored.contains(b).isConstant)`; "a count never goes down", `forall(n => n <= count implies (n <= count).isConstant)`.
-
-What a statement may not say, each refused where it is written: an `always` inside a formula; a rule reading a
-Declaration that changes with the World; two runs in sequence (a sequence is a program doing both); a value provided
-where the code runs beside the World. FrFlow states safety properties: "eventually" is out of scope for now.
+What a statement may not say, refused where it is written: an `always` inside a formula. FrFlow states safety
+properties: "eventually" is out of scope for now.
 
 ### Giving a Declaration its meaning
 
@@ -164,13 +149,12 @@ listed.
 
 | Written | Code | Claims mentioning it are |
 |---|---|---|
-| `book.define(bookIfGranted)`, `granted.define { (held, request) => … }` | a `program { … }`, a `define`, lifted code, or a define written there | proven of the code in Lean |
+| `granted.define(grantIfFree)`, `granted.define { (held, request) => … }`, `limits.define(lifted[RecordedLimits])` | a `define`, lifted code, a define written there, or a class read for a structure | proven of the code in Lean |
 | `granted.defineTested(env => (held, request) => …)` | plain Scala, given the other words' values | tested on generated cases (1,000 by default) |
-| `defineOperations(inRoom, add)(start = …, observe = …)(t => (t.inRoom, t.add))` | the plain Scala of a model's operations, over a store `start` makes from a state and `observe` reads back | proven on the model in Lean; the Scala tested against the model on generated runs |
 | `trashKeeps.defineValue(BigInt(30 * 86400))` | a value | stated with the value |
 | `grants.provided` | a value given where the code runs | stated for every value provided |
 
-A `define` or a `program` is its own meaning, and needs no listing. `.withGenerator(gen.describedAs("…"))` gives the tests' cases of a type
+A `define` is its own meaning, and needs no listing. `.withGenerator(gen.describedAs("…"))` gives the tests' cases of a type
 (`Gen.oneOf`, `for` over generators); the values drawn meet every `always` on their type.
 
 **Plain Scala, read.** `lifted { (a: A, b: B) => … }` is a Definition given its meaning where it is written, as a
@@ -206,73 +190,13 @@ by them (`limits.authorise(p).result`, `.after`, `.in(state)`,
 the class that implements it, which Lean proves meets them
 ([the payment stream](../examples/payments/README.md), [LIFTED.md](LIFTED.md) "A structure: a value with members").
 
-**An operation on a state** is a Definition of type `A => Flow[R]`, given its meaning in Lean by a `StateModel`, which
-says what it does to the model's state, a field of the World:
-
-```scala
-object storedBookings extends StateModel[List[Booking]]("every booking stored, oldest first"):
-  inRoom.means(room => state.get.map(stored => make[RoomBookings](room, stored.filter(b => b.room === room))))
-  add.means(booking => state.update(stored => stored :+ booking))
-```
-
-`state.get`, `state.set(s)` and `state.update(f)` are the steps of a meaning. A model whose operations may fail is
-`StateModel.failing[S, E](means, error)`: each call may fail with `error`, the world choosing which.
-What the world outside does with a model is said of it, each as an assumption:
-
-| Formula | Says |
-|---|---|
-| `stored.onlyCodeChanges` | nothing outside the code changes the state; the programs that do are derived from the code |
-| `stored.initially(s => …)` | what the state starts in |
-| `stored.atomic` | runs on it never interleave, and each call is one step against calls at once |
-| `Clock.clockModel.schedule(other)((now, o) => …)` | the world moves the time only where the rule allows, given `other`'s state |
-
-**An operation known only by assumptions** (`fetch.assumed` inside the model) has no meaning in Lean beyond what is
-assumed of its runs (`forall(q => fetch(u, q).result.forall(…))`, `databaseModel.in(fetch(u, q).after) ===
-databaseModel.current`). Lean takes it as an unknown function of its model's state, those assumptions as hypotheses;
-its Scala is tested against them on the model's generated runs where a case can be evaluated, and is otherwise
-"trusted, not tested", which `show`, `check` and `status` say. Its results are values from outside.
-
 **Values from outside.** Statements are about values, never about a function's inputs. What comes from outside has a
 type, and what is trusted of it is an assumption of `always` on that type
 (`Node.assumption("Every booking ends after it starts.")(always[Booking](b => b.start < b.end))`). Every value covered
 code makes or stores of that type is still proven to meet it, so an assumption cannot hide a bug in the code.
 
 **In production**, nothing is checked: `knowledge.code(admit)(grants := table, sessions := tokens)` gives a
-Definition's meaning as plain code calls it, and `knowledge.running[IO](storedBookings := table)` what programs run
-with, each model's Scala bound, `run(bookIfGranted)(request)` running one.
-
-### Programs
-
-A program is one type, `Flow[R]`, written as a `for` comprehension over its steps; an operation applied is a step.
-Lean reads the steps, and production folds them into any `F: Async`.
-
-| Write | Does |
-|---|---|
-| `flow.atomically` | one transaction: no step of another run comes between its steps |
-| `Flow.pure(t)`, `Flow.unit`, `.map`, `.as(t)`, `.void` | a value, no step |
-| `Flow.when(c)(fa)`, `Flow.cond(c)(fa, fb)`, `Flow.ifM(fc)(fa, fb)` | a step or none, one of two, by a condition |
-| `Flow.each(xs)(x => …)`, `Flow.collect(xs)(…)`, `Flow.fold(xs, z)((acc, x) => …)` | over a list, in turn |
-| `Flow.parCollect(xs)(…)`, `Flow.parCollectN(n)(xs)(…)`, `(fa, fb).parTupled` | at once |
-| `fa.race(fb)` | both at once, the loser cancelled when the winner finishes |
-| `Flow.raise(e)`, `fa.handle[E](e => …)`, `fa.attempt[E]`, `fa.guarantee[E](fin)`, `Flow.bracket[E, R, A](acquire)(use)(release)` | errors and finalizers |
-| `fa.timeout(Clock.now, seconds)`, `Flow.retry[E, A](Clock.sleep, waits)(fa)` | a time limit (`None` once it is past); a retry after each wait |
-
-A program that can fail declares its error on its word: `Declaration[Time => Flow[Unit]]("…").failsWith[E]`.
-FrFlow checks the declared error against what the code may end in (`FailsWithDiffers`); a program over two error types
-is refused. `p.changesNothing`, of a program declared to fail, says every model's state is as before.
-
-**Time** follows Cats Effect's model. The clock is FrFlow's own model, `Clock.clockModel`, its state the time now in
-seconds: `Clock.now` reads it, `Clock.sleep(d)` waits at least `d`, and `Clock.elapse(d)` is the world's own step
-between runs, which no code calls. Steps of code take no time of their own; in Lean the world moves the time on by any
-amount at each of the clock's steps and by at least `d` at a wait, and waits at once take the longest of them. Every
-rule and `isConstant` reading the clock is asked to survive time passing (`cover_elapse`). In the tests the clock is
-a virtual one, moved by `elapse` on generated runs.
-
-**Concurrency.** Lean reads the sides of a step at once in turn; production interleaves their steps. `commute_<i>`
-asks of each two steps, one of each side, touching a model in common that their two orders give the same results and
-leave the same models, so what is proven of the reading holds of every interleaving (Lipton's reduction). A side that
-may let an error out beside one that may fail or changes a model is refused. A race is read as the world's choice of
-the winner, then the loser's steps until it is cancelled, then the winner's.
+Definition's meaning as plain code calls it.
 
 ### What Lean proves
 
@@ -284,19 +208,16 @@ the winner, then the loser's steps until it is cancelled, then the winner's.
 | `needed_<part>` | each part | the step needs it |
 | `impl` | a claim mentioning proven code | the code meets it, its parts and the claims about what the code calls as hypotheses |
 | `root_impl` | the roots | the code meets them, through the claims saying what each Declaration is |
-| `cover_<program>` | an `always` about a store | every run of each program writing it, from a world meeting every rule, ends in one meeting it |
-| `made_<maker>` | an `always[T]` | every value a proven define, program or operation makes of `T` meets it |
+| `made_<maker>` | an `always[T]` | every value a proven define makes of `T` meets it |
 | `made_<code>_call_<i>` | proven code calling plain Scala | each argument meets the rules on its type, on every path to the call |
-| `start_<node>` | an `always` about a store | the states it starts in meet it |
 | `outside` | a claim of `always[T]` whose `T`s come from outside | what is assumed of them gives it |
-| `commute_<i>` | a program with steps at once | each two steps that may interleave commute |
 | `consistent_<i>` | each group of statements at the bottom sharing an open value | some meaning of every open value makes them all hold |
 | `inhabited_<node>`, `satisfiable_<i>_<node>` | an `always`; a condition `A` in `A implies B` | some value meets it; it can hold |
 | `example_<set>_<i>` | each example: the `i`th of its class (`example_GrantedExamples_0`), a try | for every meaning of what it mentions, the claims constraining them give its fact |
 | `example_<set>_<i>_opposite` | each example, a try | the same claims give its negation: they contradict it |
 
-The tries (`vacuous`, `restates`, `clash`, `unsat`, `idle`, `frozen`) look for a statement that says nothing, restates
-its part, contradicts another, holds whatever is done, or a schedule that stops time; each is reported as shown or not shown. A step Lean does not
+The tries (`vacuous`, `restates`, `clash`, `unsat`, `idle`) look for a statement that says nothing, restates its
+part, contradicts another, or holds whatever is done; each is reported as shown or not shown. A step Lean does not
 prove is "open", with Lean's errors; one refuted is "failed", with the case Lean confirms.
 
 A proof Lean's tactics do not find is written by hand in `lean/Proofs/<Model>/<node>.lean`; `scaffold NODE` writes a
@@ -371,7 +292,6 @@ the cause:
 | `code` | the code it governs: the files of its implementation, or of a design |
 | `revisit` | the developer said a change elsewhere may affect it |
 | `merged` | two branches decided it, and the merge kept both |
-| `writers` | a new program started changing a store its rule is about |
 
 Rewording a statement whose formula is unchanged does not cascade below; a change of meaning does. Accepting a change
 lists the decisions below it that it acts on, and the developer marks those it may affect (`--revisit`).
@@ -380,8 +300,8 @@ lists the decisions below it that it acts on, and the developer marks those it m
 
 Trusted: the assumptions the developer accepted; FrFlow's translation to Lean (cross-checked by the examples and by a
 law that Lean decides each generated term as the evaluator does); for tested code, the cases the tests reach. Not
-modelled: liveness ("eventually"), two runs in sequence in one statement, a deadline kept by a program running beside
-the others (an open point), values inside a map, a set or a function reached by an `always[T]` (refused).
+modelled: liveness ("eventually"), time, values inside a map, a set or a function reached by an `always[T]`
+(refused).
 
 ### Warnings
 
@@ -391,14 +311,12 @@ warnings:
 - no signing key; `.frflow/deciders` not as committed; the ledger's base not committed; a decision that does not count;
 - a source file governed by two nodes, or by none (the model's own files aside: where its nodes, its FrModel and
   the code given its Definitions are written, and a file holding only vocabulary, each Declaration, Definition,
-  `define`, `program`, `StateModel` and domain type recording its name and file, and each helper whose result type is
-  written `Term[…]` or `Flow[…]` (or a function returning one) counting as vocabulary; and a file holding only what a
-  `program`'s body refers to and vocabulary); a governed file that does not exist (`show` marks it missing
+  `define` and domain type recording its name and file, and each helper whose result type is written `Term[…]` (or
+  a function returning one) counting as vocabulary); a governed file that does not exist (`show` marks it missing
   under the design's "Files it governs");
 - a proof file of no node;
-- consistency not proven; a store's start not proven to meet its rules;
-- a node nothing checks; an assumption the generated runs cannot evaluate (trusted, not tested); a schedule over a
-  model no program writes; a node that restates its part.
+- consistency not proven;
+- a node nothing checks; a node that restates its part.
 
 ### CI
 

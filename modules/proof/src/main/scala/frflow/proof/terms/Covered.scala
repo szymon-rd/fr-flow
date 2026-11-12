@@ -1,32 +1,20 @@
 package frflow.proof.terms
 
 import frflow.core.code.Code
-import frflow.core.expr.{Prog, Progs}
-import frflow.core.name.{ModelName, SymbolName}
+import frflow.core.name.SymbolName
 import frflow.core.Theory
-import frflow.core.ty.Ty
 import frflow.core.vocab.Define
 
 /** What a reading of proven code for its calls knows of the Definitions it calls: those given plain Scala, whose
-  * arguments are checked at the call (`scala`); those whose proven code is a define, read in place on the arguments
-  * they are given (`proven`, owner §37: a value handed on through proven code reaches the plain Scala it calls); and
-  * the models' operations (`operations`).
+  * arguments are checked at the call (`scala`); and those whose proven code is a define, read in place on the
+  * arguments they are given (`proven`, owner §37: a value handed on through proven code reaches the plain Scala it
+  * calls).
   */
-final case class Covered(scala: Set[SymbolName], proven: Map[SymbolName, Define],
-    operations: Map[SymbolName, Covered.Operation])
+final case class Covered(scala: Set[SymbolName], proven: Map[SymbolName, Define])
 
 object Covered:
-  /** An operation on a state: its model, its inputs' types, whether its meaning writes the state, and whether it is
-    * known only by assumptions (G2: it may write its state, and its result is a value from outside, which no
-    * `made_<op>` covers).
-    */
-  final case class Operation(model: ModelName, inputs: List[Ty], writes: Boolean, assumed: Boolean = false)
-
   def of(t: Theory): Covered = Covered(
     t.code.attached.collect { case (d, a) if a.code.scala.nonEmpty => d }.toSet,
     t.code.attached.toList.flatMap((d, a) => a.code match
       case Code.Proven(c) => t.vocabulary.define(c).map(d -> _)
-      case _              => None).toMap,
-    t.vocabulary.models.flatMap(m => m.ops.map(o => o.op -> Operation(m.name, o.params.map(_.ty),
-      Progs.all(o.steps).exists { case Prog.Write(_, _) | Prog.Modify(_, _, _) => true; case _ => false })) ++
-      m.assumed.map(o => o.name -> Operation(m.name, o.params.map(_._2), true, assumed = true))).toMap)
+      case _              => None).toMap)

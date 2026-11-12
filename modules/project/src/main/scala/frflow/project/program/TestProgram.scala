@@ -8,21 +8,19 @@ import frflow.project.pipeline.{Analysis, Testable, TestKeys}
 import frflow.project.port.{ProjectFiles, Records, RunCode}
 import frflow.testing.{Plan, PropertyTests}
 import frflow.testing.derive.Derive
-import frflow.testing.model.ModelRuns
 import frflow.testing.report.{Failure, TestReport}
 import frflow.wire.file.{Depth, Files}
 import frflow.wire.test.TestsFile
 
-/** Testing before production: each node's plain Scala against it (`PropertyTests`, the examples' cases counted
-  * first) and each store's implementations given against its model (`ModelCheck`), for the nodes whose report is not
-  * current (or `only`); the failing cases kept first. It runs the developer's code, through `RunCode`. Its records are
-  * written: the reports (`tests.json`) and, newest first, at most `Kept` failing cases a node, each nested no deeper
-  * than the file may be (`counterexamples.json`).
+/** Testing before production: each node's plain Scala against it (`PropertyTests`, the examples' cases counted first),
+  * for the nodes whose report is not current (or `only`); the failing cases kept first. It runs the developer's code,
+  * through `RunCode`. Its records are written: the reports (`tests.json`) and, newest first, at most `Kept` failing
+  * cases a node, each nested no deeper than the file may be (`counterexamples.json`).
   */
-final class TestProgram[F[_]: Monad](files: ProjectFiles[F], run: RunCode[F], models: List[ModelCheck[F]]):
+final class TestProgram[F[_]: Monad](files: ProjectFiles[F], run: RunCode[F]):
   def apply(a: Analysis, only: Option[NodeId]): F[(List[(NodeId, TestReport)], Analysis)] =
     val t = a.decided.theory
-    val all = (t.nodes.map(_.node.id).filter(Testable.of(t, _)) ++ models.map(_.node)).distinct
+    val all = t.nodes.map(_.node.id).filter(Testable.of(t, _))
     val todo = all.filter(id => only.fold(a.tested(id).isEmpty)(_ == id))
     for
       fresh <- todo.traverseFilter(id => tested(a, id).map(_.map(id -> _)))
@@ -33,14 +31,12 @@ final class TestProgram[F[_]: Monad](files: ProjectFiles[F], run: RunCode[F], mo
       _     <- Records.writeFailures(files, failed).whenA(failed != a.inputs.recorded.counterexamples)
     yield (fresh, a.withRecorded(a.inputs.recorded.copy(tests = tests, counterexamples = failed)))
 
-  /** Its report: from its store's implementations, or from its plain code; none when nothing tests it. */
+  /** Its report, from its plain code; none when nothing tests it. */
   private def tested(a: Analysis, id: NodeId): F[Option[TestReport]] =
     val plan = Plan(a.inputs.settings, a.inputs.recorded.counterexamples.getOrElse(id, Nil))
     val examples = a.computed.examples.map(_._1)
     val draw = Derive.of(a.valid.elaborated, examples)
-    models.filter(_.node == id).traverse(_.run(plan, draw)).flatMap(rs => rs.reduceLeftOption(ModelRuns.joined)
-      .fold(run(PropertyTests(Semantics(a.valid.elaborated), a.decided.theory).of(id, plan, draw, examples)))(r =>
-        Some(r).pure[F]))
+    run(PropertyTests(Semantics(a.valid.elaborated), a.decided.theory).of(id, plan, draw, examples))
 
 object TestProgram:
   /** At most this many failing cases are kept a node. */

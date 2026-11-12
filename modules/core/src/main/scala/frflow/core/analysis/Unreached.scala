@@ -12,13 +12,12 @@ import frflow.core.vocab.SymbolType
 
 /** The places a guard of `always[T]` would go but cannot yet (owner §16: an `always` holds wherever FrFlow covers the
   * code): a type holding a `T` (`Scope.holds`) inside a map, a set or a function value, which `Guards` does not walk. A
-  * place is a type a statement quantifies over, a store's state, an input or the result of a Definition or an operation
-  * on a state, and a field of a domain type. A Definition's own function type is not one (its inputs and result are),
-  * nor is a program's result (its `made_` is step 3's).
+  * place is a type a statement quantifies over, an input or the result of a Definition, and a field of a domain
+  * type. A Definition's own function type is not one (its inputs and result are).
   */
 object Unreached:
   def of(t: Theory): List[Problem] =
-    val all = places(t).filter { case (Ty.FlowOf(_, _), _) => false; case _ => true }
+    val all = places(t)
     t.nodes.map(_.node).flatMap(n => n.statement.range.toList.flatMap {
       case Range.Made(ty) => all.collect {
           case (x, at) if Scope.holds(t, ty, x) && !Guards.applies(t, ty, x) => Problem.AlwaysNotReached(n.id, x, at)
@@ -36,11 +35,9 @@ object Unreached:
           (r -> Place.Result(s.name.value))
       case SymbolType.Typed(x)               => List(x -> Place.Value(s.name.value))
       case _                                 => Nil)
-    val ops = v.models.flatMap(_.allSigs).flatMap(o => o.params.map(_._2 -> Place.Input(o.name.value)) :+
-      (o.result -> Place.Result(o.name.value)))
     val fields = v.types.flatMap {
       case DataType.Product(n, _, fs) => fs.map(f => f.ty -> Place.Field(f.name, n.value))
       case DataType.Sum(_, _, cs)     =>
         cs.toList.flatMap(c => c.fields.map(f => f.ty -> Place.Field(f.name, c.name.value)))
     }
-    quantified ++ v.models.map(m => m.state -> Place.State(m.name)) ++ definitions ++ ops ++ fields
+    quantified ++ definitions ++ fields

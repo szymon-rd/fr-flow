@@ -2,7 +2,6 @@ package frflow.cli.say
 
 import frflow.api.node.tests.*
 import frflow.core.example.Given
-import frflow.core.name.SymbolName
 import frflow.eval.EvalError
 import frflow.eval.run.{Broken, OnCode}
 
@@ -22,28 +21,17 @@ object Tested:
     case o                             => head(t) :: (outcome(o, movedUnderCode) :: shortfall(t.cases).toList) ++
         t.unreached.map(target) ++ t.notes.map(note)
 
-  def head(t: TestView): String = t.against match
-    case Against.Claim(n)    => s"tested on ${t.cases.tried} generated cases (seed ${t.cases.seed}) against $n"
-    case Against.Model(_, m, os) => s"${scalaOf(os)} tested on ${t.cases.tried} generated runs (seed " +
-        s"${t.cases.seed}) against ${m.value}"
-
-  /** `inRoom and add's Scala`. */
-  def scalaOf(operations: List[SymbolName]): String = (operations.map(_.value) match
-    case init :+ last if init.nonEmpty => s"${init.mkString(", ")} and $last"
-    case one                           => one.mkString) + "'s Scala"
+  def head(t: TestView): String =
+    s"tested on ${t.cases.tried} generated cases (seed ${t.cases.seed}) against ${t.against}"
 
   def outcome(o: TestOutcome, movedUnderCode: Boolean): String = o match
     case TestOutcome.Passed        => "every case meets it"
     case TestOutcome.Failed(f)     => failed(f, movedUnderCode)
     case TestOutcome.NotChecked(e) => s"not checked: the statement has no Scala value to test against (${eval(e)})"
 
-  def failed(f: FailedCase, movedUnderCode: Boolean): String = f match
-    case FailedCase.Call(in, gs, broke, from) =>
-      val head = if movedUnderCode then Tested.Moved else "fails a generated case"
-      s"$head: (${Values.all(in)})${givens(gs)}: ${broken(broke)} (${drawn(from)})"
-    case FailedCase.Run(start, steps, d, from) =>
-      s"a generated run differs from the model: from ${Values.value(start)}, ${steps.map(step).mkString(", ")}: " +
-        s"${difference(d)} (${drawn(from)})"
+  def failed(f: FailedCase, movedUnderCode: Boolean): String =
+    val head = if movedUnderCode then Tested.Moved else "fails a generated case"
+    s"$head: (${Values.all(f.inputs)})${givens(f.givens)}: ${broken(f.broke)} (${drawn(f.from)})"
 
   private def givens(gs: List[Given]): String =
     if gs.isEmpty then ""
@@ -61,8 +49,6 @@ object Tested:
     case EvalError.Unbound(s)  => s"nothing binds ${s.value}"
     case EvalError.NoDefine(d) => s"the define ${d.value} is missing"
     case EvalError.NoCase      => "a match has no arm for the value"
-    case EvalError.NoModel(m)  => s"no model ${m.value}"
-    case EvalError.Steps       => "it is a program's steps, run rather than evaluated"
 
   def onCode(o: OnCode): String = o match
     case OnCode.Holds           => "the code holds it"
@@ -73,25 +59,6 @@ object Tested:
     case OnCode.Threw(m)        => s"the code threw: $m"
     case OnCode.BreaksRule(r)   => s"a value it gives breaks the rule ${r.value}: no code is given one"
 
-  private def difference(d: Difference): String = d match
-    case Difference.Call(s, impl, model) => s"at ${step(s)} the Scala ${ran(impl)}, the model ${ran(model)}"
-    case Difference.Assumed(s, impl, ns) => s"at ${step(s)} the Scala ${ran(impl)}, " + (if ns.isEmpty then
-        "which nothing assumed of it covers" else s"breaking ${ns.map(_.value).mkString(", ")}")
-    case Difference.Twice(s, impl, at)   => s"at ${step(s)}, made twice from one state, the Scala " +
-        s"${impl.map(ran).mkString(" then ")}, leaving ${at.map(Values.value).mkString(" then ")}: it is no function " +
-        "of its model's state, as Lean reads it"
-    case Difference.State(impl, model)   =>
-      s"the Scala holds ${Values.value(impl)} where the model holds ${Values.value(model)}"
-    case Difference.AtOnce(ss, impl, at) => s"${ss.map(step).mkString(" and ")} at once: the Scala " +
-        s"${impl.map(ran).mkString(" and ")}, then held ${Values.value(at)}, which no order of them gives on the model"
-    case Difference.NotRun(m)            => s"the Scala was not made or not read back: $m"
-
-  private def ran(r: Ran): String = r match
-    case Ran.Gave(v)   => s"gave ${Values.value(v)}"
-    case Ran.Failed(e) => s"failed with ${Values.value(e)}"
-    case Ran.Threw(m)  => s"threw $m"
-
-  private def step(s: Step): String = s"${s.op.value}(${Values.all(s.args)})"
   private def drawn(d: Drawn): String = s"seed ${d.seed}, case ${d.index}, size ${d.size}"
 
   private def shortfall(c: Cases): Option[String] =
@@ -105,7 +72,6 @@ object Tested:
     case Reach.Branch(held) => if held then "the condition holding" else "the condition not holding"
     case Reach.Arm(i)       => s"arm ${i + 1} of a match"
     case Reach.NonEmpty     => "a list or option not empty"
-    case Reach.Called(op)   => s"a call of ${op.value}"
 
   def note(n: Note): String = n match
     case Note.Given(ty, says)    => s"note: the generator given for ${Values.ty(ty)}${says.fold("")(s => s": $s")}"

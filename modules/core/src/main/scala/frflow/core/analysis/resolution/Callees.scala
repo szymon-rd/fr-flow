@@ -1,15 +1,14 @@
 package frflow.core.analysis.resolution
 
 import cats.syntax.all.*
-import frflow.core.code.Code
 import frflow.core.expr.{Exprs, Mentions}
 import frflow.core.graph.Walk
-import frflow.core.name.{DefName, LeanNames, NodeId, SymbolName}
+import frflow.core.name.{DefName, NodeId, SymbolName}
 import frflow.core.Theory
 
 /** The proven code of the Definitions a statement mentions: what stands for each when the statement is asked of the
-  * code (the define itself, or a program's run on the models, `f_run`; a statement relating two Definitions asks
-  * both at once), and what that code calls, through the defines it calls.
+  * code (the define itself; a statement relating two Definitions asks both at once), and what that code calls,
+  * through the defines it calls.
   */
 final case class Callees(standsFor: Map[SymbolName, DefName], calls: Mentions)
 
@@ -20,12 +19,9 @@ object Callees:
 
   /** One Definition's proven code. */
   def ofDefinition(t: Theory, op: SymbolName): Option[Callees] =
-    t.code.attached.get(op).map(_.code).flatMap {
-      case Code.ProvenFlow(f) => Some(Callees(Map(op -> LeanNames.run(f)), calls(t, f)))
-      case c                  => c.proven.map(d => Callees(Map(op -> d), calls(t, d)))
-    }
+    t.code.attached.get(op).flatMap(_.code.proven).map(d => Callees(Map(op -> d), calls(t, d)))
 
-  /** A program's proven code and the proven code of everything it reaches (`reaching`), each standing for its
+  /** A Definition's proven code and the proven code of everything it reaches (`reaching`), each standing for its
     * Definition: what a `cover_` puts in, as `impl` does.
     */
   def within(t: Theory, op: SymbolName): Callees =
@@ -33,12 +29,10 @@ object Callees:
       Callees(a.standsFor ++ b.standsFor, a.calls |+| b.calls))
 
   /** `ss` and every Definition the proven code standing for them reaches, through the code standing for each
-    * Definition it calls in turn: what a statement asked of the code is about, all the way down; an operation known
-    * only by assumptions a program calls among them (G2), which the program leaves open as plain Scala.
+    * Definition it calls in turn: what a statement asked of the code is about, all the way down.
     */
   def reaching(t: Theory, ss: List[SymbolName]): List[SymbolName] =
-    Walk.breadthFirst(ss, identity)(s => ofDefinition(t, s).toList.flatMap(c =>
-      c.calls.symbols ++ c.calls.operations.filter(t.vocabulary.isAssumed)))
+    Walk.breadthFirst(ss, identity)(s => ofDefinition(t, s).toList.flatMap(_.calls.symbols))
 
   /** The Definitions a define calls, through the defines it calls. */
   def calledBy(t: Theory, d: DefName): List[SymbolName] = calls(t, d).symbols

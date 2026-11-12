@@ -59,7 +59,7 @@ class SeededSuite extends munit.CatsEffectSuite:
 
   test("the review's proof choosing inner's meaning fails: the group is not proven, the purpose stays red".tag(Live)) {
     Ported.run(Projects.elaborated(Seeded.Hidden.knowledge), Nil,
-      Ported.Lean(List("Whole" -> Seeded.Hidden.proof), Nil, None), Nil).map { r =>
+      Ported.Lean(List("Whole" -> Seeded.Hidden.proof), Nil, None)).map { r =>
       assertEquals(consistent(r.analysis).get(ObligationName.Consistent(0)).filter(_ == ObligationStatus.Proven), None)
       assert(Ported.unproven(r.analysis).contains("purpose"), Ported.table(r.analysis))
     }
@@ -74,7 +74,7 @@ class SeededSuite extends munit.CatsEffectSuite:
 
   test("the re-review's proof choosing k fails: the group is not proven, the roots stay red".tag(Live)) {
     Ported.run(Projects.elaborated(Seeded.Through.knowledge), Nil,
-      Ported.Lean(List("Whole" -> Seeded.Through.proof), Nil, None), Nil).map { r =>
+      Ported.Lean(List("Whole" -> Seeded.Through.proof), Nil, None)).map { r =>
       assertEquals(consistent(r.analysis).get(ObligationName.Consistent(0)).filter(_ == ObligationStatus.Proven), None)
       assert(Ported.unproven(r.analysis).nonEmpty, Ported.table(r.analysis))
     }
@@ -82,7 +82,7 @@ class SeededSuite extends munit.CatsEffectSuite:
 
   test("premises no k meets are not shown to hold together, though a proof makes their group hold: red".tag(Live)) {
     Ported.run(Projects.elaborated(Seeded.Vacuous.knowledge), Nil,
-      Ported.Lean(List("Whole" -> Seeded.Vacuous.proof), Nil, None), Nil).map { r =>
+      Ported.Lean(List("Whole" -> Seeded.Vacuous.proof), Nil, None)).map { r =>
       val premises = r.analysis.groups.collectFirst { case (i, ids) if ids.contains(NodeId("kNegative")) => i }
       assertEquals(premises.flatMap(i => consistent(r.analysis).get(ObligationName.Consistent(i)))
         .filter(_ == ObligationStatus.Proven), None)
@@ -92,14 +92,14 @@ class SeededSuite extends munit.CatsEffectSuite:
   }
 
   test("an assumption false of the code its words mean is not proven of it, and the root over it stays red".tag(Live)) {
-    Ported.run(Projects.elaborated(Seeded.Trusted.knowledge), Nil, Ported.Lean(Nil, Nil, None), Nil).map { r =>
+    Ported.run(Projects.elaborated(Seeded.Trusted.knowledge), Nil, Ported.Lean(Nil, Nil, None)).map { r =>
       val unproven = Ported.unproven(r.analysis)
       assert(unproven.contains("outerKeeps") && unproven.contains("emptyHoldsNothing"), Ported.table(r.analysis))
     }
   }
 
   test("an assumption with no word at all is proven or red: no list 3 long red, none -1 long proven".tag(Live)) {
-    def unproven(p: Seeded.Pure) = Ported.run(Projects.elaborated(p.knowledge), Nil, Ported.Lean(Nil, Nil, None), Nil)
+    def unproven(p: Seeded.Pure) = Ported.run(Projects.elaborated(p.knowledge), Nil, Ported.Lean(Nil, Nil, None))
       .map(r => Ported.unproven(r.analysis).get("noDouble"))
     for
       three <- unproven(Seeded.Pure(3))
@@ -110,7 +110,7 @@ class SeededSuite extends munit.CatsEffectSuite:
   }
 
   test("two assumptions pinning n apart are one group, not proven".tag(Live)) {
-    Ported.run(Projects.elaborated(Seeded.TwoPins.knowledge), Nil, Ported.Lean(Nil, Nil, None), Nil).map { r =>
+    Ported.run(Projects.elaborated(Seeded.TwoPins.knowledge), Nil, Ported.Lean(Nil, Nil, None)).map { r =>
       assertEquals(r.analysis.groups.map(_._1), List(0))
       assertNotEquals(consistent(r.analysis).get(ObligationName.Consistent(0)), Some(ObligationStatus.Proven))
     }

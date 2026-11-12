@@ -1,39 +1,29 @@
 package frflow.core.analysis.outside
 
 import cats.syntax.all.*
-import frflow.core.analysis.outside.Scope
-import frflow.core.name.{ModelName, NodeId, TypeName}
+import frflow.core.name.{NodeId, TypeName}
 import frflow.core.spec.Range
-import frflow.core.term.{Bound, Case, Selector, When, World}
+import frflow.core.term.{Bound, Case, Selector, When}
 import frflow.core.term.interpret.{AtValue, Guard}
 import frflow.core.term.language.{Final, Sym}
 import frflow.core.Theory
 import frflow.core.ty.{DataType, Field, Ty}
-import frflow.core.vocab.StateModel
 
 /** The hypotheses every variable of a statement comes with (`Guarded`), one guard per statement of `always`,
   * claimed or assumed: its rule at the variable (`AtValue`). `always[T]` on each `T` a value holds: the value
   * itself, each element of a list, an option's value, either side of an `Either`, each component of a tuple, each
-  * field of a record or of an enum's case (`RoomBookings`' bookings), and each one a world's model holds in its state
-  * (not yet a map's, a set's or a function value's: `Unreached` refuses those); `always(stored)` on each world.
-  * Each guard is built from the variable's `Ty`, so its casts are typed by it. Guards are stated in Lean; Scala
-  * checks an `always` where a value is made (`Made`).
+  * field of a record or of an enum's case (not yet a map's, a set's or a function value's: `Unreached` refuses
+  * those). Each guard is built from the variable's `Ty`, so its casts are typed by it. Guards are stated to the
+  * prover; Scala checks an `always` where a value is made (`Made`).
   */
 object Guards:
-  /** Every guard, a world's on every store. */
+  /** Every guard. */
   def of(t: Theory): List[Guard] = byAlways(t).map(_._2)
 
-  /** The guards a statement takes: on a world, only the rules of the stores it reads (owner §33, `Reads`). */
-  def of(t: Theory, id: NodeId): List[Guard] = reading(t, Reads.models(t, id)).map(_._2)
-
   /** Each statement of `always`, with its guard. */
-  def byAlways(t: Theory): List[(NodeId, Guard)] = reading(t, t.vocabulary.models.map(_.name))
-
-  /** Each statement of `always`, with its guard, a world's on the stores of `models` only. */
-  def reading(t: Theory, models: List[ModelName]): List[(NodeId, Guard)] = t.nodes.map(_.node).flatMap(n =>
+  def byAlways(t: Theory): List[(NodeId, Guard)] = t.nodes.map(_.node).flatMap(n =>
     (n.statement.said, n.statement.range).tupled.collect {
-      case (f, r @ (Range.Made(_) | Range.Reached(_))) =>
-        n.id -> guard(f.term, r, Scope.models(t, r).filter(m => models.contains(m.name)), t.vocabulary.dataType)
+      case (f, Range.Made(ty)) => n.id -> guard(f.term, ty, t.vocabulary.dataType)
     })
 
   /** Whether `always[T]`'s guard applies to a value of `x`: `x` holds a `T` where a guard reaches (above). */
@@ -48,17 +38,10 @@ object Guards:
       case Ty.Data(n) if !seen(n) => data(n).exists(_.fieldTypes.exists(reaches(data, ty, seen + n)))
       case _                      => false)
 
-  private def guard(rule: Final[Boolean], range: Range, models: List[StateModel],
-      data: TypeName => Option[DataType]): Guard = new Guard:
+  private def guard(rule: Final[Boolean], ty: Ty, data: TypeName => Option[DataType]): Guard = new Guard:
     def of[T[_], A](x: Ty, s: Sym[T]): Option[T[A] => T[Boolean]] =
       val at: T[Any] => T[Boolean] = v => AtValue.of(rule, s, v)
-      val g = (range, x) match
-        case (Range.Made(ty), Ty.World)    =>
-          inWorld(s, models.flatMap(m => Within(s, data, ty, at)(m.state, Set.empty).map(m -> _)))
-        case (Range.Made(ty), _)           => Within(s, data, ty, at)(x, Set.empty)
-        case (Range.Reached(_), Ty.World)  => Option.when(models.nonEmpty)(at)
-        case _                             => None
-      g.map(g => (v: T[A]) => g(v.asInstanceOf[T[Any]]))
+      Within(s, data, ty, at)(x, Set.empty).map(g => (v: T[A]) => g(v.asInstanceOf[T[Any]]))
 
   /** The rule at each `T` a value of a type holds, if it holds one (`reaches`): `∀ b ∈ xs`, a `match` on an option,
     * an `Either` or an enum, a field or a pair's component (`p.1`). A guard is stated in Lean only, so Scala's
@@ -104,11 +87,5 @@ object Guards:
     Selector[Any, Any](path.mkString("."), i, Selector.pair, ty, _ => leanOnly, (_, _) => leanOnly)
 
   private def leanOnly: Nothing = throw IllegalStateException("FrFlow bug: a guard read in Scala (Made checks it)")
-
-  /** The rule within each model's state in the world, those whose state holds a `T`, together. */
-  private def inWorld[T[_]](s: Sym[T], models: List[(StateModel, T[Any] => T[Boolean])])
-      : Option[T[Any] => T[Boolean]] =
-    Option.when(models.nonEmpty)(w =>
-      models.map((m, g) => g(s.part[Any](w.asInstanceOf[T[World]], m.name, m.state))).reduce(s.and))
 
   private def hint(ty: Ty): String = Ty.names(ty).headOption.fold("x")(_.value.take(1).toLowerCase)

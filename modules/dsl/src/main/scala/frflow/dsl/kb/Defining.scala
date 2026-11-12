@@ -17,15 +17,9 @@ import scala.annotation.publicInBinary
 final class Defined[A] @publicInBinary private[kb] (val of: Declaration[A], private[kb] val gives: FrModel)
     extends Definition[A](of.name, of.described, None, of.word.at)(using of.leanType)
 
-/** The operations on one state given their Scala together (`defineOperations(inRoom, add)(start, observe)(calls)`):
-  * listed in a FrModel beside its nodes, as a Definition is.
-  */
-final class Definitions @publicInBinary private[kb] (private[kb] val gives: FrModel)
-
 /** How a Declaration is given its meaning (owner §15), each a Definition of it, listed in the FrModel beside the
-  * nodes and checked against every claim mentioning the Declaration: `define` (a define, a program, lifted code,
-  * a class read for a structure; Lean proves it, `impl`), `defineTested` (plain Scala, tested on generated cases; of
-  * operations on a state, the Scala of their model's operations, tested against it on generated runs),
+  * nodes and checked against every claim mentioning the Declaration: `define` (a define, lifted code, a class read
+  * for a structure; the prover proves it, `impl`), `defineTested` (plain Scala, tested on generated cases),
   * `defineValue` (a value fixed in the model), `provided` (a value provided where the code runs).
   */
 object Defining:
@@ -43,11 +37,11 @@ object Defining:
       * (`granted.defineTested(env => (held, request) => …)`), tested against each claim mentioning `d`.
       */
     inline def defineTested(inline code: Values => A): Definition[A] =
-      Defined(d, Tested[A, EmptyTuple](FrModel.part, List(d.word))(code))
+      Defined(d, Tested[A](FrModel.part, List(d.word))(code))
 
     /** The same, the plain Scala calling `calls` too, each a define the evaluator runs for it (`env(define)`). */
     inline def defineTestedCalling(calls: Declaration[?]*)(inline code: Values => A): Definition[A] =
-      Defined(d, Tested[A, EmptyTuple](FrModel.part, d.word :: calls.toList.map(_.word))(code))
+      Defined(d, Tested[A](FrModel.part, d.word :: calls.toList.map(_.word))(code))
 
     /** `d` is `value`, fixed in the model. */
     inline def defineValue(value: A): Definition[A] =
@@ -77,10 +71,3 @@ object Defining:
   /** `d` given `code`, in the model file `at`. */
   def proven[A](d: Declaration[A], code: Definition[A], at: RelPath): Definition[A] =
     Defined(d, Implementing.proven(FrModel.part, d, code, at))
-
-  /** Plain Scala for the operations `ds` on one state, tested against their model:
-    * `defineOperations(inRoom, add)(start = …, observe = …)(t => (t.inRoom, t.add))`. Each word's type is read here, so
-    * the Scala is typed by it.
-    */
-  transparent inline def defineOperations(inline ds: Declaration[?]*): Any =
-    ${ TestedMacro.of('{ FrModel.part }, 'ds) }

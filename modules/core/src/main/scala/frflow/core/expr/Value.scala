@@ -1,6 +1,6 @@
 package frflow.core.expr
 
-import frflow.core.name.{CtorName, ModelName}
+import frflow.core.name.CtorName
 
 /** A constant of the term language: data reified from a Scala value. Maps and sets keep their iteration order. */
 enum Value:
@@ -15,8 +15,6 @@ enum Value:
   case Tuple(elems: List[Value])
   /** One side of an outcome or an `Either`: the error (`Left`) or the value (`Right`). */
   case Inject(side: Side, elem: Value)
-  /** The models' states, and the faults the calls of a failing model's operations take in turn. */
-  case World(states: List[(ModelName, Value)], faults: List[Boolean])
 
 object Value:
   /** Every number a value holds, in order. */
@@ -28,5 +26,4 @@ object Value:
     case Pairs(es)               => es.flatMap((k, x) => numbers(k) ++ numbers(x))
     case Tuple(es)               => es.flatMap(numbers)
     case Inject(_, e)            => numbers(e)
-    case World(ss, _)            => ss.flatMap((_, s) => numbers(s))
     case Bool(_) | Str(_) | Unit => Nil

@@ -23,10 +23,9 @@ object DslTerms:
   def decls(env: LowerEnv, naming: Naming): List[Decl] = types.map(typeDecl) ++ declared.defines.toList
     .sortBy(_._1.value).flatMap((name, ds) => ds.headOption.flatMap(_.run.toOption).map(_._2).flatMap(w =>
       w.form match
-        case Form.Term(t)  =>
+        case Form.Term(t) =>
           val (bs, body) = Printed.define(env, naming)(w.value.params, t.run)
-          Some(Decl.Def(List(Attr.FrflowDefs), Names.builtin(name.value), bs, LowerType(w.value.result), body))
-        case Form.Steps(_) => None))
+          Some(Decl.Def(List(Attr.FrflowDefs), Names.builtin(name.value), bs, LowerType(w.value.result), body))))
 
   private def typeDecl(d: DataType): Decl = d match
     case DataType.Product(n, _, fs) =>

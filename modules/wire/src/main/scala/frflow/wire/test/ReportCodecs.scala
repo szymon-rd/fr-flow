@@ -1,7 +1,7 @@
 package frflow.wire.test
 
 import cats.syntax.all.*
-import frflow.core.name.{ModelName, NodeId, SymbolName}
+import frflow.core.name.NodeId
 import frflow.core.expr.Value
 import frflow.core.ty.Ty
 import frflow.eval.EvalError
@@ -21,16 +21,6 @@ import io.circe.{ACursor, Decoder, Encoder, Json, JsonObject}
   * given generator and what it makes, the examples' values one never makes, nothing to vary).
   */
 object ReportCodecs:
-  given Encoder[Against] = Encoder.instance {
-    case Against.Claim(n)    => Tagged("claim", "node" -> n.asJson)
-    case Against.Model(n, m) => Tagged("model", "node" -> n.asJson, "model" -> m.asJson)
-  }
-
-  given Decoder[Against] = Tagged.decoder("test target") {
-    case "claim" => _.get[NodeId]("node").map(Against.Claim(_))
-    case "model" => c => (c.get[NodeId]("node"), c.get[ModelName]("model")).mapN(Against.Model(_, _))
-  }
-
   given Encoder[Outcome] = Encoder.instance {
     case Outcome.Passed        => Tagged("passed")
     case Outcome.Failed(f)     => Tagged("failed", "failure" -> f.asJson)
@@ -49,7 +39,6 @@ object ReportCodecs:
     case Reach.Branch(h) => Tagged("branch", "held" -> h.asJson)
     case Reach.Arm(i)    => Tagged("arm", "index" -> i.asJson)
     case Reach.NonEmpty  => Tagged("non-empty")
-    case Reach.Called(o) => Tagged("called", "op" -> o.asJson)
   }
 
   given Decoder[Reach] = Tagged.decoder("reach") {
@@ -58,7 +47,6 @@ object ReportCodecs:
     case "branch"    => _.get[Boolean]("held").map(Reach.Branch(_))
     case "arm"       => _.get[Int]("index").map(Reach.Arm(_))
     case "non-empty" => _ => Right(Reach.NonEmpty)
-    case "called"    => _.get[SymbolName]("op").map(Reach.Called(_))
   }
 
   given Encoder[Target] = Encoder.instance(t => Json.obj("path" -> t.at.path.asJson, "reach" -> t.reach.asJson))
@@ -79,20 +67,13 @@ object ReportCodecs:
   }
 
   def encode(r: TestReport): JsonObject = JsonObject("asked" -> r.count.asked.asJson, "cases" -> r.cases.asJson,
-    "seed" -> r.seed.asJson, "against" -> r.against.asJson, "outcome" -> r.outcome.asJson,
+    "seed" -> r.seed.asJson, "against" -> Tagged("claim", "node" -> r.against.asJson), "outcome" -> r.outcome.asJson,
     "unreached" -> r.unreached.asJson, "notes" -> r.notes.asJson)
 
-  def decode(c: ACursor): Decoder.Result[TestReport] = decoding(c, summon[Decoder[Against]])
+  /** What a report was tested against: the claim (or assumption) of a node. */
+  private val against: Decoder[NodeId] = Tagged.decoder("test target") { case "claim" => _.get[NodeId]("node") }
 
-  /** A report of version 1, a model's runs against a store's realization (`"realization"`), no model named: read as
-    * against the model named as its node, which no key now is (it is tested again).
-    */
-  def decodeV1(c: ACursor): Decoder.Result[TestReport] = decoding(c, Tagged.decoder("test target") {
-    case "claim" => _.get[NodeId]("node").map(Against.Claim(_))
-    case "model" => _.get[NodeId]("node").map(n => Against.Model(n, ModelName(n.value)))
-  })
-
-  private def decoding(c: ACursor, against: Decoder[Against]): Decoder.Result[TestReport] =
+  def decode(c: ACursor): Decoder.Result[TestReport] =
     ((c.get[Int]("asked"), c.get[Int]("cases")).mapN(Count(_, _)), c.get[Seed]("seed"),
       c.get("against")(using against), c.get[Outcome]("outcome"), c.get[List[Target]]("unreached"),
       c.get[List[Note]]("notes")).mapN(TestReport(_, _, _, _, _, _))

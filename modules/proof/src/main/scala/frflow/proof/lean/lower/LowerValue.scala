@@ -3,7 +3,7 @@ package frflow.proof.lean.lower
 import cats.data.State
 import cats.syntax.all.*
 import frflow.core.expr.{Side, Value}
-import frflow.core.name.{CtorName, ModelName, TypeName}
+import frflow.core.name.{CtorName, TypeName}
 import frflow.core.ty.Ty
 import frflow.proof.lean.ast.*
 
@@ -27,19 +27,8 @@ final class LowerValue(env: LowerEnv):
     case (Value.Tuple(xs), Ty.TupleOf(ts))      => xs.zip(ts).traverse(apply(_, _)).map(LExpr.Tuple(_))
     case (Value.Pairs(es), Ty.MapOf(k, v))      => map(es, k, v)
     case (Value.Many(xs), Ty.SetOf(a))          => set(xs, a)
-    case (Value.World(states, fs), Ty.World)    => world(states, fs)
     case (other, ty)                            =>
       throw IllegalStateException(s"FrFlow bug: the value $other is not one of type $ty")
-
-  /** `(World.mk s₁ …)`: each model's state, at its type, then its faults where a model's operations may fail, and no
-    * race's winner chosen where a program races (the left wins each, as a world holding none of them reads).
-    */
-  private def world(states: List[(ModelName, Value)], faults: List[Boolean]): L[LExpr] =
-    states.traverse((m, v) => apply(v, env.modelState(m).getOrElse(
-      throw IllegalStateException(s"FrFlow bug: a world's state of ${m.value}, a model the theory has not")))
-    ).map(ss => call(Atoms.const("World.mk"), ss ++ Option.when(env.faulty)(LExpr.Typed(
-      LExpr.ListLit(faults.map(f => name(if f then "true" else "false"))), LowerFaults.listOfBool)) ++
-      Option.when(env.racing)(LExpr.Typed(LExpr.ListLit(Nil), LowerFaults.listOfBool))))
 
   /** `(fun k => if k = k₁ then some v₁ else … none)`: a map as the function Lean's `K → Option V` is. */
   private def map(es: List[(Value, Value)], k: Ty, v: Ty): L[LExpr] =

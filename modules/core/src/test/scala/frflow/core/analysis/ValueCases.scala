@@ -2,7 +2,7 @@ package frflow.core.analysis
 
 import frflow.core.code.Code
 import frflow.core.expr.{Binder, Value}
-import frflow.core.{Kb, Lang, Store}
+import frflow.core.{Kb, Lang}
 import frflow.core.name.{DefName, NodeId, SourceText, SymbolName, TypeName, VarId}
 import frflow.core.Nodes.*
 import frflow.core.spec.Written
@@ -78,11 +78,10 @@ object ValueCases:
       List(Problem.SaidToExist(int, Problem.Place.Variable(id("notAll"))),
         Problem.SaidToExist(Ty.ListOf(int), Problem.Place.Value("count")))),
     ProblemCase(mutual, List(Problem.RestsOnItself(List(id("aboutF"), id("aboutG"))))),
-    ProblemCase(Kb.of(root).naming(declaration("get", test))
-      .declaring(v => v.copy(sorts = List(Sort(TypeName("World"), "a world")), defines = List(calling("Obl", "get")),
-        models = List(Store.stateModel.copy(name = frflow.core.name.ModelName("stateM"))))),
-      List(Problem.ReservedName("World"), Problem.ReservedName("get"), Problem.ReservedName("Obl"),
-        Problem.ReservedName("StateM"))),
+    ProblemCase(Kb.of(root).naming(declaration("frflow_auto", test))
+      .declaring(v => v.copy(sorts = List(Sort(TypeName("Except"), "an outcome")),
+        defines = List(calling("Obl", "frflow_auto")))),
+      List(Problem.ReservedName("Except"), Problem.ReservedName("frflow_auto"), Problem.ReservedName("Obl"))),
     ProblemCase(Kb.of(root).naming(declaration("access", test), declaration("access", test)),
       List(Problem.DeclaredTwice("access"))),
     ProblemCase(Kb.of(connected).naming(codeOnly("connection")).coding(name("connection") -> Code.Provided),

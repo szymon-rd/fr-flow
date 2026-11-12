@@ -22,13 +22,9 @@ object Problems:
   private val outside: PartialFunction[Problem, String] =
     case Problem.OutsideAsPart(fact, whole) => s"$fact, an assumption about the outside, refines $whole: assume it " +
         s"instead ($whole.assuming($fact))"
-    case Problem.OutsideClaimed(id)         => s"$id claims a fact about the outside: only an assumption can say one"
     case Problem.PremiseMissing(id, n, by)  => s"$id rests on ${premise(n)}, which its .assuming does not list" +
         by.fold(" (no assumption says it yet)")(b => s" (add .assuming($b))")
     case Problem.PremiseNotNeeded(id, p)    => s"$id assumes $p, which its check does not rest on"
-    case Problem.WorldsEqual(id)            => s"$id says two worlds are equal where a store may fail or a program " +
-        "races: say " +
-        "`unchanged` (.failsChangingNothing) instead"
     case Problem.AlwaysNotReached(a, t, at) => s"the always $a is about ${Values.ty(t)} inside ${at.says}, where no " +
         "check reaches it yet"
 
@@ -48,47 +44,7 @@ object Problems:
 
   private val programs: PartialFunction[Problem, String] =
     case Problem.RestsOnItself(ids)         => s"${ids.mkString(", ")} are each proven, through the others, from itself"
-    case Problem.RunOfNoDefinition(id) => s"$id speaks of a run of a program that is no Definition applied to inputs"
-    case Problem.ErrorsDiffer(prog, errors) => s"${prog.value} fails with errors of several types: " +
-        errors.map(Values.ty).mkString(", ")
-    case Problem.FailingDiffers(id, s, c, e) => s"$id's failing run of ${s.value} is about ${Values.ty(c)}, but it " +
-        s"fails with ${Values.ty(e)}"
-    case Problem.NeverFails(id, s)          => s"$id speaks of a failing run of ${s.value}, which cannot fail"
-    case Problem.ProvidedBesideWorld(id, s) => s"$id reads ${s.value}, provided where the code runs, beside the " +
-        "World: it is the same in every world; model it as a state"
-    case Problem.NoStart(r, m)              => s"the rule $r is assumed of ${m.value}'s state, but nothing says what " +
-        s"that state starts in: assume ${m.value}.initially(…)"
-    case Problem.WritesState(p, m)          => s"${p.value} writes ${m.value}'s state in its own steps: only an " +
-        s"operation of ${m.value} writes it; call one"
-    case Problem.SucceedingOnly(id, s)      => s"$id reads a run of ${s.value} plainly, but it can fail: read so, it " +
-        "says nothing of the runs that fail"
-    case Problem.FailsWithDiffers(s, d, r)  =>
-      s"${s.value} is declared to fail with ${d.fold("nothing")(Values.ty)}, " +
-        s"but its code may end in ${if r.isEmpty then "no error" else r.map(Values.ty).mkString(", ")}: declare " +
-        s"what it raises, ${s.value}.failsWith[E]"
-    case Problem.NestedAtomic(prog)         => s"${prog.value} runs a transaction inside a transaction"
-    case Problem.RaceSideHolds(prog)        => s"${prog.value} races a side holding a race, a pair at once or a " +
-        "finalizer: a loser is read cancelled between its steps, and what those do then is not"
-    case Problem.FailsBeside(prog)          => s"${prog.value} runs steps at once one of which may fail beside one " +
-        "that may fail or changes a model's state: cancelled by the error, what that one did until then is not read"
-    case Problem.StepNotOperation(prog, d)  => s"${prog.value} runs ${d.value} as a step, which is no model's " +
-        "operation: a program's steps call operations on a state"
-    case Problem.OutsideStepCalled(prog, d) => s"${prog.value} calls ${d.value}, the world's own step: time passes " +
-        "between runs by the world's steps; a program waits (sleep) instead"
-    case Problem.LeavesUnsaid(op, m)        => s"${op.value} is known only by assumptions, and a rule is about " +
-        s"${m.value}'s state: an assumption must say what its runs leave (${op.value}(…).after)"
-    case Problem.AssumedFailing(op, m)      => s"${op.value} is known only by assumptions, but ${m.value}'s " +
-        "operations may fail: give it its steps (means), or keep it on a model that does not fail"
-    case Problem.ReadsBeside(a, op, m)      => s"${a.value} is assumed of ${op.value}, known only by assumptions, " +
-        s"but reads ${m.value}: its runs are of its own model's state alone, so it would be said of every state of " +
-        s"${m.value}; hand what it needs to it as an input, or say it of ${m.value}'s own operations"
-    case Problem.AssumedMakes(n, op)        => s"${n.value} is a claim of always on what ${op.value} gives, which " +
-        "is known only by assumptions: its results come from outside (owner §37), so make it an assumption"
 
   private def premise(p: Premise): String = p match
-    case Premise.OnlyCodeChanges(m) => s"nothing outside the code changing ${m.value} (${m.value}.onlyCodeChanges)"
-    case Premise.Atomic(m)        => s"runs on ${m.value} being atomic (${m.value}.atomic)"
-    case Premise.Initially(m)     => s"what ${m.value} starts with (${m.value}.initially)"
-    case Premise.Schedule(m, by)  => s"where the world moves ${m.value}'s time (${by.value}, ${m.value}.schedule)"
     case Premise.FromOutside(t)   => s"what the values of ${Values.ty(t)} from outside meet (an assumption of " +
         s"always[${Values.ty(t)}])"

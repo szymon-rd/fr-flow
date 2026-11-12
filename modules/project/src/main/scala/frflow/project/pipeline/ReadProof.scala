@@ -2,7 +2,6 @@ package frflow.project.pipeline
 
 import frflow.core.analysis.outside.{Guards, Reads}
 import frflow.core.analysis.resolution.Constrained
-import frflow.core.analysis.outside.Scope
 import frflow.core.checking.Checking
 import frflow.core.code.Code
 import frflow.core.graph.Walk
@@ -13,7 +12,7 @@ import frflow.core.vocab.SymbolType
 import frflow.decision.review.{ProofStanding, Unproven}
 import frflow.proof.audit.Obligations
 import frflow.proof.obligation.{Made, ObligationName}
-import frflow.proof.obligation.ObligationName.{Complete, Consistent, Impl, Inhabited, RootImpl, Start, Tried}
+import frflow.proof.obligation.ObligationName.{Complete, Consistent, Impl, Inhabited, RootImpl, Tried}
 import frflow.proof.obligation.TryKind.{Clash, Idle, Needed}
 import frflow.proof.verdict.{CheckStatus, ObligationStatus, Result}
 import frflow.proof.verdict.ObligationStatus.{NotShown, Proven, Shown}
@@ -60,21 +59,20 @@ object ReadProof:
   private def nothingBelow(a: Analysis, n: Node): List[Unproven] =
     val t = a.decided.theory
     val checked = Checking.of(t, n.id).exists {
-      case Checking.FromParts(_) | Checking.AgainstCode(_, _) | Checking.TestedAgainst(_, _) | Checking.KeptBy(_) |
-          Checking.WhereMade(_, _, _) | Checking.SaysWhatIs(_, _) => true
+      case Checking.FromParts(_) | Checking.AgainstCode(_, _) | Checking.TestedAgainst(_, _) |
+          Checking.WhereMade(_, _) | Checking.SaysWhatIs(_, _) => true
       case _ => false
     }
     val leaf = n.statement.kind == NodeKind.Claim && t.refinement.parts(n.id).isEmpty && !checked
     Option.when(leaf)(Unproven.NothingBelow).toList
 
   /** Each rule it rests on whose own standing is not proven, for any reason (`local`: its check, its obligations,
-    * its tests, its consistency, a `start_` among them), or which a source of its values leaves open (`attributed`):
-    * of a statement taking a rule as a hypothesis (`Reads.taken`), each such rule, and of an `always`, itself; and
-    * through each obligation of a rule, the rules it takes in turn (`Obligations.takes`, one case per kind), all the
-    * way down (the step 13d re-review's R-B1, the passes after it). A rule open only through another is named by that
-    * other: `Kept` names where the standing fails. The rules are kept together, a joint induction, so a cycle of rules
-    * each proven of its own is settled proven, and one open makes every rule reaching it open (the sixth pass's P6-B1
-    * and P6-B2, `Six`).
+    * its tests, its consistency), or which a source of its values leaves open (`attributed`): of a statement taking
+    * a rule as a hypothesis (`Reads.taken`), each such rule, and of an `always`, itself; and through each obligation
+    * of a rule, the rules it takes in turn (`Obligations.takes`, one case per kind), all the way down. A rule open
+    * only through another is named by that other: `Kept` names where the standing fails. The rules are kept together,
+    * a joint induction, so a cycle of rules each proven of its own is settled proven, and one open makes every rule
+    * reaching it open.
     */
   private def kept(a: Analysis, id: NodeId, rs: List[Result]): List[Unproven] =
     val t = a.decided.theory
@@ -87,10 +85,8 @@ object ReadProof:
 
   /** What leaves a rule open beyond its own obligations: a value no rule allows (its `inhabited_` not proven: what
     * rests on a rule nothing meets is proven of nothing); of an `always[T]`, any test of tested plain Scala making a
-    * `T` failing, missing or stale (its search stops at the first failing case, the post's perhaps: the sixth pass's
-    * P6-B1), or tested by no node at all, so never tried against the rule (the seventh pass's S7-N1); of an
-    * `always(stored)`, any model run of its models' Scala failing or missing, a run breaking what is
-    * assumed of an operation among them (P6-B2). Tested code handed a `T` makes none: what it is handed is drawn
+    * `T` failing, missing or stale (its search stops at the first failing case, the post's perhaps), or tested by no
+    * node at all, so never tried against the rule. Tested code handed a `T` makes none: what it is handed is drawn
     * meeting the rules, or is a proven caller's, asked at the call (`made_<code>_call_<i>`).
     */
   private def attributed(a: Analysis, rule: NodeId): Boolean =
@@ -106,7 +102,7 @@ object ReadProof:
           val reports = testing.filter(n => Constrained.of(t, n).contains(m))
           reports.isEmpty || reports.exists(n => red(a.tested(n)))
         }
-      case r              => Scope.models(t, r).exists(m => red(a.testedModel(m.name)))
+      case Range.Possible => false
     }
 
   private def resultOf(t: frflow.core.Theory, s: frflow.core.name.SymbolName): Ty =
@@ -121,8 +117,8 @@ object ReadProof:
       !a.current(rule).exists(_.results.exists(r => r.name == ObligationName.Made(m.value) && r.status == Proven))) =>
       Unproven.Kept(rule) }.distinct
 
-  /** At the bottom, the group it shares open values with not proven to hold together; of what always holds of a
-    * store, the states it starts in not proven to meet it (`start_<node>`); proven from parts, a statement below it
+  /** At the bottom, the group it shares open values with not proven to hold together; proven from parts, a
+    * statement below it
     * about a Declaration in a group not proven (owner §28: its step takes what the Declarations are as hypotheses,
     * and only their group shows they can hold together). Each is its consistency not proven, and the proof is red.
     * Vacuity is warned of, not gated on.
@@ -130,20 +126,18 @@ object ReadProof:
   private def consistent(a: Analysis, id: NodeId): List[Unproven] =
     val t = a.decided.theory
     val proven = a.wholeCheck.toList.flatMap(_.results).collect { case Result(n, Proven, _) => n }.toSet
-    val start = a.whole.exists(_.name == Start(id)) && !proven(Start(id))
     val open = a.groups.filterNot((i, _) => proven(Consistent(i))).flatMap(_._2).toSet
     val below = Walk.breadthFirst(t.refinement.parts(id), identity)(t.refinement.parts).filter(n =>
       open(n) && Constrained.of(t, n).exists(Constrained.isDeclaration(t, _)))
-    Option.when(open(id) || start || below.nonEmpty)(Unproven.Consistency).toList
+    Option.when(open(id) || below.nonEmpty)(Unproven.Consistency).toList
 
-  /** Its plain code tested, and the Scala of each model's operations it rests on (`Analysis.models`, read by the
-    * model): a current report with no failing case, every case asked tried, every part reached (none since it moved:
-    * not tested yet). A statement with no Scala value is not checked by its tests, which is no failure.
+  /** Its plain code tested: a current report with no failing case, every case asked tried, every part reached (none
+    * since it moved: not tested yet). A statement with no Scala value is not checked by its tests, which is no
+    * failure.
     */
   private def tests(a: Analysis, id: NodeId): List[Unproven] =
-    val own = Option.when(Testable.of(a.decided.theory, id))(a.tested(id)).toList
-    (own ++ a.models(id).map(a.testedModel)).flatMap(_.fold(List(Unproven.NotTested))(r =>
-      Option.when(failing(r))(Unproven.Tests).toList)).distinct
+    Option.when(Testable.of(a.decided.theory, id))(a.tested(id)).toList.flatMap(_.fold(List(Unproven.NotTested))(r =>
+      Option.when(failing(r))(Unproven.Tests).toList))
 
   /** A report with a failing case, a case asked not tried, or a part not reached. */
   private def failing(r: TestReport): Boolean = r.outcome match

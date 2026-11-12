@@ -43,7 +43,7 @@ private[testing] final class Cases(semantics: Semantics, judge: Judge, needed: L
           case Some(Broken.NotEvaluated(e)) if unchecked(e) => Searched(tried + 1, reached, Outcome.NotChecked(e))
           case Some(broke)                                  =>
             val (small, why) = smallest(shrink, c, broke, Shrinking.Rounds)
-            Searched(tried + 1, reached, Outcome.Failed(Failure.Call(small.inputs, small.givens, why, from)))
+            Searched(tried + 1, reached, Outcome.Failed(Failure(small.inputs, small.givens, why, from)))
           case None                                         => go(tried + 1, reached)
     go(0, start)
 

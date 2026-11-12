@@ -2,14 +2,11 @@ package frflow.core.consistency
 
 import frflow.core.expr.{Binder, Expr, Exprs, PrimOp, Quantifier}
 import frflow.core.name.{DefName, NodeId, SymbolName}
-import frflow.core.ty.Ty
 
 /** A formula read, on its IR, as defining one open value (owner §18: `f(x) === e`, lower and upper bounds): `∀ xs,
   * s(xs) R e` with `R` an equation or an order, `s` applied to exactly the leading variables, on either side, and `e`
   * mentioning no value still open (`open`: those not witnessed yet, `Consistency` solving the group in order), itself
-  * or through the defines it calls (`called`), read also inside a run's post (`Defining` then gives the value at the
-  * run's outcome).
-  * `term.interpret.Defining` then builds the witness from the term.
+  * or through the defines it calls (`called`). `Defining` then builds the witness from the term.
   */
 final class Equations(open: List[SymbolName], reach: SymbolName => List[SymbolName],
     called: DefName => List[SymbolName]):
@@ -20,7 +17,7 @@ final class Equations(open: List[SymbolName], reach: SymbolName => List[SymbolNa
     */
   def defining(from: NodeId, f: Expr, s: SymbolName): Option[Witness] =
     val (xs, outer) = leading(f)
-    throughRun(outer, xs, closed) match
+    outer match
       case Expr.Prim(op @ (PrimOp.Eq | PrimOp.Le | PrimOp.Lt), List(l, r), _) =>
         val picked =
           if applied(l, s, xs) && closed(r) then Some(Picked.Right(shift(op, below = true)))
@@ -34,18 +31,6 @@ final class Equations(open: List[SymbolName], reach: SymbolName => List[SymbolNa
     (said.symbols ++ said.defines.flatMap(called)).flatMap(x => x :: reach(x)).forall(!open.contains(_))
 
 object Equations:
-
-  /** The post of a run from the last leading variable (`p(xs).from(now) { (r, after) => … }`), of a program that
-    * cannot fail and mentions nothing open: the relation is read there, over the run's outcome.
-    */
-  private[consistency] def throughRun(body: Expr, xs: List[Binder], closed: Expr => Boolean): Expr = body match
-    case Expr.Runs(run, Expr.Var(w), false, _, _, post) if xs.lastOption.contains(w) && closed(run) &&
-        cannotFail(run) => post
-    case other => other
-
-  private def cannotFail(run: Expr): Boolean = Exprs.typeOf(run) match
-    case Ty.FlowOf(_, None) => true
-    case _                  => false
 
   /** A strict bound is met one step inside it: below an upper bound, above a lower one. */
   private[consistency] def shift(op: PrimOp, below: Boolean): Int =

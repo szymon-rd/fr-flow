@@ -1,7 +1,6 @@
 package frflow.project.check
 
 import frflow.core.name.NodeId
-import frflow.eval.Races
 import frflow.project.pipeline.Analysis
 import frflow.proof.layout.{Layout, NodePart, Refutation, RefutesModule}
 import frflow.proof.lean.ast.{LeanModule, ModuleName}
@@ -39,7 +38,7 @@ final class NodeLean(a: Analysis, val node: NodeId):
 
   /** Its step refuted on the case found (`Refutations`), as Lean is given it. */
   def refutes(r: Refuted): LeanModule =
-    val found = Refutation(r.witness, r.ty, r.inputs.zip(r.types).map((x, ty) => Constant(Races.without(x._2), ty)))
+    val found = Refutation(r.witness, r.ty, r.inputs.zip(r.types).map((x, ty) => Constant(x._2, ty)))
     RefutesModule.of(a.decided, a.terms, node, found)
 
   def file(m: ModuleName): String = m.file.value.stripPrefix("lean/")

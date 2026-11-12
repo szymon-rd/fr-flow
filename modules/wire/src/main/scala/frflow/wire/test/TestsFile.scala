@@ -17,7 +17,7 @@ object TestsFile:
   val format: FileFormat[Map[NodeId, (String, TestReport)]] = FileFormat(".frflow/tests.json", 2,
     byNode("tests")((k, r) => Json.fromJsonObject(("key" -> k.asJson) +: ReportCodecs.encode(r))),
     readByNode("tests")(c => (c.get[String]("key"), ReportCodecs.decode(c)).tupled),
-    Map(1 -> readByNode("tests")(c => (c.get[String]("key"), ReportCodecs.decodeV1(c)).tupled)))
+    Map(1 -> readByNode("tests")(c => (c.get[String]("key"), ReportCodecs.decode(c)).tupled)))
 
   /** A version 1 step's boundary is left unread: its operation names it. */
   val counterexamples: FileFormat[Map[NodeId, List[Failure]]] = FileFormat(".frflow/counterexamples.json", 2,

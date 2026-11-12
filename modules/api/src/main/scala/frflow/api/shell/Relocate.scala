@@ -1,7 +1,7 @@
 package frflow.api.shell
 
 import frflow.core.Elaborated
-import frflow.core.code.{Code, CodeFile, Implementation}
+import frflow.core.code.{Code, CodeFile}
 import frflow.core.name.RelPath
 import java.nio.file.Path
 
@@ -21,9 +21,7 @@ private[api] object Relocate:
     def code(c: Code): Code = c match
       case Code.Tested(r, calls) => Code.Tested(r.copy(files = files(r.files)), calls)
       case other                 => other
-    val implemented = t.code.implemented.map((m, i) => m -> Implementation(i.ops, i.scala, i.effect, i.written,
-      files(i.files)))
     e.copy(theory = t.copy(nodes = t.nodes.map(s => s.copy(at = s.at.copy(file = move(s.at.file)))),
       code = t.code.copy(attached = t.code.attached.map((k, a) =>
-        k -> a.copy(code = code(a.code), writtenIn = move(a.writtenIn))), implemented = implemented),
+        k -> a.copy(code = code(a.code), writtenIn = move(a.writtenIn)))),
       writtenIn = t.writtenIn.map(move), own = t.own.moved(move)))

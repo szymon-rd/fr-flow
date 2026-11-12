@@ -2,8 +2,7 @@ package frflow.project.program
 
 import cats.effect.IO
 import frflow.core.expr.Value
-import frflow.core.name.{ModelName, NodeId}
-import frflow.eval.Races
+import frflow.core.name.NodeId
 import frflow.eval.run.OnCode
 import frflow.project.Projects
 import frflow.project.port.RunCode
@@ -24,12 +23,6 @@ class RunScalaSuite extends munit.CatsEffectSuite:
     val examples = Steps.BrokenExamples().elaborated.fold(es => fail(es.toString), identity)
     Projects.inMemory(Map.empty).flatMap(p => Projects.analysed(p, e, examples)).map(a =>
       assertEquals(a.computed.examples.map(_._2), List(OnCode.Threw("the service is down"))))
-  }
-
-  test("a world Lean is given holds no races' winners, however deep it is") {
-    val world = Value.World(List(ModelName("stored") -> Value.Many(Nil), Races.model -> Value.Many(Nil)), Nil)
-    assertEquals(Races.without(Value.Tuple(List(Value.Maybe(Some(world))))), Value.Tuple(List(Value.Maybe(Some(
-      Value.World(List(ModelName("stored") -> Value.Many(Nil)), Nil))))))
   }
 
   test("a step its one part fixes the answer of only above zero is refuted below it") {

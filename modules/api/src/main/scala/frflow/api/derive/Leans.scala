@@ -51,7 +51,6 @@ private[api] object Leans:
     case TryKind.Clash                  => TryView.Clash
     case TryKind.Unsat                  => TryView.Unsat
     case TryKind.Idle                   => TryView.Idle
-    case TryKind.Frozen                 => TryView.Frozen
     case TryKind.RestatesConjunct(p, i) => TryView.RestatesConjunct(p, i)
 
   def forbidden(n: NotAllowed): Forbidden = n match

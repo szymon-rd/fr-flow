@@ -9,7 +9,7 @@ import frflow.eval.{Applied, Env, EvalError, Literals, Reflect, ScalaValue}
 import frflow.eval.term.Evaluate
 
 /** The Scala semantics of a theory's parts, each run by the evaluator of terms (`Evaluate`, the only one): a formula, a
-  * written lambda as a function of its arguments (its inputs bound at their levels), a program's term, and a constant
+  * written lambda as a function of its arguments (its inputs bound at their levels), and a constant
   * as Scala holds it (by its type, through the theory's `DataRep`s).
   */
 final class Semantics(e: Elaborated):
@@ -30,5 +30,4 @@ final class Semantics(e: Elaborated):
   def reflect(v: ScalaValue, t: Ty): Value = reflected(v, t)
 
   private def of(f: Form): Env => Either[EvalError, ScalaValue] = f match
-    case Form.Term(s)  => term(s)
-    case Form.Steps(_) => _ => Left(EvalError.Steps)
+    case Form.Term(s) => term(s)

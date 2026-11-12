@@ -21,7 +21,7 @@ import scala.concurrent.duration.*
   test("the service method's claims are proven of the function of the table's rows read from it".tag(Live)) {
     val e = Projects.elaborated(DeskModel.model)
     val vectors = Vectors.of(e, Desk.book, Settings(10, Seed(1)))
-    Ported.run(e, vectors, Ported.Lean(Nil, Nil, None), Nil).map { r =>
+    Ported.run(e, vectors, Ported.Lean(Nil, Nil, None)).map { r =>
       List("answersWhenFree", "storesWhenFree").foreach(n =>
         assertEquals(Ported.row(r.analysis, NodeId(n)).take(3).drop(1), List("proven", "proven"),
           s"$n\n${Ported.table(r.analysis)}"))

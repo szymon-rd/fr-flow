@@ -1,6 +1,6 @@
 package frflow.api.view
 
-import frflow.core.name.{ModelName, NodeId, RelPath, SymbolName}
+import frflow.core.name.{NodeId, RelPath}
 import frflow.decision.ledger.{Decision, Uncounted}
 
 /** What `status` warns of (docs/USAGE.md, Warnings): data, rendered by the CLI and the web view. */
@@ -31,21 +31,9 @@ enum Warning:
     * and `complete` false (owner §28); said beside the overview so the developer knows what to add.
     */
   case ConsistencyNotProven(statements: List[NodeId])
-  /** An `always(stored)` the states its store starts in are not proven to meet (`start_<node>`): what is said to hold
-    * of every state reached is not shown to hold of the first.
-    */
-  case StartNotProven(statement: NodeId)
   /** A claim nothing checks: no parts prove it, no proven code or value is checked against it, and the plain Scala it
     * is about cannot be tested against it (it has no Scala value): "not checked".
     */
   case NotChecked(node: NodeId)
-  /** An assumption about operations known only by assumptions that their model's generated runs cannot evaluate (it
-    * is not read as a run of one, or its post has no Scala value): trusted, not tested.
-    */
-  case TrustedUntested(node: NodeId, operations: List[SymbolName])
-  /** A schedule over models no program writes: once the time reaches its bound over them, the world lets no more
-    * time pass, and every deadline holds of a still clock.
-    */
-  case ScheduleUnwritten(node: NodeId, models: List[ModelName])
   /** Lean proves a node equivalent to its part (or a part to a conjunct of its parent): it says nothing of its own. */
   case Restates(node: NodeId, part: NodeId)

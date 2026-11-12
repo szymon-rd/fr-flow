@@ -47,11 +47,6 @@ object LeanNames:
     val stem = n.reverse.dropWhile(_ == '_').reverse
     Prelude(stem)
 
-  /** A program's run on the models (`book_run`). */
-  def run(d: DefName): DefName = DefName(s"${d.value}_run")
-  /** What an operation of a model gives, as its model says (`inRoom_of`, in the model's namespace `Stored`). */
-  def ofOp(op: String): String = s"${op}_of"
-  def of(model: ModelName, op: String): DefName = DefName(s"${model.value.capitalize}.${ofOp(op)}")
   /** Call `i` of plain Scala in proven code (`bookIfGranted_call_1`). */
   def call(code: DefName, i: Int): String = s"${code.value}_call_$i"
   /** The hypothesis a statement is taken as (`h_grantWhenFree`). */
@@ -61,8 +56,7 @@ object LeanNames:
   def madeByCallee(callee: SymbolName): String = s"m_${callee.value}"
   /** What always holds of a value provided where the code runs, hypothesis `i` on it (`o_now_0`). */
   def outside(value: SymbolName, i: Int): String = s"o_${value.value}_$i"
-  /** What `cover_<op>` and `made_<maker>` state, declared in the rule's namespace. */
-  def keeps(op: String): String = s"keeps_$op"
+  /** What `made_<maker>` states, declared in the rule's namespace. */
   def makes(maker: String): String = s"makes_$maker"
   /** Conjunct `i` of a claim (`conjunct_1`). */
   def conjunct(i: Int): String = s"conjunct_$i"
@@ -81,7 +75,5 @@ object LeanNames:
       symbols.exists(s => name.startsWith(s"o_${s.value}_") && name.drop(s.value.length + 3).forall(_.isDigit) &&
         name.length > s.value.length + 3)
 
-  /** The prefixes of the obligations named after something (`cover_book`, `made_inRoom`, `start_neverOverlap`). */
-  val Cover: String = "cover_"
+  /** The prefix of the obligations named after a maker (`made_inRoom`). */
   val Made: String = "made_"
-  val Start: String = "start_"

@@ -1,24 +1,15 @@
 package frflow.core.analysis.outside
 
-import frflow.core.expr.OutsideFact
 import frflow.core.graph.Edge
-import frflow.core.name.{DefName, ModelName, NodeId}
+import frflow.core.name.NodeId
 import frflow.core.spec.{Node, NodeKind, Range}
 import frflow.core.ty.Ty
 import frflow.core.Theory
 
-/** The assumptions about the world outside the code (owner §16, §21), by what each says: a fact about the outside,
-  * or what values of a type from outside meet (an assumption of `always[T]`).
+/** The assumptions about the world outside the code (owner §16, §21): what values of a type from outside meet (an
+  * assumption of `always[T]`).
   */
 object Outsides:
-  def all(t: Theory): List[(NodeId, OutsideFact)] =
-    t.nodes.map(_.node).flatMap(n => n.statement.outside.map(n.id -> _))
-
-  /** The assumption that nothing outside the code changes the model's state, if there is one. */
-  def onlyCodeChanges(t: Theory, m: ModelName): Option[NodeId] = all(t).collectFirst {
-    case (id, OutsideFact.OnlyCodeChanges(`m`)) => id
-  }
-
   /** The assumptions of `always[T]` on `ty`: what values of it from outside meet. */
   def alwaysOf(t: Theory, ty: Ty): List[NodeId] = t.nodes.map(_.node).filter(assumesAlways(_, ty)).map(_.id)
 
@@ -30,8 +21,8 @@ object Outsides:
   def assumed(t: Theory, node: NodeId, premise: Premise): Option[NodeId] =
     premises(t, node).find(p => t.node(p).exists(saysOf(_, premise)))
 
-  /** Whether a node says something about the outside: a fact, or what values of a type from outside meet. */
-  def aboutOutside(n: Node): Boolean = n.statement.outside.nonEmpty || n.statement.range.exists {
+  /** Whether a node says what values of a type from outside meet. */
+  def aboutOutside(n: Node): Boolean = n.statement.range.exists {
     case Range.Made(ty) => assumesAlways(n, ty)
     case _              => false
   }
@@ -39,37 +30,9 @@ object Outsides:
   /** Whether node `n` says `p`. */
   def saysOf(n: Node, p: Premise): Boolean = p match
     case Premise.FromOutside(ty) => assumesAlways(n, ty)
-    case Premise.Schedule(_, by) => n.id == by
-    case _                       => n.statement.outside.exists(says(_, p))
-
-  /** The schedules of the clock `m`: where the world moves its time (owner §47). */
-  def schedules(t: Theory, m: ModelName): List[(NodeId, OutsideFact.Schedule)] = all(t).collect {
-    case (id, f @ OutsideFact.Schedule(`m`, _, _)) => id -> f
-  }
-
-  /** The models a schedule `id` reads that no program writes (`Premises.writers`): it may let the time pass from the
-    * start (its `frozen` try not shown) and still freeze it once the time reaches its bound over them (the step 13d
-    * re-review's R-N1), so `status` warns of each.
-    */
-  def unwritten(t: Theory, id: NodeId): List[ModelName] = t.node(id).flatMap(_.statement.outside).toList.flatMap {
-    case OutsideFact.Schedule(_, over, _) =>
-      over.filter(m => t.vocabulary.model(m).forall(Premises.writers(t, _).isEmpty))
-    case _                                => Nil
-  }
-
-  /** The rule of what `m`'s state meets when the service starts (its `initially`), if it has one. */
-  def initially(t: Theory, m: ModelName): Option[DefName] = all(t).collectFirst {
-    case (_, OutsideFact.Initially(`m`, rule)) => rule
-  }
 
   private def assumesAlways(n: Node, ty: Ty): Boolean =
     n.statement.kind == NodeKind.Assumption && n.statement.range.contains(Range.Made(ty))
 
   /** What a node's `.assuming` lists. */
   def premises(t: Theory, node: NodeId): List[NodeId] = t.edges.collect { case Edge.Assumes(`node`, p) => p }
-
-  def says(f: OutsideFact, p: Premise): Boolean = (f, p) match
-    case (OutsideFact.OnlyCodeChanges(m), Premise.OnlyCodeChanges(n)) => m == n
-    case (OutsideFact.Atomic(m), Premise.Atomic(n))                  => m == n
-    case (OutsideFact.Initially(m, _), Premise.Initially(n))         => m == n
-    case _                                                           => false

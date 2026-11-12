@@ -21,7 +21,7 @@ private[api] final class Fresh[F[_]: Async: Parallel](s: Session[F], found: Ref[
     for
       lake         <- s.lean(a)
       (_, checked) <- s.guarded(CheckProgram(s.ports.files, lake, s.library.path, s.code)(cleared, None))
-      (_, tested)  <- s.guarded(TestProgram(s.ports.files, s.code, s.models)(checked, None))
+      (_, tested)  <- s.guarded(TestProgram(s.ports.files, s.code)(checked, None))
       _            <- found.set(Some(tested.inputs.recorded))
     yield tested
 
@@ -30,6 +30,6 @@ private[api] final class Fresh[F[_]: Async: Parallel](s: Session[F], found: Ref[
     */
   private def current(b: Analysis): Boolean =
     val t = b.decided.theory
-    val tested = t.nodes.map(_.node.id).filter(Testable.of(t, _)) ++ s.models.map(_.node)
+    val tested = t.nodes.map(_.node.id).filter(Testable.of(t, _))
     b.obligations.forall(o => b.current(o.node).isDefined) &&
       b.inputs.recorded.checks.whole.forall(_ => b.wholeCheck.isDefined) && tested.forall(b.tested(_).isDefined)

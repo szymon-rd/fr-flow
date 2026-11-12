@@ -20,11 +20,8 @@ object LowerObligation:
     case ObligationName.Outside       => "outside"
     case ObligationName.Impl          => "impl"
     case ObligationName.RootImpl      => "root_impl"
-    case ObligationName.Cover(op)     => LeanNames.Cover + op
     case ObligationName.Made(m)       => LeanNames.Made + m
-    case ObligationName.Commute(i)    => s"commute_$i"
     case ObligationName.Consistent(i) => s"consistent_$i"
-    case ObligationName.Start(n)      => LeanNames.Start + n.value
     case ObligationName.Inhabited(n)  => s"inhabited_${n.value}"
     case ObligationName.Satisfiable(n, i) => s"satisfiable_${i + 1}_${n.value}"
     case ObligationName.Example(of, i) => s"example_${of}_$i"
@@ -34,7 +31,6 @@ object LowerObligation:
   private def tried(k: TryKind): String = k match
     case TryKind.Needed(c)              => s"needed_${c.value}"
     case TryKind.Vacuous                => "vacuous"
-    case TryKind.Frozen                 => "frozen"
     case TryKind.Restates               => "restates"
     case TryKind.Clash                  => "clash"
     case TryKind.Unsat                  => "unsat"

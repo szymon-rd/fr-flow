@@ -15,7 +15,7 @@ object CheckSamples:
 
   private val proven = NodeCheck(NodeId("Root"), CheckKey("4e1f0c"), CheckStatus.Proven, List(
     Result(ObligationName.Complete, ObligationStatus.Proven, Nil),
-    Result(ObligationName.Cover("add"), ObligationStatus.Proven, Nil),
+    Result(ObligationName.Made("add"), ObligationStatus.Proven, Nil),
     Result(ObligationName.Tried(TryKind.Needed(NodeId("Free"))), ObligationStatus.NotShown, Nil),
     Result(ObligationName.Satisfiable(NodeId("Root"), 0), ObligationStatus.Shown, Nil)), Nil, at)
 

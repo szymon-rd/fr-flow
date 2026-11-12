@@ -3,9 +3,8 @@ package frflow.proof.lean.lower
 import frflow.core.ty.Ty
 import frflow.proof.lean.ast.*
 
-/** A type's Lean (`(List Grant)`, `(String → Option UserId)`, `(CrmStore × World)`), as today's `Types.tpe`: every
-  * compound type in parentheses; a program's, its run from a world (`(World → ((Except E R) × World))` where it may
-  * fail with `E`). A declaration's type is its parameters' types and its result's, joined by `→`.
+/** A type as the prover is given it (`(List Grant)`, `(String → Option UserId)`): every compound type in
+  * parentheses. A declaration's type is its parameters' types and its result's, joined by `→`.
   */
 object LowerType:
   import Atoms.{const, name}
@@ -17,8 +16,6 @@ object LowerType:
     case Ty.Num(_)           => name("Int")
     case Ty.Str              => name("String")
     case Ty.Unit             => name("Unit")
-    case Ty.World            => name("World")
-    case Ty.Never            => throw IllegalStateException("FrFlow bug: the type of a step that only raises, lowered")
     case Ty.MapOf(k, v)      => Paren(Infix(LOp.Arrow, apply(k), App(name("Option"), List(apply(v)))))
     case Ty.SetOf(a)         => Paren(Infix(LOp.Arrow, apply(a), name("Prop")))
     case Ty.ListOf(a)        => Paren(App(name("List"), List(apply(a))))
@@ -28,9 +25,6 @@ object LowerType:
     case Ty.FnOf(as, r)      => Paren(chain(LOp.Arrow, (as :+ r).map(apply)))
     case Ty.Sort(n)          => const(n.value)
     case Ty.Data(n)          => const(n.value)
-    case Ty.FlowOf(r, e)     =>
-      val outcome = e.fold(r)(Ty.EitherOf(_, r))
-      Paren(Infix(LOp.Arrow, name("World"), Paren(chain(LOp.Times, List(apply(outcome), name("World"))))))
 
   /** A binder's type: a function's arrows unparenthesized at the top (`(expire : CrmStore → Int → CrmStore)`). */
   def binder(t: Ty): LExpr = t match

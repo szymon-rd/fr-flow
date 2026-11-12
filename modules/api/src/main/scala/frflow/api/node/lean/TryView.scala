@@ -8,5 +8,5 @@ import frflow.core.name.NodeId
   */
 enum TryView:
   case Needed(part: NodeId)
-  case Vacuous, Restates, Clash, Unsat, Idle, Frozen
+  case Vacuous, Restates, Clash, Unsat, Idle
   case RestatesConjunct(part: NodeId, i: Int)

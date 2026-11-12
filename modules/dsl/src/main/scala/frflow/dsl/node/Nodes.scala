@@ -7,7 +7,6 @@ import frflow.core.spec.{Reliance, Statement}
 import frflow.core.term.language.Sym
 import frflow.dsl.build.{AsWritten, Deferred, Fault, Site}
 import frflow.dsl.shape.Elab
-import frflow.dsl.model.Fact
 import frflow.dsl.term.{Notes, Term}
 import frflow.dsl.vocab.Stating
 
@@ -17,24 +16,18 @@ object Nodes:
     Node(head, st => Elab.formula(Site.Node(head.id), () => closed(st, Standing.closing(st, formula)), written)
       .map(Statement.Claim(_, Reliance.Relied)))
 
-  /** A fact about the outside is said whole (`Fact`): its term is the assumption's formula. An assumption over a
-    * structure is said of it in every state, as a claim is (`Standing`): what is assumed of one no class is read
-    * for (`ledger.provided`).
+  /** An assumption over a structure is said of it in every state, as a claim is (`Standing`): what is assumed of
+    * one no class is read for (`ledger.provided`).
     */
-  def assumption(head: Head, formula: Stating => () => Term[Boolean] | Fact, written: AsWritten): Node =
-    def said(st: Stating): () => Term[Boolean] = () => formula(st)() match
-      case f: Fact          => f.term
-      case t: Term[Boolean] => t
-    def term(st: Stating) = () => formula(st)() match
-      case f: Fact          => f.term
-      case _: Term[Boolean] => closed(st, Standing.closing(st, said))
-    Node(head, st => Elab.formula(Site.Node(head.id), term(st), written).map(Statement.Assumption(_)))
+  def assumption(head: Head, formula: Stating => () => Term[Boolean], written: AsWritten): Node =
+    Node(head, st => Elab.formula(Site.Node(head.id), () => closed(st, Standing.closing(st, formula)), written)
+      .map(Statement.Assumption(_)))
 
   def design(head: Head, governs: NonEmptyList[String]): Node =
     val statement = governs.traverse(path(head, _)).map(Statement.Design(_))
     Node(head, _ => statement)
 
-  /** The formula over the world it holds in (`Closing`), once what changes with the World is known. */
+  /** The formula as its node holds it (`Closing`); read open while what it reads is being learnt. */
   private def closed(st: Stating, t: Term[Boolean]): Term[Boolean] =
     if st.closing then Closing.of(t).fold(refused, identity) else Closing.opened(t)
 

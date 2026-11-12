@@ -15,9 +15,8 @@ class LayoutSuite extends munit.FunSuite:
     MiniProject.modules.find(_.name.dotted == s"FrFlowGen.Test.$name").getOrElse(fail(s"no module $name"))
 
   test("every module of a FrModel, the vocabulary's first") {
-    assertEquals(named(MiniProject.modules).take(8), List("Types", "Models", "Domain.Def_bookIfFree",
-      "Domain.Def_bookIfFree_run", "Domain.Def_endsAfterStart", "Domain.Def_fromTheForm", "Domain.Def_startsEmpty",
-      "Domain"))
+    assertEquals(named(MiniProject.modules).take(5), List("Types", "Domain.Def_bookIfFree",
+      "Domain.Def_endsAfterStart", "Domain.Def_fromTheForm", "Domain"))
     assertEquals(named(MiniProject.modules).filter(_.startsWith("allowsOne")),
       List("allowsOne.Spec", "allowsOne.Auto", "allowsOne.Theorems", "allowsOne.Checks"))
     assertEquals(named(MiniProject.modules).filter(_.startsWith("bookRuns")),
@@ -26,11 +25,10 @@ class LayoutSuite extends munit.FunSuite:
   }
 
   test("imports: what each module names, the domain's types always") {
-    assertEquals(names(module("bookRuns.Spec").imports),
-      List("Types", "Models", "Domain.Def_bookIfFree_run"))
+    assertEquals(names(module("bookRuns.Spec").imports), List("Types", "Domain.Def_bookIfFree"))
     assertEquals(names(module("allowsOne.Theorems").imports), List("Types", "allowedPositive.Spec", "allowsOne.Spec",
       "allowsOne.Auto"))
-    assertEquals(names(module("RootImpl").imports), List("Types", "bookRuns.Spec", "Domain.Def_bookIfFree_run",
+    assertEquals(names(module("RootImpl").imports), List("Types", "bookRuns.Spec", "Domain.Def_bookIfFree",
       "bookRuns.Impl"))
   }
 
@@ -48,7 +46,7 @@ class LayoutSuite extends munit.FunSuite:
 
   test("root_impl: each root of proven code, from what it trusts") {
     assert(Print.module(module("RootImpl")).contains(
-      "theorem root_impl : (Test.bookRuns.claim Test.bookIfFree_run) :=\n  (Test.bookRuns.Impl.impl)"))
+      "theorem root_impl : (Test.bookRuns.claim Test.bookIfFree) :=\n  (Test.bookRuns.Impl.impl)"))
   }
 
   test("a step refuted: complete false on an answer its part allows and a case") {

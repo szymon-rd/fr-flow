@@ -33,7 +33,7 @@ class VocabularySuite extends munit.FunSuite:
     List(symbol("authorized", authorizedMeans, Ty.FnOf(List(user, resource), Ty.Bool)),
       symbol("grants", grantsMeans, Ty.ListOf(grant)),
       symbol("access", accessMeans, Ty.FnOf(List(user, resource), Ty.Bool))),
-    Nil, Nil)
+    Nil)
 
   /** A claim over `access`, whose type names both opaque types. */
   private val accessExactly =
@@ -46,7 +46,7 @@ class VocabularySuite extends munit.FunSuite:
 
   private val theory = Theory(KbName("Auth"), vocabulary,
     List(accessExactly).map(Sited(_, Span(RelPath.fromIdentifiers("src", "Auth.scala"), 0))), Nil,
-    CodeTable(Map.empty, Map.empty))
+    CodeTable(Map.empty))
 
   test("a claim's vocabulary has the opaque types its terms are over (AccessExactly, in part)") {
     assertEquals(Texts.vocabulary(theory, NodeId("AccessExactly")),

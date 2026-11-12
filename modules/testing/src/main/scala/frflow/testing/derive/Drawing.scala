@@ -7,7 +7,7 @@ import frflow.core.example.Gen
 import frflow.core.expr.{Side, Value}
 import frflow.core.name.CtorName
 import frflow.core.ty.{DataType, Ty}
-import frflow.eval.{Env, Fn, Races, ScalaValue}
+import frflow.eval.{Env, Fn, ScalaValue}
 import frflow.testing.derive.Rolls.*
 
 /** One case's draws at its size, from where its draws start (`Draws`: the values drawn, the stream): `Gen`
@@ -46,7 +46,7 @@ private[derive] final class Drawing(d: Derive, size: Int):
   }
 
   private def meeting(ty: Ty)(draw: D[Value]): D[Value] =
-    val own = d.always.made.filter(_.ty == ty)
+    val own = d.made.filter(_.ty == ty)
     if own.isEmpty then draw else retried(draw, v => own.forall(_.holds(d.semantics.literal(v, ty), none)))
 
   private def fresh(ty: Ty, depth: Int): D[Value] = ty match
@@ -65,20 +65,7 @@ private[derive] final class Drawing(d: Derive, size: Int):
         else value(r, depth + 1).map(Value.Inject(Side.Value, _)))
     case Ty.TupleOf(as)    => as.traverse(value(_, depth + 1)).map(Value.Tuple(_))
     case Ty.Data(n)        => d.vocabulary.dataType(n).fold(nothing[Value])(data(_, depth))
-    case Ty.World          => world(depth)
     case _                 => nothing
-
-  /** Each model's state meeting every `always(stored)` about it, the faults the failing models' calls take in
-    * turn and, when a program races, the races' winners (`Races`).
-    */
-  private def world(depth: Int): D[Value] =
-    val states = d.vocabulary.models.traverse(m =>
-      retried(value(m.state, depth + 1), v => d.always.keeps(m.name, d.semantics.literal(v, m.state))).map(m.name -> _))
-    (states, bools(d.mayFail, 0.3), bools(d.races, 0.5)).mapN((held, faults, races) =>
-      Value.World(if d.races then held :+ (Races.model -> Value.Many(races.map(Value.Bool(_)))) else held, faults))
-
-  private def bools(wanted: Boolean, p: Double): D[List[Boolean]] =
-    if !wanted then pure(Nil) else below(size + 2).flatMap(n => List.fill(n)(chance(p)).sequence)
 
   /** One of its constructors over drawn fields; deep down, one with the fewest fields. */
   private def data(dt: DataType, depth: Int): D[Value] =

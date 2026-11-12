@@ -3,9 +3,9 @@ package frflow.core.analysis
 import frflow.core.analysis.outside.{Premise, Premises}
 import frflow.core.analysis.outside.Scope
 import frflow.core.analysis.resolution.Resolve
-import frflow.core.{Booking, Kb, Lang, Store}
+import frflow.core.{Booking, Desk, Kb, Lang}
 import frflow.core.code.Code
-import frflow.core.name.{DefName, NodeId, SymbolName}
+import frflow.core.name.{NodeId, SymbolName}
 import frflow.core.Nodes.*
 import scala.compiletime.constValueTuple
 import scala.deriving.Mirror
@@ -14,36 +14,13 @@ import scala.deriving.Mirror
   * made from are valid; and every problem of a theory is reported at once.
   */
 class ValidateSuite extends munit.FunSuite:
-  /** A statement reading the World and a value provided where the code runs (owner §45 D). */
-  private val provided: ProblemCase =
-    val reads = claim("readsBoth")(Lang.formula([T[_]] => (l: Lang[T]) =>
-      l.forall[frflow.core.term.World]("w", frflow.core.ty.Ty.World)(w =>
-        l.s.and(l.s.eq(w, w), l.s.eq(l.sym[BigInt]("limit", Lang.big), l.sym[BigInt]("limit", Lang.big))))))
-    ProblemCase(Kb.of(reads).naming(definition("limit", Lang.big)).coding(SymbolName("limit") -> Code.Provided),
-      List(Problem.ProvidedBesideWorld(NodeId("readsBoth"), SymbolName("limit"))))
-  private val cases = GraphCases.all ++ OutsideCases.all ++ ValueCases.all ++ FailureCases.all ++ AssumedCases.all :+
-    provided
+  private val cases = GraphCases.all ++ OutsideCases.all ++ ValueCases.all
 
   private inline def caseNames[A](using m: Mirror.SumOf[A]): List[String] =
     constValueTuple[m.MirroredElemLabels].toList.map(_.toString)
 
   test("every case of Problem has a theory that triggers it") {
     assertEquals(cases.map(_.name).sorted, caseNames[Problem].sorted)
-  }
-
-  test("worlds said equal where a program races: the scheduler's choices are the world's too") {
-    assertEquals(FailureCases.racing.problems, Nil)
-    assertEquals(FailureCases.racing.and(FailureCases.sameWorld).problems,
-      List(Problem.WorldsEqual(NodeId("sameWorld"))))
-  }
-
-  test("a side at once that may fail beside one that neither fails nor changes a model: cut short, it did nothing") {
-    assertEquals(FailureCases.beside(changing = false).problems, Nil)
-  }
-
-  test("a traverse at once whose body may let an error out is refused; one handling it is not") {
-    assertEquals(FailureCases.traversing(caught = false).problems, List(Problem.FailsBeside(DefName("bookIfFree"))))
-    assertEquals(FailureCases.traversing(caught = true).problems, Nil)
   }
 
   cases.foreach { c =>
@@ -53,34 +30,10 @@ class ValidateSuite extends munit.FunSuite:
     }
   }
 
-  test("the theories the cases change are valid: the store's, a root alone, parts of a node proven of code, " +
-    "the store that may be down with a failing run's clause of its type") {
-    assertEquals(Store.kb.problems, Nil)
-    assertEquals(FailureCases.claiming(FailureCases.down, frflow.core.ty.Ty.Str).problems, Nil)
-    assertEquals(Store.kb.and(FailureCases.sameWorld).problems, Nil)
+  test("the theories the cases change are valid: the desk's, a root alone, parts of a node proven of code") {
+    assertEquals(Desk.kb.problems, Nil)
     assertEquals(Kb.of(plain("root")).problems, Nil)
     assertEquals(ValueCases.proven.without("stray").problems, Nil)
-  }
-
-  test("an operation on a state is defined by its model, and is no code without a claim; with no model, undefined") {
-    assertEquals(Store.kb.problems, Nil)
-    assertEquals(Store.kb.code.get(Store.add), Some(Code.Modelled(Store.model)))
-    val unmodelled = Store.kb.copy(code = Store.kb.code - Store.add).declaring(_.copy(models = Nil))
-      .unlinking(assumes("bookRuns", "oneAtATime"))
-    assertEquals(unmodelled.problems, List(Problem.StepNotOperation(frflow.core.name.DefName("bookIfFree"),
-      Store.add), Problem.Undefined(Store.add)))
-  }
-
-  test("an operation known only by assumptions (G2): one said to leave the world as it was is valid beside a rule " +
-    "about its store; with nothing assumed of it, undefined") {
-    assertEquals(AssumedCases.saidWhatItLeaves.problems, Nil)
-    assertEquals(AssumedCases.unsaid.problems, List(Problem.Undefined(AssumedCases.peek)))
-  }
-
-  test("a model named as a domain type, its namespace in Lean, is declared twice") {
-    val clashing = Store.kb.declaring(v => v.copy(models = v.models.map(_.copy(name =
-      frflow.core.name.ModelName("booking")))))
-    assert(clashing.problems.contains(Problem.DeclaredTwice("Booking")), clashing.problems)
   }
 
   test("a Scala Int is said to exist only where a forall reads as an exists; every Int compares, none is a BigInt") {
@@ -133,11 +86,6 @@ class ValidateSuite extends munit.FunSuite:
     assertEquals(Kb.empty.problems, Nil)
   }
 
-  test("a premise missing that no assumption says names none") {
-    assertEquals(Store.kb.without("oneAtATime").problems,
-      List(Problem.PremiseMissing(NodeId("bookRuns"), Premise.Atomic(Store.model), None)))
-  }
-
   test("a value only plain code reads needs no statement: it is no code without a claim") {
     val connection = SymbolName("connection")
     assertEquals(Kb.of(plain("root")).naming(codeOnly("connection")).coding(connection -> Code.Provided).problems, Nil)
@@ -156,39 +104,34 @@ class ValidateSuite extends munit.FunSuite:
       Problem.Undefined(SymbolName("granted"))))
   }
 
-  /** `always[Booking]`: every booking ends after it starts, claimed or assumed. */
-  private def always(id: String, claimed: Boolean) =
-    val b = frflow.core.term.Bound[Booking]("b", Booking.ty)
-    val f = Lang.formula([T[_]] => (l: Lang[T]) => l.s.always[Booking](b)(_ => l.truth))
-    if claimed then claim(id)(f) else assumption(id)(f)
-
   private def fromOutside(ps: List[Problem]) = ps.collect {
     case p @ Problem.PremiseMissing(_, Premise.FromOutside(_), _) => p
     case p: Problem.PremiseNotNeeded                             => p
   }
 
   test("values of a type from outside (owner §21): an always of it rests on an assumption of always on it") {
-    val claimed = Store.kb.and(always("endsAfterStart", claimed = true))
+    val claimed = Desk.kb.and(always("endsAfterStart", claimed = true))
     val needs = Premise.FromOutside(Booking.ty)
     assert(Premises.of(claimed.theory, NodeId("endsAfterStart")).contains(needs))
     assertEquals(fromOutside(claimed.problems), List(Problem.PremiseMissing(NodeId("endsAfterStart"), needs, None)))
     val assumed = claimed.and(always("fromTheDesk", claimed = false))
-    // The store's contents are guarded by it too, so the program's claim rests on it as well.
+    // The desk's claim quantifies over bookings, guarded by it too, so it rests on it as well.
     assertEquals(fromOutside(assumed.problems), List("bookRuns", "endsAfterStart").map(id =>
       Problem.PremiseMissing(NodeId(id), needs, Some(NodeId("fromTheDesk")))))
     assertEquals(fromOutside(assumed.linking(assumes("endsAfterStart", "fromTheDesk"))
       .linking(assumes("bookRuns", "fromTheDesk")).problems), Nil)
   }
 
-  test("an assumption of always is kept where a claim of it is: by the programs storing its values (owner §21)") {
-    val kb = Store.kb.and(always("endsAfterStart", claimed = true), always("fromTheDesk", claimed = false))
+  test("an assumption of always is kept where a claim of it is: by the Definitions making its values (owner §21)") {
+    val kb = Desk.kb.naming(definition("latest", frflow.core.ty.Ty.FnOf(List(Lang.big), Booking.ty)))
+      .and(always("endsAfterStart", claimed = true), always("fromTheDesk", claimed = false))
     val scope = List("endsAfterStart", "fromTheDesk").map(id => Scope.of(kb.theory, NodeId(id)))
     assert(scope.head.nonEmpty, scope)
     assertEquals(scope.last, scope.head)
   }
 
   test("an assumption of always listed where no check rests on it is not needed") {
-    val kb = Store.kb.and(always("fromTheDesk", claimed = false), plain("unrelated"))
+    val kb = Desk.kb.and(always("fromTheDesk", claimed = false), plain("unrelated"))
       .linking(assumes("unrelated", "fromTheDesk")).linking(assumes("bookRuns", "fromTheDesk"))
     assertEquals(fromOutside(kb.problems), List(Problem.PremiseNotNeeded(NodeId("unrelated"), NodeId("fromTheDesk"))))
   }

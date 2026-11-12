@@ -1,7 +1,7 @@
 package frflow.core.spec
 
 import cats.data.NonEmptyList
-import frflow.core.expr.{Expr, OutsideFact}
+import frflow.core.expr.Expr
 import frflow.core.name.{RelPath, SymbolName}
 
 /** What a node says: one case per kind of node, and no other (owner §15). A claim is proven (or tested, where a
@@ -32,10 +32,7 @@ enum Statement:
     */
   def rule: Boolean = range.exists(_ != Range.Possible)
 
-  /** The fact about the world outside the code it assumes, when it is one. */
-  def outside: Option[OutsideFact] = said.map(_.value).collect { case Expr.Outside(f) => f }
-
-  /** The call (or run) of one Definition it reads as: what a test of that Definition's code checks a call against. */
+  /** The call of one Definition it reads as: what a test of that Definition's code checks a call against. */
   def call: Option[CallForm] = said.flatMap(CallForms.of)
 
   def definition: Option[SymbolName] = call.map(_.definition)
@@ -45,9 +42,7 @@ enum Statement:
     case _           => Reliance.Relied
 
   /** The expressions it says things with, in order. */
-  def exprs: List[Expr] = said.toList.map(_.value) ++ call.toList.flatMap(_.exprs)
+  def exprs: List[Expr] = said.toList.map(_.value)
 
-  /** Lean states it: a claim or an assumption, but not a fact about the outside, which Lean's model of the world is
-    * built on.
-    */
-  def stated: Boolean = said.isDefined && outside.isEmpty
+  /** The prover states it: a claim or an assumption. */
+  def stated: Boolean = said.isDefined

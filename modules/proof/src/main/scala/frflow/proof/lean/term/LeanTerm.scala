@@ -1,7 +1,7 @@
 package frflow.proof.lean.term
 
-import frflow.core.expr.{Binder, OutsideFact, Value}
-import frflow.core.name.{ModelName, SymbolName}
+import frflow.core.expr.{Binder, Value}
+import frflow.core.name.SymbolName
 import frflow.core.term.*
 import frflow.core.term.language.{Body, Sym}
 import frflow.core.ty.Ty
@@ -19,7 +19,7 @@ final class LeanTerm(env: LowerEnv, standing: Map[SymbolName, LExpr] = Map.empty
   import LExpr.{Infix, Paren}
   private type S[A] = LeanTerm.S[A]
   private val constants = LowerValue(env)
-  private lazy val (outcomes, byName) = (Outcomes(env, standing), standing.map((n, e) => Names.ident(n.value) -> e))
+  private lazy val byName = standing.map((n, e) => Names.ident(n.value) -> e)
 
   def bool(b: Boolean): S[Boolean] = _ => name(if b then "True" else "False")
   def and(a: S[Boolean], b: S[Boolean]): S[Boolean] = infix(LOp.And, a, b)
@@ -97,10 +97,6 @@ final class LeanTerm(env: LowerEnv, standing: Map[SymbolName, LExpr] = Map.empty
   def exists[A](x: Bound[A])(p: S[A] => S[Boolean]): S[Boolean] = quantified(x, p)(LExpr.Exists(_, _))
   /** Printed as the `∀` it narrows: Lean states an `always` only as its hypotheses (`Guarded`), what keeps it. */
   def always[A](x: Bound[A])(p: S[A] => S[Boolean]): S[Boolean] = forall(x)(p)
-  /** Never printed: a fact is a whole assumption (`Fact`); `isConstant` is stated per program first (`Constancy`). */
-  def outside(fact: OutsideFact): S[Boolean] = _ => throw IllegalStateException(s"FrFlow bug: $fact printed")
-  def unchanged(after: S[World], before: S[World]): S[Boolean] = s => Outcomes.unchanged(env, after(s), before(s))
-  def constant[A](w: S[World], at: Bound[World])(v: S[World] => S[A]): S[Boolean] = _ => sys.error("FrFlow bug")
   def construct[F](c: Constructor[F]): S[F] = _ => Atoms.ctor(c.data, c.ctor)
   /** A field of a record made on the spot (`LExpr.Ctor` applied) is its argument, typed by the field. */
   def field[R, F](r: S[R], sel: Selector[R, F]): S[F] = s => r(s) match
@@ -122,23 +118,9 @@ final class LeanTerm(env: LowerEnv, standing: Map[SymbolName, LExpr] = Map.empty
     val (n, body) = bound(x, s, b)
     Paren(LExpr.Let(n, LowerType(x.ty), v(s), body))
   /** A value's name or what stands for it (a witness given before, R14.6); a define on its open terms so written. */
-  def param[A](n: SymbolName, ty: Ty): S[A] = _ => env.run(n, standing.getOrElse(n, LExpr.Name(Names.ident(n.value))))
+  def param[A](n: SymbolName, ty: Ty): S[A] = _ => standing.getOrElse(n, LExpr.Name(Names.ident(n.value)))
   def define[F](d: Body[F]): S[F] = _ => Atoms.define(env, d.name, byName.get)
   def free[A](x: Binder): S[A] = s => LExpr.Name(s.named(x))
-  def part[V](w: S[World], model: ModelName, ty: Ty): S[V] = s => LExpr.Dot(w(s), env.modelField(model).text)
-  /** `(match (runExpiry now before) with | (result, after) => post)`: the run's pair taken apart; of a program that
-    * may fail, `| (Except.ok result, after) => post | _ => True`: the post is of the runs that succeed.
-    */
-  def runs[R](p: S[Program[R]], before: S[World], result: Bound[R], after: Bound[World])(
-      post: (S[R], S[World]) => S[Boolean]): S[Boolean] = s =>
-    val (r, w, body) = outcome(result, after, post, s)
-    val run = applied(p(s), before(s))
-    Paren(LExpr.Match(run, outcomes.succeeded(run, r, w, body)))
-  /** A failing run's arm, `| (Except.error e, after) => post`, every other run `True`. */
-  def fails[R, E](p: S[Program[R]], before: S[World], error: Bound[E], after: Bound[World])(
-      post: (S[E], S[World]) => S[Boolean]): S[Boolean] = s =>
-    val (e, w, body) = outcome(error, after, post, s)
-    Paren(LExpr.Match(applied(p(s), before(s)), outcomes.failed(e, w, body)))
   def noted[A](n: Annotation, t: S[A]): S[A] = t
 
   private def applied(f: LExpr, a: LExpr): LExpr = LeanTerm.applied(f, a)
@@ -154,12 +136,6 @@ final class LeanTerm(env: LowerEnv, standing: Map[SymbolName, LExpr] = Map.empty
     val (n, body) = bound(x, s, p, LExprs.identifiers(o(s)))
     val some = Paren(Infix(LOp.Eq, o(s), call(name("some"), List(LExpr.Name(n)))))
     Paren(make(List(typed(n, x.ty)), Infix(op, some, body)))
-
-  private def outcome[O](o: Bound[O], w: Bound[World], post: (S[O], S[World]) => S[Boolean], s: Scope)
-      : (LeanName, LeanName, LExpr) =
-    val (a, inner) = s.bind(o.hint, o.ty)
-    val (b, body) = inner.bind(w.hint, w.ty)
-    (a, b, post(variable(a), variable(b))(body))
 
   private def infix[A, B, R](op: LOp, a: S[A], b: S[B]): S[R] = s => Paren(Infix(op, a(s), b(s)))
   private def variable[A](n: LeanName): S[A] = _ => LExpr.Name(n)

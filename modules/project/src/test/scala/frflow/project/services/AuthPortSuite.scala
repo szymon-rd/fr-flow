@@ -24,7 +24,7 @@ class AuthPortSuite extends munit.CatsEffectSuite:
   private val lean = Lean(proofs.map(n => n -> Ported.proof("auth", "Auth", n)), Nil, None)
 
   test("checked by Lean and tested: every node is proven, and the theory is consistent".tag(Live)) {
-    Ported.run(elaborated, DecisionExamples().elaborated.fold(e => fail(e.toString), identity), lean, Nil).map { r =>
+    Ported.run(elaborated, DecisionExamples().elaborated.fold(e => fail(e.toString), identity), lean).map { r =>
       val a = r.analysis
       assertEquals(Completeness.of(a.decided, a.modules), Nil)
       assertEquals(Ported.unproven(a), Map.empty[String, List[String]])
@@ -38,7 +38,7 @@ class AuthPortSuite extends munit.CatsEffectSuite:
     val careless = FrModel("Auth")(knowledge.nodes*).defining(grants.provided, sessions.provided)
       .defining(admit.defineTested(env => (t, _) => env(sessions).open.find(_.token == t).map(_.user)))
     Tested.failure(careless, "decisionContract") match
-      case Failure.Call(List(Value.Str(_), _), _, Broken.Post, _) => ()
+      case Failure(List(Value.Str(_), _), _, Broken.Post, _) => ()
       case other                                                 => fail(s"not caught: $other")
   }
 

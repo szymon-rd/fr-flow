@@ -23,14 +23,13 @@ object RuleSide:
     val v = t.vocabulary
     val rules = Guards.byAlways(t).map((n, _) => DefName(n.value)).toSet
     val side = v.closure(rules.toList).map(_.name).toSet
-    val made = t.nodes.flatMap(_.node.statement.range).collect { case Range.Made(u) if u != Ty.World => u }
+    val made = t.nodes.flatMap(_.node.statement.range).collect { case Range.Made(u) => u }
     def guarded(d: Define) = d.written.form match
       case Form.Term(_) => Exprs.all(d.lambda.body).exists {
           case Expr.Quant(Quantifier.Forall | Quantifier.Exists, xs, _) =>
             xs.exists(x => made.exists(Guards.applies(t, _, x.ty)))
           case _                                                         => false
         }
-      case Form.Steps(_) => false
     val candidates = (side -- rules).toList.flatMap(v.define)
     def grow(twice: Set[DefName]): Set[DefName] =
       val more = twice ++ candidates.filter(d => Exprs.mentions(d.lambda.body).defines.exists(twice)).map(_.name)

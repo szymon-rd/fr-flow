@@ -1,7 +1,7 @@
 package frflow.core.analysis
 
 import frflow.core.analysis.outside.Premise
-import frflow.core.name.{DefName, ModelName, NodeId, SymbolName}
+import frflow.core.name.{DefName, NodeId, SymbolName}
 import frflow.core.ty.Ty
 
 /** What keeps a theory from being checked: each case names what is wrong and where. */
@@ -25,34 +25,23 @@ enum Problem:
     * premise of the proofs that rest on it (`.assuming`).
     */
   case OutsideAsPart(fact: NodeId, whole: NodeId)
-  /** A fact about the outside claimed: only an assumption can say one, since nothing in FrFlow proves it. */
-  case OutsideClaimed(id: NodeId)
   // The world outside (owner §16, §17)
   /** A statement whose check rests on a fact about the outside its `.assuming` does not list (the one mechanism for a
-    * premise, owner §15; `Premises` derives what each needs): a claim about a program's runs needs `stored.atomic` of
-    * each model whose operations it calls; an `always(stored)` that, `stored.onlyCodeChanges` and
-    * `stored.initially(…)`; an `always[T]` what values from outside meet (owner §21: an assumption of `always` on `T`
-    * when the outside passes `T`s in, and each such assumption on the values from outside its `T`s are made from) and
-    * the facts of each model whose state holds a `T`. `by` is the assumption that says it, if one does; when none does,
-    * what to say is `needs` (for values from outside, `Node.assumption("…")(always[T](x => …))`).
+    * premise, owner §15; `Premises` derives what each needs): an `always[T]` what values from outside meet (owner
+    * §21: an assumption of `always` on `T` when the outside passes `T`s in, and each such assumption on the values
+    * from outside its `T`s are made from). `by` is the assumption that says it, if one does; when none does, what to
+    * say is `needs` (`Node.assumption("…")(always[T](x => …))`).
     */
   case PremiseMissing(id: NodeId, needs: Premise, by: Option[NodeId])
   /** A fact about the outside a statement's `.assuming` lists that its check does not rest on. */
   case PremiseNotNeeded(id: NodeId, premise: NodeId)
-  /** Two worlds said equal (`after === before`) where a model's operations may fail or a program races: the faults
-    * their calls take and the scheduler's choices are part of a world, so a run that only read through it changes
-    * the world; that every model's state is as before is `unchanged` (`.failsChangingNothing`).
-    */
-  case WorldsEqual(id: NodeId)
   /** An `always` whose type sits, at `at`, inside a map, a set or a function value of type `ty`: no guard reaches it
     * there yet, so the code making or storing it could not be held to it (owner §16; `Unreached`).
     */
   case AlwaysNotReached(always: NodeId, ty: Ty, at: Problem.Place)
   // The vocabulary
   case ReservedName(name: String)
-  /** A name declared twice; a model's Lean namespace (its name capitalized) counts, so one named as a declared type
-    * is refused rather than named apart.
-    */
+  /** A name declared twice. */
   case DeclaredTwice(name: String)
   /** A statement mentioning a value only plain code reads: its Scala type (`scalaType`) has no `LeanType`; one that
     * derives it can be spoken of, and a connection stays as it is.
@@ -64,9 +53,9 @@ enum Problem:
     */
   case SaidToExist(ty: Ty, at: Problem.Place)
   // Declarations and Definitions (owner §15)
-  /** A Definition nothing gives a meaning: no code, no program, no value fixed or provided where code runs. */
+  /** A Definition nothing gives a meaning: no code, no value fixed or provided where code runs. */
   case Undefined(definition: SymbolName)
-  /** A Declaration reached from code: a program's steps, or a define that code runs, mentions it. */
+  /** A Declaration reached from code: a define that code runs mentions it. */
   case DeclarationInCode(code: DefName, declaration: SymbolName)
   /** Code for a Definition no statement mentions: there is nothing to check it against. */
   case CodeWithoutClaim(definition: SymbolName)
@@ -74,95 +63,13 @@ enum Problem:
     * node's code calls, resting in turn on the node.
     */
   case RestsOnItself(ids: List[NodeId])
-  // Programs and their errors (`Failing`)
-  /** A run (`p.from(before)`) of a program that is no Definition applied to inputs (a define's result, a variable):
-    * what it may fail with is read off a Definition's code.
-    */
-  case RunOfNoDefinition(id: NodeId)
-  /** A program whose steps raise, handle or meet errors of two types or more (a failing model's among them): its
-    * run is over one error (`ExceptT E`).
-    */
-  case ErrorsDiffer(program: DefName, errors: List[Ty])
-  /** A failing run's clause (`.failing { (error: E, after) => … }`) of another type than the program fails with. */
-  case FailingDiffers(id: NodeId, program: SymbolName, clause: Ty, error: Ty)
-  /** A failing run's clause on a program that cannot fail: no error escapes it (nothing it raises or meets is outside
-    * a handler of its type).
-    */
-  case NeverFails(id: NodeId, program: SymbolName)
-  /** A run of a program declared to fail (`failsWith`), read plainly: it would say nothing of the runs that fail, and a
-    * program that always fails would meet it (semantics review, finding 3). The DSL reads such a run with both
-    * outcomes by its type (owner §46, `Run`), so only a theory built otherwise can have it.
-    */
-  case SucceedingOnly(id: NodeId, program: SymbolName)
-  /** A program whose code may end in errors other than the one its Definition declares (`failsWith[E]`, owner §46):
-    * one raising an error on a Definition declaring none, or declaring one its code never ends in, or another.
-    */
-  case FailsWithDiffers(program: SymbolName, declared: Option[Ty], raised: List[Ty])
-  /** A value provided where the code runs (`provided`), read beside the World: it is the same in every
-    * world, so a "now" it stands for is no world's (owner §45 D): model it as part of the World, a state model.
-    */
-  case ProvidedBesideWorld(id: NodeId, provided: SymbolName)
-  /** An assumed rule about a model's state (`always[T]` of a type its state holds, or `always(stored)`) where no
-    * assumption says what the state starts in (`initially`): nothing shows the start meets it (`start_`). A claimed
-    * rule lists the missing premise instead (`PremiseMissing`).
-    */
-  case NoStart(rule: NodeId, model: ModelName)
-  /** A program writing a model's state in its own steps, not through an operation: only an operation's meaning
-    * writes its model's state, so which programs change it is read off the operations they call.
-    */
-  case WritesState(program: DefName, model: ModelName)
-  /** A program with a transaction inside a transaction (`atomically` within `atomically`): production runs each
-    * under one lock, which is not reentrant, so the inner one would wait on the outer for ever.
-    */
-  case NestedAtomic(program: DefName)
-  /** A program racing a side that holds a race, a pair at once (`parTupled`) or a finalizer (`guarantee`, `bracket`):
-    * the loser is read cancelled between two of its steps, what they did kept, and neither a finalizer run then nor a
-    * race or a pair inside it is read.
-    */
-  case RaceSideHolds(program: DefName)
-  /** A program with steps at once one of which may let an error out beside another that may fail or changes a
-    * model's state (a traverse's body that may fail, beside itself): production cancels the others then, at whatever
-    * step each has reached, and the reading in turn does not read what they did until then.
-    */
-  case FailsBeside(program: DefName)
-  /** A program's step calling a Definition that is no model's operation: only an operation on a state is a step
-    * (owner §36); what it hands another program or plain Scala this way is not checked at the call (§37), until step
-    * 12 gives such a call its form.
-    */
-  case StepNotOperation(program: DefName, called: SymbolName)
-  /** A program calling the world's own step on a state (the clock's `elapse`, owner §47): the world takes it between
-    * runs; code waits (`sleep`) instead.
-    */
-  case OutsideStepCalled(program: DefName, step: SymbolName)
-  /** An operation known only by assumptions (G2) of a model a rule is about, no assumption saying what its runs leave:
-    * no program calling it could be shown to keep the rule (`cover_`). Only that some assumption reads the world a
-    * run of it leaves is checked, a help to the author, not soundness: one saying nothing of it (`after === after`)
-    * passes here, and the `cover_` then stays unproven.
-    */
-  case LeavesUnsaid(operation: SymbolName, model: ModelName)
-  /** An operation known only by assumptions of a model whose operations may fail: a failing call is the world's
-    * choice, which a run known only by assumptions does not take.
-    */
-  case AssumedFailing(operation: SymbolName, model: ModelName)
-  /** An assumption about an operation known only by assumptions reading the state of another model (or running its
-    * operations): in Lean the operation's runs are of its own model's state alone, so the assumption is said of every
-    * state of the other beside every one of its own, which can force it to say nothing of what it says (that no
-    * request handed on carries a token, of a draw said to be fresh against another model's log).
-    */
-  case ReadsBeside(assumption: NodeId, operation: SymbolName, model: ModelName)
-  /** A claim of `always[T]` where an operation known only by assumptions gives values holding a `T`: they are values
-    * from outside (owner §37), which no covered code makes, so only an assumption of `always` on `T` covers them.
-    */
-  case AssumedMakes(rule: NodeId, operation: SymbolName)
-
 object Problem:
-  /** Where a type sits that an `always` would guard (`Unreached`): a variable a statement quantifies over, a store's
-    * state, a Definition's value, an input or the result of a Definition or an operation on a state (named by `of`),
-    * a field of a record or of an enum's case (`of`).
+  /** Where a type sits that an `always` would guard (`Unreached`): a variable a statement quantifies over, a
+    * Definition's value, an input or the result of a Definition (named by `of`), a field of a record or of an enum's
+    * case (`of`).
     */
   enum Place:
     case Variable(of: NodeId)
-    case State(of: ModelName)
     case Value(of: String)
     case Input(of: String)
     case Result(of: String)
@@ -171,7 +78,6 @@ object Problem:
     /** The place in words: `the field byRoom of Shelf`. */
     def says: String = this match
       case Variable(n) => s"a variable of ${n.value}"
-      case State(m)    => s"the state of ${m.value}"
       case Value(s)    => s
       case Input(s)    => s"an input of $s"
       case Result(s)   => s"the result of $s"

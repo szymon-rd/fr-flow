@@ -3,7 +3,7 @@ package frflow.web.json
 import frflow.api.node.*
 import frflow.api.node.lean.*
 import frflow.api.node.tests.*
-import frflow.core.checking.{Assumed, Shown, Tested}
+import frflow.core.checking.Shown
 import frflow.core.example.Given
 import frflow.core.expr.Mentions
 import frflow.core.spec.NodeKind
@@ -33,18 +33,12 @@ object NodeCodecs:
   given Encoder.AsObject[FindingView] = ConfiguredEncoder.derived
   given Encoder.AsObject[Unproven] = ConfiguredEncoder.derived
   given Encoder.AsObject[ProofView] = ConfiguredEncoder.derived
-  given Encoder.AsObject[Tested] = ConfiguredEncoder.derived
-  given Encoder.AsObject[Assumed] = ConfiguredEncoder.derived
   given Encoder.AsObject[Shown] = ConfiguredEncoder.derived
   given Encoder.AsObject[Cases] = ConfiguredEncoder.derived
-  given Encoder.AsObject[Against] = ConfiguredEncoder.derived
   given Encoder.AsObject[EvalError] = ConfiguredEncoder.derived
   given Encoder.AsObject[Broken] = ConfiguredEncoder.derived
   given Encoder.AsObject[Given] = ConfiguredEncoder.derived
   given Encoder.AsObject[Drawn] = ConfiguredEncoder.derived
-  given Encoder.AsObject[Step] = ConfiguredEncoder.derived
-  given Encoder.AsObject[Ran] = ConfiguredEncoder.derived
-  given Encoder.AsObject[Difference] = ConfiguredEncoder.derived
   given Encoder.AsObject[FailedCase] = ConfiguredEncoder.derived
   given Encoder.AsObject[TestOutcome] = ConfiguredEncoder.derived
   given Encoder.AsObject[Reach] = ConfiguredEncoder.derived

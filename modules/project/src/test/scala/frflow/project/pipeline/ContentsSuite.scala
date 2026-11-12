@@ -13,8 +13,7 @@ class ContentsSuite extends munit.FunSuite:
   private def lowered(e: Elaborated) = Projects.bare(e).canonical
   private val examples = List(Projects.rooms, Projects.elaborated(auth.knowledge))
   private val order = List("kind", "parents", "parts", "assumes", "statement", "formula", "written", "vocabulary",
-    "checking", "writers", "governs", "call", "replaces", "reliance", "failure", "implementation", "model",
-    "implementations")
+    "checking", "governs", "call", "replaces", "reliance", "implementation")
 
   test("every node of the examples has each field once, in the one order") {
     examples.map(lowered).foreach { r =>

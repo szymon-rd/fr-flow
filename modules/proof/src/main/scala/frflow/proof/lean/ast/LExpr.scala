@@ -1,7 +1,7 @@
 package frflow.proof.lean.ast
 
-/** A Lean term as FrFlow writes them, no raw text. The lowering places every parenthesis and line of a `do` block,
-  * so `Print` decides nothing.
+/** A prover term as FrFlow writes them, no raw text. The lowering places every parenthesis, so the printers decide
+  * nothing.
   */
 enum LExpr:
   case Name(name: LeanName)
@@ -29,8 +29,6 @@ enum LExpr:
   case If(cond: LExpr, ifTrue: LExpr, ifFalse: LExpr)
   case Match(on: LExpr, arms: List[(LExpr, LExpr)])
   case Let(name: LeanName, ty: LExpr, value: LExpr, body: LExpr)
-  /** A `do` block: its lines start on the next line, at the given indentation. */
-  case Do(lines: List[DoLine], indent: Int)
   /** `(e : T)`. */
   case Typed(e: LExpr, ty: LExpr)
   /** `⟨a, b, h⟩`: an anonymous constructor (the witnesses of an `∃`, then its proof). */

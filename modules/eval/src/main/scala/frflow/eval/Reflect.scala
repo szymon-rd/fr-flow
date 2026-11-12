@@ -2,7 +2,6 @@ package frflow.eval
 
 import frflow.core.Elaborated
 import frflow.core.expr.{Side, Value}
-import frflow.core.term.World
 import frflow.core.ty.Ty
 
 /** A Scala value as a `Value`, walked by its type through the `DataRep`s: what Scala computed, given to Lean to
@@ -23,18 +22,9 @@ final class Reflect(e: Elaborated):
     case (x: Either[?, ?], Ty.EitherOf(l, r)) =>
       x.fold(a => Value.Inject(Side.Error, of(a, l)), b => Value.Inject(Side.Value, of(b, r)))
     case (p: Product, Ty.TupleOf(ts))        => Value.Tuple(p.productIterator.toList.zip(ts).map(of))
-    case (_, Ty.World)                       => world(Fn.as[World](v))
     case (x, Ty.Data(n))                     =>
       val (c, fs) = e.reps(n).split(x)
       Value.Data(c, fs.zip(Fields.of(e, n, c)).map(of))
     case (x, _) => throw IllegalStateException(s"FrFlow bug: the value $x read at type $t")
 
   private def of(x: Any, t: Ty): Value = apply(ScalaValue(x), t)
-
-  /** Each model's state at its model's type, in the vocabulary's order, the races' winners when it holds them, and
-    * the faults.
-    */
-  private def world(w: World): Value =
-    val states = e.theory.vocabulary.models.flatMap(m => w.state(m.name).map(s => m.name -> of(s, m.state))) ++
-      w.state(Races.model).map(r => Races.model -> of(r, Ty.ListOf(Ty.Bool)))
-    Value.World(states, w.state(Faults.model).fold(Nil)(fs => Fn.as[List[Boolean]](ScalaValue(fs))))

@@ -1,14 +1,14 @@
 package frflow.wire
 
 import frflow.core.expr.{Side, Value}
-import frflow.core.name.{CtorName, ModelName, NodeId}
+import frflow.core.name.{CtorName, NodeId}
 import frflow.decision.content.{Content, FieldValue}
 import frflow.eval.EvalError
 import frflow.eval.run.Broken
 import frflow.proof.obligation.{ObligationName, TryKind}
 import frflow.proof.verdict.{ObligationStatus, Result}
 import frflow.testing.report.Seed
-import frflow.testing.report.{Against, Count, Outcome, TestReport}
+import frflow.testing.report.{Count, Outcome, TestReport}
 import frflow.wire.snapshot.{FieldRow, ObligationRow, Rows, TestRow}
 
 /** The one mapping from the domain to the snapshot's rows writes each value as the export says. */
@@ -25,14 +25,11 @@ class RowsSuite extends munit.FunSuite:
     assertEquals(Rows.shown(Value.Many(List(oak, Value.Maybe(None)))), "List(Room(\"Oak\", 4), None)")
     assertEquals(Rows.shown(Value.Pairs(List(Value.Num(1) -> Value.Inject(Side.Error, Value.Unit)))),
       "Map(1 -> Left(()))")
-    assertEquals(Rows.shown(Value.World(List(ModelName("stored") -> Value.Bool(true)), List(false))),
-      "World(stored: true; faults List(false))")
   }
 
   test("a test report becomes its row: cases, seed, what was tested, whether one failed") {
-    val report = TestReport(Count(500, 500), Seed(42), Against.Model(NodeId("Store"), ModelName("stored")),
-      Outcome.Passed, Nil, Nil)
-    assertEquals(Rows.test(report), TestRow(500, "42", "model Store of stored", false))
+    val report = TestReport(Count(500, 500), Seed(42), NodeId("Store"), Outcome.Passed, Nil, Nil)
+    assertEquals(Rows.test(report), TestRow(500, "42", "claim Store", false))
   }
 
   test("an obligation is named as Lean names it, with its status as written today") {

@@ -24,7 +24,6 @@ object Tm:
   def variable(i: Int): Tm[BigInt] = [T[_]] => (_: Sym[T], c: Scope[T]) => c.nums(i)
   def param[A](name: String, ty: Ty): Tm[A] = [T[_]] => (s: Sym[T], _: Scope[T]) => s.param[A](SymbolName(name), ty)
   def define[F](d: Body[F]): Tm[F] = [T[_]] => (s: Sym[T], _: Scope[T]) => s.define(d)
-  def outside(f: OutsideFact): Tm[Boolean] = [T[_]] => (s: Sym[T], _: Scope[T]) => s.outside(f)
 
   def and(a: Tm[Boolean], b: Tm[Boolean]): Tm[Boolean] = [T[_]] => (s: Sym[T], c: Scope[T]) => s.and(a(s, c), b(s, c))
   def or(a: Tm[Boolean], b: Tm[Boolean]): Tm[Boolean] = [T[_]] => (s: Sym[T], c: Scope[T]) => s.or(a(s, c), b(s, c))

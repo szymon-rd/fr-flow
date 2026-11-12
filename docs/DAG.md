@@ -35,82 +35,48 @@ and in them.
    structure in every state. A third:
    the two kinds of value are one. Every word is a Declaration, and a Definition is a Declaration with a meaning
    (`granted.define { … }`, listed in the FrModel beside the nodes; or `define { … }`, declared and defined at
-   once). Code calls Declarations; which of them are fixed (given a meaning, or called by code) and which may
-   change with the World (read by statements alone) is read off the model.
+   once). Code calls Declarations; which of them are fixed (given a meaning, or called by code) is read off the
+   model. A fourth: effectful programs written in the DSL (`Flow`), state models and the clock were removed; a
+   service's state is a structure's.
 
 ## 0a. The core concepts
 
 Three kinds of nodes, two kinds of values, two quantifiers (§15); nothing else, under any name.
 
 - **Nodes.** `Node.claim(statement)(formula)`: proven from its parts or of the code it mentions, or tested where the
-  code is plain Scala. `Node.assumption(statement)(formula)`: trusted, the developer's decision: the world outside the
-  code (what a model's state starts in, that only the code changes it, that runs on it never interleave, a
-  schedule), an outside system's promise, what values from outside meet. `Node.design(statement)(files*)`: a decision
+  code is plain Scala. `Node.assumption(statement)(formula)`: trusted, the developer's decision: an outside system's
+  promise, what values from outside meet. `Node.design(statement)(files*)`: a decision
   about code no proof covers.
-- **Values.** `Declaration[A](means)`: a word, of any type, what statements speak of and code and programs call. A
+- **Values.** `Declaration[A](means)`: a word, of any type, what statements speak of and code calls. A
   Definition is a Declaration with a meaning (§15): `d.define(…)` of one already declared, listed in the FrModel
-  beside the nodes, or `define { … }` and `program { … }`, declared and defined at once. A word nothing defines
+  beside the nodes, or `define { … }`, declared and defined at once. A word nothing defines
   is known through the statements about it. `stated { … }`
   is a define whose body may apply a Declaration, so a statement can name a line over Declarations; only statements
   call it.
 - **Quantifiers.** `forall` is every possible value, `exists` some possible value. `always` is every value the code FrFlow covers can produce
   (§19): `always[T](x => …)` every value of `T` that can be made, a hypothesis of every statement about such values
-  wherever they are held, met wherever covered code makes one; `always(stored)(s => …)` every state a model reaches,
-  kept by every program writing it, from a start that meets it. Values from outside are covered by an assumption of
+  wherever they are held, met wherever covered code makes one. Values from outside are covered by an assumption of
   `always` on their type (§21): statements are about values, not about a function's inputs.
 - **Edges.** `.refines(parent)` makes a node a part, or, for a claim of `always`, a rule below the statement it
   serves (no part of the step); `.assuming(assumption)` a premise; `.replaces(other)` an alternative.
-- **The World** (§33, §41, §43): the application at one moment, one field per model's state. A statement holds in
-  every reachable world and never names it: what changes is read in the current one (`stored.current`), a program's
-  run is `p(x).result` and `p(x).after`, and `.current` names the world before a run where a statement reads one.
-  `t.isConstant` says no run changes `t` (§44, §45 A).
 
 ## 1. Vocabulary
 
 - A domain type is a case class or an enum deriving `LeanType`: a Lean `structure` or `inductive`. One deriving
   `FrSpec` instead is the same, with a contract a node may state, and can be a value of lifted code.
-- A word the model gives no meaning and no code calls may change with the World: Lean takes it as a function of
-  the world where a statement reads it beside something that changes, and as a value otherwise. One code calls is
-  a function from outside, the same in every world, known by the assumptions about it. A rule (`always`) may not read one that changes (§45 C).
 - A word gets its meaning once: from a Definition of it listed in the FrModel (`d.define`, `d.defineTested`,
-  `d.defineValue`, `d.provided`, `defineOperations`), on the spot (`define`, `program`, `lifted`), or from a
-  `StateModel` for an operation on a state.
+  `d.defineValue`, `d.provided`), or on the spot (`define`, `lifted`).
   `check` refuses one defined twice, and code that reaches a word only statements read.
-- A define changes with the World exactly when its body reads state; it then takes the world last and is read in its
-  caller's world, or in the one it names (`ofRoom(room).in(w)`).
 - Names come from the `val`s: a node's id is its val's name, a Definition's and a Declaration's too. Renaming a val
   renames the node: a new node to decide (`.replaces(old)` links them).
 
-## 1a. Programs and state models
-
-- **A program** is one type, `Flow[R]` (§42), written as a `for` comprehension; `A => Flow[R]` is a Definition's
-  type. Its steps are recorded once: Lean reads them, the Scala tests run them on the models, production folds them
-  into `F: Async` (`knowledge.running[F](…)`). Every combinator is kept: `atomically`, `when`, `cond`, `ifM`, `each`,
-  `collect`, `fold`, `parCollect(N)`, `parTupled`, `race`, `raise`, `handle`, `attempt`, `guarantee`, `bracket`,
-  `timeout`, `retry`.
-- **There is no boundary** (§36): what FrFlow cannot see is a Definition given plain Scala, whether it is the
-  project's code or calls an outside system. An operation on a state gets its meaning in Lean from a `StateModel`
-  (`inRoom.means(…)`, `add.means(…)` over `state`), its plain Scala tested against the model on generated runs. An
-  operation known only by assumptions (`fetch.assumed`) is an unknown function of its model's state, its assumptions
-  hypotheses, its Scala tested against them where it can be.
-- **What the world outside does** is said of the model: `onlyCodeChanges`, `initially(s => …)`, `atomic` (§31,
-  §32, §36), and of the clock `schedule`. Which programs change a state is derived from the code (§31).
-- **A failing program** declares its error on its Definition, `.failsWith[E]` (§45 B, §46); its `result` is then an
-  `Either[E, R]`, and FrFlow checks the declaration against the code.
-- **Time** (§47) is Cats Effect's: the clock is FrFlow's model (`Clock.now`, `Clock.sleep`, the world's own
-  `elapse`), steps of code take no time, the world moves the time on between runs and at each of the clock's steps,
-  waits at once take the longest of them; every rule and `isConstant` reading the clock survives time passing.
-- **Concurrency.** Steps at once are read in turn and proven to commute where they touch a model in common
-  (`commute_<i>`), so the reading stands for every interleaving.
-
 ## 1b. Proven, tested, assumed
 
-- **Proven**: a `define` or a `program`, of which Lean proves the claims mentioning it.
+- **Proven**: a `define`, lifted code, or a class read for a structure, of which the prover proves the claims
+  mentioning it.
 - **Tested**: plain Scala, tested against the claims mentioning it on generated cases (each argument drawn meeting
-  the rules on its type), or, for a model's operations, against the model on generated runs, two calls at once
-  among them.
-- **Assumed**: what an assumption says, trusted; plain Scala known only by assumptions is tested against them where
-  a generated run can evaluate them, and "trusted, not tested" otherwise.
+  the rules on its type).
+- **Assumed**: what an assumption says, trusted; plain Scala an assumption is about is tested against it.
 
 What proven code hands to plain Scala meets the rules on its type (`made_<code>_call_<i>`, §37): a proof only.
 
@@ -133,7 +99,7 @@ What proven code hands to plain Scala meets the rules on its type (`made_<code>_
 ## 3. Lean obligations
 
 What Lean is asked of each node is a function of the resolved theory (`proof.audit.Obligations`). Generated Lean
-is under `lean/FrFlowGen/<Model>/` (a module per node, its `Spec` and its `Checks`, the models, the domain);
+is under `lean/FrFlowGen/<Model>/` (a module per node, its `Spec` and its `Checks`, and the domain);
 developers' proofs under `lean/Proofs/<Model>/`.
 
 | Obligation | Asked of |
@@ -141,18 +107,15 @@ developers' proofs under `lean/Proofs/<Model>/`.
 | `complete`, `needed_<part>` | a claim with parts |
 | `impl` | a claim mentioning proven code |
 | `root_impl` | the roots, of the code, through the claims saying what each Declaration is |
-| `cover_<program>` | each program writing a store an `always` is about; `cover_elapse` where it reads the clock |
-| `made_<maker>` | each proven define, program or operation making a value an `always[T]` is about |
+| `made_<maker>` | each proven define making a value an `always[T]` is about |
 | `made_<code>_call_<i>` | each call from proven code to plain Scala, of the arguments' rules |
-| `start_<node>` | an `always` about a store, from what `initially` says |
 | `outside` | a claim of `always[T]` whose `T`s come from outside |
-| `commute_<i>` | each two steps at once that touch a model in common |
 | `consistent_<i>`, `inhabited_<node>`, `satisfiable_<i>_<node>` | §3a |
 | `example_<set>_<i>` | §3b |
 
-The tries (`vacuous`, `restates`, `clash`, `unsat`, `idle`, `frozen`) are refuters, reported as shown or not shown. A
+The tries (`vacuous`, `restates`, `clash`, `unsat`, `idle`) are refuters, reported as shown or not shown. A
 step refuted carries the case Lean confirms. A rule is kept only as every rule its obligations take is: a statement is
-open while a rule it takes is open, for any reason (its `cover_`, its `made_`, its tests, nothing meeting it).
+open while a rule it takes is open, for any reason (its `made_`, its tests, nothing meeting it).
 
 ## 3a. Consistency and vacuity
 
@@ -199,7 +162,7 @@ A node's content is its fields as decided: `kind`, `parents`, `parts` (a claim's
   (its parents, the values it uses, the claims its code relies on), each with its own chain; a node's meaning has no
   parts, so a new sibling reviews the parent only, and a change above a diamond moves the shared node once. `code`:
   the code it governs. `revisit`: the developer asked. `merged`: two decisions following the same one (two
-  branches). `writers`: a new program started changing a store its rule is about (§31).
+  branches).
 - **Review follows meaning.** Rewording a node with what Lean reads unchanged reviews that node and not what rests
   on it. Any change of meaning cascades.
 - **Accepting** a node whose own content did not change is a `confirm`: the reason it was chosen stays. Accepting a

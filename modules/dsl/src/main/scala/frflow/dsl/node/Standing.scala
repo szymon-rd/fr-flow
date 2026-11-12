@@ -8,11 +8,11 @@ import frflow.dsl.vocab.Stating
 import scala.collection.mutable
 
 /** A statement over the structures it reads as they stand: said of each structure in every state. The structures are
-  * found by writing the statement once and reading it open, as what changes with the World is read off one
-  * (`Closing.opened`); it is then written under a `forall` for each, the structure read as that variable. So a claim
-  * on a structure is one a class that uses the structure can rely on, whatever state it holds it in. A structure
-  * read beside one that holds it (`ledger.total` beside `handler.handle(p)`) is the one held: no variable of its
-  * own, but what the holder's variable holds. A statement that reads no structure is written as it always was.
+  * found by writing the statement once and reading it open (`Closing.opened`); it is then written under a `forall` for
+  * each, the structure read as that variable. So a claim on a structure is one a class that uses the structure can rely
+  * on, whatever state it holds it in. A structure read beside one that holds it (`ledger.total` beside
+  * `handler.handle(p)`) is the one held: no variable of its own, but what the holder's variable holds. A statement that
+  * reads no structure is written as it always was.
   */
 object Standing:
   def closing(st: Stating, formula: Stating => () => Term[Boolean]): Term[Boolean] =

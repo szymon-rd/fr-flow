@@ -45,11 +45,10 @@ private[api] final class Proves[F[_]: Async: Parallel](s: Session[F]) extends Pr
         lake             <- s.lean(a)
         (proven, byLean) <- s.guarded(CheckProgram(files, lake, library, s.code)
                               .run(a, only, (i, n, ids) => q.offer(Some(CheckEvent.Level(i, n, ids)))))
-        (tested, byTests) <- s.guarded(TestProgram(files, s.code, s.models)(byLean, only))
+        (tested, byTests) <- s.guarded(TestProgram(files, s.code)(byLean, only))
         _                <- s.guarded(after(byTests))
         view             <- s.view(byTests)
-        // A model's runs are of every node resting on its Scala: each is checked by them.
-        checked           = (proven.map(_.node) ++ tested.map(_._1).flatMap(byTests.reportedFor)).distinct
+        checked           = (proven.map(_.node) ++ tested.map(_._1)).distinct
         _                <- q.offer(Some(CheckEvent.Done(checked, view))) >> q.offer(None)
       yield ()
       Stream.fromQueueNoneTerminated(q).concurrently(Stream.eval(run))

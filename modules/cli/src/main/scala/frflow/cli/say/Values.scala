@@ -20,7 +20,6 @@ object Values:
     case Value.Tuple(es)          => s"(${all(es)})"
     case Value.Inject(Side.Error, e) => s"Left(${value(e)})"
     case Value.Inject(Side.Value, e) => s"Right(${value(e)})"
-    case Value.World(states, _)   => states.map((m, s) => s"${m.value}: ${value(s)}").mkString("{", "; ", "}")
 
   def all(vs: List[Value]): String = vs.map(value).mkString(", ")
 
@@ -28,8 +27,6 @@ object Values:
     case Ty.Bool                => "Boolean"
     case Ty.Str                 => "String"
     case Ty.Unit                => "Unit"
-    case Ty.World               => "World"
-    case Ty.Never               => "Nothing"
     case Ty.Num(k)              => num(k)
     case Ty.ListOf(a)           => s"List[${ty(a)}]"
     case Ty.OptionOf(a)         => s"Option[${ty(a)}]"
@@ -40,7 +37,6 @@ object Values:
     case Ty.FnOf(ps, r)         => s"${ps.map(ty).mkString("(", ", ", ")")} => ${ty(r)}"
     case Ty.Sort(n)             => n.value
     case Ty.Data(n)             => n.value
-    case Ty.FlowOf(r, e)        => s"F[${e.fold("")(x => s"${ty(x)} or ")}${ty(r)}]"
 
   private def num(k: NumKind): String = k match
     case NumKind.Int32 => "Int"

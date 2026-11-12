@@ -4,14 +4,14 @@ import cats.data.NonEmptyList
 import frflow.core.expr.{Terms, Tm}
 import frflow.core.expr.Tm.*
 import frflow.core.{Lang, Booking}
-import frflow.core.name.{CtorName, ModelName, SymbolName, TypeName}
-import frflow.core.term.{Bound, Case, Constructor, Program, Selector, When, World}
+import frflow.core.name.{CtorName, SymbolName, TypeName}
+import frflow.core.term.{Bound, Case, Constructor, Selector, When}
 import frflow.core.term.language.{Final, Sym}
 import frflow.core.ty.{Ctor, DataType, Field, Ty}
 import scala.util.Random
 
-/** Random terms over the algebras core's `Terms` leaves out: a sum's eliminator, eithers, pairs, a program's runs and
-  * failures between worlds and a model's part of one; their numbers and conditions are core's.
+/** Random terms over the algebras core's `Terms` leaves out: a sum's eliminator, eithers and pairs; their numbers
+  * and conditions are core's.
   */
 final class MoreTerms(seed: Long):
   import MoreTerms.*
@@ -20,12 +20,10 @@ final class MoreTerms(seed: Long):
 
   def formula: Final[Boolean] = Tm.closed(bool(3, 0))
 
-  def bool(d: Int, k: Int): Tm[Boolean] = if d <= 0 then inner.bool(0, k) else r.nextInt(6) match
+  def bool(d: Int, k: Int): Tm[Boolean] = if d <= 0 then inner.bool(0, k) else r.nextInt(4) match
     case 0 => matched(d - 1, k)
     case 1 => either(d - 1, k)
     case 2 => Tm.eq(pairOf(d - 1, k), pairOf(d - 1, k))
-    case 3 => runs(d - 1, k)
-    case 4 => fails(d - 1, k)
     case _ => and(bool(d - 1, k), inner.bool(d - 1, k))
 
   /** `match e with | Event.Booked «at» => … | Event.Cleared => …`. */
@@ -58,34 +56,12 @@ final class MoreTerms(seed: Long):
     val (a, b) = (inner.num(d, k), inner.num(d, k))
     [T[_]] => (s: Sym[T], c: frflow.core.expr.Scope[T]) => s.pair(a(s, c), b(s, c))
 
-  /** `∀ (before : World), match (run n before) with | (result, after) => …`, reading the store's part. */
-  private def runs(d: Int, k: Int): Tm[Boolean] =
-    val (n, post) = (inner.num(d, k), inner.bool(d, k + 1))
-    [T[_]] => (s: Sym[T], c: frflow.core.expr.Scope[T]) =>
-      s.forall(Bound[World]("before", Ty.World))(w => s.runs(program(s, n(s, c), "run"), w,
-        Bound[BigInt]("result", Lang.big), Bound[World]("after", Ty.World))((res, after) =>
-        s.and(post(s, c.bind(res)),
-          s.eq(s.part[BigInt](after, stored, Lang.big), s.part[BigInt](w, stored, Lang.big)))))
-
-  private def fails(d: Int, k: Int): Tm[Boolean] =
-    val (n, post) = (inner.num(d, k), inner.bool(d, k))
-    [T[_]] => (s: Sym[T], c: frflow.core.expr.Scope[T]) =>
-      s.forall(Bound[World]("before", Ty.World))(w => s.fails(program(s, n(s, c), "attempt"), w,
-        Bound[String]("error", Ty.Str),
-        Bound[World]("after", Ty.World))((_, _) => post(s, c)))
-
-  /** `run`, a program that never fails; `attempt`, one that may (Lean's `Except String Int × World`). */
-  private def program[T[_]](s: Sym[T], n: T[BigInt], name: String): T[Program[BigInt]] =
-    s.app(s.param[BigInt => Program[BigInt]](SymbolName(name), runTy), n)
-
 object MoreTerms:
   val eventName: TypeName = TypeName("Event")
   val eventTy: Ty = Ty.Data(eventName)
   val event: DataType = DataType.Sum(eventName, "Event", NonEmptyList.of(
     Ctor(CtorName("Booked"), List(Field("at", Lang.big))), Ctor(CtorName("Cleared"), Nil)))
   val outcomeTy: Ty = Ty.EitherOf(Ty.Str, Lang.big)
-  val runTy: Ty = Ty.FnOf(List(Lang.big), Ty.FlowOf(Lang.big, None))
-  val stored: ModelName = ModelName("stored")
   val booked: Constructor[BigInt => Event] = Constructor(eventName, CtorName("Booked"), Event.Booked(_))
   val at: Selector[Event.Booked, BigInt] = Selector("at", 0, eventName, Lang.big, _.at, (b, v) => b.copy(at = v))
   val bookedCase: Case[Event, Event.Booked] = Case(eventName, CtorName("Booked"), List("at" -> Lang.big), {
