@@ -60,6 +60,7 @@ of a class that is not read is a constant `O_<owner>_<name>`.
   name. Of the methods of one name that an owner declares in its source, each is numbered in order (`m_1`, `m_2`).
 - The parameters are those of every list, in the source's order, `using` ones included. One the source does not
   name is `x1`, `x2`, …. `summon[T]` arrives in TASTy as that parameter.
+- A method with a parameter or a result of a type that is not read has no definition, and a call of it is refused.
 - Every body is a program, `M T`. A field is `C_f this`; a method of a case that holds its parameters starts
   `let (params) := this in`.
 - The constructor of `C` is `C_new`: it runs the fields' initialisers in order, then `ret (mkC …)`. A case class's
@@ -80,7 +81,10 @@ of a class that is not read is a constant `O_<owner>_<name>`.
   is in, in Scala's order of evaluation, and what it gives is named: `x` (`e` for an exception) where there is one
   effect among the arguments of a call, `x1`, `x2`, … where there are several. A name is passed over if a variable
   in scope has it, or if it would hide something still to be read.
-- `if c then return v`, then the rest, is `if c then v else` the rest. Any other `return` is refused.
+- `if c then return v`, then the rest, is `if c then v else` the rest; a `return` that ends its method is its
+  value. Any other `return` is refused (one inside a loop, a lambda, a `finally`, or a `val`'s value).
+- A variable keeps its Scala name. One named like a keyword of Rocq, a constant of `Lang.v` or `Jdk.v`, or a
+  definition of the file (`Reserved`) is refused: in Rocq it would name something else.
 
 ### Null (`ReadBlocks`, `ReadMatch`)
 
@@ -205,9 +209,10 @@ abbreviations `val` and `M`, and the section `Interp` with its variable `client`
 - `ox.ErrorMode`, `ox.ForkLocalMap` and `ThreadFactory` (`OxUnit.opaque`): a value of one is a handle, a call
   `extern`.
 - Whatever the rules refuse. A definition whose body holds a refused construct is `chaos "<its name>"`; a call of
-  an inline method whose body holds one is `chaos "<the method>"`. In Ox's unit there is one: `chaos
-  "ox.uninterruptible"` in `runFinalizers` (`List.flatMap`, and under it `UnsupervisedFork.joinEither`, are not
-  read). The suite pins this list.
+  an inline method whose body holds one is `chaos "<the method>"`. The reader keeps what was refused and why
+  (`Draft.unread`). In Ox's unit there is one: `chaos "ox.uninterruptible"` in `runFinalizers` (`List.flatMap`,
+  and under it `UnsupervisedFork.joinEither`, are not read). The suite pins this list; `GateRocqSuite` reads a
+  class of its own for the rules Ox's code does not come to, and for what is refused.
 
 ## What is trusted
 
@@ -217,6 +222,9 @@ abbreviations `val` and `M`, and the section `Interp` with its variable `client`
 - The tables: that each method named has the operation given, and no other effect.
 - That code not read touches nothing of the JDK's state read here (`extern`), and that arguments not evaluated
   (an exception's message, the arguments of a class not read) have no effect and end.
+- That a cast does not fail (`type_error` has no step). The compiler's casts do not, by the JVM's type safety; a
+  cast the source writes (`asInstanceOf` from a sum to one of its cases) is read the same way, though the JVM
+  would throw `ClassCastException` where the value is of another case.
 - That an exception is of a class of `Thrown.classes` exactly when it is that constructor: a caller's exception
   (`Thrown n`) is taken not to extend one of them.
 - That `==` on a handle is the object's identity: a class not read is taken not to override `equals`.
