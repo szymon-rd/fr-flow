@@ -1,7 +1,7 @@
 (** FrFlow's support for the Rocq it generates: what the generated definitions are written with, and the tactics
     the generated theorems call. Fixed text of FrFlow's, on the standard library alone. *)
-From Coq Require Export ZArith List String Lia Classical ClassicalDescription PropExtensionality
-  FunctionalExtensionality.
+From Stdlib Require Export ZArith List String Lia Classical ClassicalDescription PropExtensionality
+  FunctionalExtensionality Setoid Morphisms.
 Export ListNotations.
 #[global] Open Scope Z_scope.
 
@@ -49,6 +49,7 @@ Proof. reflexivity. Qed.
 Lemma List_foldl_nil {A B : Type} (f : B -> A -> B) (init : B) : List_foldl f init nil = init.
 Proof. reflexivity. Qed.
 
+Create Rewrite HintDb frflow.
 #[global] Hint Rewrite @List_filter_app @List_filter_cons @List_filter_nil @List_foldl_app @List_foldl_cons
   @List_foldl_nil @List_filter_In @in_app_iff @app_nil_r @app_nil_l : frflow.
 
@@ -72,22 +73,37 @@ Ltac frflow_split := repeat match goal with
   | H : context [ite ?P _ _] |- _ => frflow_case P
   end.
 
-Ltac frflow_simpl := repeat (progress (autorewrite with frflow in *; cbn in *; frflow_split; subst)).
+(** The lemmas on membership, where a quantifier binds what they speak of. *)
+Ltac frflow_under := repeat first
+  [ progress (setoid_rewrite in_app_iff)
+  | progress (setoid_rewrite List_filter_In)
+  | match goal with H : _ |- _ => progress (setoid_rewrite in_app_iff in H) end
+  | match goal with H : _ |- _ => progress (setoid_rewrite List_filter_In in H) end ].
+
+Ltac frflow_simpl :=
+  repeat (progress (autorewrite with frflow in *; cbn in *; frflow_split; subst; frflow_under)).
 
 Ltac frflow_close := first
   [ lia | tauto | congruence
-  | solve [intuition (subst; cbn in *; try lia; try congruence; eauto 6)]
-  | solve [firstorder (subst; cbn in *; try lia; try congruence; eauto 6)]
-  | solve [apply propositional_extensionality; firstorder (subst; cbn in *; try lia; try congruence; eauto 6)] ].
+  | solve [intuition (subst; cbn in *; try lia; try congruence; eauto 8)]
+  | solve [firstorder (subst; cbn in *; try lia; try congruence; eauto 8)]
+  | solve [apply propositional_extensionality; firstorder (subst; cbn in *; try lia; try congruence; eauto 8)] ].
+
+(** Two propositions stated equal are each the other's condition: what the rewrites and the search read. *)
+Lemma frflow_eq_iff (P Q : Prop) : P = Q -> (P <-> Q).
+Proof. intros ->. tauto. Qed.
+Ltac frflow_props := repeat match goal with
+  | |- _ /\ _ => split
+  | |- @eq Prop _ _ => apply propositional_extensionality
+  | H : @eq Prop _ _ |- _ => apply frflow_eq_iff in H
+  | H : ~ ~ _ |- _ => apply NNPP in H
+  end.
 
 (** The tactic tried first on every obligation: it unfolds the generated definitions, takes each `if` by cases,
     rewrites with the list lemmas above, and closes what remains by arithmetic and first-order search. *)
 Ltac frflow_auto :=
-  intros; repeat (autounfold with frflow_defs in *; intros); cbv zeta in *; frflow_simpl;
-  repeat match goal with
-    | H : ~ ~ _ |- _ => apply NNPP in H
-    | |- _ /\ _ => split
-    end;
+  intros; repeat (autounfold with frflow_defs in *; intros); cbv zeta in *;
+  repeat (progress (frflow_props; frflow_simpl)); frflow_props;
   frflow_close.
 
 (** What is left of a statement about the theory as a whole once its witnesses are given. *)
