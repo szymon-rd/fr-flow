@@ -110,6 +110,8 @@ lazy val wire = module("wire", cats, circe, circeParser)
   */
 lazy val shell = module("project", (Seq(cats, catsEffect, munitEffect, catsEffectTestkit) ++ fs2)*)
   .dependsOn(proof, testing % "compile->compile;test->test", decision, wire)
+  // Its Rocq tests read Ox's TASTy from its jar (`rocq.OxThreadsRocqSuite`): the code `examples/ox/rocq` is about.
+  .settings(libraryDependencies += "com.softwaremill.ox" %% "core" % "1.1.0" % Test)
 
 /** The API front ends call: three algebras (`Reading`, `Deciding`, `Proving`) over a project, the views they return
   * (`api.view`, `api.node`: front ends see nothing else), and the live and in-memory interpreters. Its tests read the
