@@ -45,7 +45,9 @@ and what is not. In short:
 
 Two findings of this page were then run against Ox 1.1.0 itself (`examples/ox/probe`): the leak through a
 capability handed to a fork of an enclosing scope occurred in 7 and 21 of 200,000 rounds, and a `join` on a
-cancelled fork from outside its scope was still blocked after 5 seconds. The other two findings (`isEmpty`, an
+cancelled fork from outside its scope was still blocked after 5 seconds. A third was found on the way and
+run: `forkUser` counts a fork before `startThread` can refuse it, so a refused user fork leaves a supervised
+scope waiting for ever. The other two findings (`isEmpty`, an
 interrupt before `start`) are still of the reading only.
 
 The three models in `docs/threads/` stay as they were: `Herd.v` is superseded for containment by the proof on

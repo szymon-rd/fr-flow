@@ -47,8 +47,8 @@ the set empty.
 
 ## Run against Ox itself
 
-`examples/ox/probe` runs Ox 1.1.0 (`cd examples/ox/probe && sbt "run 200000"`; Java 21). Two behaviours the
-proof and the reading predict, both seen:
+`examples/ox/probe` runs Ox 1.1.0 (`cd examples/ox/probe && sbt "run 200000"`; Java 21). Three behaviours the
+proof and the reading predict, all seen:
 
 - **The condition on the client is needed.** A fork of an outer scope is handed an inner scope's capability and
   forks into it as the inner scope ends. In two runs of 200,000 rounds, 7 and 21 forks of the inner scope ran
@@ -56,9 +56,13 @@ proof and the reading predict, both seen:
   were refused with `IllegalStateException`). Ox's run-time check passed every one.
 - **A `join` outside the fork's scope.** `val f = supervised { fork { sleep(1.hour) } }; f.join()` was still
   blocked after 5 seconds: a fork cancelled by its scope's end never completes its own future.
+- **A user fork that is refused is still counted.** `forkUser` adds one to the supervisor's count before
+  `startThread` can refuse the fork. A thread outside every scope, handed the capability, called `forkUser`;
+  it was refused with `IllegalStateException`, and `supervised` was still blocked 5 seconds after its body had
+  returned: the count never comes back to zero.
 
-Neither is reported to Ox. Whether the first is a defect of Ox's check or a misuse it need not catch is Ox's to
-say; the proof only shows that containment does not hold without the condition.
+None is reported to Ox. Each uses a capability or a fork outside the scope it belongs to; whether Ox should
+catch that is Ox's to say. The proof shows that containment does not hold without the condition on the client.
 
 ## What is assumed
 

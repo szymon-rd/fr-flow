@@ -46,9 +46,29 @@ object Probe:
       case _: TimeoutException => "still blocked after 5 seconds"
       case e: Throwable        => s"threw ${e.getCause}"
 
+  /** `forkUser` counts the fork before `startThread` can refuse it: a refused user fork leaves the count one too
+    * high. Here a thread outside every scope is handed the capability; its `forkUser` is refused. */
+  def countOff(): String =
+    val scope = CompletableFuture.supplyAsync(() =>
+      supervised {
+        val ox = summon[Ox]
+        val refused = new AtomicBoolean(false)
+        val outside = new Thread(() =>
+          try forkUser { () }(using ox).discard
+          catch case _: IllegalStateException => refused.set(true))
+        outside.start()
+        outside.join()
+        s"body returned (the outside forkUser was refused: ${refused.get()})"
+      })
+    try s"supervised returned: ${scope.get(5, TimeUnit.SECONDS)}"
+    catch
+      case _: TimeoutException => "supervised still blocked 5 seconds after its body returned"
+      case e: Throwable        => s"threw ${e.getCause}"
+
   def main(args: Array[String]): Unit =
     val rounds = args.headOption.map(_.toInt).getOrElse(20000)
     val (leaks, refused, started) = leak(rounds)
     println(s"leak: rounds=$rounds forks-started=$started refused=$refused ran-uninterrupted-after-their-scope-completed=$leaks")
     println(s"join outside the scope: ${joinOutside()}")
+    println(s"a refused user fork: ${countOff()}")
     System.exit(0)
