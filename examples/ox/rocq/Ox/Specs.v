@@ -32,21 +32,22 @@ Fixpoint body_caps (c : code) : list OxError :=
   | Client _ caps => caps
   end.
 
-(** A closure that is called, not started as a thread. *)
+(** A closure that may be a fork's body, or given to a scope by the caller: any but the one a supervised scope
+    runs on its owner's thread. *)
+Definition plain (c : code) : Prop :=
+  match c with Lam_supervisedError_1 _ _ _ _ => False | _ => True end.
+
+(** A closure that is called, not started as a thread; what it wraps is plain. *)
 Fixpoint callable (c : code) : Prop :=
   match c with
   | Lam_ThreadHerd_startThread_1 _ _ => False
-  | Lam_forkError_1 _ f _ => callable f
-  | Lam_forkUserError_1 _ f _ => callable f
-  | Lam_forkUnsupervised_1 _ f _ => callable f
-  | Lam_supervisedError_1 _ _ _ f => callable f
-  | Lam_supervisedError_2 f _ => callable f
+  | Lam_forkError_1 _ f _ => callable f /\ plain f
+  | Lam_forkUserError_1 _ f _ => callable f /\ plain f
+  | Lam_forkUnsupervised_1 _ f _ => callable f /\ plain f
+  | Lam_supervisedError_1 _ _ _ f => callable f /\ plain f
+  | Lam_supervisedError_2 f _ => callable f /\ plain f
   | Client _ _ => True
   end.
-
-(** A closure that may be a fork's body: any but the one a supervised scope runs on its owner's thread. *)
-Definition plain (c : code) : Prop :=
-  match c with Lam_supervisedError_1 _ _ _ _ => False | _ => True end.
 
 Definition arg_caps (v : val) : list OxError :=
   match v with VObj (O_OxError cap) => [cap] | _ => [] end.
@@ -60,6 +61,11 @@ Definition innermost (Γ : gh) (t : tid) (h : nat) : Prop :=
 
 (** A thread may use a capability: it is well formed and the thread is inside its herd. *)
 Definition knows (Γ : gh) (t : tid) (cap : OxError) : Prop := wf_cap Γ cap /\ inside Γ t (hid cap).
+
+(** A fork of herd `h` started by `t` may hold a capability: its herd is `h` or encloses it. Either that is
+    known, or `h` is the herd `t` is most deeply inside and `t` is inside the capability's herd. *)
+Definition reaches (Γ : gh) (t : tid) (h : nat) (cap : OxError) : Prop :=
+  wf_cap Γ cap /\ (anc Γ h (hid cap) \/ (innermost Γ t h /\ inside Γ t (hid cap))).
 
 (** What a call leaves of the ghost state, as its caller sees it. *)
 Record Keep (t : tid) (Γ Γ' : gh) : Prop := {

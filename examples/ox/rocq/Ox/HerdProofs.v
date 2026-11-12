@@ -3,7 +3,7 @@
 From Stdlib Require Import ZArith List Bool String Lia.
 Require Import FrFlow.Threads.Prog FrFlow.Threads.Jdk FrFlow.Threads.Sem FrFlow.Threads.Logic
   FrFlow.Threads.Lang.
-Require Import Ox.Code Ox.Ghost Ox.Facts Ox.Specs Ox.Frame Ox.Updates Ox.Steps.
+Require Import Ox.Code Ox.Ghost Ox.Facts Ox.Specs Ox.Frame Ox.Updates Ox.Steps Ox.Inner.
 Import ListNotations.
 Open Scope list_scope.
 
@@ -72,7 +72,7 @@ Lemma ThreadHerd_startThread_spec t th b Γ0 (Q : exn + unit -> gh -> Prop) :
   g_removed Γ0 t = false ->
   inside Γ0 t (ThreadHerd_threads th) ->
   callable b -> plain b ->
-  Forall (fun cap => wf_cap Γ0 cap /\ anc Γ0 (ThreadHerd_threads th) (hid cap)) (body_caps b) ->
+  Forall (reaches Γ0 t (ThreadHerd_threads th)) (body_caps b) ->
   (forall r Γ1, Keep t Γ0 Γ1 -> Q r Γ1) ->
   wp t (ThreadHerd_startThread th b) Γ0 Q.
 Proof.
@@ -137,7 +137,9 @@ Proof.
       split; [eauto |]. split; [exact Hrmu |]. split; [exact Hopu |]. split; [exact Hcal |].
       split; [exact Hpl |].
       eapply Forall_impl; [| exact Hcaps]. intros cap (Hw & Ha).
-      split; [exact (wf_cap_Ext (k_ext HK7) Hw) | exact (anc_Ext (k_ext HK7) Ha)].
+      split; [exact (wf_cap_Ext (k_ext HK7) Hw) |].
+      destruct Ha as [Ha | (Hinn & Hins)]; [exact (anc_Ext (k_ext HK7) Ha) |].
+      eapply inner_anc; [exact HI7 | exact (innermost_Keep HK7 Hinn) | exact (inside_Keep HK7 Hins)].
     + exfalso. apply Hn. unfold started.
       destruct (j_th σ7 v) as [[c' s' i'] |]; [destruct s' |]; trivial; contradiction.
   - destruct Hstep7 as (-> & ->).

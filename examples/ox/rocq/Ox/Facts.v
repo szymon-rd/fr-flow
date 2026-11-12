@@ -129,3 +129,9 @@ Section WithInv.
   Proof. intros (h0 & Hb & Ha). eapply anc_open; eauto. apply base_open with u. trivial. Qed.
 
 End WithInv.
+
+Arguments member_open {σ Γ} HI {u h b} _ _.
+Arguments base_open {σ Γ} HI {u h} _.
+Arguments parent_open {σ Γ} HI {h hr h1} _ _ _.
+Arguments anc_open {σ Γ} HI {h h'} _ _.
+Arguments inside_open {σ Γ} HI {u h} _.

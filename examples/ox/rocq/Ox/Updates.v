@@ -28,6 +28,9 @@ Ltac du :=
 Lemma begun_started (σ : jst) u : started σ u -> begun σ u.
 Proof. unfold started, begun. destruct (j_th σ u) as [[c s i] |]; [destruct s |]; trivial. Qed.
 
+Lemma begun_dec (σ : jst) u : begun σ u \/ ~ begun σ u.
+Proof. unfold begun. destruct (j_th σ u) as [[c s i] |]; [destruct s |]; auto. Qed.
+
 (** ** `ThreadFactory.newThread`: a thread made for a herd *)
 
 Lemma inv_newthread σ Γ t u th b :

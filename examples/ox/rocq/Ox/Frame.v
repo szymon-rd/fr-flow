@@ -148,114 +148,155 @@ Proof.
   intros u c _ Hst. exfalso. eapply sv_no_starts; eauto.
 Qed.
 
-(** ** Programs of such operations alone *)
+(** ** Programs of such operations, and of calls of closures that are owed nothing more *)
 
-Inductive frameonly : forall A : Type, P A -> Prop :=
-  | fo_ret A (a : A) : frameonly A (Ret a)
-  | fo_vis A X (o : Jdk.op code obj X) (k : X -> P A) :
-      frame_op o -> (forall x, frameonly A (k x)) -> frameonly A (Vis o k)
-  | fo_iter A S B (body : S -> P (S + B)) (s : S) (k : B -> P A) :
-      (forall s1, frameonly (S + B) (body s1)) -> (forall b, frameonly A (k b)) -> frameonly A (Iter body s k).
+Section Neutral.
 
-Arguments frameonly {A} p.
+  (** The closure calls a program may make. *)
+  Variable ok : code -> val -> Prop.
+
+  Inductive neutral : forall A : Type, P A -> Prop :=
+    | fo_ret A (a : A) : neutral A (Ret a)
+    | fo_vis A X (o : Jdk.op code obj X) (k : X -> P A) :
+        frame_op o -> (forall x, neutral A (k x)) -> neutral A (Vis o k)
+    | fo_iter A S B (body : S -> P (S + B)) (s : S) (k : B -> P A) :
+        (forall s1, neutral (S + B) (body s1)) -> (forall b, neutral A (k b)) -> neutral A (Iter body s k)
+    | fo_invoke A c arg (k : res -> P A) :
+        ok c arg -> (forall r, neutral A (k r)) -> neutral A (Call c arg k).
+
+  Arguments neutral {A} p.
+
+  Theorem neutral_wp {A} {p : P A} t (Pst : gh -> Prop) :
+    neutral p -> stable t Pst -> (forall Γ, Pst Γ -> g_removed Γ t = false) ->
+    (forall c arg Γ, ok c arg -> Pst Γ ->
+       CallPre t c arg Γ /\ forall Γ', Keep t Γ Γ' -> Pst Γ') ->
+    forall Γ, Pst Γ -> wp t p Γ (fun _ Γ' => Pst Γ').
+  Proof.
+    intros Hfo Hst Hact Hcall.
+    induction Hfo as [A a | A X o k Hf _ IH | A S B body s k _ IHb _ IHk | A c arg k Hok _ IH]; intros Γ HP.
+    - exact HP.
+    - unfold wp. cbn. intros σ Γ1 HI HR Hs.
+      assert (HP1 : Pst Γ1) by (eapply Hst; eauto).
+      split; [unfold Active; auto |].
+      intros x σ' Hstep. pose proof (opstep_frame Hf Hstep) as Hsv.
+      exists Γ1. split; [eapply inv_frame; eauto |]. split; [intros u _; apply Rely_refl |].
+      split; [| apply IH, HP1].
+      intros u c _ Hstt. exfalso. eapply sv_no_starts; eauto.
+    - unfold wp. cbn. exists (fun _ Γ1 => Pst Γ1). split; trivial.
+      intros s1 Γ1 HP1. split.
+      + intros σ Γ2 _ HR _. unfold Active. apply Hact. eapply Hst; eauto.
+      + eapply Logic.wp_mono; [| apply IHb, HP1].
+        intros [s2 | b] Γ2 HP2; cbn; trivial. apply IHk, HP2.
+    - unfold wp. cbn. destruct (Hcall c arg Γ Hok HP) as (Hpre & Hkeep).
+      split; [| split; [exact Hpre |]].
+      + intros σ Γ2 _ HR _. unfold Active. apply Hact. eapply Hst; eauto.
+      + intros r Γ1 HK. apply IH. apply Hkeep. exact HK.
+  Qed.
+
+  Lemma fo_pbind A B (p : P A) (f : A -> P B) :
+    neutral p -> (forall a, neutral (f a)) -> neutral (pbind p f).
+  Proof.
+    intros Hp Hf. induction Hp as [A a | A X o k Ho _ IH | A S C body s k Hb _ _ IHk | A c arg k Hok _ IH]; cbn.
+    - apply Hf.
+    - apply fo_vis; trivial. intro x. apply IH, Hf.
+    - apply fo_iter; trivial. intro b. apply IHk, Hf.
+    - apply fo_invoke; trivial. intro r. apply IH, Hf.
+  Qed.
+
+  Lemma fo_bind A B (m : M A) (f : A -> M B) :
+    neutral m -> (forall a, neutral (f a)) -> neutral (bind m f).
+  Proof. intros Hm Hf. apply fo_pbind; trivial. intros [e | a]; [apply fo_ret | apply Hf]. Qed.
+
+  Lemma fo_retM A (a : A) : neutral (ret (code := code) (obj := obj) a).
+  Proof. apply fo_ret. Qed.
+
+  Lemma fo_throw A e : neutral (throw (code := code) (obj := obj) (A := A) e).
+  Proof. apply fo_ret. Qed.
+
+  Lemma fo_call X (o : Jdk.op code obj (exn + X)) : frame_op o -> neutral (call o).
+  Proof. intro H. apply fo_vis; trivial. intro x. apply fo_ret. Qed.
+
+  Lemma fo_invokeM c arg : ok c arg -> neutral (invoke c arg).
+  Proof. intro H. apply fo_invoke; trivial. intro r. apply fo_ret. Qed.
+
+  Lemma fo_try_catch A (m : M A) (h : exn -> M A) :
+    neutral m -> (forall e, neutral (h e)) -> neutral (try_catch m h).
+  Proof. intros Hm Hh. apply fo_pbind; trivial. intros [e | a]; [apply Hh | apply fo_ret]. Qed.
+
+  Lemma fo_try_finally A (m : M A) (fin : M unit) :
+    neutral m -> neutral fin -> neutral (try_finally m fin).
+  Proof.
+    intros Hm Hf. apply fo_pbind; trivial. intro r. apply fo_pbind; trivial.
+    intros [e | []]; apply fo_ret.
+  Qed.
+
+  Lemma fo_loop S B (body : S -> M (S + B)) (s : S) :
+    (forall s1, neutral (body s1)) -> neutral (loop body s).
+  Proof.
+    intro Hb. apply fo_iter; [| intro; apply fo_ret]. intro s1. apply fo_pbind; [apply Hb |].
+    intros [e | [s2 | b]]; apply fo_ret.
+  Qed.
+
+  Lemma fo_while S (cond : S -> M bool) (body : S -> M S) (s : S) :
+    (forall s1, neutral (cond s1)) -> (forall s1, neutral (body s1)) -> neutral (while cond body s).
+  Proof.
+    intros Hc Hb. apply fo_loop. intro s1. apply fo_bind; [apply Hc |].
+    intros [|]; [apply fo_bind; [apply Hb | intro; apply fo_retM] | apply fo_retM].
+  Qed.
+
+  Lemma fo_TsForEach S (r : nat) (f : tid -> S -> M S) (s : S) :
+    (forall u s1, neutral (f u s1)) -> neutral (TsForEach r f s).
+  Proof.
+    intro Hf. apply fo_loop. intros [seen s1]. apply fo_bind; [apply fo_call; exact I |].
+    intros [u |]; [apply fo_bind; [apply Hf | intro; apply fo_retM] | apply fo_retM].
+  Qed.
+
+  Lemma fo_EsForEach S (r : nat) (f : exn -> S -> M S) (s : S) :
+    (forall u s1, neutral (f u s1)) -> neutral (EsForEach r f s).
+  Proof.
+    intro Hf. apply fo_loop. intros [seen s1]. apply fo_bind; [apply fo_call; exact I |].
+    intros [u |]; [apply fo_bind; [apply Hf | intro; apply fo_retM] | apply fo_retM].
+  Qed.
+
+  Lemma fo_VsForEach S (r : nat) (f : val -> S -> M S) (s : S) :
+    (forall u s1, neutral (f u s1)) -> neutral (VsForEach r f s).
+  Proof.
+    intro Hf. apply fo_loop. intros [seen s1]. apply fo_bind; [apply fo_call; exact I |].
+    intros [u |]; [apply fo_bind; [apply Hf | intro; apply fo_retM] | apply fo_retM].
+  Qed.
+
+  Lemma fo_List_foreach A (xs : list A) (f : A -> M unit) :
+    (forall x, neutral (f x)) -> neutral (List_foreach xs f).
+  Proof.
+    intro Hf. induction xs as [| x xs IH]; cbn; [apply fo_retM |].
+    apply fo_bind; [apply Hf | intro; exact IH].
+  Qed.
+
+  Lemma fo_extern A name : neutral (extern (code := code) (obj := obj) (A := A) name).
+  Proof. apply fo_call. exact I. Qed.
+
+  Lemma fo_type_error A : neutral (type_error (code := code) (obj := obj) (A := A)).
+  Proof. apply fo_vis; [exact I | intro; apply fo_ret]. Qed.
+
+End Neutral.
+
+Arguments neutral ok {A} p.
+
+(** A program that calls no closure. *)
+Abbreviation frameonly := (neutral (fun _ _ => False)).
 
 Theorem frameonly_wp {A} {p : P A} t (Pst : gh -> Prop) :
   frameonly p -> stable t Pst -> (forall Γ, Pst Γ -> g_removed Γ t = false) ->
   forall Γ, Pst Γ -> wp t p Γ (fun _ Γ' => Pst Γ').
 Proof.
-  intros Hfo Hst Hact. induction Hfo as [A a | A X o k Hf _ IH | A S B body s k _ IHb _ IHk]; intros Γ HP.
-  - exact HP.
-  - unfold wp. cbn. intros σ Γ1 HI HR Hs.
-    assert (HP1 : Pst Γ1) by (eapply Hst; eauto).
-    split; [unfold Active; auto |].
-    intros x σ' Hstep. pose proof (opstep_frame Hf Hstep) as Hsv.
-    exists Γ1. split; [eapply inv_frame; eauto |]. split; [intros u _; apply Rely_refl |].
-    split; [| apply IH, HP1].
-    intros u c _ Hstt. exfalso. eapply sv_no_starts; eauto.
-  - unfold wp. cbn. exists (fun _ Γ1 => Pst Γ1). split; trivial.
-    intros s1 Γ1 HP1. split.
-    + intros σ Γ2 _ HR _. unfold Active. apply Hact. eapply Hst; eauto.
-    + eapply Logic.wp_mono; [| apply IHb, HP1].
-      intros [s2 | b] Γ2 HP2; cbn; trivial. apply IHk, HP2.
+  intros Hfo Hst Hact. eapply neutral_wp; eauto. intros c arg Γ [].
 Qed.
 
-Lemma fo_pbind A B (p : P A) (f : A -> P B) :
-  frameonly p -> (forall a, frameonly (f a)) -> frameonly (pbind p f).
+(** A program that calls no closure may be read as one that calls some. *)
+Lemma frameonly_neutral ok {A} (p : P A) : frameonly p -> neutral ok p.
 Proof.
-  intros Hp Hf. induction Hp as [A a | A X o k Ho _ IH | A S C body s k Hb _ _ IHk]; cbn.
-  - apply Hf.
-  - apply fo_vis; trivial. intro x. apply IH, Hf.
-  - apply fo_iter; trivial. intro b. apply IHk, Hf.
+  intro H. induction H as [A a | A X o k Hf _ IH | A S B body s k _ IHb _ IHk | A c arg k [] _ _].
+  - apply fo_ret.
+  - apply fo_vis; trivial.
+  - apply fo_iter; trivial.
 Qed.
-
-Lemma fo_bind A B (m : M A) (f : A -> M B) :
-  frameonly m -> (forall a, frameonly (f a)) -> frameonly (bind m f).
-Proof. intros Hm Hf. apply fo_pbind; trivial. intros [e | a]; [apply fo_ret | apply Hf]. Qed.
-
-Lemma fo_retM A (a : A) : frameonly (ret (code := code) (obj := obj) a).
-Proof. apply fo_ret. Qed.
-
-Lemma fo_throw A e : frameonly (throw (code := code) (obj := obj) (A := A) e).
-Proof. apply fo_ret. Qed.
-
-Lemma fo_call X (o : Jdk.op code obj (exn + X)) : frame_op o -> frameonly (call o).
-Proof. intro H. apply fo_vis; trivial. intro x. apply fo_ret. Qed.
-
-Lemma fo_try_catch A (m : M A) (h : exn -> M A) :
-  frameonly m -> (forall e, frameonly (h e)) -> frameonly (try_catch m h).
-Proof. intros Hm Hh. apply fo_pbind; trivial. intros [e | a]; [apply Hh | apply fo_ret]. Qed.
-
-Lemma fo_try_finally A (m : M A) (fin : M unit) :
-  frameonly m -> frameonly fin -> frameonly (try_finally m fin).
-Proof.
-  intros Hm Hf. apply fo_pbind; trivial. intro r. apply fo_pbind; trivial.
-  intros [e | []]; apply fo_ret.
-Qed.
-
-Lemma fo_loop S B (body : S -> M (S + B)) (s : S) :
-  (forall s1, frameonly (body s1)) -> frameonly (loop body s).
-Proof.
-  intro Hb. apply fo_iter; [| intro; apply fo_ret]. intro s1. apply fo_pbind; [apply Hb |].
-  intros [e | [s2 | b]]; apply fo_ret.
-Qed.
-
-Lemma fo_while S (cond : S -> M bool) (body : S -> M S) (s : S) :
-  (forall s1, frameonly (cond s1)) -> (forall s1, frameonly (body s1)) -> frameonly (while cond body s).
-Proof.
-  intros Hc Hb. apply fo_loop. intro s1. apply fo_bind; [apply Hc |].
-  intros [|]; [apply fo_bind; [apply Hb | intro; apply fo_ret] | apply fo_ret].
-Qed.
-
-Lemma fo_TsForEach S (r : nat) (f : tid -> S -> M S) (s : S) :
-  (forall u s1, frameonly (f u s1)) -> frameonly (TsForEach r f s).
-Proof.
-  intro Hf. apply fo_loop. intros [seen s1]. apply fo_bind; [apply fo_call; exact I |].
-  intros [u |]; [apply fo_bind; [apply Hf | intro; apply fo_ret] | apply fo_ret].
-Qed.
-
-Lemma fo_EsForEach S (r : nat) (f : exn -> S -> M S) (s : S) :
-  (forall u s1, frameonly (f u s1)) -> frameonly (EsForEach r f s).
-Proof.
-  intro Hf. apply fo_loop. intros [seen s1]. apply fo_bind; [apply fo_call; exact I |].
-  intros [u |]; [apply fo_bind; [apply Hf | intro; apply fo_ret] | apply fo_ret].
-Qed.
-
-Lemma fo_VsForEach S (r : nat) (f : val -> S -> M S) (s : S) :
-  (forall u s1, frameonly (f u s1)) -> frameonly (VsForEach r f s).
-Proof.
-  intro Hf. apply fo_loop. intros [seen s1]. apply fo_bind; [apply fo_call; exact I |].
-  intros [u |]; [apply fo_bind; [apply Hf | intro; apply fo_ret] | apply fo_ret].
-Qed.
-
-Lemma fo_List_foreach A (xs : list A) (f : A -> M unit) :
-  (forall x, frameonly (f x)) -> frameonly (List_foreach xs f).
-Proof.
-  intro Hf. induction xs as [| x xs IH]; cbn; [apply fo_ret |].
-  apply fo_bind; [apply Hf | intro; exact IH].
-Qed.
-
-Lemma fo_extern A name : frameonly (extern (code := code) (obj := obj) (A := A) name).
-Proof. apply fo_call. exact I. Qed.
-
-Lemma fo_type_error A : frameonly (type_error (code := code) (obj := obj) (A := A)).
-Proof. apply fo_vis; [exact I | intro; apply fo_ret]. Qed.
