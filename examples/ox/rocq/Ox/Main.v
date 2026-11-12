@@ -6,7 +6,7 @@
 From Stdlib Require Import ZArith List Bool String Lia.
 Require Import FrFlow.Threads.Prog FrFlow.Threads.Jdk FrFlow.Threads.Sem FrFlow.Threads.Logic
   FrFlow.Threads.Lang.
-Require Import Ox.Code Ox.Ghost Ox.Facts Ox.Specs Ox.Frame Ox.Updates Ox.Steps Ox.Inner Ox.HerdProofs
+Require Import Ox.Gen Ox.Ghost Ox.Facts Ox.Specs Ox.Frame Ox.Updates Ox.Steps Ox.Inner Ox.HerdProofs
   Ox.ScopeProofs.
 Import ListNotations.
 Open Scope list_scope.

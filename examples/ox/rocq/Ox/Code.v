@@ -1,4 +1,7 @@
-(** Ox 1.1.0's scopes and forks, as programs over the JDK's operations.
+(** Ox 1.1.0's scopes and forks, as programs over the JDK's operations: the translation by hand.
+
+    Written before FrFlow could read Ox's TASTy. `Gen.v` is the same unit generated from it, and is what the
+    proofs import; `Agree.v` proves the two equal, definition by definition. Kept as a second reading of Ox.
 
     Read from `com.softwaremill.ox:core_3:1.1.0`: `ox.internal.ThreadHerd`, `ox.internal.currentScope`,
     `ox.DefaultSupervisor`, `ox.NoOpSupervisor`, `ox.OxError`, `ox.supervised`, `ox.supervisedError`,
@@ -78,10 +81,7 @@ Definition cast_OxError (v : val) : M OxError :=
 Definition cast_option_OxError (v : option val) : M (option OxError) :=
   match v with Some v => x <- cast_OxError v ;; ret (Some x) | None => ret None end.
 Definition cast_DefaultSupervisor (s : Supervisor) : M DefaultSupervisor :=
-  match s with
-  | Supervisor_DefaultSupervisor x => ret x
-  | _ => throw (Other "java.lang.ClassCastException")
-  end.
+  match s with Supervisor_DefaultSupervisor x => ret x | _ => throw (Other "java.lang.ClassCastException") end.
 Definition cast_list (v : val) : M (list val) :=
   match v with VList xs => ret xs | _ => type_error end.
 Definition is_Success (v : val) : bool :=

@@ -1,6 +1,7 @@
 package frflow.dsl.compiled.threads.reading
 
 import frflow.core.threads.{Arm, Ctor, Decl, Draft, Param, Pattern, Term, Ty}
+import frflow.dsl.compiled.threads.known.Thrown
 import scala.collection.mutable
 
 /** The definitions the code read may mention beside its own (`core.threads.Support`), each made the first time
@@ -57,10 +58,14 @@ private[threads] final class Catalogue:
       Decl.M(Ty.option(Ty.Named(ty))), Term.Match(Term.Ref("v"), List(Arm(Pattern.of("Some", "v"), some),
         Arm(Pattern.of("None"), Term.ret(Term.Ref("None")))))))
 
-  /** `cast_<ty>`: a value of the sum `sum` read as its case `ty`, held by the constructor `ctor`. */
+  /** `cast_<ty>`: a value of the sum `sum` read as its case `ty`, held by the constructor `ctor`. It is a cast
+    * the source wrote (`asInstanceOf`), which another case fails with a `ClassCastException`: unlike a cast the
+    * compiler made, which the JVM's type safety says holds (`type_error`).
+    */
   def fromSum(sum: String, ty: String, ctor: String): String =
     cast(Decl.Definition(s"cast_$ty", List(Param("s", Ty.Named(sum))), Decl.M(Ty.Named(ty)),
-      matching("s", Pattern.of(ctor, "x"), Term.ret(Term.Ref("x")), Term.Ref("type_error"))))
+      matching("s", Pattern.of(ctor, "x"), Term.ret(Term.Ref("x")),
+        Term.of("throw", Term.of(Thrown.Other, Term.Text("java.lang.ClassCastException"))))))
 
   /** `cast_list`: a `val` read as a list. */
   def list: String = cast(Decl.Definition("cast_list", List(Param("v", Ty.Val)), Decl.M(Ty.list(Ty.Val)),

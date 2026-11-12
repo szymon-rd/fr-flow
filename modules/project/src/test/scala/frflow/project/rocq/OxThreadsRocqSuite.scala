@@ -31,14 +31,10 @@ class OxThreadsRocqSuite extends munit.FunSuite:
     assertEquals(agree, Files.readString(ox.resolve("Agree.v")))
   }
 
-  test("Gen.v is Code.v, comments and spacing apart, but for the order of forkUnsupervised's parameters") {
+  test("Gen.v is Code.v, comments and spacing apart") {
     val (written, generated) = (RocqText.sentences(code), RocqText.sentences(gen))
     assertEquals(generated.map(RocqText.declared), written.map(RocqText.declared))
-    val different = written.zip(generated).filter(_ != _)
-    assertEquals(different.map((w, _) => RocqText.declared(w)), OxUnit.reordered.keys.toList.map("Definition " + _))
-    // the one difference: `Code.v` takes the capability first, Ox's source (and so `Gen.v`) the closure
-    different.foreach((w, g) => assertEquals(
-      g.replace("( f : code ) ( x1 : OxError )", "( x1 : OxError ) ( f : code )"), w))
+    assertEquals(generated, written)
   }
 
   test("what is not read is chaos: `uninterruptible`, in runFinalizers, and nothing else") {

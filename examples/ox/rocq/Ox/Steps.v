@@ -3,7 +3,7 @@
 From Stdlib Require Import ZArith List Bool String Lia.
 Require Import FrFlow.Threads.Prog FrFlow.Threads.Jdk FrFlow.Threads.Sem FrFlow.Threads.Logic
   FrFlow.Threads.Lang.
-Require Import Ox.Code Ox.Ghost Ox.Facts Ox.Specs Ox.Frame Ox.Updates.
+Require Import Ox.Gen Ox.Ghost Ox.Facts Ox.Specs Ox.Frame Ox.Updates.
 Import ListNotations.
 Open Scope list_scope.
 

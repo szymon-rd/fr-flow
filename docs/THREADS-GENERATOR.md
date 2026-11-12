@@ -4,8 +4,9 @@ FrFlow reads compiled Scala that calls the JDK's concurrency classes into the Ro
 `modules/proof/rocq/FrFlow/Threads/Lang.v`, by rules over Scala's constructs. Nothing is compiled or run: the
 trees are read from the `.tasty` files of a jar or a directory (`frflow.dsl.compiled.Inspect`).
 
-The first unit read is Ox 1.1.0's scopes and forks: `examples/ox/rocq/Ox/Gen.v` is generated, `Code.v` beside it
-is the same unit written by hand, and `Agree.v` (generated) states that the two agree.
+The first unit read is Ox 1.1.0's scopes and forks: `examples/ox/rocq/Ox/Gen.v` is generated and is what the
+proofs there are about; `Code.v` beside it is the same unit written by hand before the generator existed, and
+`Agree.v` (generated) states that the two agree.
 
 ## Where it is
 
@@ -182,7 +183,7 @@ A call of anything else is refused.
 | `option val` | `option C` | `cast_option_C` |
 | `val` | a list | `cast_list` (a list of `val`s) |
 | a case of a sum | the sum | the case's constructor |
-| a sum | one of its cases (`asInstanceOf`) | `cast_<case>` |
+| a sum | one of its cases (`asInstanceOf`) | `cast_<case>`, another case throwing `ClassCastException` |
 | a value | an option | `Some` |
 | an option | what it holds | `unnull` |
 | `Unit` | `val` | `VUnit` |
@@ -222,9 +223,9 @@ abbreviations `val` and `M`, and the section `Interp` with its variable `client`
 - The tables: that each method named has the operation given, and no other effect.
 - That code not read touches nothing of the JDK's state read here (`extern`), and that arguments not evaluated
   (an exception's message, the arguments of a class not read) have no effect and end.
-- That a cast does not fail (`type_error` has no step). The compiler's casts do not, by the JVM's type safety; a
-  cast the source writes (`asInstanceOf` from a sum to one of its cases) is read the same way, though the JVM
-  would throw `ClassCastException` where the value is of another case.
+- That a cast the compiler made does not fail (`type_error` has no step), by the JVM's type safety. A cast the
+  source writes (`asInstanceOf` from a sum to one of its cases) is not trusted: another case throws
+  `ClassCastException`, as the JVM does.
 - That an exception is of a class of `Thrown.classes` exactly when it is that constructor: a caller's exception
   (`Thrown n`) is taken not to extend one of them.
 - That `==` on a handle is the object's identity: a class not read is taken not to override `equals`.
@@ -233,8 +234,10 @@ abbreviations `val` and `M`, and the section `Interp` with its variable `client`
 
 ## The agreement with `Code.v`
 
-`Gen.v` is complete and stands alone. The suite checks that it is `Code.v` sentence for sentence once comments
-and spacing are taken out, with the differences pinned (`OxUnit.reordered`).
+`Gen.v` is complete and stands alone, and it is what Ox's proofs import. The suite checks that it is `Code.v`
+sentence for sentence once comments and spacing are taken out, with no difference. (Reading Ox found two in
+`Code.v`, since corrected: `forkUnsupervised` took its parameters in another order than the source, and the
+cast of `forkUserError`'s supervisor, which the source writes, was read as one that cannot fail.)
 
 `Agree.v` imports both. For each type it defines the function from `Gen`'s to `Code`'s and back, constructor by
 constructor, which Rocq accepts only if the constructors take the same arguments. It then holds the text of

@@ -29,11 +29,10 @@ object OxUnit:
     opaque = List("ox.ErrorMode", "ox.ForkLocalMap", "java.util.concurrent.ThreadFactory"),
     holds = "ox.OxError")
 
-  /** Where `Code.v` takes a definition's parameters in another order than Ox's source, the order it takes them in:
-    * the generated file keeps the source's (as `Code.v` does for `fork` and `forkUser`), and `Agree.v` states the
-    * definition equal once its parameters are taken in `Code.v`'s order.
+  /** Where `Code.v` takes a definition's parameters in another order than Ox's source, the order it takes them in,
+    * for `Agree.v` to state the definition equal in that order. None: `Code.v` keeps the source's order.
     */
-  val reordered: Map[String, List[String]] = Map("forkUnsupervised" -> List("x1", "f"))
+  val reordered: Map[String, List[String]] = Map.empty
 
   /** What the generated file says it is. */
   val title: String =

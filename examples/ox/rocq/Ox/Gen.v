@@ -79,7 +79,7 @@ Definition cast_option_OxError (v : option val) : M (option OxError) :=
   match v with Some v => x <- cast_OxError v ;; ret (Some x) | None => ret None end.
 
 Definition cast_DefaultSupervisor (s : Supervisor) : M DefaultSupervisor :=
-  match s with Supervisor_DefaultSupervisor x => ret x | _ => type_error end.
+  match s with Supervisor_DefaultSupervisor x => ret x | _ => throw (Other "java.lang.ClassCastException") end.
 
 Definition cast_list (v : val) : M (list val) := match v with VList xs => ret xs | _ => type_error end.
 

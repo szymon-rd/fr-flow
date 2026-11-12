@@ -71,10 +71,15 @@ catch that is Ox's to say. The proof shows that containment does not hold withou
    Two contracts say more than the JDK's documentation:
    - `TsIsEmpty`: `ConcurrentHashMap`'s `isEmpty` answers `true` only of a set empty at that moment. Its
      documentation says the method is "not for program control" under concurrent updates.
-   - `TypeError`: a cast the compiler inserted does not fail (the JVM's type safety).
-2. **`Code.v` is Ox.** It was written by hand, method by method and statement by statement, from Ox's Scala. A
-   generator that reads Ox's TASTy and must reproduce it is being built; until it does, that `Code.v` is what
-   Ox's compiled classes do rests on reading.
+   - `TypeError`: a cast the compiler inserted does not fail (the JVM's type safety). A cast the source
+     writes throws `ClassCastException` when it fails.
+2. **`Gen.v` is Ox.** It is generated from the TASTy in Ox's published jar by rules over Scala's constructs
+   (`docs/THREADS-GENERATOR.md`), and it is what every proof here imports. What is trusted of it: the rules,
+   the tables that say which JDK method is which operation, and the Scala compiler's TASTy reader. `Code.v` is
+   the same unit translated by hand before the generator existed; the two are the same text, comments and
+   spacing apart, and `Agree.v` proves each definition equal by `reflexivity`. The generator found two
+   differences in the hand translation, since corrected (a parameter order; a cast the source writes, which
+   can fail).
 3. **Code that is not read.** `ErrorMode` and `ForkLocalMap`: their methods are taken to touch nothing of the
    state here (`Extern`: any result, no effect). `uninterruptible` inside `runFinalizers`: `Chaos` (anything may
    happen); the proof shows it is not reached when no finalizer is registered, and the client model has no way to
@@ -105,7 +110,8 @@ Ox, `examples/ox/rocq/Ox/` (logical path `Ox`):
 
 | File | What it is |
 |---|---|
-| `Code.v` | Ox's scopes and forks as programs. |
+| `Gen.v` | Ox's scopes and forks as programs, generated from Ox's TASTy. What the proofs are about. |
+| `Code.v`, `Agree.v` | The same unit by hand, and that the two agree. |
 | `Ghost.v` | The ghost state, the invariant `Inv`, the rely `Rely`. |
 | `Facts.v` | Being inside a herd; a herd with a thread inside it is not exited. |
 | `Specs.v` | What is asked of and given by each closure; the rules for throwing programs. |

@@ -27,7 +27,7 @@ and what is not. In short:
 
 - **The design is the one this page proposes.** The JDK's classes are contracts taken as assumptions
   (`modules/proof/rocq/FrFlow/Threads/Jdk.v`: a state per class, a contract per method). Ox's methods are
-  programs that call them (`examples/ox/rocq/Ox/Code.v`). Each method gets a claim proven from the contracts and
+  programs that call them (`examples/ox/rocq/Ox/Gen.v`). Each method gets a claim proven from the contracts and
   from the claims on the methods it calls, and the theorem is proven from those.
 - **The theorem** (`Main.contained`, no axioms): for every client that forks into a scope only closures holding
   capabilities of that scope or of scopes enclosing it, once the first thread has ended no thread has an
@@ -37,8 +37,9 @@ and what is not. In short:
   (`Logic.v`, 200 lines). Framing, which separation logic gives for nothing, is done by a syntactic class of
   programs that touch nothing the invariant reads; a tactic finds that the supervisor, the error mode and the
   futures are in it.
-- **What it rests on that is not the JDK**: `Code.v` is still a translation by hand, statement for statement. The
-  generator that must reproduce it from Ox's TASTy is in progress.
+- **The code is read, not transcribed.** `examples/ox/rocq/Ox/Gen.v`, which the proofs import, is generated
+  from the TASTy in Ox's published jar ([THREADS-GENERATOR.md](THREADS-GENERATOR.md)). A translation by hand
+  made first (`Code.v`) is the same text, and `Agree.v` proves the two equal definition by definition.
 - **What the proof found, beyond the reading below**: lexical scoping does not confine a capability
   (`fork(using outer) { fork(using inner) { … } }` type-checks and passes Ox's run-time check), so the
   condition on the client is about what a forked closure holds, not about where it is written.

@@ -130,7 +130,7 @@ Definition cast_option_OxError (v : option val) : M (option OxError) :=
   match v with Some v => x <- cast_OxError v ;; ret (Some x) | None => ret None end.
 
 Definition cast_DefaultSupervisor (s : Supervisor) : M DefaultSupervisor :=
-  match s with Supervisor_DefaultSupervisor x => ret x | _ => type_error end.
+  match s with Supervisor_DefaultSupervisor x => ret x | _ => throw (Other "java.lang.ClassCastException") end.
 
 Definition cast_list (v : val) : M (list val) := match v with VList xs => ret xs | _ => type_error end.
 
@@ -589,7 +589,7 @@ Lemma forkError_agrees : @Over.forkError = @Ox.Code.forkError. Proof. reflexivit
 Lemma Lam_forkError_1_body_agrees : @Over.Lam_forkError_1_body = @Ox.Code.Lam_forkError_1_body. Proof. reflexivity. Qed.
 Lemma forkUserError_agrees : @Over.forkUserError = @Ox.Code.forkUserError. Proof. reflexivity. Qed.
 Lemma Lam_forkUserError_1_body_agrees : @Over.Lam_forkUserError_1_body = @Ox.Code.Lam_forkUserError_1_body. Proof. reflexivity. Qed.
-Lemma forkUnsupervised_agrees : (fun x1 f => @Over.forkUnsupervised f x1) = @Ox.Code.forkUnsupervised. Proof. reflexivity. Qed.
+Lemma forkUnsupervised_agrees : @Over.forkUnsupervised = @Ox.Code.forkUnsupervised. Proof. reflexivity. Qed.
 Lemma Lam_forkUnsupervised_1_body_agrees : @Over.Lam_forkUnsupervised_1_body = @Ox.Code.Lam_forkUnsupervised_1_body. Proof. reflexivity. Qed.
 Lemma fork_agrees : @Over.fork = @Ox.Code.fork. Proof. reflexivity. Qed.
 Lemma forkUser_agrees : @Over.forkUser = @Ox.Code.forkUser. Proof. reflexivity. Qed.
