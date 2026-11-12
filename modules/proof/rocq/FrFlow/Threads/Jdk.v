@@ -10,7 +10,7 @@
     Not modelled: integer overflow, a thread ended from outside (`Thread.stop`), errors of the JVM itself
     (`OutOfMemoryError`, `StackOverflowError`), a `Throwable`'s identity and its suppressed exceptions. *)
 
-From Stdlib Require Import ZArith List Bool.
+From Stdlib Require Import ZArith List Bool String.
 Import ListNotations.
 
 Set Implicit Arguments.
@@ -25,6 +25,8 @@ Inductive exn :=
   | IllegalStateException
   | IllegalThreadStateException
   | NullPointerException
+  | NoSuchElementException
+  | Other (class : string)               (* a throwable of another class of the code read *)
   | Thrown (n : nat).                    (* any other throwable: the caller's own *)
 
 Section Jdk.
@@ -134,8 +136,12 @@ Section Jdk.
     | TlSet (r : nat) (v : option val) : op (exn + unit)
     (* Throwable *)
     | AddSuppressed (e e' : exn) : op (exn + unit)
-    (* a step of the caller's own: it reads and changes nothing here, and gives anything *)
-    | Own (n : nat) : op (exn + val).
+    (* a call of code that is not read and is taken to touch nothing here: it gives anything *)
+    | Extern (X : Type) (name : string) : op (exn + X)
+    (* a cast the compiler made: the JVM's type safety says it does not fail *)
+    | TypeError (X : Type) : op X
+    (* code that is not read: it may do anything *)
+    | Chaos (X : Type) (what : string) : op X.
 
   (** What one call may do, made by thread `t` in state `σ`: its result and the state it leaves. No step: the
       call does not return yet. *)
@@ -270,7 +276,70 @@ Section Jdk.
     (* Throwable.addSuppressed: not modelled. *)
     | AddSuppressed _ _ => fun σ x σ' => x = inr tt /\ σ' = σ
 
-    | Own _ => fun σ x σ' => σ' = σ
+    (* Code not read, taken to touch nothing of this state (an `ErrorMode`'s methods, a `ForkLocalMap`'s). *)
+    | Extern _ _ => fun σ x σ' => σ' = σ
+
+    (* A failed cast: never. *)
+    | TypeError _ => fun σ x σ' => False
+
+    (* Code not read at all: any result, and any state in which the threads that had started still have (a
+       thread is not ended from outside). A proof passes it only where it cannot be reached. *)
+    | Chaos _ _ => fun σ x σ' => forall u,
+        match j_th σ u with
+        | Some (Thread _ TStarted _) => match j_th σ' u with Some (Thread _ TStarted _) => True | _ => False end
+        | _ => True
+        end
     end.
 
 End Jdk.
+
+(** The closures and the objects are read off where an operation or a value is used. *)
+Arguments CurrentThread {code obj}.
+Arguments NewThread {code obj} c.
+Arguments ThreadStart {code obj} u.
+Arguments ThreadInterrupt {code obj} u.
+Arguments ThreadJoin {code obj} u.
+Arguments ThreadSleep {code obj}.
+Arguments AbNew {code obj} b.
+Arguments AbGet {code obj} r.
+Arguments AbSet {code obj} r b.
+Arguments AbGetAndSet {code obj} r b.
+Arguments AiNew {code obj} z.
+Arguments AiIncrementAndGet {code obj} r.
+Arguments AiDecrementAndGet {code obj} r.
+Arguments CfNew {code obj}.
+Arguments CfComplete {code obj} r v.
+Arguments CfCompleteExceptionally {code obj} r e.
+Arguments CfGet {code obj} r.
+Arguments CfIsCompletedExceptionally {code obj} r.
+Arguments CfExceptionNow {code obj} r.
+Arguments TsNew {code obj}.
+Arguments TsAdd {code obj} r u.
+Arguments TsRemove {code obj} r u.
+Arguments TsContains {code obj} r u.
+Arguments TsIsEmpty {code obj} r.
+Arguments TsNext {code obj} r seen.
+Arguments EsNew {code obj}.
+Arguments EsAdd {code obj} r e.
+Arguments EsNext {code obj} r seen.
+Arguments VsNew {code obj}.
+Arguments VsAdd {code obj} r v.
+Arguments VsNext {code obj} r seen.
+Arguments ArNew {code obj} v.
+Arguments ArGet {code obj} r.
+Arguments ArGetAndSet {code obj} r v.
+Arguments ArUpdateAndGet {code obj} r f.
+Arguments TlGet {code obj} r.
+Arguments TlSet {code obj} r v.
+Arguments AddSuppressed {code obj} e e'.
+Arguments Extern {code obj} X name.
+Arguments TypeError {code obj} X.
+Arguments Chaos {code obj} X what.
+Arguments VUnit {code obj}.
+Arguments VBool {code obj} b.
+Arguments VTid {code obj} t.
+Arguments VExn {code obj} e.
+Arguments VObj {code obj} o.
+Arguments VCode {code obj} c.
+Arguments VList {code obj} vs.
+Arguments VAny {code obj} n.

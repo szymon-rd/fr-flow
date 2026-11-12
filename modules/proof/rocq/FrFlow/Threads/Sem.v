@@ -15,10 +15,10 @@ Section Sem.
   Variables code obj : Type.
 
   Definition res : Type := (exn + val code obj)%type.
-  Definition P (A : Type) : Type := prog (op code obj) code res A.
+  Definition P (A : Type) : Type := prog (op code obj) code (val code obj) res A.
 
   (** What each closure runs. *)
-  Variable interp : code -> P res.
+  Variable interp : code -> val code obj -> P res.
 
   Record config := Config { c_st : jst code obj; c_pool : tid -> option (P res) }.
 
@@ -44,14 +44,14 @@ Section Sem.
         pl' t = Some (k x) ->
         (forall u, u <> t -> started σ u -> pl' u = pl u) ->
         (forall u, u <> t -> ~ started σ u -> ~ started σ' u -> pl' u = pl u) ->
-        (forall u c, u <> t -> starts σ σ' u c -> pl' u = Some (interp c)) ->
+        (forall u c, u <> t -> starts σ σ' u c -> pl' u = Some (interp c VUnit)) ->
         step (Config σ pl) (Config σ' pl')
     | s_iter σ pl t S B (body : S -> P (S + B)) s k :
         pl t = Some (Iter body s k) ->
         step (Config σ pl) (Config σ (upd pl t (Some (unfold_iter body s k))))
-    | s_call σ pl t c k :
-        pl t = Some (Call c k) ->
-        step (Config σ pl) (Config σ (upd pl t (Some (pbind (interp c) k))))
+    | s_call σ pl t c arg k :
+        pl t = Some (Call c arg k) ->
+        step (Config σ pl) (Config σ (upd pl t (Some (pbind (interp c arg) k))))
     | s_exit σ pl t r :
         pl t = Some (Ret r) ->
         step (Config σ pl) (Config (terminate σ t) (upd pl t None)).

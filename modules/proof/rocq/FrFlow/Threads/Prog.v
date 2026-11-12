@@ -14,25 +14,26 @@ Section Prog.
 
   Variable Op : Type -> Type.     (* the library's operations, each typed by what it gives *)
   Variable code : Type.           (* closures: values that can be called *)
+  Variable V : Type.              (* what a closure is called with *)
   Variable R : Type.              (* what a call of a closure gives *)
 
   Inductive prog (A : Type) : Type :=
     | Ret (a : A)
     | Vis (X : Type) (o : Op X) (k : X -> prog A)
     | Iter (S B : Type) (body : S -> prog (S + B)) (s : S) (k : B -> prog A)
-    | Call (c : code) (k : R -> prog A).
+    | Call (c : code) (arg : V) (k : R -> prog A).
 
   Arguments Ret {A} a.
   Arguments Vis {A X} o k.
   Arguments Iter {A S B} body s k.
-  Arguments Call {A} c k.
+  Arguments Call {A} c arg k.
 
   Fixpoint pbind {A B : Type} (p : prog A) (f : A -> prog B) : prog B :=
     match p with
     | Ret a => f a
     | Vis o k => Vis o (fun x => pbind (k x) f)
     | Iter body s k => Iter body s (fun b => pbind (k b) f)
-    | Call c k => Call c (fun r => pbind (k r) f)
+    | Call c arg k => Call c arg (fun r => pbind (k r) f)
     end.
 
   (** One turn of a loop: its body, then the loop again or what follows it. *)
@@ -41,7 +42,7 @@ Section Prog.
 
 End Prog.
 
-Arguments Ret {Op code R A} a.
-Arguments Vis {Op code R A X} o k.
-Arguments Iter {Op code R A S B} body s k.
-Arguments Call {Op code R A} c k.
+Arguments Ret {Op code V R A} a.
+Arguments Vis {Op code V R A X} o k.
+Arguments Iter {Op code V R A S B} body s k.
+Arguments Call {Op code V R A} c arg k.

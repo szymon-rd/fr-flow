@@ -23,7 +23,8 @@ Section Logic.
   Abbreviation jst := (jst code obj).
   Abbreviation P := (P code obj).
   Abbreviation res := (res code obj).
-  Variable interp : code -> P res.
+  Abbreviation val := (val code obj).
+  Variable interp : code -> val -> P res.
 
   Variable Gh : Type.
   Variable Inv : jst -> Gh -> Prop.
@@ -34,9 +35,12 @@ Section Logic.
   (** What a step of thread `t` may do to the ghost state: what every other thread's `Rely` admits. *)
   Definition Guar (t : tid) (Γ Γ' : Gh) : Prop := forall u, u <> t -> Rely u Γ Γ'.
 
+  (** Whether a thread may still take a step other than its end. *)
+  Variable Active : tid -> Gh -> Prop.
+
   (** A closure called: what the caller owes, and what it has when the call returns. *)
-  Variable CallPre : tid -> code -> Gh -> Prop.
-  Variable CallPost : tid -> code -> Gh -> res -> Gh -> Prop.
+  Variable CallPre : tid -> code -> val -> Gh -> Prop.
+  Variable CallPost : tid -> code -> val -> Gh -> res -> Gh -> Prop.
   (** A closure started as a thread: what the starter owes, and what holds when the thread ends. *)
   Variable StartPre : tid -> code -> Gh -> Prop.
   Variable Done : tid -> res -> Gh -> Prop.
@@ -45,7 +49,7 @@ Section Logic.
     match p with
     | Ret a => Q a Γ0
     | Vis o k =>
-        forall σ Γ, Inv σ Γ -> Rely t Γ0 Γ -> started σ t ->
+        forall σ Γ, Inv σ Γ -> Rely t Γ0 Γ -> started σ t -> Active t Γ /\
         forall x σ', opstep t o σ x σ' ->
         exists Γ', Inv σ' Γ' /\ Guar t Γ Γ' /\
           (forall u c, u <> t -> starts σ σ' u c -> StartPre u c Γ') /\
@@ -53,44 +57,51 @@ Section Logic.
     | Iter body s k =>
         exists J, J s Γ0 /\
           forall s1 Γ1, J s1 Γ1 ->
+            (forall σ Γ, Inv σ Γ -> Rely t Γ1 Γ -> started σ t -> Active t Γ) /\
             wp t (body s1) Γ1 (fun r Γ2 => match r with inl s2 => J s2 Γ2 | inr b => wp t (k b) Γ2 Q end)
-    | Call c k =>
-        CallPre t c Γ0 /\ forall r Γ1, CallPost t c Γ0 r Γ1 -> wp t (k r) Γ1 Q
+    | Call c arg k =>
+        (forall σ Γ, Inv σ Γ -> Rely t Γ0 Γ -> started σ t -> Active t Γ) /\
+        CallPre t c arg Γ0 /\ forall r Γ1, CallPost t c arg Γ0 r Γ1 -> wp t (k r) Γ1 Q
     end.
 
   Lemma wp_mono (A : Type) (p : P A) : forall t Γ0 (Q Q' : A -> Gh -> Prop),
     (forall a Γ, Q a Γ -> Q' a Γ) -> wp t p Γ0 Q -> wp t p Γ0 Q'.
   Proof.
-    induction p as [A a | A X o k IH | A S B body IHb s k IHk | A c k IH]; intros t Γ0 Q Q' HQ; cbn.
+    induction p as [A a | A X o k IH | A S B body IHb s k IHk | A c arg k IH]; intros t Γ0 Q Q' HQ; cbn.
     - apply HQ.
-    - intros H σ Γ HI HR Hs x σ' Hstep.
-      destruct (H σ Γ HI HR Hs x σ' Hstep) as (Γ' & HI' & HG & Hst & Hk).
+    - intros H σ Γ HI HR Hs. destruct (H σ Γ HI HR Hs) as (Ha & H'). split; trivial.
+      intros x σ' Hstep.
+      destruct (H' x σ' Hstep) as (Γ' & HI' & HG & Hst & Hk).
       exists Γ'. repeat split; trivial. eapply IH; eassumption.
     - intros (J & HJ & Hbody). exists J. split; trivial.
-      intros s1 Γ1 HJ1. eapply IHb; [| apply Hbody, HJ1].
+      intros s1 Γ1 HJ1. destruct (Hbody s1 Γ1 HJ1) as (Ha & Hb). split; trivial.
+      eapply IHb; [| exact Hb].
       intros [s2 | b] Γ2; cbn; trivial. apply IHk, HQ.
-    - intros (Hpre & Hk). split; trivial. intros r Γ1 Hpost. eapply IH; [exact HQ | apply Hk, Hpost].
+    - intros (Ha & Hpre & Hk). repeat split; trivial.
+      intros r Γ1 Hpost. eapply IH; [exact HQ | apply Hk, Hpost].
   Qed.
 
   Lemma wp_bind (A : Type) (p : P A) : forall (B : Type) (f : A -> P B) t Γ0 (Q : B -> Gh -> Prop),
     wp t p Γ0 (fun a Γ1 => wp t (f a) Γ1 Q) -> wp t (pbind p f) Γ0 Q.
   Proof.
-    induction p as [A a | A X o k IH | A S B body IHb s k IHk | A c k IH]; intros B' f t Γ0 Q; cbn.
+    induction p as [A a | A X o k IH | A S B body IHb s k IHk | A c arg k IH]; intros B' f t Γ0 Q; cbn.
     - trivial.
-    - intros H σ Γ HI HR Hs x σ' Hstep.
-      destruct (H σ Γ HI HR Hs x σ' Hstep) as (Γ' & HI' & HG & Hst & Hk).
+    - intros H σ Γ HI HR Hs. destruct (H σ Γ HI HR Hs) as (Ha & H'). split; trivial.
+      intros x σ' Hstep.
+      destruct (H' x σ' Hstep) as (Γ' & HI' & HG & Hst & Hk).
       exists Γ'. repeat split; trivial. apply IH, Hk.
     - intros (J & HJ & Hbody). exists J. split; trivial.
-      intros s1 Γ1 HJ1. eapply wp_mono; [| apply Hbody, HJ1].
+      intros s1 Γ1 HJ1. destruct (Hbody s1 Γ1 HJ1) as (Ha & Hb). split; trivial.
+      eapply wp_mono; [| exact Hb].
       intros [s2 | b] Γ2; cbn; trivial. apply IHk.
-    - intros (Hpre & Hk). split; trivial. intros r Γ1 Hpost. apply IH, Hk, Hpost.
+    - intros (Ha & Hpre & Hk). repeat split; trivial. intros r Γ1 Hpost. apply IH, Hk, Hpost.
   Qed.
 
   (** ** Soundness *)
 
   (** Every closure meets what is said of it. *)
-  Hypothesis call_ok : forall t c Γ, CallPre t c Γ -> wp t (interp c) Γ (CallPost t c Γ).
-  Hypothesis start_ok : forall u c Γ, StartPre u c Γ -> wp u (interp c) Γ (Done u).
+  Hypothesis call_ok : forall t c arg Γ, CallPre t c arg Γ -> wp t (interp c arg) Γ (CallPost t c arg Γ).
+  Hypothesis start_ok : forall u c Γ, StartPre u c Γ -> wp u (interp c VUnit) Γ (Done u).
   (** A thread's end keeps the invariant. *)
   Hypothesis exit_ok : forall σ Γ t r Γt, Inv σ Γ -> Rely t Γt Γ -> started σ t -> Done t r Γt ->
     exists Γ', Inv (terminate σ t) Γ' /\ Guar t Γ Γ'.
@@ -140,16 +151,22 @@ Section Logic.
       destruct (j_cf σ r) as [[? |] |]; unpack; contradiction.
     - (* ArUpdateAndGet *)
       destruct (f x0); unpack.
+    - (* TypeError *)
+      contradiction.
+    - (* Chaos *)
+      unfold started in *. specialize (H u). destruct (j_th σ u) as [[c s i] |]; try contradiction.
+      destruct s; try contradiction. exact H.
   Qed.
 
   Theorem sound_step c c' : good c -> step interp c c' -> good c'.
   Proof.
     intros (Γ & HI & Hpool) Hstep.
     destruct Hstep as [σ pl t X o k x σ' pl' Ht Hop Hpt Hkeep Hnew Hstart
-                      | σ pl t S B body s k Ht | σ pl t c k Ht | σ pl t r Ht]; cbn in *.
+                      | σ pl t S B body s k Ht | σ pl t c arg k Ht | σ pl t r Ht]; cbn in *.
     - (* an operation *)
       destruct (Hpool t _ Ht) as (Hs & Γt & HR & Hwp). cbn in Hwp.
-      destruct (Hwp σ Γ HI HR Hs x σ' Hop) as (Γ' & HI' & HG & Hst & Hk).
+      destruct (Hwp σ Γ HI HR Hs) as (_ & Hwp').
+      destruct (Hwp' x σ' Hop) as (Γ' & HI' & HG & Hst & Hk).
       exists Γ'. split; trivial. cbn. intros u p Hu.
       destruct (Nat.eq_dec u t) as [-> | Hne].
       + rewrite Hpt in Hu. injection Hu as <-. split; [eapply opstep_started; eassumption |].
@@ -170,13 +187,13 @@ Section Logic.
       destruct (Nat.eq_dec u t) as [-> | Hne]; [| apply Hpool, Hu].
       injection Hu as <-. destruct (Hpool t _ Ht) as (Hs & Γt & HR & Hwp). split; trivial.
       exists Γt. split; trivial. cbn in Hwp. destruct Hwp as (J & HJ & Hbody).
-      unfold unfold_iter. apply wp_bind. eapply wp_mono; [| apply Hbody, HJ].
+      unfold unfold_iter. apply wp_bind. eapply wp_mono; [| apply (Hbody s Γt HJ)].
       intros [s2 | b] Γ2; cbn; trivial. intro HJ2. exists J. split; trivial.
     - (* a call *)
       exists Γ. split; trivial. cbn. intros u p Hu. unfold upd in Hu.
       destruct (Nat.eq_dec u t) as [-> | Hne]; [| apply Hpool, Hu].
       injection Hu as <-. destruct (Hpool t _ Ht) as (Hs & Γt & HR & Hwp). split; trivial.
-      exists Γt. split; trivial. cbn in Hwp. destruct Hwp as (Hpre & Hk).
+      exists Γt. split; trivial. cbn in Hwp. destruct Hwp as (_ & Hpre & Hk).
       apply wp_bind. eapply wp_mono; [| apply call_ok, Hpre]. exact Hk.
     - (* a thread's end *)
       destruct (Hpool t _ Ht) as (Hs & Γt & HR & Hwp). cbn in Hwp.
