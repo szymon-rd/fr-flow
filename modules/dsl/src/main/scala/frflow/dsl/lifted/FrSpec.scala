@@ -2,10 +2,22 @@ package frflow.dsl.lifted
 
 import frflow.core.name.TypeName
 import frflow.core.ty.Ty
-import frflow.dsl.build.{Declarations, Source}
+import frflow.dsl.build.{AsWritten, Declarations, Source}
 import frflow.dsl.term.{LeanType, Term}
 import scala.annotation.implicitNotFound
 import scala.deriving.Mirror
+
+/** A type's contract: the rule every value of the type meets, as a function of the value's term, with the text it
+  * was written as. Written in plain Scala (`FrSpec.where`), it is read into the term and kept as the Scala it is,
+  * which checks a value where the code runs (`native`); written with the DSL (`FrSpec.whereStated`: a rule plain
+  * Scala cannot say, over every value of a type), it is the term alone.
+  */
+enum Contract[A]:
+  case Plain(rule: Term[A] => Term[Boolean], native: A => Boolean, written: AsWritten)
+  case Stated(rule: Term[A] => Term[Boolean], written: AsWritten)
+
+  def rule: Term[A] => Term[Boolean]
+  def written: AsWritten
 
 /** What a Scala type is to the Scala FrFlow reads (`lifted { … }`): its place in the term language (it is the type's
   * `LeanType`), and its contract, the rule every value of the type meets, written in Scala over the type's members

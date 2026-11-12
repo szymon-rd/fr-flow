@@ -4,6 +4,7 @@ import frflow.dsl.lifted.Lifted
 import frflow.dsl.structure.StructureDeclaration
 import frflow.dsl.term.Term
 import frflow.dsl.vocab.Definition
+import scala.reflect.ClassTag
 
 /** A method that changes a port, in direct style, read two ways (`StepReader`), each a function of the port's
   * state `S`. A port is a store (a class of Scala's `caps.Mutable`: `S` is its one `var`'s type) or a class
@@ -32,20 +33,22 @@ object StepSyntax:
       : Definition[(s.S, Map[BigInt, s.S], A) => (R, List[(s.S, s.S)])] =
     ${ StepReader.interleaving[P, s.S, A, R]('f, 'others) }
 
-  /** `lifted[RecordedLimits]`: a class that implements a structure, read member by member: what the structure's word is
-    * defined by (`limits.define(lifted[RecordedLimits])`), each member checked against every claim on it
-    * (`StructureLift`).
+  /** `lifted[RecordedLimits]`: a class that implements a structure, read member by member from the TASTy the
+    * compiler wrote for it: what the structure's word is defined by (`limits.define(lifted[RecordedLimits])`),
+    * each member checked against every claim on it. It is read where the model is built (`ReadClass`); Scala the
+    * reader does not read is a `NotRead` there.
     */
-  inline def lifted[C]: StructureCode[C] = ${ StructureLift.alone[C] }
+  def lifted[C](using c: ClassTag[C]): StructureCode[C] = ReadClass.structure[C](c.runtimeClass, Nil)
 
   /** The same of a class that holds structures, given the word of each in the order its constructor takes them
     * (`lifted[StreamPaymentHandler](limits, ledger, offsets)`).
     */
-  inline def lifted[C](inline words: StructureDeclaration[?]*): StructureCode[C] =
-    ${ StructureLift.read[C]('words) }
+  def lifted[C](words: StructureDeclaration[?]*)(using c: ClassTag[C]): StructureCode[C] =
+    ReadClass.structure[C](c.runtimeClass, words.toList)
 
   extension [T](structure: StructureDeclaration[T])
     /** The structure as an object of a class that implements it has it, for an example
-      * (`limits.holding(RecordedLimits(BigInt(100), Nil))`): the object made where it is given.
+      * (`limits.holding(RecordedLimits(BigInt(100), Nil))`): the object's fields' values, read as the model is
+      * built.
       */
-    inline def holding(inline made: T): Term[structure.Is] = ${ StructureLift.held[T, structure.Is]('made) }
+    def holding(made: T): Term[structure.Is] = ReadClass.held[structure.Is](made)

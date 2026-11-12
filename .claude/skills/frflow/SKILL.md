@@ -294,7 +294,9 @@ A service can be proven as written. Write it as a structure, a value with member
 extends `caps.Mutable`, with what changes it marked `update`, in a file with capture and separation checking; when
 none does, a plain trait that is not sealed, its members over domain types; in the trait's companion `val limits = Declaration[CardLimits]("…")` and the claims,
 through the members (`limits.authorise(p).result`, `.after`, `limits.decided(id).in(state)`, `limits.current`); a
-class that implements the trait; and in the model its Definition, `limits.define(lifted[RecordedLimits])`. A class
+class that implements the trait; and in the model its Definition, `limits.define(lifted[RecordedLimits])`, which
+reads the class from its TASTy when the model is built (Scala it does not read is a `NotRead` then, with the file
+and line; the project names `scala3-staging` as a dependency). A class
 made of structures is given their words (`lifted[StreamPaymentHandler](limits, ledger, offsets)`) and is proven
 from the claims on them, so wire those claims under its own with `.refines`; in a member that changes the class,
 give each call of a held structure a statement of its own. Never add a member to a trait for a claim's sake: say

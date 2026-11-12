@@ -6,7 +6,8 @@ import scala.quoted.*
 /** A call of an ordinary method of the developer's (a case class's member, an object's function) in lifted code:
   * its body read where it is called, as an `inline def`'s is, its receiver the body's `this` and its arguments its
   * parameters. The compiler shows a macro the body of a method it is not given only when it kept it: the project
-  * compiles with `-Yretain-trees`; without it the call is not read, and the error says so. A method that calls
+  * compiles with `-Yretain-trees`; without it the call is not read, and the error says so. Where a compiled class
+  * is read as the model is built, the body comes from the method's TASTy (`Tasty.load`). A method that calls
   * itself is a recursion, which is not read.
   */
 private[lifted] trait ReadMethods extends Reading:
@@ -29,7 +30,9 @@ private[lifted] trait ReadMethods extends Reading:
 
   /** The method's definition with its body, when it is the developer's and the compiler kept it. */
   def kept(m: Symbol): Option[DefDef] =
-    Option.when(isOwn(m))(m.tree).collect { case d: DefDef if d.rhs.nonEmpty => d }
+    def body = Option.when(isOwn(m))(m.tree).collect { case d: DefDef if d.rhs.nonEmpty => d }
+    body.orElse(Option.when(structures.staged && isOwn(m) && !m.flags.is(Flags.Deferred))(Tasty.load(q)(m))
+      .flatMap(_ => body))
 
   /** A method of the developer's code: no library's, none the compiler made. */
   def isOwn(m: Symbol): Boolean =

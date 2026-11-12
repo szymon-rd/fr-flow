@@ -330,7 +330,12 @@ FrModel("Payments")(…, limits.define(lifted[RecordedLimits]))
 - A claim is said of the structure in every state: "the structure as it stands" is a variable the claim is closed
   over. So a claim is one that code holding the structure can rely on, whatever state it holds it in; and a fact
   of every state ("no card is over its limit") is stated as what each call keeps.
-- `lifted[RecordedLimits]` reads the class member by member. Its state is a record named as the trait, a field for
+- `lifted[RecordedLimits]` reads the class from the TASTy the compiler wrote for it, as the model is built
+  (`ReadClass`): no macro where it is lifted, nothing the compiler must keep (`-Yretain-trees` is not needed for
+  it), and a class in a library's jar is read the same way. A compiler is started over the class's classpath
+  (`scala3-staging`, which a project that builds a model names as a dependency), and the reader runs on the tree
+  it loads. Scala the reader does not read is a `NotRead` naming the file and line, where it was a compile error.
+- The class is read member by member. Its state is a record named as the trait, a field for
   each of the constructor's; each member's body is read into a function of that record. `limits.define(…)`
   gives each member's word its code, and Lean proves the code meets every claim that mentions the member.
 - A class made with other structures is given their words, in the order its constructor takes them:
@@ -352,7 +357,7 @@ FrModel("Payments")(…, limits.define(lifted[RecordedLimits]))
   step, by the step's number (any state at all: no rely is built in); `call.amongOthers(run => …)` says what holds
   under every such schedule; `run.others` is what the others did before each step, for a claim to say what it
   takes of them. What it takes, a claim over the structure's own steps shows it grants.
-- An example gives a state as an object of the class, made where it is given:
+- An example gives a state as an object of the class:
   `limits.holding(RecordedLimits(BigInt(100), Nil))`, and a schedule as `limits.nobody.updated(BigInt(2), left)`.
   The evaluator holds a state as its fields' values, so two states are equal when their fields are.
 - A member no claim mentions has its code (an example may call it), and nothing is proven of it.
@@ -417,5 +422,6 @@ In the order they would be taken:
 | `Agreement`, `Vectors` | `modules/testing/src/main/scala/frflow/testing/` |
 | The suites | `modules/dsl/src/test/scala/frflow/dsl/lifted/`, `AgreementSuite`, `CalendarSuite`, `CalendarLeanSuite` |
 | `updating`, `interleaving`, `lifted[Class]`, `holding` | `modules/dsl/src/main/scala/frflow/dsl/lifted/steps/` |
+| A class read from its TASTy as the model is built | `ReadClass.scala` there; `Tasty.scala` beside the reader |
 | A structure's Declaration, `Call`, `State` | `modules/dsl/src/main/scala/frflow/dsl/structure/`; `StructureSuite` beside the reader's suites |
 | Services proven among other calls | `examples/wallet/`, `examples/payments/`, `examples/shop/`; `WalletSuite`, `PaymentsSuite`, `ShopSuite`; the Lean suites in `frflow.project.services` |

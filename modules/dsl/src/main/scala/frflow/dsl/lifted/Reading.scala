@@ -60,7 +60,7 @@ private[lifted] trait Reading extends ReadPorts:
 
   /** The compile error for Scala the reader does not read, at the Scala. */
   def refuse(what: String, at: Tree): Nothing =
-    report.errorAndAbort(s"FrFlow: lifted code cannot hold $what", at.pos)
+    NotRead.raise(using q)(structures.staged, s"FrFlow: lifted code cannot hold $what", Some(at))
 
   /** `t` under what the compiler wraps an expression in: an inlining with no bindings, an ascription, a block of
     * nothing.

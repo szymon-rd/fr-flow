@@ -8,8 +8,10 @@ import scala.quoted.Expr
   * call of that field's member is a call of that Declaration's; and the traits the reading has as structures, by
   * name (`traits`): the one the class implements and those it holds. A trait that is one of Scala's
   * `caps.Mutable` is a structure in any reading; one that is not is a structure only where it is in play.
+  * `staged`: the reading is of a compiled class, as the model is built, and not inside a compilation.
   */
-final case class Structures(records: Map[String, Expr[Any]], wiring: Map[String, Expr[Any]], traits: Set[String])
+final case class Structures(records: Map[String, Expr[Any]], wiring: Map[String, Expr[Any]], traits: Set[String],
+    staged: Boolean = false)
 
 object Structures:
   val none: Structures = Structures(Map.empty, Map.empty, Set.empty)

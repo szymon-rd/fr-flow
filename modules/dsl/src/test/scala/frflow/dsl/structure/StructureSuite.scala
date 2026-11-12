@@ -2,6 +2,8 @@ package frflow.dsl.structure
 
 import frflow.core.name.SymbolName
 import frflow.core.ty.Ty
+import frflow.dsl.lifted.NotRead
+import frflow.dsl.lifted.steps.StepSyntax.lifted
 import scala.annotation.experimental
 
 /** A structure as a Definition: its members are Definitions of their own, typed over the structure; the class that
@@ -39,14 +41,18 @@ import scala.annotation.experimental
   }
 
   test("a class is lifted by its type, with the word of each structure it holds: any other number is refused") {
-    val errors = compileErrors("""
-      import frflow.dsl.lifted.steps.StepSyntax.lifted
-      lifted[Till.CashTill](TillModel.till)""")
-    assert(errors.contains("CashTill holds 0 structures and is given 1 words"), errors)
+    val refused = intercept[NotRead](lifted[Till.CashTill](TillModel.till))
+    assert(refused.getMessage.contains("CashTill holds 0 structures and is given 1 words"), refused.getMessage)
     val made = compileErrors("""
       import frflow.dsl.lifted.steps.StepSyntax.lifted
       lifted(Till.CashTill(Nil))""")
     assert(made.nonEmpty, "a class made where it is lifted is no longer read")
+  }
+
+  test("a class is read from its TASTy as the model is built: Scala the reader does not read is said with its place") {
+    val refused = intercept[NotRead](lifted[Unread.Looping])
+    assert(refused.getMessage.contains("Unread.scala:"), refused.getMessage)
+    assert(refused.getMessage.contains("lifted code cannot hold"), refused.getMessage)
   }
 
   test("a trait no member changes, no `caps.Mutable`, is declared, lifted and held as any structure") {
