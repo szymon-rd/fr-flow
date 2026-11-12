@@ -10,7 +10,10 @@ final class RocqNames(declared: Set[List[String]]):
   /** The constant `path` names where it is written: in the namespace `in`, or one it is inside, or one opened. */
   def constant(path: List[String])(using c: RocqNames.Scope): String =
     (c.namespace.inits.toList ++ c.opens).map(_ ++ path).find(declared).map(RocqNames.joined)
-      .orElse(RocqNames.library.get(path.mkString("."))).getOrElse(path.map(RocqNames.identifier).mkString("_"))
+      .orElse(RocqNames.library.get(path.mkString("."))).getOrElse(
+        // a constant of the model's that no generated module declares: a proof file's (`Kb.node.Proofs.impl`)
+        if path.sizeIs > 1 && c.namespace.headOption.contains(path.head) then RocqNames.joined(path)
+        else path.map(RocqNames.identifier).mkString("_"))
 
   /** A name alone: a variable in scope, else a constant. */
   def name(n: String)(using c: RocqNames.Scope): String =

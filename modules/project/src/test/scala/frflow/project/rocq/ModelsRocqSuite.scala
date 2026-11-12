@@ -12,12 +12,15 @@ import scala.annotation.experimental
 @experimental class ModelsRocqSuite extends munit.FunSuite:
   override val munitTimeout = scala.concurrent.duration.Duration(60, "min")
 
-  /** The model's Rocq, checked: every file read; and the files of code obligations (`impl`) the tactic proves. */
-  private def read(model: FrModel): (RocqRun.Checked, List[String]) =
+  /** The model's Rocq, checked with the example's proof files (`examples/<example>/rocq/Proofs`): every file
+    * read; and the files of code obligations (`impl`) proven, by the tactic or by a proof file.
+    */
+  private def read(model: FrModel, example: String): (RocqRun.Checked, List[String]) =
     val elaborated = Projects.elaborated(model)
-    val project = RocqProject(Projects.bare(elaborated).modules)
+    val proofs = RocqProofs.of(Projects.base.resolve(s"examples/$example/rocq"))
+    val project = RocqProject(Projects.proving(elaborated, RocqProofs.stated(proofs)).modules)
     val kept = sys.env.get("FRFLOW_ROCQ_DIR").map(d => Path.of(d, elaborated.theory.name.value))
-    val checked = RocqRun.check(project, kept.getOrElse(Files.createTempDirectory("frflow-rocq")))
+    val checked = RocqRun.check(project, kept.getOrElse(Files.createTempDirectory("frflow-rocq")), proofs)
     val lemmas = checked.open.toList.sortBy(_._1).filter((file, _) => RocqRun.lemmas(checked, file).nonEmpty)
     lemmas.foreach((file, open) => println(s"  $file: ${RocqRun.lemmas(checked, file).map(l =>
       (if open.contains(l) then "open " else "proven ") + l).mkString(", ")}"))
@@ -26,13 +29,13 @@ import scala.annotation.experimental
     (checked, checked.compiled.filter(f => f.endsWith("/Impl.v") && checked.open(f).isEmpty))
 
   test("the payments model is read by Rocq, and its tactic proves obligations".tag(Rocq)) {
-    val (_, shown) = read(payments.payments)
-    assert(shown.sizeIs >= 25, s"frflow_auto proves ${shown.size} of the code obligations, where it proved 25")
+    val (_, shown) = read(payments.payments, "payments")
+    assert(shown.sizeIs >= 26, s"frflow_auto proves ${shown.size} of the code obligations, where it proved 26")
   }
 
-  test("the auth model is read by Rocq; what a node's parts must prove of it is left to a proof file".tag(Rocq)) {
-    val (checked, _) = read(auth.knowledge)
-    val open = checked.open.collect { case (file, lemmas) if file.endsWith("/Auto.v") => lemmas }.flatten.toSet
-    assertEquals(open, Set("accessExactly", "accessNeedsGrant", "grantLetsIn", "tokenNamesHolder").map(n =>
-      s"${n}_Auto_complete"))
+  test("the auth model is proven in Rocq: each node from its parts by its proof file, the whole consistent".tag(Rocq)) {
+    val (checked, _) = read(auth.knowledge, "auth")
+    val open = checked.open.filterNot((file, lemmas) => file.endsWith("/Checks.v") || lemmas.isEmpty)
+    assertEquals(open, Map.empty[String, List[String]])
+    assertEquals(checked.stated.keySet.count(_.endsWith("/Theorems.v")), 4)
   }

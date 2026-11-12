@@ -22,18 +22,38 @@ object RocqRun:
 
   private val library: Path = Path.of("modules/proof/rocq/FrFlow/Base.v").toAbsolutePath
 
-  def check(project: RocqProject, in: Path): Checked =
-    Files.createDirectories(in.resolve("FrFlow"))
-    Files.writeString(in.resolve("FrFlow/Base.v"), Files.readString(library))
+  /** `proofs`: the developer's proof files, by path (`Proofs/Payments/neverCommitsAhead.v`), each compiled
+    * before the first generated file that imports it; one with an error is `broken`.
+    */
+  def check(project: RocqProject, in: Path, proofs: Map[String, String]): Checked =
+    write(in, "FrFlow/Base.v", Files.readString(library))
     compile(in, "FrFlow/Base.v").foreach(e => throw AssertionError(s"FrFlow's Rocq library does not compile: $e"))
+    proofs.foreach((file, text) => write(in, file, text))
     project.files.foldLeft(Checked(Nil, Map.empty, Map.empty)) { case (done, (file, text)) =>
-      Files.createDirectories(in.resolve(file).getParent)
-      Files.writeString(in.resolve(file), text)
+      write(in, file, text)
+      val proven = imported(text, proofs).foldLeft(done)(authored(in, proofs))
       admitting(in, file, Nil) match
-        case Right(open)  => done.copy(compiled = done.compiled :+ file, open = done.open + (file -> open),
-          stated = done.stated + (file -> named(text)))
-        case Left(error)  => done.copy(broken = done.broken + (file -> error))
+        case Right(open)  => proven.copy(compiled = proven.compiled :+ file, open = proven.open + (file -> open),
+          stated = proven.stated + (file -> named(text)))
+        case Left(error)  => proven.copy(broken = proven.broken + (file -> error))
     }
+
+  private def write(in: Path, file: String, text: String): Unit =
+    Files.createDirectories(in.resolve(file).getParent)
+    val _ = Files.writeString(in.resolve(file), text)
+
+  /** The proof files a text imports, by path. */
+  private def imported(text: String, proofs: Map[String, String]): List[String] =
+    "(?m)^Require (?:Export|Import) (Proofs\\.[A-Za-z0-9_.]+)\\.$".r.findAllMatchIn(text).map(m =>
+      m.group(1).replace('.', '/') + ".v").filter(proofs.contains).toList
+
+  /** A proof file compiled, after those it imports, unless it already is. */
+  private def authored(in: Path, proofs: Map[String, String])(done: Checked, file: String): Checked =
+    if done.compiled.contains(file) || done.broken.contains(file) then done
+    else
+      val before = imported(proofs(file), proofs).foldLeft(done)(authored(in, proofs))
+      compile(in, file).fold(before.copy(compiled = before.compiled :+ file))(error =>
+        before.copy(broken = before.broken + (file -> error.linesIterator.take(8).mkString(" | "))))
 
   /** The file compiled, each lemma whose proof fails admitted in turn: those admitted, or another error. */
   private def admitting(in: Path, file: String, open: List[String]): Either[String, List[String]] =
@@ -58,6 +78,7 @@ object RocqRun:
     val out = StringBuilder()
     def keep(line: String): Unit = { val _ = out.append(line).append('\n') }
     val log = ProcessLogger(keep, keep)
-    val code = Process(command ++ Seq("-q", "-Q", "FrFlow", "FrFlow", "-Q", "FrFlowGen", "FrFlowGen", file),
+    val code = Process(command ++ Seq("-q", "-Q", "FrFlow", "FrFlow", "-Q", "FrFlowGen", "FrFlowGen", "-Q", "Proofs",
+      "Proofs", file),
       in.toFile).!(log)
     Option.when(code != 0)(out.toString)

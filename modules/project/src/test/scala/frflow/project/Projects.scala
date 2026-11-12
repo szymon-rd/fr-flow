@@ -1,18 +1,19 @@
 package frflow.project
 
 import cats.effect.IO
-import frflow.core.analysis.Validate
 import frflow.core.Elaborated
+import frflow.core.analysis.Validate
 import frflow.core.example.Example
-import frflow.core.name.RelPath
+import frflow.core.name.{NodeId, RelPath}
 import frflow.decision.ledger.{Counted, Ledger}
 import frflow.dsl.kb.FrModel
 import frflow.project.pipeline.{Analysis, Computed, Inputs, LeanSources, Recorded}
-import frflow.project.port.{LeanLibrary, RunCode}
 import frflow.project.port.memory.{MemoryFiles, MemoryGit, MemoryKeys, MemoryLedger}
+import frflow.project.port.{LeanLibrary, RunCode}
 import frflow.project.program.{Analyse, Ports, Project}
-import frflow.testing.report.Seed
+import frflow.proof.reading.ProofFile
 import frflow.testing.Settings
+import frflow.testing.report.Seed
 import java.nio.file.{Files, Path}
 import java.time.Instant
 import scala.jdk.OptionConverters.*
@@ -62,8 +63,11 @@ object Projects:
     Analyse(p.ports, RunCode.inline[IO], project)(e, examples)
 
   /** An analysis with nothing read: an empty ledger, nothing recorded, no examples run. */
-  def bare(e: Elaborated): Analysis =
+  def bare(e: Elaborated): Analysis = proving(e, Map.empty)
+
+  /** The same with proof files read: the obligations they prove are stated as theirs. */
+  def proving(e: Elaborated, proofs: Map[NodeId, ProofFile]): Analysis =
     Analysis(Validate(e).fold(ps => throw AssertionError(ps.toString), identity),
-      Inputs(Counted(Ledger.empty, Nil), Recorded.none, LeanSources(Map.empty, Nil, library.version), Map.empty,
+      Inputs(Counted(Ledger.empty, Nil), Recorded.none, LeanSources(proofs, Nil, library.version), Map.empty,
         Instant.EPOCH, settings),
       Computed.none)

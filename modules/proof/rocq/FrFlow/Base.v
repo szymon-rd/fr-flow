@@ -91,11 +91,17 @@ Ltac frflow_under := repeat first
 Ltac frflow_simpl :=
   repeat (progress (autorewrite with frflow in *; cbn in *; frflow_split; subst; frflow_under)).
 
+Ltac frflow_refute search := solve [match goal with H : ~ _ |- _ =>
+  exfalso; apply H; eexists; split; [ solve [search] | first [reflexivity | lia] ] end].
+
 Ltac frflow_close := first
   [ lia | tauto | congruence
   | solve [intuition (subst; cbn in *; try lia; try congruence; eauto 8)]
   | solve [firstorder (subst; cbn in *; try lia; try congruence; eauto 8)]
-  | solve [apply propositional_extensionality; firstorder (subst; cbn in *; try lia; try congruence; eauto 8)] ].
+  | solve [apply propositional_extensionality; firstorder (subst; cbn in *; try lia; try congruence; eauto 8)]
+  (* a hypothesis says there is no such thing, and there is one: found by a search of growing depth, since a
+     deeper search may settle on a witness the rest does not hold of *)
+  | frflow_refute ltac:(eauto 4) | frflow_refute ltac:(eauto 6) | frflow_refute ltac:(eauto 8) ].
 
 Lemma frflow_eq_iff (P Q : Prop) : P = Q -> (P <-> Q).
 Proof. intros ->. tauto. Qed.

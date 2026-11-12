@@ -40,12 +40,13 @@ proven equal, `propositional_extensionality` and `functional_extensionality`.
 
 `ModelsRocqSuite` prints two examples and checks them with Rocq 9.3:
 
-- `examples/payments`: Rocq reads all 122 generated files, and `frflow_auto` proves 25 of the 29 code
-  obligations (`impl`). Lean's `frflow_auto` proves 26 of them; it rests on `simp` and `grind`, which Rocq's
-  standard library has no match for, so the Rocq tactic is a set of rewrites, case splits, `lia` and
-  first-order search, extended obligation by obligation.
-- `examples/auth`: Rocq reads every generated file. The four statements that a node follows from its parts
-  (`complete`) are not proven by the tactic; Lean proves them by hand too (`lean/Proofs/Auth`).
+- `examples/payments`: Rocq reads all 122 generated files, and `frflow_auto` proves 26 of the 29 code
+  obligations (`impl`), as many as Lean's `frflow_auto`. The two are built differently: Lean's rests on `simp`
+  and `grind`; Rocq's is a set of rewrites, case splits, `lia`, first-order search and a search for the witness
+  that refutes a "there is no such" hypothesis. Three obligations and the root's are left to proof files.
+- `examples/auth`: proven. Each node follows from its parts by its proof file
+  (`examples/auth/rocq/Proofs/Auth`, five files ported from the Lean ones), and the tactic proves the
+  statements about the theory as a whole.
 
 A lemma the run reports proven may rest on one it admitted (a node's `holds` on its `complete`): the run in
 the product reads `Print Assumptions` to tell.
@@ -57,12 +58,14 @@ The newest Rocq is installed through opam (`opam install rocq-prover`), on the s
 
 ## What is left, in order
 
-1. **The tactic**: the four payments obligations still open, then the examples' theorems (`Whole`).
+1. **Payments**: the three obligations still open and the root's, by proof files; then its examples
+   (`Whole`).
 2. **The run in the product**: a `Prover` port beside `Lake`, `_CoqProject`, reading `coqc`'s output per
    theorem, the rules a hand proof file must keep (no `Axiom`, `Admitted`, `Parameter`), and the audit
    (`Print Assumptions`).
-3. **Hand proofs**: `rocq/Proofs/<Model>/<node>.v`, written by hand: payments (5 Lean proof files) and auth (5).
-   The other examples (90 Lean proof files) stay on Lean until they are moved.
+3. **Hand proofs**: a proof file is `rocq/Proofs/<Model>/<node>.v`; its lemma `<node>_Proofs_<obligation>`
+   proves that obligation. The examples other than payments and auth (90 Lean proof files) stay on Lean
+   until they are moved.
 4. **Programs** (`Flow`: rooms, keycloak, crm): the printer does not print a `do` block, a class or an instance
    yet (`RocqProject.unprinted` names each such module). They are lowered to state-passing terms, and the
    library's `Flow`, `Faults`, `Races`, `Clock`, `Commute` and `Machine` are written in Rocq.
