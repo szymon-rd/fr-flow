@@ -25,12 +25,19 @@ val roomsTable = "org.xerial" % "sqlite-jdbc" % "3.46.1.3" % Test
 // Tests tagged `Lean` run Lean end to end (minutes): plain `sbt test` leaves them out, `sbt leanTest` runs them,
 // `sbt testAll` runs both.
 lazy val LeanTest = config("lean").extend(Test)
+// Tests tagged `Rocq` run Rocq's `coqc` the same way: `sbt rocqTest` runs them.
+lazy val RocqTest = config("rocq").extend(Test)
 val withoutLean = Tests.Argument(TestFrameworks.MUnit, "--exclude-tags=Lean")
-def leanTagged: Seq[Setting[?]] = inConfig(LeanTest)(Defaults.testTasks) ++ Seq(
-  Test / testOptions += withoutLean,
-  LeanTest / testOptions := (LeanTest / testOptions).value.filterNot(_ == withoutLean) :+
-    Tests.Argument(TestFrameworks.MUnit, "--include-tags=Lean"))
+val withoutRocq = Tests.Argument(TestFrameworks.MUnit, "--exclude-tags=Rocq")
+def tagged(in: Configuration, without: Tests.Argument, tag: String): Seq[Setting[?]] =
+  inConfig(in)(Defaults.testTasks) ++ Seq(
+    Test / testOptions += without,
+    in / testOptions := (in / testOptions).value.filterNot(_ == without) :+
+      Tests.Argument(TestFrameworks.MUnit, s"--include-tags=$tag"))
+def leanTagged: Seq[Setting[?]] =
+  tagged(LeanTest, withoutLean, "Lean") ++ tagged(RocqTest, withoutRocq, "Rocq")
 addCommandAlias("leanTest", "Lean/test")
+addCommandAlias("rocqTest", "Rocq/test")
 addCommandAlias("testAll", "; test; Lean/test")
 // A new project: `sbt "frflowInit toy --as NAME"` (an empty FrModel and its line below; `--as` lists you as the first
 // decider); with an AI agent's layer on top, `sbt "frflowInitAgent toy --as NAME"`.
@@ -42,7 +49,7 @@ addCommandAlias("frflowInitAgent", "agent/runMain frflow.agent.Init")
 // here only (section 11).
 val strict = Seq("-Wunused:all", "-Wnonunit-statement", "-Wvalue-discard")
 def module(name: String, libraries: ModuleID*) = Project(name, file(s"modules/$name"))
-  .configs(LeanTest).settings(leanTagged)
+  .configs(LeanTest, RocqTest).settings(leanTagged)
   .settings(Keys.name := s"frflow-$name", libraryDependencies ++= munit +: inspector +: libraries,
     scalacOptions ++= strict)
 
@@ -54,7 +61,7 @@ lazy val root = project.in(file("."))
   .aggregate(core, dsl, proof, eval, testing, decision, wire, shell, api, cli, web, agent,
     roomsModel, rooms, authModel, auth, keycloakModel, keycloak, crmModel, crm, walletModel, wallet, shopModel, shop,
     paymentsModel, payments)
-  .configs(LeanTest).settings(leanTagged)
+  .configs(LeanTest, RocqTest).settings(leanTagged)
   .settings(publish / skip := true)
 
 /** Names, types, the term algebras and core interpreters, the IR, statements, validation, checking, consistency. */
@@ -160,7 +167,7 @@ def example(name: String, layers: Seq[ClasspathDep[ProjectReference]] = Seq(agen
   * examples/<name>/app: its main object alone), made as `example` makes one, over the model.
   */
 def exampleModel(name: String) = Project(s"${name}Model", file(s"examples/$name"))
-  .configs(LeanTest).settings(leanTagged)
+  .configs(LeanTest, RocqTest).settings(leanTagged)
   .settings(Keys.name := s"frflow-example-$name", scalacOptions ++= strict, publish / skip := true,
     libraryDependencies ++= Seq(munit, inspector, catsEffect, "org.xerial" % "sqlite-jdbc" % "3.46.1.3"))
   .dependsOn(eval)
@@ -172,7 +179,7 @@ def exampleApp(name: String, model: Project, layers: Seq[ClasspathDep[ProjectRef
 
 def commandLine(p: Project, layers: Seq[ClasspathDep[ProjectReference]], tests: Def.Initialize[File]) = p
   .dependsOn((Seq[ClasspathDep[ProjectReference]](cli, web) ++ layers)*)
-  .configs(LeanTest).settings(leanTagged)
+  .configs(LeanTest, RocqTest).settings(leanTagged)
   .settings(
     libraryDependencies ++= Seq(munit, inspector), publish / skip := true, run / fork := true, Test / fork := true,
     run / javaOptions ++= Seq("-Dstdout.encoding=UTF-8", "-Dstderr.encoding=UTF-8", "-Dfile.encoding=UTF-8"),

@@ -11,4 +11,5 @@ object Reserved:
   val names: Set[String] = Set("World", "faults", "races", "ticks", "onState", "Obl", "StateM", "Except", "ExceptT",
     "Id", "Monad", "MonadExceptOf", "pure", "get", "set", "modify", "throwThe", "tryCatchThe", "frflow_defs",
     "frflow_witness",
-    "frflow_auto", "frflow_intro", "frflow_match_eqns")
+    "frflow_auto", "frflow_intro", "frflow_match_eqns", "frflow_give", "frflow_case", "frflow_split",
+    "frflow_simpl", "frflow_close")
