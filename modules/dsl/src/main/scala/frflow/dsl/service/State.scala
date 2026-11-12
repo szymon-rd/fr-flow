@@ -1,5 +1,7 @@
 package frflow.dsl.service
 
+import frflow.core.name.TypeName
+import frflow.core.ty.Ty
 import frflow.dsl.term.LeanType
 import scala.compiletime.constValue
 
@@ -11,4 +13,7 @@ final class State[N <: String] private ()
 
 object State:
   /** The service's type in the model: named as its trait. */
-  inline given named[N <: String]: LeanType[State[N]] = ServiceType.named[State[N]](constValue[N])
+  inline given named[N <: String]: LeanType[State[N]] = typed[State[N]](constValue[N])
+
+  /** The type of a service's states by the service's name: a statement needs no more of it. */
+  def typed[A](name: String): LeanType[A] = LeanType.of[A](Ty.Data(TypeName(name)))

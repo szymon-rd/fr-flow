@@ -11,12 +11,12 @@ import frflow.dsl.term.LeanType
 
 /** The nodes as the model writes them, what gives each Definition its meaning, the plain Scala given operations on
   * a state (`implementTested(ops*)(…)`), the generators given for the tests, the file it is assembled in
-  * (`FrModel("Rooms")(…)`, made relative as a node's is), and the Definitions whose meaning is kept only where a
-  * statement mentions them (a service's members').
+  * (`FrModel("Rooms")(…)`, made relative as a node's is), and the Definitions that are members of a service
+  * given a class: their code is theirs whether or not a statement mentions them.
   */
 final case class FrModel(name: KbName, nodes: List[Node], meanings: List[(SymbolName, Deferred[Attachment])],
     operations: List[Operations], generators: List[Generator[?]], writtenIn: Option[RelPath],
-    whenMentioned: Set[SymbolName] = Set.empty):
+    members: Set[SymbolName] = Set.empty):
   /** Elaborated once per value (a `lazy val`: the FrModel is immutable), for every check and run of it. */
   lazy val elaborated: ValidatedNec[ElabError, Elaborated] = Elaborate(this)
 
@@ -24,11 +24,9 @@ final case class FrModel(name: KbName, nodes: List[Node], meanings: List[(Symbol
     copy(generators = generators :+ Generator(t.ty, g))
   private[dsl] def attach(d: SymbolName, a: Deferred[Attachment]): FrModel =
     copy(meanings = meanings.filterNot(_._1 == d) :+ (d -> a))
-  /** The same, the meaning kept only if some statement mentions `d`: a service's member no claim speaks of is
-    * given no code to check.
-    */
-  private[dsl] def attachWhenMentioned(d: SymbolName, a: Deferred[Attachment]): FrModel =
-    attach(d, a).copy(whenMentioned = whenMentioned + d)
+  /** The same of a service's member: its code is its meaning whether or not a statement mentions it. */
+  private[dsl] def attachMember(d: SymbolName, a: Deferred[Attachment]): FrModel =
+    attach(d, a).copy(members = members + d)
   private[dsl] def implement(o: Operations): FrModel = copy(operations = operations :+ o)
 
 object FrModel:

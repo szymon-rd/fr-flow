@@ -28,10 +28,10 @@ import scala.annotation.experimental
     assertEquals(frflow.core.analysis.Validate(elaborated).fold(_.toChain.toList.map(_.toString), _ => Nil), Nil)
   }
 
-  test("a member is given its code where a claim mentions it: among other calls too, and not one no claim names") {
+  test("each member is given its code, one no claim mentions too, and one that changes it among other calls") {
     val elaborated = TillModel.model.elaborated.fold(es => fail(es.toChain.toList.mkString("; ")), identity)
     assertEquals(elaborated.theory.code.attached.keySet.map(_.value),
-      Set("till_take", "till_taken", "till_total", "till_take_among"))
+      Set("till_take", "till_taken", "till_total", "till_count", "till_take_among"))
     val steps = Ty.ListOf(Ty.TupleOf(List(service, service)))
     assertEquals(till.among("take").leanType.ty, Ty.FnOf(
       List(service, Ty.MapOf(Ty.Num(frflow.core.ty.NumKind.Big), service), Ty.Data(frflow.core.name.TypeName("Sale"))),

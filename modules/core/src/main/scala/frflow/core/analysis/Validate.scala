@@ -194,6 +194,6 @@ object Validate:
     case Code.Modelled(_) => true
     case _                => false
 
-  /** A value with no Lean type, provided where the code runs (a connection): no statement can mention it. */
+  /** A value with no Lean type provided where the code runs (a connection), or a member of a service given a class. */
   private def providedToCode(t: Theory, s: SymbolName, c: Code): Boolean =
-    Constrained.isCodeOnly(t, s) && c == Code.Provided
+    t.code.unclaimed(s) || (Constrained.isCodeOnly(t, s) && c == Code.Provided)

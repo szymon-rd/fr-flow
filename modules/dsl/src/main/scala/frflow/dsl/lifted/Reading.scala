@@ -1,7 +1,6 @@
 package frflow.dsl.lifted
 
-import frflow.dsl.lifted.steps.ReadPorts
-import frflow.dsl.service.ServiceType
+import frflow.dsl.service.ReadPorts
 import frflow.dsl.term.Term as DTerm
 import frflow.dsl.vocab.Definition as Defined
 import scala.quoted.*
@@ -47,14 +46,14 @@ private[lifted] trait Reading extends ReadPorts:
     def of(part: TypeRepr): Expr[FrSpec[?]] = part.asType match
       case '[x] => spec[x](at)
     serviceOf(t).map(service => services.records.get(service.fullName).fold(
-      '{ ServiceType.named[A](${ Expr(service.name) }) })(record => '{ $record.asInstanceOf[FrSpec[A]] }))
+      '{ FrSpec.named[A](${ Expr(service.name) }) })(record => '{ $record.asInstanceOf[FrSpec[A]] }))
       .orElse(Expr.summon[FrSpec[A]]).getOrElse(t.dealias match
         case AppliedType(c, List(a, b)) if c.typeSymbol == PairClass =>
-          '{ ServiceType.pair[A](${ of(a) }, ${ of(b) }) }
+          '{ FrSpec.pair[A](${ of(a) }, ${ of(b) }) }
         case AppliedType(c, List(a)) if c.typeSymbol == ListClass    =>
-          '{ ServiceType.list[A](${ of(a) }) }
+          '{ FrSpec.list[A](${ of(a) }) }
         case AppliedType(c, List(k, v)) if c.typeSymbol == MapClass  =>
-          '{ ServiceType.map[A](${ of(k) }, ${ of(v) }) }
+          '{ FrSpec.map[A](${ of(k) }, ${ of(v) }) }
         case _                                                       =>
           refuse(s"a value of type ${Type.show[A]}, which has no FrSpec: derive one (`derives FrSpec`) or give " +
             "one in its companion; Scala's Int and Long have none (use BigInt)", at))

@@ -3,7 +3,7 @@ package frflow.dsl.service
 import frflow.core.name.SymbolName
 import frflow.core.ty.{NumKind, Ty}
 import frflow.dsl.build.WrittenAt
-import frflow.dsl.term.{LeanType, Term}
+import frflow.dsl.term.{LeanType, Lift, Term}
 import frflow.dsl.vocab.{Definition, Stating}
 import scala.annotation.publicInBinary
 
@@ -28,6 +28,12 @@ final class ServiceDefinition[T] @publicInBinary private[dsl] (name: SymbolName,
   type State = Term[Is]
   /** How other calls leave the service before each step of a call, by the step's number (`Call.among`). */
   type Schedule = Term[Map[BigInt, Is]]
+
+  /** The schedule in which no other call does anything (`limits.nobody.updated(BigInt(2), left)`: the others
+    * leave the service as `left` before the call's second step).
+    */
+  def nobody: Schedule = Lift.constant(Map.empty[BigInt, Is])(using
+    LeanType[Map[BigInt, T]].asInstanceOf[LeanType[Map[BigInt, Is]]]) // a state is typed by the service's name
 
   /** The Definition a member is: named after the service's and the member's. */
   def member(called: String): Definition[Any] =

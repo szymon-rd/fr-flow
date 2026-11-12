@@ -2,11 +2,11 @@ package frflow.dsl.service
 
 import frflow.dsl.kb.FrModel
 import frflow.dsl.kb.Implementing.*
-import frflow.dsl.lifted.LiftSyntax.lifted
+import frflow.dsl.lifted.steps.StepSyntax.lifted
 import frflow.dsl.node.Node
 import frflow.dsl.term.Term
 import frflow.dsl.term.TermSyntax.*
-import frflow.dsl.vocab.Definition
+import frflow.dsl.service.Defining as Definition
 import scala.annotation.experimental
 
 /** A service's Definition, and claims on it through its members. */

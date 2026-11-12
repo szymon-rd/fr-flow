@@ -1,5 +1,6 @@
 package frflow.dsl.lifted
 
+import frflow.core.name.TypeName
 import frflow.core.ty.Ty
 import frflow.dsl.build.{Declarations, Source}
 import frflow.dsl.term.{LeanType, Term}
@@ -56,6 +57,32 @@ object FrSpec:
   inline def derived[T](using Mirror.Of[T]): FrSpec[T] =
     LiftMacro.structural[T]
     of(LeanType.derived[T])
+
+  /** A type known by its name alone (a service's: its fields are those of the class given for it). */
+  def named[A](name: String): FrSpec[A] = of(LeanType.of[A](Ty.Data(TypeName(name))))
+
+  /** A pair's, a list's and a map's spec from their parts', said outright where a part has no given (a service's),
+    * typed by what the reading that asks knows them as.
+    */
+  def pair[R](a: FrSpec[?], b: FrSpec[?]): FrSpec[R] = both[Any, Any](a.asInstanceOf[FrSpec[Any]],
+    b.asInstanceOf[FrSpec[Any]]).asInstanceOf[FrSpec[R]]
+  def list[R](a: FrSpec[?]): FrSpec[R] = many[Any](a.asInstanceOf[FrSpec[Any]]).asInstanceOf[FrSpec[R]]
+  def map[R](k: FrSpec[?], v: FrSpec[?]): FrSpec[R] = keyed[Any, Any](k.asInstanceOf[FrSpec[Any]],
+    v.asInstanceOf[FrSpec[Any]]).asInstanceOf[FrSpec[R]]
+
+  private def both[A, B](a: FrSpec[A], b: FrSpec[B]): FrSpec[(A, B)] =
+    given FrSpec[A] = a
+    given FrSpec[B] = b
+    summon[FrSpec[(A, B)]]
+
+  private def many[A](a: FrSpec[A]): FrSpec[List[A]] =
+    given FrSpec[A] = a
+    summon[FrSpec[List[A]]]
+
+  private def keyed[K, V](k: FrSpec[K], v: FrSpec[V]): FrSpec[Map[K, V]] =
+    given FrSpec[K] = k
+    given FrSpec[V] = v
+    summon[FrSpec[Map[K, V]]]
 
   given FrSpec[Boolean] = of(LeanType[Boolean])
   given FrSpec[BigInt] = of(LeanType[BigInt])

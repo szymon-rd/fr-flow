@@ -1,7 +1,9 @@
 package frflow.dsl.lifted.steps
 
 import frflow.dsl.lifted.{FrSpec, Reader}
-import frflow.dsl.service.{ServiceDefinition, ServiceImplementation, ServiceMacros, Services}
+import frflow.dsl.service.{ServiceDefinition, ServiceMacros, Services}
+import frflow.dsl.term.Lift
+import frflow.dsl.term.Term as DTerm
 import frflow.dsl.vocab.Definition as Defined
 import scala.quoted.*
 
@@ -15,21 +17,47 @@ object ServiceLift:
   def read[T: Type](service: Expr[T])(using q: Quotes): Expr[ServiceImplementation[T]] =
     val plain = Reader(q)
     import plain.q.reflect.*
-    val made = plain.bare(service.asTerm) match
-      case Typed(e, _) => plain.bare(e)
-      case e           => e
-    val (cls, args) = made match
-      case Apply(Select(New(tpt), _), args) => (tpt.tpe.typeSymbol, args)
-      case other                            => plain.refuse("a service that is not made where it is lifted " +
-        "(`lifted(SpendLimits(…))`)", other)
-    val trt = plain.serviceOf(TypeRepr.of[T]).filter(_ => plain.isImplementation(cls.typeRef)).getOrElse(
-      plain.refuse(s"${cls.name}, which implements no service: a trait that is one of Scala's `caps.Mutable`", made))
+    val (cls, args) = made(plain)(service.asTerm)
+    val trt = implemented(plain)(cls, service.asTerm)
     val wiring = plain.stateFields(cls).zip(args).collect {
       case (f, arg) if plain.serviceOf(cls.typeRef.memberType(f)).nonEmpty => f.name -> definition(plain)(arg)
     }.toMap
     '{ val state: FrSpec[T] = ${ ServiceRecord(plain).of[T](cls, trt.name) }
        new ServiceImplementation[T](${ Expr(cls.name) }, state, ${ codes[T](q, cls, Services(Map(trt.fullName ->
          'state), wiring)) }) }
+
+  /** `limits.holding(SpendLimits(BigInt(100), Nil))`: an object of a class that implements a service, as a state
+    * of the service: the record of its constructor's fields, a service it is made with the record of the object
+    * given for it.
+    */
+  def held[T: Type, S: Type](service: Expr[T])(using q: Quotes): Expr[DTerm[S]] =
+    import q.reflect.*
+    '{ val state = ${ stateOf(q, service.asTerm) }.asInstanceOf[FrSpec[Any]]
+       Lift.constant[Any](ServiceType.held(state, $service))(using state)
+         .asInstanceOf[DTerm[S]] } // a state is typed by the service's name
+
+  private def stateOf(q: Quotes, at: Any)(using Quotes): Expr[FrSpec[?]] =
+    val plain = Reader(q)
+    import plain.q.reflect.*
+    val (cls, args) = made(plain)(at.asInstanceOf[Term])
+    val trt = implemented(plain)(cls, at.asInstanceOf[Term])
+    val held = plain.stateFields(cls).zip(args).flatMap((f, arg) =>
+      plain.serviceOf(cls.typeRef.memberType(f)).map(s => s.fullName -> stateOf(q, arg))).toMap
+    trt.typeRef.asType match
+      case '[t] => ServiceRecord(Reader(q, Services(held, Map.empty))).of[t](cls, trt.name)
+
+  /** The class an object is made of where it is given, and what its constructor is given. */
+  private def made(r: Reader)(service: r.q.reflect.Term): (r.q.reflect.Symbol, List[r.q.reflect.Term]) =
+    import r.q.reflect.*
+    r.bare(service) match
+      case Apply(Select(New(tpt), _), args) => (tpt.tpe.typeSymbol, args)
+      case other                            => r.refuse("a service that is not made where it is given " +
+        "(`lifted(SpendLimits(…))`)", other)
+
+  /** The service a class implements. */
+  private def implemented(r: Reader)(cls: r.q.reflect.Symbol, at: r.q.reflect.Term): r.q.reflect.Symbol =
+    r.serviceOf(cls.typeRef).filter(_ => r.isImplementation(cls.typeRef)).getOrElse(r.refuse(
+      s"${cls.name}, which implements no service: a trait that is one of Scala's `caps.Mutable`", at))
 
   /** The Definition a service is given as, where the class is made. */
   private def definition(r: Reader)(arg: r.q.reflect.Term)(using Quotes): Expr[Any] =

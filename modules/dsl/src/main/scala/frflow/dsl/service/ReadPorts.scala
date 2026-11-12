@@ -1,13 +1,13 @@
-package frflow.dsl.lifted.steps
+package frflow.dsl.service
 
-import frflow.dsl.lifted.FrSpec
-import frflow.dsl.service.{Services, ServiceType}
+import frflow.dsl.term.LeanType
 import scala.quoted.*
 
-/** What the reader knows of ports (`Reading`): which types are services, classes that implement one, stores, and
-  * classes holding ports; and the state each stands for where the Scala that changes it is read (`StepReader`).
+/** What the reader of lifted code knows of ports (`lifted.Reading`): which types are services, classes that
+  * implement one, stores, and classes holding ports; and the state each stands for where the Scala that changes
+  * it is read (`lifted.steps.StepReader`).
   */
-private[lifted] trait ReadPorts:
+trait ReadPorts:
   val q: Quotes
   /** What the reading knows of services: the record of the class being read, the Definitions it is given. */
   def services: Services
@@ -91,7 +91,8 @@ private[lifted] trait ReadPorts:
       "a class that implements a service, read where FrFlow is not reading that class (`lifted(…)`)", at))
     val i = stateFields(implementation.typeSymbol).indexWhere(_.name == name)
     (service.typeRef.asType, stateOfType(stateFieldType(implementation, name), at).asType) match
-      case ('[s], '[f]) => '{ ServiceType.fieldOf[s, f](${ record.asExprOf[FrSpec[s]] }, ${ Expr(i) }) }
+      case ('[s], '[f]) => '{ ${ record.asExprOf[LeanType[s]] }.fields(${ Expr(i) })
+        .asInstanceOf[LeanType.Field[s, f]] }
       case _            => refuse(s"the field $name", at)
 
   private def namedState(port: TypeRepr, parts: List[TypeRepr], at: Tree): TypeRepr =

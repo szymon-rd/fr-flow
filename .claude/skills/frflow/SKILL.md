@@ -281,7 +281,20 @@ rewrite that part, or keep the function as tested plain Scala. Every type in it 
 the model only when a node states it (`Node.assumption("…")(contractOf[T])`, the developer's to decide). Statements
 stay in the DSL.
 
-A service method that changes a store can be proven as written too (`examples/payments`, `examples/wallet`,
+A service can be proven as written. Write it as a value (`examples/payments`, `docs/LIFTED.md` "A service as a
+Definition"): a trait of its members that extends `caps.Mutable`, what changes it marked `update`, in a file with
+capture and separation checking; in the trait's companion `val limits = Definition[Limits]("…")` and the claims,
+through the members (`limits.authorise(p).result`, `.after`, `limits.decided(id).in(state)`, `limits.current`); a
+class that implements the trait; and in the model `.implementProven(limits)(lifted(SpendLimits(…)))`. A class made
+of services is given their Definitions (`lifted(StreamProcessor(limits, accounts, checkpoint))`) and is proven from
+the claims on them, so wire those claims under its own with `.refines`. A claim holds of the service in every
+state: state an invariant as what each call keeps. For a crash and for other callers, claim over the call's steps
+(`call.steps`, `call.amongOthers(run => run.steps.forall(step => …))`, `run.others` for what it takes of them),
+and claim that each of its own steps grants what it takes. Name a state's type `limits.State`, never
+`Term[Limits]`. In an example give a state with `limits.holding(SpendLimits(…))`. Give one class per trait in a
+model.
+
+The earlier way, a Definition per method, is still read (`examples/wallet`, `examples/shop`,
 `docs/LIFTED.md` "Services"): the store is a `caps.Mutable` class with one `var`, the service a class holding it
 (`Ledger^`), in files with capture and separation checking. A service holding several stores or services names
 its state in its companion (`type State = …`, a case class with a field per port, in order); give every port's

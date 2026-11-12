@@ -30,7 +30,9 @@ and in them.
    states. A second departure on that branch: a method that changes a store is read as a function of the store's
    state (`updating`), and among other calls as a function of a schedule too (`interleaving`); both are lifted
    code, and what the reading takes for granted (a store's method is one step, other calls keep a rely) is said by
-   design nodes.
+   design nodes. A service whole is a Definition too: of a trait's type, its members called in claims, the class
+   that implements the trait the value `implementProven` gives it; a claim on it is said of the service in every
+   state.
 
 ## 0a. The core concepts
 

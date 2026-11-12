@@ -104,8 +104,9 @@ among other calls: before each step after the first, a schedule may replace the 
 admits, and the reading gives every step taken; contracts proven for every schedule rule out the check-then-act
 race the example's second service has.
 
-[The payment stream](../examples/payments/README.md) and [the shop](../examples/shop/README.md) take the step this
-spike named next: a service holding several ports. Its state is a case class its companion names (`type State`),
+[The shop](../examples/shop/README.md) takes the step this spike named next: a service holding several ports.
+([The payment stream](../examples/payments/README.md) is written the way that followed: each service a
+`Definition` of a trait, given the class that implements it; [LIFTED.md](LIFTED.md) "A service as a Definition".) Its state is a case class its companion names (`type State`),
 one field per port, and a call on a port leaves the state with that field replaced; that two ports are two
 stores, never one reached twice, is what separation checking says of the class. Read alone, a call of another
 service is a call of its Definition, so a processor over three services is proven from their contracts. Still

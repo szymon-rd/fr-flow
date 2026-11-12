@@ -1,6 +1,8 @@
 package frflow.dsl.lifted.steps
 
 import frflow.dsl.lifted.Lifted
+import frflow.dsl.service.ServiceDefinition
+import frflow.dsl.term.Term
 import frflow.dsl.vocab.Definition
 
 /** A service method that changes a port, in direct style, read two ways (`StepReader`), each a function of the
@@ -29,3 +31,15 @@ object StepSyntax:
       inline others: Lifted.Of3[A, s.S, s.S, Boolean])
       : Definition[(s.S, Map[BigInt, s.S], A) => (R, List[(s.S, s.S)])] =
     ${ StepReader.interleaving[P, s.S, A, R]('f, 'others) }
+
+  /** `lifted(SpendLimits(BigInt(100), Nil))`: a class that implements a service, read member by member: what a
+    * service's Definition is given (`implementProven(limits)(lifted(…))`), each member checked against every
+    * claim on it (`ServiceLift`).
+    */
+  inline def lifted[T](inline service: T): ServiceImplementation[T] = ${ ServiceLift.read[T]('service) }
+
+  extension [T](service: ServiceDefinition[T])
+    /** The service as an object of a class that implements it has it, for an example
+      * (`limits.holding(SpendLimits(BigInt(100), Nil))`): the object made where it is given.
+      */
+    inline def holding(inline made: T): Term[service.Is] = ${ ServiceLift.held[T, service.Is]('made) }

@@ -1,11 +1,17 @@
 # Payments: a stream processor whose services are Definitions
 
 A consumer reads card payments from a log and, for each, checks the card's daily limit, posts the money, and
-commits its position. The log delivers at least once, so a payment may be handled twice; and what goes wrong in
-such a consumer is known: a redelivery charges twice, a card goes over its limit, money is made or lost.
+commits its position. Every team that has written one knows the ways it goes wrong:
 
-This example writes the consumer as ordinary Scala services and has Lean prove what must hold of them. It is the
-example of the service shape:
+- **A crash loses a payment.** The position was committed before the payment was posted.
+- **A redelivery charges twice.** The log delivers at least once, and the posting was not guarded.
+- **Two instances take a card over its limit.** After a rebalance both run; each checks the limit, each approves.
+
+None of them shows in a test that runs one call to its end. This example writes the consumer as ordinary Scala
+services and has Lean prove what must hold of them. The log itself is not implemented: that it delivers at least
+once, in order, is a decision the model names.
+
+It is the example of the service shape:
 
 - **A trait** says what members a service has. It extends nothing of FrFlow's.
 - **A `Definition` of the trait's type** is the service in the model.
@@ -78,6 +84,7 @@ from the claims on `limits`, `accounts` and `checkpoint`, not from `SpendLimits`
 | `Domain.scala` | `Payment` (contract: the amount is positive), `Decision`, `Posting` |
 | `Limits.scala`, `Accounts.scala`, `Checkpoint.scala` | A service each: the trait, its Definition and claims in the companion, the class |
 | `Processor.scala` | The processor: the same, over the three services |
+| `Eager.scala`, `Hasty.scala` | Two first versions of the processor, each with one of the bugs |
 | `Payments.scala` | The model: which claim rests on which, the class given for each Definition, what is trusted |
 
 ## Every step of a call: a crash, a second instance
@@ -92,14 +99,18 @@ val noStepMakesMoney = Node.claim("No step of handling a payment makes money or 
       processor.total.in(step._2) === processor.total.in(step._1)))))
 ```
 
-- `call.steps` is each step the call takes: the service as the step found it, and as it left it. A class that
-  holds no service makes its change in one step; a class made of services takes one for each call it makes of them.
+- `call.steps` is each step that changes the service: the service as the step found it, and as it left it. A class
+  that holds no service makes its change in one step; a class made of services takes one for each call it makes
+  of them.
 - `call.amongOthers(run => …)` says what holds of the call whatever other calls do between its steps: before each
   step but the first they may have left the service in any state at all. `run.others` is what they did, so a claim
   can say what it takes of them (`neverCommitsAhead`: they leave a payment decided as it was, and posted if it
   was). `call.among(between)` is the same under one schedule.
 - What a call takes of the others, each of its own steps grants (`everyStepLeavesOthersUndisturbed`): so it holds
   among calls of the same service.
+
+Redelivery is the member called again (`redeliveryChangesNothing`); recovery after a crash is redelivery from the
+state the crash left, and `handledIsApplied` holds from any state.
 
 ## What is proven
 
@@ -120,14 +131,43 @@ val noStepMakesMoney = Node.claim("No step of handling a payment makes money or 
 | `Processor.neverCommitsAhead` | No step moves the position but one that leaves the payment applied: a crash after any step loses no payment | by hand |
 | `Limits.authorisedIsRecorded`, `authoriseIsRepeatable` | The answer is what is recorded; a second call changes nothing | by hand |
 | `Limits` (3 more), `Accounts` (6), `Checkpoint` (2) | What each call does and keeps | automatic |
+| `Eager.eagerAppliesThePayment`, `Hasty.hastyPostsWhatItApproves` | What each first version does right | automatic |
 
-27 claims: 24 by FrFlow's own tactic, 3 by hand (`lean/Proofs/Payments/`: three proofs over two lemmas, and the
-witnesses in `Whole.lean`, about 170 lines of Lean). Lean checks both kinds; no proof uses `sorry` or an axiom
-beyond Lean's standard three.
+29 claims: 26 by FrFlow's own tactic, 3 by hand. The hand proofs, two lemmas, the witnesses and the examples'
+proofs are about 260 lines of Lean under `lean/Proofs/Payments/`. Lean checks both kinds; no proof uses `sorry` or
+an axiom beyond Lean's standard three.
 
 One statement is trusted and marked as a design decision in the model, for the developer to accept or reject:
 `deliveryIsAtLeastOnce`, that the log delivers every payment, in order from the committed position, and again
 after a restart.
+
+## The two first versions
+
+Each is the processor with its lines in another order, is given for a Definition of its own, does one thing
+provably right, and passes any test of one call run to its end. An example shows what it gets wrong.
+
+| Version | The difference | Proven of it | What an example shows |
+| --- | --- | --- | --- |
+| `EagerProcessor` | Commits first | Run to its end it leaves the payment applied | Stopped after its first step, the position is past a payment never applied |
+| `HastyProcessor` | Reads what the card spent and the limit, decides itself, then has the payment recorded | A payment it approves is posted | Another payment approved between its check and its record: it approves and posts a payment the limits service declined |
+
+There is no version that charges twice on redelivery: the processor cannot. Posting once is the accounts
+service's (`postIsRepeatable`), and a class given for `accounts` that did not keep it would fail that proof.
+
+The examples are in `PaymentsExamples`. A state is given as an object of the class that implements the service:
+
+```scala
+private val start = processor.holding(
+  StreamProcessor(SpendLimits(BigInt(100), Nil), LedgerAccounts(Nil, Nil), OffsetCheckpoint(BigInt(0))))
+
+example("a payment within the limit: approved, posted, the position past it"):
+  val done = processor.handle(coffee).in(start)
+  done.result && (processor.postingsOf("p1").in(done.after) is charged) &&
+    (processor.position.in(done.after) is BigInt(1))
+```
+
+The Scala evaluator computes each of the eight on the code read from the classes, and Lean proves each from the
+definitions printed from them.
 
 ## Running it
 
@@ -143,19 +183,25 @@ sbt "project/Lean/testOnly frflow.project.services.PaymentsLeanSuite"
 bin/frflow payments check
 ```
 
-The first checks the model is valid. The second and third run Lean: every claim proven. The nodes are proposed,
-not accepted: deciding them is the developer's, with their signing key.
+The first checks the model is valid, that the examples hold of the code, and that the classes run as the Scala
+they are. The second and third run Lean: every claim proven, every example held. The nodes are proposed, not
+accepted: deciding them is the developer's, with their signing key.
 
 ## What this does not cover
 
 - **State invariants as such.** A claim is said of the service in every state, so "no card is over its limit" is
-  stated as what each call keeps (`handlingKeepsWithinLimit`), not as a fact of every state.
+  stated as what each call, and each step, keeps, not as a fact of every state.
 - **The whole log as one theorem.** What is proven is the step: each call leaves its payment applied and moves the
   position only past it. "Every payment below the position is applied" follows by induction over the log, which
   rests on `deliveryIsAtLeastOnce` and is not carried out in Lean.
-- **A member no claim mentions** is given no code to check: nothing is proven of it.
 - **A step is a call of a held service.** That each such call is one transaction is the held service's to keep:
   a class over a database does it with a transaction, and the model does not check that it does.
+- **One class for a trait.** A model gives one class for each service's trait, so a second implementation of
+  `Accounts` cannot stand beside the first in this model; the first versions are traits of their own.
+- **A class FrFlow cannot read.** `implementTested` for a service, a class tested against the claims, is not
+  built; nor is the classes' Scala tested against the terms read from them on generated cases.
+- **A member no claim mentions** has its code, and nothing is proven of it.
+- **The breaking schedules are written by hand.** Lean proves or does not; nothing searches for the schedule.
 - **One kind of event, one payment per call, a daily limit.** No refunds, no batches (the reader has no loops), no
   sliding window.
 - **Liveness.** Nothing says a call finishes.

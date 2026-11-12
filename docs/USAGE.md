@@ -195,8 +195,12 @@ one meaning. A service method that changes a store (a `caps.Mutable` class, unde
 is read by `updating { (service: S^, input: A) => service.method(input) }`, a function of the store's state, and by
 `interleaving { … }(others)`, the same among other calls that keep the rely `others`. A service may hold several
 stores or services; its companion then names its state (`type State = …`), and its calls of other services are
-read as calls of their Definitions ([the payment stream](../examples/payments/README.md),
-[the wallet](../examples/wallet/README.md)).
+read as calls of their Definitions ([the wallet](../examples/wallet/README.md),
+[the shop](../examples/shop/README.md)). A service is also written as one value: a trait of its members (a
+`caps.Mutable`), `Definition[Trait]("…")` typed by them (`limits.authorise(p).result`, `.after`, `.in(state)`,
+`.steps`, `.amongOthers(run => …)`), claims on that Definition, and `implementProven(limits)(lifted(Class(…)))`
+giving the class that implements it, which Lean proves meets them
+([the payment stream](../examples/payments/README.md), [LIFTED.md](LIFTED.md) "A service as a Definition").
 
 **An operation on a state** is a Definition of type `A => Flow[R]`, given its meaning in Lean by a `StateModel`, which
 says what it does to the model's state, a field of the World:

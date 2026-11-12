@@ -3,6 +3,8 @@ package payments
 import frflow.*
 import Accounts.accounts
 import Checkpoint.checkpoint
+import Eager.eager
+import Hasty.hasty
 import Limits.limits
 import Processor.processor
 
@@ -30,13 +32,18 @@ val payments: FrModel = FrModel("Payments")(
   Processor.noStepPostsTwice,
   Processor.everyStepLeavesOthersUndisturbed,
   Processor.neverCommitsAhead,
+  // What is proven of the two first versions: each does one thing right.
+  Eager.eagerAppliesThePayment,
+  Hasty.hastyPostsWhatItApproves,
   // What they rest on: the claims on the services the processor is made with.
-  Limits.authorisedIsRecorded.refines(Processor.handledIsApplied, Processor.neverCommitsAhead),
+  Limits.authorisedIsRecorded.refines(Processor.handledIsApplied, Processor.neverCommitsAhead,
+    Eager.eagerAppliesThePayment),
   Limits.authoriseIsRepeatable.refines(Processor.redeliveryChangesNothing),
   Limits.fittingIsAuthorised.refines(Processor.fittingIsApproved),
   Limits.authoriseKeepsWithinLimit.refines(Processor.handlingKeepsWithinLimit, Processor.everyStepKeepsWithinLimit),
   Limits.authoriseKeepsDecisions.refines(Processor.appliedStaysApplied, Processor.everyStepLeavesOthersUndisturbed),
-  Accounts.postedIsMarked.refines(Processor.handledIsApplied, Processor.neverCommitsAhead),
+  Accounts.postedIsMarked.refines(Processor.handledIsApplied, Processor.neverCommitsAhead,
+    Eager.eagerAppliesThePayment, Hasty.hastyPostsWhatItApproves),
   Accounts.postIsRepeatable.refines(Processor.redeliveryChangesNothing),
   Accounts.postKeepsTotal.refines(Processor.moneyIsConserved, Processor.noStepMakesMoney),
   Accounts.postKeepsPosted.refines(Processor.appliedStaysApplied, Processor.everyStepLeavesOthersUndisturbed),
@@ -51,3 +58,5 @@ val payments: FrModel = FrModel("Payments")(
   .implementProven(accounts)(lifted(LedgerAccounts(Nil, Nil)))
   .implementProven(checkpoint)(lifted(OffsetCheckpoint(BigInt(0))))
   .implementProven(processor)(lifted(StreamProcessor(limits, accounts, checkpoint)))
+  .implementProven(eager)(lifted(EagerProcessor(limits, accounts, checkpoint)))
+  .implementProven(hasty)(lifted(HastyProcessor(limits, accounts, checkpoint)))

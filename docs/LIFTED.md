@@ -236,11 +236,12 @@ each.
 ## Services: code that changes a store
 
 A service method that changes state is read the way Aeneas reads `&mut`: the state passed in and returned, with no
-state monad. [SEPARATION-SPIKE.md](SEPARATION-SPIKE.md) records the spike. Three examples use it:
-[the wallet](../examples/wallet/README.md) (one service over one store),
+state monad. [SEPARATION-SPIKE.md](SEPARATION-SPIKE.md) records the spike. It is written two ways. A service as a
+Definition of a trait, given a class ("A service as a Definition" below), is the one to write:
 [the payment stream](../examples/payments/README.md) (a processor over three services, proven through redelivery,
-a crash at any step and a second instance) and [the shop](../examples/shop/README.md) (a checkout over two
-services and a store).
+a crash at any step and a second instance). The first way, a Definition and a reading per method, is what
+[the wallet](../examples/wallet/README.md) (one service over one store) and
+[the shop](../examples/shop/README.md) (a checkout over two services and a store) use, and is described first.
 
 ```scala
 final class Ledger(var books: Books) extends caps.Mutable:        // a store: its state is its one `var`
@@ -289,6 +290,61 @@ Three things about the proof side show in these examples:
   model's proofs share one lemma that walks its steps (`every_step` in the examples' `Lemmas.lean`): each
   contract over every step is then a few lines saying what each store's method keeps.
 
+### A service as a Definition
+
+A service is a value: a trait says what members it has, a `Definition` of the trait's type is the service in the
+model, the claims are on that Definition through its members, and a class that implements the trait is the value
+given for it.
+
+```scala
+trait Limits extends caps.Mutable:                                 // the service: nothing of FrFlow's
+  update def authorise(p: Payment): Boolean
+  def decided(id: String): Boolean
+
+object Limits:
+  val limits = Definition[Limits]("the limits service: …")         // the service in the model
+  val authorisedIsRecorded = Node.claim("A payment authorised is decided.")(
+    forall((p: Term[Payment]) => limits.decided(p.id).in(limits.authorise(p).after)))
+
+final class SpendLimits(val limit: BigInt, var decisions: List[Decision]) extends Limits: …   // a value for it
+
+FrModel("Payments")(…).implementProven(limits)(lifted(SpendLimits(BigInt(100), Nil)))
+```
+
+- `Definition[T]` of a trait that is a `caps.Mutable` is typed by the trait's members: each is called in a
+  statement as the trait declares it and gives a `Call`. A `Call` is the member's result (`result`); `after` is
+  the service once it is made; `in(state)` makes it on a given state of the service; called plainly it is made on
+  the service as it stands (`limits.current`). Each member is a Definition of its own (`limits_authorise`): a
+  function of the service that gives the result, and of an `update` member the service after it.
+- A claim is said of the service in every state: "the service as it stands" is a variable the claim is closed
+  over. So a claim is one that code holding the service can rely on, whatever state it holds it in; and a fact of
+  every state ("no card is over its limit") is stated as what each call keeps.
+- `lifted(SpendLimits(…))` reads the class member by member. Its state is a record named as the trait, a field for
+  each of the constructor's; each member's body is read into a function of that record. `implementProven` gives
+  each member's Definition its code, and Lean proves the code meets every claim that mentions the member.
+- A class made with other services is given their Definitions:
+  `lifted(StreamProcessor(limits, accounts, checkpoint))`. A call of a member of a service it holds is a call of
+  that Definition's member, so in Lean the class's code is a function of any members that meet the claims on them,
+  and it is proven from those claims. One class is given for a trait in a model: the trait's record is that
+  class's fields.
+- A member that changes the service takes steps: a class that holds no service makes its change in one, a class
+  made of services takes one for each call it makes of them (a query too). `call.steps` is each step that changes
+  the service, as the step found it and as it left it; a crash leaves the service as one of them did.
+  `call.among(between)` is the call made among other calls, which leave the service as `between` says before a
+  step, by the step's number (any state at all: no rely is built in); `call.amongOthers(run => …)` says what holds
+  under every such schedule; `run.others` is what the others did before each step, for a claim to say what it
+  takes of them. What it takes, a claim over the service's own steps shows it grants.
+- An example gives a state as an object of the class, made where it is given:
+  `limits.holding(SpendLimits(BigInt(100), Nil))`, and a schedule as `limits.nobody.updated(BigInt(2), left)`.
+  The evaluator holds a state as its fields' values, so two states are equal when their fields are.
+- A member no claim mentions has its code (an example may call it), and nothing is proven of it.
+- A service's states are typed by the service's name (`limits.State`, `limits.Schedule`), not by its trait:
+  Scala's capture checking reads a `caps.Mutable` trait named in a type as a capability.
+
+Not built in this shape: `implementTested` for a service (a class FrFlow cannot read, tested against the claims);
+the class's Scala run against the term read from it on generated cases (`Agreement`); two classes for one trait in
+one model; a member of more than three inputs (two, for its steps).
+
 ## Compared with Aeneas, and with Stainless
 
 Aeneas reads Rust's MIR after borrow checking and turns loans into values passed and returned, so the pure
@@ -319,9 +375,9 @@ In the order they would be taken:
    library's) as an open function of the term language, known to Lean only by the type's contract, its Scala tested
    against the contract. This is `implementTested`'s meaning, given per member by the type's `FrSpec`.
 5. **More of code that changes state.** Service methods over stores, and over other services, are read
-   ("Services" above). Not yet: a store with an adapter, a loop, a failing call, a search for the schedule that
-   breaks a contract, and a contract over two calls at once (a call among others is read against a rely, one
-   call at a time).
+   ("Services" above). Not yet: a class FrFlow cannot read given for a service and tested against its claims, a
+   loop, a failing call, a search for the schedule that breaks a contract, and a contract over two calls at once
+   (a call among others is read one call at a time).
 6. **More of Scala.** `Int` and `Long` with their bounds proven, strings' operations, tuples taken apart in a
    pattern, generic functions, the rest of the collections.
 7. **Validation by proof.** For this fragment the reader could emit, per function, the claim that the term's value
@@ -337,5 +393,6 @@ In the order they would be taken:
 | `Lifted`, the Definition with its Scala | `Lifted.scala` there |
 | `Agreement`, `Vectors` | `modules/testing/src/main/scala/frflow/testing/` |
 | The suites | `modules/dsl/src/test/scala/frflow/dsl/lifted/`, `AgreementSuite`, `CalendarSuite`, `CalendarLeanSuite` |
-| `updating`, `interleaving` | `modules/dsl/src/main/scala/frflow/dsl/lifted/steps/` |
+| `updating`, `interleaving`, `lifted(Class(…))`, `holding` | `modules/dsl/src/main/scala/frflow/dsl/lifted/steps/` |
+| A service's Definition, `Call`, `State` | `modules/dsl/src/main/scala/frflow/dsl/service/`; `ServiceSuite` beside the reader's suites |
 | Services proven among other calls | `examples/wallet/`, `examples/payments/`, `examples/shop/`; `WalletSuite`, `PaymentsSuite`, `ShopSuite`; the Lean suites in `frflow.project.services` |

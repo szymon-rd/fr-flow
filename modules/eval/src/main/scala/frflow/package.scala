@@ -10,9 +10,9 @@ package frflow
   * hides it, and the use does not compile (`val after = …` hides `book(request).after`). The names it takes,
   * besides its types (`Gen` and `Wall` among them: a model's own of either name hides it): the extensions `refines`,
   * `assuming`, `replaces`, `result`, `after`, `failing`, `ifSucceeds`, `ifFails`, and `always`, `forall`, `exists`,
-  * `define`, `stated`, `program`, `lifted`, `updating`, `interleaving`, `contractOf`, `when`, `make`, `let`. An
-  * `Int` literal is a `Term[BigInt]` where one is expected (`given int`), and an operation applied a step where a
-  * program expects one (`Flow`'s `given asStep`).
+  * `define`, `stated`, `program`, `lifted`, `updating`, `interleaving`, `holding`, `contractOf`, `when`, `make`,
+  * `let`. An `Int` literal is a `Term[BigInt]` where one is expected (`given int`), and an operation applied a
+  * step where a program expects one (`Flow`'s `given asStep`).
   */
 export frflow.dsl.node.Node
 export frflow.dsl.node.NodeSyntax.*
@@ -22,7 +22,16 @@ export frflow.dsl.kb.Implementing.*
 export frflow.dsl.example.FrFlowExamples
 export frflow.dsl.example.ExampleSyntax.*
 export frflow.dsl.term.{Data, LeanType, Term}
-export frflow.dsl.vocab.{Declaration, Definition, Opaque, Stating}
+export frflow.dsl.vocab.{Declaration, Opaque, Stating}
+
+/** A word of the model given a meaning (`dsl.vocab.Definition`). */
+type Definition[A] = frflow.dsl.vocab.Definition[A]
+
+object Definition:
+  /** `val granted = Definition[(RoomBookings, Booking) => Boolean]("…")`; of a service (a trait that is one of
+    * Scala's `caps.Mutable`), `val limits = Definition[Limits]("…")`, typed by the trait's members.
+    */
+  transparent inline def apply[A](inline means: String): Definition[A] = frflow.dsl.service.Defining[A](means)
 export frflow.dsl.vocab.DefinitionSyntax.*
 export frflow.dsl.kb.Gens
 export frflow.core.example.Gen

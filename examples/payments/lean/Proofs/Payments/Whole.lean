@@ -4,7 +4,10 @@ import FrFlowGen.Payments.Whole.Spec
 services alone: a limits service with a limit of 100 and nothing decided has every card within its limit, and
 accounts in which the payment `p1` is marked have it posted. Of the processor: one in which `p1`, of 30 on a card
 with a limit of 100, is decided, approved and marked as posted, handling `p1` again while no other call does
-anything; its first step starts from that processor and leaves it as it was. -/
+anything; its first step starts from that processor and leaves it as it was.
+
+And the stream's examples FrFlow's automation does not decide within an example's budget, each the run of the code
+read from the classes on the states the example gives. -/
 
 set_option autoImplicit false
 set_option linter.unusedSimpArgs false
@@ -88,5 +91,71 @@ theorem satisfiable_3_neverCommitsAhead : Obl.satisfiable_3_neverCommitsAhead :=
       spendLimits_spent, spendLimits_limit, ledgerAccounts_post, ledgerAccounts_posted, ledgerAccounts_postingsOf,
       offsetCheckpoint_commit, streamProcessor_spent, streamProcessor_limit, streamProcessor_postingsOf,
       streamProcessor_posted, streamProcessor_decided, streamProcessor_approved, streamProcessor_applied]⟩
+
+theorem example_PaymentsExamples_0 : Obl.example_PaymentsExamples_0 := by
+  unfold Obl.example_PaymentsExamples_0
+  intros
+  simp [ledgerAccounts_post, ledgerAccounts_posted, ledgerAccounts_postingsOf,
+    ledgerAccounts_total, offsetCheckpoint_commit, offsetCheckpoint_position,
+    spendLimits_approved, spendLimits_authorise, spendLimits_decided,
+    spendLimits_limit, spendLimits_spent, streamProcessor_applied, streamProcessor_approved,
+    streamProcessor_decided, streamProcessor_fits, streamProcessor_handle, streamProcessor_handle_among,
+    streamProcessor_limit, streamProcessor_position, streamProcessor_posted, streamProcessor_postingsOf,
+    streamProcessor_spent, streamProcessor_total]
+
+theorem example_PaymentsExamples_1 : Obl.example_PaymentsExamples_1 := by
+  unfold Obl.example_PaymentsExamples_1
+  intros
+  simp [ledgerAccounts_post, ledgerAccounts_posted, ledgerAccounts_postingsOf,
+    ledgerAccounts_total, offsetCheckpoint_commit, offsetCheckpoint_position,
+    spendLimits_approved, spendLimits_authorise, spendLimits_decided,
+    spendLimits_limit, spendLimits_spent, streamProcessor_applied, streamProcessor_approved,
+    streamProcessor_decided, streamProcessor_fits, streamProcessor_handle, streamProcessor_handle_among,
+    streamProcessor_limit, streamProcessor_position, streamProcessor_posted, streamProcessor_postingsOf,
+    streamProcessor_spent, streamProcessor_total]
+
+theorem example_PaymentsExamples_2 : Obl.example_PaymentsExamples_2 := by
+  unfold Obl.example_PaymentsExamples_2
+  intros
+  simp [ledgerAccounts_post, ledgerAccounts_posted, ledgerAccounts_postingsOf,
+    ledgerAccounts_total, offsetCheckpoint_commit, offsetCheckpoint_position,
+    spendLimits_approved, spendLimits_authorise, spendLimits_decided,
+    spendLimits_limit, spendLimits_spent, streamProcessor_applied, streamProcessor_approved,
+    streamProcessor_decided, streamProcessor_fits, streamProcessor_handle, streamProcessor_handle_among,
+    streamProcessor_limit, streamProcessor_position, streamProcessor_posted, streamProcessor_postingsOf,
+    streamProcessor_spent, streamProcessor_total]
+
+theorem example_PaymentsExamples_3 : Obl.example_PaymentsExamples_3 := by
+  unfold Obl.example_PaymentsExamples_3
+  intros
+  simp [ledgerAccounts_post, ledgerAccounts_posted, ledgerAccounts_postingsOf,
+    ledgerAccounts_total, offsetCheckpoint_commit, offsetCheckpoint_position,
+    spendLimits_approved, spendLimits_authorise, spendLimits_decided,
+    spendLimits_limit, spendLimits_spent, streamProcessor_applied, streamProcessor_approved,
+    streamProcessor_decided, streamProcessor_fits, streamProcessor_handle, streamProcessor_handle_among,
+    streamProcessor_limit, streamProcessor_position, streamProcessor_posted, streamProcessor_postingsOf,
+    streamProcessor_spent, streamProcessor_total]
+
+theorem example_PaymentsExamples_4 : Obl.example_PaymentsExamples_4 := by
+  unfold Obl.example_PaymentsExamples_4
+  intros
+  rename_i step taken
+  revert step taken
+  simp [ledgerAccounts_post, ledgerAccounts_posted, ledgerAccounts_postingsOf,
+    ledgerAccounts_total, offsetCheckpoint_commit, offsetCheckpoint_position,
+    spendLimits_approved, spendLimits_authorise, spendLimits_decided,
+    spendLimits_limit, spendLimits_spent, streamProcessor_applied, streamProcessor_approved,
+    streamProcessor_decided, streamProcessor_fits, streamProcessor_handle, streamProcessor_handle_among,
+    streamProcessor_limit, streamProcessor_position, streamProcessor_posted, streamProcessor_postingsOf,
+    streamProcessor_spent, streamProcessor_total]
+
+theorem example_PaymentsExamples_6 : Obl.example_PaymentsExamples_6 := by
+  unfold Obl.example_PaymentsExamples_6
+  intros
+  simp [hastyProcessor_approved, hastyProcessor_handle, hastyProcessor_handle_among, hastyProcessor_posted,
+    ledgerAccounts_post, ledgerAccounts_posted, ledgerAccounts_postingsOf,
+    ledgerAccounts_total, offsetCheckpoint_commit, offsetCheckpoint_position,
+    spendLimits_approved, spendLimits_authorise, spendLimits_decided,
+    spendLimits_limit, spendLimits_spent]
 
 end Payments.Whole.Proofs

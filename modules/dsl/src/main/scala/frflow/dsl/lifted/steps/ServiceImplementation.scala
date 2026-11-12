@@ -1,4 +1,4 @@
-package frflow.dsl.service
+package frflow.dsl.lifted.steps
 
 import frflow.core.name.SymbolName
 import frflow.dsl.build.WrittenAt

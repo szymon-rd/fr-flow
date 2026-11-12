@@ -6,7 +6,8 @@ import frflow.core.name.RelPath
 import frflow.core.ty.Ty
 import frflow.dsl.build.{Declarations, Deferred, Fault, Site, Source}
 import frflow.dsl.node.Spans
-import frflow.dsl.service.{ServiceDefinition, ServiceImplementation}
+import frflow.dsl.lifted.steps.ServiceImplementation
+import frflow.dsl.service.ServiceDefinition
 import frflow.dsl.term.Reify
 import frflow.dsl.vocab.Definition
 
@@ -47,7 +48,7 @@ object Implementing:
 
   /** `d` given `proven`: a define or a program; or, of a service, the class that implements it, each member's
     * Definition given the member's code, and of a member that changes the service, its Definition among other
-    * calls given that code. Each is kept where a statement mentions it. The service itself has no value in the
+    * calls given that code, whether or not a statement mentions it. The service itself has no value in the
     * model: a claim on it is said of the service in every state (`Serving`).
     */
   def proven(kb: FrModel, d: Definition[?], proven: Definition[?], at: RelPath): FrModel = (d, proven) match
@@ -56,8 +57,8 @@ object Implementing:
       val among = service.members.filter(_.changes).map(m =>
         service.among(m.name) -> given_.code.get(ServiceImplementation.among(m.name)))
       (members ++ among).foldLeft(kb) { case (k, (symbol, read)) =>
-        k.attachWhenMentioned(symbol.name, declared(symbol, code(symbol, read, at).andThen(a =>
-          Deferred((given_.state.declares, a).validNec))))
+        k.attachMember(symbol.name, declared(symbol, code(symbol, read, at).andThen(a =>
+          Deferred((given_.state.declares |+| symbol.notes.declares, a).validNec))))
       }
     case _                                                                  => attach(kb, d, code(d, Some(proven), at))
 

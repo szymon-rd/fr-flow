@@ -35,7 +35,8 @@ follows the method of stepwise refinement (Wirth, 1971) and the refinement calcu
      in a strict proof.
    - As plain Scala that FrFlow reads (`lifted { … }`): at compile time the function is read into the same model the
      DSL builds, so Lean proves it, and it stays the Scala the JVM runs ([docs/LIFTED.md](docs/LIFTED.md)). A
-     service method that changes a store is read the same way, alone and among other calls
+     service is read the same way: a trait says its members, a `Definition` of the trait is the service the claims
+     are about, and the class that implements it is the value Lean proves meets them, alone and among other calls
      ([examples/payments](examples/payments/README.md): a stream processor proven to apply each payment once,
      through redelivery, a crash at any step and a second instance).
 
@@ -474,8 +475,10 @@ yet: each starts with no ledger, for its developer to decide. FrFlow's own suite
 - [docs/DAG.md](docs/DAG.md) describes the design of the refinement graph.
 - [docs/LIFTED.md](docs/LIFTED.md) describes plain Scala read into the model (`lifted`, `FrSpec`): what is read, how
   the Scala, the term and the Lean are held to one meaning, and what is not built yet.
-- Service-level examples, in direct-style Scala with each class's contracts in its companion, proven alone and
+- Service-level examples, in direct-style Scala with each service's contracts in its companion, proven alone and
   among other calls: [examples/payments](examples/payments/README.md) (a payment stream processor over three
-  services), [examples/wallet](examples/wallet/README.md) (one transfer service, the smallest) and
-  [examples/shop](examples/shop/README.md) (a checkout over two services and a store).
+  services, each a `Definition` of a trait given the class that implements it),
+  [examples/wallet](examples/wallet/README.md) (one transfer service, the smallest) and
+  [examples/shop](examples/shop/README.md) (a checkout over two services and a store); the last two have a
+  Definition per method.
 - [docs/redesign/](docs/redesign/ARCHITECTURE.md) is the design record of the library as it was rebuilt.

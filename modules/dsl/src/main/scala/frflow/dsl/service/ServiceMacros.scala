@@ -1,7 +1,7 @@
 package frflow.dsl.service
 
 import frflow.core.name.SymbolName
-import frflow.dsl.build.WrittenAt
+import frflow.dsl.build.{Source, WrittenAt}
 import frflow.dsl.term.LeanType
 import frflow.dsl.term.Term as DTerm
 import frflow.dsl.vocab.Definition as Defined
@@ -12,6 +12,13 @@ import scala.quoted.*
   * statement calls a member as the trait declares it; and by what its states are typed by (`State`). Of any other
   * type, the Definition it always was.
   */
+object Defining:
+  /** `Definition[A]("…")` as the facade has it: of a service, typed by the trait's members; of any other type, the
+    * Definition `vocab.Definition` makes.
+    */
+  transparent inline def apply[A](inline means: String): Defined[A] =
+    ${ ServiceMacros.defined[A]('{ SymbolName(Source.valName) }, 'means, '{ WrittenAt.in(Source.here) }) }
+
 object ServiceMacros:
   def defined[A: Type](name: Expr[SymbolName], means: Expr[String], at: Expr[WrittenAt])(using Quotes)
       : Expr[Defined[A]] =
@@ -26,12 +33,16 @@ object ServiceMacros:
     c.isClassDef && c.flags.is(Flags.Trait) && !List("scala.", "java.").exists(c.fullName.startsWith) &&
       t.baseClasses.exists(_.fullName == "scala.caps.Mutable")
 
-  /** A service's members: its abstract methods, each with its inputs' types and its result's. */
+  /** A service's members: its abstract methods, its own in the order it declares them and then those it inherits,
+    * each with its inputs' types and its result's.
+    */
   def members(using Quotes)(t: quotes.reflect.TypeRepr)
       : List[(quotes.reflect.Symbol, List[quotes.reflect.TypeRepr], quotes.reflect.TypeRepr)] =
     import quotes.reflect.*
-    t.typeSymbol.methodMembers.filter(m => m.flags.is(Flags.Deferred) &&
-      !List("scala.", "java.").exists(m.owner.fullName.startsWith)).sortBy(_.pos.fold(0)(_.start)).map { m =>
+    val own = t.typeSymbol.declaredMethods
+    val all = own ++ t.typeSymbol.methodMembers.filterNot(own.contains).sortBy(_.name)
+    def theirs(m: Symbol): Boolean = List("scala.", "java.").exists(m.owner.fullName.startsWith)
+    all.filter(m => m.flags.is(Flags.Deferred) && !theirs(m)).map { m =>
       t.memberType(m) match
         case MethodType(_, inputs, result) => (m, inputs, result)
         case ByNameType(result)            => (m, Nil, result)
@@ -45,7 +56,7 @@ object ServiceMacros:
     val all = described(t)
     refined(t).asType match
       case '[d] => '{ new ServiceDefinition[A]($name, $means, $at, $all)(using
-        ServiceType.named[A](${ Expr(t.typeSymbol.name) })).asInstanceOf[d & Defined[A]] }
+        State.typed[A](${ Expr(t.typeSymbol.name) })).asInstanceOf[d & Defined[A]] }
 
   /** The service's members as the Definition keeps them: each one's name, whether it changes the service, and the
     * domain types of its inputs and its result.
