@@ -297,6 +297,75 @@ What FrFlow would need:
 What plain Rocq does not give is what it does not give for safety: a rule about any body with what it owns. Here
 a body enters as the first row of the table, a fact about its steps.
 
+## No lost wake-up
+
+A wake-up is lost when a thread waits, what it waits for has come about, and nobody will tell it. That it does
+not happen can be proven, and most of it is safety, so it is easier than the section above. The claim has two
+halves:
+
+- **An invariant**: whenever what a thread waits for has come about, the signal has been given or a thread is on
+  its way to give it. No fairness, no rank.
+- **That the waiter then runs**: the thread on its way gives the signal, and the waiter takes it. This half is
+  liveness, with the same fairness as above, and short: the invariant has already named who must step.
+
+### Where Ox waits
+
+Ox's core has no `wait`/`notify` and no `Condition` (searched in the sources read; channels and `Flow` apart).
+Every wait is on a JDK class that latches: a signal given before the wait begins is still there when it does.
+
+| The wait | What is waited for | Who signals | Latch |
+|---|---|---|---|
+| the owner of a supervised scope, `result.get()` | every user fork succeeded, or a fork failed | the fork whose decrement of the count reads zero; the first fork to fail | `CompletableFuture` stays completed |
+| `Fork.join`, `result.get()` | the fork's result | the fork, when it succeeds | the same |
+| the closing loop, `thread.join()` | the thread has ended | the thread's end | a thread ended stays ended |
+| a cancellable fork's outer thread, `done.acquire()` | the inner fork is done, or was cancelled | the inner fork; `cancelNow` | a `Semaphore`'s permits are counted |
+| `race`, `result.take()` | a branch has a result | each branch, `result.put` | the queue keeps its elements, and has room for every branch |
+| `never`, `LockSupport.park()` in a loop | an interrupt | `Thread.interrupt` | the flag is checked after each return |
+
+So the check-then-wait race (the signal falls between a thread's check and its going to sleep) can only be
+inside those classes. That they latch is an assumption, a line of each class's protocol in section 2. What is
+left for Ox's own proof is the other way to lose a wake-up: a path that brings about what is waited for and
+does not signal.
+
+### The supervisor, in the model
+
+[threads/Wakeup.v](threads/Wakeup.v) is that proof for the first row. A user fork's success is two steps,
+`running.decrementAndGet()` and then `result.complete(Success)` when it read zero, with any other thread's steps
+between them; a daemon fork may start a user fork at any time, also when the count is zero. Three theorems, with
+no axioms:
+
+- `no_lost_wakeup`: when the future latches, once a user fork has been started and none is in its body, the
+  future is completed, or a fork is between its decrement to zero and its completing the future.
+- `done_stays`: a completed future stays completed.
+- `lost_without_latching`: when a signal reaches only an owner already parked, the wake-up is lost: the one fork
+  decrements and signals while the owner is still arriving, and the owner then parks, with no fork left.
+
+The invariant is three facts: the count is the forks on it; a failure has completed the future; and while the
+future is not completed and the count is zero, either no fork was started or one is between its two steps.
+
+### What the reading found
+
+Of the second row. In a supervised scope a fork that fails or is cancelled never completes its own future: the
+supervisor takes the exception (`forkException` returns `true`), and the code's comment says "any joins will end
+up being interrupted". That holds for a joiner the scope interrupts, a fork of the scope. A joiner the scope does
+not interrupt waits for ever:
+
+```scala
+val f = supervised { fork { sleep(1.hour) } }   // the scope ends, the fork is cancelled, its handle leaves
+f.join()                                        // nothing completes the future, nothing interrupts the caller
+```
+
+It is not a signal lost in a race; it is a wait that has no signaller, and it shows as the premise the proof of
+the second row would need: a fork is joined only by threads of its scope, while the scope is open. It is
+containment's premise again, of the fork's handle this time. Read from the sources, not run.
+
+### What FrFlow would need
+
+Nothing beyond section 3's operators. The invariant is `kept` over every step, with a ghost word for "what is
+waited for has come about", and `awaits` in the model of each JDK class says when its wait can return. The
+check FrFlow would derive for each wait is the invariant above: at every step that brings the condition about,
+the signal is given in that step, or the thread is named that gives it next.
+
 ## Two routes, and the order
 
 **The protocol, first-order.** State Ox's scope as a model whose state has a field per thread, give each method's
@@ -333,9 +402,11 @@ its invariants are what the second needs.
 - [threads/Closing.v](threads/Closing.v): the closing phase and that it ends under fairness;
   `rocq compile docs/threads/Closing.v`. It uses excluded middle (`classic`), as FrFlow's Rocq library does, and
   is a model of its own: it is not derived from `Herd.v`'s, whose forks have no interrupt and no bound.
+- [threads/Wakeup.v](threads/Wakeup.v): the supervisor's count and future, and that the owner's wake-up is not
+  lost; `rocq compile docs/threads/Wakeup.v`. No axioms. A third model of its own.
 - Iris is not installed where this was written: the machine has Rocq 9.3 with its standard library, opam's default
   repository has no Iris package, and the network policy denied the hosts that have it (`gitlab.mpi-sws.org` for
   the sources of Iris and std++, `rocq-prover.org` and `coq.inria.fr` for the package archive). No rule on this
   page was checked in Iris.
-- The reading of Ox's capability check, of `isEmpty` and of an interrupt before `start` is of the sources and the
-  JDK's documentation. None was reproduced by a run, and none is reported to Ox.
+- The reading of Ox's capability check, of `isEmpty`, of an interrupt before `start` and of a `join` outside the
+  fork's scope is of the sources and the JDK's documentation. None was reproduced by a run, and none is reported to Ox.
