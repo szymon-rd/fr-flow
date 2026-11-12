@@ -8,13 +8,16 @@ which operators a claim needs.
 What was done: the sources of Ox's core were read (`com.softwaremill.ox:core_3:1.1.0`, from its sources jar: scopes,
 forks, the supervisor, the thread set, `par`, `race`, `uninterruptible`, fork locals), and the argument that a
 scope's forks have finished when it completes was modelled and proven in Rocq with its standard library
-([threads/Herd.v](threads/Herd.v)). Nothing was built in FrFlow. Ox was read, not run. Iris is not installed on
+([threads/Herd.v](threads/Herd.v)), as was the argument that a closing scope completes
+([threads/Closing.v](threads/Closing.v)). Nothing was built in FrFlow. Ox was read, not run. Iris is not installed on
 the machine this was written on ("Where it stands" at the end).
 
 The short answer: yes for safety, in two layers. The protocol inside a scope is a state machine whose invariant
 FrFlow's `always` nearly states already, and a first-order proof of it works today (`Herd.v`). The rule Ox's users
 rely on (what forks are lent comes back when the scope completes) is a statement of ownership over any body, which
-needs separation logic: Iris. Liveness ("a cancelled scope ends") is out of reach of both for now.
+needs separation logic: Iris. Liveness ("a closing scope completes") needs no Iris and is not helped by it: over
+Ox compiled to steps it is a rank and an assumption of fairness in plain Rocq (`Closing.v`), with assumptions
+about the forks' bodies and the scheduler that are stronger than those of safety.
 
 ## Ox's shape
 
@@ -86,7 +89,7 @@ directly. Each is a safety property, said of one run of a scope:
 | Locals: a fork reads the values of the scope it was started in. | `ForkLocalMap`, `currentScope` |
 
 What is not among them, and is not a claim of the usual proofs either: that a scope ever completes. That needs
-every fork to answer an interrupt, and a fair scheduler; it is liveness ("What is left out").
+every fork to answer an interrupt, and a fair scheduler; it is liveness, and has a section of its own below.
 
 ### What the model shows
 
@@ -235,14 +238,73 @@ its locals, and a step relation over a pool of threads, which is what Iris is in
 (`dsl.compiled`) would give a member's body as an expression of that language instead of a term, and loops (the
 closing loop, `takeUntilSuccess`) would have to be read, which they are not today.
 
+## Liveness: that a closing scope completes
+
+It can be proven in plain Rocq once Ox is compiled to steps, and plain Rocq is the better place for it.
+
+- **Why not in Iris.** Iris's triples are defined by counting steps: a triple holds of a program up to any number
+  of steps, so a program that runs for ever meets every triple. They say what a call gives if it ends, never that
+  it ends. Proving that it ends takes an extension that relates the program to a model with fairness (Trillium
+  and its kin).
+- **Why in plain Rocq.** Over a step relation a run is a sequence of states (`nat -> state`), "eventually" is
+  `exists n`, and fairness is a property of the sequence. No logic is needed, only induction.
+- **What "compiled" must mean.** A step relation that names the thread taking each step. Today's reading gives a
+  member as a function from the state to the state after it, which has ended by being a function; the closing
+  loop has no such reading. It is the same compilation the first route below needs.
+
+`Closing.v` is the proof on a model of the closing phase: the forks in the set when the scope starts to close,
+the owner interrupting each once and leaving when none is left, a fork spinning or ending until it is interrupted
+and taking a bounded number of steps after. Its theorems:
+
+- `closes`: in every fair run the owner gets past the loop.
+- `needs_fairness`: with one fork, the run in which the fork spins for ever is a run in which the owner never
+  leaves; it is unfair to the owner alone.
+
+The proof has three parts, which are what a claim of this kind would ask for: a rank (one for the owner's
+leaving; for each fork in the set its bound, one for its ending, one more while it is not interrupted); that no
+step raises the rank and every step lowers it but a fork's spinning before its interrupt; and that until the
+owner has left something can step. Fairness is used once: while a fork spins, the owner's interrupt can be made
+at every moment, so it is made. Once every fork is interrupted every step lowers the rank, so from there the
+bound holds with no fairness at all: that is the bounded form of the claim.
+
+What it assumes beyond safety's rows, each a decision of the developer's:
+
+| Of | Assumed | Note |
+|---|---|---|
+| a fork's body | Once interrupted it ends within a bound, and starts no fork. | A body that catches the interrupt and blocks again is never interrupted a second time: the loop interrupts once. Said of the body's steps, since a body is a parameter. |
+| `Thread.interrupt` | The request reaches the fork, also when made before the fork's first step. | The second half is the reference implementation's behaviour only (section 2). |
+| blocking calls | A thread blocked in `get`, `join`, `acquire`, `sleep` or `take` when interrupted fails as interrupted. | their documentation |
+| `Thread.start` | It does not fail. | A thread added to the set and never started stays in it. |
+| the scheduler | An actor that could step at every moment from some moment on, does step. | Not true of virtual threads as such: they are not time-sliced, so forks that compute without blocking, as many as there are carrier threads, keep the owner from running. It holds when bodies block or yield, which makes it an assumption about bodies too. |
+
+What the model leaves out: the starts under way when the scope closes (at most one per running fork, so a finite
+addition to the rank), nested scopes (an inner scope's closing is how its owner, a fork of the outer, answers the
+interrupt: an induction on depth), the owner's waiting in `join` (here its steps are the interrupts and the
+leaving), the finalizers, and the body's phase, in which nothing need end.
+
+What FrFlow would need:
+
+- **A claim that something comes about**: `closing.leadsTo(completed).by(rank)`, the rank given by the developer
+  as a term over the state. Its checks are the proof's parts: every step keeps or lowers the rank, the steps that
+  keep it are named, something can step until `completed`, and the named steps cannot go on for ever under the
+  fairness assumed.
+- **Fairness as an assumption about the world**, of the kind a clock's `schedule` is (a trusted fact restricting
+  the world's steps): `fair(owner)`, `fair(fork)`.
+- **The proof on the compiled steps, not on a model beside them.** A model related to the code by a simulation
+  carries safety down to the code, and carries liveness only when the code's steps that the model does not see
+  cannot go on for ever, which is a rank again. Stating the rank on the compiled steps is one proof instead of two.
+
+What plain Rocq does not give is what it does not give for safety: a rule about any body with what it owns. Here
+a body enters as the first row of the table, a fact about its steps.
+
 ## Two routes, and the order
 
 **The protocol, first-order.** State Ox's scope as a model whose state has a field per thread, give each method's
 steps, and prove the invariant: `Herd.v`, grown to the supervisor and the finalizers, then generated from the
 code. It needs three things of FrFlow: a model's state indexed by a thread's id with threads added as it runs,
 `always` said of every step, and `awaits`. It needs no Iris, runs on Rocq's standard library as the generated
-files do now, and proves the protocol claims of section 1. It does not give the scope rule: it says nothing of
-what a body owns.
+files do now, and proves the protocol claims of section 1 and, with a rank and fairness, that a closing scope
+completes. It does not give the scope rule: it says nothing of what a body owns.
 
 **The rules, in Iris.** Add the language and the four kinds of assertion, take the JDK's rows as protocols, prove
 Ox's methods against them, and derive the scope, fork, join and `par` rules. Iris's adequacy theorem speaks of the
@@ -256,9 +318,8 @@ its invariants are what the second needs.
 
 ## What is left out
 
-- **Liveness**: that a cancelled scope completes, that `join` returns. FrFlow cannot state "eventually", and in
-  Iris it needs an extension (Trillium and its kin). A bounded form ("the loop makes at most as many passes
-  as …") can be a claim later.
+- **Liveness beyond the closing loop**: that `join` returns, that a supervised scope ends once its user forks
+  have, that `race` gives a result. Each is a rank of its own over the same steps and the same fairness.
 - **Channels, `Flow`, the resilience package**: channels are jox's, an algorithm of the kind proven by
   linearizability; a different proof from the scope's.
 - **Weak memory**: taken away by the first row of the table, which is itself a claim about Ox's fields that a
@@ -269,6 +330,9 @@ its invariants are what the second needs.
 
 - [threads/Herd.v](threads/Herd.v): the model and its two theorems; `rocq compile docs/threads/Herd.v` (Rocq 9.3,
   about a second). It is not part of `sbt rocqTest`.
+- [threads/Closing.v](threads/Closing.v): the closing phase and that it ends under fairness;
+  `rocq compile docs/threads/Closing.v`. It uses excluded middle (`classic`), as FrFlow's Rocq library does, and
+  is a model of its own: it is not derived from `Herd.v`'s, whose forks have no interrupt and no bound.
 - Iris is not installed where this was written: the machine has Rocq 9.3 with its standard library, opam's default
   repository has no Iris package, and the network policy denied the hosts that have it (`gitlab.mpi-sws.org` for
   the sources of Iris and std++, `rocq-prover.org` and `coq.inria.fr` for the package archive). No rule on this
