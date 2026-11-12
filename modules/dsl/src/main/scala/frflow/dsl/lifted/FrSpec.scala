@@ -92,6 +92,13 @@ object FrSpec:
   def map[R](k: FrSpec[?], v: FrSpec[?]): FrSpec[R] = keyed[Any, Any](k.asInstanceOf[FrSpec[Any]],
     v.asInstanceOf[FrSpec[Any]]).asInstanceOf[FrSpec[R]]
 
+  def option[R](a: FrSpec[?]): FrSpec[R] =
+    given FrSpec[Any] = a.asInstanceOf[FrSpec[Any]]
+    summon[FrSpec[Option[Any]]].asInstanceOf[FrSpec[R]]
+  def set[R](a: FrSpec[?]): FrSpec[R] =
+    given FrSpec[Any] = a.asInstanceOf[FrSpec[Any]]
+    summon[FrSpec[Set[Any]]].asInstanceOf[FrSpec[R]]
+
   private def both[A, B](a: FrSpec[A], b: FrSpec[B]): FrSpec[(A, B)] =
     given FrSpec[A] = a
     given FrSpec[B] = b

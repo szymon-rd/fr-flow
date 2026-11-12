@@ -43,12 +43,12 @@ addCommandAlias("frflowInitAgent", "agent/runMain frflow.agent.Init")
 val strict = Seq("-Wunused:all", "-Wnonunit-statement", "-Wvalue-discard")
 def module(name: String, libraries: ModuleID*) = Project(name, file(s"modules/$name"))
   .configs(LeanTest).settings(leanTagged)
-  .settings(Keys.name := s"frflow-$name", libraryDependencies ++= munit +: staging +: libraries,
+  .settings(Keys.name := s"frflow-$name", libraryDependencies ++= munit +: inspector +: libraries,
     scalacOptions ++= strict)
 
-// The compiler a model starts to read a compiled class from its TASTy (`dsl.lifted.steps.ReadClass`). sbt does not
-// pass a Scala compiler artifact on from a project to those that depend on it, so every project names it.
-val staging = "org.scala-lang" %% "scala3-staging" % "3.10.0"
+// What reads a compiled class's TASTy as a model is built (`dsl.compiled.Inspect`). sbt does not pass a Scala
+// compiler artifact on from a project to those that depend on it, so every project names it.
+val inspector = "org.scala-lang" %% "scala3-tasty-inspector" % "3.10.0"
 
 lazy val root = project.in(file("."))
   .aggregate(core, dsl, proof, eval, testing, decision, wire, shell, api, cli, web, agent,
@@ -162,7 +162,7 @@ def example(name: String, layers: Seq[ClasspathDep[ProjectReference]] = Seq(agen
 def exampleModel(name: String) = Project(s"${name}Model", file(s"examples/$name"))
   .configs(LeanTest).settings(leanTagged)
   .settings(Keys.name := s"frflow-example-$name", scalacOptions ++= strict, publish / skip := true,
-    libraryDependencies ++= Seq(munit, staging, catsEffect, "org.xerial" % "sqlite-jdbc" % "3.46.1.3"))
+    libraryDependencies ++= Seq(munit, inspector, catsEffect, "org.xerial" % "sqlite-jdbc" % "3.46.1.3"))
   .dependsOn(eval)
 
 def exampleApp(name: String, model: Project, layers: Seq[ClasspathDep[ProjectReference]] = Seq(agent)) =
@@ -174,7 +174,7 @@ def commandLine(p: Project, layers: Seq[ClasspathDep[ProjectReference]], tests: 
   .dependsOn((Seq[ClasspathDep[ProjectReference]](cli, web) ++ layers)*)
   .configs(LeanTest).settings(leanTagged)
   .settings(
-    libraryDependencies ++= Seq(munit, staging), publish / skip := true, run / fork := true, Test / fork := true,
+    libraryDependencies ++= Seq(munit, inspector), publish / skip := true, run / fork := true, Test / fork := true,
     run / javaOptions ++= Seq("-Dstdout.encoding=UTF-8", "-Dstderr.encoding=UTF-8", "-Dfile.encoding=UTF-8"),
     run / javaOptions += "-Dfrflow.tests=" + tests.value.getAbsolutePath,
     Compile / run := Defaults.runTask(Test / fullClasspath, Compile / run / mainClass, Compile / run / runner)

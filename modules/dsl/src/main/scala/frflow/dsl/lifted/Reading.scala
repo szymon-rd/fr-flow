@@ -1,6 +1,6 @@
 package frflow.dsl.lifted
 
-import frflow.dsl.structure.ReadPorts
+import frflow.dsl.structure.{ReadPorts, Structures}
 import frflow.dsl.term.Term as DTerm
 import frflow.dsl.vocab.Definition as Defined
 import scala.quoted.*
@@ -11,6 +11,22 @@ import scala.quoted.*
   */
 private[lifted] trait Reading extends ReadPorts:
   import q.reflect.*
+
+  /** What the reading knows of structures: the record of the class being read, the Definitions it is given. */
+  def structures: Structures
+  def inPlay: Set[String] = structures.traits
+
+  /** The same field's selector, read off the record the implementation's state is (`structures.records`). */
+  def stateField(implementation: TypeRepr, name: String, at: Tree)(using Quotes): Expr[Any] =
+    val structure = structureOf(implementation).get
+    val record = structures.records.getOrElse(structure.fullName, refuse(s"the state of ${implementation.show}, " +
+      "a class that implements a structure, read where FrFlow is not reading that class (`lifted[…]`)", at))
+    val i = stateFields(implementation.typeSymbol).indexWhere(_.name == name)
+    (structure.typeRef.asType, stateOfType(stateFieldType(implementation, name), at).asType) match
+      case ('[s], '[f]) => '{ ${ record.asExprOf[frflow.dsl.term.LeanType[s]] }.fields(${ Expr(i) })
+        .asInstanceOf[frflow.dsl.term.LeanType.Field[s, f]] }
+      case _            => refuse(s"the field $name", at)
+
 
   /** The Scala variables in scope, each the term it is bound to (a method's `this` by its class); `kept`, the
     * values the compiler names a copy's unchanged fields by (`unchanged`), which are no values of the Scala as
@@ -60,7 +76,7 @@ private[lifted] trait Reading extends ReadPorts:
 
   /** The compile error for Scala the reader does not read, at the Scala. */
   def refuse(what: String, at: Tree): Nothing =
-    NotRead.raise(using q)(structures.staged, s"FrFlow: lifted code cannot hold $what", Some(at))
+    report.errorAndAbort(s"FrFlow: lifted code cannot hold $what", at.pos)
 
   /** `t` under what the compiler wraps an expression in: an inlining with no bindings, an ascription, a block of
     * nothing.

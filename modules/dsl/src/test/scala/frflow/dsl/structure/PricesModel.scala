@@ -2,7 +2,7 @@ package frflow.dsl.structure
 
 import frflow.dsl.kb.FrModel
 import frflow.dsl.kb.Defining.*
-import frflow.dsl.lifted.steps.StepSyntax.lifted
+import frflow.dsl.compiled.steps.ClassSyntax.lifted
 import frflow.dsl.node.Node
 import frflow.dsl.term.Term
 import frflow.dsl.term.TermSyntax.*

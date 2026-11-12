@@ -1,6 +1,5 @@
 package frflow.dsl.structure
 
-import frflow.dsl.term.LeanType
 import scala.quoted.*
 
 /** What the reader of lifted code knows of ports (`lifted.Reading`): which types are structures, classes that
@@ -9,8 +8,10 @@ import scala.quoted.*
   */
 trait ReadPorts:
   val q: Quotes
-  /** What the reading knows of structures: the record of the class being read, the Definitions it is given. */
-  def structures: Structures
+  /** The traits this reading has as structures though they are no `caps.Mutable`, by name: the one the class
+    * read implements, and those of the structures it holds.
+    */
+  def inPlay: Set[String]
   import q.reflect.*
 
   /** The compile error for Scala the reader does not read, at the Scala. */
@@ -20,14 +21,19 @@ trait ReadPorts:
   private def mutable(t: TypeRepr): Boolean = t.baseClasses.exists(_.fullName == "scala.caps.Mutable")
 
   /** The structure a type is or implements: the trait of the developer's that it is or extends, one of Scala's
-    * `caps.Mutable` or one this reading has in play (`structures.traits`). A structure is known by its members; a
-    * class that implements one is read (`steps.StructureLift`).
+    * `caps.Mutable` or one this reading has in play (`inPlay`). A structure is known by its members; a
+    * class that implements one is compiled (`compiled.steps.ClassCode`).
     */
   def structureOf(t: TypeRepr): Option[Symbol] = t.baseClasses.find(c =>
-    c.isClassDef && c.flags.is(Flags.Trait) && own(c) && (mutable(c.typeRef) || structures.traits(c.fullName)))
+    c.isClassDef && c.flags.is(Flags.Trait) && own(c) && (mutable(c.typeRef) || inPlay(c.fullName)))
   /** The same as a Declaration takes a trait for one (`StructureMacros.isStructure`), in play or not. */
   def declarableOf(t: TypeRepr): Option[Symbol] =
-    t.baseClasses.find(c => StructureMacros.isStructure(using q)(c.typeRef))
+    t.baseClasses.find(c => StructureMacros.structured(using q)(c.typeRef, isDomain))
+  /** Whether a type is a domain type, one with a `LeanType`: asked of the compiler, inside a compilation. */
+  def isDomain(t: TypeRepr): Boolean =
+    given Quotes = q
+    t.asType match
+      case '[x] => Expr.summon[frflow.dsl.term.LeanType[x]].nonEmpty
   def isStructure(t: TypeRepr): Boolean = structureOf(t).contains(t.typeSymbol)
   def isImplementation(t: TypeRepr): Boolean = structureOf(t).exists(_ != t.typeSymbol)
 
@@ -88,17 +94,6 @@ trait ReadPorts:
   /** A field of the state of a class that implements a structure: the type it is declared with. */
   def stateFieldType(implementation: TypeRepr, name: String): TypeRepr =
     implementation.memberType(implementation.typeSymbol.fieldMember(name))
-
-  /** The same field's selector, read off the record the implementation's state is (`structures.records`). */
-  def stateField(implementation: TypeRepr, name: String, at: Tree)(using Quotes): Expr[Any] =
-    val structure = structureOf(implementation).get
-    val record = structures.records.getOrElse(structure.fullName, refuse(s"the state of ${implementation.show}, " +
-      "a class that implements a structure, read where FrFlow is not reading that class (`lifted[…]`)", at))
-    val i = stateFields(implementation.typeSymbol).indexWhere(_.name == name)
-    (structure.typeRef.asType, stateOfType(stateFieldType(implementation, name), at).asType) match
-      case ('[s], '[f]) => '{ ${ record.asExprOf[LeanType[s]] }.fields(${ Expr(i) })
-        .asInstanceOf[LeanType.Field[s, f]] }
-      case _            => refuse(s"the field $name", at)
 
   private def namedState(port: TypeRepr, parts: List[TypeRepr], at: Tree): TypeRepr =
     val c = port.typeSymbol

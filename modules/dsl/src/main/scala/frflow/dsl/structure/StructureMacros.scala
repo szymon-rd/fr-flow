@@ -31,9 +31,15 @@ object StructureMacros:
     */
   def isStructure(using Quotes)(t: quotes.reflect.TypeRepr): Boolean =
     import quotes.reflect.*
+    structured(t, (of: TypeRepr) => of.asType match
+      case '[x] => Expr.summon[LeanType[x]].nonEmpty)
+
+  /** The same, `domain` saying which types are domain types: inside a compilation the compiler's search for a
+    * `LeanType` says; where a compiled class is read, the companions' specs do.
+    */
+  def structured(using Quotes)(t: quotes.reflect.TypeRepr, domain: quotes.reflect.TypeRepr => Boolean): Boolean =
+    import quotes.reflect.*
     val c = t.typeSymbol
-    def domain(of: TypeRepr): Boolean = of.asType match
-      case '[x] => Expr.summon[LeanType[x]].nonEmpty
     def unchanging: Boolean = !c.flags.is(Flags.Sealed) && !domain(t) && members(t).nonEmpty &&
       members(t).forall((_, inputs, result) => (result :: inputs).forall(domain))
     c.isClassDef && c.flags.is(Flags.Trait) && !List("scala.", "java.").exists(c.fullName.startsWith) &&

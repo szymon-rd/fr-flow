@@ -295,8 +295,8 @@ extends `caps.Mutable`, with what changes it marked `update`, in a file with cap
 none does, a plain trait that is not sealed, its members over domain types; in the trait's companion `val limits = Declaration[CardLimits]("…")` and the claims,
 through the members (`limits.authorise(p).result`, `.after`, `limits.decided(id).in(state)`, `limits.current`); a
 class that implements the trait; and in the model its Definition, `limits.define(lifted[RecordedLimits])`, which
-reads the class from its TASTy when the model is built (Scala it does not read is a `NotRead` then, with the file
-and line; the project names `scala3-staging` as a dependency). A class
+compiles the class from its TASTy when the model is built (Scala it does not read is a `NotRead` then, with the
+file and line; the project names `scala3-tasty-inspector` as a dependency). A class
 made of structures is given their words (`lifted[StreamPaymentHandler](limits, ledger, offsets)`) and is proven
 from the claims on them, so wire those claims under its own with `.refines`; in a member that changes the class,
 give each call of a held structure a statement of its own. Never add a member to a trait for a claim's sake: say

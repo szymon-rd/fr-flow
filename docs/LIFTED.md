@@ -330,11 +330,15 @@ FrModel("Payments")(…, limits.define(lifted[RecordedLimits]))
 - A claim is said of the structure in every state: "the structure as it stands" is a variable the claim is closed
   over. So a claim is one that code holding the structure can rely on, whatever state it holds it in; and a fact
   of every state ("no card is over its limit") is stated as what each call keeps.
-- `lifted[RecordedLimits]` reads the class from the TASTy the compiler wrote for it, as the model is built
-  (`ReadClass`): no macro where it is lifted, nothing the compiler must keep (`-Yretain-trees` is not needed for
-  it), and a class in a library's jar is read the same way. A compiler is started over the class's classpath
-  (`scala3-staging`, which a project that builds a model names as a dependency), and the reader runs on the tree
-  it loads. Scala the reader does not read is a `NotRead` naming the file and line, where it was a compile error.
+- `lifted[RecordedLimits]` compiles the class from the TASTy the Scala compiler wrote beside its class file, as
+  the model is built. TASTy is the class as it was typed, bodies included. FrFlow's compiler (`dsl.compiled`)
+  opens the file (`Inspect`, over `scala3-tasty-inspector`, which a project that builds a model names as a
+  dependency), walks each member's tree, and builds the member's term: one operation of the term language for
+  each Scala construct it reads. No macro runs where the class is lifted, no Scala is generated or compiled, and
+  nothing must be kept by the compiler (`-Yretain-trees` is not needed for it); a class in a library's jar is
+  compiled the same way. A type's `FrSpec` is the one its companion gives, found on the class's class loader
+  (`Specs`). Each body is compiled once, while the file is open (`Once`); Scala the compiler does not read is a
+  `NotRead` there, naming the file and line.
 - The class is read member by member. Its state is a record named as the trait, a field for
   each of the constructor's; each member's body is read into a function of that record. `limits.define(…)`
   gives each member's word its code, and Lean proves the code meets every claim that mentions the member.
@@ -421,7 +425,7 @@ In the order they would be taken:
 | `Lifted`, the Definition with its Scala | `Lifted.scala` there |
 | `Agreement`, `Vectors` | `modules/testing/src/main/scala/frflow/testing/` |
 | The suites | `modules/dsl/src/test/scala/frflow/dsl/lifted/`, `AgreementSuite`, `CalendarSuite`, `CalendarLeanSuite` |
-| `updating`, `interleaving`, `lifted[Class]`, `holding` | `modules/dsl/src/main/scala/frflow/dsl/lifted/steps/` |
-| A class read from its TASTy as the model is built | `ReadClass.scala` there; `Tasty.scala` beside the reader |
+| `updating`, `interleaving` | `modules/dsl/src/main/scala/frflow/dsl/lifted/steps/` |
+| `lifted[Class]`, `holding`: a class compiled from its TASTy as the model is built | `modules/dsl/src/main/scala/frflow/dsl/compiled/` (expressions) and `compiled/steps/` (state, steps, members) |
 | A structure's Declaration, `Call`, `State` | `modules/dsl/src/main/scala/frflow/dsl/structure/`; `StructureSuite` beside the reader's suites |
 | Services proven among other calls | `examples/wallet/`, `examples/payments/`, `examples/shop/`; `WalletSuite`, `PaymentsSuite`, `ShopSuite`; the Lean suites in `frflow.project.services` |
