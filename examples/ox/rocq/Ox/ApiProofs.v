@@ -239,3 +239,44 @@ Qed.
 Theorem supervised_spec t f Γ0 (Q : res -> gh -> Prop) :
   scope_pre t f Γ0 -> (forall r Γ1, Keep t Γ0 Γ1 -> Q r Γ1) -> wp t (supervised f) Γ0 Q.
 Proof. intros Hpre HQ. unfold supervised. apply supervisedError_1_spec; assumption. Qed.
+
+(** ** `fork` and `forkUser` *)
+
+Lemma asNoErrorMode_same x : exists y, OxError_asNoErrorMode x = ret y /\
+  OxError_herd y = OxError_herd x /\ OxError_finalizers y = OxError_finalizers x.
+Proof.
+  unfold OxError_asNoErrorMode. destruct (Nat.eqb (OxError_errorMode x) NoErrorMode); eexists;
+    (split; [reflexivity | destruct x; cbn; auto]).
+Qed.
+
+Lemma fork_pre_same t x y f Γ :
+  OxError_herd y = OxError_herd x -> OxError_finalizers y = OxError_finalizers x ->
+  fork_pre t x f Γ -> fork_pre t y f Γ.
+Proof.
+  intros Hh Hf. unfold fork_pre, knows, wf_cap, hid. rewrite Hh, Hf. trivial.
+Qed.
+
+Theorem fork_spec t f x1 Γ0 (Q : exn + Fork -> gh -> Prop) :
+  fork_pre t x1 f Γ0 -> (forall r Γ1, Keep t Γ0 Γ1 -> Q r Γ1) -> wp t (fork f x1) Γ0 Q.
+Proof.
+  intros Hpre HQ. unfold fork. destruct (asNoErrorMode_same x1) as (y & E & Hh & Hf).
+  apply wp_bind. rewrite E. apply wp_ret. cbn beta iota.
+  apply forkError_spec; [exact (fork_pre_same t x1 y f Γ0 Hh Hf Hpre) | exact HQ].
+Qed.
+
+Theorem forkUser_spec t f x1 Γ0 (Q : exn + Fork -> gh -> Prop) :
+  fork_pre t x1 f Γ0 -> (forall r Γ1, Keep t Γ0 Γ1 -> Q r Γ1) -> wp t (forkUser f x1) Γ0 Q.
+Proof.
+  intros Hpre HQ. unfold forkUser. destruct (asNoErrorMode_same x1) as (y & E & Hh & Hf).
+  apply wp_bind. rewrite E. apply wp_ret. cbn beta iota.
+  apply forkUserError_spec; [exact (fork_pre_same t x1 y f Γ0 Hh Hf Hpre) | exact HQ].
+Qed.
+
+(** `fork.join()` touches nothing the invariant reads. *)
+Theorem Fork_join_spec t fk Γ0 (Q : res -> gh -> Prop) :
+  g_removed Γ0 t = false -> (forall r Γ1, Keep t Γ0 Γ1 -> Q r Γ1) -> wp t (Fork_join fk) Γ0 Q.
+Proof.
+  intros Hrm HQ. apply (wp_fo t _ Γ0 _ (fun Γ => Keep t Γ0 Γ)); [apply fo_Fork_join | | | apply Keep_refl | exact HQ].
+  - intros Γ Γ' HK HR. exact (Keep_Rely HK HR).
+  - intros Γ HK. rewrite (k_removed HK). exact Hrm.
+Qed.

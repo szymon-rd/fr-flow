@@ -7,7 +7,7 @@ ox=examples/ox/rocq/Ox
 for f in Prog Jdk Sem Logic Lang; do
   rocq compile -q -Q "$lib" FrFlow "$lib/Threads/$f.v"
 done
-for f in ${OX_FILES:-Code Ghost Facts Specs Frame Updates Steps Inner HerdProofs ScopeProofs Main ApiProofs}; do
+for f in ${OX_FILES:-Code Ghost Facts Specs Frame Updates Steps Inner HerdProofs ScopeProofs Main ApiProofs Example}; do
   rocq compile -q -Q "$lib" FrFlow -Q "$ox" Ox "$ox/$f.v"
 done
 echo "checked"
