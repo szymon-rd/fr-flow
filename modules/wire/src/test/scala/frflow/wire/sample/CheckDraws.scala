@@ -23,12 +23,10 @@ object CheckDraws:
 
   val diagnostic: Gen[Diagnostic] = Gen.zip(text, small, Gen.oneOf(true, false), text).map(Diagnostic(_, _, _, _))
 
-  val rule: Gen[NotAllowed] = Gen.oneOf(Gen.oneOf(NotAllowed.Axiom, NotAllowed.Admit, NotAllowed.Unsafe,
-    NotAllowed.Opaque, NotAllowed.ImplementedBy, NotAllowed.Extern, NotAllowed.NativeDecide, NotAllowed.Attribute),
-    text.map(NotAllowed.SetOption(_)), text.map(NotAllowed.Metaprogram(_)), text.map(NotAllowed.Import(_)),
-    text.map(NotAllowed.LemmaImport(_)), text.map(NotAllowed.Command(_)))
+  val rule: Gen[NotAllowed] = Gen.oneOf(Gen.oneOf(NotAllowed.Axiom, NotAllowed.Admit),
+    text.map(NotAllowed.Import(_)), text.map(NotAllowed.LemmaImport(_)), text.map(NotAllowed.Command(_)))
 
-  val finding: Gen[Finding] = Gen.oneOf(Gen.const(Finding.LeanTimedOut),
+  val finding: Gen[Finding] = Gen.oneOf(Gen.const(Finding.TimedOut),
     few(diagnostic).map(Finding.ModelDoesNotBuild(_)), few(Gen.zip(small, rule)).map(Finding.ProofNotAllowed(_)),
     few(diagnostic).map(Finding.LemmasDoNotBuild(_)), few(diagnostic).map(Finding.NotProven(_)),
     few(tryKind).map(Finding.Refuted(_)), few(text).map(Finding.DisallowedAxioms(_)),

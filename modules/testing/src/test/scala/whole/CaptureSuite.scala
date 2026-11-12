@@ -2,8 +2,8 @@ package whole
 
 import frflow.*
 import frflow.core.analysis.Problem
-import frflow.proof.layout.Laid
-import frflow.proof.lean.print.Print
+import frflow.proof.layout.{Laid, Notation}
+
 import rooms.Booking
 
 /** The review's probes on the whole pipeline (elaborated, validated, laid out): no false statement prints as a
@@ -35,7 +35,7 @@ class CaptureSuite extends munit.FunSuite:
   private val notNamedAsRecord = FrModel("Swaps")(startIsGiven)
 
   private def lean(kb: FrModel): String =
-    Laid(Theories.resolved(kb), Map.empty, Nil).modules.map(Print.module).mkString("\n")
+    Laid(Theories.resolved(kb), Map.empty, Nil).modules.map(Notation.module).mkString("\n")
   private lazy val probe = lean(probed)
 
   test("a binder named some_ beside the Declaration some (Lean's some_) takes another name: no tautology") {

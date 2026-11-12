@@ -2,7 +2,7 @@ package frflow.cli.command
 
 import cats.effect.{ExitCode, IO}
 import cats.syntax.all.*
-import frflow.api.view.{CheckEvent, Scaffolded, Stop, View}
+import frflow.api.view.{CheckEvent, Stop, View}
 import frflow.api.{FrFlowApi, Host}
 import frflow.cli.review.ReviewSession
 import frflow.cli.term.{Exit, Style, Terminal}
@@ -48,9 +48,7 @@ final class Dispatch(api: FrFlowApi[IO], host: Host[IO], term: Terminal, st: Sty
         (CheckText.ci(v, st, x), complete(v, x)))
     case Command.Export            => api.proving.snapshot.flatMap(s => term.out(s)).as(Exit.Fine)
     case Command.Scaffold(id)      => api.proving.scaffold(id).flatMap(s =>
-        term.out(ReportText.scaffolded(s)).as(Exit.of(s match
-          case Scaffolded.EndNotFound(_) => false
-          case _                         => true)))
+        term.out(ReportText.scaffolded(s)).as(Exit.Fine))
 
   private def viewed(f: (View, Contribution) => IO[ExitCode]): IO[ExitCode] =
     api.reading.view.flatMap(v => added(v).flatMap(f(v, _)))

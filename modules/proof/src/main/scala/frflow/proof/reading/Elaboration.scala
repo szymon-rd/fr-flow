@@ -1,46 +1,34 @@
 package frflow.proof.reading
 
-import frflow.proof.lean.print.Sentinel
+import frflow.proof.rocq.RocqNames
 
-/** What Lean said of one file it ran on (`file`, as Lean names it, relative to the workspace): its source and the
-  * output of the run, read once; the output's messages about other files are left out.
+/** What Rocq said of one file it ran on (`file`, relative to the project's `rocq/`): its source and the report of
+  * the build (`RocqReport`), read once; the report's other files are left out. `namespace` is the module's, as the
+  * layout names it: a lemma `complete` of `Auth.accessExactly.Auto` is `accessExactly_Auto_complete` in Rocq, and
+  * states `accessExactly_Obl_complete`.
   */
-final case class Elaboration(source: String, output: String, file: String):
-  lazy val theorems: List[Theorem] = LeanSource.theorems(source)
-  lazy val diagnostics: List[Diagnostic] = LeanOutput.diagnostics(output).filter(_.file.endsWith(file))
-  lazy val axioms: Map[String, List[String]] = LeanOutput.axioms(output)
+final case class Elaboration(source: String, output: String, file: String, namespace: List[String]):
+  lazy val theorems: List[Theorem] = RocqSource.lemmas(source)
+  private lazy val said: Option[RocqReport.File] = RocqReport.read(output).find(_.path == file)
 
-  /** The axioms of a theorem this file audits (`#print axioms K.N.Checks.name`), by its name: the output's audits of
-    * other files' theorems of that name are not its.
+  /** A lemma's name in Rocq, by its name in its module. */
+  def named(name: String): String = RocqNames.joined(namespace :+ name)
+  /** What a lemma proving the obligation `name` states: the obligation, declared in the node's `Spec`. */
+  def obligation(name: String): String = RocqNames.joined(namespace.take(2) ++ List("Obl", name))
+  def stated(name: String): Option[Theorem] = theorems.find(_.name == named(name))
+
+  lazy val diagnostics: List[Diagnostic] = said.toList.flatMap(f =>
+    f.broken.map(Diagnostic(file, 0, true, _)).toList ++ f.open.toList.sortBy(_._1).map((l, m) =>
+      Diagnostic(file, theorems.find(_.name == l).fold(0)(_.from), true, m)))
+
+  /** The axioms a lemma this file audits rests on (`Print Assumptions`), by its name in its module: the module's
+    * own lemma, or the developer's proof of that obligation, which a module audits in its place.
     */
-  def axiomsOf(name: String): Option[List[String]] =
-    Audited.findAllMatchIn(LeanSource.code(source)).map(_.group(1))
-      .find(full => full == name || full.endsWith("." + name)).flatMap(axioms.get)
+  def axiomsOf(name: String): Option[List[String]] = said.flatMap(f => f.assumes.get(named(name)).orElse(
+    f.assumes.get(RocqNames.joined(namespace.take(2) ++ List("Proofs", name)))))
 
-  private val Audited = """(?m)^#print\s+axioms\s+(\S+)""".r
-
-  /** An error before the first theorem (an import that did not build) stops the file: it proves nothing. */
-  def header: Option[Diagnostic] = diagnostics.find(d => d.error && theorems.forall(d.line < _.from))
-
-  /** Where Lean stopped reading the file: where it reported as many errors as it reports (`maxErrors`), or, in a
-    * file FrFlow wrote, its first line when Lean did not print the file's last line (`Sentinel`: Lean crashed, ran out
-    * of memory, was killed, or said why in other words). Nothing after it was elaborated, so no theorem there is
-    * proven or shown, though no error is said of it. The line is this file's own message, the whole of its first line:
-    * a dependency's, printed in the same build (`Whole.Spec`'s, of `Whole`), is not it.
-    */
-  def stopped: Option[Int] =
-    val cut = diagnostics.filter(_.message.contains("maximum number of errors")).map(_.line)
-    val unended = Sentinel.of(source).filterNot(end =>
-      diagnostics.exists(_.message.linesIterator.nextOption().exists(_.trim == end))).map(_ => 0)
-    (cut ++ unended).minOption
-
-  def verdict(name: String): TheoremVerdict = theorems.find(_.name == name) match
-    case None                                       => TheoremVerdict.Missing
-    case Some(t) if stopped.exists(_ <= t.to)        => TheoremVerdict.Missing
-    case Some(t) =>
-      val within = diagnostics.filter(d => t.spans(d.line))
-      within.filter(_.error) ++ header.toList match
-        case Nil if within.exists(_.message.contains("declaration uses")) ||
-            axiomsOf(name).exists(_.contains("sorryAx")) => TheoremVerdict.UsesSorry
-        case Nil    => TheoremVerdict.Proven
-        case errors => TheoremVerdict.Failed(errors)
+  def verdict(name: String): TheoremVerdict = (said, stated(name)) match
+    case (Some(f), Some(t)) => f.broken.map(m => List(Diagnostic(file, 0, true, m)))
+        .orElse(f.open.get(t.name).map(m => List(Diagnostic(file, t.from, true, m))))
+        .fold(TheoremVerdict.Proven)(TheoremVerdict.Failed(_))
+    case _                  => TheoremVerdict.Missing

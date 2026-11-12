@@ -46,18 +46,17 @@ class TextsSuite extends munit.FunSuite:
   }
 
   test("every stop, finding, try, forbidden form and unproven case is said") {
-    distinct(List(Stop.NoLean, Stop.UnknownNode(a), Stop.NotJson("f", "p"), Stop.NoVersion("f"),
+    distinct(List(Stop.NoRocq, Stop.UnknownNode(a), Stop.NotJson("f", "p"), Stop.NoVersion("f"),
       Stop.UnknownVersion("f", 2, 1), Stop.BadField("f", 1, "x", "p"), Stop.NoKey("k"), Stop.NotAKey("k", "p"))
       .flatMap(Stops.lines))
-    val m = List(Message("Lean.lean", 3, true, "unsolved goals"))
-    distinct(List(FindingView.LeanTimedOut, FindingView.ModelDoesNotBuild(m), FindingView.LemmasDoNotBuild(m),
-      FindingView.NotProven(m), FindingView.DisallowedAxioms(List("sorryAx")), FindingView.StepRefuted(Nil))
+    val m = List(Message("FrFlowGen/K/N/Auto.v", 3, true, "No applicable tactic."))
+    distinct(List(FindingView.TimedOut, FindingView.ModelDoesNotBuild(m), FindingView.LemmasDoNotBuild(m),
+      FindingView.NotProven(m), FindingView.DisallowedAxioms(List("N_Proofs_helper")), FindingView.StepRefuted(Nil))
       .map(Findings.lines(_, full = false).mkString("\n")))
     distinct(List(TryView.Needed(a), TryView.Vacuous, TryView.Restates, TryView.Clash, TryView.Unsat, TryView.Idle,
       TryView.RestatesConjunct(a, 0)).map(Findings.tried))
-    distinct(List(Forbidden.Axiom, Forbidden.Admit, Forbidden.Unsafe, Forbidden.Opaque, Forbidden.ImplementedBy,
-      Forbidden.Extern, Forbidden.NativeDecide, Forbidden.Attribute, Forbidden.SetOption("o"),
-      Forbidden.Metaprogram("m"), Forbidden.Import("i"), Forbidden.LemmaImport("i"), Forbidden.Command("c"))
+    distinct(List(Forbidden.Axiom, Forbidden.Admit, Forbidden.Import("i"), Forbidden.LemmaImport("i"),
+      Forbidden.Command("c"))
       .map(Findings.forbidden))
     distinct(List(Unproven.Check, Unproven.Parts, Unproven.NotNeeded(a), Unproven.Clash, Unproven.NothingBelow,
       Unproven.Kept(a), Unproven.Implementation, Unproven.RootImpl, Unproven.Tests, Unproven.NotTested, Unproven.Idle,

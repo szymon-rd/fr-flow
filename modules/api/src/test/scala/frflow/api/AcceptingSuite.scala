@@ -60,7 +60,7 @@ class AcceptingSuite extends munit.CatsEffectSuite:
       _       <- Opened.over(Opened.before, ports).flatMap(Opened.acceptAll)
       proving <- Opened.over(Opened.project(Shelf.Grown.kb), ports)
       checked <- Opened.checked(proving.proving.check(None))
-      failing  = Lean.Proving(checked.nodes.flatMap(_.proof.results.map(_.theorem)).toSet, Set.empty)
+      failing  = Rocq.Proving(checked.nodes.flatMap(_.proof.results.map(_.theorem)).toSet, Set.empty)
       other   <- Memory.api(Opened.session(Opened.project(Shelf.Grown.kb), ports, failing))
       shown   <- other.reading.view
       out     <- other.deciding.decide(confirm, "ann")
@@ -73,7 +73,7 @@ class AcceptingSuite extends munit.CatsEffectSuite:
 
   test("a name the key is not listed under is refused before anything is checked") {
     for
-      api  <- Opened.api(Opened.before, lean = Lean.Absent)
+      api  <- Opened.api(Opened.before, rocq = Rocq.Absent)
       seen <- api.deciding.preview(accept, "mallory")
       done <- api.deciding.decide(accept, "mallory")
     yield assertEquals((seen, done), (Left(Refusal.NotADecider("mallory")), Left(Refusal.NotADecider("mallory"))))

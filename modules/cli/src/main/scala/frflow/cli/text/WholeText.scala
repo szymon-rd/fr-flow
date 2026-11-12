@@ -43,10 +43,10 @@ object WholeText:
   private def example(e: ExampleView, st: Style): String =
     val lean = e.onClaims match
       case OnClaims.ScalaOnly                        => "checked in Scala only (it gives values)"
-      case c @ OnClaims.Lean(_, _) if c.inconsistent => "Lean: the claims are inconsistent here: they give both it " +
+      case c @ OnClaims.Rocq(_, _) if c.inconsistent => "Rocq: the claims are inconsistent here: they give both it " +
           "and its negation"
-      case c @ OnClaims.Lean(_, _) if c.contradicted => "Lean: the claims contradict it"
-      case OnClaims.Lean(c, _)                       => s"Lean: ${Findings.obligation(c.state)}" +
+      case c @ OnClaims.Rocq(_, _) if c.contradicted => "Rocq: the claims contradict it"
+      case OnClaims.Rocq(c, _)                       => s"Rocq: ${Findings.obligation(c.state)}" +
           (if ExampleView.shown(c.state) then "" else ", not decided by the claims")
     val code = if e.onCode == OnCode.Holds then "" else s"; ${Tested.onCode(e.onCode)}"
     e.outcome match

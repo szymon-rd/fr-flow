@@ -22,12 +22,13 @@ object ReportText:
       (if x.reason.rejected.isEmpty then "" else s", rejecting ${x.reason.rejected.mkString(", ")}"))
 
   def scaffolded(s: Scaffolded): String = s match
-    case Scaffolded.Written(file)     => s"wrote $file: a stub for each obligation left open (replace each sorry)"
-    case Scaffolded.NothingToAdd => "nothing to stub: the proof file already has a theorem for each open obligation"
-    case Scaffolded.EndNotFound(file) => s"$file has no closing `end` of its namespace: no stubs added"
+    case Scaffolded.Written(file)     =>
+      s"wrote $file: a stub for each obligation left open (prove each, in place of `Admitted`)"
+    case Scaffolded.NothingToAdd => "nothing to stub: the proof file already has a lemma for each open obligation"
 
   def rebased(r: Rebased): List[String] = List(
-    s"wrote ${r.file}: the ledger as it reads now (sha256 ${r.ledger.take(16)}…) is where its committed history starts",
+    s"wrote ${r.file}: the ledger as it reads now (sha256 ${r.ledger.take(16)}…) is where its committed history " +
+      "starts",
     "commit it with .frflow/ledger.json: it counts once committed")
 
   def listed(l: Listed): String = l match

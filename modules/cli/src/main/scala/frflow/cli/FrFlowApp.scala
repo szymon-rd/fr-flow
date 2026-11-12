@@ -18,7 +18,7 @@ import java.nio.file.Path
   * `root` is the project's directory (`FRFLOW_ROOT` overrides it); `extensions`, the layers on top it uses (their
   * commands follow FrFlow's). Its examples are
   * the `FrFlowExamples` classes among its test classes (`frflow.tests`), and those `examples` names. Override
-  * `sources` (directories relative to the project) and `library` (FrFlow's Lean library, relative to its `lean/`)
+  * `sources` (directories relative to the project) and `library` (FrFlow's Rocq library, relative to its `rocq/`)
   * where the project keeps them elsewhere. A usage error prints the help and exits 2. The web view runs from the same
   * object, through sbt (`sbt "PROJECT/serve --as NAME"`).
   */
@@ -46,7 +46,7 @@ abstract class FrFlowApp(model: => FrModel, root: String = ".", val extensions: 
   final def run(args: List[String]): IO[ExitCode] = Launch(this, args)
 
 object FrFlowApp:
-  /** FrFlow's Lean library (`modules/proof/lean`) from a project's `lean/` under `examples/NAME`, as `init` makes
+  /** FrFlow's Rocq library (`modules/proof/rocq`) from a project's `rocq/` under `examples/NAME`, as `init` makes
     * it.
     */
-  val Library: String = "../../../modules/proof/lean"
+  val Library: String = "../../../modules/proof/rocq"

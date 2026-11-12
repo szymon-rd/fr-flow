@@ -56,10 +56,9 @@ class InitSuite extends munit.CatsEffectSuite:
     }
   }
 
-  test("a project under examples/NAME requires FrFlow's Lean library, the one the proof suites build") {
-    val library = frflow.proof.layout.LeanWorkspace.library
-    val root = library.getParent.getParent.getParent
-    assertEquals(root.resolve("examples/toy/lean").resolve(FrFlowApp.Library).normalize, library.normalize)
+  test("a project under examples/NAME loads FrFlow's Rocq library, the one the build keeps") {
+    assertEquals(java.nio.file.Path.of("examples/toy/rocq").resolve(FrFlowApp.Library).normalize,
+      java.nio.file.Path.of("modules/proof/rocq"))
   }
 
   /** A key made for this test only, in its own directory. */

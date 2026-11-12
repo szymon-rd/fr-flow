@@ -27,7 +27,7 @@ enum Warning:
   case ExamplesNotRead(className: String, why: NotMade)
   /** A proof file of no node (after a rename or a removal): it proves nothing any more. */
   case ProofFileOfNoNode(file: RelPath)
-  /** A consistency group Lean has not proven (evidence only is not proof): a failure, the whole model's proof red
+  /** A consistency group Rocq has not proven (evidence only is not proof): a failure, the whole model's proof red
     * and `complete` false (owner §28); said beside the overview so the developer knows what to add.
     */
   case ConsistencyNotProven(statements: List[NodeId])
@@ -35,5 +35,5 @@ enum Warning:
     * is about cannot be tested against it (it has no Scala value): "not checked".
     */
   case NotChecked(node: NodeId)
-  /** Lean proves a node equivalent to its part (or a part to a conjunct of its parent): it says nothing of its own. */
+  /** Rocq proves a node equivalent to its part (or a part to a conjunct of its parent): it says nothing of its own. */
   case Restates(node: NodeId, part: NodeId)

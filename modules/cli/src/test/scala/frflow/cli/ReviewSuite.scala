@@ -118,13 +118,13 @@ class ReviewSuite extends munit.CatsEffectSuite:
       assertEquals(part, Some(ReviewState.Accepted -> Some(Action.Confirm)))
   }
 
-  test("the mechanical batch: a node whose new part Lean proves makes it is confirmed with one reason") {
+  test("the mechanical batch: a node whose new part Rocq proves makes it is confirmed with one reason") {
     for
       api    <- moved(Opened.project(frflow.api.fixture.Shelf.Grown.kb))
       _      <- Opened.checked(api.proving.check(None))
       (_, t) <- review(api, List("a", "a new part makes it as before", "q"))
       claim  <- state(api, nonNegative)
     yield
-      assert(t.contains("1 mechanical decision(s): Lean proves them again, and nothing in them is a choice"), t)
+      assert(t.contains("1 mechanical decision(s): Rocq proves them again, and nothing in them is a choice"), t)
       assertEquals(claim, Some(ReviewState.Accepted -> Some(Action.Confirm)))
   }

@@ -3,12 +3,12 @@ package frflow.api.view.whole
 import frflow.api.node.lean.ObligationState
 import frflow.eval.run.OnCode
 
-/** An example as checked: against the claims (Lean's outcome of `example_<set>_<i>` and of its opposite, or Scala
+/** An example as checked: against the claims (Rocq's outcome of `example_<set>_<i>` and of its opposite, or Scala
   * only), and against the code; what it comes to, `outcome`.
   */
 final case class ExampleView(name: String, onClaims: OnClaims, onCode: OnCode):
   /** A fact only about Declarations (`Abstract`) has no code to run: the claims giving it, it passes; one that also
-    * sets values is not asked of Lean (`ScalaOnly`), so nothing checks it: not decided.
+    * sets values is not asked of Rocq (`ScalaOnly`), so nothing checks it: not decided.
     */
   def outcome: ExampleOutcome =
     if ExampleView.failsOnCode(onCode) || onClaims.contradicted then ExampleOutcome.Fails
@@ -16,7 +16,7 @@ final case class ExampleView(name: String, onClaims: OnClaims, onCode: OnCode):
     else ExampleOutcome.Undecided
 
 object ExampleView:
-  /** An example's theorem is a try: Lean shows it (or proves it, by the developer's file), or does not. */
+  /** An example's theorem is a try: Rocq shows it (or proves it, by the developer's file), or does not. */
   def shown(state: ObligationState): Boolean = state == ObligationState.Shown || state == ObligationState.Proven
 
   /** The code gives another answer, cannot be run on it, throws, or is given a value no rule allows. A fact only

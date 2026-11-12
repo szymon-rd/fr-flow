@@ -7,22 +7,22 @@ import frflow.api.node.lean.CheckState
 import frflow.api.view.{CheckEvent, Scaffolded, Stop}
 import frflow.core.name.RelPath
 
-/** `Proving` over projects in memory, Lean scripted: the Lean written once; `status` writes the snapshot; a check
-  * streams each level as it starts, then the view after it; without Lean, or of a node the model does not have, it
+/** `Proving` over projects in memory, Rocq scripted: the Rocq written once; `status` writes the snapshot; a check
+  * streams each level as it starts, then the view after it; without Rocq, or of a node the model does not have, it
   * stops; `ci` checks everything; `scaffold` writes a proof file's stubs once.
   */
 class ProvingSuite extends munit.CatsEffectSuite:
   private val (nonNegative, sameAbove) = (id("nonNegative"), id("sameAbove"))
   private val snapshot = RelPath.fromIdentifiers(".frflow", "kb.json")
 
-  test("render writes the model's Lean: every module, then none while the model stays as it is") {
+  test("render writes the model's Rocq: every module, then none while the model stays as it is") {
     Opened.api(Opened.before).flatMap(api => (api.proving.render, api.proving.render).tupled).map { (first, again) =>
       assert(first.exists(_.endsWith("nonNegative.Spec")), first)
       assertEquals(again, Nil)
     }
   }
 
-  test("status writes the Lean and the snapshot, and gives the view") {
+  test("status writes the Rocq and the snapshot, and gives the view") {
     for
       ports <- Opened.ports()
       view  <- Opened.over(Opened.before, ports).flatMap(_.proving.status)
@@ -55,13 +55,13 @@ class ProvingSuite extends munit.CatsEffectSuite:
       assertEquals(again.collect { case CheckEvent.Done(checked, _) => checked }, List(List(nonNegative)))
   }
 
-  test("a check without Lean stops with NoLean; of a node the model does not have, with UnknownNode") {
+  test("a check without Rocq stops with NoLean; of a node the model does not have, with UnknownNode") {
     for
-      absent  <- Opened.api(Opened.before, lean = Lean.Absent)
+      absent  <- Opened.api(Opened.before, rocq = Rocq.Absent)
       api     <- Opened.api(Opened.before)
       noLean  <- Opened.events(absent.proving.check(None)).attempt
       unknown <- Opened.events(api.proving.check(Some(id("dragons")))).attempt
-    yield assertEquals((noLean, unknown), (Left(Stop.NoLean), Left(Stop.UnknownNode(id("dragons")))))
+    yield assertEquals((noLean, unknown), (Left(Stop.NoRocq), Left(Stop.UnknownNode(id("dragons")))))
   }
 
   test("ci checks everything, writes the snapshot, and ends with the view") {
@@ -75,7 +75,7 @@ class ProvingSuite extends munit.CatsEffectSuite:
         List(List(CheckState.Proven)))
   }
 
-  private val proofFile = RelPath.fromIdentifiers("lean", "Proofs/Shelf/nonNegative.lean")
+  private val proofFile = RelPath.fromIdentifiers("rocq", "Proofs/Shelf/nonNegative.v")
 
   test("scaffold writes a proof file with a stub for complete before any check, then has nothing to add") {
     for
@@ -88,17 +88,20 @@ class ProvingSuite extends munit.CatsEffectSuite:
       view    <- api.reading.view
     yield
       assertEquals(first, Scaffolded.Written(proofFile))
-      assert(text.exists(t => t.contains("theorem complete : Obl.complete := by") &&
-        t.contains("namespace Shelf.nonNegative.Proofs")), text)
+      assert(text.exists(t => t.contains("Lemma nonNegative_Proofs_complete : nonNegative_Obl_complete.") &&
+        t.startsWith("Require Export FrFlowGen.Shelf.nonNegative.Spec.")), text)
       assertEquals((again, unknown), (Scaffolded.NothingToAdd, Left(Stop.UnknownNode(id("dragons")))))
       assertEquals(view.node(nonNegative).map(_.proof.authored), Some(true))
   }
 
-  test("scaffold adds nothing to a proof file whose end it does not find, and says so") {
+  test("scaffold adds its stubs at the end of a proof file that is there") {
+    val written = "Require Export FrFlowGen.Shelf.nonNegative.Spec.\n"
     for
-      ports <- Opened.ports(Map(proofFile -> "import FrFlowGen.Shelf.nonNegative.Spec\n"))
+      ports <- Opened.ports(Map(proofFile -> written))
       out   <- Opened.over(Opened.before, ports).flatMap(_.proving.scaffold(nonNegative))
       text  <- ports.files.read(proofFile)
-    yield assertEquals((out, text), (Scaffolded.EndNotFound(proofFile),
-      Some("import FrFlowGen.Shelf.nonNegative.Spec\n")))
+    yield
+      assertEquals(out, Scaffolded.Written(proofFile))
+      assert(text.exists(t => t.startsWith(written) && t.endsWith(
+        "Lemma nonNegative_Proofs_complete : nonNegative_Obl_complete.\nProof.\nAdmitted.\n")), text)
   }

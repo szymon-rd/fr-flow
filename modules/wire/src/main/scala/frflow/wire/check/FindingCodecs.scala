@@ -11,7 +11,7 @@ import frflow.wire.test.ValueCodecs.given
 import io.circe.syntax.*
 import io.circe.{Decoder, Encoder, HCursor, Json}
 
-/** Why a check ended where it did, and Lean's messages, as `checks.json` writes them. */
+/** Why a check ended where it did, and Rocq's messages, as `checks.json` writes them. */
 object FindingCodecs:
   given Encoder[Diagnostic] = Encoder.instance(d => Json.obj("file" -> d.file.asJson, "line" -> d.line.asJson,
     "error" -> d.error.asJson, "message" -> d.message.asJson))
@@ -19,7 +19,7 @@ object FindingCodecs:
     c.get[Boolean]("error"), c.get[String]("message")).mapN(Diagnostic(_, _, _, _)))
 
   given Encoder[Finding] = Encoder.instance {
-    case Finding.LeanTimedOut            => Tagged("lean-timed-out")
+    case Finding.TimedOut            => Tagged("timed-out")
     case Finding.ModelDoesNotBuild(es)   => Tagged("model-does-not-build", "errors" -> es.asJson)
     case Finding.ProofNotAllowed(what)   => Tagged("proof-not-allowed", "what" -> Json.fromValues(what.map((l, r) =>
                                               Json.obj("line" -> l.asJson, "rule" -> NotAllowedCodecs.encode(r)))))
@@ -32,7 +32,7 @@ object FindingCodecs:
   }
 
   given Decoder[Finding] = Tagged.decoder("finding") {
-    case "lean-timed-out"       => _ => Right(Finding.LeanTimedOut)
+    case "timed-out" | "lean-timed-out" => _ => Right(Finding.TimedOut)
     case "model-does-not-build" => errors(_).map(Finding.ModelDoesNotBuild(_))
     case "proof-not-allowed"    => _.get[List[(Int, NotAllowed)]]("what")(using Decoder.decodeList(using rule))
                                      .map(Finding.ProofNotAllowed(_))

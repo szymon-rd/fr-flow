@@ -9,10 +9,10 @@ import frflow.project.port.RunCode
 import frflow.project.check.{CheckProgram, Refutations}
 import frflow.proof.obligation.ObligationName
 import frflow.proof.verdict.{CheckStatus, Finding, ProverRun}
-import frflow.project.port.memory.ScriptedLake
+import frflow.project.port.memory.ScriptedProver
 
-/** Running Scala before the pure phases: an example whose code throws is said so; the witnesses Lean is given hold
-  * no races' winners; and a step its one part fixes the answer of is refuted on a case, which Lean proving it
+/** Running Scala before the pure phases: an example whose code throws is said so; the witnesses Rocq is given hold
+  * no races' winners; and a step its one part fixes the answer of is refuted on a case, which Rocq proving it
   * makes a finding of the step's check.
   */
 class RunScalaSuite extends munit.CatsEffectSuite:
@@ -33,12 +33,12 @@ class RunScalaSuite extends munit.CatsEffectSuite:
       }), found))
   }
 
-  test("when complete does not go through and Lean proves the case refutes the step, the check says so: it fails") {
+  test("when complete does not go through and Rocq proves the case refutes the step, the check says so: it fails") {
     for
       p    <- Projects.inMemory(Map.empty)
       a    <- Projects.analysed(p, steps, Nil)
-      lake <- ScriptedLake[IO](Scripted(a, Set("complete"), Set.empty).answer, installed = true)
-      out  <- CheckProgram(p.files, lake, "lean", RunCode.inline[IO])(a, Some(NodeId("nonNegative")))
+      lake <- ScriptedProver[IO](Scripted(a, Set("complete"), Set.empty).answer, installed = true)
+      out  <- CheckProgram(p.files, lake, RunCode.inline[IO])(a, Some(NodeId("nonNegative")))
     yield
       val c = out._1.headOption.getOrElse(fail("not checked"))
       assertEquals(c.status, CheckStatus.Failed)
@@ -47,13 +47,13 @@ class RunScalaSuite extends munit.CatsEffectSuite:
         c.findings)
   }
 
-  test("refuted on a case Lean does not prove, the step's check says nothing more") {
+  test("refuted on a case Rocq does not prove, the step's check says nothing more") {
     for
       p    <- Projects.inMemory(Map.empty)
       a    <- Projects.analysed(p, steps, Nil)
-      lake <- ScriptedLake[IO](m => if m.dotted.endsWith("Refutes") then
-                ProverRun.Failed("error: FrFlowGen/Steps/nonNegative/Refutes.lean:1:0: unknown constant")
+      lake <- ScriptedProver[IO](m => if m.dotted.endsWith("Refutes") then
+                ProverRun.Failed("")
                 else Scripted(a, Set("complete"), Set.empty).answer(m), installed = true)
-      out  <- CheckProgram(p.files, lake, "lean", RunCode.inline[IO])(a, Some(NodeId("nonNegative")))
+      out  <- CheckProgram(p.files, lake, RunCode.inline[IO])(a, Some(NodeId("nonNegative")))
     yield assertEquals(out._1.flatMap(_.findings), Nil)
   }

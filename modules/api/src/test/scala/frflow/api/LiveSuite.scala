@@ -6,11 +6,10 @@ import frflow.api.node.lean.ObligationState
 import frflow.api.view.{Stop, Warning}
 import frflow.core.consistency.Vacuity
 import frflow.project.Live
-import frflow.proof.layout.LeanWorkspace
 import java.nio.file.{Files, Path}
 
 /** The live API over a project's directory (a fresh one, outside git, with no key there): read and rendered on disk,
-  * and checked by Lean with FrFlow's library. Tagged `Lean`: `sbt Lean/test` runs it, plain `sbt test` does not.
+  * and checked by Rocq with FrFlow's library. Tagged `Rocq`: `sbt rocqTest` runs it, plain `sbt test` does not.
   */
 class LiveSuite extends munit.CatsEffectSuite:
   private val dir = ResourceFunFixture(Resource.make(IO.blocking(Files.createTempDirectory("frflow-api")))(d =>
@@ -18,7 +17,7 @@ class LiveSuite extends munit.CatsEffectSuite:
 
   private def env(d: Path) = Map("HOME" -> d.toString, "FRFLOW_KEY" -> d.resolve("no.key").toString)
 
-  dir.test("on disk: the view warns of no key, render writes the Lean, who decides stops on the key".tag(Live)) {
+  dir.test("on disk: the view warns of no key, render writes the Rocq, who decides stops on the key".tag(Live)) {
     d => FrFlowApi.make[IO](Opened.before, d, env(d)).use { api =>
       for
         view     <- api.reading.view
@@ -26,7 +25,7 @@ class LiveSuite extends munit.CatsEffectSuite:
         who      <- api.deciding.developer(None).attempt
       yield
         assert(view.warnings.contains(Warning.NoKey), view.warnings)
-        assert(rendered.nonEmpty && Files.isRegularFile(d.resolve("lean/lakefile.toml")))
+        assert(rendered.nonEmpty && Files.isRegularFile(d.resolve("rocq/_CoqProject")))
         assertEquals(who.left.map(_.getClass), Left(classOf[Stop.NoKey]))
     }
   }
@@ -42,9 +41,9 @@ class LiveSuite extends munit.CatsEffectSuite:
     }
   }
 
-  dir.test("Lean, with the library a project requires, shows an implication's condition can hold".tag(Live)) { d =>
-    assert(LeanWorkspace.libraryBuilt._1, LeanWorkspace.libraryBuilt._2)
-    FrFlowApi.make[IO](Opened.before.copy(library = LeanWorkspace.library), d, env(d)).use { api =>
+  dir.test("Rocq, with the library a project's proofs load, shows an implication's condition can hold".tag(Live)) { d =>
+    val library = frflow.project.Projects.base.resolve("modules/proof/rocq")
+    FrFlowApi.make[IO](Opened.before.copy(library = library), d, env(d)).use { api =>
       Opened.checked(api.proving.check(None)).map { v =>
         val possible = v.whole.possible.collect { case (Vacuity.Satisfiable(n, _, _), o) => n.value -> o.state }
         assertEquals(possible, List("sameAbove" -> ObligationState.Proven), v.whole.possible.toString)

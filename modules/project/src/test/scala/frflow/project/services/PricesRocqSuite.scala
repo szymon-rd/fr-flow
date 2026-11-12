@@ -11,10 +11,10 @@ import scala.annotation.experimental
 import scala.concurrent.duration.*
 
 /** A structure no member changes (a plain trait, no `caps.Mutable`) and a structure whose class holds it, and one
-  * whose class matches on an enum and an option, checked by Lean end to end: each class is proven to meet the
-  * claims on its word, and the examples hold in Lean too.
+  * whose class matches on an enum and an option, checked by Rocq end to end: each class is proven to meet the
+  * claims on its word, and the examples hold in Rocq too.
   */
-@experimental class PricesLeanSuite extends munit.CatsEffectSuite:
+@experimental class PricesRocqSuite extends munit.CatsEffectSuite:
   override val munitIOTimeout: Duration = 60.minutes
 
   test("the claims on a structure no member changes, and on one that holds it, are proven".tag(Live)) {
@@ -27,9 +27,9 @@ import scala.concurrent.duration.*
 
   private def proven(model: FrModel, written: FrFlowExamples) =
     val examples = written.elaborated.fold(e => throw AssertionError(e.toString), identity)
-    Ported.run(Projects.elaborated(model), examples, Ported.Lean(Nil, Nil, None)).map { r =>
-      assertEquals(Ported.unproven(r.analysis), Map.empty, Ported.table(r.analysis))
-      assertEquals(r.analysis.computed.examples.map(_._2).distinct, List(OnCode.Holds))
-      examples.foreach(e => assertEquals(r.analysis.wholeCheck.flatMap(_.results.find(_.name ==
+    Ported.run(Projects.elaborated(model), examples, Nil).map { r =>
+      assertEquals(Ported.unproven(r), Map.empty, Ported.table(r))
+      assertEquals(r.computed.examples.map(_._2).distinct, List(OnCode.Holds))
+      examples.foreach(e => assertEquals(r.wholeCheck.flatMap(_.results.find(_.name ==
         ObligationName.Example(e.of, e.at))).map(_.status), Some(ObligationStatus.Shown), e.name))
     }

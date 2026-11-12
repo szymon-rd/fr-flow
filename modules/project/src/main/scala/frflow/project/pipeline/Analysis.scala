@@ -13,6 +13,7 @@ import frflow.proof.layout.{Layout, Lowering, RootImplModule}
 import frflow.proof.lean.ast.LeanModule
 import frflow.proof.obligation.{Discharge, NodeObligations, Obligation, ObligationName}
 import frflow.proof.reading.{ProofFile, ProofRules}
+import frflow.proof.rocq.RocqProject
 import frflow.proof.terms.TermTable
 import frflow.proof.verdict.{CheckKey, NodeCheck, WholeCheck}
 import frflow.proof.whole.{ExampleGoals, Joint, Possible}
@@ -24,13 +25,13 @@ final class Analysis(val valid: Valid, val inputs: Inputs, val computed: Compute
   lazy val terms: TermTable = TermTable.of(decided)
   lazy val obligations: List[NodeObligations] = Obligations.of(decided, terms, authored)
   /** What is asked of the theory as a whole: consistency and vacuity, with the witnesses found, and the examples; each
-    * the developer's proof file (`Proofs/<Model>/Whole.lean`) proves, authored (owner §39).
+    * the developer's proof file (`Proofs/<Model>/Whole.v`) proves, authored (owner §39).
     */
   lazy val whole: List[Obligation] =
     (Joint.of(decided) ++ Possible.of(decided, computed.found) ++ ExampleGoals.of(decided, computed.examples.map(_._1)))
       .map(o => if wholeProven(o.name) then o.copy(discharge = Discharge.Authored) else o)
   /** The developer's proof file of the theory's own obligations, if there is one. */
-  lazy val wholeProof: Option[ProofFile] = inputs.lean.proofs.collectFirst {
+  lazy val wholeProof: Option[ProofFile] = inputs.proofs.files.collectFirst {
     case (id, f) if Layout(decided.theory.name).proofs(id) == Layout(decided.theory.name).wholeProofs => f
   }
   private lazy val wholeProven: Set[ObligationName] = wholeProof.toList.flatMap(ProofRules.theorems).toSet
@@ -49,9 +50,11 @@ final class Analysis(val valid: Valid, val inputs: Inputs, val computed: Compute
   /** The lowering a node's content prints what its formula means with (`Contents`): variables named by order. */
   lazy val canonical: Lowering = Lowering(decided, terms, canonical = true)
   lazy val modules: List[LeanModule] = LeanProject.of(decided, terms, obligations, whole)
+  /** The modules as Rocq reads them. */
+  lazy val rocq: RocqProject = RocqProject(modules)
   /** The roots `root_impl` is asked of. */
   lazy val rooted: Set[NodeId] = RootImplModule.roots(lowering).toSet
-  lazy val keys: CheckKeys = CheckKeys(decided.theory.name, modules, inputs.lean, rooted)
+  lazy val keys: CheckKeys = CheckKeys(decided.theory.name, rocq, inputs.proofs, rooted)
   private lazy val nodeKeys: Map[NodeId, CheckKey] = obligations.map(o => o.node -> keys.node(o.node)).toMap
   /** Each node's governed code now: the files it governs, fingerprinted. */
   lazy val governed: Map[NodeId, CodeNow] = Governance.of(decided.theory, inputs.sources.keys.toList, own)
@@ -81,4 +84,4 @@ final class Analysis(val valid: Valid, val inputs: Inputs, val computed: Compute
   def withRecorded(r: Recorded): Analysis = Analysis(valid, inputs.copy(recorded = r), computed)
 
   private def authored: Set[(NodeId, ObligationName)] =
-    inputs.lean.proofs.toSet.flatMap((id, f) => ProofRules.theorems(f).map(id -> _))
+    inputs.proofs.files.toSet.flatMap((id, f) => ProofRules.theorems(f).map(id -> _))

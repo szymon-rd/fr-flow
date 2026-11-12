@@ -18,7 +18,7 @@ import frflow.proof.verdict.{CheckStatus, ObligationStatus, Result}
 import frflow.proof.verdict.ObligationStatus.{NotShown, Proven, Shown}
 import frflow.testing.report.{Outcome, TestReport}
 
-/** What of a node is not proven again, whether its parts make it and whether Lean proves its code, read off its
+/** What of a node is not proven again, whether its parts make it and whether Rocq proves its code, read off its
   * current check, its current tests and the theory's consistency: today's `Proofs.unproven` and `Mechanical.partsMake`,
   * line for line, less the examples (nothing depends on them) and with consistency (owner §18). A check or a report
   * whose key moved is not current, so it proves nothing.
@@ -154,7 +154,7 @@ object ReadProof:
       !status(rs, Tried(Clash)).contains(Shown) &&
       rs.forall { case Result(Tried(Needed(_)), s, _) => s == NotShown; case _ => true }
 
-  /** Lean proves its code: an `impl` or `root_impl` asked of it, and proven; tested code is not. */
+  /** Rocq proves its code: an `impl` or `root_impl` asked of it, and proven; tested code is not. */
   private def codeProven(rs: List[Result]): Boolean = rs.exists {
     case Result(Impl | RootImpl, Proven, _) => true
     case _                                  => false

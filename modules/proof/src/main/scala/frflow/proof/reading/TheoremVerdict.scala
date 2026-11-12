@@ -1,8 +1,6 @@
 package frflow.proof.reading
 
-/** Whether Lean proved one theorem of a file: proven, not in the file, resting on `sorry`, or failed with Lean's
-  * errors.
-  */
+/** Whether Rocq accepted one lemma of a file: proven, not in a file Rocq read, or failed with what Rocq said. */
 enum TheoremVerdict:
-  case Proven, Missing, UsesSorry
+  case Proven, Missing
   case Failed(errors: List[Diagnostic])

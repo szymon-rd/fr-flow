@@ -7,8 +7,8 @@ import frflow.api.view.Stop
 object Stops:
   def lines(s: Stop): List[String] = s match
     case Stop.Invalid(ps)                => ps.toList.map(p => s"error: ${Problems.text(p)}")
-    case Stop.NoLean => List("no Lean: lake does not run (install elan; FRFLOW_LAKE names another " +
-        "lake); render and status work without it")
+    case Stop.NoRocq => List("no Rocq: rocq does not run (install Rocq; FRFLOW_ROCQ names another " +
+        "rocq); render and status work without it")
     case Stop.UnknownNode(id)            => List(s"unknown node $id")
     case Stop.NotJson(file, problem)     => List(s"$file is not JSON: $problem")
     case Stop.NoVersion(file)            => List(s"$file has no version: it is not a file this FrFlow wrote")

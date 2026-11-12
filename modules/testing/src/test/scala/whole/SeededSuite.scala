@@ -3,7 +3,7 @@ package whole
 import frflow.core.consistency.{Consistency, Group}
 import frflow.core.name.{DefName, NodeId, SymbolName}
 import frflow.proof.layout.Lowering
-import frflow.proof.lean.print.Print
+import frflow.proof.lean.term.Print
 import frflow.proof.obligation.{ObligationName, Prop, Required, Substitute}
 import frflow.proof.terms.TermTable
 import frflow.proof.whole.Stands

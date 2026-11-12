@@ -6,26 +6,23 @@ import frflow.core.expr.Value
 import frflow.eval.run.{Broken, OnCode}
 import frflow.proof.audit.Completeness
 import frflow.project.{Live, Ported, Projects}
-import frflow.project.Ported.Lean
 import frflow.proof.obligation.ObligationName
 import frflow.proof.verdict.{ObligationStatus, Result}
 import whole.Tested
 import frflow.testing.report.Failure
 import scala.concurrent.duration.*
 
-/** Auth checked whole: by Lean and by tests (1,000 cases from seed 1), every node proven and every consistency
+/** Auth checked whole: by Rocq and by tests (1,000 cases from seed 1), every node proven and every consistency
   * group proven (owner §28); the seeded bug is caught; and the examples hold on the code.
   */
 class AuthPortSuite extends munit.CatsEffectSuite:
   override val munitIOTimeout: Duration = 40.minutes
   private val elaborated = Projects.elaborated(knowledge)
 
-  private val proofs = List("Lemmas", "accessExactly", "tokenNamesHolder", "accessNeedsGrant", "grantLetsIn")
-  private val lean = Lean(proofs.map(n => n -> Ported.proof("auth", "Auth", n)), Nil, None)
+  private val proofs = Ported.proofs("auth", "Auth")
 
-  test("checked by Lean and tested: every node is proven, and the theory is consistent".tag(Live)) {
-    Ported.run(elaborated, DecisionExamples().elaborated.fold(e => fail(e.toString), identity), lean).map { r =>
-      val a = r.analysis
+  test("checked by Rocq and tested: every node is proven, and the theory is consistent".tag(Live)) {
+    Ported.run(elaborated, DecisionExamples().elaborated.fold(e => fail(e.toString), identity), proofs).map { a =>
       assertEquals(Completeness.of(a.decided, a.modules), Nil)
       assertEquals(Ported.unproven(a), Map.empty[String, List[String]])
       val whole = a.wholeCheck.map(_.results).getOrElse(fail("the theory's own check is not recorded"))

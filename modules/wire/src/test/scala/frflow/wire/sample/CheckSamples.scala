@@ -21,13 +21,13 @@ object CheckSamples:
 
   private val refused = NodeCheck(NodeId("Book"), CheckKey("77aa01"), CheckStatus.Failed, List(
     Result(ObligationName.Impl, ObligationStatus.Open, List(error))), List(
-    Finding.ProofNotAllowed(List(3 -> NotAllowed.NativeDecide, 5 -> NotAllowed.Import("Mathlib.Tactic"))),
+    Finding.ProofNotAllowed(List(3 -> NotAllowed.Admit, 5 -> NotAllowed.Import("Mathlib.Tactic"))),
     Finding.DisallowedAxioms(List("sorryAx"))), at)
 
   private val refuted = NodeCheck(NodeId("Free"), CheckKey("90bc12"), CheckStatus.Failed, List(
     Result(ObligationName.Tried(TryKind.Clash), ObligationStatus.Shown, Nil),
     Result(ObligationName.Tried(TryKind.RestatesConjunct(NodeId("Root"), 2)), ObligationStatus.NotShown, Nil)),
-    List(Finding.Refuted(List(TryKind.Clash)), Finding.NotProven(List(error)), Finding.LeanTimedOut), at)
+    List(Finding.Refuted(List(TryKind.Clash)), Finding.NotProven(List(error)), Finding.TimedOut), at)
 
   private val stepRefuted = NodeCheck(NodeId("Small"), CheckKey("31d7e0"), CheckStatus.Open, List(
     Result(ObligationName.Complete, ObligationStatus.Open, Nil)), List(Finding.StepRefuted(List("n" -> Value.Num(4)))),

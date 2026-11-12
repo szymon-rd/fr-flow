@@ -5,22 +5,21 @@ import cats.effect.Clock
 import cats.Monad
 import cats.syntax.all.*
 import frflow.project.pipeline.Analysis
-import frflow.project.port.Lake
+import frflow.project.port.Prover
 import frflow.proof.layout.Layout
 import frflow.proof.lean.ast.ModuleName
 import frflow.proof.lean.lower.LowerObligation
-import frflow.proof.lean.print.Print
 import frflow.proof.obligation.{Discharge, Obligation}
 import frflow.proof.reading.{Elaboration, ProofRules}
 import frflow.proof.verdict.{Judge, ObligationStatus, ProverRun, Result, WholeCheck}
 
-/** The theory's own check: `Whole.lean` built and each consistency and vacuity obligation judged (proven when its
-  * witnesses or FrFlow's automation meet it, or the developer's proof file `Proofs/<Model>/Whole.lean` proves it,
+/** The theory's own check: `Whole.v` built and each consistency and vacuity obligation judged (proven when its
+  * witnesses or FrFlow's automation meet it, or the developer's proof file `Proofs/<Model>/Whole.v` proves it,
   * owner §39; one nothing meets stays open, "consistency not proven" or "not shown"), then each example tried
-  * against the claims beside it (shown or not); a module Lake did not run judges nothing; a proof is proven only with
+  * against the claims beside it (shown or not); a module Rocq did not run judges nothing; a proof is proven only with
   * its audit, on the axioms allowed; a proof file holding what it may not is failed. None when nothing is asked.
   */
-final class WholeChecker[F[_]: Monad: Clock](lake: Lake[F]):
+final class WholeChecker[F[_]: Monad: Clock](prover: Prover[F]):
   def apply(a: Analysis): F[Option[WholeCheck]] =
     val layout = Layout(a.decided.theory.name)
     a.whole.toNel.traverse { asked =>
@@ -31,19 +30,18 @@ final class WholeChecker[F[_]: Monad: Clock](lake: Lake[F]):
 
   private type Ran = Option[(ProverRun, Option[Elaboration])]
 
-  /** A module's run, with what Lean said of it; none when the model has no such module. */
+  /** A module's run, with what Rocq said of it; none when the model has no such module. */
   private def built(a: Analysis, name: ModuleName): F[Ran] =
-    a.modules.find(_.name == name).traverse(m => lake.build(NonEmptyList.one(name)).map(r => r -> Option.when(
-      NodeLean.ran(name, r))(Elaboration(Print.module(m), NodeLean.output(r), m.name.file.value.stripPrefix("lean/")))))
+    a.modules.find(_.name == name).traverse(_ => prover.build(NonEmptyList.one(name)).map(r =>
+      r -> NodeRocq.generated(a, name, r)))
 
-  /** The developer's proof file, as Lean read it when building the audit of its proofs (which imports it), and the
+  /** The developer's proof file, as Rocq read it when building the audit of its proofs (which imports it), and the
     * audit; none when nothing asked is authored.
     */
   private def authored(a: Analysis, layout: Layout): F[Option[Authored]] =
     a.wholeProof.filter(_ => a.whole.exists(_.discharge == Discharge.Authored)).flatTraverse { f =>
       built(a, layout.wholeAudit).map(_.map((r, audit) => Authored(ProofRules.notAllowed(f).isEmpty,
-        Option.when(NodeLean.ran(layout.wholeProofs, r))(Elaboration(f.source, NodeLean.output(r),
-          layout.wholeProofs.file.value.stripPrefix("lean/"))), audit)))
+        NodeRocq.said(layout.wholeProofs, f.source, List(layout.kb.value, "Whole", "Proofs"), r), audit)))
     }
 
   private def judged(o: Obligation, whole: Ran, checks: Ran, proofs: Option[Authored]): Result =

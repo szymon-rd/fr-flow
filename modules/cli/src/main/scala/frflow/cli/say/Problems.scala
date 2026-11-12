@@ -33,7 +33,7 @@ object Problems:
     case Problem.DeclaredTwice(name)        => s"$name is declared twice"
     case Problem.CodeOnlyInStatement(id, s, t) => s"$id speaks of ${s.value}: ${Faults.codeOnly(t)}"
     case Problem.SaidToExist(t, at)         => s"${at.says} is said to exist of ${Values.ty(t)}, which holds a " +
-        "Scala Int or Long (by the statement, a rule of always, or the theory's consistency): Lean's Int is " +
+        "Scala Int or Long (by the statement, a rule of always, or the theory's consistency): Rocq's integers are " +
         "unbounded, so it could find one Scala cannot hold; use BigInt"
     case Problem.Undefined(d)               => s"code calls ${d.value}, and nothing gives it a meaning: list a " +
         s"Definition of it in the model (${d.value}.define(…), .defineTested(…), .defineValue(…), .provided)"

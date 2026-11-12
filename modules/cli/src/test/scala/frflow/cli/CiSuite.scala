@@ -3,7 +3,7 @@ package frflow.cli
 import cats.effect.{ExitCode, IO}
 import com.monovore.decline.Command as Sub
 import frflow.api.fixture.Opened
-import frflow.api.{FrFlowApi, Host, Lean}
+import frflow.api.{FrFlowApi, Host, Rocq}
 import frflow.api.view.View
 import frflow.cli.command.{CliExtension, Command, Dispatch}
 import frflow.cli.review.ReviewKey
@@ -30,7 +30,7 @@ class CiSuite extends munit.CatsEffectSuite:
 
   /** Every node accepted where its proof fails. */
   private def failing: IO[FrFlowApi[IO]] =
-    Opened.api(Opened.trusted, lean = Lean.Proving(Set("complete"), Set.empty)).flatMap(Cli.accepted)
+    Opened.api(Opened.trusted, rocq = Rocq.Proving(Set("complete"), Set.empty)).flatMap(Cli.accepted)
 
   test("ci exits 1 for a complete project that warns, for a layer's warning, for an empty model, a failing check") {
     val other = RelPath.fromIdentifiers("src/main", "Other.scala")

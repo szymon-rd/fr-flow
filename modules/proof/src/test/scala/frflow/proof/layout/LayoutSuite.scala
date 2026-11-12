@@ -2,7 +2,7 @@ package frflow.proof.layout
 
 import frflow.core.name.NodeId
 import frflow.proof.lean.ast.LeanModule
-import frflow.proof.lean.print.Print
+
 
 /** Where each module goes and what it imports (read off what it names), how `holds` and `root_impl` are composed
   * by name, and a step refuted on a case.
@@ -38,20 +38,20 @@ class LayoutSuite extends munit.FunSuite:
   }
 
   test("holds: complete applied by name to the node's open terms and its parts' proofs") {
-    assert(Print.module(module("allowsOne.Theorems")).contains("""theorem holds : ∀ (allowed : Int → Prop), """ +
+    assert(Notation.module(module("allowsOne.Theorems")).contains("""theorem holds : ∀ (allowed : Int → Prop), """ +
       """∀ (h_allowedPositive : (Test.allowedPositive.claim allowed)), (Test.allowsOne.claim allowed) :=
       |  fun allowed h_allowedPositive => (Test.allowsOne.Auto.complete (allowed := allowed) """.stripMargin +
       "(h_allowedPositive := h_allowedPositive))"))
   }
 
   test("root_impl: each root of proven code, from what it trusts") {
-    assert(Print.module(module("RootImpl")).contains(
+    assert(Notation.module(module("RootImpl")).contains(
       "theorem root_impl : (Test.bookRuns.claim Test.bookIfFree) :=\n  (Test.bookRuns.Impl.impl)"))
   }
 
   test("a step refuted: complete false on an answer its part allows and a case") {
     val m = RefutesModule.of(Refuted.resolved, Refuted.table, NodeId("small"), Refuted.found)
-    val text = Print.module(m)
+    val text = Notation.module(m)
     assert(text.contains("@[frflow_defs] def answer : Int → Prop :=\n  (fun (n : Int) => (n < (3 : Int)))"), text)
     assert(text.contains("@[frflow_defs] def case_0 : Int :=\n  4"), text)
     assert(text.contains("theorem refutes : ¬ Obl.complete := by"), text)

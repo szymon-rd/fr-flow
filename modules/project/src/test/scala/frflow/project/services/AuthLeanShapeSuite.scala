@@ -9,7 +9,8 @@ import frflow.core.name.NodeId
 import frflow.dsl.term.LeanType
 import frflow.project.Projects
 import frflow.project.pipeline.Analysis
-import frflow.proof.lean.print.Print
+
+import frflow.proof.layout.Notation
 import frflow.proof.obligation.{ObligationName, TryKind}
 
 /** What auth's Lean says of the values provided where the code runs (owner §21: values from outside): what always
@@ -21,7 +22,7 @@ class AuthLeanShapeSuite extends munit.FunSuite:
   private val a = Projects.bare(Projects.elaborated(knowledge))
 
   private def module(on: Analysis, name: String): String =
-    on.modules.find(_.name.dotted == s"FrFlowGen.Auth.$name").map(Print.module).getOrElse(fail(s"no module $name"))
+    on.modules.find(_.name.dotted == s"FrFlowGen.Auth.$name").map(Notation.module).getOrElse(fail(s"no module $name"))
 
   private def defined(text: String, name: String): String =
     text.linesIterator.dropWhile(!_.contains(s"def $name ")).take(2).mkString("\n")

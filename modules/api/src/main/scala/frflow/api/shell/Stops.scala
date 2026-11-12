@@ -9,7 +9,7 @@ import frflow.wire.file.Unreadable
 private[api] object Stops:
   val of: PartialFunction[Throwable, Throwable] =
     case Problems.Invalid(ps)                   => Stop.Invalid(ps)
-    case FrFlowError.NoLean                     => Stop.NoLean
+    case FrFlowError.NoProver                   => Stop.NoRocq
     case FrFlowError.UnknownNode(id)            => Stop.UnknownNode(id)
     case FrFlowError.NotRead(u)                 => unread(u)
     case FrFlowError.NoKey(file)                => Stop.NoKey(file)

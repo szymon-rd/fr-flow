@@ -5,19 +5,19 @@ import cats.{MonadThrow, Parallel}
 import cats.syntax.all.*
 import frflow.core.name.NodeId
 import frflow.project.pipeline.Analysis
-import frflow.project.port.{FrFlowError, Lake, ProjectFiles, Records, RunCode}
+import frflow.project.port.{FrFlowError, ProjectFiles, Prover, Records, RunCode}
 import frflow.proof.verdict.{CheckStatus, Checks, NodeCheck}
 
-/** `check`: the Lean that changed written, then the nodes checked level by level (parts first, a level's nodes side
+/** `check`: the Rocq that changed written, then the nodes checked level by level (parts first, a level's nodes side
   * by side), each kept as recorded while its check is current (its key the node's now, its parts as proven as when
   * it was made), then the theory's own check unless current; the checks recorded (`checks.json`). With `only`, that
-  * node is checked whatever its record. Refused while a `.lean` file other than a node's proof sits under
-  * `lean/Proofs/` (`FrFlowError.StrayProofs`). Asks only `MonadThrow`, `Parallel` and `Clock`; tested against a
-  * scripted `Lake` and memory.
+  * node is checked whatever its record. Refused while a `.v` file other than a node's proof sits under
+  * `rocq/Proofs/` (`FrFlowError.StrayProofs`). Asks only `MonadThrow`, `Parallel` and `Clock`; tested against a
+  * scripted `Prover` and memory.
   */
-final class CheckProgram[F[_]: MonadThrow: Parallel: Clock](files: ProjectFiles[F], lake: Lake[F], library: String,
+final class CheckProgram[F[_]: MonadThrow: Parallel: Clock](files: ProjectFiles[F], prover: Prover[F],
     code: RunCode[F]):
-  private val nodes = NodeChecker(lake, files, Refutations(code))
+  private val nodes = NodeChecker(prover, files, Refutations(code))
 
   /** The nodes checked, in order, and the analysis with every check recorded. */
   def apply(a: Analysis, only: Option[NodeId]): F[(List[NodeCheck], Analysis)] =
@@ -31,26 +31,26 @@ final class CheckProgram[F[_]: MonadThrow: Parallel: Clock](files: ProjectFiles[
     val levels = CheckPlan.levels(a, only)
     for
       _     <- refused(a, only)
-      _     <- Render(files, library)(a)
+      _     <- Render(files)(a)
       done  <- levels.zipWithIndex.foldLeftM(Map.empty[NodeId, NodeCheck]) { case (done, (level, i)) =>
                  started(i + 1, levels.size, level) >>
                    level.parTraverse(n => kept(a, n, done, only).fold(nodes(a, n, parts(a, n, done)))(_.pure[F]))
                      .map(done ++ _.map(c => c.node -> c))
                }
-      whole <- a.wholeCheck.fold(WholeChecker(lake)(a))(w => w.some.pure[F])
+      whole <- a.wholeCheck.fold(WholeChecker(prover)(a))(w => w.some.pure[F])
       checks = Checks(a.inputs.recorded.checks.nodes.filter((id, _) => a.decided.theory.node(id).isDefined) ++ done,
                  whole)
       _     <- Records.writeChecks(files, checks)
     yield (levels.flatten.flatMap(done.get).filterNot(c => a.current(c.node).contains(c)),
       a.withRecorded(a.inputs.recorded.copy(checks = checks)))
 
-  /** Why no check runs: no Lean; a node named that the model does not have; a stray proof file. */
+  /** Why no check runs: no Rocq; a node named that the model does not have; a stray proof file. */
   private def refused(a: Analysis, only: Option[NodeId]): F[Unit] =
-    lake.available.ifM(MonadThrow[F].unit, MonadThrow[F].raiseError(FrFlowError.NoLean)) >>
+    prover.available.ifM(MonadThrow[F].unit, MonadThrow[F].raiseError(FrFlowError.NoProver)) >>
       only.filterNot(a.decided.theory.node(_).isDefined)
         .traverse_(id => MonadThrow[F].raiseError[Unit](FrFlowError.UnknownNode(id))) >>
-      MonadThrow[F].raiseError[Unit](FrFlowError.StrayProofs(a.inputs.lean.strays))
-        .whenA(a.inputs.lean.strays.nonEmpty)
+      MonadThrow[F].raiseError[Unit](FrFlowError.StrayProofs(a.inputs.proofs.strays))
+        .whenA(a.inputs.proofs.strays.nonEmpty)
 
   /** Its current check, kept while its parts are as proven as when it was made. */
   private def kept(a: Analysis, n: NodeId, done: Map[NodeId, NodeCheck], only: Option[NodeId]): Option[NodeCheck] =

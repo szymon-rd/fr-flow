@@ -4,7 +4,7 @@ import cats.effect.{ExitCode, IO}
 import cats.syntax.all.*
 import com.monovore.decline.Command as Sub
 import frflow.api.fixture.{Opened, Shelf}
-import frflow.api.Lean
+import frflow.api.Rocq
 import frflow.api.view.Stop
 import frflow.cli.command.{Asked, Command, Commands}
 import frflow.cli.term.Style
@@ -38,7 +38,7 @@ class CommandsSuite extends munit.CatsEffectSuite:
     assert(List("nope", "tree a b", "show", "deciders").forall(parse(_).left.exists(_.errors.nonEmpty)))
   }
 
-  test("exit codes: status 1 until every node is accepted and proven, then 0; a usage error 2; no Lean 3") {
+  test("exit codes: status 1 until every node is accepted and proven, then 0; a usage error 2; no Rocq 3") {
     for
       api                <- Opened.api(Opened.trusted)
       (open, _)          <- Cli.all(api, Command.Status(json = false))
@@ -47,7 +47,7 @@ class CommandsSuite extends munit.CatsEffectSuite:
                               decide(Decide.Revisit(NodeId("nope"), _), Some(NodeId("nope")), Some("look again here")),
                               decide(Decide.Gone(NodeId("old"), _), Some(NodeId("old")), None))
       term               <- Scripted(Nil)
-      stops              <- List(Stop.UnknownNode(nonNegative), Stop.NoLean, Stop.NoVersion("ledger"))
+      stops              <- List(Stop.UnknownNode(nonNegative), Stop.NoRocq, Stop.NoVersion("ledger"))
                               .traverse(Launch.failed(term, _))
     yield
       assertEquals(open, List(ExitCode(1)))
@@ -59,7 +59,7 @@ class CommandsSuite extends munit.CatsEffectSuite:
     val examples = Shelf.BeforeExamples().elaborated.fold(e => fail(e.toString), identity)
     val both = List(Command.Check(None, json = false), Command.Status(json = false))
     def run(shown: String*) = Opened.api(Opened.project(Shelf.Before.kb, examples),
-      lean = Lean.Proving(Set.empty, shown.toSet)).flatMap(Cli.accepted).flatMap(Cli.all(_, both*))
+      rocq = Rocq.Proving(Set.empty, shown.toSet)).flatMap(Cli.accepted).flatMap(Cli.all(_, both*))
     for
       (plain, _)               <- Opened.api(Opened.before).flatMap(Cli.accepted).flatMap(Cli.all(_, both*))
       (undecided, open)        <- run()
@@ -70,11 +70,11 @@ class CommandsSuite extends munit.CatsEffectSuite:
       assertEquals(List(plain, undecided, shown), List.fill(3)(plain))
       assertEquals(contradicted.head, ExitCode(1))
       assert(open.contains("Examples: 0/1 pass; 1 not decided by the claims"), open)
-      assert(open.contains("o one is given itself  Lean: not shown, not decided by the claims"), open)
+      assert(open.contains("o one is given itself  Rocq: not shown, not decided by the claims"), open)
       assert(passing.contains("Examples: 1/1 pass"), passing)
-      assert(contrary.contains("x one is given itself  Lean: the claims contradict it"), contrary)
+      assert(contrary.contains("x one is given itself  Rocq: the claims contradict it"), contrary)
       assert(contrary.contains("Examples: 0/1 pass; 1 fail"), contrary)
-      assert(both.contains("x one is given itself  Lean: the claims are inconsistent here: they give both it and " +
+      assert(both.contains("x one is given itself  Rocq: the claims are inconsistent here: they give both it and " +
         "its negation"), both)
   }
 
@@ -93,16 +93,16 @@ class CommandsSuite extends munit.CatsEffectSuite:
       assert(wide.size > 2 && wide.forall(Style.visible(_) <= 40), wide.mkString("\n"))
   }
 
-  test("check: a node whose obligation Lean does not prove reads open, with Lean's message; proven when none is") {
+  test("check: a node whose obligation Rocq does not prove reads open, with Rocq's message; proven when none is") {
     for
-      failing       <- Opened.api(Opened.trusted, lean = Lean.Proving(Set("complete"), Set.empty))
+      failing       <- Opened.api(Opened.trusted, rocq = Rocq.Proving(Set("complete"), Set.empty))
       (codes, text) <- Cli.all(failing, Command.Check(None, json = false))
       proven        <- Opened.api(Opened.trusted)
       (fine, done)  <- Cli.all(proven, Command.Check(None, json = false))
     yield
       assertEquals((codes, fine), (List(ExitCode(1)), List(ExitCode(0))))
       assert(text.contains("o aboveMinusOne: open\n  complete: open\n"), text)
-      assert(text.contains(": unsolved goals"), text)
+      assert(text.contains(": the proof does not go through"), text)
       assert(done.contains("+ aboveMinusOne: proven"), done)
   }
 
@@ -115,7 +115,7 @@ class CommandsSuite extends munit.CatsEffectSuite:
     }
   }
 
-  test("check: a claim whose code is tested, not proven, says it is tested; proven stays for what Lean proves") {
+  test("check: a claim whose code is tested, not proven, says it is tested; proven stays for what Rocq proves") {
     Opened.api(Opened.before).flatMap(Cli.all(_, Command.Check(None, json = false))).map { (_, text) =>
       assert(text.contains("+ nonNegative: proven; its code tested on 200 cases"), text)
     }
@@ -133,7 +133,7 @@ class CommandsSuite extends munit.CatsEffectSuite:
         "changed claim: (0)"), text)
   }
 
-  test("check and ci stream each level on stderr as Lean starts it; ci exits 0 only when complete, nothing warned") {
+  test("check and ci stream each level on stderr as Rocq starts it; ci exits 0 only when complete, nothing warned") {
     for
       api          <- Opened.api(Opened.trusted)
       (first, t1)  <- Cli.all(api, Command.Ci)

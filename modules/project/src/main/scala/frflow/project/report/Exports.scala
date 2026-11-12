@@ -8,13 +8,13 @@ import frflow.core.spec.{NodeKind, Statement}
 import frflow.decision.review.Subject
 import frflow.project.pipeline.{Analysis, Texts}
 import frflow.proof.layout.Composition
-import frflow.proof.lean.print.Print
+import frflow.proof.lean.term.Print
 import frflow.proof.obligation.ObligationName
 import frflow.proof.verdict.Result
 import frflow.wire.snapshot.*
 
 /** The snapshot (`.frflow/kb.json`) of an analysis: the nodes in decision order, each with its content as decided,
-  * its place, its current check with each obligation's Lean statement, and how it is checked and tested; beside
+  * its place, its current check with each obligation's statement, and how it is checked and tested; beside
   * them the consistency groups and the examples as checked. Made by `wire`'s rows (`Rows`) only.
   */
 object Exports:
@@ -46,7 +46,7 @@ object Exports:
     CheckRow(c.fold("unchecked")(_.status.toString.toLowerCase), holds.getOrElse(""),
       c.toList.flatMap(_.results).map(x => Rows.obligation(x, statement(a, id, x))))
 
-  /** An obligation's statement, as Lean is given it. */
+  /** An obligation's statement, as the prover is given it. */
   private def statement(a: Analysis, id: NodeId, r: Result): String =
     a.obligations.find(_.node == id).toList.flatMap(o => o.required ++ o.tried).find(_.name == r.name)
       .fold("")(o => Print.expr(a.lowering.props.statement(o.goal)))

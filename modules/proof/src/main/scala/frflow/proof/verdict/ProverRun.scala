@@ -1,6 +1,6 @@
 package frflow.proof.verdict
 
-/** One run of Lean on a module, with Lean's output (its messages are read by `reading.LeanOutput`). */
+/** One build of a module by the prover, with its report (`reading.RocqReport`). */
 enum ProverRun:
   case Built(output: String)
   case Failed(output: String)

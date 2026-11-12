@@ -34,10 +34,10 @@ object Warnings:
     case Warning.ExamplesNotRead(c, why)  => s"the examples of $c are not read: ${notMade(why)}"
     case Warning.ProofFileOfNoNode(f)     => s"$f is no node's proof file (renamed or removed?): it proves nothing"
     case Warning.ConsistencyNotProven(ns) => s"consistency not proven: ${ns.mkString(", ")}; the proof is red " +
-        "until Lean proves some meaning meets them all (an equation, a bound, a value, proven code, or a proof)"
+        "until Rocq proves some meaning meets them all (an equation, a bound, a value, proven code, or a proof)"
     case Warning.NotChecked(id)           => s"$id is not checked: no parts prove it, no proven code is checked " +
         "against it, and the plain Scala it is about has no Scala value to test against"
-    case Warning.Restates(id, part)       => s"$id restates $part: Lean proves them equivalent, so it says nothing " +
+    case Warning.Restates(id, part)       => s"$id restates $part: Rocq proves them equivalent, so it says nothing " +
         "of its own"
 
   def uncounted(u: Uncounted, d: Decision): String = u match

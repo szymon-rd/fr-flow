@@ -7,11 +7,11 @@ import frflow.core.name.NodeId
 import frflow.core.spec.{Node, Reliance, Statement, Written}
 import frflow.decision.content.{Content, FieldValue}
 import frflow.proof.layout.{Lowering, VocabularyModules}
-import frflow.proof.lean.print.{Print, PrintDecl}
+import frflow.proof.lean.term.{Print, PrintDecl}
 import frflow.proof.lean.term.Printed
 
 /** A node's decided form: what it says (its sentence and formula; its reason is its decision's), where it sits, and
-  * how it is checked. Its `formula` is what the formula means: the elaborated term as Lean is given it (FrFlow's
+  * how it is checked. Its `formula` is what the formula means: the elaborated term as Rocq is given it (FrFlow's
   * defines by name, a variable by its place), so a helper whose body changes moves it, and wording the Scala
   * differently does not; `written` is the Scala as the developer wrote it, shown, not part of the meaning
   * (`Meaning`). One form, FrFlow's own: the ledgers start fresh with it, so no older form is read. The rebuilt

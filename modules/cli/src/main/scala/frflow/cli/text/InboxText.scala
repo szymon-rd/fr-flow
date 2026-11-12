@@ -13,7 +13,7 @@ import frflow.decision.review.ReviewState
 object InboxText:
   def lines(v: View, st: Style, layers: Contribution): List[String] =
     val (batch, rest) = queue(v, layers.aside).partition(mechanical)
-    val body = Lines.section("Mechanical: Lean proves them again, and nothing in them is a choice (confirm takes them)",
+    val body = Lines.section("Mechanical: Rocq proves them again, and nothing in them is a choice (confirm takes them)",
         batch.map(Lines.node(_, st, 2)), st) ++
       Lines.section("To decide, in order (review, or accept / reject NODE)", rest.flatMap(waits(_, st)), st) ++
       Lines.section("Gone from the model (gone NODE agrees it is gone)", v.gone.map(_.value), st) ++

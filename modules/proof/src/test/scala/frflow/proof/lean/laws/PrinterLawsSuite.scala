@@ -7,7 +7,7 @@ import frflow.core.spec.Written
 import frflow.core.term.language.Final
 import frflow.proof.lean.ast.{LBinder, LExpr}
 import frflow.proof.lean.lower.{LowerProp, Naming}
-import frflow.proof.lean.print.Print
+import frflow.proof.lean.term.Print
 import frflow.proof.lean.term.Printed
 import frflow.proof.obligation.Prop
 import frflow.proof.terms.TermTable

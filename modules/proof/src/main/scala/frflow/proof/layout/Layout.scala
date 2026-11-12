@@ -26,4 +26,4 @@ final case class Layout(kb: KbName):
   def refutes(n: NodeId): ModuleName = generated(n.value, "Refutes")
   def proofs(n: NodeId): ModuleName = ModuleName(Names.path("Proofs", kb.value, n.value))
   def lemmas: ModuleName = ModuleName(Names.path("Proofs", kb.value, "Lemmas"))
-  def proofsDir: RelPath = RelPath.fromIdentifiers("lean", s"Proofs/${kb.value}")
+  def proofsDir: RelPath = RelPath.fromIdentifiers("rocq", s"Proofs/${kb.value}")

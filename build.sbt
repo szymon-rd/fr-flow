@@ -17,23 +17,17 @@ val catsEffectTestkit = "org.typelevel" %% "cats-effect-testkit" % "3.6.3" % Tes
 val lawTests = Seq("org.typelevel" %% "cats-kernel-laws" % "2.13.0" % Test,
   "org.typelevel" %% "discipline-munit" % "2.0.0" % Test)
 
-// Tests tagged `Lean` run Lean end to end (minutes): plain `sbt test` leaves them out, `sbt leanTest` runs them,
-// `sbt testAll` runs both.
-lazy val LeanTest = config("lean").extend(Test)
-// Tests tagged `Rocq` run Rocq's `coqc` the same way: `sbt rocqTest` runs them.
+// Tests tagged `Rocq` run a live interpreter (the disk, git, Rocq end to end: minutes): plain `sbt test` leaves them
+// out, `sbt rocqTest` runs them, `sbt testAll` runs both.
 lazy val RocqTest = config("rocq").extend(Test)
-val withoutLean = Tests.Argument(TestFrameworks.MUnit, "--exclude-tags=Lean")
 val withoutRocq = Tests.Argument(TestFrameworks.MUnit, "--exclude-tags=Rocq")
-def tagged(in: Configuration, without: Tests.Argument, tag: String): Seq[Setting[?]] =
-  inConfig(in)(Defaults.testTasks) ++ Seq(
-    Test / testOptions += without,
-    in / testOptions := (in / testOptions).value.filterNot(_ == without) :+
-      Tests.Argument(TestFrameworks.MUnit, s"--include-tags=$tag"))
-def leanTagged: Seq[Setting[?]] =
-  tagged(LeanTest, withoutLean, "Lean") ++ tagged(RocqTest, withoutRocq, "Rocq")
-addCommandAlias("leanTest", "Lean/test")
+def rocqTagged: Seq[Setting[?]] =
+  inConfig(RocqTest)(Defaults.testTasks) ++ Seq(
+    Test / testOptions += withoutRocq,
+    RocqTest / testOptions := (RocqTest / testOptions).value.filterNot(_ == withoutRocq) :+
+      Tests.Argument(TestFrameworks.MUnit, "--include-tags=Rocq"))
 addCommandAlias("rocqTest", "Rocq/test")
-addCommandAlias("testAll", "; test; Lean/test")
+addCommandAlias("testAll", "; test; Rocq/test")
 // A new project: `sbt "frflowInit toy --as NAME"` (an empty FrModel and its line below; `--as` lists you as the first
 // decider); with an AI agent's layer on top, `sbt "frflowInitAgent toy --as NAME"`.
 addCommandAlias("frflowInit", "cli/runMain frflow.cli.Init")
@@ -44,7 +38,7 @@ addCommandAlias("frflowInitAgent", "agent/runMain frflow.agent.Init")
 // here only (section 11).
 val strict = Seq("-Wunused:all", "-Wnonunit-statement", "-Wvalue-discard")
 def module(name: String, libraries: ModuleID*) = Project(name, file(s"modules/$name"))
-  .configs(LeanTest, RocqTest).settings(leanTagged)
+  .configs(RocqTest).settings(rocqTagged)
   .settings(Keys.name := s"frflow-$name", libraryDependencies ++= munit +: inspector +: libraries,
     scalacOptions ++= strict,
     // The tests read the examples, whose classes are checked for capture and separation: experimental in Scala.
@@ -57,7 +51,7 @@ val inspector = "org.scala-lang" %% "scala3-tasty-inspector" % "3.10.0"
 lazy val root = project.in(file("."))
   .aggregate(core, dsl, proof, eval, testing, decision, wire, shell, api, cli, web, agent,
     roomsModel, rooms, authModel, auth, shopModel, shop, paymentsModel, payments)
-  .configs(LeanTest, RocqTest).settings(leanTagged)
+  .configs(RocqTest).settings(rocqTagged)
   .settings(publish / skip := true)
 
 /** Names, types, the term algebras and core interpreters, the IR, statements, validation, checking, consistency. */
@@ -68,12 +62,12 @@ lazy val dsl = module("dsl", cats).dependsOn(core)
   // Its tests call ordinary methods from lifted code (`lifted.ReadMethods`): the compiler keeps their bodies.
   .settings(Test / scalacOptions += "-Yretain-trees")
 
-/** Obligations, the Lean AST, the one term printer, lowering, layout, reading Lean's output, the judges. */
+/** Obligations, the generated AST and its printers, lowering, layout, reading Rocq's report, the judges. */
 lazy val proof = module("proof", cats).dependsOn(core % "compile->compile;test->test")
 
 /** The Scala meaning of terms and of plain code: the evaluator, examples, the values a call reads, flows run on
   * models, production's interpreter of flows; the facade `frflow.*` FrFlow's examples are written in. Its tests read
-  * core's generated terms and proof's printer (Lean decides each term as the evaluator does). Its sbt id is
+  * core's generated terms and proof's printer. Its sbt id is
   * `evaluation`: `eval` is sbt's own command, so `sbt eval/test` would evaluate `/test` as Scala.
   */
 lazy val eval = module("eval", cats)
@@ -104,7 +98,7 @@ lazy val wire = module("wire", cats, circe, circeParser)
   .dependsOn(proof, decision, testing)
 
 /** The imperative shell (sbt id `project`, package `frflow.project`; `project` itself names sbt's own method here): the
-  * algebras of the project's files, Lean, git, the keys and the ledger's store, each with its live and in-memory
+  * algebras of the project's files, Rocq, git, the keys and the ledger's store, each with its live and in-memory
   * interpreters; the analysis of a project (contents, fingerprints, standings), and the programs (check, status,
   * decide, export) over them. Its tests read FrFlow's examples (examples/<name>).
   */
@@ -159,11 +153,11 @@ def example(name: String, layers: Seq[ClasspathDep[ProjectReference]] = Seq(agen
 
 /** One of FrFlow's own examples, in two projects, so that FrFlow's suites can test it with no cycle in the build: its
   * model (sbt id `<name>Model`, under examples/<name>: its statements and code in src/main, its examples in src/test,
-  * its proofs in lean/Proofs), which testing's tests depend on; and its command line (`<name>`, under
+  * its proofs in rocq/Proofs), which testing's tests depend on; and its command line (`<name>`, under
   * examples/<name>/app: its main object alone), made as `example` makes one, over the model.
   */
 def exampleModel(name: String) = Project(s"${name}Model", file(s"examples/$name"))
-  .configs(LeanTest, RocqTest).settings(leanTagged)
+  .configs(RocqTest).settings(rocqTagged)
   .settings(Keys.name := s"frflow-example-$name", scalacOptions ++= strict, publish / skip := true,
     libraryDependencies ++= Seq(munit, inspector))
   .dependsOn(eval)
@@ -175,7 +169,7 @@ def exampleApp(name: String, model: Project, layers: Seq[ClasspathDep[ProjectRef
 
 def commandLine(p: Project, layers: Seq[ClasspathDep[ProjectReference]], tests: Def.Initialize[File]) = p
   .dependsOn((Seq[ClasspathDep[ProjectReference]](cli, web) ++ layers)*)
-  .configs(LeanTest, RocqTest).settings(leanTagged)
+  .configs(RocqTest).settings(rocqTagged)
   .settings(
     libraryDependencies ++= Seq(munit, inspector), publish / skip := true, run / fork := true, Test / fork := true,
     run / javaOptions ++= Seq("-Dstdout.encoding=UTF-8", "-Dstderr.encoding=UTF-8", "-Dfile.encoding=UTF-8"),

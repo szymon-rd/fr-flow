@@ -4,24 +4,23 @@ import frflow.api.view.Scaffolded
 import frflow.core.name.{NodeId, RelPath}
 import frflow.project.pipeline.Analysis
 import frflow.proof.layout.{Layout, NodePart}
-import frflow.proof.lean.ast.Names
 import frflow.proof.lean.lower.LowerObligation
 import frflow.proof.obligation.ObligationName
-import frflow.proof.reading.{ProofFile, ProofRules}
+import frflow.proof.reading.ProofRules
+import frflow.proof.rocq.{RocqNames, RocqProject}
 import frflow.proof.verdict.ObligationStatus
 
 /** A node's proof file with a stub for each obligation its current check left open or failed (`complete` before any
-  * check), less those the file already proves: the file created, or the stubs added before its end; or why not
-  * (nothing to add, or the file's end is not found).
+  * check), less those the file already proves: the file created, or the stubs added at its end; or nothing to add.
+  * A stub is given up (`Admitted`), which a proof file may not hold: it is the developer's to prove.
   */
 private[api] object Stubs:
   def of(a: Analysis, id: NodeId): Either[Scaffolded, (RelPath, String)] =
-    val file = Layout(a.decided.theory.name).proofs(id).file
-    val existing = a.inputs.lean.proofs.get(id)
+    val file = RocqProject.path(Layout(a.decided.theory.name).proofs(id))
+    val existing = a.inputs.proofs.files.get(id)
     val add = wanted(a, id).filterNot(existing.toList.flatMap(ProofRules.theorems).contains)
     if add.isEmpty then Left(Scaffolded.NothingToAdd)
-    else existing.fold(Some(fresh(a, id, add)))(f => inserted(a, id, f, add))
-      .toRight(Scaffolded.EndNotFound(file)).map(file -> _)
+    else Right(file -> existing.fold(fresh(a, id, add))(f => f.source.stripTrailing + "\n\n" + stubs(a, id, add)))
 
   private def wanted(a: Analysis, id: NodeId): List[ObligationName] =
     val required = a.obligations.find(_.node == id).toList.flatMap(_.required).map(_.name)
@@ -30,23 +29,15 @@ private[api] object Stubs:
         required.contains(r.name) => r.name
     })
 
-  private def namespace(a: Analysis, id: NodeId): String = 
-    Names.path(a.decided.theory.name.value, id.value).map(_.text).mkString(".")
-
-  private def stubs(names: List[ObligationName]): String = names.map(LowerObligation.name(_).text)
-    .map(n => s"theorem $n : Obl.$n := by\n  sorry\n\n").mkString
+  /** `Lemma <node>_Proofs_<obligation> : <node>_Obl_<obligation>.`, its proof to write. */
+  private def stubs(a: Analysis, id: NodeId, names: List[ObligationName]): String =
+    val of = (part: String, n: String) => RocqNames.joined(List(a.decided.theory.name.value, id.value, part, n))
+    names.map(LowerObligation.name(_).text)
+      .map(n => s"Lemma ${of("Proofs", n)} : ${of("Obl", n)}.\nProof.\nAdmitted.\n").mkString("\n")
 
   private def fresh(a: Analysis, id: NodeId, add: List[ObligationName]): String =
-    val ns = namespace(a, id)
-    s"""import ${Layout(a.decided.theory.name).ofNode(id, NodePart.Spec).dotted}
+    s"""Require Export ${RocqProject.logical(Layout(a.decided.theory.name).ofNode(id, NodePart.Spec))}.
        |
-       |/-! Authored proofs of the obligations of ${id.value}. Each states exactly its `Obl`. -/
+       |(** Authored proofs of the obligations of ${id.value}. Each states exactly its obligation. *)
        |
-       |namespace $ns.Proofs
-       |open $ns
-       |
-       |""".stripMargin + stubs(add) + s"end $ns.Proofs\n"
-
-  private def inserted(a: Analysis, id: NodeId, f: ProofFile, add: List[ObligationName]): Option[String] =
-    val i = f.source.lastIndexOf(s"end ${namespace(a, id)}.Proofs")
-    Option.when(i >= 0)(f.source.substring(0, i) + stubs(add) + f.source.substring(i))
+       |""".stripMargin + stubs(a, id, add)

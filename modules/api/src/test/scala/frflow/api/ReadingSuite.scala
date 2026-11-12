@@ -50,11 +50,11 @@ class ReadingSuite extends munit.CatsEffectSuite:
   }
 
   test("the view warns of a design governing nothing there, code nothing governs (whatever its text), a proof " +
-    "file of no node (not the whole's, `Whole.lean`), and a deciders' list not committed") {
+    "file of no node (not the whole's, `Whole.v`), and a deciders' list not committed") {
     val (other, gone) = (RelPath.fromIdentifiers("src/main", "Other.scala"),
-      RelPath.fromIdentifiers("lean", "Proofs/Governed/gone.lean"))
+      RelPath.fromIdentifiers("rocq", "Proofs/Governed/gone.v"))
     val files = Map(other -> "// FrModel(\"Other\") is not here", gone -> "",
-      RelPath.fromIdentifiers("lean", "Proofs/Governed/Whole.lean") -> "",
+      RelPath.fromIdentifiers("rocq", "Proofs/Governed/Whole.v") -> "",
       RelPath.fromIdentifiers(".frflow", "deciders") -> "{}")
     Opened.ports(files).flatMap(p => Opened.over(Opened.project(Shelf.Governed.kb), p).flatMap(_.reading.view))
       .map { v =>

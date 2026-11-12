@@ -13,14 +13,14 @@ import frflow.decision.rules.Command as Decide
 /** The command line: FrFlow's commands, then those of the layers on top (`CliExtension`). */
 object Commands:
   def header(layers: List[CliExtension]): String = (List(
-    """FrFlow: a small set of root statements refined by a DAG of small statements, each proven in Lean from its parts
+    """FrFlow: a small set of root statements refined by a DAG of small statements, each proven in Rocq from its parts
       |(or its code tested against it) and decided by the developer.
       |
       |Read with tree, show, diff, inbox, find; decide with review, accept, reject, confirm, revisit, gone (rebase and
       |deciders for the ledger and who decides); prove with render, check, status, ci, export, scaffold. The web view
       |does the same in a browser: sbt "PROJECT/serve --as NAME".""".stripMargin) ++
     layers.map(_.header).filter(_.nonEmpty) :+ ("Exit codes: 0 fine; 1 something is not accepted or proven, or a " +
-      "decision was refused; 2 a usage error or an unknown node; 3 no Lean (lake).")).mkString("\n\n")
+      "decision was refused; 2 a usage error or an unknown node; 3 no Rocq.")).mkString("\n\n")
 
   private def command(name: String, help: String)(opts: Opts[Command]): Sub[(Command, Boolean)] =
     Sub(name, help)((opts, plain).tupled)
@@ -53,7 +53,7 @@ object Commands:
         ((why: String) => Decide.Accept(ns, why, r, Map.empty), ns.headOption.filter(_ => ns.size == 1)))),
     decision("reject", "reject a proposal, saying why: what the reason asks for is proposed instead, or it is removed")(
       node().map(n => ((why: String) => Decide.Reject(n, why, None), Some(n)))),
-    decision("confirm", "accept the mechanical decisions in one batch (Lean proves them again; nothing in them is a " +
+    decision("confirm", "accept the mechanical decisions in one batch (Rocq proves them again; nothing in them is a " +
       "choice)")(Opts(((why: String) => Decide.Confirm(why), None))),
     decision("revisit", "ask that an accepted node be reviewed again: a change elsewhere may affect it")(
       node().map(n => ((why: String) => Decide.Revisit(n, why), Some(n)))),
@@ -65,8 +65,8 @@ object Commands:
       Opts.option[String]("as", "the name you decide under").map(Command.Deciders(_))))
 
   private val proving = List(
-    command("render", "write the Lean of the FrModel")(Opts(Command.Render)),
-    command("check", "prove each node from its parts in Lean, test its code; record the results")(
+    command("render", "write the Rocq of the FrModel")(Opts(Command.Render)),
+    command("check", "prove each node from its parts in Rocq, test its code; record the results")(
       (node().orNone, json).mapN(Command.Check(_, _))),
     command("status", "the tree, the warnings and the summary; exits 1 unless the FrModel is complete")(
       json.map(Command.Status(_))),

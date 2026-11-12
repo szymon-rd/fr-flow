@@ -26,7 +26,7 @@ object Faults:
     case Fault.BadPath(path, why)     => s"$path is not a path in the project: ${invalid(why)}"
     case Fault.NotAClaim(what)        => s"$what is not a claim: only a claim is left open above"
     case Fault.AlwaysInside           => "always is a node's whole formula: inside another (under forall, !, " +
-        "implies, ||, or in a define) it would range over every value Lean has; use forall there"
+        "implies, ||, or in a define) it would range over every value Rocq has; use forall there"
 
   /** A fault in what gives a Definition its meaning: its model, its Scala, its proven code. */
   private val meaning: PartialFunction[Fault, String] =

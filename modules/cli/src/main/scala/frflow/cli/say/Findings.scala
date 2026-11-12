@@ -2,7 +2,7 @@ package frflow.cli.say
 
 import frflow.api.node.lean.{CheckState, FindingView, Forbidden, Message, ObligationState, TryView}
 
-/** What Lean found, in words: a check's state, an obligation's, why a check ended where it did, and what a try
+/** What Rocq found, in words: a check's state, an obligation's, why a check ended where it did, and what a try
   * showed.
   */
 object Findings:
@@ -25,14 +25,14 @@ object Findings:
     case ObligationState.Unchecked   => "not checked"
     case ObligationState.Timeout     => "out of time"
 
-  /** Its first line, then Lean's messages (the first line of each, unless `full`). */
+  /** Its first line, then Rocq's messages (the first line of each, unless `full`). */
   def lines(f: FindingView, full: Boolean): List[String] = f match
-    case FindingView.LeanTimedOut          => List("Lean ran out of time")
-    case FindingView.ModelDoesNotBuild(es) => "the model does not build in Lean" :: messages(es, full)
+    case FindingView.TimedOut          => List("Rocq ran out of time")
+    case FindingView.ModelDoesNotBuild(es) => "Rocq does not read the model" :: messages(es, full)
     case FindingView.ProofNotAllowed(what) => "the proof file holds what is not allowed:" ::
         what.map((line, x) => s"  line $line: ${forbidden(x)}")
     case FindingView.LemmasDoNotBuild(es)  =>
-      "not proven: it imports the shared lemmas, which do not build (the error is the lemmas', not its own proof's)" ::
+      "not proven: it imports the shared lemmas, which are not proven (the error is theirs, not its own proof's)" ::
         messages(es, full)
     case FindingView.NotProven(es)         => "not proven" :: messages(es, full)
     case FindingView.Refuted(tries)        => tries.map(tried)
@@ -45,9 +45,9 @@ object Findings:
     s"  ${m.file}:${m.line}: $text"
   }
 
-  /** What Lean proved of a try: the node says something it should not. */
+  /** What Rocq proved of a try: the node says something it should not. */
   def tried(t: TryView): String = t match
-    case TryView.Needed(part)              => s"not needed: Lean proves it without $part"
+    case TryView.Needed(part)              => s"not needed: Rocq proves it without $part"
     case TryView.Vacuous                   => "it holds whatever what it speaks of means: it says nothing"
     case TryView.Restates                  => "it restates its part"
     case TryView.Clash                     => "its parts clash: together they prove anything"
@@ -56,16 +56,8 @@ object Findings:
     case TryView.RestatesConjunct(part, i) => s"$part restates conjunct ${i + 1} of it"
 
   def forbidden(f: Forbidden): String = f match
-    case Forbidden.Axiom          => "an axiom"
-    case Forbidden.Admit          => "admit"
-    case Forbidden.Unsafe         => "unsafe"
-    case Forbidden.Opaque         => "opaque"
-    case Forbidden.ImplementedBy  => "implemented_by"
-    case Forbidden.Extern         => "extern"
-    case Forbidden.NativeDecide   => "native_decide"
-    case Forbidden.Attribute      => "an attribute"
-    case Forbidden.SetOption(o)   => s"set_option $o"
-    case Forbidden.Metaprogram(c) => s"a metaprogram ($c)"
+    case Forbidden.Axiom          => "a statement taken without proof"
+    case Forbidden.Admit          => "a proof given up"
     case Forbidden.Import(m)      => s"import $m (not allowed)"
     case Forbidden.LemmaImport(m) => s"import $m in the shared lemmas"
     case Forbidden.Command(w)     => s"the command $w"

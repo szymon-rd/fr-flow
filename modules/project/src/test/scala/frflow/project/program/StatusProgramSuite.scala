@@ -1,5 +1,6 @@
 package frflow.project.program
 
+import frflow.proof.rocq.RocqProject
 import frflow.core.name.NodeId
 import frflow.decision.review.ReviewState
 import frflow.project.Projects
@@ -8,20 +9,20 @@ import frflow.project.report.NodeReport
 import frflow.wire.file.Files
 import frflow.wire.snapshot.{Body, Snapshot}
 
-/** `status`, `export`, `show` and `review` on rooms in memory: the Lean and the snapshot written, the snapshot
+/** `status`, `export`, `show` and `review` on rooms in memory: the Rocq and the snapshot written, the snapshot
   * reading back in decision order, each node as the review reads it; a node the model does not have shows nothing.
   */
 class StatusProgramSuite extends munit.CatsEffectSuite:
-  test("status writes the Lean and the snapshot, and gives the review: every node proposed, in decision order") {
+  test("status writes the Rocq and the snapshot, and gives the review: every node proposed, in decision order") {
     for
       p      <- Projects.inMemory(Map.empty)
       a      <- Projects.analysed(p, Projects.rooms, Projects.roomsExamples)
-      review <- StatusProgram(p.files, "lean")(a)
+      review <- StatusProgram(p.files)(a)
       held   <- p.files.all
     yield
       assertEquals(review.nodes.map(_.subject.id), a.subjects.inOrder.map(_.id))
       assertEquals(review.nodes.map(_.standing.state).distinct, List(ReviewState.Proposed))
-      assert(a.modules.forall(m => held.contains(m.name.file)))
+      assert(a.modules.forall(m => held.contains(RocqProject.path(m.name))))
       val snapshot = held.get(Records.path(Snapshot.format)).map(Files.read(Snapshot.format, _))
       assertEquals(snapshot.flatMap(_.toOption).map(_.nodes.map(_.header.id)),
         Some(a.subjects.inOrder.map(_.id.value)))

@@ -7,7 +7,7 @@ import frflow.project.check.CheckProgram
 import frflow.project.pipeline.{Analysis, Recorded, Testable}
 import frflow.project.program.TestProgram
 
-/** The analysis an acceptance is decided on: every node checked by Lean and tested afresh by this process, since what
+/** The analysis an acceptance is decided on: every node checked by Rocq and tested afresh by this process, since what
   * is recorded on disk (`checks.json`, `tests.json`) may have been written by anyone; what this process found is
   * reused while every check and report of it is current (nothing it depends on moved). The failing cases kept
   * (`counterexamples.json`) are only replayed first, so they are read as they are.
@@ -19,13 +19,13 @@ private[api] final class Fresh[F[_]: Async: Parallel](s: Session[F], found: Ref[
   private def again(a: Analysis): F[Analysis] =
     val cleared = a.withRecorded(Recorded.none.copy(counterexamples = a.inputs.recorded.counterexamples))
     for
-      lake         <- s.lean(a)
-      (_, checked) <- s.guarded(CheckProgram(s.ports.files, lake, s.library.path, s.code)(cleared, None))
+      prover       <- s.prover(a)
+      (_, checked) <- s.guarded(CheckProgram(s.ports.files, prover, s.code)(cleared, None))
       (_, tested)  <- s.guarded(TestProgram(s.ports.files, s.code)(checked, None))
       _            <- found.set(Some(tested.inputs.recorded))
     yield tested
 
-  /** Each node Lean is asked anything of checked, the theory's check current (or none made), and each node with
+  /** Each node Rocq is asked anything of checked, the theory's check current (or none made), and each node with
     * tests tested, under the records given.
     */
   private def current(b: Analysis): Boolean =

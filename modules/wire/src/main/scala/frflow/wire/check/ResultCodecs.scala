@@ -10,7 +10,7 @@ import frflow.wire.file.Words
 import io.circe.syntax.*
 import io.circe.{Codec, Decoder, Encoder, Json}
 
-/** A check's status, and each obligation's outcome: its name in Lean, its status, Lean's messages about it. */
+/** A check's status, and each obligation's outcome: its name in Rocq, its status, Rocq's messages about it. */
 object ResultCodecs:
   given Codec[ObligationStatus] = Words.codec("obligation status", ObligationStatus.values) {
     case ObligationStatus.Proven      => "proven"

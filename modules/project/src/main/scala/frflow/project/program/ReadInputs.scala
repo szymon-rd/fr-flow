@@ -6,7 +6,7 @@ import cats.syntax.all.*
 import frflow.core.Elaborated
 import frflow.core.name.{NodeId, RelPath}
 import frflow.decision.ledger.{Counted, Ledger}
-import frflow.project.pipeline.{Inputs, LeanSources}
+import frflow.project.pipeline.{Inputs, ProofSources}
 import frflow.project.port.Records
 import frflow.proof.layout.Layout
 import frflow.proof.reading.ProofFile
@@ -19,7 +19,7 @@ import frflow.proof.reading.ProofFile
   */
 final class ReadInputs[F[_]: Monad: Parallel: Clock](ports: Ports[F], project: Project):
   def apply(e: Elaborated): F[Inputs] =
-    (counted, Records.read(ports.files), lean(e), read, Clock[F].realTimeInstant)
+    (counted, Records.read(ports.files), proofs(e), read, Clock[F].realTimeInstant)
       .parMapN(Inputs(_, _, _, _, _, project.settings))
 
   private def counted: F[Counted] =
@@ -28,17 +28,17 @@ final class ReadInputs[F[_]: Monad: Parallel: Clock](ports: Ports[F], project: P
   /** Each committed version of the ledger from its base, oldest first; none for one that does not read. */
   private def committed: F[List[Option[Ledger]]] = Committed.ledgers(ports)
 
-  /** The proof files, each `lean/Proofs/<Model>/<Node>.lean` directly in that directory, named by an identifier; every
-    * other `.lean` file under `lean/Proofs/` a stray.
+  /** The proof files, each `rocq/Proofs/<Model>/<node>.v` directly in that directory, named by an identifier; every
+    * other `.v` file under `rocq/Proofs/` a stray.
     */
-  private def lean(e: Elaborated): F[LeanSources] =
+  private def proofs(e: Elaborated): F[ProofSources] =
     val dir = Layout(e.theory.name).proofsDir
-    ports.files.list(RelPath.fromIdentifiers("lean", "Proofs")).map(_.filter(_.value.endsWith(".lean")))
+    ports.files.list(RelPath.fromIdentifiers("rocq", "Proofs")).map(_.filter(_.value.endsWith(".v")))
       .flatMap { all =>
-        val (proofs, strays) = all.partition(p => ReadInputs.Identifier.matches(p.stem) &&
-          p == RelPath.fromIdentifiers(dir.value, s"${p.stem}.lean"))
-        proofs.traverseFilter(p => ports.files.read(p).map(_.map(t => NodeId(p.stem) -> ProofFile(NodeId(p.stem), t))))
-          .map(found => LeanSources(found.toMap, strays, project.library.version))
+        val (own, strays) = all.partition(p => ReadInputs.Identifier.matches(p.stem) &&
+          p == RelPath.fromIdentifiers(dir.value, s"${p.stem}.v"))
+        own.traverseFilter(p => ports.files.read(p).map(_.map(t => NodeId(p.stem) -> ProofFile(NodeId(p.stem), t))))
+          .map(found => ProofSources(found.toMap, strays, project.library.version))
       }
 
   /** The files under each source directory given: those the nodes are written in, and those they govern

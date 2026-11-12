@@ -45,10 +45,10 @@ object Launch:
     val once = if help.usage.size > 3 then help.copy(usage = List("[--plain] COMMAND [ARGS]...")) else help
     if help.errors.isEmpty then IO.println(once).as(Exit.Fine) else Console[IO].errorln(once).as(Exit.Usage)
 
-  /** What stops a command, said; no Lean 3, an unknown node 2, anything else 1. */
+  /** What stops a command, said; no Rocq 3, an unknown node 2, anything else 1. */
   def failed(term: Terminal, e: Throwable): IO[ExitCode] = e match
     case s: Stop => Stops.lines(s).traverse_(term.err).as(s match
-        case Stop.NoLean         => Exit.NoLean
+        case Stop.NoRocq         => Exit.NoRocq
         case Stop.UnknownNode(_) => Exit.Usage
         case _                   => Exit.Refused)
     case other   => term.err(s"error: ${Option(other.getMessage).getOrElse(other.toString)}").as(Exit.Refused)

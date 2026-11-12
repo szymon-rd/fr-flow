@@ -1,102 +1,99 @@
 package frflow.proof
 
-import frflow.proof.lean.print.Sentinel
 import frflow.core.name.NodeId
 import frflow.proof.lean.lower.LowerObligation
 import frflow.proof.obligation.{ObligationName, TryKind}
 import frflow.proof.reading.*
 
-/** Reading Lean's output and a file's theorems: messages with their continuation lines, the axioms audited, `sorry`,
-  * each theorem's lines and verdict, and every obligation's name read back.
+/** Reading a Rocq file and what Rocq said of it: its lemmas with their lines, what it imports and audits, a lemma
+  * given up in place, the error Rocq stopped at, what each audit printed, a build's report, each lemma's verdict,
+  * and every obligation's name read back.
   */
 class ReadingSuite extends munit.FunSuite:
-  private val source = """import FrFlowGen.Crm.Domain
+  private val source = """Require Export FrFlowGen.Crm.N.Spec.
+    |From FrFlow Require Export Base.
     |
-    |namespace Crm.N.Checks
+    |(* Lemma hidden : False. *)
+    |Lemma N_Checks_made_book : N_Obl_made_book.
+    |Proof. timeout 20 (frflow_auto). Qed.
     |
-    |theorem made_book : Obl.made_book := by
-    |  frflow_auto
+    |Print Assumptions N_Checks_made_book.
     |
-    |theorem unsat : Obl.unsat := by
-    |  frflow_auto
-    |
-    |theorem impl : Obl.impl := by
-    |  sorry
-    |
-    |#print axioms Crm.N.Checks.made_book
-    |
-    |end Crm.N.Checks
+    |Lemma N_Checks_unsat :
+    |  N_Obl_unsat.
+    |Proof.
+    |  intros.
+    |  frflow_auto.
+    |Qed.
     |""".stripMargin
-  private val output = """✔ [3/9] Built FrFlowGen.Crm.Types (1s)
-    |✖ [8/9] Building FrFlowGen.Crm.N.Checks (2s)
-    |error: FrFlowGen/Crm/N/Checks.lean:9:2: frflow_auto found no proof; prove this obligation in the node's proof file
-    |⊢ False
-    |warning: FrFlowGen/Crm/N/Checks.lean:11:8: declaration uses 'sorry'
-    |info: FrFlowGen/Crm/N/Checks.lean:14:0: 'Crm.N.Checks.made_book' depends on axioms: [propext,
-    | choice, Quot.sound]
-    |error: FrFlowGen/Crm/Other.lean:1:0: unknown identifier
-    |info: FrFlowGen/Crm/M/Checks.lean:9:0: 'Crm.M.Checks.made_book' depends on axioms: [sorryAx]
-    |error: build failed
-    |""".stripMargin
-  private val e = Elaboration(source, output, "FrFlowGen/Crm/N/Checks.lean")
+  private val file = "FrFlowGen/Crm/N/Checks.v"
+  private val namespace = List("Crm", "N", "Checks")
 
-  test("messages: Lake's and Lean's styles, continuation lines joined, other files' left out") {
-    assertEquals(LeanOutput.diagnostics(output).map(d => (d.file, d.line, d.error)), List(
-      ("FrFlowGen/Crm/N/Checks.lean", 9, true), ("FrFlowGen/Crm/N/Checks.lean", 11, false),
-      ("FrFlowGen/Crm/N/Checks.lean", 14, false), ("FrFlowGen/Crm/Other.lean", 1, true),
-      ("FrFlowGen/Crm/M/Checks.lean", 9, false)))
-    assertEquals(LeanOutput.diagnostics(output).head.message.linesIterator.toList.last, "⊢ False")
-    assertEquals(e.diagnostics.size, 3)
-    assert(LeanOutput.usesSorry(output))
+  test("a file's lemmas, with their lines; a comment states none") {
+    assertEquals(RocqSource.lemmas(source), List(Theorem("N_Checks_made_book", "N_Obl_made_book", 5, 6),
+      Theorem("N_Checks_unsat", "N_Obl_unsat", 10, 15)))
   }
 
-  test("axioms: a wrapped list, `choice` read as Classical.choice; another file's audit of the name not this one's") {
-    assertEquals(e.axiomsOf("made_book"), Some(List("propext", "Classical.choice", "Quot.sound")))
+  test("what a file imports, as Rocq names it, and the lemmas it audits") {
+    assertEquals(RocqSource.imports(source), List("FrFlowGen.Crm.N.Spec", "FrFlow.Base"))
+    assertEquals(RocqSource.imports("Require Import A.B C.\nRequire Export D.\n"), List("A.B", "C", "D"))
+    assertEquals(RocqSource.audited(source), List("N_Checks_made_book"))
+  }
+
+  test("a lemma given up keeps every line where it is; one given up already, or with no proof, is none") {
+    val lemmas = RocqSource.lemmas(source)
+    val givenUp = RocqSource.admitted(source, lemmas(1)).getOrElse(fail("not given up"))
+    assertEquals(givenUp.linesIterator.toList.slice(9, 15), List("Lemma N_Checks_unsat :", "  N_Obl_unsat.",
+      "Proof. Admitted.", "", "", ""))
+    assertEquals(givenUp.linesIterator.size, source.linesIterator.size)
+    assertEquals(RocqSource.admitted(givenUp, RocqSource.lemmas(givenUp)(1)), None)
+    assert(RocqSource.admitted(source, lemmas.head).exists(_.contains("Proof. Admitted.\n\nPrint Assumptions")))
+  }
+
+  test("the error Rocq stopped at, past the warnings before it; what each audit printed") {
+    val error = """File "./W.v", line 3, characters 16-19:
+      |Warning: Reference old is deprecated. x
+      |[deprecated-reference,deprecated,default]
+      |File "./FrFlowGen/Crm/N/Checks.v", line 14, characters 2-13:
+      |Error: Tactic failure: frflow_auto found no proof.
+      |""".stripMargin
+    assertEquals(RocqOutput.error(error), Some(14 -> "Tactic failure: frflow_auto found no proof."))
+    assertEquals(RocqOutput.error("Error: cannot find library"), None)
+    val printed = """Closed under the global context
+      |Axioms:
+      |classic : forall P : Prop, P \/ ~ P
+      |functional_extensionality_dep
+      |  : forall (A : Type) (B : A -> Type) (f g : forall x : A, B x),
+      |    (forall x : A, f x = g x) -> f = g
+      |""".stripMargin
+    assertEquals(RocqOutput.assumptions(printed), List(Nil, List("classic", "functional_extensionality_dep")))
+  }
+
+  private val said = RocqReport.File(file, Map("N_Checks_unsat" -> "Tactic failure:\nno proof."),
+    Map("N_Checks_made_book" -> List("classic")), None)
+
+  test("a build's report reads back as written, a message of several lines among it") {
+    val files = List(said, RocqReport.File("Proofs/Crm/N.v", Map.empty, Map.empty, Some("Syntax error.")))
+    assertEquals(RocqReport.read(RocqReport.print(files)), files)
+  }
+
+  test("each lemma's verdict: proven, not accepted with what Rocq said, or in no file Rocq read") {
+    val e = Elaboration(source, RocqReport.print(List(said)), file, namespace)
     assertEquals(e.verdict("made_book"), TheoremVerdict.Proven)
+    assertEquals(e.verdict("unsat"),
+      TheoremVerdict.Failed(List(Diagnostic(file, 10, true, "Tactic failure:\nno proof."))))
+    assertEquals(e.verdict("impl"), TheoremVerdict.Missing)
+    assertEquals((e.axiomsOf("made_book"), e.axiomsOf("unsat")), (Some(List("classic")), None))
+    assertEquals(Elaboration(source, "", file, namespace).verdict("made_book"), TheoremVerdict.Missing)
+    val broken = Elaboration(source, RocqReport.print(List(said.copy(broken = Some("Syntax error.")))), file, namespace)
+    assertEquals(broken.verdict("made_book"), TheoremVerdict.Failed(List(Diagnostic(file, 0, true, "Syntax error."))))
   }
 
-  test("theorems: each from its head to the line before the next command, with its statement") {
-    assertEquals(e.theorems, List(Theorem("made_book", "Obl.made_book", 5, 7), Theorem("unsat", "Obl.unsat", 8, 10),
-      Theorem("impl", "Obl.impl", 11, 13)))
-  }
-
-  test("verdicts: proven, failed with Lean's errors, resting on sorry, missing") {
-    assertEquals(e.verdict("made_book"), TheoremVerdict.Proven)
-    assert(e.verdict("unsat").isInstanceOf[TheoremVerdict.Failed])
-    assertEquals(e.verdict("impl"), TheoremVerdict.UsesSorry)
-    assertEquals(e.verdict("complete"), TheoremVerdict.Missing)
-    val broken = Elaboration(source, "error: FrFlowGen/Crm/N/Checks.lean:1:0: unknown module", e.file)
-    assert(broken.verdict("made_book").isInstanceOf[TheoremVerdict.Failed], "an error before the first theorem")
-  }
-
-  test("a theorem after where Lean stopped, having reported as many errors as it reports, is not proven") {
-    val stopped = Elaboration(source, "error: FrFlowGen/Crm/N/Checks.lean:8:2: maximum number of errors (100; from " +
-      "option `maxErrors`) reached, exiting\n", e.file)
-    assertEquals(stopped.stopped, Some(8))
-    assertEquals(List("made_book", "unsat").map(stopped.verdict), List(TheoremVerdict.Proven, TheoremVerdict.Missing))
-  }
-
-  test("a file FrFlow wrote whose last line Lean did not print was cut off: nothing in it is proven or shown") {
-    val written = source + Sentinel.line("FrFlowGen.Crm.N.Checks") + "\n"
-    val ended = output + "info: FrFlowGen/Crm/N/Checks.lean:18:0: frflow-end FrFlowGen.Crm.N.Checks\n"
-    val (cut, whole) = (Elaboration(written, output, e.file), Elaboration(written, ended, e.file))
-    assertEquals((cut.stopped, whole.stopped), (Some(0), None))
-    assertEquals(List("made_book", "unsat", "impl").map(cut.verdict), List.fill(3)(TheoremVerdict.Missing))
-    assertEquals(whole.verdict("made_book"), TheoremVerdict.Proven)
-    assertEquals(Sentinel.of(written), Some("frflow-end FrFlowGen.Crm.N.Checks"))
-    assertEquals((Sentinel.of(source), e.stopped), (None, None))
-  }
-
-  test("a dependency's last line, printed in the same build, is not this file's: it still reads as cut off") {
-    val written = source + Sentinel.line("FrFlowGen.Crm.N") + "\n"
-    val file = "FrFlowGen/Crm/N.lean"
-    val dependency = "info: FrFlowGen/Crm/N/Checks.lean:18:0: frflow-end FrFlowGen.Crm.N.Checks\n"
-    val own = s"info: $file:18:0: frflow-end FrFlowGen.Crm.N\n"
-    assertEquals(Elaboration(written, dependency, file).stopped, Some(0))
-    assertEquals(Elaboration(written, s"info: $file:3:0: frflow-end FrFlowGen.Crm.N.Checks\n", file).stopped, Some(0))
-    assertEquals(Elaboration(written, dependency + own, file).stopped, None)
-    // Lake's next line, which its messages do not end before, is no part of the line Lean printed.
-    assertEquals(Elaboration(written, own + "ℹ [24/29] Built FrFlowGen.Crm.Whole (1.7s)\n", file).stopped, None)
+  test("a lemma states its obligation by the node's name; an authored proof's audit is read by its own name") {
+    val e = Elaboration(source, RocqReport.print(List(RocqReport.File(file, Map.empty,
+      Map("N_Proofs_complete" -> Nil), None))), file, List("Crm", "N", "Auto"))
+    assertEquals((e.named("complete"), e.obligation("complete")), ("N_Auto_complete", "N_Obl_complete"))
+    assertEquals(e.axiomsOf("complete"), Some(Nil))
   }
 
   test("every obligation's name reads back as the obligation") {
@@ -111,7 +108,9 @@ class ReadingSuite extends munit.FunSuite:
     assertEquals(ObligationNames.read("helper"), None)
   }
 
-  test("a proof file's theorems, by the obligations they prove") {
-    assertEquals(ProofRules.theorems(ProofFile(NodeId("N"), source)),
-      List(ObligationName.Made("book"), ObligationName.Tried(TryKind.Unsat), ObligationName.Impl))
+  test("a proof file's lemmas, by the obligations they prove: those named for the node's proofs") {
+    val proofs = "Lemma N_Proofs_made_book : N_Obl_made_book.\nProof.\n  auto.\nQed.\n\n" +
+      "Lemma helper : True.\nProof.\n  auto.\nQed.\n\nLemma N_Proofs_impl : N_Obl_impl.\nProof.\n  auto.\nQed.\n"
+    assertEquals(ProofRules.theorems(ProofFile(NodeId("N"), proofs)),
+      List(ObligationName.Made("book"), ObligationName.Impl))
   }

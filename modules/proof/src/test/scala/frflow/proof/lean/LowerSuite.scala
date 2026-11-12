@@ -5,7 +5,7 @@ import frflow.core.expr.{Side, Value}
 import frflow.core.ty.Ty
 import frflow.proof.layout.Mini
 import frflow.proof.lean.lower.{LowerValue, Naming}
-import frflow.proof.lean.print.Print
+import frflow.proof.lean.term.Print
 
 /** The lowering of what is not a term: constants of every kind of value (maps and sets among them). */
 class LowerSuite extends munit.FunSuite:

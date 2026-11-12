@@ -18,6 +18,11 @@ project/project/
 **/.frflow/*.lock
 **/.frflow/*.tmp
 examples/*/lean/FrFlowGen/
+# What a check writes of a project's Rocq: the generated modules, where an editor finds what is compiled, and the
+# build. A project keeps rocq/Proofs.
+examples/*/rocq/FrFlowGen/
+examples/*/rocq/_CoqProject
+examples/*/rocq/_build/
 examples/*/lean/FrFlowAudit/
 
 

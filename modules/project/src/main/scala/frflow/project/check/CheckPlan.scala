@@ -5,9 +5,9 @@ import frflow.core.name.NodeId
 import frflow.project.pipeline.Analysis
 import frflow.proof.obligation.ObligationName
 
-/** Which nodes a check judges, in levels: each node Lean is asked anything of after its parts, the callees its code
+/** Which nodes a check judges, in levels: each node Rocq is asked anything of after its parts, the callees its code
   * relies on (but those above it, which its callees' statements may be: no circle orders them), and, for a root
-  * `root_impl` is asked of, every node but another such root whose code Lean proves (roots
+  * `root_impl` is asked of, every node but another such root whose code Rocq proves (roots
   * proven of code are not each other's below: no circle orders them); a level's nodes side by side. With `only`,
   * that node alone.
   */

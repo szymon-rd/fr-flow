@@ -3,43 +3,44 @@ package frflow.proof.verdict
 import cats.data.NonEmptyList
 import frflow.proof.lean.lower.LowerObligation
 import frflow.proof.obligation.{Discharge, Obligation, ObligationName}
-import frflow.proof.reading.{Elaboration, LeanOutput, ProofFile, ProofRules, TheoremVerdict}
+import frflow.proof.reading.{Diagnostic, Elaboration, ProofFile, ProofRules, RocqReport, TheoremVerdict}
 
-/** The judges of a node's check: each reads what Lean gave at one step, running nothing, and says whether the check
-  * ends there (`Option[Judged]`), or what one obligation came to (`Result`); `node` ends a check that got through.
+/** The judges of a node's check: each reads what the prover gave at one step, running nothing, and says whether the
+  * check ends there (`Option[Judged]`), or what one obligation came to (`Result`); `node` ends a check that got
+  * through.
   */
 object Judge:
   def model(spec: ProverRun): Option[Judged] = spec match
-    case ProverRun.TimedOut(_) => Some(Judged(CheckStatus.Timeout, Nil, List(Finding.LeanTimedOut)))
+    case ProverRun.TimedOut(_) => Some(Judged(CheckStatus.Timeout, Nil, List(Finding.TimedOut)))
     case ProverRun.Failed(out) =>
       Some(Judged(CheckStatus.ModelError, Nil, List(Finding.ModelDoesNotBuild(errors(out)))))
     case ProverRun.Built(_)    => None
 
-  /** The shared lemmas: what a proof file may contain, importing no lemmas, built without `sorry`. A lemma that does
-    * not build leaves the node importing them not proven (open), not failed: the error is the shared file's, and
-    * nothing of the node's own was refuted.
+  /** The shared lemmas: what a proof file may contain, importing no lemmas, every one proven. A lemma that is not
+    * leaves the node importing them not proven (open), not failed: the error is the shared file's, and nothing of the
+    * node's own was refuted.
     */
   def lemmas(file: ProofFile, run: ProverRun): Option[Judged] =
     NonEmptyList.fromList(ProofRules.notAllowedInLemmas(file)).map(bad => failed(Finding.ProofNotAllowed(bad.toList)))
       .orElse(run match
-        case ProverRun.TimedOut(_) => Some(Judged(CheckStatus.Timeout, Nil, List(Finding.LeanTimedOut)))
+        case ProverRun.TimedOut(_) => Some(Judged(CheckStatus.Timeout, Nil, List(Finding.TimedOut)))
         case ProverRun.Failed(out) => Some(Judged(CheckStatus.Open, Nil, List(Finding.LemmasDoNotBuild(errors(out)))))
         case ProverRun.Built(out)  =>
-          Option.when(LeanOutput.usesSorry(out))(Judged(CheckStatus.Open, Nil, List(Finding.LemmasDoNotBuild(Nil)))))
+          Option.when(errors(out).nonEmpty)(Judged(CheckStatus.Open, Nil, List(Finding.LemmasDoNotBuild(errors(out))))))
 
   /** A node's proof file: only what one may contain. */
   def proofFile(file: ProofFile): Option[Judged] =
     NonEmptyList.fromList(ProofRules.notAllowed(file)).map(bad => failed(Finding.ProofNotAllowed(bad.toList)))
 
-  /** What must hold (`complete`, `impl`, `cover_<op>`, `commute_i`, …): proven when its theorem states exactly
-    * `Obl.<name>` and Lean reports no error and no `sorry` in it; failed when it states anything else.
+  /** What must hold (`complete`, `impl`, `made_<maker>`, …): proven when its lemma states exactly the obligation
+    * and Rocq accepts its proof; failed when it states anything else.
     */
   def required(o: ObligationName, e: Elaboration): Result =
     val name = LowerObligation.name(o).text
-    e.theorems.find(_.name == name) match
-      case None                                      => Result(o, ObligationStatus.Open, Nil)
-      case Some(t) if t.statement != s"Obl.$name"    => Result(o, ObligationStatus.Failed, Nil)
-      case Some(_)                                   => e.verdict(name) match
+    e.stated(name) match
+      case None                                           => Result(o, ObligationStatus.Open, Nil)
+      case Some(t) if t.statement != e.obligation(name)   => Result(o, ObligationStatus.Failed, Nil)
+      case Some(_)                                        => e.verdict(name) match
         case TheoremVerdict.Proven         => Result(o, ObligationStatus.Proven, Nil)
         case TheoremVerdict.Failed(errors) => Result(o, ObligationStatus.Open, errors)
         case _                             => Result(o, ObligationStatus.Open, Nil)
@@ -75,4 +76,7 @@ object Judge:
     else Judged(CheckStatus.Proven, results, Nil)
 
   private def failed(f: Finding): Judged = Judged(CheckStatus.Failed, Nil, List(f))
-  private def errors(out: String) = LeanOutput.diagnostics(out).filter(_.error)
+  /** What a build's report says is wrong, file by file: a file Rocq could not read, a lemma it did not accept. */
+  private def errors(out: String): List[Diagnostic] = RocqReport.read(out).flatMap(f =>
+    f.broken.map(Diagnostic(f.path, 0, true, _)).toList ++
+      f.open.toList.sortBy(_._1).map((l, m) => Diagnostic(f.path, 0, true, s"$l: $m")))

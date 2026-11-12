@@ -25,7 +25,7 @@
             {
               "line": 3,
               "rule": {
-                "kind": "native-decide"
+                "kind": "admit"
               }
             },
             {
@@ -80,7 +80,7 @@
           ]
         },
         {
-          "kind": "lean-timed-out"
+          "kind": "timed-out"
         }
       ],
       "at": "2026-10-03T08:00:00Z"

@@ -84,11 +84,11 @@ object Routes:
       case Refusal.UnknownNode(_) => Status.NotFound
       case _                      => Status.Conflict).withEntity(Json.obj("refusal" -> x.asJson))), Ok(_))
 
-  /** What stops an operation, `{"stop": …}`: an unknown node 404, no Lean 503; a body that does not read 400. */
+  /** What stops an operation, `{"stop": …}`: an unknown node 404, no Rocq 503; a body that does not read 400. */
   def failed(e: Throwable): IO[Response[IO]] = e match
     case s: Stop           => IO.pure(Response[IO](s match
         case Stop.UnknownNode(_) => Status.NotFound
-        case Stop.NoLean         => Status.ServiceUnavailable
+        case Stop.NoRocq         => Status.ServiceUnavailable
         case _                   => Status.InternalServerError).withEntity(Json.obj("stop" -> s.asJson)))
     case m: MessageFailure => error(Status.BadRequest, m.getMessage)
     case other             => error(Status.InternalServerError, Option(other.getMessage).getOrElse(other.toString))

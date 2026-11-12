@@ -6,7 +6,7 @@ import frflow.cli.say.{Findings, Tested}
 import frflow.cli.term.Style
 import frflow.decision.review.Cause
 
-/** What running things showed of a node: Lean's check (each obligation, why it ended where it did), and its code (how
+/** What running things showed of a node: Rocq's check (each obligation, why it ended where it did), and its code (how
   * each piece is shown to meet it, what testing found). `full`: every message whole.
   */
 object ProofText:

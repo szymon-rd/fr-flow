@@ -14,17 +14,17 @@ import java.nio.file.Path
 final case class FrFlowApi[F[_]](reading: Reading[F], deciding: Deciding[F], proving: Proving[F])
 
 object FrFlowApi:
-  /** The project at `root`, held for the life of the resource (the ledger's lock, one `lake` build at a time), run as
-    * `env` says: `FRFLOW_LAKE`, `FRFLOW_KEY`, `FRFLOW_SEED`, `FRFLOW_AS`, and `HOME` for the default key.
+  /** The project at `root`, held for the life of the resource (the ledger's lock, one build of Rocq's at a time), run
+    * as `env` says: `FRFLOW_ROCQ`, `FRFLOW_KEY`, `FRFLOW_SEED`, `FRFLOW_AS`, and `HOME` for the default key.
     */
   def make[F[_]: Async: Parallel](p: Project, root: Path, env: Map[String, String]): Resource[F, FrFlowApi[F]] =
     Live.make[F](p, root, env)
 
   /** The project in memory: its files as given, an empty ledger, a repository with no commit, a key made for the run
-    * (listed in the committed deciders' list under `decider`, when given), and Lean as `lean` says.
+    * (listed in the committed deciders' list under `decider`, when given), and Rocq as `rocq` says.
     */
-  def inMemory[F[_]: Async: Parallel](p: Project, files: Map[RelPath, String], decider: Option[String], lean: Lean)
-      : F[FrFlowApi[F]] = Memory.make[F](p, files, decider, lean)
+  def inMemory[F[_]: Async: Parallel](p: Project, files: Map[RelPath, String], decider: Option[String], rocq: Rocq)
+      : F[FrFlowApi[F]] = Memory.make[F](p, files, decider, rocq)
 
   /** The first deciders' list of the project at `root`: the developer's key (as `env` names it, as `make` reads it)
     * listed under `name` and sealed by it, written to `.frflow/deciders` unless a list is there; no key raises

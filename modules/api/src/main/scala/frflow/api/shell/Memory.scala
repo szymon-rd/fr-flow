@@ -3,7 +3,7 @@ package frflow.api.shell
 import cats.effect.{Async, Ref}
 import cats.Parallel
 import cats.syntax.all.*
-import frflow.api.{FrFlowApi, Lean, Project}
+import frflow.api.{FrFlowApi, Project, Rocq}
 import frflow.core.name.RelPath
 import frflow.decision.ledger.{Deciders, Ledger}
 import frflow.project.pipeline.Recorded
@@ -13,14 +13,14 @@ import frflow.testing.report.Seed
 import frflow.testing.Settings
 
 /** The API in memory: the files as given, an empty ledger, a repository with no commit, a key made for the run (the
-  * deciders' list holding it under `decider`, as if committed), Lean scripted, and the tests on 200 cases from seed
+  * deciders' list holding it under `decider`, as if committed), Rocq scripted, and the tests on 200 cases from seed
   * 1, so a run repeats.
   */
 private[api] object Memory:
   val Tests: Settings = Settings(200, Seed(1))
 
-  def make[F[_]: Async: Parallel](p: Project, files: Map[RelPath, String], decider: Option[String], lean: Lean)
-      : F[FrFlowApi[F]] = ports(files, decider).flatMap(ps => api(Session[F](p, ps, ScriptedLean[F](lean), run)))
+  def make[F[_]: Async: Parallel](p: Project, files: Map[RelPath, String], decider: Option[String], rocq: Rocq)
+      : F[FrFlowApi[F]] = ports(files, decider).flatMap(ps => api(Session[F](p, ps, ScriptedRocq[F](rocq), run)))
 
   val run: Session.Run = Session.Run(Tests, None, keyed = true)
 

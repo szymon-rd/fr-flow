@@ -11,7 +11,7 @@ import frflow.core.ty.Ty
 import frflow.core.typing.{IrCheck, IrContext, Local}
 import frflow.proof.lean.ast.{LExpr, Names}
 import frflow.proof.lean.lower.{LowerEnv, Naming}
-import frflow.proof.lean.print.Print
+import frflow.proof.lean.term.Print
 import frflow.proof.lean.term.Printed
 
 /** The printer captures no name (the review's binder-capture and peephole probes, and their generalization): every

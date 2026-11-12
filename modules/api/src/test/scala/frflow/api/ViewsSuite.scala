@@ -11,7 +11,7 @@ import munit.DisciplineSuite
 import org.scalacheck.{Arbitrary, Gen}
 
 /** What front ends print of a view, each a function of it: the tree, the inbox, the parts beside a node; the counts
-  * are a commutative monoid; and every state Lean gives has its view.
+  * are a commutative monoid; and every state Rocq gives has its view.
   */
 class ViewsSuite extends munit.CatsEffectSuite with DisciplineSuite:
   private val (nonNegative, sameAbove) = (id("nonNegative"), id("sameAbove"))
@@ -52,7 +52,7 @@ class ViewsSuite extends munit.CatsEffectSuite with DisciplineSuite:
     shelf.map(v => assertEquals(Views.beside(v, sameAbove), List(nonNegative -> Nil)))
   }
 
-  test("every state Lean gives a check or an obligation has its view, of the same name") {
+  test("every state Rocq gives a check or an obligation has its view, of the same name") {
     assertEquals(CheckStatus.values.toList.map(s => Leans.state(s).toString), CheckStatus.values.toList.map(_.toString))
     assertEquals(ObligationStatus.values.toList.map(s => Leans.state(s).toString),
       ObligationStatus.values.toList.map(_.toString))

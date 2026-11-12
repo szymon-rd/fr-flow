@@ -24,7 +24,7 @@ final class NodeText(v: View, style: Style, layers: Contribution):
       (normal, "Where it sits", place(v, n, st)),
       (true, "Parts: together, with the assumptions it lists, they make it",
         n.place(Relation.Part).map(Lines.of(v, _, st, 2))),
-      (true, "Rules it uses (no part of its step: Lean has each of every value)", rules(n, st)),
+      (true, "Rules it uses (no part of its step: Rocq has each of every value)", rules(n, st)),
       (full, "What it mentions", mentions(n))) ++
       Views.beside(v, n.id).map((p, co) => (full, s"Beside it under $p: together they make $p",
         co.map(Lines.of(v, _, st, 2)))) ++ ProofText.sections(n, st, full).map((t, ls) => (normal, t, ls))
@@ -57,7 +57,7 @@ final class NodeText(v: View, style: Style, layers: Contribution):
 
   private def mechanical(n: NodeView, st: Style): Option[String] =
     if InboxText.mechanical(n) then
-      Some(st.green("mechanical: Lean proves it again and nothing in it is a choice (confirm takes the batch)"))
+      Some(st.green("mechanical: Rocq proves it again and nothing in it is a choice (confirm takes the batch)"))
     else n.review.notMechanical.filter(_ => n.review.standing.state == ReviewState.Review && n.review.waitsFor.isEmpty)
       .map(x => st.dim(s"not mechanical: ${Unprovens.notMechanical(x)}"))
 

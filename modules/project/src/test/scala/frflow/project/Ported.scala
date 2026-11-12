@@ -1,6 +1,5 @@
 package frflow.project
 
-import cats.data.NonEmptyList
 import cats.effect.{IO, Resource}
 import cats.syntax.all.*
 import frflow.core.Elaborated
@@ -12,94 +11,66 @@ import frflow.project.check.CheckProgram
 import frflow.project.pipeline.{Analysis, ReadProof}
 import frflow.project.port.*
 import frflow.project.port.memory.*
+import frflow.project.port.rocq.RocqProver
 import frflow.project.process.{Command, Output}
 import frflow.project.program.{Analyse, Ports, Project, TestProgram}
-import frflow.proof.lean.ast.{ModuleName, Names}
-import frflow.proof.layout.LeanWorkspace
-import frflow.proof.verdict.ProverRun
 import frflow.testing.Settings
 import frflow.testing.report.Outcome
 import java.nio.file.{Files, Path}
 import scala.concurrent.duration.*
+import scala.jdk.CollectionConverters.*
 
-/** An example ported, checked as `check` checks it, from cold: the developer's proofs written under `lean/Proofs`,
-  * Lean run on every node and on the theory, the plain Scala tested with the default settings (1,000 cases from seed
-  * 1, as today); then, with today's Lean beside it under `FrFlowGen/Old`, the module stating each claim equivalent to
-  * today's built. What each port's `PortSuite` judges.
+/** A model checked as `check` checks it, from cold, in a directory of its own: the developer's proofs written under
+  * `rocq/Proofs`, Rocq run on every node and on the theory, the plain Scala tested with the default settings (1,000
+  * cases from seed 1). What the suites tagged `Rocq` judge.
   */
 object Ported:
-  /** The analysis once checked and tested, and how Lean built the equivalences, if any were given. */
-  final case class Run(analysis: Analysis, port: Option[ProverRun])
-
-  /** What a port gives Lean: its proofs (by name, under `lean/Proofs/<Kb>`), today's modules and the module stating
-    * the equivalences (by path under `lean/`), and the module to build of those.
-    */
-  final case class Lean(proofs: List[(String, String)], old: List[(String, String)], port: Option[String])
-
   /** A fresh directory, removed after; or, for writing proofs, the one `FRFLOW_PORT_DIR` names, kept. */
   private val directory: Resource[IO, Path] = sys.env.get("FRFLOW_PORT_DIR").fold(
     Resource.make(IO.blocking(Files.createTempDirectory("frflow-port")))(d =>
       IO.blocking(Files.walk(d).sorted(java.util.Comparator.reverseOrder()).forEach(p => Files.delete(p)))))(d =>
     Resource.eval(IO.blocking(Files.createDirectories(Path.of(d)))))
 
-  private def module(name: String): ModuleName = ModuleName(Names.path(name.split('.').toList*))
+  /** FrFlow's Rocq library, as the build keeps it. */
+  lazy val library: Path = Projects.base.resolve("modules/proof/rocq")
 
-  /** A project directory, and Lake in its `lean/`. */
-  private val workspace: Resource[IO, (Path, Lake[IO])] =
-    directory.flatMap(d => Lake.make[IO](d.resolve("lean"), Command("lake", 30.minutes, Output.Merged)).map(d -> _))
+  /** A project directory, and Rocq in its `rocq/`. */
+  private val workspace: Resource[IO, (Path, Prover[IO])] = directory.flatMap(d =>
+    RocqProver.make[IO](d.resolve("rocq"), library, Command("rocq", 30.minutes, Output.ByExit)).map(d -> _))
 
-  def run(e: Elaborated, examples: List[Example], lean: Lean): IO[Run] =
-    workspace.use { (dir, lake) =>
+  /** The analysis once checked and tested; `proofs`, the developer's proof files by name (`Lemmas`, a node's). */
+  def run(e: Elaborated, examples: List[Example], proofs: List[(String, String)]): IO[Analysis] =
+    workspace.use { (dir, prover) =>
       val files = ProjectFiles.make[IO](dir)
       val code = RunCode.make[IO]
-      def write(path: String, text: String) = files.writeIfChanged(RelPath.fromIdentifiers("lean", path), text)
       val kb = e.theory.name.value
       for
-        library <- LeanLibrary.read[IO](LeanWorkspace.library, LeanWorkspace.library.toString)
+        rocq    <- RocqLibrary.read[IO](library)
         ledger  <- MemoryLedger[IO](Ledger.empty)
         git     <- MemoryGit[IO]
         keys    <- MemoryKeys[IO]
         ports    = Ports(files, ledger, git, keys)
-        _       <- lean.proofs.traverse_((n, text) => write(s"Proofs/$kb/$n.lean", text))
-        a       <- Analyse(ports, code, Project(Nil, Settings.default, library))(e, examples)
-        (_, c)  <- CheckProgram(files, lake, library.path, code)(a, None)
+        _       <- proofs.traverse_((n, text) =>
+                     files.writeIfChanged(RelPath.fromIdentifiers("rocq", s"Proofs/$kb/$n.v"), text))
+        a       <- Analyse(ports, code, Project(Nil, Settings.default, rocq))(e, examples)
+        (_, c)  <- CheckProgram(files, prover, code)(a, None)
         (_, t)  <- TestProgram[IO](files, code)(c, None)
-        _       <- lean.old.traverse_((p, text) => write(p, text))
-        built   <- lean.port.traverse(p => lake.build(NonEmptyList.one(module(p))))
-      yield Run(t, built)
+      yield t
     }
-
-  /** The Definitions given a value provided where the code runs (`provided`), by name: what each port
-    * judges under owner §45 D (a value standing for "now" or the history so far, in statements about the state over
-    * time, is the World's; configuration fixed for the run stays provided).
-    */
-  def provided(e: Elaborated): Set[String] =
-    e.theory.code.attached.collect { case (s, a) if a.code == frflow.core.code.Code.Provided => s.value }.toSet
-
-  /** How a value provided where the code runs stands under owner §45 D ("the clock and histories that crm, keycloak
-    * and auth read as provided values are modelled as part of the World"): done only where none is `Stopped`.
-    */
-  enum OnD:
-    /** Configuration, fixed for the run: not "now" or a history, which D names; stays provided. */
-    case Configuration(why: String)
-    /** "Now" or the history so far, the World's under D, not moved: the step stops on a design point (`on`), D not
-      * done for it.
-      */
-    case Stopped(on: String, why: String)
-    /** D names the value, and the owner ruled it stays provided (`by`, a decision of his). */
-    case Ruled(by: String, why: String)
-
-  /** The values D is not done for: each stopped one, with the point it waits on. */
-  def stoppedOnD(judged: Map[String, OnD]): Map[String, String] =
-    judged.collect { case (v, OnD.Stopped(on, _)) => v -> on }
 
   /** A resource's text, from the test class path. */
   def resource(path: String): String =
     scala.io.Source.fromResource(path, getClass.getClassLoader)(using scala.io.Codec.UTF8).mkString
 
-  /** A developer's proof file of an example, as its project keeps it (`examples/<example>/lean/Proofs/<Kb>`). */
-  def proof(example: String, kb: String, name: String): String =
-    java.nio.file.Files.readString(Projects.base.resolve(s"examples/$example/lean/Proofs/$kb/$name.lean"))
+  /** The developer's proof files of an example, as its project keeps them (`examples/<example>/rocq/Proofs/<Kb>`),
+    * by name.
+    */
+  def proofs(example: String, kb: String): List[(String, String)] =
+    val dir = Projects.base.resolve(s"examples/$example/rocq/Proofs/$kb")
+    val all = Files.list(dir)
+    try all.iterator.asScala.toList.filter(_.toString.endsWith(".v")).sortBy(_.toString).map(p =>
+      p.getFileName.toString.stripSuffix(".v") -> Files.readString(p))
+    finally all.close()
 
   /** A node's standing as today's `standings.tsv` has it: kind, standing (proven, tested or assumed), its check's
     * status, and the cases its Scala was tested on.

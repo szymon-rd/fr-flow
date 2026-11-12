@@ -4,12 +4,13 @@ import frflow.api.view.Warning
 import frflow.core.name.{NodeId, RelPath}
 import frflow.core.spec.Statement
 import frflow.project.pipeline.Analysis
+import frflow.proof.rocq.RocqProject
 import frflow.proof.layout.Layout
 import frflow.proof.obligation.{ObligationName, TryKind}
 import frflow.proof.verdict.{ObligationStatus, Result}
 
 /** What `status` warns of from the analysis: the decisions that do not count, files under two designs, source files
-  * nothing governs, a design governing a path that is not there, proof files of no node, and nodes Lean proves
+  * nothing governs, a design governing a path that is not there, proof files of no node, and nodes Rocq proves
   * restate a part.
   */
 private[api] object Warnings:
@@ -46,11 +47,11 @@ private[api] object Warnings:
 
   private def orphans(a: Analysis): List[Warning] =
     val layout = Layout(a.decided.theory.name)
-    a.inputs.lean.proofs.keys.toList.sortBy(_.value)
+    a.inputs.proofs.files.keys.toList.sortBy(_.value)
       .filter(id => !Set("Lemmas", "Whole")(id.value) && a.decided.theory.node(id).isEmpty)
-      .map(id => Warning.ProofFileOfNoNode(layout.proofs(id).file))
+      .map(id => Warning.ProofFileOfNoNode(RocqProject.path(layout.proofs(id))))
 
-  /** A node Lean proves equivalent to its one part (`restates` shown, `complete` proven), or a part it proves
+  /** A node Rocq proves equivalent to its one part (`restates` shown, `complete` proven), or a part it proves
     * equivalent to a conjunct (`restates_<i>` shown).
     */
   private def restated(a: Analysis): List[Warning] = a.decided.theory.nodes.map(_.node.id).flatMap { id =>

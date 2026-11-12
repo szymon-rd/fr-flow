@@ -10,44 +10,49 @@ import frflow.project.check.{CheckProgram, Render}
 import frflow.project.pipeline.Analysis
 import frflow.project.port.RunCode
 import frflow.project.port.{FrFlowError, Records}
-import frflow.project.port.memory.ScriptedLake
+import frflow.project.port.memory.ScriptedProver
 import frflow.proof.layout.NodePart
 import frflow.proof.lean.ast.ModuleName
 import frflow.proof.obligation.{ObligationName, TryKind}
+import frflow.proof.reading.RocqReport
+import frflow.proof.rocq.RocqProject
 import frflow.proof.verdict.*
 
-/** `check` on rooms, Lean scripted and the project in memory: nodes checked parts first and judged theorem by
+/** `check` on rooms, Rocq scripted and the project in memory: nodes checked parts first and judged theorem by
   * theorem, each kept while current, the theory's own check recorded with its key; and each way a check ends early.
   */
 class CheckProgramSuite extends munit.CatsEffectSuite:
-  private val library = "../../../modules/proof/lean"
-
   private def checked(only: Option[NodeId] = None)(say: Analysis => ModuleName => ProverRun)
-      : IO[(List[NodeCheck], Analysis, ScriptedLake[IO], Projects.InMemory)] =
+      : IO[(List[NodeCheck], Analysis, ScriptedProver[IO], Projects.InMemory)] =
     checkedOf(Projects.rooms, Projects.roomsExamples, only)(say)
 
   private lazy val auth = Projects.elaborated(_root_.auth.knowledge)
 
   private def checkedOf(e: Elaborated, examples: List[Example], only: Option[NodeId])(
-      say: Analysis => ModuleName => ProverRun): IO[(List[NodeCheck], Analysis, ScriptedLake[IO], Projects.InMemory)] =
+      say: Analysis => ModuleName => ProverRun)
+      : IO[(List[NodeCheck], Analysis, ScriptedProver[IO], Projects.InMemory)] =
     for
       p    <- Projects.inMemory(Map.empty)
       a    <- Projects.analysed(p, e, examples)
-      lake <- ScriptedLake[IO](say(a), installed = true)
-      out  <- CheckProgram(p.files, lake, library, RunCode.inline[IO])(a, only)
+      lake <- ScriptedProver[IO](say(a), installed = true)
+      out  <- CheckProgram(p.files, lake, RunCode.inline[IO])(a, only)
     yield (out._1, out._2, lake, p)
 
   private def proving(a: Analysis): ModuleName => ProverRun = Scripted(a, Set.empty, Set.empty).answer
-  /** Lean's output with no audit (`#print axioms`) in it. */
+  /** Rocq's report with no audit (`Print Assumptions`) in it. */
   private def unaudited(r: ProverRun): ProverRun = r match
-    case ProverRun.Built(o)  => ProverRun.Built(o.linesIterator.filterNot(_.contains("axioms")).mkString("\n"))
-    case ProverRun.Failed(o) => ProverRun.Failed(o.linesIterator.filterNot(_.contains("axioms")).mkString("\n"))
+    case ProverRun.Built(o)  => ProverRun.Built(o.linesIterator.filterNot(_.startsWith("assumes ")).mkString("\n"))
+    case ProverRun.Failed(o) => ProverRun.Failed(o.linesIterator.filterNot(_.startsWith("assumes ")).mkString("\n"))
     case other               => other
+
+  /** A report of one file Rocq did not read whole. */
+  private def broken(file: String, why: String): String =
+    RocqReport.print(List(RocqReport.File(file, Map.empty, Map.empty, Some(why))))
 
   private val stated = List("bookWhenFree", "acceptWhenFree", "neverOverlap", "storeWhenNoOverlap",
     "answerWhenNoOverlap").map(NodeId(_))
 
-  test("every node Lean is asked of is checked, parts first, proven when Lean proves each obligation") {
+  test("every node Rocq is asked of is checked, parts first, proven when Rocq proves each obligation") {
     checked()(proving).map { (done, a, _, _) =>
       assertEquals(done.map(_.node).toSet, stated.toSet)
       assertEquals(done.filter(_.status != CheckStatus.Proven).map(c => c.node -> c.findings), Nil)
@@ -58,7 +63,7 @@ class CheckProgramSuite extends munit.CatsEffectSuite:
     }
   }
 
-  test("a try Lean does not prove is an error in the checks module and shows nothing; the obligations there hold") {
+  test("a try Rocq does not prove shows nothing; the obligations there hold") {
     checked()(proving).map { (done, _, _, _) =>
       val book = done.find(_.node == NodeId("bookWhenFree")).getOrElse(fail("not checked"))
       assert(book.results.exists(_.name == ObligationName.Impl), book.results)
@@ -71,7 +76,7 @@ class CheckProgramSuite extends munit.CatsEffectSuite:
     for
       (_, a, lake, p) <- checked()(proving)
       before          <- lake.built
-      again           <- CheckProgram(p.files, lake, library, RunCode.inline[IO])(a, None)
+      again           <- CheckProgram(p.files, lake, RunCode.inline[IO])(a, None)
       after           <- lake.built
       read            <- Records.read(p.files)
     yield
@@ -83,7 +88,7 @@ class CheckProgramSuite extends munit.CatsEffectSuite:
     val bad = NodeId("storeWhenNoOverlap")
     checked() { a => m =>
       if m == a.lowering.layout.ofNode(bad, NodePart.Spec) then ProverRun.Failed(
-        "error: FrFlowGen/Rooms/storeWhenNoOverlap/Spec.lean:3:0: unknown identifier")
+        broken("FrFlowGen/Rooms/storeWhenNoOverlap/Spec.v", "The reference x was not found."))
       else proving(a)(m)
     }.map { (done, _, _, _) =>
       val status = done.map(c => c.node -> c.status).toMap
@@ -92,17 +97,17 @@ class CheckProgramSuite extends munit.CatsEffectSuite:
     }
   }
 
-  test("a fatal try Lean proves (a clash) fails the node, said as refuted") {
+  test("a fatal try Rocq proves (a clash) fails the node, said as refuted") {
     checked()(a => Scripted(a, Set.empty, Set("clash")).answer).map { (done, _, _, _) =>
       val failed = done.filter(_.status == CheckStatus.Failed)
       assert(failed.nonEmpty && failed.forall(_.findings.contains(Finding.Refuted(List(TryKind.Clash)))), failed)
     }
   }
 
-  test("a module Lake did not run (one it imports failed) proves nothing and shows nothing: the check is open") {
+  test("a module Rocq did not run (one it imports did not go through) proves and shows nothing: the check is open") {
     val node = NodeId("storeWhenNoOverlap")
     checked(Some(node))(a => m => if m == a.lowering.layout.ofNode(node, NodePart.Impl) then
-      ProverRun.Failed("✖ [2/3] Building FrFlowGen.Rooms.Types\nerror: FrFlowGen/Rooms/Types.lean:1:0: oops")
+      ProverRun.Failed(broken("FrFlowGen/Rooms/Types.v", "oops"))
       else proving(a)(m)).map { (done, _, _, _) =>
       val c = done.find(_.node == node).getOrElse(fail("not checked"))
       assertEquals(c.status, CheckStatus.Open)
@@ -113,7 +118,7 @@ class CheckProgramSuite extends munit.CatsEffectSuite:
     }
   }
 
-  test("a proof whose audit Lean did not print is not checked (fail closed): the node is open") {
+  test("a proof whose audit Rocq did not print is not checked (fail closed): the node is open") {
     val node = NodeId("storeWhenNoOverlap")
     checked(Some(node))(a => m => if m == a.lowering.layout.ofNode(node, NodePart.Impl) then
       unaudited(proving(a)(m)) else proving(a)(m)).map { (done, _, _, _) =>
@@ -124,7 +129,7 @@ class CheckProgramSuite extends munit.CatsEffectSuite:
     }
   }
 
-  test("a composition whose audit Lean did not print does not prove the node") {
+  test("a composition whose audit Rocq did not print does not prove the node") {
     val node = NodeId("accessNeedsGrant")
     checkedOf(auth, Nil, None)(a => m => if m == a.lowering.layout.ofNode(node, NodePart.Theorems) then
       unaudited(proving(a)(m)) else proving(a)(m)).map { (done, _, _, _) =>
@@ -133,7 +138,7 @@ class CheckProgramSuite extends munit.CatsEffectSuite:
     }
   }
 
-  test("the theory's own check proves what Lean audited, and nothing it did not") {
+  test("the theory's own check proves what Rocq audited, and nothing it did not") {
     val audited = checked()(proving)
     val not = checked()(a => m => if m == a.lowering.layout.whole then unaudited(proving(a)(m)) else proving(a)(m))
     (audited, not).mapN((yes, no) => List(yes, no).map(_._2.inputs.recorded.checks.whole.toList.flatMap(_.results)
@@ -141,13 +146,13 @@ class CheckProgramSuite extends munit.CatsEffectSuite:
       assertEquals(statuses, List(List(ObligationStatus.Proven), List(ObligationStatus.Unchecked))))
   }
 
-  test("a .lean file under lean/Proofs/ that is no node's proof: the check is refused") {
-    val stray = RelPath.fromIdentifiers("lean", "Proofs/Rooms/sub/grantWhenFree.lean")
+  test("a .v file under rocq/Proofs/ that is no node's proof: the check is refused") {
+    val stray = RelPath.fromIdentifiers("rocq", "Proofs/Rooms/sub/grantWhenFree.v")
     for
-      p    <- Projects.inMemory(Map(stray -> "theorem x : True := trivial"))
+      p    <- Projects.inMemory(Map(stray -> "Lemma x : True.\nProof.\n  auto.\nQed.\n"))
       a    <- Projects.analysed(p, Projects.rooms, Nil)
-      lake <- ScriptedLake[IO](proving(a), installed = true)
-      out  <- CheckProgram(p.files, lake, library, RunCode.inline[IO])(a, None).attempt
+      lake <- ScriptedProver[IO](proving(a), installed = true)
+      out  <- CheckProgram(p.files, lake, RunCode.inline[IO])(a, None).attempt
       held <- lake.built
     yield assertEquals((out.left.toOption, held), (Some(FrFlowError.StrayProofs(List(stray))), Nil))
   }
@@ -160,28 +165,30 @@ class CheckProgramSuite extends munit.CatsEffectSuite:
     }
   }
 
-  test("no Lean: the check is refused; a node the model does not have, too") {
+  test("no Rocq: the check is refused; a node the model does not have, too") {
     for
       p    <- Projects.inMemory(Map.empty)
       a    <- Projects.analysed(p, Projects.rooms, Nil)
-      none <- ScriptedLake[IO](_ => ProverRun.Built(""), installed = false)
-      lake <- ScriptedLake[IO](_ => ProverRun.Built(""), installed = true)
-      no   <- CheckProgram(p.files, none, library, RunCode.inline[IO])(a, None).attempt
-      gone <- CheckProgram(p.files, lake, library, RunCode.inline[IO])(a, Some(NodeId("gone"))).attempt
+      none <- ScriptedProver[IO](_ => ProverRun.Built(""), installed = false)
+      lake <- ScriptedProver[IO](_ => ProverRun.Built(""), installed = true)
+      no   <- CheckProgram(p.files, none, RunCode.inline[IO])(a, None).attempt
+      gone <- CheckProgram(p.files, lake, RunCode.inline[IO])(a, Some(NodeId("gone"))).attempt
     yield
-      assertEquals(no.left.toOption, Some(FrFlowError.NoLean))
+      assertEquals(no.left.toOption, Some(FrFlowError.NoProver))
       assertEquals(gone.left.toOption, Some(FrFlowError.UnknownNode(NodeId("gone"))))
   }
 
-  test("the Lean written: the lakefile, the toolchain, every module; a module the model no longer has is deleted") {
-    val stale = RelPath.fromIdentifiers("lean", "FrFlowGen/Rooms/gone/Spec.lean")
+  test("the Rocq written: where an editor finds what is compiled, every module; a module the model no longer has is " +
+    "deleted") {
+    val stale = RelPath.fromIdentifiers("rocq", "FrFlowGen/Rooms/gone/Spec.v")
     for
-      p    <- Projects.inMemory(Map(stale -> "-- gone"))
+      p    <- Projects.inMemory(Map(stale -> "(* gone *)"))
       a    <- Projects.analysed(p, Projects.rooms, Nil)
-      _    <- Render(p.files, library)(a)
+      _    <- Render(p.files)(a)
       held <- p.files.all
     yield
       assert(!held.contains(stale))
-      assert(held.get(Render.lakefile).exists(_.contains(s"path = \"$library\"")))
-      assert(a.modules.forall(m => held.contains(m.name.file)))
+      assert(held.get(Render.project).exists(_.contains("-Q _build/FrFlowGen FrFlowGen")))
+      assertEquals(a.rocq.unprinted, Map.empty[String, String])
+      assert(a.modules.forall(m => held.contains(RocqProject.path(m.name))))
   }

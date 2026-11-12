@@ -38,7 +38,7 @@ object Texts:
     case Checking.WhereMade(ty, ds)    =>
       val makers = ds.map(_.value)
       s"met where a ${typeName(ty)} is made" + (if makers.isEmpty then "" else s" (${names(makers)})") +
-        s"; assumed of every ${typeName(ty)} in Lean"
+        s"; assumed of every ${typeName(ty)} in Rocq"
     case Checking.Unchecked            => "not checked yet: no parts, no code"
 
   /** What it says of a Declaration, the rules and what from outside it rests on, and its consistency. */
@@ -69,7 +69,7 @@ object Texts:
     case Premise.FromOutside(ty) => s"what each ${typeName(ty)} from outside meets"
 
   private def standing(s: Standing): String = s match
-    case Standing.Witnessed      => "witnessed, for Lean to check"
+    case Standing.Witnessed      => "witnessed, for Rocq to check"
     case Standing.Evidence(ts)   => s"evidence only (${names(ts.map(_.value))} tested), consistency not proven"
     case Standing.Unwitnessed(_) => "consistency not proven"
 

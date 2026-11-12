@@ -8,8 +8,8 @@ import frflow.proof.lean.lower.LowerObligation
 import frflow.project.pipeline.Analysis
 import frflow.proof.obligation.ObligationName
 
-/** The theory's view, from the analysis and Lean's current results of `Whole.lean`: each obligation with its outcome
-  * and Lean's messages, unchecked while there is none.
+/** The theory's view, from the analysis and Rocq's current results of `Whole.v`: each obligation with its outcome
+  * and Rocq's messages, unchecked while there is none.
   */
 private[api] object Wholes:
   def of(a: Analysis): WholeView =
@@ -18,7 +18,7 @@ private[api] object Wholes:
       Consistency.vacuity(a.decided.theory).map(v => v -> check(a, possible(v))),
       a.computed.examples.map { (e, onCode) =>
         ExampleView(e.name, if e.givens.nonEmpty then OnClaims.ScalaOnly
-          else OnClaims.Lean(check(a, ObligationName.Example(e.of, e.at)),
+          else OnClaims.Rocq(check(a, ObligationName.Example(e.of, e.at)),
             check(a, ObligationName.ExampleOpposite(e.of, e.at))), onCode)
       })
 

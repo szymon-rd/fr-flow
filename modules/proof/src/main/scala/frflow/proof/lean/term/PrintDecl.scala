@@ -1,4 +1,4 @@
-package frflow.proof.lean.print
+package frflow.proof.lean.term
 
 import frflow.proof.lean.ast.*
 

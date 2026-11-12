@@ -2,49 +2,32 @@ package frflow.project.check
 
 import cats.{Monad, Parallel}
 import cats.syntax.all.*
-import frflow.core.name.{KbName, RelPath}
-import frflow.project.pipeline.{Analysis, LeanSources}
+import frflow.core.name.RelPath
+import frflow.project.pipeline.Analysis
 import frflow.project.port.ProjectFiles
 import frflow.proof.lean.ast.ModuleName
-import frflow.proof.lean.print.Print
+import frflow.proof.rocq.RocqProject
 
-/** The project's Lean workspace written: `lean/lakefile.toml` (FrFlow's generated library and the developer's proofs,
-  * requiring FrFlow's Lean library at `library`, relative to `lean/`), `lean/lean-toolchain`, each generated module
-  * whose text changed, and no generated module the model no longer has.
+/** The project's Rocq written: `rocq/_CoqProject` (where an editor finds what a check compiled), each generated
+  * module whose text changed, and no generated module the model no longer has.
   */
-final class Render[F[_]: Monad: Parallel](files: ProjectFiles[F], library: String):
+final class Render[F[_]: Monad: Parallel](files: ProjectFiles[F]):
   /** The modules written. */
   def apply(a: Analysis): F[List[ModuleName]] =
-    val kb = a.decided.theory.name
-    val generated = a.modules.map(_.name.file).toSet
+    val printed = a.modules.flatMap(m => a.rocq.text(m.name).map(m.name -> _))
+    val generated = printed.map((name, _) => RocqProject.path(name)).toSet
     for
-      _       <- files.writeIfChanged(Render.lakefile, Render.lakefileOf(kb, library))
-      _       <- files.writeIfChanged(Render.toolchain, LeanSources.Toolchain)
-      written <- a.modules.parTraverseFilter(m =>
-                   files.writeIfChanged(m.name.file, Print.module(m)).map(Option.when(_)(m.name)))
-      stale   <- files.list(RelPath.fromIdentifiers("lean", s"FrFlowGen/${kb.value}")).map(_.filterNot(generated))
+      _       <- files.writeIfChanged(Render.project, Render.Project)
+      written <- printed.parTraverseFilter((name, text) =>
+                   files.writeIfChanged(RocqProject.path(name), text).map(Option.when(_)(name)))
+      stale   <- files.list(RelPath.fromIdentifiers("rocq", s"FrFlowGen/${a.decided.theory.name.value}"))
+                   .map(_.filterNot(generated))
       _       <- stale.traverse_(files.delete)
     yield written
 
 object Render:
-  val lakefile: RelPath = RelPath.fromIdentifiers("lean", "lakefile.toml")
-  val toolchain: RelPath = RelPath.fromIdentifiers("lean", "lean-toolchain")
+  val project: RelPath = RelPath.fromIdentifiers("rocq", "_CoqProject")
 
-  def lakefileOf(kb: KbName, library: String): String =
-    s"""name = "${kb.value.toLowerCase}"
-       |defaultTargets = ["FrFlowGen"]
-       |
-       |[[require]]
-       |name = "frflow"
-       |path = "${library.replace("\\", "/")}"
-       |
-       |[[lean_lib]]
-       |name = "FrFlowGen"
-       |globs = ["FrFlowGen.+"]
-       |moreLeanArgs = ["-DmaxErrors=1000000"]
-       |
-       |[[lean_lib]]
-       |name = "Proofs"
-       |globs = ["Proofs.+"]
-       |moreLeanArgs = ["-DmaxErrors=1000000"]
-       |""".stripMargin
+  /** What a check compiles is under `rocq/_build/`, by the name Rocq loads each module by. */
+  val Project: String =
+    List("FrFlow", "FrFlowGen", "Proofs").map(root => s"-Q _build/$root $root\n").mkString

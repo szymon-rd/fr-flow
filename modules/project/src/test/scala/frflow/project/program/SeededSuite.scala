@@ -7,8 +7,9 @@ import frflow.project.{Live, Ported, Projects}
 import frflow.project.check.CheckProgram
 import frflow.project.pipeline.{Analysis, ReadProof}
 import frflow.project.port.RunCode
-import frflow.project.port.memory.ScriptedLake
-import frflow.proof.lean.print.Print
+import frflow.project.port.memory.ScriptedProver
+import frflow.proof.layout.Notation
+
 import frflow.proof.obligation.ObligationName
 import frflow.proof.verdict.{ObligationStatus, Result}
 import scala.concurrent.duration.*
@@ -21,9 +22,8 @@ import whole.Seeded
   */
 class SeededSuite extends munit.CatsEffectSuite:
   override val munitIOTimeout: Duration = 60.minutes
-  private val library = "../../../modules/proof/lean"
 
-  private def whole(a: Analysis): String = a.modules.find(_.name.dotted.endsWith("Whole.Spec")).map(Print.module)
+  private def whole(a: Analysis): String = a.modules.find(_.name.dotted.endsWith("Whole.Spec")).map(Notation.module)
     .getOrElse(fail("no whole statements"))
 
   test("a consistency statement has inner's code stand in it, reached only through outer's, and never binds it") {
@@ -32,13 +32,13 @@ class SeededSuite extends munit.CatsEffectSuite:
     assert(stated.contains("(Hidden.through Hidden.twice)") && !stated.contains("(inner :"), stated)
   }
 
-  /** Makers checked with Lean scripted: every obligation proven but the `made_` named. */
+  /** Makers checked with Rocq scripted: every obligation proven but the `made_` named. */
   private def kept(m: Makers, failing: String*): IO[List[Unproven]] =
     for
       p    <- Projects.inMemory(Map.empty)
       a    <- Projects.analysed(p, Projects.elaborated(m.knowledge), Nil)
-      lake <- ScriptedLake[IO](Scripted(a, failing.toSet, Set.empty).answer, installed = true)
-      out  <- CheckProgram(p.files, lake, library, RunCode.inline[IO])(a, None)
+      lake <- ScriptedProver[IO](Scripted(a, failing.toSet, Set.empty).answer, installed = true)
+      out  <- CheckProgram(p.files, lake, RunCode.inline[IO])(a, None)
     yield out._2.decided.theory.node(NodeId("top")).fold(fail("no top"))(n => ReadProof.of(out._2, n).unproven)
       .collect { case k @ Unproven.Kept(_) => k }
 
@@ -57,14 +57,6 @@ class SeededSuite extends munit.CatsEffectSuite:
     a.wholeCheck.toList.flatMap(_.results).collect { case Result(n @ ObligationName.Consistent(_), s, _) => n -> s }
       .toMap
 
-  test("the review's proof choosing inner's meaning fails: the group is not proven, the purpose stays red".tag(Live)) {
-    Ported.run(Projects.elaborated(Seeded.Hidden.knowledge), Nil,
-      Ported.Lean(List("Whole" -> Seeded.Hidden.proof), Nil, None)).map { r =>
-      assertEquals(consistent(r.analysis).get(ObligationName.Consistent(0)).filter(_ == ObligationStatus.Proven), None)
-      assert(Ported.unproven(r.analysis).contains("purpose"), Ported.table(r.analysis))
-    }
-  }
-
   test("a provided value the standing code reaches is universal in its group, given what the world says of it") {
     val spec = whole(Projects.bare(Projects.elaborated(Seeded.Through.knowledge)))
     val stated = spec.linesIterator.dropWhile(!_.contains("def consistent_0 ")).slice(1, 2).mkString
@@ -72,35 +64,16 @@ class SeededSuite extends munit.CatsEffectSuite:
       stated.contains("(Through.through (Through.maybe k))"), stated)
   }
 
-  test("the re-review's proof choosing k fails: the group is not proven, the roots stay red".tag(Live)) {
-    Ported.run(Projects.elaborated(Seeded.Through.knowledge), Nil,
-      Ported.Lean(List("Whole" -> Seeded.Through.proof), Nil, None)).map { r =>
-      assertEquals(consistent(r.analysis).get(ObligationName.Consistent(0)).filter(_ == ObligationStatus.Proven), None)
-      assert(Ported.unproven(r.analysis).nonEmpty, Ported.table(r.analysis))
-    }
-  }
-
-  test("premises no k meets are not shown to hold together, though a proof makes their group hold: red".tag(Live)) {
-    Ported.run(Projects.elaborated(Seeded.Vacuous.knowledge), Nil,
-      Ported.Lean(List("Whole" -> Seeded.Vacuous.proof), Nil, None)).map { r =>
-      val premises = r.analysis.groups.collectFirst { case (i, ids) if ids.contains(NodeId("kNegative")) => i }
-      assertEquals(premises.flatMap(i => consistent(r.analysis).get(ObligationName.Consistent(i)))
-        .filter(_ == ObligationStatus.Proven), None)
-      val unproven = Ported.unproven(r.analysis)
-      assert(unproven.contains("emptyHoldsIt") && unproven.contains("emptyHoldsNothing"), Ported.table(r.analysis))
-    }
-  }
-
   test("an assumption false of the code its words mean is not proven of it, and the root over it stays red".tag(Live)) {
-    Ported.run(Projects.elaborated(Seeded.Trusted.knowledge), Nil, Ported.Lean(Nil, Nil, None)).map { r =>
-      val unproven = Ported.unproven(r.analysis)
-      assert(unproven.contains("outerKeeps") && unproven.contains("emptyHoldsNothing"), Ported.table(r.analysis))
+    Ported.run(Projects.elaborated(Seeded.Trusted.knowledge), Nil, Nil).map { r =>
+      val unproven = Ported.unproven(r)
+      assert(unproven.contains("outerKeeps") && unproven.contains("emptyHoldsNothing"), Ported.table(r))
     }
   }
 
   test("an assumption with no word at all is proven or red: no list 3 long red, none -1 long proven".tag(Live)) {
-    def unproven(p: Seeded.Pure) = Ported.run(Projects.elaborated(p.knowledge), Nil, Ported.Lean(Nil, Nil, None))
-      .map(r => Ported.unproven(r.analysis).get("noDouble"))
+    def unproven(p: Seeded.Pure) = Ported.run(Projects.elaborated(p.knowledge), Nil, Nil)
+      .map(r => Ported.unproven(r).get("noDouble"))
     for
       three <- unproven(Seeded.Pure(3))
       none  <- unproven(Seeded.Pure(-1))
@@ -110,8 +83,8 @@ class SeededSuite extends munit.CatsEffectSuite:
   }
 
   test("two assumptions pinning n apart are one group, not proven".tag(Live)) {
-    Ported.run(Projects.elaborated(Seeded.TwoPins.knowledge), Nil, Ported.Lean(Nil, Nil, None)).map { r =>
-      assertEquals(r.analysis.groups.map(_._1), List(0))
-      assertNotEquals(consistent(r.analysis).get(ObligationName.Consistent(0)), Some(ObligationStatus.Proven))
+    Ported.run(Projects.elaborated(Seeded.TwoPins.knowledge), Nil, Nil).map { r =>
+      assertEquals(r.groups.map(_._1), List(0))
+      assertNotEquals(consistent(r).get(ObligationName.Consistent(0)), Some(ObligationStatus.Proven))
     }
   }

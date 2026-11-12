@@ -60,15 +60,16 @@ class ReadInputsSuite extends munit.CatsEffectSuite:
       assertEquals(out, Left(Refusal.Rewritten(List(id))))
   }
 
-  test("a proof is lean/Proofs/<Model>/<Node>.lean, directly there and named by an identifier; any other a stray") {
-    def at(path: String) = RelPath.fromIdentifiers("lean", s"Proofs/$path")
-    val strays = List(at("Rooms/sub/grantWhenFree.lean"), at("Rooms/not-a-node.lean"), at("Other/grantWhenFree.lean"),
-      at("Stray.lean"))
+  test("a proof is rocq/Proofs/<Model>/<node>.v, directly there and named by an identifier; any other a stray") {
+    def at(path: String) = RelPath.fromIdentifiers("rocq", s"Proofs/$path")
+    val strays = List(at("Rooms/sub/grantWhenFree.v"), at("Rooms/not-a-node.v"), at("Other/grantWhenFree.v"),
+      at("Stray.v"))
     for
-      p <- Projects.inMemory((at("Rooms/grantWhenFree.lean") :: strays).map(_ -> "theorem x : True := trivial").toMap)
+      p <- Projects.inMemory((at("Rooms/grantWhenFree.v") :: strays).map(_ -> "Lemma x : True.\nProof. auto. Qed.\n")
+             .toMap)
       a <- Projects.analysed(p, Projects.rooms, Nil)
     yield
-      assertEquals(a.inputs.lean.proofs.keySet, Set(NodeId("grantWhenFree")))
-      assertEquals(a.inputs.lean.strays.toSet, strays.toSet)
+      assertEquals(a.inputs.proofs.files.keySet, Set(NodeId("grantWhenFree")))
+      assertEquals(a.inputs.proofs.strays.toSet, strays.toSet)
       assertEquals(Review.of(a).strays.toSet, strays.toSet)
   }

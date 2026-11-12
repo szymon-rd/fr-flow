@@ -3,9 +3,9 @@ package frflow.api
 import frflow.api.view.{CheckEvent, Scaffolded, View}
 import frflow.core.name.NodeId
 
-/** What a front end proves with: the Lean written (`render`: the modules whose text changed), the Lean and the
+/** What a front end proves with: the Rocq written (`render`: the modules whose text changed), the Rocq and the
   * snapshot written then the view (`status`), the snapshot written and its text (`snapshot`: `export`, and what
-  * `--json` prints), a check (Lean, then the tests before production) whose progress streams as it goes and ends
+  * `--json` prints), a check (Rocq, then the tests before production) whose progress streams as it goes and ends
   * with the view after it, `ci` (a check of everything, the snapshot written, then the view), and a proof file's
   * stubs (`scaffold`: the file written, or why not). Laws: a check's stream ends with one `Done`, after a `Level` for
   * each level of the check, in order.

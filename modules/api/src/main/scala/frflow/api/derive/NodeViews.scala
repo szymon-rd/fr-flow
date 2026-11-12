@@ -45,7 +45,7 @@ private[api] final class NodeViews(a: Analysis):
   def proof(id: NodeId): ProofView =
     val check = a.current(id)
     ProofView(check.fold(Leans.Unchecked)(c => Leans.state(c.status)), check.toList.flatMap(_.results).map(Leans.of),
-      check.toList.flatMap(_.findings).map(Leans.finding), a.inputs.lean.proofs.contains(id),
+      check.toList.flatMap(_.findings).map(Leans.finding), a.inputs.proofs.files.contains(id),
       a.subjects.get(id).toList.flatMap(_.proof.unproven))
 
   def code(id: NodeId): Option[CodeView] =

@@ -3,7 +3,7 @@ package frflow.proof.obligation
 import frflow.proof.layout.{Laid, Lowering}
 import frflow.proof.layout.Handed
 import frflow.proof.lean.lower.LowerKeeps
-import frflow.proof.lean.print.PrintDecl
+import frflow.proof.lean.term.PrintDecl
 
 /** What `made_` states, byte for byte (`resources/always`): every result of a define meets what always holds of
   * its values (`makes_<maker>`), and what proven code hands plain Scala at each call meets it

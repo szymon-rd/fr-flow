@@ -53,7 +53,7 @@ final class ReviewSession(api: FrFlowApi[IO], term: Terminal, st: Style, added: 
 
   private def batch(dev: String, ms: List[NodeView], p: Pass): IO[ExitCode] =
     val done = p.copy(batchOffered = true)
-    val title = s"${ms.size} mechanical decision(s): Lean proves them again, and nothing in them is a choice"
+    val title = s"${ms.size} mechanical decision(s): Rocq proves them again, and nothing in them is a choice"
     ms.flatTraverse(changed).flatMap(lines => term.out("" :: st.bold(title) :: lines)) >>
       ask.choose("[a]ccept all, with one reason  [s]kip  [q]uit: ", Set("a", "s", "q")).flatMap {
         case Some("a") => ask.reason("Why do they hold (e.g. a new field no rule reads)? ").flatMap(_.fold(

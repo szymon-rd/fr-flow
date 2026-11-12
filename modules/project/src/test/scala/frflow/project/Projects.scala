@@ -7,9 +7,9 @@ import frflow.core.example.Example
 import frflow.core.name.{NodeId, RelPath}
 import frflow.decision.ledger.{Counted, Ledger}
 import frflow.dsl.kb.FrModel
-import frflow.project.pipeline.{Analysis, Computed, Inputs, LeanSources, Recorded}
+import frflow.project.pipeline.{Analysis, Computed, Inputs, ProofSources, Recorded}
 import frflow.project.port.memory.{MemoryFiles, MemoryGit, MemoryKeys, MemoryLedger}
-import frflow.project.port.{LeanLibrary, RunCode}
+import frflow.project.port.{RocqLibrary, RunCode}
 import frflow.project.program.{Analyse, Ports, Project}
 import frflow.proof.reading.ProofFile
 import frflow.testing.Settings
@@ -25,8 +25,8 @@ object Projects:
   /** Fewer cases than the default, so the suites stay quick; the seed is today's. */
   val settings: Settings = Settings(200, Seed(1))
   val sources: RelPath = RelPath.fromIdentifiers("src", "main")
-  /** FrFlow's Lean library as the suites name it: no Lean runs on it in a unit suite. */
-  val library: LeanLibrary = LeanLibrary("lean", "the library under test")
+  /** FrFlow's Rocq library as the suites name it: no Rocq runs on it in a unit suite. */
+  val library: RocqLibrary = RocqLibrary(Path.of("rocq"), "the library under test")
   val project: Project = Project(List(sources), settings, library)
 
   /** The build's base directory: the one holding `build.sbt` above these tests' classes, wherever they run from. */
@@ -68,6 +68,6 @@ object Projects:
   /** The same with proof files read: the obligations they prove are stated as theirs. */
   def proving(e: Elaborated, proofs: Map[NodeId, ProofFile]): Analysis =
     Analysis(Validate(e).fold(ps => throw AssertionError(ps.toString), identity),
-      Inputs(Counted(Ledger.empty, Nil), Recorded.none, LeanSources(proofs, Nil, library.version), Map.empty,
+      Inputs(Counted(Ledger.empty, Nil), Recorded.none, ProofSources(proofs, Nil, library.version), Map.empty,
         Instant.EPOCH, settings),
       Computed.none)

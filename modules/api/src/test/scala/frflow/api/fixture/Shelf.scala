@@ -57,7 +57,7 @@ object Shelf:
     val kb = FrModel("Shelf")(Before.nonNegative, Before.sameAbove).defining(d.defineTested(_ => n => -n.abs - 1))
 
   /** `Before` with a part added under the claim: its parts moved, its meaning did not (deciding it again is
-    * mechanical once Lean proves its parts make it).
+    * mechanical once Rocq proves its parts make it).
     */
   object Grown:
     val zeroGivesZero = Node.claim("At zero, the service gives zero.")(d(0) === 0).refines(Before.nonNegative)
