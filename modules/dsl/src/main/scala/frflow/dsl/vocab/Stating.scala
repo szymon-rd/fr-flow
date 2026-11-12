@@ -9,12 +9,14 @@ import scala.annotation.implicitNotFound
   * knows which words the model fixes (`fixed`: those it gives a meaning, and those its code calls) and which of
   * the others change with the World (`varies`, owner §43): those a statement reads beside what does, the FrModel
   * reading them off its statements (`kb.Elaborate`); each of them is read in the world the statement holds in.
-  * While they are read off (`closing` false), a statement is left open.
+  * While they are read off (`closing` false), a statement is left open. It also knows which structures the model
+  * has held by which (`holds`: a structure's word, and the words of the structures whose classes are given it).
   */
 @implicitNotFound("FrFlow: this is said only in a statement (Node.claim, Node.assumption, an example, a stated " +
   "define)")
 final class Stating private (val varies: Set[SymbolName], val closing: Boolean, val fixed: Set[SymbolName],
-    states: Map[SymbolName, Term[?]] = Map.empty, told: (SymbolName, LeanType[?]) => Unit = (_, _) => ()):
+    states: Map[SymbolName, Term[?]] = Map.empty, told: (SymbolName, LeanType[?]) => Unit = (_, _) => (),
+    val holds: Map[SymbolName, Set[SymbolName]] = Map.empty):
   /** A structure as it stands, as the statement reads it (`limits.authorise(p)`, `limits.current`): the variable the
     * statement binds it to, so a claim holds of the structure in every state (`Standing.closing`); where none is
     * bound (an example's fact), the structure's own word, a value the example gives.
@@ -23,10 +25,11 @@ final class Stating private (val varies: Set[SymbolName], val closing: Boolean, 
     told(structure.name, structure.leanType)
     states.get(structure.name).fold(structure.word: Term[T])(_.asInstanceOf[Term[T]])
   /** The same statement, each structure read as the variable `bound` gives it. */
-  private[dsl] def holding(bound: Map[SymbolName, Term[?]]): Stating = Stating(varies, closing, fixed, bound, told)
+  private[dsl] def holding(bound: Map[SymbolName, Term[?]]): Stating =
+    Stating(varies, closing, fixed, bound, told, holds)
   /** The same statement, `heard` told each structure it reads as it stands. */
   private[dsl] def asking(heard: (SymbolName, LeanType[?]) => Unit): Stating =
-    Stating(varies, closing, fixed, states, heard)
+    Stating(varies, closing, fixed, states, heard, holds)
 
 object Stating:
   /** A statement written alone (an example's fact): nothing it mentions is read as changing with the World. */
@@ -38,6 +41,9 @@ object Stating:
   private[dsl] val probing: Stating = probing(Set.empty)
   private[dsl] def varying(declarations: Set[SymbolName], fixed: Set[SymbolName]): Stating =
     Stating(declarations, closing = true, fixed)
+  /** The same, knowing which structures the model has held by which. */
+  private[dsl] def varying(declarations: Set[SymbolName], fixed: Set[SymbolName],
+      holds: Map[SymbolName, Set[SymbolName]]): Stating = Stating(declarations, closing = true, fixed, holds = holds)
 
 /** Where a word is read: in a statement, which knows what the model fixes and what changes with the World, or in
   * code (a define's body, a program's, plain Scala), where a word is the function it is given as.

@@ -12,6 +12,19 @@ import scala.annotation.publicInBinary
   */
 final case class Member(name: String, changes: Boolean, params: List[LeanType[?]], result: LeanType[?])
 
+object StructureDeclaration:
+  /** What a structure of the type `holder` holds as the word `part`: a word of its own
+    * (`paymentHandler_holds_ledger`), a function from the holder to what it holds. It has its code where the
+    * holder's class is given the words of what it holds (`lifted[StreamHandler](limits, ledger, offsets)`).
+    */
+  def held(holder: LeanType[?], part: SymbolName, is: LeanType[?]): Definition[Any] =
+    val of = holder.ty match
+      case Ty.Data(name) => name.value
+      case other         => other.toString
+    new Definition[Any](SymbolName(s"${of.take(1).toLowerCase}${of.drop(1)}_holds_${part.value}"),
+      s"the ${part.value} a $of holds", None, WrittenAt.none)(
+      using LeanType.of[Any](Ty.FnOf(List(holder.ty), is.ty), holder, is))
+
 /** A structure's word: a Declaration of a trait's type (`val limits = Declaration[Limits]("…")`). Its members are
   * called in statements as the trait declares them (`limits.authorise(p)`, a `Call`): each is a word of its own
   * (`limits_authorise`), a function of the structure that gives the member's result, and, of a member that changes

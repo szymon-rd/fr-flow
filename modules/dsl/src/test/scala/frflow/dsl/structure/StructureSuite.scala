@@ -54,7 +54,7 @@ import scala.annotation.experimental
     assertEquals(pricing.members.map(m => m.name -> m.changes), List("price" -> false, "tax" -> false))
     val elaborated = model.elaborated.fold(es => fail(es.toChain.toList.mkString("; ")), identity)
     assertEquals(elaborated.theory.code.attached.keySet.map(_.value),
-      Set("pricing_price", "pricing_tax", "basket_add", "basket_due", "basket_add_among"))
+      Set("pricing_price", "pricing_tax", "basket_add", "basket_due", "basket_add_among", "basket_holds_pricing"))
     assertEquals(basket.member("due").leanType.ty,
       Ty.FnOf(List(Ty.Data(frflow.core.name.TypeName("Basket"))), Ty.Num(frflow.core.ty.NumKind.Big)))
     assertEquals(frflow.core.analysis.Validate(elaborated).fold(_.toChain.toList.map(_.toString), _ => Nil), Nil)

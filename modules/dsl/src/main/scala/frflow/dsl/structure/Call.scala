@@ -3,6 +3,7 @@ package frflow.dsl.structure
 import frflow.core.term.language.Sym
 import frflow.dsl.term.{LeanType, Lift, Term, Terms, TermSyntax}
 import frflow.dsl.vocab.{Called, Definition}
+import scala.util.NotGiven
 
 /** A member of a structure called in a statement (`limits.authorise(p)`). As a term it is what the call gives
   * (`result`, `current`), made on the structure as it stands, or as it is given (`in`). `after` is the structure once
@@ -22,6 +23,11 @@ final class Call[T, R] private (made: Call.Made[T], ran: Call.Ran[T, R])
   def after: Term[T] = ran.after
   /** The same call made on the structure as `state` has it (`limits.decided(id).in(limits.authorise(p).after)`). */
   def in(state: Term[T]): Call[T, R] = Call.over(made.copy(state = state))
+  /** The same call made on the structure as the one that holds it has it: `holder` is a state of a structure
+    * whose class is given this one's word (`ledger.posted(id).in(handler.handle(p).after)`).
+    */
+  def in[H <: String](holder: Term[State[H]])(using NotGiven[State[H] =:= T]): Call[T, R] =
+    in(Call.heldIn[T](made.structure, holder))
   /** The same call made among other calls: `between` says how they left the structure before a step, by the step's
     * number (the second step's is 2); before a step it does not name, they did nothing. A claim over every
     * `between` holds however the call's steps interleave with other calls'.
@@ -80,6 +86,11 @@ object Call:
       case (true, Some(between)) =>
         val did = applied[((R, T), Traces[T])](made.structure.among(made.called), made.state :: between :: made.args)
         Ran(TermSyntax._1(TermSyntax._1(did)), TermSyntax._2(TermSyntax._1(did)), Some(TermSyntax._2(did))))
+
+  /** A structure as the structure in the state `holder` holds it. */
+  def heldIn[T](structure: StructureDeclaration[?], holder: Term[?]): Term[T] =
+    applied[T](StructureDeclaration.held(holder.leanType, structure.name, structure.leanType), List(holder))(
+      using structure.leanType.asInstanceOf[LeanType[T]])
 
   /** A Definition applied to arguments whose number its type gives: what `Definition.apply` makes of one whose
     * type Scala knows.

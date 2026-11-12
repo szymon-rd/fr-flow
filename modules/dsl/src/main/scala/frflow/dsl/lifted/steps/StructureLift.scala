@@ -39,20 +39,31 @@ object StructureLift:
     import plain.q.reflect.*
     val cls = implementing.asInstanceOf[Symbol]
     val trt = implemented(plain)(cls)
-    val held = plain.stateFields(cls).filter(f => plain.declarableOf(cls.typeRef.memberType(f)).nonEmpty)
-    val traits = (trt :: held.flatMap(f => plain.declarableOf(cls.typeRef.memberType(f)))).map(_.fullName).toSet
-    val asked = s"`lifted[${cls.name}](${held.map(_.name).mkString(", ")})`"
-    if held.size != words.size then report.errorAndAbort(s"FrFlow: ${cls.name} holds ${held.size} structures and " +
-      s"is given ${words.size} words: give the word of each, in order ($asked)")
-    held.zip(words).foreach((f, w) => plain.declarableOf(cls.typeRef.memberType(f)).get.typeRef.asType match
-      case '[s] => if !(w.asTerm.tpe <:< TypeRepr.of[StructureDeclaration[s]]) then report.errorAndAbort(
-        s"FrFlow: ${cls.name} holds ${f.name}, a ${Type.show[s]}, and is given ${w.show}, which is no word of " +
-          s"that structure ($asked)"))
-    val wiring = held.zip(words).map((f, w) => f.name -> (w: Expr[Any])).toMap
+    val held = wired(plain)(cls, words)
+    val traits = (trt :: held.map(_._2)).map(_.fullName).toSet
+    val wiring = held.map(_._1.name).zip(words.map(w => (w: Expr[Any]))).toMap
     val knowing = Reader(q, Structures(Map.empty, Map.empty, traits))
     '{ val state: FrSpec[T] = ${ StructureRecord(knowing).of[T](cls, trt.name) }
-       new StructureCode[T](${ Expr(cls.name) }, state, ${ codes[T](q, cls, Structures(Map(trt.fullName ->
-         'state), wiring, traits)) }) }
+       new StructureCode[T](${ Expr(cls.name) }, state,
+         ${ codes[T](q, cls, Structures(Map(trt.fullName -> 'state), wiring, traits)) },
+         ${ holds[T](q, cls, Structures(Map(trt.fullName -> 'state), wiring, traits), 'state) }) }
+
+  /** The fields of a class that hold structures, each with its structure, in the order the constructor takes
+    * them; or the compile error of words that are not one for each, each a word of its field's structure.
+    */
+  private def wired(r: Reader)(cls: r.q.reflect.Symbol, words: List[Expr[StructureDeclaration[?]]])(using Quotes)
+      : List[(r.q.reflect.Symbol, r.q.reflect.Symbol)] =
+    import r.q.reflect.*
+    val held = r.stateFields(cls).flatMap(f => r.declarableOf(cls.typeRef.memberType(f)).map(f -> _))
+    val asked = s"`lifted[${cls.name}](${held.map(_._1.name).mkString(", ")})`"
+    if held.size != words.size then report.errorAndAbort(s"FrFlow: ${cls.name} holds ${held.size} structures and " +
+      s"is given ${words.size} words: give the word of each, in order ($asked)")
+    held.zip(words).foreach { case ((f, structure), w) => structure.typeRef.asType match
+      case '[s] => if !(w.asTerm.tpe <:< TypeRepr.of[StructureDeclaration[s]]) then report.errorAndAbort(
+        s"FrFlow: ${cls.name} holds ${f.name}, a ${Type.show[s]}, and is given ${w.show}, which is no word of " +
+          s"that structure ($asked)")
+    }
+    held
 
   /** `limits.holding(SpendLimits(BigInt(100), Nil))`: an object of a class that implements a structure, as a state
     * of the structure: the record of its constructor's fields, a structure it is made with the record of the object
@@ -87,6 +98,17 @@ object StructureLift:
   private def implemented(r: Reader)(cls: r.q.reflect.Symbol): r.q.reflect.Symbol =
     r.declarableOf(cls.typeRef).filter(_ != cls).getOrElse(r.q.reflect.report.errorAndAbort(
       s"FrFlow: ${cls.name} implements no structure: a trait of the developer's whose members are over domain types"))
+
+  /** What the class holds: of each field given a word, that word's part of the class's state. */
+  private def holds[T: Type](q: Quotes, cls: Any, structures: Structures, state: Expr[FrSpec[T]])(using Quotes)
+      : Expr[List[StructureCode.Held]] =
+    val code = MemberCode(StepReader(Reader(q, structures), None))
+    import code.step.r.q.reflect.*
+    val impl = cls.asInstanceOf[Symbol]
+    Expr.ofList(structures.wiring.toList.map((field, word) =>
+      '{ val part = ${ word.asExprOf[StructureDeclaration[?]] }
+         StructureCode.Held(part.name, StructureDeclaration.held($state, part.name, part.leanType),
+           ${ code.held[T](impl, impl.fieldMember(field)) }) }))
 
   /** Each member's code, by the member's name. */
   private def codes[T: Type](q: Quotes, cls: Any, structures: Structures)(using Quotes)

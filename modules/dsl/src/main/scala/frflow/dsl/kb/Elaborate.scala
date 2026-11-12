@@ -24,7 +24,7 @@ object Elaborate:
   def apply(kb: FrModel): ValidatedNec[ElabError, Elaborated] =
     val attached = kb.meanings.traverse((id, a) => a.map(id -> _))
     Varying.of(kb.nodes, kb.fixed).andThen(varying =>
-      elaborated(kb, Stating.varying(varying, kb.fixed), attached))
+      elaborated(kb, Stating.varying(varying, kb.fixed, kb.holds), attached))
 
   /** The words the model fixes: those it gives a meaning (a Definition listed in it, an operation's Scala), and
     * those its code calls, read off the model written once with only the first known. A word that is neither is

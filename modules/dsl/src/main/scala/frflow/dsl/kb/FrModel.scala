@@ -17,7 +17,7 @@ import frflow.dsl.vocab.Definition
   */
 final case class FrModel(name: KbName, nodes: List[Node], meanings: List[(SymbolName, Deferred[Attachment])],
     operations: List[Operations], generators: List[Generator[?]], writtenIn: Option[RelPath],
-    members: Set[SymbolName] = Set.empty):
+    members: Set[SymbolName] = Set.empty, holds: Map[SymbolName, Set[SymbolName]] = Map.empty):
   /** Elaborated once per value (a `lazy val`: the FrModel is immutable), for every check and run of it. */
   lazy val elaborated: ValidatedNec[ElabError, Elaborated] = Elaborate(this)
   /** The words the model fixes: those it gives a meaning, and those its code calls (`Elaborate.fixed`). */
@@ -30,6 +30,9 @@ final case class FrModel(name: KbName, nodes: List[Node], meanings: List[(Symbol
   /** The same of a structure's member: its code is its meaning whether or not a statement mentions it. */
   private[dsl] def attachMember(d: SymbolName, a: Deferred[Attachment]): FrModel =
     attach(d, a).copy(members = members + d)
+  /** The same, the structure `holder` holding the structures of the words `parts` (`Stating.holds`). */
+  private[dsl] def holding(holder: SymbolName, parts: List[SymbolName]): FrModel =
+    copy(holds = parts.foldLeft(holds)((all, p) => all.updated(p, all.getOrElse(p, Set.empty) + holder)))
   /** The same model with these Definitions listed too: a word given a meaning here takes it in place of one it
     * had.
     */
@@ -42,7 +45,8 @@ final case class FrModel(name: KbName, nodes: List[Node], meanings: List[(Symbol
   /** The same, with what a Definition listed in it gives: each word's meaning, once. */
   private def taking(given_ : FrModel): FrModel =
     given_.meanings.foldLeft(this)((kb, m) => kb.attach(m._1, m._2))
-      .copy(operations = operations ++ given_.operations, members = members ++ given_.members)
+      .copy(operations = operations ++ given_.operations, members = members ++ given_.members,
+        holds = given_.holds.foldLeft(holds)((all, h) => all.updated(h._1, all.getOrElse(h._1, Set.empty) ++ h._2)))
   private[dsl] def implement(o: Operations): FrModel = copy(operations = operations :+ o)
 
 object FrModel:

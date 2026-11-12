@@ -16,5 +16,11 @@ import scala.annotation.experimental
   val addingGivesWhatIsDue = Node.claim("Adding an item gives what is then due.")(
     forall((i: Term[Item]) => basket.due.in(basket.add(i).after) === basket.add(i).result))
 
-  val model: FrModel = FrModel("Prices")(priceIsNetAndTax, addingGivesWhatIsDue,
+  val addingAddsThePrice = Node.claim("Adding an item adds its price, by the price list the basket holds, to " +
+      "what is due, and leaves that price list as it was.")(
+    forall((i: Term[Item]) =>
+      (basket.due.in(basket.add(i).after) === basket.due + pricing.price(i)) &&
+        (pricing.price(i).in(basket.add(i).after) === pricing.price(i))))
+
+  val model: FrModel = FrModel("Prices")(priceIsNetAndTax, addingGivesWhatIsDue, addingAddsThePrice,
     pricing.define(lifted[FlatPricing]), basket.define(lifted[PricedBasket](pricing)))

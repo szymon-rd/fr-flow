@@ -86,5 +86,9 @@ enum Fault:
   /** `contractOf[T]` of a type whose `FrSpec` states no contract (`FrSpec.derived[T].where(v => …)` states one). */
   case NoContract(scalaType: String)
   case Thrown(message: String)
+  /** A statement reads a structure as it stands beside two structures that hold it: which one's is not said
+    * (`ledger.total.in(handler.current)` says it).
+    */
+  case HeldByTwo(structure: String, holders: List[String])
   /** Two classes of examples of one model of one name (`setName`): their examples' theorems would be one. */
   case ExampleSetsClash(name: String, classes: List[String])

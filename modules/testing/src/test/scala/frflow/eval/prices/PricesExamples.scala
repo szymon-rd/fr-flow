@@ -18,3 +18,6 @@ import scala.annotation.experimental
   example("an item added is due at its price"):
     val added = basket.add(pen).in(empty)
     (added.result is BigInt(7)) && (basket.due.in(added.after) is BigInt(7))
+
+  example("the price list the basket holds prices an item as the list given it does"):
+    pricing.price(pen).in(basket.add(pen).in(empty).after) is BigInt(7)

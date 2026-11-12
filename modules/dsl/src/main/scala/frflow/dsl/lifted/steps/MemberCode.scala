@@ -39,6 +39,14 @@ private[steps] final class MemberCode(val step: StepReader):
       case '[out] => lifted[out](m, "", m.state[T] :: m.given_)(xs => alone[out](m, xs.head, xs.tail))
         .asInstanceOf[Expr[Defined[?]]]
 
+  /** What the class holds in a field: a function of the class's state, the field's part of it. */
+  def held[T: Type](cls: Symbol, field: Symbol)(using Quotes): Expr[Defined[?]] =
+    val of = step.r.structureOf(cls.typeRef.memberType(field)).fold(cls.typeRef.memberType(field))(_.typeRef)
+    val m = Member(cls, field, Nil, Select(This(cls), field), of)
+    of.asType match
+      case '[out] => lifted[out](m, "_held", List(m.state[T]))(xs => alone[out](m, xs.head, Nil))
+        .asInstanceOf[Expr[Defined[?]]]
+
   /** The member among other calls, where it changes the structure and has at most two inputs. */
   def among[T: Type](cls: Symbol, member: Symbol, result: TypeRepr)(using Quotes): Option[Expr[Defined[?]]] =
     val m = memberOf(cls, member, result)
