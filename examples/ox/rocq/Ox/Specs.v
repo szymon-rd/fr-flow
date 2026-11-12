@@ -37,15 +37,19 @@ Fixpoint body_caps (c : code) : list OxError :=
 Definition plain (c : code) : Prop :=
   match c with Lam_supervisedError_1 _ _ _ _ => False | _ => True end.
 
-(** A closure that is called, not started as a thread; what it wraps is plain. *)
+Definition is_client (c : code) : Prop :=
+  match c with Client _ _ => True | _ => False end.
+
+(** A closure that is called, not started as a thread; what a fork wraps is plain, and a supervised scope's body
+    is the caller's. *)
 Fixpoint callable (c : code) : Prop :=
   match c with
   | Lam_ThreadHerd_startThread_1 _ _ => False
   | Lam_forkError_1 _ f _ => callable f /\ plain f
   | Lam_forkUserError_1 _ f _ => callable f /\ plain f
   | Lam_forkUnsupervised_1 _ f _ => callable f /\ plain f
-  | Lam_supervisedError_1 _ _ _ f => callable f /\ plain f
-  | Lam_supervisedError_2 f _ => callable f /\ plain f
+  | Lam_supervisedError_1 _ _ _ f => is_client f
+  | Lam_supervisedError_2 f _ => is_client f
   | Client _ _ => True
   end.
 
@@ -84,10 +88,32 @@ Proof. intro H. constructor; [eapply Rely_Ext; eauto | apply (r_removed H) | app
 
 (** ** The closures *)
 
+(** The closures that a supervised scope makes run with the scope's herd as the herd their thread is most deeply
+    inside: the owner's, and the body's, which a fork of the scope runs. *)
+Fixpoint extra (t : tid) (c : code) (Γ : gh) : Prop :=
+  match c with
+  | Lam_supervisedError_1 _ _ cap _ => innermost Γ t (hid cap)
+  | Lam_supervisedError_2 _ cap => innermost Γ t (hid cap)
+  | Lam_forkError_1 _ f _ => extra t f Γ
+  | Lam_forkUserError_1 _ f _ => extra t f Γ
+  | Lam_forkUnsupervised_1 _ f _ => extra t f Γ
+  | _ => True
+  end.
+
+(** A fork's body for herd `h`: where it runs a supervised scope's body, the scope is `h`'s. *)
+Fixpoint main_of (h : nat) (c : code) : Prop :=
+  match c with
+  | Lam_supervisedError_2 _ cap => hid cap = h
+  | Lam_forkError_1 _ f _ => main_of h f
+  | Lam_forkUserError_1 _ f _ => main_of h f
+  | Lam_forkUnsupervised_1 _ f _ => main_of h f
+  | _ => True
+  end.
+
 Definition CallPre (t : tid) (c : code) (arg : val) (Γ : gh) : Prop :=
   callable c /\ g_removed Γ t = false /\ Forall (knows Γ t) (body_caps c ++ arg_caps arg) /\
   (forall cap, arg = VObj (O_OxError cap) -> innermost Γ t (hid cap)) /\
-  match c with Lam_supervisedError_1 _ _ cap _ => innermost Γ t (hid cap) | _ => True end.
+  extra t c Γ.
 
 Definition CallPost (t : tid) (c : code) (arg : val) (Γ : gh) (r : res) (Γ' : gh) : Prop := Keep t Γ Γ'.
 
@@ -96,7 +122,7 @@ Definition StartPre (u : tid) (c : code) (Γ : gh) : Prop :=
   match c with
   | Lam_ThreadHerd_startThread_1 th b =>
       (exists b', g_role Γ u = ForkOf (ThreadHerd_threads th) b') /\ g_removed Γ u = false /\
-      g_open Γ u = [] /\ callable b /\ plain b /\
+      g_open Γ u = [] /\ callable b /\ plain b /\ main_of (ThreadHerd_threads th) b /\
       Forall (fun cap => wf_cap Γ cap /\ anc Γ (ThreadHerd_threads th) (hid cap)) (body_caps b)
   | _ => False
   end.

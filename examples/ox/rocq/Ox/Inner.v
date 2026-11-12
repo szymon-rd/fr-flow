@@ -19,7 +19,14 @@ Proof.
   split; [rewrite (k_removed HK); exact Hrm |].
   split; [eapply Forall_impl; [| exact Hk]; intros cap H; exact (knows_Keep HK H) |].
   split; [intros cap E; exact (innermost_Keep HK (Ha cap E)) |].
-  destruct c; trivial. exact (innermost_Keep HK Hm).
+  clear Hc Hk Ha. induction c; cbn in *; trivial; try (exact (innermost_Keep HK Hm)); auto.
+Qed.
+
+(** A fork with nothing open, running a body made for its herd, has what the body's closures ask. *)
+Lemma main_of_extra {t h Γ} b : innermost Γ t h -> main_of h b -> plain b -> callable b -> extra t b Γ.
+Proof.
+  intros Hinn. induction b; cbn; trivial; try tauto.
+  intros <- _ _. exact Hinn.
 Qed.
 
 Section WithInv.

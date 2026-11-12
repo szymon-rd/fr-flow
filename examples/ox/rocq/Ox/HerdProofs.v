@@ -71,12 +71,12 @@ Qed.
 Lemma ThreadHerd_startThread_spec t th b Γ0 (Q : exn + unit -> gh -> Prop) :
   g_removed Γ0 t = false ->
   inside Γ0 t (ThreadHerd_threads th) ->
-  callable b -> plain b ->
+  callable b -> plain b -> main_of (ThreadHerd_threads th) b ->
   Forall (reaches Γ0 t (ThreadHerd_threads th)) (body_caps b) ->
   (forall r Γ1, Keep t Γ0 Γ1 -> Q r Γ1) ->
   wp t (ThreadHerd_startThread th b) Γ0 Q.
 Proof.
-  intros Hrm Hin Hcal Hpl Hcaps HQ. unfold ThreadHerd_startThread.
+  intros Hrm Hin Hcal Hpl Hmain Hcaps HQ. unfold ThreadHerd_startThread.
   set (h := ThreadHerd_threads th) in *.
   pose (K := fun Γ => Keep t Γ0 Γ).
   assert (HKst : stable t K) by (intros Γ Γ' HK HR; exact (Keep_Rely HK HR)).
@@ -135,7 +135,7 @@ Proof.
       assert (Hnb : ~ begun σ7 u) by (unfold begun; rewrite Eu; tauto).
       destruct (i_new HI7 Hnb) as (Hrmu & Hopu).
       split; [eauto |]. split; [exact Hrmu |]. split; [exact Hopu |]. split; [exact Hcal |].
-      split; [exact Hpl |].
+      split; [exact Hpl |]. split; [exact Hmain |].
       eapply Forall_impl; [| exact Hcaps]. intros cap (Hw & Ha).
       split; [exact (wf_cap_Ext (k_ext HK7) Hw) |].
       destruct Ha as [Ha | (Hinn & Hins)]; [exact (anc_Ext (k_ext HK7) Ha) |].
@@ -158,7 +158,7 @@ Lemma runnable_spec u th b Γ0 :
   StartPre u (Lam_ThreadHerd_startThread_1 th b) Γ0 ->
   wp u (Lam_ThreadHerd_startThread_1_body th b VUnit) Γ0 (Done u).
 Proof.
-  intros ((b0 & Hrole) & Hrm & Hop & Hcal & Hpl & Hcaps). unfold Lam_ThreadHerd_startThread_1_body.
+  intros ((b0 & Hrole) & Hrm & Hop & Hcal & Hpl & Hmain & Hcaps). unfold Lam_ThreadHerd_startThread_1_body.
   set (h := ThreadHerd_threads th) in *.
   assert (Hin : inside Γ0 u h).
   { exists h. split; [left; split; [eauto | exact Hrm] | constructor]. }
@@ -168,7 +168,7 @@ Proof.
     + rewrite app_nil_r. eapply Forall_impl; [| exact Hcaps]. intros cap (Hw & Ha).
       split; [exact Hw | exact (inside_anc Hin Ha)].
     + intros cap E. discriminate.
-    + destruct b; cbn in *; trivial; contradiction.
+    + apply (main_of_extra (h := h)); trivial. unfold innermost. rewrite Hop. split; [eauto | exact Hrm].
   - intros r Γ1 HK1.
     assert (Hrm1 : g_removed Γ1 u = false) by (rewrite (k_removed HK1); exact Hrm).
     apply wp_bind. apply wp_frame_res; [exact I | apply can_step_intro; exact Hrm1 |].
