@@ -109,3 +109,133 @@ Proof.
       * apply wp_ret. cbn beta iota. apply Htail. exact HP4.
       * apply wp_ret. cbn beta iota. apply Htail. exact HP4.
 Qed.
+
+(** ** `unsupervised` and `supervised`: a scope, as its caller sees it *)
+
+(** What a caller owes to open a scope around a closure of its own: it has not ended, and it is inside the
+    herd of every capability the closure holds. *)
+Definition scope_pre (t : tid) (f : code) (Γ : gh) : Prop :=
+  g_removed Γ t = false /\ is_client f /\ Forall (knows Γ t) (body_caps f).
+
+Lemma scope_pre_Keep {t f Γ Γ'} : Keep t Γ Γ' -> scope_pre t f Γ -> scope_pre t f Γ'.
+Proof.
+  intros HK (Hrm & Hc & Hk). split; [rewrite (k_removed HK); exact Hrm |]. split; [exact Hc |].
+  eapply Forall_impl; [| exact Hk]. intros cap H. exact (knows_Keep HK H).
+Qed.
+
+(** What a thread knew of a capability stays when it opens a herd. *)
+Lemma knows_opened {t Γ Γ' cap c} : opened t Γ Γ' cap -> g_removed Γ t = false -> knows Γ t c -> knows Γ' t c.
+Proof.
+  intros ((HE & Hrm' & Hop' & _ & _) & _) Hrm (Hw & h0 & Hb & Ha).
+  split; [exact (wf_cap_Ext HE Hw) |]. exists h0. split; [| exact (anc_Ext HE Ha)].
+  destruct Hb as [((b & Hb) & _) | Hin].
+  - left. split; [exists b; exact (e_fork HE Hb) | exact Hrm'].
+  - right. rewrite Hop'. right. exact Hin.
+Qed.
+
+Lemma knows_new {t Γ Γ' cap} : opened t Γ Γ' cap -> knows Γ' t cap.
+Proof.
+  intros ((HE & Hrm' & Hop' & Hwf & _) & Hfin). split; [split; assumption |].
+  exists (hid cap). split; [right; rewrite Hop'; left; reflexivity | constructor].
+Qed.
+
+Lemma closed_Keep {t Γ0 Γ2 Γ3 Γ4 cap} :
+  Keep t Γ0 Γ2 -> opened t Γ2 Γ3 cap -> popped t Γ3 Γ4 (g_open Γ2 t) -> g_removed Γ0 t = false ->
+  Keep t Γ0 Γ4.
+Proof.
+  intros HK ((HE3 & _) & _) (HE4 & Hrm4 & Hop4) Hrm.
+  constructor; [exact (Ext_trans (k_ext HK) (Ext_trans HE3 HE4)) | congruence |].
+  rewrite Hop4. exact (k_open HK).
+Qed.
+
+Lemma unsupervised_2_spec t locals f Γ0 (Q : res -> gh -> Prop) :
+  scope_pre t f Γ0 -> (forall r Γ1, Keep t Γ0 Γ1 -> Q r Γ1) -> wp t (unsupervised_2 locals f) Γ0 Q.
+Proof.
+  intros Hpre HQ. unfold unsupervised_2. pose proof Hpre as (Hrm & Hc & Hk).
+  pose (K := fun Γ => Keep t Γ0 Γ).
+  assert (HKst : stable t K) by (intros Γ Γ' HK HR; exact (Keep_Rely HK HR)).
+  assert (HKact : forall Γ, K Γ -> g_removed Γ t = false) by (intros Γ HK; rewrite (k_removed HK); exact Hrm).
+  apply wp_bind. apply wp_frame_res; [exact I | apply can_step_intro; exact Hrm |].
+  intros σ1 Γ1 x1 σ1' HI1 HR1 Hs1 Hstep1. cbn in Hstep1. destruct Hstep1 as (-> & _). cbn beta iota.
+  apply wp_bind. apply (wp_fo t _ Γ1 _ K); [apply fo_cast_option_OxError | exact HKst | exact HKact | exact (Rely_Keep HR1) |].
+  intros [e | parent] Γ2 HK2; unfold K in HK2; [apply HQ; exact HK2 |].
+  apply wp_bind. apply OxError_apply_spec; [exact (HKact _ HK2) |].
+  intros cap Γ3 Hopen. pose proof Hopen as ((HE3 & Hrm3 & Hop3 & Hwf3 & Hown3) & Hfin3). cbn beta iota.
+  apply (scopedWithCapability_spec t cap f (g_open Γ2 t)); trivial.
+  - split; [destruct f; cbn in Hc; trivial; contradiction |]. split; [exact Hrm3 |].
+    split; [| split].
+    + apply Forall_app. split; [| cbn; constructor; [exact (knows_new Hopen) | constructor]].
+      eapply Forall_impl; [| exact Hk]. intros c H.
+      exact (knows_opened Hopen (HKact _ HK2) (knows_Keep HK2 H)).
+    + intros cap' E. injection E as <-. unfold innermost. rewrite Hop3. reflexivity.
+    + destruct f; cbn in Hc; trivial; contradiction.
+  - intros r Γ4 Hpop. apply HQ. exact (closed_Keep HK2 Hopen Hpop Hrm).
+Qed.
+
+Lemma unsupervised_1_spec t f Γ0 (Q : res -> gh -> Prop) :
+  scope_pre t f Γ0 -> (forall r Γ1, Keep t Γ0 Γ1 -> Q r Γ1) -> wp t (unsupervised_1 f) Γ0 Q.
+Proof.
+  intros Hpre HQ. unfold unsupervised_1. pose proof Hpre as (Hrm & _).
+  pose (K := fun Γ => Keep t Γ0 Γ).
+  apply wp_bind. apply (wp_fo t _ Γ0 _ K); [apply fo_currentLocals | | | apply Keep_refl |].
+  { intros Γ Γ' HK HR. exact (Keep_Rely HK HR). }
+  { intros Γ HK. rewrite (k_removed HK). exact Hrm. }
+  intros [e | locals] Γ1 HK1; unfold K in HK1; [apply HQ; exact HK1 |].
+  apply unsupervised_2_spec; [exact (scope_pre_Keep HK1 Hpre) |].
+  intros r Γ2 HK2. apply HQ. exact (Keep_trans HK1 HK2).
+Qed.
+
+Lemma supervisedError_2_spec t em locals f Γ0 (Q : res -> gh -> Prop) :
+  scope_pre t f Γ0 -> (forall r Γ1, Keep t Γ0 Γ1 -> Q r Γ1) -> wp t (supervisedError_2 em locals f) Γ0 Q.
+Proof.
+  intros Hpre HQ. unfold supervisedError_2. pose proof Hpre as (Hrm & Hc & Hk).
+  pose (K := fun Γ => Keep t Γ0 Γ).
+  assert (HKst : stable t K) by (intros Γ Γ' HK HR; exact (Keep_Rely HK HR)).
+  assert (HKact : forall Γ, K Γ -> g_removed Γ t = false) by (intros Γ HK; rewrite (k_removed HK); exact Hrm).
+  apply wp_bind. apply (wp_fo t _ Γ0 _ K); [apply fo_DefaultSupervisor_new | exact HKst | exact HKact | apply Keep_refl |].
+  intros [e | s] Γa HKa; unfold K in HKa; [apply HQ; exact HKa |].
+  apply wp_bind. apply wp_frame_res; [exact I | apply can_step_intro; exact (HKact _ HKa) |].
+  intros σ1 Γ1 x1 σ1' HI1 HR1 Hs1 Hstep1. cbn in Hstep1. destruct Hstep1 as (-> & _). cbn beta iota.
+  apply wp_bind. apply (wp_fo t _ Γ1 _ K); [apply fo_cast_option_OxError | exact HKst | exact HKact | exact (Keep_Rely HKa HR1) |].
+  intros [e | parent] Γ2 HK2; unfold K in HK2; [apply HQ; exact HK2 |].
+  apply wp_bind. apply OxError_apply_spec; [exact (HKact _ HK2) |].
+  intros cap Γ3 Hopen. pose proof Hopen as ((HE3 & Hrm3 & Hop3 & Hwf3 & Hown3) & Hfin3). cbn beta iota.
+  assert (Hinn : innermost Γ3 t (hid cap)) by (unfold innermost; rewrite Hop3; reflexivity).
+  (* whatever the scope gives, what follows touches nothing the invariant reads *)
+  assert (Hrest : forall Γ4, popped t Γ3 Γ4 (g_open Γ2 t) -> K Γ4).
+  { intros Γ4 Hpop. exact (closed_Keep HK2 Hopen Hpop Hrm). }
+  apply wp_try_catch. apply wp_bind.
+  apply (scopedWithCapability_spec t cap (Lam_supervisedError_1 s em cap f) (g_open Γ2 t)); trivial.
+  - split; [exact Hc |]. split; [exact Hrm3 |]. split; [| split; [| exact Hinn]].
+    + cbn. constructor; [exact (knows_new Hopen) |].
+      apply Forall_app. split; [| constructor; [exact (knows_new Hopen) | constructor]].
+      eapply Forall_impl; [| exact Hk]. intros c H.
+      exact (knows_opened Hopen (HKact _ HK2) (knows_Keep HK2 H)).
+    + intros cap' E. injection E as <-. exact Hinn.
+  - intros [e | scopeResult] Γ4 Hpop; pose proof (Hrest Γ4 Hpop) as HK4.
+    + (* the scope threw: the handler *)
+      apply (wp_fo t _ Γ4 _ K); [fo1 | exact HKst | exact HKact | exact HK4 |].
+      intros x Γ5 HK5. apply HQ. exact HK5.
+    + apply (wp_fo t _ Γ4 _ K); [fo1 | exact HKst | exact HKact | exact HK4 |].
+      intros [e | v] Γ5 HK5; unfold K in HK5; [| apply HQ; exact HK5].
+      (* what follows threw: the handler *)
+      apply (wp_fo t _ Γ5 _ K); [fo1 | exact HKst | exact HKact | exact HK5 |].
+      intros x Γ6 HK6. apply HQ. exact HK6.
+Qed.
+
+Lemma supervisedError_1_spec t em f Γ0 (Q : res -> gh -> Prop) :
+  scope_pre t f Γ0 -> (forall r Γ1, Keep t Γ0 Γ1 -> Q r Γ1) -> wp t (supervisedError_1 em f) Γ0 Q.
+Proof.
+  intros Hpre HQ. unfold supervisedError_1. pose proof Hpre as (Hrm & _).
+  pose (K := fun Γ => Keep t Γ0 Γ).
+  apply wp_bind. apply (wp_fo t _ Γ0 _ K); [apply fo_currentLocals | | | apply Keep_refl |].
+  { intros Γ Γ' HK HR. exact (Keep_Rely HK HR). }
+  { intros Γ HK. rewrite (k_removed HK). exact Hrm. }
+  intros [e | locals] Γ1 HK1; unfold K in HK1; [apply HQ; exact HK1 |].
+  apply supervisedError_2_spec; [exact (scope_pre_Keep HK1 Hpre) |].
+  intros r Γ2 HK2. apply HQ. exact (Keep_trans HK1 HK2).
+Qed.
+
+Theorem supervised_spec t f Γ0 (Q : res -> gh -> Prop) :
+  scope_pre t f Γ0 -> (forall r Γ1, Keep t Γ0 Γ1 -> Q r Γ1) -> wp t (supervised f) Γ0 Q.
+Proof. intros Hpre HQ. unfold supervised. apply supervisedError_1_spec; assumption. Qed.
