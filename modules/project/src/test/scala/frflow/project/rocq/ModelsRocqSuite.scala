@@ -27,7 +27,7 @@ import scala.annotation.experimental
 
   test("the payments model is read by Rocq, and its tactic proves obligations".tag(Rocq)) {
     val (_, shown) = read(payments.payments)
-    assert(shown.sizeIs >= 22, s"frflow_auto proves ${shown.size} of the code obligations, where it proved 22")
+    assert(shown.sizeIs >= 25, s"frflow_auto proves ${shown.size} of the code obligations, where it proved 25")
   }
 
   test("the auth model is read by Rocq; what a node's parts must prove of it is left to a proof file".tag(Rocq)) {

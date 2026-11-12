@@ -73,12 +73,20 @@ Ltac frflow_split := repeat match goal with
   | H : context [ite ?P _ _] |- _ => frflow_case P
   end.
 
-(** The lemmas on membership, where a quantifier binds what they speak of. *)
+(** Two propositions stated equal are each the other's condition: what the rewrites and the search read. *)
+Lemma frflow_eq_is_iff (P Q : Prop) : (P = Q) = (P <-> Q).
+Proof.
+  apply propositional_extensionality. split; [intros ->; tauto | apply propositional_extensionality].
+Qed.
+
+(** The lemmas on membership and on equal propositions, where a quantifier binds what they speak of. *)
 Ltac frflow_under := repeat first
   [ progress (setoid_rewrite in_app_iff)
   | progress (setoid_rewrite List_filter_In)
+  | progress (setoid_rewrite frflow_eq_is_iff)
   | match goal with H : _ |- _ => progress (setoid_rewrite in_app_iff in H) end
-  | match goal with H : _ |- _ => progress (setoid_rewrite List_filter_In in H) end ].
+  | match goal with H : _ |- _ => progress (setoid_rewrite List_filter_In in H) end
+  | match goal with H : _ |- _ => progress (setoid_rewrite frflow_eq_is_iff in H) end ].
 
 Ltac frflow_simpl :=
   repeat (progress (autorewrite with frflow in *; cbn in *; frflow_split; subst; frflow_under)).
@@ -89,7 +97,6 @@ Ltac frflow_close := first
   | solve [firstorder (subst; cbn in *; try lia; try congruence; eauto 8)]
   | solve [apply propositional_extensionality; firstorder (subst; cbn in *; try lia; try congruence; eauto 8)] ].
 
-(** Two propositions stated equal are each the other's condition: what the rewrites and the search read. *)
 Lemma frflow_eq_iff (P Q : Prop) : P = Q -> (P <-> Q).
 Proof. intros ->. tauto. Qed.
 Ltac frflow_props := repeat match goal with

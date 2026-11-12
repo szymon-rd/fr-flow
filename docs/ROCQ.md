@@ -40,7 +40,7 @@ proven equal, `propositional_extensionality` and `functional_extensionality`.
 
 `ModelsRocqSuite` prints two examples and checks them with Rocq 9.3:
 
-- `examples/payments`: Rocq reads all 122 generated files, and `frflow_auto` proves 22 of the 29 code
+- `examples/payments`: Rocq reads all 122 generated files, and `frflow_auto` proves 25 of the 29 code
   obligations (`impl`). Lean's `frflow_auto` proves 26 of them; it rests on `simp` and `grind`, which Rocq's
   standard library has no match for, so the Rocq tactic is a set of rewrites, case splits, `lia` and
   first-order search, extended obligation by obligation.
@@ -57,7 +57,7 @@ The newest Rocq is installed through opam (`opam install rocq-prover`), on the s
 
 ## What is left, in order
 
-1. **The tactic**: the seven payments obligations still open, then the examples' theorems (`Whole`).
+1. **The tactic**: the four payments obligations still open, then the examples' theorems (`Whole`).
 2. **The run in the product**: a `Prover` port beside `Lake`, `_CoqProject`, reading `coqc`'s output per
    theorem, the rules a hand proof file must keep (no `Axiom`, `Admitted`, `Parameter`), and the audit
    (`Print Assumptions`).
