@@ -11,6 +11,17 @@ Require Import Ox.Code Ox.Ghost Ox.Facts Ox.Specs Ox.Frame Ox.Updates Ox.Steps O
 Import ListNotations.
 Open Scope list_scope.
 
+(** A herd its closing loop has left has an empty set, in the JDK's own state, and it stays exited: so does
+    every scope that has completed, at any depth, not only the first thread's. *)
+Theorem exited_empty σ Γ h hr :
+  Inv σ Γ -> g_herd Γ h = Some hr -> h_exited hr = true ->
+  exists s, j_ts σ h = Some s /\ forall u, s u = false.
+Proof.
+  intros HI Hh Hx. destruct (i_herd HI Hh) as (s & Hs & Hiff). exists s. split; [exact Hs |].
+  intro u. destruct (s u) eqn:E; trivial. apply Hiff in E. destruct E as ((b & Hb) & Hrm).
+  rewrite (i_exit HI Hh Hx Hb) in Hrm. discriminate.
+Qed.
+
 Section Main.
 
   (** The client's closures: any programs. *)
