@@ -9,7 +9,8 @@ import scala.quoted.*
 
 /** `Definition[T]("…")` of a service: a trait of the developer's that is one of Scala's `caps.Mutable`, whose
   * methods are the service's members. The Definition is typed by them, each taking terms and giving a `Call`, so a
-  * statement calls a member as the trait declares it. Of any other type, the Definition it always was.
+  * statement calls a member as the trait declares it; and by what its states are typed by (`State`). Of any other
+  * type, the Definition it always was.
   */
 object ServiceMacros:
   def defined[A: Type](name: Expr[SymbolName], means: Expr[String], at: Expr[WrittenAt])(using Quotes)
@@ -58,17 +59,22 @@ object ServiceMacros:
       '{ Member(${ Expr(m.name) }, ${ Expr(m.flags.is(Flags.Mutable)) }, ${ Expr.ofList(inputs.map(leanType)) },
         ${ leanType(result) }) }))
 
-  /** The Definition's type: a member for each of the service's, taking terms and giving a `Call`. */
+  /** The Definition's type: its states typed by the service's name (`State`), and a member for each of the
+    * service's, taking terms and giving a `Call`.
+    */
   private def refined(using Quotes)(t: quotes.reflect.TypeRepr): quotes.reflect.TypeRepr =
     import quotes.reflect.*
     val (term, call) = (constructor(TypeRepr.of[DTerm[Any]]), constructor(TypeRepr.of[Call[Any, Any]]))
+    val state = constructor(TypeRepr.of[State["s"]]).appliedTo(ConstantType(StringConstant(t.typeSymbol.name)))
     t.asType match
-      case '[a] => members(t).foldLeft(TypeRepr.of[ServiceDefinition[a]]) { case (parent, (m, inputs, result)) =>
-        val gives = call.appliedTo(List(t, result))
-        if inputs.isEmpty then Refinement(parent, m.name, gives)
-        else Refinement(parent, m.name, MethodType(inputs.indices.toList.map(i => s"x$i"))(
-          _ => inputs.map(i => term.appliedTo(i)), _ => gives))
-      }
+      case '[a] =>
+        val typed = Refinement(TypeRepr.of[ServiceDefinition[a]], "Is", TypeBounds(state, state))
+        members(t).foldLeft(typed) { case (parent, (m, inputs, result)) =>
+          val gives = call.appliedTo(List(state, result))
+          if inputs.isEmpty then Refinement(parent, m.name, gives)
+          else Refinement(parent, m.name, MethodType(inputs.indices.toList.map(i => s"x$i"))(
+            _ => inputs.map(i => term.appliedTo(i)), _ => gives))
+        }
 
   private def constructor(using Quotes)(applied: quotes.reflect.TypeRepr): quotes.reflect.TypeRepr =
     import quotes.reflect.*

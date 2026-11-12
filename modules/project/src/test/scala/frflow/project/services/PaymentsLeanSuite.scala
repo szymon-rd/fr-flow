@@ -11,8 +11,8 @@ import scala.concurrent.duration.*
 @experimental class PaymentsLeanSuite extends munit.CatsEffectSuite:
   override val munitIOTimeout: Duration = 60.minutes
 
-  private val proofs = List("Lemmas", "Whole", "authorisedIsRecorded", "authoriseIsRepeatable").map(n =>
-    n -> Ported.proof("payments", "Payments", n))
+  private val proofs = List("Lemmas", "Whole", "authorisedIsRecorded", "authoriseIsRepeatable", "neverCommitsAhead")
+    .map(n => n -> Ported.proof("payments", "Payments", n))
 
   test("every claim of the stream is proven".tag(Live)) {
     Ported.run(Projects.elaborated(payments.payments), Nil, Ported.Lean(proofs, Nil, None), Nil).map { r =>

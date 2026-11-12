@@ -13,7 +13,8 @@ import scala.annotation.experimental
 
   test("a service's Definition is typed as the service, and each member is a Definition over it") {
     assertEquals(till.leanType.ty, service)
-    assertEquals(till.members.map(m => m.name -> m.changes), List("take" -> true, "taken" -> false, "total" -> false))
+    assertEquals(till.members.map(m => m.name -> m.changes),
+      List("take" -> true, "taken" -> false, "total" -> false, "count" -> false))
     assertEquals(till.member("take").name, SymbolName("till_take"))
     assertEquals(till.member("take").leanType.ty, Ty.FnOf(List(service, Ty.Data(frflow.core.name.TypeName("Sale"))),
       Ty.TupleOf(List(Ty.Bool, service))))
@@ -22,8 +23,17 @@ import scala.annotation.experimental
 
   test("the model of a service given the class that implements it elaborates") {
     val elaborated = TillModel.model.elaborated.fold(es => fail(es.toChain.toList.mkString("; ")), identity)
-    assertEquals(elaborated.theory.nodes.map(_.node.id.value).sorted, List("takenIsRecorded", "takenOnce",
-      "takingAddsItsAmount"))
+    assertEquals(elaborated.theory.nodes.map(_.node.id.value).sorted, List("noStepForgetsASale", "takenIsRecorded",
+      "takenOnce", "takingAddsItsAmount"))
     assertEquals(frflow.core.analysis.Validate(elaborated).fold(_.toChain.toList.map(_.toString), _ => Nil), Nil)
-    assertEquals(elaborated.theory.code.attached.keySet.map(_.value), Set("till_take", "till_taken", "till_total"))
+  }
+
+  test("a member is given its code where a claim mentions it: among other calls too, and not one no claim names") {
+    val elaborated = TillModel.model.elaborated.fold(es => fail(es.toChain.toList.mkString("; ")), identity)
+    assertEquals(elaborated.theory.code.attached.keySet.map(_.value),
+      Set("till_take", "till_taken", "till_total", "till_take_among"))
+    val steps = Ty.ListOf(Ty.TupleOf(List(service, service)))
+    assertEquals(till.among("take").leanType.ty, Ty.FnOf(
+      List(service, Ty.MapOf(Ty.Num(frflow.core.ty.NumKind.Big), service), Ty.Data(frflow.core.name.TypeName("Sale"))),
+      Ty.TupleOf(List(Ty.TupleOf(List(Ty.Bool, service)), Ty.TupleOf(List(steps, steps))))))
   }

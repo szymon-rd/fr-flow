@@ -47,6 +47,7 @@ object ServiceLift:
     val code = ServiceCode(StepReader(Reader(q, services), None))
     import code.step.r.q.reflect.*
     val impl = cls.asInstanceOf[Symbol]
-    val all = ServiceMacros.members(using code.step.r.q)(TypeRepr.of[T]).map((m, _, result) =>
-      '{ (${ Expr(m.name) }, ${ code.of[T](impl, m, result) }) })
+    val all = ServiceMacros.members(using code.step.r.q)(TypeRepr.of[T]).flatMap((m, _, result) =>
+      '{ (${ Expr(m.name) }, ${ code.of[T](impl, m, result) }) } :: code.among[T](impl, m, result).toList.map(c =>
+        '{ (${ Expr(ServiceImplementation.among(m.name)) }, $c) }))
     '{ Map[String, Defined[?]](${ Varargs(all) }*) }

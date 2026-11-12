@@ -16,7 +16,6 @@ private[steps] trait StepCalls:
   this: StepReader =>
   import r.q.reflect.*
 
-
   def isUpdate(m: Symbol): Boolean = m.isDefDef && m.flags.is(Flags.Mutable)
 
   /** Whether `t` needs no step: read alone or inside one step, it changes no port; among others, it uses none. */
@@ -131,30 +130,18 @@ private[steps] trait StepCalls:
     val before = walk.whole
     putAt[Out](at, left) { after =>
       stateOf(walk.ports.root).asType match
-        case '[s] if walk.interleaved => named[Out]("trace", TypeRepr.of[List[(s, s)]], '{ TermSyntax.:+[(s, s)](
-          ${ walk.env(trace).asExprOf[DTerm[List[(s, s)]]] })(LiftOps.pair[s, s](${ before.asExprOf[DTerm[s]] },
-          ${ after.whole.asExprOf[DTerm[s]] })(using ${ r.spec[(s, s)](Literal(UnitConstant())) })) })(t =>
-          rest(after.bound(trace, t)))
-        case _                        => rest(after)
+        case '[s] if walk.interleaved && serving =>
+          named[Out]("trace", TypeRepr.of[Among.Traces[s]], '{ Among.stepped[s](
+            ${ walk.env(trace).asExprOf[DTerm[Among.Traces[s]]] }, ${ before.asExprOf[DTerm[s]] },
+            ${ after.whole.asExprOf[DTerm[s]] })(using ${ r.spec[s](Literal(UnitConstant())) }) })(t =>
+            rest(after.bound(trace, t)))
+        case '[s] if walk.interleaved            =>
+          named[Out]("trace", TypeRepr.of[List[(s, s)]], '{ TermSyntax.:+[(s, s)](
+            ${ walk.env(trace).asExprOf[DTerm[List[(s, s)]]] })(LiftOps.pair[s, s](${ before.asExprOf[DTerm[s]] },
+            ${ after.whole.asExprOf[DTerm[s]] })(using ${ r.spec[(s, s)](Literal(UnitConstant())) })) })(t =>
+            rest(after.bound(trace, t)))
+        case _                                   => rest(after)
     }
-
-  /** The state a step starts from: among other calls, and after the call's first step, what they left of the
-    * whole state, with the state at `key` and those above it read from that.
-    */
-  private def interfered[Out: Type](key: Symbol)(body: Walk => Quotes ?=> Expr[DTerm[Out]])(using walk: Walk)(
-      using Quotes): Expr[DTerm[Out]] =
-    val next = walk.copy(step = walk.step + 1)
-    (walk.between, others, stateOf(walk.ports.root).asType) match
-      case (Some((between, input)), Some(rely), '[s]) if walk.interleaved && walk.step >= 1 => input match
-        case '{ $x: DTerm[a] } =>
-          val site = Literal(UnitConstant())
-          val before = walk.whole.asExprOf[DTerm[s]]
-          '{ Terms.let[s, Out](Among.admitted[a, s]($before, Among.left[s]($before,
-            ${ between.asExprOf[DTerm[Map[BigInt, s]]] }, BigInt(${ Expr(next.step) })))(
-            ${ rely.asExprOf[Defined[(a, s, s) => Boolean]] }, $x)(using ${ r.spec[a](site) }, ${ r.spec[s](site) }),
-            "now", (now: DTerm[s]) => ${ body(derived(key)(using next.bound(next.ports.root, 'now))) })(using
-            ${ r.spec[Out](site) }) }
-      case _                                                                                => body(next)
 
   /** A call of a method of the developer's that uses a port: a call of its Definition when it has one (`modelled`),
     * else its body run where it is called, the port its `this` or the parameter it is given to.

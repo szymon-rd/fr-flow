@@ -15,6 +15,8 @@ import scala.annotation.experimental
     update def take(s: Sale): Boolean
     def taken(id: String): Boolean
     def total: BigInt
+    /** How many sales it took: a member no claim mentions. */
+    def count: BigInt
 
   final class CashTill(var sales: List[Sale]) extends Till:
     update def take(s: Sale): Boolean =
@@ -23,3 +25,4 @@ import scala.annotation.experimental
       fresh
     def taken(id: String): Boolean = sales.exists(x => x.id == id)
     def total: BigInt = sales.foldLeft(BigInt(0))((sum, x) => sum + x.amount)
+    def count: BigInt = BigInt(sales.size)

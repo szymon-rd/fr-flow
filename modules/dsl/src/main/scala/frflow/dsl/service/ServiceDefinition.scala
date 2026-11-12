@@ -1,7 +1,7 @@
 package frflow.dsl.service
 
 import frflow.core.name.SymbolName
-import frflow.core.ty.Ty
+import frflow.core.ty.{NumKind, Ty}
 import frflow.dsl.build.WrittenAt
 import frflow.dsl.term.{LeanType, Term}
 import frflow.dsl.vocab.{Definition, Stating}
@@ -20,12 +20,33 @@ final case class Member(name: String, changes: Boolean, params: List[LeanType[?]
   */
 final class ServiceDefinition[T] @publicInBinary private[dsl] (name: SymbolName, described: String, at: WrittenAt,
     val members: List[Member])(using t: LeanType[T]) extends Definition[T](name, described, None, at):
+  /** What the service's states are typed by in a statement: `service.State` of its name, as `Definition[T]`
+    * says.
+    */
+  type Is
+  /** The service whole, as a statement names it (`(before: limits.State) => …`): one of its states. */
+  type State = Term[Is]
+  /** How other calls leave the service before each step of a call, by the step's number (`Call.among`). */
+  type Schedule = Term[Map[BigInt, Is]]
+
   /** The Definition a member is: named after the service's and the member's. */
   def member(called: String): Definition[Any] =
     val m = members.find(_.name == called).getOrElse(throw IllegalStateException(s"FrFlow bug: no member $called"))
     val result = if m.changes then Ty.TupleOf(List(m.result.ty, t.ty)) else m.result.ty
     new Definition[Any](SymbolName(s"${name.value}_$called"), s"$called of ${name.value}", None, at)(
       using LeanType.of[Any](Ty.FnOf(t.ty :: m.params.map(_.ty), result), (t :: m.result :: m.params)*))
+
+  /** The Definition a member that changes the service is among other calls (`Call.among`): from the service,
+    * how the others leave it before each step, and the member's inputs, the member's result with the service
+    * after it, and what was done (`Call.Traces`).
+    */
+  def among(called: String): Definition[Any] =
+    val m = members.find(_.name == called).getOrElse(throw IllegalStateException(s"FrFlow bug: no member $called"))
+    val steps = Ty.ListOf(Ty.TupleOf(List(t.ty, t.ty)))
+    val gives = Ty.TupleOf(List(Ty.TupleOf(List(m.result.ty, t.ty)), Ty.TupleOf(List(steps, steps))))
+    new Definition[Any](SymbolName(s"${name.value}_${called}_among"), s"$called of ${name.value}, among other " +
+      "calls", None, at)(using LeanType.of[Any](Ty.FnOf(t.ty :: Ty.MapOf(Ty.Num(NumKind.Big), t.ty) ::
+      m.params.map(_.ty), gives), (t :: m.result :: m.params)*))
 
   /** A member called on the service as it stands (`limits.authorise(p)`), as Scala's structural types call one. */
   def applyDynamic(called: String)(args: Any*)(using st: Stating): Any =
@@ -35,7 +56,7 @@ final class ServiceDefinition[T] @publicInBinary private[dsl] (name: SymbolName,
   /** The service as it stands, where a statement speaks of it whole (`checkpoint.commit(o).after ===
     * checkpoint.current`).
     */
-  def current(using st: Stating): Term[T] = st.standing(this)
+  def current(using st: Stating): State = st.standing(this).asInstanceOf[State] // a state is typed by the name
 
 object ServiceDefinition:
   /** Where code FrFlow reads names a service by its Definition (`lifted(StreamProcessor(limits, …))`), the

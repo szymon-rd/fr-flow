@@ -22,7 +22,7 @@ export frflow.dsl.kb.Implementing.*
 export frflow.dsl.example.FrFlowExamples
 export frflow.dsl.example.ExampleSyntax.*
 export frflow.dsl.term.{Data, LeanType, Term}
-export frflow.dsl.vocab.{Declaration, Definition, Opaque}
+export frflow.dsl.vocab.{Declaration, Definition, Opaque, Stating}
 export frflow.dsl.vocab.DefinitionSyntax.*
 export frflow.dsl.kb.Gens
 export frflow.core.example.Gen

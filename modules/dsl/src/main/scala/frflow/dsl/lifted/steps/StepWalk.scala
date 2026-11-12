@@ -1,8 +1,9 @@
 package frflow.dsl.lifted.steps
 
 import frflow.dsl.lifted.LiftOps
-import frflow.dsl.term.TermSyntax
+import frflow.dsl.term.{Terms, TermSyntax}
 import frflow.dsl.term.Term as DTerm
+import frflow.dsl.vocab.Definition as Defined
 import scala.quoted.*
 
 /** Where a reading of Scala that changes a port is (`StepReader`), and what it carries from one step to the next:
@@ -33,8 +34,20 @@ private[steps] trait StepWalk extends StepPorts:
   def carried(using walk: Walk): List[(Symbol, Expr[DTerm[?]])] =
     (walk.ports.root, walk.whole) :: Option.when(walk.between.nonEmpty)((trace, walk.env(trace))).toList
 
-  private def carriedType(using walk: Walk)(using Quotes): TypeRepr = stateOf(walk.ports.root).asType match
-    case '[s] => if walk.between.nonEmpty then TypeRepr.of[(s, List[(s, s)])] else TypeRepr.of[s]
+  /** Whether the reading is of a service's member among other calls (`ServiceCode`): no rely is given it. */
+  def serving(using walk: Walk): Boolean = walk.between.nonEmpty && others.isEmpty
+
+  /** The trace's type over the state `s`: each step taken (the state it started from, the one it left); of a
+    * service's member, with what other calls did before each step (`Among.Traces`).
+    */
+  def traceType(s: TypeRepr)(using Walk)(using Quotes): TypeRepr = s.asType match
+    case '[s] => if serving then TypeRepr.of[Among.Traces[s]] else TypeRepr.of[List[(s, s)]]
+
+  private def carriedType(using walk: Walk)(using Quotes): TypeRepr =
+    val s = stateOf(walk.ports.root)
+    if walk.between.isEmpty then s else (s.asType, traceType(s).asType) match
+      case ('[s], '[t]) => TypeRepr.of[(s, t)]
+      case _            => r.refuse("this state", Literal(UnitConstant()))
 
   /** The type of a value with what is carried after it: `(V, S)`, among other calls `(V, (S, trace))`. */
   def packedType(as: TypeRepr)(using Walk)(using Quotes): TypeRepr = (as.asType, carriedType.asType) match
@@ -43,31 +56,63 @@ private[steps] trait StepWalk extends StepPorts:
 
   /** A value with what is carried after it, as one term. */
   def packed(v: Expr[DTerm[?]], as: TypeRepr)(using walk: Walk)(using Quotes): Expr[DTerm[?]] =
-    val at = Literal(UnitConstant())
-    (as.asType, stateOf(walk.ports.root).asType) match
-      case ('[v], '[s]) if walk.between.nonEmpty =>
-        '{ LiftOps.pair[v, (s, List[(s, s)])](${ v.asExprOf[DTerm[v]] }, LiftOps.pair[s, List[(s, s)]](
-          ${ walk.whole.asExprOf[DTerm[s]] }, ${ walk.env(trace).asExprOf[DTerm[List[(s, s)]]] })(using
-          ${ r.spec[(s, List[(s, s)])](at) }))(using ${ r.spec[(v, (s, List[(s, s)]))](at) }) }
-      case ('[v], '[s])                          =>
+    val (at, s) = (Literal(UnitConstant()), stateOf(walk.ports.root))
+    (as.asType, s.asType, traceType(s).asType) match
+      case ('[v], '[s], '[t]) if walk.between.nonEmpty =>
+        '{ LiftOps.pair[v, (s, t)](${ v.asExprOf[DTerm[v]] }, LiftOps.pair[s, t](
+          ${ walk.whole.asExprOf[DTerm[s]] }, ${ walk.env(trace).asExprOf[DTerm[t]] })(using
+          ${ r.spec[(s, t)](at) }))(using ${ r.spec[(v, (s, t))](at) }) }
+      case ('[v], '[s], _)                             =>
         '{ LiftOps.pair[v, s](${ v.asExprOf[DTerm[v]] }, ${ walk.whole.asExprOf[DTerm[s]] })(using
           ${ r.spec[(v, s)](at) }) }
-      case _                                     => r.refuse("this value", at)
+      case _                                           => r.refuse("this value", at)
 
   /** The value and what is carried, taken from one term (`packed`). */
   def unpacked(p: Expr[DTerm[?]], as: TypeRepr)(using walk: Walk)(using Quotes)
       : (Expr[DTerm[?]], List[(Symbol, Expr[DTerm[?]])]) =
-    val at = Literal(UnitConstant())
-    (as.asType, stateOf(walk.ports.root).asType) match
-      case ('[v], '[s]) if walk.between.nonEmpty =>
-        val rest = '{ TermSyntax._2[v, (s, List[(s, s)])](${ p.asExprOf[DTerm[(v, (s, List[(s, s)]))]] })(using
-          ${ r.spec[(s, List[(s, s)])](at) }) }
-        ('{ TermSyntax._1[v, (s, List[(s, s)])](${ p.asExprOf[DTerm[(v, (s, List[(s, s)]))]] })(using
-          ${ r.spec[v](at) }) }, List((walk.ports.root, '{ TermSyntax._1[s, List[(s, s)]]($rest)(using
-          ${ r.spec[s](at) }) }), (trace, '{ TermSyntax._2[s, List[(s, s)]]($rest)(using
-          ${ r.spec[List[(s, s)]](at) }) })))
-      case ('[v], '[s])                          =>
+    val (at, s) = (Literal(UnitConstant()), stateOf(walk.ports.root))
+    (as.asType, s.asType, traceType(s).asType) match
+      case ('[v], '[s], '[t]) if walk.between.nonEmpty =>
+        val rest = '{ TermSyntax._2[v, (s, t)](${ p.asExprOf[DTerm[(v, (s, t))]] })(using
+          ${ r.spec[(s, t)](at) }) }
+        ('{ TermSyntax._1[v, (s, t)](${ p.asExprOf[DTerm[(v, (s, t))]] })(using ${ r.spec[v](at) }) },
+          List((walk.ports.root, '{ TermSyntax._1[s, t]($rest)(using ${ r.spec[s](at) }) }),
+            (trace, '{ TermSyntax._2[s, t]($rest)(using ${ r.spec[t](at) }) })))
+      case ('[v], '[s], _)                             =>
         ('{ TermSyntax._1[v, s](${ p.asExprOf[DTerm[(v, s)]] })(using ${ r.spec[v](at) }) },
           List((walk.ports.root, '{ TermSyntax._2[v, s](${ p.asExprOf[DTerm[(v, s)]] })(using
             ${ r.spec[s](at) }) })))
-      case _                                     => r.refuse("this value", at)
+      case _                                           => r.refuse("this value", at)
+
+  /** The state a step starts from: among other calls, and after the call's first step, what they left of the
+    * whole state, with the state at `key` and those above it read from that.
+    */
+  def interfered[Out: Type](key: Symbol)(body: Walk => Quotes ?=> Expr[DTerm[Out]])(using walk: Walk)(
+      using Quotes): Expr[DTerm[Out]] =
+    val next = walk.copy(step = walk.step + 1)
+    (walk.between, others, stateOf(walk.ports.root).asType) match
+      case (Some((between, input)), Some(rely), '[s]) if walk.interleaved && walk.step >= 1 => input match
+        case '{ $x: DTerm[a] } =>
+          val site = Literal(UnitConstant())
+          val before = walk.whole.asExprOf[DTerm[s]]
+          '{ Terms.let[s, Out](Among.admitted[a, s]($before, Among.left[s]($before,
+            ${ between.asExprOf[DTerm[Map[BigInt, s]]] }, BigInt(${ Expr(next.step) })))(
+            ${ rely.asExprOf[Defined[(a, s, s) => Boolean]] }, $x)(using ${ r.spec[a](site) }, ${ r.spec[s](site) }),
+            "now", (now: DTerm[s]) => ${ body(derived(key)(using next.bound(next.ports.root, 'now))) })(using
+            ${ r.spec[Out](site) }) }
+      case (Some((between, _)), None, '[s]) if walk.interleaved && walk.step >= 1           =>
+        served[s, Out](between.asExprOf[DTerm[Map[BigInt, s]]], key, next)(body)
+      case _                                                                                => body(next)
+
+  /** The same of a service's member (`ServiceCode`): whatever the schedule says the others left, with what they
+    * did kept in the traces; a claim says what it takes of them (`Call.others`).
+    */
+  private def served[S: Type, Out: Type](between: Expr[DTerm[Map[BigInt, S]]], key: Symbol, next: Walk)(
+      body: Walk => Quotes ?=> Expr[DTerm[Out]])(using Quotes): Expr[DTerm[Out]] =
+    val site = Literal(UnitConstant())
+    val before = next.whole.asExprOf[DTerm[S]]
+    '{ Terms.let[S, Out](Among.left[S]($before, $between, BigInt(${ Expr(next.step) })), "now", (now: DTerm[S]) =>
+      ${ named[Out]("trace", TypeRepr.of[Among.Traces[S]], '{ Among.moved[S](
+        ${ next.env(trace).asExprOf[DTerm[Among.Traces[S]]] }, $before, now)(using ${ r.spec[S](site) }) })(t =>
+        body(derived(key)(using next.bound(next.ports.root, 'now).bound(trace, t)))) })(using
+      ${ r.spec[Out](site) }) }

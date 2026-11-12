@@ -25,5 +25,11 @@ import scala.annotation.experimental
     forall((s: Term[Sale]) =>
       till.take(s).result implies (till.total.in(till.take(s).after) === till.total + s.amount)))
 
-  val model: FrModel = FrModel("Tills")(takenIsRecorded, takenOnce, takingAddsItsAmount)
+  val noStepForgetsASale = Node.claim("No step of taking a sale forgets a sale taken, whatever other calls do " +
+      "between the steps.")(
+    forall((id: Term[String], s: Term[Sale]) =>
+      till.take(s).amongOthers(run => run.steps.forall(step =>
+        till.taken(id).in(step._1) implies till.taken(id).in(step._2)))))
+
+  val model: FrModel = FrModel("Tills")(takenIsRecorded, takenOnce, takingAddsItsAmount, noStepForgetsASale)
     .implementProven(till)(lifted(CashTill(Nil)))

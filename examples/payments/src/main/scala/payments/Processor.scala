@@ -9,6 +9,8 @@ import frflow.*
 trait Processor extends Mutable:
   /** Handles a payment: whether it is approved. */
   update def handle(p: Payment): Boolean
+  def decided(id: String): Boolean
+  def approved(id: String): Boolean
   /** A payment is applied: it was decided, and if it was approved it is posted. */
   def applied(id: String): Boolean
   /** A payment not yet decided fits its card's limit of the day. */
@@ -70,6 +72,54 @@ object Processor:
         (processor.postingsOf(id).isEmpty ||
           processor.postingsOf(id).in(processor.handle(p).after) === processor.postingsOf(id))))
 
+  // Every step of handling a payment, whatever other calls do between the steps: another instance handling
+  // payments after a rebalance.
+
+  val everyStepKeepsWithinLimit = Node.claim("No step of handling a payment takes a card over its limit of a " +
+      "day, whatever other calls do between the steps.")(
+    forall((card: Term[String], day: Term[BigInt], p: Term[Payment]) =>
+      processor.handle(p).amongOthers(run => run.steps.forall(step =>
+        (processor.spent(card, day).in(step._1) <= processor.limit.in(step._1)) implies
+          (processor.spent(card, day).in(step._2) <= processor.limit.in(step._2))))))
+
+  val noStepMakesMoney = Node.claim("No step of handling a payment makes money or destroys it.")(
+    forall((p: Term[Payment]) =>
+      processor.handle(p).amongOthers(run => run.steps.forall(step =>
+        processor.total.in(step._2) === processor.total.in(step._1)))))
+
+  val noStepPostsTwice = Node.claim("No step of handling a payment adds to the postings of a payment that has " +
+      "some, where a payment with postings is marked.")(
+    forall((id: Term[String], p: Term[Payment]) =>
+      processor.handle(p).amongOthers(run => run.steps.forall(step =>
+        (processor.postingsOf(id).in(step._1).isEmpty || processor.posted(id).in(step._1)) implies
+          (processor.postingsOf(id).in(step._1).isEmpty ||
+            processor.postingsOf(id).in(step._2) === processor.postingsOf(id).in(step._1))))))
+
+  /** What a call takes of the other calls, of a payment: they leave it decided as it was if it was decided, and
+    * posted if it was posted.
+    */
+  private def undisturbed(id: Term[String], before: processor.State, after: processor.State)(using Stating)
+      : Term[Boolean] =
+    (processor.decided(id).in(before) implies (processor.decided(id).in(after) &&
+      (processor.approved(id).in(after) === processor.approved(id).in(before)))) &&
+      (processor.posted(id).in(before) implies processor.posted(id).in(after))
+
+  val everyStepLeavesOthersUndisturbed = Node.claim("Each step of handling a payment leaves every payment " +
+      "decided as it was if it was decided, and posted if it was posted: what a call takes of the others.")(
+    forall((id: Term[String], p: Term[Payment]) =>
+      processor.handle(p).amongOthers(run => run.steps.forall(step => undisturbed(id, step._1, step._2)))))
+
+  // A crash: the call stopped after any of its steps.
+
+  val neverCommitsAhead = Node.claim("No step of handling a payment moves the position but one that leaves the " +
+      "payment applied, when the other calls leave it undisturbed: a crash after any step loses no payment.")(
+    forall((p: Term[Payment]) =>
+      processor.handle(p).amongOthers(run =>
+        run.others.forall(move => undisturbed(p.id, move._1, move._2)) implies
+          run.steps.forall(step =>
+            processor.position.in(step._2) === processor.position.in(step._1) ||
+              processor.applied(p.id).in(step._2)))))
+
 /** The processor over the three services. It has the limits service decide the payment, has the accounts service
   * post it if it is approved, and only then commits the position past it. Each step can be repeated, so a payment
   * delivered again, to this instance after a crash or to another after a rebalance, is applied once.
@@ -81,6 +131,8 @@ final class StreamProcessor(limits: Limits^, accounts: Accounts^, checkpoint: Ch
     checkpoint.commit(p.offset)
     approved
 
+  def decided(id: String): Boolean = limits.decided(id)
+  def approved(id: String): Boolean = limits.approved(id)
   def applied(id: String): Boolean = limits.decided(id) && (!limits.approved(id) || accounts.posted(id))
   def fits(p: Payment): Boolean = !limits.decided(p.id) && limits.spent(p.card, p.day) + p.amount <= limits.limit
   def position: BigInt = checkpoint.position
