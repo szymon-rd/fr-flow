@@ -1,38 +1,48 @@
 package frflow.proof.reading
 
-import frflow.core.name.NodeId
+import frflow.core.name.{LeanNames, NodeId}
+import frflow.proof.lean.lower.LowerObligation
 import frflow.proof.obligation.{ObligationName, TryKind}
 
-/** An obligation's name read back from its theorem's (`lean.lower.LowerObligation.name` spells it). */
+/** An obligation, and a try, written as the name of its theorem (`LowerObligation.name`: `complete`, `cover_add`,
+  * `needed_Grant`, `restates_2_Visibility`, `satisfiable_1_Book`), and read back from it.
+  */
 object ObligationNames:
-  import ObligationName.*
+  def text(o: ObligationName): String = LowerObligation.name(o).text
+  def text(k: TryKind): String = text(ObligationName.Tried(k))
 
-  def read(s: String): Option[ObligationName] = fixed.get(s).orElse(numbered(s)).orElse(named(s))
+  private val fixed: Map[String, ObligationName] = List(ObligationName.Complete, ObligationName.Feasible,
+    ObligationName.Impl, ObligationName.RootImpl, ObligationName.Outside).map(o => text(o) -> o).toMap
+  private val fixedTries: Map[String, TryKind] =
+    List(TryKind.Vacuous, TryKind.Restates, TryKind.Clash, TryKind.Unsat, TryKind.Idle, TryKind.Frozen)
+      .map(k => text(k) -> k).toMap
 
-  private val fixed: Map[String, ObligationName] = Map("complete" -> Complete, "feasible" -> Feasible,
-    "outside" -> Outside, "impl" -> Impl, "root_impl" -> RootImpl, "vacuous" -> Tried(TryKind.Vacuous),
-    "restates" -> Tried(TryKind.Restates), "clash" -> Tried(TryKind.Clash), "unsat" -> Tried(TryKind.Unsat),
-    "idle" -> Tried(TryKind.Idle), "frozen" -> Tried(TryKind.Frozen))
+  def tryKind(s: String): Option[TryKind] = fixedTries.get(s)
+    .orElse(after("needed_", s).map(p => TryKind.Needed(NodeId(p))))
+    .orElse(after("restates_", s).flatMap(numbered).map((i, p) => TryKind.RestatesConjunct(NodeId(p), i)))
 
-  private val Indexed = """([a-z]+)_(\d+)""".r
-  private val IndexedNode = """([a-z]+)_(\d+)_(.+)""".r
-  private val Of = """([a-z]+)_(.+)""".r
-  private val OfSet = """example_([A-Za-z][A-Za-z0-9]*)_(\d+)""".r
-  private val OppositeOfSet = """example_([A-Za-z][A-Za-z0-9]*)_(\d+)_opposite""".r
+  def read(s: String): Option[ObligationName] = fixed.get(s).orElse(tryKind(s).map(ObligationName.Tried(_)))
+    .orElse(after(LeanNames.Cover, s).map(ObligationName.Cover(_)))
+    .orElse(after(LeanNames.Made, s).map(ObligationName.Made(_)))
+    .orElse(after("commute_", s).flatMap(_.toIntOption).map(ObligationName.Commute(_)))
+    .orElse(after("consistent_", s).flatMap(_.toIntOption).map(ObligationName.Consistent(_)))
+    .orElse(after(LeanNames.Start, s).map(n => ObligationName.Start(NodeId(n))))
+    .orElse(after("inhabited_", s).map(n => ObligationName.Inhabited(NodeId(n))))
+    .orElse(after("satisfiable_", s).flatMap(numbered).map((i, n) => ObligationName.Satisfiable(NodeId(n), i - 1)))
+    .orElse(after("example_", s).flatMap(s => Option.when(s.endsWith("_opposite"))(s.stripSuffix("_opposite")))
+      .flatMap(ofSet).map(ObligationName.ExampleOpposite(_, _)))
+    .orElse(after("example_", s).flatMap(ofSet).map(ObligationName.Example(_, _)))
 
-  private def numbered(s: String): Option[ObligationName] = s match
-    case Indexed("commute", i)            => Some(Commute(i.toInt))
-    case Indexed("consistent", i)         => Some(Consistent(i.toInt))
-    case OfSet(of, i)                     => Some(Example(of, i.toInt))
-    case OppositeOfSet(of, i)             => Some(ExampleOpposite(of, i.toInt))
-    case IndexedNode("satisfiable", i, n) => Some(Satisfiable(NodeId(n), i.toInt - 1))
-    case IndexedNode("restates", i, n)    => Some(Tried(TryKind.RestatesConjunct(NodeId(n), i.toInt)))
-    case _                                => None
+  private def after(prefix: String, s: String): Option[String] =
+    Option.when(s.startsWith(prefix))(s.drop(prefix.length))
 
-  private def named(s: String): Option[ObligationName] = s match
-    case Of("cover", op)    => Some(Cover(op))
-    case Of("made", m)      => Some(Made(m))
-    case Of("start", n)     => Some(Start(NodeId(n)))
-    case Of("inhabited", n) => Some(Inhabited(NodeId(n)))
-    case Of("needed", n)    => Some(Tried(TryKind.Needed(NodeId(n))))
-    case _                  => None
+  /** `<set>_<i>`, the set a Lean identifier. */
+  private def ofSet(s: String): Option[(String, Int)] = s.lastIndexOf('_') match
+    case -1 => None
+    case k  => Option.when(s.take(k).nonEmpty && s.take(k).forall(_.isLetterOrDigit))(s.take(k))
+        .flatMap(of => s.drop(k + 1).toIntOption.map(of -> _))
+
+  /** `<i>_<rest>`. */
+  private def numbered(s: String): Option[(Int, String)] = s.split("_", 2) match
+    case Array(i, rest) => i.toIntOption.map(_ -> rest)
+    case _              => None

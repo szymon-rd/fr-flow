@@ -11,8 +11,7 @@ import frflow.eval.term.Semantics
 
 /** An `always[T]`, enforced where a value is made: of each `T` a value in a call holds (an input, the result), as
   * its guard reaches it in Lean (`Guards`: a list's elements, an option's value, an `Either`'s side, a pair's
-  * components, a record's or an enum case's fields), in an example, a generated test and a generated value
-  * (`testing.Respecting`).
+  * components, a record's or an enum case's fields), in an example, a generated test and a generated value.
   */
 final case class Made(always: NodeId, ty: Ty, rule: Applied, fields: (ScalaValue, Ty) => List[(ScalaValue, Ty)]):
   /** The `always` broken by one of `call`'s values (`types` theirs), if one is. */
