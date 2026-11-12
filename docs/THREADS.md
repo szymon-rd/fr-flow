@@ -9,7 +9,7 @@ What was done: the sources of Ox's core were read (`com.softwaremill.ox:core_3:1
 forks, the supervisor, the thread set, `par`, `race`, `uninterruptible`, fork locals), and the argument that a
 scope's forks have finished when it completes was modelled and proven in Rocq with its standard library
 ([threads/Herd.v](threads/Herd.v)), as was the argument that a closing scope completes
-([threads/Closing.v](threads/Closing.v)). Nothing was built in FrFlow. Ox was read, not run. Iris is not installed on
+([threads/Closing.v](threads/Closing.v)). Nothing was built in FrFlow. Ox was read; later two of the findings were run (below). Iris is not installed on
 the machine this was written on ("Where it stands" at the end).
 
 The short answer: yes for safety, in two layers. The protocol inside a scope is a state machine whose invariant
@@ -42,6 +42,11 @@ and what is not. In short:
 - **What the proof found, beyond the reading below**: lexical scoping does not confine a capability
   (`fork(using outer) { fork(using inner) { … } }` type-checks and passes Ox's run-time check), so the
   condition on the client is about what a forked closure holds, not about where it is written.
+
+Two findings of this page were then run against Ox 1.1.0 itself (`examples/ox/probe`): the leak through a
+capability handed to a fork of an enclosing scope occurred in 7 and 21 of 200,000 rounds, and a `join` on a
+cancelled fork from outside its scope was still blocked after 5 seconds. The other two findings (`isEmpty`, an
+interrupt before `start`) are still of the reading only.
 
 The three models in `docs/threads/` stay as they were: `Herd.v` is superseded for containment by the proof on
 the code; `Closing.v` (liveness) and `Wakeup.v` (no lost wake-up) are still models only.
@@ -438,5 +443,6 @@ its invariants are what the second needs.
   repository has no Iris package, and the network policy denied the hosts that have it (`gitlab.mpi-sws.org` for
   the sources of Iris and std++, `rocq-prover.org` and `coq.inria.fr` for the package archive). No rule on this
   page was checked in Iris.
-- The reading of Ox's capability check, of `isEmpty`, of an interrupt before `start` and of a `join` outside the
-  fork's scope is of the sources and the JDK's documentation. None was reproduced by a run, and none is reported to Ox.
+- The reading of `isEmpty` and of an interrupt before `start` is of the sources and the JDK's documentation;
+  the capability check and the `join` outside the fork's scope were also run (`examples/ox/probe`). None is
+  reported to Ox.

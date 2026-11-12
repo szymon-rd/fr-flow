@@ -45,6 +45,21 @@ run-time check passes it (it asks whether the caller is in the tree of its own s
 in). The proof shows where it is needed: `threads.add(thread)` on a herd whose closing loop has already found
 the set empty.
 
+## Run against Ox itself
+
+`examples/ox/probe` runs Ox 1.1.0 (`cd examples/ox/probe && sbt "run 200000"`; Java 21). Two behaviours the
+proof and the reading predict, both seen:
+
+- **The condition on the client is needed.** A fork of an outer scope is handed an inner scope's capability and
+  forks into it as the inner scope ends. In two runs of 200,000 rounds, 7 and 21 forks of the inner scope ran
+  uninterrupted after the inner scope had completed (9 and 40 forks got past the shut-down check; the rest
+  were refused with `IllegalStateException`). Ox's run-time check passed every one.
+- **A `join` outside the fork's scope.** `val f = supervised { fork { sleep(1.hour) } }; f.join()` was still
+  blocked after 5 seconds: a fork cancelled by its scope's end never completes its own future.
+
+Neither is reported to Ox. Whether the first is a defect of Ox's check or a misuse it need not catch is Ox's to
+say; the proof only shows that containment does not hold without the condition.
+
 ## What is assumed
 
 1. **`Jdk.v`, every line.** Each JDK class Ox uses is its state and a contract per method; a call is one step
