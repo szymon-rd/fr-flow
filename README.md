@@ -386,7 +386,7 @@ sbt "frflowInit toy --as NAME"       # an empty project in examples/toy, NAME it
 sbt reload
 bin/frflow toy status                # compiles on first use
 sbt "toy/serve --as NAME"            # the web view on localhost, deciding as NAME
-bin/frflow rooms status              # an example: rooms, auth, keycloak, crm
+bin/frflow rooms status              # an example: rooms, auth, payments, shop
 ```
 
 `sbt "frflowInitAgent toy --as NAME"` creates one with the agent layer enabled. `sbt test` runs FrFlow's fast tests;
@@ -397,20 +397,15 @@ run Rocq (payments and auth), and needs Rocq 9 with `rocq` on the `PATH` (`opam 
 
 Each example is a project in `examples/<name>`: its statements and code in `src/main`, its examples in `src/test`,
 its proofs by hand in `lean/Proofs` (and `rocq/Proofs`, where it is proven in Rocq), and its command line in `app`
-(`bin/frflow <name> COMMAND`). None has a decision yet: each starts with no ledger, for its developer to decide. FrFlow's own suites test them, each whole in its
-`PortSuite` (`sbt "project/Lean/testOnly <name>.PortSuite"`), against what the library before the rebuild recorded
-(`reference/`).
+(`bin/frflow <name> COMMAND`). None has a decision yet: each starts with no ledger, for its developer to decide.
+FrFlow's own suites test them whole (`sbt leanTest`, `sbt rocqTest`).
 
 - `payments` is the example above: a payment stream handler over three services, each a structure, proven
   through redelivery, a crash at any step and a second instance, in Lean and in Rocq.
 - `rooms` books meeting rooms: the decisions shown above.
 - `auth` is access control by a table of grants, and the smallest example; proven in Lean and in Rocq.
-- `keycloak` has realms, sign-in, token introspection and sign-out over HTTP. Its sessions are proven to follow the
-  history of requests, and its store's lookup is known only by what is assumed of it.
-- `crm` is a multi-tenant CRM on SQLite with an HTTP API. Its expiry job is a program over the database, proven from
-  the database's model.
-- `wallet` (one transfer service) and `shop` (a checkout over two services and a store) are services proven among
-  other calls in the shape before structures, a word per method (`updating`, `interleaving`).
+- `shop` is a checkout over two services and a store, proven among other calls in the shape before structures,
+  a word per method (`updating`, `interleaving`).
 
 ## References
 

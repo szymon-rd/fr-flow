@@ -3,9 +3,6 @@ package frflow.project
 import frflow.core.code.CodeFile
 import frflow.core.name.RelPath
 import frflow.project.code.{Governance, Governed, ModelFiles}
-import java.nio.file.Files
-import scala.jdk.CollectionConverters.*
-import scala.util.Using
 
 /** Which files are the model's own (owner §38, as before: a file holding nodes, code given a Definition, or the
   * FrModel; and one holding only vocabulary), and which need no node to govern them (also a file a program's body
@@ -60,17 +57,6 @@ class ModelFilesSuite extends munit.FunSuite:
     val running = pure.replace("end Steps", "  Registry.add(\"steps\")\nend Steps")
     assert(ModelFiles.only(pure, vocabulary), pure)
     assert(!ModelFiles.only(running, vocabulary), running)
-  }
-
-  test("crm: Domain.scala, vocabulary and helpers building terms, is the model's own; its SQLite code is not") {
-    val t = Projects.elaborated(_root_.crm.knowledge).theory
-    val sources = Using.resource(Files.walk(Projects.base.resolve("examples/crm/src/main")))(_.iterator.asScala
-      .toList).filter(p => p.toString.endsWith(".scala"))
-      .map(p => path(Projects.base.relativize(p).toString) -> Files.readString(p)).toMap
-    val own = ModelFiles.accounted(t, sources)
-    val at = "examples/crm/src/main/scala/crm/"
-    assert(own(path(at + "Domain.scala")), own)
-    assertEquals(List("Db", "Events", "History", "MemoryDatabase").filter(n => own(path(at + n + ".scala"))), Nil)
   }
 
   test("a mixed file plain Scala refers to is governed whole; a file of the model's own, by the names it uses") {

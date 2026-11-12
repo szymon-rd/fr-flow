@@ -1,8 +1,0 @@
-{
-  "version": 1,
-  "ledger": "d45c6d181d9554ce96b358112c4161b763011f1df91d79890ea6334a2e4a04f7",
-  "seal": {
-    "key": "087bcc41dcd575d8",
-    "signature": "qfPcmwOahqqWqHsPX9aoOE+3uv/GGSptbWbXYXBjfx+u4k7+v5ZIJAD6PIaQ8PZOyaAzKH5RXl+cmaRwTKoTBw=="
-  }
-}

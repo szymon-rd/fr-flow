@@ -77,12 +77,3 @@ class MeaningsSuite extends munit.FunSuite:
     assert(Consistency.vacuity(t).collect { case Vacuity.Inhabited(_, ty) => ty }.contains(Ty.Data(
       frflow.core.name.TypeName("Booking"))))
   }
-
-  test("inhabited_ asks a value meeting every always[T] on its type together, and a state a store may start in") {
-    val c = Theories.theory(crm.knowledge)
-    val tables = Consistency.vacuity(c).collect { case Vacuity.Inhabited(n, ty) if n == NodeId("keyedTables") => ty }
-    assertEquals(tables.map(Consistency.meets(c, NodeId("keyedTables"), _).map(_.value)),
-      List(List("keyedTables", "oneRowPerKey")))
-    val start = Consistency.vacuity(t).collect { case Vacuity.Inhabited(n, ty) if n == NodeId("startsEmpty") => ty }
-    assertEquals(start.map(Consistency.meets(t, NodeId("startsEmpty"), _).size), List(1))
-  }

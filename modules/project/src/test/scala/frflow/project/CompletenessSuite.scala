@@ -13,8 +13,7 @@ import frflow.proof.lean.ast.{Decl, LeanModule}
   * itself refuses as a FrFlow bug.
   */
 class CompletenessSuite extends munit.FunSuite:
-  private val examples: List[(String, FrModel)] = List("rooms" -> _root_.rooms.rooms, "auth" -> _root_.auth.knowledge,
-    "crm" -> _root_.crm.knowledge, "keycloak" -> _root_.keycloak.knowledge)
+  private val examples: List[(String, FrModel)] = List("rooms" -> _root_.rooms.rooms, "auth" -> _root_.auth.knowledge)
   private lazy val analyses = examples.map((name, kb) => name -> Projects.bare(Projects.elaborated(kb)))
 
   /** The modules with the obligation `name` gone from the node's `Spec`. */

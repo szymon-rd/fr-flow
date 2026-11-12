@@ -59,8 +59,7 @@ val inspector = "org.scala-lang" %% "scala3-tasty-inspector" % "3.10.0"
 
 lazy val root = project.in(file("."))
   .aggregate(core, dsl, proof, eval, testing, decision, wire, shell, api, cli, web, agent,
-    roomsModel, rooms, authModel, auth, keycloakModel, keycloak, crmModel, crm, walletModel, wallet, shopModel, shop,
-    paymentsModel, payments)
+    roomsModel, rooms, authModel, auth, shopModel, shop, paymentsModel, payments)
   .configs(LeanTest, RocqTest).settings(leanTagged)
   .settings(publish / skip := true)
 
@@ -93,7 +92,6 @@ lazy val testing = module("testing", cats, catsEffect, roomsTable, "org.scala-sb
   .settings(libraryDependencies ++= lawTests :+ "org.typelevel" %% "cats-laws" % "2.13.0" % Test,
     testFrameworks += TestFramework("frflow.testing.examples.ExamplesFramework"))
   .dependsOn(eval % "compile->compile;test->test", roomsModel % "test->test", authModel % "test->test",
-    keycloakModel % "test->test", crmModel % "test->test", walletModel % "test->test",
     shopModel % "test->test", paymentsModel % "test->test")
   // Its tests hold a model whose service changes a port (`frflow.eval.Desk`), read through its methods' bodies:
   // the compiler keeps them.
@@ -210,26 +208,13 @@ lazy val rooms = exampleApp("rooms", roomsModel, layers = Nil)
 lazy val authModel = exampleModel("auth")
 lazy val auth = exampleApp("auth", authModel)
 
-/** A Keycloak-like authentication server: realms, sign-in, token introspection, sign-out. */
-lazy val keycloakModel = exampleModel("keycloak")
-lazy val keycloak = exampleApp("keycloak", keycloakModel)
-
-/** A multi-tenant CRM: users find exactly their company's and shared records, write only their company's. */
-lazy val crmModel = exampleModel("crm")
-lazy val crm = exampleApp("crm", crmModel)
-
-/** People, teams, documents and folders: who can view and edit what, and who may change it. */
-
-/** A wallet: transfers between accounts, never overdrawn, carried out once, whatever calls run at once. Its services
-  * are plain Scala over a store, read by FrFlow (`updating`, `interleaving`): the compiler keeps method bodies, and
-  * checks each store is its service's alone (Scala's capture and separation checking, experimental).
+/** What a service over a store needs to be read by FrFlow (`updating`, `interleaving`): the compiler keeps method
+  * bodies, and checks each store is its service's alone (Scala's capture and separation checking, experimental).
   */
 val readClasses = Seq(scalacOptions ++= Seq("-Yretain-trees", "-experimental"))
-lazy val walletModel = exampleModel("wallet").settings(readClasses)
-lazy val wallet = exampleApp("wallet", walletModel, layers = Nil).settings(readClasses)
 
 /** A shop: a checkout placing orders across an inventory service, a payments service and its own journal, each
-  * over a store of its own. Read as the wallet's services are; the checkout is proven from its services' contracts.
+  * over a store of its own; the checkout is proven from its services' contracts.
   */
 lazy val shopModel = exampleModel("shop").settings(readClasses)
 lazy val shop = exampleApp("shop", shopModel, layers = Nil).settings(readClasses)

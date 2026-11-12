@@ -18,9 +18,8 @@ import java.nio.file.{Files, Path}
 import scala.concurrent.duration.*
 import scala.util.chaining.*
 
-/** The README's walk-through of rooms replayed on the port (ARCHITECTURE section 9, `WalkthroughSuite`): rooms
-  * checked and accepted, then each change on its own, `check`, `status` and `review` (skipping) after each, compared
-  * line by line with `reference/rooms/walkthrough` where the design keeps today's text (`Walkthrough`).
+/** The README's walk-through of rooms replayed: rooms checked and accepted, then each change on its own, `check`,
+  * `status` and `review` (skipping) after each, compared line by line with its golden (`Walkthrough`).
   */
 class WalkthroughSuite extends munit.CatsEffectSuite:
   override val munitIOTimeout: Duration = 60.minutes
@@ -67,7 +66,7 @@ class WalkthroughSuite extends munit.CatsEffectSuite:
     }
   }
 
-  /** The step's text against its golden, and today's against the port's, every difference judged; with
+  /** The step's text against its golden; with
     * `FRFLOW_WALK` set, the texts are written there instead (to make the goldens).
     */
   private def judge(step: String, said: Map[String, String]): Unit =
@@ -78,5 +77,3 @@ class WalkthroughSuite extends munit.CatsEffectSuite:
       case None =>
         said.foreach((what, text) =>
           assertNoDiff(Walkthrough.normal(text), Walkthrough.golden(step, what), s"$step $what"))
-        val found = Walkthrough.differences(step, said("check"), said("status"))
-        assertEquals(found, WalkthroughDifferences.judged(step).map(_._1), s"$step: the differences from today's")

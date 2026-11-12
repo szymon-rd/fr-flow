@@ -56,8 +56,7 @@ class ParamsCaptureSuite extends munit.FunSuite:
       printed.linesIterator.filter(_.contains("keep")).mkString("\n"))
   }
 
-  List("tallies" -> tallied, "rooms" -> rooms.rooms, "auth" -> auth.knowledge, "crm" -> crm.knowledge,
-    "keycloak" -> keycloak.knowledge).foreach { (name, kb) =>
+  List("tallies" -> tallied, "rooms" -> rooms.rooms, "auth" -> auth.knowledge).foreach { (name, kb) =>
     test(s"$name: every parameter renamed, to a name the back end binds or writes, its Lean reads the same") {
       val e = elaborated(kb)
       val base = modules(e)

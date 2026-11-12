@@ -174,7 +174,7 @@ class ReviewSuite extends munit.FunSuite:
   }
 
   test("finding 8, owner §45 D: no port reads a value provided where the code runs beside the World") {
-    List(rooms, auth.knowledge, crm.knowledge, keycloak.knowledge).foreach(kb =>
+    List(rooms, auth.knowledge).foreach(kb =>
       assertEquals(frflow.core.analysis.Validate.providedBesideWorld(Theories.theory(kb)), Nil, kb.name.value))
   }
 

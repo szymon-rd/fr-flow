@@ -24,13 +24,6 @@ class WorldSuite extends munit.FunSuite:
       Some(Ty.World))
   }
 
-  test("a Declaration no statement reads beside what changes is a value in Lean, as auth's is; crm's finds, read " +
-    "beside the screens' runs, changes with the World") {
-    assertEquals(typeOf(auth.knowledge, "access").map { case Ty.FnOf(ins, _) => ins.contains(Ty.World); case _ => true
-      }, Some(false))
-    assertEquals(typeOf(crm.knowledge, "finds").map { case Ty.FnOf(ins, _) => ins.last; case t => t }, Some(Ty.World))
-  }
-
   test("a statement reading the world binds it once, below its leading variables; one reading none is as written") {
     def quantified(e: Expr): List[Ty] = e match
       case Expr.Quant(Quantifier.Forall, List(x), body) => x.ty :: quantified(body)
