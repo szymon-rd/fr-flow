@@ -39,10 +39,10 @@ object Problems:
     case Problem.SaidToExist(t, at)         => s"${at.says} is said to exist of ${Values.ty(t)}, which holds a " +
         "Scala Int or Long (by the statement, a rule of always, or the theory's consistency): Lean's Int is " +
         "unbounded, so it could find one Scala cannot hold; use BigInt"
-    case Problem.Undefined(d)               => s"nothing gives the Definition ${d.value} a meaning (code, a program, " +
-        "or a value)"
-    case Problem.DeclarationInCode(c, d)    => s"${c.value} is code and mentions the Declaration ${d.value}: only a " +
-        "Definition may be used by code"
+    case Problem.Undefined(d)               => s"code calls ${d.value}, and nothing gives it a meaning: list a " +
+        s"Definition of it in the model (${d.value}.define(…), .defineTested(…), .defineValue(…), .provided)"
+    case Problem.DeclarationInCode(c, d)    => s"${c.value} is code and reaches ${d.value}, a word only statements " +
+        "read: give it a Definition, or keep it out of code"
     case Problem.CodeWithoutClaim(d) => s"${d.value} has code, but no statement mentions it: there is nothing to " +
         "check it against"
 
