@@ -283,7 +283,9 @@ a Definition given its meaning on the spot, read at compile time from an ordinar
 `d.define(code)`. A
 compile error names the Scala it does not read (a `var`, `Int` arithmetic, `head`, a value from outside, recursion):
 rewrite that part, or keep the function as tested plain Scala. Every type in it has an `FrSpec`
-(`derives FrSpec`, or `given FrSpec[T] = FrSpec.derived[T].where(v => …)` with its contract); the contract enters
+(`derives FrSpec`, or `given FrSpec[T] = FrSpec.derived[T].where(v => …)` with its contract; an id is never a
+bare `String`: `opaque type PaymentId = String` with `object PaymentId extends FrSpec.Opaque[PaymentId, String]`,
+both at the top level of one file, which Lean reads as the string it is over); the contract enters
 the model only when a node states it (`Node.assumption("…")(contractOf[T])`, the developer's to decide). Statements
 stay in the DSL.
 

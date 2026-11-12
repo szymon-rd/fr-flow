@@ -9,8 +9,10 @@ import frflow.*
 trait Accounts extends Mutable:
   /** Posts a payment's two sides, unless it is posted already. */
   update def post(p: Payment): Unit
-  def posted(id: String): Boolean
-  def postingsOf(id: String): List[Posting]
+  /** Whether a payment is marked as posted. */
+  def posted(id: PaymentId): Boolean
+  /** The postings made for a payment, in the order made: none, or its two sides. */
+  def postingsOf(id: PaymentId): List[Posting]
   /** All the money in the books: the sum of every posting. */
   def total: BigInt
 
@@ -27,18 +29,18 @@ object Accounts:
     forall((p: Term[Payment]) => accounts.total.in(accounts.post(p).after) === accounts.total))
 
   val postKeepsPosted = Node.claim("Posting a payment leaves every payment posted before marked as posted.")(
-    forall((id: Term[String], p: Term[Payment]) =>
+    forall((id: Term[PaymentId], p: Term[Payment]) =>
       accounts.posted(id) implies accounts.posted(id).in(accounts.post(p).after)))
 
   val postKeepsMarks = Node.claim("Posting a payment leaves a payment that has postings only if it is marked " +
       "so.")(
-    forall((id: Term[String], p: Term[Payment]) =>
+    forall((id: Term[PaymentId], p: Term[Payment]) =>
       (accounts.postingsOf(id).isEmpty || accounts.posted(id)) implies
         (accounts.postingsOf(id).in(accounts.post(p).after).isEmpty || accounts.posted(id).in(accounts.post(p).after))))
 
   val postAddsToNoPayment = Node.claim("Posting a payment adds nothing to the postings of a payment that has " +
       "some, where a payment with postings is marked.")(
-    forall((id: Term[String], p: Term[Payment]) =>
+    forall((id: Term[PaymentId], p: Term[Payment]) =>
       (accounts.postingsOf(id).isEmpty || accounts.posted(id)) implies
         (accounts.postingsOf(id).isEmpty ||
           accounts.postingsOf(id).in(accounts.post(p).after) === accounts.postingsOf(id))))
@@ -46,12 +48,13 @@ object Accounts:
 /** The accounts service over a list of postings and the payments marked as posted. The mark and the postings are
   * made in one call, so a payment is never marked without its postings, or posted without its mark.
   */
-final class LedgerAccounts(var postings: List[Posting], var marked: List[String]) extends Accounts:
+final class LedgerAccounts(var postings: List[Posting], var marked: List[PaymentId]) extends Accounts:
   update def post(p: Payment): Unit =
     if !posted(p.id) then
-      postings = postings ++ List(Posting(p.id, p.card, -p.amount), Posting(p.id, p.merchant, p.amount))
+      postings = postings ++ List(Posting(p.id, Account.OfCard(p.card), -p.amount),
+        Posting(p.id, Account.OfMerchant(p.merchant), p.amount))
       marked = p.id :: marked
 
-  def posted(id: String): Boolean = marked.contains(id)
-  def postingsOf(id: String): List[Posting] = postings.filter(x => x.payment == id)
+  def posted(id: PaymentId): Boolean = marked.contains(id)
+  def postingsOf(id: PaymentId): List[Posting] = postings.filter(x => x.payment == id)
   def total: BigInt = postings.foldLeft(BigInt(0))((sum, x) => sum + x.amount)

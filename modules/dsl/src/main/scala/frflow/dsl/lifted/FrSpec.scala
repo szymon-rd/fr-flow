@@ -58,6 +58,16 @@ object FrSpec:
     LiftMacro.structural[T]
     of(LeanType.derived[T])
 
+  /** The companion of an opaque type (`opaque type PaymentId = String` with
+    * `object PaymentId extends FrSpec.Opaque[PaymentId, String]`, both at the top level of one file): how a value
+    * of it is made and read, and its spec, that of the type it is over. So Scala tells a payment's id from a
+    * card's, and the term language and Lean read each as what it is over.
+    */
+  trait Opaque[T, U](using is: T =:= U, from: U =:= T, over: FrSpec[U]):
+    def apply(value: U): T = from(value)
+    extension (t: T) def value: U = is(t)
+    given spec: FrSpec[T] = from.substituteCo[FrSpec](over)
+
   /** A type known by its name alone (a structure's: its fields are those of the class given for it). */
   def named[A](name: String): FrSpec[A] = of(LeanType.of[A](Ty.Data(TypeName(name))))
 

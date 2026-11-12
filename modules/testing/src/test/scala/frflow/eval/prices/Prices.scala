@@ -6,9 +6,13 @@ import caps.Mutable
 import frflow.FrSpec
 import scala.annotation.experimental
 
+/** An item's id: a type of its own over a string. */
+opaque type ItemId = String
+object ItemId extends FrSpec.Opaque[ItemId, String]
+
 /** A structure no member changes, a plain trait that is no `caps.Mutable`, and a structure whose class holds it. */
 @experimental object Prices:
-  final case class Item(id: String, net: BigInt) derives FrSpec
+  final case class Item(id: ItemId, net: BigInt) derives FrSpec
 
   /** A price list: what an item costs, and the tax in it. */
   trait Pricing:

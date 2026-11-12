@@ -7,9 +7,12 @@ import frflow.*
 
 /** Another first version of the processor: what it says of itself is what the processor says. */
 trait Hasty extends Mutable:
+  /** Handles a payment: whether it is approved. */
   update def handle(p: Payment): Boolean
-  def approved(id: String): Boolean
-  def posted(id: String): Boolean
+  /** Whether the limits it holds have approved a payment. */
+  def approved(id: PaymentId): Boolean
+  /** Whether the accounts it holds have a payment marked as posted. */
+  def posted(id: PaymentId): Boolean
 
 object Hasty:
   val hasty = Declaration[Hasty]("the processor's hasty version: it checks the limit itself, then has the " +
@@ -32,5 +35,5 @@ final class HastyProcessor(limits: Limits^, accounts: Accounts^, checkpoint: Che
     checkpoint.commit(p.offset)
     fits
 
-  def approved(id: String): Boolean = limits.approved(id)
-  def posted(id: String): Boolean = accounts.posted(id)
+  def approved(id: PaymentId): Boolean = limits.approved(id)
+  def posted(id: PaymentId): Boolean = accounts.posted(id)

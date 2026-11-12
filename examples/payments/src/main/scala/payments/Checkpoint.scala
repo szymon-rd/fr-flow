@@ -11,6 +11,7 @@ trait Checkpoint extends Mutable:
     * payment at a time and an instance that is behind moves nothing.
     */
   update def commit(offset: BigInt): Unit
+  /** The offset of the next payment to handle: every payment before it has been handled. */
   def position: BigInt
 
 object Checkpoint:

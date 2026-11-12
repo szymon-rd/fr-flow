@@ -24,9 +24,9 @@ Each service is written as a structure, a value with members, some of them funct
 ```scala
 trait Limits extends Mutable:
   update def authorise(p: Payment): Boolean
-  def decided(id: String): Boolean
-  def approved(id: String): Boolean
-  def spent(card: String, day: BigInt): BigInt
+  def decided(id: PaymentId): Boolean
+  def approved(id: PaymentId): Boolean
+  def spent(card: CardId, day: BigInt): BigInt
   def limit: BigInt
 
 object Limits:
@@ -83,7 +83,8 @@ from the claims on `limits`, `accounts` and `checkpoint`, not from `SpendLimits`
 
 | File | What it holds |
 | --- | --- |
-| `Domain.scala` | `Payment` (contract: the amount is positive), `Decision`, `Posting` |
+| `Ids.scala` | `PaymentId`, `CardId`, `MerchantId`: opaque types over a string, so one is never given for another |
+| `Domain.scala` | `Payment` (contract: the amount is positive), `Decision`, `Account`, `Posting` |
 | `Limits.scala`, `Accounts.scala`, `Checkpoint.scala` | A structure each: the trait, its Declaration and claims in the companion, the class |
 | `Processor.scala` | The processor: the same, over the three |
 | `Eager.scala`, `Hasty.scala` | Two first versions of the processor, each with one of the bugs |
@@ -164,7 +165,7 @@ private val start = processor.holding(
 
 example("a payment within the limit: approved, posted, the position past it"):
   val done = processor.handle(coffee).in(start)
-  done.result && (processor.postingsOf("p1").in(done.after) is charged) &&
+  done.result && (processor.postingsOf(p1).in(done.after) is charged) &&
     (processor.position.in(done.after) is BigInt(1))
 ```
 

@@ -7,8 +7,11 @@ import frflow.*
 
 /** A first version of the processor: what it says of itself is what the processor says. */
 trait Eager extends Mutable:
+  /** Handles a payment: whether it is approved. */
   update def handle(p: Payment): Boolean
-  def applied(id: String): Boolean
+  /** A payment is applied: it was decided, and if it was approved it is posted. */
+  def applied(id: PaymentId): Boolean
+  /** The position of the checkpoint it holds: the offset of the next payment to handle. */
   def position: BigInt
 
 object Eager:
@@ -27,5 +30,5 @@ final class EagerProcessor(limits: Limits^, accounts: Accounts^, checkpoint: Che
     if approved then accounts.post(p)
     approved
 
-  def applied(id: String): Boolean = limits.decided(id) && (!limits.approved(id) || accounts.posted(id))
+  def applied(id: PaymentId): Boolean = limits.decided(id) && (!limits.approved(id) || accounts.posted(id))
   def position: BigInt = checkpoint.position

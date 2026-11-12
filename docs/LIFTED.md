@@ -178,6 +178,11 @@ object Booking:
 - `derives FrSpec` (or `FrSpec.derived[T]`) gives a case class or an enum its spec with no contract, as
   `derives LeanType` gives its `LeanType`. The standard types' specs are given (`Boolean`, `BigInt`, `String`,
   `Unit`, and `List`, `Option`, `Set`, `Map`, pairs and `Either` of types that have one).
+- An id has a type of its own: `opaque type PaymentId = String` with
+  `object PaymentId extends FrSpec.Opaque[PaymentId, String]`, both at the top level of one file. The companion
+  makes a value (`PaymentId("p1")`), reads it (`id.value`) and gives the spec, that of the type it is over: Scala
+  tells a payment's id from a card's, and the term language and Lean read each as the string it is. Lifted code
+  passes such a value on and compares it; it does not make or open one.
 - `where(v => …)` states the contract in plain Scala over the value's members: its fields, and its `inline`
   methods. It is read as lifted code is, and kept as the Scala it is: `FrSpec[Booking].holds(b)` checks a value
   where the code runs (at a boundary, where a value comes from outside).

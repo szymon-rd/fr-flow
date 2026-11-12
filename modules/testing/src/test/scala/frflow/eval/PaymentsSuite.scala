@@ -4,7 +4,7 @@ import frflow.core.analysis.Validate
 import frflow.eval.run.{ExampleRun, OnCode}
 import frflow.eval.term.Semantics
 import payments.{Decision, LedgerAccounts, OffsetCheckpoint, Payment, PaymentsExamples, Posting, SpendLimits}
-import payments.StreamProcessor
+import payments.{Account, CardId, MerchantId, PaymentId, StreamProcessor}
 import scala.annotation.experimental
 
 /** The payment stream (`examples/payments`): its model, each service a Definition given a class FrFlow reads, is
@@ -27,13 +27,15 @@ import scala.annotation.experimental
   test("the services as production calls them: objects changed by one delivery after another") {
     val (limits, accounts, checkpoint) = (SpendLimits(100, Nil), LedgerAccounts(Nil, Nil), OffsetCheckpoint(0))
     val processor = StreamProcessor(limits, accounts, checkpoint)
-    val coffee = Payment(0, "p1", "card-1", "cafe", 80, 1)
+    val (p1, card, cafe) = (PaymentId("p1"), CardId("card-1"), MerchantId("cafe"))
+    val coffee = Payment(0, p1, card, cafe, 80, 1)
     assertEquals(processor.handle(coffee), true)
     assertEquals(processor.handle(coffee), true)
-    assertEquals(processor.handle(Payment(1, "p2", "card-1", "bar", 80, 1)), false)
-    assertEquals(accounts.postings, List(Posting("p1", "card-1", -80), Posting("p1", "cafe", 80)))
+    assertEquals(processor.handle(Payment(1, PaymentId("p2"), card, MerchantId("bar"), 80, 1)), false)
+    assertEquals(accounts.postings,
+      List(Posting(p1, Account.OfCard(card), -80), Posting(p1, Account.OfMerchant(cafe), 80)))
     assertEquals(limits.decisions.map(_.approved), List(true, false))
     assertEquals(checkpoint.position, BigInt(2))
     assertEquals(processor.total, BigInt(0))
-    assertEquals(limits.decisions.head, Decision("p1", "card-1", 1, 80, true))
+    assertEquals(limits.decisions.head, Decision(p1, card, 1, 80, true))
   }

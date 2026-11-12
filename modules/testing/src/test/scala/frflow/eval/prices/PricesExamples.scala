@@ -10,7 +10,7 @@ import scala.annotation.experimental
 
   private val list = pricing.holding(FlatPricing(BigInt(2)))
   private val empty = basket.holding(PricedBasket(FlatPricing(BigInt(2)), BigInt(0)))
-  private val pen = Item("pen", 5)
+  private val pen = Item(ItemId("pen"), 5)
 
   example("an item costs its net price and the tax"):
     pricing.price(pen).in(list) is BigInt(7)
