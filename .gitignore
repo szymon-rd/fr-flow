@@ -27,3 +27,5 @@ examples/*/lean/FrFlowAudit/
 *.vos
 *.glob
 .*.aux
+
+__pycache__/
