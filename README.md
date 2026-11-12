@@ -28,18 +28,19 @@ follows the method of stepwise refinement (Wirth, 1971) and the refinement calcu
 2. Then, gradually, each statement is refined. A refinement step replaces a statement with more concrete statements
    that together imply it. Every refinement step is a proof obligation, and Lean checks it, so a statement can never
    contradict the one it refines, and Lean also proves that the statements as a whole do not contradict each other.
-3. The final refinement is the program's code itself. At that level, it can be developed in one of two ways:
-   - As plain Scala, which FrFlow tests with property-based testing on generated cases, whose shape and data are
-     driven by the statements about it.
-   - As code in FrFlow's monadic DSL, which compiles both to executable code and to a Lean model, which is then used
-     in a strict proof.
-   - As plain Scala that FrFlow reads (`lifted { … }`): at compile time the function is read into the same model the
-     DSL builds, so Lean proves it, and it stays the Scala the JVM runs ([docs/LIFTED.md](docs/LIFTED.md)). A
-     service is read the same way, as a structure (a value with members): a trait says its members, a
-     `Declaration` of the trait is the value the claims are about, and the class that implements it is its
-     Definition, which Lean proves meets them, alone and among other calls
-     ([examples/payments](examples/payments/README.md): a stream processor proven to apply each payment once,
-     through redelivery, a crash at any step and a second instance).
+3. The final refinement is the program's code itself. Its specification is declared on the code's own
+   interfaces: a service is a trait, a `Declaration` of the trait is the value the claims speak of, and the claims
+   are written through the trait's members. An implementation is then one of:
+   - **Lifted**: a class that implements the trait, written as ordinary Scala. FrFlow compiles the class into the
+     model from the TASTy the Scala compiler wrote for it, and the prover shows that it meets every claim, alone
+     and among other calls ([docs/LIFTED.md](docs/LIFTED.md);
+     [examples/payments](examples/payments/README.md): a stream handler proven to apply each payment once, through
+     redelivery, a crash at any step and a second instance).
+   - **Assumed**: no implementation is given. The trait is known by the assumptions about it, as an outside
+     system or a library is.
+   - **Tested**: plain Scala, which FrFlow tests with property-based testing on generated cases, whose shape and
+     data are driven by the statements about it.
+   - Code in FrFlow's monadic DSL, which compiles both to executable code and to a model used in a strict proof.
 
 The logical model sits alongside the code that performs the given functions, and acts as its contract: an interface
 the code conforms to, albeit stricter and more powerful than has been usual for software.
@@ -69,195 +70,137 @@ The value of FrFlow is not limited to agentic coding, and it does not need to be
 of building software with this approach, as it makes it much easier to achieve confidence about the quality of the
 developed software.
 
-## Example: booking meeting rooms
+## Example: handling card payments
 
-People book meeting rooms for a stretch of time, and a room holds one meeting at a time. Below is the core of the
-example; the whole of it is in [`examples/rooms`](examples/rooms).
+A consumer reads card payments from a log and, for each, checks the card's daily limit, posts the money and commits
+its offset. Below is the core of the example; the whole of it is in [`examples/payments`](examples/payments/README.md).
 
 ### The code
 
-The domain, and when a room is free: a booking covers the moments from its start up to its end; two bookings are
-apart when they are in different rooms or share no moment.
+An id is a type of its own over a string, so one is never given where another is meant:
 
 ```scala
-/** What the booking form sends and the table stores. */
-final case class Booking(room: String, start: BigInt, end: BigInt) derives LeanType
-
-/** A room's bookings, as the table gives them. */
-final case class RoomBookings(room: String, bookings: List[Booking]) derives LeanType
-
-/** A booking covers the moments from its start up to its end. */
-val covers = define { (b: Term[Booking], t: Term[BigInt]) => b.start <= t && t < b.end }
-
-/** No moment is covered by both bookings. */
-val shareNoMoment = define { (a: Term[Booking], b: Term[Booking]) =>
-  forall((t: Term[BigInt]) => !(covers(a, t) && covers(b, t))) }
-
-/** Two bookings are apart when they are in different rooms or share no moment. */
-val apart = define { (a: Term[Booking], b: Term[Booking]) => a.room =!= b.room || shareNoMoment(a, b) }
-
-/** A room is free for a request when each of the bookings is apart from it. */
-val free = define { (bookings: Term[List[Booking]], request: Term[Booking]) =>
-  bookings.forall(b => apart(b, request)) }
-
-/** The bookings, with the request added at the end if its room is free for its whole time. */
-val addedIfFree = define { (bookings: Term[List[Booking]], request: Term[Booking]) =>
-  when(free(bookings, request))(bookings :+ request).otherwise(bookings) }
+opaque type PaymentId = String
+object PaymentId extends FrSpec.Opaque[PaymentId, String]
 ```
 
-Bookings come from the booking form, which sends only bookings that end after they start. That is trusted, so it is
-an assumption, stated with `always`: every value of the type that can occur. The roots state the purpose over
-`Declaration`s nothing defines: concepts known only by what the statements say of them. A statement holds in every state the service
-reaches, and reads what changes, such as what is booked, in the current one.
+A service is an ordinary trait, with the members such a service has and nothing added for the proofs. Its
+specification is in its companion: a `Declaration` of the trait, which is the value the claims speak of, and the
+claims, written through the trait's members.
 
 ```scala
-val bookingsEndAfterStart = Node.assumption("Every booking ends after it starts.")(
-  always[Booking](b => b.start < b.end))
+/** The consumer's offsets in the log: the committed offset is that of the next payment to handle. */
+trait ConsumerOffsets extends Mutable:
+  /** Commits a payment's offset: the committed offset moves one past it, if it is at it. */
+  update def commit(offset: BigInt): Unit
+  /** The offset of the next payment to handle: every payment before it has been handled. */
+  def committed: BigInt
 
-val booked = Declaration[List[Booking]]("the bookings made, as the world stands")
+object ConsumerOffsets:
+  val offsets = Declaration[ConsumerOffsets]("the consumer's offsets: the offset of the next payment to handle")
 
-val bookedAfter = Declaration[Booking => List[Booking]]("the bookings made once a request is handled")
+  val commitMovesPast = Node.claim("Committing the offset that is committed moves it one past.")(
+    forall((offset: Term[BigInt]) =>
+      (offsets.committed === offset) implies
+        (offsets.committed.in(offsets.commit(offset).after) === offset + 1)))
 
-val accepted = Declaration[Booking => Boolean]("whether a request is accepted")
-
-val bookWhenFree = Node.claim("Once a request is handled, the bookings are those before it, with the request added " +
-    "if its room is free for its whole time.")(
-  forall((request: Term[Booking]) => bookedAfter(request) === addedIfFree(booked, request)))
-  .assuming(bookingsEndAfterStart)
-
-val acceptWhenFree = Node.claim("A request is accepted exactly when its room is free for its whole time.")(
-  forall((request: Term[Booking]) => accepted(request) === free(booked, request)))
-  .assuming(bookingsEndAfterStart)
+  val commitElsewhereChangesNothing = Node.claim("Committing any other offset changes nothing.")(
+    forall((offset: Term[BigInt]) =>
+      (offsets.committed =!= offset) implies (offsets.commit(offset).after === offsets.current)))
 ```
 
-Booking a request is a `Declaration` too, one the code defines. Its program reads the room's bookings from the
-table, asks the calendar, and adds the booking if it is granted, in one transaction. The table's two operations are
-declared the same way, and given their meaning by a model of what it stores. Lean proves the program against its
-claims. A program that can fail says so where it is declared
-(`Declaration[Booking => Flow[Boolean]]("…").failsWith[StoreDown]`); a claim about its run then covers the runs that fail too, its `result` an `Either[StoreDown, Boolean]`, and FrFlow
-checks the error against what the code raises.
+An implementation is a class, as it would be written without FrFlow:
 
 ```scala
-val book = Declaration[Booking => Flow[Boolean]]("booking a request: whether it was booked")
-
-val inRoom = Declaration[String => Flow[RoomBookings]]("a room's bookings, as the SQLite table gives them")
-val add = Declaration[Booking => Flow[Unit]]("a booking added to the SQLite table")
-
-object storedBookings extends StateModel[List[Booking]]("every booking stored, oldest first"):
-  inRoom.means(room => state.get.map(stored => make[RoomBookings](room, stored.filter(b => b.room === room))))
-  add.means(booking => state.update(stored => stored :+ booking))
-
-val bookIfGranted = program { (request: Term[Booking]) =>
-  (for
-    held  <- inRoom(request.room)
-    booked = granted(held, request)
-    _     <- Flow.when(booked)(add(request))
-  yield booked).atomically }
+final class CommittedOffset(var committed: BigInt) extends ConsumerOffsets:
+  update def commit(offset: BigInt): Unit =
+    if committed == offset then committed = offset + BigInt(1)
 ```
 
-What the world outside does with the table is assumed, and so is what always holds of it: nothing but the code
-changes it, it starts empty, and runs on it never interleave. A claim of `always` on the table's state is a rule
-below the roots: Lean has it of every state a statement reads, and proves that every program writing the table keeps
-it.
+The handler has one method and holds three services. Its claims are said through the interfaces of what it holds
+(`ledger.total`, as the handler has the ledger after the call), so no trait has a member for a proof's sake:
 
 ```scala
-val nothingElseWrites = Node.assumption("Nothing but the booking code changes the table.")(
-  storedBookings.onlyCodeChanges)
+trait PaymentHandler extends Mutable:
+  /** Handles one payment: has it authorised, posts it if it is approved, and commits its offset. */
+  update def handle(payment: Payment): Boolean
 
-val startsEmpty = Node.assumption("The table starts empty.")(storedBookings.initially(stored => stored === Nil))
+object PaymentHandler:
+  val handler = Declaration[PaymentHandler]("the payment handler: it handles one payment from the log")
 
-val oneAtATime = Node.assumption("Bookings are processed one at a time.")(storedBookings.atomic)
+  val moneyIsConserved = Node.claim("Handling a payment makes no money and destroys none.")(
+    forall((p: Term[Payment]) => ledger.total.in(handler.handle(p).after) === ledger.total))
 
-val neverOverlap = Node.claim("The bookings stored never overlap.")(
-  always(storedBookings)(stored => stored.pairwise(apart)))
-  .refines(bookWhenFree, acceptWhenFree)
-  .assuming(nothingElseWrites, oneAtATime, startsEmpty, bookingsEndAfterStart)
+  val redeliveryChangesNothing = Node.claim("A payment handled again gets the answer it got and changes " +
+      "nothing.")(
+    forall((p: Term[Payment]) =>
+      (handler.handle(p).in(handler.handle(p).after).result === handler.handle(p).result) &&
+        (handler.handle(p).in(handler.handle(p).after).after === handler.handle(p).after)))
+
+  // Every step of the call, whatever other calls do between the steps: a second instance after a rebalance.
+  val noStepMakesMoney = Node.claim("No step of handling a payment makes money or destroys it.")(
+    forall((p: Term[Payment]) =>
+      handler.handle(p).amongOthers(run => run.steps.forall(step =>
+        ledger.total.in(step._2) === ledger.total.in(step._1)))))
+
+final class StreamPaymentHandler(limits: CardLimits^, ledger: Ledger^, offsets: ConsumerOffsets^)
+    extends PaymentHandler:
+  update def handle(payment: Payment): Boolean =
+    val approved = limits.authorise(payment)
+    if approved then ledger.post(payment)
+    offsets.commit(payment.offset)
+    approved
 ```
 
-Claims say what each `Declaration` is in the code, as these do for `accepted` and `bookedAfter`: what `book` returns,
-run in the current state, answers whether a request is accepted, and the table in the state the run leaves
-(`book(request).after`) is what is booked once it is handled. A statement reading the state a run leaves names the
-state each value is read in, `.current` for the one before the run.
+The model lists the claims, which claim refines which, and the class given for each trait:
 
 ```scala
-val acceptedIsAnswered = Node.claim("A request is accepted exactly when booking it answers booked.")(
-  forall((request: Term[Booking]) => accepted(request).current === book(request).result))
-  .refines(acceptWhenFree)
-
-val bookedAfterIsStored =
-  Node.claim("What is booked once a request is handled is what the table holds after booking it.")(
-    forall((request: Term[Booking]) => bookedAfter(request).current === storedBookings.in(book(request).after)))
-  .refines(bookWhenFree)
+val payments: FrModel = FrModel("Payments")(
+  PaymentHandler.moneyIsConserved, PaymentHandler.redeliveryChangesNothing, PaymentHandler.noStepMakesMoney, // …
+  Ledger.postKeepsTotal.refines(PaymentHandler.moneyIsConserved, PaymentHandler.noStepMakesMoney),
+  ConsumerOffsets.commitMovesPast.refines(PaymentHandler.redeliveryChangesNothing), // …
+  offsets.define(lifted[CommittedOffset]),
+  handler.define(lifted[StreamPaymentHandler](limits, ledger, offsets)))
 ```
 
-The calendar decides whether a request is granted. It is plain Scala and is not proven: FrFlow tests it
-automatically with property-based testing, on a thousand generated cases, against its claim `grantWhenNoOverlap`
-below.
+The examples state facts of the code at work, on objects of the classes:
 
 ```scala
-val granted = Declaration[(RoomBookings, Booking) => Boolean]("whether a request is granted, given its room's bookings")
+class PaymentsExamples extends FrFlowExamples(payments):
+  private val start = handler.holding(
+    StreamPaymentHandler(RecordedLimits(BigInt(100), Nil), PostingLedger(Nil, Nil), CommittedOffset(BigInt(0))))
 
-final class Calendar(held: RoomBookings):
-  private val startOrder: Ordering[Booking] = Ordering.by(_.start)
-  private val byStart = held.bookings.sorted(using startOrder).toVector
-
-  def grants(request: Booking): Boolean =
-    val i = byStart.search(request)(using startOrder).insertionPoint
-    val before = byStart.lift(i - 1)
-    val after = byStart.lift(i)
-    val endsInTime = before.forall(_.end <= request.start)
-    val startsAfter = after.forall(_.start >= request.end)
-    request.room != held.room || (endsInTime && startsAfter)
+  example("a payment within the limit: approved, posted, its offset committed"):
+    val done = handler.handle(coffee).in(start)
+    done.result && (ledger.postingsOf(p1).in(done.after) is charged) &&
+      (offsets.committed.in(done.after) is BigInt(1))
 ```
 
-What booking needs from the calendar (it refines booking's claims, not shown), refined into a claim over start and
-end times, which code can compare. Lean proves each step.
+### From a class to a proof
 
-```scala
-val grantWhenFree = Node.claim("A request is granted exactly when its room is free for its whole time.")(
-  forall((held: Term[RoomBookings], request: Term[Booking]) =>
-    granted(held, request) === free(held.bookings, request)))
-  .refines(storeWhenFree, answerWhenFree)
-  .assuming(bookingsEndAfterStart)
+`lifted[CommittedOffset]` is an ordinary call that runs when the model is built. It is a compiler, with no macro
+and no second Scala compilation in it:
 
-/** Two bookings do not overlap: they are in different rooms, or one ends by the time the other starts. */
-val noOverlap = define { (a: Term[Booking], b: Term[Booking]) =>
-  a.room =!= b.room || a.end <= b.start || b.end <= a.start }
+1. The Scala compiler writes, beside each class file, a `.tasty` file: the class as it was typed, bodies included.
+2. FrFlow opens that file, walks each member's tree and builds the member's term: a function of the class's state
+   (a record of its constructor's fields) and the member's inputs, which gives its result and, of an `update`
+   member, the state after it. Scala it does not read is refused, with the file and line.
+3. The prover's printer prints each term as a definition, and the prover shows it meets each claim that names the
+   member.
 
-val grantWhenNoOverlap = Node.claim("A request is granted exactly when it overlaps no booking of its room.")(
-  forall((held: Term[RoomBookings], request: Term[Booking]) =>
-    granted(held, request) === held.bookings.forall(b => noOverlap(b, request))))
-  .refines(grantWhenFree)
-  .assuming(bookingsEndAfterStart)
-```
+A class that holds services is proven from the claims on them, not from their classes: `handle` is a function of
+any card limits, ledger and offsets that meet their claims. That is what `.refines` says in the model, and why a
+service can be replaced by another that meets the same claims. Each `update` member is also compiled as its steps
+among other calls (`amongOthers`): before each step but the first, the others may have left any state.
 
-The FrModel lists the statements and, beside them, the Definitions of its words: booking's program to be proven,
-the calendar to be tested on cases drawn from the generators given for the domain's types, and the SQLite table's
-Scala to be tested against its model on generated runs.
+Of the example's 29 claims, Lean proves 26 by FrFlow's tactic and 3 from proofs by hand, and all 8 examples. Rocq
+proves 27 by the tactic and 2 by hand ([docs/ROCQ.md](docs/ROCQ.md)).
 
-```scala
-val rooms = FrModel("Rooms")(bookWhenFree, acceptWhenFree, bookedIsStored, bookedAfterIsStored, acceptedIsAnswered,
-  storeWhenFree, answerWhenFree, neverOverlap, grantWhenFree, bookingsOfTheRoom, roomBookingsApart, grantWhenNoOverlap,
-  nothingElseWrites, oneAtATime, startsEmpty, bookingsEndAfterStart,
-  // The Definitions of the model's words.
-  book.define(bookIfGranted),
-  granted.defineTested(_ => (held, request) => Calendar(held).grants(request)),
-  defineOperations(inRoom, add)(start = BookingsTable.holding, observe = _.bookings)(t => (t.inRoom, t.add)))
-  .withGenerator(roomNames.describedAs("Oak or Elm"))
-  .withGenerator(requests.describedAs("requests for Oak or Elm that end after they start"))
-  .withGenerator(roomBookings.describedAs("a room's bookings, laid end to end, some back to back"))
-```
+## Decisions at work: booking meeting rooms
 
-Examples are ordinary tests:
-
-```scala
-class GrantedExamples extends FrFlowExamples(rooms):
-  example("back to back: granted"):
-    granted(RoomBookings("Oak", List(Booking("Oak", 9, 10))), Booking("Oak", 10, 11)) is true
-
-  example("overlapping: refused"):
-    granted(RoomBookings("Oak", List(Booking("Oak", 9, 11))), Booking("Oak", 10, 12)) is false
-```
+A model is decided and kept the same way whatever it is about. [`examples/rooms`](examples/rooms) is the one whose
+decisions FrFlow's suites replay: people book meeting rooms for a stretch of time, and a room holds one meeting at
+a time. It is written with `define`, a `program` over a store and a calendar in plain Scala that is tested.
 
 ### How it works
 
@@ -363,7 +306,8 @@ Statements are about two kinds of values:
 | Value | Written | What it is |
 |---|---|---|
 | Declaration | `Declaration[A](means)` | a word of the model: what statements speak of and code calls. One nothing defines is known only by what the statements say of it, such as `booked`; if only statements read it, it may change as the service runs (`d.isConstant`, as an assumption, says it does not) |
-| Definition | `d.define(…)` of a Declaration, listed in the model beside the nodes; or `define { … }`, declared and defined at once | a Declaration with a meaning, such as `book`: a program or a `define` (`d.define`, proven in Lean), plain Scala (`d.defineTested`, tested), a value (`d.defineValue`, `d.provided`), or, for an operation on a state, a `StateModel` saying what it does (its Scala, `defineOperations`, tested against the model) or the assumptions about it alone (`op.assumed`) |
+| Structure | `Declaration[Trait](means)`, of a trait of the developer's | a value with members: a service, a store. Its members are called on terms as the trait declares them: `limits.authorise(p).result` is what the call gives, `.after` the structure after it, `.in(state)` the same from a given state, `limits.current` the structure as it stands, `.amongOthers(run => …)` every step of the call among other calls. A claim on a class that holds it asks it as the holder has it: `ledger.total.in(handler.handle(p).after)` |
+| Definition | `d.define(…)` of a Declaration, listed in the model beside the nodes; or `define { … }`, declared and defined at once | a Declaration with a meaning, such as `book`: a class that implements a structure's trait (`d.define(lifted[Class])`, compiled from its TASTy and proven), a program or a `define` (`d.define`, proven), plain Scala (`d.defineTested`, tested), a value (`d.defineValue`, `d.provided`), or, for an operation on a state, a `StateModel` saying what it does (its Scala, `defineOperations`, tested against the model) or the assumptions about it alone (`op.assumed`) |
 
 They use two quantifiers: `forall`, every possible value, and `always`, every value the code FrFlow covers can produce
 (`always[T](x => …)`, of a type; `always(stored)(s => …)`, every state a model reaches). A statement holds in every
@@ -377,20 +321,26 @@ statement can refine several others, and there can be several roots, so the stat
 
 The code at the bottom of the graph is in one of three states, and `status` reports which:
 
-- **Proven** code is written in the DSL (a `program { … }` over a `Flow`, or a `define`), and Lean proves that it
-  meets its claims. A function of plain Scala that has no state, no effect and cannot fail can be proven as it is
-  written: `lifted { (a: Booking, b: Booking) => … }` is read at compile time into the term a `define` builds.
-  `testing.Agreement` tests its Scala against that term on generated cases; `check` does not run it yet
-  ([docs/LIFTED.md](docs/LIFTED.md)).
+- **Proven** code is one of three things. A class that implements a structure's trait, lifted by its type
+  (`limits.define(lifted[RecordedLimits])`): it is compiled from its TASTy as the model is built, and each member is
+  proven to meet every claim on it, alone and among other calls. A function of plain Scala that has no state, no
+  effect and cannot fail, read at compile time (`lifted { (a: Booking, b: Booking) => … }`); `testing.Agreement`
+  tests its Scala against its term on generated cases. Or code in the DSL (a `program { … }` over a `Flow`, or a
+  `define`). [docs/LIFTED.md](docs/LIFTED.md) lists the Scala that is read.
 - **Tested** code is plain Scala. It is tested against its claims with property-based testing on generated cases; an
   operation on a state is tested against its model on generated runs, two of its calls at once among them.
 - **Assumed** code is known only by the assumptions about it, such as an outside system's search: Lean takes them as
-  given, and its Scala is tested against them where a generated run can tell.
+  given, and its Scala is tested against them where a generated run can tell. A structure with no class is known
+  the same way (`pricing.provided`); a model that holds one is valid, and the prover does not build it yet.
 
 Everything above the code is proven from these, and Lean proves the statements consistent: some meaning of every
 `Declaration` makes them all hold. Nothing is checked when the code runs: FrFlow is for testing before production and
 for proofs. What is left to trust is the assumptions the developer accepted, FrFlow's translation of the model to Lean
 (which the examples cross-check by running the same model as Scala), and, for tested code, the cases the tests reach.
+
+Lean 4 is the prover that checks a project (`check`). FrFlow is moving to Rocq: the payments and auth examples are
+printed as Rocq from the same generated modules and proven by Rocq 9 (`sbt rocqTest`); the other examples stay on
+Lean until they are moved ([docs/ROCQ.md](docs/ROCQ.md)).
 
 Time is modelled as Cats Effect models it: the clock is a model of FrFlow's own (`Clock.now`, `Clock.sleep`), steps of
 code take no time of their own, and the world moves the time on between runs and at each of the clock's steps.
@@ -440,22 +390,27 @@ bin/frflow rooms status              # an example: rooms, auth, keycloak, crm
 ```
 
 `sbt "frflowInitAgent toy --as NAME"` creates one with the agent layer enabled. `sbt test` runs FrFlow's fast tests;
-`sbt leanTest` runs the ones that run Lean end to end, the examples' among them.
+`sbt leanTest` runs the ones that run Lean end to end, the examples' among them; `sbt rocqTest` runs the ones that
+run Rocq (payments and auth), and needs Rocq 9 with `rocq` on the `PATH` (`opam install rocq-prover`).
 
 ## Examples
 
 Each example is a project in `examples/<name>`: its statements and code in `src/main`, its examples in `src/test`,
-its proofs by hand in `lean/Proofs`, and its command line in `app` (`bin/frflow <name> COMMAND`). None has a decision
-yet: each starts with no ledger, for its developer to decide. FrFlow's own suites test them, each whole in its
+its proofs by hand in `lean/Proofs` (and `rocq/Proofs`, where it is proven in Rocq), and its command line in `app`
+(`bin/frflow <name> COMMAND`). None has a decision yet: each starts with no ledger, for its developer to decide. FrFlow's own suites test them, each whole in its
 `PortSuite` (`sbt "project/Lean/testOnly <name>.PortSuite"`), against what the library before the rebuild recorded
 (`reference/`).
 
-- `rooms` books meeting rooms: the example above.
-- `auth` is access control by a table of grants, and the smallest example.
+- `payments` is the example above: a payment stream handler over three services, each a structure, proven
+  through redelivery, a crash at any step and a second instance, in Lean and in Rocq.
+- `rooms` books meeting rooms: the decisions shown above.
+- `auth` is access control by a table of grants, and the smallest example; proven in Lean and in Rocq.
 - `keycloak` has realms, sign-in, token introspection and sign-out over HTTP. Its sessions are proven to follow the
   history of requests, and its store's lookup is known only by what is assumed of it.
 - `crm` is a multi-tenant CRM on SQLite with an HTTP API. Its expiry job is a program over the database, proven from
   the database's model.
+- `wallet` (one transfer service) and `shop` (a checkout over two services and a store) are services proven among
+  other calls in the shape before structures, a word per method (`updating`, `interleaving`).
 
 ## References
 
@@ -475,12 +430,9 @@ yet: each starts with no ledger, for its developer to decide. FrFlow's own suite
 - [docs/USAGE.md](docs/USAGE.md) describes the DSL, the commands, their output and exit codes, what Lean proves, the
   warnings, the web view and the modules.
 - [docs/DAG.md](docs/DAG.md) describes the design of the refinement graph.
-- [docs/LIFTED.md](docs/LIFTED.md) describes plain Scala read into the model (`lifted`, `FrSpec`): what is read, how
-  the Scala, the term and the Lean are held to one meaning, and what is not built yet.
-- Service-level examples, in direct-style Scala with each service's contracts in its companion, proven alone and
-  among other calls: [examples/payments](examples/payments/README.md) (a payment stream processor over three
-  services, each a structure: a `Declaration` of a trait, defined by the class that implements it),
-  [examples/wallet](examples/wallet/README.md) (one transfer service, the smallest) and
-  [examples/shop](examples/shop/README.md) (a checkout over two services and a store); the last two have a
-  word per method.
+- [docs/LIFTED.md](docs/LIFTED.md) describes plain Scala compiled into the model (`lifted`, `FrSpec`, structures):
+  what is read, how the Scala, the term and the prover's definition are held to one meaning, and what is not built
+  yet.
+- [docs/ROCQ.md](docs/ROCQ.md) describes the move from Lean to Rocq: how a model reads in Rocq, what is proven
+  there, and what is left.
 - [docs/redesign/](docs/redesign/ARCHITECTURE.md) is the design record of the library as it was rebuilt.
