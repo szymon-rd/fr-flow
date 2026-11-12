@@ -29,3 +29,8 @@ examples/*/lean/FrFlowAudit/
 .*.aux
 
 __pycache__/
+
+# Rocq's cache for `lia`, written where a proof is compiled.
+.lia.cache
+# Worktrees of agents working beside this checkout.
+.claude/worktrees/
