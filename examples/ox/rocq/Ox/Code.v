@@ -62,7 +62,7 @@ Inductive code :=
   | Lam_forkUnsupervised_1 (oxUnsupervised : OxError) (f : code) (result : nat)
   | Lam_supervisedError_1 (s : DefaultSupervisor) (em : nat) (capability : OxError) (f : code)
   | Lam_supervisedError_2 (f : code) (capability : OxError)
-  | Client (n : nat).                    (* a closure of the caller's *)
+  | Client (n : nat) (caps : list OxError).   (* a closure of the caller's, with the capabilities it holds *)
 
 Abbreviation val := (Jdk.val code obj).
 Abbreviation M := (Lang.M code obj).
@@ -451,7 +451,7 @@ Definition supervised (f : code) : M val :=
 Section Interp.
 
   (** The caller's closures. *)
-  Variable client : nat -> val -> M val.
+  Variable client : nat -> list OxError -> val -> M val.
 
   Definition interp (c : code) (arg : val) : M val :=
     match c with
@@ -461,7 +461,7 @@ Section Interp.
     | Lam_forkUnsupervised_1 oxUnsupervised f result => Lam_forkUnsupervised_1_body oxUnsupervised f result arg
     | Lam_supervisedError_1 s em capability f => Lam_supervisedError_1_body s em capability f arg
     | Lam_supervisedError_2 f capability => Lam_supervisedError_2_body f capability arg
-    | Client n => client n arg
+    | Client n caps => client n caps arg
     end.
 
 End Interp.
