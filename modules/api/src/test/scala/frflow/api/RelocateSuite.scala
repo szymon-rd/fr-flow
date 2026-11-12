@@ -29,15 +29,6 @@ class RelocateSuite extends munit.CatsEffectSuite:
       e.theory.nodes.map(_.at.file))
   }
 
-  test("the files code refers to are made relative to the project too: rooms' calendar, its table's Scala") {
-    val rooms = Relocate(Projects.rooms, Path.of(""),
-      Path.of("").toAbsolutePath.resolve("examples/rooms"))
-    val tested = rooms.theory.code.attached.values.flatMap(_.code.scala).flatMap(_.files).map(_.path.value).toList
-    val modelled = rooms.theory.code.implemented.values.flatMap(_.files).map(_.path.value).toList
-    assert(tested.contains("src/main/scala/rooms/Calendar.scala"), tested)
-    assert(modelled.contains("src/main/scala/rooms/BookingsTable.scala"), modelled)
-  }
-
   test("the project's own model file is not ungoverned once relocated; as recorded it would be") {
     val file = moved.theory.nodes.map(_.at.file).headOption.getOrElse(fail("no node"))
     val sources = RelPath.parse("src/test").getOrElse(fail("no path"))
@@ -51,9 +42,9 @@ class RelocateSuite extends munit.CatsEffectSuite:
       assertEquals(asIs, List(Warning.Ungoverned(file)))
   }
 
-  test("status over examples/rooms, its files as on disk, every node proven and its code tested: no warning") {
+  test("status over examples/rooms, its files as on disk, every node proven: no warning") {
     val dir = Projects.base.resolve("examples/rooms")
-    val files = List("src/main", "lean/Proofs").flatMap(d => Using.resource(Files.walk(dir.resolve(d)))(
+    val files = List("src/main").flatMap(d => Using.resource(Files.walk(dir.resolve(d)))(
       _.iterator.asScala.filter(Files.isRegularFile(_)).toList)).map(f =>
       RelPath.parse(dir.relativize(f).toString).getOrElse(fail(s"no path: $f")) -> Files.readString(f))
     val rooms = Opened.rooms.copy(model = Relocate(Projects.rooms, Projects.base, dir))
@@ -63,7 +54,7 @@ class RelocateSuite extends munit.CatsEffectSuite:
       checked  <- Opened.checked(api.proving.check(None))
       warnings <- api.reading.view.map(_.warnings)
     yield
-      assert(checked.nodes.size >= 16 && files.exists(_._1.value.endsWith("Domain.scala")), files.map(_._1))
+      assert(checked.nodes.size >= 5 && files.exists(_._1.value.endsWith("Domain.scala")), files.map(_._1))
       assertEquals(warnings, Nil)
   }
 

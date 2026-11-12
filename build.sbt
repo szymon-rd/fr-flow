@@ -51,7 +51,9 @@ val strict = Seq("-Wunused:all", "-Wnonunit-statement", "-Wvalue-discard")
 def module(name: String, libraries: ModuleID*) = Project(name, file(s"modules/$name"))
   .configs(LeanTest, RocqTest).settings(leanTagged)
   .settings(Keys.name := s"frflow-$name", libraryDependencies ++= munit +: inspector +: libraries,
-    scalacOptions ++= strict)
+    scalacOptions ++= strict,
+    // The tests read the examples, whose classes are checked for capture and separation: experimental in Scala.
+    Test / scalacOptions += "-experimental")
 
 // What reads a compiled class's TASTy as a model is built (`dsl.compiled.Inspect`). sbt does not pass a Scala
 // compiler artifact on from a project to those that depend on it, so every project names it.
@@ -200,9 +202,12 @@ def commandLine(p: Project, layers: Seq[ClasspathDep[ProjectReference]], tests: 
       (Compile / runMain).toTask((Seq("frflow.web.Serve", main) ++ args).mkString(" ", " ", ""))
     }.evaluated)
 
+/** What capture and separation checking need of the compiler: they are experimental. */
+val checked = Seq(scalacOptions += "-experimental")
+
 /** Booking meeting rooms: a request is granted exactly when its room is free; the README's example. */
-lazy val roomsModel = exampleModel("rooms")
-lazy val rooms = exampleApp("rooms", roomsModel, layers = Nil)
+lazy val roomsModel = exampleModel("rooms").settings(checked)
+lazy val rooms = exampleApp("rooms", roomsModel, layers = Nil).settings(checked)
 
 /** Access control: who can access what, refined through grants, sessions and requests to proven code. */
 lazy val authModel = exampleModel("auth")
@@ -224,6 +229,5 @@ lazy val shop = exampleApp("shop", shopModel, layers = Nil).settings(readClasses
   * are read from their TASTy as the model is built, so the compiler keeps nothing for it; what capture and
   * separation checking need is marked experimental.
   */
-val checked = Seq(scalacOptions += "-experimental")
 lazy val paymentsModel = exampleModel("payments").settings(checked)
 lazy val payments = exampleApp("payments", paymentsModel, layers = Nil).settings(checked)

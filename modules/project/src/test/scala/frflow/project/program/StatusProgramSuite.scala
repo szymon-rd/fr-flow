@@ -27,16 +27,17 @@ class StatusProgramSuite extends munit.CatsEffectSuite:
         Some(a.subjects.inOrder.map(_.id.value)))
   }
 
-  test("the snapshot says how each claim is checked, the Definition it is a call of, and its examples as checked") {
+  test("the snapshot says how each claim is checked, the code it is proven of, and its examples as checked") {
     for
       p    <- Projects.inMemory(Map.empty)
       a    <- Projects.analysed(p, Projects.rooms, Projects.roomsExamples)
       text <- ExportProgram(p.files)(a)
     yield
       val s = Files.read(Snapshot.format, text).fold(e => fail(e.toString), identity)
-      val grant = s.nodes.find(_.header.id == "grantWhenNoOverlap").map(_.body)
+      val grant = s.nodes.find(_.header.id == "answerWhenNoOverlap").map(_.body)
       assert(grant.exists {
-        case Body.Stated(checking, call, _, _) => call.contains("granted") && checking.nonEmpty
+        case Body.Stated(checking, _, code, _) =>
+          checking.nonEmpty && code.exists(_.proven.contains("storedBookings_book"))
         case _                                 => false
       }, grant)
       assertEquals(s.examples.map(_.onCode), List("holds", "holds"))
@@ -47,8 +48,8 @@ class StatusProgramSuite extends munit.CatsEffectSuite:
       p <- Projects.inMemory(Map.empty)
       a <- Projects.analysed(p, Projects.rooms, Nil)
     yield
-      val shown = NodeReport.of(a, NodeId("grantWhenFree"))
+      val shown = NodeReport.of(a, NodeId("bookWhenFree"))
       assertEquals(shown.map(r => (r.reviewed.subject.id, r.recent.check, r.recent.tests, r.binding)),
-        Some((NodeId("grantWhenFree"), None, None, None)))
+        Some((NodeId("bookWhenFree"), None, None, None)))
       assertEquals(NodeReport.of(a, NodeId("gone")), None)
   }

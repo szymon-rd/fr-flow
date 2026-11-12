@@ -52,3 +52,10 @@ import scala.annotation.experimental
     assertEquals(checked.stated.keySet.count(_.endsWith("/Theorems.v")), 4)
     assertEquals(checked.assumed.diff(allowed), Set.empty[String])
   }
+
+  test("the rooms model is proven in Rocq: the code books as it checks, and the purpose follows".tag(Rocq)) {
+    val (checked, shown) = read(rooms.rooms, "rooms")
+    assertEquals(open(checked), Map.empty[String, List[String]])
+    assertEquals(shown.size, 5)
+    assertEquals(checked.assumed.diff(allowed), Set.empty[String])
+  }

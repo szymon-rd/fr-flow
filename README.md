@@ -196,100 +196,40 @@ among other calls (`amongOthers`): before each step but the first, the others ma
 Of the example's 29 claims, Lean proves 26 by FrFlow's tactic and 3 from proofs by hand, and all 8 examples. Rocq
 proves 27 by the tactic and 2 by hand ([docs/ROCQ.md](docs/ROCQ.md)).
 
-## Decisions at work: booking meeting rooms
+## A second example: booking meeting rooms
 
-A model is decided and kept the same way whatever it is about. [`examples/rooms`](examples/rooms) is the one whose
-decisions FrFlow's suites replay: people book meeting rooms for a stretch of time, and a room holds one meeting at
-a time. It is written with `define`, a `program` over a store and a calendar in plain Scala that is tested.
+[`examples/rooms`](examples/rooms) is the smallest model with code: people book meeting rooms for a stretch of
+time, and a room holds one meeting at a time. It has one service, `Bookings`, and three claims that say its
+purpose in the words of the domain: a room is free for a request when no moment would be booked twice.
 
-### How it works
-
-`bin/frflow rooms check` proves the steps in Lean, tests the calendar against `grantWhenNoOverlap` and the table's
-Scala against its model on generated cases, and has Lean prove that a meaning exists for the `Declaration`s under which
-every statement holds. Once the developer has accepted every node (`bin/frflow rooms review`), it ends:
-
-```text
-Consistency: a meaning for what is open under which every statement holds
-  bookedIsStored: proven
-    booked: as bookedIsStored defines it
-  bookedAfterIsStored, acceptedIsAnswered, grantWhenNoOverlap: proven
-    granted: as grantWhenNoOverlap defines it
-    bookedAfter: as bookedAfterIsStored defines it
-    accepted: as acceptedIsAnswered defines it
-
-FrModel: 16 nodes, 16 accepted
-Code: 4 proven, 3 tested; consistency proven
-Examples: 2/2 pass
-Nothing waits: every node is accepted and proven, or its code tested.
+```scala
+val acceptWhenFree = Node.claim("A request is accepted exactly when its room is free for its whole time.")(
+  forall((request: Term[Booking]) =>
+    wellFormed(bookings.booked, request) implies
+      (bookings.book(request).result === free(bookings.booked, request))))
 ```
 
-### How changes cause failures
+The code does not look at moments. It compares when bookings start and end:
 
-The calendar forgets the booking after the request. Property-based testing finds a case that fails:
-
-```diff
-     val before = byStart.lift(i - 1)
--    val after = byStart.lift(i)
-     val endsInTime = before.forall(_.end <= request.start)
--    val startsAfter = after.forall(_.start >= request.end)
--    request.room != held.room || (endsInTime && startsAfter)
-+    request.room != held.room || endsInTime
+```scala
+final class StoredBookings(var booked: List[Booking]) extends Bookings:
+  update def book(request: Booking): Boolean =
+    val fits = booked.forall(b => b.room != request.room || b.end <= request.start || request.end <= b.start)
+    if fits then booked = booked :+ request
+    fits
 ```
 
-```text
-x grantWhenNoOverlap: fails a generated case: (("Elm", List(("Elm", 0, 5))), ("Elm", 0, 1)): its result breaks the claim (seed 1, case 11, size 1)
-```
+So the model has a step between the two. Two claims say what the code does as it checks it
+(`answerWhenNoOverlap`, `storeWhenNoOverlap`), and the prover shows the class meets them by itself. The three
+claims of the purpose refine into those, and each is proven from them by a short proof by hand: for bookings
+that end after they start, sharing no moment and not overlapping are the same
+([`rocq/Proofs/Rooms`](examples/rooms/rocq/Proofs/Rooms)).
 
-An agent takes meetings that touch to overlap, and changes the claim over times, the calendar and the examples to
-match. The calendar's tests pass, but Lean refutes the step to `grantWhenFree` with a case it confirms, and the lemmas
-over the same times no longer build, so the rules resting on them stay open:
-
-```diff
- val noOverlap = define { (a: Term[Booking], b: Term[Booking]) =>
--  a.room =!= b.room || a.end <= b.start || b.end <= a.start }
-+  a.room =!= b.room || a.end < b.start || b.end < a.start }
-```
-
-```text
-x grantWhenFree: failed
-  complete: open
-  …
-  a step is refuted on: held = ("Elm", List(("Elm", 0, 3))), request = ("Elm", 3, 5)
-```
-
-The agent also changes `covers` to include the end. Now everything agrees with the misreading and every proof passes,
-but the change reaches every claim, so all 12 go back to the developer. `bin/frflow rooms review` shows each, and
-`bin/frflow rooms diff bookWhenFree` what changed:
-
-```diff
--val covers = define { (b: Term[Booking], t: Term[BigInt]) => b.start <= t && t < b.end }
-+val covers = define { (b: Term[Booking], t: Term[BigInt]) => b.start <= t && t <= b.end }
-```
-
-```text
-! bookWhenFree  claim (a root)  to review
-  Once a request is handled, the bookings are those before it, with the request added if its room is free for its whole time.
-
-Decision
-  to review: it changed
-  not mechanical: its meaning moved
-  …
-```
-
-```text
-formula:
-  (∀ (x : Booking), (∀ (x_1 : World), ((bookedAfter x x_1) = (Rooms.addedIfFree (booked x_1) x))))
-  
-  ...
-  
-  @[frflow_defs] def covers (x : Booking) (x_1 : Int) : Prop :=
--   ((x.start ≤ x_1) ∧ (x_1 < x.«end»))
-+   ((x.start ≤ x_1) ∧ (x_1 ≤ x.«end»))
-```
-
-Only the developer's signed decisions count, so an agent cannot accept the change. `WalkthroughSuite` replays these
-three changes and compares what `check`, `status`, `review` and `diff` print with the text above
-(`sbt "cli/Lean/testOnly rooms.walkthrough.WalkthroughSuite"`).
+That step is where a change is caught. If the code forgets one of its two comparisons, its own claim is no
+longer proven. If the definition of an overlap is misread (`<` for `<=`), the code still meets its claims and
+the step to the purpose fails. If the misreading is carried into the purpose itself, every proof passes again,
+but the purpose changed, so its claims go back to the developer for review with the diff: only a signed
+decision accepts them.
 
 ## Statements
 
@@ -402,7 +342,7 @@ FrFlow's own suites test them whole (`sbt leanTest`, `sbt rocqTest`).
 
 - `payments` is the example above: a payment stream handler over three services, each a structure, proven
   through redelivery, a crash at any step and a second instance, in Lean and in Rocq.
-- `rooms` books meeting rooms: the decisions shown above.
+- `rooms` books meeting rooms: the second example above, one service proven in Rocq.
 - `auth` is access control by a table of grants, and the smallest example; proven in Lean and in Rocq.
 - `shop` is a checkout over two services and a store, proven among other calls in the shape before structures,
   a word per method (`updating`, `interleaving`).

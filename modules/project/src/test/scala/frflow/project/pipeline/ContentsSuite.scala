@@ -2,7 +2,6 @@ package frflow.project.pipeline
 
 import frflow.core.Elaborated
 import frflow.core.name.NodeId
-import frflow.decision.content.FieldValue
 import frflow.project.Projects
 
 /** A node's decided form (`Contents.of`): each field once, in the one order; what its code is and, for a store
@@ -28,26 +27,8 @@ class ContentsSuite extends munit.FunSuite:
   }
 
   test("a formula is what it means, as Lean is given it; what the developer wrote is shown beside it") {
-    val c = Contents.of(lowered(Projects.rooms), NodeId("bookingsEndAfterStart"))
-    assertEquals(c.text("written"), "always[Booking](b => b.start < b.end)")
-    assert(c.text("formula").startsWith("(∀ (x : Booking), (Rooms.bookingsEndAfterStart x))") &&
-      c.text("formula").contains("<"), c.text("formula"))
-  }
-
-  test("a claim on a Definition with plain Scala says the Scala; a proven program's claim, its program") {
-    val r = lowered(Projects.rooms)
-    def implementation(id: String) = Contents.of(r, NodeId(id)).text("implementation")
-    assert(implementation("grantWhenNoOverlap").startsWith("granted: Scala, "), implementation("grantWhenNoOverlap"))
-    assert(implementation("storeWhenFree").contains("book: proven program, "), implementation("storeWhenFree"))
-  }
-
-  test("only the code changing a model's state: the model's operations as Lean is given them, and their Scala") {
-    val contents = Contents.of(lowered(Projects.rooms), NodeId("nothingElseWrites"))
-    val model = contents.get("model")
-    assert(model.exists {
-      case FieldValue.Texts(lines) => lines.exists(_.contains("namespace StoredBookings")) &&
-          lines.exists(_.contains("inRoom"))
-      case _                       => false
-    }, model)
-    assert(contents.texts("implementations").exists(_.contains("BookingsTable.holding")), contents)
+    val c = Contents.of(lowered(Projects.rooms), NodeId("answerWhenNoOverlap"))
+    assert(c.text("written").contains("bookings.book(request).result"), c.text("written"))
+    assert(c.text("formula").startsWith("(∀ (x : Bookings), (∀ (x_1 : Booking),") &&
+      c.text("formula").contains("Rooms.noOverlap"), c.text("formula"))
   }

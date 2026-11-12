@@ -34,16 +34,6 @@ class CompletenessSuite extends munit.FunSuite:
     }
   }
 
-  test("an obligation gone from rooms' Lean is missed: a cover_, a made_ of a maker, the made_ at one call") {
-    val a = analyses.head._2
-    List("neverOverlap" -> "cover_book", "bookingsOfTheRoom" -> "made_inRoom",
-      "bookingsOfTheRoom" -> "made_bookIfGranted_call_1", "bookingsOfTheRoom" -> "made_bookIfGranted_call_3")
-      .foreach { (rule, obligation) =>
-        val gone = without(a.modules, Layout(a.decided.theory.name), NodeId(rule), obligation)
-        assertEquals(Completeness.of(a.decided, gone).map(m => (m.node.value, m.obligation)), List(rule -> obligation))
-      }
-  }
-
   test("a term built into an obligation ill-formed, or an obligation gone, is a FrFlow bug: no Lean is laid out") {
     import frflow.core.expr.Expr
     import frflow.core.name.{SourceText, SymbolName}
@@ -55,11 +45,11 @@ class CompletenessSuite extends munit.FunSuite:
     assertEquals(WellFormed.of(a.decided, built), Nil)
     val big = frflow.core.ty.Ty.Num(frflow.core.ty.NumKind.Big)
     val misread = frflow.core.spec.Written.formula([T[_]] => (s: frflow.core.term.language.Sym[T]) =>
-      s.eq(s.param[BigInt](SymbolName("inRoom"), big), s.param[BigInt](SymbolName("inRoom"), big)), SourceText("…"))
-    val ill = Obligation(ObligationName.Made("inRoom"), Prop.Formula(misread, Map.empty), Discharge.Auto, "…")
+      s.eq(s.param[BigInt](SymbolName("free"), big), s.param[BigInt](SymbolName("free"), big)), SourceText("…"))
+    val ill = Obligation(ObligationName.Made("free"), Prop.Formula(misread, Map.empty), Discharge.Auto, "…")
     assertEquals(WellFormed.of(a.decided, List(ill)), List.fill(2)(ill.name ->
-      IrError.Mistyped(Expr.Sym(SymbolName("inRoom"), big))))
-    val gone = without(a.modules, Layout(a.decided.theory.name), NodeId("neverOverlap"), "cover_book")
+      IrError.Mistyped(Expr.Sym(SymbolName("free"), big))))
+    val gone = without(a.modules, Layout(a.decided.theory.name), NodeId("storeWhenNoOverlap"), "impl")
     List(() => Audit.checked(a.decided, ill :: built, a.modules), () => Audit.checked(a.decided, built, gone))
       .map(laid => intercept[IllegalStateException](laid())).foreach(e => assert(e.getMessage.startsWith("FrFlow bug")))
     assertEquals(Audit.checked(a.decided, built, a.modules), a.modules)

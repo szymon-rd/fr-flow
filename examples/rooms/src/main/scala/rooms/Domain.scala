@@ -2,19 +2,10 @@ package rooms
 
 import frflow.*
 
-// Rooms' words, before anything that uses them: the types, the Definitions code gives a meaning, the defines the
-// statements are written with, and the Declarations the purpose is stated over. A `Booking` is what the booking form
-// sends and what the table stores (owner §25).
+// Rooms' words, before anything that uses them: a booking, and the defines the statements are written with.
 
-/** What the booking form sends and the table stores. */
-final case class Booking(room: String, start: BigInt, end: BigInt) derives LeanType
-
-/** A room's bookings, as the table gives them. */
-final case class RoomBookings(room: String, bookings: List[Booking]) derives LeanType
-
-val granted = Declaration[(RoomBookings, Booking) => Boolean]("whether a request is granted, given its room's bookings")
-
-val book = Declaration[Booking => Flow[Boolean]]("booking a request: whether it was booked")
+/** What the booking form sends and the bookings hold. */
+final case class Booking(room: String, start: BigInt, end: BigInt) derives FrSpec
 
 /** A booking covers the moments from its start up to its end. */
 val covers = define { (b: Term[Booking], t: Term[BigInt]) => b.start <= t && t < b.end }
@@ -38,10 +29,9 @@ val addedIfFree = define { (bookings: Term[List[Booking]], request: Term[Booking
 val noOverlap = define { (a: Term[Booking], b: Term[Booking]) =>
   a.room =!= b.room || a.end <= b.start || b.end <= a.start }
 
-// The purpose: what is booked, and whether a request is accepted. Each is a Declaration, known only by what the
-// statements say of it, read in the world as it stands (owner §41). A request is a booking asked for.
-val booked = Declaration[List[Booking]]("the bookings made, as the world stands")
+/** A booking ends after it starts: what the booking form lets through. */
+val endsAfterStart = define { (b: Term[Booking]) => b.start < b.end }
 
-val bookedAfter = Declaration[Booking => List[Booking]]("the bookings made once a request is handled")
-
-val accepted = Declaration[Booking => Boolean]("whether a request is accepted")
+/** The bookings and a request are as the booking form lets them through. */
+val wellFormed = define { (bookings: Term[List[Booking]], request: Term[Booking]) =>
+  bookings.forall(b => endsAfterStart(b)) && endsAfterStart(request) }

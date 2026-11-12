@@ -2,7 +2,6 @@ package frflow.api
 
 import frflow.api.fixture.{Opened, Shelf}
 import frflow.api.node.lean.{ObligationState, ObligationView}
-import frflow.api.view.Warning
 import frflow.api.view.whole.{ExampleOutcome, ExampleView, OnClaims}
 import frflow.eval.run.OnCode
 
@@ -12,26 +11,9 @@ import frflow.eval.run.OnCode
   * the claims do not decide them.
   */
 class WholeSuite extends munit.CatsEffectSuite:
-  test("a start Lean does not prove is in the view with Lean's messages, warned of, and the project is not complete") {
-    for
-      proven <- Opened.api(Opened.rooms).flatMap(api => Opened.checked(api.proving.check(None)))
-      first   = proven.whole.starts.headOption.getOrElse(fail("rooms has no start"))
-      failed <- Opened.api(Opened.rooms, lean = Lean.Proving(Set(first.check.theorem), Set.empty))
-                  .flatMap(api => Opened.checked(api.proving.check(None)))
-    yield
-      assertEquals(proven.whole.starts.map(_.check.state).distinct, List(ObligationState.Proven))
-      assert(first.check.theorem.startsWith("start_"), first)
-      assertEquals(proven.warnings.collect { case w: Warning.StartNotProven => w }, Nil)
-      val start = failed.whole.starts.find(_.statement == first.statement).getOrElse(fail("no start"))
-      assertNotEquals(start.check.state, ObligationState.Proven)
-      assert(start.check.messages.exists(_.error), start.check)
-      assert(failed.warnings.contains(Warning.StartNotProven(first.statement)), failed.warnings)
-      assert(!failed.overview.complete)
-  }
-
   test("each consistency group and each thing shown possible carries Lean's outcome of its theorem") {
     Opened.api(Opened.rooms).flatMap(api => Opened.checked(api.proving.check(None))).map { v =>
-      assert(v.whole.groups.nonEmpty && v.whole.groups.forall(_.check.theorem.startsWith("consistent_")), v.whole)
+      assert(v.whole.groups.forall(_.check.theorem.startsWith("consistent_")), v.whole)
       assert(v.whole.possible.forall((_, c) => c.state != ObligationState.Unchecked), v.whole.possible)
     }
   }

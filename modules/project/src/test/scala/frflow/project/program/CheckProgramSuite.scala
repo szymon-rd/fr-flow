@@ -2,6 +2,8 @@ package frflow.project.program
 
 import cats.effect.IO
 import cats.syntax.all.*
+import frflow.core.Elaborated
+import frflow.core.example.Example
 import frflow.core.name.{NodeId, RelPath}
 import frflow.project.Projects
 import frflow.project.check.{CheckProgram, Render}
@@ -22,9 +24,15 @@ class CheckProgramSuite extends munit.CatsEffectSuite:
 
   private def checked(only: Option[NodeId] = None)(say: Analysis => ModuleName => ProverRun)
       : IO[(List[NodeCheck], Analysis, ScriptedLake[IO], Projects.InMemory)] =
+    checkedOf(Projects.rooms, Projects.roomsExamples, only)(say)
+
+  private lazy val auth = Projects.elaborated(_root_.auth.knowledge)
+
+  private def checkedOf(e: Elaborated, examples: List[Example], only: Option[NodeId])(
+      say: Analysis => ModuleName => ProverRun): IO[(List[NodeCheck], Analysis, ScriptedLake[IO], Projects.InMemory)] =
     for
       p    <- Projects.inMemory(Map.empty)
-      a    <- Projects.analysed(p, Projects.rooms, Projects.roomsExamples)
+      a    <- Projects.analysed(p, e, examples)
       lake <- ScriptedLake[IO](say(a), installed = true)
       out  <- CheckProgram(p.files, lake, library, RunCode.inline[IO])(a, only)
     yield (out._1, out._2, lake, p)
@@ -36,25 +44,24 @@ class CheckProgramSuite extends munit.CatsEffectSuite:
     case ProverRun.Failed(o) => ProverRun.Failed(o.linesIterator.filterNot(_.contains("axioms")).mkString("\n"))
     case other               => other
 
-  private val stated = List("bookWhenFree", "acceptWhenFree", "bookedIsStored", "bookedAfterIsStored",
-    "acceptedIsAnswered", "storeWhenFree", "answerWhenFree", "neverOverlap", "grantWhenFree", "bookingsOfTheRoom",
-    "roomBookingsApart", "grantWhenNoOverlap", "bookingsEndAfterStart").map(NodeId(_))
+  private val stated = List("bookWhenFree", "acceptWhenFree", "neverOverlap", "storeWhenNoOverlap",
+    "answerWhenNoOverlap").map(NodeId(_))
 
   test("every node Lean is asked of is checked, parts first, proven when Lean proves each obligation") {
     checked()(proving).map { (done, a, _, _) =>
       assertEquals(done.map(_.node).toSet, stated.toSet)
       assertEquals(done.filter(_.status != CheckStatus.Proven).map(c => c.node -> c.findings), Nil)
       val order = done.map(_.node)
-      assert(order.indexOf(NodeId("grantWhenNoOverlap")) < order.indexOf(NodeId("grantWhenFree")), order)
-      assert(order.indexOf(NodeId("grantWhenFree")) < order.indexOf(NodeId("bookWhenFree")), order)
+      assert(order.indexOf(NodeId("storeWhenNoOverlap")) < order.indexOf(NodeId("bookWhenFree")), order)
+      assert(order.indexOf(NodeId("answerWhenNoOverlap")) < order.indexOf(NodeId("acceptWhenFree")), order)
       assert(a.inputs.recorded.checks.whole.exists(_.key == a.keys.whole))
     }
   }
 
   test("a try Lean does not prove is an error in the checks module and shows nothing; the obligations there hold") {
     checked()(proving).map { (done, _, _, _) =>
-      val book = done.find(_.node == NodeId("grantWhenFree")).getOrElse(fail("not checked"))
-      assert(book.results.exists(_.name == ObligationName.Complete), book.results)
+      val book = done.find(_.node == NodeId("bookWhenFree")).getOrElse(fail("not checked"))
+      assert(book.results.exists(_.name == ObligationName.Impl), book.results)
       assert(book.results.collect { case Result(ObligationName.Tried(_), s, _) => s }
         .forall(_ == ObligationStatus.NotShown), book.results)
     }
@@ -73,15 +80,15 @@ class CheckProgramSuite extends munit.CatsEffectSuite:
   }
 
   test("a model that does not build ends that node's check (ModelError); the nodes above wait for it") {
-    val bad = NodeId("grantWhenNoOverlap")
+    val bad = NodeId("storeWhenNoOverlap")
     checked() { a => m =>
       if m == a.lowering.layout.ofNode(bad, NodePart.Spec) then ProverRun.Failed(
-        "error: FrFlowGen/Rooms/grantWhenNoOverlap/Spec.lean:3:0: unknown identifier")
+        "error: FrFlowGen/Rooms/storeWhenNoOverlap/Spec.lean:3:0: unknown identifier")
       else proving(a)(m)
     }.map { (done, _, _, _) =>
       val status = done.map(c => c.node -> c.status).toMap
       assertEquals(status(bad), CheckStatus.ModelError)
-      assertEquals(status(NodeId("grantWhenFree")), CheckStatus.Waiting)
+      assertEquals(status(NodeId("bookWhenFree")), CheckStatus.Waiting)
     }
   }
 
@@ -93,13 +100,13 @@ class CheckProgramSuite extends munit.CatsEffectSuite:
   }
 
   test("a module Lake did not run (one it imports failed) proves nothing and shows nothing: the check is open") {
-    val node = NodeId("neverOverlap")
-    checked(Some(node))(a => m => if m == a.lowering.layout.ofNode(node, NodePart.Checks) then
+    val node = NodeId("storeWhenNoOverlap")
+    checked(Some(node))(a => m => if m == a.lowering.layout.ofNode(node, NodePart.Impl) then
       ProverRun.Failed("✖ [2/3] Building FrFlowGen.Rooms.Types\nerror: FrFlowGen/Rooms/Types.lean:1:0: oops")
       else proving(a)(m)).map { (done, _, _, _) =>
       val c = done.find(_.node == node).getOrElse(fail("not checked"))
       assertEquals(c.status, CheckStatus.Open)
-      assert(c.results.exists(r => r.name == ObligationName.Cover("book") && r.status == ObligationStatus.Unchecked),
+      assert(c.results.exists(r => r.name == ObligationName.Impl && r.status == ObligationStatus.Unchecked),
         c.results)
       assert(c.results.collect { case Result(ObligationName.Tried(_), s, _) => s }.forall(_ ==
         ObligationStatus.NotShown), c.results)
@@ -107,19 +114,19 @@ class CheckProgramSuite extends munit.CatsEffectSuite:
   }
 
   test("a proof whose audit Lean did not print is not checked (fail closed): the node is open") {
-    val node = NodeId("neverOverlap")
-    checked(Some(node))(a => m => if m == a.lowering.layout.ofNode(node, NodePart.Checks) then
+    val node = NodeId("storeWhenNoOverlap")
+    checked(Some(node))(a => m => if m == a.lowering.layout.ofNode(node, NodePart.Impl) then
       unaudited(proving(a)(m)) else proving(a)(m)).map { (done, _, _, _) =>
       val c = done.find(_.node == node).getOrElse(fail("not checked"))
       assertEquals(c.status, CheckStatus.Open)
-      assert(c.results.exists(r => r.name == ObligationName.Cover("book") && r.status == ObligationStatus.Unchecked),
+      assert(c.results.exists(r => r.name == ObligationName.Impl && r.status == ObligationStatus.Unchecked),
         c.results)
     }
   }
 
   test("a composition whose audit Lean did not print does not prove the node") {
-    val node = NodeId("grantWhenFree")
-    checked(Some(node))(a => m => if m == a.lowering.layout.ofNode(node, NodePart.Theorems) then
+    val node = NodeId("accessNeedsGrant")
+    checkedOf(auth, Nil, None)(a => m => if m == a.lowering.layout.ofNode(node, NodePart.Theorems) then
       unaudited(proving(a)(m)) else proving(a)(m)).map { (done, _, _, _) =>
       assertEquals(done.find(_.node == node).map(c => (c.status, c.findings)),
         Some((CheckStatus.Open, List(Finding.NotProven(Nil)))))
@@ -146,8 +153,8 @@ class CheckProgramSuite extends munit.CatsEffectSuite:
   }
 
   test("a build that times out ends the check (Timeout); only that node is checked when it is named") {
-    val node = NodeId("roomBookingsApart")
-    checked(Some(node))(a => m => if m.dotted.contains(".roomBookingsApart.") then ProverRun.TimedOut("") else
+    val node = NodeId("answerWhenNoOverlap")
+    checked(Some(node))(a => m => if m.dotted.contains(".answerWhenNoOverlap.") then ProverRun.TimedOut("") else
       proving(a)(m)).map { (done, _, _, _) =>
       assertEquals(done.map(c => c.node -> c.status), List(node -> CheckStatus.Timeout))
     }

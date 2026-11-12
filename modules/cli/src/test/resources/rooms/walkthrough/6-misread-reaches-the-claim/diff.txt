@@ -1,8 +1,0 @@
-formula:
-  (∀ (x : Booking), (∀ (x_1 : World), ((bookedAfter x x_1) = (Rooms.addedIfFree (booked x_1) x))))
-  
-  ...
-  
-  @[frflow_defs] def covers (x : Booking) (x_1 : Int) : Prop :=
--   ((x.start ≤ x_1) ∧ (x_1 < x.«end»))
-+   ((x.start ≤ x_1) ∧ (x_1 ≤ x.«end»))

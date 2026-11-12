@@ -9,7 +9,7 @@ import frflow.project.{Live, Ported, Projects}
 import frflow.project.Ported.Lean
 import frflow.proof.obligation.ObligationName
 import frflow.proof.verdict.{ObligationStatus, Result}
-import frflow.testing.Tested
+import whole.Tested
 import frflow.testing.report.Failure
 import scala.concurrent.duration.*
 

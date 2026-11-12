@@ -2,12 +2,9 @@ package frflow.project.pipeline
 
 import frflow.core.name.NodeId
 import frflow.decision.review.Unproven
-import frflow.eval.EvalError
 import frflow.project.Projects
 import frflow.proof.obligation.ObligationName
 import frflow.proof.verdict.*
-import frflow.testing.report.Seed
-import frflow.testing.report.*
 import java.time.Instant
 
 /** What of a node is not proven again, as decisions read it: only current checks and reports count; Lean proves its
@@ -16,14 +13,11 @@ import java.time.Instant
   */
 class ReadProofSuite extends munit.FunSuite:
   private val a = Projects.bare(Projects.rooms)
-  private val (book, grant) = (NodeId("storeWhenFree"), NodeId("grantWhenNoOverlap"))
+  private val (book, grant) = (NodeId("storeWhenNoOverlap"), NodeId("answerWhenNoOverlap"))
 
   private def checked(id: NodeId, key: CheckKey, results: Result*): Analysis =
     a.withRecorded(Recorded(Checks(Map(id -> NodeCheck(id, key, CheckStatus.Proven, results.toList, Nil,
       Instant.EPOCH)), None), Map.empty, Map.empty))
-  private def reported(count: Count, outcome: Outcome): Analysis =
-    a.withRecorded(Recorded(Checks.none, Map(grant -> (TestKeys.of(a, grant), TestReport(count, Seed(1),
-      Against.Claim(grant), outcome, Nil, Nil))), Map.empty))
   private def standing(on: Analysis, id: NodeId) = on.subjects.get(id).map(_.proof).getOrElse(fail(id.value))
 
   test("a leaf its code checks is not one with nothing below it; a leaf nothing checks is") {
@@ -46,38 +40,6 @@ class ReadProofSuite extends munit.FunSuite:
     val stale = checked(book, CheckKey("moved"), Result(ObligationName.Impl, ObligationStatus.Proven, Nil))
     assert(!standing(stale, book).codeProven)
     assert(standing(stale, book).unproven.contains(Unproven.Check))
-  }
-
-  test("a report not checked is no failing test; a checked one short of cases is; with none, it is not tested yet") {
-    def tests(on: Analysis) = standing(on, grant).unproven.contains(Unproven.Tests)
-    assert(!tests(reported(Count(200, 4), Outcome.NotChecked(EvalError.Quantified))))
-    assert(tests(reported(Count(200, 198), Outcome.Passed)))
-    assert(!tests(reported(Count(200, 200), Outcome.Passed)))
-    assert(!tests(a) && standing(a, grant).unproven.contains(Unproven.NotTested))
-  }
-
-  test("what always holds of a store is not consistent until the states it starts in are proven to meet it") {
-    def proving(names: List[ObligationName]) = a.withRecorded(Recorded(Checks(Map.empty, Some(WholeCheck(a.keys.whole,
-      names.map(Result(_, ObligationStatus.Proven, Nil)), Instant.EPOCH))), Map.empty, Map.empty))
-    val all = a.whole.map(_.name)
-    val ids = all.collect { case ObligationName.Start(n) => n }
-    val (every, startsOpen) = (proving(all), proving(all.filterNot(_.isInstanceOf[ObligationName.Start])))
-    assert(ids.nonEmpty)
-    assertEquals(ids.filter(standing(startsOpen, _).unproven.contains(Unproven.Consistency)), ids)
-    assertEquals(ids.filter(standing(every, _).unproven.contains(Unproven.Consistency)), Nil)
-  }
-
-  test("a root over Declarations is red while the group saying what they are is not proven, and only then") {
-    def proving(names: List[ObligationName]) = a.withRecorded(Recorded(Checks(Map.empty, Some(WholeCheck(a.keys.whole,
-      names.map(Result(_, ObligationStatus.Proven, Nil)), Instant.EPOCH))), Map.empty, Map.empty))
-    val all = a.whole.map(_.name)
-    val groups = all.collect { case c: ObligationName.Consistent => c }
-    def red(on: Analysis) = List("bookWhenFree", "acceptWhenFree").map(NodeId(_))
-      .filter(standing(on, _).unproven.contains(Unproven.Consistency))
-    assert(groups.nonEmpty)
-    assertEquals(red(proving(all)), Nil)
-    // Every other obligation proven, the groups' not: a witness found is not proof, only `consistent_` proven.
-    assertEquals(red(proving(all.filterNot(groups.contains))), List("bookWhenFree", "acceptWhenFree").map(NodeId(_)))
   }
 
 object ReadProofSuite:

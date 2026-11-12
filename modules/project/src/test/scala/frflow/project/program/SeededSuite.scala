@@ -109,36 +109,6 @@ class SeededSuite extends munit.CatsEffectSuite:
       assertEquals(none, None)
   }
 
-  /** Rooms checked with Lean scripted: every obligation proven but those named; what `storeWhenFree` and
-    * `neverOverlap` are unproven by.
-    */
-  private def storing(failing: String*): IO[(List[Unproven], List[Unproven])] =
-    for
-      p    <- Projects.inMemory(Map.empty)
-      a    <- Projects.analysed(p, Projects.rooms, Nil)
-      lake <- ScriptedLake[IO](Scripted(a, failing.toSet, Set.empty).answer, installed = true)
-      out  <- CheckProgram(p.files, lake, library, RunCode.inline[IO])(a, None)
-    yield
-      def of(id: String) = out._2.decided.theory.node(NodeId(id)).fold(fail(s"no $id"))(n =>
-        ReadProof.of(out._2, n).unproven)
-      (of("storeWhenFree"), of("neverOverlap"))
-
-  test("a step taking a rule on its world is unproven while a program's cover_ of the rule is (review finding 14)") {
-    val kept = Unproven.Kept(NodeId("neverOverlap"))
-    for
-      (broken, rule) <- storing("cover_book")
-      (sound, held)  <- storing()
-    yield
-      assert(broken.contains(kept) && rule.contains(Unproven.Check), (broken, rule))
-      // no test runs here: the rules' own standings are their tests' only (each names itself), and the step rests on
-      // that alone (a rule open for any reason, the step 13d sixth pass)
-      assert(!held.contains(Unproven.Check) && held.forall {
-        case Unproven.Kept(_) | Unproven.NotTested | Unproven.Tests => true
-        case _                                                      => false
-      }, held)
-      assertEquals(sound.contains(kept), held.nonEmpty, sound)
-  }
-
   test("two assumptions pinning n apart are one group, not proven".tag(Live)) {
     Ported.run(Projects.elaborated(Seeded.TwoPins.knowledge), Nil, Ported.Lean(Nil, Nil, None), Nil).map { r =>
       assertEquals(r.analysis.groups.map(_._1), List(0))
