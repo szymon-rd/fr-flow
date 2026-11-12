@@ -1,7 +1,7 @@
 package frflow.dsl.kb
 
 import cats.syntax.all.*
-import frflow.core.code.Attachment
+import frflow.core.code.{Attachment, Code}
 import frflow.core.name.RelPath
 import frflow.core.ty.Ty
 import frflow.dsl.build.{Declarations, Deferred, Fault, Site}
@@ -32,6 +32,11 @@ object Implementing:
       }
     case _                                                                   =>
       attach(kb, d.word, code(d.word, Some(proven), at))
+
+  /** A structure provided where the code runs: each member's word provided, as a value is (`Code.Provided`). */
+  def provided(kb: FrModel, structure: StructureDeclaration[?], at: RelPath): FrModel =
+    structure.members.map(m => structure.member(m.name)).foldLeft(kb)((k, word) =>
+      k.attachMember(word.name, declared(word, Deferred.pure(Attachment(Code.Provided, at)))))
 
   private def code(d: Definition[?], proven: Option[Definition[?]], at: RelPath): Deferred[Attachment] =
     proven.flatMap(p => p.onTheSpot.map(p -> _)).fold(Deferred.failed(Site.Meaning(d.name),

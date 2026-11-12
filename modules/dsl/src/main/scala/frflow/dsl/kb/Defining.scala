@@ -67,6 +67,12 @@ object Defining:
       */
     inline def define[C <: T](code: StructureCode[C]): Definition[T] =
       Defined(d, Implementing.proven(FrModel.part, d, code, Spans.relative(Source.file)))
+    /** The structure `d` is provided where the code runs (a library's, a remote service): no class is read for it.
+      * It is known by what is assumed of it, and Lean states every claim of a structure that holds it for each
+      * such structure.
+      */
+    inline def provided: Definition[T] =
+      Defined(d, Implementing.provided(FrModel.part, d, Spans.relative(Source.file)))
 
   /** `d` given `code`, in the model file `at`. */
   def proven[A](d: Declaration[A], code: Definition[A], at: RelPath): Definition[A] =

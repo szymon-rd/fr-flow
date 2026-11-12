@@ -17,11 +17,17 @@ object Nodes:
     Node(head, st => Elab.formula(Site.Node(head.id), () => closed(st, Standing.closing(st, formula)), written)
       .map(Statement.Claim(_, Reliance.Relied)))
 
-  /** A fact about the outside is said whole (`Fact`): its term is the assumption's formula. */
+  /** A fact about the outside is said whole (`Fact`): its term is the assumption's formula. An assumption over a
+    * structure is said of it in every state, as a claim is (`Standing`): what is assumed of one no class is read
+    * for (`ledger.provided`).
+    */
   def assumption(head: Head, formula: Stating => () => Term[Boolean] | Fact, written: AsWritten): Node =
+    def said(st: Stating): () => Term[Boolean] = () => formula(st)() match
+      case f: Fact          => f.term
+      case t: Term[Boolean] => t
     def term(st: Stating) = () => formula(st)() match
       case f: Fact          => f.term
-      case t: Term[Boolean] => closed(st, t)
+      case _: Term[Boolean] => closed(st, Standing.closing(st, said))
     Node(head, st => Elab.formula(Site.Node(head.id), term(st), written).map(Statement.Assumption(_)))
 
   def design(head: Head, governs: NonEmptyList[String]): Node =

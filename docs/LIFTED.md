@@ -359,6 +359,11 @@ FrModel("Payments")(…, limits.define(lifted[RecordedLimits]))
 - A structure's states are typed by the structure's name (`limits.State`, `limits.Schedule`), not by its trait:
   Scala's capture checking reads a `caps.Mutable` trait named in a type as a capability.
 
+A structure no class is read for is `provided` (`ledger.provided`, listed in the model as a Definition is): one
+from a library or behind a remote call, known by what is assumed of it (`Node.assumption`, said of it in every
+state as a claim is). A class that holds it is read and proven from those assumptions. The model is valid; Lean
+does not build it yet, since a structure with no class has no type in the Lean model.
+
 Not built in this shape: `defineTested` for a structure (a class FrFlow cannot read, tested against the claims);
 the class's Scala run against the term read from it on generated cases (`Agreement`); two classes for one trait in
 one model; a member of more than three inputs (two, for its steps).
