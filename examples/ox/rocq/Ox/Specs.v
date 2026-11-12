@@ -44,6 +44,10 @@ Fixpoint callable (c : code) : Prop :=
   | Client _ _ => True
   end.
 
+(** A closure that may be a fork's body: any but the one a supervised scope runs on its owner's thread. *)
+Definition plain (c : code) : Prop :=
+  match c with Lam_supervisedError_1 _ _ _ _ => False | _ => True end.
+
 Definition arg_caps (v : val) : list OxError :=
   match v with VObj (O_OxError cap) => [cap] | _ => [] end.
 
@@ -86,7 +90,7 @@ Definition StartPre (u : tid) (c : code) (Γ : gh) : Prop :=
   match c with
   | Lam_ThreadHerd_startThread_1 th b =>
       (exists b', g_role Γ u = ForkOf (ThreadHerd_threads th) b') /\ g_removed Γ u = false /\
-      g_open Γ u = [] /\ wf_herd Γ th /\ callable b /\
+      g_open Γ u = [] /\ callable b /\ plain b /\
       Forall (fun cap => wf_cap Γ cap /\ anc Γ (ThreadHerd_threads th) (hid cap)) (body_caps b)
   | _ => False
   end.
