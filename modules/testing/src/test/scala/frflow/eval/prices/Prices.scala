@@ -16,7 +16,9 @@ object ItemId extends FrSpec.Opaque[ItemId, String]
 
   /** A price list: what an item costs, and the tax in it. */
   trait Pricing:
+    /** What an item costs: its net price and the tax. */
     def price(item: Item): BigInt
+    /** The tax added to every item's net price. */
     def tax: BigInt
 
   final class FlatPricing(val tax: BigInt) extends Pricing:
@@ -24,7 +26,9 @@ object ItemId extends FrSpec.Opaque[ItemId, String]
 
   /** A basket: it adds up what its items cost. */
   trait Basket extends Mutable:
+    /** Adds an item at its price: what is then due. */
     update def add(item: Item): BigInt
+    /** What the items added so far cost together. */
     def due: BigInt
 
   final class PricedBasket(pricing: Pricing, var total: BigInt) extends Basket:
