@@ -48,6 +48,11 @@ Lemma List_foldl_cons {A B : Type} (f : B -> A -> B) (init : B) (x : A) (xs : li
 Proof. reflexivity. Qed.
 Lemma List_foldl_nil {A B : Type} (f : B -> A -> B) (init : B) : List_foldl f init nil = init.
 Proof. reflexivity. Qed.
+Lemma List_find_cons {A : Type} (p : A -> Prop) (x : A) (xs : list A) :
+  List_find p (x :: xs) = ite (p x) (Some x) (List_find p xs).
+Proof. unfold List_find, ite. simpl. destruct (excluded_middle_informative (p x)); reflexivity. Qed.
+Lemma List_find_nil {A : Type} (p : A -> Prop) : List_find p (@nil A) = None.
+Proof. reflexivity. Qed.
 
 Create Rewrite HintDb frflow.
 #[global] Hint Rewrite @List_filter_app @List_filter_cons @List_filter_nil @List_foldl_app @List_foldl_cons
@@ -209,7 +214,8 @@ Ltac frflow_give x := first [ exists x | split; [ exact x | ] | exact x ].
     it is given is computed, each `let` of it once, before what follows it (`frflow_cbv`), and an `if` is decided,
     not taken by cases. A generated definition is put in place of its name with every `let` kept (`cbv delta`). *)
 Create Rewrite HintDb frflow_eval.
-#[global] Hint Rewrite @List_filter_cons @List_filter_nil @List_foldl_cons @List_foldl_nil : frflow_eval.
+#[global] Hint Rewrite @List_filter_cons @List_filter_nil @List_foldl_cons @List_foldl_nil @List_find_cons
+  @List_find_nil : frflow_eval.
 
 Ltac frflow_head t := lazymatch t with ?f _ => frflow_head f | _ => t end.
 Ltac frflow_is_def f := is_const f; let _ := constr:(_ : Frflow_def f) in idtac.
@@ -243,6 +249,14 @@ Ltac frflow_true :=
   | |- ~ _ => let h := fresh "h" in intro h; frflow_false h
   | |- exists _, (_ = _ \/ _) /\ _ =>
       first [ solve [eexists; split; [left; reflexivity | frflow_true]] | apply frflow_ex_tail; frflow_true ]
+  | |- exists _, _ = _ /\ _ => eexists; split; [reflexivity | frflow_true]
+  | |- forall x, Some _ = Some x -> _ =>
+      let x := fresh "x" in let e := fresh "e" in intros x e; injection e as e; subst; frflow_true
+  | |- forall x, None = Some x -> _ => let x := fresh "x" in let e := fresh "e" in intros x e; discriminate e
+  | |- @eq Prop _ _ =>
+      let h := fresh "h" in
+      apply propositional_extensionality; split; intro h; first [ solve [frflow_true] | exfalso; frflow_false h ]
+  | |- _ = _ => first [ reflexivity | solve [progress f_equal; frflow_true] | solve [frflow_values] ]
   | |- forall x, _ = x \/ _ -> _ => apply frflow_each_cons; [ frflow_true | cbn beta; frflow_true ]
   | |- forall x, False -> _ => let x := fresh in let f := fresh in intros x f; destruct f
   | |- _ => first [ solve [frflow_values] | solve [frflow_code; cbv zeta; frflow_values] ]
@@ -257,9 +271,15 @@ with frflow_false h :=
       let e := fresh "e" in let m := fresh "m" in let q := fresh "q" in
       destruct h as [[e | m] q];
       [ subst; frflow_false q | let h' := fresh "h" in pose proof (conj m q) as h'; frflow_false h' ]
+  | _ = _ /\ _ =>
+      let e := fresh "e" in let q := fresh "q" in
+      destruct h as [e q];
+      first [ solve [discriminate e] | solve [injection e; intros; subst; frflow_false q]
+            | solve [frflow_false e] | solve [frflow_false q] ]
   | _ /\ _ =>
       let a := fresh "h" in let b := fresh "h" in
       destruct h as [a b]; first [ solve [frflow_false a] | solve [frflow_false b] ]
+  | forall x, Some _ = Some x -> _ => specialize (h _ eq_refl); frflow_false h
   | _ \/ _ => destruct h as [h | h]; frflow_false h
   | ~ _ => apply h; frflow_true
   | exists _, _ => let x := fresh "x" in destruct h as [x h]; frflow_false h
@@ -278,8 +298,10 @@ with frflow_decide_in H := repeat match type of H with
       [ rewrite (ite_true P) in H by (solve [frflow_true])
       | rewrite (ite_false P) in H by (solve [let h := fresh "h" in intro h; frflow_false h]) ]
   end
-(** `H : x = t`: `t` run as code runs: what a call is given first, each `let` once, before what follows it. *)
+(** `H : x = t`: `t` run as code runs: what a call is given first, each `let` once, before what follows it. A
+    `match` on a value written out is taken first, so that an `if` is read with the condition it has. *)
 with frflow_cbv H :=
+  cbv beta iota in H;
   lazymatch type of H with
   | _ = (let y := ?v in @?b y) =>
       let y' := fresh y in let Hy := fresh "E" in
@@ -325,10 +347,21 @@ Ltac frflow_alone :=
 
 (** An example, or a condition whose values are given: asked under the claims, decided by running the code. *)
 Ltac frflow_evaluate := frflow_alone; frflow_true.
-(** Whether running the code refutes what is asked: then no search is made for a proof from the claims. *)
+(** Whether running the code refutes what is asked: then no search is made for a proof from the claims. What is
+    asked negated is refuted by showing what it negates, which is quick where that holds. *)
 Ltac frflow_refuted :=
-  assert_succeeds (frflow_alone; lazymatch goal with |- ?F => assert (~ F) by frflow_true end).
-Ltac frflow_example := first [ solve [frflow_evaluate] | tryif frflow_refuted then fail else frflow_auto ].
+  assert_succeeds (frflow_alone; lazymatch goal with
+    | |- ~ ?F => assert F by frflow_true
+    | |- ?F => assert (~ F) by frflow_true
+    end).
+(** An example, asked with its opposite. Each is decided by running the code where it can be, the quick way
+    first: what is asked negated is first tried as refuted. Where the code is not run to an end, the claims. *)
+Ltac frflow_example := first
+  [ solve [ frflow_alone; lazymatch goal with
+      | |- ~ ?F => tryif assert_succeeds (assert F by frflow_true) then fail else frflow_true
+      | |- _ => frflow_true
+      end ]
+  | tryif frflow_refuted then fail else frflow_auto ].
 
 Ltac frflow_witness := first
   [ solve [timeout 100 frflow_evaluate]

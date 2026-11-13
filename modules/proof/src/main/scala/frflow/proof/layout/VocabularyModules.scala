@@ -3,7 +3,8 @@ package frflow.proof.layout
 import frflow.core.analysis.outside.Guards
 import frflow.core.name.DefName
 import frflow.core.spec.Form
-import frflow.core.term.interpret.{Guard, Guarded}
+import frflow.core.term.interpret.{Guard, Guarded, Simplified}
+import frflow.core.term.language.Final
 import frflow.core.ty.DataType
 import frflow.core.vocab.Define
 import frflow.proof.prover.ast.*
@@ -57,7 +58,8 @@ object VocabularyModules:
     */
   private def guardedTwin(l: Lowering, d: Define): ProverModule = d.written.form match
     case Form.Term(t) =>
-      val (bs, body) = Printed.define(l.env, l.naming)(d.lambda.params, Guarded.of(t.run, valueRules(l)))
+      val (bs, body) = Printed.define(l.env, l.naming)(d.lambda.params,
+        proved(l, Guarded.of(t.run, valueRules(l))))
       module(l, l.layout.define(LowerEnv.guarded(d.name)), List(Decl.Def(List(Attr.FrflowDefs),
         Names.define(LowerEnv.guarded(d.name).value), openBinders(l, d) ++ bs, LowerType(d.lambda.result), body),
         Decl.MatchEqns))
@@ -68,9 +70,15 @@ object VocabularyModules:
   def declared(l: Lowering, d: Define): Decl = d.written.form match
     case Form.Term(t) =>
       val env = if l.ruleSide.defines(d.name) then l.env.copy(ruleSide = true) else l.env
-      val (bs, body) = Printed.define(env, l.naming)(d.lambda.params, Guarded.of(t.run, guards(l, d)))
+      val (bs, body) = Printed.define(env, l.naming)(d.lambda.params, proved(l, Guarded.of(t.run, guards(l, d))))
       Decl.Def(List(Attr.FrflowDefs), Names.define(d.name.value), openBinders(l, d) ++ bs,
         LowerType(d.lambda.result), body)
+
+  /** A define's term as the prover is given it: what it computes of a shape it has just built taken out
+    * (`Simplified`), which the code read from a class is full of. A node's content is the term as written: the
+    * canonical lowering leaves it as it is, so no decision moves when the simplifier does.
+    */
+  private def proved[A](l: Lowering, t: Final[A]): Final[A] = if l.naming.canonical then t else Simplified.of(t)
 
   /** What a define's `forall`s come with, as a statement's do : each value rule
     * (`always[T]`) on its variable's type, but those of rules that call the define, which would be about themselves.
