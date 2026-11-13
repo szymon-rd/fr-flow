@@ -292,8 +292,10 @@ lists the decisions below it that it acts on, and the developer marks those it m
 
 ### What is trusted, and the limits
 
-Trusted: the assumptions the developer accepted; FrFlow's translation to Rocq (cross-checked by the examples and by a
-law that Rocq decides each generated term as the evaluator does); for tested code, the cases the tests reach. Not
+Trusted: the assumptions and the design decisions the developer accepted; FrFlow's reading of the code and its
+translation to Rocq, which are tested and not proven (by the examples, and by FrFlow's own suite, which runs classes
+on the JVM against the terms and the Rocq read from them: [LIFTED.md](LIFTED.md)); for tested code, the cases the
+tests reach. Not
 modelled: liveness ("eventually"), time, values inside a map, a set or a function reached by an `always[T]`
 (refused).
 

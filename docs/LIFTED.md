@@ -61,8 +61,15 @@ evaluates an expression in cannot be told from the term's value.
 
 **What is still trusted.** The Scala compiler and the JVM, and Rocq's kernel; the compiler of this document, which
 is tested and not proven; that inputs are data (no `null`, strings well formed); and the assumptions the developer
-accepted. A model's examples are run as Scala on the class (`check` runs them), and are shown by Rocq from the
-claims where that proof is written.
+accepted. `check` runs a model's examples on the terms read from the class and in Rocq; it does not run the class
+itself.
+
+**How the compiler is tested.** `frflow.eval.agree` holds classes with a member for each kind of Scala in the table
+below, and one that changes state and holds two structures. Each member is run on the JVM on drawn inputs, and the
+result (and the state after) is stated as an example: the terms compiled from the TASTy must give the same
+(`AgreeExamples`, in `sbt test`), and so must the Rocq generated from them (`AgreeRocqSuite`, in `sbt rocqTest`),
+which also must not show the opposite, and must show the opposite of a result the class does not give. It covers
+the classes written there on the inputs drawn, not every program.
 
 ## `FrSpec`: a type's spec and contract
 
@@ -234,9 +241,9 @@ Rocq, and the property proven is not a contract annotation on the function but t
 
 ## What is not built yet
 
-1. **The class's Scala run against its term.** The translation of each class is held by how the compiler is built
-   and by the examples; a test of each member on generated cases (the Scala's result against the evaluator's of
-   the term) is not built.
+1. **A developer's own class run against its term.** FrFlow's suite runs its own classes on the JVM against the
+   terms and the Rocq read from them (above). `check` does not do the same for a project's classes: it would draw
+   inputs for each member, run the class, and report the first case the two differ on.
 2. **Recursion.** The term language has no fixed point (iteration is a list's operations). Structural recursion on
    a list or an enum needs one operation added to `core.term` and its three interpreters; general recursion needs
    a measure, stated beside the function.

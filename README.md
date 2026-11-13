@@ -347,6 +347,8 @@ not cover, and so trusts:
   each call of a store is one transaction, that a log delivers again what was not committed.
 - FrFlow's reading of the code. The terms it compiles from a class's TASTy, and the Rocq it prints from them, are
   tested and not proven. `check` runs the examples on those terms and in Rocq; it does not run the class itself.
+  FrFlow's own suite does, for classes that cover each kind of Scala it reads: each member is run on the JVM on
+  drawn inputs, and the terms and the generated Rocq are held to what it gave (`AgreeRocqSuite`).
 - How a class is read: its state its own (Scala's separation checking, where it is compiled), each call it makes
   of what it holds one step, other calls acting between the steps. Threads within a step, a call that fails, and
   time are not in the model.
