@@ -22,7 +22,7 @@ import frflow.dsl.vocab.Stating
 object Elaborate:
   def apply(kb: FrModel): ValidatedNec[ElabError, Elaborated] =
     val attached = kb.meanings.traverse((id, a) => a.map(id -> _))
-    elaborated(kb, Stating.reading(kb.fixed, kb.holds), attached)
+    elaborated(kb, Stating.reading(kb.fixed, kb.held), attached)
 
   /** The words the model fixes: those it gives a meaning (a Definition listed in it), and
     * those its code calls, read off the model written once with only the first known. A word that is neither is

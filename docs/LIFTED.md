@@ -192,6 +192,14 @@ FrModel("Payments")(…, limits.define(lifted[RecordedLimits]))
   held. So a trait needs no member for the proofs' sake: `PaymentHandler` has `handle` alone, and what a claim
   needs more than once ("a payment is applied") is a definition in the model. Which structure holds which is said
   where the class is lifted with their words; one read as it stands beside two holders is refused.
+- Holding composes, so what is passed to a constructor is reached however far down. A counter's class is given a
+  basket, whose class is given a price list: `pricing.price(i).in(counter.ring(i).after)` is the price list of the
+  basket the counter holds, and `pricing.price(i)` beside `counter.ring(i)` is the same one as it stands. In Rocq
+  it is each holding's word applied in turn (`basket_holds_pricing (counter_holds_basket counter)`), a word being
+  the class's field read. `basket.in(state)` is a held structure whole, as its holder has it, for saying the way
+  one holder at a time (`pricing.in(basket.in(counter.current))`); a structure held more than one way from a
+  holder is refused until the way is said. Such a claim is proven from the claims on what is held, which are
+  stated as its parts (`.refines`). The test model is `CounterModel`, proven in `PricesRocqSuite`.
 - A member that changes the structure takes steps: a class that holds no structure makes its change in one, a
   class made of structures takes one for each call it makes of them (a query too). `call.steps` is each step that
   changes the structure, as the step found it and as it left it; a crash leaves the structure as one of them did.

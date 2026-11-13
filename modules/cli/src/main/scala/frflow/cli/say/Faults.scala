@@ -38,6 +38,8 @@ object Faults:
     case Fault.Thrown(message)        => s"building it threw: $message"
     case Fault.HeldByTwo(s, holders)  => s"$s is read as it stands beside ${holders.mkString(" and ")}, which " +
       s"both hold one: say whose is meant (`$s.….in(${holders.head}.current)`)"
+    case Fault.HeldTwice(s, ways)     => s"$s is held more than one way from there (${ways.map(_.mkString(" then "))
+      .mkString("; ")}): say which is meant, one holder at a time (`$s.in(….in(…))`)"
     case Fault.ExampleSetsClash(n, cs) => s"the classes of examples ${cs.mkString(" and ")} are both named $n, " +
         "as their examples' theorems are: rename one"
 

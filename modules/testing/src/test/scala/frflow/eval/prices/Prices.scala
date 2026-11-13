@@ -10,7 +10,9 @@ import scala.annotation.experimental
 opaque type ItemId = String
 object ItemId extends FrSpec.Opaque[ItemId, String]
 
-/** A structure no member changes, a plain trait that is no `caps.Mutable`, and a structure whose class holds it. */
+/** A structure no member changes, a plain trait that is no `caps.Mutable`; a structure whose class holds it; and
+  * one whose class holds that one, so what it reaches of the first is two constructors down.
+  */
 @experimental object Prices:
   final case class Item(id: ItemId, net: BigInt) derives FrSpec
 
@@ -37,3 +39,17 @@ object ItemId extends FrSpec.Opaque[ItemId, String]
       total = total + cost
       total
     def due: BigInt = total
+
+  /** A counter: it rings items up into the basket it holds. */
+  trait Counter extends Mutable:
+    /** Rings an item up: what the basket then has due. */
+    update def ring(item: Item): BigInt
+    /** How many items were rung up. */
+    def count: BigInt
+
+  final class BasketCounter(basket: Basket^, var rung: BigInt) extends Counter:
+    update def ring(item: Item): BigInt =
+      val due = basket.add(item)
+      rung = rung + BigInt(1)
+      due
+    def count: BigInt = rung

@@ -2,7 +2,8 @@ package frflow.dsl.structure
 
 import frflow.core.term.language.Sym
 import frflow.dsl.term.{RocqType, Lift, Term, Terms, TermSyntax}
-import frflow.dsl.vocab.{Called, Definition}
+import frflow.dsl.build.{Failure, Fault}
+import frflow.dsl.vocab.{Called, Definition, Held, Stating}
 import scala.util.NotGiven
 
 /** A member of a structure called in a statement (`limits.authorise(p)`). As a term it is what the call gives
@@ -24,10 +25,11 @@ final class Call[T, R] private (made: Call.Made[T], ran: Call.Ran[T, R])
   /** The same call made on the structure as `state` has it (`limits.decided(id).in(limits.authorise(p).after)`). */
   def in(state: Term[T]): Call[T, R] = Call.over(made.copy(state = state))
   /** The same call made on the structure as the one that holds it has it: `holder` is a state of a structure
-    * whose class is given this one's word (`ledger.posted(id).in(handler.handle(p).after)`).
+    * whose class is given this one's word (`ledger.posted(id).in(handler.handle(p).after)`), or holds a structure
+    * whose class is, however far down.
     */
   def in[H <: String](holder: Term[State[H]])(using NotGiven[State[H] =:= T]): Call[T, R] =
-    in(Call.heldIn[T](made.structure, holder))
+    in(Call.heldIn[T](made.structure, holder, made.held))
   /** The same call made among other calls: `between` says how they left the structure before a step, by the step's
     * number (the second step's is 2); before a step it does not name, they did nothing. A claim over every
     * `between` holds however the call's steps interleave with other calls'.
@@ -55,7 +57,7 @@ object Call:
     * made among other calls, their schedule. `T` is what the structure's states are typed by (`State`).
     */
   private final case class Made[T](structure: StructureDeclaration[?], called: String, state: Term[T],
-      args: List[Term[?]], between: Option[Term[Map[BigInt, T]]] = None):
+      args: List[Term[?]], held: Held, between: Option[Term[Map[BigInt, T]]] = None):
     given RocqType[T] = structure.rocqType.asInstanceOf[RocqType[T]] // the structure's type, by its name
     val steps: RocqType[List[(T, T)]] = RocqType[List[(T, T)]]
     val schedule: RocqType[Map[BigInt, T]] = RocqType[Map[BigInt, T]]
@@ -67,12 +69,14 @@ object Call:
   /** What a call gives: its value, the structure after it, and, made among other calls, what was done. */
   private final case class Ran[T, R](value: Term[R], after: Term[T], traces: Option[Term[Traces[T]]])
 
-  /** A member called with what a statement gives it: terms, or values a term is made of. */
-  def of(structure: StructureDeclaration[?], called: String, state: Term[?], args: List[Any]): Call[Any, Any] =
-    over(Made[Any](structure, called, state.asInstanceOf[Term[Any]], args.map {
+  /** A member called on the structure as the statement reads it, with what the statement gives it: terms, or
+    * values a term is made of.
+    */
+  def of(structure: StructureDeclaration[?], called: String, st: Stating, args: List[Any]): Call[Any, Any] =
+    over(Made[Any](structure, called, st.standing(structure).asInstanceOf[Term[Any]], args.map {
       case t: Term[?] => t
       case other      => throw IllegalStateException(s"FrFlow bug: $called given $other, which is no term")
-    }))
+    }, st.held))
 
   private def over[T, R](made: Made[T]): Call[T, R] =
     import made.given
@@ -87,10 +91,24 @@ object Call:
         val did = applied[((R, T), Traces[T])](made.structure.among(made.called), made.state :: between :: made.args)
         Ran(TermSyntax._1(TermSyntax._1(did)), TermSyntax._2(TermSyntax._1(did)), Some(TermSyntax._2(did))))
 
-  /** A structure as the structure in the state `holder` holds it. */
-  def heldIn[T](structure: StructureDeclaration[?], holder: Term[?]): Term[T] =
-    applied[T](StructureDeclaration.held(holder.rocqType, structure.name, structure.rocqType), List(holder))(
-      using structure.rocqType.asInstanceOf[RocqType[T]])
+  /** A structure as the structure in the state `holder` holds it: by the one way down the model has from a
+    * structure of the holder's type (`held`), through the structures it holds in turn. Where the model has none
+    * (a statement read before its model is known), as what the holder's own class would hold: the model says if
+    * no such word has a meaning.
+    */
+  def heldIn[T](structure: StructureDeclaration[?], holder: Term[?], held: Held): Term[T] =
+    held.ways(structure.name)((_, via) => Held.ends(via)._1 == holder.rocqType.ty) match
+      case List(way) => through(way, holder).asInstanceOf[Term[T]]
+      case Nil       =>
+        applied[T](StructureDeclaration.held(holder.rocqType, structure.name, structure.rocqType), List(holder))(
+          using structure.rocqType.asInstanceOf[RocqType[T]])
+      case several   => throw Failure(Fault.HeldTwice(structure.name.value, several.map(_.through.map(_.name.value))))
+
+  /** What the structure in `state` holds along a way down: each word applied in turn. */
+  def through(way: Held.Way, state: Term[?]): Term[?] = way.through.foldLeft(state)((s, via) =>
+    applied[Any](via, List(s))(using State.typed[Any](Held.ends(via)._2 match
+      case frflow.core.ty.Ty.Data(name) => name.value
+      case other                        => other.toString)))
 
   /** A Definition applied to arguments whose number its type gives: what `Definition.apply` makes of one whose
     * type Scala knows.

@@ -75,10 +75,17 @@ final class StructureDeclaration[T] @publicInBinary private[dsl] (val name: Symb
 
   /** A member called on the structure as it stands (`limits.authorise(p)`), as Scala's structural types call one. */
   def applyDynamic(called: String)(args: Any*)(using st: Stating): Any =
-    Call.of(this, called, st.standing(this), args.toList)
-  def selectDynamic(called: String)(using st: Stating): Any = Call.of(this, called, st.standing(this), Nil)
+    Call.of(this, called, st, args.toList)
+  def selectDynamic(called: String)(using st: Stating): Any = Call.of(this, called, st, Nil)
 
   /** The structure as it stands, where a statement speaks of it whole (`checkpoint.commit(o).after ===
     * checkpoint.current`).
     */
   def current(using st: Stating): State = st.standing(this).asInstanceOf[State] // a state is typed by the name
+
+  /** The structure as the one that holds it has it: `holder` is a state of a structure whose class is given this
+    * one's word, or holds a structure whose class is (`basket.in(counter.ring(i).after)`). What is passed to a
+    * constructor is reached this way, one holder at a time (`pricing.in(basket.in(counter.current))`) or at once.
+    */
+  def in[H <: String](holder: Term[frflow.dsl.structure.State[H]])(using st: Stating): State =
+    Call.heldIn[Is](this, holder, st.held)

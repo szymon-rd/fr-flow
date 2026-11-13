@@ -31,7 +31,7 @@ abstract class FrFlowExamples(val knowledge: FrModel):
       Elab.formula(Site.Example(name), () => fact(using stating), Source.of(Node.writing(fact)))))
 
   /** What the model fixes, so a word is read in an example as its statements read it. */
-  protected lazy val stating: Stating = Stating.reading(knowledge.fixed, knowledge.holds)
+  protected lazy val stating: Stating = Stating.reading(knowledge.fixed, knowledge.held)
 
   protected def register(e: Example): Unit = written += e
 

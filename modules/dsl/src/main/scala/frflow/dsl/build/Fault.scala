@@ -33,5 +33,9 @@ enum Fault:
     * (`ledger.total.in(handler.current)` says it).
     */
   case HeldByTwo(structure: String, holders: List[String])
+  /** A structure is held more than one way from the structure a statement reaches it from: each way, by the
+    * words of its holdings in order.
+    */
+  case HeldTwice(structure: String, ways: List[List[String]])
   /** Two classes of examples of one model of one name (`setName`): their examples' theorems would be one. */
   case ExampleSetsClash(name: String, classes: List[String])

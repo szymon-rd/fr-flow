@@ -138,7 +138,8 @@ typed by its members. In a statement, `limits.authorise(p).result` is what a cal
 after it, `.in(state)` the same from a given state, `limits.current` the structure as it stands, and
 `.amongOthers(run => …)` every step of the call among other calls. A claim on a structure is said of the structure
 in every state. A claim on a class that holds one asks it as the holder has it
-(`ledger.total.in(handler.handle(p).after)`).
+(`ledger.total.in(handler.handle(p).after)`), and so of a structure that one holds in turn, however far down;
+`ledger.in(state)` is the held structure whole, as a state of its holder has it.
 
 What a statement may not say, refused where it is written: an `always` inside a formula. FrFlow states safety
 properties: "eventually" is out of scope for now.

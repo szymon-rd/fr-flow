@@ -8,7 +8,7 @@ import frflow.core.name.{KbName, RelPath, SymbolName}
 import frflow.dsl.build.{Deferred, ElabError, Source}
 import frflow.dsl.node.{Node, Spans}
 import frflow.dsl.term.RocqType
-import frflow.dsl.vocab.Definition
+import frflow.dsl.vocab.{Definition, Held}
 
 /** The nodes as the model writes them, what gives each Definition its meaning, the generators given for the tests,
   * the file it is assembled in (`FrModel("Rooms")(…)`, made relative as a node's is), and the Definitions that are
@@ -17,8 +17,8 @@ import frflow.dsl.vocab.Definition
 final case class FrModel(name: KbName, nodes: List[Node], meanings: List[(SymbolName, Deferred[Attachment])],
     generators: List[Generator[?]], writtenIn: Option[RelPath], members: Set[SymbolName] = Set.empty,
     holdings: List[FrModel.Holding] = Nil):
-  /** Which structures hold each structure, by their words (`Stating.holds`). */
-  def holds: Map[SymbolName, Set[SymbolName]] = holdings.groupMap(_.part)(_.holder).view.mapValues(_.toSet).toMap
+  /** Which structures hold each structure, by their words (`Stating.held`). */
+  def held: Held = Held(holdings.groupMap(_.part)(h => h.holder -> h.via).view.mapValues(_.toMap).toMap)
   /** What each word of "what a structure holds" gives: the held structure's members' words (`CodeTable.held`). */
   def reached: Map[SymbolName, Set[SymbolName]] = holdings.map(h => h.word -> h.members.toSet).toMap
   /** Elaborated once per value (a `lazy val`: the FrModel is immutable), for every check and run of it. */
@@ -50,9 +50,10 @@ final case class FrModel(name: KbName, nodes: List[Node], meanings: List[(Symbol
 
 object FrModel:
   /** A structure held by another's class: the holder's word, the held one's, the word that is what the holder
-    * holds as it, and the held structure's members' words.
+    * holds as it (`via`, by its name `word`), and the held structure's members' words.
     */
-  final case class Holding(holder: SymbolName, part: SymbolName, word: SymbolName, members: List[SymbolName])
+  final case class Holding(holder: SymbolName, part: SymbolName, word: SymbolName, members: List[SymbolName])(
+      val via: Definition[?])
 
   /** What a FrModel is made of: its nodes, and the Definitions of its words (`granted.define { … }`). A Definition
     * declared and defined at once (`define { … }`) needs no listing: a statement or code that mentions it brings it.
