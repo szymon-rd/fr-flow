@@ -37,6 +37,25 @@ object Payments:
     forall((account: Term[String], o: Term[Order]) =>
       (ledger.balance(account) >= 0) implies (ledger.balance(account).in(payments.charge(o).after) >= 0)))
 
+  // What the checkout takes of the payments for an order charged once, and for every other order's sake.
+
+  val chargePostsOnce = Node.claim("Charging an order makes no posting of another order, nor of an order whose " +
+      "payment is already claimed.")(
+    forall((order: Term[String], o: Term[Order]) =>
+      (order =!= o.id || ledger.claimed(order)) implies
+        (ledger.postingsOf(order).in(payments.charge(o).after) === ledger.postingsOf(order))))
+
+  val chargeKeepsClaimed = Node.claim("Charging an order leaves every payment claimed that was.")(
+    forall((order: Term[String], o: Term[Order]) =>
+      ledger.claimed(order) implies ledger.claimed(order).in(payments.charge(o).after)))
+
+  val chargeKeepsOrderly = Node.claim("Charging an order leaves the books orderly about every order: one with " +
+      "postings has its payment claimed.")(
+    forall((order: Term[String], o: Term[Order]) =>
+      (ledger.postingsOf(order).isEmpty || ledger.claimed(order)) implies
+        (ledger.postingsOf(order).in(payments.charge(o).after).isEmpty ||
+          ledger.claimed(order).in(payments.charge(o).after))))
+
 /** The payments over a ledger: it claims the order's payment, so that an order charged twice, or twice at once,
   * is charged by one call; then it moves the money if the customer can cover it. Two transactions of the ledger.
   */

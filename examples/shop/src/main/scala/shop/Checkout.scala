@@ -75,6 +75,37 @@ object Checkout:
       checkout.place(o).amongOthers(run => run.steps.forall(step =>
         (ledger.balance(account).in(step._1) >= 0) implies (ledger.balance(account).in(step._2) >= 0)))))
 
+  // An order charged once, and every other order left alone, at every step. The books are orderly about an order
+  // when, if it has postings, its payment is claimed: each step keeps them so, and an order charged while they
+  // are gets no further posting.
+
+  val chargedOnce = Node.claim("No step of placing an order adds to the postings of an order already charged, " +
+      "its payment claimed, whatever other calls do between the steps.")(
+    forall((order: Term[String], o: Term[Order]) =>
+      checkout.place(o).amongOthers(run => run.steps.forall(step =>
+        (!ledger.postingsOf(order).in(step._1).isEmpty && ledger.claimed(order).in(step._1)) implies
+          (ledger.postingsOf(order).in(step._2) === ledger.postingsOf(order).in(step._1))))))
+
+  val booksStayOrderly = Node.claim("No step of placing an order leaves an order with postings whose payment is " +
+      "not claimed, where there was none, whatever other calls do between the steps.")(
+    forall((order: Term[String], o: Term[Order]) =>
+      checkout.place(o).amongOthers(run => run.steps.forall(step =>
+        (ledger.postingsOf(order).in(step._1).isEmpty || ledger.claimed(order).in(step._1)) implies
+          (ledger.postingsOf(order).in(step._2).isEmpty || ledger.claimed(order).in(step._2))))))
+
+  val noStepUndoesAClaim = Node.claim("No step of placing an order undoes the claim of a payment, whatever other " +
+      "calls do between the steps.")(
+    forall((order: Term[String], o: Term[Order]) =>
+      checkout.place(o).amongOthers(run => run.steps.forall(step =>
+        ledger.claimed(order).in(step._1) implies ledger.claimed(order).in(step._2)))))
+
+  val noStepPostsForAnother = Node.claim("No step of placing an order makes a posting of another order, whatever " +
+      "other calls do between the steps.")(
+    forall((other: Term[String], o: Term[Order]) =>
+      checkout.place(o).amongOthers(run => run.steps.forall(step =>
+        (other =!= o.id) implies
+          (ledger.postingsOf(other).in(step._2) === ledger.postingsOf(other).in(step._1))))))
+
 /** The checkout over an inventory, payments and an order book. It registers the order, so that an order sent
   * twice is placed by one call; reserves its units; charges its customer; and records how it ended. An order whose
   * payment does not go through has its units released: nothing of it is left behind.

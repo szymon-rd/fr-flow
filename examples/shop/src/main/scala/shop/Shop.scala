@@ -30,6 +30,10 @@ val shop: FrModel = FrModel("Shop")(
   Checkout.placedAgainChangesNothing.assuming(ordersAreSensible),
   Checkout.neverOversold.assuming(ordersAreSensible),
   Checkout.neverOverdrawn.assuming(ordersAreSensible),
+  Checkout.chargedOnce.assuming(ordersAreSensible),
+  Checkout.booksStayOrderly.assuming(ordersAreSensible),
+  Checkout.noStepUndoesAClaim.assuming(ordersAreSensible),
+  Checkout.noStepPostsForAnother.assuming(ordersAreSensible),
   // The forgetful checkout: what it does right, which is all a test of the answers can see.
   ForgetfulCheckout.forgetfulConfirmsTheSame.assuming(ordersAreSensible),
   Inventory.reservedWhenAvailable
@@ -46,6 +50,10 @@ val shop: FrModel = FrModel("Shop")(
   Payments.doneChargePays.refines(Checkout.confirmedIsPaid).assuming(ordersAreSensible),
   Payments.failedChargeMovesNothing.refines(Checkout.refusedLeavesNothing).assuming(ordersAreSensible),
   Payments.chargeLeavesSolvent.refines(Checkout.neverOverdrawn).assuming(ordersAreSensible),
+  Payments.chargePostsOnce.refines(Checkout.chargedOnce, Checkout.noStepPostsForAnother)
+    .assuming(ordersAreSensible),
+  Payments.chargeKeepsClaimed.refines(Checkout.noStepUndoesAClaim).assuming(ordersAreSensible),
+  Payments.chargeKeepsOrderly.refines(Checkout.booksStayOrderly).assuming(ordersAreSensible),
   Warehouse.holdIsMadeWhenAvailable.refines(Inventory.reservedWhenAvailable).assuming(ordersAreSensible),
   Warehouse.holdKeepsStocked.refines(Inventory.reserveKeepsStocked).assuming(ordersAreSensible),
   Warehouse.heldUnitsAreTaken.refines(Inventory.reservedUnitsAreTaken, Inventory.releaseUndoesReserve)
@@ -55,13 +63,15 @@ val shop: FrModel = FrModel("Shop")(
   Warehouse.unitsPutBackAreToSell.refines(Inventory.releaseUndoesReserve).assuming(ordersAreSensible),
   Ledger.claimKeepsBalances.refines(Payments.chargedWhenCovered, Payments.doneChargePays,
     Payments.failedChargeMovesNothing, Payments.chargeLeavesSolvent),
-  Ledger.claimKeepsPostings,
-  Ledger.claimIsWonOnce.refines(Payments.chargedWhenCovered),
-  Ledger.claimedStaysClaimed,
+  Ledger.claimKeepsPostings.refines(Payments.chargePostsOnce, Payments.chargeKeepsOrderly),
+  Ledger.claimIsWonOnce.refines(Payments.chargedWhenCovered, Payments.chargePostsOnce),
+  Ledger.claimedStaysClaimed.refines(Payments.chargeKeepsClaimed, Payments.chargeKeepsOrderly),
   Ledger.chargeIsMadeWhenCovered.refines(Payments.chargedWhenCovered).assuming(ordersAreSensible),
   Ledger.chargeKeepsSolvent.refines(Payments.chargeLeavesSolvent).assuming(ordersAreSensible),
-  Ledger.chargeKeepsClaims.assuming(ordersAreSensible),
-  Ledger.chargePostsItsOrder.assuming(ordersAreSensible),
+  Ledger.chargeKeepsClaims.refines(Payments.chargeKeepsClaimed, Payments.chargeKeepsOrderly)
+    .assuming(ordersAreSensible),
+  Ledger.chargePostsItsOrder.refines(Payments.chargePostsOnce, Payments.chargeKeepsOrderly)
+    .assuming(ordersAreSensible),
   Ledger.chargeMovesTheAmount.refines(Payments.doneChargePays).assuming(ordersAreSensible),
   Ledger.uncoveredChargeChangesNothing.refines(Payments.failedChargeMovesNothing).assuming(ordersAreSensible),
   OrderBook.registerIsWonOnce.refines(Checkout.confirmedWhenInStockAndCovered, Checkout.placedAgainIsDuplicate,
@@ -71,7 +81,8 @@ val shop: FrModel = FrModel("Shop")(
   OrderBook.settleKeepsRegistered.refines(Checkout.placedAgainIsDuplicate, Checkout.placedAgainChangesNothing),
   OrderBook.settledIsRecorded.refines(Checkout.confirmedIsRecorded),
   ordersAreSensible,
-  storesAreTransactional.refines(Checkout.neverOversold, Checkout.neverOverdrawn),
+  storesAreTransactional.refines(Checkout.neverOversold, Checkout.neverOverdrawn, Checkout.chargedOnce,
+    Checkout.booksStayOrderly, Checkout.noStepUndoesAClaim, Checkout.noStepPostsForAnother),
   warehouse.define(lifted[MovementWarehouse]),
   ledger.define(lifted[PostingLedger]),
   orders.define(lifted[JournalOrderBook]),
