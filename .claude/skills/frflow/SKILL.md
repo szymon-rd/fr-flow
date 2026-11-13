@@ -318,7 +318,8 @@ A try is `shown` (Rocq proved it) or `not shown`. Never write that Rocq shows a 
    it. To try a proof in an editor, open the file in `rocq/` (`rocq/_CoqProject`, which `check` writes, points at
    what it compiled). `autounfold with frflow_defs in *` unfolds the model's definitions; `frflow_auto` is what
    FrFlow tried; `frflow_simpl` rewrites the lists and takes each `if` by cases; `frflow_evaluate` runs the code on
-   values written out.
+   values written out, each step once. A condition FrFlow found no values for ("can hold: not shown") is proven in
+   `rocq/Proofs/<Model>/Whole.v` by giving them: `unfold Whole_Obl_<name>. exists <value>. … frflow_evaluate.`
 3. Shared lemmas go in `rocq/Proofs/<Model>/Lemmas.v`, which imports no lemmas of its own; a proof file imports
    them with `Require Export Proofs.<Model>.Lemmas.`
 4. A proof file holds only `Require`/`From … Require` and lemmas (`Lemma`, `Theorem`) with tactic proofs between

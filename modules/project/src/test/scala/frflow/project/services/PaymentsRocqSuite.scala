@@ -25,9 +25,12 @@ import scala.concurrent.duration.*
       assertEquals(Ported.unproven(r), Map.empty, Ported.table(r))
       assertEquals(r.computed.examples.map(_._2).distinct, List(OnCode.Holds))
       val whole = r.wholeCheck.toList.flatMap(_.results)
-      examples.foreach(e => assertEquals(whole.find(_.name == ObligationName.ExampleOpposite(e.of, e.at))
-        .map(_.status), Some(ObligationStatus.NotShown), e.name))
+      examples.foreach { e =>
+        def status(name: ObligationName) = whole.find(_.name == name).map(_.status)
+        assertEquals(status(ObligationName.Example(e.of, e.at)), Some(ObligationStatus.Shown), e.name)
+        assertEquals(status(ObligationName.ExampleOpposite(e.of, e.at)), Some(ObligationStatus.NotShown), e.name)
+      }
       val possible = whole.collect { case Result(ObligationName.Satisfiable(_, _), status, _) => status }
-      assertEquals((possible.size, possible.count(_ == ObligationStatus.Proven)), (22, 16))
+      assertEquals((possible.size, possible.count(_ == ObligationStatus.Proven)), (22, 22))
     }
   }

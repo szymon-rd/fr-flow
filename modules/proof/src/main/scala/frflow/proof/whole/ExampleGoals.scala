@@ -20,7 +20,10 @@ import frflow.proof.obligation.{Discharge, Hyp, Obligation, ObligationName, Prop
   * Rocq shows only when the claims contradict the example.
   */
 object ExampleGoals:
-  val Heartbeats: Int = 20000
+  /** Two minutes on the clock: an example is decided by running the code, in seconds, or else by a search from
+    * the claims, which a refuted example is not given.
+    */
+  val Heartbeats: Int = 120000
 
   /** In the order of their names (`example_<set>_<i>`), whatever order the sets are read in: Rocq's automation can
     * decide a try near its budget differently after other theorems, so one order makes one outcome.
