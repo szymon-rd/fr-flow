@@ -26,8 +26,7 @@ their classes.
 Rocq proves the 21 claims on the stores and the 7 on the two services by FrFlow's tactic, and 5 of the 7 claims
 on the checkout alone (a new order in stock that its customer can cover is confirmed; a confirmed order is paid
 for, holds its units and is recorded; an order refused leaves every product and every balance as it was). The two
-about an order sent again (it is a duplicate, and changes nothing) are not proven by the tactic: their proofs by
-hand are being written under `rocq/Proofs/Shop/`. The forgetful checkout's one claim and the five examples (the
+about an order sent again (it is a duplicate, and changes nothing) are proven by hand under `rocq/Proofs/Shop/`. The forgetful checkout's one claim and the five examples (the
 unit it leaves held among them) hold on the code.
 
 Trusted: every order is for at least one unit and a positive amount (`ordersAreSensible`, the contract of

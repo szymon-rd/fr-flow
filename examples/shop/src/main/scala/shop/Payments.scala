@@ -36,6 +36,10 @@ object Payments:
       (payments.charge(o).result =!= Charged.Done) implies
         (payments.balance(account).in(payments.charge(o).after) === payments.balance(account))))
 
+  val chargeLeavesSolvent = Node.claim("Charging an order leaves an account that is not overdrawn not overdrawn.")(
+    forall((account: Term[String], o: Term[Order]) =>
+      (payments.balance(account) >= 0) implies (payments.balance(account).in(payments.charge(o).after) >= 0)))
+
 /** The payments over a ledger: it claims the order's payment, so that an order charged twice, or twice at once,
   * is charged by one call; then it moves the money if the customer can cover it. Two transactions of the ledger.
   */

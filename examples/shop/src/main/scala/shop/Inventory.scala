@@ -40,6 +40,16 @@ object Inventory:
         (inventory.available(sku).in(inventory.release(o).in(inventory.reserve(o).after).after) ===
           inventory.available(sku))))
 
+  val reserveKeepsStocked = Node.claim("Reserving an order's units leaves a product that is not oversold not " +
+      "oversold.")(
+    forall((sku: Term[String], o: Term[Order]) =>
+      (inventory.available(sku) >= 0) implies (inventory.available(sku).in(inventory.reserve(o).after) >= 0)))
+
+  val releaseKeepsStocked = Node.claim("Releasing an order's units leaves a product that is not oversold not " +
+      "oversold.")(
+    forall((sku: Term[String], o: Term[Order]) =>
+      (inventory.available(sku) >= 0) implies (inventory.available(sku).in(inventory.release(o).after) >= 0)))
+
 /** The inventory over a warehouse: a reservation is a hold, a release puts the units back. */
 final class WarehouseInventory(warehouse: Warehouse^) extends Inventory:
   update def reserve(o: Order): Boolean =

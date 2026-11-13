@@ -59,6 +59,20 @@ object Checkout:
     forall((o: Term[Order]) =>
       checkout.place(o).in(checkout.place(o).after).after === checkout.place(o).after))
 
+  // Every step of placing an order, whatever other calls do between the steps.
+
+  val neverOversold = Node.claim("No step of placing an order leaves a product oversold that was not, whatever " +
+      "other calls do between the steps.")(
+    forall((sku: Term[String], o: Term[Order]) =>
+      checkout.place(o).amongOthers(run => run.steps.forall(step =>
+        (inventory.available(sku).in(step._1) >= 0) implies (inventory.available(sku).in(step._2) >= 0)))))
+
+  val neverOverdrawn = Node.claim("No step of placing an order leaves an account overdrawn that was not, " +
+      "whatever other calls do between the steps.")(
+    forall((account: Term[String], o: Term[Order]) =>
+      checkout.place(o).amongOthers(run => run.steps.forall(step =>
+        (payments.balance(account).in(step._1) >= 0) implies (payments.balance(account).in(step._2) >= 0)))))
+
 /** The checkout over an inventory, payments and an order book. It registers the order, so that an order sent
   * twice is placed by one call; reserves its units; charges its customer; and records how it ended. An order whose
   * payment does not go through has its units released: nothing of it is left behind.
