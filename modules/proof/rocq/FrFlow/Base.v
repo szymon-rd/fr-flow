@@ -141,17 +141,6 @@ Ltac frflow_values :=
     | solve [exfalso; match goal with H : _ -> False |- _ => apply H end;
              intros; frflow_cases; subst; cbn in *; frflow_leaf] ].
 
-Ltac frflow_close := first
-  [ lia | tauto | congruence
-  | solve [intuition (subst; cbn in *; try lia; try congruence; eauto 8)]
-  | solve [firstorder (subst; cbn in *; try lia; try congruence; eauto 8)]
-  | solve [apply propositional_extensionality; firstorder (subst; cbn in *; try lia; try congruence; eauto 8)]
-  (* a hypothesis says there is no such thing, and there is one: found by a search of growing depth, since a
-     deeper search may settle on a witness the rest does not hold of *)
-  | frflow_refute ltac:(eauto 4) | frflow_refute ltac:(eauto 6) | frflow_refute ltac:(eauto 8)
-  (* a statement about values written out *)
-  | solve [frflow_values] ].
-
 Lemma frflow_eq_iff (P Q : Prop) : P = Q -> (P <-> Q).
 Proof. intros ->. tauto. Qed.
 Ltac frflow_props := repeat match goal with
@@ -160,6 +149,28 @@ Ltac frflow_props := repeat match goal with
   | H : @eq Prop _ _ |- _ => apply frflow_eq_iff in H
   | H : ~ ~ _ |- _ => apply NNPP in H
   end.
+
+(** What a claim taken as given says is equal (or each the other's condition), rewritten in the goal and in what is
+    known, its own conditions met by what is known: the answer of a call a class makes of what it holds, by the
+    claims on it. *)
+Ltac frflow_given := first [eassumption | solve [repeat split; eassumption]].
+Ltac frflow_rewrite := do 8 (try match goal with
+  | H : forall _, _ |- _ => erewrite H by frflow_given
+  | H : forall _, _, h : _ |- _ => erewrite H in h by frflow_given
+  end).
+
+Ltac frflow_close := first
+  [ lia | tauto | congruence
+  | solve [intuition (subst; cbn in *; try lia; try congruence; eauto 8)]
+  | solve [firstorder (subst; cbn in *; try lia; try congruence; eauto 8)]
+  | solve [apply propositional_extensionality; firstorder (subst; cbn in *; try lia; try congruence; eauto 8)]
+  (* a hypothesis says there is no such thing, and there is one: found by a search of growing depth, since a
+     deeper search may settle on a witness the rest does not hold of *)
+  | frflow_refute ltac:(eauto 4) | frflow_refute ltac:(eauto 6) | frflow_refute ltac:(eauto 8)
+  (* what the claims taken as given say is equal, put in its place *)
+  | solve [frflow_rewrite; frflow_simpl; frflow_props; frflow_leaf]
+  (* a statement about values written out *)
+  | solve [frflow_values] ].
 
 (** The tactic tried first on every obligation: it unfolds the generated definitions, takes each `if` by cases,
     rewrites with the list lemmas above, and closes what remains by arithmetic and first-order search. *)

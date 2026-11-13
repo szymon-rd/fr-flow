@@ -129,7 +129,7 @@ final class LeanTerm(env: LowerEnv, standing: Map[SymbolName, LExpr] = Map.empty
   /** `(List.map (fun x => body) xs)`: a list operation of a function of each element. */
   private def mapped[A, B](op: String, xs: S[List[A]], x: Bound[A], f: S[A] => S[B]): S[List[B]] = s =>
     val (n, body) = bound(x, s, f, LExprs.identifiers(xs(s)))
-    call(const(op), List(Paren(LExpr.Fun(List(LBinder.Bare(n)), body)), xs(s)))
+    call(const(op), List(Paren(LExpr.Fun(List(LBinder.Of(n, LowerType(x.ty))), body)), xs(s)))
 
   private def holding[A](o: S[Option[A]], x: Bound[A], p: S[A] => S[Boolean], op: LOp)(
       make: (List[LBinder], LExpr) => LExpr): S[Boolean] = s =>

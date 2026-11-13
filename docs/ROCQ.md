@@ -84,7 +84,10 @@ What `frflow check` gives of each example, from cold, with Rocq 9.3 (`sbt rocqTe
   examples hold on the code (`check` runs them as Scala), and no claim contradicts one.
 - The test models (`DeskRocqSuite`, `PricesRocqSuite`, `CalendarRocqSuite`, `SeededSuite`): proven, their
   examples shown from the claims.
-- `examples/shop`: not moved (below).
+- `examples/shop`: rewritten as structures (stores, services over them, the checkout over the services). The
+  28 claims on the stores and services are proven by `frflow_auto`, and five of the checkout's seven; the two
+  about an order sent again need proofs by hand, which are being written. Its claims among other calls are not
+  restated yet (below).
 
 ## Rocq on a machine
 
@@ -93,9 +96,10 @@ The newest Rocq is installed through opam (`opam install rocq-prover`), on the s
 
 ## What is left
 
-1. **Shop** is written in the shape before structures and has no Rocq proofs; it moves with its model.
-2. **Lean removed**: FrFlow's Lean library and the Lean proofs of auth and payments are gone. Shop's
-   (`examples/shop/lean`) go with its move, and the names in the sources that still say Lean (`proof.lean`,
+1. **Shop**: the proofs by hand of its two claims about an order sent again, and its claims over every step of
+   placing an order among other calls (no product oversold, no account overdrawn, an order charged once), which
+   the shape before structures stated.
+2. **Lean removed**: FrFlow's Lean library and the Lean proofs of auth and payments are gone. The names in the sources that still say Lean (`proof.lean`,
    `LeanType`) are to be renamed.
 
 A node's signed content is the text of its formula in the notation the Lean printer wrote. It stays printed that

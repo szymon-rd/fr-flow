@@ -32,6 +32,7 @@ object Mentioned:
     case LBinder.Implicit(_, t) => expr(t)
     case LBinder.Instance(c)    => expr(c)
     case LBinder.Bare(_)        => Nil
+    case LBinder.Of(_, t)       => expr(t)
     case LBinder.Member(_, in)  => expr(in)
 
   def expr(e: LExpr): List[List[LeanName]] = e match

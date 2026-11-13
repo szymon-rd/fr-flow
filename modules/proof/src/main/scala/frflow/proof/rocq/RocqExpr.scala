@@ -62,6 +62,7 @@ private[rocq] final class RocqExpr(names: RocqNames):
     case LBinder.Several(ns, t) => s"(${ns.map(n => RocqNames.variable(n.text)).mkString(" ")} : ${apply(t)})"
     case LBinder.Implicit(n, t) => s"{${RocqNames.variable(n.text)} : ${apply(t)}}"
     case LBinder.Bare(n)        => RocqNames.variable(n.text)
+    case LBinder.Of(n, t)       => s"(${RocqNames.variable(n.text)} : ${apply(t)})"
     case LBinder.Member(n, _)   => RocqNames.variable(n.text)
     case LBinder.Instance(c)    => s"`{${apply(c)}}"
 
@@ -90,10 +91,12 @@ private[rocq] final class RocqExpr(names: RocqNames):
       case other                 => apply(other)(using s.binding(vars))
     s"| $pattern => ${apply(a._2)(using s.binding(vars))}"
 
-  /** `⟨a, b, h⟩`: what an `exists` or a conjunction is given, one part after another; the last may be a tactic. */
+  /** `⟨a, b, h⟩`: what an `exists` or a conjunction is given, one part after another; the last may be a tactic,
+    * given the time a lemma with no budget of its own has (a witness that does not go through must not run on).
+    */
   private def given_(es: List[LExpr])(using Scope): String =
     val parts = es.map {
-      case LExpr.By(t) => t.text
+      case LExpr.By(t) => s"timeout ${RocqDecl.unbudgeted} (${t.text})"
       case part        => s"frflow_give (${apply(part)})"
     }
     s"ltac:(${parts.mkString("; ")})"
@@ -119,6 +122,7 @@ private[rocq] object RocqExpr:
     case LBinder.Several(ns, _) => ns.map(_.text)
     case LBinder.Implicit(n, _) => List(n.text)
     case LBinder.Bare(n)        => List(n.text)
+    case LBinder.Of(n, _)       => List(n.text)
     case LBinder.Member(n, _)   => List(n.text)
     case LBinder.Instance(_)    => Nil
 

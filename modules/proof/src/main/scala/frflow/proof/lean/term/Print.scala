@@ -37,6 +37,7 @@ object Print:
     case LBinder.Implicit(n, t) => s"{${n.text} : ${expr(t)}}"
     case LBinder.Instance(c)    => s"[${expr(c)}]"
     case LBinder.Bare(n)        => n.text
+    case LBinder.Of(n, _)       => n.text
     case LBinder.Member(n, in)  => s"${n.text} ∈ ${expr(in)}"
 
   def binders(bs: List[LBinder]): String = bs.map(binder).mkString(" ")

@@ -1,25 +1,26 @@
 package shop
 
 import frflow.*
+import Checkout.checkout
+import ForgetfulCheckout.forgetful
+import Inventory.inventory
+import Ledger.ledger
+import OrderBook.orders
+import Payments.payments
+import Warehouse.warehouse
 
-// The shop's model: the checkout's contracts are its roots; each rests on the contracts of the services it calls,
-// and those on the contracts of the stores; what is trusted of the orders that come in; and the decisions no proof
-// covers.
+// The shop's model: the claims on the checkout are its roots; each rests on the claims on the inventory, the
+// payments and the order book the checkout holds, and those on the claims on the warehouse and the ledger; the
+// class given for each is proven to meet the claims on it.
+
+val storesAreTransactional = Node.design("Each member of a store that changes it is one transaction of its " +
+  "database: other calls see the store before it or after it, never between.")(
+  "src/main/scala/shop/Ledger.scala", "src/main/scala/shop/Warehouse.scala", "src/main/scala/shop/OrderBook.scala")
 
 val ordersAreSensible = Node.assumption("Every order is for at least one unit and a positive amount.")(
   contractOf[Order])
 
-val storesAreTransactional = Node.design("Each method of a store is one transaction of its database: other " +
-  "calls see the store before it or after it, never between.")("src/main/scala/shop/Ledger.scala",
-  "src/main/scala/shop/Warehouse.scala", "src/main/scala/shop/OrderBook.scala")
-
-val othersLeaveAnOrderAlone = Node.design("Between two steps of a call, the other calls are of services that " +
-  "keep what the checkout is proven to keep: each step leaves every other order undisturbed, and a call that " +
-  "finds its order registered does nothing. One registration of an order is won, and one claim of its payment, " +
-  "so the call that won them is the only one to post for it.")("src/main/scala/shop/Others.scala")
-
 val shop: FrModel = FrModel("Shop")(
-  // The checkout's contracts, alone and among other calls: the shop's purpose.
   Checkout.confirmedWhenInStockAndCovered.assuming(ordersAreSensible),
   Checkout.confirmedIsPaid.assuming(ordersAreSensible),
   Checkout.confirmedHoldsItsUnits.assuming(ordersAreSensible),
@@ -27,66 +28,48 @@ val shop: FrModel = FrModel("Shop")(
   Checkout.refusedLeavesNothing.assuming(ordersAreSensible),
   Checkout.placedAgainIsDuplicate.assuming(ordersAreSensible),
   Checkout.placedAgainChangesNothing.assuming(ordersAreSensible),
-  Checkout.neverOversold.assuming(ordersAreSensible),
-  Checkout.neverOverdrawn.assuming(ordersAreSensible),
-  Checkout.chargedOnce.assuming(ordersAreSensible),
-  Checkout.duplicateDoesNothing.assuming(ordersAreSensible),
-  Checkout.leavesOthersUndisturbed.assuming(ordersAreSensible),
-  // What the checkout alone rests on: the contracts of the services it calls.
-  Inventory.reservedWhenAvailable.refines(Checkout.confirmedWhenInStockAndCovered).assuming(ordersAreSensible),
+  // The forgetful checkout: what it does right, which is all a test of the answers can see.
+  ForgetfulCheckout.forgetfulConfirmsTheSame.assuming(ordersAreSensible),
+  Inventory.reservedWhenAvailable
+    .refines(Checkout.confirmedWhenInStockAndCovered, ForgetfulCheckout.forgetfulConfirmsTheSame)
+    .assuming(ordersAreSensible),
   Inventory.reservedUnitsAreTaken.refines(Checkout.confirmedHoldsItsUnits).assuming(ordersAreSensible),
   Inventory.refusedReserveChangesNothing.refines(Checkout.refusedLeavesNothing).assuming(ordersAreSensible),
   Inventory.releaseUndoesReserve.refines(Checkout.refusedLeavesNothing).assuming(ordersAreSensible),
-  Payments.chargedWhenCovered.refines(Checkout.confirmedWhenInStockAndCovered).assuming(ordersAreSensible),
+  Payments.chargedWhenCovered
+    .refines(Checkout.confirmedWhenInStockAndCovered, ForgetfulCheckout.forgetfulConfirmsTheSame)
+    .assuming(ordersAreSensible),
   Payments.doneChargePays.refines(Checkout.confirmedIsPaid).assuming(ordersAreSensible),
   Payments.failedChargeMovesNothing.refines(Checkout.refusedLeavesNothing).assuming(ordersAreSensible),
-  // What the services rest on, and the checkout among other calls: the contracts of the stores.
   Warehouse.holdIsMadeWhenAvailable.refines(Inventory.reservedWhenAvailable).assuming(ordersAreSensible),
-  Warehouse.holdKeepsStocked.refines(Checkout.neverOversold, Checkout.leavesOthersUndisturbed)
-    .assuming(ordersAreSensible),
+  Warehouse.holdKeepsStocked.assuming(ordersAreSensible),
   Warehouse.heldUnitsAreTaken.refines(Inventory.reservedUnitsAreTaken, Inventory.releaseUndoesReserve)
     .assuming(ordersAreSensible),
   Warehouse.refusedHoldChangesNothing.refines(Inventory.refusedReserveChangesNothing).assuming(ordersAreSensible),
-  Warehouse.putBackKeepsStocked.refines(Checkout.neverOversold, Checkout.leavesOthersUndisturbed)
-    .assuming(ordersAreSensible),
+  Warehouse.putBackKeepsStocked.assuming(ordersAreSensible),
   Warehouse.unitsPutBackAreToSell.refines(Inventory.releaseUndoesReserve).assuming(ordersAreSensible),
-  Ledger.claimKeepsPostings.refines(Payments.chargedWhenCovered, Payments.doneChargePays,
-    Payments.failedChargeMovesNothing, Checkout.neverOverdrawn, Checkout.chargedOnce,
-    Checkout.leavesOthersUndisturbed),
-  Ledger.claimIsWonOnce.refines(Payments.chargedWhenCovered, Checkout.chargedOnce),
-  Ledger.claimedStaysClaimed.refines(Checkout.leavesOthersUndisturbed),
+  Ledger.claimKeepsBalances.refines(Payments.chargedWhenCovered, Payments.doneChargePays,
+    Payments.failedChargeMovesNothing),
+  Ledger.claimKeepsPostings,
+  Ledger.claimIsWonOnce.refines(Payments.chargedWhenCovered),
+  Ledger.claimedStaysClaimed,
   Ledger.chargeIsMadeWhenCovered.refines(Payments.chargedWhenCovered).assuming(ordersAreSensible),
-  Ledger.chargeKeepsSolvent.refines(Checkout.neverOverdrawn, Checkout.leavesOthersUndisturbed)
-    .assuming(ordersAreSensible),
-  Ledger.chargeKeepsClaims.refines(Checkout.leavesOthersUndisturbed).assuming(ordersAreSensible),
-  Ledger.chargePostsItsOrder.refines(Checkout.chargedOnce, Checkout.leavesOthersUndisturbed)
-    .assuming(ordersAreSensible),
+  Ledger.chargeKeepsSolvent.assuming(ordersAreSensible),
+  Ledger.chargeKeepsClaims.assuming(ordersAreSensible),
+  Ledger.chargePostsItsOrder.assuming(ordersAreSensible),
   Ledger.chargeMovesTheAmount.refines(Payments.doneChargePays).assuming(ordersAreSensible),
   Ledger.uncoveredChargeChangesNothing.refines(Payments.failedChargeMovesNothing).assuming(ordersAreSensible),
   OrderBook.registerIsWonOnce.refines(Checkout.confirmedWhenInStockAndCovered, Checkout.placedAgainIsDuplicate,
-    Checkout.placedAgainChangesNothing, Checkout.duplicateDoesNothing),
+    Checkout.placedAgainChangesNothing, ForgetfulCheckout.forgetfulConfirmsTheSame),
   OrderBook.registeredStaysRegistered.refines(Checkout.placedAgainIsDuplicate, Checkout.placedAgainChangesNothing),
-  OrderBook.lostRegisterChangesNothing.refines(Checkout.placedAgainChangesNothing, Checkout.duplicateDoesNothing),
+  OrderBook.lostRegisterChangesNothing.refines(Checkout.placedAgainChangesNothing),
   OrderBook.settleKeepsRegistered.refines(Checkout.placedAgainIsDuplicate, Checkout.placedAgainChangesNothing),
   OrderBook.settledIsRecorded.refines(Checkout.confirmedIsRecorded),
-  // The forgetful checkout: the same answers, which is all a test of the answers can see.
-  Forgetful.forgetfulAnswersTheSame.assuming(ordersAreSensible),
-  // What is trusted, and the decisions no proof covers.
   ordersAreSensible,
-  storesAreTransactional.refines(Checkout.neverOversold, Checkout.neverOverdrawn, Checkout.chargedOnce,
-    Checkout.duplicateDoesNothing, Checkout.leavesOthersUndisturbed),
-  othersLeaveAnOrderAlone.refines(Checkout.neverOversold, Checkout.neverOverdrawn, Checkout.chargedOnce),
-  // The Definitions of the model's words.
-  Ledger.claim.define(Ledger.claimCode),
-  Ledger.chargeIfCovered.define(Ledger.chargeIfCoveredCode),
-  Warehouse.hold.define(Warehouse.holdCode),
-  Warehouse.putBack.define(Warehouse.putBackCode),
-  OrderBook.register.define(OrderBook.registerCode),
-  OrderBook.settle.define(OrderBook.settleCode),
-  Inventory.reserve.define(Inventory.reserveCode),
-  Inventory.release.define(Inventory.releaseCode),
-  Payments.charge.define(Payments.chargeCode),
-  Checkout.place.define(Checkout.placeCode),
-  Checkout.placeAmongOthers.define(Checkout.placeAmongOthersCode),
-  Forgetful.forgetfulPlace.define(Forgetful.forgetfulCode))
-  // Each Definition is the code of the method of its name, read by FrFlow.
+  warehouse.define(lifted[MovementWarehouse]),
+  ledger.define(lifted[PostingLedger]),
+  orders.define(lifted[JournalOrderBook]),
+  inventory.define(lifted[WarehouseInventory](warehouse)),
+  payments.define(lifted[LedgerPayments](ledger)),
+  checkout.define(lifted[ShopCheckout](inventory, payments, orders)),
+  forgetful.define(lifted[NoReleaseCheckout](inventory, payments, orders)))

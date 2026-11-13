@@ -2,40 +2,50 @@ package shop
 
 import language.experimental.captureChecking
 import language.experimental.separationChecking
+import caps.Mutable
 import frflow.*
 
-/** The payments service: it claims the order's payment, so that an order charged twice, or twice at once, is
-  * charged by one call; then it moves the money if the customer can cover it. Two transactions of the ledger.
+/** The payments service: it charges an order to its customer, once. */
+trait Payments extends Mutable:
+  /** Charges an order: done, refused (the customer cannot cover it), or a duplicate of a payment claimed. */
+  update def charge(o: Order): Charged
+  /** Whether an order's payment was claimed. */
+  def claimed(order: String): Boolean
+  /** An account's balance. */
+  def balance(account: String): BigInt
+
+/** What the checkout knows of the payments. */
+object Payments:
+  val payments = Declaration[Payments]("the payments service: it charges an order to its customer, once")
+
+  val chargedWhenCovered = Node.claim("A payment not yet claimed that the customer can cover is done.")(
+    forall((o: Term[Order]) =>
+      (!payments.claimed(o.id) && o.amount <= payments.balance(o.customer)) implies
+        (payments.charge(o).result === Charged.Done)))
+
+  val doneChargePays = Node.claim("A charge done takes the amount from the customer and gives it to the shop; " +
+      "every other account has what it had.")(
+    forall((account: Term[String], o: Term[Order]) =>
+      (payments.charge(o).result === Charged.Done) implies
+        (payments.balance(account).in(payments.charge(o).after) ===
+          payments.balance(account) + when(account === "shop")(o.amount).otherwise(0) -
+            when(account === o.customer)(o.amount).otherwise(0))))
+
+  val failedChargeMovesNothing = Node.claim("A charge that is not done leaves every balance as it was.")(
+    forall((account: Term[String], o: Term[Order]) =>
+      (payments.charge(o).result =!= Charged.Done) implies
+        (payments.balance(account).in(payments.charge(o).after) === payments.balance(account))))
+
+/** The payments over a ledger: it claims the order's payment, so that an order charged twice, or twice at once,
+  * is charged by one call; then it moves the money if the customer can cover it. Two transactions of the ledger.
   */
-final class Payments(ledger: Ledger^):
-  def charge(o: Order): Charged =
+final class LedgerPayments(ledger: Ledger^) extends Payments:
+  update def charge(o: Order): Charged =
     val mine = ledger.claim(o.id)
     if !mine then Charged.Duplicate
     else
       val paid = ledger.chargeIfCovered(o)
       if paid then Charged.Done else Charged.Refused
 
-object Payments:
-  val charge = Declaration[(Books, Order) -> (Charged, Books)]("charging an order: its answer, and the books " +
-    "after")
-
-  val chargeCode = updating { (payments: Payments^, o: Order) => payments.charge(o) }
-
-  // The payments' contracts: what the checkout knows of it.
-
-  val chargedWhenCovered = Node.claim("A payment not yet claimed that the customer can cover is done.")(
-    forall((books: Term[Books], o: Term[Order]) =>
-      (!books.claimed.contains(o.id) && o.amount <= Books.balance(books.postings, o.customer)) implies
-        (charge(books, o)._1 === Charged.Done)))
-
-  val doneChargePays = Node.claim("A charge done takes the amount from the customer and gives it to the shop; " +
-      "every other account has what it had.")(
-    forall((books: Term[Books], account: Term[String], o: Term[Order]) =>
-      (charge(books, o)._1 === Charged.Done) implies
-        (Books.balance(charge(books, o)._2.postings, account) ===
-          Books.balance(books.postings, account) + when(account === "shop")(o.amount).otherwise(0) -
-            when(account === o.customer)(o.amount).otherwise(0))))
-
-  val failedChargeMovesNothing = Node.claim("A charge that is not done makes no posting.")(
-    forall((books: Term[Books], o: Term[Order]) =>
-      (charge(books, o)._1 =!= Charged.Done) implies (charge(books, o)._2.postings === books.postings)))
+  def claimed(order: String): Boolean = ledger.claimed(order)
+  def balance(account: String): BigInt = ledger.balance(account)

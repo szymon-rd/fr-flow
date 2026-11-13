@@ -21,5 +21,6 @@ object Params:
     case LBinder.Several(ns, _) => ns
     case LBinder.Implicit(n, _) => List(n)
     case LBinder.Bare(n)        => List(n)
+    case LBinder.Of(n, _)       => List(n)
     case LBinder.Member(n, _)   => List(n)
     case LBinder.Instance(_)    => Nil

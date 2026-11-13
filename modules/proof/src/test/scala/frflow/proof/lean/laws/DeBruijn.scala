@@ -19,6 +19,8 @@ object DeBruijn:
     ps.foldLeft((List.empty[LBinder], scope)) { case ((done, sc), p) => p match
       case LBinder.Explicit(n, t) => (done :+ LBinder.Explicit(blank, go(t, sc)), n :: sc)
       case LBinder.Bare(n)        => (done :+ LBinder.Bare(blank), n :: sc)
+      // printed as the bare name: its type is not in the text
+      case LBinder.Of(n, _)       => (done :+ LBinder.Bare(blank), n :: sc)
       case LBinder.Member(n, in)  => (done :+ LBinder.Member(blank, go(in, sc)), n :: sc)
       case LBinder.Several(ns, t) => (done :+ LBinder.Several(ns.map(_ => blank), go(t, sc)), ns.reverse ++ sc)
       case LBinder.Implicit(n, t) => (done :+ LBinder.Implicit(blank, go(t, sc)), n :: sc)

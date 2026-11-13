@@ -2,41 +2,50 @@ package shop
 
 import language.experimental.captureChecking
 import language.experimental.separationChecking
+import caps.Mutable
 import frflow.*
 
 /** The inventory service: it reserves an order's units, and releases them when the order does not go through. */
-final class Inventory(warehouse: Warehouse^):
-  def reserve(o: Order): Boolean = warehouse.hold(o)
-  def release(o: Order): Unit = warehouse.putBack(o)
+trait Inventory extends Mutable:
+  /** Reserves an order's units if its product has them to sell: whether it did. */
+  update def reserve(o: Order): Boolean
+  /** Releases an order's units. */
+  update def release(o: Order): Unit
+  /** The units of a product there are to sell. */
+  def available(sku: String): BigInt
 
+/** What the checkout knows of the inventory. */
 object Inventory:
-  val reserve = Declaration[(Stock, Order) -> (Boolean, Stock)]("reserving an order's units: whether they were " +
-    "there, and the stock after")
-  val release = Declaration[(Stock, Order) -> (Unit, Stock)]("releasing an order's units: the stock after")
-
-  val reserveCode = updating { (inventory: Inventory^, o: Order) => inventory.reserve(o) }
-  val releaseCode = updating { (inventory: Inventory^, o: Order) => inventory.release(o) }
-
-  // The inventory's contracts: what the checkout knows of it.
+  val inventory = Declaration[Inventory]("the inventory service: it reserves and releases an order's units")
 
   val reservedWhenAvailable = Node.claim("An order's units are reserved exactly when its product has that many " +
       "to sell.")(
-    forall((stock: Term[Stock], o: Term[Order]) =>
-      reserve(stock, o)._1 === (o.units <= Stock.available(stock.movements, o.sku))))
+    forall((o: Term[Order]) => inventory.reserve(o).result === (o.units <= inventory.available(o.sku))))
 
   val reservedUnitsAreTaken = Node.claim("Units reserved are no longer to sell.")(
-    forall((stock: Term[Stock], o: Term[Order]) =>
-      reserve(stock, o)._1 implies
-        (Stock.available(reserve(stock, o)._2.movements, o.sku) ===
-          Stock.available(stock.movements, o.sku) - o.units)))
+    forall((o: Term[Order]) =>
+      inventory.reserve(o).result implies
+        (inventory.available(o.sku).in(inventory.reserve(o).after) === inventory.available(o.sku) - o.units)))
 
-  val refusedReserveChangesNothing = Node.claim("A reservation that is not made leaves the stock as it is.")(
-    forall((stock: Term[Stock], o: Term[Order]) =>
-      !reserve(stock, o)._1 implies (reserve(stock, o)._2 === stock)))
+  val refusedReserveChangesNothing = Node.claim("A reservation that is not made leaves every product with what " +
+      "it had to sell.")(
+    forall((sku: Term[String], o: Term[Order]) =>
+      !inventory.reserve(o).result implies
+        (inventory.available(sku).in(inventory.reserve(o).after) === inventory.available(sku))))
 
   val releaseUndoesReserve = Node.claim("Releasing an order's units after reserving them leaves every product " +
       "with what it had to sell.")(
-    forall((stock: Term[Stock], sku: Term[String], o: Term[Order]) =>
-      reserve(stock, o)._1 implies
-        (Stock.available(release(reserve(stock, o)._2, o)._2.movements, sku) ===
-          Stock.available(stock.movements, sku))))
+    forall((sku: Term[String], o: Term[Order]) =>
+      inventory.reserve(o).result implies
+        (inventory.available(sku).in(inventory.release(o).in(inventory.reserve(o).after).after) ===
+          inventory.available(sku))))
+
+/** The inventory over a warehouse: a reservation is a hold, a release puts the units back. */
+final class WarehouseInventory(warehouse: Warehouse^) extends Inventory:
+  update def reserve(o: Order): Boolean =
+    val held = warehouse.hold(o)
+    held
+
+  update def release(o: Order): Unit = warehouse.putBack(o)
+
+  def available(sku: String): BigInt = warehouse.available(sku)
