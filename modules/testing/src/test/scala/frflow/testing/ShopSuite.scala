@@ -1,4 +1,4 @@
-package frflow.eval
+package frflow.testing
 
 import frflow.core.analysis.Validate
 import frflow.eval.run.{ExampleRun, OnCode}

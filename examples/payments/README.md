@@ -180,7 +180,7 @@ by the claims.
 ## Running it
 
 ```bash
-sbt "testing/testOnly frflow.eval.PaymentsSuite"
+sbt "testing/testOnly frflow.testing.PaymentsSuite"
 ```
 
 ```bash

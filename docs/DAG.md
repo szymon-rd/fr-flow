@@ -24,14 +24,13 @@ and in them.
 5. **Proofs are central.** Every step is a Lean theorem; the code at the leaves is proven where it is written in the
    DSL, and tested where it is plain Scala; what is trusted is a named, visible list of assumptions. Nothing is
    checked when the code runs (§2): FrFlow is for testing before production and strict static guarantees.
-   A departure, on the branch that adds it: plain Scala the compiler reads (`lifted { … }`) is proven too, as the
-   term read from it ([LIFTED.md](LIFTED.md) says what holds the Scala to that term). It adds no concept: lifted
-   code is a Definition given its meaning on the spot, and a type's contract (`FrSpec`) is an `always[T]` a node
-   states. A second departure on that branch: a method that changes a structure is read as a function of the
+   A departure: a class of plain Scala (`lifted[Class]`) is proven too, as the terms compiled from it
+   ([LIFTED.md](LIFTED.md) says what holds the Scala to those terms). It adds no concept: the class is a
+   Definition, and a type's contract (`FrSpec`) is an `always[T]` a node states. With it, a method that changes a structure is read as a function of the
    structure's state, and among other calls as a function of a schedule too; what the reading takes for granted
    (a store's member is one step) is said by design nodes. A value with members (a structure: a service whole) is a word too: a Declaration of a trait's type,
    its members called in claims, the class that implements the trait its Definition; a claim on it is said of the
-   structure in every state. A third:
+   structure in every state. A second:
    the two kinds of value are one. Every word is a Declaration, and a Definition is a Declaration with a meaning
    (`granted.define { … }`, listed in the FrModel beside the nodes; or `define { … }`, declared and defined at
    once). Code calls Declarations; which of them are fixed (given a meaning, or called by code) is read off the

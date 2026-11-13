@@ -85,7 +85,7 @@ What `frflow check` gives of each example, from cold, with Rocq 9.3 (`sbt rocqTe
   commit `81659f7`, with the witnesses);
   `frflow_evaluate` does not finish on the handler's steps, so they are to be written by hand in Rocq. The
   examples hold on the code (`check` runs them as Scala), and no claim contradicts one.
-- The test models (`DeskRocqSuite`, `PricesRocqSuite`, `CalendarRocqSuite`, `SeededSuite`): proven, their
+- The test models (`DeskRocqSuite`, `PricesRocqSuite`, `SeededSuite`): proven, their
   examples shown from the claims.
 - `examples/shop`: its 42 claims are proven, 38 by `frflow_auto` and four from proof files
   (`examples/shop/rocq/Proofs/Shop`: two by hand, two the tactic given more time). About 16 minutes.

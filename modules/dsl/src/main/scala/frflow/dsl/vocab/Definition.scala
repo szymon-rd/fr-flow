@@ -13,7 +13,7 @@ import scala.compiletime.summonFrom
 /** A Declaration with a meaning (owner §15): the word, and what it is. Made of a Declaration already written
   * (`granted.define { … }`, `book.define(bookIfGranted)`, `granted.defineTested(…)`, `limit.defineValue(…)`,
   * `connection.provided`, each listed in the FrModel beside the nodes), or declared and defined at once, named as its
-  * val and carrying its proven code (`define { … }`, `lifted { … }`: `onTheSpot`). Every claim mentioning the word
+  * val and carrying its proven code (`define { … }`: `onTheSpot`). Every claim mentioning the word
   * constrains it, and its code is checked against them. This class also carries a word that has no meaning yet (what
   * `Declaration[A]("…")` makes, typed as a Declaration): its symbol as a term. Of a type with no `LeanType` (a
   * connection), a word is code-only: provided where the code runs and read there (`env(d)`), never mentioned in a

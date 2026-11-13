@@ -1,178 +1,79 @@
-# Plain Scala, read: `lifted` and `FrSpec`
+# Scala compiled into the model: structures and `FrSpec`
 
-This is a third way to write the code at the bottom of the refinement graph, beside plain Scala that is tested
-(`defineTested`) and code written with the DSL that is proven (`define`, `program`): plain Scala that is proven.
-The developer writes an ordinary Scala function. At compile time FrFlow reads the function's body into a term of
-its term language, the same term a `define` builds. Lean is printed from that term and the evaluator runs it, as
-before; the function itself stays the Scala it is, and the JVM runs it.
+The code at the bottom of the refinement graph is given in one of three ways: plain Scala that is tested
+(`defineTested`), code written with the DSL that is proven (`define`, `program`), and a class of plain Scala that
+is proven (`lifted[Class]`). This document is about the third: a class implementing a trait, compiled into FrFlow's
+term language as the model is built. Rocq is printed from the terms and the evaluator runs them; the class stays
+the Scala it is, and the JVM runs it.
 
 The idea is the one of [Aeneas](https://github.com/AeneasVerif/aeneas) for Rust (the compiler's view of the program,
 translated to a pure lambda calculus, printed for a proof assistant), scoped to what can be held to one meaning in
-Scala, in the term and in Lean. This document says what is built, how the three are held together, and what is not
-built yet.
+Scala, in the term and in Rocq.
 
-## What the developer writes
-
-The domain's types state their contracts in Scala, and the code is Scala:
-
-```scala
-import frflow.*
-
-/** What the booking form sends: it ends after it starts. */
-final case class Booking(room: String, start: BigInt, end: BigInt)
-
-object Booking:
-  given FrSpec[Booking] = FrSpec.derived[Booking].where(b => b.start < b.end)
-
-final case class RoomBookings(room: String, bookings: List[Booking]) derives FrSpec
-
-/** Two bookings do not overlap: they are in different rooms, or one ends by the time the other starts. */
-val noOverlap = lifted { (a: Booking, b: Booking) => a.room != b.room || a.end <= b.start || b.end <= a.start }
-
-/** The calendar's code: a request is granted when it overlaps no booking held. */
-val grantedCode = lifted { (held: RoomBookings, request: Booking) =>
-  held.bookings.forall(b => noOverlap(b, request)) }
-```
-
-`noOverlap` and `grantedCode` are Scala functions (`noOverlap(a, b)` is a `Boolean`, computed by the JVM), and they
-are Definitions given their meaning where they are written, as a `define` is. Statements mention them as any other
-Definition, and the model lists the one a Declaration is defined by:
-
-```scala
-val granted = Declaration[(RoomBookings, Booking) => Boolean]("whether a request is granted, given its room's bookings")
-
-val bookingsEndAfterStart = Node.assumption("Every booking ends after it starts.")(contractOf[Booking])
-
-val grantWhenNoOverlap = Node.claim("A request is granted exactly when it overlaps no booking of its room.")(
-  forall((held: Term[RoomBookings], request: Term[Booking]) =>
-    granted(held, request) === held.bookings.forall(b => noOverlap(b, request))))
-  .assuming(bookingsEndAfterStart)
-
-val model = FrModel("Calendar")(grantWhenNoOverlap, bookingsEndAfterStart, granted.define(grantedCode))
-```
-
-Lean is given these `def`s, printed from the terms read:
-
-```lean
-structure Booking where
-  room : String
-  start : Int
-  «end» : Int
-
-@[frflow_defs] def bookingsEndAfterStart (b : Booking) : Prop :=
-  (b.start < b.«end»)
-
-@[frflow_defs] def noOverlap (a : Booking) (b : Booking) : Prop :=
-  (((¬(a.room = b.room)) ∨ (a.«end» ≤ b.start)) ∨ (b.«end» ≤ a.start))
-
-@[frflow_defs] def grantedCode (held : RoomBookings) (request : Booking) : Prop :=
-  (∀ b ∈ held.bookings, (Calendar.noOverlap b request))
-```
-
-and proves `grantWhenNoOverlap` of `grantedCode` (`impl`). In rooms the same claim is tested, on generated cases, of
-the calendar's plain Scala; here it is proven of the Scala itself. This model is
-`modules/testing/src/test/scala/frflow/eval/Calendar.scala`, and `CalendarLeanSuite` runs it through Lean.
-
-Statements stay in the DSL where Scala cannot say them: `forall` over every value of a type has no Scala value. A
-contract can be written with the DSL for the same reason (`whereStated`).
+Statements, and the contracts of types, are written with the DSL: a statement needs `forall` and `exists`, which
+have no Scala value, so the one language that says them says everything that is stated. Plain Scala is the code;
+the DSL is what is said of it.
 
 ## The pipeline
 
 ```text
 Scala source
-   │  scalac's typer (types, overloads, implicits, inlining resolved)
+   │  scalac (types, overloads, implicits, inlining resolved)
    ▼
-typed tree ──────────────────────────────► JVM bytecode        (what production runs: `Lifted.native`)
-   │  the reader (`dsl.lifted.Reader`, a macro): one term operation per construct,
-   │  a compile error at any construct it does not read
+class file ──────────────────────────────► the JVM              (what production runs)
+TASTy (the class as it was typed, bodies included)
+   │  the compiler (`dsl.compiled`), as the model is built: one term operation per construct,
+   │  a `NotRead` naming the file and line at any construct it does not read
    ▼
 term (`core.term`: FrFlow's typed lambda calculus over the vocabulary; `Expr` is its initial form)
    ├──► the evaluator (`eval.term.Evaluate`)                    (the term's value in Scala)
-   └──► the Lean printer (`proof.lean.term.LeanTerm`)           (the `def` Lean proves things of)
+   └──► the Rocq printer (`proof.rocq`)                         (the definition Rocq proves things of)
 ```
 
-The term is the AST. It is not a new one: lifted code is read into the term language every model is written in
-(`Sym`, the algebras of `core.term.algebra`), so everything after the reader is unchanged: validation, the
-obligations, the Lean layout, the decisions, the fingerprints. `LiftedSuite` checks that a function read from plain
-Scala and the same function written with the DSL have one IR, binder for binder.
+The term is the AST. It is not a new one: a class is read into the term language every model is written in
+(`Sym`, the algebras of `core.term.algebra`), so everything after the compiler is unchanged: validation, the
+obligations, the generated modules, the decisions, the fingerprints.
 
-The reader runs where the function is written ("locally"): it needs no compiler plugin and no build step, and its
-input is the compiler's typed tree, so it never resolves a name or an overload itself.
+No macro runs where the class is lifted, no Scala is generated, and no compiler option is needed: the input is the
+TASTy the Scala compiler wrote beside the class file, so FrFlow never resolves a name or an overload itself.
 
-## How the three are held to one meaning
+## What holds the Scala and the term to one meaning
 
-There are three artifacts for one function: the Scala the JVM runs, the term, and the Lean `def`. Two translations
-connect them, and each is held in two ways: by how it is built, and by a check that does not trust how it is built.
+The compiler translates construct by construct, and reads only Scala whose value cannot depend on anything the
+term does not have:
 
-### Scala and the term
-
-**By construction.** The reader translates construct by construct, and reads only Scala whose value cannot depend
-on anything the term does not have:
-
-- No state and no effect: only `val`s, and only calls of the operations listed below. A `var`, a `lazy val`, a
-  statement that is not a value, or a call of any other method is a compile error.
+- State is the class's own fields, changed by its `update` members; inside a member only `val`s, and only calls of
+  the operations listed below and of the members of the structures the class holds. A `lazy val`, a loop, or a
+  call of any other method is not read.
 - Total: no operation read can throw or fail to end. `head`, `get`, `apply(i)`, division and `throw` are not read; a
-  `match` must cover every case of its enum (the reader checks it), and has no guard.
-- Numbers are `BigInt`, which Lean's `Int` is. `Int` and `Long` have no `FrSpec`: they wrap around, and Lean's
-  numbers do not. An `Int` is read only as a constant given to `BigInt(…)` or as a list's length there.
+  `match` must cover every case of its enum, and has no guard.
+- Numbers are `BigInt`, which Rocq's `Z` is. `Int` and `Long` have no `FrSpec`: they wrap around, and `Z` does not.
+  An `Int` is read only as a constant given to `BigInt(…)` or as a list's length there.
 - Equality is data's. `==` is read between two values of one type whose `equals` is the compiler's (a case class,
-  an enum, the standard immutable types), which is Lean's `=`.
-- No value from outside the function: its inputs, its own values, and the functions it calls (other lifted
-  functions, and methods whose bodies the reader reads in turn). A constant read from the environment could differ
-  between the run Lean is printed in and the run in production.
+  an enum, the standard immutable types), which is Rocq's `=`. `FrSpec.derived` refuses a type that defines its
+  own `equals`.
+- No value from outside: a member's inputs, the class's fields, its own values, and the methods it calls (their
+  bodies read in turn).
 - Maps and sets are read at a key or a member, never iterated: their order is not a value of the term.
 
-Since nothing read has an effect, can fail or can diverge, the order Scala evaluates in (`&&` stopping early,
-arguments left to right) cannot be told from the term's value, so the reader need not model it. What the compiler
-adds around the code as written (a value naming an argument given by name, the receiver of an inlined method, the
-default for a field a `copy` leaves as it is) is read as the expression it names.
+Since nothing read can fail or diverge, and a member's effect is only its own class's fields, the order Scala
+evaluates an expression in cannot be told from the term's value.
 
-The term is also typed twice: the reader writes it with the DSL's typed operations, so the Scala compiler checks the
-term the reader wrote at the type the Scala has (`Term[A]` for an expression of type `A`).
-
-**By test (`testing.Agreement`).** The translation of each function is tested, not trusted: on generated inputs,
-each meeting what always holds of its type (the contracts the model states), the Scala the JVM runs gives what the
-evaluator gives of the term. A reader that read a construct as a term of another value shows as a case: the
-report is the first case the two differ on, with its inputs, what each gave, and the seed and index it was drawn
-from (`Agreement.Outcome.Differ`).
-
-`AgreementSuite` runs it on the calendar, and shows that a term that is not the Scala's is found.
-
-### The term and Lean
-
-**By construction.** One printer prints every term (`LeanTerm`), lifted or written with the DSL; FrFlow's own
-examples have exercised it since before this branch.
-
-**By test (`testing.Vectors`).** For each generated case, the fact that the code, called on the case's inputs, gives
-what its Scala gave is made an example. `check` treats it as any example: the evaluator runs it on the term, and
-Lean decides it from the `def` printed (and is asked the opposite too, which it shows only if the `def` contradicts
-the Scala). So on the cases drawn the Scala, the term and the Lean `def` are held to one value, case by case
-(`CalendarLeanSuite`).
-
-### What is still trusted
-
-- The Scala compiler and the JVM, and Lean's kernel.
-- The reader and the printer on the inputs no case reached. `Agreement` and `Vectors` are tests: they find a wrong
-  translation with a case, and do not prove its absence. The reader itself is not proven; validating each
-  function's translation by proof instead of by test is listed below.
-- That the inputs are data: no `null`, strings well formed (Scala's are UTF-16 and may hold a lone surrogate; Lean's
-  hold Unicode scalar values).
-- The assumptions the developer accepted, as always.
-
-Where the residue matters more than speed, the term can be what production runs: `d.fn(env)` runs a Definition's
-term by the evaluator, so nothing rests on the reader at all (Lean and the run then share the term itself).
+**What is still trusted.** The Scala compiler and the JVM, and Rocq's kernel; the compiler of this document, which
+is tested and not proven; that inputs are data (no `null`, strings well formed); and the assumptions the developer
+accepted. A model's examples are run as Scala on the class (`check` runs them), and are shown by Rocq from the
+claims where that proof is written.
 
 ## `FrSpec`: a type's spec and contract
 
-Every type a value of lifted code has must have an `FrSpec`. It is the type's `LeanType` (what the type is in the
-term language and in Lean) with its contract: the rule every value of the type meets.
+Every type a value of compiled code has must have an `FrSpec`. It is the type's `LeanType` (what the type is in the
+term language and in the prover) with its contract: the rule every value of the type meets.
 
 ```scala
-final case class Booking(room: String, start: BigInt, end: BigInt):
-  inline def length: BigInt = end - start
+final case class Order(id: OrderId, sku: Sku, units: BigInt, amount: BigInt)
 
-object Booking:
-  given FrSpec[Booking] = FrSpec.derived[Booking].where(b => BigInt(0) < b.length)
+object Order:
+  given FrSpec[Order] = FrSpec.derived[Order].where(o => o.units > 0 && o.amount > 0)
 ```
 
 - `derives FrSpec` (or `FrSpec.derived[T]`) gives a case class or an enum its spec with no contract, as
@@ -181,62 +82,46 @@ object Booking:
 - An id has a type of its own: `opaque type PaymentId = String` with
   `object PaymentId extends FrSpec.Opaque[PaymentId, String]`, both at the top level of one file. The companion
   makes a value (`PaymentId("p1")`), reads it (`id.value`) and gives the spec, that of the type it is over: Scala
-  tells a payment's id from a card's, and the term language and Lean read each as the string it is. Lifted code
-  passes such a value on and compares it; it does not make or open one.
-- `where(v => …)` states the contract in plain Scala over the value's members: its fields, and its `inline`
-  methods. It is read as lifted code is, and kept as the Scala it is: `FrSpec[Booking].holds(b)` checks a value
-  where the code runs (at a boundary, where a value comes from outside).
-- `whereStated(v => …)` states it with the DSL, for a rule plain Scala cannot say (`forall`, `exists`).
+  tells a payment's id from a card's, and the term language and Rocq read each as the string it is.
+- `where(v => …)` states the contract with the DSL, over a `Term` of the type: its fields, the DSL's operations,
+  `forall` and `exists`. It is what a statement's formula is written in.
 - `contractOf[T]` is the contract as a node's formula, `always[T]` of the rule. The developer decides it as any
-  statement: an assumption for a type whose values come from outside, a claim for one the code makes (Lean then
+  statement: an assumption for a type whose values come from outside, a claim for one the code makes (Rocq then
   proves every value the covered code makes meets it, `made_`). From there it is FrFlow's `always[T]`: a hypothesis
   of every statement about such values, and what the tests' generated values meet.
 
 A spec does not put its contract into the model by itself: only the developer's signed decisions do, so a contract
 enters when a node states it.
 
-## What the reader reads
+## What the compiler reads
 
-| Scala | Term | Lean |
-|---|---|---|
-| `true`, `false`, a string constant, `BigInt(3)` | a constant | `True`, `"…"`, `(3 : Int)` |
-| `a && b`, `a \|\| b`, `!a` | `and`, `or`, `not` | `∧`, `∨`, `¬` |
-| `a == b`, `a != b` (one type, data) | `eq`, its negation | `a = b`, `¬(a = b)` |
-| `a + b`, `a - b`, `-a` (read `0 - a`), `<`, `<=`, `>`, `>=` on `BigInt` | `add`, `sub`, `lt`, `le` | `+`, `-`, `<`, `≤` |
-| `if c then a else b` | `cond` | `if c then a else b` |
-| `val x = e; body` | `let` | `let x := e; body` |
-| `C(a, b)`, `new C(a, b)` (a case class, an enum's case), `Shape.Empty` | `construct` | the constructor applied |
-| `r.field` | `field` | `r.field` |
-| `r.copy(f = v)` | `copy` | `{ r with f := v }` |
-| `x match { case C(a, b) => …; case c: D => …; case _ => … }` (an enum) | `cases` | `match x with …` |
-| `o match { case Some(x) => …; case None => … }` | `foldOption` | `match o with …` |
-| `Nil`, `List(a, b)`, `x :: xs`, `xs ++ ys`, `xs :+ x`, `BigInt(xs.length)` | `nil`, `cons`, `append`, `length` | lists |
-| `xs.forall`, `exists`, `filter`, `find`, `map`, `flatMap`, `foldLeft`, `contains`, `isEmpty`, `nonEmpty` | the same | `∀ x ∈ xs`, `List.filter`, … |
-| `None`, `Some(x)`, `o.forall`, `exists`, `map`, `fold`, `getOrElse`, `contains`, `isDefined`, `isEmpty` | options | `Option` |
-| `m.get(k)`, `m.getOrElse(k, d)`, `m.updated(k, v)`, `m.contains(k)` | maps | `K → Option V` |
-| `s.contains(x)`, `s + x`, `s ++ t` | sets | `A → Prop` |
-| `(a, b)`, `p._1`, `p._2` | pairs | `(a, b)`, `p.1`, `p.2` |
-| `f(a, b)` of a lifted `f` | a call of its Definition | `Model.f a b` |
-| a call of an `inline def` | its body, where it is called | the body |
-| a call of an ordinary method of the developer's (`b.span`, `Rules.free(held, r)`), compiled with `-Yretain-trees` | its body, where it is called | the body |
-| a lambda given to an operation above | a binder | `fun x => …` |
+| Scala | Term |
+|---|---|
+| `true`, `false`, a string constant, `BigInt(3)` | a constant |
+| `a && b`, `a \|\| b`, `!a` | `and`, `or`, `not` |
+| `a == b`, `a != b` (one type, data) | `eq`, its negation |
+| `a + b`, `a - b`, `-a` (read `0 - a`), `<`, `<=`, `>`, `>=` on `BigInt` | `add`, `sub`, `lt`, `le` |
+| `if c then a else b` | `cond` |
+| `val x = e; body` | `let` |
+| `C(a, b)`, `new C(a, b)` (a case class, an enum's case), `Shape.Empty` | `construct` |
+| `r.field` | `field` |
+| `r.copy(f = v)` | `copy` |
+| `x match { case C(a, b) => …; case c: D => …; case _ => … }` (an enum) | `cases` |
+| `o match { case Some(x) => …; case None => … }` | `foldOption` |
+| `Nil`, `List(a, b)`, `x :: xs`, `xs ++ ys`, `xs :+ x`, `BigInt(xs.length)` | `nil`, `cons`, `append`, `length` |
+| `xs.forall`, `exists`, `filter`, `find`, `map`, `flatMap`, `foldLeft`, `contains`, `isEmpty`, `nonEmpty` | the same |
+| `None`, `Some(x)`, `o.forall`, `exists`, `map`, `fold`, `getOrElse`, `contains`, `isDefined`, `isEmpty` | options |
+| `m.get(k)`, `m.getOrElse(k, d)`, `m.updated(k, v)`, `m.contains(k)` | maps |
+| `s.contains(x)`, `s + x`, `s ++ t` | sets |
+| `(a, b)`, `p._1`, `p._2` | pairs |
+| a call of an `inline def` | its body, where it is called |
+| a call of an ordinary method of the developer's (`b.span`, `Rules.free(held, r)`) | its body, where it is called |
+| a call of a member of a structure the class holds | a call of that structure's word |
+| a lambda given to an operation above | a binder |
 
-### Functions that lifted code calls
-
-- **Another lifted function** (`val noOverlap = lifted { … }`) is called by name: Lean has one `def` for each, so
-  the Lean keeps the shape of the Scala, and each can have claims of its own.
-- **An `inline def`** is read where it is called: the compiler has put its body there before the reader runs.
-- **An ordinary method** of the developer's code (a case class's member, an object's function) is read where it is
-  called too, its receiver the body's `this` and its arguments its parameters, when the compiler kept its body: a
-  macro is shown the body of a method it is not given only under scalac's `-Yretain-trees`. Without the option the
-  call is a compile error that says so. A method that calls itself is a recursion, which is not read. The standard
-  library's methods are never read this way: only the operations in the table are.
-
-A lifted function takes one to four inputs. A closed expression is read too (`lifted { noOverlap(a, b) }` with `a`
-and `b` written out is a `Term[Boolean]`): an example's fact in plain Scala (`CalendarExamples`).
-
-Anything else is a compile error at the construct, saying what is not read and what to write. `RefusedSuite` holds
-each.
+[ROCQ.md](ROCQ.md) says how each term reads in Rocq. An ordinary method is read from the TASTy of its own class;
+a method that calls itself is a recursion, which is not read. The standard library's methods are never read this
+way: only the operations in the table are. Anything else is a `NotRead` at the construct, saying what is not read.
 
 ## Services: code that changes a store
 
@@ -288,18 +173,17 @@ FrModel("Payments")(…, limits.define(lifted[RecordedLimits]))
   opens the file (`Inspect`, over `scala3-tasty-inspector`, which a project that builds a model names as a
   dependency), walks each member's tree, and builds the member's term: one operation of the term language for
   each Scala construct it reads. No macro runs where the class is lifted, no Scala is generated or compiled, and
-  nothing must be kept by the compiler (`-Yretain-trees` is not needed for it); a class in a library's jar is
-  compiled the same way. A type's `FrSpec` is the one its companion gives, found on the class's class loader
+  nothing must be kept by the compiler; a class in a library's jar is compiled the same way. A type's `FrSpec` is the one its companion gives, found on the class's class loader
   (`Specs`). Each body is compiled once, while the file is open (`Once`); Scala the compiler does not read is a
   `NotRead` there, naming the file and line. It reads what the table above lists, a `match` on an enum or an
-  option included (`CompileMatch`); a call of a `lifted { … }` function from a class is not read yet.
+  option included (`CompileMatch`).
 - The class is read member by member. Its state is a record named as the trait, a field for
   each of the constructor's; each member's body is read into a function of that record. `limits.define(…)`
-  gives each member's word its code, and Lean proves the code meets every claim that mentions the member.
+  gives each member's word its code, and Rocq proves the code meets every claim that mentions the member.
 - A class made with other structures is given their words, in the order its constructor takes them:
   `lifted[StreamPaymentHandler](limits, ledger, offsets)`. A call of a member of a structure it holds is a call of
   that word's member, written as a statement of its own in a member that changes the class (`val cost =
-  pricing.price(item)`), so in Lean the class's code is a function of any members that meet the claims on them,
+  pricing.price(item)`), so in Rocq the class's code is a function of any members that meet the claims on them,
   and it is proven from those claims. One class is given for a trait in a model: the trait's record is that
   class's fields.
 - A claim on a structure made of others is said through their interfaces, asked as it has them:
@@ -324,61 +208,46 @@ FrModel("Payments")(…, limits.define(lifted[RecordedLimits]))
 
 A structure no class is read for is `provided` (`ledger.provided`, listed in the model as a Definition is): one
 from a library or behind a remote call, known by what is assumed of it (`Node.assumption`, said of it in every
-state as a claim is). A class that holds it is read and proven from those assumptions. The model is valid; Lean
-does not build it yet, since a structure with no class has no type in the Lean model.
+state as a claim is). A class that holds it is read and proven from those assumptions. The model is valid; Rocq
+does not build it yet, since a structure with no class has no type in the generated modules.
 
 Not built in this shape: `defineTested` for a structure (a class FrFlow cannot read, tested against the claims);
-the class's Scala run against the term read from it on generated cases (`Agreement`); two classes for one trait in
-one model; a member of more than three inputs (two, for its steps).
+the class's Scala run against the term read from it on generated cases; two classes for one trait in one model; a
+member of more than three inputs (two, for its steps).
 
 ## Compared with Aeneas, and with Stainless
 
 Aeneas reads Rust's MIR after borrow checking and turns loans into values passed and returned, so the pure
-translation of an imperative program is a consequence of the type system. Scala has no such discipline to lean on:
-purity is a convention. So this branch reads only the Scala that is pure by its form (the list above), and refuses
-the rest at compile time. That is the same trade as Stainless's "PureScala", with two differences: the proof
-assistant is Lean, with the proofs in the repository beside the refinement graph, and the property proven is not a
-contract annotation on the function but the claims of the graph above it.
-
-Like Aeneas, each lifted function is one `def` of the prover's, called by name where another calls it, so the Lean
-keeps the shape of the Scala.
+translation of an imperative program is a consequence of the type system. Scala's counterpart is experimental
+(capture and separation checking, which the traits of structures use); beyond it purity is a convention. So FrFlow
+reads only the Scala that is pure by its form (the list above), and refuses the rest. That is the same trade as
+Stainless's "PureScala", with two differences: the proofs are in the repository beside the refinement graph, in
+Rocq, and the property proven is not a contract annotation on the function but the claims of the graph above it.
 
 ## What is not built yet
 
-In the order they would be taken:
-
-1. **`check` runs `Agreement` and `Vectors`.** Today they are library functions the suites call. The model does not
-   carry lifted code's Scala to the elaborated theory yet; with it there, `check` reports each lifted function as
-   "proven; its Scala agrees on N cases", and keeps the failing case as it keeps a claim's.
+1. **The class's Scala run against its term.** The translation of each class is held by how the compiler is built
+   and by the examples; a test of each member on generated cases (the Scala's result against the evaluator's of
+   the term) is not built.
 2. **Recursion.** The term language has no fixed point (iteration is a list's operations). Structural recursion on
-   a list or an enum needs one operation added to `core.term` and its three interpreters, printed as a Lean `def`
-   by structural recursion; general recursion needs a measure, stated beside the function.
-3. **A `def` as its own Lean `def`, and no compiler option.** An ordinary method is read where it is called, when
-   the project compiles with `-Yretain-trees`; so its body is repeated in Lean at each call, and it has no claims
-   of its own unless it is a lifted `val`. A compiler plugin reading whole files, as Aeneas's Charon reads a crate,
-   would give each `def` its Lean `def` with no marking and no option.
+   a list or an enum needs one operation added to `core.term` and its three interpreters; general recursion needs
+   a measure, stated beside the function.
+3. **A function outside a class.** A decision rule that is not a member of a structure is written with the DSL
+   (`define`) or tested (`defineTested`). Compiling a plain function from its TASTy, as a class is, is not built.
 4. **Members known by their contract.** A method whose body is not read (a class with its own data structure, a
-   library's) as an open function of the term language, known to Lean only by the type's contract, its Scala tested
-   against the contract. This is `defineTested`'s meaning, given per member by the type's `FrSpec`.
-5. **More of code that changes state.** Service methods over stores, and over other services, are read
-   ("Services" above). Not yet: a class FrFlow cannot read given for a structure and tested against its claims, a
-   loop, a failing call, a search for the schedule that breaks a contract, and a contract over two calls at once
-   (a call among others is read one call at a time).
+   library's) as an open function of the term language, known to Rocq only by the type's contract, its Scala tested
+   against the contract. This is `defineTested`'s meaning, given per member.
+5. **More of code that changes state.** Not yet: a class FrFlow cannot read given for a structure and tested
+   against its claims, a loop, a failing call, a search for the schedule that breaks a contract, and a contract
+   over two calls at once (a call among others is read one call at a time).
 6. **More of Scala.** `Int` and `Long` with their bounds proven, strings' operations, tuples taken apart in a
    pattern, generic functions, the rest of the collections.
-7. **Validation by proof.** For this fragment the reader could emit, per function, the claim that the term's value
-   is the Scala's, checked by a second, independent reading (of TASTy, after compilation) instead of by tests.
 
 ## Where the code is
 
 | What | Where |
 |---|---|
-| `FrSpec`, `Contract` | `modules/dsl/src/main/scala/frflow/dsl/lifted/` |
-| `lifted`, `contractOf` (the facade's names) | `LiftSyntax.scala` there |
-| The reader | `Reader.scala`, `Reading.scala` and `Read*.scala` there |
-| `Lifted`, the Definition with its Scala | `Lifted.scala` there |
-| `Agreement`, `Vectors` | `modules/testing/src/main/scala/frflow/testing/` |
-| The suites | `modules/dsl/src/test/scala/frflow/dsl/lifted/`, `AgreementSuite`, `CalendarSuite`, `CalendarLeanSuite` |
+| `FrSpec`, `Contract`, `contractOf` | `modules/dsl/src/main/scala/frflow/dsl/lifted/` |
 | `lifted[Class]`, `holding`: a class compiled from its TASTy as the model is built | `modules/dsl/src/main/scala/frflow/dsl/compiled/` (expressions) and `compiled/steps/` (state, steps, members) |
-| A structure's Declaration, `Call`, `State` | `modules/dsl/src/main/scala/frflow/dsl/structure/`; `StructureSuite` beside the reader's suites |
-| Services proven among other calls | `examples/payments/`, `examples/shop/`; `PaymentsSuite`, `ShopSuite`; the Lean suites in `frflow.project.services` |
+| A structure's Declaration, `Call`, `State` | `modules/dsl/src/main/scala/frflow/dsl/structure/`; `StructureSuite`, `FrSpecSuite` |
+| Services proven among other calls | `examples/payments/`, `examples/shop/`; `PaymentsSuite`, `ShopSuite`; the Rocq suites in `frflow.project.services` |

@@ -239,19 +239,12 @@ class. `examples/rooms` is the smallest one, `examples/payments` one made of sev
 Write terms where the code is small and worth proving (a decision rule); write plain Scala for the
 lowest-level code (a lookup through an index, a parser, SQL), and give it with `defineTested`.
 
-A decision rule can also be proven as the Scala it is: `val noOverlap = lifted { (a: Booking, b: Booking) => … }` is
-a Definition given its meaning on the spot, read at compile time from an ordinary function of one to four inputs
-(`docs/LIFTED.md`). Use it for a function with no state, no effect and no failing call, over `BigInt`, `Boolean`,
-`String`, case classes, enums, lists, options, maps and sets, calling other lifted functions and `inline def`s
-(ordinary methods too where the project compiles with `-Yretain-trees`); a Declaration is defined by it with
-`d.define(code)`. A
-compile error names the Scala it does not read (a `var`, `Int` arithmetic, `head`, a value from outside, recursion):
-rewrite that part, or keep the function as tested plain Scala. Every type in it has an `FrSpec`
-(`derives FrSpec`, or `given FrSpec[T] = FrSpec.derived[T].where(v => …)` with its contract; an id is never a
-bare `String`: `opaque type PaymentId = String` with `object PaymentId extends FrSpec.Opaque[PaymentId, String]`,
-both at the top level of one file, which Rocq reads as the string it is over); the contract enters
-the model only when a node states it (`Node.assumption("…")(contractOf[T])`, the developer's to decide). Statements
-stay in the DSL.
+Code that keeps state (a service) is proven as the Scala it is, written as a structure (below). Every type of a
+value in it has an `FrSpec`: `derives FrSpec`, or `given FrSpec[T] = FrSpec.derived[T].where(v => …)` with its
+contract, written with the DSL over a `Term[T]`. An id is never a bare `String`: `opaque type PaymentId = String`
+with `object PaymentId extends FrSpec.Opaque[PaymentId, String]`, both at the top level of one file, which Rocq
+reads as the string it is over. The contract enters the model only when a node states it
+(`Node.assumption("…")(contractOf[T])`, the developer's to decide).
 
 A service can be proven as written. Write it as a structure, a value with members (`examples/payments`,
 `docs/LIFTED.md` "A structure: a value with members"): a trait of its members; when a member changes it, the trait

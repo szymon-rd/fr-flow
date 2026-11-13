@@ -34,7 +34,7 @@ export frflow.dsl.vocab.DefinitionSyntax.*
 export frflow.dsl.kb.Gens
 export frflow.core.example.Gen
 export frflow.dsl.shape.Defines.*
-export frflow.dsl.lifted.{Contract, FrSpec, Lifted}
+export frflow.dsl.lifted.{Contract, FrSpec}
 export frflow.dsl.lifted.LiftSyntax.*
 export frflow.dsl.compiled.steps.ClassSyntax.*
 export frflow.dsl.structure.{Call, StructureDeclaration}

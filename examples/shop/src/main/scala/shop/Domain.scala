@@ -26,7 +26,7 @@ final case class Order(id: String, customer: String, sku: String, units: BigInt,
 
 object Order:
   /** At least one unit, for a positive amount: the API refuses any other before a service sees it. */
-  given FrSpec[Order] = FrSpec.derived[Order].where(o => BigInt(0) < o.units && BigInt(0) < o.amount)
+  given FrSpec[Order] = FrSpec.derived[Order].where(o => o.units > 0 && o.amount > 0)
 
 /** What a charge is answered: done, refused (the customer cannot cover it), or a duplicate of one claimed. */
 enum Charged derives FrSpec:

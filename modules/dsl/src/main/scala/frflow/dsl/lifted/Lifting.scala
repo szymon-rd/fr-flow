@@ -6,8 +6,8 @@ import frflow.dsl.shape.{DefineShape, Elab}
 import frflow.dsl.term.{LeanType, Term}
 import frflow.dsl.vocab.Definition
 
-/** The Definition lifted code is, made as `define` makes one: named as its val, its lambda the term read from the
-  * Scala (over its inputs' terms), its text the Scala as written. One maker per number of inputs.
+/** The Definition code FrFlow reads is (a class's member), made as `define` makes one: named, its lambda the term
+  * read from the Scala (over its inputs' terms), its text the Scala as written. One maker per number of inputs.
   */
 object Lifting:
   def one[A: FrSpec, R: FrSpec](name: DefName, at: WrittenAt, written: AsWritten)(body: Term[A] => Term[R])
@@ -25,7 +25,7 @@ object Lifting:
       body: (Term[A], Term[B], Term[C], Term[D]) => Term[R]): Definition[(A, B, C, D) => R] =
     made(DefineShape.four[A, B, C, D, R])(name, written)(body).in(at)
 
-  /** A contract written with the DSL (`FrSpec.whereStated`): a define of the value's term. */
+  /** A type's contract (`FrSpec.where`): a define of the value's term. */
   def stated[A: LeanType](name: DefName, at: WrittenAt, written: AsWritten)(rule: Term[A] => Term[Boolean])
       : Definition[A => Boolean] = made(DefineShape.one[A, Boolean])(name, written)(rule).in(at)
 

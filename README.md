@@ -326,11 +326,9 @@ statement can refine several others, and there can be several roots, so the stat
 
 The code at the bottom of the graph is in one of three states, and `status` reports which:
 
-- **Proven** code is one of three things. A class that implements a structure's trait, lifted by its type
+- **Proven** code is one of two things. A class that implements a structure's trait, lifted by its type
   (`limits.define(lifted[RecordedLimits])`): it is compiled from its TASTy as the model is built, and each member is
-  proven to meet every claim on it, alone and among other calls. A function of plain Scala that has no state, no
-  effect and cannot fail, read at compile time (`lifted { (a: Booking, b: Booking) => … }`); `testing.Agreement`
-  tests its Scala against its term on generated cases. Or a `define` written in the DSL.
+  proven to meet every claim on it, alone and among other calls. Or a `define` written in the DSL.
   [docs/LIFTED.md](docs/LIFTED.md) lists the Scala that is read.
 - **Tested** code is plain Scala. It is tested against its claims with property-based testing on generated cases.
 - **Assumed** code is known only by the assumptions about it, such as an outside system's search: Rocq takes them as
@@ -426,8 +424,8 @@ FrFlow's own suites test them whole (`sbt rocqTest`).
 - [docs/USAGE.md](docs/USAGE.md) describes the DSL, the commands, their output and exit codes, what Rocq proves, the
   warnings, the web view and the modules.
 - [docs/DAG.md](docs/DAG.md) describes the design of the refinement graph.
-- [docs/LIFTED.md](docs/LIFTED.md) describes plain Scala compiled into the model (`lifted`, `FrSpec`, structures):
-  what is read, how the Scala, the term and the prover's definition are held to one meaning, and what is not built
+- [docs/LIFTED.md](docs/LIFTED.md) describes plain Scala compiled into the model (`lifted[Class]`, `FrSpec`,
+  structures): what is read, what holds the Scala and the term to one meaning, and what is not built
   yet.
 - [docs/ROCQ.md](docs/ROCQ.md) describes the prover: how a model reads in Rocq, how a check runs it, what is
   proven of the examples, and what is left.

@@ -57,10 +57,8 @@ lazy val root = project.in(file("."))
 /** Names, types, the term algebras and core interpreters, the IR, statements, validation, checking, consistency. */
 lazy val core = module("core", cats).settings(libraryDependencies ++= lawTests)
 
-/** The DSL a model is written in: terms, nodes, flows, state models, models, macros; its elaboration. */
+/** The DSL a model is written in: terms, nodes, structures, models, the compiler of classes; its elaboration. */
 lazy val dsl = module("dsl", cats).dependsOn(core)
-  // Its tests call ordinary methods from lifted code (`lifted.ReadMethods`): the compiler keeps their bodies.
-  .settings(Test / scalacOptions += "-Yretain-trees")
 
 /** Obligations, the generated AST and its printers, lowering, layout, reading Rocq's report, the judges. */
 lazy val proof = module("proof", cats).dependsOn(core % "compile->compile;test->test")
@@ -83,9 +81,6 @@ lazy val testing = module("testing", cats, "org.scala-sbt" % "test-interface" % 
     testFrameworks += TestFramework("frflow.testing.examples.ExamplesFramework"))
   .dependsOn(eval % "compile->compile;test->test", roomsModel % "test->test", authModel % "test->test",
     shopModel % "test->test", paymentsModel % "test->test")
-  // Its tests hold a model whose service changes a port (`frflow.eval.Desk`), read through its methods' bodies:
-  // the compiler keeps them.
-  .settings(Test / scalacOptions += "-Yretain-trees")
 
 /** The developer's decisions: content, the ledger, the deciders, review, the rules of each command. */
 lazy val decision = module("decision", cats).dependsOn(core)
@@ -203,16 +198,12 @@ lazy val rooms = exampleApp("rooms", roomsModel, layers = Nil).settings(checked)
 lazy val authModel = exampleModel("auth")
 lazy val auth = exampleApp("auth", authModel)
 
-/** What a service over a store needs to be read by FrFlow (`updating`, `interleaving`): the compiler keeps method
-  * bodies, and checks each store is its service's alone (Scala's capture and separation checking, experimental).
+/** A shop: a checkout placing orders across an inventory service, a payments service and an order book, each over
+  * a store of its own; the checkout is proven from the claims on what it holds. Its classes are read from their
+  * TASTy, as payments' are.
   */
-val readClasses = Seq(scalacOptions ++= Seq("-Yretain-trees", "-experimental"))
-
-/** A shop: a checkout placing orders across an inventory service, a payments service and its own journal, each
-  * over a store of its own; the checkout is proven from its services' contracts.
-  */
-lazy val shopModel = exampleModel("shop").settings(readClasses)
-lazy val shop = exampleApp("shop", shopModel, layers = Nil).settings(readClasses)
+lazy val shopModel = exampleModel("shop").settings(checked)
+lazy val shop = exampleApp("shop", shopModel, layers = Nil).settings(checked)
 
 /** A payment stream: a handler of card payments from a log, over card limits, a ledger and the consumer's offsets.
   * Proven to apply each payment once through redelivery, a crash at any step, and two instances at once. Its classes

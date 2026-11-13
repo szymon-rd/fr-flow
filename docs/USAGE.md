@@ -159,33 +159,23 @@ listed.
 A `define` is its own meaning, and needs no listing. `.withGenerator(gen.describedAs("…"))` gives the tests' cases of a type
 (`Gen.oneOf`, `for` over generators); the values drawn meet every `always` on their type.
 
-**Plain Scala, read.** `lifted { (a: A, b: B) => … }` is a Definition given its meaning where it is written, as a
-`define` is, from an ordinary Scala function of one to four inputs: the compiler reads the function's body into the
-term a `define` would build (a compile error at any Scala it does not read: state, effects, calls that can fail,
-`Int` arithmetic, recursion), and the function stays the Scala it is (`noOverlap(a, b)` on values is a `Boolean`).
-It may call other lifted functions, `inline def`s, and, where the project compiles with `-Yretain-trees`, ordinary
-methods of the developer's code, whose bodies are read where they are called.
+**A type's contract.** Every type of a value in compiled code has an `FrSpec`: the type's `LeanType` with its
+contract, a rule over the value written with the DSL (`where`); `derives FrSpec` gives one with no contract. A node
+states the contract (`contractOf[T]`, an `always[T]`):
 
 ```scala
 final case class Booking(room: String, start: BigInt, end: BigInt)
 object Booking:
   given FrSpec[Booking] = FrSpec.derived[Booking].where(b => b.start < b.end)
 
-val noOverlap = lifted { (a: Booking, b: Booking) => a.room != b.room || a.end <= b.start || b.end <= a.start }
 val bookingsEndAfterStart = Node.assumption("Every booking ends after it starts.")(contractOf[Booking])
 ```
 
-Every type of a value in it has an `FrSpec`: the type's `LeanType` with its contract, a rule over the value's
-members written in Scala (`where`) or with the DSL (`whereStated`); `derives FrSpec` gives one with no contract. A
-node states the contract (`contractOf[T]`, an `always[T]`). `lifted { noOverlap(x, y) }` of a closed expression is a
-`Term[Boolean]`, an example's fact in plain Scala. `testing.Agreement` tests each lifted function's Scala against
-its term on generated cases, and `testing.Vectors` gives Lean what the Scala gave as examples to decide; `check`
-does not run them yet. [LIFTED.md](LIFTED.md) says what is read, and what holds the Scala, the term and the Lean to
-one meaning. A service is written as one value, a structure: a trait of its
+**Plain Scala, compiled.** A service is written as one value, a structure: a trait of its
 members (a `caps.Mutable` when a member changes it, a plain trait when none does), `Declaration[Trait]("…")` typed
 by them (`limits.authorise(p).result`, `.after`, `.in(state)`,
 `.steps`, `.amongOthers(run => …)`), claims on that word, and its Definition `limits.define(lifted[Class])`,
-the class that implements it, which Lean proves meets them
+the class that implements it, compiled from its TASTy as the model is built, which Rocq proves meets them
 ([the payment stream](../examples/payments/README.md), [LIFTED.md](LIFTED.md) "A structure: a value with members").
 
 **Values from outside.** Statements are about values, never about a function's inputs. What comes from outside has a

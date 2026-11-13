@@ -46,7 +46,7 @@ calls; they need what a call takes of the others said in the claim. Not covered:
 liveness, stores behind an adapter.
 
 ```bash
-sbt "testing/testOnly frflow.eval.ShopSuite"
+sbt "testing/testOnly frflow.testing.ShopSuite"
 ```
 
 ```bash

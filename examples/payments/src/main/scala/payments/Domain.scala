@@ -13,7 +13,7 @@ final case class Payment(offset: BigInt, id: PaymentId, card: CardId, merchant: 
 
 object Payment:
   /** The amount is positive: the gateway refuses any other before it reaches the log. */
-  given FrSpec[Payment] = FrSpec.derived[Payment].where(p => BigInt(0) < p.amount)
+  given FrSpec[Payment] = FrSpec.derived[Payment].where(p => p.amount > 0)
 
 /** What was decided of a payment: approved, or declined for the card's limit on that day. */
 final case class Decision(id: PaymentId, card: CardId, day: BigInt, amount: BigInt, approved: Boolean)

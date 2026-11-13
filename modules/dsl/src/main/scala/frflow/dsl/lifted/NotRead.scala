@@ -4,8 +4,7 @@ import scala.quoted.*
 import scala.util.Try
 
 /** Scala FrFlow does not read, found where a class is compiled from its TASTy as the model is built
-  * (`compiled.Compiler`): what it is, and where. Inside a compilation (`lifted { … }`) the same is a compile
-  * error at the Scala.
+  * (`compiled.Compiler`): what it is, and where.
   */
 final class NotRead(message: String) extends RuntimeException(message)
 

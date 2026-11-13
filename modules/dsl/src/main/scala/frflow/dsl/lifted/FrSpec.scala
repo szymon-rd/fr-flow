@@ -8,54 +8,35 @@ import scala.annotation.implicitNotFound
 import scala.deriving.Mirror
 
 /** A type's contract: the rule every value of the type meets, as a function of the value's term, with the text it
-  * was written as. Written in plain Scala (`FrSpec.where`), it is read into the term and kept as the Scala it is,
-  * which checks a value where the code runs (`native`); written with the DSL (`FrSpec.whereStated`: a rule plain
-  * Scala cannot say, over every value of a type), it is the term alone.
+  * was written as.
   */
-enum Contract[A]:
-  case Plain(rule: Term[A] => Term[Boolean], native: A => Boolean, written: AsWritten)
-  case Stated(rule: Term[A] => Term[Boolean], written: AsWritten)
+final case class Contract[A](rule: Term[A] => Term[Boolean], written: AsWritten)
 
-  def rule: Term[A] => Term[Boolean]
-  def written: AsWritten
-
-/** What a Scala type is to the Scala FrFlow reads (`lifted { … }`): its place in the term language (it is the type's
-  * `LeanType`), and its contract, the rule every value of the type meets, written in Scala over the type's members
-  * (`where`). Every type a value of lifted code has must have one: the standard types' are given here; a case class
-  * or an enum derives its own (`derives FrSpec`), or gives it in its companion with its contract
+/** What a Scala type is to FrFlow: its place in the term language (it is the type's `LeanType`), and its contract,
+  * the rule every value of the type meets, written as a statement is, over the value's term (`where`). Every type of
+  * a value in code FrFlow reads has one: the standard types' are given here; a case class or an enum derives its own
+  * (`derives FrSpec`), or gives it in its companion with its contract
   * (`given FrSpec[Booking] = FrSpec.derived[Booking].where(b => b.start < b.end)`). A node states the contract
   * (`contractOf[Booking]`): an assumption of a type from outside, a claim of one the code makes.
   *
-  * Laws: `where` and `whereStated` change the contract only (`ty`, `declares` and `fields` stay the type's); a spec
-  * made by `derived`, or given here, has no contract.
+  * Laws: `where` changes the contract only (`ty`, `declares` and `fields` stay the type's); a spec made by
+  * `derived`, or given here, has no contract.
   */
-@implicitNotFound("FrFlow: ${A} is used in lifted code but has no FrSpec: add `derives FrSpec` to its declaration, " +
-  "or give one in its companion (`given FrSpec[…] = FrSpec.derived[…].where(v => …)`). Scala's Int and Long have " +
-  "none (they wrap around; Lean's numbers do not): use BigInt")
+@implicitNotFound("FrFlow: ${A} is used in code FrFlow reads but has no FrSpec: add `derives FrSpec` to its " +
+  "declaration, or give one in its companion (`given FrSpec[…] = FrSpec.derived[…].where(v => …)`). Scala's Int and " +
+  "Long have none (they wrap around; the prover's numbers do not): use BigInt")
 final class FrSpec[A] private (of: LeanType[A], val contract: Option[Contract[A]]) extends LeanType[A]:
   def ty: Ty = of.ty
   def declares: Declarations = of.declares
   override def fields: List[LeanType.Field[A, ?]] = of.fields
 
-  /** The same type, every value of it meeting `rule`: plain Scala over the value's members, read into a term
-    * (`Reader`) and kept as the Scala it is.
+  /** The same type, every value of it meeting `rule`: a rule over the value's term, written as a statement is
+    * (`b => b.start < b.end`, `forall`, `exists`). A spec has one contract, the last given.
     */
-  inline def where(inline rule: A => Boolean): FrSpec[A] =
-    ruled(Contract.Plain(LiftMacro.read1[A, Boolean](rule), rule, Source.of(rule)))
+  inline def where(inline rule: Term[A] => Term[Boolean]): FrSpec[A] = ruled(Contract(rule, Source.of(rule)))
 
-  /** The same, the rule written with the DSL: what plain Scala cannot say (`forall`, `exists`). */
-  inline def whereStated(inline rule: Term[A] => Term[Boolean]): FrSpec[A] =
-    ruled(Contract.Stated(rule, Source.of(rule)))
-
-  /** What `where` and `whereStated` make: a spec has one contract, the last given. */
+  /** What `where` makes. */
   def ruled(c: Contract[A]): FrSpec[A] = new FrSpec(of, Some(c))
-
-  /** Whether `a` meets the contract, where it is plain Scala; a value of a type with none, or with one only Lean
-    * reads, meets it.
-    */
-  def holds(a: A): Boolean = contract match
-    case Some(Contract.Plain(_, native, _)) => native(a)
-    case _                                  => true
 
 object FrSpec:
   def apply[A](using s: FrSpec[A]): FrSpec[A] = s
@@ -64,16 +45,16 @@ object FrSpec:
   def of[A](t: LeanType[A]): FrSpec[A] = new FrSpec(t, None)
 
   /** A case class's or an enum's, derived where it is declared (`derives FrSpec`), as its `LeanType` is; refused
-    * of a type that declares its own `equals` (lifted code's `==` is data's).
+    * of a type that declares its own `equals` (`==` in code FrFlow reads is data's).
     */
   inline def derived[T](using Mirror.Of[T]): FrSpec[T] =
-    LiftMacro.structural[T]
+    Structural.check[T]
     of(LeanType.derived[T])
 
   /** The companion of an opaque type (`opaque type PaymentId = String` with
     * `object PaymentId extends FrSpec.Opaque[PaymentId, String]`, both at the top level of one file): how a value
     * of it is made and read, and its spec, that of the type it is over. So Scala tells a payment's id from a
-    * card's, and the term language and Lean read each as what it is over.
+    * card's, and the term language and the prover read each as what it is over.
     */
   trait Opaque[T, U](using is: T =:= U, from: U =:= T, over: FrSpec[U]):
     def apply(value: U): T = from(value)
