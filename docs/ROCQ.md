@@ -78,7 +78,8 @@ What `frflow check` gives of each example, from cold, with Rocq 9.3 (`sbt rocqTe
   files (`redeliveryChangesNothing`, `neverCommitsAhead`), and the roots follow. Of the 22 conditions, 16 are
   shown possible: 14 by the witnesses FrFlow finds and two by `Proofs/Payments/Whole.v`. About 11 minutes.
   **Not done:** the other six conditions (over the handler's steps among other calls) and the eight examples
-  against the claims. Lean had them by proofs by hand (`examples/payments/lean/Proofs/Payments/Whole.lean`);
+  against the claims. Lean had them by proofs by hand (`examples/payments/lean/Proofs/Payments/Whole.lean` as of
+  commit `81659f7`, with the witnesses);
   `frflow_evaluate` does not finish on the handler's steps, so they are to be written by hand in Rocq. The
   examples hold on the code (`check` runs them as Scala), and no claim contradicts one.
 - The test models (`DeskRocqSuite`, `PricesRocqSuite`, `CalendarRocqSuite`, `SeededSuite`): proven, their
@@ -93,8 +94,9 @@ The newest Rocq is installed through opam (`opam install rocq-prover`), on the s
 ## What is left
 
 1. **Shop** is written in the shape before structures and has no Rocq proofs; it moves with its model.
-2. **Lean removed**: the Lean library (`modules/proof/lean`), the examples' `lean/` directories, and the names
-   in the sources that still say Lean (`proof.lean`, `LeanType`).
+2. **Lean removed**: FrFlow's Lean library and the Lean proofs of auth and payments are gone. Shop's
+   (`examples/shop/lean`) go with its move, and the names in the sources that still say Lean (`proof.lean`,
+   `LeanType`) are to be renamed.
 
 A node's signed content is the text of its formula in the notation the Lean printer wrote. It stays printed that
 way, so no decision in a ledger is reopened by the move; what the content is printed as afterwards is a decision
