@@ -86,11 +86,11 @@ What `frflow check` gives of each example, from cold, with Rocq 9.3 (`sbt rocqTe
   About 7 minutes.
 - The test models (`PricesRocqSuite`, one of them a structure reached through the one that holds its holder;
   `SeededSuite`): proven, their examples shown from the claims.
-- `examples/shop`: everything. Its 48 claims are proven, 38 by `frflow_auto` and ten from proof files
-  (`examples/shop/rocq/Proofs/Shop`: four by hand, six the tactic given more time). Each of the 36 conditions is
-  shown possible, twelve by the values `Proofs/Shop/Whole.v` gives, and the five examples are shown by running the
-  code. About 20 minutes. A step of the checkout is a call of a service: what another call does between the two
-  ledger transactions of one charge is not covered.
+- `examples/shop`: everything. Its 50 claims are proven, 40 by `frflow_auto` and ten from proof files
+  (`examples/shop/rocq/Proofs/Shop`: four by hand, six the tactic given more time). Each of the 41 conditions is
+  shown possible, fifteen by the values `Proofs/Shop/Whole.v` gives, and the five examples are shown by running
+  the code. About 25 minutes. The steps of a charge are claimed apart from the steps of the checkout, under what a
+  charge takes of other calls (`othersHonourClaims`, a design decision).
 
 ## Rocq on a machine
 

@@ -153,3 +153,42 @@ Proof.
     (Payments_mk (Ledger_mk [Posting_mk "top-up" "ann" 50] ["top-up"%string])) (OrderBook_mk ["o1"%string] []))).
   frflow_evaluate.
 Qed.
+
+(** Of the steps of one charge: the payments over that ledger, charging `o1`. Its first step claims the payment of
+    `o1`: the top-up, another order, is claimed where it starts. And charging an order under the top-up's id, whose
+    payment is claimed: its one step finds the postings it has, and leaves them. *)
+
+Lemma Whole_Proofs_satisfiable_1_noChargeStepPostsForAnother : Whole_Obl_satisfiable_1_noChargeStepPostsForAnother.
+Proof.
+  unfold Whole_Obl_satisfiable_1_noChargeStepPostsForAnother.
+  exists (Payments_mk (Ledger_mk [Posting_mk "top-up" "ann" 50] ["top-up"%string])).
+  exists "top-up"%string.
+  exists (Order_mk "o1" "ann" "tea" 1 30). split; [frflow_evaluate |].
+  exists (fun _ => None).
+  exists ((Payments_mk (Ledger_mk [Posting_mk "top-up" "ann" 50] ["top-up"%string])),
+    (Payments_mk (Ledger_mk [Posting_mk "top-up" "ann" 50] ["o1"%string; "top-up"%string]))).
+  frflow_evaluate.
+Qed.
+
+Lemma Whole_Proofs_satisfiable_2_noChargeStepPostsForAnother : Whole_Obl_satisfiable_2_noChargeStepPostsForAnother.
+Proof.
+  unfold Whole_Obl_satisfiable_2_noChargeStepPostsForAnother.
+  exists (Payments_mk (Ledger_mk [Posting_mk "top-up" "ann" 50] ["top-up"%string])).
+  exists "top-up"%string.
+  exists (Order_mk "o1" "ann" "tea" 1 30). split; [frflow_evaluate |].
+  exists (fun _ => None).
+  exists ((Payments_mk (Ledger_mk [Posting_mk "top-up" "ann" 50] ["top-up"%string])),
+    (Payments_mk (Ledger_mk [Posting_mk "top-up" "ann" 50] ["o1"%string; "top-up"%string]))).
+  frflow_evaluate.
+Qed.
+
+Lemma Whole_Proofs_satisfiable_3_chargedOnceAmongOthers : Whole_Obl_satisfiable_3_chargedOnceAmongOthers.
+Proof.
+  unfold Whole_Obl_satisfiable_3_chargedOnceAmongOthers.
+  exists (Payments_mk (Ledger_mk [Posting_mk "top-up" "ann" 50] ["top-up"%string])).
+  exists (Order_mk "top-up" "ann" "tea" 1 30). split; [frflow_evaluate |].
+  exists (fun _ => None).
+  exists ((Payments_mk (Ledger_mk [Posting_mk "top-up" "ann" 50] ["top-up"%string])),
+    (Payments_mk (Ledger_mk [Posting_mk "top-up" "ann" 50] ["top-up"%string]))).
+  frflow_evaluate.
+Qed.

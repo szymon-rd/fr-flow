@@ -24,10 +24,10 @@ what those hold, reached through them: the checkout's claims speak of `warehouse
 `orders.registered` (the warehouse of its inventory, the ledger of its payments), and are proven from the claims on
 the inventory, the payments and the order book, not from their classes.
 
-Rocq proves all 48 claims (`bin/frflow shop check`, about 20 minutes from cold): 38 by FrFlow's tactic and ten
+Rocq proves all 50 claims (`bin/frflow shop check`, about 25 minutes from cold): 40 by FrFlow's tactic and ten
 from proof files under `rocq/Proofs/Shop/`.
 
-- **The stores and the services** (21 and 13 claims): by the tactic, but two of the payments' by hand. A
+- **The stores and the services** (21 and 15 claims): by the tactic, but two of the payments' by hand. A
   service's claims are proven from the claims on its store, not from the store's class.
 - **The checkout alone:** a new order in stock that its customer can cover is confirmed; a confirmed order is paid
   for, holds its units and is recorded; an order refused, for stock or for payment, leaves every product and
@@ -37,18 +37,23 @@ from proof files under `rocq/Proofs/Shop/`.
   oversold or an account overdrawn that was not; no step adds to the postings of an order already charged, makes
   a posting of another order, undoes the claim of a payment, or leaves an order with postings whose payment is
   not claimed (the tactic, given more time than a check gives it). A step is a call of a service or of the order
-  book: `payments.charge` is one step here, though it is two transactions of the ledger, so what another call
-  does between those two is not covered by these claims.
+  book, so `payments.charge` is one step here, though it is two transactions of the ledger.
+- **Between the two transactions of one charge**, whatever other calls do there: no step of a charge makes a
+  posting of another order or undoes a claim; and an order whose books are orderly is charged at most once, as
+  long as the other calls make no posting of it in between. That last is what the charge takes of the others, said
+  in the claim: its payment is claimed by this call, a claim is won once, and a call posts only for an order
+  whose claim it won (`othersHonourClaims`, a design decision, not proven).
 - **The forgetful checkout** confirms as the checkout does; the example shows what it leaves behind.
 
 The five examples hold on the code, and Rocq shows each by running the code on the values it gives. Each of the
-36 conditions the claims are stated under is shown possible, twelve of them of values `rocq/Proofs/Shop/Whole.v`
-gives.
+41 conditions the claims are stated under is shown possible, fifteen of them of values
+`rocq/Proofs/Shop/Whole.v` gives.
 
 Trusted: every order is for at least one unit and a positive amount (`ordersAreSensible`, the contract of
-`Order`), and each member of a store that changes it is one transaction (`storesAreTransactional`). Not covered:
-what another call does between the two ledger transactions of one charge, a crash between two steps, liveness,
-stores behind an adapter.
+`Order`); each member of a store that changes it is one transaction (`storesAreTransactional`); and between the
+two transactions of a charge no other call posts for its order (`othersHonourClaims`). Not covered: that last
+shown of the other calls rather than taken of them (it needs who holds a claim said in the model), a crash between
+two steps, liveness, stores behind an adapter.
 
 ```bash
 sbt "testing/testOnly frflow.testing.ShopSuite"
