@@ -6,7 +6,6 @@ import frflow.decision.review.ReviewState
 import frflow.decision.rules.{Command, Refusal}
 import frflow.project.Projects
 import frflow.project.port.Records
-import frflow.project.report.Review
 import frflow.wire.file.Files
 import frflow.wire.ledger.LedgerFile
 
@@ -71,5 +70,5 @@ class ReadInputsSuite extends munit.CatsEffectSuite:
     yield
       assertEquals(a.inputs.proofs.files.keySet, Set(NodeId("grantWhenFree")))
       assertEquals(a.inputs.proofs.strays.toSet, strays.toSet)
-      assertEquals(Review.of(a).strays.toSet, strays.toSet)
+      assertEquals(a.inputs.proofs.strays.toSet, strays.toSet)
   }

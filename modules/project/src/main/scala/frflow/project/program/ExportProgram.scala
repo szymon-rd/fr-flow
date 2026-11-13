@@ -4,7 +4,6 @@ import cats.Functor
 import cats.syntax.all.*
 import frflow.project.pipeline.Analysis
 import frflow.project.port.{ProjectFiles, Records}
-import frflow.project.report.Exports
 import frflow.wire.file.Files
 import frflow.wire.snapshot.Snapshot
 

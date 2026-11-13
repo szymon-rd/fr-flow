@@ -1,4 +1,4 @@
-package frflow.project.report
+package frflow.project.program
 
 import frflow.core.analysis.outside.Scope
 import frflow.core.checking.Shown
