@@ -56,6 +56,28 @@ object Payments:
         (ledger.postingsOf(order).in(payments.charge(o).after).isEmpty ||
           ledger.claimed(order).in(payments.charge(o).after))))
 
+  // Between the two transactions of one charge: what a charge takes of the other calls, and what it then keeps.
+
+  val noChargeStepPostsForAnother = Node.claim("No step of charging an order makes a posting of another order, " +
+      "or undoes the claim of a payment, whatever other calls do between the steps.")(
+    forall((other: Term[String], o: Term[Order]) =>
+      payments.charge(o).amongOthers(run => run.steps.forall(step =>
+        ((other =!= o.id) implies
+          (ledger.postingsOf(other).in(step._2) === ledger.postingsOf(other).in(step._1))) &&
+          (ledger.claimed(other).in(step._1) implies ledger.claimed(other).in(step._2))))))
+
+  val chargedOnceAmongOthers = Node.claim("An order whose books are orderly is charged at most once, whatever " +
+      "other calls do between the two transactions of its charge, as long as they make no posting of it: no " +
+      "step of charging it adds to postings it already has.")(
+    forall((o: Term[Order]) =>
+      (ledger.postingsOf(o.id).isEmpty || ledger.claimed(o.id)) implies
+        payments.charge(o).amongOthers(run =>
+          run.others.forall(theirs =>
+            ledger.postingsOf(o.id).in(theirs._2) === ledger.postingsOf(o.id).in(theirs._1)) implies
+            run.steps.forall(step =>
+              !ledger.postingsOf(o.id).in(step._1).isEmpty implies
+                (ledger.postingsOf(o.id).in(step._2) === ledger.postingsOf(o.id).in(step._1))))))
+
 /** The payments over a ledger: it claims the order's payment, so that an order charged twice, or twice at once,
   * is charged by one call; then it moves the money if the customer can cover it. Two transactions of the ledger.
   */

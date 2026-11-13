@@ -1,0 +1,60 @@
+package frflow.proof.prover.ast
+
+/** The tree as an interpreter of the syntax: each operation its node. And the tree read by any interpreter
+  * (`into`): a fold, each node the operation it is, its parts read first.
+  */
+object Tree extends Syntax[LExpr]:
+  def name(n: ProverName): LExpr = LExpr.Name(n)
+  def const(path: List[ProverName]): LExpr = LExpr.Const(path)
+  def ctor(data: ProverName, ctor: ProverName): LExpr = LExpr.Ctor(data, ctor)
+  def num(n: BigInt): LExpr = LExpr.Num(n)
+  def str(s: String): LExpr = LExpr.Str(s)
+  def app(fn: LExpr, args: List[LExpr]): LExpr = LExpr.App(fn, args)
+  def infix(op: LOp, left: LExpr, right: LExpr): LExpr = LExpr.Infix(op, left, right)
+  def prefix(op: LPrefix, arg: LExpr): LExpr = LExpr.Prefix(op, arg)
+  def paren(inner: LExpr): LExpr = LExpr.Paren(inner)
+  def dot(on: LExpr, field: String): LExpr = LExpr.Dot(on, field)
+  def tuple(elems: List[LExpr]): LExpr = LExpr.Tuple(elems)
+  def listLit(elems: List[LExpr]): LExpr = LExpr.ListLit(elems)
+  def update(record: LExpr, fields: List[(ProverName, LExpr)]): LExpr = LExpr.Update(record, fields)
+  def fun(params: List[LBinder], body: LExpr): LExpr = LExpr.Fun(params, body)
+  def forall(params: List[LBinder], body: LExpr): LExpr = LExpr.Forall(params, body)
+  def exists(params: List[LBinder], body: LExpr): LExpr = LExpr.Exists(params, body)
+  def cond(c: LExpr, ifTrue: LExpr, ifFalse: LExpr): LExpr = LExpr.If(c, ifTrue, ifFalse)
+  def matching(on: LExpr, arms: List[(LExpr, LExpr)]): LExpr = LExpr.Match(on, arms)
+  def let(name: ProverName, ty: LExpr, value: LExpr, body: LExpr): LExpr = LExpr.Let(name, ty, value, body)
+  def typed(e: LExpr, ty: LExpr): LExpr = LExpr.Typed(e, ty)
+  def anonymous(elems: List[LExpr]): LExpr = LExpr.Anonymous(elems)
+  def by(tactic: ProverName): LExpr = LExpr.By(tactic)
+  def named(fn: LExpr, name: ProverName, value: LExpr): LExpr = LExpr.Named(fn, name, value)
+
+  extension (e: LExpr)
+    /** The tree as `s` reads it. */
+    def into[E](s: Syntax[E]): E = e match
+      case LExpr.Name(n)         => s.name(n)
+      case LExpr.Const(path)     => s.const(path)
+      case LExpr.Ctor(d, c)      => s.ctor(d, c)
+      case LExpr.Num(n)          => s.num(n)
+      case LExpr.Str(text)       => s.str(text)
+      case LExpr.By(t)           => s.by(t)
+      case LExpr.App(f, as)      => s.app(f.into(s), as.map(_.into(s)))
+      case LExpr.Infix(op, a, b) => s.infix(op, a.into(s), b.into(s))
+      case LExpr.Prefix(op, a)   => s.prefix(op, a.into(s))
+      case LExpr.Paren(i)        => s.paren(i.into(s))
+      case LExpr.Dot(on, f)      => s.dot(on.into(s), f)
+      case LExpr.Tuple(es)       => s.tuple(es.map(_.into(s)))
+      case LExpr.ListLit(es)     => s.listLit(es.map(_.into(s)))
+      case other                 => compound(other, s)
+
+  private def compound[E](e: LExpr, s: Syntax[E]): E = e match
+    case LExpr.Update(r, fs)    => s.update(r.into(s), fs.map((f, v) => f -> v.into(s)))
+    case LExpr.Fun(ps, b)       => s.fun(ps.map(_.map(_.into(s))), b.into(s))
+    case LExpr.Forall(ps, b)    => s.forall(ps.map(_.map(_.into(s))), b.into(s))
+    case LExpr.Exists(ps, b)    => s.exists(ps.map(_.map(_.into(s))), b.into(s))
+    case LExpr.If(c, a, b)      => s.cond(c.into(s), a.into(s), b.into(s))
+    case LExpr.Match(on, arms)  => s.matching(on.into(s), arms.map((p, b) => p.into(s) -> b.into(s)))
+    case LExpr.Let(n, t, v, b)  => s.let(n, t.into(s), v.into(s), b.into(s))
+    case LExpr.Typed(x, t)      => s.typed(x.into(s), t.into(s))
+    case LExpr.Anonymous(es)    => s.anonymous(es.map(_.into(s)))
+    case LExpr.Named(f, n, v)   => s.named(f.into(s), n, v.into(s))
+    case other                  => throw IllegalStateException(s"FrFlow bug: ${other.productPrefix} is read above")

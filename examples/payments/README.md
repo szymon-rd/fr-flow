@@ -145,9 +145,10 @@ anything but classical logic and extensionality (`docs/ROCQ.md`). Each of the 22
 stated under is shown possible, eight of them of values `rocq/Proofs/Payments/Whole.v` gives, and Rocq shows
 each of the eight examples by running the handler's code on the values it gives.
 
-One statement is trusted and marked as a design decision in the model, for the developer to accept or reject:
+Two statements are trusted and marked as design decisions in the model, for the developer to accept or reject:
 `deliveryIsAtLeastOnce`, that the log delivers every payment, in order from the committed position, and again
-after a restart.
+after a restart; and `storesAreTransactional`, that each member of the card limits, the ledger and the offsets
+that changes it is one transaction of its store, which is what lets a step of the handler be one call of them.
 
 ## The two first versions
 
@@ -203,8 +204,9 @@ accepted: deciding them is the developer's, with their signing key.
 - **The whole log as one theorem.** What is proven is the step: each call leaves its payment applied and moves the
   committed offset only past it. "Every payment below the committed offset is applied" follows by induction over
   the log, which rests on `deliveryIsAtLeastOnce` and is not carried out in Rocq.
-- **A step is a call of a held structure.** That each such call is one transaction is the held structure's to keep:
-  a class over a database does it with a transaction, and the model does not check that it does.
+- **A step is a call of a held structure.** That each such call is one transaction is the held structure's to keep
+  (`storesAreTransactional`): a class over a database does it with a transaction, and the model does not check
+  that it does.
 - **One class for a trait.** A model gives one class for each structure's trait, so a second implementation of
   `Ledger` cannot stand beside the first in this model; that is why the two first versions have traits of their
   own (`EagerHandler`, `HastyHandler`) where plain Scala would have them implement `PaymentHandler`.
