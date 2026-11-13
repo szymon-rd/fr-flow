@@ -54,7 +54,7 @@ private[compiled] trait CompileData extends Compiling:
     val types = parts.scanRight(made.whole)((a, r) => RocqType.fn(using a, r).asInstanceOf[RocqType[Any]])
     given_.zip(types.drop(1)).foldLeft(DTerm.construct[Any](Constructor(made.data, made.ctor,
       curried(parts.size, Nil)))(using types.head))((f, a) =>
-      DTerm.app[Any, Any](f.asInstanceOf[DTerm[Any => Any]], a._1)(using a._2))
+      DTerm.app[Any, Any](madeFunction(f), a._1)(using a._2))
 
   /** A case class, or an enum's case, as its spec has it: the type it is a value of (the class, or the enum),
     * its constructor there, what makes and takes apart a value (`DataRep`), and its fields' names and types.

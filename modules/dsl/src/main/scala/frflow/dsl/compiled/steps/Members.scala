@@ -71,11 +71,11 @@ private[steps] final class Members(val steps: Steps, val state: FrSpec[Any]):
     given RocqType[Any] = state
     if c.isStore(m.cls.typeRef) then
       val did = alone(m, self, given_, steps.pair(m.gives, state).asInstanceOf[RocqType[Any]])
-      Among.atomic[Any, Any](self, did.asInstanceOf[DTerm[(Any, Any)]])(using m.gives, state).asInstanceOf[DTerm[Any]]
+      c.any(Among.atomic[Any, Any](self, c.madePair(did))(using m.gives, state))
     else
-      val start = m.env(self, given_) + ((steps.trace, Among.none[Any].asInstanceOf[DTerm[Any]]))
-      steps.run(m.body, m.result, m.cls)((v, w) => Among.ended[Any, Any](v, w.whole,
-        w.env(steps.trace).asInstanceOf[DTerm[Among.Traces[Any]]])(using m.gives, state).asInstanceOf[DTerm[Any]])(
+      val start = m.env(self, given_) + ((steps.trace, c.any(Among.none[Any])))
+      steps.run(m.body, m.result, m.cls)((v, w) => c.any(Among.ended[Any, Any](v, w.whole,
+        c.madeTraces(w.env(steps.trace)))(using m.gives, state)))(
         using steps.Walk(start, 0, Some(between), steps.Ports(m.cls, Map.empty, false), out))
 
   /** A member the class implements with a field (`val limit: BigInt`): the field, read. */

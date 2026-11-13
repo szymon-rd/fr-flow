@@ -19,7 +19,7 @@ final class Compiler(val q: Quotes, val known: Known) extends Compiling, Compile
     case Typed(e, _)                                     => read(e, as)
     case Block(stats, e)                                 => block(stats, e, as)
     case If(c, a, b)                                     =>
-      TermSyntax.when(read(c, TypeRepr.of[Boolean]).asInstanceOf[DTerm[Boolean]])(read(a, as)).otherwise(read(b, as))
+      TermSyntax.when(asTruth(read(c, TypeRepr.of[Boolean]), c))(read(a, as)).otherwise(read(b, as))
     case Match(on, cases)                                => matched(on, cases, as)
     case Literal(c)                                      => literal(c, t)
     case id: Ident if env.contains(id.symbol)            => env(id.symbol)
@@ -32,7 +32,7 @@ final class Compiler(val q: Quotes, val known: Known) extends Compiling, Compile
   /** The state of what a port's member names: the port's own state, or the field of it the member's is. */
   private def memberState(on: Term, member: Term)(using Env): DTerm[Any] =
     partOf(on.tpe, member.symbol, member).flatten.fold(read(on, on.tpe.widen))(name =>
-      read(on, on.tpe.widen).selectDynamic(name).asInstanceOf[DTerm[Any]])
+      fieldOf(read(on, on.tpe.widen), name))
 
   /** A call of a structure's member: the structure known by its members only. */
   def asksStructure(t: Term): Boolean =
@@ -64,13 +64,12 @@ final class Compiler(val q: Quotes, val known: Known) extends Compiling, Compile
   private def ownMember(id: Ident)(using env: Env): Boolean =
     id.symbol.owner.isClassDef && env.contains(id.symbol.owner)
 
-  private def literal(c: Constant, at: Term): DTerm[Any] = (c match
+  private def literal(c: Constant, at: Term): DTerm[Any] = any(c match
     case BooleanConstant(true)  => TermSyntax.True
     case BooleanConstant(false) => TermSyntax.False
     case StringConstant(s)      => Lift.constant[String](s)
     case UnitConstant()         => Lift.constant[Unit](())
     case _                      => refuse(s"the constant ${c.show}: a number is a BigInt (`BigInt(1)`)", at))
-    .asInstanceOf[DTerm[Any]]
 
   /** A block's values, each named for what follows it (a `let`). A value that only renames a variable in
     * scope is that variable, and one the compiler made is the expression it names.

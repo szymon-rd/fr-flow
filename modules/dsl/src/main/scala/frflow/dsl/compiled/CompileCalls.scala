@@ -37,21 +37,21 @@ private[compiled] trait CompileCalls extends Compiling:
     s"`$name`, a value from outside the code read: give it as an input, or make it a member"
 
   private def boolean(c: Calling)(using Env): Option[DTerm[Any]] =
-    def truth(t: Term): DTerm[Boolean] = read(t, TypeRepr.of[Boolean]).asInstanceOf[DTerm[Boolean]]
+    def truth(t: Term): DTerm[Boolean] = asTruth(read(t, TypeRepr.of[Boolean]), t)
     if !(c.on.tpe.widen =:= TypeRepr.of[Boolean]) then None
     else ((c.name, c.args) match
       case ("&&", List(b))  => Some(TermSyntax.&&(truth(c.on))(truth(b)))
       case ("||", List(b))  => Some(TermSyntax.||(truth(c.on))(truth(b)))
       case ("unary_!", Nil) => Some(TermSyntax.unary_!(truth(c.on)))
-      case _                => None).map(_.asInstanceOf[DTerm[Any]])
+      case _                => None).map(any)
 
   private def number(c: Calling)(using Env): Option[DTerm[Any]] =
-    def whole(t: Term): DTerm[BigInt] = read(t, TypeRepr.of[BigInt]).asInstanceOf[DTerm[BigInt]]
+    def whole(t: Term): DTerm[BigInt] = asNumber(read(t, TypeRepr.of[BigInt]), t)
     if !(c.on.tpe.widen =:= TypeRepr.of[BigInt]) then None
     else ((c.name, c.args) match
-      case ("unary_-", Nil) => Some(TermSyntax.-(constant(BigInt(0)).asInstanceOf[DTerm[BigInt]])(whole(c.on)))
+      case ("unary_-", Nil) => Some(TermSyntax.-(asNumber(constant(BigInt(0)), c.whole))(whole(c.on)))
       case (op, List(b))    => arithmetic(op, whole(c.on), whole(b))
-      case _                => None).map(_.asInstanceOf[DTerm[Any]])
+      case _                => None).map(any)
 
   private def arithmetic(op: String, a: DTerm[BigInt], b: DTerm[BigInt]): Option[DTerm[?]] = op match
     case "+"  => Some(TermSyntax.+(a)(b))
@@ -66,7 +66,7 @@ private[compiled] trait CompileCalls extends Compiling:
     case ("==" | "!=", List(b)) =>
       val of = compared(c.on, b)
       val same = TermSyntax.===[Any](read(c.on, of))(read(b, of))
-      Some((if c.name == "==" then same else TermSyntax.unary_!(same)).asInstanceOf[DTerm[Any]])
+      Some(any(if c.name == "==" then same else TermSyntax.unary_!(same)))
     case _                      => None
 
   /** The one type two compared values have, which has a spec and the compiler's `equals`. */

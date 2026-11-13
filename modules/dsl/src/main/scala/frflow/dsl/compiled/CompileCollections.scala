@@ -12,8 +12,6 @@ private[compiled] trait CompileCollections extends Compiling:
   import q.reflect.*
 
   private type Many = DTerm[List[Any]]
-  private type Maybe = DTerm[Option[Any]]
-  private def any(t: DTerm[?]): DTerm[Any] = t.asInstanceOf[DTerm[Any]]
   private val truth: TypeRepr = TypeRepr.of[Boolean]
 
   def list(c: Calling)(using Env): Option[DTerm[Any]] =
@@ -21,7 +19,7 @@ private[compiled] trait CompileCollections extends Compiling:
 
   /** Lists joined, each side read at the list the whole is (`b :: Nil` is a list of `b`'s type). */
   private def joined(c: Calling)(using Env): Option[DTerm[Any]] = elementOf(c.own, ListClass).flatMap { b =>
-    def whole(t: Term): Many = read(t, c.own).asInstanceOf[Many]
+    def whole(t: Term): Many = asList(read(t, c.own), t)
     (c.name, c.args) match
       case ("++", List(ys)) => Some(any(TermSyntax.++(whole(c.on))(whole(ys))))
       case (":+", List(x))  => Some(any(TermSyntax.:+(whole(c.on))(read(x, b))))
@@ -30,9 +28,9 @@ private[compiled] trait CompileCollections extends Compiling:
   }
 
   private def asked(c: Calling, elem: TypeRepr)(using Env): Option[DTerm[Any]] =
-    lazy val xs = read(c.on, c.on.tpe.widen).asInstanceOf[Many]
+    lazy val xs = asList(read(c.on, c.on.tpe.widen), c.on)
     lazy val a = spec(elem, c.on)
-    def rule(p: Term) = function(p, truth).asInstanceOf[DTerm[Any] => DTerm[Boolean]]
+    def rule(p: Term) = asked(function(p, truth), p)
     (c.name, c.args) match
       case ("forall", List(p))   => Some(any(LiftOps.all[Any](xs, hint(p))(rule(p))(using a)))
       case ("exists", List(p))   => Some(any(LiftOps.any[Any](xs, hint(p))(rule(p))(using a)))
@@ -44,13 +42,14 @@ private[compiled] trait CompileCollections extends Compiling:
       case _                     => None
 
   private def mapped(c: Calling, elem: TypeRepr)(using Env): Option[DTerm[Any]] =
-    lazy val xs = read(c.on, c.on.tpe.widen).asInstanceOf[Many]
+    lazy val xs = asList(read(c.on, c.on.tpe.widen), c.on)
     lazy val a = spec(elem, c.on)
     (c.name, c.args, elementOf(c.own, ListClass)) match
       case ("map", List(f), Some(b))     =>
         Some(any(LiftOps.map[Any, Any](xs, hint(f))(function(f, b))(using a, spec(b, f))))
-      case ("flatMap", List(f), Some(b)) => Some(any(LiftOps.flatMap[Any, Any](xs, hint(f))(
-        function(f, c.own).asInstanceOf[DTerm[Any] => Many])(using a, spec(b, f))))
+      case ("flatMap", List(f), Some(b)) =>
+        val each = function(f, c.own)
+        Some(any(LiftOps.flatMap[Any, Any](xs, hint(f))(x => asList(each(x), f))(using a, spec(b, f))))
       case ("foldLeft", List(z, f), _)   =>
         val names = hints(f).padTo(2, "x")
         Some(Terms.foldLeft[Any, Any](xs, read(z, c.own), (names(0), names(1)))(function2(f, c.own))(using a))
@@ -60,9 +59,9 @@ private[compiled] trait CompileCollections extends Compiling:
     elementOf(c.on.tpe, OptionClass).flatMap(a => held(c, a).orElse(folded(c, a)))
 
   private def held(c: Calling, elem: TypeRepr)(using Env): Option[DTerm[Any]] =
-    lazy val o = read(c.on, c.on.tpe.widen).asInstanceOf[Maybe]
+    lazy val o = asOption(read(c.on, c.on.tpe.widen), c.on)
     lazy val a = spec(elem, c.on)
-    def rule(p: Term) = function(p, truth).asInstanceOf[DTerm[Any] => DTerm[Boolean]]
+    def rule(p: Term) = asked(function(p, truth), p)
     (c.name, c.args) match
       case ("forall", List(p))             => Some(any(LiftOps.optionAll[Any](o, hint(p))(rule(p))(using a)))
       case ("exists", List(p))             => Some(any(LiftOps.optionAny[Any](o, hint(p))(rule(p))(using a)))
@@ -73,7 +72,7 @@ private[compiled] trait CompileCollections extends Compiling:
       case _                               => None
 
   private def folded(c: Calling, elem: TypeRepr)(using Env): Option[DTerm[Any]] =
-    lazy val o = read(c.on, c.on.tpe.widen).asInstanceOf[Maybe]
+    lazy val o = asOption(read(c.on, c.on.tpe.widen), c.on)
     lazy val a = spec(elem, c.on)
     (c.name, c.args, elementOf(c.own, OptionClass)) match
       case ("map", List(f), Some(b)) =>
@@ -91,7 +90,7 @@ private[compiled] trait CompileCollections extends Compiling:
       case _                  => None
 
   private def map(c: Calling, key: TypeRepr, value: TypeRepr)(using Env): Option[DTerm[Any]] =
-    lazy val m = read(c.on, c.on.tpe.widen).asInstanceOf[DTerm[Map[Any, Any]]]
+    lazy val m = asMap(read(c.on, c.on.tpe.widen), c.on)
     lazy val v = spec(value, c.on)
     (c.name, c.args) match
       case ("get", List(k))          => Some(any(TermSyntax.get[Any, Any](m)(read(k, key))(using v)))
@@ -101,19 +100,23 @@ private[compiled] trait CompileCollections extends Compiling:
       case _                         => None
 
   private def set(c: Calling, elem: TypeRepr)(using Env): Option[DTerm[Any]] =
-    lazy val s = read(c.on, c.on.tpe.widen).asInstanceOf[DTerm[Set[Any]]]
+    lazy val s = asSet(read(c.on, c.on.tpe.widen), c.on)
     (c.name, c.args) match
       case ("contains" | "apply", List(x)) => Some(any(LiftOps.member[Any](s, read(x, elem))))
       case ("+" | "incl", List(x))         => Some(any(TermSyntax.incl[Any](s)(read(x, elem))))
       case ("++" | "union", List(t))       =>
-        Some(any(TermSyntax.union[Any](s)(read(t, c.on.tpe.widen).asInstanceOf[DTerm[Set[Any]]])))
+        Some(any(TermSyntax.union[Any](s)(asSet(read(t, c.on.tpe.widen), t))))
       case _                               => None
 
   private def side(c: Calling, a: TypeRepr, b: TypeRepr)(using Env): Option[DTerm[Any]] =
-    lazy val p = read(c.on, c.on.tpe.widen).asInstanceOf[DTerm[(Any, Any)]]
+    lazy val p = asPair(read(c.on, c.on.tpe.widen), c.on)
     (c.name, c.args) match
       case ("_1", Nil) => Some(TermSyntax._1[Any, Any](p)(using spec(a, c.on)))
       case ("_2", Nil) => Some(TermSyntax._2[Any, Any](p)(using spec(b, c.on)))
       case _           => None
 
   private def hint(f: Term): String = hints(f).headOption.getOrElse("x")
+
+  /** A rule read from a lambda, each of its results taken as the truth value it is. */
+  private def asked(rule: DTerm[Any] => DTerm[Any], at: Term): DTerm[Any] => DTerm[Boolean] =
+    x => asTruth(rule(x), at)

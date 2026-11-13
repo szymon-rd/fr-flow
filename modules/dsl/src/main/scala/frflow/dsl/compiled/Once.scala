@@ -19,7 +19,7 @@ private[compiled] final class Once private (next: () => Int):
     val own = vars.map((hint, of) => Binder(VarId.step(next()), s"once$$$hint", of.ty))
     val compiled = body(own.zip(vars).map((x, v) => DTerm.free[Any](x)(using v._2)))
     given_ => DTerm([T[_]] => (s: Sym[T]) =>
-      compiled.run(Substituted(s, own.zip(given_.map(_.run(s).asInstanceOf[T[Any]])).toMap)))(using
+      compiled.run(Substituted(s, own.zip(given_.map(_.run(s))).toMap)))(using
       compiled.rocqType)
 
 private[compiled] object Once:

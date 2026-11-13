@@ -70,8 +70,7 @@ private[steps] trait StepCalls:
       c.read(a, p)(using walk.env))
     val did = MemberCall.applied[Any](c.wired(on).member(call.symbol.name), given_)(using
       pair(c.spec(call.tpe.widen, call), state.rocqType).asInstanceOf[RocqType[Any]])
-    c.bind(did, "did")(d => traced(at, d.selectDynamic("_2").asInstanceOf[DTerm[Any]])(
-      rest(d.selectDynamic("_1").asInstanceOf[DTerm[Any]], _)))(using walk.out)
+    c.bind(did, "did")(d => traced(at, c.fieldOf(d, "_2"))(rest(c.fieldOf(d, "_1"), _)))(using walk.out)
 
   /** An `update` method's body, run as one step from the port's state: a reading of its own, the port its root. */
   private def inlined(call: Term, at: Place)(rest: Rest)(using walk: Walk): DTerm[Any] =
@@ -90,8 +89,8 @@ private[steps] trait StepCalls:
     val before = walk.whole
     putAt(at, left) { after =>
       if !walk.interleaved then rest(after)
-      else named("trace", Among.stepped[Any](walk.env(trace).asInstanceOf[DTerm[Among.Traces[Any]]], before,
-        after.whole)(using before.rocqType).asInstanceOf[DTerm[Any]])(t => rest(after.bound(trace, t)))(using after)
+      else named("trace", c.any(Among.stepped[Any](c.madeTraces(walk.env(trace)), before, after.whole)(using
+        before.rocqType)))(t => rest(after.bound(trace, t)))(using after)
     }
 
   /** A call of a method of the developer's that uses a port: its body run where it is called, the port its

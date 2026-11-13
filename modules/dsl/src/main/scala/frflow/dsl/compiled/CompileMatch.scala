@@ -30,7 +30,7 @@ private[compiled] trait CompileMatch extends Compiling:
       case (Some(n), Some((x, body)), Some(a)) if cases.size == 2 =>
         val hint = x.fold("x")(_.name)
         val held = once(List((hint, spec(a, on))))(ys => read(body, as)(using env ++ x.map((_, ys.head)).toList))
-        Terms.foldOption[Any, Any](read(on, on.tpe.widen).asInstanceOf[DTerm[Option[Any]]], read(n, as), hint)(y =>
+        Terms.foldOption[Any, Any](asOption(read(on, on.tpe.widen), on), read(n, as), hint)(y =>
           held(List(y)))(using spec(a, on))
       case _                                                       =>
         refuse("a match on an option that is not one case of `Some(x)` and one of `None`", on)

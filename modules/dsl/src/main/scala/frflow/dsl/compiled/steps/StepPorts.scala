@@ -27,7 +27,7 @@ private[steps] trait StepPorts:
 
   /** The part of `state` under `path`: each name a field of the record above it. */
   def part(state: DTerm[Any], path: List[String]): DTerm[Any] =
-    path.foldLeft(state)((s, name) => s.selectDynamic(name).asInstanceOf[DTerm[Any]])
+    path.foldLeft(state)((s, name) => c.fieldOf(s, name))
 
   /** `state` with the part under `path` replaced by `by`. */
   def replaced(state: DTerm[Any], path: List[String], by: DTerm[Any]): DTerm[Any] = path match

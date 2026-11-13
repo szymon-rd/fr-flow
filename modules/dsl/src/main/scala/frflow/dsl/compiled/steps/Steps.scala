@@ -34,14 +34,14 @@ private[steps] final class Steps(val c: Compiler) extends StepPorts, StepCalls, 
   private def assigned(value: Term, to: Term, key: Symbol)(rest: Rest)(using Walk): DTerm[Any] =
     run(value, to.tpe.widen, key)((x, after) => named(to.symbol.name, x)(y =>
       putAt(Place(key, c.partOf(portOf(key).typeRef, to.symbol, to).flatten.toList), y)(
-        rest(Lift.constant[Unit](()).asInstanceOf[DTerm[Any]], _))(using after))(using after))
+        rest(c.any(Lift.constant[Unit](())), _))(using after))(using after))
 
   /** A conditional that changes the state: its value with what either branch leaves, named for what follows. */
   private def either(branch: If, as: TypeRepr, key: Symbol)(rest: Rest)(using walk: Walk): DTerm[Any] =
     val joined = walk.copy(out = packedType(c.spec(as, branch)))
     def side(t: Term): DTerm[Any] = run(t, as, key)((x, w) => packed(x)(using w))(using joined)
     val steps = walk.step + count(branch.thenp).max(count(branch.elsep))
-    val cond = c.read(branch.cond, TypeRepr.of[Boolean])(using walk.env).asInstanceOf[DTerm[Boolean]]
+    val cond = c.asTruth(c.read(branch.cond, TypeRepr.of[Boolean])(using walk.env), branch.cond)
     c.bind(TermSyntax.when(cond)(side(branch.thenp)).otherwise(side(branch.elsep)), "after") { p =>
       val (v, carried) = unpacked(p)
       rest(v, derived(key)(using walk.copy(env = walk.env ++ carried, step = steps)))

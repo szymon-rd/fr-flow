@@ -31,30 +31,30 @@ private[compiled] trait CompileValues extends Compiling:
 
   private def listOf(es: List[Term], as: TypeRepr, at: Term)(using Env): DTerm[Any] =
     elementOf(as, ListClass).fold(refuse(s"a list where a ${as.show} is used", at)) { a =>
-      es.foldRight[DTerm[List[Any]]](LiftOps.nil[Any](using spec(a, at)))((e, rest) =>
-        LiftOps.cons[Any](read(e, a), rest)).asInstanceOf[DTerm[Any]]
+      any(es.foldRight[DTerm[List[Any]]](LiftOps.nil[Any](using spec(a, at)))((e, rest) =>
+        LiftOps.cons[Any](read(e, a), rest)))
     }
 
   private def noneOf(as: TypeRepr, at: Term): DTerm[Any] =
     elementOf(as, OptionClass).fold(refuse(s"an option where a ${as.show} is used", at))(a =>
-      TermSyntax.none[Any](using spec(a, at)).asInstanceOf[DTerm[Any]])
+      any(TermSyntax.none[Any](using spec(a, at))))
 
   private def someOf(x: Term, as: TypeRepr, at: Term)(using Env): DTerm[Any] =
     elementOf(as, OptionClass).fold(refuse(s"an option where a ${as.show} is used", at))(a =>
-      TermSyntax.some[Any](read(x, a)).asInstanceOf[DTerm[Any]])
+      any(TermSyntax.some[Any](read(x, a))))
 
   private def pairOf(a: Term, b: Term, as: TypeRepr)(using Env): DTerm[Any] = argsOf(as, PairClass) match
-    case List(x, y) => LiftOps.pair[Any, Any](read(a, x), read(b, y))(using
-      spec(as, a).asInstanceOf[frflow.dsl.lifted.FrSpec[(Any, Any)]]).asInstanceOf[DTerm[Any]]
+    case List(x, y) => any(LiftOps.pair[Any, Any](read(a, x), read(b, y))(using
+      spec(as, a).asInstanceOf[frflow.dsl.lifted.FrSpec[(Any, Any)]])) // the spec of the pair's own type
     case _          => refuse(s"a pair where a ${as.show} is used", a)
 
   private def number(n: Term)(using Env): DTerm[Any] = bare(n) match
     case Literal(IntConstant(i))                                               => constant(BigInt(i))
     case Literal(LongConstant(l))                                              => constant(BigInt(l))
     case Call(xs, "length" | "size", Nil) if elementOf(xs.tpe, ListClass).nonEmpty =>
-      TermSyntax.length[Any](read(xs, xs.tpe.widen).asInstanceOf[DTerm[List[Any]]]).asInstanceOf[DTerm[Any]]
+      any(TermSyntax.length[Any](asList(read(xs, xs.tpe.widen), xs)))
     case other                                                                 =>
       refuse("an Int that is neither a constant nor a list's length: Scala's Int wraps around, so a number is " +
         "a BigInt from where it is made", other)
 
-  def constant(n: BigInt): DTerm[Any] = Lift.constant[BigInt](n).asInstanceOf[DTerm[Any]]
+  def constant(n: BigInt): DTerm[Any] = any(Lift.constant[BigInt](n))

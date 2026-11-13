@@ -182,6 +182,23 @@ Proof.
   frflow_evaluate.
 Qed.
 
+Lemma Whole_Proofs_satisfiable_1_chargedOnceAmongOthers : Whole_Obl_satisfiable_1_chargedOnceAmongOthers.
+Proof.
+  unfold Whole_Obl_satisfiable_1_chargedOnceAmongOthers.
+  exists (Payments_mk (Ledger_mk [Posting_mk "top-up" "ann" 50] ["top-up"%string])).
+  exists (Order_mk "o1" "ann" "tea" 1 30).
+  frflow_evaluate.
+Qed.
+
+Lemma Whole_Proofs_satisfiable_2_chargedOnceAmongOthers : Whole_Obl_satisfiable_2_chargedOnceAmongOthers.
+Proof.
+  unfold Whole_Obl_satisfiable_2_chargedOnceAmongOthers.
+  exists (Payments_mk (Ledger_mk [Posting_mk "top-up" "ann" 50] ["top-up"%string])).
+  exists (Order_mk "o1" "ann" "tea" 1 30). split; [frflow_evaluate |].
+  exists (fun _ => None).
+  frflow_evaluate.
+Qed.
+
 Lemma Whole_Proofs_satisfiable_3_chargedOnceAmongOthers : Whole_Obl_satisfiable_3_chargedOnceAmongOthers.
 Proof.
   unfold Whole_Obl_satisfiable_3_chargedOnceAmongOthers.

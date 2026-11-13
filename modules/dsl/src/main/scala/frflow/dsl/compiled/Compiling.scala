@@ -2,7 +2,7 @@ package frflow.dsl.compiled
 
 import cats.syntax.all.*
 import frflow.dsl.lifted.{FrSpec, NotRead}
-import frflow.dsl.structure.{ReadPorts, StructureDeclaration}
+import frflow.dsl.structure.StructureDeclaration
 import frflow.dsl.term.{RocqType, Terms}
 import frflow.dsl.term.Term as DTerm
 import scala.quoted.*
@@ -19,7 +19,7 @@ final case class Known(records: Map[String, FrSpec[Any]], wiring: Map[String, St
   * and the terms it is read into, built as they are read. Each Scala construct read is one operation of the term
   * language; any other is refused with its place (`NotRead`).
   */
-private[compiled] trait Compiling extends ReadPorts:
+private[compiled] trait Compiling extends Readings:
   import q.reflect.*
   given Quotes = q
 

@@ -37,7 +37,7 @@ private[steps] trait StepWalk:
     pair(moves, moves).asInstanceOf[FrSpec[Any]]
 
   private def both(a: DTerm[Any], b: DTerm[Any]): DTerm[Any] =
-    LiftOps.pair[Any, Any](a, b)(using pair(a.rocqType, b.rocqType)).asInstanceOf[DTerm[Any]]
+    c.any(LiftOps.pair[Any, Any](a, b)(using pair(a.rocqType, b.rocqType)))
 
   private def carried(using walk: Walk): DTerm[Any] =
     if walk.between.isEmpty then walk.whole else both(walk.whole, walk.env(trace))
@@ -49,7 +49,7 @@ private[steps] trait StepWalk:
   /** A value with what is carried after it, as one term. */
   def packed(v: DTerm[Any])(using Walk): DTerm[Any] = both(v, carried)
 
-  private def side(p: DTerm[Any], name: String): DTerm[Any] = p.selectDynamic(name).asInstanceOf[DTerm[Any]]
+  private def side(p: DTerm[Any], name: String): DTerm[Any] = c.fieldOf(p, name)
 
   /** The value and what is carried, taken from one term (`packed`). */
   def unpacked(p: DTerm[Any])(using walk: Walk): (DTerm[Any], List[(Symbol, DTerm[Any])]) =
@@ -67,10 +67,8 @@ private[steps] trait StepWalk:
       case Some(between) if walk.interleaved && walk.step >= 1 =>
         val before = next.whole
         given RocqType[Any] = before.rocqType
-        c.bind(Among.left[Any](before, between.asInstanceOf[DTerm[Map[BigInt, Any]]],
-          BigInt(next.step)).asInstanceOf[DTerm[Any]], "now")(now =>
-          named("trace", Among.moved[Any](next.env(trace).asInstanceOf[DTerm[Among.Traces[Any]]], before, now)
-            .asInstanceOf[DTerm[Any]])(t =>
+        c.bind(c.any(Among.left[Any](before, c.madeSchedule(between), BigInt(next.step))), "now")(now =>
+          named("trace", c.any(Among.moved[Any](c.madeTraces(next.env(trace)), before, now)))(t =>
             body(derived(key)(using next.bound(next.ports.root, now).bound(trace, t))))(using next))(using walk.out)
       case _                                                   => body(next)
 
