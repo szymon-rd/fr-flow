@@ -357,7 +357,7 @@ that need a new theory (section 5).
 The full procedure, with the plans that rebuilt `Node` and the ledger's store as worked examples, is in
 `references/refactoring.md`. In short:
 
-1. **Baseline.** Green `sbt test` (and `sbt leanTest` when Lean output is
+1. **Baseline.** Green `sbt test` (and `sbt rocqTest` when the generated Rocq is
    affected). Record the CLI golden files, the generated Lean and the `--json`
    snapshot of each example, and the `measure.py` output.
 2. **Theory first.** Write in domain words what the concept is, its cases, its

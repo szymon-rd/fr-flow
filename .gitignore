@@ -8,8 +8,8 @@ project/project/
 .vscode/
 .lake/
 
-# FrFlow: derived from the Scala definitions and Lean, or local to a run. Committed: the
-# ledger, the developer keys (.frflow/keys), the requests (.frflow/requests.json) and lean/Proofs.
+# FrFlow: derived from the Scala definitions and the prover, or local to a run. Committed: the
+# ledger, the developer keys (.frflow/keys), the requests (.frflow/requests.json) and rocq/Proofs.
 **/.frflow/kb.json
 **/.frflow/checks.json
 **/.frflow/tests.json

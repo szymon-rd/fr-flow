@@ -16,7 +16,7 @@ Start from a clean tree on the branch you will commit to.
 
 ```sh
 sbt test                       # must be green
-sbt leanTest                   # when the change can affect generated Lean or proofs (minutes)
+sbt rocqTest                   # when the change can affect the generated Rocq or proofs (minutes)
 python3 -I .claude/skills/scala-fp/references/measure.py > "$BASE/measure.txt"
 ```
 
@@ -25,7 +25,7 @@ golden files in the modules' test resources: each example's Lean
 (`modules/proof/src/test/resources/<example>`, `modules/project/src/test/resources`),
 the CLI's walk-through of rooms (`modules/cli/src/test/resources/rooms/walkthrough`)
 and the files under `.frflow/` (`modules/wire/src/test/resources`), all checked by
-`sbt test` and `sbt leanTest`; each example's `PortSuite` compares it with
+`sbt test` and `sbt rocqTest`; each example's `PortSuite` compares it with
 `reference/`. If the type you change has a JSON form that is written to disk
 (snapshot, ledger, checks), record a file written by the current code: it must
 still be readable after the change.
@@ -110,7 +110,7 @@ Run the baseline commands again: the golden files, the walk-through and the
 `PortSuite`s compare what the change prints with what was pinned.
 
 ```sh
-sbt test && sbt leanTest && python3 bin/budget.py modules examples
+sbt test && sbt rocqTest && python3 bin/budget.py modules examples
 ```
 
 Generated Lean, CLI output and the files under `.frflow/` are identical unless a
