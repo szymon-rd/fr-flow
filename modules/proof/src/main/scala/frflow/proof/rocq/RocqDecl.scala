@@ -5,8 +5,8 @@ import frflow.proof.rocq.RocqNames.Scope
 
 /** Rocq's text of a declaration of the generated AST. A namespace is its declarations, each named by its whole
   * path; a structure is a record with what reads and replaces each field; a definition FrFlow's tactics unfold is
-  * given to them (`Hint Unfold`) and marked as generated (`Frflow_def`), for the tactic that runs code; a theorem is a lemma proven by one of FrFlow's tactics within its budget, or
-  * by the term the developer's proof file gives.
+  * given to them (`Hint Unfold`) and marked as generated (`Frflow_def`), for the tactic that runs code; a theorem
+  * is a lemma proven by one of FrFlow's tactics within its budget, or by the term the developer's proof file gives.
   */
 private[rocq] final class RocqDecl(names: RocqNames):
   private val expr = RocqExpr(names)
@@ -34,7 +34,8 @@ private[rocq] final class RocqDecl(names: RocqNames):
 
   private def hint(as: List[Attr], n: ProverName)(using Scope): String =
     if !as.contains(Attr.FrflowDefs) then ""
-    else s"\n#[global] Hint Unfold ${named(n)} : frflow_defs.\n#[global] Instance : Frflow_def (@${named(n)}) := I."
+    else s"\n#[global] Hint Unfold ${named(n)} : frflow_defs." +
+      s"\n#[global] Instance : Frflow_def (@${named(n)}) := I."
 
   private def theorem(t: Decl.Theorem, budget: Option[Int])(using Scope): String =
     val over = expr.over(t.params)

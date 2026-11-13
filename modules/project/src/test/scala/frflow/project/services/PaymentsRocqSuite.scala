@@ -10,9 +10,9 @@ import scala.concurrent.duration.*
 
 /** The payment stream (`examples/payments`), checked by Rocq end to end: the class given for each word is
   * proven to meet the claims on it, the handler's from the claims on the card limits, the ledger and the offsets it is
-  * made with; its examples hold on the code, those the two first versions fail on among them. The claims do not
-  * decide the examples in Rocq yet, and six conditions over the handler's steps are not shown possible: their proofs
-  * by hand are not written (`docs/ROCQ.md`).
+  * made with; its examples hold on the code, those the two first versions fail on among them, and Rocq shows each
+  * by running the code on the values it gives; every condition of a claim is shown possible, eight of them by the
+  * values `Proofs/Payments/Whole.v` gives.
   */
 @experimental class PaymentsRocqSuite extends munit.CatsEffectSuite:
   override val munitIOTimeout: Duration = 60.minutes
