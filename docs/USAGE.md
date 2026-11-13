@@ -37,7 +37,7 @@ configuration, say) would place them wrongly: `status` would warn of the model's
 | decide | `review` | decide what waits, node by node: `[a]ccept [r]eject [s]kip [v]iew [q]uit` |
 | | `accept NODE... [--revisit NODE...]`, `reject NODE`, `confirm`, `revisit NODE`, `gone NODE` | one decision, with `-m REASON`; asked to confirm on a terminal, `--yes` without one |
 | | `deciders --as NAME`, `rebase` | list your key as the project's first decider; accept the ledger as it reads now as where its history starts |
-| prove | `render`, `check [NODE]`, `scaffold NODE` | write the Lean; prove each node and test its code, recording the results; stubs for what the last check left open |
+| prove | `render`, `check [NODE]`, `scaffold NODE` | write the Rocq; prove each node and test its code, recording the results; stubs for what the last check left open |
 | | `status`, `ci`, `export` | the tree, the warnings and the summary (exit 1 unless complete); `check` then `status`; the snapshot `.frflow/kb.json` |
 
 `--as NAME` names who decides (default: `FRFLOW_AS`); `FRFLOW_ROOT` overrides the project's directory, and
@@ -69,7 +69,7 @@ Each node's mark: `+` proven or tested, `x` fails, `o` not proven, `?` not check
 decide.
 
 Exit codes: 0 fine; 1 something is not accepted or proven, or a decision was refused; 2 a usage error or an unknown
-node; 3 no Lean (`lake`).
+node; 3 no Rocq.
 
 ### Statements
 

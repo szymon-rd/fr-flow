@@ -1,5 +1,6 @@
-# FrFlow's CI: the budgets, `sbt test`, and the suites that run Lean end to end (tagged `Lean`, left out of
-# `sbt test`: build.sbt's `Lean` configuration, its `leanTest` alias running them in every module). Every push and pull request runs them on the laws' usual seeds;
+# FrFlow's CI: the budgets, `sbt test`, and the suites that run Rocq end to end (tagged `Rocq`, left out of
+# `sbt test`: build.sbt's `Rocq` configuration, its `rocqTest` alias running them in every module). Every push and
+# pull request runs them on the laws' usual seeds;
 # the nightly run draws the laws' terms from seeds no other run uses (`FRFLOW_LAW_SEEDS`, `from:count`).
 name: CI
 
@@ -34,32 +35,25 @@ jobs:
 
       - uses: sbt/setup-sbt@v1
 
-      - name: Every Lean project names one toolchain
-        run: |
-          versions=$(find . -name lean-toolchain -not -path '*/.lake/*' -not -path '*/target/*' -exec cat {} + | sort -u)
-          echo "$versions"
-          test "$(echo "$versions" | wc -l)" -eq 1
-
-      - name: Cache the Lean toolchain (elan)
+      - name: Cache Rocq (opam)
         uses: actions/cache@v4
         with:
-          path: ~/.elan
-          key: elan-${{ runner.os }}-${{ hashFiles('**/lean-toolchain') }}
+          path: ~/.opam
+          key: opam-${{ runner.os }}-rocq-prover-9
 
-      # elan pinned to a release: its own installer binary (elan-init.sh fetches whatever release is latest).
-      - name: Install elan v4.2.4 and the toolchain
+      # The newest Rocq, through opam on the system's OCaml: what `frflow check` and the suites tagged `Rocq` call.
+      - name: Install Rocq
         run: |
-          if [ ! -x "$HOME/.elan/bin/elan" ]; then
-            curl -sSfL https://github.com/leanprover/elan/releases/download/v4.2.4/elan-x86_64-unknown-linux-gnu.tar.gz \
-              | tar -xz -C "$RUNNER_TEMP"
-            "$RUNNER_TEMP/elan-init" -y --no-modify-path --default-toolchain none
-          fi
-          echo "$HOME/.elan/bin" >> "$GITHUB_PATH"
-          "$HOME/.elan/bin/elan" toolchain install "$(cat modules/proof/lean/lean-toolchain)"
-          "$HOME/.elan/bin/elan" default "$(cat modules/proof/lean/lean-toolchain)"
+          sudo apt-get update -qq
+          sudo apt-get install -y -qq ocaml opam libgmp-dev pkg-config
+          export OPAMYES=1
+          [ -d "$HOME/.opam" ] || opam init --bare --disable-sandboxing --no-setup
+          opam switch list --short | grep -qx rocq || opam switch create rocq ocaml-system
+          opam install --switch=rocq -j 4 rocq-prover
+          echo "$HOME/.opam/rocq/bin" >> "$GITHUB_PATH"
 
-      - name: Lean and Lake
-        run: lean --version && lake --version
+      - name: Rocq
+        run: rocq --version
 
       - name: Nightly seeds
         if: github.event_name == 'schedule'
@@ -71,5 +65,5 @@ jobs:
       - name: sbt test
         run: sbt test < /dev/null
 
-      - name: The suites that run Lean
-        run: sbt leanTest < /dev/null
+      - name: The suites that run Rocq
+        run: sbt rocqTest < /dev/null

@@ -8,7 +8,7 @@ commits its offset. Every team that has written one knows the ways it goes wrong
 - **Two instances take a card over its limit.** After a rebalance both run; each checks the limit, each approves.
 
 None of them shows in a test that runs one call to its end. This example writes the consumer as ordinary Scala
-and has Lean prove what must hold of it. The log itself is not implemented: that it delivers at least once, in
+and has Rocq prove what must hold of it. The log itself is not implemented: that it delivers at least once, in
 order, is a decision the model names.
 
 ## The code
@@ -79,7 +79,7 @@ val payments: FrModel = FrModel("Payments")(…,
 
 The model lists each word's Definition beside its nodes: the class, named by its type. A class that holds
 structures is given the word of each, in the order its constructor takes them; that is also what says which
-ledger a claim on the handler speaks of. In Lean the handler's code is a function of *any* `authorise`, `post`
+ledger a claim on the handler speaks of. In Rocq the handler's code is a function of *any* `authorise`, `post`
 and `commit`, and its claims are proven from the claims on `limits`, `ledger` and `offsets`, not from the classes'
 bodies. Another class given for `ledger` (one over a database) is held to the same claims; the handler's proofs
 do not change.
@@ -125,7 +125,7 @@ state the crash left, and `handledIsApplied` holds from any state.
 | `PaymentHandler.handledIsApplied` | A payment handled is decided, and posted if approved, from any state | automatic |
 | `PaymentHandler.appliedStaysApplied` | Handling a payment leaves every payment applied before applied | automatic |
 | `PaymentHandler.offsetMovesPastTheHandled` | Handling the payment at the committed offset moves it one past | automatic |
-| `PaymentHandler.redeliveryChangesNothing` | Handled again, a payment gets the answer it got and changes nothing | automatic |
+| `PaymentHandler.redeliveryChangesNothing` | Handled again, a payment gets the answer it got and changes nothing | by hand |
 | `PaymentHandler.fittingIsApproved` | A new payment that fits the limit is approved | automatic |
 | `PaymentHandler.handlingKeepsWithinLimit` | A card within its limit of a day stays within it | automatic |
 | `PaymentHandler.moneyIsConserved` | Handling a payment makes no money and destroys none | automatic |
@@ -135,13 +135,14 @@ state the crash left, and `handledIsApplied` holds from any state.
 | `PaymentHandler.noStepPostsTwice` | No step adds to the postings of a payment that has some | automatic |
 | `PaymentHandler.everyStepLeavesOthersUndisturbed` | Each step leaves what was decided decided, what was posted posted | automatic |
 | `PaymentHandler.neverCommitsAhead` | No step moves the committed offset but one that leaves the payment applied: a crash after any step loses no payment | by hand |
-| `CardLimits.authorisedIsRecorded`, `authoriseIsRepeatable` | The answer is what is recorded; a second call changes nothing | by hand |
+| `CardLimits.authorisedIsRecorded`, `authoriseIsRepeatable` | The answer is what is recorded; a second call changes nothing | automatic |
 | `CardLimits` (3 more), `Ledger` (6), `ConsumerOffsets` (2) | What each call does and keeps | automatic |
 | `EagerHandler.eagerAppliesThePayment`, `HastyHandler.hastyPostsWhatItApproves` | What each first version does right | automatic |
 
-29 claims: 26 by FrFlow's own tactic, 3 by hand. The hand proofs, two lemmas, the witnesses and the examples'
-proofs are about 260 lines of Lean under `lean/Proofs/Payments/`. Lean checks both kinds; no proof uses `sorry` or
-an axiom beyond Lean's standard three.
+29 claims: 27 by FrFlow's own tactic, 2 by hand (`redeliveryChangesNothing`, `neverCommitsAhead`). The hand
+proofs are under `rocq/Proofs/Payments/`. Rocq checks both kinds; no proof is given up (`Admitted`) or rests on
+anything but classical logic and extensionality (`docs/ROCQ.md`). Of the 22 conditions the claims are stated
+under, 16 are shown possible; the six over the handler's steps among other calls are not yet.
 
 One statement is trusted and marked as a design decision in the model, for the developer to accept or reject:
 `deliveryIsAtLeastOnce`, that the log delivers every payment, in order from the committed position, and again
@@ -172,8 +173,9 @@ example("a payment within the limit: approved, posted, its offset committed"):
     (offsets.committed.in(done.after) is BigInt(1))
 ```
 
-The Scala evaluator computes each of the eight on the code read from the classes, and Lean proves each from the
-definitions printed from them.
+The Scala evaluator computes each of the eight on the code read from the classes. Proving each from the
+definitions printed from them is not done in Rocq yet: `check` reports each as holding on the code and not decided
+by the claims.
 
 ## Running it
 
@@ -182,7 +184,7 @@ sbt "testing/testOnly frflow.eval.PaymentsSuite"
 ```
 
 ```bash
-sbt "project/Lean/testOnly frflow.project.services.PaymentsLeanSuite"
+sbt "project/Rocq/testOnly frflow.project.services.PaymentsRocqSuite"
 ```
 
 ```bash
@@ -190,7 +192,7 @@ bin/frflow payments check
 ```
 
 The first checks the model is valid, that the examples hold of the code, and that the classes run as the Scala
-they are. The second and third run Lean: every claim proven, every example held. The nodes are proposed, not
+they are. The second and third run Rocq: every claim proven, every example held on the code. The nodes are proposed, not
 accepted: deciding them is the developer's, with their signing key.
 
 ## What this does not cover
@@ -199,7 +201,7 @@ accepted: deciding them is the developer's, with their signing key.
   stated as what each call, and each step, keeps, not as a fact of every state.
 - **The whole log as one theorem.** What is proven is the step: each call leaves its payment applied and moves the
   committed offset only past it. "Every payment below the committed offset is applied" follows by induction over
-  the log, which rests on `deliveryIsAtLeastOnce` and is not carried out in Lean.
+  the log, which rests on `deliveryIsAtLeastOnce` and is not carried out in Rocq.
 - **A step is a call of a held structure.** That each such call is one transaction is the held structure's to keep:
   a class over a database does it with a transaction, and the model does not check that it does.
 - **One class for a trait.** A model gives one class for each structure's trait, so a second implementation of
@@ -210,7 +212,7 @@ accepted: deciding them is the developer's, with their signing key.
 - **A class FrFlow cannot read.** `defineTested` for a structure, a class tested against the claims, is not
   built; nor is the classes' Scala tested against the terms read from them on generated cases.
 - **A member no claim mentions** has its code, and nothing is proven of it.
-- **The breaking schedules are written by hand.** Lean proves or does not; nothing searches for the schedule.
+- **The breaking schedules are written by hand.** Rocq proves or does not; nothing searches for the schedule.
 - **One kind of event, one payment per call, a daily limit.** No refunds, no batches (the reader has no loops), no
   sliding window.
 - **Liveness.** Nothing says a call finishes.
