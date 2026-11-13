@@ -48,7 +48,7 @@ TASTy
 Final[A] = [T[_]] => Sym[T] => T[A]          the model: one term, read by every interpreter of `Sym`
   ├── Evaluate            T[A] = Run[A]                 its value (examples, the tests of the compiler)
   ├── ToExpr              T[A] = Int => Expr            its initial form, for the analyses that need one
-  ├── Projected, Decided, Joined, Inlined               Final => Final, each a `Forward` (`fwd`, `bwd`)
+  ├── Projected, Decided, Joined                        Final => Final, each a `Forward` (`fwd`, `bwd`)
   └── ProverTerm[E]       T[A] = Scope => E             written for the prover into any `Syntax[E]`
                                   │
 Syntax[E]                         ▼                     the prover's syntax, one operation for each form

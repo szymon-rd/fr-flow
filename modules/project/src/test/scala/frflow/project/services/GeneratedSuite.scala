@@ -40,12 +40,12 @@ import scala.concurrent.duration.*
   private val expected: Map[String, (String, String)] = Map(
     "rooms" -> ("46ef140992a0f7c3", "dbbe847152fce9cf"),
     "auth" -> ("8612aec22d2a492b", "5ef1cc0961bcd7fe"),
-    "payments" -> ("272def2b11cfbdb0", "9f236695fc96643d"),
-    "shop" -> ("998a5a8f17704fa0", "036de7a27a4323a6"),
+    "payments" -> ("28102079cb67a599", "9f236695fc96643d"),
+    "shop" -> ("72bddea609cb8e97", "036de7a27a4323a6"),
     "prices" -> ("b0fe184d57c0423f", "c55df6f055a7bc15"),
     "counter" -> ("baf882836d45dad7", "6ce488dd43988124"),
     "rates" -> ("275bd6fa123bf55c", "f74274715f6497e0"),
-    "agree" -> ("7ff00dd4dceca1bc", "b1f9d53f1ade8371"))
+    "agree" -> ("abbe212989b49648", "b1f9d53f1ade8371"))
 
   test("the Rocq generated for each model, and the content of its nodes, are what they were") {
     models.traverse((name, model, examples) => digests(model, examples()).map(name -> _)).map { got =>

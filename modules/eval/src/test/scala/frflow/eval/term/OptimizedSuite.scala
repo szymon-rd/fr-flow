@@ -6,7 +6,7 @@ import frflow.core.expr.{LawSeeds, Terms, Tm, Value}
 import frflow.core.term.{Bound, Selector}
 import frflow.core.term.interpret.ToExpr
 import frflow.core.term.language.{Final, Sym}
-import frflow.core.term.optimize.{Decided, Inlined, Joined, Optimized, Projected}
+import frflow.core.term.optimize.{Decided, Joined, Optimized, Projected}
 import frflow.core.ty.Ty
 import frflow.eval.Env
 import frflow.proof.prover.laws.MoreTerms
@@ -26,10 +26,9 @@ class OptimizedSuite extends munit.FunSuite:
   private val projected: Pass = [A] => (t: Final[A]) => Projected.of(t)
   private val decided: Pass = [A] => (t: Final[A]) => Decided.of(t)
   private val joined: Pass = [A] => (t: Final[A]) => Joined.of(t)
-  private val inlined: Pass = [A] => (t: Final[A]) => Inlined.of(t)
   private val chain: Pass = [A] => (t: Final[A]) => Optimized.of(t)
   private val passes: List[(String, Pass)] = List("Projected" -> projected, "Decided" -> decided,
-    "Joined" -> joined, "Inlined" -> inlined, "the chain" -> chain)
+    "Joined" -> joined, "the chain" -> chain)
   private def gives[A](pass: Pass)(given_ : Final[A], expected: Final[A]): Unit =
     assertEquals(ToExpr.of(pass(given_)), ToExpr.of(expected))
 
@@ -69,17 +68,29 @@ class OptimizedSuite extends munit.FunSuite:
       [T[_]] => (s: Sym[T]) => s.cons(num(s, 1), s.nil[BigInt](big)))
   }
 
-  test("Inlined: a let of a constant names nothing; a let of what is computed stays") {
-    gives[BigInt](inlined)([T[_]] => (s: Sym[T]) => s.let(num(s, 3), Bound[BigInt]("x", big))(x => s.add(x, x)),
+  test("Projected: a let of a constant names nothing; a let of what is computed stays") {
+    gives[BigInt](projected)([T[_]] => (s: Sym[T]) => s.let(num(s, 3), Bound[BigInt]("x", big))(x => s.add(x, x)),
       [T[_]] => (s: Sym[T]) => s.add(num(s, 3), num(s, 3)))
     val computed: Final[BigInt] = [T[_]] => (s: Sym[T]) =>
       s.let(s.add(num(s, 1), num(s, 2)), Bound[BigInt]("x", big))(x => s.add(x, x))
-    gives[BigInt](inlined)(computed, computed)
+    gives[BigInt](projected)(computed, computed)
   }
 
-  test("the chain: a let that named a pair of constants, read as the pair, has its part read after it") {
-    val named: Final[BigInt] = [T[_]] => (s: Sym[T]) =>
+  test("Projected: a let that names a pair lets its body know the parts, and computes nothing twice") {
+    val constants: Final[BigInt] = [T[_]] => (s: Sym[T]) =>
       s.let(s.pair(num(s, 1), num(s, 2)), Bound[(BigInt, BigInt)]("p", pairOf))(p => s.add(first(s, p), second(s, p)))
-    gives[BigInt](chain)(named, [T[_]] => (s: Sym[T]) => s.add(num(s, 1), num(s, 2)))
-    assertNotEquals(ToExpr.of(Inlined.of(named)), ToExpr.of(Optimized.of(named)))
+    gives[BigInt](projected)(constants, [T[_]] => (s: Sym[T]) => s.add(num(s, 1), num(s, 2)))
+    // one part computed: the let stays for it, and the part written out is read where the body reads it
+    def sum[T[_]](s: Sym[T]): T[BigInt] = s.add(num(s, 1), num(s, 2))
+    val computed: Final[BigInt] = [T[_]] => (s: Sym[T]) =>
+      s.let(s.pair(sum(s), num(s, 7)), Bound[(BigInt, BigInt)]("p", pairOf))(p => s.add(first(s, p), second(s, p)))
+    gives[BigInt](projected)(computed, [T[_]] => (s: Sym[T]) =>
+      s.let(s.pair(sum(s), num(s, 7)), Bound[(BigInt, BigInt)]("p", pairOf))(p => s.add(first(s, p), num(s, 7))))
+  }
+
+  test("the chain: an if decided leaves a pair, whose part is read after it") {
+    val decided: Final[BigInt] = [T[_]] => (s: Sym[T]) =>
+      second(s, s.cond(s.bool(true), s.pair(num(s, 1), num(s, 2)), s.pair(num(s, 3), num(s, 4))))
+    gives[BigInt](chain)(decided, [T[_]] => (s: Sym[T]) => num(s, 2))
+    assertNotEquals(ToExpr.of(Projected.of(decided)), ToExpr.of(Optimized.of(decided)))
   }
