@@ -81,3 +81,75 @@ Proof.
     (Payments_mk (Ledger_mk [Posting_mk "top-up" "ann" 50] [])) (OrderBook_mk ["o1"%string] []))).
   frflow_evaluate.
 Qed.
+
+(** Of an order already charged: a ledger in which Ann's top-up is posted and its payment claimed. The first step
+    of placing `o1`, another order, starts with the top-up charged and claimed. *)
+
+Lemma Whole_Proofs_satisfiable_1_chargeKeepsClaimed : Whole_Obl_satisfiable_1_chargeKeepsClaimed.
+Proof.
+  unfold Whole_Obl_satisfiable_1_chargeKeepsClaimed.
+  exists (Payments_mk (Ledger_mk [Posting_mk "top-up" "ann" 50] ["top-up"%string])).
+  exists "top-up"%string.
+  exists (Order_mk "o1" "ann" "tea" 1 30).
+  frflow_evaluate.
+Qed.
+
+Lemma Whole_Proofs_satisfiable_1_noStepUndoesAClaim : Whole_Obl_satisfiable_1_noStepUndoesAClaim.
+Proof.
+  unfold Whole_Obl_satisfiable_1_noStepUndoesAClaim.
+  exists (Checkout_mk (Inventory_mk (Warehouse_mk [Movement_mk "delivery" "tea" 1]))
+    (Payments_mk (Ledger_mk [Posting_mk "top-up" "ann" 50] ["top-up"%string])) (OrderBook_mk [] [])).
+  exists "top-up"%string.
+  exists (Order_mk "o1" "ann" "tea" 1 30). split; [frflow_evaluate |].
+  exists (fun _ => None).
+  exists ((Checkout_mk (Inventory_mk (Warehouse_mk [Movement_mk "delivery" "tea" 1]))
+    (Payments_mk (Ledger_mk [Posting_mk "top-up" "ann" 50] ["top-up"%string])) (OrderBook_mk [] [])),
+    (Checkout_mk (Inventory_mk (Warehouse_mk [Movement_mk "delivery" "tea" 1]))
+    (Payments_mk (Ledger_mk [Posting_mk "top-up" "ann" 50] ["top-up"%string])) (OrderBook_mk ["o1"%string] []))).
+  frflow_evaluate.
+Qed.
+
+Lemma Whole_Proofs_satisfiable_1_chargedOnce : Whole_Obl_satisfiable_1_chargedOnce.
+Proof.
+  unfold Whole_Obl_satisfiable_1_chargedOnce.
+  exists (Checkout_mk (Inventory_mk (Warehouse_mk [Movement_mk "delivery" "tea" 1]))
+    (Payments_mk (Ledger_mk [Posting_mk "top-up" "ann" 50] ["top-up"%string])) (OrderBook_mk [] [])).
+  exists "top-up"%string.
+  exists (Order_mk "o1" "ann" "tea" 1 30). split; [frflow_evaluate |].
+  exists (fun _ => None).
+  exists ((Checkout_mk (Inventory_mk (Warehouse_mk [Movement_mk "delivery" "tea" 1]))
+    (Payments_mk (Ledger_mk [Posting_mk "top-up" "ann" 50] ["top-up"%string])) (OrderBook_mk [] [])),
+    (Checkout_mk (Inventory_mk (Warehouse_mk [Movement_mk "delivery" "tea" 1]))
+    (Payments_mk (Ledger_mk [Posting_mk "top-up" "ann" 50] ["top-up"%string])) (OrderBook_mk ["o1"%string] []))).
+  frflow_evaluate.
+Qed.
+
+Lemma Whole_Proofs_satisfiable_1_booksStayOrderly : Whole_Obl_satisfiable_1_booksStayOrderly.
+Proof.
+  unfold Whole_Obl_satisfiable_1_booksStayOrderly.
+  exists (Checkout_mk (Inventory_mk (Warehouse_mk [Movement_mk "delivery" "tea" 1]))
+    (Payments_mk (Ledger_mk [Posting_mk "top-up" "ann" 50] ["top-up"%string])) (OrderBook_mk [] [])).
+  exists "top-up"%string.
+  exists (Order_mk "o1" "ann" "tea" 1 30). split; [frflow_evaluate |].
+  exists (fun _ => None).
+  exists ((Checkout_mk (Inventory_mk (Warehouse_mk [Movement_mk "delivery" "tea" 1]))
+    (Payments_mk (Ledger_mk [Posting_mk "top-up" "ann" 50] ["top-up"%string])) (OrderBook_mk [] [])),
+    (Checkout_mk (Inventory_mk (Warehouse_mk [Movement_mk "delivery" "tea" 1]))
+    (Payments_mk (Ledger_mk [Posting_mk "top-up" "ann" 50] ["top-up"%string])) (OrderBook_mk ["o1"%string] []))).
+  frflow_evaluate.
+Qed.
+
+Lemma Whole_Proofs_satisfiable_1_noStepPostsForAnother : Whole_Obl_satisfiable_1_noStepPostsForAnother.
+Proof.
+  unfold Whole_Obl_satisfiable_1_noStepPostsForAnother.
+  exists (Checkout_mk (Inventory_mk (Warehouse_mk [Movement_mk "delivery" "tea" 1]))
+    (Payments_mk (Ledger_mk [Posting_mk "top-up" "ann" 50] ["top-up"%string])) (OrderBook_mk [] [])).
+  exists "top-up"%string.
+  exists (Order_mk "o1" "ann" "tea" 1 30). split; [frflow_evaluate |].
+  exists (fun _ => None).
+  exists ((Checkout_mk (Inventory_mk (Warehouse_mk [Movement_mk "delivery" "tea" 1]))
+    (Payments_mk (Ledger_mk [Posting_mk "top-up" "ann" 50] ["top-up"%string])) (OrderBook_mk [] [])),
+    (Checkout_mk (Inventory_mk (Warehouse_mk [Movement_mk "delivery" "tea" 1]))
+    (Payments_mk (Ledger_mk [Posting_mk "top-up" "ann" 50] ["top-up"%string])) (OrderBook_mk ["o1"%string] []))).
+  frflow_evaluate.
+Qed.
