@@ -3,8 +3,9 @@ package frflow.dsl.lifted
 import frflow.core.term.language.Sym
 import frflow.dsl.term.{RocqType, Notes, Term, Terms, TermSyntax}
 
-/** The term language's operations as the reader writes them (`Reader`): each binder's variable named as the Scala
-  * named it, each operation one of `TermSyntax`'s, so lifted code and a model's own terms are the same terms.
+/** The term language's operations as the class compiler writes them (`compiled`): each binder's variable named as
+  * the Scala named it, each operation one of `TermSyntax`'s, so lifted code and a model's own terms are the same
+  * terms.
   */
 object LiftOps:
   def all[A: RocqType](xs: Term[List[A]], hint: String)(p: Term[A] => Term[Boolean]): Term[Boolean] =

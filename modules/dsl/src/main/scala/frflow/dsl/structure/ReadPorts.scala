@@ -2,9 +2,9 @@ package frflow.dsl.structure
 
 import scala.quoted.*
 
-/** What the reader of lifted code knows of ports (`lifted.Reading`): which types are structures, classes that
+/** What the class compiler knows of ports (`compiled.Compiling`): which types are structures, classes that
   * implement one, stores, and classes holding ports; and the state each stands for where the Scala that changes
-  * it is read (`lifted.steps.StepReader`).
+  * it is read (`compiled.steps.Steps`).
   */
 trait ReadPorts:
   val q: Quotes

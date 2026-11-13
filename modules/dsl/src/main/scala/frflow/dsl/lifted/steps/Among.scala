@@ -5,7 +5,9 @@ import frflow.dsl.structure.Call
 import frflow.dsl.term.{RocqType, Lift, Term, Terms, TermSyntax}
 import frflow.dsl.vocab.Definition
 
-/** What other calls do between two steps of one call, as the interleaved reading writes it (`StepReader`). */
+/** What other calls do between two steps of one call, as the reading among other calls writes it
+  * (`compiled.steps.Steps`).
+  */
 object Among:
   /** What the schedule says other calls left before step `k` (`between`); nothing said, the state the call last
     * saw (`before`).

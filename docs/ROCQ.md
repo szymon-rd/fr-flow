@@ -77,8 +77,8 @@ What `frflow check` gives of each example, from cold, with Rocq 9.3 (`sbt rocqTe
   `frflow_auto`; the three of the purpose follow by the proof files in `examples/rooms/rocq/Proofs/Rooms`), the
   three conditions are shown possible, and both examples are shown from the claims. About 30 seconds.
 - `examples/auth`: its nine claims are proven, each node from its parts by its proof file
-  (`examples/auth/rocq/Proofs/Auth`), and the consistency groups. One condition (`grantLetsIn`'s) is not shown
-  possible: FrFlow finds no witness, and no proof by hand is written, as before the move.
+  (`examples/auth/rocq/Proofs/Auth`), and the consistency groups; the one condition FrFlow finds no values for
+  (`grantLetsIn`'s) is shown possible of the values `Proofs/Auth/Whole.v` gives.
 - `examples/payments`: everything. Its 29 claims are proven, 27 of the code obligations by `frflow_auto` and two
   by proof files (`redeliveryChangesNothing`, `neverCommitsAhead`), and the roots follow. Each of the 22
   conditions is shown possible: 14 by the witnesses FrFlow finds and eight by the values
@@ -86,11 +86,11 @@ What `frflow check` gives of each example, from cold, with Rocq 9.3 (`sbt rocqTe
   About 7 minutes.
 - The test models (`PricesRocqSuite`, one of them a structure reached through the one that holds its holder;
   `SeededSuite`): proven, their examples shown from the claims.
-- `examples/shop`: its 42 claims are proven, 38 by `frflow_auto` and four from proof files
-  (`examples/shop/rocq/Proofs/Shop`: two by hand, two the tactic given more time). Each of the 29 conditions is
-  shown possible, seven by the values `Proofs/Shop/Whole.v` gives, and the five examples are shown by running the
-  code. About 15 minutes. **Not done:** two claims of the shape before structures are not restated (an order
-  charged once, each step leaving other orders undisturbed).
+- `examples/shop`: everything. Its 48 claims are proven, 38 by `frflow_auto` and ten from proof files
+  (`examples/shop/rocq/Proofs/Shop`: four by hand, six the tactic given more time). Each of the 36 conditions is
+  shown possible, twelve by the values `Proofs/Shop/Whole.v` gives, and the five examples are shown by running the
+  code. About 20 minutes. A step of the checkout is a call of a service: what another call does between the two
+  ledger transactions of one charge is not covered.
 
 ## Rocq on a machine
 
@@ -99,8 +99,7 @@ The newest Rocq is installed through opam (`opam install rocq-prover`), on the s
 
 ## What is left
 
-1. **Auth's one condition** (`grantLetsIn`'s) is not shown possible: FrFlow finds no witness and none is given.
-2. **The notation of signed content.** Lean is gone: its library, the Lean proofs of auth and payments, and the
+1. **The notation of signed content.** Lean is gone: its library, the Lean proofs of auth and payments, and the
    names in the sources (`RocqType`, `proof.prover`). One trace is kept on purpose, below.
 
 A node's signed content is the text of its formula in the notation the Lean printer wrote. It stays printed that

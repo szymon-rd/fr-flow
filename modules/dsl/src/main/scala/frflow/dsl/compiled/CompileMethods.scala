@@ -28,9 +28,11 @@ private[compiled] trait CompileMethods extends Compiling:
   def kept(m: Symbol): Option[DefDef] =
     Option.when(isOwn(m))(m.tree).collect { case d: DefDef if d.rhs.nonEmpty => d }
 
-  /** A method of the developer's code: no library's, none the compiler made. */
+  /** A method of the developer's code: no library's, none the compiler made. An `inline def` is one: the TASTy is
+    * written before the compiler puts its body where it is called, so its call is there as any other.
+    */
   def isOwn(m: Symbol): Boolean =
-    !m.isNoSymbol && m.isDefDef && !m.flags.is(Flags.Synthetic) && !m.flags.is(Flags.Inline) &&
+    !m.isNoSymbol && m.isDefDef && !m.flags.is(Flags.Synthetic) &&
       !List("scala.", "java.").exists(m.fullName.startsWith)
 
   /** A function applied to every argument list it is given. */

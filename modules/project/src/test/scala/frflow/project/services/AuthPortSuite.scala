@@ -21,13 +21,15 @@ class AuthPortSuite extends munit.CatsEffectSuite:
 
   private val proofs = Ported.proofs("auth", "Auth")
 
-  test("checked by Rocq and tested: every node is proven, and the theory is consistent".tag(Live)) {
+  test("checked by Rocq and tested: every node proven, each condition possible, the theory consistent".tag(Live)) {
     Ported.run(elaborated, DecisionExamples().elaborated.fold(e => fail(e.toString), identity), proofs).map { a =>
       assertEquals(Completeness.of(a.decided, a.modules), Nil)
       assertEquals(Ported.unproven(a), Map.empty[String, List[String]])
       val whole = a.wholeCheck.map(_.results).getOrElse(fail("the theory's own check is not recorded"))
       assertEquals(whole.collect { case Result(n @ ObligationName.Consistent(_), s, _) => n -> s }.toMap,
         a.groups.map((i, _) => ObligationName.Consistent(i) -> ObligationStatus.Proven).toMap)
+      assertEquals(whole.collect { case Result(n @ ObligationName.Satisfiable(_, _), s, _)
+        if s != ObligationStatus.Proven => n }, Nil)
     }
   }
 
