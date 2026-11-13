@@ -193,9 +193,10 @@ any card limits, ledger and offsets that meet their claims. That is what `.refin
 service can be replaced by another that meets the same claims. Each `update` member is also compiled as its steps
 among other calls (`amongOthers`): before each step but the first, the others may have left any state.
 
-Of the example's 29 claims, Rocq proves 27 by FrFlow's tactic and 2 from proofs by hand. The 8 examples hold on
-the code; proving them from the claims, and six of the 22 conditions shown possible, is not done in Rocq yet
-([docs/ROCQ.md](docs/ROCQ.md)).
+Of the example's 29 claims, Rocq proves 27 by FrFlow's tactic and 2 from proofs by hand. Each of the 22
+conditions the claims are stated under is shown possible, and Rocq shows each of the 8 examples by running the
+generated definitions on the values it gives ([docs/ROCQ.md](docs/ROCQ.md)). What is proven is the classes of the
+example, which keep their state in memory, with each call of a service taken as one step.
 
 ## A second example: booking meeting rooms
 
@@ -335,10 +336,22 @@ The code at the bottom of the graph is in one of three states, and `status` repo
   given, and its Scala is tested against them. A structure with no class is known
   the same way (`pricing.provided`); a model that holds one is valid, and the prover does not build it yet.
 
-Everything above the code is proven from these, and Rocq proves the statements consistent: some meaning of every
-`Declaration` makes them all hold. Nothing is checked when the code runs: FrFlow is for testing before production and
-for proofs. What is left to trust is the assumptions the developer accepted, FrFlow's translation of the model to Rocq
-(which the examples cross-check by running the same model as Scala), and, for tested code, the cases the tests reach.
+Everything above the code is proven from these. Rocq is also asked that the statements can hold together: that
+each condition a claim is stated under can be met, and, of the words no code defines, that some meaning makes the
+statements about them hold. Where it shows neither, `check` says so; it is not taken as given.
+
+Nothing is checked when the code runs: FrFlow is for testing before production and for proofs. A proof here does
+not cover, and so trusts:
+
+- The assumptions and the design decisions the developer accepted. A design node is decided, not proven: that
+  each call of a store is one transaction, that a log delivers again what was not committed.
+- FrFlow's reading of the code. The terms it compiles from a class's TASTy, and the Rocq it prints from them, are
+  tested and not proven. `check` runs the examples on those terms and in Rocq; it does not run the class itself.
+- How a class is read: its state its own (Scala's separation checking, where it is compiled), each call it makes
+  of what it holds one step, other calls acting between the steps. Threads within a step, a call that fails, and
+  time are not in the model.
+- For tested code, the cases the tests reach.
+- Rocq, with classical logic and extensionality as axioms; the Scala compiler and the JVM.
 
 Rocq 9 is the prover that checks a project (`check`): the model is printed as Rocq, each module compiled after
 those it imports, and what each proof rests on audited ([docs/ROCQ.md](docs/ROCQ.md)). [docs/ROCQ.md](docs/ROCQ.md) says what is
@@ -396,7 +409,8 @@ bin/frflow rooms status              # an example: rooms, auth, payments, shop
 
 Each example is a project in `examples/<name>`: its statements and code in `src/main`, its examples in `src/test`,
 its proofs by hand in `rocq/Proofs`, and its command line in `app`
-(`bin/frflow <name> COMMAND`). None has a decision yet: each starts with no ledger, for its developer to decide.
+(`bin/frflow <name> COMMAND`). No decision counts in any of them: `rooms` and `auth` keep a ledger from an earlier
+shape of their models, and `payments` and `shop` have none.
 FrFlow's own suites test them whole (`sbt rocqTest`).
 
 - `payments` is the example above: a payment stream handler over three services, each a structure, proven
