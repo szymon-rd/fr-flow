@@ -18,10 +18,11 @@ final class ShopCheckout(inventory: Inventory^, payments: Payments^, orders: Ord
 | `Checkout` | `ShopCheckout` | the service over the two services and the order book: `place` |
 | `ForgetfulCheckout` | `NoReleaseCheckout` | the checkout without the release: it confirms as `Checkout` does, and leaves stock held |
 
-Each trait's companion holds the claims on it; `Shop.scala` assembles the tree. A claim on a class made of others
-is said through what those expose: the checkout's claims speak of `inventory.available`, `payments.balance` and
-`orders.registered`, and are proven from the claims on the inventory, the payments and the order book, not from
-their classes.
+Each trait's companion holds the claims on it; `Shop.scala` assembles the tree. No trait has a member for a proof's
+sake: `Inventory` is `reserve` and `release`, `Payments` is `charge`. A claim on a class made of others is said of
+what those hold, reached through them: the checkout's claims speak of `warehouse.available`, `ledger.balance` and
+`orders.registered` (the warehouse of its inventory, the ledger of its payments), and are proven from the claims on
+the inventory, the payments and the order book, not from their classes.
 
 Rocq proves all 42 claims (`bin/frflow shop check`, about 16 minutes from cold): 38 by FrFlow's tactic and four
 from proof files under `rocq/Proofs/Shop/`.

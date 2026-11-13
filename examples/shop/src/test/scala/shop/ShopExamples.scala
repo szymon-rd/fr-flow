@@ -3,12 +3,12 @@ package shop
 import frflow.*
 import Checkout.checkout
 import ForgetfulCheckout.forgetful
-import Inventory.inventory
-import Payments.payments
+import Ledger.ledger
+import Warehouse.warehouse
 
 /** The shop at work. The warehouse has one unit of tea; Ann and Bob each hold 50. A state is given as an object of
-  * the class that implements the trait (`holding`), and what the inventory and the payments say is asked of them as
-  * the checkout has them.
+  * the class that implements the trait (`holding`), and the warehouse and the ledger are asked as the checkout has
+  * them: through its inventory and its payments.
   */
 class ShopExamples extends FrFlowExamples(shop):
   private def stock = MovementWarehouse(List(Movement("delivery", "tea", 1)))
@@ -28,15 +28,15 @@ class ShopExamples extends FrFlowExamples(shop):
 
   example("an order its customer cannot cover: refused, its unit to sell again, her balance as it was"):
     val done = checkout.place(dear).in(start)
-    (done.result is Placement.PaymentRefused) && (inventory.available("tea").in(done.after) is BigInt(1)) &&
-      (payments.balance("ann").in(done.after) is BigInt(50))
+    (done.result is Placement.PaymentRefused) && (warehouse.available("tea").in(done.after) is BigInt(1)) &&
+      (ledger.balance("ann").in(done.after) is BigInt(50))
 
   example("the same order sent again: a duplicate, the customer charged once"):
     val again = checkout.place(anns).in(checkout.place(anns).in(start).after)
-    (again.result is Placement.Duplicate) && (payments.balance("ann").in(again.after) is BigInt(20))
+    (again.result is Placement.Duplicate) && (ledger.balance("ann").in(again.after) is BigInt(20))
 
   example("the forgetful checkout, an order its customer cannot cover: refused, and its unit stays held"):
     val start = forgetful.holding(
       NoReleaseCheckout(WarehouseInventory(stock), LedgerPayments(books), JournalOrderBook(Nil, Nil)))
     val done = forgetful.place(dear).in(start)
-    (done.result is Placement.PaymentRefused) && (inventory.available("tea").in(done.after) is BigInt(0))
+    (done.result is Placement.PaymentRefused) && (warehouse.available("tea").in(done.after) is BigInt(0))
