@@ -15,4 +15,4 @@ final case class RocqTool(command: Command, memoryMb: Int):
 
 object RocqTool:
   /** The memory a compile may use when the environment names none. */
-  val Memory: Int = 6000
+  val Memory: Int = 4000

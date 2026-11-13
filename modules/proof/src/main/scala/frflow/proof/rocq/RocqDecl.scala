@@ -78,6 +78,11 @@ private[rocq] object RocqDecl:
   /** The seconds a theorem with no budget of its own is given. */
   val unbudgeted: Int = 30
 
+  /** The seconds the tactic that closes a witness is given: running the code on the values given takes long for a
+    * class made of several (a payment handler's steps take over a minute), and its memory is limited apart.
+    */
+  val witnessed: Int = 300
+
   /** A try's budget in seconds on the clock: Rocq has no count of steps to stop a tactic by. */
   def seconds(heartbeats: Int): Int = (heartbeats / 1000).max(2).min(120)
 

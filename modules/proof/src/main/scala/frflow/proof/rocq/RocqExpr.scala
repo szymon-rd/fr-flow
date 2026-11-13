@@ -92,11 +92,11 @@ private[rocq] final class RocqExpr(names: RocqNames):
     s"| $pattern => ${apply(a._2)(using s.binding(vars))}"
 
   /** `⟨a, b, h⟩`: what an `exists` or a conjunction is given, one part after another; the last may be a tactic,
-    * given the time a lemma with no budget of its own has (a witness that does not go through must not run on).
+    * given a witness's time (one that does not go through must not run on).
     */
   private def given_(es: List[LExpr])(using Scope): String =
     val parts = es.map {
-      case LExpr.By(t) => s"timeout ${RocqDecl.unbudgeted} (${t.text})"
+      case LExpr.By(t) => s"timeout ${RocqDecl.witnessed} (${t.text})"
       case part        => s"frflow_give (${apply(part)})"
     }
     s"ltac:(${parts.mkString("; ")})"

@@ -13,7 +13,7 @@ on top, which a project enables, for an agent that proposes the nodes and writes
 ### Running
 
 Requirements: JDK 17+, sbt, and Rocq 9 (`rocq` on the `PATH`, or `FRFLOW_ROCQ`; `opam install rocq-prover`). One
-compile of a module may use `FRFLOW_ROCQ_MEMORY` megabytes (6000 when not given): a proof search that outgrows it is
+compile of a module may use `FRFLOW_ROCQ_MEMORY` megabytes (4000 when not given): a proof search that outgrows it is
 reported of its lemma. `bin/frflow PROJECT COMMAND`
 runs a project's CLI on the terminal, with colors and the interactive review, compiling with sbt on first use and
 after a change; `sbt "PROJECT/run COMMAND"` runs it through sbt, plain. `--help` lists the commands. A project is
