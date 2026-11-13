@@ -343,8 +343,8 @@ for proofs. What is left to trust is the assumptions the developer accepted, FrF
 (which the examples cross-check by running the same model as Scala), and, for tested code, the cases the tests reach.
 
 Rocq 9 is the prover that checks a project (`check`): the model is printed as Rocq, each module compiled after
-those it imports, and what each proof rests on audited ([docs/ROCQ.md](docs/ROCQ.md)). The shop example is
-moved in part ([docs/ROCQ.md](docs/ROCQ.md)).
+those it imports, and what each proof rests on audited ([docs/ROCQ.md](docs/ROCQ.md)). [docs/ROCQ.md](docs/ROCQ.md) says what is
+proven of each example and what is not yet.
 
 FrFlow states safety properties: "eventually" is out of scope for now. Effectful programs written in the DSL
 (`Flow`), state models and the clock were removed; a service's state is a structure's.
@@ -406,8 +406,7 @@ FrFlow's own suites test them whole (`sbt rocqTest`).
 - `rooms` books meeting rooms: the second example above, one service.
 - `auth` is access control by a table of grants, and the smallest example.
 - `shop` is a checkout over two services and an order book, each over a store of its own: structures made of
-  structures, two levels deep. Its claims among other calls are not restated in this shape yet
-  ([its README](examples/shop/README.md)).
+  structures, two levels deep ([its README](examples/shop/README.md)).
 
 ## References
 

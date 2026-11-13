@@ -23,19 +23,34 @@ is said through what those expose: the checkout's claims speak of `inventory.ava
 `orders.registered`, and are proven from the claims on the inventory, the payments and the order book, not from
 their classes.
 
-Rocq proves the 21 claims on the stores and the 7 on the two services by FrFlow's tactic, and 5 of the 7 claims
-on the checkout alone (a new order in stock that its customer can cover is confirmed; a confirmed order is paid
-for, holds its units and is recorded; an order refused leaves every product and every balance as it was). The two
-about an order sent again (it is a duplicate, and changes nothing) are proven by hand under `rocq/Proofs/Shop/`. The forgetful checkout's one claim and the five examples (the
-unit it leaves held among them) hold on the code.
+Rocq proves all 42 claims (`bin/frflow shop check`, about 16 minutes from cold): 38 by FrFlow's tactic and four
+from proof files under `rocq/Proofs/Shop/`.
+
+- **The stores and the services** (21 and 10 claims): by the tactic. A service's claims are proven from the claims
+  on its store, not from the store's class.
+- **The checkout alone:** a new order in stock that its customer can cover is confirmed; a confirmed order is paid
+  for, holds its units and is recorded; an order refused, for stock or for payment, leaves every product and
+  every balance as it was (by the tactic); an order sent again is a duplicate and changes nothing (two proofs by
+  hand: the first call registered the order, so the second does not win its registration).
+- **Among other calls:** no step of placing an order leaves a product oversold or an account overdrawn that was
+  not, whatever other calls do between the steps (the tactic, given more time than a check gives it).
+- **The forgetful checkout** confirms as the checkout does; the example shows what it leaves behind.
+
+The five examples hold on the code. Rocq does not yet show them from the claims, and nine of the conditions the
+claims are stated under are not shown possible (a witness is found for the others).
 
 Trusted: every order is for at least one unit and a positive amount (`ordersAreSensible`, the contract of
-`Order`). Not covered yet in this shape: the claims over every step of placing an order among other calls (no
-product oversold, no account overdrawn, an order charged once), which the shape before structures stated and
-proved in Lean; a crash between two steps; liveness; stores behind an adapter.
+`Order`), and each member of a store that changes it is one transaction (`storesAreTransactional`). Not restated
+in this shape: that an order is charged once and that each step leaves other orders undisturbed, among other
+calls; they need what a call takes of the others said in the claim. Not covered: a crash between two steps,
+liveness, stores behind an adapter.
 
 ```bash
 sbt "testing/testOnly frflow.eval.ShopSuite"
+```
+
+```bash
+sbt "project/Rocq/testOnly frflow.project.services.ShopRocqSuite"
 ```
 
 ```bash
