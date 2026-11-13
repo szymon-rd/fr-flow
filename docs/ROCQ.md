@@ -11,7 +11,9 @@ what is proven of the examples, and what is left of the move from Lean.
 - **The library** (`modules/proof/rocq/FrFlow/Base.v`): what the generated definitions are written with (`ite`,
   `List_filter`, `List_foldl`, …) and the tactics the generated lemmas call: `frflow_auto` (every obligation),
   `frflow_witness` (a statement whose witnesses FrFlow gives) and `frflow_example` (an example: the code run on
-  the values it gives, then the claims). It uses Rocq's standard library alone.
+  the values it gives, then the claims). Code is run as it runs (`frflow_evaluate`): a call once what it is
+  given is computed, each `let` once. Rocq's `unfold` would put a `let`'s value wherever it is read and compute a
+  step again at each reading. It uses Rocq's standard library alone.
 - **The run** (`modules/project/src/main/scala/frflow/project/port/rocq/`), behind the `Prover` port:
   - A build compiles each module asked after every module it imports (the library, the generated modules, the
     developer's proofs), with `rocq compile`, and writes everything under `rocq/_build/`, by the name Rocq loads
@@ -77,21 +79,18 @@ What `frflow check` gives of each example, from cold, with Rocq 9.3 (`sbt rocqTe
 - `examples/auth`: its nine claims are proven, each node from its parts by its proof file
   (`examples/auth/rocq/Proofs/Auth`), and the consistency groups. One condition (`grantLetsIn`'s) is not shown
   possible: FrFlow finds no witness, and no proof by hand is written, as before the move.
-- `examples/payments`: its 29 claims are proven, 27 of the code obligations by `frflow_auto` and two by proof
-  files (`redeliveryChangesNothing`, `neverCommitsAhead`), and the roots follow. Of the 22 conditions, 16 are
-  shown possible: 14 by the witnesses FrFlow finds and two by `Proofs/Payments/Whole.v`. About 11 minutes.
-  **Not done:** the other six conditions (over the handler's steps among other calls) and the eight examples
-  against the claims. Lean had them by proofs by hand (`examples/payments/lean/Proofs/Payments/Whole.lean` as of
-  commit `81659f7`, with the witnesses);
-  `frflow_evaluate` does not finish on the handler's steps, so they are to be written by hand in Rocq. The
-  examples hold on the code (`check` runs them as Scala), and no claim contradicts one.
+- `examples/payments`: everything. Its 29 claims are proven, 27 of the code obligations by `frflow_auto` and two
+  by proof files (`redeliveryChangesNothing`, `neverCommitsAhead`), and the roots follow. Each of the 22
+  conditions is shown possible: 14 by the witnesses FrFlow finds and eight by the values
+  `Proofs/Payments/Whole.v` gives. The eight examples are shown by running the code, and none is contradicted.
+  About 7 minutes.
 - The test models (`PricesRocqSuite`, one of them a structure reached through the one that holds its holder;
   `SeededSuite`): proven, their examples shown from the claims.
 - `examples/shop`: its 42 claims are proven, 38 by `frflow_auto` and four from proof files
-  (`examples/shop/rocq/Proofs/Shop`: two by hand, two the tactic given more time). About 16 minutes.
-  **Not done:** nine conditions are not shown possible, and the five examples are not shown from the claims
-  (they hold on the code); two claims of the shape before structures are not restated (an order charged once,
-  each step leaving other orders undisturbed).
+  (`examples/shop/rocq/Proofs/Shop`: two by hand, two the tactic given more time). Each of the 29 conditions is
+  shown possible, seven by the values `Proofs/Shop/Whole.v` gives, and the five examples are shown by running the
+  code. About 15 minutes. **Not done:** two claims of the shape before structures are not restated (an order
+  charged once, each step leaving other orders undisturbed).
 
 ## Rocq on a machine
 
@@ -100,8 +99,7 @@ The newest Rocq is installed through opam (`opam install rocq-prover`), on the s
 
 ## What is left
 
-1. **Whole-theory proofs by hand**: payments' six conditions and eight examples, shop's nine conditions and five
-   examples (above).
+1. **Auth's one condition** (`grantLetsIn`'s) is not shown possible: FrFlow finds no witness and none is given.
 2. **The notation of signed content.** Lean is gone: its library, the Lean proofs of auth and payments, and the
    names in the sources (`RocqType`, `proof.prover`). One trace is kept on purpose, below.
 

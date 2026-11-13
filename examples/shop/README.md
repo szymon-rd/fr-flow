@@ -37,8 +37,9 @@ from proof files under `rocq/Proofs/Shop/`.
   not, whatever other calls do between the steps (the tactic, given more time than a check gives it).
 - **The forgetful checkout** confirms as the checkout does; the example shows what it leaves behind.
 
-The five examples hold on the code. Rocq does not yet show them from the claims, and nine of the conditions the
-claims are stated under are not shown possible (a witness is found for the others).
+The five examples hold on the code, and Rocq shows each by running the code on the values it gives. Each of the
+29 conditions the claims are stated under is shown possible, seven of them of values `rocq/Proofs/Shop/Whole.v`
+gives.
 
 Trusted: every order is for at least one unit and a positive amount (`ordersAreSensible`, the contract of
 `Order`), and each member of a store that changes it is one transaction (`storesAreTransactional`). Not restated

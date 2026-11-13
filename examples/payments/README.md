@@ -141,8 +141,9 @@ state the crash left, and `handledIsApplied` holds from any state.
 
 29 claims: 27 by FrFlow's own tactic, 2 by hand (`redeliveryChangesNothing`, `neverCommitsAhead`). The hand
 proofs are under `rocq/Proofs/Payments/`. Rocq checks both kinds; no proof is given up (`Admitted`) or rests on
-anything but classical logic and extensionality (`docs/ROCQ.md`). Of the 22 conditions the claims are stated
-under, 16 are shown possible; the six over the handler's steps among other calls are not yet.
+anything but classical logic and extensionality (`docs/ROCQ.md`). Each of the 22 conditions the claims are
+stated under is shown possible, eight of them of values `rocq/Proofs/Payments/Whole.v` gives, and Rocq shows
+each of the eight examples by running the handler's code on the values it gives.
 
 One statement is trusted and marked as a design decision in the model, for the developer to accept or reject:
 `deliveryIsAtLeastOnce`, that the log delivers every payment, in order from the committed position, and again
