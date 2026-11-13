@@ -6,8 +6,8 @@ object RocqOutput:
   def error(output: String): Option[(Int, String)] =
     Located.findFirstMatchIn(output).map(m => m.group(1).toInt -> output.substring(m.end).trim)
 
-  /** An error as Rocq printed it, without the `Error:` it starts with. */
-  def plain(error: String): String = error.trim.stripPrefix("Error:").trim
+  /** What Rocq said of an error, without where it is and the `Error:` it starts with. */
+  def plain(output: String): String = error(output).fold(output.trim.stripPrefix("Error:").trim)(_._2)
 
   /** What each `Print Assumptions` printed, in order: the names of what the lemma rests on, none of one closed
     * under the global context.

@@ -2,7 +2,7 @@
 name: frflow
 description: >-
   Develop a system with FrFlow: a small set of root statements (the idea's purpose, kept concise) refined by a DAG
-  of small statements in the domain's words, each proven in Lean from its parts and decided by the developer. Use
+  of small statements in the domain's words, each proven in Rocq from its parts and decided by the developer. Use
   when turning an idea into roots, proposing or changing nodes, introducing domain types and values, adding
   examples, answering the developer's requests, proving a step, or giving code its meaning; or when the work touches
   `Node.claim`, `Node.assumption`, `Node.design`, `Declaration`, `Definition`, `define`, `stated`, `lifted`,
@@ -15,7 +15,7 @@ description: >-
 
 The developer tells you the idea in chat; you ask what you need, record the conversation, and draft the project's
 README from it. Then you write Scala nodes: a small set of roots, kept concise (one idea each), and below them parts
-that together prove them, down to claims about the code. Lean proves each step; the developer decides every node. The
+that together prove them, down to claims about the code. Rocq proves each step; the developer decides every node. The
 README explains the method, `docs/USAGE.md` is the reference, `docs/DAG.md` the design.
 
 These rules are the agent layer's (`frflow.agent`), on top of FrFlow's core. A project uses it when its main object
@@ -73,13 +73,13 @@ requests. Do not add it to a project whose developer set it up without the layer
 10. **Never weaken a node to make a proof or a test go through.** A false step means a part is wrong or missing; a
     failing generated case means the code is wrong, or the claim as decided is. If the idea or a decided node is
     wrong, say so.
-11. **Never edit generated Lean** (`lean/FrFlowGen/`). Lean you write goes only in `lean/Proofs/<Model>/`.
+11. **Never edit generated Rocq** (`rocq/FrFlowGen/`). Rocq you write goes only in `rocq/Proofs/<Model>/`.
 12. **Every source file is governed by one node**: the claim whose code it is, or a design node (production wiring,
     the call to `knowledge.code` or `knowledge.running`, goes in one).
 13. **Say what is not modelled** (in the README, and in your `answer`), and name the waiting nodes that are
     mechanical.
 14. **Names.** A node's id is its `val`'s name, as are a Declaration's and a Definition's; ids are unique and
-    distinct from every type and value. A `val` named after a Lean word (`decide`, `max`, `id`, `holds`) is refused;
+    distinct from every type and value. A `val` named after a word the generated files use (`decide`, `max`, `id`, `holds`) is refused;
     one named after a facade name (`after`, `result`, `when`, `always`) hides it. To rename a node, change its val
     and move its proof file; `.replaces(old)` links the two.
 15. **Changes.** A change of meaning reviews what rests on the node; a change to governed code reviews the node:
@@ -115,7 +115,7 @@ output is plain ASCII and not cut; `--json` on `check` and `status` prints JSON.
 | `scaffold NODE` | Stubs in the node's proof file for what the last check left open. |
 | `answer REQUEST\|NODE TEXT` | Reply to a request, or tell the developer of work they did not ask for. |
 
-`ci` is `check`, then `status`. Exit codes: 0 fine; 1 not complete, or refused; 2 a usage error; 3 no Lean.
+`ci` is `check`, then `status`. Exit codes: 0 fine; 1 not complete, or refused; 2 a usage error; 3 no Rocq.
 
 ## The core concepts
 
@@ -138,9 +138,9 @@ them.
   exist. Read a field of a declared record as `d.term.field`.
   `stated { … }` is a define whose body may apply a Declaration: name a line over Declarations with it, so a
   statement reads `viewFollows && editFollows`; only statements call it (code calling it does not compile).
-- **Quantifiers.** `forall(x => …)`: every possible value. `exists(x => …)`: some value (Lean's `∃`; write it
+- **Quantifiers.** `forall(x => …)`: every possible value. `exists(x => …)`: some value (Rocq's `exists`; write it
   rather than `!forall(x => !…)`). `always[T](x => …)`: every value of `T` that can be made:
-  a hypothesis in Lean of every statement about such values, met wherever covered code makes one (`made_`), and the
+  a hypothesis in Rocq of every statement about such values, met wherever covered code makes one (`made_`), and the
   tests draw only values meeting it. An `always` is a node's whole formula; a claim of
   one placed with `.refines` is a rule below the statement it serves, no part of its step.
 - **Structures.** A value with members (a service, a store) is a trait of the developer's and a
@@ -157,8 +157,8 @@ them.
   check rests on and refuses a list missing one or naming one not needed.
 - **Examples are tests**, not nodes: `class GrantedExamples extends FrFlowExamples(rooms):` then
   `example("back to back: granted"):` with a closed fact (`granted(…) is true`). `check` evaluates each against the
-  code and, in Lean, against the claims. Nothing rests on them.
-- **Consistency gates the proof.** Lean must prove that some meaning of every open value makes the statements at the
+  code and, in Rocq, against the claims. Nothing rests on them.
+- **Consistency gates the proof.** Rocq must prove that some meaning of every open value makes the statements at the
   bottom hold, group by group; a group not proven makes the model red. Give an open value an equation or a bound a
   witness comes from, or prove `consistent_<i>` by hand.
 
@@ -249,7 +249,7 @@ compile error names the Scala it does not read (a `var`, `Int` arithmetic, `head
 rewrite that part, or keep the function as tested plain Scala. Every type in it has an `FrSpec`
 (`derives FrSpec`, or `given FrSpec[T] = FrSpec.derived[T].where(v => …)` with its contract; an id is never a
 bare `String`: `opaque type PaymentId = String` with `object PaymentId extends FrSpec.Opaque[PaymentId, String]`,
-both at the top level of one file, which Lean reads as the string it is over); the contract enters
+both at the top level of one file, which Rocq reads as the string it is over); the contract enters
 the model only when a node states it (`Node.assumption("…")(contractOf[T])`, the developer's to decide). Statements
 stay in the DSL.
 
@@ -283,7 +283,7 @@ companions: a `Declaration` per method, the method read with
 state what the reading takes for granted as design nodes (each store method is one transaction; other calls keep
 the rely), and prove the service's own steps keep the rely for others. Bind a value whose type has a contract last
 in a `forall`. In the hand proofs, take a method read among other calls apart with `extract_lets` and share one
-lemma over its steps (`every_step` in the examples); a proof file holds theorems only, no `def`.
+lemma over its steps (`every_step` in the examples); a proof file holds lemmas only, no definition.
 
 Plain Scala given with `defineTested`, each listed in the model:
 
@@ -302,12 +302,12 @@ property by hand, and never weaken a claim or an example to make a test pass.
 
 ## What check reports, and what to do
 
-A try is `shown` (Lean proved it) or `not shown`. Never write that Lean shows a part needed unless it does.
+A try is `shown` (Rocq proved it) or `not shown`. Never write that Rocq shows a part needed unless it does.
 
 | Report | Means | Do |
 |---|---|---|
 | `complete` open | the parts may not make it | Usually a part is missing or too weak. If they do make it, prove it by hand. |
-| a step is refuted on … | Lean confirms a case where the parts hold and the node does not | A part is wrong or missing. |
+| a step is refuted on … | Rocq confirms a case where the parts hold and the node does not | A part is wrong or missing. |
 | `needed_C` shown | the node holds without C | C belongs elsewhere, or another part says too much. |
 | `vacuous`, `restates` shown | the node says nothing, or what its part says | Strengthen it, merge it, or say what it adds. |
 | `clash`, `unsat` shown | the parts contradict each other; nothing meets the node | Fix the parts, or the node. |
@@ -318,24 +318,28 @@ A try is `shown` (Lean proved it) or `not shown`. Never write that Lean shows a 
 | fails a generated case | tested code does not meet its claim | Add the case as an example; fix the code. |
 | `PremiseMissing`, `PremiseNotNeeded` | the `.assuming` list differs from what the check rests on | List what it names, or drop what it does not. |
 | an example fails (`x`: the code does not hold it, or the claims contradict it) | the code or the claim is wrong | Fix the code or the claim before any proof; never the example to make it pass. |
-| an example not decided by the claims (`o`) | Lean's automation did not decide it within its budget | Nothing to fix: leave the example as it is; prove `example_<set>_<i>` in `Whole.lean` only if the developer asks. |
-| Lean and Scala disagree | an example gives one result in Lean and another in Scala | FrFlow's printer or evaluator is wrong: report it; never change the example. |
+| an example not decided by the claims (`o`) | FrFlow's automation did not decide it within its budget | Nothing to fix: leave the example as it is; prove `example_<set>_<i>` in `Whole.v` only if the developer asks. |
+| Rocq and Scala disagree | an example gives one result in Rocq and another in Scala | FrFlow's printer or evaluator is wrong: report it; never change the example. |
 
 ## Proving by hand
 
-1. `scaffold NODE` writes `lean/Proofs/<Model>/<node>.lean` (its `Spec` imported, in namespace
-   `<Model>.<node>.Proofs`): per obligation the last check left open, `theorem <name> : Obl.<name> := by sorry`,
-   whose proof you write (`unfold Obl.<name>` first; `check` prints the goal Lean is left with).
-2. Iterate with `lake env lean Proofs/<Model>/<node>.lean` in `lean/`, then `check`. `simp only [frflow_defs]`
-   unfolds the model's definitions.
-3. Shared lemmas go in `lean/Proofs/<Model>/Lemmas.lean`, which imports no lemmas of its own. Lean 4.35 deprecates
-   `if_pos`/`if_neg`: use `ite_eq_left`/`ite_eq_right`, or `split`.
-4. A proof file holds only `import`, `set_option` (`maxHeartbeats`, `maxRecDepth`, `autoImplicit`, `linter.*`),
-   `open`, `namespace`, `section`, `noncomputable` and theorems with tactic proofs (no `sorry`, `axiom`, `admit`,
-   attributes or metaprograms), and imports only `FrFlowGen.<Model>.Domain`, `FrFlowGen.<Model>.<node>.Spec`,
-   `FrFlowGen.<Model>.Whole.Spec`, `FrFlow`, `Std`, `Init`, `Proofs.<Model>.Lemmas`. Only `propext`,
-   `Classical.choice` and `Quot.sound` may be among a proof's axioms.
+1. `scaffold NODE` writes `rocq/Proofs/<Model>/<node>.v` (its `Spec` imported): per obligation the last check left
+   open, `Lemma <node>_Proofs_<name> : <node>_Obl_<name>.` with `Admitted`, whose proof you write in its place
+   (`check` prints what Rocq said of it).
+2. Iterate with `check NODE`: it compiles what changed and nothing else, and says of each lemma whether Rocq accepts
+   it. To try a proof in an editor, open the file in `rocq/` (`rocq/_CoqProject`, which `check` writes, points at
+   what it compiled). `autounfold with frflow_defs in *` unfolds the model's definitions; `frflow_auto` is what
+   FrFlow tried; `frflow_simpl` rewrites the lists and takes each `if` by cases; `frflow_evaluate` runs the code on
+   values written out.
+3. Shared lemmas go in `rocq/Proofs/<Model>/Lemmas.v`, which imports no lemmas of its own; a proof file imports
+   them with `Require Export Proofs.<Model>.Lemmas.`
+4. A proof file holds only `Require`/`From … Require` and lemmas (`Lemma`, `Theorem`) with tactic proofs between
+   `Proof.` and `Qed.`, each tactic line indented or starting with a bullet (no `Axiom`, `Parameter`, `Admitted`,
+   `Definition`, `Ltac` or options), and imports only `FrFlowGen.<Model>.Domain`, `FrFlowGen.<Model>.<node>.Spec`,
+   `FrFlowGen.<Model>.Whole.Spec`, `FrFlow.Base`, Rocq's `Stdlib`, `Proofs.<Model>.Lemmas`. Only `classic`,
+   `constructive_definite_description`, `propositional_extensionality` and `functional_extensionality_dep` may be
+   among what a proof rests on.
 5. Never prove a step from a contradiction in the parts, or without them.
-6. A consistency group FrFlow cannot witness is proven by `theorem consistent_<i>` in
-   `lean/Proofs/<Model>/Whole.lean` (importing `FrFlowGen.<Model>.Whole.Spec`), with a witness that shows what is
-   assumed can be done.
+6. A consistency group FrFlow cannot witness is proven by `Lemma Whole_Proofs_consistent_<i> :
+   Whole_Obl_consistent_<i>.` in `rocq/Proofs/<Model>/Whole.v` (importing `FrFlowGen.<Model>.Whole.Spec`), with a
+   witness that shows what is assumed can be done.

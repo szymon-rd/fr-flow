@@ -3,7 +3,7 @@ package frflow.proof.verdict
 import cats.data.NonEmptyList
 import frflow.proof.lean.lower.LowerObligation
 import frflow.proof.obligation.{Discharge, Obligation, ObligationName}
-import frflow.proof.reading.{Diagnostic, Elaboration, ProofFile, ProofRules, RocqReport, TheoremVerdict}
+import frflow.proof.reading.{Diagnostic, Elaboration, ProofFile, ProofRules, RocqReport, RocqSource, TheoremVerdict}
 
 /** The judges of a node's check: each reads what the prover gave at one step, running nothing, and says whether the
   * check ends there (`Option[Judged]`), or what one obligation came to (`Result`); `node` ends a check that got
@@ -24,9 +24,15 @@ object Judge:
     NonEmptyList.fromList(ProofRules.notAllowedInLemmas(file)).map(bad => failed(Finding.ProofNotAllowed(bad.toList)))
       .orElse(run match
         case ProverRun.TimedOut(_) => Some(Judged(CheckStatus.Timeout, Nil, List(Finding.TimedOut)))
-        case ProverRun.Failed(out) => Some(Judged(CheckStatus.Open, Nil, List(Finding.LemmasDoNotBuild(errors(out)))))
-        case ProverRun.Built(out)  =>
-          Option.when(errors(out).nonEmpty)(Judged(CheckStatus.Open, Nil, List(Finding.LemmasDoNotBuild(errors(out))))))
+        case ProverRun.Failed(out) => Some(Judged(CheckStatus.Open, Nil, List(Finding.LemmasDoNotBuild(in(file, out)))))
+        case ProverRun.Built(out)  => Option.when(errors(out).nonEmpty)(
+          Judged(CheckStatus.Open, Nil, List(Finding.LemmasDoNotBuild(in(file, out))))))
+
+  /** What a build's report says is wrong, a lemma of `file` at the line it is stated on. */
+  private def in(file: ProofFile, out: String): List[Diagnostic] =
+    val at = RocqSource.lemmas(file.source).map(l => s"${l.name}: " -> l.from)
+    errors(out).map(d => at.collectFirst { case (name, line) if d.message.startsWith(name) => d.copy(line = line) }
+      .getOrElse(d))
 
   /** A node's proof file: only what one may contain. */
   def proofFile(file: ProofFile): Option[Judged] =

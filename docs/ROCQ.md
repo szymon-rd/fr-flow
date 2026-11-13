@@ -1,72 +1,101 @@
-# Rocq: the prover FrFlow is moving to
+# Rocq: the prover FrFlow checks with
 
-FrFlow is moving from Lean to Rocq. This page says what is built, how to run it, and what is left. Until the
-move is finished, Lean remains what checks a project (`frflow check`, `sbt leanTest`); Rocq is run by its own
-tests (`sbt rocqTest`).
+A project is checked by Rocq 9 (`frflow check`). This page says how a model reads in Rocq, how a check runs it,
+what is proven of the examples, and what is left of the move from Lean.
 
 ## What is built
 
 - **The printer** (`modules/proof/src/main/scala/frflow/proof/rocq/`). `RocqProject(modules)` takes the modules
-  FrFlow generates for a model (`Analysis.modules`: types, definitions, each node's statements and theorems) and
-  gives each as a `.v` file. It prints the same tree the Lean printer prints, so a model has one lowering.
+  FrFlow generates for a model (`Analysis.modules`: types, definitions, each node's statements and lemmas) and
+  gives each as a `.v` file.
 - **The library** (`modules/proof/rocq/FrFlow/Base.v`): what the generated definitions are written with (`ite`,
-  `List_filter`, `List_foldl`, …) and the tactics the generated theorems call (`frflow_auto`,
-  `frflow_witness`). It uses Rocq's standard library alone.
-- **The run** (`modules/project/src/test/scala/frflow/project/rocq/RocqRun.scala`, for the tests): `coqc` on each
-  file after those it imports. `coqc` stops at a file's first error, so a lemma whose proof fails is admitted and
-  the file compiled again; the lemmas not proven are those admitted.
+  `List_filter`, `List_foldl`, …) and the tactics the generated lemmas call: `frflow_auto` (every obligation),
+  `frflow_witness` (a statement whose witnesses FrFlow gives) and `frflow_example` (an example: the code run on
+  the values it gives, then the claims). It uses Rocq's standard library alone.
+- **The run** (`modules/project/src/main/scala/frflow/project/port/rocq/`), behind the `Prover` port:
+  - A build compiles each module asked after every module it imports (the library, the generated modules, the
+    developer's proofs), with `rocq compile`, and writes everything under `rocq/_build/`, by the name Rocq loads
+    each module by. Nothing is written beside a source.
+  - A module is compiled again only when its text, Rocq's version, or what a module it imports was compiled to
+    changed. A file's time is not read.
+  - Rocq stops at a file's first error. A lemma whose proof it does not accept is given up (`Admitted`) in a copy
+    under `rocq/_build/scratch/` and the file compiled again, so every lemma of the file gets its own verdict. The
+    developer's proof files are never changed.
+  - A module is not run while one it imports has a lemma not accepted, or did not read: nothing is proven on top
+    of what is not.
+  - Each proof is audited: the generated modules end a lemma with `Print Assumptions`, and what Rocq prints is
+    read. A lemma is proven only with its audit, and only when it rests on nothing but the axioms below.
+- **The rules of a proof file** (`proof.reading.ProofRules`): imports and lemmas with their proofs, nothing else.
 
 ## How a model reads in Rocq
 
-| The model | Lean | Rocq |
-|---|---|---|
-| `Boolean` | `Prop`, under `open Classical` | `Prop`; `if` is `ite`, decided by `excluded_middle_informative` |
-| `BigInt`, `String` | `Int`, `String` | `Z`, `string` |
-| a case class | `structure Decision` | `Record Decision := Decision_mk { Decision_card : string; … }` |
-| a field read, `d.card` | `d.card` | `card_of d` (a class `Has_card`, an instance for each record with the field) |
-| a field replaced | `{ l with decisions := ds }` | `with_decisions l ds` |
-| an enum's case | `Account.OfCard` | `Account_OfCard` |
-| a constant in a namespace | `Payments.commitMovesPast.Obl.impl` | `commitMovesPast_Obl_impl` |
-| a list's fold, filter | `List.foldl`, `List.filter` | `List_foldl`, `List_filter` (the library's, Lean's argument order) |
-| a quantifier over members | `∀ d ∈ ds, p` | `forall d, In d ds -> p` |
-| a pair's parts | `p.1`, `p.2` | `fst p`, `snd p` |
+| The model | Rocq |
+|---|---|
+| `Boolean` | `Prop`; `if` is `ite`, decided by `excluded_middle_informative` |
+| `BigInt`, `String` | `Z`, `string` |
+| a case class | `Record Decision := Decision_mk { Decision_card : string; … }` |
+| a field read, `d.card` | `card_of d` (a class `Has_card`, an instance for each record with the field) |
+| a field replaced | `with_decisions l ds` |
+| an enum's case | `Account_OfCard` |
+| a constant of a node | `commitMovesPast_Obl_impl` (its path joined, the model's name left out) |
+| a list's fold, filter | `List_foldl`, `List_filter` (the library's) |
+| a list's length | `Z.of_nat (List.length xs)` |
+| a quantifier over members | `forall d, In d ds -> p` |
+| a pair's parts | `fst p`, `snd p` |
 
 Rocq has one scope of field names and no namespaces that can be reopened, which is why a field is read through
-a class and a constant is named by its whole path. Axioms used: `classic` and
+a class and a constant is named by its whole path. Axioms a proof may rest on: `classic` and
 `constructive_definite_description` (the classical `if`), and, where two propositions or two functions are
-proven equal, `propositional_extensionality` and `functional_extensionality`.
+proven equal, `propositional_extensionality` and `functional_extensionality_dep`.
 
-## Where it stands
+## A project's Rocq
 
-`ModelsRocqSuite` prints two examples and checks them with Rocq 9.3:
+```
+rocq/
+  Proofs/<Model>/<node>.v     the developer's proofs: the only files kept in git
+  Proofs/<Model>/Lemmas.v     lemmas the proofs share
+  Proofs/<Model>/Whole.v      proofs of what is asked of the theory as a whole
+  FrFlowGen/<Model>/…         generated by `check` and `render`; never edited
+  _CoqProject                 where an editor finds what the last check compiled
+  _build/                     what a check compiled, and what Rocq said of each module
+```
 
-- `examples/payments`: proven. Rocq reads all 122 generated files. Of the 29 code obligations (`impl`),
-  `frflow_auto` proves 27 and two proof files prove the others (`examples/payments/rocq/Proofs/Payments`:
-  `redeliveryChangesNothing`, `neverCommitsAhead`); the root theorem follows from them. Lean's `frflow_auto`
-  proves 26 and three are by hand. The two tactics are built differently: Lean's rests on `simp` and `grind`;
-  Rocq's is a set of rewrites, case splits, `lia`, first-order search and a search for the witness that refutes
-  a "there is no such" hypothesis.
-- `examples/auth`: proven. Each node follows from its parts by its proof file
-  (`examples/auth/rocq/Proofs/Auth`, five files ported from the Lean ones), and the tactic proves the
-  statements about the theory as a whole.
+A lemma `<node>_Proofs_<obligation>` stating `<node>_Obl_<obligation>` proves that obligation of the node
+(`neverCommitsAhead_Proofs_impl : neverCommitsAhead_Obl_impl`); `scaffold NODE` writes the stubs.
 
-A lemma the run reports proven may rest on one it admitted (a node's `holds` on its `complete`): the run in
-the product reads `Print Assumptions` to tell.
+## Where the examples stand
+
+What `frflow check` gives of each example, from cold, with Rocq 9.3 (`sbt rocqTest` asserts it:
+`PaymentsRocqSuite`, `AuthPortSuite`, `RoomsWalkthroughSuite`):
+
+- `examples/rooms`: everything. Its five claims are proven (the class meets the two that say what it checks by
+  `frflow_auto`; the three of the purpose follow by the proof files in `examples/rooms/rocq/Proofs/Rooms`), the
+  three conditions are shown possible, and both examples are shown from the claims. About 30 seconds.
+- `examples/auth`: its nine claims are proven, each node from its parts by its proof file
+  (`examples/auth/rocq/Proofs/Auth`), and the consistency groups. One condition (`grantLetsIn`'s) is not shown
+  possible: FrFlow finds no witness, and no proof by hand is written, as before the move.
+- `examples/payments`: its 29 claims are proven, 27 of the code obligations by `frflow_auto` and two by proof
+  files (`redeliveryChangesNothing`, `neverCommitsAhead`), and the roots follow. Of the 22 conditions, 16 are
+  shown possible: 14 by the witnesses FrFlow finds and two by `Proofs/Payments/Whole.v`. About 11 minutes.
+  **Not done:** the other six conditions (over the handler's steps among other calls) and the eight examples
+  against the claims. Lean had them by proofs by hand (`examples/payments/lean/Proofs/Payments/Whole.lean`);
+  `frflow_evaluate` does not finish on the handler's steps, so they are to be written by hand in Rocq. The
+  examples hold on the code (`check` runs them as Scala), and no claim contradicts one.
+- The test models (`DeskRocqSuite`, `PricesRocqSuite`, `CalendarRocqSuite`, `SeededSuite`): proven, their
+  examples shown from the claims.
+- `examples/shop`: not moved (below).
 
 ## Rocq on a machine
 
-The newest Rocq is installed through opam (`opam install rocq-prover`), on the system's OCaml; the tests call
-`rocq compile`, or what `FRFLOW_ROCQ` names.
+The newest Rocq is installed through opam (`opam install rocq-prover`), on the system's OCaml; a check calls
+`rocq`, or what `FRFLOW_ROCQ` names.
 
-## What is left, in order
+## What is left
 
-1. **The examples' facts** (`FrFlowExamples`, the theorems of `Whole`) of payments and auth.
-2. **The run in the product**: a `Prover` port beside `Lake`, `_CoqProject`, reading `coqc`'s output per
-   theorem, the rules a hand proof file must keep (no `Axiom`, `Admitted`, `Parameter`), and the audit
-   (`Print Assumptions`).
-3. **Hand proofs**: a proof file is `rocq/Proofs/<Model>/<node>.v`; its lemma `<node>_Proofs_<obligation>`
-   proves that obligation. Rooms and shop stay on Lean until they are moved.
-4. **Lean removed**: the Lean printer, library, proofs and `Lake`.
+1. **Shop** is written in the shape before structures and has no Rocq proofs; it moves with its model.
+2. **Lean removed**: the Lean library (`modules/proof/lean`), the examples' `lean/` directories, and the names
+   in the sources that still say Lean (`proof.lean`, `LeanType`).
 
-A node's signed content is today its printed Lean. It stays printed by that printer through the move, so no
-decision in a ledger is reopened by it; what the content is printed as afterwards is a decision for then.
+A node's signed content is the text of its formula in the notation the Lean printer wrote. It stays printed that
+way, so no decision in a ledger is reopened by the move; what the content is printed as afterwards is a decision
+for then.

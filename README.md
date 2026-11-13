@@ -1,6 +1,6 @@
 # FrFlow
 
-FrFlow is a Scala 3 library for building software together with a formal model of it, proven in Lean 4.
+FrFlow is a Scala 3 library for building software together with a formal model of it, proven in Rocq.
 
 ## The opportunity and the problem with agentic coding
 
@@ -26,8 +26,8 @@ follows the method of stepwise refinement (Wirth, 1971) and the refinement calcu
 
 1. Development starts from a specification: a small set of core, formal statements about the program.
 2. Then, gradually, each statement is refined. A refinement step replaces a statement with more concrete statements
-   that together imply it. Every refinement step is a proof obligation, and Lean checks it, so a statement can never
-   contradict the one it refines, and Lean also proves that the statements as a whole do not contradict each other.
+   that together imply it. Every refinement step is a proof obligation, and Rocq checks it, so a statement can never
+   contradict the one it refines, and Rocq also proves that the statements as a whole do not contradict each other.
 3. The final refinement is the program's code itself. Its specification is declared on the code's own
    interfaces: a service is a trait, a `Declaration` of the trait is the value the claims speak of, and the claims
    are written through the trait's members. An implementation is then one of:
@@ -54,7 +54,7 @@ and should be explored.
 In essence, FrFlow makes sure that there is a view of the software that is correct by construction. The refinement
 graph is the source of truth, and it is meant to be impossible to diverge from at the functional level.
 
-Every refinement step is proven in Lean, from the statements about a single function up to the core statements at the
+Every refinement step is proven in Rocq, from the statements about a single function up to the core statements at the
 root. When the code meets them, the core statements hold as well. Nobody has to take it on trust that a check
 somewhere deep in the code really gives the property stated at the top.
 
@@ -193,8 +193,9 @@ any card limits, ledger and offsets that meet their claims. That is what `.refin
 service can be replaced by another that meets the same claims. Each `update` member is also compiled as its steps
 among other calls (`amongOthers`): before each step but the first, the others may have left any state.
 
-Of the example's 29 claims, Lean proves 26 by FrFlow's tactic and 3 from proofs by hand, and all 8 examples. Rocq
-proves 27 by the tactic and 2 by hand ([docs/ROCQ.md](docs/ROCQ.md)).
+Of the example's 29 claims, Rocq proves 27 by FrFlow's tactic and 2 from proofs by hand. The 8 examples hold on
+the code; proving them from the claims, and six of the 22 conditions shown possible, is not done in Rocq yet
+([docs/ROCQ.md](docs/ROCQ.md)).
 
 ## A second example: booking meeting rooms
 
@@ -225,11 +226,77 @@ claims of the purpose refine into those, and each is proven from them by a short
 that end after they start, sharing no moment and not overlapping are the same
 ([`rocq/Proofs/Rooms`](examples/rooms/rocq/Proofs/Rooms)).
 
-That step is where a change is caught. If the code forgets one of its two comparisons, its own claim is no
-longer proven. If the definition of an overlap is misread (`<` for `<=`), the code still meets its claims and
-the step to the purpose fails. If the misreading is carried into the purpose itself, every proof passes again,
-but the purpose changed, so its claims go back to the developer for review with the diff: only a signed
-decision accepts them.
+### How a change is caught
+
+That step is where a change is caught. `bin/frflow rooms check` writes the model as Rocq, proves each node, and
+has the examples checked against the code and against the claims (the outputs below leave out the lines of the
+tries, `vacuous: not shown` and the like):
+
+```text
++ storeWhenNoOverlap: proven
++ answerWhenNoOverlap: proven
++ bookWhenFree: proven
++ acceptWhenFree: proven
++ neverOverlap: proven
+
+Shown possible
+  condition 1 of bookWhenFree can hold: proven
+  condition 1 of acceptWhenFree can hold: proven
+  condition 1 of neverOverlap can hold: proven
+
+Examples
+  + back to back: granted  Rocq: shown
+  + overlapping: refused  Rocq: shown
+```
+
+The code forgets one of its two comparisons. Its own claims are no longer proven of it, so nothing above them is:
+
+```diff
+-    val fits = booked.forall(b => b.room != request.room || b.end <= request.start || request.end <= b.start)
++    val fits = booked.forall(b => b.room != request.room || b.end <= request.start)
+```
+
+```text
+o storeWhenNoOverlap: open
+  impl: open
+    FrFlowGen/Rooms/storeWhenNoOverlap/Impl.v:6: No applicable tactic.
+  not proven: its code is not proven
+o answerWhenNoOverlap: open
+  impl: open
+    FrFlowGen/Rooms/answerWhenNoOverlap/Impl.v:6: No applicable tactic.
+  not proven: its code is not proven
+o bookWhenFree: open
+  root_impl: open
+  not proven: the roots of the code are not proven (root_impl)
+```
+
+An agent takes meetings that touch to overlap, and changes the code and the definition its claims are written
+with to match. The code meets its claims again. The purpose speaks of the moments bookings cover, which did not
+change, so the lemma that carries the step no longer holds, and the first example fails on the code:
+
+```diff
+ val noOverlap = define { (a: Term[Booking], b: Term[Booking]) =>
+-  a.room =!= b.room || a.end <= b.start || b.end <= a.start }
++  a.room =!= b.room || a.end < b.start || b.end < a.start }
+```
+
+```text
++ storeWhenNoOverlap: proven
++ answerWhenNoOverlap: proven
+o bookWhenFree: open
+  not proven: it imports the shared lemmas, which are not proven (the error is theirs, not its own proof's)
+    Proofs/Rooms/Lemmas.v:7: Lemmas_apart_noOverlap: In environment
+o acceptWhenFree: open
+  …
+
+Examples
+  x back to back: granted  Rocq: not shown, not decided by the claims; the code does not hold it
+```
+
+If the misreading is carried into the purpose itself (`covers` taking in the end) and the proofs are written
+again, every proof passes, but the purpose changed, so its claims go back to the developer for review with the
+diff: only a signed decision accepts them. `RoomsWalkthroughSuite` replays the first two changes through the
+check (`sbt "project/Rocq/testOnly frflow.project.services.RoomsWalkthroughSuite"`).
 
 ## Statements
 
@@ -237,8 +304,8 @@ There are three kinds of statements, the nodes of the graph:
 
 | Kind | Written | What it says | How it is checked |
 |---|---|---|---|
-| claim | `Node.claim(statement)(formula)` | a property of the system, in the words of its domain | Lean proves it from the claims that refine it, or of the code it mentions; where that code is plain Scala, it is tested on generated cases |
-| assumption | `Node.assumption(statement)(formula)` | what is trusted: the world outside the code, an outside system's promise, what comes from outside | decided by the developer; what Lean takes as given, and plain Scala it is about is tested against it where it can be |
+| claim | `Node.claim(statement)(formula)` | a property of the system, in the words of its domain | Rocq proves it from the claims that refine it, or of the code it mentions; where that code is plain Scala, it is tested on generated cases |
+| assumption | `Node.assumption(statement)(formula)` | what is trusted: the world outside the code, an outside system's promise, what comes from outside | decided by the developer; what Rocq takes as given, and plain Scala it is about is tested against it where it can be |
 | design | `Node.design(statement)(files*)` | an architecture decision no proof covers | decided by the developer; a change to the files it governs brings it back |
 
 Statements are about two kinds of values:
@@ -266,18 +333,18 @@ The code at the bottom of the graph is in one of three states, and `status` repo
   tests its Scala against its term on generated cases. Or a `define` written in the DSL.
   [docs/LIFTED.md](docs/LIFTED.md) lists the Scala that is read.
 - **Tested** code is plain Scala. It is tested against its claims with property-based testing on generated cases.
-- **Assumed** code is known only by the assumptions about it, such as an outside system's search: Lean takes them as
+- **Assumed** code is known only by the assumptions about it, such as an outside system's search: Rocq takes them as
   given, and its Scala is tested against them. A structure with no class is known
   the same way (`pricing.provided`); a model that holds one is valid, and the prover does not build it yet.
 
-Everything above the code is proven from these, and Lean proves the statements consistent: some meaning of every
+Everything above the code is proven from these, and Rocq proves the statements consistent: some meaning of every
 `Declaration` makes them all hold. Nothing is checked when the code runs: FrFlow is for testing before production and
-for proofs. What is left to trust is the assumptions the developer accepted, FrFlow's translation of the model to Lean
+for proofs. What is left to trust is the assumptions the developer accepted, FrFlow's translation of the model to Rocq
 (which the examples cross-check by running the same model as Scala), and, for tested code, the cases the tests reach.
 
-Lean 4 is the prover that checks a project (`check`). FrFlow is moving to Rocq: the payments and auth examples are
-printed as Rocq from the same generated modules and proven by Rocq 9 (`sbt rocqTest`); the other examples stay on
-Lean until they are moved ([docs/ROCQ.md](docs/ROCQ.md)).
+Rocq 9 is the prover that checks a project (`check`): the model is printed as Rocq, each module compiled after
+those it imports, and what each proof rests on audited ([docs/ROCQ.md](docs/ROCQ.md)). The shop example is not
+moved yet.
 
 FrFlow states safety properties: "eventually" is out of scope for now. Effectful programs written in the DSL
 (`Flow`), state models and the clock were removed; a service's state is a structure's.
@@ -296,9 +363,9 @@ review; `sbt "PROJECT/run COMMAND"` gives the same, plain.
 
 - `tree` shows the graph from the roots, with each statement's mark, kind and state.
 - `show NODE` shows one statement: what it says and why it was accepted, its formula, how it is checked, where it
-  sits, its parts and the rules it uses, and what Lean proved; `diff NODE` what moved since it was decided.
+  sits, its parts and the rules it uses, and what Rocq proved; `diff NODE` what moved since it was decided.
 - `review` goes through the statements waiting for a decision, each with what changed; `inbox` lists them.
-- `check` renders the model as Lean, proves it and tests the code; `status` shows the state of the whole project, and
+- `check` renders the model as Rocq, proves it and tests the code; `status` shows the state of the whole project, and
   `ci` does both for CI.
 
 `sbt "PROJECT/serve --as NAME"` runs the same as a local web view, with the graph, the statement under review and its
@@ -313,8 +380,7 @@ stay with the developer. The agent's rules are in [`.claude/skills/frflow/SKILL.
 
 ## Getting started
 
-You need JDK 17 or later, sbt, and Lean 4.35.0 installed with [elan](https://github.com/leanprover/elan), so that
-`lake` is on the `PATH`.
+You need JDK 17 or later, sbt, and Rocq 9 with `rocq` on the `PATH` (`opam install rocq-prover`).
 
 ```sh
 git clone https://github.com/szymon-rd/fr-flow && cd fr-flow
@@ -326,20 +392,19 @@ bin/frflow rooms status              # an example: rooms, auth, payments, shop
 ```
 
 `sbt "frflowInitAgent toy --as NAME"` creates one with the agent layer enabled. `sbt test` runs FrFlow's fast tests;
-`sbt leanTest` runs the ones that run Lean end to end, the examples' among them; `sbt rocqTest` runs the ones that
-run Rocq (payments and auth), and needs Rocq 9 with `rocq` on the `PATH` (`opam install rocq-prover`).
+`sbt rocqTest` runs the ones that run Rocq end to end, the examples' among them.
 
 ## Examples
 
 Each example is a project in `examples/<name>`: its statements and code in `src/main`, its examples in `src/test`,
-its proofs by hand in `lean/Proofs` (and `rocq/Proofs`, where it is proven in Rocq), and its command line in `app`
+its proofs by hand in `rocq/Proofs`, and its command line in `app`
 (`bin/frflow <name> COMMAND`). None has a decision yet: each starts with no ledger, for its developer to decide.
-FrFlow's own suites test them whole (`sbt leanTest`, `sbt rocqTest`).
+FrFlow's own suites test them whole (`sbt rocqTest`).
 
 - `payments` is the example above: a payment stream handler over three services, each a structure, proven
-  through redelivery, a crash at any step and a second instance, in Lean and in Rocq.
-- `rooms` books meeting rooms: the second example above, one service proven in Rocq.
-- `auth` is access control by a table of grants, and the smallest example; proven in Lean and in Rocq.
+  through redelivery, a crash at any step and a second instance.
+- `rooms` books meeting rooms: the second example above, one service.
+- `auth` is access control by a table of grants, and the smallest example.
 - `shop` is a checkout over two services and a store, proven among other calls in the shape before structures,
   a word per method (`updating`, `interleaving`).
 
@@ -353,18 +418,18 @@ FrFlow's own suites test them whole (`sbt leanTest`, `sbt rocqTest`).
   Helsinki, 1978; and Ralph-Johan Back and Joakim von Wright, *Refinement Calculus: A Systematic Introduction* (1998).
 - Carroll Morgan, *Programming from Specifications* (1990).
 - Eric Evans, *Domain-Driven Design* (2003).
-- Leonardo de Moura and Sebastian Ullrich, *The Lean 4 Theorem Prover and Programming Language* (2021).
+- The Rocq Prover (formerly Coq), [rocq-prover.org](https://rocq-prover.org).
 
 ## Documentation
 
 - [docs/index.html](docs/index.html) has a tutorial, how-to guides, the reference and troubleshooting.
-- [docs/USAGE.md](docs/USAGE.md) describes the DSL, the commands, their output and exit codes, what Lean proves, the
+- [docs/USAGE.md](docs/USAGE.md) describes the DSL, the commands, their output and exit codes, what Rocq proves, the
   warnings, the web view and the modules.
 - [docs/DAG.md](docs/DAG.md) describes the design of the refinement graph.
 - [docs/LIFTED.md](docs/LIFTED.md) describes plain Scala compiled into the model (`lifted`, `FrSpec`, structures):
   what is read, how the Scala, the term and the prover's definition are held to one meaning, and what is not built
   yet.
-- [docs/ROCQ.md](docs/ROCQ.md) describes the move from Lean to Rocq: how a model reads in Rocq, what is proven
-  there, and what is left.
+- [docs/ROCQ.md](docs/ROCQ.md) describes the prover: how a model reads in Rocq, how a check runs it, what is
+  proven of the examples, and what is left.
 - [docs/redesign/](docs/redesign/ARCHITECTURE.md) is the design record of the library as it was rebuilt, and the
   owner's decisions the sources cite.

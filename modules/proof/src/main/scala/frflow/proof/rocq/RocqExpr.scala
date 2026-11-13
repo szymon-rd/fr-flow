@@ -54,7 +54,7 @@ private[rocq] final class RocqExpr(names: RocqNames):
   private def part(on: String, f: String): String = f match
     case "1"      => s"fst $on"
     case "2"      => s"snd $on"
-    case "length" => s"Z.of_nat (length $on)"
+    case "length" => s"Z.of_nat (List.length $on)"
     case field    => s"${RocqNames.field(field)} $on"
 
   def binder(b: LBinder)(using Scope): String = b match

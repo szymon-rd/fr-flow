@@ -18,13 +18,16 @@ object RocqSource:
         else go(i + 1, depth, false, out += c)
     go(0, 0, false, StringBuilder())
 
-  /** Each lemma the source states, with its lines: from its head to the line its proof ends on. */
+  /** Each lemma the source states, with its lines: from its head to the line its proof ends on. What one with no
+    * binders states is what follows its colon.
+    */
   def lemmas(src: String): List[Theorem] =
     val c = code(src)
     val lineAt = c.scanLeft(1)((l, ch) => if ch == '\n' then l + 1 else l)
     Head.findAllMatchIn(c).toList.map { m =>
       val end = Ending.findFirstMatchIn(c.substring(m.end)).fold(c.length)(e => m.end + e.end)
-      Theorem(m.group(1), m.group(2).trim.replaceAll("\\s+", " "), lineAt(m.start), lineAt(end - 1))
+      Theorem(m.group(1), m.group(2).trim.stripPrefix(":").trim.replaceAll("\\s+", " "), lineAt(m.start),
+        lineAt(end - 1))
     }
 
   /** The modules the source imports, as Rocq names them: `Require Export A.B.`, `From FrFlow Require Export Base.`
@@ -51,5 +54,8 @@ object RocqSource:
   private val Require =
     s"""(?m)^[ \\t]*(?:From$Gap(\\S+)$Gap)?Require$Gap(?:Import$Gap|Export$Gap)?($Name(?:$Gap$Name)*)\\.[ \\t]*$$""".r
   private val Audit = """(?m)^\s*Print\s+Assumptions\s+([A-Za-z_][A-Za-z0-9_']*)\.""".r
-  private val Head = """(?s)(?m)^(?:Lemma|Theorem)\s+([A-Za-z_][A-Za-z0-9_']*)\s*:(.*?)\.\s*$""".r
+  /** A lemma's head: its name, then what it states, its binders before it if it has any, up to the period that ends
+    * the sentence.
+    */
+  private val Head = """(?s)(?m)^(?:Lemma|Theorem)\s+([A-Za-z_][A-Za-z0-9_']*)\b(.*?)\.\s*$""".r
   private val Ending = """(?m)\b(?:Qed|Defined|Admitted|Abort)\.""".r

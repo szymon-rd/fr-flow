@@ -34,6 +34,14 @@ class ReadingSuite extends munit.FunSuite:
       Theorem("N_Checks_unsat", "N_Obl_unsat", 10, 15)))
   }
 
+  test("a lemma with binders is a lemma: what it states is read with them") {
+    val shared =
+      "Lemma Lemmas_apart (a b : Booking) :\n  ends a -> (apart a b <-> noOverlap a b).\nProof.\n  lia.\nQed.\n"
+    assertEquals(RocqSource.lemmas(shared),
+      List(Theorem("Lemmas_apart", "(a b : Booking) : ends a -> (apart a b <-> noOverlap a b)", 1, 5)))
+    assert(RocqSource.admitted(shared, RocqSource.lemmas(shared).head).exists(_.contains("Proof. Admitted.")))
+  }
+
   test("what a file imports, as Rocq names it, and the lemmas it audits") {
     assertEquals(RocqSource.imports(source), List("FrFlowGen.Crm.N.Spec", "FrFlow.Base"))
     assertEquals(RocqSource.imports("Require Import A.B C.\nRequire Export D.\n"), List("A.B", "C", "D"))
