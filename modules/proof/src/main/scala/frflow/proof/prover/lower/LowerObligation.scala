@@ -6,7 +6,7 @@ import frflow.proof.prover.lower.Atoms
 import frflow.proof.obligation.{Obligation, ObligationName, TryKind}
 
 /** An obligation as a node's `Spec` declares it: in `namespace Obl`, documented, `@[frflow_defs] def name : Prop`. */
-final class LowerObligation(props: LowerProp):
+final class LowerObligation(props: LowerProp[LExpr]):
   def apply(o: Obligation): Decl =
     val statement = props.statement(o.goal)
     val decl = Decl.Def(List(Attr.FrflowDefs), LowerObligation.name(o.name), Nil, Atoms.name("Prop"), statement)

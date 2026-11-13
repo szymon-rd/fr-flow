@@ -9,7 +9,7 @@ import frflow.core.term.language.Final
 import frflow.core.ty.DataType
 import frflow.core.vocab.Define
 import frflow.proof.prover.ast.*
-import frflow.proof.prover.lower.{Atoms, LowerEnv, LowerType}
+import frflow.proof.prover.lower.{Atoms, LowerEnv, LowerType, Naming}
 import frflow.proof.prover.term.Printed
 
 /** The modules of the vocabulary: `Types` (the domain's types, each after those its fields name), a `Def_` module per
@@ -59,8 +59,7 @@ object VocabularyModules:
     */
   private def guardedTwin(l: Lowering, d: Define): ProverModule = d.written.form match
     case Form.Term(t) =>
-      val (bs, body) = Printed.define(l.env, l.naming)(d.lambda.params,
-        proved(l, Guarded.of(t.run, valueRules(l))))
+      val (bs, body) = printed(l.env, l.naming)(d, proved(l, Guarded.of(t.run, valueRules(l))))
       module(l, l.layout.define(LowerEnv.guarded(d.name)), List(Decl.Def(List(Attr.FrflowDefs),
         Names.define(LowerEnv.guarded(d.name).value), openBinders(l, d) ++ bs, LowerType(d.lambda.result), body),
         Decl.MatchEqns))
@@ -71,9 +70,13 @@ object VocabularyModules:
   def declared(l: Lowering, d: Define): Decl = d.written.form match
     case Form.Term(t) =>
       val env = if l.ruleSide.defines(d.name) then l.env.copy(ruleSide = true) else l.env
-      val (bs, body) = Printed.define(env, l.naming)(d.lambda.params, proved(l, Guarded.of(t.run, guards(l, d))))
+      val (bs, body) = printed(env, l.naming)(d, proved(l, Guarded.of(t.run, guards(l, d))))
       Decl.Def(List(Attr.FrflowDefs), Names.define(d.name.value), openBinders(l, d) ++ bs,
         LowerType(d.lambda.result), body)
+
+  /** A define's inputs and body in the tree, the form its module is kept in. */
+  private def printed[A](env: LowerEnv, naming: Naming)(d: Define, body: Final[A]): (List[LBinder], LExpr) =
+    Printed.define(env, naming)(d.lambda.params, body)
 
   /** A define's term as the prover is given it: optimized (`Optimized`: what it computes of a shape it has just
     * built taken out, which the code read from a class is full of). A node's content is the term as written: the

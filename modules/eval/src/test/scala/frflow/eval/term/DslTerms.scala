@@ -24,7 +24,8 @@ object DslTerms:
     .sortBy(_._1.value).flatMap((name, ds) => ds.headOption.flatMap(_.run.toOption).map(_._2).flatMap(w =>
       w.form match
         case Form.Term(t) =>
-          val (bs, body) = Printed.define(env, naming)(w.value.params, t.run)
+          val made: (List[LBinder], LExpr) = Printed.define(env, naming)(w.value.params, t.run)
+          val (bs, body) = made
           Some(Decl.Def(List(Attr.FrflowDefs), Names.builtin(name.value), bs, LowerType(w.value.result), body))))
 
   private def typeDecl(d: DataType): Decl = d match

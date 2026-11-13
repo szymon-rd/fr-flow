@@ -40,7 +40,7 @@ final class Lowering(val resolved: Resolved, val table: TermTable, canonical: Bo
 
   /** The values provided where the code runs a statement mentions: what always holds of each is a hypothesis. */
   def provided(n: NodeId): List[(SymbolName, Ty)] = Reads.provided(resolved.theory, n)
-  val props: LowerProp = LowerProp(table, env, naming, LowerProp.Values(fromOutside,
+  val props: LowerProp[LExpr] = LowerProp[LExpr](table, env, naming, LowerProp.Values(fromOutside,
     s => resolved.theory.code.attached.get(s).exists(a => a.code.proven.nonEmpty || (a.code match
       case Code.Valued(_) | Code.Provided => true
       case _                              => false))))
@@ -57,5 +57,5 @@ final class Lowering(val resolved: Resolved, val table: TermTable, canonical: Bo
       Guards.byAlways(t).filter((n, _) => t.node(n).flatMap(_.statement.range).exists {
         case Range.Made(u) => Guards.applies(t, u, ty)
         case _             => false
-      }).map((_, g) => Printed.formula(env, naming)([T[_]] => (sym: Sym[T]) =>
+      }).map((_, g) => Printed.formula[LExpr, Boolean](env, naming)([T[_]] => (sym: Sym[T]) =>
         g.of[T, Any](ty, sym).fold(sym.bool(true))(_(sym.param[Any](s, ty))))))

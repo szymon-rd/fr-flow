@@ -22,7 +22,7 @@ object RefutesModule:
     val answered = Decl.Def(defs, Names.builtin("answer"), Nil, LowerType.binder(ty),
       Printed.term(l.env, l.naming, 0)(term))
     val cases = inputs.zipWithIndex.map((c, i) => Decl.Def(defs, Names.builtin(s"case_$i"), Nil, LowerType(c.ty),
-      LowerValue(l.env)(c.value, c.ty).runA(l.naming).value))
+      LowerValue[LExpr](l.env).apply(c.value, c.ty).runA(l.naming).value))
     val refutes = Decl.Theorem(Nil, Names.builtin("refutes"), Nil,
       LExpr.Prefix(LPrefix.NotSpaced, LExpr.Const(Names.path("Obl", "complete"))), Proof.Tactics(
         List("unfold Obl.complete", "intro h", "have h := h answer (by simp [frflow_defs])", "unfold claim at h") ++

@@ -1,6 +1,8 @@
 package frflow.proof.audit
 
 import frflow.proof.prover.ast.*
+import frflow.proof.prover.ast.Tree.into
+import frflow.proof.prover.term.Silent
 
 /** What a generated module says, read off its syntax alone: a module's declarations (namespaces, documentation and
   * budgets opened), the propositions each states, and the constants applied where a statement assumes them.
@@ -12,7 +14,7 @@ private[audit] object Assumed:
 
   /** The constants the modules' statements assume, each as its dotted path. */
   def taken(modules: List[ProverModule]): List[List[ProverName]] =
-    modules.flatMap(_.decls).flatMap(flat).flatMap(statements).flatMap(assumed(_, negative = false))
+    modules.flatMap(_.decls).flatMap(flat).flatMap(statements)
 
   private def flat(d: Decl): List[Decl] = d match
     case Decl.Documented(_, x)  => flat(x)
@@ -20,35 +22,41 @@ private[audit] object Assumed:
     case Decl.Budgeted(_, x)    => flat(x)
     case other                  => List(other)
 
-  private def statements(d: Decl): List[LExpr] = d match
-    case Decl.Def(_, _, ps, ty, body)    => hypotheses(ps) ++ List(ty, body)
-    case Decl.Theorem(_, _, ps, s, _, _) => hypotheses(ps) :+ s
+  /** What a declaration states: its parameters that are hypotheses, each read as assumed (as the left of `→`),
+    * then its type and body, or its statement.
+    */
+  private def statements(d: Decl): List[List[ProverName]] = d match
+    case Decl.Def(_, _, ps, ty, body)    => hypotheses(ps) ++ List(ty, body).flatMap(_.into(Polarity)(false))
+    case Decl.Theorem(_, _, ps, s, _, _) => hypotheses(ps) ++ s.into(Polarity)(false)
     case _                               => Nil
 
-  /** A declaration's parameters that are hypotheses, each read as assumed (as the left of `→`). */
-  private def hypotheses(ps: List[LBinder]): List[LExpr] = ps.collect { case LBinder.Explicit(_, t) =>
-    LExpr.Infix(LOp.Arrow, t, LExpr.Name(Names.builtin("True"))) }
+  private def hypotheses(ps: List[LBinder]): List[List[ProverName]] =
+    ps.collect { case LBinder.Explicit(_, t) => t.into(Polarity)(true) }.flatten
 
-  /** The constants applied where `e` assumes them: left of `→`, a hypothesis binder's type, under a `¬` turned. */
-  private def assumed(e: LExpr, negative: Boolean): List[List[ProverName]] = e match
-    case LExpr.Const(p) if negative               => List(p)
-    case LExpr.App(f, as)                          => (f :: as).flatMap(assumed(_, negative))
-    case LExpr.Infix(LOp.Arrow, a, b)              => assumed(a, !negative) ++ assumed(b, negative)
-    case LExpr.Infix(_, a, b)                      => assumed(a, negative) ++ assumed(b, negative)
-    case LExpr.Prefix(_, a)                        => assumed(a, !negative)
-    case LExpr.Paren(i)                            => assumed(i, negative)
-    case LExpr.Forall(ps, b)                       => ps.flatMap(binder(_, !negative)) ++ assumed(b, negative)
-    case LExpr.Exists(ps, b)                       => ps.flatMap(binder(_, negative)) ++ assumed(b, negative)
-    case LExpr.Fun(_, b)                           => assumed(b, negative)
-    case LExpr.Match(on, arms)                     =>
-      assumed(on, negative) ++ arms.flatMap(a => assumed(a._2, negative))
-    case LExpr.If(c, a, b)                         => assumed(c, true) ++ assumed(c, false) ++ assumed(a, negative) ++
-        assumed(b, negative)
-    case LExpr.Let(_, _, v, b)                     => assumed(v, negative) ++ assumed(b, negative)
-    case LExpr.Typed(x, _)                         => assumed(x, negative)
-    case _                                         => Nil
-
-  private def binder(b: LBinder, negative: Boolean): List[List[ProverName]] = b match
-    case LBinder.Explicit(_, t) => assumed(t, negative)
-    case LBinder.Member(_, in)  => assumed(in, negative)
-    case _                      => Nil
+  /** A term as the constants it applies where it assumes them, told whether it is itself assumed (`negative`):
+    * left of `→`, a hypothesis binder's type, under a `¬` turned.
+    */
+  private type Taken = Boolean => List[List[ProverName]]
+  private object Polarity extends Silent[Taken](_ => Nil):
+    private def all(parts: List[Taken]): Taken = negative => parts.flatMap(_(negative))
+    private def binders(ps: List[Binding[Taken]], negative: Boolean): List[List[ProverName]] = ps.flatMap {
+      case Binding.Explicit(_, t) => t(negative)
+      case Binding.Member(_, in)  => in(negative)
+      case _                      => Nil
+    }
+    override def const(path: List[ProverName]): Taken = negative => if negative then List(path) else Nil
+    override def app(fn: Taken, args: List[Taken]): Taken = all(fn :: args)
+    override def infix(op: LOp, left: Taken, right: Taken): Taken = negative =>
+      left(if op == LOp.Arrow then !negative else negative) ++ right(negative)
+    override def prefix(op: LPrefix, arg: Taken): Taken = negative => arg(!negative)
+    override def paren(inner: Taken): Taken = inner
+    override def forall(params: List[Binding[Taken]], body: Taken): Taken =
+      negative => binders(params, !negative) ++ body(negative)
+    override def exists(params: List[Binding[Taken]], body: Taken): Taken =
+      negative => binders(params, negative) ++ body(negative)
+    override def fun(params: List[Binding[Taken]], body: Taken): Taken = body
+    override def matching(on: Taken, arms: List[(Taken, Taken)]): Taken = all(on :: arms.map(_._2))
+    override def cond(c: Taken, ifTrue: Taken, ifFalse: Taken): Taken =
+      negative => c(true) ++ c(false) ++ ifTrue(negative) ++ ifFalse(negative)
+    override def let(name: ProverName, ty: Taken, value: Taken, body: Taken): Taken = all(List(value, body))
+    override def typed(e: Taken, ty: Taken): Taken = e

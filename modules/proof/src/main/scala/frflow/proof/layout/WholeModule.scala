@@ -14,7 +14,7 @@ import frflow.proof.terms.TermTable
   * imports the statements alone, so a witness Rocq refuses there stops none of its proofs) proves it; an example is a
   * try, in the checks module beside it.
   */
-final class WholeModule(props: LowerProp, witness: LowerWitness):
+final class WholeModule(props: LowerProp[LExpr], witness: LowerWitness):
   def statements(kb: KbName, obligations: List[Obligation]): ProverModule =
     ProverModule(Layout(kb).wholeSpec, Nil, Preamble.generated, Names.path(kb.value, "Whole"), Nil,
       obligations.map(LowerObligation(props)(_)))

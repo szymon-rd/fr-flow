@@ -37,6 +37,10 @@ trait Syntax[E]:
   /** `fn` with one input given by name. */
   def named(fn: E, name: ProverName, value: E): E
 
+object Syntax:
+  /** The tree, where no other syntax is asked for: the form a generated module is kept in. */
+  given tree: Syntax[LExpr] = Tree
+
 /** A binder of a `fun`, a quantifier or a declaration: explicit `(x : T)` (or several of one type), implicit
   * `{m : T}`, an instance, a bare name, a bare name whose type is known (`Of`: written as the bare name in the
   * notation a node's content is in, with its type in Rocq, which does not find it from a list given after the

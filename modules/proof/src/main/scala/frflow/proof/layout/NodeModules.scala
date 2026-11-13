@@ -39,7 +39,7 @@ object NodeModules:
       if rule then Atoms.name("True")
       else Printed.claim(l.env, l.naming, l.guards, l.provided(o.node))(f.term)))
     val indices = o.tried.map(_.name).collect { case ObligationName.Tried(TryKind.RestatesConjunct(_, i)) => i }
-    val conjuncts = said.toList.flatMap(f => Conjoined.of(f.term, ProverTerm(l.env)).zipWithIndex.collect {
+    val conjuncts = said.toList.flatMap(f => Conjoined.of(f.term, ProverTerm[LExpr](l.env)).zipWithIndex.collect {
       case (c, i) if indices.contains(i + 1) =>
         Decl.Def(defs, Names.builtin(ProverNames.conjunct(i + 1)), params, Atoms.name("Prop"), c(Scope(0, l.naming)))
     })

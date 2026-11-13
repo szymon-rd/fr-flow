@@ -1,6 +1,8 @@
 package frflow.proof.layout
 
 import frflow.proof.prover.ast.*
+import frflow.proof.prover.ast.Tree.into
+import frflow.proof.prover.term.Gathered
 
 /** The names a module's declarations use, read off its AST: the qualified constants (`Rooms.covers`,
   * `Rooms.grantWhenFree.claim`) and the plain names, from which its imports follow.
@@ -26,34 +28,19 @@ object Mentioned:
     case Proof.Below(t) => expr(t)
     case _              => Nil
 
-  private def binder(b: LBinder): List[List[ProverName]] = b match
-    case LBinder.Explicit(_, t) => expr(t)
-    case LBinder.Several(_, t)  => expr(t)
-    case LBinder.Implicit(_, t) => expr(t)
-    case LBinder.Instance(c)    => expr(c)
-    case LBinder.Bare(_)        => Nil
-    case LBinder.Of(_, t)       => expr(t)
-    case LBinder.Member(_, in)  => expr(in)
+  private def binder(b: LBinder): List[List[ProverName]] = b.map(expr) match
+    case Binding.Explicit(_, t) => t
+    case Binding.Several(_, t)  => t
+    case Binding.Implicit(_, t) => t
+    case Binding.Instance(c)    => c
+    case Binding.Bare(_)        => Nil
+    case Binding.Of(_, t)       => t
+    case Binding.Member(_, in)  => in
 
-  def expr(e: LExpr): List[List[ProverName]] = e match
-    case LExpr.Name(n)            => List(List(n))
-    case LExpr.Const(p)           => List(p)
-    case LExpr.Ctor(d, c)         => List(List(d, c))
-    case LExpr.Num(_) | LExpr.Str(_) | LExpr.By(_) => Nil
-    case LExpr.App(f, as)         => (f :: as).flatMap(expr)
-    case LExpr.Infix(_, a, b)     => expr(a) ++ expr(b)
-    case LExpr.Prefix(_, a)       => expr(a)
-    case LExpr.Paren(i)           => expr(i)
-    case LExpr.Dot(on, _)         => expr(on)
-    case LExpr.Tuple(es)          => es.flatMap(expr)
-    case LExpr.ListLit(es)        => es.flatMap(expr)
-    case LExpr.Anonymous(es)      => es.flatMap(expr)
-    case LExpr.Update(r, fs)      => expr(r) ++ fs.flatMap(f => expr(f._2))
-    case LExpr.Fun(ps, b)         => ps.flatMap(binder) ++ expr(b)
-    case LExpr.Forall(ps, b)      => ps.flatMap(binder) ++ expr(b)
-    case LExpr.Exists(ps, b)      => ps.flatMap(binder) ++ expr(b)
-    case LExpr.If(c, a, b)        => List(c, a, b).flatMap(expr)
-    case LExpr.Match(on, arms)    => expr(on) ++ arms.flatMap((p, b) => expr(p) ++ expr(b))
-    case LExpr.Let(_, t, v, b)    => List(t, v, b).flatMap(expr)
-    case LExpr.Typed(x, t)        => expr(x) ++ expr(t)
-    case LExpr.Named(f, _, v)     => expr(f) ++ expr(v)
+  def expr(e: LExpr): List[List[ProverName]] = e.into(Mentions)
+
+/** The names a term uses: a plain name, a qualified constant's path, a constructor's with its type. */
+private object Mentions extends Gathered[List[List[ProverName]]]:
+  override def name(n: ProverName): List[List[ProverName]] = List(List(n))
+  override def const(path: List[ProverName]): List[List[ProverName]] = List(path)
+  override def ctor(data: ProverName, ctor: ProverName): List[List[ProverName]] = List(List(data, ctor))

@@ -34,6 +34,46 @@ The term is the AST. It is not a new one: a class is read into the term language
 (`Sym`, the algebras of `core.term.algebra`), so everything after the compiler is unchanged: validation, the
 obligations, the generated modules, the decisions, the fingerprints.
 
+### One compiler, in final form
+
+From the TASTy to Rocq's text there is one way a stage is written: an algebra (a trait of operations over an
+abstract carrier) and its interpreters. Nothing in between is a tree that a later stage takes apart.
+
+```text
+TASTy
+  │ the reader (`dsl.compiled`): typed elaboration. Every term is held with its type's representation
+  │ (`Term[A]` = `Final[A]` + `RocqType[A]`); where an operation needs a truth value, a list, a pair, the term
+  │ is asked what it was compiled as and refused with its place if it is anything else (`Readings`).
+  ▼
+Final[A] = [T[_]] => Sym[T] => T[A]          the model: one term, read by every interpreter of `Sym`
+  ├── Evaluate            T[A] = Run[A]                 its value (examples, the tests of the compiler)
+  ├── ToExpr              T[A] = Int => Expr            its initial form, for the analyses that need one
+  ├── Projected, Decided, Joined, Inlined               Final => Final, each a `Forward` (`fwd`, `bwd`)
+  └── ProverTerm[E]       T[A] = Scope => E             written for the prover into any `Syntax[E]`
+                                  │
+Syntax[E]                         ▼                     the prover's syntax, one operation for each form
+  ├── Tree                E = LExpr                     the form a generated module is kept in
+  ├── RocqSyntax          E = RocqTerm                  Rocq's text
+  ├── Notation            E = String                    the text a node's content is signed in
+  ├── Mentions, Identifiers, Params, Assumed            what a term names, binds, assumes
+  └── Shapes[E]           E = Shaped[E]                 any of these, each term kept with what it is
+```
+
+Two things make the stages compose without a tree:
+
+- **A body is read once and run in a context.** The term language takes a binder's body as a function of its
+  variable. The reader compiles the body once, over variables of its own, and each interpreter is handed them by
+  the binder that gives them their values (`Once`, over the `Forward` interpreter `Substituted`).
+- **What a stage asks of a term it has written, the term carries.** An optimization reads whether a term is a
+  pair just made or a truth value written out; the prover's interpreter reads whether a term is a call it can
+  add an input to. Each keeps that beside its result (`fwd` puts a term in with nothing known, `bwd` takes it
+  out: `core.term.optimize`; `Seen[E]` for the prover's syntax). So the lowering is one for every `E`:
+  `SyntaxLawsSuite` writes each generated term straight into the notation and gets the text of its tree.
+
+The tree `LExpr` is the syntax's initial form: one interpreter among the others (`Tree`), read by any of them
+(`into`). A generated module is kept in it because several read it at different times: Rocq's printer, the
+content's printer, the imports, the audit.
+
 No macro runs where the class is lifted, no Scala is generated, and no compiler option is needed: the input is the
 TASTy the Scala compiler wrote beside the class file, so FrFlow never resolves a name or an overload itself.
 
@@ -264,5 +304,7 @@ Rocq, and the property proven is not a contract annotation on the function but t
 |---|---|
 | `FrSpec`, `Contract`, `contractOf` | `modules/dsl/src/main/scala/frflow/dsl/lifted/` |
 | `lifted[Class]`, `holding`: a class compiled from its TASTy as the model is built | `modules/dsl/src/main/scala/frflow/dsl/compiled/` (expressions) and `compiled/steps/` (state, steps, members) |
+| The term language and its interpreters | `modules/core/src/main/scala/frflow/core/term/` (`algebra`, `language`, `interpret`, `optimize`) |
+| The prover's syntax, the lowering into it, its interpreters | `modules/proof/src/main/scala/frflow/proof/prover/` (`ast`, `term`, `lower`) and `proof/rocq/` |
 | A structure's Declaration, `Call`, `State` | `modules/dsl/src/main/scala/frflow/dsl/structure/`; `StructureSuite`, `FrSpecSuite` |
 | Services proven among other calls | `examples/payments/`, `examples/shop/`; `PaymentsSuite`, `ShopSuite`; the Rocq suites in `frflow.project.services` |
