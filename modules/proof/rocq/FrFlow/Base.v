@@ -104,6 +104,43 @@ Ltac frflow_simpl :=
 Ltac frflow_refute search := solve [match goal with H : ~ _ |- _ =>
   exfalso; apply H; eexists; split; [ solve [search] | first [reflexivity | lia] ] end].
 
+(** What holds of every member of a list written out holds of each of them. *)
+Lemma frflow_all_cons {A : Type} (x : A) (R P : A -> Prop) :
+  (forall b, x = b \/ R b -> P b) -> P x /\ (forall b, R b -> P b).
+Proof. intros H. split; [apply H; left; reflexivity | intros b r; apply H; right; exact r]. Qed.
+Ltac frflow_members := repeat match goal with
+  | H : forall b, ?x = b \/ _ -> _ |- _ => apply frflow_all_cons in H; destruct H as [? H]; cbn beta in *
+  | H : forall b, False -> _ |- _ => clear H
+  end.
+
+Lemma List_Pairwise_nil {A : Type} (p : A -> A -> Prop) : List_Pairwise p [].
+Proof. constructor. Qed.
+
+(** A statement about values written out (an example): a pair by its parts, a proposition equal to another by
+    each giving the other; what is said of every member of a list is refuted by one member, or shown of each; what
+    is left is arithmetic or names that differ. *)
+Ltac frflow_leaf := first
+  [ reflexivity | lia | congruence | tauto
+  | solve [firstorder (subst; cbn in *; first [lia | congruence])] ].
+Ltac frflow_one_member H := first
+  [ solve [let h := fresh "h" in pose proof (proj1 (frflow_all_cons _ _ _ H)) as h; cbn in h; frflow_leaf]
+  | apply frflow_all_cons in H; destruct H as [_ H]; cbn beta in H; frflow_one_member H ].
+Ltac frflow_values :=
+  unfold not in *; intros;
+  repeat match goal with
+    | |- (_, _) = (_, _) => apply f_equal2
+    | |- @eq Prop _ _ => apply propositional_extensionality; split; intros
+    | |- _ /\ _ => split
+    | |- forall _, _ => intros
+    end;
+  cbn in *;
+  first
+    [ frflow_leaf
+    | solve [match goal with H : forall b, _ = b \/ _ -> _ |- _ => frflow_one_member H end]
+    | solve [frflow_cases; subst; cbn in *; frflow_leaf]
+    | solve [exfalso; match goal with H : _ -> False |- _ => apply H end;
+             intros; frflow_cases; subst; cbn in *; frflow_leaf] ].
+
 Ltac frflow_close := first
   [ lia | tauto | congruence
   | solve [intuition (subst; cbn in *; try lia; try congruence; eauto 8)]
@@ -111,7 +148,9 @@ Ltac frflow_close := first
   | solve [apply propositional_extensionality; firstorder (subst; cbn in *; try lia; try congruence; eauto 8)]
   (* a hypothesis says there is no such thing, and there is one: found by a search of growing depth, since a
      deeper search may settle on a witness the rest does not hold of *)
-  | frflow_refute ltac:(eauto 4) | frflow_refute ltac:(eauto 6) | frflow_refute ltac:(eauto 8) ].
+  | frflow_refute ltac:(eauto 4) | frflow_refute ltac:(eauto 6) | frflow_refute ltac:(eauto 8)
+  (* a statement about values written out *)
+  | solve [frflow_values] ].
 
 Lemma frflow_eq_iff (P Q : Prop) : P = Q -> (P <-> Q).
 Proof. intros ->. tauto. Qed.
@@ -133,6 +172,26 @@ Ltac frflow_auto :=
 (** One part of what an anonymous constructor gives: a witness of an `exists`, or a proof of a conjunct. *)
 Ltac frflow_give x := first [ exists x | split; [ exact x | ] | exact x ].
 
+(** An example: the code run on the values it gives. Each `if` is decided, not taken by cases (its condition holds
+    of the values, or one of them refutes it), a fold and a filter are taken a member at a time, and what is left
+    is a statement about values written out. Where the claims are needed, `frflow_auto`. *)
+Create Rewrite HintDb frflow_eval.
+#[global] Hint Rewrite @List_filter_cons @List_filter_nil @List_foldl_cons @List_foldl_nil : frflow_eval.
+Ltac frflow_holds := solve [frflow_values].
+Ltac frflow_fails :=
+  solve [let H := fresh "H" in intro H; cbn in H; first [ frflow_leaf | frflow_one_member H ]].
+Ltac frflow_decide := repeat match goal with
+  | |- context [ite ?P _ _] => first
+      [ rewrite (ite_true P) by frflow_holds | rewrite (ite_false P) by frflow_fails ]
+  end.
+Ltac frflow_evaluate :=
+  intros; repeat (autounfold with frflow_defs in *; intros); cbv zeta in *;
+  repeat (progress (autorewrite with frflow_eval; cbn; frflow_decide));
+  frflow_values.
+Ltac frflow_example := first [ solve [frflow_evaluate] | frflow_auto ].
+
 Ltac frflow_witness :=
   repeat (autounfold with frflow_defs in *; intros); cbn in *; frflow_simpl;
-  first [ reflexivity | frflow_close ].
+  first [ reflexivity | frflow_close
+        | repeat match goal with |- _ /\ _ => split end;
+          first [ reflexivity | apply List_Pairwise_nil | frflow_close ] ].

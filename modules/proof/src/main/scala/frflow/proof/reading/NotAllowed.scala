@@ -7,7 +7,9 @@ package frflow.proof.reading
 enum NotAllowed:
   /** A statement taken without proof: `Axiom`, `Parameter`, `Conjecture`, `Hypothesis`, `Variable`. */
   case Axiom
-  /** A proof given up: `Admitted`, `admit`, `Abort`, `give_up`. */
+  /** A proof given up: `Admitted`, `Abort`. A goal given up inside a proof (`admit`, `give_up`) is not read here:
+    * Rocq accepts no `Qed` of such a proof, so its lemma is not proven.
+    */
   case Admit
   case Import(module: String)
   /** In the shared lemmas: an import of lemmas (they import none). */

@@ -17,7 +17,7 @@ class ProofRulesSuite extends munit.FunSuite:
     |Lemma ExpiryJob_Proofs_impl : ExpiryJob_Obl_impl.
     |Proof.
     |  intros; cbn.
-    |  - apply (f "Axiom").
+    |  - unfold admit. apply (f "Axiom").
     |  - { lia. }
     |Qed.
     |""".stripMargin
@@ -28,8 +28,7 @@ class ProofRulesSuite extends munit.FunSuite:
     "Axiom bad : False."                       -> NotAllowed.Axiom,
     "Parameter x : nat."                       -> NotAllowed.Axiom,
     "Admitted."                                -> NotAllowed.Admit,
-    "  admit."                                 -> NotAllowed.Admit,
-    "  give_up."                               -> NotAllowed.Admit,
+    "Abort."                                   -> NotAllowed.Admit,
     "Require Import Mathlib.Tactic."           -> NotAllowed.Import("Mathlib.Tactic"),
     "Require Export Proofs.Crm.Other."         -> NotAllowed.Import("Proofs.Crm.Other"),
     "Definition helper : nat := 1."            -> NotAllowed.Command("Definition"),

@@ -72,7 +72,8 @@ private[rocq] final class RocqDecl(names: RocqNames):
 
 private[rocq] object RocqDecl:
   /** FrFlow's own tactics, by the line the lowering writes. */
-  val tactics: Map[String, String] = Map("frflow_auto" -> "frflow_auto", "frflow_witness" -> "frflow_witness")
+  val tactics: Map[String, String] =
+    List("frflow_auto", "frflow_witness", "frflow_example").map(t => t -> t).toMap
 
   /** The seconds a theorem with no budget of its own is given. */
   val unbudgeted: Int = 30

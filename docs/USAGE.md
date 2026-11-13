@@ -12,13 +12,13 @@ on top, which a project enables, for an agent that proposes the nodes and writes
 
 ### Running
 
-Requirements: JDK 17+, sbt, and Lean 4.35.0 (`lake` on the `PATH`, or `FRFLOW_LAKE`). `bin/frflow PROJECT COMMAND`
+Requirements: JDK 17+, sbt, and Rocq 9 (`rocq` on the `PATH`, or `FRFLOW_ROCQ`; `opam install rocq-prover`). `bin/frflow PROJECT COMMAND`
 runs a project's CLI on the terminal, with colors and the interactive review, compiling with sbt on first use and
 after a change; `sbt "PROJECT/run COMMAND"` runs it through sbt, plain. `--help` lists the commands. A project is
 `examples/PROJECT`; FrFlow's own (`rooms`, `auth`, `payments`, `shop`) are there too.
 
-FrFlow's own tests: `sbt test` runs the fast ones (a few minutes); the ones that run Lean end to end (tagged `Lean`)
-run with `sbt leanTest`; `sbt testAll` runs both. Per module, `sbt core/test`, `sbt project/test` and so on; eval's
+FrFlow's own tests: `sbt test` runs the fast ones (under a minute); the ones that run Rocq end to end (tagged `Rocq`)
+run with `sbt rocqTest`; `sbt testAll` runs both. Per module, `sbt core/test`, `sbt project/test` and so on; eval's
 is `sbt evaluation/test`, since `eval/…` is sbt's own command (it would evaluate the rest as Scala).
 
 Run sbt and `bin/frflow` from the build's root (the directory holding `build.sbt`). A model records the files its
@@ -198,9 +198,11 @@ code makes or stores of that type is still proven to meet it, so an assumption c
 **In production**, nothing is checked: `knowledge.code(admit)(grants := table, sessions := tokens)` gives a
 Definition's meaning as plain code calls it.
 
-### What Lean proves
+### What Rocq proves
 
-`check` writes the model's Lean under `lean/FrFlowGen/<Model>/` and builds it with `lake`. Each node's obligations:
+`check` writes the model's Rocq under `rocq/FrFlowGen/<Model>/` and compiles it with `rocq compile`, each module
+after those it imports; what it compiles is kept under `rocq/_build/`, and a module is compiled again only when its
+text, or that of a module it imports, changed. Each node's obligations:
 
 | Obligation | Of | Says |
 |---|---|---|
@@ -217,12 +219,15 @@ Definition's meaning as plain code calls it.
 | `example_<set>_<i>_opposite` | each example, a try | the same claims give its negation: they contradict it |
 
 The tries (`vacuous`, `restates`, `clash`, `unsat`, `idle`) look for a statement that says nothing, restates its
-part, contradicts another, or holds whatever is done; each is reported as shown or not shown. A step Lean does not
-prove is "open", with Lean's errors; one refuted is "failed", with the case Lean confirms.
+part, contradicts another, or holds whatever is done; each is reported as shown or not shown. A step Rocq does not
+prove is "open", with what Rocq said; one refuted is "failed", with the case Rocq confirms.
 
-A proof Lean's tactics do not find is written by hand in `lean/Proofs/<Model>/<node>.lean`; `scaffold NODE` writes a
-stub for each obligation the last check left open. Lemmas shared between proofs go in `lean/Proofs/<Model>/Lemmas.lean`.
-Generated Lean is never edited.
+A proof FrFlow's tactics do not find is written by hand in `rocq/Proofs/<Model>/<node>.v`: a lemma
+`<node>_Proofs_<obligation>` stating `<node>_Obl_<obligation>` proves that obligation. `scaffold NODE` writes a stub
+for each obligation the last check left open. Lemmas shared between proofs go in `rocq/Proofs/<Model>/Lemmas.v`. A
+proof file holds imports and lemmas with their proofs, nothing else (no `Axiom`, no `Admitted`), and what each proof
+rests on is audited (`Print Assumptions`): classical logic and extensionality only. Generated Rocq is never edited;
+`rocq/_CoqProject` lets an editor open a proof file against what the last check compiled.
 
 **Consistency gates the proof.** A group not proven is a failure: the whole model's proof is red, and so is every
 statement proven from parts over a Declaration while a group below it is not proven. Witnesses are derived where they
@@ -247,13 +252,13 @@ without them. Each comes to one of three outcomes:
 - `+` it passes: the code holds it, and Lean shows the claims give it (or a proof file proves it);
 - `o` the claims do not decide it within the budget, and the code does not fail it: reported and counted apart
   ("Examples: 10/99 pass; 89 not decided by the claims"), no failure;
-- `x` it fails: the code does not hold it, or Lean shows the claims contradict it (its `_opposite`), or shows both
+- `x` it fails: the code does not hold it, or Rocq shows the claims contradict it (its `_opposite`), or shows both
   it and its opposite (the claims are inconsistent there): `check` and `status` exit 1.
 
 A fact only about Declarations has no code to run: the claims giving it, it passes.
 
 An example the claims do not decide is not wrong: leave it as it is (a proof of `example_<set>_<i>` in
-`Proofs/<Model>/Whole.lean` decides it). Each class of examples is made with its constructor without arguments (an
+`Proofs/<Model>/Whole.v` decides it). Each class of examples is made with its constructor without arguments (an
 `object`, as it is); `status` warns of each class among the test classes it cannot make, and why. It cannot tell
 which model such a class is of (it cannot make it to ask), so a class of examples the tests make with arguments (a
 parametrised set, for a variant of the model) turns `status` red: give it a constructor without arguments too, on
@@ -321,8 +326,9 @@ warnings:
 ### CI
 
 Committed: the Scala, `.frflow/ledger.json`, `.frflow/deciders`, `.frflow/ledger-base` (after a rebase), the agent
-layer's records if used, and `lean/Proofs`; the rest is derived (`.frflow/checks.json`, `tests.json`, `kb.json`,
-`lean/FrFlowGen`). CI runs `ci`, caching `.frflow/checks.json` and `lean/.lake`, so only what changed is proven again.
+layer's records if used, and `rocq/Proofs`; the rest is derived (`.frflow/checks.json`, `tests.json`, `kb.json`,
+`rocq/FrFlowGen`, `rocq/_build`). CI runs `ci`, caching `.frflow/checks.json` and `rocq/_build`, so only what changed
+is proven again.
 Run the tests a second time with a fresh seed, so a case the fixed seed never makes can still be found (a failing
 case is kept in `.frflow/counterexamples.json`, to commit):
 
@@ -332,7 +338,7 @@ FRFLOW_SEED=fresh bin/frflow NAME ci
 ```
 
 FrFlow's own CI (`.github/workflows/ci.yml`) runs the size budgets (`bin/budget.py modules examples`), `sbt test` and
-`sbt leanTest`.
+`sbt rocqTest`.
 
 ### Web view
 
@@ -364,15 +370,15 @@ One sbt project each, under `modules/`, each with its own top package (`frflow.<
 - `core`: names, types, the term algebras and their interpreters, the IR, statements, validation, checking,
   consistency.
 - `dsl`: what a model is written in: terms, nodes, flows, state models, the FrModel, the macros; elaboration.
-- `proof`: obligations, the Lean AST, the term printer, lowering, layout, reading Lean's output, the judges; the Lean
-  library (`modules/proof/lean`).
+- `proof`: obligations, the generated AST and its Rocq printer, lowering, layout, reading Rocq's report, the judges;
+  the Rocq library (`modules/proof/rocq`).
 - `eval`: the Scala meaning of terms and of plain code, examples, flows run on models, production's interpreter; the
   facade `frflow.*`.
 - `testing`: generators, property tests, model tests, interleavings, the witness and refutation searches, the
   examples' test framework.
 - `decision`: content, the ledger, the deciders, review, the rule of each command.
 - `wire`: the files under `.frflow/` and the snapshot, with explicit codecs.
-- `project` (package `frflow.project`): the imperative shell: the project's files, Lean, git, the keys and the
+- `project` (package `frflow.project`): the imperative shell: the project's files, Rocq, git, the keys and the
   ledger, each with a live and an in-memory interpreter; the analysis; check, status, decide and export.
 - `api`: `Reading`, `Deciding` and `Proving` over a project, and the views; front ends see nothing else.
 - `cli`, `web`: the command line (`FrFlowApp`, the composition root) and the web view.
@@ -380,7 +386,7 @@ One sbt project each, under `modules/`, each with its own top package (`frflow.<
 
 FrFlow's examples are projects under `examples/<name>`, each in two sbt projects so FrFlow's suites can test it
 with no cycle in the build: its model (`<name>Model`: `src/main`, its examples in `src/test`, its proofs in
-`lean/Proofs`), which testing's tests depend on, and its command line (`<name>`, its main object in `app`). Each is
+`rocq/Proofs`), which testing's tests depend on, and its command line (`<name>`, its main object in `app`). Each is
 checked whole by its `PortSuite` (project's tests) against what the library before the rebuild recorded
 (`reference/`), and rooms' walk-through by `WalkthroughSuite` (cli's tests).
 

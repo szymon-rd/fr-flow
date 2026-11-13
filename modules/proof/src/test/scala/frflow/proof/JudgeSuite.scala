@@ -49,8 +49,9 @@ class JudgeSuite extends munit.FunSuite:
   }
 
   test("a proof file: refused for what it may not contain") {
-    assertEquals(Judge.proofFile(ProofFile(NodeId("N"), "Lemma N_Proofs_impl : N_Obl_impl.\nProof.\n  admit.\nQed.\n"))
-      .map(_.findings), Some(List(Finding.ProofNotAllowed(List(3 -> NotAllowed.Admit)))))
+    assertEquals(Judge.proofFile(ProofFile(NodeId("N"), "Lemma N_Proofs_impl : N_Obl_impl.\nProof.\nAdmitted.\n"))
+      .map(_.findings), Some(List(Finding.ProofNotAllowed(List(3 -> NotAllowed.Command("Admitted."),
+        3 -> NotAllowed.Admit)))))
   }
 
   test("what must hold: proven, open with what Rocq said, missing, or failed for stating something else") {

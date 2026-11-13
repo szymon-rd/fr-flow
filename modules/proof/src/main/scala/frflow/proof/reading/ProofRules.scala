@@ -46,7 +46,7 @@ object ProofRules:
 
   private val Words: List[(Regex, NotAllowed)] = List(
     """\b(Axioms?|Parameters?|Conjecture|Hypothes[ie]s|Variables?)\b""".r -> NotAllowed.Axiom,
-    """\b(Admitted|admit|Abort|give_up)\b""".r -> NotAllowed.Admit)
+    """\b(Admitted|Abort)\b""".r -> NotAllowed.Admit)
 
   /** The modules a line imports: `Require Export A B.`, `From FrFlow Require Export Base.`. */
   private def imports(l: String): List[String] =
