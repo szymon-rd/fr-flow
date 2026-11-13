@@ -9,6 +9,11 @@ object RocqOutput:
   /** What Rocq said of an error, without where it is and the `Error:` it starts with. */
   def plain(output: String): String = error(output).fold(output.trim.stripPrefix("Error:").trim)(_._2)
 
+  /** Where the last sentence Rocq finished ends, of what it printed with each sentence timed (`-time`): its place
+    * in the file, in bytes.
+    */
+  def lastSentence(timed: String): Option[Int] = Timed.findAllMatchIn(timed).toList.lastOption.map(_.group(1).toInt)
+
   /** What each `Print Assumptions` printed, in order: the names of what the lemma rests on, none of one closed
     * under the global context.
     */
@@ -21,6 +26,7 @@ object RocqOutput:
         if done.isEmpty then done else done.init :+ (done.last :+ m.group(1)))
     }.toList
 
+  private val Timed = """(?m)^Chars \d+ - (\d+) """.r
   private val Closed = "Closed under the global context"
   private val Located = """(?m)^File "[^"]*", line (\d+), characters [-0-9]+:\s*\n?\s*Error:?""".r
   /** A heading of what an audit lists beside axioms (opaque constants, section variables). */

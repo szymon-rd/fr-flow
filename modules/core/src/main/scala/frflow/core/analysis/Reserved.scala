@@ -7,4 +7,4 @@ package frflow.core.analysis
 object Reserved:
   val names: Set[String] = Set("Obl", "Except", "frflow_defs", "frflow_witness", "frflow_auto", "frflow_intro",
     "frflow_match_eqns", "frflow_give", "frflow_case", "frflow_split", "frflow_simpl", "frflow_close",
-    "frflow_example", "frflow_evaluate", "frflow_values")
+    "frflow_example", "frflow_evaluate", "frflow_values", "frflow_rewrite", "frflow_backward")

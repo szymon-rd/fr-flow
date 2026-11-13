@@ -152,12 +152,24 @@ Ltac frflow_props := repeat match goal with
 
 (** What a claim taken as given says is equal (or each the other's condition), rewritten in the goal and in what is
     known, its own conditions met by what is known: the answer of a call a class makes of what it holds, by the
-    claims on it. *)
+    claims on it. Only a claim that ends in an equation is rewritten with: Rocq would rewrite with an order too. *)
 Ltac frflow_given := first [eassumption | solve [repeat split; eassumption]].
+Ltac frflow_equation H := lazymatch type of H with
+  | forall a, _ = _ => idtac | forall a b, _ = _ => idtac | forall a b c, _ = _ => idtac
+  | forall a b c d, _ = _ => idtac | forall a b c d e, _ = _ => idtac | forall a b c d e f, _ = _ => idtac
+  | forall a, _ <-> _ => idtac | forall a b, _ <-> _ => idtac | forall a b c, _ <-> _ => idtac
+  | forall a b c d, _ <-> _ => idtac | forall a b c d e, _ <-> _ => idtac | forall a b c d e f, _ <-> _ => idtac
+  end.
 Ltac frflow_rewrite := do 8 (try match goal with
-  | H : forall _, _ |- _ => erewrite H by frflow_given
-  | H : forall _, _, h : _ |- _ => erewrite H in h by frflow_given
+  | H : forall _, _ |- _ => frflow_equation H; erewrite H by frflow_given
+  | H : forall _, _, h : _ |- _ => frflow_equation H; erewrite H in h by frflow_given
   end).
+(** A claim taken as given that gives the goal, its conditions met by what is known or by what the claims say is
+    equal: what a call keeps, by the claim that the call of what the class holds keeps it. *)
+Ltac frflow_side := first [ frflow_given | lia | solve [frflow_rewrite; first [ lia | eassumption ]] ].
+Ltac frflow_backward := solve [
+  frflow_rewrite; first [ lia | eassumption
+  | match goal with H : forall _, _ |- _ => eapply H; clear H; frflow_side end ] ].
 
 Ltac frflow_close := first
   [ lia | tauto | congruence
@@ -169,6 +181,7 @@ Ltac frflow_close := first
   | frflow_refute ltac:(eauto 4) | frflow_refute ltac:(eauto 6) | frflow_refute ltac:(eauto 8)
   (* what the claims taken as given say is equal, put in its place *)
   | solve [frflow_rewrite; frflow_simpl; frflow_props; frflow_leaf]
+  | frflow_backward
   (* a statement about values written out *)
   | solve [frflow_values] ].
 

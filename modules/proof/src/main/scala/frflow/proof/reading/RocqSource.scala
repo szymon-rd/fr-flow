@@ -30,6 +30,10 @@ object RocqSource:
         lineAt(end - 1))
     }
 
+  /** The line a place in the source is on, the place given in bytes. */
+  def lineAt(src: String, byte: Int): Int =
+    src.getBytes(java.nio.charset.StandardCharsets.UTF_8).take(byte).count(_ == '\n'.toByte) + 1
+
   /** The modules the source imports, as Rocq names them: `Require Export A.B.`, `From FrFlow Require Export Base.`
     * (`FrFlow.Base`).
     */

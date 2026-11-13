@@ -23,7 +23,7 @@ import scala.concurrent.duration.FiniteDuration
   */
 object RocqProver:
   /** In `rocqDir` (the project's `rocq/`, made if missing), FrFlow's library in `library` (`FrFlow/Base.v` in it). */
-  def make[F[_]: Async: Processes](rocqDir: Path, library: Path, rocq: Command): Resource[F, Prover[F]] =
+  def make[F[_]: Async: Processes](rocqDir: Path, library: Path, rocq: RocqTool): Resource[F, Prover[F]] =
     Resource.eval(Async[F].blocking(Files.createDirectories(rocqDir)) >> Mutex[F])
       .map(Live(RocqDirs(rocqDir, library), rocq, _))
 
@@ -33,12 +33,13 @@ object RocqProver:
   /** How long `rocq --version` may take. */
   val Probe: FiniteDuration = FiniteDuration(30, "seconds")
 
-  private final class Live[F[_]: Async: Processes](dirs: RocqDirs, rocq: Command, building: Mutex[F])
+  private final class Live[F[_]: Async: Processes](dirs: RocqDirs, rocq: RocqTool, building: Mutex[F])
       extends Prover[F]:
     private val (compiler, cache) = (RocqCompiler(dirs, rocq), RocqCache(dirs))
     private type Done = Ref[F, Map[String, RocqBuilt]]
 
-    private def version: F[Exited] = Command.run(rocq.copy(timeout = Probe), List("--version"), dirs.project, Map.empty)
+    private def version: F[Exited] =
+      Command.run(rocq.command.copy(timeout = Probe), List("--version"), dirs.project, Map.empty)
     def available: F[Boolean] = version.map(_.ok).handleError(_ => false)
 
     def build(targets: NonEmptyList[ModuleName]): F[ProverRun] = building.lock.surround(

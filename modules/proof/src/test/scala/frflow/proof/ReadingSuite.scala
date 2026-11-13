@@ -67,6 +67,10 @@ class ReadingSuite extends munit.FunSuite:
       |""".stripMargin
     assertEquals(RocqOutput.error(error), Some(14 -> "Tactic failure: frflow_auto found no proof."))
     assertEquals(RocqOutput.error("Error: cannot find library"), None)
+    val timed = "Chars 0 - 53 [Require~Export~X.] 0.1 secs (0.1u,0.s)\n" +
+      "Chars 55 - 99 [Lemma~a~:~True.] 0. secs (0.u,0.s)\n"
+    assertEquals((RocqOutput.lastSentence(timed), RocqOutput.lastSentence("")), (Some(99), None))
+    assertEquals(List(0, 3, 5).map(RocqSource.lineAt("a\nbc\nd", _)), List(1, 2, 3))
     val printed = """Closed under the global context
       |Axioms:
       |classic : forall P : Prop, P \/ ~ P

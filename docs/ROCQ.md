@@ -23,6 +23,9 @@ what is proven of the examples, and what is left of the move from Lean.
     developer's proof files are never changed.
   - A module is not run while one it imports has a lemma not accepted, or did not read: nothing is proven on top
     of what is not.
+  - Each compile runs under a memory limit (`FRFLOW_ROCQ_MEMORY`, megabytes; 6000 when not given). Rocq then
+    stops with no word of where; the file is compiled again with each sentence timed, the lemma it had reached is
+    reported not accepted ("out of memory") and given up, and the rest of the file is read.
   - Each proof is audited: the generated modules end a lemma with `Print Assumptions`, and what Rocq prints is
     read. A lemma is proven only with its audit, and only when it rests on nothing but the axioms below.
 - **The rules of a proof file** (`proof.reading.ProofRules`): imports and lemmas with their proofs, nothing else.

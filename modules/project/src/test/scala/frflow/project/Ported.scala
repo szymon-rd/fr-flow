@@ -11,7 +11,7 @@ import frflow.project.check.CheckProgram
 import frflow.project.pipeline.{Analysis, ReadProof}
 import frflow.project.port.*
 import frflow.project.port.memory.*
-import frflow.project.port.rocq.RocqProver
+import frflow.project.port.rocq.{RocqProver, RocqTool}
 import frflow.project.process.{Command, Output}
 import frflow.project.program.{Analyse, Ports, Project, TestProgram}
 import frflow.testing.Settings
@@ -36,7 +36,8 @@ object Ported:
 
   /** A project directory, and Rocq in its `rocq/`. */
   private val workspace: Resource[IO, (Path, Prover[IO])] = directory.flatMap(d =>
-    RocqProver.make[IO](d.resolve("rocq"), library, Command("rocq", 30.minutes, Output.ByExit)).map(d -> _))
+    RocqProver.make[IO](d.resolve("rocq"), library,
+      RocqTool(Command("rocq", 30.minutes, Output.ByExit), RocqTool.Memory)).map(d -> _))
 
   /** The analysis once checked and tested; `proofs`, the developer's proof files by name (`Lemmas`, a node's). */
   def run(e: Elaborated, examples: List[Example], proofs: List[(String, String)]): IO[Analysis] =
