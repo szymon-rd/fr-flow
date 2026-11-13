@@ -6,9 +6,8 @@ package frflow
   * Its names are an import's: a model's own top-level `val` or `def` of the same name, in scope where one is used,
   * hides it, and the use does not compile (`val after = …` hides `book(request).after`). The names it takes,
   * besides its types (`Gen` among them: a model's own of that name hides it): the extensions `refines`, `assuming`,
-  * `replaces`, `result`, `after`, and `always`, `forall`, `exists`, `define`, `stated`, `lifted`, `updating`,
-  * `interleaving`, `holding`, `contractOf`, `when`, `make`, `let`. An `Int` literal is a `Term[BigInt]` where one
-  * is expected (`given int`).
+  * `replaces`, `result`, `after`, and `always`, `forall`, `exists`, `define`, `stated`, `lifted`, `holding`,
+  * `contractOf`, `when`, `make`, `let`. An `Int` literal is a `Term[BigInt]` where one is expected (`given int`).
   */
 export frflow.dsl.node.Node
 export frflow.dsl.node.NodeSyntax.*
@@ -37,7 +36,6 @@ export frflow.core.example.Gen
 export frflow.dsl.shape.Defines.*
 export frflow.dsl.lifted.{Contract, FrSpec, Lifted}
 export frflow.dsl.lifted.LiftSyntax.*
-export frflow.dsl.lifted.steps.StepSyntax.*
 export frflow.dsl.compiled.steps.ClassSyntax.*
 export frflow.dsl.structure.{Call, StructureDeclaration}
 /** What a state of the structure whose trait is named `N` is typed by (`Term[StateOf[N]]`): for what a model says

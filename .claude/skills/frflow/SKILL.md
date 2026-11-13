@@ -272,18 +272,12 @@ and claim that each of its own steps grants what it takes. Name a state's type `
 `Term[CardLimits]`. In an example give a state with `limits.holding(RecordedLimits(…))`. Give one class per trait in a
 model.
 
-The earlier way, a word per method, is still read (`examples/shop`,
-`docs/LIFTED.md` "Services"): the store is a `caps.Mutable` class with one `var`, the service a class holding it
-(`Ledger^`), in files with capture and separation checking. A service holding several stores or services names
-its state in its companion (`type State = …`, a case class with a field per port, in order); give every port's
-methods names of their own, each of one argument, so a call of one is read as a call of its word. Put the contracts in the
-companions: a `Declaration` per method, the method read with
-`updating { (port: S^, input: A) => port.method(input) }` and listed as its Definition
-(`Ledger.claim.define(Ledger.claimCode)`), and claims over the word. For races, read it with `interleaving { … }(others)` and claim over every schedule;
-state what the reading takes for granted as design nodes (each store method is one transaction; other calls keep
-the rely), and prove the service's own steps keep the rely for others. Bind a value whose type has a contract last
-in a `forall`. In the hand proofs, take a method read among other calls apart with `extract_lets` and share one
-lemma over its steps (`every_step` in the examples); a proof file holds lemmas only, no definition.
+A class made of other structures is given their words where it is lifted
+(`checkout.define(lifted[ShopCheckout](inventory, payments, orders))`), and its claims are said through what those
+expose (`inventory.available(sku)`, as the checkout has it): a structure held two levels down is not read through
+its holder's holder, so give the one between a member for what the claim needs (`examples/shop`). State what the
+reading takes for granted as design nodes (each member of a store that changes it is one transaction). Bind a value
+whose type has a contract last in a `forall`.
 
 Plain Scala given with `defineTested`, each listed in the model:
 

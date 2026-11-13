@@ -27,10 +27,9 @@ and in them.
    A departure, on the branch that adds it: plain Scala the compiler reads (`lifted { … }`) is proven too, as the
    term read from it ([LIFTED.md](LIFTED.md) says what holds the Scala to that term). It adds no concept: lifted
    code is a Definition given its meaning on the spot, and a type's contract (`FrSpec`) is an `always[T]` a node
-   states. A second departure on that branch: a method that changes a store is read as a function of the store's
-   state (`updating`), and among other calls as a function of a schedule too (`interleaving`); both are lifted
-   code, and what the reading takes for granted (a store's method is one step, other calls keep a rely) is said by
-   design nodes. A value with members (a structure: a service whole) is a word too: a Declaration of a trait's type,
+   states. A second departure on that branch: a method that changes a structure is read as a function of the
+   structure's state, and among other calls as a function of a schedule too; what the reading takes for granted
+   (a store's member is one step) is said by design nodes. A value with members (a structure: a service whole) is a word too: a Declaration of a trait's type,
    its members called in claims, the class that implements the trait its Definition; a claim on it is said of the
    structure in every state. A third:
    the two kinds of value are one. Every word is a Declaration, and a Definition is a Declaration with a meaning

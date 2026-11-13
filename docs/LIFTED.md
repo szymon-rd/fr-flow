@@ -241,59 +241,13 @@ each.
 ## Services: code that changes a store
 
 A service method that changes state is read the way Aeneas reads `&mut`: the state passed in and returned, with no
-state monad. [SEPARATION-SPIKE.md](SEPARATION-SPIKE.md) records the spike. It is written two ways. A structure, a
-Declaration of a trait defined by a class ("A structure: a value with members" below), is the one to write:
-[the payment stream](../examples/payments/README.md) (a processor over three services, proven through redelivery,
-a crash at any step and a second instance). The first way, a word and a reading per method, is what
-[the shop](../examples/shop/README.md) (a checkout over two services and a store) uses, and is described first.
-
-```scala
-final class Ledger(var books: Books) extends caps.Mutable:        // a store: its state is its one `var`
-  update def claim(request: String): Boolean = …
-
-final class Transfers(ledger: Ledger^):                           // a class holding one store, exclusively
-  def transfer(t: Transfer): Outcome = …
-
-object Transfers:
-  val transfer = Declaration[(Books, Transfer) -> (Outcome, Books)]("a transfer, alone: …")
-  val transferCode = updating { (transfers: Transfers^, t: Transfer) => transfers.transfer(t) }
-  val transferAmongOthersCode =
-    interleaving { (transfers: Transfers^, t: Transfer) => transfers.transfer(t) }(others)
-```
-
-- `updating { (port: P^, input: A) => … }` is a lifted function from the port's state and the input to the result
-  with the state after. Its Scala (`native`) makes the stores from the state, runs the method, and gives back
-  what the stores hold.
-- A port is a store, or a class holding ports. A class holding one port has that port's state. A class holding
-  several names its state in its companion, `type State = Pipeline`, a case class with one field for each port
-  it holds, in order; a call made on a port reads its field and leaves the state with that field
-  replaced.
-- `interleaving { … }(others)` is a Definition from the state, a schedule (`Map[BigInt, S]`: what other calls left
-  before each step, by the step's number) and the input, to the result with every step taken (the state it started
-  from, the state it left). Before each step after the first, the schedule's state replaces the call's own when the
-  rely `others(input, before, after)` holds of it. A claim over every schedule is a claim over every interleaving
-  the rely allows. Each call of a store's method is one step; that it is atomic is a design node's to say.
-- A call of a method of a port the code holds is a call of the Definition of that name in the port's companion,
-  when there is one (a method of one argument): the code is then proven from the port's contracts, not from the
-  method's body. Read alone, that holds of a store's methods and of those of a class holding ports, so a class
-  that calls such classes is proven from their contracts. Read among other calls, such a method is its body, down
-  to the stores' methods, each a step. A port's own readings (`updating { (ledger: Ledger^, …) => ledger.claim(…) }`) are its
-  methods' bodies. The Definitions' names are the methods', so two ports of one model give their methods
-  different names.
-- The files compile with capture and separation checking, and the project with `-Yretain-trees`; what uses the
-  checkers is experimental (`-experimental` for the project, or `@experimental` on the definitions). In a
-  capture-checked file a Definition's function type is written with the pure arrow (`->`).
-
-Three things about the proof side show in these examples:
-
-- A claim that quantifies a value whose type has a contract a node states must bind that value last
-  (`forall((books, request, t: Term[Transfer]) => …)`), or the witness FrFlow derives for "its condition can hold"
-  is not accepted by Lean and the check stays open.
-- FrFlow's search finds no values for the condition of some claims with three or more quantified values; the
-  developer then gives them in `Proofs/<Model>/Whole.lean`, as the examples' proofs are given.
-- A method read among other calls is a long definition. A hand proof takes it apart with `extract_lets`, and a
-  model's proofs share one lemma that walks its steps (`every_step` in the examples' `Lemmas.lean`): each
-  contract over every step is then a few lines saying what each store's method keeps.
+state monad. [SEPARATION-SPIKE.md](SEPARATION-SPIKE.md) records the spike that tried it. A service is written as a
+structure: a Declaration of a trait, defined by a class.
+[The payment stream](../examples/payments/README.md) is a processor over three services, proven through
+redelivery, a crash at any step and a second instance; [the shop](../examples/shop/README.md) is a checkout over
+two services and an order book, each over a store of its own. The files compile with capture and separation
+checking; what uses the checkers is experimental (`-experimental` for the project, or `@experimental` on the
+definitions).
 
 ### A structure: a value with members
 
@@ -425,7 +379,6 @@ In the order they would be taken:
 | `Lifted`, the Definition with its Scala | `Lifted.scala` there |
 | `Agreement`, `Vectors` | `modules/testing/src/main/scala/frflow/testing/` |
 | The suites | `modules/dsl/src/test/scala/frflow/dsl/lifted/`, `AgreementSuite`, `CalendarSuite`, `CalendarLeanSuite` |
-| `updating`, `interleaving` | `modules/dsl/src/main/scala/frflow/dsl/lifted/steps/` |
 | `lifted[Class]`, `holding`: a class compiled from its TASTy as the model is built | `modules/dsl/src/main/scala/frflow/dsl/compiled/` (expressions) and `compiled/steps/` (state, steps, members) |
 | A structure's Declaration, `Call`, `State` | `modules/dsl/src/main/scala/frflow/dsl/structure/`; `StructureSuite` beside the reader's suites |
 | Services proven among other calls | `examples/payments/`, `examples/shop/`; `PaymentsSuite`, `ShopSuite`; the Lean suites in `frflow.project.services` |

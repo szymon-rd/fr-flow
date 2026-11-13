@@ -1,5 +1,9 @@
 # Spike: Scala that changes a port, read under separation checking
 
+> A record of the spike. The reader it built (`updating`, `interleaving`: a word and a reading per method) is
+> removed; what came of it is the structure shape, a class read whole from its TASTy
+> ([LIFTED.md](LIFTED.md), "A structure: a value with members").
+
 A spike on top of [LIFTED.md](LIFTED.md). It asks whether service code, which changes state, can be read the way
 Aeneas reads Rust's `&mut`: with no state monad, the state passed in and returned, and the exclusivity that makes
 that sound checked by the Scala compiler (capture checking with separation checking, experimental in Scala 3.10).
