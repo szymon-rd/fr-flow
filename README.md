@@ -420,7 +420,6 @@ FrFlow's own suites test them whole (`sbt rocqTest`).
 
 ## Documentation
 
-- [docs/index.html](docs/index.html) has a tutorial, how-to guides, the reference and troubleshooting.
 - [docs/USAGE.md](docs/USAGE.md) describes the DSL, the commands, their output and exit codes, what Rocq proves, the
   warnings, the web view and the modules.
 - [docs/DAG.md](docs/DAG.md) describes the design of the refinement graph.
