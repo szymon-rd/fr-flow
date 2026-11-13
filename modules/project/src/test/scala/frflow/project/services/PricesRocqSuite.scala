@@ -12,8 +12,8 @@ import scala.annotation.experimental
 import scala.concurrent.duration.*
 
 /** A structure no member changes (a plain trait, no `caps.Mutable`) and a structure whose class holds it, one whose
-  * class holds that one in turn, and one whose class matches on an enum and an option, checked by Rocq end to end: each class is proven to meet the
-  * claims on its word, and the examples hold in Rocq too.
+  * class holds that one in turn, and one whose class matches on an enum and an option, checked by Rocq end to end:
+  * each class is proven to meet the claims on its word, and the examples hold in Rocq too.
   */
 @experimental class PricesRocqSuite extends munit.CatsEffectSuite:
   override val munitIOTimeout: Duration = 60.minutes
