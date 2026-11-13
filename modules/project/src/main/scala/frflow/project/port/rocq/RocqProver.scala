@@ -58,20 +58,25 @@ object RocqProver:
       done.get.map(_.get(logical)).flatMap(_.fold(
         // held while its imports are built, so a module importing itself, however far, ends
         done.update(_.updated(logical, RocqBuilt("", None, false))) >>
-          read(logical).flatMap(_.fold(missing(logical).pure[F])(compiled(logical, _, version, done)))
+          read(logical).flatMap(_.fold(missing(logical).pure[F])((source, text) =>
+            compiled(Read(logical, source, text), version, done)))
             .flatTap(b => done.update(_.updated(logical, b))))(_.pure[F]))
 
-    private def compiled(logical: String, text: String, version: String, done: Done): F[RocqBuilt] =
-      RocqSource.imports(text).filter(dirs.source(_).isDefined).traverse(built(_, version, done)).flatMap { imported =>
-        val inputs = Sha.parts((RocqProver.Version :: version :: logical :: text :: imported.map(_.stamp))*)
+    /** A module's source as a build read it. */
+    private final case class Read(logical: String, source: Path, text: String)
+
+    private def compiled(m: Read, version: String, done: Done): F[RocqBuilt] =
+      val followed = RocqSource.imports(m.text).filter(dirs.source(_).isDefined)
+      followed.traverse(built(_, version, done)).flatMap { imported =>
+        val inputs = Sha.parts((RocqProver.Version :: version :: m.logical :: m.text :: imported.map(_.stamp))*)
         if !imported.forall(_.whole) then RocqBuilt("", None, imported.exists(_.timedOut)).pure[F]
-        else cache.read(logical, inputs).flatMap(_.fold(
-          compiler(logical, dirs.source(logical).get, text).flatMap(_.fold(RocqBuilt("", None, true).pure[F])(
-            cache.write(logical, inputs, _))))(_.pure[F]))
+        else cache.read(m.logical, inputs).flatMap(_.fold(
+          compiler(m.logical, m.source, m.text).flatMap(_.fold(RocqBuilt("", None, true).pure[F])(
+            cache.write(m.logical, inputs, _))))(_.pure[F]))
       }
 
-    private def read(logical: String): F[Option[String]] = Async[F].blocking(
-      dirs.source(logical).filter(Files.isRegularFile(_)).map(Files.readString(_, UTF_8)))
+    private def read(logical: String): F[Option[(Path, String)]] = Async[F].blocking(
+      dirs.source(logical).filter(Files.isRegularFile(_)).map(p => p -> Files.readString(p, UTF_8)))
 
     private def missing(logical: String): RocqBuilt =
       RocqBuilt("", Some(RocqReport.File(RocqDirs.file(logical), Map.empty, Map.empty, Some("there is no such file"))),
