@@ -14,9 +14,9 @@ object CaseMacros:
   def branch[S: Type, C: Type, R: Type](f: Expr[Any])(using Quotes): Expr[Branch[S, C, R]] =
     import quotes.reflect.report
     val label = DataMacros.names[C]._2
-    val sum = Expr.summon[LeanType[S]].getOrElse(report.errorAndAbort(s"no LeanType for ${Type.show[S]}"))
+    val sum = Expr.summon[RocqType[S]].getOrElse(report.errorAndAbort(s"no RocqType for ${Type.show[S]}"))
     '{
-      given caseType: LeanType[C] = Data.caseType[S, C]($sum, ${ DataMacros.fields[C] })
+      given caseType: RocqType[C] = Data.caseType[S, C]($sum, ${ DataMacros.fields[C] })
       Branch[S, C, R](Data.caseOf[S, C]($sum, ${ Expr(label) }, caseType.fields, s => s match
         case c: C => Some(c)
         case _    => None), ${ Expr(label.toLowerCase) }, caseType, (c: Term[C]) => ${ applied[C, R](f, 'c) })
@@ -41,7 +41,7 @@ object CaseMacros:
     whole.asType match
       case '[w] =>
         val ctor = DataMacros.constructor[C, w] match
-          case '{ $c: Constructor[f] } => '{ Term.construct[f]($c)(using ${ leanType[f] }) }
+          case '{ $c: Constructor[f] } => '{ Term.construct[f]($c)(using ${ rocqType[f] }) }
         given_.zip(fs).foldLeft[Expr[Term[?]]](ctor)((f, a) => appliedTo(f, a._1, a._2._1))
 
   /** One more field given to a constructor's term: `Term.app`, after checking the field's type. */
@@ -51,7 +51,7 @@ object CaseMacros:
       case '{ $g: Term[x => r] } =>
         if !(a.asTerm.tpe <:< TypeRepr.of[Term[x]]) then
           report.errorAndAbort(s"field $name is a ${Type.show[x]}, given a ${a.asTerm.tpe.widen.show}", a)
-        '{ Term.app[x, r]($g, ${ a.asExprOf[Term[x]] })(using ${ leanType[r] }) }
+        '{ Term.app[x, r]($g, ${ a.asExprOf[Term[x]] })(using ${ rocqType[r] }) }
       case _ => report.errorAndAbort("FrFlow bug: a constructor's term is not a function")
 
   /** `t` with the field `pick` reads replaced by `v`: the field's selector derived here, typed by the field. */
@@ -63,8 +63,8 @@ object CaseMacros:
     if i < 0 then report.errorAndAbort(s"${Type.show[A]} has no field $name", pick)
     '{ Term.copy($t, ${ DataMacros.typedField[A, F](name, i) }.selector, $v) }
 
-  private def leanType[X: Type](using Quotes): Expr[LeanType[X]] =
-    Expr.summon[LeanType[X]].getOrElse(quotes.reflect.report.errorAndAbort(s"no LeanType for ${Type.show[X]}"))
+  private def rocqType[X: Type](using Quotes): Expr[RocqType[X]] =
+    Expr.summon[RocqType[X]].getOrElse(quotes.reflect.report.errorAndAbort(s"no RocqType for ${Type.show[X]}"))
 
   /** The field name in `_.start` (`selectDynamic("start")`). */
   private def picked(using Quotes)(t: quotes.reflect.Term): Option[String] =

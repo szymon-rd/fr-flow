@@ -72,7 +72,7 @@ final class Compiler(val q: Quotes, val known: Known) extends Compiling, Compile
     case _                      => refuse(s"the constant ${c.show}: a number is a BigInt (`BigInt(1)`)", at))
     .asInstanceOf[DTerm[Any]]
 
-  /** A block's values, each named for what follows it (Lean's `let`). A value that only renames a variable in
+  /** A block's values, each named for what follows it (a `let`). A value that only renames a variable in
     * scope is that variable, and one the compiler made is the expression it names.
     */
   private def block(stats: List[Statement], e: Term, as: TypeRepr)(using env: Env): DTerm[Any] = stats match

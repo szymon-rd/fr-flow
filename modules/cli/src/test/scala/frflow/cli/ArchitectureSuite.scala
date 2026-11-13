@@ -18,7 +18,7 @@ class ArchitectureSuite extends munit.FunSuite:
 
   test("the sources' scan sees an import in braces, a wildcard, and spaces; not a string or a comment") {
     val spelled = List("import frflow.{project as p}", "import frflow.api.{Reading, shell}", "import frflow.*",
-      "import frflow . proof . lean", "frflow.wire.file.Files")
+      "import frflow . proof . prover", "frflow.wire.file.Files")
     val quiet = List("\"frflow.project\"", "// frflow.project", "/* frflow.wire */", "import frflow.api.Reading")
     assertEquals(spelled.map(Front.Shell.findFirstIn(_).isDefined), spelled.map(_ => true))
     assertEquals(quiet.map(s => Front.Shell.findFirstIn(Front.code(s)).isDefined), quiet.map(_ => false))

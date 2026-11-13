@@ -1,17 +1,17 @@
 package frflow.proof.layout
 
 import frflow.core.name.NodeId
-import frflow.proof.lean.ast.LeanModule
+import frflow.proof.prover.ast.ProverModule
 
 
 /** Where each module goes and what it imports (read off what it names), how `holds` and `root_impl` are composed
   * by name, and a step refuted on a case.
   */
 class LayoutSuite extends munit.FunSuite:
-  private def named(ms: List[LeanModule]): List[String] = names(ms.map(_.name))
-  private def names(ms: List[frflow.proof.lean.ast.ModuleName]): List[String] =
+  private def named(ms: List[ProverModule]): List[String] = names(ms.map(_.name))
+  private def names(ms: List[frflow.proof.prover.ast.ModuleName]): List[String] =
     ms.map(_.dotted.stripPrefix("FrFlowGen.Test."))
-  private def module(name: String): LeanModule =
+  private def module(name: String): ProverModule =
     MiniProject.modules.find(_.name.dotted == s"FrFlowGen.Test.$name").getOrElse(fail(s"no module $name"))
 
   test("every module of a FrModel, the vocabulary's first") {
@@ -32,7 +32,7 @@ class LayoutSuite extends munit.FunSuite:
       "bookRuns.Impl"))
   }
 
-  test("the examples are tried over the theory's statements alone: a witness Lean refuses stops none of them") {
+  test("the examples are tried over the theory's statements alone: a witness Rocq refuses stops none of them") {
     assertEquals(names(module("Whole.Checks").imports), List("Whole.Spec"))
     assert(names(module("Whole").imports).contains("Whole.Spec"), names(module("Whole").imports))
   }

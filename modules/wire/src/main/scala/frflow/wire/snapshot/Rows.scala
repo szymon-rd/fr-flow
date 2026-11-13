@@ -7,7 +7,7 @@ import frflow.core.expr.{Side, Value}
 import frflow.decision.content.{Content, FieldValue}
 import frflow.eval.EvalError
 import frflow.eval.run.{Broken, OnCode}
-import frflow.proof.lean.lower.LowerObligation
+import frflow.proof.prover.lower.LowerObligation
 import frflow.proof.verdict.{ObligationStatus, Result}
 import frflow.testing.report.TestReport
 

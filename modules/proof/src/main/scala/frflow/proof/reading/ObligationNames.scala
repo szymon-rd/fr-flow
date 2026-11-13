@@ -1,7 +1,7 @@
 package frflow.proof.reading
 
-import frflow.core.name.{LeanNames, NodeId}
-import frflow.proof.lean.lower.LowerObligation
+import frflow.core.name.{ProverNames, NodeId}
+import frflow.proof.prover.lower.LowerObligation
 import frflow.proof.obligation.{ObligationName, TryKind}
 
 /** An obligation, and a try, written as the name of its theorem (`LowerObligation.name`: `complete`, `cover_add`,
@@ -22,7 +22,7 @@ object ObligationNames:
     .orElse(after("restates_", s).flatMap(numbered).map((i, p) => TryKind.RestatesConjunct(NodeId(p), i)))
 
   def read(s: String): Option[ObligationName] = fixed.get(s).orElse(tryKind(s).map(ObligationName.Tried(_)))
-    .orElse(after(LeanNames.Made, s).map(ObligationName.Made(_)))
+    .orElse(after(ProverNames.Made, s).map(ObligationName.Made(_)))
     .orElse(after("consistent_", s).flatMap(_.toIntOption).map(ObligationName.Consistent(_)))
     .orElse(after("inhabited_", s).map(n => ObligationName.Inhabited(NodeId(n))))
     .orElse(after("satisfiable_", s).flatMap(numbered).map((i, n) => ObligationName.Satisfiable(NodeId(n), i - 1)))
@@ -33,7 +33,7 @@ object ObligationNames:
   private def after(prefix: String, s: String): Option[String] =
     Option.when(s.startsWith(prefix))(s.drop(prefix.length))
 
-  /** `<set>_<i>`, the set a Lean identifier. */
+  /** `<set>_<i>`, the set a Rocq identifier. */
   private def ofSet(s: String): Option[(String, Int)] = s.lastIndexOf('_') match
     case -1 => None
     case k  => Option.when(s.take(k).nonEmpty && s.take(k).forall(_.isLetterOrDigit))(s.take(k))

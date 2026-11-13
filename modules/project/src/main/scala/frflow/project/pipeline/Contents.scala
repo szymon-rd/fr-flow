@@ -7,8 +7,8 @@ import frflow.core.name.NodeId
 import frflow.core.spec.{Node, Reliance, Statement, Written}
 import frflow.decision.content.{Content, FieldValue}
 import frflow.proof.layout.{Lowering, VocabularyModules}
-import frflow.proof.lean.term.{Print, PrintDecl}
-import frflow.proof.lean.term.Printed
+import frflow.proof.prover.term.{Print, PrintDecl}
+import frflow.proof.prover.term.Printed
 
 /** A node's decided form: what it says (its sentence and formula; its reason is its decision's), where it sits, and
   * how it is checked. Its `formula` is what the formula means: the elaborated term as Rocq is given it (FrFlow's

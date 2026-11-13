@@ -4,7 +4,7 @@ import frflow.core.name.DefName
 import frflow.dsl.build.{AsWritten, Source, WrittenAt}
 import frflow.dsl.lifted.{FrSpec, Lifting}
 import frflow.dsl.lifted.steps.Among
-import frflow.dsl.term.LeanType
+import frflow.dsl.term.RocqType
 import frflow.dsl.term.Term as DTerm
 import frflow.dsl.vocab.Definition as Defined
 
@@ -58,7 +58,7 @@ private[steps] final class Members(val steps: Steps, val state: FrSpec[Any]):
     val m = Member(cls, field, Nil, Select(This(cls), field), of)
     lifted(m, Shape("_held", List((m.named, state)), m.gives))(xs => alone(m, xs.head, Nil, m.gives))
 
-  private def alone(m: Member, self: DTerm[Any], given_ : List[DTerm[Any]], out: LeanType[Any]): DTerm[Any] =
+  private def alone(m: Member, self: DTerm[Any], given_ : List[DTerm[Any]], out: RocqType[Any]): DTerm[Any] =
     if !m.changes then c.read(m.body, m.result)(using m.env(self, given_))
     else steps.run(m.body, m.result, m.cls)((v, w) => steps.packed(v)(using w))(
       using steps.Walk(m.env(self, given_), 0, None, steps.Ports(m.cls, Map.empty, false), out))
@@ -66,11 +66,11 @@ private[steps] final class Members(val steps: Steps, val state: FrSpec[Any]):
   /** Among other calls: of a class that holds no structure, the member run as one step; else each call of a held
     * structure a step, the schedule read before each but the first.
     */
-  private def others(m: Member, inputs: List[DTerm[Any]], out: LeanType[Any]): DTerm[Any] =
+  private def others(m: Member, inputs: List[DTerm[Any]], out: RocqType[Any]): DTerm[Any] =
     val (self, between, given_) = (inputs.head, inputs(1), inputs.drop(2))
-    given LeanType[Any] = state
+    given RocqType[Any] = state
     if c.isStore(m.cls.typeRef) then
-      val did = alone(m, self, given_, steps.pair(m.gives, state).asInstanceOf[LeanType[Any]])
+      val did = alone(m, self, given_, steps.pair(m.gives, state).asInstanceOf[RocqType[Any]])
       Among.atomic[Any, Any](self, did.asInstanceOf[DTerm[(Any, Any)]])(using m.gives, state).asInstanceOf[DTerm[Any]]
     else
       val start = m.env(self, given_) + ((steps.trace, Among.none[Any].asInstanceOf[DTerm[Any]]))

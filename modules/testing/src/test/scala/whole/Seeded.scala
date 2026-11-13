@@ -188,5 +188,5 @@ end Vacuous.Whole.Proofs
       forall((xs: Term[List[BigInt]]) => xs.length =!= (n: Term[BigInt]))).refines(never)
     val knowledge = FrModel(if n < 0 then "PureTrue" else "PureFalse")(never, holdsIs, noDouble)
 
-final case class Bag(items: List[BigInt]) derives LeanType
-final case class Sack(items: List[BigInt]) derives LeanType
+final case class Bag(items: List[BigInt]) derives RocqType
+final case class Sack(items: List[BigInt]) derives RocqType

@@ -9,7 +9,7 @@ import frflow.core.Nodes.*
 import frflow.core.term.Bound
 import frflow.core.term.language.{Stated, Sym}
 import frflow.core.ty.Ty
-import frflow.proof.lean.ast.LeanModule
+import frflow.proof.prover.ast.ProverModule
 import frflow.proof.obligation.Constant
 import frflow.proof.terms.TermTable
 
@@ -24,4 +24,4 @@ object Refuted:
   val found: Refutation = Refutation(Stated([T[_]] => (s: Sym[T]) =>
     s.lam(Bound[BigInt]("n", Lang.big))(n => s.lt(n, Lang(s).num(3)))), test, List(Constant(Value.Num(4), Lang.big)))
   val laid: Laid = Laid(resolved, Map.empty, Nil)
-  def modules: List[LeanModule] = laid.modules :+ RefutesModule.of(resolved, table, NodeId("small"), found)
+  def modules: List[ProverModule] = laid.modules :+ RefutesModule.of(resolved, table, NodeId("small"), found)

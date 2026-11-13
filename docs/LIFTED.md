@@ -66,7 +66,7 @@ claims where that proof is written.
 
 ## `FrSpec`: a type's spec and contract
 
-Every type a value of compiled code has must have an `FrSpec`. It is the type's `LeanType` (what the type is in the
+Every type a value of compiled code has must have an `FrSpec`. It is the type's `RocqType` (what the type is in the
 term language and in the prover) with its contract: the rule every value of the type meets.
 
 ```scala
@@ -77,7 +77,7 @@ object Order:
 ```
 
 - `derives FrSpec` (or `FrSpec.derived[T]`) gives a case class or an enum its spec with no contract, as
-  `derives LeanType` gives its `LeanType`. The standard types' specs are given (`Boolean`, `BigInt`, `String`,
+  `derives RocqType` gives its `RocqType`. The standard types' specs are given (`Boolean`, `BigInt`, `String`,
   `Unit`, and `List`, `Option`, `Set`, `Map`, pairs and `Either` of types that have one).
 - An id has a type of its own: `opaque type PaymentId = String` with
   `object PaymentId extends FrSpec.Opaque[PaymentId, String]`, both at the top level of one file. The companion

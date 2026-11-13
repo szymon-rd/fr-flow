@@ -7,7 +7,7 @@ import frflow.core.analysis.outside.Scope
 import frflow.core.code.Code
 import frflow.core.expr.Expr
 import frflow.core.graph.Walk
-import frflow.core.name.{DefName, LeanNames, NodeId, SymbolName}
+import frflow.core.name.{DefName, ProverNames, NodeId, SymbolName}
 import frflow.core.spec.{NodeKind, Range, Written}
 import frflow.core.term.interpret.Guard
 import frflow.core.ty.Ty
@@ -37,7 +37,7 @@ object Made:
     (guards.toMap.get(n), r.theory.node(n).flatMap(_.statement.range)).tupled.toList.flatMap {
       case (kept, Range.Made(ty)) => CallingCode.of(r.theory).flatMap(c => c.calls.zipWithIndex.collect {
           case (tys, i) if tys.exists(Guards.applies(r.theory, ty, _)) =>
-            val at = LeanNames.call(c.code, i)
+            val at = ProverNames.call(c.code, i)
             val hyps = Hyp.withoutGiven(r.theory.refinement, r.reliedOnBy(c.definition))
             Obligation(ObligationName.Made(at), Prop.over(Nil, Prop.Implies(Hyp.parts(hyps) ++
               madeBy(r, n, (kept, guards.map(_._2)), c.definition), Prop.Makes(n, SymbolName(at),
@@ -77,7 +77,7 @@ object Made:
     val guards = Guards.byAlways(r.theory)
     guards.flatMap((rule, kept) => r.theory.node(rule).flatMap(_.statement.range).toList.flatMap {
       case Range.Made(ty) => defines(r, rule, ty).filter((op, _, _) => about(op) && !restsOn(r, rule, op, n))
-          .map((op, _, fn) => (rule, op, Hyp(LeanNames.madeTaken(rule, op),
+          .map((op, _, fn) => (rule, op, Hyp(ProverNames.madeTaken(rule, op),
             Prop.Makes(rule, op, Making.ofDefine(op, fn, kept, guards.map(_._2)), Map.empty))))
       case _              => Nil
     })
@@ -111,7 +111,7 @@ object Made:
     val called = Callees.ofDefinition(r.theory, op).toList.flatMap(_.calls.symbols).toSet - op
     val ty = r.theory.node(n).flatMap(_.statement.range).collect { case Range.Made(t) => t }
     ty.toList.flatMap(defines(r, n, _)).filter((callee, _, _) => called(callee)).map((callee, _, fn) =>
-      Hyp(LeanNames.madeByCallee(callee), Prop.Makes(n, callee, Making.ofDefine(callee, fn, g._1, g._2), Map.empty)))
+      Hyp(ProverNames.madeByCallee(callee), Prop.Makes(n, callee, Making.ofDefine(callee, fn, g._1, g._2), Map.empty)))
 
   private type Guarding = (Guard, List[Guard])
   private def makes(n: NodeId, op: SymbolName, code: DefName, f: Written[Expr]): Prop.Makes =

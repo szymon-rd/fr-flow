@@ -7,7 +7,7 @@ import frflow.eval.EvalError
 
 /** Why a statement or an example has no Scala value at all, whatever the values it is given: it quantifies over a
   * type, or reads a Declaration, or a value provided where the code runs that nothing gives it. It is checked in
-  * Lean only; any other `EvalError` is a fault of the code or of its wiring.
+  * Rocq only; any other `EvalError` is a fault of the code or of its wiring.
   */
 object NoValue:
   def of(t: Theory, e: EvalError): Boolean = e match

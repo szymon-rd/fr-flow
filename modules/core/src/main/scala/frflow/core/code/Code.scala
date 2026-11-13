@@ -13,7 +13,7 @@ enum Code:
   case Valued(value: Value)
   case Provided
 
-  /** The define Lean proves, if any. */
+  /** The define Rocq proves, if any. */
   def proven: Option[DefName] = this match
     case Proven(d) => Some(d)
     case _         => None

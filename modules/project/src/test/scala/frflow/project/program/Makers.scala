@@ -2,7 +2,7 @@ package frflow.project.program
 
 import frflow.*
 
-final case class Box(items: List[BigInt]) derives LeanType
+final case class Box(items: List[BigInt]) derives RocqType
 
 /** A step over what makers make (`top`, from `holdsIs` and `outerAdds`), `outer` the maker its parts are about: the
   * maker breaking the rule `noDups` itself (`Direct`) or through `inner`, which it calls (`Indirect`).

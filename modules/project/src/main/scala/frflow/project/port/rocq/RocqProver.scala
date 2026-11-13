@@ -8,7 +8,7 @@ import fs2.io.process.Processes
 import frflow.decision.content.Sha
 import frflow.project.port.Prover
 import frflow.project.process.{Command, Exited}
-import frflow.proof.lean.ast.ModuleName
+import frflow.proof.prover.ast.ModuleName
 import frflow.proof.reading.{RocqReport, RocqSource}
 import frflow.proof.rocq.RocqProject
 import frflow.proof.verdict.ProverRun

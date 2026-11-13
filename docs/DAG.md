@@ -21,7 +21,7 @@ and in them.
    not one part per conjunct.
 4. **Domain-driven.** The roots speak in the most general terms; nodes below introduce the domain's concepts as they
    are needed. Each value has one meaning, written in words (`means`), and is given its meaning once.
-5. **Proofs are central.** Every step is a Lean theorem; the code at the leaves is proven where it is written in the
+5. **Proofs are central.** Every step is a Rocq theorem; the code at the leaves is proven where it is written in the
    DSL, and tested where it is plain Scala; what is trusted is a named, visible list of assumptions. Nothing is
    checked when the code runs (§2): FrFlow is for testing before production and strict static guarantees.
    A departure: a class of plain Scala (`lifted[Class]`) is proven too, as the terms compiled from it
@@ -60,17 +60,17 @@ Three kinds of nodes, two kinds of values, two quantifiers (§15); nothing else,
 
 ## 1. Vocabulary
 
-- A domain type is a case class or an enum deriving `LeanType`: a Lean `structure` or `inductive`. One deriving
-  `FrSpec` instead is the same, with a contract a node may state, and can be a value of lifted code.
+- A domain type is a case class or an enum deriving `RocqType`: a `Record` or an `Inductive` in Rocq. One deriving
+  `FrSpec` instead is the same, with a contract a node may state, and can be a value of a class that is compiled.
 - A word gets its meaning once: from a Definition of it listed in the FrModel (`d.define`, `d.defineTested`,
-  `d.defineValue`, `d.provided`), or on the spot (`define`, `lifted`).
+  `d.defineValue`, `d.provided`), or on the spot (`define`).
   `check` refuses one defined twice, and code that reaches a word only statements read.
 - Names come from the `val`s: a node's id is its val's name, a Definition's and a Declaration's too. Renaming a val
   renames the node: a new node to decide (`.replaces(old)` links them).
 
 ## 1b. Proven, tested, assumed
 
-- **Proven**: a `define`, lifted code, or a class read for a structure, of which the prover proves the claims
+- **Proven**: a `define`, or a class read for a structure, of which the prover proves the claims
   mentioning it.
 - **Tested**: plain Scala, tested against the claims mentioning it on generated cases (each argument drawn meeting
   the rules on its type).
@@ -94,11 +94,11 @@ What proven code hands to plain Scala meets the rules on its type (`made_<code>_
   implementation, or a design).
 - At least one root, never an assumption; no cycle over parts and premises; edges inside the model.
 
-## 3. Lean obligations
+## 3. Rocq obligations
 
-What Lean is asked of each node is a function of the resolved theory (`proof.audit.Obligations`). Generated Lean
-is under `lean/FrFlowGen/<Model>/` (a module per node, its `Spec` and its `Checks`, and the domain);
-developers' proofs under `lean/Proofs/<Model>/`.
+What Rocq is asked of each node is a function of the resolved theory (`proof.audit.Obligations`). The generated modules
+are under `rocq/FrFlowGen/<Model>/` (a module per node, its `Spec` and its `Checks`, and the domain);
+developers' proofs under `rocq/Proofs/<Model>/`.
 
 | Obligation | Asked of |
 |---|---|
@@ -112,7 +112,7 @@ developers' proofs under `lean/Proofs/<Model>/`.
 | `example_<set>_<i>` | §3b |
 
 The tries (`vacuous`, `restates`, `clash`, `unsat`, `idle`) are refuters, reported as shown or not shown. A
-step refuted carries the case Lean confirms. A rule is kept only as every rule its obligations take is: a statement is
+step refuted carries the case Rocq confirms. A rule is kept only as every rule its obligations take is: a statement is
 open while a rule it takes is open, for any reason (its `made_`, its tests, nothing meeting it).
 
 ## 3a. Consistency and vacuity
@@ -131,8 +131,8 @@ open while a rule it takes is open, for any reason (its `made_`, its tests, noth
 ## 3b. Examples written as tests
 
 Examples are ordinary tests (`class GrantedExamples extends FrFlowExamples(rooms)`, `example(name): fact`), read by
-`check`, evaluated against the code and in Lean against the claims (`example_<set>_<i>`, the `i`th of its class). Nothing depends on them (§18): the
-theory and its Lean are the same without them. An example whose values break a rule on their type is refused.
+`check`, evaluated against the code and in Rocq against the claims (`example_<set>_<i>`, the `i`th of its class). Nothing depends on them (§18): the
+theory and its Rocq are the same without them. An example whose values break a rule on their type is refused.
 
 ## 4. Snapshot (`.frflow/kb.json`), per node
 
@@ -142,7 +142,7 @@ An export for tools, in decision order; FrFlow never reads it back.
   binds.
 - `place`: `parents`, `parts`, `assumes`, `relies` (the claims about what its code calls), `keptBy` (the programs
   keeping a rule).
-- `check`: `status`, `holds`, and its `obligations`, each with its name, status and Lean's detail.
+- `check`: `status`, `holds`, and its `obligations`, each with its name, status and Rocq's detail.
 - `body`: for a claim or an assumption (`stated`), how it is checked, the call it reads as, its code and its tests
   (cases, against what, seed); for a design, the files it `governs`.
 - Top level: `kb`, `roots`, `trusted` (what the roots rest on), the vocabulary (each value and what it means),
@@ -161,12 +161,12 @@ A node's content is its fields as decided: `kind`, `parents`, `parts` (a claim's
   parts, so a new sibling reviews the parent only, and a change above a diamond moves the shared node once. `code`:
   the code it governs. `revisit`: the developer asked. `merged`: two decisions following the same one (two
   branches).
-- **Review follows meaning.** Rewording a node with what Lean reads unchanged reviews that node and not what rests
+- **Review follows meaning.** Rewording a node with what Rocq reads unchanged reviews that node and not what rests
   on it. Any change of meaning cascades.
 - **Accepting** a node whose own content did not change is a `confirm`: the reason it was chosen stays. Accepting a
   change acts on what rests on it, each once, parents first; those named with `--revisit` are revisited, those that
   moved only with it confirmed.
-- **Mechanical**: a node under review whose own content did not change, that Lean proves again, its examples
+- **Mechanical**: a node under review whose own content did not change, that Rocq proves again, its examples
   passing. The mechanical batch is one decision (`confirm`).
 - **Order.** A node waits for the first node it rests on that is not accepted: a parent, a premise, a value it uses.
 - **Alternatives** are `replaces`; accepting one rejects the other.
@@ -183,10 +183,10 @@ A node's content is its fields as decided: `kind`, `parents`, `parts` (a claim's
 ## 6. Reading a node, and where a change belongs
 
 `show --full NODE` gives what bears on a node: its statement and formula, why it was accepted, how it is checked,
-where it sits, its parts and the rules it uses, what moved, and its obligations in Lean. `find` names the nodes that
+where it sits, its parts and the rules it uses, what moved, and its obligations in Rocq. `find` names the nodes that
 govern a file, or mention some words. A new statement belongs under the lowest nodes it helps prove, as a part; never
 as a restatement. A rejection's reason that asks for something is answered by a node in its place. `scaffold` writes
-proof stubs for what the last check left open; `check` prints the goal Lean leaves when automation gives up.
+proof stubs for what the last check left open; `check` prints the goal Rocq leaves when automation gives up.
 
 The developer's flow is in the CLI. The `web` module serves it in a browser (the sbt task
 `sbt "PROJECT/serve --as NAME"`, not a CLI command) over the same API, so a decision is recorded alike from either.

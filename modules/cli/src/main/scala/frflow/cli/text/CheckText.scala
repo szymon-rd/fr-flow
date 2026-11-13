@@ -1,7 +1,7 @@
 package frflow.cli.text
 
 import frflow.api.node.NodeView
-import frflow.api.node.lean.{CheckState, ObligationState}
+import frflow.api.node.proving.{CheckState, ObligationState}
 import frflow.api.node.tests.TestOutcome
 import frflow.api.view.View
 import frflow.cli.say.{Findings, Tested, Unprovens}

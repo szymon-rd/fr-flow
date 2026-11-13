@@ -5,7 +5,7 @@ import frflow.core.name.NodeId
 import frflow.project.Projects
 
 /** A node's decided form (`Contents.of`): each field once, in the one order; what its code is and, for a store
-  * behaving as its model, the model as Lean is given it.
+  * behaving as its model, the model as Rocq is given it.
   */
 class ContentsSuite extends munit.FunSuite:
   // Two examples analysed and lowered: beside the other suites, some seconds.
@@ -25,7 +25,7 @@ class ContentsSuite extends munit.FunSuite:
     }
   }
 
-  test("a formula is what it means, as Lean is given it; what the developer wrote is shown beside it") {
+  test("a formula is what it means, as Rocq is given it; what the developer wrote is shown beside it") {
     val c = Contents.of(lowered(Projects.rooms), NodeId("answerWhenNoOverlap"))
     assert(c.text("written").contains("bookings.book(request).result"), c.text("written"))
     assert(c.text("formula").startsWith("(∀ (x : Bookings), (∀ (x_1 : Booking),") &&

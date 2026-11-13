@@ -9,7 +9,7 @@ import frflow.core.ty.Ty
 final case class Selector[R, F](name: String, index: Int, record: TypeName, ty: Ty, get: R => F, set: (R, F) => R)
 
 object Selector:
-  /** A tuple, as Lean nests it (`Prod`): its components are fields `1` and `2`, the `i`-th of more `p.2.1`. */
+  /** A tuple, nested to the right: its components are fields `1` and `2`, the `i`-th of more `p.2.1`. */
   val pair: TypeName = TypeName("Prod")
 
   def first[A, B](ty: Ty): Selector[(A, B), A] = Selector("1", 0, pair, ty, _._1, (p, a) => (a, p._2))

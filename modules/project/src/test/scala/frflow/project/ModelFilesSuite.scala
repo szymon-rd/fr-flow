@@ -14,7 +14,7 @@ class ModelFilesSuite extends munit.FunSuite:
 
   test("a file of vocabulary only is the model's own: domain types, their companions, values, objects of them") {
     val domain = "package rooms\n\nimport frflow.*\n\n/** A booking. */\nfinal case class Booking(room: String) " +
-      "derives LeanType\nobject Booking extends Data[Booking]\n\nval granted = Definition[Booking => Boolean](\"\")\n" +
+      "derives RocqType\nobject Booking extends Data[Booking]\n\nval granted = Definition[Booking => Boolean](\"\")\n" +
       "val free = define { (b: Term[Booking]) =>\n  true }\n"
     val inObject = "package sharing\n\nobject Mailer:\n  val send = Definition[Int => Boolean](\"\")\n"
     assert(ModelFiles.only(domain, vocabulary) && ModelFiles.only(inObject, vocabulary))

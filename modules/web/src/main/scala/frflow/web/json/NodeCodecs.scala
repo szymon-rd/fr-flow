@@ -1,7 +1,7 @@
 package frflow.web.json
 
 import frflow.api.node.*
-import frflow.api.node.lean.*
+import frflow.api.node.proving.*
 import frflow.api.node.tests.*
 import frflow.core.checking.Shown
 import frflow.core.example.Given

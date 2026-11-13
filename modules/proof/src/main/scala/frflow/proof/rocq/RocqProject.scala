@@ -1,18 +1,18 @@
 package frflow.proof.rocq
 
 import frflow.core.name.RelPath
-import frflow.proof.lean.ast.{Decl, LeanModule, ModuleName}
+import frflow.proof.prover.ast.{Decl, ProverModule, ModuleName}
 import frflow.proof.rocq.RocqNames.Scope
 
 /** The Rocq of a generated project: each module of the generated AST as a `.v` file. A module's imports are
   * exported, as Lean's are passed on. A module with a form Rocq is not printed from yet is left out, named with
   * the form (`unprinted`), and so is every module that imports one.
   */
-final class RocqProject(modules: List[LeanModule]):
+final class RocqProject(modules: List[ProverModule]):
   private val names = RocqNames.of(modules.flatMap(m => RocqProject.declared(m.namespace.map(_.text), m.decls)))
   private val decl = RocqDecl(names)
 
-  private val texts: List[(LeanModule, Either[String, String])] = modules.map(m => m -> text(m))
+  private val texts: List[(ProverModule, Either[String, String])] = modules.map(m => m -> text(m))
 
   /** The modules not printed, each with why: the form, or the module it imports that is not printed. */
   val unprinted: Map[String, String] =
@@ -29,7 +29,7 @@ final class RocqProject(modules: List[LeanModule]):
   val files: List[(String, String)] =
     val printed = texts.collect { case (m, Right(text)) if !unprinted.contains(m.name.dotted) => m -> text }
     val byName = printed.map((m, text) => m.name.dotted -> (m, text)).toMap
-    def after(done: List[String], m: LeanModule): List[String] =
+    def after(done: List[String], m: ProverModule): List[String] =
       if done.contains(m.name.dotted) then done
       else m.imports.flatMap(i => byName.get(i.dotted)).map(_._1).foldLeft(done)(after) :+ m.name.dotted
     printed.map(_._1).foldLeft(List.empty[String])(after).map(n => RocqProject.file(byName(n)._1.name) -> byName(n)._2)
@@ -39,7 +39,7 @@ final class RocqProject(modules: List[LeanModule]):
 
   private lazy val byFile: Map[String, String] = files.toMap
 
-  private def text(m: LeanModule): Either[String, String] =
+  private def text(m: ProverModule): Either[String, String] =
     given Scope = Scope(m.namespace.map(_.text), m.opens.map(_.map(_.text)), Set.empty)
     try
       val body = (decl.fields(m.decls) :: m.decls.map(decl(_))).filter(_.nonEmpty).mkString("\n\n")

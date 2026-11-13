@@ -5,7 +5,7 @@ import frflow.core.term.language.Body
 import frflow.core.ty.Ty
 
 /** What a model names: a Declaration or Definition (applied with `app`), and a named
-  * definition (printed once as a Lean `def` and called by name, run by its body).
+  * definition (printed once as a definition of the prover's and called by name, run by its body).
   */
 trait Named[T[_]]:
   def param[A](name: SymbolName, ty: Ty): T[A]

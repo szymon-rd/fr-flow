@@ -3,14 +3,14 @@ package frflow.proof.audit
 import frflow.core.analysis.outside.{Premises, Reads}
 import frflow.core.analysis.resolution.Resolved
 import frflow.core.graph.Walk
-import frflow.core.name.{LeanNames, NodeId, SymbolName}
+import frflow.core.name.{ProverNames, NodeId, SymbolName}
 import frflow.core.spec.{NodeKind, Range}
 import frflow.proof.obligation.{NodeObligations, ObligationName, Required}
 import frflow.proof.obligation.ObligationName.*
 import frflow.proof.obligation.tried.Tries
 import frflow.proof.terms.{CallingCode, TermTable}
 
-/** What Lean is asked of each node (docs/DAG.md §3): a function of the resolved theory and of the obligations the
+/** What Rocq is asked of each node (docs/DAG.md §3): a function of the resolved theory and of the obligations the
   * proof files prove. What is asked of the theory as a whole is `Joint`'s and `ExampleGoals`'.
   */
 object Obligations:
@@ -51,7 +51,7 @@ object Obligations:
   private def made(r: Resolved, maker: String): List[NodeId] =
     val t = r.theory
     val calling = if maker.contains("_call_") then CallingCode.of(t).find(c =>
-      c.calls.indices.exists(LeanNames.call(c.code, _) == maker)) else None
+      c.calls.indices.exists(ProverNames.call(c.code, _) == maker)) else None
     calling.fold(Reads.coverTaken(t, SymbolName(maker))) { c =>
       val values = t.nodes.map(_.node).filter(x => x.statement.rule && x.statement.range.exists {
         case Range.Made(_) => true

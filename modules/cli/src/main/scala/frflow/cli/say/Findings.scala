@@ -1,6 +1,6 @@
 package frflow.cli.say
 
-import frflow.api.node.lean.{CheckState, FindingView, Forbidden, Message, ObligationState, TryView}
+import frflow.api.node.proving.{CheckState, FindingView, Forbidden, Message, ObligationState, TryView}
 
 /** What Rocq found, in words: a check's state, an obligation's, why a check ended where it did, and what a try
   * showed.

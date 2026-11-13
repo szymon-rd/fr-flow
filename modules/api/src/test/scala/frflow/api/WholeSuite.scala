@@ -1,7 +1,7 @@
 package frflow.api
 
 import frflow.api.fixture.{Opened, Shelf}
-import frflow.api.node.lean.{ObligationState, ObligationView}
+import frflow.api.node.proving.{ObligationState, ObligationView}
 import frflow.api.view.whole.{ExampleOutcome, ExampleView, OnClaims}
 import frflow.eval.run.OnCode
 
@@ -41,13 +41,13 @@ class WholeSuite extends munit.CatsEffectSuite:
 
   test("an example shown both ways says the claims are inconsistent there, and fails; a fact only about " +
     "Declarations the claims give passes; one that also sets values, which nothing checks, is not decided") {
-    def lean(state: ObligationState) = ObligationView("t", state, Nil)
-    val both = ExampleView("both", OnClaims.Rocq(lean(ObligationState.Shown), lean(ObligationState.Shown)),
+    def rocq(state: ObligationState) = ObligationView("t", state, Nil)
+    val both = ExampleView("both", OnClaims.Rocq(rocq(ObligationState.Shown), rocq(ObligationState.Shown)),
       OnCode.Holds)
-    val abstractShown = ExampleView("only Declarations", OnClaims.Rocq(lean(ObligationState.Shown),
-      lean(ObligationState.NotShown)), OnCode.Abstract(Nil))
-    val abstractOpen = abstractShown.copy(onClaims = OnClaims.Rocq(lean(ObligationState.NotShown),
-      lean(ObligationState.NotShown)))
+    val abstractShown = ExampleView("only Declarations", OnClaims.Rocq(rocq(ObligationState.Shown),
+      rocq(ObligationState.NotShown)), OnCode.Abstract(Nil))
+    val abstractOpen = abstractShown.copy(onClaims = OnClaims.Rocq(rocq(ObligationState.NotShown),
+      rocq(ObligationState.NotShown)))
     assert(both.onClaims.inconsistent && !abstractShown.onClaims.inconsistent)
     val abstractGiven = abstractShown.copy(onClaims = OnClaims.ScalaOnly)
     val valued = abstractGiven.copy(onCode = OnCode.Holds)

@@ -18,10 +18,10 @@ object Constrained:
     case _                               => false
   }
 
-  /** A value only plain code reads (a connection): it has no Lean type, so no statement can mention it. */
+  /** A value only plain code reads (a connection): it has no Rocq type, so no statement can mention it. */
   def isCodeOnly(t: Theory, s: SymbolName): Boolean = codeOnlyType(t, s).nonEmpty
 
-  /** The Scala type of a value only plain code reads, which has no Lean type. */
+  /** The Scala type of a value only plain code reads, which has no Rocq type. */
   def codeOnlyType(t: Theory, s: SymbolName): Option[String] = t.vocabulary.symbol(s).map(_.ty).collect {
     case SymbolType.CodeOnly(scala) => scala
   }

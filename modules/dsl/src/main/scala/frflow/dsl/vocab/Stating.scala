@@ -1,7 +1,7 @@
 package frflow.dsl.vocab
 
 import frflow.core.name.SymbolName
-import frflow.dsl.term.{LeanType, Term}
+import frflow.dsl.term.{RocqType, Term}
 import scala.annotation.implicitNotFound
 
 /** That a statement is being written: inside `Node.claim`, `Node.assumption` or an example, and in the body of a
@@ -13,20 +13,20 @@ import scala.annotation.implicitNotFound
 @implicitNotFound("FrFlow: this is said only in a statement (Node.claim, Node.assumption, an example, a stated " +
   "define)")
 final class Stating private (val closing: Boolean, val fixed: Set[SymbolName],
-    states: Map[SymbolName, Term[?]] = Map.empty, told: (SymbolName, LeanType[?]) => Unit = (_, _) => (),
+    states: Map[SymbolName, Term[?]] = Map.empty, told: (SymbolName, RocqType[?]) => Unit = (_, _) => (),
     val holds: Map[SymbolName, Set[SymbolName]] = Map.empty):
   /** A structure as it stands, as the statement reads it (`limits.authorise(p)`, `limits.current`): the variable the
     * statement binds it to, so a claim holds of the structure in every state (`Standing.closing`); where none is
     * bound (an example's fact), the structure's own word, a value the example gives.
     */
   def standing[T](structure: Declaration[T]): Term[T] =
-    told(structure.name, structure.leanType)
+    told(structure.name, structure.rocqType)
     states.get(structure.name).fold(structure.word: Term[T])(_.asInstanceOf[Term[T]])
   /** The same statement, each structure read as the variable `bound` gives it. */
   private[dsl] def holding(bound: Map[SymbolName, Term[?]]): Stating =
     Stating(closing, fixed, bound, told, holds)
   /** The same statement, `heard` told each structure it reads as it stands. */
-  private[dsl] def asking(heard: (SymbolName, LeanType[?]) => Unit): Stating =
+  private[dsl] def asking(heard: (SymbolName, RocqType[?]) => Unit): Stating =
     Stating(closing, fixed, states, heard, holds)
 
 object Stating:

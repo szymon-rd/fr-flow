@@ -19,7 +19,7 @@ import scala.collection.mutable.ListBuffer
   *     granted(RoomBookings(List(Booking("Oak", 9, 10))), Booking("Oak", 10, 11)) is true
   * }}}
   * Each `example` registers one as the class is built, as a test suite registers its tests; FrFlow reads them beside
-  * the FrModel, checks each against the code and, where it sets no value, against the claims in Lean. They
+  * the FrModel, checks each against the code and, where it sets no value, against the claims in Rocq. They
   * show how things work; nothing in the FrModel depends on them.
   */
 abstract class FrFlowExamples(val knowledge: FrModel):
@@ -37,7 +37,7 @@ abstract class FrFlowExamples(val knowledge: FrModel):
 
   /** The examples, in the order written. */
   def examples: List[Example] = written.toList
-  /** The set's name, as each example's obligation is named (`example_<set>_<i>`): the class's, as a Lean identifier
+  /** The set's name, as each example's obligation is named (`example_<set>_<i>`): the class's, as a Rocq identifier
     * (`FrFlowExamples.identifier`).
     */
   def setName: String = FrFlowExamples.identifier(getClass.getSimpleName.stripSuffix("$"), getClass.getName)
@@ -45,7 +45,7 @@ abstract class FrFlowExamples(val knowledge: FrModel):
     examples.zipWithIndex.traverse((e, i) => e.elaborated(setName, i)).run.map(_._2)
 
 object FrFlowExamples:
-  /** A class's simple name as a Lean identifier: as it is when it is ASCII letters and digits starting with a letter;
+  /** A class's simple name as a Rocq identifier: as it is when it is ASCII letters and digits starting with a letter;
     * else what of it is (or `Examples`) and a hash of the class's full name, so names that differ only in what is
     * dropped stay apart.
     */

@@ -11,11 +11,11 @@ enum Finding:
   case ProofNotAllowed(what: List[(Int, NotAllowed)])
   case LemmasDoNotBuild(errors: List[Diagnostic])
   case NotProven(errors: List[Diagnostic])
-  /** A try Lean proved that shows nothing the node says can hold (`clash`, `unsat`). */
+  /** A try Rocq proved that shows nothing the node says can hold (`clash`, `unsat`). */
   case Refuted(tries: List[TryKind])
   /** Axioms a proof rests on beyond `ProofRules.AllowedAxioms`. */
   case DisallowedAxioms(axioms: List[String])
-  /** A step not proven, refuted on a case Lean proves it false at (`layout.RefutesModule`): the claim's inputs, each
+  /** A step not proven, refuted on a case Rocq proves it false at (`layout.RefutesModule`): the claim's inputs, each
     * named, given an answer its one part allows.
     */
   case StepRefuted(inputs: List[(String, Value)])

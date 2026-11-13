@@ -14,23 +14,23 @@ import frflow.dsl.build.{Declarations, Declared, Source}
 trait Data[T]:
   transparent inline def apply(inline args: Term[?]*): Term[?] = ${ CaseMacros.make[T]('args) }
 
-/** What `DataMacros` derives a domain type's `LeanType` from: its declaration, how Scala builds and takes apart its
+/** What `DataMacros` derives a domain type's `RocqType` from: its declaration, how Scala builds and takes apart its
   * values (`DataRep`), and its fields' selectors (a record's) or its cases (a sum's).
   */
 object Data:
-  /** A sum's case as derived: its name, its fields' names and `LeanType`s, its maker from the fields' values. */
-  type Alt[T] = (String, List[(String, LeanType[?])], List[Any] => T)
+  /** A sum's case as derived: its name, its fields' names and `RocqType`s, its maker from the fields' values. */
+  type Alt[T] = (String, List[(String, RocqType[?])], List[Any] => T)
 
-  def product[T](named: (String, Option[String]), fields: List[LeanType.Field[T, ?]], make: List[Any] => T)
-      : LeanType[T] =
+  def product[T](named: (String, Option[String]), fields: List[RocqType.Field[T, ?]], make: List[Any] => T)
+      : RocqType[T] =
     val (scalaName, at) = named
     val name = TypeName(scalaName.split('.').last)
     val data = DataType.Product(name, scalaName, fields.map(f => Field(f.selector.name, f.selector.ty)))
     val rep = DataRep((_, args) => make(args), a => (CtorName("mk"), parts(a)))
-    declared(Declared(data, rep), at, fields.map(_.leanType), fields)
+    declared(Declared(data, rep), at, fields.map(_.rocqType), fields)
 
   /** A sum: its cases, and the case a value is (`ordinal`, by the sum's `Mirror`). */
-  def sum[T](named: (String, Option[String]), cases: NonEmptyList[Alt[T]], ordinal: Any => Int): LeanType[T] =
+  def sum[T](named: (String, Option[String]), cases: NonEmptyList[Alt[T]], ordinal: Any => Int): RocqType[T] =
     val (scalaName, at) = named
     val name = TypeName(scalaName.split('.').last)
     val ctors = cases.map((c, fs, _) => Ctor(CtorName(c), fs.map((n, t) => Field(n, t.ty))))
@@ -38,29 +38,29 @@ object Data:
     val rep = DataRep((c, args) => makers(c)(args), a => (ctors.toList(ordinal(a)).name, parts(a)))
     declared(Declared(DataType.Sum(name, scalaName, ctors), rep), at, cases.toList.flatMap(_._2.map(_._2)), Nil)
 
-  /** A case of a sum as an arm's variable has it: a value of the sum in Lean, its own fields in Scala. */
-  def caseType[S, C](sum: LeanType[S], caseFields: List[LeanType.Field[C, ?]]): LeanType[C] = new LeanType[C]:
+  /** A case of a sum as an arm's variable has it: a value of the sum in Rocq, its own fields in Scala. */
+  def caseType[S, C](sum: RocqType[S], caseFields: List[RocqType.Field[C, ?]]): RocqType[C] = new RocqType[C]:
     val ty: Ty = sum.ty
     val declares: Declarations = sum.declares
-    override val fields: List[LeanType.Field[C, ?]] = caseFields
+    override val fields: List[RocqType.Field[C, ?]] = caseFields
 
   /** Case `label` of sum `S`, told by `test`. */
-  def caseOf[S, C](sum: LeanType[S], label: String, fields: List[LeanType.Field[C, ?]], test: S => Option[C])
+  def caseOf[S, C](sum: RocqType[S], label: String, fields: List[RocqType.Field[C, ?]], test: S => Option[C])
       : Case[S, C] =
     val name = sum.ty match
       case Ty.Data(n) => n
       case other      => throw IllegalStateException(s"FrFlow bug: a case of $other, which is not a sum")
     Case(name, CtorName(label), fields.map(f => f.selector.name -> f.selector.ty), test)
 
-  /** A type's `LeanType`, declaring it, its parts' types, and the file it is written in (`at`). */
-  private def declared[T](d: Declared, at: Option[String], parts: List[LeanType[?]], fs: List[LeanType.Field[T, ?]])
-      : LeanType[T] =
-    new LeanType[T]:
+  /** A type's `RocqType`, declaring it, its parts' types, and the file it is written in (`at`). */
+  private def declared[T](d: Declared, at: Option[String], parts: List[RocqType[?]], fs: List[RocqType.Field[T, ?]])
+      : RocqType[T] =
+    new RocqType[T]:
       val ty: Ty = Ty.Data(d.data.typeName)
       val declares: Declarations = Declarations.of(d) |+|
         Declarations.in(at.map(Source.path), d.data.typeName.value) |+|
         parts.foldMap(_.declares)
-      override val fields: List[LeanType.Field[T, ?]] = fs
+      override val fields: List[RocqType.Field[T, ?]] = fs
 
   private def parts(a: Any): List[Any] = a match
     case p: Product => p.productIterator.toList

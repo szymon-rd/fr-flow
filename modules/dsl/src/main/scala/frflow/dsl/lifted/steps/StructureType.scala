@@ -7,7 +7,7 @@ import frflow.core.term.Selector
 import frflow.core.ty.{DataType, Field, Ty}
 import frflow.dsl.build.{Declarations, Declared, Source}
 import frflow.dsl.lifted.FrSpec
-import frflow.dsl.term.LeanType
+import frflow.dsl.term.RocqType
 
 /** What a structure's type is to the term language: a record named as the structure's trait, whose fields are those of
   * the class that implements it. A statement about the structure needs the name only (`FrSpec.named`); the class
@@ -22,16 +22,16 @@ object StructureType:
   /** The record an implementation's state is: its constructor's fields. A value of it is a `Held`; an object of
     * the class is taken apart by reading its fields.
     */
-  def record[T](named: (String, String, Option[String]), parts: List[LeanType.Field[T, ?]]): FrSpec[T] =
+  def record[T](named: (String, String, Option[String]), parts: List[RocqType.Field[T, ?]]): FrSpec[T] =
     val (name, scalaName, at) = named
     val names = parts.map(_.selector.name)
     val data = DataType.Product(TypeName(name), scalaName, parts.map(f => Field(f.selector.name, f.selector.ty)))
     val declared = Declared(data, DataRep((_, args) => Held(name, args), a => (CtorName("mk"), fieldsOf(a, names))))
-    FrSpec.of(new LeanType[T]:
+    FrSpec.of(new RocqType[T]:
       val ty: Ty = Ty.Data(TypeName(name))
       val declares: Declarations = Declarations.of(declared) |+| Declarations.in(at.map(Source.path), name) |+|
-        parts.foldMap(_.leanType.declares)
-      override val fields: List[LeanType.Field[T, ?]] = parts)
+        parts.foldMap(_.rocqType.declares)
+      override val fields: List[RocqType.Field[T, ?]] = parts)
 
   /** A state's fields' values, in order: a held state's, or an object's, read by name. */
   def fieldsOf(state: Any, names: List[String]): List[Any] = state match
@@ -50,7 +50,7 @@ object StructureType:
     * among them that implements a structure held the same way. A value of a domain type that is no case class is
     * such an object.
     */
-  def held(spec: LeanType[?], structure: Any): Any =
+  def held(spec: RocqType[?], structure: Any): Any =
     def of(ty: Ty, a: Any): Any = (ty, a) match
       case (Ty.Data(n), made) if !made.isInstanceOf[Product] =>
         spec.declares.types.get(n).flatMap(_.headOption).fold(made)(d =>

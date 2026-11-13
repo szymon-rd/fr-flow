@@ -1,7 +1,7 @@
 package frflow.core.expr
 
 /** An operator of the term language, one per meaning: an operator on several containers (`Contains` of a list, an
-  * option or a set) is one, its operands' types telling which. Each has a Lean and a Scala meaning.
+  * option or a set) is one, its operands' types telling which. Each has a Rocq and a Scala meaning.
   */
 enum PrimOp:
   case Eq, Ne, And, Or, Not, Implies

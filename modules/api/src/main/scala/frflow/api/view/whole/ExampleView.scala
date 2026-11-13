@@ -1,6 +1,6 @@
 package frflow.api.view.whole
 
-import frflow.api.node.lean.ObligationState
+import frflow.api.node.proving.ObligationState
 import frflow.eval.run.OnCode
 
 /** An example as checked: against the claims (Rocq's outcome of `example_<set>_<i>` and of its opposite, or Scala

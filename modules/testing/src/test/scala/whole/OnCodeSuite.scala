@@ -20,7 +20,7 @@ class OnCodeSuite extends munit.FunSuite:
     }
   }
 
-  test("an example reading a provided value it does not give: no Scala value, it is checked in Lean only") {
+  test("an example reading a provided value it does not give: no Scala value, it is checked in Rocq only") {
     val open = new FrFlowExamples(auth.knowledge):
       example("no session is open"):
         auth.sessions is auth.Sessions(Nil)

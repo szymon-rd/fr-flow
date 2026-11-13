@@ -67,7 +67,7 @@ final class Local(ctx: IrContext):
   /** The fields of a record (a copy names a record's, never a case's). */
   private def record(n: TypeName): List[Ty] = data(n).fold(Nil)(_.fieldTypes)
 
-  /** A record's field, an enum's case's (the case's own record), or a pair's component (Lean's `Prod`, `p.1`). */
+  /** A record's field, an enum's case's (the case's own record), or a pair's component (a product's). */
   private def field(on: Ty, n: TypeName, i: Int, t: Ty): Boolean = on match
     case Ty.TupleOf(ts) => n == Selector.pair && ts.lift(i).contains(t)
     case _              => on == Ty.Data(n) && data(n).exists(d => d match

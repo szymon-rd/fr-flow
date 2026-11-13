@@ -1,7 +1,7 @@
 package frflow.proof.layout
 
 import frflow.core.name.{DefName, NodeId}
-import frflow.proof.lean.ast.{Decl, LeanModule, LeanName, ModuleName}
+import frflow.proof.prover.ast.{Decl, ProverModule, ProverName, ModuleName}
 
 /** A module's imports, read off what its declarations use (`Mentioned`): the domain's types always; a define's
   * module for each define it calls; a node's module for each of its declarations or theorems it names.
@@ -11,9 +11,9 @@ object Imports:
     (l.layout.types :: Mentioned.of(decls).flatMap(module(l, _))).distinct.filterNot(_ == self)
 
   /** The module, its imports read off its declarations. */
-  def onto(l: Lowering, m: LeanModule): LeanModule = m.copy(imports = of(l, m.decls, m.name))
+  def onto(l: Lowering, m: ProverModule): ProverModule = m.copy(imports = of(l, m.decls, m.name))
 
-  private def module(l: Lowering, path: List[LeanName]): Option[ModuleName] =
+  private def module(l: Lowering, path: List[ProverName]): Option[ModuleName] =
     val kb = l.kb.value
     path.map(_.text.stripPrefix("«").stripSuffix("»")) match
       case List(`kb`, d) if l.isDefine(d)                         => Some(l.layout.define(DefName(d)))

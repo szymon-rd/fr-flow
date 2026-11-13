@@ -1,7 +1,7 @@
 package frflow.cli.term
 
 import frflow.api.node.NodeView
-import frflow.api.node.lean.CheckState
+import frflow.api.node.proving.CheckState
 import frflow.api.node.tests.TestOutcome
 import frflow.decision.review.ReviewState
 

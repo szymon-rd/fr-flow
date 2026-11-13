@@ -1,7 +1,7 @@
 # The size budgets' known violations, which bin/budget.py admits (a change may add none). Since step 14 it counts
 # every parameter list of a def, as the scala-fp skill's measure.py does, not the first list only; these are the
 # functions it then finds over four parameters. Most are the term algebras' curried operations and their
-# interpreters (`core.term.algebra`, `core.term.interpret`, `proof.lean.term`, `eval.term`: an operation's operands,
+# interpreters (`core.term.algebra`, `core.term.interpret`, `proof.prover.term`, `eval.term`: an operation's operands,
 # then its binder's hints, then its bodies, one list each, as the algebra's laws state them) and the lowerings and
 # tests that pass a lowering's environment beside its operands. Bringing each to four is a refactoring of its
 # algebra or its callers, not done in step 14; remove a line once its function meets the budget.
@@ -42,16 +42,16 @@ params modules/eval/src/main/scala/frflow/eval/term/Evaluate.scala fails
 params modules/eval/src/main/scala/frflow/eval/term/Evaluate.scala runs
 params modules/eval/src/main/scala/frflow/eval/term/RunContainers.scala foldEither
 params modules/eval/src/main/scala/frflow/eval/term/RunLists.scala foldLeft
-params modules/proof/src/main/scala/frflow/proof/lean/lower/LowerModels.scala lemma
-params modules/proof/src/main/scala/frflow/proof/lean/lower/LowerProp.scala inner
-params modules/proof/src/main/scala/frflow/proof/lean/lower/LowerProp.scala named
-params modules/proof/src/main/scala/frflow/proof/lean/term/LeanTerm.scala fails
-params modules/proof/src/main/scala/frflow/proof/lean/term/LeanTerm.scala foldEither
-params modules/proof/src/main/scala/frflow/proof/lean/term/LeanTerm.scala foldLeft
-params modules/proof/src/main/scala/frflow/proof/lean/term/LeanTerm.scala holding
-params modules/proof/src/main/scala/frflow/proof/lean/term/LeanTerm.scala runs
-params modules/proof/src/main/scala/frflow/proof/lean/term/Printed.scala claim
-params modules/proof/src/main/scala/frflow/proof/lean/term/Printed.scala standing
+params modules/proof/src/main/scala/frflow/proof/prover/lower/LowerModels.scala lemma
+params modules/proof/src/main/scala/frflow/proof/prover/lower/LowerProp.scala inner
+params modules/proof/src/main/scala/frflow/proof/prover/lower/LowerProp.scala named
+params modules/proof/src/main/scala/frflow/proof/prover/term/ProverTerm.scala fails
+params modules/proof/src/main/scala/frflow/proof/prover/term/ProverTerm.scala foldEither
+params modules/proof/src/main/scala/frflow/proof/prover/term/ProverTerm.scala foldLeft
+params modules/proof/src/main/scala/frflow/proof/prover/term/ProverTerm.scala holding
+params modules/proof/src/main/scala/frflow/proof/prover/term/ProverTerm.scala runs
+params modules/proof/src/main/scala/frflow/proof/prover/term/Printed.scala claim
+params modules/proof/src/main/scala/frflow/proof/prover/term/Printed.scala standing
 params modules/proof/src/main/scala/frflow/proof/obligation/Required.scala covering
 params modules/proof/src/main/scala/frflow/proof/terms/CallSites.scala bound
 params modules/proof/src/main/scala/frflow/proof/terms/CallSites.scala each

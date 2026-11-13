@@ -12,7 +12,7 @@ import frflow.project.port.RunCode
 import frflow.project.port.{FrFlowError, Records}
 import frflow.project.port.memory.ScriptedProver
 import frflow.proof.layout.NodePart
-import frflow.proof.lean.ast.ModuleName
+import frflow.proof.prover.ast.ModuleName
 import frflow.proof.obligation.{ObligationName, TryKind}
 import frflow.proof.reading.RocqReport
 import frflow.proof.rocq.RocqProject

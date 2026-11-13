@@ -44,7 +44,7 @@ object Guards:
       Within(s, data, ty, at)(x, Set.empty).map(g => (v: T[A]) => g(v.asInstanceOf[T[Any]]))
 
   /** The rule at each `T` a value of a type holds, if it holds one (`reaches`): `∀ b ∈ xs`, a `match` on an option,
-    * an `Either` or an enum, a field or a pair's component (`p.1`). A guard is stated in Lean only, so Scala's
+    * an `Either` or an enum, a field or a pair's component (`p.1`). A guard is stated in Rocq only, so Scala's
     * getters and case tests are never run.
     */
   private final case class Within[T[_]](s: Sym[T], data: TypeName => Option[DataType], ty: Ty,
@@ -65,27 +65,27 @@ object Guards:
         case Ty.Data(n) if !seen(n) => data(n).flatMap(record(_, seen + n))
         case _                      => None
 
-    /** Each field of a record holding a `T`; of an enum, each case's, in Lean's `match` on it. */
+    /** Each field of a record holding a `T`; of an enum, each case's, in Rocq's `match` on it. */
     private def record(d: DataType, seen: Set[TypeName]): Option[G] =
       def holding(fs: List[Field]) = fs.exists(f => apply(f.ty, seen).isDefined)
       def fields(r: T[Any], fs: List[Field]) = fs.zipWithIndex.flatMap((f, i) => apply(f.ty, seen).map(_(
-        s.field(r, Selector[Any, Any](f.name, i, d.typeName, f.ty, _ => leanOnly, (_, _) => leanOnly)))))
+        s.field(r, Selector[Any, Any](f.name, i, d.typeName, f.ty, _ => proverOnly, (_, _) => proverOnly)))))
       d match
         case DataType.Product(_, _, fs) => Option.when(holding(fs))(r => fields(r, fs).reduceLeft(s.and))
         case DataType.Sum(n, _, cs)     => Option.when(cs.exists(c => holding(c.fields)))(v =>
             s.cases[Any, Boolean](v, cs.toList.map(c => When[T, Any, Any, Boolean](
-              Case(n, c.name, c.fields.map(f => f.name -> f.ty), _ => leanOnly), bound(Ty.Data(n)),
+              Case(n, c.name, c.fields.map(f => f.name -> f.ty), _ => proverOnly), bound(Ty.Data(n)),
               r => fields(r, c.fields).reduceLeftOption(s.and).getOrElse(s.bool(true)))), Ty.Bool))
 
     private def orTrue(g: Option[G]): G = g.getOrElse(_ => s.bool(true))
     private def all(gs: List[G]): Option[G] = Option.when(gs.nonEmpty)(v => gs.map(_(v)).reduceLeft(s.and))
     private def bound(a: Ty): Bound[Any] = Bound(hint(a), a)
 
-  /** Component `i` of a tuple of `n`, as Lean projects it from its nested pairs (`p.1`, `p.2.1`, `p.2.2`). */
+  /** Component `i` of a tuple of `n`, as it is projected from its nested pairs (`p.1`, `p.2.1`, `p.2.2`). */
   private def component(n: Int, i: Int, ty: Ty): Selector[Any, Any] =
     val path = List.fill(i)("2") ++ Option.when(i < n - 1)("1")
-    Selector[Any, Any](path.mkString("."), i, Selector.pair, ty, _ => leanOnly, (_, _) => leanOnly)
+    Selector[Any, Any](path.mkString("."), i, Selector.pair, ty, _ => proverOnly, (_, _) => proverOnly)
 
-  private def leanOnly: Nothing = throw IllegalStateException("FrFlow bug: a guard read in Scala (Made checks it)")
+  private def proverOnly: Nothing = throw IllegalStateException("FrFlow bug: a guard read in Scala (Made checks it)")
 
   private def hint(ty: Ty): String = Ty.names(ty).headOption.fold("x")(_.value.take(1).toLowerCase)

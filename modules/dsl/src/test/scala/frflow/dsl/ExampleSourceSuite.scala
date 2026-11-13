@@ -31,7 +31,7 @@ class ExampleSourceSuite extends munit.FunSuite:
     assert(FrFlowExamples.elaborated(List(One.Same(), Written())).isValid)
   }
 
-  test("a class's name with letters not ASCII is a Lean identifier with a hash of its full name, two kept apart") {
+  test("a class's name with letters not ASCII is a Rocq identifier with a hash of its full name, two kept apart") {
     assertEquals(FrFlowExamples.identifier("GrantedExamples", "rooms.GrantedExamples"), "GrantedExamples")
     val (one, two) = (FrFlowExamples.identifier("例", "a.例"), FrFlowExamples.identifier("例", "b.例"))
     assert(one.startsWith("Examples") && one != two && (one + two).forall(c => c.isLetterOrDigit && c < 128),

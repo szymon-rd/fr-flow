@@ -8,7 +8,7 @@ import frflow.core.analysis.resolution.{Constrained, Resolve, Valid}
 import frflow.core.code.Code
 import frflow.core.{Elaborated, Theory}
 import frflow.core.graph.{Edge, Walk}
-import frflow.core.name.{LeanNames, SymbolName}
+import frflow.core.name.{ProverNames, SymbolName}
 import frflow.core.spec.NodeKind
 
 /** The structure rules (docs/DAG.md §2) as one pure function: every problem at once, or the theory as `Valid`. */
@@ -64,9 +64,9 @@ object Validate:
     val names = v.sorts.map(_.name.value) ++ v.types.map(_.typeName.value) ++ v.symbols.map(_.name.value) ++
       v.defines.map(_.name.value) :+ t.name.value
     val (nodes, symbols) = (t.nodes.map(_.node.id).toSet, v.symbols.map(_.name).toSet)
-    val hypotheses = v.symbols.map(_.name.value).filter(LeanNames.hypothesisLike(_, nodes, symbols))
-    val modules = t.nodes.map(_.node.id.value).filter(n => LeanNames.Modules(n) || LeanNames.Keywords(n) ||
-      !LeanNames.plain(n))
+    val hypotheses = v.symbols.map(_.name.value).filter(ProverNames.hypothesisLike(_, nodes, symbols))
+    val modules = t.nodes.map(_.node.id.value).filter(n => ProverNames.Modules(n) || ProverNames.Keywords(n) ||
+      !ProverNames.plain(n))
     all((names.filter(Reserved.names) ++ hypotheses ++ modules).distinct.map(Problem.ReservedName(_)) ++
       names.diff(names.distinct).distinct.map(Problem.DeclaredTwice(_)) ++
       t.nodes.map(_.node.id).flatMap(id => Constrained.of(t, id).flatMap(s =>

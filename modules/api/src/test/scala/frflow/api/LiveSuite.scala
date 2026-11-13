@@ -2,7 +2,7 @@ package frflow.api
 
 import cats.effect.{IO, Resource}
 import frflow.api.fixture.Opened
-import frflow.api.node.lean.ObligationState
+import frflow.api.node.proving.ObligationState
 import frflow.api.view.{Stop, Warning}
 import frflow.core.consistency.Vacuity
 import frflow.project.Live

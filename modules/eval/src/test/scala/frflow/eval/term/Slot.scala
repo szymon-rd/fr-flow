@@ -3,9 +3,9 @@ package frflow.eval.term
 import frflow.*
 
 /** A record and an enum of the law suite's terms, and two defines over the record, as a model writes them. */
-final case class Slot(room: String, start: BigInt, end: BigInt) derives LeanType
+final case class Slot(room: String, start: BigInt, end: BigInt) derives RocqType
 
-enum Kind derives LeanType:
+enum Kind derives RocqType:
   case Room(name: String, size: BigInt)
   case Desk(n: BigInt)
   case Closed

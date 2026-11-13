@@ -10,7 +10,7 @@ enum Fault:
   case NotData(value: String)
   /** A field the record's type does not have (a selector the derivation did not make). */
   case NoField(name: String)
-  /** A value only plain code reads, its Scala type with no `LeanType`, spoken of in a statement (its field selected):
+  /** A value only plain code reads, its Scala type with no `RocqType`, spoken of in a statement (its field selected):
     * the type can derive one if a statement should speak of it.
     */
   case CodeOnlyInStatement(scalaType: String)

@@ -6,9 +6,9 @@ import frflow.core.spec.Form
 import frflow.core.term.interpret.{Guard, Guarded}
 import frflow.core.ty.DataType
 import frflow.core.vocab.Define
-import frflow.proof.lean.ast.*
-import frflow.proof.lean.lower.{Atoms, LowerEnv, LowerType}
-import frflow.proof.lean.term.Printed
+import frflow.proof.prover.ast.*
+import frflow.proof.prover.lower.{Atoms, LowerEnv, LowerType}
+import frflow.proof.prover.term.Printed
 
 /** The modules of the vocabulary: `Types` (the domain's types, each after those its fields name), a `Def_` module per
   * define (a change to one rebuilds only what uses it), and `Domain`, importing every define's.
@@ -16,20 +16,20 @@ import frflow.proof.lean.term.Printed
 object VocabularyModules:
   import Atoms.name
 
-  def of(r: frflow.core.analysis.resolution.Resolved): List[LeanModule] =
+  def of(r: frflow.core.analysis.resolution.Resolved): List[ProverModule] =
     of(Lowering(r, frflow.proof.terms.TermTable.of(r)))
 
-  def of(l: Lowering): List[LeanModule] =
+  def of(l: Lowering): List[ProverModule] =
     val v = l.resolved.theory.vocabulary
     (types(l) :: v.defines.map(define(l, _))) ++ v.defines.filter(d => l.ruleSide.twice(d.name))
       .map(guardedTwin(l, _)) :+ domain(l)
 
-  private def module(l: Lowering, name: ModuleName, decls: List[Decl]): LeanModule =
-    Imports.onto(l, LeanModule(name, Nil, Preamble.generated, Names.path(l.kb.value), Nil, decls))
+  private def module(l: Lowering, name: ModuleName, decls: List[Decl]): ProverModule =
+    Imports.onto(l, ProverModule(name, Nil, Preamble.generated, Names.path(l.kb.value), Nil, decls))
 
-  private def types(l: Lowering): LeanModule =
+  private def types(l: Lowering): ProverModule =
     val ordered = inOrder(l.resolved.theory.vocabulary.types, Nil)
-    LeanModule(l.layout.types, List(ModuleName(Names.path("FrFlow"))), Preamble.generated, Names.path(l.kb.value),
+    ProverModule(l.layout.types, List(ModuleName(Names.path("FrFlow"))), Preamble.generated, Names.path(l.kb.value),
       Nil, ordered.map(typeDecl))
 
   /** Each type after the types its fields name. */
@@ -44,18 +44,18 @@ object VocabularyModules:
     case DataType.Sum(n, _, cs)     => Decl.Inductive(Names.ident(n.value), cs.toList.map(c =>
       Names.ident(c.name.value) -> c.fields.map(f => LBinder.Explicit(Names.ident(f.name), LowerType(f.ty)))))
 
-  private def domain(l: Lowering): LeanModule =
+  private def domain(l: Lowering): ProverModule =
     val defines = l.resolved.theory.vocabulary.defines.map(d => l.layout.define(d.name)) ++
       l.ruleSide.twice.toList.sortBy(_.value).map(d => l.layout.define(LowerEnv.guarded(d)))
-    LeanModule(l.layout.domain, l.layout.types :: defines, Preamble.generated, Names.path(l.kb.value), Nil, Nil)
+    ProverModule(l.layout.domain, l.layout.types :: defines, Preamble.generated, Names.path(l.kb.value), Nil, Nil)
 
-  private def define(l: Lowering, d: Define): LeanModule =
+  private def define(l: Lowering, d: Define): ProverModule =
     module(l, l.layout.define(d.name), List(declared(l, d), Decl.MatchEqns))
 
   /** A define a rule calls, as statements call it (`RuleSide`): every value rule's guard on its `forall`s, and the
     * defines it calls as statements call them.
     */
-  private def guardedTwin(l: Lowering, d: Define): LeanModule = d.written.form match
+  private def guardedTwin(l: Lowering, d: Define): ProverModule = d.written.form match
     case Form.Term(t) =>
       val (bs, body) = Printed.define(l.env, l.naming)(d.lambda.params, Guarded.of(t.run, valueRules(l)))
       module(l, l.layout.define(LowerEnv.guarded(d.name)), List(Decl.Def(List(Attr.FrflowDefs),

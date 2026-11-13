@@ -1,6 +1,6 @@
 package frflow.api.node
 
-import frflow.api.node.lean.{CheckState, FindingView, ObligationView}
+import frflow.api.node.proving.{CheckState, FindingView, ObligationView}
 import frflow.decision.review.Unproven
 
 /** What is shown of a node by running things: Rocq's current check (its state, each obligation's outcome, why it

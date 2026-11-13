@@ -33,7 +33,7 @@ private[steps] trait StepPorts:
   def replaced(state: DTerm[Any], path: List[String], by: DTerm[Any]): DTerm[Any] = path match
     case Nil          => by
     case name :: rest =>
-      val field = state.leanType.fields.find(_.selector.name == name).getOrElse(
+      val field = state.rocqType.fields.find(_.selector.name == name).getOrElse(
         c.refuse(s"the state's part $name", Literal(UnitConstant())))
       DTerm.copy(state, field.selector.asInstanceOf[frflow.core.term.Selector[Any, Any]],
         replaced(part(state, List(name)), rest, by))

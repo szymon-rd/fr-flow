@@ -32,7 +32,7 @@ class RowsSuite extends munit.FunSuite:
     assertEquals(Rows.test(report), TestRow(500, "42", "claim Store", false))
   }
 
-  test("an obligation is named as Lean names it, with its status as written today") {
+  test("an obligation is named as Rocq names it, with its status as written today") {
     val r = Result(ObligationName.Tried(TryKind.Needed(NodeId("Free"))), ObligationStatus.NotShown, Nil)
     assertEquals(Rows.obligation(r, "theorem needed_Free : …"),
       ObligationRow("needed_Free", "not-shown", "theorem needed_Free : …"))

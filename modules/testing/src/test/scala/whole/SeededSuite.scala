@@ -3,12 +3,12 @@ package whole
 import frflow.core.consistency.{Consistency, Group}
 import frflow.core.name.{DefName, NodeId, SymbolName}
 import frflow.proof.layout.Lowering
-import frflow.proof.lean.term.Print
+import frflow.proof.prover.term.Print
 import frflow.proof.obligation.{ObligationName, Prop, Required, Substitute}
 import frflow.proof.terms.TermTable
 import frflow.proof.whole.Stands
 
-/** The step 12 review's seeded models, read before Lean: proven code reached only through other proven code stands
+/** The step 12 review's seeded models, read before Rocq: proven code reached only through other proven code stands
   * in a consistency statement (B1), so does a provided value it reaches, universal (RR1), and statements pinning one
   * provided value are in one group (S1).
   */

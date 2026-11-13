@@ -8,7 +8,7 @@ import frflow.decision.rules.Decide
 import Shelf.*
 
 /** What a node means apart from its words: its formula and model move what rests on it, its words alone do not, and
-  * its code counts as said until Lean proves it. Moving a node under another parent: a design's own meaning moves
+  * its code counts as said until Rocq proves it. Moving a node under another parent: a design's own meaning moves
   * (placing it is decided), a claim's does not.
   */
 class MeaningSuite extends munit.FunSuite:
@@ -26,7 +26,7 @@ class MeaningSuite extends munit.FunSuite:
     assertEquals(Meaning.own(placed("claim", "A")).hash, Meaning.own(placed("claim", "B")).hash)
   }
 
-  test("what a node says moved apart from its proven code: its implementation is left out once Lean proves it") {
+  test("what a node says moved apart from its proven code: its implementation is left out once Rocq proves it") {
     val coded = r.said("implementation", text("Shelf.find"))
     val d = Decision.taken(Action.Accept, by(1), Reason("it states the purpose", Nil), Reading(shelf, Ledger.empty)
       .bound(coded))

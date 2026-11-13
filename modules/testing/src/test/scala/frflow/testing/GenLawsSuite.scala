@@ -38,7 +38,7 @@ class GenLawsSuite extends munit.DisciplineSuite:
   }
 
   test("a run is a function of its seed: the same stream draws the same value, others others") {
-    val g = Gen.Derived[List[Shelf.Book]](frflow.LeanType[List[Shelf.Book]].ty)
+    val g = Gen.Derived[List[Shelf.Book]](frflow.RocqType[List[Shelf.Book]].ty)
     assertEquals(samples(g), samples(g))
     assert(samples(g).distinct.size > 12)
   }

@@ -7,7 +7,7 @@ import frflow.core.name.{NodeId, SymbolName}
 import frflow.core.vocab.ValueKind
 
 /** Auth's purpose over Declarations (owner §14, §15): `authorized` and its peers are abstract, known only through
-  * what refines them; each one's consistency witness is the equation that ties it to the domain. (The groups' Lean is
+  * what refines them; each one's consistency witness is the equation that ties it to the domain. (The groups' Rocq is
   * `proof`'s.)
   */
 class AuthSuite extends munit.FunSuite:

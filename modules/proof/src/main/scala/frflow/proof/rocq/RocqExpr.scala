@@ -1,6 +1,6 @@
 package frflow.proof.rocq
 
-import frflow.proof.lean.ast.{LBinder, LExpr, LOp, LPrefix}
+import frflow.proof.prover.ast.{LBinder, LExpr, LOp, LPrefix}
 import frflow.proof.rocq.RocqNames.Scope
 
 /** Rocq's text of a term of the generated AST. The lowering places the parentheses; what Rocq writes otherwise

@@ -2,7 +2,7 @@ package frflow.dsl.compiled.steps
 
 import frflow.dsl.lifted.steps.Among
 import frflow.dsl.structure.Call as MemberCall
-import frflow.dsl.term.LeanType
+import frflow.dsl.term.RocqType
 import frflow.dsl.term.Term as DTerm
 
 /** The calls a reading of Scala that changes a port follows (`Steps`): of a held structure's member (one step:
@@ -69,7 +69,7 @@ private[steps] trait StepCalls:
     val given_ = state :: arguments(call, Nil).zip(c.inputsOf(on, call.symbol)).map((a, p) =>
       c.read(a, p)(using walk.env))
     val did = MemberCall.applied[Any](c.wired(on).member(call.symbol.name), given_)(using
-      pair(c.spec(call.tpe.widen, call), state.leanType).asInstanceOf[LeanType[Any]])
+      pair(c.spec(call.tpe.widen, call), state.rocqType).asInstanceOf[RocqType[Any]])
     c.bind(did, "did")(d => traced(at, d.selectDynamic("_2").asInstanceOf[DTerm[Any]])(
       rest(d.selectDynamic("_1").asInstanceOf[DTerm[Any]], _)))(using walk.out)
 
@@ -91,7 +91,7 @@ private[steps] trait StepCalls:
     putAt(at, left) { after =>
       if !walk.interleaved then rest(after)
       else named("trace", Among.stepped[Any](walk.env(trace).asInstanceOf[DTerm[Among.Traces[Any]]], before,
-        after.whole)(using before.leanType).asInstanceOf[DTerm[Any]])(t => rest(after.bound(trace, t)))(using after)
+        after.whole)(using before.rocqType).asInstanceOf[DTerm[Any]])(t => rest(after.bound(trace, t)))(using after)
     }
 
   /** A call of a method of the developer's that uses a port: its body run where it is called, the port its

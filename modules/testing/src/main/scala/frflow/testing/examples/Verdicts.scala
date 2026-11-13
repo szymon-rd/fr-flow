@@ -19,6 +19,6 @@ object Verdicts:
           verdict(e.theory, _)))))
 
   private def verdict(t: Theory, onCode: OnCode): Verdict = onCode match
-    case OnCode.NotEvaluated(e) if NoValue.of(t, e) => Verdict.LeanOnly(onCode)
-    case OnCode.Abstract(_)                         => Verdict.LeanOnly(onCode)
+    case OnCode.NotEvaluated(e) if NoValue.of(t, e) => Verdict.ProverOnly(onCode)
+    case OnCode.Abstract(_)                         => Verdict.ProverOnly(onCode)
     case other                                      => Verdict.Ran(other)

@@ -3,7 +3,7 @@ package frflow.api
 import cats.syntax.all.*
 import frflow.api.fixture.Opened
 import frflow.api.fixture.Opened.id
-import frflow.api.node.lean.CheckState
+import frflow.api.node.proving.CheckState
 import frflow.api.view.{CheckEvent, Scaffolded, Stop}
 import frflow.core.name.RelPath
 
@@ -55,13 +55,13 @@ class ProvingSuite extends munit.CatsEffectSuite:
       assertEquals(again.collect { case CheckEvent.Done(checked, _) => checked }, List(List(nonNegative)))
   }
 
-  test("a check without Rocq stops with NoLean; of a node the model does not have, with UnknownNode") {
+  test("a check without Rocq stops with NoRocq; of a node the model does not have, with UnknownNode") {
     for
       absent  <- Opened.api(Opened.before, rocq = Rocq.Absent)
       api     <- Opened.api(Opened.before)
-      noLean  <- Opened.events(absent.proving.check(None)).attempt
+      noRocq  <- Opened.events(absent.proving.check(None)).attempt
       unknown <- Opened.events(api.proving.check(Some(id("dragons")))).attempt
-    yield assertEquals((noLean, unknown), (Left(Stop.NoRocq), Left(Stop.UnknownNode(id("dragons")))))
+    yield assertEquals((noRocq, unknown), (Left(Stop.NoRocq), Left(Stop.UnknownNode(id("dragons")))))
   }
 
   test("ci checks everything, writes the snapshot, and ends with the view") {

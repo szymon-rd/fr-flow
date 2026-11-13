@@ -1,6 +1,6 @@
 package frflow.proof.rocq
 
-import frflow.proof.lean.ast.{Attr, Decl, LBinder, LExpr, LeanName, Proof}
+import frflow.proof.prover.ast.{Attr, Decl, LBinder, LExpr, ProverName, Proof}
 import frflow.proof.rocq.RocqNames.Scope
 
 /** Rocq's text of a declaration of the generated AST. A namespace is its declarations, each named by its whole
@@ -27,12 +27,12 @@ private[rocq] final class RocqDecl(names: RocqNames):
     case t: Decl.Theorem                  => theorem(t, None)
     case other                            => throw RocqExpr.Unsupported(other.productPrefix)
 
-  private def named(n: LeanName)(using s: Scope): String = names.declaring(s.namespace :+ n.text)
+  private def named(n: ProverName)(using s: Scope): String = names.declaring(s.namespace :+ n.text)
   private def params(ps: List[LBinder])(using Scope): String =
     ps.foldLeft(("", summon[Scope])) { case ((text, s), p) =>
       (text + " " + expr.binder(p)(using s), expr.over(List(p))(using s)) }._1
 
-  private def hint(as: List[Attr], n: LeanName)(using Scope): String =
+  private def hint(as: List[Attr], n: ProverName)(using Scope): String =
     if as.contains(Attr.FrflowDefs) then s"\n#[global] Hint Unfold ${named(n)} : frflow_defs." else ""
 
   private def theorem(t: Decl.Theorem, budget: Option[Int])(using Scope): String =
@@ -48,7 +48,7 @@ private[rocq] final class RocqDecl(names: RocqNames):
   /** A record, its fields named by it (Rocq has one scope of field names), with, for each, what reads it off
     * any record that has a field of that name (`f_of`) and what replaces it (`with_f`).
     */
-  private def record(name: String, fs: List[(LeanName, LExpr)])(using Scope): String =
+  private def record(name: String, fs: List[(ProverName, LExpr)])(using Scope): String =
     val fields = fs.map((f, t) => (RocqNames.identifier(f.text), expr(t)))
     def own(f: String) = s"${name}_$f"
     val made = fields.map((f, _) => (g: String) => if g == f then "v" else s"(${own(g)} r)")
@@ -60,7 +60,7 @@ private[rocq] final class RocqDecl(names: RocqNames):
     (s"Record $name := ${name}_mk { ${fields.map((f, t) => s"${own(f)} : $t").mkString("; ")} }." :: instances)
       .mkString("\n")
 
-  private def inductive(n: LeanName, cs: List[(LeanName, List[LBinder])])(using Scope): String =
+  private def inductive(n: ProverName, cs: List[(ProverName, List[LBinder])])(using Scope): String =
     s"Inductive ${named(n)} : Type :=\n" + cs.map((c, bs) =>
       s"  | ${RocqNames.constructor(n.text, c.text)}${params(bs)}").mkString("\n") + "."
 

@@ -1,7 +1,7 @@
 package frflow.proof
 
 import frflow.core.name.NodeId
-import frflow.proof.lean.lower.LowerObligation
+import frflow.proof.prover.lower.LowerObligation
 import frflow.proof.obligation.{ObligationName, TryKind}
 import frflow.proof.reading.*
 

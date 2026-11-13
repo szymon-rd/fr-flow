@@ -3,7 +3,7 @@ package frflow.core.ty
 import cats.data.NonEmptyList
 import frflow.core.name.{CtorName, TypeName}
 
-/** A domain type: a case class (a Lean `structure`) or an enum (an `inductive`), as Scala and Lean name it. */
+/** A domain type: a case class (a `Record` in Rocq) or an enum (an `Inductive`), as Scala and Rocq name it. */
 enum DataType:
   case Product(name: TypeName, scalaName: String, fields: List[Field])
   case Sum(name: TypeName, scalaName: String, cases: NonEmptyList[Ctor])
@@ -26,5 +26,5 @@ enum DataType:
     case Product(_, _, fs) => fs.map(_.ty)
     case Sum(_, _, cs)     => cs.find(_.name == c).toList.flatMap(_.fields.map(_.ty))
 
-  /** The domain types its fields name: declared before it in Lean. */
+  /** The domain types its fields name: declared before it in Rocq. */
   def uses: List[TypeName] = fieldTypes.flatMap(Ty.names).distinct.filterNot(_ == typeName)

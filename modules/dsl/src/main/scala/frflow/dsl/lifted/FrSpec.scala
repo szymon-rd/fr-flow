@@ -3,7 +3,7 @@ package frflow.dsl.lifted
 import frflow.core.name.TypeName
 import frflow.core.ty.Ty
 import frflow.dsl.build.{AsWritten, Declarations, Source}
-import frflow.dsl.term.{LeanType, Term}
+import frflow.dsl.term.{RocqType, Term}
 import scala.annotation.implicitNotFound
 import scala.deriving.Mirror
 
@@ -12,7 +12,7 @@ import scala.deriving.Mirror
   */
 final case class Contract[A](rule: Term[A] => Term[Boolean], written: AsWritten)
 
-/** What a Scala type is to FrFlow: its place in the term language (it is the type's `LeanType`), and its contract,
+/** What a Scala type is to FrFlow: its place in the term language (it is the type's `RocqType`), and its contract,
   * the rule every value of the type meets, written as a statement is, over the value's term (`where`). Every type of
   * a value in code FrFlow reads has one: the standard types' are given here; a case class or an enum derives its own
   * (`derives FrSpec`), or gives it in its companion with its contract
@@ -25,10 +25,10 @@ final case class Contract[A](rule: Term[A] => Term[Boolean], written: AsWritten)
 @implicitNotFound("FrFlow: ${A} is used in code FrFlow reads but has no FrSpec: add `derives FrSpec` to its " +
   "declaration, or give one in its companion (`given FrSpec[…] = FrSpec.derived[…].where(v => …)`). Scala's Int and " +
   "Long have none (they wrap around; the prover's numbers do not): use BigInt")
-final class FrSpec[A] private (of: LeanType[A], val contract: Option[Contract[A]]) extends LeanType[A]:
+final class FrSpec[A] private (of: RocqType[A], val contract: Option[Contract[A]]) extends RocqType[A]:
   def ty: Ty = of.ty
   def declares: Declarations = of.declares
-  override def fields: List[LeanType.Field[A, ?]] = of.fields
+  override def fields: List[RocqType.Field[A, ?]] = of.fields
 
   /** The same type, every value of it meeting `rule`: a rule over the value's term, written as a statement is
     * (`b => b.start < b.end`, `forall`, `exists`). A spec has one contract, the last given.
@@ -42,14 +42,14 @@ object FrSpec:
   def apply[A](using s: FrSpec[A]): FrSpec[A] = s
 
   /** A type's spec with no contract: every value of the type is one that can occur. */
-  def of[A](t: LeanType[A]): FrSpec[A] = new FrSpec(t, None)
+  def of[A](t: RocqType[A]): FrSpec[A] = new FrSpec(t, None)
 
-  /** A case class's or an enum's, derived where it is declared (`derives FrSpec`), as its `LeanType` is; refused
+  /** A case class's or an enum's, derived where it is declared (`derives FrSpec`), as its `RocqType` is; refused
     * of a type that declares its own `equals` (`==` in code FrFlow reads is data's).
     */
   inline def derived[T](using Mirror.Of[T]): FrSpec[T] =
     Structural.check[T]
-    of(LeanType.derived[T])
+    of(RocqType.derived[T])
 
   /** The companion of an opaque type (`opaque type PaymentId = String` with
     * `object PaymentId extends FrSpec.Opaque[PaymentId, String]`, both at the top level of one file): how a value
@@ -62,7 +62,7 @@ object FrSpec:
     given spec: FrSpec[T] = from.substituteCo[FrSpec](over)
 
   /** A type known by its name alone (a structure's: its fields are those of the class given for it). */
-  def named[A](name: String): FrSpec[A] = of(LeanType.of[A](Ty.Data(TypeName(name))))
+  def named[A](name: String): FrSpec[A] = of(RocqType.of[A](Ty.Data(TypeName(name))))
 
   /** A pair's, a list's and a map's spec from their parts', said outright where a part has no given (a structure's),
     * typed by what the reading that asks knows them as.
@@ -94,13 +94,13 @@ object FrSpec:
     given FrSpec[V] = v
     summon[FrSpec[Map[K, V]]]
 
-  given FrSpec[Boolean] = of(LeanType[Boolean])
-  given FrSpec[BigInt] = of(LeanType[BigInt])
-  given FrSpec[String] = of(LeanType[String])
-  given FrSpec[Unit] = of(LeanType[Unit])
-  given [A](using a: FrSpec[A]): FrSpec[List[A]] = of(LeanType[List[A]])
-  given [A](using a: FrSpec[A]): FrSpec[Option[A]] = of(LeanType[Option[A]])
-  given [A](using a: FrSpec[A]): FrSpec[Set[A]] = of(LeanType[Set[A]])
-  given [K, V](using k: FrSpec[K], v: FrSpec[V]): FrSpec[Map[K, V]] = of(LeanType[Map[K, V]])
-  given [A, B](using a: FrSpec[A], b: FrSpec[B]): FrSpec[(A, B)] = of(LeanType[(A, B)])
-  given [A, B](using a: FrSpec[A], b: FrSpec[B]): FrSpec[Either[A, B]] = of(LeanType[Either[A, B]])
+  given FrSpec[Boolean] = of(RocqType[Boolean])
+  given FrSpec[BigInt] = of(RocqType[BigInt])
+  given FrSpec[String] = of(RocqType[String])
+  given FrSpec[Unit] = of(RocqType[Unit])
+  given [A](using a: FrSpec[A]): FrSpec[List[A]] = of(RocqType[List[A]])
+  given [A](using a: FrSpec[A]): FrSpec[Option[A]] = of(RocqType[Option[A]])
+  given [A](using a: FrSpec[A]): FrSpec[Set[A]] = of(RocqType[Set[A]])
+  given [K, V](using k: FrSpec[K], v: FrSpec[V]): FrSpec[Map[K, V]] = of(RocqType[Map[K, V]])
+  given [A, B](using a: FrSpec[A], b: FrSpec[B]): FrSpec[(A, B)] = of(RocqType[(A, B)])
+  given [A, B](using a: FrSpec[A], b: FrSpec[B]): FrSpec[Either[A, B]] = of(RocqType[Either[A, B]])

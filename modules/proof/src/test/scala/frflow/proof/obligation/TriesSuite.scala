@@ -2,8 +2,8 @@ package frflow.proof.obligation
 
 import frflow.core.name.NodeId
 import frflow.proof.layout.Mini
-import frflow.proof.lean.lower.LowerObligation
-import frflow.proof.lean.term.PrintDecl
+import frflow.proof.prover.lower.LowerObligation
+import frflow.proof.prover.term.PrintDecl
 import frflow.proof.obligation.tried.{Idle, Tries}
 import frflow.proof.reading.ObligationNames
 import frflow.proof.terms.TermTable
@@ -52,7 +52,7 @@ class TriesSuite extends munit.FunSuite:
     assertEquals(tries("aboutF").headOption.map(_.doc), Some("aboutF holds whatever what it speaks of means."))
   }
 
-  test("idle: a root met by every Definition it names doing nothing, within Lean's default budget") {
+  test("idle: a root met by every Definition it names doing nothing, within Rocq's default budget") {
     val coded = Pair.withDefinitions
     val ofIt = Tries.of(coded, TermTable.of(coded), NodeId("both")).filter(_.name == ObligationName.Tried(TryKind.Idle))
     assertEquals(ofIt.map(_.discharge), List(Discharge.Attempt(Idle.DefaultHeartbeats)))

@@ -5,7 +5,7 @@ import frflow.core.analysis.resolution.{Callees, Constrained, Resolved}
 import frflow.core.consistency.{Consistency, Defining, Group, Picked, Standing, Witness}
 import frflow.core.expr.Value
 import frflow.core.graph.Walk
-import frflow.core.name.{LeanNames, NodeId, SymbolName}
+import frflow.core.name.{ProverNames, NodeId, SymbolName}
 import frflow.core.term.language.Stated
 import frflow.core.vocab.SymbolType
 import frflow.proof.obligation.{Constant, Discharge, Hyp, Obligation, ObligationName, Prop, Substitute, Supplied}
@@ -22,7 +22,7 @@ object Joint:
     case g @ Group.Sharing(ids, open, provided, _, premises) =>
       NonEmptyList.fromList(ids).map { ns =>
         val some = Prop.ForSome(open, Prop.Both(ns.map(Prop.ClaimOf(_, standing(r, ids)))))
-        val says = premises.map(p => Hyp(LeanNames.hypothesis(p), Prop.ClaimOf(p, standing(r, List(p)))))
+        val says = premises.map(p => Hyp(ProverNames.hypothesis(p), Prop.ClaimOf(p, standing(r, List(p)))))
         val goal = Prop.ForEvery(provided, if says.isEmpty then some else Prop.Implies(says, some))
         Obligation(ObligationName.Consistent(i), goal, witnessed(r, g),
           s"${names(ids)} hold together: some meaning of ${symbols(open)} makes each true" +

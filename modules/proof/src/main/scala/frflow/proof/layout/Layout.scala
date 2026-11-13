@@ -1,7 +1,7 @@
 package frflow.proof.layout
 
 import frflow.core.name.{DefName, KbName, NodeId, RelPath}
-import frflow.proof.lean.ast.{ModuleName, Names}
+import frflow.proof.prover.ast.{ModuleName, Names}
 
 /** Where each generated module and each authored proof file lives. */
 final case class Layout(kb: KbName):
@@ -17,7 +17,7 @@ final case class Layout(kb: KbName):
   /** The examples tried against the claims, beside `whole`. */
   def wholeChecks: ModuleName = generated("Whole", "Checks")
   /** The developer's proofs of what is asked of the theory as a whole (owner §39: a consistency group FrFlow cannot
-    * witness), `lean/Proofs/<Model>/Whole.lean`, and the module printing what each rests on.
+    * witness), `rocq/Proofs/<Model>/Whole.v`, and the module printing what each rests on.
     */
   def wholeProofs: ModuleName = ModuleName(Names.path("Proofs", kb.value, "Whole"))
   def wholeAudit: ModuleName = generated("Whole", "Audit")

@@ -10,7 +10,7 @@
           "status": "open",
           "messages": [
             {
-              "file": "Proofs/Rooms/Book.lean",
+              "file": "Proofs/Rooms/Book.v",
               "line": 12,
               "error": true,
               "message": "unsolved goals"
@@ -72,7 +72,7 @@
           "kind": "not-proven",
           "errors": [
             {
-              "file": "Proofs/Rooms/Book.lean",
+              "file": "Proofs/Rooms/Book.v",
               "line": 12,
               "error": true,
               "message": "unsolved goals"

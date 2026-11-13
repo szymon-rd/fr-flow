@@ -94,7 +94,7 @@ class StandingsSuite extends munit.FunSuite:
       ReviewState.Proposed -> Nil)
   }
 
-  test("a decision is mechanical only where nothing in it is a choice and Lean proves it again") {
+  test("a decision is mechanical only where nothing in it is a choice and Rocq proves it again") {
     val l = acceptAll(shelf)
     val s = replacing(shelf, r.remeant("Readers find every book they ask for, at once."))
     val v = Reading(s, l)
@@ -111,7 +111,7 @@ class StandingsSuite extends munit.FunSuite:
     // Not proven again: the developer decides.
     val failing = replacing(s, a.copy(proof = unproven(List(Unproven.Check))))
     assertEquals(Reading(failing, after).notMechanical(id("A")), Some(Mechanical.Not.NotProven(List(Unproven.Check))))
-    // Its parts changed and Lean does not prove they make it.
+    // Its parts changed and Rocq does not prove they make it.
     val parted = replacing(shelf, a.said("parts", texts("B", "C")))
     assertEquals(Reading(parted, l).notMechanical(id("A")), Some(Mechanical.Not.PartsNotProven))
     val made = a.said("parts", texts("B", "C")).copy(proof = ProofStanding(Nil, true, false))

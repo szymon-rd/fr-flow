@@ -7,10 +7,10 @@ import frflow.decision.content.CodeNow
 import frflow.decision.review.{Reading, Standing, Subjects}
 import frflow.eval.run.Broken
 import frflow.project.code.{CodeFingerprints, Governance, ModelFiles}
-import frflow.proof.audit.LeanProject
+import frflow.proof.audit.ProverModules
 import frflow.proof.audit.Obligations
 import frflow.proof.layout.{Layout, Lowering, RootImplModule}
-import frflow.proof.lean.ast.LeanModule
+import frflow.proof.prover.ast.ProverModule
 import frflow.proof.obligation.{Discharge, NodeObligations, Obligation, ObligationName}
 import frflow.proof.reading.{ProofFile, ProofRules}
 import frflow.proof.rocq.RocqProject
@@ -49,7 +49,7 @@ final class Analysis(val valid: Valid, val inputs: Inputs, val computed: Compute
   lazy val lowering: Lowering = Lowering(decided, terms)
   /** The lowering a node's content prints what its formula means with (`Contents`): variables named by order. */
   lazy val canonical: Lowering = Lowering(decided, terms, canonical = true)
-  lazy val modules: List[LeanModule] = LeanProject.of(decided, terms, obligations, whole)
+  lazy val modules: List[ProverModule] = ProverModules.of(decided, terms, obligations, whole)
   /** The modules as Rocq reads them. */
   lazy val rocq: RocqProject = RocqProject(modules)
   /** The roots `root_impl` is asked of. */

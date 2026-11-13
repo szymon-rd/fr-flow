@@ -1,7 +1,7 @@
 package frflow.proof.verdict
 
 import cats.data.NonEmptyList
-import frflow.proof.lean.lower.LowerObligation
+import frflow.proof.prover.lower.LowerObligation
 import frflow.proof.obligation.{Discharge, Obligation, ObligationName}
 import frflow.proof.reading.{Diagnostic, Elaboration, ProofFile, ProofRules, RocqReport, RocqSource, TheoremVerdict}
 
@@ -51,7 +51,7 @@ object Judge:
         case TheoremVerdict.Failed(errors) => Result(o, ObligationStatus.Open, errors)
         case _                             => Result(o, ObligationStatus.Open, Nil)
 
-  /** A try (`needed_C`, `vacuous`, `clash`, …) or an example against the claims: shown when Lean proves it within its
+  /** A try (`needed_C`, `vacuous`, `clash`, …) or an example against the claims: shown when Rocq proves it within its
     * budget, else not shown (one-sided: that says nothing).
     */
   def tried(o: ObligationName, e: Elaboration): Result =

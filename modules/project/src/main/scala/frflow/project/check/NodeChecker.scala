@@ -8,7 +8,7 @@ import frflow.core.name.NodeId
 import frflow.project.pipeline.Analysis
 import frflow.project.port.{ProjectFiles, Prover}
 import frflow.proof.layout.NodePart
-import frflow.proof.lean.ast.ModuleName
+import frflow.proof.prover.ast.ModuleName
 import frflow.proof.rocq.RocqProject
 import frflow.proof.obligation.{Discharge, Obligation, ObligationName}
 import frflow.proof.reading.{Elaboration, TheoremVerdict}
@@ -30,16 +30,16 @@ final class NodeChecker[F[_]: Monad: Clock](prover: Prover[F], files: ProjectFil
   private val none: Step[Judging] = EitherT.pure((Nil, Nil))
 
   def apply(a: Analysis, n: NodeId, parts: List[CheckStatus]): F[NodeCheck] =
-    val lean = NodeRocq(a, n)
+    val rocq = NodeRocq(a, n)
     val steps: Step[Judged] =
       for
-        _             <- run(lean.module(NodePart.Spec)).flatMap(r => stop(Judge.model(r)))
-        _             <- proofFile(lean)
-        (done, found, rests) <- complete(lean, a)
-        impl          <- proven(lean, ObligationName.Impl)
-        holds         <- composed(lean, done, parts)
-        checks        <- checked(lean)
-        root          <- rootImpl(lean)
+        _             <- run(rocq.module(NodePart.Spec)).flatMap(r => stop(Judge.model(r)))
+        _             <- proofFile(rocq)
+        (done, found, rests) <- complete(rocq, a)
+        impl          <- proven(rocq, ObligationName.Impl)
+        holds         <- composed(rocq, done, parts)
+        checks        <- checked(rocq)
+        root          <- rootImpl(rocq)
       yield
         val (results, axioms) =
           (done ++ impl._1 ++ checks._1 ++ root._1, rests ++ holds ++ impl._2 ++ checks._2 ++ root._2)
@@ -60,47 +60,47 @@ final class NodeChecker[F[_]: Monad: Clock](prover: Prover[F], files: ProjectFil
     })
 
   /** The proof file: only what one may contain; the shared lemmas it imports, every one of them proven. */
-  private def proofFile(lean: NodeRocq): Step[Unit] = lean.proof.fold(EitherT.pure[F, Judged](())) { f =>
-    stop(Judge.proofFile(f)) >> lean.lemmas.fold(EitherT.pure[F, Judged](()))(l =>
-      run(lean.layout.lemmas).flatMap(r => stop(Judge.lemmas(l, r))))
+  private def proofFile(rocq: NodeRocq): Step[Unit] = rocq.proof.fold(EitherT.pure[F, Judged](())) { f =>
+    stop(Judge.proofFile(f)) >> rocq.lemmas.fold(EitherT.pure[F, Judged](()))(l =>
+      run(rocq.layout.lemmas).flatMap(r => stop(Judge.lemmas(l, r))))
   }
 
   /** `complete`, proven only with its audit (the `Auto` module's `Print Assumptions`, which imports the developer's
     * proof when there is one), and when neither automation nor the developer's proof proves it, a case Rocq proves
     * refutes the step.
     */
-  private def complete(lean: NodeRocq, a: Analysis): Step[(List[Result], List[Finding], List[String])] =
-    lean.required(ObligationName.Complete).fold(EitherT.pure[F, Judged]((List.empty[Result], List.empty[Finding],
+  private def complete(rocq: NodeRocq, a: Analysis): Step[(List[Result], List[Finding], List[String])] =
+    rocq.required(ObligationName.Complete).fold(EitherT.pure[F, Judged]((List.empty[Result], List.empty[Finding],
       List.empty[String]))) { o =>
         val authored = o.discharge == Discharge.Authored
-        run(lean.module(NodePart.Auto)).flatMap { r =>
-          val audit = lean.elaborated(NodePart.Auto, r)
-          val (results, axioms) = auditedBy(o, if authored then lean.elaboratedProof(r) else audit, audit, "complete")
+        run(rocq.module(NodePart.Auto)).flatMap { r =>
+          val audit = rocq.elaborated(NodePart.Auto, r)
+          val (results, axioms) = auditedBy(o, if authored then rocq.elaboratedProof(r) else audit, audit, "complete")
           if results.forall(_.status == ObligationStatus.Proven) then EitherT.pure((results, Nil, axioms))
-          else EitherT.liftF(refuted(lean, a).map(f => (results, f.toList, axioms)))
+          else EitherT.liftF(refuted(rocq, a).map(f => (results, f.toList, axioms)))
         }
     }
 
   /** A case refuting the step, searched for now, which Rocq proves refutes it. */
-  private def refuted(lean: NodeRocq, a: Analysis): F[Option[Finding]] =
-    refutations.of(a, lean.node).flatMap(_.flatTraverse(found => lean.refutes(found).flatTraverse { (m, text) =>
+  private def refuted(rocq: NodeRocq, a: Analysis): F[Option[Finding]] =
+    refutations.of(a, rocq.node).flatMap(_.flatTraverse(found => rocq.refutes(found).flatTraverse { (m, text) =>
       files.writeIfChanged(RocqProject.path(m.name), text) >> prover.build(NonEmptyList.one(m.name)).map(r =>
         Option.when(NodeRocq.said(m, text, r).exists(_.verdict("refutes") == TheoremVerdict.Proven))(
           Finding.StepRefuted(found.inputs)))
     }))
 
   /** `impl`, in a module of its own, with the axioms its proof rests on when it goes through. */
-  private def proven(lean: NodeRocq, name: ObligationName): Step[Judging] =
-    lean.required(name).filter(_ => lean.has(NodePart.Impl)).fold(none)(o =>
-      run(lean.module(NodePart.Impl)).map(r => audited(lean, o, lean.elaborated(NodePart.Impl, r))))
+  private def proven(rocq: NodeRocq, name: ObligationName): Step[Judging] =
+    rocq.required(name).filter(_ => rocq.has(NodePart.Impl)).fold(none)(o =>
+      run(rocq.module(NodePart.Impl)).map(r => audited(rocq, o, rocq.elaborated(NodePart.Impl, r))))
 
   /** `holds`, composed once `complete` is proven, with the axioms it rests on: a composition Rocq does not accept
     * fails the check, but while a part is not proven yet (its theorem may be what does not build), the node waits.
     */
-  private def composed(lean: NodeRocq, done: List[Result], parts: List[CheckStatus]): Step[List[String]] =
-    if !lean.has(NodePart.Theorems) || !done.forall(_.status == ObligationStatus.Proven) then EitherT.pure(Nil)
-    else run(lean.module(NodePart.Theorems)).flatMap { r =>
-      val e = lean.elaborated(NodePart.Theorems, r)
+  private def composed(rocq: NodeRocq, done: List[Result], parts: List[CheckStatus]): Step[List[String]] =
+    if !rocq.has(NodePart.Theorems) || !done.forall(_.status == ObligationStatus.Proven) then EitherT.pure(Nil)
+    else run(rocq.module(NodePart.Theorems)).flatMap { r =>
+      val e = rocq.elaborated(NodePart.Theorems, r)
       r match
         case ProverRun.Failed(_) if !parts.forall(_ == CheckStatus.Proven) =>
           EitherT.leftT(Judged(CheckStatus.Waiting, done, Nil))
@@ -112,20 +112,20 @@ final class NodeChecker[F[_]: Monad: Clock](prover: Prover[F], files: ProjectFil
     }
 
   /** The checks module, theorem by theorem: each other obligation, each try. */
-  private def checked(lean: NodeRocq): Step[Judging] =
-    if !lean.has(NodePart.Checks) then none
-    else run(lean.module(NodePart.Checks)).map { r =>
-      val e = lean.elaborated(NodePart.Checks, r)
-      val others = lean.others.map(o => audited(lean, o, e))
-      val tries = lean.tried.map(o => e.fold(Result(o.name, ObligationStatus.NotShown, Nil))(Judge.tried(o.name, _)))
+  private def checked(rocq: NodeRocq): Step[Judging] =
+    if !rocq.has(NodePart.Checks) then none
+    else run(rocq.module(NodePart.Checks)).map { r =>
+      val e = rocq.elaborated(NodePart.Checks, r)
+      val others = rocq.others.map(o => audited(rocq, o, e))
+      val tries = rocq.tried.map(o => e.fold(Result(o.name, ObligationStatus.NotShown, Nil))(Judge.tried(o.name, _)))
       (others.flatMap(_._1) ++ tries, others.flatMap(_._2))
     }
 
   /** A root's `root_impl`: proven when Rocq proves it, with the axioms it rests on. */
-  private def rootImpl(lean: NodeRocq): Step[Judging] =
-    if !lean.rooted then none
-    else run(lean.layout.rootImpl).map { r =>
-      val e = lean.elaboratedRoot(r)
+  private def rootImpl(rocq: NodeRocq): Step[Judging] =
+    if !rocq.rooted then none
+    else run(rocq.layout.rootImpl).map { r =>
+      val e = rocq.elaboratedRoot(r)
       val verdict = e.fold(TheoremVerdict.Missing)(_.verdict("root_impl"))
       val result = verdict match
         case TheoremVerdict.Proven     => Result(ObligationName.RootImpl, ObligationStatus.Proven, Nil)
@@ -142,8 +142,8 @@ final class NodeChecker[F[_]: Monad: Clock](prover: Prover[F], files: ProjectFil
     e.fold(Result(o.name, ObligationStatus.Unchecked, Nil))(Judge.required(o.name, _))
 
   /** Proven only with the axioms its audit lists (fail closed): one Rocq says nothing of is not checked. */
-  private def audited(lean: NodeRocq, o: Obligation, e: Option[Elaboration]): Judging =
-    auditedBy(o, e, e, lean.named(o))
+  private def audited(rocq: NodeRocq, o: Obligation, e: Option[Elaboration]): Judging =
+    auditedBy(o, e, e, rocq.named(o))
 
   /** Judged where it is proven (`e`), its axioms read where they are printed (`audit`). */
   private def auditedBy(o: Obligation, e: Option[Elaboration], audit: Option[Elaboration], name: String): Judging =

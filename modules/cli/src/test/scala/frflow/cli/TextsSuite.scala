@@ -1,6 +1,6 @@
 package frflow.cli
 
-import frflow.api.node.lean.{FindingView, Forbidden, Message, TryView}
+import frflow.api.node.proving.{FindingView, Forbidden, Message, TryView}
 import frflow.api.view.{Stop, Warning}
 import frflow.cli.say.*
 import frflow.core.analysis.Problem
@@ -66,9 +66,9 @@ class TextsSuite extends munit.FunSuite:
 
   test("a value only plain code reads, spoken of in a statement, says how to let a statement speak of it") {
     assertEquals(Faults.fault(Fault.CodeOnlyInStatement("Calendar")),
-      "Calendar has no LeanType: add `derives LeanType` if a statement should speak of it")
+      "Calendar has no RocqType: add `derives RocqType` if a statement should speak of it")
     assert(Problems.text(Problem.CodeOnlyInStatement(a, frflow.core.name.SymbolName("cal"), "Calendar"))
-      .contains("Calendar has no LeanType"))
+      .contains("Calendar has no RocqType"))
     assert(Problems.text(Problem.NoRoot).startsWith("no root statement"))
   }
 

@@ -16,7 +16,7 @@ final class Tested[F](kb: FrModel, ds: List[Definition[?]]):
     */
   inline def apply(inline code: Values => F): FrModel =
     val d = ds.head
-    val runs = ScalaCode(Impl(Implementing.arity(d.leanType.ty), env => code(env).asInstanceOf[AnyRef]),
+    val runs = ScalaCode(Impl(Implementing.arity(d.rocqType.ty), env => code(env).asInstanceOf[AnyRef]),
       SourceText(Source.of(code).text), Tested.files(SourceFiles.of(code)))
     Implementing.attach(kb, d, Deferred.pure(Attachment(Code.Tested(runs, ds.tail.map(_.name)),
       Spans.relative(Source.file))))

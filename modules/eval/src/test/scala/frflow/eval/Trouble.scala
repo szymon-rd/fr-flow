@@ -3,7 +3,7 @@ package frflow.eval
 import frflow.*
 
 /** An enum of the tests' constants: a case with no fields, and one holding a number. */
-enum Trouble derives LeanType:
+enum Trouble derives RocqType:
   case Down
   case TooBig(n: BigInt)
 

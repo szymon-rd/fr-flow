@@ -5,7 +5,7 @@ import frflow.core.consistency.{Consistency, Vacuity}
 import frflow.core.name.DefName
 import frflow.proof.obligation.{Constant, Discharge, Obligation, ObligationName, Prop, Supplied}
 
-/** Vacuity in Lean (owner §18): each `always[T]` admits a value (`inhabited_<node>`) and each claim's condition can
+/** Vacuity in Rocq (owner §18): each `always[T]` admits a value (`inhabited_<node>`) and each claim's condition can
   * hold (`satisfiable_<i>_<node>`), with the values the search found (`found`); one with none found is still stated,
   * and shows "not shown".
   */
@@ -30,7 +30,7 @@ object Possible:
       }
 
   /** Why no witness shows a condition: it is about Declarations (a witness would choose what they mean, whatever the
-    * claims say), or the code standing in it calls code not proven, which Lean takes as open and no witness gives.
+    * claims say), or the code standing in it calls code not proven, which Rocq takes as open and no witness gives.
     */
   private def unwitnessed(r: Resolved, n: frflow.core.name.NodeId, opens: List[frflow.core.name.SymbolName])
       : Option[String] =

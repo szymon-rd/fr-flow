@@ -6,9 +6,9 @@ import frflow.*
   * where the code runs, and arities zero to three for the generated tests (`TestingSuite`).
   */
 object Shelf:
-  final case class Book(title: String, pages: BigInt) derives LeanType
+  final case class Book(title: String, pages: BigInt) derives RocqType
 
-  enum Place derives LeanType:
+  enum Place derives RocqType:
     case Top, Bottom
     case Box(label: String, books: List[Book])
 

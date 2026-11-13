@@ -1,6 +1,6 @@
 package frflow.api.view.whole
 
-import frflow.api.node.lean.ObligationView
+import frflow.api.node.proving.ObligationView
 import frflow.core.consistency.Vacuity
 
 /** What is shown of the theory as a whole, each with the prover's outcome and messages: its consistency, by group;

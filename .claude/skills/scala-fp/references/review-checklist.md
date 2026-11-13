@@ -52,8 +52,8 @@ deleted in step 14; `docs/redesign/` records how each was resolved):
 [H] modules/model/src/main/scala/frflow/boundary/Boundary.scala:44 T6 — Conversion[Boundary[T], T] hides an access → explicit .ops
 [H] modules/ledger/src/main/scala/frflow/ledger/store/JsonStore.scala:15 A1 — the ledger is a concrete class over IO → trait Ledger[F[_]], live Ledger.make[F[_]: Async]: Resource[F, Ledger[F]], InMemoryLedger for tests
 [H] modules/api/src/main/scala/frflow/api/FrFlowApi.scala:9 A1 — the API is a trait over IO → FrFlowApi[F[_]], with IO fixed in the CLI's and web's IOApp
-[M] modules/model/src/main/scala/frflow/LeanPrinter.scala:12 F9 — ten mutable fields and a var depth counter → expr(t, negations): (Lean, Uses) with Monoid[Uses]
-[L] modules/model/src/main/scala/frflow/LeanPrinter.scala:1 Z — 341 non-blank lines (budget 200) → split by what is printed
+[M] modules/model/src/main/scala/frflow/RocqPrinter.scala:12 F9 — ten mutable fields and a var depth counter → expr(t, negations): (Rocq, Uses) with Monoid[Uses]
+[L] modules/model/src/main/scala/frflow/RocqPrinter.scala:1 Z — 341 non-blank lines (budget 200) → split by what is printed
 ```
 
 Report a finding only after reading the code. `measure.py` and the greps point

@@ -4,7 +4,7 @@ import frflow.core.Elaborated
 import frflow.core.expr.{Side, Value}
 import frflow.core.ty.Ty
 
-/** A Scala value as a `Value`, walked by its type through the `DataRep`s: what Scala computed, given to Lean to
+/** A Scala value as a `Value`, walked by its type through the `DataRep`s: what Scala computed, given to Rocq to
   * evaluate against (`eval_i`, `probe_j`). The inverse of `Literals`; law: `Reflect(Literals(v, t), t) == v`.
   */
 final class Reflect(e: Elaborated):

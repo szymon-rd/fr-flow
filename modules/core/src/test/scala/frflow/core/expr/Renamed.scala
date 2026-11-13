@@ -6,8 +6,8 @@ import frflow.core.term.interpret.Forward
 import frflow.core.term.language.{Final, Sym}
 
 /** A term with its binders' hints and its symbols renamed, the same term otherwise: what the printer's capture laws
-  * run the generated terms through, so every binder is named as Lean's keywords and prelude names, their mangled
-  * forms, the laws' types, models and FrModel, and the symbols themselves (raw and as Lean spells them). A hint's new
+  * run the generated terms through, so every binder is named as Rocq's keywords and prelude names, their mangled
+  * forms, the laws' types, models and FrModel, and the symbols themselves (raw and as Rocq spells them). A hint's new
   * name depends on the hint and the seed only, so every interpreter sees the same term.
   */
 final class Renamed[T[_]](protected val base: Sym[T], hint: String => String, symbol: SymbolName => SymbolName)
@@ -45,7 +45,7 @@ final class Renamed[T[_]](protected val base: Sym[T], hint: String => String, sy
   override def param[A](name: SymbolName, ty: frflow.core.ty.Ty): T[A] = base.param(symbol(name), ty)
 
 object Renamed:
-  /** Lean's keywords and prelude names, their mangled forms, the laws' types, models, fields and FrModel, names a
+  /** Rocq's keywords and prelude names, their mangled forms, the laws' types, models, fields and FrModel, names a
     * Scala lambda gives (`x$1`), and the names the back end binds itself (`s`, `w`, `x0`, `k`, `y`, `m`, `init`).
     */
   val pool: Vector[String] = Vector("by", "at", "fun", "end", "match", "λ", "some", "none", "id", "max", "List", "True",
@@ -53,13 +53,13 @@ object Renamed:
     "Event", "stored", "Laws", "World", "Prop", "Int", "positive", "room", "start", "Except", "pure", "x$1", "_$1",
     "max_", "k", "xs", "slot", "s", "w", "x0", "y", "m", "init")
 
-  /** The laws' symbols renamed, each to a name a binder may also be given (`k` is `some`, whose Lean is `some_`). */
+  /** The laws' symbols renamed, each to a name a binder may also be given (`k` is `some`, whose Rocq is `some_`). */
   val symbols: Map[String, String] = Map("p" -> "x_1", "k" -> "some", "xs" -> "by", "o" -> "id", "slot" -> "a$b",
     "s" -> "a_b", "m" -> "max", "ev" -> "__x", "outcome" -> "x_x")
 
   def of[A](t: Final[A], seed: Long): Final[A] = renamed(t, seed, s => symbols.get(s.value).fold(s)(SymbolName(_)))
 
-  /** The binders renamed only: a closed term's programs keep the names Lean and Scala hold them by. */
+  /** The binders renamed only: a closed term's programs keep the names Rocq and Scala hold them by. */
   def binders[A](t: Final[A], seed: Long): Final[A] = renamed(t, seed, identity)
 
   private def renamed[A](t: Final[A], seed: Long, symbol: SymbolName => SymbolName): Final[A] =

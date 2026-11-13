@@ -2,7 +2,7 @@ package frflow.dsl.shape
 
 import frflow.core.name.DefName
 import frflow.dsl.build.{AsWritten, Site, Source, WrittenAt}
-import frflow.dsl.term.{LeanType, Term}
+import frflow.dsl.term.{RocqType, Term}
 import frflow.dsl.vocab.{Definition, Stating}
 import scala.compiletime.summonInline
 
@@ -10,23 +10,23 @@ import scala.compiletime.summonInline
   * called by name in terms, its IR built when elaborated. It records the file it is written in (`Definition.in`).
   */
 object Defines:
-  inline def define[A: LeanType, R: LeanType](inline body: Term[A] => Term[R]): Definition[A => R] =
+  inline def define[A: RocqType, R: RocqType](inline body: Term[A] => Term[R]): Definition[A => R] =
     made(DefName(Source.valName), DefineShape.one[A, R])(body).in(WrittenAt.in(Source.here))
-  inline def define[A: LeanType, B: LeanType, R: LeanType](inline body: (Term[A], Term[B]) => Term[R])
+  inline def define[A: RocqType, B: RocqType, R: RocqType](inline body: (Term[A], Term[B]) => Term[R])
       : Definition[(A, B) => R] =
     made(DefName(Source.valName), DefineShape.two[A, B, R])(body).in(WrittenAt.in(Source.here))
 
-  inline def define[A: LeanType, B: LeanType, C: LeanType, R: LeanType](
+  inline def define[A: RocqType, B: RocqType, C: RocqType, R: RocqType](
       inline body: (Term[A], Term[B], Term[C]) => Term[R]): Definition[(A, B, C) => R] =
     made(DefName(Source.valName), DefineShape.three[A, B, C, R])(body).in(WrittenAt.in(Source.here))
-  inline def define[A: LeanType, B: LeanType, C: LeanType, D: LeanType, R: LeanType](
+  inline def define[A: RocqType, B: RocqType, C: RocqType, D: RocqType, R: RocqType](
       inline body: (Term[A], Term[B], Term[C], Term[D]) => Term[R]): Definition[(A, B, C, D) => R] =
     made(DefName(Source.valName), DefineShape.four[A, B, C, D, R])(body).in(WrittenAt.in(Source.here))
 
-  inline def define[A: LeanType, B: LeanType, C: LeanType, D: LeanType, E: LeanType, R: LeanType](
+  inline def define[A: RocqType, B: RocqType, C: RocqType, D: RocqType, E: RocqType, R: RocqType](
       inline body: (Term[A], Term[B], Term[C], Term[D], Term[E]) => Term[R]): Definition[(A, B, C, D, E) => R] =
     made(DefName(Source.valName), DefineShape.five[A, B, C, D, E, R])(body).in(WrittenAt.in(Source.here))
-  inline def define[A: LeanType, B: LeanType, C: LeanType, D: LeanType, E: LeanType, G: LeanType, R: LeanType](
+  inline def define[A: RocqType, B: RocqType, C: RocqType, D: RocqType, E: RocqType, G: RocqType, R: RocqType](
       inline body: (Term[A], Term[B], Term[C], Term[D], Term[E], Term[G]) => Term[R])
       : Definition[(A, B, C, D, E, G) => R] =
     made(DefName(Source.valName), DefineShape.six[A, B, C, D, E, G, R])(body).in(WrittenAt.in(Source.here))

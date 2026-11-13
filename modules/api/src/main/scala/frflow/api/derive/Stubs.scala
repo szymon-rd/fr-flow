@@ -4,7 +4,7 @@ import frflow.api.view.Scaffolded
 import frflow.core.name.{NodeId, RelPath}
 import frflow.project.pipeline.Analysis
 import frflow.proof.layout.{Layout, NodePart}
-import frflow.proof.lean.lower.LowerObligation
+import frflow.proof.prover.lower.LowerObligation
 import frflow.proof.obligation.ObligationName
 import frflow.proof.reading.ProofRules
 import frflow.proof.rocq.{RocqNames, RocqProject}

@@ -2,7 +2,7 @@ package frflow.core.consistency
 
 import frflow.core.name.SymbolName
 
-/** What can be said of a group before Lean runs: a witness for everything open (Lean is then asked to check it), plain
+/** What can be said of a group before Rocq runs: a witness for everything open (Rocq is then asked to check it), plain
   * Scala standing for some (evidence, listed so), or none for some ("consistency not proven", its own status: not a
   * failing proof).
   */

@@ -5,7 +5,7 @@ import frflow.dsl.term.Term as DTerm
 
 /** The calls the compiler reads: a value made, a case class's member, and the operations of truth values,
   * unbounded integers and equality. Equality is Scala's `==` of two values of one type whose `equals` is the
-  * compiler's (data's structural equality, which Lean's `=` is).
+  * compiler's (data's structural equality, which Rocq's `=` is).
   */
 private[compiled] trait CompileCalls extends Compiling:
   this: Compiler =>
@@ -74,6 +74,6 @@ private[compiled] trait CompileCalls extends Compiling:
     val (l, r) = (a.tpe.widen, b.tpe.widen)
     val both = if r <:< l then l else if l <:< r then r else
       refuse(s"`==` of a ${l.show} and a ${r.show}: two values of one type are compared", a)
-    if ownEquals(both) then refuse(s"`==` of a ${both.show}, whose `equals` is its own: Lean's `=` is data's", a)
+    if ownEquals(both) then refuse(s"`==` of a ${both.show}, whose `equals` is its own: Rocq's `=` is data's", a)
     val _ = spec(both, a)
     both

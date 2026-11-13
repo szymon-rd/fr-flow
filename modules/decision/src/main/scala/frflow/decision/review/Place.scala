@@ -9,5 +9,5 @@ import frflow.core.spec.NodeKind
 final case class Place(parents: List[NodeId], restsOn: List[NodeId], rivals: List[NodeId], kind: NodeKind):
   /** A design rests on its parents' place only. */
   def design: Boolean = kind == NodeKind.Design
-  /** A design holds a choice Lean does not check (a fixed term is a `define`, decided with the statements using it). */
+  /** A design holds a choice Rocq does not check (a fixed term is a `define`, decided with the statements using it). */
   def holdsChoice: Boolean = design

@@ -10,9 +10,9 @@ import frflow.core.term.interpret.Guard
 import frflow.core.term.language.Sym
 import frflow.core.ty.Ty
 import frflow.core.vocab.SymbolType
-import frflow.proof.lean.ast.{LExpr, Names}
-import frflow.proof.lean.lower.{LowerEnv, LowerProp, Naming}
-import frflow.proof.lean.term.Printed
+import frflow.proof.prover.ast.{LExpr, Names}
+import frflow.proof.prover.lower.{LowerEnv, LowerProp, Naming}
+import frflow.proof.prover.term.Printed
 import frflow.proof.terms.TermTable
 
 /** How one FrModel is lowered, computed once for every module: its environment, the names a binder may not take

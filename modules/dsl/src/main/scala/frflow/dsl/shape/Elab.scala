@@ -6,7 +6,7 @@ import frflow.core.expr.{Binder, Expr, Exprs, Lambda, Quantifier}
 import frflow.core.name.SourceText
 import frflow.core.spec.Written
 import frflow.dsl.build.{AsWritten, Declarations, Deferred, ElabError, Failure, Fault, Site}
-import frflow.dsl.term.{LeanType, Notes, Term}
+import frflow.dsl.term.{RocqType, Notes, Term}
 
 /** The developer's formulas and lambdas, built once, as parts written at `at`, where their faults are placed: each
   * kept as its term with the IR the analyses read (`Written`). A lambda's inputs are bound at levels `0 … n-1` and its
@@ -19,7 +19,7 @@ object Elab:
       (t.notes, Written.formula(t.run, SourceText(written.text)))
     }
 
-  def lambda(at: Site, types: List[LeanType[?]])(build: () => (List[Binder], Term[?]), written: AsWritten)
+  def lambda(at: Site, types: List[RocqType[?]])(build: () => (List[Binder], Term[?]), written: AsWritten)
       : Deferred[Written[Lambda]] =
     made(at, types) { () =>
       val (xs, t) = build()
@@ -34,7 +34,7 @@ object Elab:
       }) then throw Failure(Fault.AlwaysInside)
     t
 
-  private def made[A](at: Site, types: List[LeanType[?]] = Nil)(build: () => (Notes, A)): Deferred[A] =
+  private def made[A](at: Site, types: List[RocqType[?]] = Nil)(build: () => (Notes, A)): Deferred[A] =
     Deferred(guarded(at) {
       val (notes, a) = build()
       checked(at, notes).map(ds => (ds |+| types.foldMap(_.declares), a))

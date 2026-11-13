@@ -43,12 +43,12 @@ enum Problem:
   case ReservedName(name: String)
   /** A name declared twice. */
   case DeclaredTwice(name: String)
-  /** A statement mentioning a value only plain code reads: its Scala type (`scalaType`) has no `LeanType`; one that
+  /** A statement mentioning a value only plain code reads: its Scala type (`scalaType`) has no `RocqType`; one that
     * derives it can be spoken of, and a connection stays as it is.
     */
   case CodeOnlyInStatement(id: NodeId, symbol: SymbolName, scalaType: String)
   /** A value said to exist (a `forall` under a negation or over a condition, a rule of `always`, a Declaration or a
-    * Definition given plain Scala: their consistency) of a type holding a Scala `Int` or `Long`: Lean's `Int` is
+    * Definition given plain Scala: their consistency) of a type holding a Scala `Int` or `Long`: Rocq's `Z` is
     * unbounded, so it could find one Scala's cannot hold (`Bounded`).
     */
   case SaidToExist(ty: Ty, at: Problem.Place)

@@ -4,7 +4,7 @@ import frflow.eval.run.OnCode
 import sbt.testing.{Event, Fingerprint, OptionalThrowable, Selector, Status, TaskDef, TestSelector}
 
 /** One example's outcome as sbt counts it: holding passes, failing fails; one with no Scala value or about
-  * Declarations is skipped here, as it is checked against the claims in Lean only; one the code could not evaluate
+  * Declarations is skipped here, as it is checked against the claims in Rocq only; one the code could not evaluate
   * otherwise (a fault of the code or its wiring), or not read, is an error.
   */
 final case class ExampleEvent(task: TaskDef, name: String, verdict: Verdict, millis: Long) extends Event:
@@ -19,7 +19,7 @@ final case class ExampleEvent(task: TaskDef, name: String, verdict: Verdict, mil
   def status(): Status = verdict match
     case Verdict.Ran(OnCode.Holds) => Status.Success
     case Verdict.Ran(OnCode.Fails) => Status.Failure
-    case Verdict.LeanOnly(_)       => Status.Skipped
+    case Verdict.ProverOnly(_)       => Status.Skipped
     case _                         => Status.Error
 
 object ExampleEvent:
@@ -29,8 +29,8 @@ object ExampleEvent:
     case Verdict.Ran(OnCode.Fails)             => "the code does not meet it"
     case Verdict.Ran(OnCode.BreaksRule(r))     => s"a value it gives breaks the rule ${r.value}: no code is given one"
     case Verdict.Ran(other)                    => s"the code could not evaluate it ($other): a fault of its wiring"
-    case Verdict.LeanOnly(OnCode.Abstract(ds)) =>
-      s"about ${ds.map(_.value).mkString(", ")}, which have no code: checked against the claims in Lean only"
-    case Verdict.LeanOnly(other)               => s"no Scala value ($other): checked against the claims in Lean only"
+    case Verdict.ProverOnly(OnCode.Abstract(ds)) =>
+      s"about ${ds.map(_.value).mkString(", ")}, which have no code: checked against the claims in Rocq only"
+    case Verdict.ProverOnly(other)               => s"no Scala value ($other): checked against the claims in Rocq only"
     case Verdict.Threw(message)                => s"its code threw: $message"
     case Verdict.NotRead(es)                   => s"not read: ${es.mkString("; ")}"

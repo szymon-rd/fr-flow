@@ -10,8 +10,8 @@ import frflow.core.Theory
 import frflow.core.ty.Ty
 import frflow.core.vocab.SymbolType
 
-/** Scala's `Int` and `Long` wrap around and Lean's `Int` does not (`NumKind`): they compare but do not add (the DSL
-  * has no arithmetic on them), and nothing may be said to exist of a type that holds one, since Lean could find one
+/** Scala's `Int` and `Long` wrap around and Rocq's `Z` does not (`NumKind`): they compare but do not add (the DSL
+  * has no arithmetic on them), and nothing may be said to exist of a type that holds one, since Rocq could find one
   * Scala cannot hold. Said to exist, by the statement or by what FrFlow asks of it: a `forall` or an `always` under a
   * negation, on the left of `implies` or in a condition (where it reads as an `∃`), one over a condition
   * (`satisfiable_` asks that it can hold), a rule of `always` (`inhabited_` asks a value meeting it), a Declaration,
@@ -44,7 +44,7 @@ object Bounded:
     case _                              => Nil
   })
 
-  /** A Declaration, or a Definition given plain Scala (Lean is given no meaning of it), of a type holding one. */
+  /** A Declaration, or a Definition given plain Scala (Rocq is given no meaning of it), of a type holding one. */
   private def declared(t: Theory): List[Problem] = t.vocabulary.symbols.filter(s =>
     Constrained.isDeclaration(t, s.name) || t.code.attached.get(s.name).exists(_.code match
       case Code.Tested(_, _) => true

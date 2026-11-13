@@ -29,11 +29,11 @@ trait ReadPorts:
   /** The same as a Declaration takes a trait for one (`StructureMacros.isStructure`), in play or not. */
   def declarableOf(t: TypeRepr): Option[Symbol] =
     t.baseClasses.find(c => StructureMacros.structured(using q)(c.typeRef, isDomain))
-  /** Whether a type is a domain type, one with a `LeanType`: asked of the compiler, inside a compilation. */
+  /** Whether a type is a domain type, one with a `RocqType`: asked of the compiler, inside a compilation. */
   def isDomain(t: TypeRepr): Boolean =
     given Quotes = q
     t.asType match
-      case '[x] => Expr.summon[frflow.dsl.term.LeanType[x]].nonEmpty
+      case '[x] => Expr.summon[frflow.dsl.term.RocqType[x]].nonEmpty
   def isStructure(t: TypeRepr): Boolean = structureOf(t).contains(t.typeSymbol)
   def isImplementation(t: TypeRepr): Boolean = structureOf(t).exists(_ != t.typeSymbol)
 

@@ -1,10 +1,10 @@
 package frflow.api.derive
 
-import frflow.api.node.lean.{ObligationState, ObligationView}
+import frflow.api.node.proving.{ObligationState, ObligationView}
 import frflow.api.view.Warning
 import frflow.api.view.whole.*
 import frflow.core.consistency.{Consistency, Group, Standing, Vacuity}
-import frflow.proof.lean.lower.LowerObligation
+import frflow.proof.prover.lower.LowerObligation
 import frflow.project.pipeline.Analysis
 import frflow.proof.obligation.ObligationName
 
@@ -34,7 +34,7 @@ private[api] object Wholes:
   def warnings(w: WholeView): List[Warning] =
     w.groups.filter(_.status != GroupStatus.Proven).map(g => Warning.ConsistencyNotProven(g.statements))
 
-  private def standing(s: Standing, lean: ObligationState): GroupStatus = (s, lean) match
+  private def standing(s: Standing, rocq: ObligationState): GroupStatus = (s, rocq) match
     case (_, ObligationState.Proven) => GroupStatus.Proven
     case (Standing.Evidence(ts), _)  => GroupStatus.Evidence(ts)
     case _                           => GroupStatus.NotProven
@@ -44,5 +44,5 @@ private[api] object Wholes:
     case Vacuity.Satisfiable(n, i, _) => ObligationName.Satisfiable(n, i)
 
   private def check(a: Analysis, n: ObligationName): ObligationView =
-    a.wholeCheck.toList.flatMap(_.results).find(_.name == n).map(Leans.of)
+    a.wholeCheck.toList.flatMap(_.results).find(_.name == n).map(ProofViews.of)
       .getOrElse(ObligationView(LowerObligation.name(n).text, ObligationState.Unchecked, Nil))

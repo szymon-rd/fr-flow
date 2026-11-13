@@ -14,13 +14,13 @@ import scala.annotation.experimental
   private val structure = Ty.Data(frflow.core.name.TypeName("Till"))
 
   test("a structure's Definition is typed as the structure, and each member is a Definition over it") {
-    assertEquals(till.leanType.ty, structure)
+    assertEquals(till.rocqType.ty, structure)
     assertEquals(till.members.map(m => m.name -> m.changes),
       List("take" -> true, "taken" -> false, "total" -> false, "count" -> false))
     assertEquals(till.member("take").name, SymbolName("till_take"))
-    assertEquals(till.member("take").leanType.ty, Ty.FnOf(List(structure, Ty.Data(frflow.core.name.TypeName("Sale"))),
+    assertEquals(till.member("take").rocqType.ty, Ty.FnOf(List(structure, Ty.Data(frflow.core.name.TypeName("Sale"))),
       Ty.TupleOf(List(Ty.Bool, structure))))
-    assertEquals(till.member("total").leanType.ty, Ty.FnOf(List(structure), Ty.Num(frflow.core.ty.NumKind.Big)))
+    assertEquals(till.member("total").rocqType.ty, Ty.FnOf(List(structure), Ty.Num(frflow.core.ty.NumKind.Big)))
   }
 
   test("the model of a structure given the class that implements it elaborates") {
@@ -35,7 +35,7 @@ import scala.annotation.experimental
     assertEquals(elaborated.theory.code.attached.keySet.map(_.value),
       Set("till_take", "till_taken", "till_total", "till_count", "till_take_among"))
     val (steps, sale) = (Ty.ListOf(Ty.TupleOf(List(structure, structure))), Ty.Data(frflow.core.name.TypeName("Sale")))
-    assertEquals(till.among("take").leanType.ty, Ty.FnOf(
+    assertEquals(till.among("take").rocqType.ty, Ty.FnOf(
       List(structure, Ty.MapOf(Ty.Num(frflow.core.ty.NumKind.Big), structure), sale),
       Ty.TupleOf(List(Ty.TupleOf(List(Ty.Bool, structure)), Ty.TupleOf(List(steps, steps))))))
   }
@@ -61,7 +61,7 @@ import scala.annotation.experimental
     val elaborated = model.elaborated.fold(es => fail(es.toChain.toList.mkString("; ")), identity)
     assertEquals(elaborated.theory.code.attached.keySet.map(_.value),
       Set("pricing_price", "pricing_tax", "basket_add", "basket_due", "basket_add_among", "basket_holds_pricing"))
-    assertEquals(basket.member("due").leanType.ty,
+    assertEquals(basket.member("due").rocqType.ty,
       Ty.FnOf(List(Ty.Data(frflow.core.name.TypeName("Basket"))), Ty.Num(frflow.core.ty.NumKind.Big)))
     assertEquals(frflow.core.analysis.Validate(elaborated).fold(_.toChain.toList.map(_.toString), _ => Nil), Nil)
   }

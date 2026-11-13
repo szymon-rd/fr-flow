@@ -4,7 +4,7 @@ import frflow.core.expr.Binder
 import frflow.core.name.VarId
 import frflow.core.term.interpret.Substituted
 import frflow.core.term.language.Sym
-import frflow.dsl.term.LeanType
+import frflow.dsl.term.RocqType
 import frflow.dsl.term.Term as DTerm
 
 /** A binder's body, compiled once, as the class is read: the body over variables of its own, each of which
@@ -14,13 +14,13 @@ import frflow.dsl.term.Term as DTerm
   * class is lifted.
   */
 private[compiled] final class Once private (next: () => Int):
-  def apply(vars: List[(String, LeanType[Any])])(body: List[DTerm[Any]] => DTerm[Any])
+  def apply(vars: List[(String, RocqType[Any])])(body: List[DTerm[Any]] => DTerm[Any])
       : List[DTerm[Any]] => DTerm[Any] =
     val own = vars.map((hint, of) => Binder(VarId.step(next()), s"once$$$hint", of.ty))
     val compiled = body(own.zip(vars).map((x, v) => DTerm.free[Any](x)(using v._2)))
     given_ => DTerm([T[_]] => (s: Sym[T]) =>
       compiled.run(Substituted(s, own.zip(given_.map(_.run(s).asInstanceOf[T[Any]])).toMap)))(using
-      compiled.leanType)
+      compiled.rocqType)
 
 private[compiled] object Once:
   /** A supply of variables for one class's compiling: each its own, so a body inside another's never takes the

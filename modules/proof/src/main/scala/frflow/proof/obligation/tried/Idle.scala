@@ -11,7 +11,7 @@ import frflow.proof.terms.{OpenTerms, TermTable}
   * above (`.leftOpenAbove`), which it must hold for whatever they mean; a Declaration is no code, so doing nothing is
   * no meaning of it. Asked of the roots naming those Definitions together: the purpose is met by doing nothing only
   * when each of them is, and a safety root alone met by doing nothing is no defect (step 12 ruling); the others are
-  * stated by their formulas, so no root's module imports another's. Within Lean's
+  * stated by their formulas, so no root's module imports another's. Within Rocq's
   * default budget. A root about a
   * program (rooms' `BookWhenFree`) has none: a run has no "nothing" to give (`Substitute.canDoNothing`).
   */

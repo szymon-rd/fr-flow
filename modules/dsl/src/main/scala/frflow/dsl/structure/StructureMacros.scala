@@ -2,7 +2,7 @@ package frflow.dsl.structure
 
 import frflow.core.name.SymbolName
 import frflow.dsl.build.{Source, WrittenAt}
-import frflow.dsl.term.LeanType
+import frflow.dsl.term.RocqType
 import frflow.dsl.term.Term as DTerm
 import frflow.dsl.vocab.Declaration
 import frflow.dsl.vocab.Definition as Defined
@@ -32,10 +32,10 @@ object StructureMacros:
   def isStructure(using Quotes)(t: quotes.reflect.TypeRepr): Boolean =
     import quotes.reflect.*
     structured(t, (of: TypeRepr) => of.asType match
-      case '[x] => Expr.summon[LeanType[x]].nonEmpty)
+      case '[x] => Expr.summon[RocqType[x]].nonEmpty)
 
   /** The same, `domain` saying which types are domain types: inside a compilation the compiler's search for a
-    * `LeanType` says; where a compiled class is read, the companions' specs do.
+    * `RocqType` says; where a compiled class is read, the companions' specs do.
     */
   def structured(using Quotes)(t: quotes.reflect.TypeRepr, domain: quotes.reflect.TypeRepr => Boolean): Boolean =
     import quotes.reflect.*
@@ -75,12 +75,12 @@ object StructureMacros:
     */
   private def described(using Quotes)(t: quotes.reflect.TypeRepr): Expr[List[Member]] =
     import quotes.reflect.*
-    def leanType(of: TypeRepr): Expr[LeanType[?]] = of.asType match
-      case '[x] => Expr.summon[LeanType[x]].getOrElse(report.errorAndAbort(s"FrFlow: the structure " +
+    def rocqType(of: TypeRepr): Expr[RocqType[?]] = of.asType match
+      case '[x] => Expr.summon[RocqType[x]].getOrElse(report.errorAndAbort(s"FrFlow: the structure " +
         s"${t.typeSymbol.name} has a member over ${of.show}, which is no domain type: derive an FrSpec for it"))
     Expr.ofList(members(t).map((m, inputs, result) =>
-      '{ Member(${ Expr(m.name) }, ${ Expr(m.flags.is(Flags.Mutable)) }, ${ Expr.ofList(inputs.map(leanType)) },
-        ${ leanType(result) }) }))
+      '{ Member(${ Expr(m.name) }, ${ Expr(m.flags.is(Flags.Mutable)) }, ${ Expr.ofList(inputs.map(rocqType)) },
+        ${ rocqType(result) }) }))
 
   /** The Definition's type: its states typed by the structure's name (`State`), and a member for each of the
     * structure's, taking terms and giving a `Call`.

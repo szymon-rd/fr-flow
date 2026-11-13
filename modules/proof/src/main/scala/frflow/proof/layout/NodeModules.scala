@@ -1,10 +1,10 @@
 package frflow.proof.layout
 
 import frflow.core.analysis.resolution.Resolved
-import frflow.core.name.{LeanNames, NodeId}
-import frflow.proof.lean.ast.*
-import frflow.proof.lean.lower.{Atoms, LowerKeeps, LowerObligation, LowerType}
-import frflow.proof.lean.term.{LeanTerm, Printed, Scope}
+import frflow.core.name.{ProverNames, NodeId}
+import frflow.proof.prover.ast.*
+import frflow.proof.prover.lower.{Atoms, LowerKeeps, LowerObligation, LowerType}
+import frflow.proof.prover.term.{ProverTerm, Printed, Scope}
 import frflow.proof.obligation.*
 import frflow.proof.terms.{Conjoined, TermTable}
 
@@ -15,33 +15,33 @@ import frflow.proof.terms.{Conjoined, TermTable}
   * judged whether or not `complete` goes through. An authored obligation's theorem is the proof file's.
   */
 object NodeModules:
-  def of(r: Resolved, table: TermTable, o: NodeObligations): List[LeanModule] = of(Lowering(r, table), o)
+  def of(r: Resolved, table: TermTable, o: NodeObligations): List[ProverModule] = of(Lowering(r, table), o)
 
-  def of(l: Lowering, o: NodeObligations): List[LeanModule] =
+  def of(l: Lowering, o: NodeObligations): List[ProverModule] =
     List(Some(spec(l, o)), auto(l, o), impl(l, o), theorems(l, o), checks(l, o)).flatten
 
-  private def module(l: Lowering, n: NodeId, part: NodePart, decls: List[Decl]): LeanModule =
+  private def module(l: Lowering, n: NodeId, part: NodePart, decls: List[Decl]): ProverModule =
     val name = l.layout.ofNode(n, part)
     val spec = Option.when(part != NodePart.Spec)(l.layout.ofNode(n, NodePart.Spec)).toList
     val namespace = if part == NodePart.Spec then Names.path(l.kb.value, n.value)
       else Names.path(l.kb.value, n.value, part.toString)
-    val m = Imports.onto(l, LeanModule(name, Nil, Preamble.generated, namespace, Nil, decls))
+    val m = Imports.onto(l, ProverModule(name, Nil, Preamble.generated, namespace, Nil, decls))
     m.copy(imports = (m.imports ++ spec).distinct)
 
-  private def spec(l: Lowering, o: NodeObligations): LeanModule =
+  private def spec(l: Lowering, o: NodeObligations): ProverModule =
     // A trusted fact states no claim (a schedule's module holds its freezing try only).
     val said = l.resolved.theory.node(o.node).filter(_.statement.stated).flatMap(_.statement.said)
     val rule = l.resolved.theory.node(o.node).exists(_.statement.rule)
     val params = claimParams(l, o.node)
-    // A rule's claim is `True`: Lean has it of every value already, as a guard, and its `∀` over every value is false
+    // A rule's claim is `True`: Rocq has it of every value already, as a guard, and its `∀` over every value is false
     // of any rule some value breaks; what is asked of it is `cover_`, `made_`, `start_` and `inhabited_`.
     val claim = said.map(f => Decl.Def(defs, Names.builtin("claim"), params, Atoms.name("Prop"),
       if rule then Atoms.name("True")
       else Printed.claim(l.env, l.naming, l.guards, l.provided(o.node))(f.term)))
     val indices = o.tried.map(_.name).collect { case ObligationName.Tried(TryKind.RestatesConjunct(_, i)) => i }
-    val conjuncts = said.toList.flatMap(f => Conjoined.of(f.term, LeanTerm(l.env)).zipWithIndex.collect {
+    val conjuncts = said.toList.flatMap(f => Conjoined.of(f.term, ProverTerm(l.env)).zipWithIndex.collect {
       case (c, i) if indices.contains(i + 1) =>
-        Decl.Def(defs, Names.builtin(LeanNames.conjunct(i + 1)), params, Atoms.name("Prop"), c(Scope(0, l.naming)))
+        Decl.Def(defs, Names.builtin(ProverNames.conjunct(i + 1)), params, Atoms.name("Prop"), c(Scope(0, l.naming)))
     })
     val declared = o.required.flatMap(x => kept(x.goal)).flatMap(lowered(l, _))
     val obligations = (o.required ++ o.tried).map(LowerObligation(l.props)(_))
@@ -67,19 +67,19 @@ object NodeModules:
     }
 
   /** `complete` by FrFlow's automation, and its audit; or, proven in the developer's file, only the audit of that
-    * proof (`#print axioms`), as every required obligation is judged.
+    * proof (`Print Assumptions`), as every required obligation is judged.
     */
-  private def auto(l: Lowering, o: NodeObligations): Option[LeanModule] =
+  private def auto(l: Lowering, o: NodeObligations): Option[ProverModule] =
     o.required.find(_.name == ObligationName.Complete).map(x =>
       if x.discharge == Discharge.Authored then module(l, o.node, NodePart.Auto,
         List(Decl.PrintAxioms(Names.path(l.kb.value, o.node.value, "Proofs", "complete"))))
       else module(l, o.node, NodePart.Auto, List(theorem(l, o.node, x), audit(l, o.node, NodePart.Auto, "complete"))))
 
-  private def impl(l: Lowering, o: NodeObligations): Option[LeanModule] =
+  private def impl(l: Lowering, o: NodeObligations): Option[ProverModule] =
     o.required.find(_.name == ObligationName.Impl).map(x => module(l, o.node, NodePart.Impl,
       List(theorem(l, o.node, x), audit(l, o.node, NodePart.Impl, "impl"))))
 
-  private def theorems(l: Lowering, o: NodeObligations): Option[LeanModule] =
+  private def theorems(l: Lowering, o: NodeObligations): Option[ProverModule] =
     val c = Composition(l)
     o.required.find(_.name == ObligationName.Complete).filter(_ => c.composed(o.node)).map { x =>
       val complete = if x.discharge == Discharge.Authored then path(l, o.node, "Proofs", "complete")
@@ -90,7 +90,7 @@ object NodeModules:
       module(l, o.node, NodePart.Theorems, List(holds, audit(l, o.node, NodePart.Theorems, "holds")))
     }
 
-  private def checks(l: Lowering, o: NodeObligations): Option[LeanModule] =
+  private def checks(l: Lowering, o: NodeObligations): Option[ProverModule] =
     val others = o.required.filterNot(x => x.name == ObligationName.Complete || x.name == ObligationName.Impl)
     val proven = others.flatMap(x => List(theorem(l, o.node, x), audit(l, o.node, NodePart.Checks,
       LowerObligation.name(x.name).text)))

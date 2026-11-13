@@ -43,7 +43,7 @@ object Faults:
 
   /** A value only plain code reads, spoken of in a statement. */
   def codeOnly(scalaType: String): String =
-    s"$scalaType has no LeanType: add `derives LeanType` if a statement should speak of it"
+    s"$scalaType has no RocqType: add `derives RocqType` if a statement should speak of it"
 
   private def invalid(i: RelPath.Invalid): String = i match
     case RelPath.Invalid.Absolute(_)       => "it is absolute (paths are relative to the project)"

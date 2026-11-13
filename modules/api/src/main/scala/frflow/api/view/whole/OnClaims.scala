@@ -1,6 +1,6 @@
 package frflow.api.view.whole
 
-import frflow.api.node.lean.ObligationView
+import frflow.api.node.proving.ObligationView
 
 /** How an example stands against the claims: Rocq's outcome of `example_<set>_<i>` and of its opposite
   * (`…_opposite`, the claims giving its negation), with their messages, or checked in Scala only (an example that

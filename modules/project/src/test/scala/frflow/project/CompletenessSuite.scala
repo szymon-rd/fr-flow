@@ -4,9 +4,9 @@ import frflow.core.name.NodeId
 import frflow.dsl.kb.FrModel
 import frflow.proof.layout.{Layout, NodePart}
 import frflow.proof.audit.Completeness
-import frflow.proof.lean.ast.{Decl, LeanModule}
+import frflow.proof.prover.ast.{Decl, ProverModule}
 
-/** Every rule of `always` the ported examples' Lean takes as a hypothesis is discharged, and every node is asked
+/** Every rule of `always` the ported examples' Rocq takes as a hypothesis is discharged, and every node is asked
   * what its place asks, as an oracle reads it apart from the obligations' own selection (`Completeness`): each
   * store's start and each program changing it, each maker of its type, each hand-off of one to code not proven, at
   * its call; each `complete`, `impl` and `commute_<i>`. And the oracle sees an obligation gone, which the laying out
@@ -17,7 +17,7 @@ class CompletenessSuite extends munit.FunSuite:
   private lazy val analyses = examples.map((name, kb) => name -> Projects.bare(Projects.elaborated(kb)))
 
   /** The modules with the obligation `name` gone from the node's `Spec`. */
-  private def without(modules: List[LeanModule], layout: Layout, node: NodeId, name: String) = modules.map(m =>
+  private def without(modules: List[ProverModule], layout: Layout, node: NodeId, name: String) = modules.map(m =>
     if m.name != layout.ofNode(node, NodePart.Spec) then m
     else m.copy(decls = m.decls.map {
       case Decl.Namespace(n, ds) => Decl.Namespace(n, ds.filterNot {
@@ -34,7 +34,7 @@ class CompletenessSuite extends munit.FunSuite:
     }
   }
 
-  test("a term built into an obligation ill-formed, or an obligation gone, is a FrFlow bug: no Lean is laid out") {
+  test("a term built into an obligation ill-formed, or an obligation gone, is a FrFlow bug: no Rocq is laid out") {
     import frflow.core.expr.Expr
     import frflow.core.name.{SourceText, SymbolName}
     import frflow.core.typing.IrError

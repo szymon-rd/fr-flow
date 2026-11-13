@@ -13,8 +13,8 @@ import frflow.*
 // The purpose: who can access what
 // ============================================================================
 
-final case class UserId(name: String) derives LeanType
-final case class Path(value: String) derives LeanType
+final case class UserId(name: String) derives RocqType
+final case class Path(value: String) derives RocqType
 
 val access = Declaration[(UserId, Path) => Boolean]("whether the system lets the user access the resource")
 val authorized = Declaration[(UserId, Path) => Boolean](
@@ -29,11 +29,11 @@ val accessExactly = Node.claim(
 // The domain: identities, grants, sessions, and requests
 // ============================================================================
 
-final case class Grant(user: UserId, path: Path) derives LeanType
-final case class Session(token: String, user: UserId) derives LeanType
+final case class Grant(user: UserId, path: Path) derives RocqType
+final case class Session(token: String, user: UserId) derives RocqType
 
 /** The session table: each token with the user it was issued to at login. */
-final case class Sessions(open: List[Session]) derives LeanType
+final case class Sessions(open: List[Session]) derives RocqType
 
 val grants = Declaration[List[Grant]]("the grant table as stored when the request is decided")
 val sessions = Declaration[Sessions](

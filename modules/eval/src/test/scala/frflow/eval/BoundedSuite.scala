@@ -6,7 +6,7 @@ import frflow.core.name.NodeId
 import frflow.core.ty.Ty
 
 /** A counter held as a Scala `Int`. */
-final case class Score(count: Int) derives LeanType
+final case class Score(count: Int) derives RocqType
 
 /** Nothing FrFlow asks to exist is of a type holding a Scala `Int` or `Long` (`Bounded`): not a rule of `always` over
   * one (`inhabited_`), nor a Definition given plain Scala (its consistency), nor a

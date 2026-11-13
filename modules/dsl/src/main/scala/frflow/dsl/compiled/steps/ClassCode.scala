@@ -7,7 +7,7 @@ import frflow.dsl.compiled.{Compiler, Known}
 import frflow.dsl.lifted.{FrSpec, NotRead}
 import frflow.dsl.lifted.steps.{StructureCode, StructureType}
 import frflow.dsl.structure.{StructureDeclaration, StructureMacros}
-import frflow.dsl.term.LeanType
+import frflow.dsl.term.RocqType
 import frflow.dsl.vocab.Definition as Defined
 import scala.quoted.Quotes
 
@@ -44,7 +44,7 @@ object ClassCode:
       (m.name -> members.of(cls, m, result)) ::
         members.among(cls, m, result).toList.map(StructureCode.among(m.name) -> _))
     val parts = wiring.toList.map((field, word) => StructureCode.Held(word.name, word.words,
-      StructureDeclaration.held(members.state, word.name, word.leanType),
+      StructureDeclaration.held(members.state, word.name, word.rocqType),
       members.held(cls, cls.fieldMember(field))))
     (Map[String, Defined[?]](all*), parts)
 
@@ -72,7 +72,7 @@ object ClassCode:
     StructureType.record[Any]((name, cls.fullName, cls.pos.map(p => Source.relative(p.sourceFile.path))),
       fields.zipWithIndex.map { (f, i) =>
         val spec = c.spec(c.stateOfType(cls.typeRef.memberType(f), cls.tree), cls.tree)
-        LeanType.Field[Any, Any](StructureType.selector[Any, Any]((f.name, i), (name, names), spec.ty), spec)
+        RocqType.Field[Any, Any](StructureType.selector[Any, Any]((f.name, i), (name, names), spec.ty), spec)
       })
 
   /** The fields of a class that hold structures, each with its structure, in the order the constructor takes
@@ -88,7 +88,7 @@ object ClassCode:
     if held.size != words.size then throw NotRead(s"FrFlow: ${cls.name} holds ${held.size} structures and is " +
       s"given ${words.size} words: give the word of each, in order ($asked)")
     held.zip(words).foreach { case ((field, structure), w) =>
-      if w.leanType.ty != Ty.Data(TypeName(structure)) then throw NotRead(s"FrFlow: ${cls.name} holds $field, a " +
+      if w.rocqType.ty != Ty.Data(TypeName(structure)) then throw NotRead(s"FrFlow: ${cls.name} holds $field, a " +
         s"$structure, and is given ${w.name.value}, which is no word of that structure ($asked)")
     }
 

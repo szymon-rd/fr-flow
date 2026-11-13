@@ -8,7 +8,7 @@ import frflow.core.ty.Ty
 enum Expr:
   case Var(x: Binder)
   case Lit(value: Value, ty: Ty)
-  /** An open term of the vocabulary, or a defined one (applied to its definition by the Lean back end). */
+  /** An open term of the vocabulary, or a defined one (applied to its definition by the prover's back end). */
   case Sym(name: SymbolName, ty: Ty)
   case Call(define: DefName, args: List[Expr], ty: Ty)
   case Apply(fn: Expr, args: List[Expr], ty: Ty)
@@ -26,6 +26,6 @@ enum Expr:
   case ListOf(elems: List[Expr], elem: Ty)
   case Iterate(how: Iteration, over: Expr, x: Binder, body: Expr, ty: Ty)
   case Fold(over: Expr, init: Expr, acc: Binder, x: Binder, body: Expr)
-  /** `body` of every element with each later one (Lean's `List.Pairwise`). */
+  /** `body` of every element with each later one (the library's `List_Pairwise`). */
   case Pairwise(over: Expr, x: Binder, y: Binder, body: Expr)
   case Prim(op: PrimOp, args: List[Expr], ty: Ty)

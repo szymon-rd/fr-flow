@@ -247,7 +247,7 @@ sources for clarity inside a function. Architecture follows Typelevel, Volpe,
 
 *FPiS* and Ghosh use both encodings, and the Typelevel default for effects is
 final. **Rule:** use an initial encoding (an ADT folded by interpreters) for
-what FrFlow inspects, prints to Lean, hashes or rewrites: nodes and terms. Use
+what FrFlow inspects, prints to Rocq, hashes or rewrites: nodes and terms. Use
 a final encoding for what is only run by several interpreters: user flows over
 `F[_]`. **Reason:** a final encoding cannot be printed or hashed without
 interpreting it into an initial one.

@@ -63,7 +63,7 @@ requests. Do not add it to a project whose developer set it up without the layer
    code, state it over `Declaration`s, and say at the bottom what each is in terms of the code (rooms'
    `bookedAfterIsStored`).
 6. **The first split is ⇒/⇐** (safety and capability) **or state/reads**, not one part per conjunct.
-7. **Introduce the domain as it is needed**: a domain type (a case class or an enum deriving `LeanType`) where the
+7. **Introduce the domain as it is needed**: a domain type (a case class or an enum deriving `RocqType`) where the
    idea needs one, a `Declaration` for each word of the model: a concept known only by what is said of it, or one
    code provides, which then gets a Definition. Every Declaration says what it means, and every Definition where
    its value comes from.

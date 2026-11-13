@@ -23,9 +23,9 @@ change a type that other modules use, follow `refactoring.md`.
 
 The owner's direction is a Typelevel-style functional architecture. FrFlow is a
 DSL and a tool. A developer writes nodes in Scala, and FrFlow turns them into
-data. Interpreters run on that data: Lean printing, evaluation, the tests, the
+data. Interpreters run on that data: Rocq printing, evaluation, the tests, the
 snapshot, the CLI and the web view. Around the data sit the shell's effectful
-algebras (the ledger, git, Lean's `lake`, the file system, the keys) and HTTP.
+algebras (the ledger, git, the prover, the file system, the keys) and HTTP.
 
 - **The domain is data with a stated theory.** For every core type you can say
   in two sentences what it is, which cases it has and which operations it
@@ -104,7 +104,7 @@ The source tags are expanded in `references/sources.md`.
 - **B1 (H)** A core type holds its data and the essential operations that follow
   from its meaning. They are pure and total. [Ghosh, FPiS]
 - **B2 (H)** Interpreters live outside the type, each in its own package:
-  running, testing, evaluating examples, printing for people or for Lean,
+  running, testing, evaluating examples, printing for people or for Rocq,
   codecs and persistence. [Ghosh, Volpe, FPiS]
 - **B3 (H)** Dependencies point inward. `core`, `dsl`, `proof` and `decision`
   import no `cats.effect`, codec, `Files`, randomness or environment, and no
@@ -124,7 +124,7 @@ The source tags are expanded in `references/sources.md`.
   capabilities they declare. Candidates in FrFlow: the ledger, the clock, git,
   Lake, the disk, the `FrFlowApi`, user flows. Otherwise use concrete `IO`: a
   single-use launcher, HTTP server wiring, `main`. The pure core (nodes, terms,
-  IR, obligations, Lean printing) has no effect type at all. Operations take
+  IR, obligations, Rocq printing) has no effect type at all. Operations take
   and return domain types; keep the algebra short and orthogonal. Review
   question: which second interpreter, which law, or which restriction does
   this `F` serve? None is a finding. [Volpe, Ghosh, De Goes]
@@ -281,7 +281,7 @@ The source tags are expanded in `references/sources.md`.
 - **X2 (H)** Every algebra has a property suite of its laws, run against every
   interpreter, live and in-memory. The DSL's algebras (refinement, term
   evaluation) have property tests with `munit-scalacheck`. [FPiS ch. 8, Ghosh, Volpe]
-- **X3 (M)** Keep golden tests for output users see: CLI text, generated Lean,
+- **X3 (M)** Keep golden tests for output users see: CLI text, generated Rocq,
   the JSON snapshot.
 - **X4 (M)** Test values in and values out. Fakes are in-memory interpreters
   (A2), never mocks. Test `F` code with `munit-cats-effect`, and time with
@@ -358,7 +358,7 @@ The full procedure, with the plans that rebuilt `Node` and the ledger's store as
 `references/refactoring.md`. In short:
 
 1. **Baseline.** Green `sbt test` (and `sbt rocqTest` when the generated Rocq is
-   affected). Record the CLI golden files, the generated Lean and the `--json`
+   affected). Record the CLI golden files, the generated Rocq and the `--json`
    snapshot of each example, and the `measure.py` output.
 2. **Theory first.** Write in domain words what the concept is, its cases, its
    operations and their laws, and what it is not responsible for. For a service,

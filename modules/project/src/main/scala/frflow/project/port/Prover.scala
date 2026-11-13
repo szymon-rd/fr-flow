@@ -1,7 +1,7 @@
 package frflow.project.port
 
 import cats.data.NonEmptyList
-import frflow.proof.lean.ast.ModuleName
+import frflow.proof.prover.ast.ModuleName
 import frflow.proof.verdict.ProverRun
 
 /** The prover in the project's `rocq/`: whether it runs, and a build of modules, with its report of every file it

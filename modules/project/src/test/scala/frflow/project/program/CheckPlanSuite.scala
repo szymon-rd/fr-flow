@@ -4,7 +4,7 @@ import frflow.core.Elaborated
 import frflow.project.Projects
 import frflow.project.check.CheckPlan
 
-/** The check's levels: each node Lean is asked of after what is below it, its parts and the callees its code relies
+/** The check's levels: each node Rocq is asked of after what is below it, its parts and the callees its code relies
   * on among them, but its ancestors and, of a root proven of code, the other such roots (no circle orders them).
   */
 class CheckPlanSuite extends munit.FunSuite:

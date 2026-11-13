@@ -5,7 +5,7 @@ import frflow.dsl.term.{Lift, TermSyntax}
 import frflow.dsl.term.Term as DTerm
 
 /** The values the compiler reads made: a list written out or empty, an option, a pair, and a number: a `BigInt`
-  * of a constant or of a list's length, the only `Int`s read (Scala's `Int` wraps around; Lean's numbers do not).
+  * of a constant or of a list's length, the only `Int`s read (Scala's `Int` wraps around; Rocq's numbers do not).
   */
 private[compiled] trait CompileValues extends Compiling:
   import q.reflect.*

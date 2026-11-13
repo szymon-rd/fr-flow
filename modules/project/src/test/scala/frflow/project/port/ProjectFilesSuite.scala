@@ -14,7 +14,7 @@ import java.nio.file.Files
   */
 class ProjectFilesSuite extends munit.CatsEffectSuite:
   private def path(s: String) = RelPath.parse(s).fold(e => fail(e.toString), identity)
-  private val (a, b, c) = (path("lean/FrFlowGen/A.lean"), path("lean/FrFlowGen/Sub/B.lean"), path("src/C.scala"))
+  private val (a, b, c) = (path("rocq/FrFlowGen/A.v"), path("rocq/FrFlowGen/Sub/B.v"), path("src/C.scala"))
 
   private def laws(name: String, files: IO[ProjectFiles[IO]], tags: Set[munit.Tag]): Unit =
     written(name, files, tags)
@@ -38,11 +38,11 @@ class ProjectFilesSuite extends munit.CatsEffectSuite:
       for
         f      <- files
         _      <- List(b -> "b", a -> "a", c -> "c").traverse_((p, t) => f.writeIfChanged(p, t))
-        listed <- f.list(path("lean"))
+        listed <- f.list(path("rocq"))
         none   <- f.list(path("nowhere"))
         _      <- f.delete(b)
         gone   <- f.read(b)
-        after  <- f.list(path("lean"))
+        after  <- f.list(path("rocq"))
       yield assertEquals((listed, none, gone, after), (List(a, b), Nil, None, List(a)))
     }
 

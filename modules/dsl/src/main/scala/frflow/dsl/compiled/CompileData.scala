@@ -4,7 +4,7 @@ import frflow.core.code.DataRep
 import frflow.core.name.{CtorName, TypeName}
 import frflow.core.term.{Constructor, Selector as FieldSelector}
 import frflow.core.ty.Ty
-import frflow.dsl.term.LeanType
+import frflow.dsl.term.RocqType
 import frflow.dsl.term.Term as DTerm
 
 /** The developer's data the compiler reads: a case class made, a field read, a copy with fields replaced, an
@@ -51,7 +51,7 @@ private[compiled] trait CompileData extends Compiling:
     val parts = made.parts.map(_._2)
     def curried(left: Int, got: List[Any]): Any =
       if left == 0 then made.rep.make(made.ctor, got) else (x: Any) => curried(left - 1, got :+ x)
-    val types = parts.scanRight(made.whole)((a, r) => LeanType.fn(using a, r).asInstanceOf[LeanType[Any]])
+    val types = parts.scanRight(made.whole)((a, r) => RocqType.fn(using a, r).asInstanceOf[RocqType[Any]])
     given_.zip(types.drop(1)).foldLeft(DTerm.construct[Any](Constructor(made.data, made.ctor,
       curried(parts.size, Nil)))(using types.head))((f, a) =>
       DTerm.app[Any, Any](f.asInstanceOf[DTerm[Any => Any]], a._1)(using a._2))
@@ -59,8 +59,8 @@ private[compiled] trait CompileData extends Compiling:
   /** A case class, or an enum's case, as its spec has it: the type it is a value of (the class, or the enum),
     * its constructor there, what makes and takes apart a value (`DataRep`), and its fields' names and types.
     */
-  private final case class Shape(whole: LeanType[Any], data: TypeName, ctor: CtorName, rep: DataRep,
-      parts: List[(String, LeanType[Any])])
+  private final case class Shape(whole: RocqType[Any], data: TypeName, ctor: CtorName, rep: DataRep,
+      parts: List[(String, RocqType[Any])])
 
   private def shape(of: TypeRepr, at: Tree): Shape =
     val whole = spec(sumOf(of).getOrElse(of), at)
@@ -71,18 +71,18 @@ private[compiled] trait CompileData extends Compiling:
     val rep = whole.declares.types.get(data).flatMap(_.headOption).fold(refuse(s"a value of ${of.show}, whose " +
       "type is not declared by its spec", at))(_.rep)
     Shape(whole, data, ctor, rep,
-      (if of.isSingleton then Nil else fieldsOf(of)).map(f => (f._1, spec(f._2, at): LeanType[Any])))
+      (if of.isSingleton then Nil else fieldsOf(of)).map(f => (f._1, spec(f._2, at): RocqType[Any])))
 
   /** An enum's case, for a match's arm and a field read of it: its label, each field's selector (read off the
     * value, replaced by making the case again), and what tells a value of the enum is this case.
     */
-  final case class CaseOf(label: String, fields: List[LeanType.Field[Any, Any]], told: Any => Option[Any])
+  final case class CaseOf(label: String, fields: List[RocqType.Field[Any, Any]], told: Any => Option[Any])
 
   def caseOf(of: TypeRepr, at: Tree): CaseOf =
     val made = shape(of, at)
     def parts(value: Any): List[Any] = made.rep.split(value)._2
     val fields = made.parts.zipWithIndex.map { case ((name, t), i) =>
-      LeanType.Field[Any, Any](FieldSelector[Any, Any](name, i, made.data, t.ty, parts(_)(i), (value, x) =>
+      RocqType.Field[Any, Any](FieldSelector[Any, Any](name, i, made.data, t.ty, parts(_)(i), (value, x) =>
         made.rep.make(made.ctor, parts(value).updated(i, x))), t)
     }
     CaseOf(made.ctor.value, fields, value => Option.when(made.rep.split(value)._1 == made.ctor)(value))
@@ -96,10 +96,10 @@ private[compiled] trait CompileData extends Compiling:
       DTerm.select(read(c.on, own), fieldAt(own, i, c.whole)))
 
   /** The selector of a case class's field, as its spec has it. */
-  private def fieldAt(own: TypeRepr, i: Int, at: Tree): LeanType.Field[Any, Any] =
+  private def fieldAt(own: TypeRepr, i: Int, at: Tree): RocqType.Field[Any, Any] =
     val fields = if sumOf(own).nonEmpty then caseOf(own, at).fields else spec(own, at).fields
     fields.lift(i).fold(refuse(s"a field of ${own.show}, whose spec has none", at))(
-      _.asInstanceOf[LeanType.Field[Any, Any]])
+      _.asInstanceOf[RocqType.Field[Any, Any]])
 
   /** `b.copy(end = e)`: each field given replaced, in the order given; one left as it is kept. */
   private def copied(c: Calling, own: TypeRepr)(using Env): DTerm[Any] =

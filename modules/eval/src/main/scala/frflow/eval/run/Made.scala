@@ -10,7 +10,7 @@ import frflow.eval.{Applied, Env, Fn, ScalaValue}
 import frflow.eval.term.Semantics
 
 /** An `always[T]`, enforced where a value is made: of each `T` a value in a call holds (an input, the result), as
-  * its guard reaches it in Lean (`Guards`: a list's elements, an option's value, an `Either`'s side, a pair's
+  * its guard reaches it in Rocq (`Guards`: a list's elements, an option's value, an `Either`'s side, a pair's
   * components, a record's or an enum case's fields), in an example, a generated test and a generated value.
   */
 final case class Made(always: NodeId, ty: Ty, rule: Applied, fields: (ScalaValue, Ty) => List[(ScalaValue, Ty)]):
@@ -21,7 +21,7 @@ final case class Made(always: NodeId, ty: Ty, rule: Applied, fields: (ScalaValue
   def holds(v: ScalaValue, env: Env): Boolean = rule.run(env, List(v)).exists(Fn.bool)
 
   /** Whether one of `values` (`types` theirs) breaks the rule: the rule evaluated on it is false (one it cannot be
-    * evaluated on breaks nothing here: Lean judges it).
+    * evaluated on breaks nothing here: Rocq judges it).
     */
   def breaks(values: List[ScalaValue], types: List[Ty], env: Env): Boolean =
     values.zip(types).flatMap(of).exists(v => rule.run(env, List(v)).exists(r => !Fn.bool(r)))

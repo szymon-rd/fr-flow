@@ -85,7 +85,7 @@ What `frflow check` gives of each example, from cold, with Rocq 9.3 (`sbt rocqTe
   commit `81659f7`, with the witnesses);
   `frflow_evaluate` does not finish on the handler's steps, so they are to be written by hand in Rocq. The
   examples hold on the code (`check` runs them as Scala), and no claim contradicts one.
-- The test models (`DeskRocqSuite`, `PricesRocqSuite`, `SeededSuite`): proven, their
+- The test models (`PricesRocqSuite`, `SeededSuite`): proven, their
   examples shown from the claims.
 - `examples/shop`: its 42 claims are proven, 38 by `frflow_auto` and four from proof files
   (`examples/shop/rocq/Proofs/Shop`: two by hand, two the tactic given more time). About 16 minutes.
@@ -102,9 +102,10 @@ The newest Rocq is installed through opam (`opam install rocq-prover`), on the s
 
 1. **Whole-theory proofs by hand**: payments' six conditions and eight examples, shop's nine conditions and five
    examples (above).
-2. **Lean removed**: FrFlow's Lean library and the Lean proofs of auth and payments are gone. The names in the sources that still say Lean (`proof.lean`,
-   `LeanType`) are to be renamed.
+2. **The notation of signed content.** Lean is gone: its library, the Lean proofs of auth and payments, and the
+   names in the sources (`RocqType`, `proof.prover`). One trace is kept on purpose, below.
 
 A node's signed content is the text of its formula in the notation the Lean printer wrote. It stays printed that
-way, so no decision in a ledger is reopened by the move; what the content is printed as afterwards is a decision
-for then.
+way (`proof.prover.term.Print`, from an AST in that syntax, which Rocq is printed from too), so no decision in a
+ledger is reopened by the move. Printing content in another notation reopens every decision once; it is a decision
+for the developer.

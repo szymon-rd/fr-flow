@@ -3,12 +3,12 @@ package frflow.proof.audit
 import frflow.core.analysis.resolution.{Resolve, Resolved}
 import frflow.core.code.Code
 import frflow.core.expr.{Expr, Exprs}
-import frflow.core.name.{DefName, LeanNames, NodeId, SymbolName, TypeName}
+import frflow.core.name.{DefName, ProverNames, NodeId, SymbolName, TypeName}
 import frflow.core.spec.{NodeKind, Range}
 import frflow.core.ty.Ty
 import frflow.core.vocab.{SymbolType, ValueKind}
 import frflow.proof.layout.{Layout, NodePart}
-import frflow.proof.lean.ast.LeanModule
+import frflow.proof.prover.ast.ProverModule
 
 /** An oracle of soundness, computed apart from the obligations' own selection (`Required`, `Made`, `Scope`,
   * `Guards`, `CallingCode`), from the theory read afresh and the modules' syntax (`Assumed`).
@@ -24,16 +24,16 @@ object Completeness:
   /** A discharge a node needs and the modules do not state. */
   final case class Missing(node: NodeId, obligation: String, why: String)
 
-  def of(r: Resolved, modules: List[LeanModule]): List[Missing] = rules(r, modules) ++ nodes(r, modules)
+  def of(r: Resolved, modules: List[ProverModule]): List[Missing] = rules(r, modules) ++ nodes(r, modules)
 
-  private def rules(r: Resolved, modules: List[LeanModule]): List[Missing] =
+  private def rules(r: Resolved, modules: List[ProverModule]): List[Missing] =
     val t = r.theory
     val taken = Assumed.taken(modules).collect { case List(k, rule) if k.text == t.name.value => rule.text }.toSet
-    val rules = t.nodes.map(_.node).filter(n => n.statement.rule && taken(LeanNames.define(n.id.value)))
+    val rules = t.nodes.map(_.node).filter(n => n.statement.rule && taken(ProverNames.define(n.id.value)))
     rules.flatMap(n => n.statement.range.toList.flatMap(needs(r, _, n.id))).distinct
       .filterNot((rule, name, _) => stated(modules, Layout(t.name), rule).contains(name)).map(Missing.apply)
 
-  private def nodes(r: Resolved, modules: List[LeanModule]): List[Missing] =
+  private def nodes(r: Resolved, modules: List[ProverModule]): List[Missing] =
     val t = r.theory
     t.refinement.nodes.filter(_.statement.stated).flatMap { n =>
       val have = stated(modules, Layout(t.name), n.id)
@@ -58,7 +58,7 @@ object Completeness:
       .map(d => (rule, s"made_${d.value}", s"${d.value}'s proven code makes it"))
     val calls = proven(r).flatMap((_, c) => c.proven.toList).distinct.flatMap(d => plainCalls(r, d).zipWithIndex
       .collect { case (tys, i) if tys.exists(holds(r, ty)) =>
-        (rule, s"made_${LeanNames.call(d, i)}", s"${d.value} hands one to code not proven at call ${i + 1}")
+        (rule, s"made_${ProverNames.call(d, i)}", s"${d.value} hands one to code not proven at call ${i + 1}")
       })
     results ++ calls
 
@@ -95,5 +95,5 @@ object Completeness:
     go(x, Set.empty)
 
   /** What the modules state where the obligation would be: the node's `Spec`. */
-  private def stated(modules: List[LeanModule], l: Layout, node: NodeId): List[String] =
+  private def stated(modules: List[ProverModule], l: Layout, node: NodeId): List[String] =
     Assumed.defs(modules.filter(_.name == l.ofNode(node, NodePart.Spec)))

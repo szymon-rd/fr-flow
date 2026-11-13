@@ -1,6 +1,6 @@
 package frflow.api.view
 
-import frflow.api.node.lean.CheckState
+import frflow.api.node.proving.CheckState
 import frflow.api.view.whole.{ExampleOutcome, GroupStatus}
 import frflow.decision.review.ReviewState
 

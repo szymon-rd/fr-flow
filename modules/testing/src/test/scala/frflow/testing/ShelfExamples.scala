@@ -13,7 +13,7 @@ class ShelfExamples extends FrFlowExamples(kb):
   example("an empty shelf gives nothing", minPages := BigInt(1)):
     picks(Nil, 1) is Nil
 
-/** An example reading a provided value it does not give: no Scala value, so checked in Lean only. */
+/** An example reading a provided value it does not give: no Scala value, so checked in Rocq only. */
 class OpenExamples extends FrFlowExamples(kb):
   example("the length asked is never negative"):
     (minPages >= BigInt(0)) is true

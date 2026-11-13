@@ -5,7 +5,7 @@ import frflow.core.name.{SymbolName, VarId}
 
 /** What an expression is evaluated under: its variables' values, the symbols' values it is given, and the numbers a
   * quantifier over numbers ranges over: none, where it has no Scala value; a search's case's own numbers and their
-  * neighbours, where a search only proposes what Lean then proves (the step's refutation).
+  * neighbours, where a search only proposes what Rocq then proves (the step's refutation).
   */
 final case class Env(variables: Map[VarId, ScalaValue], symbols: SymbolName => Option[ScalaValue],
     numbers: List[BigInt]):

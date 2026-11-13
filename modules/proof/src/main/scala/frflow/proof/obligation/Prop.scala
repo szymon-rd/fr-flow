@@ -6,7 +6,7 @@ import frflow.core.name.{DefName, NodeId, SymbolName}
 import frflow.core.spec.Written
 import frflow.core.ty.Ty
 
-/** The statement of an obligation in the logic of refinement, before any Lean syntax. Claims and conjuncts stand
+/** The statement of an obligation in the logic of refinement, before any syntax of a prover. Claims and conjuncts stand
   * applied to their open terms. `Forall` and `Exists` bind open terms in order: those of the claims of the nodes the
   * statement is `about`, then its conclusion's, then its hypotheses' (a statement binds the terms of what it is
   * about, not only of what it says); `ForEvery` and `ForSome` bind exactly the symbols named.

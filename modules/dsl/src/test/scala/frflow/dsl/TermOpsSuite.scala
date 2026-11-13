@@ -58,7 +58,7 @@ class TermOpsSuite extends munit.FunSuite:
     assertEquals(prim(s.union(s)), (PrimOp.Union, Ty.SetOf(big)))
   }
 
-  test("a pair's _1 and _2 are its components, Lean's fields of Prod") {
+  test("a pair's _1 and _2 are its components, Rocq's fields of Prod") {
     body(forall((p: Term[(BigInt, BigInt)]) => p._1 === p._2)) match
       case Expr.Prim(PrimOp.Eq, List(Expr.Field(_, a, 0, t), Expr.Field(_, b, 1, u)), _) =>
         assertEquals((a, b, t, u), (Selector.pair, Selector.pair, big, big))

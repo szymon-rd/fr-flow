@@ -16,8 +16,8 @@ import frflow.testing.derive.Case
 /** A step whose proof does not go through, searched for a case that refutes it (today's `Refutation`): its one part a
   * claim fixing a Definition's result (`guard implies op(inputs) === e`), so `e` is an answer the claim allows; a
   * case where the claim fails with that answer, the Definition answering `e` everywhere (`consistency.Defining`), is
-  * the candidate Lean is then asked to prove (`proof.layout.Refutes`). The cases are tried in order, a quantifier over
-  * numbers ranging over the case's own numbers and their neighbours (today's search): Lean confirms what it finds.
+  * the candidate Rocq is then asked to prove (`proof.layout.Refutes`). The cases are tried in order, a quantifier over
+  * numbers ranging over the case's own numbers and their neighbours (today's search): Rocq confirms what it finds.
   */
 object StepRefutation:
   def candidate(semantics: Semantics, r: Resolved, node: NodeId, cases: List[Case]): Option[Refuted] =

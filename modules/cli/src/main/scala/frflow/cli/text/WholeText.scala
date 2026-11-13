@@ -41,7 +41,7 @@ object WholeText:
     * example, owner §18).
     */
   private def example(e: ExampleView, st: Style): String =
-    val lean = e.onClaims match
+    val rocq = e.onClaims match
       case OnClaims.ScalaOnly                        => "checked in Scala only (it gives values)"
       case c @ OnClaims.Rocq(_, _) if c.inconsistent => "Rocq: the claims are inconsistent here: they give both it " +
           "and its negation"
@@ -50,9 +50,9 @@ object WholeText:
           (if ExampleView.shown(c.state) then "" else ", not decided by the claims")
     val code = if e.onCode == OnCode.Holds then "" else s"; ${Tested.onCode(e.onCode)}"
     e.outcome match
-      case ExampleOutcome.Passes    => s"${Marks.proven(st)} ${e.name}  ${st.dim(lean)}$code"
-      case ExampleOutcome.Undecided => s"${Marks.open(st)} ${e.name}  ${st.dim(lean)}$code"
-      case ExampleOutcome.Fails     => s"${Marks.failed(st)} ${e.name}  ${st.red(lean + code)}"
+      case ExampleOutcome.Passes    => s"${Marks.proven(st)} ${e.name}  ${st.dim(rocq)}$code"
+      case ExampleOutcome.Undecided => s"${Marks.open(st)} ${e.name}  ${st.dim(rocq)}$code"
+      case ExampleOutcome.Fails     => s"${Marks.failed(st)} ${e.name}  ${st.red(rocq + code)}"
 
   /** Whether everything about the whole is as it should be: what `check` exits on beside the nodes. An example the
     * claims do not decide is no failure.

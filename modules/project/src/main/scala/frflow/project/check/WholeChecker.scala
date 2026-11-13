@@ -7,8 +7,8 @@ import cats.syntax.all.*
 import frflow.project.pipeline.Analysis
 import frflow.project.port.Prover
 import frflow.proof.layout.Layout
-import frflow.proof.lean.ast.ModuleName
-import frflow.proof.lean.lower.LowerObligation
+import frflow.proof.prover.ast.ModuleName
+import frflow.proof.prover.lower.LowerObligation
 import frflow.proof.obligation.{Discharge, Obligation}
 import frflow.proof.reading.{Elaboration, ProofRules}
 import frflow.proof.verdict.{Judge, ObligationStatus, ProverRun, Result, WholeCheck}

@@ -11,7 +11,7 @@ import java.time.Instant
 /** The golden checks: a node proven, one refused for its proof file, one refuted by a try. */
 object CheckSamples:
   private val at = Instant.parse("2026-10-03T08:00:00Z")
-  private val error = Diagnostic("Proofs/Rooms/Book.lean", 12, true, "unsolved goals")
+  private val error = Diagnostic("Proofs/Rooms/Book.v", 12, true, "unsolved goals")
 
   private val proven = NodeCheck(NodeId("Root"), CheckKey("4e1f0c"), CheckStatus.Proven, List(
     Result(ObligationName.Complete, ObligationStatus.Proven, Nil),

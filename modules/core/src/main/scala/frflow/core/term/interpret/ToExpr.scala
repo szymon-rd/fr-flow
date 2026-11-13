@@ -8,7 +8,7 @@ import frflow.core.ty.{NumKind, Ty}
 
 /** The initial form of a term (LNCS 7470 §2.4 and §3.3, `initialize`): the IR `Expr` the analyses read (what changed,
   * mentions, the refutation's hint, the layout), each binder named by its depth, the number of binders around it
-  * (§3.2's `S` counts the same way). No back end reads it: Lean is printed and Scala evaluated from the term itself.
+  * (§3.2's `S` counts the same way). No back end reads it: Rocq is printed and Scala evaluated from the term itself.
   * Application is flattened (`app(app(f, a), b)` is `f a b`); a field of a constructor is its argument, so a match
   * arm's case reads its fields as the pattern's variables.
   */

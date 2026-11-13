@@ -2,7 +2,7 @@ package frflow.api
 
 import cats.kernel.laws.discipline.CommutativeMonoidTests
 import cats.syntax.all.*
-import frflow.api.derive.Leans
+import frflow.api.derive.ProofViews
 import frflow.api.fixture.Opened
 import frflow.api.fixture.Opened.id
 import frflow.api.view.{Tally, View, Views}
@@ -53,7 +53,8 @@ class ViewsSuite extends munit.CatsEffectSuite with DisciplineSuite:
   }
 
   test("every state Rocq gives a check or an obligation has its view, of the same name") {
-    assertEquals(CheckStatus.values.toList.map(s => Leans.state(s).toString), CheckStatus.values.toList.map(_.toString))
-    assertEquals(ObligationStatus.values.toList.map(s => Leans.state(s).toString),
+    assertEquals(CheckStatus.values.toList.map(s => ProofViews.state(s).toString),
+      CheckStatus.values.toList.map(_.toString))
+    assertEquals(ObligationStatus.values.toList.map(s => ProofViews.state(s).toString),
       ObligationStatus.values.toList.map(_.toString))
   }

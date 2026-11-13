@@ -18,12 +18,12 @@ object RelPath:
     else if p.startsWith("..") then Left(Invalid.OutsideProject(s))
     else Right(p.toString.replace('\\', '/'))
 
-  /** `dir/rel` for a path FrFlow makes from identifiers (a Lean module's file): never absolute, never `..`. */
+  /** `dir/rel` for a path FrFlow makes from identifiers (a Rocq module's file): never absolute, never `..`. */
   def fromIdentifiers(dir: String, rel: String): RelPath = s"$dir/$rel"
 
   extension (p: RelPath)
     def value: String = p
     def isUnder(dir: RelPath): Boolean = p == dir || p.startsWith(dir + "/")
-    /** The file's name without its extension (`DecisionContract` of `…/DecisionContract.lean`). */
+    /** The file's name without its extension (`DecisionContract` of `…/DecisionContract.v`). */
     def stem: String = p.split('/').last.takeWhile(_ != '.')
   given Ordering[RelPath] = Ordering.String

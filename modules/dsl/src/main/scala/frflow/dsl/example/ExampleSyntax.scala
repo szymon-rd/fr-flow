@@ -10,7 +10,7 @@ import frflow.dsl.vocab.Declaration
 object ExampleSyntax:
   extension [A](d: Declaration[A])
     /** The value an example gives `d`. */
-    def :=(value: A): Binding = Binding(d.name, Reify(d.leanType, value))
+    def :=(value: A): Binding = Binding(d.name, Reify(d.rocqType, value))
 
   extension (t: Term[Boolean])
     /** That the term holds (`is true`) or does not (`is false`). */
@@ -18,4 +18,4 @@ object ExampleSyntax:
 
   extension [A](t: Term[A])
     /** That the term's value is `value`. */
-    infix def is(value: A): Term[Boolean] = t === Lift.constant(value)(using t.leanType)
+    infix def is(value: A): Term[Boolean] = t === Lift.constant(value)(using t.rocqType)

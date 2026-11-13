@@ -7,7 +7,7 @@ import frflow.proof.obligation.ObligationName
 import frflow.proof.verdict.*
 import java.time.Instant
 
-/** What of a node is not proven again, as decisions read it: only current checks and reports count; Lean proves its
+/** What of a node is not proven again, as decisions read it: only current checks and reports count; Rocq proves its
   * code only when an `impl` (or `root_impl`) is asked and proven; a report not checked (no Scala value) is no failing
   * test, but a shortfall of cases on a checked one is.
   */

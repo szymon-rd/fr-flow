@@ -2,12 +2,12 @@ package frflow.proof.layout
 
 import frflow.core.analysis.resolution.Resolved
 import frflow.core.name.NodeId
-import frflow.proof.lean.ast.*
-import frflow.proof.lean.lower.{LowerType, LowerValue}
-import frflow.proof.lean.term.Printed
+import frflow.proof.prover.ast.*
+import frflow.proof.prover.lower.{LowerType, LowerValue}
+import frflow.proof.prover.term.Printed
 import frflow.proof.terms.TermTable
 
-/** A step refuted (today's `Refutation.lean`): the theorem that the node's `complete` is false, given an answer its one
+/** A step refuted : the theorem that the node's `complete` is false, given an answer its one
   * part allows (`answer`, a term of the type of what the part's call is about, printed by the term printer) and the
   * case `testing.StepRefutation` found (`case_i`, each value lowered by `LowerValue`). Its tactics are FrFlow's own,
   * applying `complete` to the answer and the case in order, each value's guards (what always holds of it) discharged
@@ -15,7 +15,7 @@ import frflow.proof.terms.TermTable
   * part's Definition is not confirmed by it (a refutation is one-sided).
   */
 object RefutesModule:
-  def of(r: Resolved, table: TermTable, node: NodeId, found: Refutation): LeanModule =
+  def of(r: Resolved, table: TermTable, node: NodeId, found: Refutation): ProverModule =
     val l = Lowering(r, table)
     val defs = List(Attr.FrflowDefs)
     val (term, ty, inputs) = (found.answer, found.ty, found.inputs)
@@ -29,7 +29,7 @@ object RefutesModule:
           inputs.indices.toList.flatMap(i => List(s"all_goals specialize h case_$i",
             s"all_goals (try simp [frflow_defs, case_$i] at h)")) :+
           "all_goals first | omega | grind"), Break.SameLine)
-    val m = Imports.onto(l, LeanModule(l.layout.refutes(node), Nil, Preamble.generated,
+    val m = Imports.onto(l, ProverModule(l.layout.refutes(node), Nil, Preamble.generated,
       Names.path(l.kb.value, node.value, "Refutes"), Nil, (answered :: cases) :+ refutes))
     m.copy(imports = (m.imports :+ l.layout.ofNode(node, NodePart.Spec)).distinct)
 

@@ -25,7 +25,7 @@ class TermLawsSuite extends munit.FunSuite:
 
   test("a written lambda run on arguments, as examples run it, gives the term's value on them as constants") {
     val (x, s) = (Binder(VarId.level(0), "x", Ty.Num(frflow.core.ty.NumKind.Big)), Binder(VarId.level(1), "s",
-      summon[LeanType[Slot]].ty))
+      summon[RocqType[Slot]].ty))
     val (n, slot) = (BigInt(3), Slot("Oak", 1, 4))
     (1L to 200L).foreach { seed =>
       val opened = Generated(List(Term.free(x)), List(Term.free(s))).bool(Random(seed), 3)
@@ -71,7 +71,7 @@ class TermLawsSuite extends munit.FunSuite:
 
   test("a binder of two variables notes both types: an either's error type, a fold's accumulator") {
     // a variable declares nothing, so only the binder can declare `Kind`
-    def free[A: LeanType](i: Int) = Term.free[A](Binder(VarId.level(i), "v", LeanType[A].ty))
+    def free[A: RocqType](i: Int) = Term.free[A](Binder(VarId.level(i), "v", RocqType[A].ty))
     val e = free[Either[Kind, BigInt]](0).fold(_ => True, _ => True)
     val f = Lift.constant(List(BigInt(1))).foldLeft(free[Option[Kind]](1))((acc, _) => acc)
     assert(List(e.notes, f.notes).forall(_.declares.types.keySet.exists(_.value == "Kind")), (e.notes, f.notes))

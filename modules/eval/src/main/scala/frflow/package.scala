@@ -16,7 +16,7 @@ export frflow.dsl.kb.FrModel
 export frflow.dsl.kb.Defining.*
 export frflow.dsl.example.FrFlowExamples
 export frflow.dsl.example.ExampleSyntax.*
-export frflow.dsl.term.{Data, LeanType, Term}
+export frflow.dsl.term.{Data, RocqType, Term}
 export frflow.dsl.vocab.{Definition, Opaque, Stating}
 
 /** A word of the model (`dsl.vocab.Declaration`): what statements speak of and code calls. A `Definition` is one

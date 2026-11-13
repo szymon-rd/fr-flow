@@ -3,8 +3,8 @@ package frflow.proof.layout
 import cats.Eval
 import frflow.core.analysis.resolution.SaysWhat
 import frflow.core.graph.Walk
-import frflow.core.name.{LeanNames, NodeId, SymbolName}
-import frflow.proof.lean.ast.*
+import frflow.core.name.{ProverNames, NodeId, SymbolName}
+import frflow.proof.prover.ast.*
 import frflow.proof.obligation.{Hyp, Made, Obligation, ObligationName, Prop, Required, Substitute}
 
 /** How a node's claim is proven from what is below it, as terms over the theorems the node modules declare: `holds`
@@ -51,14 +51,14 @@ final class Composition(l: Lowering):
   def holdsProof(n: NodeId, complete: LExpr, statement: Prop): LExpr =
     val names = Params.of(l.props.statement(holds(n)), Nil)
     Params.lambda(names, applied(complete, statement, Map.empty,
-      parts(n).map(p => LeanNames.hypothesis(p) -> below(p)) ++
+      parts(n).map(p => ProverNames.hypothesis(p) -> below(p)) ++
         Made.taken(l.resolved, n).map(m => m._3.name -> name(m._3))))
 
   /** A part's proof inside `holds`: its hypothesis, or its own `holds` applied to its leaves'. */
   private def below(p: NodeId): LExpr =
-    if !composed(p) then LExpr.Name(Names.builtin(LeanNames.hypothesis(p)))
+    if !composed(p) then LExpr.Name(Names.builtin(ProverNames.hypothesis(p)))
     else applied(theorem(p, "Theorems", "holds"), holds(p), Map.empty,
-      leaves(p).map(x => LeanNames.hypothesis(x) -> LExpr.Name(Names.builtin(LeanNames.hypothesis(x)))) ++
+      leaves(p).map(x => ProverNames.hypothesis(x) -> LExpr.Name(Names.builtin(ProverNames.hypothesis(x)))) ++
         made(p).map(m => m._3.name -> name(m._3)))
 
   private def name(h: Hyp): LExpr = LExpr.Name(Names.builtin(h.name))
@@ -95,10 +95,10 @@ final class Composition(l: Lowering):
     * and to what its callees make, each node's proof as `ref` gives it.
     */
   private def madeProof(rule: NodeId, op: SymbolName, σ: Subst, ref: NodeId => LExpr): LExpr =
-    madeGoal(rule, op).fold(LExpr.Name(Names.builtin(LeanNames.madeTaken(rule, op))))(goal =>
-      applied(theorem(rule, "Checks", LeanNames.Made + op.value), goal, σ,
-        reliedOnBy(op).map(h => LeanNames.hypothesis(h) -> ref(h)) ++
-          Made.callees(l.resolved, rule, op).map(c => LeanNames.madeByCallee(c) -> madeProof(rule, c, σ, ref))))
+    madeGoal(rule, op).fold(LExpr.Name(Names.builtin(ProverNames.madeTaken(rule, op))))(goal =>
+      applied(theorem(rule, "Checks", ProverNames.Made + op.value), goal, σ,
+        reliedOnBy(op).map(h => ProverNames.hypothesis(h) -> ref(h)) ++
+          Made.callees(l.resolved, rule, op).map(c => ProverNames.madeByCallee(c) -> madeProof(rule, c, σ, ref))))
 
   /** A proof of `n`'s claim under `σ`, from the hypotheses `h_<T>` of what it trusts. Each proof below it that its
     * term would use more than once is named once before it, children first (`let p_<N> : claim := …`), so the term
@@ -116,9 +116,9 @@ final class Composition(l: Lowering):
   /** `n`'s proof, each proof it applies as `ref` gives it. */
   private def step(n: NodeId, σ: Subst, ref: NodeId => LExpr): LExpr =
     if coded(n) then implGoal(n).fold(hypothesis(n))(goal => applied(theorem(n, "Impl", "impl"), goal, σ,
-      hypotheses(n).map(h => LeanNames.hypothesis(h) -> ref(h))))
+      hypotheses(n).map(h => ProverNames.hypothesis(h) -> ref(h))))
     else if composed(n) then applied(theorem(n, "Theorems", "holds"), holds(n), σ,
-      leaves(n).map(x => LeanNames.hypothesis(x) -> ref(x)) ++
+      leaves(n).map(x => ProverNames.hypothesis(x) -> ref(x)) ++
         made(n).map(m => m._3.name -> madeProof(m._1, m._2, σ, ref)))
     else hypothesis(n)
 
@@ -136,7 +136,7 @@ final class Composition(l: Lowering):
 
   private lazy val implGoal: NodeId => Option[Prop] =
     once(ids)(n => Required.impl(l.resolved, n).headOption.map(_.goal))
-  private def hypothesis(n: NodeId): LExpr = LExpr.Name(Names.builtin(LeanNames.hypothesis(n)))
+  private def hypothesis(n: NodeId): LExpr = LExpr.Name(Names.builtin(ProverNames.hypothesis(n)))
   private def theorem(n: NodeId, module: String, name: String): LExpr =
     LExpr.Const(Names.path(l.kb.value, n.value, module, name))
 

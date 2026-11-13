@@ -7,11 +7,11 @@ import frflow.core.term.Bound
 import frflow.core.term.interpret.Forward
 import frflow.core.term.language.{Final, Stated, Sym}
 import frflow.core.ty.Ty
-import frflow.proof.lean.laws.{Event, MoreTerms}
+import frflow.proof.prover.laws.{Event, MoreTerms}
 
 /** An interpreter over `base` that gives each symbol the law generators name (core's `Terms`, proof's `MoreTerms`) a
   * closed value of its type, built in the algebras: a generated term made closed, the same term for the evaluator and
-  * for Lean's printer. A symbol it has no value for stays a symbol.
+  * for Rocq's printer. A symbol it has no value for stays a symbol.
   */
 final class Closed[T[_]](protected val base: Sym[T]) extends Forward[T, T]:
   protected def fwd[A](t: T[A]): T[A] = t

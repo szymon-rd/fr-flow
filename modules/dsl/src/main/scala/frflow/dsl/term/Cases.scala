@@ -5,10 +5,10 @@ import frflow.core.term.language.Sym
 import scala.deriving.Mirror
 
 /** A match so far, `s.on[A](…).on[B](…)`: a term of its result, to which `on` adds an arm. Each arm is a host function
-  * over its case (LNCS 7470 §3.2), so every interpreter binds the case's fields itself; Lean refuses a match that
+  * over its case (LNCS 7470 §3.2), so every interpreter binds the case's fields itself; Rocq refuses a match that
   * misses a case, the evaluator gives `NoCase`.
   */
-final class Cases[S, R](scrutinee: Term[S], arms: List[Branch[S, ?, R]])(using r: LeanType[R])
+final class Cases[S, R](scrutinee: Term[S], arms: List[Branch[S, ?, R]])(using r: RocqType[R])
     extends Term[R]([T[_]] => (s: Sym[T]) => s.cases(scrutinee.run(s), arms.map(Cases.when(s, _)), r.ty)):
   /** One more arm, named by its case's type: `.on[Change.Moved](to => …)`, `.on[Change.Clear.type](result)`. */
   inline def on[C <: S](using m: Mirror.ProductOf[C])(inline f: Cases.Fields[m.MirroredElemTypes, R]): Cases[S, R] =

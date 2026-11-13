@@ -3,7 +3,7 @@ package frflow.dsl.compiled
 import cats.syntax.all.*
 import frflow.dsl.lifted.{FrSpec, NotRead}
 import frflow.dsl.structure.{ReadPorts, StructureDeclaration}
-import frflow.dsl.term.{LeanType, Terms}
+import frflow.dsl.term.{RocqType, Terms}
 import frflow.dsl.term.Term as DTerm
 import scala.quoted.*
 
@@ -147,11 +147,11 @@ private[compiled] trait Compiling extends ReadPorts:
       (x, y) => made(List(x, y))
     case other                    => refuse("a function of two inputs that is not a lambda written out", other)
 
-  private def input(p: ValDef): (String, LeanType[Any]) = (p.name, spec(p.tpt.tpe, p))
+  private def input(p: ValDef): (String, RocqType[Any]) = (p.name, spec(p.tpt.tpe, p))
 
-  /** A value named for what follows it (Lean's `let`), what follows compiled now (`Once`). */
-  def bind(value: DTerm[Any], name: String)(rest: DTerm[Any] => DTerm[Any])(using out: LeanType[Any]): DTerm[Any] =
-    val made = once(List((name, value.leanType)))(xs => rest(xs.head))
+  /** A value named for what follows it (a `let`), what follows compiled now (`Once`). */
+  def bind(value: DTerm[Any], name: String)(rest: DTerm[Any] => DTerm[Any])(using out: RocqType[Any]): DTerm[Any] =
+    val made = once(List((name, value.rocqType)))(xs => rest(xs.head))
     Terms.let[Any, Any](value, name, x => made(List(x)))
 
   /** The names a lambda gives its parameters, for printing. */

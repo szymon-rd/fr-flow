@@ -21,7 +21,7 @@ python3 -I .claude/skills/scala-fp/references/measure.py > "$BASE/measure.txt"
 ```
 
 `$BASE` is a directory in your scratchpad. The outputs users see are pinned by
-golden files in the modules' test resources: each example's Lean
+golden files in the modules' test resources: each example's Rocq
 (`modules/proof/src/test/resources/<example>`, `modules/project/src/test/resources`),
 the CLI's walk-through of rooms (`modules/cli/src/test/resources/rooms/walkthrough`)
 and the files under `.frflow/` (`modules/wire/src/test/resources`), all checked by
@@ -113,7 +113,7 @@ Run the baseline commands again: the golden files, the walk-through and the
 sbt test && sbt rocqTest && python3 bin/budget.py modules examples
 ```
 
-Generated Lean, CLI output and the files under `.frflow/` are identical unless a
+Generated Rocq, CLI output and the files under `.frflow/` are identical unless a
 difference was planned in step 3. List every planned difference, with its
 reason, for the owner. A change to the snapshot's JSON shape is a protocol
 change: old files must still decode, or the change says how they are migrated.

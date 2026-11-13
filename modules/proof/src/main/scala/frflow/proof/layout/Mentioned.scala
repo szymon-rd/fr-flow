@@ -1,14 +1,14 @@
 package frflow.proof.layout
 
-import frflow.proof.lean.ast.*
+import frflow.proof.prover.ast.*
 
 /** The names a module's declarations use, read off its AST: the qualified constants (`Rooms.covers`,
   * `Rooms.grantWhenFree.claim`) and the plain names, from which its imports follow.
   */
 object Mentioned:
-  def of(ds: List[Decl]): List[List[LeanName]] = ds.flatMap(decl).distinct
+  def of(ds: List[Decl]): List[List[ProverName]] = ds.flatMap(decl).distinct
 
-  private def decl(d: Decl): List[List[LeanName]] = d match
+  private def decl(d: Decl): List[List[ProverName]] = d match
     case Decl.Documented(_, inner)        => decl(inner)
     case Decl.Budgeted(_, inner)          => decl(inner)
     case Decl.Def(_, _, ps, t, b)         => ps.flatMap(binder) ++ expr(t) ++ expr(b)
@@ -22,11 +22,11 @@ object Mentioned:
     case Decl.MatchEqns                   => Nil
     case Decl.PrintAxioms(n)              => List(n)
 
-  private def proof(p: Proof): List[List[LeanName]] = p match
+  private def proof(p: Proof): List[List[ProverName]] = p match
     case Proof.Below(t) => expr(t)
     case _              => Nil
 
-  private def binder(b: LBinder): List[List[LeanName]] = b match
+  private def binder(b: LBinder): List[List[ProverName]] = b match
     case LBinder.Explicit(_, t) => expr(t)
     case LBinder.Several(_, t)  => expr(t)
     case LBinder.Implicit(_, t) => expr(t)
@@ -35,7 +35,7 @@ object Mentioned:
     case LBinder.Of(_, t)       => expr(t)
     case LBinder.Member(_, in)  => expr(in)
 
-  def expr(e: LExpr): List[List[LeanName]] = e match
+  def expr(e: LExpr): List[List[ProverName]] = e match
     case LExpr.Name(n)            => List(List(n))
     case LExpr.Const(p)           => List(p)
     case LExpr.Ctor(d, c)         => List(List(d, c))

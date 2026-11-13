@@ -10,8 +10,8 @@ import rooms.Booking
   * tautology, a FrModel named as a record is refused, and a fact about the outside is no part of a formula.
   */
 class CaptureSuite extends munit.FunSuite:
-  /** A Declaration named as Lean's `some`, which Lean spells `some_`, beside a binder named `some_`. */
-  private val some = Declaration[BigInt]("a number, named as Lean's some")
+  /** A Declaration named as Rocq's `some`, which Rocq spells `some_`, beside a binder named `some_`. */
+  private val some = Declaration[BigInt]("a number, named as Rocq's some")
   private val everyIsSome =
     Node.claim("Every number is some.")(forall((some_ : Term[BigInt]) => some_ === some.term))
 
@@ -38,7 +38,7 @@ class CaptureSuite extends munit.FunSuite:
     Laid(Theories.resolved(kb), Map.empty, Nil).modules.map(Notation.module).mkString("\n")
   private lazy val probe = lean(probed)
 
-  test("a binder named some_ beside the Declaration some (Lean's some_) takes another name: no tautology") {
+  test("a binder named some_ beside the Declaration some (Rocq's some_) takes another name: no tautology") {
     assert(probe.contains("def claim (some_ : Int) : Prop :=\n  (∀ (some__ : Int), (some__ = some_))"), probe)
   }
 
@@ -59,7 +59,7 @@ class CaptureSuite extends munit.FunSuite:
     assert(text.contains("((Swaps.swapped r s e).start = s)"), text)
   }
 
-  test("Int and Long compare only: no ordering, no arithmetic, nothing to tell Lean's Int from Scala's") {
+  test("Int and Long compare only: no ordering, no arithmetic, nothing to tell Rocq's Int from Scala's") {
     assertEquals(compileErrors("forall((a: Term[Int], b: Term[Int]) => a === b)"), "")
     assert(compileErrors("forall((a: Term[Int], b: Term[Int]) => a < b)").nonEmpty)
     assert(compileErrors("forall((a: Term[Long], b: Term[Long]) => a <= b)").nonEmpty)
@@ -75,12 +75,12 @@ class CaptureSuite extends munit.FunSuite:
   private val Lemmas = Node.claim("Every number is itself again.")(forall((n: Term[BigInt]) => n === n))
     .refines(Whole)
 
-  test("a value named as a hypothesis and a node named as a laid-out module are refused, before Lean") {
+  test("a value named as a hypothesis and a node named as a laid-out module are refused, before Rocq") {
     assert(Theories.problems(FrModel("Hyp")(top, part)).contains(Problem.ReservedName("h_part")))
     assertEquals(Theories.problems(FrModel("Mods")(Whole, Lemmas)).collect { case Problem.ReservedName(n) => n },
       List("Whole", "Lemmas"))
     val l = frflow.proof.layout.Layout(frflow.core.name.KbName("K"))
     val fixed = List(l.types, l.domain, l.rootImpl, l.whole, l.wholeSpec, l.wholeChecks, l.wholeAudit,
       l.lemmas, l.wholeProofs).map(_.dotted.split('.')(2))
-    assert(fixed.toSet.subsetOf(frflow.core.name.LeanNames.Modules), fixed)
+    assert(fixed.toSet.subsetOf(frflow.core.name.ProverNames.Modules), fixed)
   }

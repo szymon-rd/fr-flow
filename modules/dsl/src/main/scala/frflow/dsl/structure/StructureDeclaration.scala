@@ -3,27 +3,27 @@ package frflow.dsl.structure
 import frflow.core.name.SymbolName
 import frflow.core.ty.{NumKind, Ty}
 import frflow.dsl.build.WrittenAt
-import frflow.dsl.term.{LeanType, Lift, Term}
+import frflow.dsl.term.{RocqType, Lift, Term}
 import frflow.dsl.vocab.{Declaration, Definition, Stating}
 import scala.annotation.publicInBinary
 
 /** A member of a structure as its Definition has it: its name, whether it changes the structure (Scala's `update`),
   * and its inputs' and its result's types.
   */
-final case class Member(name: String, changes: Boolean, params: List[LeanType[?]], result: LeanType[?])
+final case class Member(name: String, changes: Boolean, params: List[RocqType[?]], result: RocqType[?])
 
 object StructureDeclaration:
   /** What a structure of the type `holder` holds as the word `part`: a word of its own
     * (`paymentHandler_holds_ledger`), a function from the holder to what it holds. It has its code where the
     * holder's class is given the words of what it holds (`lifted[StreamHandler](limits, ledger, offsets)`).
     */
-  def held(holder: LeanType[?], part: SymbolName, is: LeanType[?]): Definition[Any] =
+  def held(holder: RocqType[?], part: SymbolName, is: RocqType[?]): Definition[Any] =
     val of = holder.ty match
       case Ty.Data(name) => name.value
       case other         => other.toString
     new Definition[Any](SymbolName(s"${of.take(1).toLowerCase}${of.drop(1)}_holds_${part.value}"),
       s"the ${part.value} a $of holds", None, WrittenAt.none)(
-      using LeanType.of[Any](Ty.FnOf(List(holder.ty), is.ty), holder, is))
+      using RocqType.of[Any](Ty.FnOf(List(holder.ty), is.ty), holder, is))
 
 /** A structure's word: a Declaration of a trait's type (`val limits = Declaration[CardLimits]("…")`). Its members are
   * called in statements as the trait declares them (`limits.authorise(p)`, a `Call`): each is a word of its own
@@ -32,8 +32,8 @@ object StructureDeclaration:
   * member its code, checked against every claim.
   */
 final class StructureDeclaration[T] @publicInBinary private[dsl] (val name: SymbolName, val described: String,
-    at: WrittenAt, val members: List[Member])(using t: LeanType[T]) extends Declaration[T], Selectable:
-  def leanType: LeanType[T] = t
+    at: WrittenAt, val members: List[Member])(using t: RocqType[T]) extends Declaration[T], Selectable:
+  def rocqType: RocqType[T] = t
   val word: Definition[T] = new Definition[T](name, described, None, at)
   /** What the structure's states are typed by in a statement: `structure.State` of its name, as `Definition[T]`
     * says.
@@ -48,7 +48,7 @@ final class StructureDeclaration[T] @publicInBinary private[dsl] (val name: Symb
     * leave the structure as `left` before the call's second step).
     */
   def nobody: Schedule = Lift.constant(Map.empty[BigInt, Is])(using
-    LeanType[Map[BigInt, T]].asInstanceOf[LeanType[Map[BigInt, Is]]]) // a state is typed by the structure's name
+    RocqType[Map[BigInt, T]].asInstanceOf[RocqType[Map[BigInt, Is]]]) // a state is typed by the structure's name
 
   /** The words of its members, and of those that change it among other calls. */
   def words: List[SymbolName] =
@@ -59,7 +59,7 @@ final class StructureDeclaration[T] @publicInBinary private[dsl] (val name: Symb
     val m = members.find(_.name == called).getOrElse(throw IllegalStateException(s"FrFlow bug: no member $called"))
     val result = if m.changes then Ty.TupleOf(List(m.result.ty, t.ty)) else m.result.ty
     new Definition[Any](SymbolName(s"${name.value}_$called"), s"$called of ${name.value}", None, at)(
-      using LeanType.of[Any](Ty.FnOf(t.ty :: m.params.map(_.ty), result), (t :: m.result :: m.params)*))
+      using RocqType.of[Any](Ty.FnOf(t.ty :: m.params.map(_.ty), result), (t :: m.result :: m.params)*))
 
   /** The Definition a member that changes the structure is among other calls (`Call.among`): from the structure,
     * how the others leave it before each step, and the member's inputs, the member's result with the structure
@@ -70,7 +70,7 @@ final class StructureDeclaration[T] @publicInBinary private[dsl] (val name: Symb
     val steps = Ty.ListOf(Ty.TupleOf(List(t.ty, t.ty)))
     val gives = Ty.TupleOf(List(Ty.TupleOf(List(m.result.ty, t.ty)), Ty.TupleOf(List(steps, steps))))
     new Definition[Any](SymbolName(s"${name.value}_${called}_among"), s"$called of ${name.value}, among other " +
-      "calls", None, at)(using LeanType.of[Any](Ty.FnOf(t.ty :: Ty.MapOf(Ty.Num(NumKind.Big), t.ty) ::
+      "calls", None, at)(using RocqType.of[Any](Ty.FnOf(t.ty :: Ty.MapOf(Ty.Num(NumKind.Big), t.ty) ::
       m.params.map(_.ty), gives), (t :: m.result :: m.params)*))
 
   /** A member called on the structure as it stands (`limits.authorise(p)`), as Scala's structural types call one. */

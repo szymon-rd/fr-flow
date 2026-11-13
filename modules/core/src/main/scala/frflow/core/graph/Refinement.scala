@@ -18,12 +18,12 @@ final class Refinement(val nodes: List[Node], val edges: List[Edge]):
   def parents(id: NodeId): List[NodeId] = up.getOrElse(id, Nil)
   /** Its parts and the design decisions below it, in the model's order. */
   def children(id: NodeId): List[NodeId] = down.getOrElse(id, Nil)
-  /** Its parts: the children Lean states, but its rules. Its parts together, with the assumptions it lists, imply
+  /** Its parts: the children Rocq states, but its rules. Its parts together, with the assumptions it lists, imply
     * it; that step is proven (`complete`, `impl`), each part needed.
     */
   def parts(id: NodeId): List[NodeId] =
     children(id).filter(c => byId.get(c).exists(n => n.statement.stated && !n.statement.rule))
-  /** Its rules: the statements of `always` placed below it (`.refines`). Each is a hypothesis Lean has of every value
+  /** Its rules: the statements of `always` placed below it (`.refines`). Each is a hypothesis Rocq has of every value
     * of its type or store already, proven by its own obligations, so it is no part of the step (2.4).
     */
   def rules(id: NodeId): List[NodeId] = children(id).filter(c => byId.get(c).exists(_.statement.rule))

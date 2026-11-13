@@ -1,6 +1,6 @@
 package frflow.cli.text
 
-import frflow.api.node.lean.{ObligationState, ObligationView}
+import frflow.api.node.proving.{ObligationState, ObligationView}
 import frflow.api.node.{CodeView, NodeView}
 import frflow.cli.say.{Findings, Tested}
 import frflow.cli.term.Style

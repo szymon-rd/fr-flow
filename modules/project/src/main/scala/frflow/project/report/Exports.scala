@@ -8,7 +8,7 @@ import frflow.core.spec.{NodeKind, Statement}
 import frflow.decision.review.Subject
 import frflow.project.pipeline.{Analysis, Texts}
 import frflow.proof.layout.Composition
-import frflow.proof.lean.term.Print
+import frflow.proof.prover.term.Print
 import frflow.proof.obligation.ObligationName
 import frflow.proof.verdict.Result
 import frflow.wire.snapshot.*

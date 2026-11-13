@@ -246,15 +246,15 @@ opaque classes only for types with internal invariants).
 ### B1 Core types hold data and their essential operations
 
 ```scala
-// bad: the domain type knows how to compute Lean types for one printer
-private[frflow] def opType: Option[LeanType[?]] = op.map(o => (o.termType.shape, failure) match ...)
+// bad: the domain type knows how to compute Rocq types for one printer
+private[frflow] def opType: Option[RocqType[?]] = op.map(o => (o.termType.shape, failure) match ...)
 ```
 
 ```scala
-// good: the operation's own type is essential; how Lean renders a failing flow belongs to the Lean module
+// good: the operation's own type is essential; how Rocq renders a failing flow belongs to the Rocq module
 final case class Operation(name: String, signature: Signature)   // in node
-object FlowTypes:                                                 // in lean
-  def outcome(op: Operation, failure: Option[FailureClause]): LeanType[?] = ...
+object FlowTypes:                                                 // in the prover's module
+  def outcome(op: Operation, failure: Option[FailureClause]): RocqType[?] = ...
 ```
 
 Source: Ghosh, *Functional and Reactive Domain Modeling* (algebra, then
@@ -351,7 +351,7 @@ trait Ledger[F[_]]:
   def record(d: Decision): F[Either[Refusal, Recorded]]
 ```
 
-The same applies to `Git`, `Lake` (Lean's build tool) and `FrFlowApi`, which today
+The same applies to `Git`, `Prover` (which runs Rocq) and `FrFlowApi`, which today
 return `IO`.
 
 Source: Volpe, *Practical FP in Scala* (algebras: `trait Brands[F[_]]`);
@@ -435,7 +435,7 @@ final class LiveApi private (kb: FrModel, ws: Workspace, cfg: Config, lake: Lake
 final case class Services[F[_]](ledger: Ledger[F], git: Git[F], lake: Lake[F], disk: Disk[F])
 object Services:
   def make[F[_]: Async](ws: Workspace): Resource[F, Services[F]] =
-    (Ledger.make[F](ws.ledgerFile), Resource.pure(Git.make[F](ws.root)), Lake.make[F](ws.lean), Resource.pure(Disk.make[F]))
+    (Ledger.make[F](ws.ledgerFile), Resource.pure(Git.make[F](ws.root)), Prover.make[F](ws.rocq), Resource.pure(Disk.make[F]))
       .mapN(Services(_, _, _, _))
 
 object Main extends IOApp.Simple:
@@ -448,7 +448,7 @@ composition root); cats-effect, `IOApp` and "Resource".
 ### A6 Initial or final encoding
 
 ```scala
-// bad: terms as a tagless algebra, so FrFlow cannot print them to Lean, hash them or rewrite them
+// bad: terms as a tagless algebra, so FrFlow cannot print them to Rocq, hash them or rewrite them
 trait TermAlg[R[_]]:
   def lit(v: BigInt): R[BigInt]
   def add(a: R[BigInt], b: R[BigInt]): R[BigInt]
@@ -459,7 +459,7 @@ trait TermAlg[R[_]]:
 enum Term[A]:
   case Lit(v: A)
   case Add(a: Term[BigInt], b: Term[BigInt]) extends Term[BigInt]
-object LeanPrinter:  def print[A](t: Term[A]): Lean = ...
+object RocqPrinter:  def print[A](t: Term[A]): Rocq = ...
 object Eval:         def eval[A](t: Term[A], env: Env): A = ...
 
 // and what is only run stays final: a user's flow, run over models and over real boundaries
@@ -967,14 +967,14 @@ where types cannot express the invariant); VirtusLab (`Either` instead of
 
 ```scala
 // bad
-def flowTypes(op: Param[?]): (List[LeanType[?]], LeanType[?]) = op.termType.shape match
+def flowTypes(op: Param[?]): (List[RocqType[?]], RocqType[?]) = op.termType.shape match
   case Shape.FnOf(as, r) => ...
   case _ => throw IllegalArgumentException(s"FrFlow: ${op.name} is not a flow's operation (A => Flow[R])")
 ```
 
 ```scala
 // good: a flow's operation is its own type, built once by the DSL
-final case class FlowOp(name: String, inputs: List[LeanType[?]], result: LeanType[?])
+final case class FlowOp(name: String, inputs: List[RocqType[?]], result: RocqType[?])
 ```
 
 Source: Effective Scala, "Error handling" (no exceptions for errors the
@@ -996,7 +996,7 @@ final case class Uses(defs: List[Def[?]], boundaries: Set[Boundary[?]], errors: 
 object Uses:
   given Monoid[Uses] = Monoid.instance(Uses(Nil, Set.empty, Set.empty), (a, b) =>
     Uses(a.defs ++ b.defs, a.boundaries ++ b.boundaries, a.errors ++ b.errors))
-def expr(t: Tree, negations: Int): (Lean, Uses)
+def expr(t: Tree, negations: Int): (Rocq, Uses)
 ```
 
 Source: VirtusLab (no class-level `var`; immutable collections); cats
@@ -1068,12 +1068,12 @@ enum instead.
 
 ```scala
 // bad: root-wide visibility for a helper one package uses
-private[frflow] def lambdaTypes(op: Param[?]): List[LeanType[?]]
+private[frflow] def lambdaTypes(op: Param[?]): List[RocqType[?]]
 ```
 
 ```scala
 // good
-private[node] def lambdaTypes(op: Operation): List[LeanType[?]]
+private[node] def lambdaTypes(op: Operation): List[RocqType[?]]
 ```
 
 Source: Effective Scala, "Visibility" (easier to expand a public API than to
@@ -1294,7 +1294,7 @@ class FileLedgerSuite     extends LedgerLaws(Files[IO].tempDirectory.flatMap(d =
 ```
 
 The DSL's algebras get property tests too: `parents` contains every invariant
-a node keeps; evaluating a term in Scala agrees with Lean's evaluation on
+a node keeps; evaluating a term in Scala agrees with Rocq's evaluation on
 generated examples; printing then parsing a snapshot is the identity.
 
 Source: *FPiS* chapter 8 (property-based testing) and chapters 7 to 9 (laws);
@@ -1308,7 +1308,7 @@ expectations).
 api.flatMap(_.tree(None)).map(t => golden("tree", TreeText.lines(t, st)))
 ```
 
-Extend this to the generated Lean and the `--json` snapshot of each example
+Extend this to the generated Rocq and the `--json` snapshot of each example
 before a refactor of a core type.
 
 ### X4 Values in, values out; fakes are interpreters
@@ -1359,7 +1359,7 @@ Source: VirtusLab (targeted tests).
 
 ```scala
 // good
-/** One statement in the developer's domain words, decided by them and proven in Lean from its parts. */
+/** One statement in the developer's domain words, decided by them and proven in Rocq from its parts. */
 ```
 
 Source: Effective Scala, "Comments"; Scala style guide, "Scaladoc".

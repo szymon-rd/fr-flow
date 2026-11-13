@@ -2,8 +2,8 @@ package frflow.proof.obligation
 
 import frflow.proof.layout.{Laid, Lowering}
 import frflow.proof.layout.Handed
-import frflow.proof.lean.lower.LowerKeeps
-import frflow.proof.lean.term.PrintDecl
+import frflow.proof.prover.lower.LowerKeeps
+import frflow.proof.prover.term.PrintDecl
 
 /** What `made_` states, byte for byte (`resources/always`): every result of a define meets what always holds of
   * its values (`makes_<maker>`), and what proven code hands plain Scala at each call meets it
@@ -33,5 +33,5 @@ class AlwaysSuite extends munit.FunSuite:
       .mkString("", "\n\n", "\n")
 
   test("Handed: what proven code hands plain Scala at each call, through a define on the spot and another's code") {
-    same("always/Handed.lean", declared(Laid(Handed.resolved, Map.empty, Nil), Handed.resolved))
+    same("always/Handed.notation", declared(Laid(Handed.resolved, Map.empty, Nil), Handed.resolved))
   }

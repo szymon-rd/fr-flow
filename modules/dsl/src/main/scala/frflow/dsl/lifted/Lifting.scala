@@ -3,7 +3,7 @@ package frflow.dsl.lifted
 import frflow.core.name.DefName
 import frflow.dsl.build.{AsWritten, Site, WrittenAt}
 import frflow.dsl.shape.{DefineShape, Elab}
-import frflow.dsl.term.{LeanType, Term}
+import frflow.dsl.term.{RocqType, Term}
 import frflow.dsl.vocab.Definition
 
 /** The Definition code FrFlow reads is (a class's member), made as `define` makes one: named, its lambda the term
@@ -26,7 +26,7 @@ object Lifting:
     made(DefineShape.four[A, B, C, D, R])(name, written)(body).in(at)
 
   /** A type's contract (`FrSpec.where`): a define of the value's term. */
-  def stated[A: LeanType](name: DefName, at: WrittenAt, written: AsWritten)(rule: Term[A] => Term[Boolean])
+  def stated[A: RocqType](name: DefName, at: WrittenAt, written: AsWritten)(rule: Term[A] => Term[Boolean])
       : Definition[A => Boolean] = made(DefineShape.one[A, Boolean])(name, written)(rule).in(at)
 
   private def made[F](shape: DefineShape[F])(name: DefName, written: AsWritten)(body: shape.Lam): Definition[F] =

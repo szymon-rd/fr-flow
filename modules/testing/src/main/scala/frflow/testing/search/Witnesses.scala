@@ -14,7 +14,7 @@ import frflow.eval.term.Semantics
 
 /** The values that show what always holds possible and each condition able to hold (owner §18), found by a search:
   * first what the FrModel's generators draw (`drawn`), then the small values of each type (`Small`), each
-  * judged by the evaluator; the first that holds, in order, so the search is deterministic. A witness Lean is then
+  * judged by the evaluator; the first that holds, in order, so the search is deterministic. A witness Rocq is then
   * given (`proof.obligation.Joint`); none found leaves the statement "not shown".
   */
 final class Witnesses(semantics: Semantics, t: Theory, drawn: Ty => List[Value]):

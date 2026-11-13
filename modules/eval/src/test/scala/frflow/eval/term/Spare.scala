@@ -5,7 +5,7 @@ import frflow.core.name.TypeName
 import frflow.core.term.Selector
 import frflow.core.ty.{DataType, Field, Ty}
 
-/** A record of the Lean law with an option field: a field read off a constant of it is typed (`LeanTerm.field`). */
+/** A record of the Rocq law with an option field: a field read off a constant of it is typed (`ProverTerm.field`). */
 final case class Spare(at: Option[BigInt])
 
 object Spare:

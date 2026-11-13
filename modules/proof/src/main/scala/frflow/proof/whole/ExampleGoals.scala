@@ -13,16 +13,16 @@ import frflow.proof.obligation.{Discharge, Hyp, Obligation, ObligationName, Prop
   * the claims do not decide is reported, and nothing else depends on it. An example giving values to provided
   * Definitions is checked against the code only (its values as hypotheses: not planned). The statements at the
   * bottom come first: what the code is held to, in its own terms (`grantWhenNoOverlap` before `grantWhenFree`, which
-  * its step gives), is what FrFlow's automation decides an example by. A rule is no hypothesis: Lean has it of every
+  * its step gives), is what FrFlow's automation decides an example by. A rule is no hypothesis: Rocq has it of every
   * value as a guard, and its claim says nothing (`NodeModules`). Nor is a parent whose parts are all among them
   * (`Hyp.withoutGiven`). Each is tried with its opposite,
   * `example_<set>_<i>_opposite` (today's `eval_<i>_opposite`): the same statements giving the fact's negation, which
-  * Lean shows only when the claims contradict the example.
+  * Rocq shows only when the claims contradict the example.
   */
 object ExampleGoals:
   val Heartbeats: Int = 20000
 
-  /** In the order of their names (`example_<set>_<i>`), whatever order the sets are read in: Lean's automation can
+  /** In the order of their names (`example_<set>_<i>`), whatever order the sets are read in: Rocq's automation can
     * decide a try near its budget differently after other theorems, so one order makes one outcome.
     */
   def of(r: Resolved, examples: List[Example]): List[Obligation] =

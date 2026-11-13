@@ -2,10 +2,10 @@ package frflow.project
 
 import java.nio.file.Files
 import frflow.dsl.kb.FrModel
-import frflow.proof.lean.lower.LowerObligation
+import frflow.proof.prover.lower.LowerObligation
 
 /** Every obligation each port is asked, by node and name, as committed (`resources/<port>/obligations.txt`): a
-  * change to the set (one gone, one more, one renamed) shows here before any Lean runs, whatever the oracle reads.
+  * change to the set (one gone, one more, one renamed) shows here before any Rocq runs, whatever the oracle reads.
   * `FRFLOW_GOLDEN=write` writes the lists afresh, to be reviewed as any change to them is.
   */
 class ObligationNamesSuite extends munit.FunSuite:

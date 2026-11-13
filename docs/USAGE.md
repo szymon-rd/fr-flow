@@ -80,14 +80,14 @@ A model imports one facade, `import frflow.*`. There are three kinds of node (ow
 
 | Kind | Written | Checked |
 |---|---|---|
-| claim | `Node.claim(statement)(formula)`; one with no parents is a root | proven in Lean from its parts (`complete`), or of the proven code it mentions (`impl`); tested where it mentions plain Scala |
-| assumption | `Node.assumption(statement)(formula)` | trusted: the world outside the code, an outside system's promise, what comes from outside; Lean takes it as given, and the Scala it is about is tested against it where a case can be evaluated |
+| claim | `Node.claim(statement)(formula)`; one with no parents is a root | proven in Rocq from its parts (`complete`), or of the proven code it mentions (`impl`); tested where it mentions plain Scala |
+| assumption | `Node.assumption(statement)(formula)` | trusted: the world outside the code, an outside system's promise, what comes from outside; Rocq takes it as given, and the Scala it is about is tested against it where a case can be evaluated |
 | design | `Node.design(statement)(files*)` | none: a decision about code no proof covers; a change to the files it governs brings it back |
 
 Edges: `.refines(parents*)` makes a node a part of each parent (several parents, several roots: a directed acyclic
 graph); `.assuming(assumptions*)` lists the assumptions its check rests on, which FrFlow derives and checks
 (`PremiseMissing`, `PremiseNotNeeded`); `.replaces(other)` marks an alternative, so accepting one rejects the other.
-A claim of `always` placed with `.refines` is a **rule** below the statement it serves, not a part of its step: Lean
+A claim of `always` placed with `.refines` is a **rule** below the statement it serves, not a part of its step: Rocq
 has its rule of every value already, and `show` lists it under "Rules it uses". A node has no reason field: why it
 holds is the reason given with its signed decision.
 
@@ -97,36 +97,36 @@ Statements are about two kinds of values:
 |---|---|---|
 | `Declaration` | `val booked = Declaration[List[Booking]]("the bookings made, as the world stands")`, `val granted = Declaration[(RoomBookings, Booking) => Boolean]("…")` | a word of the model, of any type: what statements speak of and code calls. One the model gives no meaning is known by what the statements say of it; called by code, it is a function from outside |
 | `Definition` | `granted.define { (held, request) => … }`, `book.define(bookIfGranted)` | a Declaration with a meaning (a subtype of it), listed in the FrModel beside the nodes; a word gets one, once |
-| `define { … }` | `val free = define { (bookings: Term[List[Booking]], request: Term[Booking]) => … }` | a Definition declared and defined at once, named as its val, up to six inputs: a Lean `def`, run as Scala by the evaluator |
-| `stated { … }` | `val viewFollows = stated { (lib: Term[Library], p: Term[PersonId], d: Term[DocId]) => mayView(p, d) === letsView(lib, p, d) }` | a define whose body may apply a Declaration, so a statement can name a line over Declarations; used only in statements, as a Declaration is (plain code or a `define` calling it does not compile); a Lean `def` taking the Declarations it applies |
+| `define { … }` | `val free = define { (bookings: Term[List[Booking]], request: Term[Booking]) => … }` | a Definition declared and defined at once, named as its val, up to six inputs: a definition in Rocq, run as Scala by the evaluator |
+| `stated { … }` | `val viewFollows = stated { (lib: Term[Library], p: Term[PersonId], d: Term[DocId]) => mayView(p, d) === letsView(lib, p, d) }` | a define whose body may apply a Declaration, so a statement can name a line over Declarations; used only in statements, as a Declaration is (plain code or a `define` calling it does not compile); a definition in Rocq taking the Declarations it applies |
 
 Quantifiers: `forall((x: Term[A]) => …)`, every possible value (to six variables); `exists((x: Term[A]) => …)`, some
-value (to six variables; Lean's `∃`); and `always`, every value that the code FrFlow covers can produce:
+value (to six variables); and `always`, every value that the code FrFlow covers can produce:
 `always[T](x => …)` of a type (every value of `T` that can be made). What always holds of a variable's type is a
-premise below a `forall` and a conjunct below an `exists` (`∃ b, bookingsEndAfterStart b ∧ …`). An `always` is a
+premise below a `forall` and a conjunct below an `exists` (`exists b, bookingsEndAfterStart b /\ …`). An `always` is a
 node's whole formula, one rule per node.
 
 ### Writing formulas
 
-Formulas and proven code are terms: a `Term[A]` is an expression of type `A`, printed as Lean for the proofs and
-evaluated as Scala for the examples and the tests. A domain type is a case class or an enum that `derives LeanType`.
+Formulas and proven code are terms: a `Term[A]` is an expression of type `A`, printed as Rocq for the proofs and
+evaluated as Scala for the examples and the tests. A domain type is a case class or an enum that `derives RocqType`.
 Lambda parameters are annotated (`(b: Term[Booking]) => …`), so the term knows its type; FrFlow reads their names off
 the lambda.
 
-| Write | For | In Lean |
+| Write | For | In Rocq |
 |---|---|---|
-| `x === y`, `x =!= y` | equality (`==` between terms does not compile) | `=`, `≠` |
-| `&&`, `\|\|`, `!`, `a implies b` | logic; `implies` is a word, so `a && b implies c` is `(a && b) implies c` | `∧`, `∨`, `¬`, `→` |
-| `b.start`, `make[RoomBookings](room, bookings)`, `b.updated(_.end, e)` | a field, a record built from terms, a copy with one field changed | fields, `RoomBookings.mk`, `{ b with … }` |
-| `when(c)(a).otherwise(b)` | a conditional on a term (a term has no truth value while the formula is built) | `if c then a else b` |
+| `x === y`, `x =!= y` | equality (`==` between terms does not compile) | `=`, `<>` |
+| `&&`, `\|\|`, `!`, `a implies b` | logic; `implies` is a word, so `a && b implies c` is `(a && b) implies c` | `/\`, `\/`, `~`, `->` |
+| `b.start`, `make[RoomBookings](room, bookings)`, `b.updated(_.end, e)` | a field, a record built from terms, a copy with one field changed | `room_of b`, `RoomBookings_mk`, `with_end b e` |
+| `when(c)(a).otherwise(b)` | a conditional on a term (a term has no truth value while the formula is built) | `ite c a b` |
 | `e.on[Event.Expired](at => …)` | a match on an enum, its cases named, `.type` for a case without fields | `match` |
-| `let(v)(x => …)` | a value shared, named | `let x := v; …` |
-| `some(x)`, `none[A]`, `o.getOrElse(d)`, `o.isDefined`, `o.forall(…)`, `o.exists(…)` | options | `Option` |
-| `o.fold(d)(x => …)`, and as its fold: `o.map(…)`, `o.filter(…)`, `o.filterNot(…)`, `o.contains(x)`, `o.isEmpty`, `o.toList` | an option's value, or `d` | `match o with \| none => … \| some x => …` |
-| `xs.forall(…)`, `exists`, `filter`, `map`, `foldLeft`, `contains`, `isEmpty`, `length`, `::`, `++`, `:+` | lists | `List` |
-| `xs.pairwise(r)`, `xs.allDistinct` | `r` of every two elements, the earlier first; no element twice | `List.Pairwise`, `List.Nodup` |
-| `m.get(k)`, `m.getOrElse(k, d)`, `m.updated(k, v)`, `s.contains(x)`, `s.union(t)` | maps and sets (not iterated) | `Map`, `Set` |
-| `+`, `-`, `<`, `<=`, `>`, `>=` on `BigInt` | arithmetic; an `Int` literal is a `Term[BigInt]` where one is expected | `Int` |
+| `let(v)(x => …)` | a value shared, named | `let x := v in …` |
+| `some(x)`, `none[A]`, `o.getOrElse(d)`, `o.isDefined`, `o.forall(…)`, `o.exists(…)` | options | `option` |
+| `o.fold(d)(x => …)`, and as its fold: `o.map(…)`, `o.filter(…)`, `o.filterNot(…)`, `o.contains(x)`, `o.isEmpty`, `o.toList` | an option's value, or `d` | `match o with \| None => … \| Some x => … end` |
+| `xs.forall(…)`, `exists`, `filter`, `map`, `foldLeft`, `contains`, `isEmpty`, `length`, `::`, `++`, `:+` | lists | `list` |
+| `xs.pairwise(r)`, `xs.allDistinct` | `r` of every two elements, the earlier first; no element twice | `List_Pairwise`, `NoDup` |
+| `m.get(k)`, `m.getOrElse(k, d)`, `m.updated(k, v)`, `s.contains(x)`, `s.union(t)` | maps and sets (not iterated) | functions `K -> option V`, `A -> Prop` |
+| `+`, `-`, `<`, `<=`, `>`, `>=` on `BigInt` | arithmetic; an `Int` literal is a `Term[BigInt]` where one is expected | `Z` |
 
 A define is called by name (`covers(b, t)`) and passed where a function is expected (`held.pairwise(apart)`,
 `xs.forall(isOpen)`). In plain Scala, `d.fn(env)` runs a define and `env(d)` reads a word's value.
@@ -151,7 +151,7 @@ listed.
 
 | Written | Code | Claims mentioning it are |
 |---|---|---|
-| `granted.define(grantIfFree)`, `granted.define { (held, request) => … }`, `limits.define(lifted[RecordedLimits])` | a `define`, lifted code, a define written there, or a class read for a structure | proven of the code in Lean |
+| `granted.define(grantIfFree)`, `granted.define { (held, request) => … }`, `limits.define(lifted[RecordedLimits])` | a `define`, lifted code, a define written there, or a class read for a structure | proven of the code in Rocq |
 | `granted.defineTested(env => (held, request) => …)` | plain Scala, given the other words' values | tested on generated cases (1,000 by default) |
 | `trashKeeps.defineValue(BigInt(30 * 86400))` | a value | stated with the value |
 | `grants.provided` | a value given where the code runs | stated for every value provided |
@@ -159,7 +159,7 @@ listed.
 A `define` is its own meaning, and needs no listing. `.withGenerator(gen.describedAs("…"))` gives the tests' cases of a type
 (`Gen.oneOf`, `for` over generators); the values drawn meet every `always` on their type.
 
-**A type's contract.** Every type of a value in compiled code has an `FrSpec`: the type's `LeanType` with its
+**A type's contract.** Every type of a value in compiled code has an `FrSpec`: the type's `RocqType` with its
 contract, a rule over the value written with the DSL (`where`); `derives FrSpec` gives one with no contract. A node
 states the contract (`contractOf[T]`, an `always[T]`):
 
@@ -224,7 +224,7 @@ can be (an equation, a bound, a fixed value, proven code); otherwise the group i
 
 ### Examples
 
-Examples are ordinary tests beside the model, read by `check` and checked against the code and, in Lean, against the
+Examples are ordinary tests beside the model, read by `check` and checked against the code and, in Rocq, against the
 claims:
 
 ```scala
@@ -234,10 +234,10 @@ class GrantedExamples extends FrFlowExamples(rooms):
 ```
 
 `example(name, d := v)` sets a provided Definition's value; such an example is checked in Scala only. An example
-whose values break a rule on their type is refused. Nothing depends on examples: the theory and its Lean are the same
+whose values break a rule on their type is refused. Nothing depends on examples: the theory and its Rocq are the same
 without them. Each comes to one of three outcomes:
 
-- `+` it passes: the code holds it, and Lean shows the claims give it (or a proof file proves it);
+- `+` it passes: the code holds it, and Rocq shows the claims give it (or a proof file proves it);
 - `o` the claims do not decide it within the budget, and the code does not fail it: reported and counted apart
   ("Examples: 10/99 pass; 89 not decided by the claims"), no failure;
 - `x` it fails: the code does not hold it, or Rocq shows the claims contradict it (its `_opposite`), or shows both
@@ -268,7 +268,7 @@ signature, and the decision before it.
   outside the repository (`~/.config/frflow/signing.key`, or `FRFLOW_KEY`).
 - **Order.** A node waits until what it rests on is accepted; a parent is decided before its parts, a premise before
   what assumes it.
-- **Mechanical decisions.** A node under review whose own content did not change, that Lean proves again: one batch,
+- **Mechanical decisions.** A node under review whose own content did not change, that Rocq proves again: one batch,
   `confirm`.
 - **Refused.** A decision on a node that moved since the developer saw it; a reason of fewer than three words; code
   that fails a generated case, or is not tested since it moved; a decider not listed; a ledger whose committed
@@ -291,8 +291,8 @@ lists the decisions below it that it acts on, and the developer marks those it m
 
 ### What is trusted, and the limits
 
-Trusted: the assumptions the developer accepted; FrFlow's translation to Lean (cross-checked by the examples and by a
-law that Lean decides each generated term as the evaluator does); for tested code, the cases the tests reach. Not
+Trusted: the assumptions the developer accepted; FrFlow's translation to Rocq (cross-checked by the examples and by a
+law that Rocq decides each generated term as the evaluator does); for tested code, the cases the tests reach. Not
 modelled: liveness ("eventually"), time, values inside a map, a set or a function reached by an `always[T]`
 (refused).
 

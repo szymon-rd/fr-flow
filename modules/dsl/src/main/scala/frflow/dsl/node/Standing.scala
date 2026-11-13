@@ -3,7 +3,7 @@ package frflow.dsl.node
 import frflow.core.name.SymbolName
 import frflow.dsl.build.{Failure, Fault}
 import frflow.dsl.structure.{Call, StructureDeclaration}
-import frflow.dsl.term.{LeanType, Notes, Term, Terms}
+import frflow.dsl.term.{RocqType, Notes, Term, Terms}
 import frflow.dsl.vocab.Stating
 import scala.collection.mutable
 
@@ -16,7 +16,7 @@ import scala.collection.mutable
   */
 object Standing:
   def closing(st: Stating, formula: Stating => () => Term[Boolean]): Term[Boolean] =
-    val read = mutable.LinkedHashMap.empty[SymbolName, LeanType[?]]
+    val read = mutable.LinkedHashMap.empty[SymbolName, RocqType[?]]
     Notes.in(Closing.opened(formula(st.asking((name, t) => read.update(name, t)))())).discard
     if read.isEmpty then formula(st)()
     else
@@ -24,7 +24,7 @@ object Standing:
       val written = (bound: Map[SymbolName, Term[?]]) => formula(st.holding(held(read.toMap, holders, bound)))()
       read.toList.filterNot((name, _) => holders.contains(name)).foldRight(written) { case ((name, t), inner) =>
         bound => Terms.forall[Any](name.value, (v: Term[Any]) => inner(bound + (name -> v)))(
-          using t.asInstanceOf[LeanType[Any]])
+          using t.asInstanceOf[RocqType[Any]])
       }(Map.empty)
 
   /** The structure read here that holds `part`, if one does; refused of two. */
@@ -35,11 +35,11 @@ object Standing:
       case several   => throw Failure(Fault.HeldByTwo(part.value, several.map(_.value)))
 
   /** Each structure read as it stands: its variable, or, of one held, what its holder's holds. */
-  private def held(read: Map[SymbolName, LeanType[?]], holders: Map[SymbolName, SymbolName],
+  private def held(read: Map[SymbolName, RocqType[?]], holders: Map[SymbolName, SymbolName],
       bound: Map[SymbolName, Term[?]]): Map[SymbolName, Term[?]] =
     def of(name: SymbolName): Term[?] = holders.get(name).fold(bound(name)) { by =>
       Call.applied[Any](StructureDeclaration.held(read(by), name, read(name)), List(of(by)))(
-        using read(name).asInstanceOf[LeanType[Any]])
+        using read(name).asInstanceOf[RocqType[Any]])
     }
     read.keys.map(name => name -> of(name)).toMap
 

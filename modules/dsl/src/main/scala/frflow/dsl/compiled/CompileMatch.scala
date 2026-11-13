@@ -5,7 +5,7 @@ import frflow.dsl.term.Term as DTerm
 
 /** A `match` in a compiled class: on an enum, one arm per case, each binding the case's fields
   * (`case Circle(r) =>`) or the case (`case c: Circle =>`), a last `case _ =>` standing for every case not
-  * written; on an option, `Some(x)` and `None`. No guard, no pattern inside a pattern: Lean's match has the same
+  * written; on an option, `Some(x)` and `None`. No guard, no pattern inside a pattern: the prover's match has the same
   * arms, and misses none.
   */
 private[compiled] trait CompileMatch extends Compiling:

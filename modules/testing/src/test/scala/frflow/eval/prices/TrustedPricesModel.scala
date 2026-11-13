@@ -4,8 +4,8 @@ import frflow.*
 import scala.annotation.experimental
 
 /** A basket over a price list that has no class here: one from elsewhere (a library's, a remote service), known
-  * to the model only by what is assumed of it (`pricing.provided`). The model is valid; Lean does not build it
-  * yet: a structure with no class has no type in the Lean model.
+  * to the model only by what is assumed of it (`pricing.provided`). The model is valid; Rocq does not build it
+  * yet: a structure with no class has no type in the Rocq model.
   */
 @experimental object TrustedPricesModel:
   import Prices.{Basket, Item, PricedBasket, Pricing}

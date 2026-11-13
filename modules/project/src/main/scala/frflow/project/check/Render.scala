@@ -5,7 +5,7 @@ import cats.syntax.all.*
 import frflow.core.name.RelPath
 import frflow.project.pipeline.Analysis
 import frflow.project.port.ProjectFiles
-import frflow.proof.lean.ast.ModuleName
+import frflow.proof.prover.ast.ModuleName
 import frflow.proof.rocq.RocqProject
 
 /** The project's Rocq written: `rocq/_CoqProject` (where an editor finds what a check compiled), each generated

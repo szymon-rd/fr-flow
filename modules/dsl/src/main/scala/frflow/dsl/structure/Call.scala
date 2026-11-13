@@ -1,7 +1,7 @@
 package frflow.dsl.structure
 
 import frflow.core.term.language.Sym
-import frflow.dsl.term.{LeanType, Lift, Term, Terms, TermSyntax}
+import frflow.dsl.term.{RocqType, Lift, Term, Terms, TermSyntax}
 import frflow.dsl.vocab.{Called, Definition}
 import scala.util.NotGiven
 
@@ -16,7 +16,7 @@ import scala.util.NotGiven
   * first; `others` is what they did.
   */
 final class Call[T, R] private (made: Call.Made[T], ran: Call.Ran[T, R])
-    extends Term[R](ran.value.run)(using ran.value.leanType):
+    extends Term[R](ran.value.run)(using ran.value.rocqType):
   def result: Term[R] = this
   def current: Term[R] = this
   /** The structure once the call is made. */
@@ -56,9 +56,9 @@ object Call:
     */
   private final case class Made[T](structure: StructureDeclaration[?], called: String, state: Term[T],
       args: List[Term[?]], between: Option[Term[Map[BigInt, T]]] = None):
-    given LeanType[T] = structure.leanType.asInstanceOf[LeanType[T]] // the structure's type, by its name
-    val steps: LeanType[List[(T, T)]] = LeanType[List[(T, T)]]
-    val schedule: LeanType[Map[BigInt, T]] = LeanType[Map[BigInt, T]]
+    given RocqType[T] = structure.rocqType.asInstanceOf[RocqType[T]] // the structure's type, by its name
+    val steps: RocqType[List[(T, T)]] = RocqType[List[(T, T)]]
+    val schedule: RocqType[Map[BigInt, T]] = RocqType[Map[BigInt, T]]
     val member: Member = structure.members.find(_.name == called).getOrElse(
       throw IllegalStateException(s"FrFlow bug: ${structure.name.value} has no member $called"))
     /** The schedule in which no other call does anything. */
@@ -76,7 +76,7 @@ object Call:
 
   private def over[T, R](made: Made[T]): Call[T, R] =
     import made.given
-    given LeanType[R] = made.member.result.asInstanceOf[LeanType[R]]
+    given RocqType[R] = made.member.result.asInstanceOf[RocqType[R]]
     val args = made.state :: made.args
     new Call(made, (made.member.changes, made.between) match
       case (false, _)            => Ran(applied[R](made.structure.member(made.called), args), made.state, None)
@@ -89,13 +89,13 @@ object Call:
 
   /** A structure as the structure in the state `holder` holds it. */
   def heldIn[T](structure: StructureDeclaration[?], holder: Term[?]): Term[T] =
-    applied[T](StructureDeclaration.held(holder.leanType, structure.name, structure.leanType), List(holder))(
-      using structure.leanType.asInstanceOf[LeanType[T]])
+    applied[T](StructureDeclaration.held(holder.rocqType, structure.name, structure.rocqType), List(holder))(
+      using structure.rocqType.asInstanceOf[RocqType[T]])
 
   /** A Definition applied to arguments whose number its type gives: what `Definition.apply` makes of one whose
     * type Scala knows.
     */
-  def applied[R: LeanType](d: Definition[?], args: List[Term[?]]): Term[R] =
-    val f = d.curried[Any](using d.leanType.asInstanceOf[LeanType[Any]])
+  def applied[R: RocqType](d: Definition[?], args: List[Term[?]]): Term[R] =
+    val f = d.curried[Any](using d.rocqType.asInstanceOf[RocqType[Any]])
     new Called[R](d.name, args, [U[_]] => (s: Sym[U]) => args.foldLeft(f.run(s))((g, a) =>
       s.app[Any, Any](g.asInstanceOf[U[Any => Any]], a.run(s).asInstanceOf[U[Any]])).asInstanceOf[U[R]])

@@ -31,7 +31,7 @@ trait RunLists extends Lists[Run]:
     env => xs(env).flatMap(_.traverse(a => f(pure(a))(env)))
   def flatMap[A, B](xs: Run[List[A]], x: Bound[A])(f: Run[A] => Run[List[B]]): Run[List[B]] =
     env => xs(env).flatMap(_.flatTraverse(a => f(pure(a))(env)))
-  /** The first element meeting the rule, its rule run on the elements before it only (Lean's `List.find?`). */
+  /** The first element meeting the rule, its rule run on the elements before it only (the library's `List_find`). */
   def find[A](xs: Run[List[A]], x: Bound[A])(p: Run[A] => Run[Boolean]): Run[Option[A]] =
     env => xs(env).flatMap(_.findM(a => p(pure(a))(env)))
   def contains[A](xs: Run[List[A]], x: Run[A]): Run[Boolean] = map2(xs, x)(_.contains(_))

@@ -7,12 +7,12 @@ import frflow.core.term.{Constructor, Selector as FieldSelector}
 import scala.deriving.Mirror
 import scala.quoted.*
 
-/** The derivation, at compile time, of what a domain type is to the term language: its `LeanType` (a case class's
+/** The derivation, at compile time, of what a domain type is to the term language: its `RocqType` (a case class's
   * fields, or an enum's cases, from its `Mirror`), a field's typed selector (Scala's own getter and `copy`), and a
   * constructor as a curried function. Nothing is written per type, and nothing is cast.
   */
 object DataMacros:
-  def derived[T: Type](using Quotes): Expr[LeanType[T]] =
+  def derived[T: Type](using Quotes): Expr[RocqType[T]] =
     import quotes.reflect.*
     Expr.summon[Mirror.Of[T]] match
       case Some('{ $m: Mirror.ProductOf[T] }) =>
@@ -35,27 +35,27 @@ object DataMacros:
       case other                   => other
     '{ (${ Expr(bare(TypeRepr.of[T]).show(using Printer.TypeReprCode)) }, ${ Expr(file) }) }
 
-  /** A case class's fields, each a selector with its `LeanType`. */
-  def fields[T: Type](using Quotes): Expr[List[LeanType.Field[T, ?]]] =
+  /** A case class's fields, each a selector with its `RocqType`. */
+  def fields[T: Type](using Quotes): Expr[List[RocqType.Field[T, ?]]] =
     import quotes.reflect.*
     val cls = TypeRepr.of[T].typeSymbol
     Expr.ofList(cls.caseFields.zipWithIndex.map((f, i) => field[T](f.name, i)))
 
-  /** One field's selector with its `LeanType` (a compile error if it has none). */
-  def field[T: Type](name: String, i: Int)(using Quotes): Expr[LeanType.Field[T, ?]] =
+  /** One field's selector with its `RocqType` (a compile error if it has none). */
+  def field[T: Type](name: String, i: Int)(using Quotes): Expr[RocqType.Field[T, ?]] =
     import quotes.reflect.*
     TypeRepr.of[T].memberType(TypeRepr.of[T].typeSymbol.fieldMember(name)).asType match
       case '[f] => typedField[T, f](name, i)
 
   /** The same, typed by the field's own type `F`. */
-  def typedField[T: Type, F: Type](name: String, i: Int)(using Quotes): Expr[LeanType.Field[T, F]] =
+  def typedField[T: Type, F: Type](name: String, i: Int)(using Quotes): Expr[RocqType.Field[T, F]] =
     import quotes.reflect.*
     val all = TypeRepr.of[T].typeSymbol.caseFields
-    val t = Expr.summon[LeanType[F]].getOrElse(report.errorAndAbort(s"no LeanType for field $name: ${Type.show[F]}"))
+    val t = Expr.summon[RocqType[F]].getOrElse(report.errorAndAbort(s"no RocqType for field $name: ${Type.show[F]}"))
     def copied(r: Expr[T], v: Expr[F]): Expr[T] =
       Apply(Select.unique(r.asTerm, "copy"), all.map(g => if g.name == name then v.asTerm else Select(r.asTerm, g)))
         .asExprOf[T]
-    '{ LeanType.Field(FieldSelector[T, F](${ Expr(name) }, ${ Expr(i) }, TypeName(${ Expr(names[T]._1) }), $t.ty,
+    '{ RocqType.Field(FieldSelector[T, F](${ Expr(name) }, ${ Expr(i) }, TypeName(${ Expr(names[T]._1) }), $t.ty,
       (r: T) => ${ Select.unique('r.asTerm, name).asExprOf[F] }, (r: T, v: F) => ${ copied('r, 'v) }), $t) }
 
   /** An enum's cases: each one's name, fields and maker. */
@@ -71,8 +71,8 @@ object DataMacros:
     Expr.summon[Mirror.ProductOf[C]] match
       case Some(m) =>
         val fs = fieldsOf[C].map((n, t) => t.asType match
-          case '[f] => '{ (${ Expr(n) }, ${ Expr.summon[LeanType[f]].getOrElse(report.errorAndAbort(
-            s"no LeanType for field $n")) }: LeanType[?]) })
+          case '[f] => '{ (${ Expr(n) }, ${ Expr.summon[RocqType[f]].getOrElse(report.errorAndAbort(
+            s"no RocqType for field $n")) }: RocqType[?]) })
         '{ (${ Expr(label) }, ${ Expr.ofList(fs) }, (args: List[Any]) => ${ upcast[C, T]('{ $m.fromProduct(
           Tuple.fromArray(args.toArray)) }) }) }
       case None => report.errorAndAbort(s"case $label of ${Type.show[T]} has no Mirror")
@@ -119,7 +119,7 @@ object DataMacros:
     if TypeRepr.of[C].isSingleton then Nil
     else TypeRepr.of[C].typeSymbol.caseFields.map(f => f.name -> TypeRepr.of[C].memberType(f))
 
-  /** The Lean type and constructor names of `C`: `Booking.mk` for a case class, `Event.Expired` for an enum's case. */
+  /** The Rocq type and constructor names of `C`: `Booking.mk` for a case class, `Event.Expired` for an enum's case. */
   def names[C: Type](using Quotes): (String, String) =
     import quotes.reflect.*
     val tpe = TypeRepr.of[C]

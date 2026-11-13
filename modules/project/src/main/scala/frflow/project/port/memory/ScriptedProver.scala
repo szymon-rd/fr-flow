@@ -5,7 +5,7 @@ import cats.data.NonEmptyList
 import cats.effect.Ref
 import cats.syntax.all.*
 import frflow.project.port.Prover
-import frflow.proof.lean.ast.{LeanModule, ModuleName}
+import frflow.proof.prover.ast.{ProverModule, ModuleName}
 import frflow.proof.reading.{RocqReport, RocqSource}
 import frflow.proof.rocq.{RocqNames, RocqProject}
 import frflow.proof.verdict.ProverRun
@@ -30,7 +30,7 @@ object ScriptedProver:
     * text) named in `failing`, by its name in the module (`complete`), not accepted, and each other lemma it audits
     * resting on nothing; built when nothing failed.
     */
-  def building(m: LeanModule, source: String, failing: Set[String]): ProverRun =
+  def building(m: ProverModule, source: String, failing: Set[String]): ProverRun =
     val named = failing.map(f => RocqNames.joined(m.namespace.map(_.text) :+ f))
     val open = RocqSource.lemmas(source).map(_.name).filter(named)
     val audits = RocqSource.audited(source).filterNot(open.contains).map(_ -> List.empty[String]).toMap

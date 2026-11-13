@@ -30,7 +30,7 @@ class TestingSuite extends munit.FunSuite:
     val r = tested(kb).getOrElse(fail("pick is not tested"))
     assertEquals((r.failure, r.unreached, r.against, r.cases), (None, Nil, NodeId("pick"), 300))
     val e = kb.elaborated.fold(es => fail(es.toString), identity)
-    val counted = Coverage(Semantics(e), e.theory, NodeId("pick"), List(LeanType[List[Book]].ty, LeanType[BigInt].ty))
+    val counted = Coverage(Semantics(e), e.theory, NodeId("pick"), List(RocqType[List[Book]].ty, RocqType[BigInt].ty))
     assertEquals(counted.zero.counts.keySet.map(_.reach), Set(Reach.NonEmpty, Reach.Premise))
     assertEquals(counted.zero.counts.size, 3)
   }
@@ -87,19 +87,19 @@ class TestingSuite extends munit.FunSuite:
 
   test("a given generator is said in the report, with what the developer said it makes") {
     val narrow = kb.withGenerator(Gen.oneOf(Book("A", 1), Book("B", 2)).describedAs("two short books"))
-    assertEquals(tested(narrow).map(_.made), Some(List(Made(LeanType[Book].ty, Some("two short books")))))
+    assertEquals(tested(narrow).map(_.made), Some(List(Made(RocqType[Book].ty, Some("two short books")))))
   }
 
   test("generated values cover the types: numbers, strings, lists, options, enums") {
     val e = FrModel("Places")(Node.claim("A place is itself.")(forall((p: Term[Place]) => p === p)))
       .elaborated.fold(es => fail(es.toString), identity)
     val d = Derive.of(e, Nil)
-    val places = (0 until 200).flatMap(i => d(Gen.Derived[Place](LeanType[Place].ty), 6, Seed(5).forCase(i)))
+    val places = (0 until 200).flatMap(i => d(Gen.Derived[Place](RocqType[Place].ty), 6, Seed(5).forCase(i)))
     assert(List("Top", "Bottom", "Box").forall(c => places.exists(_.toString.startsWith(c))), places.distinct)
-    val maybes = (0 until 200).flatMap(i => d(Gen.Derived[Option[Long]](LeanType[Option[Long]].ty), 6,
+    val maybes = (0 until 200).flatMap(i => d(Gen.Derived[Option[Long]](RocqType[Option[Long]].ty), 6,
       Seed(5).forCase(i)))
     assert(maybes.contains(None) && maybes.exists(_.exists(_ != 0L)), maybes.distinct)
-    assertEquals(d(Gen.Derived[BigInt => Boolean](LeanType[BigInt => Boolean].ty), 3, Seed(5).forCase(0)), None)
+    assertEquals(d(Gen.Derived[BigInt => Boolean](RocqType[BigInt => Boolean].ty), 3, Seed(5).forCase(0)), None)
   }
 
   test("a proven define has nothing to test") {

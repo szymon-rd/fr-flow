@@ -19,11 +19,11 @@ object Meaning:
   /** Without its reason, examples or parents' names. */
   def of(c: Content): Hash = c.only(meaningful).hash
 
-  /** What a formal node means to Lean: its meaning without the words of its statement. */
+  /** What a formal node means to Rocq: its meaning without the words of its statement. */
   def formal(c: Content): Hash = of(c.without(_ == "statement"))
 
   /** What it says moved since `d` was taken, by today's rule: its own content with the premises it assumes, its
-    * implementation left out once Lean proves its code (tested code stays in), and how it is checked left out (it
+    * implementation left out once Rocq proves its code (tested code stays in), and how it is checked left out (it
     * names the parts, which a change of parts already says). Examples are not content.
     */
   def decisionMoved(d: Decision, s: Subject): Boolean =

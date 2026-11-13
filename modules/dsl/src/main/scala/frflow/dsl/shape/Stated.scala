@@ -2,7 +2,7 @@ package frflow.dsl.shape
 
 import frflow.core.name.DefName
 import frflow.dsl.build.WrittenAt
-import frflow.dsl.term.{LeanType, Term}
+import frflow.dsl.term.{RocqType, Term}
 import frflow.dsl.vocab.{Definition, Stating}
 import scala.collection.concurrent.TrieMap
 
@@ -30,45 +30,45 @@ object Stated:
     def shape: DefineShape[F] { type Lam = L }
 
   object Shaped:
-    given one[A: LeanType, R: LeanType]: Shaped[Term[A] => Term[R]] with
+    given one[A: RocqType, R: RocqType]: Shaped[Term[A] => Term[R]] with
       type F = A => R
       def shape: DefineShape.one[A, R] = DefineShape.one[A, R]
-    given two[A: LeanType, B: LeanType, R: LeanType]: Shaped[(Term[A], Term[B]) => Term[R]] with
+    given two[A: RocqType, B: RocqType, R: RocqType]: Shaped[(Term[A], Term[B]) => Term[R]] with
       type F = (A, B) => R
       def shape: DefineShape.two[A, B, R] = DefineShape.two[A, B, R]
-    given three[A: LeanType, B: LeanType, C: LeanType, R: LeanType]: Shaped[(Term[A], Term[B], Term[C]) => Term[R]]
+    given three[A: RocqType, B: RocqType, C: RocqType, R: RocqType]: Shaped[(Term[A], Term[B], Term[C]) => Term[R]]
     with
       type F = (A, B, C) => R
       def shape: DefineShape.three[A, B, C, R] = DefineShape.three[A, B, C, R]
-    given four[A: LeanType, B: LeanType, C: LeanType, D: LeanType, R: LeanType]
+    given four[A: RocqType, B: RocqType, C: RocqType, D: RocqType, R: RocqType]
         : Shaped[(Term[A], Term[B], Term[C], Term[D]) => Term[R]] with
       type F = (A, B, C, D) => R
       def shape: DefineShape.four[A, B, C, D, R] = DefineShape.four[A, B, C, D, R]
-    given five[A: LeanType, B: LeanType, C: LeanType, D: LeanType, E: LeanType, R: LeanType]
+    given five[A: RocqType, B: RocqType, C: RocqType, D: RocqType, E: RocqType, R: RocqType]
         : Shaped[(Term[A], Term[B], Term[C], Term[D], Term[E]) => Term[R]] with
       type F = (A, B, C, D, E) => R
       def shape: DefineShape.five[A, B, C, D, E, R] = DefineShape.five[A, B, C, D, E, R]
-    given six[A: LeanType, B: LeanType, C: LeanType, D: LeanType, E: LeanType, G: LeanType, R: LeanType]
+    given six[A: RocqType, B: RocqType, C: RocqType, D: RocqType, E: RocqType, G: RocqType, R: RocqType]
         : Shaped[(Term[A], Term[B], Term[C], Term[D], Term[E], Term[G]) => Term[R]] with
       type F = (A, B, C, D, E, G) => R
       def shape: DefineShape.six[A, B, C, D, E, G, R] = DefineShape.six[A, B, C, D, E, G, R]
 
   extension [A, R](d: Stated[A => R])
-    def apply(a: Term[A])(using st: Stating, r: LeanType[R]): Term[R] = d.in(st)(a)
+    def apply(a: Term[A])(using st: Stating, r: RocqType[R]): Term[R] = d.in(st)(a)
   extension [A, B, R](d: Stated[(A, B) => R])
-    def apply(a: Term[A], b: Term[B])(using st: Stating, ta: LeanType[A], tb: LeanType[B], r: LeanType[R]): Term[R] =
+    def apply(a: Term[A], b: Term[B])(using st: Stating, ta: RocqType[A], tb: RocqType[B], r: RocqType[R]): Term[R] =
       d.in(st)(a, b)
   extension [A, B, C, R](d: Stated[(A, B, C) => R])
-    def apply(a: Term[A], b: Term[B], c: Term[C])(using st: Stating, ta: LeanType[A], tb: LeanType[B],
-        tc: LeanType[C], r: LeanType[R]): Term[R] = d.in(st)(a, b, c)
+    def apply(a: Term[A], b: Term[B], c: Term[C])(using st: Stating, ta: RocqType[A], tb: RocqType[B],
+        tc: RocqType[C], r: RocqType[R]): Term[R] = d.in(st)(a, b, c)
   extension [A, B, C, D, R](d: Stated[(A, B, C, D) => R])
-    def apply(a: Term[A], b: Term[B], c: Term[C], e: Term[D])(using st: Stating, ta: LeanType[A], tb: LeanType[B],
-        tc: LeanType[C], td: LeanType[D], r: LeanType[R]): Term[R] = d.in(st)(a, b, c, e)
+    def apply(a: Term[A], b: Term[B], c: Term[C], e: Term[D])(using st: Stating, ta: RocqType[A], tb: RocqType[B],
+        tc: RocqType[C], td: RocqType[D], r: RocqType[R]): Term[R] = d.in(st)(a, b, c, e)
   extension [A, B, C, D, E, R](d: Stated[(A, B, C, D, E) => R])
-    def apply(a: Term[A], b: Term[B], c: Term[C], e: Term[D], f: Term[E])(using st: Stating, ta: LeanType[A],
-        tb: LeanType[B], tc: LeanType[C], td: LeanType[D], te: LeanType[E], r: LeanType[R]): Term[R] =
+    def apply(a: Term[A], b: Term[B], c: Term[C], e: Term[D], f: Term[E])(using st: Stating, ta: RocqType[A],
+        tb: RocqType[B], tc: RocqType[C], td: RocqType[D], te: RocqType[E], r: RocqType[R]): Term[R] =
       d.in(st)(a, b, c, e, f)
   extension [A, B, C, D, E, G, R](d: Stated[(A, B, C, D, E, G) => R])
     def apply(a: Term[A], b: Term[B], c: Term[C], e: Term[D], f: Term[E], g: Term[G])(using st: Stating,
-        ta: LeanType[A], tb: LeanType[B], tc: LeanType[C], td: LeanType[D], te: LeanType[E], tg: LeanType[G],
-        r: LeanType[R]): Term[R] = d.in(st)(a, b, c, e, f, g)
+        ta: RocqType[A], tb: RocqType[B], tc: RocqType[C], td: RocqType[D], te: RocqType[E], tg: RocqType[G],
+        r: RocqType[R]): Term[R] = d.in(st)(a, b, c, e, f, g)

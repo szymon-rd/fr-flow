@@ -8,7 +8,7 @@ import sbt.testing.{Event, EventHandler, Logger, Status, SuiteSelector, TaskDef,
 import scala.collection.mutable.ListBuffer
 
 /** The examples' runner: each example of a class run against the code as `sbt test` runs it, in the order written,
-  * holding, failing, or checked in Lean only (owner §18: examples are ordinary tests beside the model).
+  * holding, failing, or checked in Rocq only (owner §18: examples are ordinary tests beside the model).
   */
 class ExamplesRunnerSuite extends munit.FunSuite:
   private def verdicts(written: FrFlowExamples): List[(String, Verdict)] = Verdicts.of(written)
@@ -20,7 +20,7 @@ class ExamplesRunnerSuite extends munit.FunSuite:
     assert(verdicts(auth.DecisionExamples()).forall(_._2 == Verdict.Ran(OnCode.Holds)))
   }
 
-  test("an example reading a provided value it does not give: no Scala value, checked in Lean only, so skipped") {
+  test("an example reading a provided value it does not give: no Scala value, checked in Rocq only, so skipped") {
     val run = events(classOf[OpenExamples].getName)
     assertEquals(run.map(_.status()), List(Status.Skipped))
   }

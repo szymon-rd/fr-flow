@@ -5,7 +5,7 @@ import frflow.core.Lang
 import frflow.core.name.CtorName
 import frflow.core.term.language.{Final, Sym}
 
-/** Terms of the Lean law written by hand, for what the generators reach rarely or not at all: a field read off a
+/** Terms of the Rocq law written by hand, for what the generators reach rarely or not at all: a field read off a
   * constant record of an option.
   */
 object Extras:

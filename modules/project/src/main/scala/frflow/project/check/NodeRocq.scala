@@ -3,8 +3,8 @@ package frflow.project.check
 import frflow.core.name.NodeId
 import frflow.project.pipeline.Analysis
 import frflow.proof.layout.{Layout, NodePart, Refutation, RefutesModule}
-import frflow.proof.lean.ast.{LeanModule, ModuleName}
-import frflow.proof.lean.lower.LowerObligation
+import frflow.proof.prover.ast.{ProverModule, ModuleName}
+import frflow.proof.prover.lower.LowerObligation
 import frflow.proof.obligation.{Constant, Obligation, ObligationName}
 import frflow.proof.reading.{Elaboration, ProofFile, RocqReport, RocqSource}
 import frflow.proof.rocq.RocqProject
@@ -38,7 +38,7 @@ final class NodeRocq(a: Analysis, val node: NodeId):
   /** Its step refuted on the case found (`Refutations`), as Rocq is given it: the module, and its text; none of a
     * case Rocq is not printed.
     */
-  def refutes(r: Refuted): Option[(LeanModule, String)] =
+  def refutes(r: Refuted): Option[(ProverModule, String)] =
     val found = Refutation(r.witness, r.ty, r.inputs.zip(r.types).map((x, ty) => Constant(x._2, ty)))
     val m = RefutesModule.of(a.decided, a.terms, node, found)
     RocqProject(a.modules :+ m).text(m.name).map(m -> _)
@@ -56,7 +56,7 @@ object NodeRocq:
   def generated(a: Analysis, m: ModuleName, r: ProverRun): Option[Elaboration] =
     a.modules.find(_.name == m).flatMap(module => a.rocq.text(m).flatMap(said(module, _, r)))
 
-  def said(m: LeanModule, source: String, r: ProverRun): Option[Elaboration] =
+  def said(m: ProverModule, source: String, r: ProverRun): Option[Elaboration] =
     said(m.name, source, m.namespace.map(_.text), r)
 
   /** What Rocq said of a module with this text, its lemmas named in `namespace`; none when the build's report has

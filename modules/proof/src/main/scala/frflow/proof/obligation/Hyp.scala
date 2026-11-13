@@ -1,13 +1,13 @@
 package frflow.proof.obligation
 
 import frflow.core.graph.Refinement
-import frflow.core.name.{LeanNames, NodeId}
+import frflow.core.name.{ProverNames, NodeId}
 
 /** A named hypothesis: `h_<Node>` for a node's claim, so authored proofs can name it (`frflow_intro`). */
 final case class Hyp(name: String, prop: Prop)
 
 object Hyp:
-  def of(n: NodeId): Hyp = Hyp(LeanNames.hypothesis(n), Prop.claim(n))
+  def of(n: NodeId): Hyp = Hyp(ProverNames.hypothesis(n), Prop.claim(n))
   def parts(ps: List[NodeId]): List[Hyp] = ps.map(of)
 
   /** The statements, less each parent whose parts are all among them: its parts give it (its `complete`). Taking both

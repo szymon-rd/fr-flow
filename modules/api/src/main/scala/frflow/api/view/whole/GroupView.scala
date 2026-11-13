@@ -1,6 +1,6 @@
 package frflow.api.view.whole
 
-import frflow.api.node.lean.ObligationView
+import frflow.api.node.proving.ObligationView
 import frflow.core.consistency.Witness
 import frflow.core.name.NodeId
 

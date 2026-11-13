@@ -5,9 +5,9 @@ import frflow.core.expr.{Side, Value}
 import frflow.core.ty.Ty
 import frflow.dsl.build.{Declarations, Declared, Fault}
 
-/** A Scala value as a `Value`, walked by its type through the `DataRep`s its `LeanType` declares. */
+/** A Scala value as a `Value`, walked by its type through the `DataRep`s its `RocqType` declares. */
 object Reify:
-  def apply[A](t: LeanType[A], a: A): Either[Fault, Value] = Walk(t.declares).value(t.ty, a)
+  def apply[A](t: RocqType[A], a: A): Either[Fault, Value] = Walk(t.declares).value(t.ty, a)
 
   private final class Walk(declared: Declarations):
     def value(ty: Ty, a: Any): Either[Fault, Value] = (ty, a) match

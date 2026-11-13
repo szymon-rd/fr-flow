@@ -7,8 +7,8 @@ import frflow.api.Rocq
 import frflow.project.pipeline.Analysis
 import frflow.project.port.Prover
 import frflow.project.port.memory.ScriptedProver
-import frflow.proof.lean.ast.ModuleName
-import frflow.proof.lean.lower.LowerObligation
+import frflow.proof.prover.ast.ModuleName
+import frflow.proof.prover.lower.LowerObligation
 import frflow.proof.obligation.Discharge
 import frflow.proof.verdict.ProverRun
 
