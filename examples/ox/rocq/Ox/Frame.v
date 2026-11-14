@@ -83,7 +83,7 @@ Qed.
 Definition frame_op {X : Type} (o : Jdk.op code obj X) : Prop :=
   match o with
   | NewThread _ | ThreadStart _ | TsNew | TsAdd _ _ | TsRemove _ _
-  | ArNew _ | ArGetAndSet _ _ | ArUpdateAndGet _ _ | Chaos _ _ => False
+  | ArNew _ | ArGetAndSet _ _ | ArUpdateAndGet _ _ | ArCas _ _ _ | Chaos _ _ => False
   | _ => True
   end.
 
