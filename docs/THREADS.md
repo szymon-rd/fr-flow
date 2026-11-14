@@ -51,6 +51,23 @@ run: `forkUser` counts a fork before `startThread` can refuse it, so a refused u
 scope waiting for ever. The other two findings (`isEmpty`, an
 interrupt before `start`) are still of the reading only.
 
+Since then, in order:
+
+- **All of Ox is in Rocq**, as the trees its TASTy holds (`examples/ox/rocq/Ox/Tree`, 116 files), read with
+  nothing chosen. Rocq computes from them what Ox takes from outside (513 definitions), what its concurrency
+  kernel reaches and takes (184, 68 of them the JDK's), and checks a contract or a standing for each of the 68
+  and the kernel's nine variables for the memory model. The proofs are still about `Gen.v`: the trees have no
+  meaning in Rocq yet.
+- **Three laws are theorems on Ox's code** (`Laws.v`): a completed scope is contained and stays closed, at any
+  depth and while the program runs on; scopes nest.
+- **`isEmpty` is not exact, run.** `ConcurrentHashMap`'s `isEmpty` answered `true` of a key set that always held
+  an element (JDK 21, 44 times of 717 million, `examples/ox/probe/IsEmptyProbe.scala`), with elements added by
+  one thread and removed by another, as Ox does. The closing loop of a scope ends on that answer, so every
+  theorem here is about Ox over an emptiness test that is exact. The leak was not seen in Ox itself (20,000
+  rounds).
+- **The literature has no such list of laws**, and no proof of a scope with cancellation
+  (`reports/Structured concurrency laws literature.md`, not kept in the repository).
+
 The three models in `docs/threads/` stay as they were: `Herd.v` is superseded for containment by the proof on
 the code; `Closing.v` (liveness) and `Wakeup.v` (no lost wake-up) are still models only.
 

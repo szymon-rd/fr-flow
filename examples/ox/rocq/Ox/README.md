@@ -19,6 +19,13 @@ of Ox's, of the JDK's or of the client's left to perform.
 whose user fork forks again and opens an inner unsupervised scope, whose own fork holds the outer scope's
 capability.
 
+`Laws.scope_contained`, of any scope at any depth, while the rest of the program runs on. Once a scope has
+completed (its closing loop has found its set of threads empty), in every configuration reached after: it is
+completed, its set is empty (no thread is ever added to it again), and no fork of it has an operation left.
+`Laws.scopes_nest`: a scope opened inside a completed scope is completed, so an inner scope completes before the
+one enclosing it. These are laws 1, 2 and 3 of `docs/THREADS.md`'s list of what a library of scopes owes its
+users; `Laws.v` says how each of the seventeen stands.
+
 Along the way, of each method (the "claims on members" the theorem is built from):
 
 | Method | Needs | Gives |
@@ -136,6 +143,24 @@ Ox, `examples/ox/rocq/Ox/` (logical path `Ox`):
 | `Main.v` | Every closure meets what is said of it; `contained`. |
 | `ApiProofs.v` | `scopedWithCapability`, `unsupervised`, `supervised`, `fork`, `forkUser`, `join`. |
 | `Example.v` | A client, and containment for it. |
+| `Laws.v` | The laws of a scope that are theorems here: containment of one scope, that it stays closed, nesting. |
+| `Tree/` | All of Ox, not only its scopes and forks: the tree of each of its 116 TASTy files (below). |
+
+## All of Ox, and what it rests on
+
+`Tree/` holds Ox 1.1.0 whole, read a second way: each TASTy file of its jar as the tree the compiler typed
+(`modules/proof/rocq/FrFlow/Scala/Tree.v`: a constructor for each form of tree and of type), with nothing chosen
+in the reading. 116 files, 38,939 trees; the reading is checked against the compiler's own traversal, which counts
+the same number of each form (`OxSourceSuite`). The proofs above are not about these trees yet: they are about
+`Gen.v`, read by rules from the scopes and forks. What Rocq computes from the trees, and checks kept lists
+against:
+
+| File | What Rocq checks |
+|---|---|
+| `Tree/All.v`, `Tree/Surface.v` | Ox's trees are closed (nothing of Ox is referred to and not defined), and take 513 definitions from outside: the JDK, Scala's library, jox. |
+| `Tree/Kernel.v` | The operators of Ox's concurrency (scopes, forks, fork locals, resources, `par`, `race`, `timeout`, control) reach 320 of the 2,460 definitions Ox makes, and take 184 from outside, 68 of them the JDK's. |
+| `Tree/Assumed.v` | Each of those 68 has its standing: 43 under a contract of `Jdk.v`, 21 data, 4 trusted. None is left out. |
+| `Tree/Memory.v` | The memory-model assumption (no data race, so threads' steps in turn), and its half about Ox: the kernel's classes declare nine variables; five are reached by one thread, three are captured only by functions a set's `forEach` runs on its caller, one is a field trusted to be set before any scope opens. |
 
 ## The design of the proof
 

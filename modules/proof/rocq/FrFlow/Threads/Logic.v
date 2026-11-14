@@ -158,16 +158,30 @@ Section Logic.
       destruct s; try contradiction. exact H.
   Qed.
 
-  Theorem sound_step c c' : good c -> step interp c c' -> good c'.
+  (** A configuration is good with the ghost state `Γ`. *)
+  Definition good_with (c : config code obj) (Γ : Gh) : Prop :=
+    Inv (c_st c) Γ /\
+      forall t p, c_pool c t = Some p ->
+        started (c_st c) t /\ exists Γt, Rely t Γt Γ /\ wp t p Γt (Done t).
+
+  (** What one step does to the ghost state: nothing, or what the thread that took it may (`Guar`). *)
+  Definition moved (Γ Γ' : Gh) : Prop := Γ' = Γ \/ exists t, Guar t Γ Γ'.
+
+  (** What steps do to it, one after another. *)
+  Inductive moves : Gh -> Gh -> Prop :=
+    | moves_none Γ : moves Γ Γ
+    | moves_more Γ Γ' Γ'' : moves Γ Γ' -> moved Γ' Γ'' -> moves Γ Γ''.
+
+  Theorem sound_step_with c c' Γ : good_with c Γ -> step interp c c' -> exists Γ', good_with c' Γ' /\ moved Γ Γ'.
   Proof.
-    intros (Γ & HI & Hpool) Hstep.
+    intros (HI & Hpool) Hstep.
     destruct Hstep as [σ pl t X o k x σ' pl' Ht Hop Hpt Hkeep Hnew Hstart
                       | σ pl t S B body s k Ht | σ pl t c arg k Ht | σ pl t r Ht]; cbn in *.
     - (* an operation *)
       destruct (Hpool t _ Ht) as (Hs & Γt & HR & Hwp). cbn in Hwp.
       destruct (Hwp σ Γ HI HR Hs) as (_ & Hwp').
       destruct (Hwp' x σ' Hop) as (Γ' & HI' & HG & Hst & Hk).
-      exists Γ'. split; trivial. cbn. intros u p Hu.
+      exists Γ'. split; [| right; exists t; exact HG]. split; trivial. cbn. intros u p Hu.
       destruct (Nat.eq_dec u t) as [-> | Hne].
       + rewrite Hpt in Hu. injection Hu as <-. split; [eapply opstep_started; eassumption |].
         exists Γ'. split; [apply Rely_refl | exact Hk].
@@ -183,14 +197,14 @@ Section Logic.
              split; trivial. exists Γ'. split; [apply Rely_refl | apply start_ok, Hst; assumption].
           -- rewrite (Hnew u Hne Hnsu Hnsu') in Hu. destruct (Hpool u p Hu) as (Hsu & _). contradiction.
     - (* a turn of a loop *)
-      exists Γ. split; trivial. cbn. intros u p Hu. unfold upd in Hu.
+      exists Γ. split; [| left; reflexivity]. split; trivial. cbn. intros u p Hu. unfold upd in Hu.
       destruct (Nat.eq_dec u t) as [-> | Hne]; [| apply Hpool, Hu].
       injection Hu as <-. destruct (Hpool t _ Ht) as (Hs & Γt & HR & Hwp). split; trivial.
       exists Γt. split; trivial. cbn in Hwp. destruct Hwp as (J & HJ & Hbody).
       unfold unfold_iter. apply wp_bind. eapply wp_mono; [| apply (Hbody s Γt HJ)].
       intros [s2 | b] Γ2; cbn; trivial. intro HJ2. exists J. split; trivial.
     - (* a call *)
-      exists Γ. split; trivial. cbn. intros u p Hu. unfold upd in Hu.
+      exists Γ. split; [| left; reflexivity]. split; trivial. cbn. intros u p Hu. unfold upd in Hu.
       destruct (Nat.eq_dec u t) as [-> | Hne]; [| apply Hpool, Hu].
       injection Hu as <-. destruct (Hpool t _ Ht) as (Hs & Γt & HR & Hwp). split; trivial.
       exists Γt. split; trivial. cbn in Hwp. destruct Hwp as (_ & Hpre & Hk).
@@ -198,12 +212,27 @@ Section Logic.
     - (* a thread's end *)
       destruct (Hpool t _ Ht) as (Hs & Γt & HR & Hwp). cbn in Hwp.
       destruct (exit_ok HI HR Hs Hwp) as (Γ' & HI' & HG).
-      exists Γ'. split; trivial. cbn. intros u p Hu. unfold upd in Hu.
+      exists Γ'. split; [| right; exists t; exact HG]. split; trivial. cbn. intros u p Hu. unfold upd in Hu.
       destruct (Nat.eq_dec u t) as [-> | Hne]; [discriminate |].
       destruct (Hpool u p Hu) as (Hsu & Γu & HRu & Hwpu). split.
       + unfold started, terminate in *. destruct (j_th σ t) as [th |] eqn:E; trivial.
         cbn. unfold upd. destruct (Nat.eq_dec u t); [contradiction | trivial].
       + exists Γu. split; [eapply Rely_trans; [exact HRu | apply HG, Hne] | exact Hwpu].
+  Qed.
+
+  (** Along a run the ghost state moves as the steps move it: what holds of it once and no step undoes, holds
+      from then on. *)
+  Theorem sound_with c c' Γ : good_with c Γ -> steps interp c c' -> exists Γ', good_with c' Γ' /\ moves Γ Γ'.
+  Proof.
+    intros Hg Hs. induction Hs as [| c c' c'' _ IH Hstep].
+    - exists Γ. split; [exact Hg | constructor].
+    - destruct (IH Hg) as (Γ' & Hg' & Hm). destruct (sound_step_with Hg' Hstep) as (Γ'' & Hg'' & Hm').
+      exists Γ''. split; [exact Hg'' | econstructor; eassumption].
+  Qed.
+
+  Theorem sound_step c c' : good c -> step interp c c' -> good c'.
+  Proof.
+    intros (Γ & Hg) Hstep. destruct (sound_step_with (Γ := Γ) Hg Hstep) as (Γ' & Hg' & _). exists Γ'. exact Hg'.
   Qed.
 
   Theorem sound c c' : good c -> steps interp c c' -> good c'.
