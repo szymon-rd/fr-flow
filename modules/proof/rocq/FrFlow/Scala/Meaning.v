@@ -131,15 +131,15 @@ Section Meaning.
         match a, b with
         | VUnit, VUnit => Some true
         | VBool x, VBool y => Some (Bool.eqb x y)
-        | VTid x, VTid y => Some (Nat.eqb x y)
+        | VTid x, VTid y => Some (same_place x y)
         | VExn x, VExn y => Some (if exn_eq_dec x y then true else false)
         | VList xs, VList ys => all xs ys
         | VObj (Int x), VObj (Int y) | VObj (Long x), VObj (Long y) => Some (Z.eqb x y)
         | VObj (Int x), VObj (Long y) | VObj (Long x), VObj (Int y) => Some (Z.eqb x y)
         | VObj (Str x), VObj (Str y) => Some (String.eqb x y)
         | VObj Null, VObj Null => Some true
-        | VObj (Ext c r), VObj (Ext c' r') => Some (Nat.eqb r r' && String.eqb c c')
-        | VObj (Ref c r), VObj (Ref c' r') => if Nat.eqb r r' && String.eqb c c' then Some true else
+        | VObj (Ext c r), VObj (Ext c' r') => Some (same_place r r' && String.eqb c c')
+        | VObj (Ref c r), VObj (Ref c' r') => if same_place r r' && String.eqb c c' then Some true else
             match named T c "equals" with Some _ => None | None => Some false end
         | VObj (Data c xs), VObj (Data c' ys) => if String.eqb c c' then all xs ys else Some false
         | VObj (Module m), VObj (Module m') => Some (String.eqb m m')
@@ -157,7 +157,7 @@ Section Meaning.
       end in
     match a, b with
     | VObj (Ref c r), VObj (Ref c' r') =>
-        if Nat.eqb r r' && String.eqb c c' then oret true else
+        if same_place r r' && String.eqb c c' then oret true else
         match named T c "equals" with
         | Some d => r <~ ocall (Method (def_sym d)) (VList [a; b]) ;;
             match r with VBool x => oret x | _ => stuck "equals gave no truth value" end

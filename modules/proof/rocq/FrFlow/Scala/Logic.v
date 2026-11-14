@@ -90,3 +90,11 @@ Ltac wp_peek := wp_whd; lazymatch goal with |- environments.envs_entails _ (wpP 
   | Iter _ ?s _ => idtac "iter:" s
   | Ret ?a => idtac "ret:" a
   end end.
+
+(** Whether two values, two threads or two places are the same is not computed while a program is walked: the
+    walk stops at the question, and the proof answers it (`val_eqb_refl`, `val_eqb_other`, `same_place_refl`,
+    `same_place_other`). *)
+Lemma val_eqb_other (a b : val) : a ≠ b → val_eqb a b = false.
+Proof. intros H. unfold val_eqb. by destruct (val_eq_dec a b). Qed.
+
+Global Opaque val_eqb same_place.
