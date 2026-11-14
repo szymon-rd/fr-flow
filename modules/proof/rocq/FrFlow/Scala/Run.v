@@ -6,7 +6,7 @@
     contracts allow, chosen; it is what the meaning is tested with, against what the same program gives on the
     JVM. It proves nothing of the other runs. *)
 
-From Stdlib Require Import String List ZArith Bool.
+From Stdlib Require Import String List ZArith NArith Bool.
 Require Import FrFlow.Threads.Prog FrFlow.Threads.Jdk FrFlow.Threads.Sem.
 Require FrFlow.Threads.Lang.
 Require Import FrFlow.Scala.Tree FrFlow.Scala.Program FrFlow.Scala.Table FrFlow.Scala.Value FrFlow.Scala.Meaning.
@@ -324,8 +324,12 @@ Section Run.
     | Call c arg k => inl (World (w_st w) (set_pool (w_pool w) t (pbind (interp c arg) k)) (w_extra w) (w_ended w))
     end.
 
-  (** Threads in turn, one step each: `at_` is whose turn it is, `idle` how many in a row have waited. *)
-  Fixpoint run (fuel : nat) (w : world) (at_ idle steps : nat) : verdict :=
+  (** Which thread a turn tries first: its place among those that have not ended, taken modulo how many. *)
+  Variable order : nat -> nat.
+
+  (** A step of some thread at each turn: the one `order` names, or, if it waits, the next that does not;
+      `idle` is how many have waited this turn. *)
+  Fixpoint run (fuel : nat) (w : world) (turn idle steps : nat) : verdict :=
     match fuel with
     | 0 => Unfinished (w_ended w)
     | S fuel' =>
@@ -334,11 +338,11 @@ Section Run.
         | pool =>
             let n := List.length pool in
             if Nat.leb n idle then Deadlock (map fst pool) (w_ended w) steps else
-            match nth_error pool (Nat.modulo at_ n) with
+            match nth_error pool (Nat.modulo (order turn + idle) n) with
             | Some (t, p) =>
                 match step w t p with
-                | inl w' => run fuel' w' (if Nat.ltb (List.length (w_pool w')) n then at_ else S at_) 0 (S steps)
-                | inr (inl _) => run fuel' w (S at_) (S idle) steps
+                | inl w' => run fuel' w' (S turn) 0 (S steps)
+                | inr (inl _) => run fuel' w turn (S idle) steps
                 | inr (inr why) => Stopped why t steps
                 end
             | None => Unfinished (w_ended w)
@@ -388,9 +392,12 @@ Section Start.
     World (state0 (Method main)) [(first, program modules main)]
       (Extra (S (List.length (stateful_modules T))) [] []) [].
 
-  (** The program run from `main`, for at most `fuel` steps. *)
-  Definition execute (fuel : nat) (modules : list string) (main : sym) : verdict :=
-    run (interp T outside supers) fuel (world0 modules main) 0 0 0.
+  (** The program run from `main`, for at most `fuel` steps, the threads taking turns as `order` says. *)
+  Definition execute_under (order : nat -> nat) (fuel : nat) (modules : list string) (main : sym) : verdict :=
+    run (interp T outside supers) order fuel (world0 modules main) 0 0 0.
+
+  (** Each thread in turn. *)
+  Definition execute : nat -> list string -> sym -> verdict := execute_under (fun turn => turn).
 
   (** What the first thread gave, where every thread ended. *)
   Definition result (v : verdict) : option res :=
@@ -403,3 +410,9 @@ Section Start.
     end.
 
 End Start.
+
+(** An order of turns that follows no pattern of the program's: a sequence fixed by `seed`. Every thread that
+    can step gets a turn again and again, so a loop that waits for another thread is not run for ever. *)
+Definition shuffled (seed : nat) (turn : nat) : nat :=
+  let x := (N.of_nat turn * 2654435761 + N.of_nat seed * 40503 + 12345)%N in
+  N.to_nat (N.modulo (N.div x 65536) 1021).

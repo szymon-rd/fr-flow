@@ -17,13 +17,16 @@ There are two, of different reach.
   what they do not cover. Ox's scopes and forks are read this way (`Gen.v`).
 - **Whole, into trees** (`frflow.dsl.compiled.source`, `modules/proof/rocq/FrFlow/Scala/Tree.v`). Every TASTy file
   of a jar as the tree the compiler typed, a constructor for each form of tree and of type, nothing chosen and
-  nothing refused but a form with no constructor. All of Ox is read this way (`examples/ox/rocq/Ox/Tree`). The
-  trees have no meaning in Rocq yet; what Rocq computes from them is what the code defines, refers to and takes
-  from outside (`FrFlow/Scala/Program.v`), which is how the assumptions about the JDK are known to be complete
+  nothing refused but a form with no constructor. All of Ox is read this way (`examples/ox/rocq/Ox/Tree`). What
+  Rocq computes from the trees is what the code defines, refers to and takes from outside
+  (`FrFlow/Scala/Program.v`), which is how the assumptions about the JDK are known to be complete
   (`examples/ox/rocq/Ox/README.md`). `OxSourceSuite` checks the reading against the compiler's own traversal,
   and that the table below from a JDK method to its operation agrees with the assumptions checked on the trees.
+  The trees have a meaning in Rocq (`docs/THREADS-MEANING.md`): each form of tree is given the program it runs,
+  in the language of this page's programs and over the same contracts, and that meaning is run against the JVM.
 
-The aim is one reading: the meaning of a tree said in Rocq, and the programs of this page derived from it.
+The aim is one reading: the proofs about the meaning of the trees, and the programs of this page derived from
+it. The proofs are still about this page's programs.
 
 ## Where it is
 

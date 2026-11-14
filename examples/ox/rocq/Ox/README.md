@@ -148,6 +148,8 @@ Ox, `examples/ox/rocq/Ox/` (logical path `Ox`):
 | `Example.v` | A client, and containment for it. |
 | `Laws.v` | The laws of a scope that are theorems here: containment of one scope, that it stays closed, nesting. |
 | `Tree/` | All of Ox, not only its scopes and forks: the tree of each of its 116 TASTy files (below). |
+| `Tree/Meant.v` | Where the meaning given to the trees stops, of the kernel and of all of Ox. |
+| `Client/` | Programs written against Ox, as trees, and `Runs.v`: Rocq runs their meaning over Ox's trees and gets what the JVM gave (`docs/THREADS-MEANING.md`). |
 
 ## All of Ox, and what it rests on
 
