@@ -34,7 +34,7 @@ class OxRunSuite extends munit.FunSuite:
       Files.createDirectories(out)
       files.foreach((name, text) => Files.writeString(out.resolve(name), text))
     files.foreach((name, text) => assertEquals(text, Files.readString(out.resolve(name)), name))
-    assertEquals(OxClients.all.size, 18)
+    assertEquals(OxClients.all.size, 25)
   }
 
   /** Ox's trees as they are kept (`OxSourceSuite` checks them against Ox's TASTy), then their index. */

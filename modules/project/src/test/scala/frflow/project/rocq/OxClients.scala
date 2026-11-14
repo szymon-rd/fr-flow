@@ -1,6 +1,6 @@
 package frflow.project.rocq
 
-import clients.{Failures, Joins, Scopes}
+import clients.{Failures, Joins, Observed, Scopes}
 
 /** Programs written against Ox, each a method of an object that takes nothing and answers a number: the object,
   * the method, and the method itself, to be run on the JVM; and the Rocq file that says what each gives.
@@ -33,7 +33,16 @@ object OxClients:
     "resource" -> Scopes.resource,
     "forkLocal" -> Scopes.forkLocal)
 
-  val all: List[Program] = joins ++ failures ++ scopes
+  private val observed = of(Observed)(
+    "waitsForUserForks" -> Observed.waitsForUserForks,
+    "interruptsAndWaits" -> Observed.interruptsAndWaits,
+    "failureInterruptsSibling" -> Observed.failureInterruptsSibling,
+    "innerEndsFirst" -> Observed.innerEndsFirst,
+    "finalizerAfterForks" -> Observed.finalizerAfterForks,
+    "unsupervisedWaits" -> Observed.unsupervisedWaits,
+    "cancelWaits" -> Observed.cancelWaits)
+
+  val all: List[Program] = joins ++ failures ++ scopes ++ observed
 
   private val said: String =
     """(** Programs written against Ox 1.1.0 (`frflow.project.rocq.clients`), run: the meaning of their trees and of

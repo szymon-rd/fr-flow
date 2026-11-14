@@ -75,16 +75,29 @@ at which a run stops and says why.
 
 ## How it is tested
 
-`clients` holds 18 programs against Ox 1.1.0, each a method that answers a number: a scope with nothing forked,
-forks joined, a fork that throws (joined, or only waited for), a body that throws while a fork sleeps, a fork
-interrupted when its scope ends, a fork not supervised, a fork cancelled, an application error, a scope inside a
-fork, `par`, `raceSuccess`, `timeout`, finalizers and their order, a resource released at the scope's end, a fork
-local set for a scope.
+`clients` holds 25 programs against Ox 1.1.0, each a method that answers a number.
+
+- 18 use the operators (`Joins`, `Failures`, `Scopes`): a scope with nothing forked, forks joined, a fork that
+  throws (joined, or only waited for), a body that throws while a fork sleeps, a fork interrupted when its
+  scope ends, a fork not supervised, a fork cancelled, an application error, a scope inside a fork, `par`,
+  `raceSuccess`, `timeout`, finalizers and their order, a resource released at the scope's end, a fork local
+  set for a scope.
+- 7 observe a law (`Observed`): each fork sets a flag as its last act, and the program answers which flags
+  were set once the scope had ended. A scope returns after the forks it waits for have finished; a scope that
+  ends interrupts the forks still running and returns after they have ended; a failing fork has its sibling
+  interrupted and ended before the scope throws; an inner scope has ended, forks and all, before the code
+  after it runs; a finalizer runs after the forks have ended; a scope not supervised does the same; `cancel`
+  returns after the fork has ended. These are the laws of containment and cancellation as a program can see
+  them: checked on these runs, not proven.
+
+Writing the last one showed a behaviour of Ox worth knowing: a fork made by `forkCancellable` and cancelled
+before its thread has started never runs its body (`cancel` then gives the interrupt). Whether a fork cancelled
+at once runs is the scheduler's choice; the program here waits until the fork runs before it cancels.
 
 `OxRunSuite` runs each on the JVM, reads the programs' TASTy into trees, and writes `Runs.v`: over the programs'
-trees and Ox's 116, one lemma for each program, that under each of four orders of the threads' turns every
-thread ends and the first gives the number the JVM gave. Rocq proves each by running the meaning
-(`vm_compute`).
+trees and Ox's 116, one lemma for each program, that under each of four orders of the threads' turns (each
+thread in turn, and three shuffled orders) every thread ends and the first gives the number the JVM gave. Rocq
+proves each by running the meaning (`vm_compute`): a hundred runs.
 
 What this shows is that the meaning of the forms these programs and Ox's kernel use, and of the JDK's members
 they call, agrees with the JVM on these runs. It shows nothing of the runs not made: the contracts allow the JDK
@@ -114,6 +127,23 @@ The theorems of `examples/ox/rocq/Ox` (containment of a scope, that it stays clo
 the programs the rules read from Ox's scopes and forks. They are not yet about the meaning of the trees. The
 two are the same language over the same contracts, and differ in how an object is held: `Gen.v` reads a class
 into a record and a field into a projection, where the meaning here keeps the JVM's heap and makes each field
-read a step. Moving the proofs means stating the invariant over the heap and proving each method's program as
-`denote` gives it. Until then what joins the two is that both are read from the same TASTy, and that the
-meaning here is the one tested against the JVM.
+read a step. Until the proofs are moved, what joins the two is that both are read from the same TASTy, and that
+the meaning here is the one tested against the JVM.
+
+What moving them takes, as far as it was tried:
+
+- **The logic applies as it is.** `Logic.v` is over any type of closures and objects and any `interp`; with
+  `Value.code`, `Value.obj` and `Meaning.interp` its `sound` is about the trees.
+- **A proof can walk the meaning.** Rocq reduces `interp` of a method of Ox to its first operation and what
+  follows it (`lazy head`) in under half a second with all of Ox's trees in the table, so a method is proven
+  as in `HerdProofs.v`, an operation at a time. The whole program of a method cannot be computed first and
+  read as `Gen.v` is: with an object not yet known, a call on it has every class's method to choose from.
+- **The invariant carries over.** `Ghost.v`, `Facts.v`, `Updates.v`, `Inner.v` and `Laws.v` speak of the JDK's
+  state and the ghost state; they name `Gen.v` only for what a herd is and for the closure a herd's thread
+  runs. Over the trees a herd is a place in the heap whose `threads` field does not change, and that closure
+  is the one `denote` makes.
+- **What is new work.** What is asked of each closure (`Specs.v`) is a table over `Gen.v`'s closures; over the
+  trees a closure is a tree and a scope, and Ox's own must be told from a client's. And each method is proven
+  again (`HerdProofs.v`, `ScopeProofs.v`, `ApiProofs.v`, `Main.v`: about a thousand lines), with the steps that
+  read fields added, and with the parts `Gen.v` leaves as `extern` or `chaos` (the error mode, a scope's
+  finalizers run uninterruptibly) proven for the first time.

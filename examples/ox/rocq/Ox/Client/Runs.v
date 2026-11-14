@@ -12,6 +12,7 @@ Require Import FrFlow.Scala.Meaning FrFlow.Scala.Library FrFlow.Scala.Run.
 Require Import Ox.Tree.All.
 Require Ox.Client.client_Failures.
 Require Ox.Client.client_Joins.
+Require Ox.Client.client_Observed.
 Require Ox.Client.client_Scopes.
 Import ListNotations.
 Open Scope string_scope.
@@ -19,12 +20,14 @@ Open Scope string_scope.
 Definition all : list tree :=
   [client_Failures.client_Failures;
    client_Joins.client_Joins;
+   client_Observed.client_Observed;
    client_Scopes.client_Scopes] ++ files.
 Definition T : table := Eval vm_compute in build all.
 Definition owners : list string :=
   ["frflow.project.rocq.clients.Joins$";
    "frflow.project.rocq.clients.Failures$";
-   "frflow.project.rocq.clients.Scopes$"].
+   "frflow.project.rocq.clients.Scopes$";
+   "frflow.project.rocq.clients.Observed$"].
 
 (** The objects with state the programs may use: made before a program starts. *)
 Definition modules : list string := Eval vm_compute in needed T all (declared_by all owners).
@@ -92,4 +95,25 @@ Lemma Scopes_resource : gives "frflow.project.rocq.clients.Scopes$" "resource" (
 Proof. vm_compute. reflexivity. Qed.
 
 Lemma Scopes_forkLocal : gives "frflow.project.rocq.clients.Scopes$" "forkLocal" (21)%Z = true.
+Proof. vm_compute. reflexivity. Qed.
+
+Lemma Observed_waitsForUserForks : gives "frflow.project.rocq.clients.Observed$" "waitsForUserForks" (111)%Z = true.
+Proof. vm_compute. reflexivity. Qed.
+
+Lemma Observed_interruptsAndWaits : gives "frflow.project.rocq.clients.Observed$" "interruptsAndWaits" (11)%Z = true.
+Proof. vm_compute. reflexivity. Qed.
+
+Lemma Observed_failureInterruptsSibling : gives "frflow.project.rocq.clients.Observed$" "failureInterruptsSibling" (21)%Z = true.
+Proof. vm_compute. reflexivity. Qed.
+
+Lemma Observed_innerEndsFirst : gives "frflow.project.rocq.clients.Observed$" "innerEndsFirst" (11)%Z = true.
+Proof. vm_compute. reflexivity. Qed.
+
+Lemma Observed_finalizerAfterForks : gives "frflow.project.rocq.clients.Observed$" "finalizerAfterForks" (11)%Z = true.
+Proof. vm_compute. reflexivity. Qed.
+
+Lemma Observed_unsupervisedWaits : gives "frflow.project.rocq.clients.Observed$" "unsupervisedWaits" (1)%Z = true.
+Proof. vm_compute. reflexivity. Qed.
+
+Lemma Observed_cancelWaits : gives "frflow.project.rocq.clients.Observed$" "cancelWaits" (1)%Z = true.
 Proof. vm_compute. reflexivity. Qed.
