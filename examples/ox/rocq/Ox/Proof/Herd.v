@@ -39,9 +39,8 @@ Ltac herd_kept :=
   [ iExists _; iFrame "Hv1"; iPureIntro; first [eassumption | by apply threads_only_app]
   | iExists _; iFrame "Hv2"; iPureIntro; first [eassumption | by left | by right] ].
 
-Section herd.
-  Context `{!jvmGS code obj Σ, !scopesGS Σ} (more : table).
-  Local Instance herd_irisGS : irisGS (jvm (run more)) Σ := jvm_irisGS (run more).
+Section herds.
+  Context `{!jvmGS code obj Σ, !scopesGS Σ}.
 
   (** The herd at `r` of the scope `q`, made by `owner`: its fields no longer change; its flag is anyone's to
       read and set. *)
@@ -51,6 +50,11 @@ Section herd.
 
   Global Instance is_herd_persistent r q owner : Persistent (is_herd r q owner).
   Proof. apply _. Qed.
+End herds.
+
+Section herd.
+  Context `{!jvmGS code obj Σ, !scopesGS Σ} (more : table).
+  Local Instance herd_irisGS : irisGS (jvm (run more)) Σ := jvm_irisGS (run more).
 
   (** ** A herd made is a scope opened, by the thread that makes it *)
 

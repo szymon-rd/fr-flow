@@ -61,6 +61,35 @@ Section ghost.
   Global Instance took_persistent e : Persistent (took e).
   Proof. apply _. Qed.
 
+  (** A thread's place in two parts. The larger is something a thread has at most one of, whatever its place
+      is (`place_tok`): a thread lends it where it must be told from another (`Modules.v`), keeps the smaller,
+      which remembers the place, and has its place again when the larger comes back. *)
+  Definition place_part (w : nat) (q : Qp) (pl : place) : iProp Σ :=
+    ghost_map_elem scopes_places w (DfracOwn q) pl.
+  Definition place_tok (w : nat) : iProp Σ := ∃ pl, place_part w (3/4) pl.
+
+  Global Instance place_tok_timeless w : Timeless (place_tok w).
+  Proof. apply _. Qed.
+
+  Lemma place_tok_once w : place_tok w -∗ place_tok w -∗ False.
+  Proof.
+    iIntros "[%pl1 H1] [%pl2 H2]". iDestruct (ghost_map_elem_valid_2 with "H1 H2") as %[Hv _].
+    exfalso. rewrite dfrac_op_own dfrac_valid_own in Hv. by apply (Qp.lt_nge 1 (3/4 + 3/4)) in Hv.
+  Qed.
+
+  Lemma place_lend w pl : place_is w pl -∗ place_tok w ∗ place_part w (1/4) pl.
+  Proof.
+    assert (1 = 3/4 + 1/4)%Qp as E by compute_done.
+    iIntros "H". iEval (rewrite /place_is E) in "H". iDestruct "H" as "[H1 H2]". iFrame "H2". by iExists pl.
+  Qed.
+
+  Lemma place_back w pl : place_tok w -∗ place_part w (1/4) pl -∗ place_is w pl.
+  Proof.
+    assert (1 = 3/4 + 1/4)%Qp as E by compute_done.
+    iIntros "[%pl' H1] H2". iDestruct (ghost_map_elem_agree with "H1 H2") as %->.
+    iCombine "H1 H2" as "H". iEval (rewrite /place_is E). iExact "H".
+  Qed.
+
   (** One scope's set taken out of the rest, and put back after a step. *)
   Lemma sets_pick taken herds q :
     herds !! q = Some () →

@@ -12,6 +12,7 @@
 
 From Stdlib Require Import FunctionalExtensionality.
 From iris.algebra Require Import gmap.
+From iris.bi.lib Require Import fractional.
 From iris.base_logic.lib Require Export ghost_map invariants.
 From iris.program_logic Require Export weakestpre.
 From iris.program_logic Require Import lifting.
@@ -95,6 +96,13 @@ Section owned.
   Proof. apply ghost_map_elem_agree. Qed.
   Lemma ext_at_agree r dq1 dq2 h1 h2 : r ↦ext{dq1} h1 -∗ r ↦ext{dq2} h2 -∗ ⌜h1 = h2⌝.
   Proof. apply ghost_map_elem_agree. Qed.
+  (** An object held in two halves: each lets it be read, the two together written. *)
+  Lemma obj_at_halve r o : r ↦obj o ⊣⊢ r ↦obj{#1/2} o ∗ r ↦obj{#1/2} o.
+  Proof. rewrite /obj_at. apply: fractional_half. Qed.
+  (** What two hold of one object is no more than the whole of it. *)
+  Lemma obj_at_valid r dq1 dq2 o1 o2 : r ↦obj{dq1} o1 -∗ r ↦obj{dq2} o2 -∗ ⌜✓ (dq1 ⋅ dq2) ∧ o1 = o2⌝.
+  Proof. apply ghost_map_elem_valid_2. Qed.
+
   (** Who owns an object from outside whole is alone in it. *)
   Lemma ext_at_once r h1 h2 : r ↦ext h1 -∗ r ↦ext h2 -∗ False.
   Proof. iIntros "H1 H2". iDestruct (ghost_map_elem_valid_2 with "H1 H2") as %[Hv _]. done. Qed.

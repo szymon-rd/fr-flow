@@ -181,14 +181,16 @@ Section rules.
     iMod "Hclose" as "_". iMod ("HΦ" with "Hr") as "HΦ". iModIntro. simpl. by iFrame.
   Qed.
 
-  (** What one thread at a time does: by who holds the object, and what the object says of it. *)
+  (** What one thread at a time does: by what the object says of it. A part of the object is enough where the
+      thread only finds the value or waits; the thread that enters holds the object whole. *)
   Lemma wp_enter t r name what E E' Φ :
-    (|={E,E'}=> ∃ cls fields, r ↦obj (cls, fields) ∗
+    (|={E,E'}=> ∃ dq cls fields, r ↦obj{dq} (cls, fields) ∗
        ▷ match field fields name, holder fields name with
-         | Some v, _ => r ↦obj (cls, fields) ={E',E}=∗ Φ (inr (Some v))
+         | Some v, _ => r ↦obj{dq} (cls, fields) ={E',E}=∗ Φ (inr (Some v))
          | None, None =>
-             r ↦obj (cls, with_field fields (entered name) (VTid t)) ={E',E}=∗ Φ (inr None)
-         | None, Some u => r ↦obj (cls, fields) ={E',E}=∗
+             ⌜dq = DfracOwn 1⌝ ∗
+             (r ↦obj (cls, with_field fields (entered name) (VTid t)) ={E',E}=∗ Φ (inr None))
+         | None, Some u => r ↦obj{dq} (cls, fields) ={E',E}=∗
              match what with
              | OfMember => Φ (inl InterruptedException)
              | OfMethod => ⌜u = t⌝ → Φ (inr None)
@@ -197,7 +199,7 @@ Section rules.
          end)
     ⊢ wpp t (Vis (Enter r name what) Ret) E Φ.
   Proof.
-    iIntros "H". iApply wpP_op. iIntros (σ) "Hσ". iMod "H" as (cls fields) "(Hr & HΦ)".
+    iIntros "H". iApply wpP_op. iIntros (σ) "Hσ". iMod "H" as (dq cls fields) "(Hr & HΦ)".
     iDestruct (interp_obj with "Hσ Hr") as %Ho.
     iApply fupd_mask_intro; [set_solver |]. iIntros "Hclose !>" (x σ' Hop).
     simpl in Hop. rewrite Ho in Hop. iMod "Hclose" as "_".
@@ -211,7 +213,7 @@ Section rules.
           iFrame "Hσ". iSplit; [done |]. by iApply "HΦ".
         * destruct Hop as (-> & -> & ->). iMod ("HΦ" with "Hr") as "HΦ". iModIntro. simpl.
           iFrame "Hσ". iSplit; [done |]. by iApply "HΦ".
-      + destruct Hop as [-> ->].
+      + destruct Hop as [-> ->]. iDestruct "HΦ" as "[-> HΦ]".
         iMod (interp_obj_set _ _ _ (cls, with_field fields (entered name) (VTid t)) with "Hσ Hr") as "[$ Hr]".
         iMod ("HΦ" with "Hr") as "HΦ". iModIntro. simpl. by iFrame.
   Qed.

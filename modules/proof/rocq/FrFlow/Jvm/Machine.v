@@ -146,6 +146,33 @@ Section Machine.
   Definition written (fields : list (string * val)) (name : string) (v : val) : list (string * val) :=
     without_field (with_field fields name v) (writing name).
 
+  (** A field written is that field's; the others are as they were. *)
+  Lemma field_with_same (fields : list (string * val)) (name : string) (v : val) :
+    field (with_field fields name v) name = Some v.
+  Proof.
+    induction fields as [| [n v0] rest IH]; cbn; [rewrite String.eqb_refl; reflexivity |].
+    destruct (String.eqb n name) eqn:E; cbn; rewrite E; [reflexivity | exact IH].
+  Qed.
+
+  Lemma field_with_other (fields : list (string * val)) (n m : string) (v : val) :
+    n <> m -> field (with_field fields n v) m = field fields m.
+  Proof.
+    intros Hne. induction fields as [| [k v0] rest IH]; cbn.
+    - destruct (String.eqb_spec n m); [contradiction | reflexivity].
+    - destruct (String.eqb_spec k n) as [-> | Hk]; cbn.
+      + destruct (String.eqb_spec n m); [contradiction | reflexivity].
+      + destruct (String.eqb k m); [reflexivity | exact IH].
+  Qed.
+
+  Lemma field_without_other (fields : list (string * val)) (n m : string) :
+    n <> m -> field (without_field fields n) m = field fields m.
+  Proof.
+    intros Hne. induction fields as [| [k v0] rest IH]; cbn; [reflexivity |].
+    destruct (String.eqb_spec k n) as [-> | Hk]; cbn.
+    - destruct (String.eqb_spec n m); [contradiction | exact IH].
+    - destruct (String.eqb k m); [reflexivity | exact IH].
+  Qed.
+
   (** Where an object keeps which thread has entered `name`. *)
   Definition entered (name : string) : string := (name ++ "<entered>")%string.
   Definition holder (fields : list (string * val)) (name : string) : option tid :=
