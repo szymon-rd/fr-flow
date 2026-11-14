@@ -55,6 +55,22 @@ class OxSourceSuite extends munit.FunSuite:
     assertEquals(surface.size, 513)
   }
 
+  /** `Assumed.v`'s rows under a contract: a member of the JDK (its class, a companion's `$` apart, and its
+    * name) and the operations of `Jdk.v` it is said to be.
+    */
+  private def contracts: Map[(String, String), Set[String]] =
+    val row = """\(Member "([^"]*)" "([^"]*)" "[^"]*", Contract "([^"]*)"\)""".r
+    row.findAllMatchIn(Files.readString(out.resolve("Assumed.v"))).toList
+      .groupMapReduce(m => (m.group(1).stripSuffix("$"), m.group(2)))(m => m.group(3).split(", ").toSet)(_ ++ _)
+
+  test("the reader of thread programs calls a JDK method the operation `Assumed.v` gives it") {
+    val read = frflow.dsl.compiled.threads.known.Jdk.methods.view.mapValues(_.name).toMap
+    val differing = read.toList.flatMap((method, op) =>
+      contracts.get(method).filterNot(_.contains(op)).map(ops => s"$method: $op, not ${ops.mkString(", ")}"))
+    assertEquals(differing, Nil)
+    assertEquals(read.keySet.filterNot(contracts.contains), Set(("java.util.concurrent.atomic.AtomicReference", "get")))
+  }
+
   /** The files kept by hand beside the trees, each checked by Rocq against what it computes from them. */
   private val checked = List("All.v", "Surface.v", "Kernel.v", "Assumed.v", "Memory.v")
 

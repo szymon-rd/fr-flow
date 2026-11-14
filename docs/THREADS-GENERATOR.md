@@ -8,6 +8,23 @@ The first unit read is Ox 1.1.0's scopes and forks: `examples/ox/rocq/Ox/Gen.v` 
 proofs there are about; `Code.v` beside it is the same unit written by hand before the generator existed, and
 `Agree.v` (generated) states that the two agree.
 
+## Two readings
+
+There are two, of different reach.
+
+- **By rules, into programs** (this page). A unit of code named in a table is read construct by construct into
+  the language of `Lang.v`: what the proofs are about. The rules decide what each construct means, and refuse
+  what they do not cover. Ox's scopes and forks are read this way (`Gen.v`).
+- **Whole, into trees** (`frflow.dsl.compiled.source`, `modules/proof/rocq/FrFlow/Scala/Tree.v`). Every TASTy file
+  of a jar as the tree the compiler typed, a constructor for each form of tree and of type, nothing chosen and
+  nothing refused but a form with no constructor. All of Ox is read this way (`examples/ox/rocq/Ox/Tree`). The
+  trees have no meaning in Rocq yet; what Rocq computes from them is what the code defines, refers to and takes
+  from outside (`FrFlow/Scala/Program.v`), which is how the assumptions about the JDK are known to be complete
+  (`examples/ox/rocq/Ox/README.md`). `OxSourceSuite` checks the reading against the compiler's own traversal,
+  and that the table below from a JDK method to its operation agrees with the assumptions checked on the trees.
+
+The aim is one reading: the meaning of a tree said in Rocq, and the programs of this page derived from it.
+
 ## Where it is
 
 | What | Where |
