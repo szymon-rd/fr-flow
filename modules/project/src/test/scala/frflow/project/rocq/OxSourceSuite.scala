@@ -72,11 +72,14 @@ class OxSourceSuite extends munit.FunSuite:
   }
 
   /** The files kept by hand beside the trees, each checked by Rocq against what it computes from them. */
-  private val checked = List("All.v", "Surface.v", "Kernel.v", "Assumed.v", "Memory.v")
+  private val checked = List("All.v", "Surface.v", "Kernel.v", "Assumed.v", "Memory.v", "Meant.v")
+
+  /** The library the files are over: the trees, what is computed from them, and their meaning. */
+  private val library = List("Threads/Prog", "Threads/Jdk", "Threads/Sem", "Threads/Lang", "Scala/Tree",
+    "Scala/Program", "Scala/Table", "Scala/Value", "Scala/Meaning", "Scala/Library", "Scala/Gaps")
 
   test(("Rocq reads every file, and checks that Ox's trees are closed, what they take from outside, the kernel, " +
-      "what it assumes of the JDK, and its variables").tag(Rocq)) {
+      "what it assumes of the JDK, its variables, and where the meaning of the trees stops").tag(Rocq)) {
     val all = files ++ checked.map(n => n -> Files.readString(out.resolve(n)))
-    assertEquals(ThreadsRocq.failing(all.map((name, text) => s"Ox/Tree/$name" -> text),
-      List("Scala/Tree", "Scala/Program")), None)
+    assertEquals(ThreadsRocq.failing(all.map((name, text) => s"Ox/Tree/$name" -> text), library), None)
   }

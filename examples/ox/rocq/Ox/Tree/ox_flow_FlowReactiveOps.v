@@ -153,7 +153,10 @@ Definition ox_flow_FlowReactiveOps : tree :=
                                     [
                                       (Apply
                                         (Select
-                                          (New (TyRef "scala.package$.NullPointerException"))
+                                          (New
+                                            (TyAlias
+                                              "scala.package$.NullPointerException"
+                                              (TyRef "java.lang.NullPointerException")))
                                           (Member
                                             "java.lang.NullPointerException"
                                             "<init>"
@@ -417,7 +420,13 @@ Definition ox_flow_FlowReactiveOps : tree :=
                                       (DefDef
                                         (Local "signalErrorAndCancel" 20)
                                         ["Method"]
-                                        [[(ValDef (Local "e" 21) ["Param"] (TyRef "scala.package$.Throwable") None)]]
+                                        [
+                                          [
+                                            (ValDef
+                                              (Local "e" 21)
+                                              ["Param"]
+                                              (TyAlias "scala.package$.Throwable" (TyRef "java.lang.Throwable"))
+                                              None)]]
                                         (TyRef "scala.Unit")
                                         (Some
                                           (If
@@ -455,7 +464,10 @@ Definition ox_flow_FlowReactiveOps : tree :=
                                               [
                                                 (Apply
                                                   (Select
-                                                    (New (TyRef "scala.package$.IllegalArgumentException"))
+                                                    (New
+                                                      (TyAlias
+                                                        "scala.package$.IllegalArgumentException"
+                                                        (TyRef "java.lang.IllegalArgumentException")))
                                                     (Member
                                                       "java.lang.IllegalArgumentException"
                                                       "<init>"
@@ -774,7 +786,13 @@ Definition ox_flow_FlowReactiveOps : tree :=
                                     (DefDef
                                       (Local "$anonfun" 29)
                                       ["Artifact"; "Method"; "Synthetic"]
-                                      [[(ValDef (Local "e" 30) ["Param"] (TyRef "scala.package$.Throwable") None)]]
+                                      [
+                                        [
+                                          (ValDef
+                                            (Local "e" 30)
+                                            ["Param"]
+                                            (TyAlias "scala.package$.Throwable" (TyRef "java.lang.Throwable"))
+                                            None)]]
                                       (TyRef "scala.Unit")
                                       (Some
                                         (If

@@ -558,7 +558,10 @@ Definition ox_flow_FlowRunOps : tree :=
                     [
                       (Apply
                         (Select
-                          (New (TyRef "scala.package$.NoSuchElementException"))
+                          (New
+                            (TyAlias
+                              "scala.package$.NoSuchElementException"
+                              (TyRef "java.util.NoSuchElementException")))
                           (Member
                             "java.util.NoSuchElementException"
                             "<init>"
@@ -733,7 +736,10 @@ Definition ox_flow_FlowRunOps : tree :=
                       [
                         (Apply
                           (Select
-                            (New (TyRef "scala.package$.NoSuchElementException"))
+                            (New
+                              (TyAlias
+                                "scala.package$.NoSuchElementException"
+                                (TyRef "java.util.NoSuchElementException")))
                             (Member
                               "java.util.NoSuchElementException"
                               "<init>"

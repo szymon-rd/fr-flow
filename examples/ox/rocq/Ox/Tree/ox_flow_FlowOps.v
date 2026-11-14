@@ -3064,7 +3064,9 @@ Definition ox_flow_FlowOps : tree :=
                                             (CaseDef
                                               (Bind
                                                 (Local "t" 152)
-                                                (Typed Wildcard (TyRef "scala.package$.Throwable")))
+                                                (Typed
+                                                  Wildcard
+                                                  (TyAlias "scala.package$.Throwable" (TyRef "java.lang.Throwable"))))
                                               None
                                               (Block
                                                 [
@@ -3673,8 +3675,10 @@ Definition ox_flow_FlowOps : tree :=
                                                                                                               174)
                                                                                                             (Typed
                                                                                                               Wildcard
-                                                                                                              (TyRef
-                                                                                                                "scala.package$.Throwable")))
+                                                                                                              (TyAlias
+                                                                                                                "scala.package$.Throwable"
+                                                                                                                (TyRef
+                                                                                                                  "java.lang.Throwable"))))
                                                                                                           None
                                                                                                           (Apply
                                                                                                             (TypeApply
@@ -3726,7 +3730,9 @@ Definition ox_flow_FlowOps : tree :=
                                                                                 (ValDef
                                                                                   (Local "_$3" 176)
                                                                                   ["Param"; "Synthetic"]
-                                                                                  (TyRef "scala.package$.Throwable")
+                                                                                  (TyAlias
+                                                                                    "scala.package$.Throwable"
+                                                                                    (TyRef "java.lang.Throwable"))
                                                                                   None)]]
                                                                             (TyRef "scala.Unit")
                                                                             (Some
@@ -4570,7 +4576,9 @@ Definition ox_flow_FlowOps : tree :=
                                                                   (ValDef
                                                                     (Local "_$5" 224)
                                                                     ["Param"; "Synthetic"]
-                                                                    (TyRef "scala.package$.Throwable")
+                                                                    (TyAlias
+                                                                      "scala.package$.Throwable"
+                                                                      (TyRef "java.lang.Throwable"))
                                                                     None)]]
                                                               (TyRef "scala.Unit")
                                                               (Some
@@ -6328,7 +6336,9 @@ Definition ox_flow_FlowOps : tree :=
                               (ValDef
                                 (Local "error" 318)
                                 ["Mutable"]
-                                (TyOr (TyRef "scala.package$.Throwable") (TyRef "scala.Null"))
+                                (TyOr
+                                  (TyAlias "scala.package$.Throwable" (TyRef "java.lang.Throwable"))
+                                  (TyRef "scala.Null"))
                                 (Some (Literal CNull)))]
                             (Try
                               (Apply
@@ -6374,7 +6384,11 @@ Definition ox_flow_FlowOps : tree :=
                                         (Closure (Ident (Local "$anonfun" 319)) None))])])
                               [
                                 (CaseDef
-                                  (Bind (Local "e" 321) (Typed Wildcard (TyRef "scala.package$.Throwable")))
+                                  (Bind
+                                    (Local "e" 321)
+                                    (Typed
+                                      Wildcard
+                                      (TyAlias "scala.package$.Throwable" (TyRef "java.lang.Throwable"))))
                                   None
                                   (Block
                                     [(Assign (Ident (Local "error" 318)) (Ident (Local "e" 321)))]
@@ -6437,7 +6451,11 @@ Definition ox_flow_FlowOps : tree :=
                                       (Literal CUnit)))
                                   [
                                     (CaseDef
-                                      (Bind (Local "e" 325) (Typed Wildcard (TyRef "scala.package$.Throwable")))
+                                      (Bind
+                                        (Local "e" 325)
+                                        (Typed
+                                          Wildcard
+                                          (TyAlias "scala.package$.Throwable" (TyRef "java.lang.Throwable"))))
                                       None
                                       (Block
                                         []
@@ -7098,7 +7116,7 @@ Definition ox_flow_FlowOps : tree :=
                           (Member "java.lang.Object" "<init>" ":java.lang.Object"))
                         []);
                       (TypeTree (TyRef "scala.Product"));
-                      (TypeTree (TyRef "scala.package$.Serializable"))]
+                      (TypeTree (TyAlias "scala.package$.Serializable" (TyRef "java.io.Serializable")))]
                     None
                     [
                       (ValDef
@@ -7226,7 +7244,7 @@ Definition ox_flow_FlowOps : tree :=
                         (Member "ox.flow.FlowOps._$GroupingTimeout#368" "productPrefix" ":")
                         ["Method"; "Override"; "Synthetic"]
                         []
-                        (TyRef "scala.Predef$.String")
+                        (TyAlias "scala.Predef$.String" (TyRef "java.lang.String"))
                         (Some (Literal (CString "GroupingTimeout")))
                         [(Member "scala.Product" "productPrefix" ":")]);
                       (DefDef
@@ -7267,7 +7285,7 @@ Definition ox_flow_FlowOps : tree :=
                           "scala.Int:java.lang.String")
                         ["Method"; "Override"; "Synthetic"]
                         [[(ValDef (Local "n" 375) ["Param"] (TyRef "scala.Int") None)]]
-                        (TyRef "scala.Predef$.String")
+                        (TyAlias "scala.Predef$.String" (TyRef "java.lang.String"))
                         (Some
                           (Match
                             false
@@ -7349,7 +7367,9 @@ Definition ox_flow_FlowOps : tree :=
                       [])
                     [
                       (Apply
-                        (Select (New (TyRef "scala.AnyRef")) (Member "java.lang.Object" "<init>" ":java.lang.Object"))
+                        (Select
+                          (New (TyAlias "scala.AnyRef" (TyRef "java.lang.Object")))
+                          (Member "java.lang.Object" "<init>" ":java.lang.Object"))
                         []);
                       (TypeTree (TyRef "scala.deriving.Mirror$.Product"))]
                     (Some (ValDef NoSym [] (TyTerm (Local "GroupingTimeout" 377)) None))
@@ -7408,7 +7428,9 @@ Definition ox_flow_FlowOps : tree :=
                           "scala.Product:ox.flow.FlowOps._$GroupingTimeout")
                         ["Method"; "Synthetic"]
                         [[(ValDef (Local "x$0" 381) ["Param"] (TyRef "scala.Product") None)]]
-                        (TyRef "ox.flow.FlowOps._$GroupingTimeout$.MirroredMonoType")
+                        (TyAlias
+                          "ox.flow.FlowOps._$GroupingTimeout$.MirroredMonoType"
+                          (TyRef "ox.flow.FlowOps._$GroupingTimeout#368"))
                         (Some
                           (Block
                             [
@@ -8074,8 +8096,10 @@ Definition ox_flow_FlowOps : tree :=
                                                                                       (ValDef
                                                                                         (Local "_$14" 407)
                                                                                         ["Param"]
-                                                                                        (TyRef
-                                                                                          "scala.package$.Throwable")
+                                                                                        (TyAlias
+                                                                                          "scala.package$.Throwable"
+                                                                                          (TyRef
+                                                                                            "java.lang.Throwable"))
                                                                                         None)]]
                                                                                   (TyRef "scala.Unit")
                                                                                   (Some
@@ -8985,7 +9009,9 @@ Definition ox_flow_FlowOps : tree :=
                                                                       (ValDef
                                                                         (Local "e" 445)
                                                                         ["Param"]
-                                                                        (TyRef "scala.package$.Throwable")
+                                                                        (TyAlias
+                                                                          "scala.package$.Throwable"
+                                                                          (TyRef "java.lang.Throwable"))
                                                                         None)]]
                                                                   (TyRef "scala.Unit")
                                                                   (Some
@@ -9037,7 +9063,7 @@ Definition ox_flow_FlowOps : tree :=
                                         (ValDef
                                           (Local "_$16" 447)
                                           ["Param"; "Synthetic"]
-                                          (TyRef "scala.package$.Throwable")
+                                          (TyAlias "scala.package$.Throwable" (TyRef "java.lang.Throwable"))
                                           None)]]
                                     (TyRef "scala.Unit")
                                     (Some
@@ -9085,7 +9111,7 @@ Definition ox_flow_FlowOps : tree :=
                 (Select (New (TyRef "java.lang.Object")) (Member "java.lang.Object" "<init>" ":java.lang.Object"))
                 []);
               (TypeTree (TyRef "scala.Product"));
-              (TypeTree (TyRef "scala.package$.Serializable"));
+              (TypeTree (TyAlias "scala.package$.Serializable" (TyRef "java.io.Serializable")));
               (TypeTree (TyRef "scala.deriving.Mirror$.Singleton"))]
             (Some (ValDef NoSym [] (TyTerm (Member "ox.flow.FlowOps" "NotSent" "")) None))
             [
@@ -9124,7 +9150,7 @@ Definition ox_flow_FlowOps : tree :=
                 (Member "ox.flow.FlowOps.NotSent$" "productPrefix" ":")
                 ["Method"; "Override"; "Synthetic"]
                 []
-                (TyRef "scala.Predef$.String")
+                (TyAlias "scala.Predef$.String" (TyRef "java.lang.String"))
                 (Some (Literal (CString "NotSent")))
                 [(Member "scala.Product" "productPrefix" ":")]);
               (DefDef
@@ -9156,7 +9182,7 @@ Definition ox_flow_FlowOps : tree :=
                 (Member "ox.flow.FlowOps.NotSent$" "productElementName" "scala.Int:java.lang.String")
                 ["Method"; "Override"; "Synthetic"]
                 [[(ValDef (Local "n" 450) ["Param"] (TyRef "scala.Int") None)]]
-                (TyRef "scala.Predef$.String")
+                (TyAlias "scala.Predef$.String" (TyRef "java.lang.String"))
                 (Some
                   (Match
                     false
@@ -9283,7 +9309,9 @@ Definition ox_flow_FlowOps : tree :=
                                                                       (ValDef
                                                                         (Local "e" 457)
                                                                         ["Param"]
-                                                                        (TyRef "scala.package$.Throwable")
+                                                                        (TyAlias
+                                                                          "scala.package$.Throwable"
+                                                                          (TyRef "java.lang.Throwable"))
                                                                         None)]]
                                                                   (TyRef "scala.Unit")
                                                                   (Some
@@ -9376,7 +9404,7 @@ Definition ox_flow_FlowOps : tree :=
                                         (ValDef
                                           (Local "_$17" 459)
                                           ["Param"; "Synthetic"]
-                                          (TyRef "scala.package$.Throwable")
+                                          (TyAlias "scala.package$.Throwable" (TyRef "java.lang.Throwable"))
                                           None)]]
                                     (TyRef "scala.Unit")
                                     (Some
@@ -9590,7 +9618,9 @@ Definition ox_flow_FlowOps : tree :=
                 (ValDef
                   (Local "f" 474)
                   ["Param"]
-                  (TyApp (TyRef "scala.Function1") [(TyRef "scala.package$.Throwable"); (TyRef "scala.Unit")])
+                  (TyApp
+                    (TyRef "scala.Function1")
+                    [(TyAlias "scala.package$.Throwable" (TyRef "java.lang.Throwable")); (TyRef "scala.Unit")])
                   None)]]
             (TyApp (TyRef "ox.flow.Flow") [(TyParam "ox.flow.FlowOps" "T")])
             (Some
@@ -9644,7 +9674,7 @@ Definition ox_flow_FlowOps : tree :=
                   ["Param"]
                   (TyApp
                     (TyRef "ox.resilience.RetryConfig")
-                    [(TyRef "scala.package$.Throwable"); (TyRef "scala.Unit")])
+                    [(TyAlias "scala.package$.Throwable" (TyRef "java.lang.Throwable")); (TyRef "scala.Unit")])
                   None)];
               [
                 (ValDef
@@ -9868,7 +9898,9 @@ Definition ox_flow_FlowOps : tree :=
                   ["Param"]
                   (TyApp
                     (TyRef "scala.PartialFunction")
-                    [(TyRef "scala.package$.Throwable"); (TyParam "ox.flow.FlowOps.recover" "U")])
+                    [
+                      (TyAlias "scala.package$.Throwable" (TyRef "java.lang.Throwable"));
+                      (TyParam "ox.flow.FlowOps.recover" "U")])
                   None)];
               [
                 (ValDef
@@ -10011,7 +10043,11 @@ Definition ox_flow_FlowOps : tree :=
                                                               (CaseDef
                                                                 (Bind
                                                                   (Local "e" 496)
-                                                                  (Typed Wildcard (TyRef "scala.package$.Throwable")))
+                                                                  (Typed
+                                                                    Wildcard
+                                                                    (TyAlias
+                                                                      "scala.package$.Throwable"
+                                                                      (TyRef "java.lang.Throwable"))))
                                                                 (Some
                                                                   (Apply
                                                                     (Select
@@ -10071,7 +10107,7 @@ Definition ox_flow_FlowOps : tree :=
                   (TyApp
                     (TyRef "scala.PartialFunction")
                     [
-                      (TyRef "scala.package$.Throwable");
+                      (TyAlias "scala.package$.Throwable" (TyRef "java.lang.Throwable"));
                       (TyApp (TyRef "ox.flow.Flow") [(TyParam "ox.flow.FlowOps.recoverWith" "U")])])
                   None)];
               [
@@ -10215,7 +10251,11 @@ Definition ox_flow_FlowOps : tree :=
                                                               (CaseDef
                                                                 (Bind
                                                                   (Local "e" 506)
-                                                                  (Typed Wildcard (TyRef "scala.package$.Throwable")))
+                                                                  (Typed
+                                                                    Wildcard
+                                                                    (TyAlias
+                                                                      "scala.package$.Throwable"
+                                                                      (TyRef "java.lang.Throwable"))))
                                                                 (Some
                                                                   (Apply
                                                                     (Select
@@ -10314,7 +10354,7 @@ Definition ox_flow_FlowOps : tree :=
                   ["Param"]
                   (TyApp
                     (TyRef "ox.resilience.RetryConfig")
-                    [(TyRef "scala.package$.Throwable"); (TyRef "scala.Unit")])
+                    [(TyAlias "scala.package$.Throwable" (TyRef "java.lang.Throwable")); (TyRef "scala.Unit")])
                   None)];
               [
                 (ValDef
@@ -10323,7 +10363,7 @@ Definition ox_flow_FlowOps : tree :=
                   (TyApp
                     (TyRef "scala.PartialFunction")
                     [
-                      (TyRef "scala.package$.Throwable");
+                      (TyAlias "scala.package$.Throwable" (TyRef "java.lang.Throwable"));
                       (TyApp (TyRef "ox.flow.Flow") [(TyParam "ox.flow.FlowOps.recoverWithRetry" "U")])])
                   None)];
               [
@@ -10469,7 +10509,11 @@ Definition ox_flow_FlowOps : tree :=
                                                               (CaseDef
                                                                 (Bind
                                                                   (Local "e" 519)
-                                                                  (Typed Wildcard (TyRef "scala.package$.Throwable")))
+                                                                  (Typed
+                                                                    Wildcard
+                                                                    (TyAlias
+                                                                      "scala.package$.Throwable"
+                                                                      (TyRef "java.lang.Throwable"))))
                                                                 (Some
                                                                   (Apply
                                                                     (Select
@@ -10598,7 +10642,7 @@ Definition ox_flow_FlowOps : tree :=
                   (TyApp
                     (TyRef "scala.PartialFunction")
                     [
-                      (TyRef "scala.package$.Throwable");
+                      (TyAlias "scala.package$.Throwable" (TyRef "java.lang.Throwable"));
                       (TyApp (TyRef "ox.flow.Flow") [(TyParam "ox.flow.FlowOps.recoverWithRetry" "U")])])
                   None)];
               [
@@ -10658,7 +10702,7 @@ Definition ox_flow_FlowOps : tree :=
                   ["Param"]
                   (TyApp
                     (TyRef "scala.PartialFunction")
-                    [(TyRef "scala.package$.Throwable"); (TyRef "scala.Boolean")])
+                    [(TyAlias "scala.package$.Throwable" (TyRef "java.lang.Throwable")); (TyRef "scala.Boolean")])
                   None)]]
             (TyApp (TyRef "ox.flow.Flow") [(TyParam "ox.flow.FlowOps" "T")])
             (Some
@@ -10688,7 +10732,9 @@ Definition ox_flow_FlowOps : tree :=
                               (ValDef
                                 (Local "downstreamFailure" 528)
                                 ["Mutable"]
-                                (TyOr (TyRef "scala.package$.Throwable") (TyRef "scala.Null"))
+                                (TyOr
+                                  (TyAlias "scala.package$.Throwable" (TyRef "java.lang.Throwable"))
+                                  (TyRef "scala.Null"))
                                 (Some (Literal CNull)));
                               (ValDef
                                 (Local "guardedEmit" 529)
@@ -10726,7 +10772,11 @@ Definition ox_flow_FlowOps : tree :=
                                                   (CaseDef
                                                     (Bind
                                                       (Local "e" 532)
-                                                      (Typed Wildcard (TyRef "scala.package$.Throwable")))
+                                                      (Typed
+                                                        Wildcard
+                                                        (TyAlias
+                                                          "scala.package$.Throwable"
+                                                          (TyRef "java.lang.Throwable"))))
                                                     None
                                                     (Block
                                                       [
@@ -10751,7 +10801,11 @@ Definition ox_flow_FlowOps : tree :=
                                 [(Ident (Local "guardedEmit" 529))])
                               [
                                 (CaseDef
-                                  (Bind (Local "e" 533) (Typed Wildcard (TyRef "scala.package$.Throwable")))
+                                  (Bind
+                                    (Local "e" 533)
+                                    (Typed
+                                      Wildcard
+                                      (TyAlias "scala.package$.Throwable" (TyRef "java.lang.Throwable"))))
                                   (Some
                                     (Apply
                                       (Select
@@ -10770,7 +10824,9 @@ Definition ox_flow_FlowOps : tree :=
                                                 "scala.PartialFunction"
                                                 "applyOrElse"
                                                 "2,java.lang.Object,scala.Function1:java.lang.Object"))
-                                            [(TyRef "scala.package$.Throwable"); (TyRef "scala.Boolean")])
+                                            [
+                                              (TyAlias "scala.package$.Throwable" (TyRef "java.lang.Throwable"));
+                                              (TyRef "scala.Boolean")])
                                           [
                                             (Ident (Local "e" 533));
                                             (Block
@@ -10783,7 +10839,9 @@ Definition ox_flow_FlowOps : tree :=
                                                       (ValDef
                                                         (Local "_$20" 535)
                                                         ["Param"]
-                                                        (TyRef "scala.package$.Throwable")
+                                                        (TyAlias
+                                                          "scala.package$.Throwable"
+                                                          (TyRef "java.lang.Throwable"))
                                                         None)]]
                                                   (TyRef "scala.Boolean")
                                                   (Some (Literal (CBool false)))
@@ -10826,7 +10884,9 @@ Definition ox_flow_FlowOps : tree :=
                               (ValDef
                                 (Local "downstreamFailure" 538)
                                 ["Mutable"]
-                                (TyOr (TyRef "scala.package$.Throwable") (TyRef "scala.Null"))
+                                (TyOr
+                                  (TyAlias "scala.package$.Throwable" (TyRef "java.lang.Throwable"))
+                                  (TyRef "scala.Null"))
                                 (Some (Literal CNull)));
                               (ValDef
                                 (Local "guardedEmit" 539)
@@ -10864,7 +10924,11 @@ Definition ox_flow_FlowOps : tree :=
                                                   (CaseDef
                                                     (Bind
                                                       (Local "e" 542)
-                                                      (Typed Wildcard (TyRef "scala.package$.Throwable")))
+                                                      (Typed
+                                                        Wildcard
+                                                        (TyAlias
+                                                          "scala.package$.Throwable"
+                                                          (TyRef "java.lang.Throwable"))))
                                                     None
                                                     (Block
                                                       [
@@ -10889,7 +10953,11 @@ Definition ox_flow_FlowOps : tree :=
                                 [(Ident (Local "guardedEmit" 539))])
                               [
                                 (CaseDef
-                                  (Bind (Local "e" 543) (Typed Wildcard (TyRef "scala.package$.Exception")))
+                                  (Bind
+                                    (Local "e" 543)
+                                    (Typed
+                                      Wildcard
+                                      (TyAlias "scala.package$.Exception" (TyRef "java.lang.Exception"))))
                                   (Some
                                     (Apply
                                       (Select
@@ -10912,7 +10980,9 @@ Definition ox_flow_FlowOps : tree :=
                   ["Param"]
                   (TyApp
                     (TyRef "scala.Function1")
-                    [(TyRef "scala.package$.Throwable"); (TyParam "ox.flow.FlowOps.onErrorRecover" "U")])
+                    [
+                      (TyAlias "scala.package$.Throwable" (TyRef "java.lang.Throwable"));
+                      (TyParam "ox.flow.FlowOps.onErrorRecover" "U")])
                   None)];
               [
                 (ValDef
@@ -10940,7 +11010,7 @@ Definition ox_flow_FlowOps : tree :=
                               (ValDef
                                 (Local "x$1" 547)
                                 ["Param"; "Synthetic"]
-                                (TyRef "scala.package$.Throwable")
+                                (TyAlias "scala.package$.Throwable" (TyRef "java.lang.Throwable"))
                                 None)]]
                           (TyParam "ox.flow.FlowOps.onErrorRecover" "U")
                           (Some
@@ -10964,7 +11034,9 @@ Definition ox_flow_FlowOps : tree :=
                         (Some
                           (TyApp
                             (TyRef "scala.PartialFunction")
-                            [(TyRef "scala.package$.Throwable"); (TyParam "ox.flow.FlowOps.onErrorRecover" "U")]))))])
+                            [
+                              (TyAlias "scala.package$.Throwable" (TyRef "java.lang.Throwable"));
+                              (TyParam "ox.flow.FlowOps.onErrorRecover" "U")]))))])
                 [(Ident (Local "x$2" 545))]))
             []);
           (DefDef

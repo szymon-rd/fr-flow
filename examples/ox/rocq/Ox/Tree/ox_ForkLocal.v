@@ -289,7 +289,7 @@ Definition ox_ForkLocal : tree :=
             (Member "ox.ForkLocal$" "writeReplace" ":java.lang.Object")
             ["Method"; "Private"; "Synthetic"]
             [[]]
-            (TyRef "scala.AnyRef")
+            (TyAlias "scala.AnyRef" (TyRef "java.lang.Object"))
             (Some
               (Apply
                 (Select

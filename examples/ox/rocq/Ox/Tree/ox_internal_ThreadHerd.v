@@ -232,7 +232,7 @@ Definition ox_internal_ThreadHerd : tree :=
                   (ValDef
                     (Local "interruptedException" 7)
                     ["Mutable"]
-                    (TyRef "scala.package$.InterruptedException")
+                    (TyAlias "scala.package$.InterruptedException" (TyRef "java.lang.InterruptedException"))
                     (Some (Literal CNull)));
                   (While
                     (Select
@@ -292,7 +292,11 @@ Definition ox_internal_ThreadHerd : tree :=
                                         (CaseDef
                                           (Bind
                                             (Local "e" 12)
-                                            (Typed Wildcard (TyRef "scala.package$.InterruptedException")))
+                                            (Typed
+                                              Wildcard
+                                              (TyAlias
+                                                "scala.package$.InterruptedException"
+                                                (TyRef "java.lang.InterruptedException"))))
                                           None
                                           (Block
                                             []
@@ -499,8 +503,10 @@ Definition ox_internal_ThreadHerd : tree :=
                                                     (CString
                                                       "Creating this fork was attempted from an unrelated thread: "));
                                                   (Literal (CString "."))]
-                                                (TyRef "scala.Predef$.String"))
-                                              (TyApp (TyRef "scala.<repeated>") [(TyRef "scala.Predef$.String")]))])
+                                                (TyAlias "scala.Predef$.String" (TyRef "java.lang.String")))
+                                              (TyApp
+                                                (TyRef "scala.<repeated>")
+                                                [(TyAlias "scala.Predef$.String" (TyRef "java.lang.String"))]))])
                                         (Member
                                           "scala.StringContext"
                                           "s"

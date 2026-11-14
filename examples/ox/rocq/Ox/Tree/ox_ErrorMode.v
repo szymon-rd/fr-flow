@@ -114,7 +114,11 @@ Definition ox_ErrorMode : tree :=
                   ["Param"]
                   (TyApp (TyParam "ox.ErrorMode" "F") [(TyParam "ox.ErrorMode.addSuppressedException" "T")])
                   None);
-                (ValDef (Local "e" 6) ["Param"; "@scala.annotation.unused"] (TyRef "scala.package$.Throwable") None)]]
+                (ValDef
+                  (Local "e" 6)
+                  ["Param"; "@scala.annotation.unused"]
+                  (TyAlias "scala.package$.Throwable" (TyRef "java.lang.Throwable"))
+                  None)]]
             (TyApp (TyParam "ox.ErrorMode" "F") [(TyParam "ox.ErrorMode.addSuppressedException" "T")])
             (Some (Ident (Local "error" 5)))
             []);

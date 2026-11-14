@@ -11,7 +11,11 @@ import scala.quoted.Quotes
   */
 object ReadSource:
   /** Every TASTy file where `cls` was compiled into: its path, and the tree it holds. */
-  def apply(cls: Class[?]): List[(String, Datum)] =
-    Inspect.files(cls)(q => files => files.sortBy(_._1).map((path, ast) => path -> Reader[q.type](q).tree(ast)))
+  def apply(cls: Class[?]): List[(String, Datum)] = only(cls, _ => true)
+
+  /** The same, of the files of a directory of classes whose paths `keep` takes. */
+  def only(cls: Class[?], keep: String => Boolean): List[(String, Datum)] =
+    Inspect.files(cls, keep)(q => files =>
+      files.sortBy(_._1).map((path, ast) => path -> Reader[q.type](q).tree(ast)))
 
   private final class Reader[Q <: Quotes & Singleton](val q: Q) extends SourceDefs

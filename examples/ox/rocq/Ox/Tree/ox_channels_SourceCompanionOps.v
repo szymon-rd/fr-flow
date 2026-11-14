@@ -71,7 +71,12 @@ Definition ox_channels_SourceCompanionOps : tree :=
             ["Method"]
             [
               [(TypeDef "T" ["Deferred"; "Param"] (TyBounds (TyRef "scala.Nothing") (TyRef "scala.Any")))];
-              [(ValDef (Local "t" 1) ["Param"] (TyRef "scala.package$.Throwable") None)]]
+              [
+                (ValDef
+                  (Local "t" 1)
+                  ["Param"]
+                  (TyAlias "scala.package$.Throwable" (TyRef "java.lang.Throwable"))
+                  None)]]
             (TyApp (TyRef "ox.channels.Source") [(TyParam "ox.channels.SourceCompanionOps.failed" "T")])
             (Some
               (Block
@@ -607,7 +612,11 @@ Definition ox_channels_SourceCompanionOps : tree :=
                                       [
                                         (Bind
                                           (Local "ex" 33)
-                                          (Typed Wildcard (TyRef "scala.concurrent.package$.ExecutionException")))])
+                                          (Typed
+                                            Wildcard
+                                            (TyAlias
+                                              "scala.concurrent.package$.ExecutionException"
+                                              (TyRef "java.util.concurrent.ExecutionException"))))])
                                     (TyApp
                                       (TyRef "scala.util.Failure")
                                       [(TyParam "ox.channels.SourceCompanionOps.receiveAndSendFromFuture" "T")]))

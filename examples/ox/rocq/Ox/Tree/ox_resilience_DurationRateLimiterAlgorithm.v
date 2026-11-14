@@ -85,7 +85,7 @@ Definition ox_resilience_DurationRateLimiterAlgorithm : tree :=
             (Member "ox.resilience.DurationRateLimiterAlgorithm$" "writeReplace" ":java.lang.Object")
             ["Method"; "Private"; "Synthetic"]
             [[]]
-            (TyRef "scala.AnyRef")
+            (TyAlias "scala.AnyRef" (TyRef "java.lang.Object"))
             (Some
               (Apply
                 (Select
@@ -118,7 +118,7 @@ Definition ox_resilience_DurationRateLimiterAlgorithm : tree :=
                 []);
               (TypeTree (TyRef "ox.resilience.RateLimiterAlgorithm"));
               (TypeTree (TyRef "scala.Product"));
-              (TypeTree (TyRef "scala.package$.Serializable"))]
+              (TypeTree (TyAlias "scala.package$.Serializable" (TyRef "java.io.Serializable")))]
             None
             [
               (ValDef
@@ -277,7 +277,7 @@ Definition ox_resilience_DurationRateLimiterAlgorithm : tree :=
                 (Member "ox.resilience.DurationRateLimiterAlgorithm$.FixedWindow" "productPrefix" ":")
                 ["Method"; "Override"; "Synthetic"]
                 []
-                (TyRef "scala.Predef$.String")
+                (TyAlias "scala.Predef$.String" (TyRef "java.lang.String"))
                 (Some (Literal (CString "FixedWindow")))
                 [(Member "scala.Product" "productPrefix" ":")]);
               (DefDef
@@ -327,7 +327,7 @@ Definition ox_resilience_DurationRateLimiterAlgorithm : tree :=
                   "scala.Int:java.lang.String")
                 ["Method"; "Override"; "Synthetic"]
                 [[(ValDef (Local "n" 7) ["Param"] (TyRef "scala.Int") None)]]
-                (TyRef "scala.Predef$.String")
+                (TyAlias "scala.Predef$.String" (TyRef "java.lang.String"))
                 (Some
                   (Match
                     false
@@ -710,7 +710,9 @@ Definition ox_resilience_DurationRateLimiterAlgorithm : tree :=
               [])
             [
               (Apply
-                (Select (New (TyRef "scala.AnyRef")) (Member "java.lang.Object" "<init>" ":java.lang.Object"))
+                (Select
+                  (New (TyAlias "scala.AnyRef" (TyRef "java.lang.Object")))
+                  (Member "java.lang.Object" "<init>" ":java.lang.Object"))
                 []);
               (TypeTree (TyRef "scala.deriving.Mirror$.Product"))]
             (Some
@@ -720,7 +722,7 @@ Definition ox_resilience_DurationRateLimiterAlgorithm : tree :=
                 (Member "ox.resilience.DurationRateLimiterAlgorithm$.FixedWindow$" "writeReplace" ":java.lang.Object")
                 ["Method"; "Private"; "Synthetic"]
                 [[]]
-                (TyRef "scala.AnyRef")
+                (TyAlias "scala.AnyRef" (TyRef "java.lang.Object"))
                 (Some
                   (Apply
                     (Select
@@ -788,7 +790,9 @@ Definition ox_resilience_DurationRateLimiterAlgorithm : tree :=
                   "scala.Product:ox.resilience.DurationRateLimiterAlgorithm$.FixedWindow")
                 ["Method"; "Synthetic"]
                 [[(ValDef (Local "x$0" 23) ["Param"] (TyRef "scala.Product") None)]]
-                (TyRef "ox.resilience.DurationRateLimiterAlgorithm$.FixedWindow$.MirroredMonoType")
+                (TyAlias
+                  "ox.resilience.DurationRateLimiterAlgorithm$.FixedWindow$.MirroredMonoType"
+                  (TyRef "ox.resilience.DurationRateLimiterAlgorithm$.FixedWindow"))
                 (Some
                   (Block
                     [
@@ -851,7 +855,7 @@ Definition ox_resilience_DurationRateLimiterAlgorithm : tree :=
                 []);
               (TypeTree (TyRef "ox.resilience.RateLimiterAlgorithm"));
               (TypeTree (TyRef "scala.Product"));
-              (TypeTree (TyRef "scala.package$.Serializable"))]
+              (TypeTree (TyAlias "scala.package$.Serializable" (TyRef "java.io.Serializable")))]
             None
             [
               (ValDef
@@ -1022,7 +1026,7 @@ Definition ox_resilience_DurationRateLimiterAlgorithm : tree :=
                 (Member "ox.resilience.DurationRateLimiterAlgorithm$.SlidingWindow" "productPrefix" ":")
                 ["Method"; "Override"; "Synthetic"]
                 []
-                (TyRef "scala.Predef$.String")
+                (TyAlias "scala.Predef$.String" (TyRef "java.lang.String"))
                 (Some (Literal (CString "SlidingWindow")))
                 [(Member "scala.Product" "productPrefix" ":")]);
               (DefDef
@@ -1072,7 +1076,7 @@ Definition ox_resilience_DurationRateLimiterAlgorithm : tree :=
                   "scala.Int:java.lang.String")
                 ["Method"; "Override"; "Synthetic"]
                 [[(ValDef (Local "n" 33) ["Param"] (TyRef "scala.Int") None)]]
-                (TyRef "scala.Predef$.String")
+                (TyAlias "scala.Predef$.String" (TyRef "java.lang.String"))
                 (Some
                   (Match
                     false
@@ -1859,7 +1863,9 @@ Definition ox_resilience_DurationRateLimiterAlgorithm : tree :=
               [])
             [
               (Apply
-                (Select (New (TyRef "scala.AnyRef")) (Member "java.lang.Object" "<init>" ":java.lang.Object"))
+                (Select
+                  (New (TyAlias "scala.AnyRef" (TyRef "java.lang.Object")))
+                  (Member "java.lang.Object" "<init>" ":java.lang.Object"))
                 []);
               (TypeTree (TyRef "scala.deriving.Mirror$.Product"))]
             (Some
@@ -1876,7 +1882,7 @@ Definition ox_resilience_DurationRateLimiterAlgorithm : tree :=
                   ":java.lang.Object")
                 ["Method"; "Private"; "Synthetic"]
                 [[]]
-                (TyRef "scala.AnyRef")
+                (TyAlias "scala.AnyRef" (TyRef "java.lang.Object"))
                 (Some
                   (Apply
                     (Select
@@ -1944,7 +1950,9 @@ Definition ox_resilience_DurationRateLimiterAlgorithm : tree :=
                   "scala.Product:ox.resilience.DurationRateLimiterAlgorithm$.SlidingWindow")
                 ["Method"; "Synthetic"]
                 [[(ValDef (Local "x$0" 69) ["Param"] (TyRef "scala.Product") None)]]
-                (TyRef "ox.resilience.DurationRateLimiterAlgorithm$.SlidingWindow$.MirroredMonoType")
+                (TyAlias
+                  "ox.resilience.DurationRateLimiterAlgorithm$.SlidingWindow$.MirroredMonoType"
+                  (TyRef "ox.resilience.DurationRateLimiterAlgorithm$.SlidingWindow"))
                 (Some
                   (Block
                     [

@@ -30,11 +30,11 @@ Definition ox_SecondaryApplicationError : tree :=
         [
           (Apply
             (Select
-              (New (TyRef "scala.package$.Throwable"))
+              (New (TyAlias "scala.package$.Throwable" (TyRef "java.lang.Throwable")))
               (Member "java.lang.Throwable" "<init>" "java.lang.String:java.lang.Throwable"))
             [(Literal (CString "Secondary application error reported"))]);
           (TypeTree (TyRef "scala.Product"));
-          (TypeTree (TyRef "scala.package$.Serializable"))]
+          (TypeTree (TyAlias "scala.package$.Serializable" (TyRef "java.io.Serializable")))]
         None
         [
           (TypeDef
@@ -139,7 +139,7 @@ Definition ox_SecondaryApplicationError : tree :=
             (Member "ox.SecondaryApplicationError" "productPrefix" ":")
             ["Method"; "Override"; "Synthetic"]
             []
-            (TyRef "scala.Predef$.String")
+            (TyAlias "scala.Predef$.String" (TyRef "java.lang.String"))
             (Some (Literal (CString "SecondaryApplicationError")))
             [(Member "scala.Product" "productPrefix" ":")]);
           (DefDef
@@ -175,7 +175,7 @@ Definition ox_SecondaryApplicationError : tree :=
             (Member "ox.SecondaryApplicationError" "productElementName" "scala.Int:java.lang.String")
             ["Method"; "Override"; "Synthetic"]
             [[(ValDef (Local "n" 5) ["Param"] (TyRef "scala.Int") None)]]
-            (TyRef "scala.Predef$.String")
+            (TyAlias "scala.Predef$.String" (TyRef "java.lang.String"))
             (Some
               (Match
                 false
@@ -248,7 +248,11 @@ Definition ox_SecondaryApplicationError : tree :=
           None
           [])
         [
-          (Apply (Select (New (TyRef "scala.AnyRef")) (Member "java.lang.Object" "<init>" ":java.lang.Object")) []);
+          (Apply
+            (Select
+              (New (TyAlias "scala.AnyRef" (TyRef "java.lang.Object")))
+              (Member "java.lang.Object" "<init>" ":java.lang.Object"))
+            []);
           (TypeTree (TyRef "scala.deriving.Mirror$.Product"))]
         (Some (ValDef NoSym [] (TyTerm (Member "ox" "SecondaryApplicationError" "")) None))
         [
@@ -256,7 +260,7 @@ Definition ox_SecondaryApplicationError : tree :=
             (Member "ox.SecondaryApplicationError$" "writeReplace" ":java.lang.Object")
             ["Method"; "Private"; "Synthetic"]
             [[]]
-            (TyRef "scala.AnyRef")
+            (TyAlias "scala.AnyRef" (TyRef "java.lang.Object"))
             (Some
               (Apply
                 (Select
@@ -323,7 +327,11 @@ Definition ox_SecondaryApplicationError : tree :=
             (Member "ox.SecondaryApplicationError$" "fromProduct" "scala.Product:ox.SecondaryApplicationError")
             ["Method"; "Synthetic"]
             [[(ValDef (Local "x$0" 9) ["Param"] (TyRef "scala.Product") None)]]
-            (TyRef "ox.SecondaryApplicationError$.MirroredMonoType")
+            (TyAlias
+              "ox.SecondaryApplicationError$.MirroredMonoType"
+              (TyApp
+                (TyRef "ox.SecondaryApplicationError")
+                [(TyBounds (TyRef "scala.Nothing") (TyRef "scala.AnyKind"))]))
             (Some
               (Block
                 [

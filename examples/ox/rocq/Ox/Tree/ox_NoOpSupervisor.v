@@ -62,7 +62,7 @@ Definition ox_NoOpSupervisor : tree :=
             (Member "ox.NoOpSupervisor$" "writeReplace" ":java.lang.Object")
             ["Method"; "Private"; "Synthetic"]
             [[]]
-            (TyRef "scala.AnyRef")
+            (TyAlias "scala.AnyRef" (TyRef "java.lang.Object"))
             (Some
               (Apply
                 (Select
@@ -90,7 +90,13 @@ Definition ox_NoOpSupervisor : tree :=
           (DefDef
             (Member "ox.NoOpSupervisor$" "forkException" "java.lang.Throwable:scala.Boolean")
             ["Method"; "Override"]
-            [[(ValDef (Local "e" 0) ["Param"] (TyRef "scala.package$.Throwable") None)]]
+            [
+              [
+                (ValDef
+                  (Local "e" 0)
+                  ["Param"]
+                  (TyAlias "scala.package$.Throwable" (TyRef "java.lang.Throwable"))
+                  None)]]
             (TyRef "scala.Boolean")
             (Some (Literal (CBool false)))
             [(Member "ox.Supervisor" "forkException" "java.lang.Throwable:scala.Boolean")]);

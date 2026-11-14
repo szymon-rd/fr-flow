@@ -87,7 +87,7 @@ Definition ox_DefaultSupervisor : tree :=
           (ValDef
             (Member "ox.DefaultSupervisor" "otherExceptions" "")
             ["Local"; "Private"; "PrivateLocal"]
-            (TyApp (TyRef "java.util.Set") [(TyRef "scala.package$.Throwable")])
+            (TyApp (TyRef "java.util.Set") [(TyAlias "scala.package$.Throwable" (TyRef "java.lang.Throwable"))])
             (Some
               (Apply
                 (TypeApply
@@ -174,7 +174,13 @@ Definition ox_DefaultSupervisor : tree :=
           (DefDef
             (Member "ox.DefaultSupervisor" "forkException" "java.lang.Throwable:scala.Boolean")
             ["Method"; "Override"]
-            [[(ValDef (Local "e" 1) ["Param"] (TyRef "scala.package$.Throwable") None)]]
+            [
+              [
+                (ValDef
+                  (Local "e" 1)
+                  ["Param"]
+                  (TyAlias "scala.package$.Throwable" (TyRef "java.lang.Throwable"))
+                  None)]]
             (TyRef "scala.Boolean")
             (Some
               (Block
@@ -251,8 +257,14 @@ Definition ox_DefaultSupervisor : tree :=
           (DefDef
             (Member "ox.DefaultSupervisor" "addSuppressedErrors" "java.lang.Throwable:java.lang.Throwable")
             ["Method"]
-            [[(ValDef (Local "e" 3) ["Param"] (TyRef "scala.package$.Throwable") None)]]
-            (TyRef "scala.package$.Throwable")
+            [
+              [
+                (ValDef
+                  (Local "e" 3)
+                  ["Param"]
+                  (TyAlias "scala.package$.Throwable" (TyRef "java.lang.Throwable"))
+                  None)]]
+            (TyAlias "scala.package$.Throwable" (TyRef "java.lang.Throwable"))
             (Some
               (Block
                 [
@@ -266,7 +278,13 @@ Definition ox_DefaultSupervisor : tree :=
                           (DefDef
                             (Local "$anonfun" 4)
                             ["Artifact"; "Method"; "Synthetic"]
-                            [[(ValDef (Local "e2" 5) ["Param"] (TyRef "scala.package$.Throwable") None)]]
+                            [
+                              [
+                                (ValDef
+                                  (Local "e2" 5)
+                                  ["Param"]
+                                  (TyAlias "scala.package$.Throwable" (TyRef "java.lang.Throwable"))
+                                  None)]]
                             (TyRef "scala.Unit")
                             (Some
                               (If
@@ -284,7 +302,10 @@ Definition ox_DefaultSupervisor : tree :=
                             [])]
                         (Closure
                           (Ident (Local "$anonfun" 4))
-                          (Some (TyApp (TyRef "java.util.function.Consumer") [(TyRef "scala.package$.Throwable")]))))]);
+                          (Some
+                            (TyApp
+                              (TyRef "java.util.function.Consumer")
+                              [(TyAlias "scala.package$.Throwable" (TyRef "java.lang.Throwable"))]))))]);
                   (Apply
                     (Select
                       (Select (This "ox.DefaultSupervisor") (Member "ox.DefaultSupervisor" "otherErrors" ""))
@@ -367,7 +388,13 @@ Definition ox_DefaultSupervisor : tree :=
                           (DefDef
                             (Local "$anonfun" 11)
                             ["Artifact"; "Method"; "Synthetic"]
-                            [[(ValDef (Local "e" 12) ["Param"] (TyRef "scala.package$.Throwable") None)]]
+                            [
+                              [
+                                (ValDef
+                                  (Local "e" 12)
+                                  ["Param"]
+                                  (TyAlias "scala.package$.Throwable" (TyRef "java.lang.Throwable"))
+                                  None)]]
                             (TyRef "scala.Unit")
                             (Some
                               (Assign
@@ -385,7 +412,10 @@ Definition ox_DefaultSupervisor : tree :=
                             [])]
                         (Closure
                           (Ident (Local "$anonfun" 11))
-                          (Some (TyApp (TyRef "java.util.function.Consumer") [(TyRef "scala.package$.Throwable")]))))]);
+                          (Some
+                            (TyApp
+                              (TyRef "java.util.function.Consumer")
+                              [(TyAlias "scala.package$.Throwable" (TyRef "java.lang.Throwable"))]))))]);
                   (Apply
                     (Select
                       (Select (This "ox.DefaultSupervisor") (Member "ox.DefaultSupervisor" "otherErrors" ""))

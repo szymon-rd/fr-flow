@@ -94,7 +94,11 @@ Definition ox_ComputeIntensiveTaskState : tree :=
           None
           [])
         [
-          (Apply (Select (New (TyRef "scala.AnyRef")) (Member "java.lang.Object" "<init>" ":java.lang.Object")) []);
+          (Apply
+            (Select
+              (New (TyAlias "scala.AnyRef" (TyRef "java.lang.Object")))
+              (Member "java.lang.Object" "<init>" ":java.lang.Object"))
+            []);
           (TypeTree (TyRef "scala.deriving.Mirror$.Sum"))]
         (Some (ValDef NoSym [] (TyTerm (Member "ox" "ComputeIntensiveTaskState" "")) None))
         [
@@ -102,7 +106,7 @@ Definition ox_ComputeIntensiveTaskState : tree :=
             (Member "ox.ComputeIntensiveTaskState$" "writeReplace" ":java.lang.Object")
             ["Method"; "Private"; "Synthetic"]
             [[]]
-            (TyRef "scala.AnyRef")
+            (TyAlias "scala.AnyRef" (TyRef "java.lang.Object"))
             (Some
               (Apply
                 (Select
@@ -246,7 +250,7 @@ Definition ox_ComputeIntensiveTaskState : tree :=
                 (Member "ox.ComputeIntensiveTaskState$.Running" "productPrefix" ":")
                 ["Method"; "Override"; "Synthetic"]
                 []
-                (TyRef "scala.Predef$.String")
+                (TyAlias "scala.Predef$.String" (TyRef "java.lang.String"))
                 (Some (Literal (CString "Running")))
                 [(Member "scala.Product" "productPrefix" ":")]);
               (DefDef
@@ -284,7 +288,7 @@ Definition ox_ComputeIntensiveTaskState : tree :=
                 (Member "ox.ComputeIntensiveTaskState$.Running" "productElementName" "scala.Int:java.lang.String")
                 ["Method"; "Override"; "Synthetic"]
                 [[(ValDef (Local "n" 5) ["Param"] (TyRef "scala.Int") None)]]
-                (TyRef "scala.Predef$.String")
+                (TyAlias "scala.Predef$.String" (TyRef "java.lang.String"))
                 (Some
                   (Match
                     false
@@ -370,7 +374,9 @@ Definition ox_ComputeIntensiveTaskState : tree :=
               [])
             [
               (Apply
-                (Select (New (TyRef "scala.AnyRef")) (Member "java.lang.Object" "<init>" ":java.lang.Object"))
+                (Select
+                  (New (TyAlias "scala.AnyRef" (TyRef "java.lang.Object")))
+                  (Member "java.lang.Object" "<init>" ":java.lang.Object"))
                 []);
               (TypeTree (TyRef "scala.deriving.Mirror$.Product"))]
             (Some (ValDef NoSym [] (TyTerm (Member "ox.ComputeIntensiveTaskState$" "Running" "")) None))
@@ -379,7 +385,7 @@ Definition ox_ComputeIntensiveTaskState : tree :=
                 (Member "ox.ComputeIntensiveTaskState$.Running$" "writeReplace" ":java.lang.Object")
                 ["Method"; "Private"; "Synthetic"]
                 [[]]
-                (TyRef "scala.AnyRef")
+                (TyAlias "scala.AnyRef" (TyRef "java.lang.Object"))
                 (Some
                   (Apply
                     (Select
@@ -444,7 +450,9 @@ Definition ox_ComputeIntensiveTaskState : tree :=
                   "scala.Product:ox.ComputeIntensiveTaskState$.Running")
                 ["Method"; "Synthetic"]
                 [[(ValDef (Local "x$0" 9) ["Param"] (TyRef "scala.Product") None)]]
-                (TyRef "ox.ComputeIntensiveTaskState$.Running$.MirroredMonoType")
+                (TyAlias
+                  "ox.ComputeIntensiveTaskState$.Running$.MirroredMonoType"
+                  (TyRef "ox.ComputeIntensiveTaskState$.Running"))
                 (Some
                   (Block
                     [
@@ -533,7 +541,7 @@ Definition ox_ComputeIntensiveTaskState : tree :=
                         (Member "ox.ComputeIntensiveTaskState$._$$anon#13" "readResolve" ":java.lang.Object")
                         ["Method"; "Private"; "Synthetic"]
                         [[]]
-                        (TyRef "scala.AnyRef")
+                        (TyAlias "scala.AnyRef" (TyRef "java.lang.Object"))
                         (Some
                           (Apply
                             (Select
@@ -551,7 +559,7 @@ Definition ox_ComputeIntensiveTaskState : tree :=
                         (Member "ox.ComputeIntensiveTaskState$._$$anon#13" "productPrefix" ":")
                         ["Method"; "Override"; "Synthetic"]
                         []
-                        (TyRef "scala.Predef$.String")
+                        (TyAlias "scala.Predef$.String" (TyRef "java.lang.String"))
                         (Some (Ident (Local "$name" 12)))
                         [(Member "scala.Product" "productPrefix" ":")]);
                       (DefDef
@@ -649,7 +657,13 @@ Definition ox_ComputeIntensiveTaskState : tree :=
           (DefDef
             (Member "ox.ComputeIntensiveTaskState$" "ordinal" "ox.ComputeIntensiveTaskState:scala.Int")
             ["Method"; "Synthetic"]
-            [[(ValDef (Local "x$0" 15) ["Param"] (TyRef "ox.ComputeIntensiveTaskState$.MirroredMonoType") None)]]
+            [
+              [
+                (ValDef
+                  (Local "x$0" 15)
+                  ["Param"]
+                  (TyAlias "ox.ComputeIntensiveTaskState$.MirroredMonoType" (TyRef "ox.ComputeIntensiveTaskState"))
+                  None)]]
             (TyRef "scala.Int")
             (Some (Select (Ident (Local "x$0" 15)) (Member "scala.reflect.Enum" "ordinal" ":")))
             [(Member "scala.deriving.Mirror$.Sum" "ordinal" "java.lang.Object:scala.Int")])])]).

@@ -53,7 +53,7 @@ Definition ox_NonEmptyChunk : tree :=
               [(TyParam "ox.NonEmptyChunk" "A")])
             []);
           (TypeTree (TyRef "scala.Product"));
-          (TypeTree (TyRef "scala.package$.Serializable"))]
+          (TypeTree (TyAlias "scala.package$.Serializable" (TyRef "java.io.Serializable")))]
         None
         [
           (TypeDef
@@ -78,7 +78,7 @@ Definition ox_NonEmptyChunk : tree :=
             (Member "ox.NonEmptyChunk" "productPrefix" ":")
             ["Method"; "Override"; "Synthetic"]
             []
-            (TyRef "scala.Predef$.String")
+            (TyAlias "scala.Predef$.String" (TyRef "java.lang.String"))
             (Some (Literal (CString "NonEmptyChunk")))
             [(Member "scala.Product" "productPrefix" ":")]);
           (DefDef
@@ -114,7 +114,7 @@ Definition ox_NonEmptyChunk : tree :=
             (Member "ox.NonEmptyChunk" "productElementName" "scala.Int:java.lang.String")
             ["Method"; "Override"; "Synthetic"]
             [[(ValDef (Local "n" 2) ["Param"] (TyRef "scala.Int") None)]]
-            (TyRef "scala.Predef$.String")
+            (TyAlias "scala.Predef$.String" (TyRef "java.lang.String"))
             (Some
               (Match
                 false
@@ -169,7 +169,10 @@ Definition ox_NonEmptyChunk : tree :=
                       [
                         (Apply
                           (Select
-                            (New (TyRef "scala.package$.IndexOutOfBoundsException"))
+                            (New
+                              (TyAlias
+                                "scala.package$.IndexOutOfBoundsException"
+                                (TyRef "java.lang.IndexOutOfBoundsException")))
                             (Member
                               "java.lang.IndexOutOfBoundsException"
                               "<init>"
@@ -195,8 +198,10 @@ Definition ox_NonEmptyChunk : tree :=
                                           (Literal (CString "NonEmptyChunk("));
                                           (Literal (CString ") with length "));
                                           (Literal (CString ""))]
-                                        (TyRef "scala.Predef$.String"))
-                                      (TyApp (TyRef "scala.<repeated>") [(TyRef "scala.Predef$.String")]))])
+                                        (TyAlias "scala.Predef$.String" (TyRef "java.lang.String")))
+                                      (TyApp
+                                        (TyRef "scala.<repeated>")
+                                        [(TyAlias "scala.Predef$.String" (TyRef "java.lang.String"))]))])
                                 (Member "scala.StringContext" "s" "scala.collection.immutable.Seq:java.lang.String"))
                               [
                                 (Typed
@@ -275,7 +280,10 @@ Definition ox_NonEmptyChunk : tree :=
                   [
                     (Apply
                       (Select
-                        (New (TyRef "scala.package$.IndexOutOfBoundsException"))
+                        (New
+                          (TyAlias
+                            "scala.package$.IndexOutOfBoundsException"
+                            (TyRef "java.lang.IndexOutOfBoundsException")))
                         (Member
                           "java.lang.IndexOutOfBoundsException"
                           "<init>"
@@ -298,8 +306,10 @@ Definition ox_NonEmptyChunk : tree :=
                                 (Typed
                                   (Repeated
                                     [(Literal (CString "Index ")); (Literal (CString " out of bounds"))]
-                                    (TyRef "scala.Predef$.String"))
-                                  (TyApp (TyRef "scala.<repeated>") [(TyRef "scala.Predef$.String")]))])
+                                    (TyAlias "scala.Predef$.String" (TyRef "java.lang.String")))
+                                  (TyApp
+                                    (TyRef "scala.<repeated>")
+                                    [(TyAlias "scala.Predef$.String" (TyRef "java.lang.String"))]))])
                             (Member "scala.StringContext" "s" "scala.collection.immutable.Seq:java.lang.String"))
                           [
                             (Typed
@@ -555,7 +565,11 @@ Definition ox_NonEmptyChunk : tree :=
           None
           [])
         [
-          (Apply (Select (New (TyRef "scala.AnyRef")) (Member "java.lang.Object" "<init>" ":java.lang.Object")) []);
+          (Apply
+            (Select
+              (New (TyAlias "scala.AnyRef" (TyRef "java.lang.Object")))
+              (Member "java.lang.Object" "<init>" ":java.lang.Object"))
+            []);
           (TypeTree (TyRef "scala.deriving.Mirror$.Product"))]
         (Some (ValDef NoSym [] (TyTerm (Member "ox" "NonEmptyChunk" "")) None))
         [
@@ -563,7 +577,7 @@ Definition ox_NonEmptyChunk : tree :=
             (Member "ox.NonEmptyChunk$" "writeReplace" ":java.lang.Object")
             ["Method"; "Private"; "Synthetic"]
             [[]]
-            (TyRef "scala.AnyRef")
+            (TyAlias "scala.AnyRef" (TyRef "java.lang.Object"))
             (Some
               (Apply
                 (Select
@@ -628,7 +642,9 @@ Definition ox_NonEmptyChunk : tree :=
             (Member "ox.NonEmptyChunk$" "fromProduct" "scala.Product:ox.NonEmptyChunk")
             ["Method"; "Synthetic"]
             [[(ValDef (Local "x$0" 17) ["Param"] (TyRef "scala.Product") None)]]
-            (TyRef "ox.NonEmptyChunk$.MirroredMonoType")
+            (TyAlias
+              "ox.NonEmptyChunk$.MirroredMonoType"
+              (TyApp (TyRef "ox.NonEmptyChunk") [(TyBounds (TyRef "scala.Nothing") (TyRef "scala.AnyKind"))]))
             (Some
               (Block
                 [

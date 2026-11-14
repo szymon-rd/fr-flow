@@ -45,7 +45,7 @@ Definition ox_util_package : tree :=
             (Member "ox.util$package$" "writeReplace" ":java.lang.Object")
             ["Method"; "Private"; "Synthetic"]
             [[]]
-            (TyRef "scala.AnyRef")
+            (TyAlias "scala.AnyRef" (TyRef "java.lang.Object"))
             (Some
               (Apply
                 (Select
@@ -137,7 +137,9 @@ Definition ox_util_package : tree :=
                 (ValDef
                   (Local "f" 7)
                   ["Inline"; "Param"]
-                  (TyApp (TyRef "scala.Function1") [(TyRef "scala.package$.Throwable"); (TyRef "scala.Unit")])
+                  (TyApp
+                    (TyRef "scala.Function1")
+                    [(TyAlias "scala.package$.Throwable" (TyRef "java.lang.Throwable")); (TyRef "scala.Unit")])
                   None)]]
             (TyParam "ox.util$package$.tapException" "T")
             (Some
@@ -146,7 +148,9 @@ Definition ox_util_package : tree :=
                   (Ident (Local "t" 6))
                   [
                     (CaseDef
-                      (Bind (Local "e" 8) (Typed Wildcard (TyRef "scala.package$.Throwable")))
+                      (Bind
+                        (Local "e" 8)
+                        (Typed Wildcard (TyAlias "scala.package$.Throwable" (TyRef "java.lang.Throwable"))))
                       None
                       (Block
                         [
@@ -158,7 +162,9 @@ Definition ox_util_package : tree :=
                               [(Ident (Local "e" 8))])
                             [
                               (CaseDef
-                                (Bind (Local "ee" 9) (Typed Wildcard (TyRef "scala.package$.Throwable")))
+                                (Bind
+                                  (Local "ee" 9)
+                                  (Typed Wildcard (TyAlias "scala.package$.Throwable" (TyRef "java.lang.Throwable"))))
                                 None
                                 (Apply
                                   (Select
@@ -182,7 +188,9 @@ Definition ox_util_package : tree :=
                 (ValDef
                   (Local "f" 11)
                   ["Inline"; "Param"]
-                  (TyApp (TyRef "scala.Function1") [(TyRef "scala.package$.Throwable"); (TyRef "scala.Unit")])
+                  (TyApp
+                    (TyRef "scala.Function1")
+                    [(TyAlias "scala.package$.Throwable" (TyRef "java.lang.Throwable")); (TyRef "scala.Unit")])
                   None)]]
             (TyParam "ox.util$package$.tapNonFatalException" "T")
             (Some
@@ -208,7 +216,9 @@ Definition ox_util_package : tree :=
                               [(Ident (Local "e" 12))])
                             [
                               (CaseDef
-                                (Bind (Local "ee" 13) (Typed Wildcard (TyRef "scala.package$.Throwable")))
+                                (Bind
+                                  (Local "ee" 13)
+                                  (Typed Wildcard (TyAlias "scala.package$.Throwable" (TyRef "java.lang.Throwable"))))
                                 None
                                 (Apply
                                   (Select
@@ -228,7 +238,7 @@ Definition ox_util_package : tree :=
             [
               [(TypeDef "T" ["Deferred"; "Param"] (TyBounds (TyRef "scala.Nothing") (TyRef "scala.Any")))];
               [(ValDef (Local "t" 14) ["Inline"; "Param"] (TyParam "ox.util$package$.debug" "T") None)];
-              [(ValDef (Local "label" 15) ["Param"] (TyRef "scala.Predef$.String") None)]]
+              [(ValDef (Local "label" 15) ["Param"] (TyAlias "scala.Predef$.String" (TyRef "java.lang.String")) None)]]
             (TyParam "ox.util$package$.debug" "T")
             (Some
               (Typed
@@ -254,8 +264,10 @@ Definition ox_util_package : tree :=
                                 (Typed
                                   (Repeated
                                     [(Literal (CString "")); (Literal (CString ": ")); (Literal (CString ""))]
-                                    (TyRef "scala.Predef$.String"))
-                                  (TyApp (TyRef "scala.<repeated>") [(TyRef "scala.Predef$.String")]))])
+                                    (TyAlias "scala.Predef$.String" (TyRef "java.lang.String")))
+                                  (TyApp
+                                    (TyRef "scala.<repeated>")
+                                    [(TyAlias "scala.Predef$.String" (TyRef "java.lang.String"))]))])
                             (Member "scala.StringContext" "s" "scala.collection.immutable.Seq:java.lang.String"))
                           [
                             (Typed
@@ -340,7 +352,9 @@ Definition ox_util_package : tree :=
                                 (ValDef
                                   (Local "interrupted" 21)
                                   ["Mutable"]
-                                  (TyRef "scala.package$.InterruptedException")
+                                  (TyAlias
+                                    "scala.package$.InterruptedException"
+                                    (TyRef "java.lang.InterruptedException"))
                                   (Some (Literal CNull)));
                                 (ValDef
                                   (Local "result" 22)
@@ -348,7 +362,7 @@ Definition ox_util_package : tree :=
                                   (TyApp
                                     (TyRef "scala.util.Either")
                                     [
-                                      (TyRef "scala.package$.Throwable");
+                                      (TyAlias "scala.package$.Throwable" (TyRef "java.lang.Throwable"));
                                       (TyParam "ox.util$package$.uninterruptible" "T")])
                                   (Some (Literal CNull)));
                                 (While
@@ -369,7 +383,11 @@ Definition ox_util_package : tree :=
                                       (CaseDef
                                         (Bind
                                           (Local "e" 23)
-                                          (Typed Wildcard (TyRef "scala.package$.InterruptedException")))
+                                          (Typed
+                                            Wildcard
+                                            (TyAlias
+                                              "scala.package$.InterruptedException"
+                                              (TyRef "java.lang.InterruptedException"))))
                                         None
                                         (Assign (Ident (Local "interrupted" 21)) (Ident (Local "e" 23))))]
                                     None))]
@@ -618,7 +636,7 @@ Definition ox_util_package : tree :=
                   (ValDef
                     (Local "xAsCode" 38)
                     []
-                    (TyRef "scala.Predef$.String")
+                    (TyAlias "scala.Predef$.String" (TyRef "java.lang.String"))
                     (Some
                       (Apply
                         (Apply
@@ -692,7 +710,7 @@ Definition ox_util_package : tree :=
                                                             "scala.quoted.Expr$"
                                                             "apply"
                                                             "1,java.lang.Object,scala.quoted.ToExpr,scala.quoted.Quotes:scala.quoted.Expr"))
-                                                        [(TyRef "scala.Predef$.String")])
+                                                        [(TyAlias "scala.Predef$.String" (TyRef "java.lang.String"))])
                                                       [(Ident (Local "xAsCode" 38))])
                                                     [
                                                       (TypeApply

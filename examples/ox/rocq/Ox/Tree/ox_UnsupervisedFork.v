@@ -65,7 +65,9 @@ Definition ox_UnsupervisedFork : tree :=
             [[]]
             (TyApp
               (TyRef "scala.util.Either")
-              [(TyRef "scala.package$.Throwable"); (TyParam "ox.UnsupervisedFork" "T")])
+              [
+                (TyAlias "scala.package$.Throwable" (TyRef "java.lang.Throwable"));
+                (TyParam "ox.UnsupervisedFork" "T")])
             (Some
               (Try
                 (Apply
@@ -77,7 +79,11 @@ Definition ox_UnsupervisedFork : tree :=
                   [(Apply (Select (This "ox.UnsupervisedFork") (Member "ox.Fork" "join" ":java.lang.Object")) [])])
                 [
                   (CaseDef
-                    (Bind (Local "e" 0) (Typed Wildcard (TyRef "scala.package$.InterruptedException")))
+                    (Bind
+                      (Local "e" 0)
+                      (Typed
+                        Wildcard
+                        (TyAlias "scala.package$.InterruptedException" (TyRef "java.lang.InterruptedException"))))
                     None
                     (Block
                       []
@@ -92,7 +98,9 @@ Definition ox_UnsupervisedFork : tree :=
                             (Select
                               (Ident (Member "scala.package$" "Left" ""))
                               (Member "scala.util.Left$" "apply" "2,java.lang.Object:scala.util.Left"))
-                            [(TyRef "scala.package$.InterruptedException"); (TyRef "scala.Nothing")])
+                            [
+                              (TyAlias "scala.package$.InterruptedException" (TyRef "java.lang.InterruptedException"));
+                              (TyRef "scala.Nothing")])
                           [(Ident (Local "e" 0))])
                         (Apply
                           (Ident (Member "<special-ops>" "throw" "java.lang.Throwable:scala.Nothing"))
@@ -112,7 +120,9 @@ Definition ox_UnsupervisedFork : tree :=
                           (Select
                             (Ident (Member "scala.package$" "Left" ""))
                             (Member "scala.util.Left$" "apply" "2,java.lang.Object:scala.util.Left"))
-                          [(TyRef "scala.package$.Throwable"); (TyRef "scala.Nothing")])
+                          [
+                            (TyAlias "scala.package$.Throwable" (TyRef "java.lang.Throwable"));
+                            (TyRef "scala.Nothing")])
                         [(Ident (Local "e" 1))])))]
                 None))
             [])]);
@@ -146,7 +156,7 @@ Definition ox_UnsupervisedFork : tree :=
             (Member "ox.UnsupervisedFork$" "writeReplace" ":java.lang.Object")
             ["Method"; "Private"; "Synthetic"]
             [[]]
-            (TyRef "scala.AnyRef")
+            (TyAlias "scala.AnyRef" (TyRef "java.lang.Object"))
             (Some
               (Apply
                 (Select
@@ -200,7 +210,13 @@ Definition ox_UnsupervisedFork : tree :=
                           "wasInterruptedWith"
                           "java.lang.InterruptedException:scala.Boolean")
                         ["Method"; "Override"]
-                        [[(ValDef (Local "ie" 4) ["Param"] (TyRef "scala.package$.InterruptedException") None)]]
+                        [
+                          [
+                            (ValDef
+                              (Local "ie" 4)
+                              ["Param"]
+                              (TyAlias "scala.package$.InterruptedException" (TyRef "java.lang.InterruptedException"))
+                              None)]]
                         (TyRef "scala.Boolean")
                         (Some (Literal (CBool false)))
                         [(Member "ox.Fork" "wasInterruptedWith" "java.lang.InterruptedException:scala.Boolean")])])]
@@ -217,7 +233,12 @@ Definition ox_UnsupervisedFork : tree :=
             ["Method"]
             [
               [(TypeDef "T" ["Deferred"; "Param"] (TyBounds (TyRef "scala.Nothing") (TyRef "scala.Any")))];
-              [(ValDef (Local "e" 5) ["Param"] (TyRef "scala.package$.Throwable") None)]]
+              [
+                (ValDef
+                  (Local "e" 5)
+                  ["Param"]
+                  (TyAlias "scala.package$.Throwable" (TyRef "java.lang.Throwable"))
+                  None)]]
             (TyApp (TyRef "ox.UnsupervisedFork") [(TyParam "ox.UnsupervisedFork$.failed" "T")])
             (Some
               (Block
@@ -257,7 +278,13 @@ Definition ox_UnsupervisedFork : tree :=
                           "wasInterruptedWith"
                           "java.lang.InterruptedException:scala.Boolean")
                         ["Method"; "Override"]
-                        [[(ValDef (Local "ie" 7) ["Param"] (TyRef "scala.package$.InterruptedException") None)]]
+                        [
+                          [
+                            (ValDef
+                              (Local "ie" 7)
+                              ["Param"]
+                              (TyAlias "scala.package$.InterruptedException" (TyRef "java.lang.InterruptedException"))
+                              None)]]
                         (TyRef "scala.Boolean")
                         (Some
                           (Apply

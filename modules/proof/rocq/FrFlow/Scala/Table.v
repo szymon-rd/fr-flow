@@ -47,6 +47,8 @@ Fixpoint ty_class (t : ty) : option string :=
   | TyRef name => Some name
   | TyApp c _ => ty_class c
   | TyAnnot u _ => ty_class u
+  | TyLambda _ body => ty_class body
+  | TyAlias _ named => ty_class named
   | _ => None
   end.
 

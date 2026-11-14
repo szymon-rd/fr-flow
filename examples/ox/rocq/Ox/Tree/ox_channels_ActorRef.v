@@ -161,7 +161,11 @@ Definition ox_channels_ActorRef : tree :=
                                                     "java.lang.Throwable:scala.Boolean"))
                                                 [(Ident (Local "e" 5))])])));
                                       (CaseDef
-                                        (Bind (Local "t" 6) (Typed Wildcard (TyRef "scala.package$.Throwable")))
+                                        (Bind
+                                          (Local "t" 6)
+                                          (Typed
+                                            Wildcard
+                                            (TyAlias "scala.package$.Throwable" (TyRef "java.lang.Throwable"))))
                                         None
                                         (Block
                                           [

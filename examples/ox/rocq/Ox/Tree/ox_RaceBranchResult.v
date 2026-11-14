@@ -84,7 +84,11 @@ Definition ox_RaceBranchResult : tree :=
           None
           [])
         [
-          (Apply (Select (New (TyRef "scala.AnyRef")) (Member "java.lang.Object" "<init>" ":java.lang.Object")) []);
+          (Apply
+            (Select
+              (New (TyAlias "scala.AnyRef" (TyRef "java.lang.Object")))
+              (Member "java.lang.Object" "<init>" ":java.lang.Object"))
+            []);
           (TypeTree (TyRef "scala.deriving.Mirror$.Sum"))]
         (Some (ValDef NoSym [] (TyTerm (Member "ox" "RaceBranchResult" "")) None))
         [
@@ -92,7 +96,7 @@ Definition ox_RaceBranchResult : tree :=
             (Member "ox.RaceBranchResult$" "writeReplace" ":java.lang.Object")
             ["Method"; "Private"; "Synthetic"]
             [[]]
-            (TyRef "scala.AnyRef")
+            (TyAlias "scala.AnyRef" (TyRef "java.lang.Object"))
             (Some
               (Apply
                 (Select
@@ -230,7 +234,7 @@ Definition ox_RaceBranchResult : tree :=
                 (Member "ox.RaceBranchResult$.Success" "productPrefix" ":")
                 ["Method"; "Override"; "Synthetic"]
                 []
-                (TyRef "scala.Predef$.String")
+                (TyAlias "scala.Predef$.String" (TyRef "java.lang.String"))
                 (Some (Literal (CString "Success")))
                 [(Member "scala.Product" "productPrefix" ":")]);
               (DefDef
@@ -268,7 +272,7 @@ Definition ox_RaceBranchResult : tree :=
                 (Member "ox.RaceBranchResult$.Success" "productElementName" "scala.Int:java.lang.String")
                 ["Method"; "Override"; "Synthetic"]
                 [[(ValDef (Local "n" 5) ["Param"] (TyRef "scala.Int") None)]]
-                (TyRef "scala.Predef$.String")
+                (TyAlias "scala.Predef$.String" (TyRef "java.lang.String"))
                 (Some
                   (Match
                     false
@@ -358,7 +362,9 @@ Definition ox_RaceBranchResult : tree :=
               [])
             [
               (Apply
-                (Select (New (TyRef "scala.AnyRef")) (Member "java.lang.Object" "<init>" ":java.lang.Object"))
+                (Select
+                  (New (TyAlias "scala.AnyRef" (TyRef "java.lang.Object")))
+                  (Member "java.lang.Object" "<init>" ":java.lang.Object"))
                 []);
               (TypeTree (TyRef "scala.deriving.Mirror$.Product"))]
             (Some (ValDef NoSym [] (TyTerm (Member "ox.RaceBranchResult$" "Success" "")) None))
@@ -367,7 +373,7 @@ Definition ox_RaceBranchResult : tree :=
                 (Member "ox.RaceBranchResult$.Success$" "writeReplace" ":java.lang.Object")
                 ["Method"; "Private"; "Synthetic"]
                 [[]]
-                (TyRef "scala.AnyRef")
+                (TyAlias "scala.AnyRef" (TyRef "java.lang.Object"))
                 (Some
                   (Apply
                     (Select
@@ -437,7 +443,11 @@ Definition ox_RaceBranchResult : tree :=
                 (Member "ox.RaceBranchResult$.Success$" "fromProduct" "scala.Product:ox.RaceBranchResult$.Success")
                 ["Method"; "Synthetic"]
                 [[(ValDef (Local "x$0" 9) ["Param"] (TyRef "scala.Product") None)]]
-                (TyRef "ox.RaceBranchResult$.Success$.MirroredMonoType")
+                (TyAlias
+                  "ox.RaceBranchResult$.Success$.MirroredMonoType"
+                  (TyApp
+                    (TyRef "ox.RaceBranchResult$.Success")
+                    [(TyBounds (TyRef "scala.Nothing") (TyRef "scala.AnyKind"))]))
                 (Some
                   (Block
                     [
@@ -473,7 +483,12 @@ Definition ox_RaceBranchResult : tree :=
               ["Method"; "StableRealizable"]
               [
                 [(TypeDef "T" ["Deferred"; "Param"] (TyBounds (TyRef "scala.Nothing") (TyRef "scala.Any")))];
-                [(ValDef (Local "throwable" 11) ["Param"] (TyRef "scala.package$.Throwable") None)]]
+                [
+                  (ValDef
+                    (Local "throwable" 11)
+                    ["Param"]
+                    (TyAlias "scala.package$.Throwable" (TyRef "java.lang.Throwable"))
+                    None)]]
               (TyRef "scala.Unit")
               None
               [])
@@ -495,7 +510,7 @@ Definition ox_RaceBranchResult : tree :=
               (ValDef
                 (Member "ox.RaceBranchResult$.NonFatalException" "throwable" "")
                 ["CaseAccessor"; "ParamAccessor"]
-                (TyRef "scala.package$.Throwable")
+                (TyAlias "scala.package$.Throwable" (TyRef "java.lang.Throwable"))
                 None);
               (DefDef
                 (Member "ox.RaceBranchResult$.NonFatalException" "hashCode" ":scala.Int")
@@ -601,7 +616,7 @@ Definition ox_RaceBranchResult : tree :=
                 (Member "ox.RaceBranchResult$.NonFatalException" "productPrefix" ":")
                 ["Method"; "Override"; "Synthetic"]
                 []
-                (TyRef "scala.Predef$.String")
+                (TyAlias "scala.Predef$.String" (TyRef "java.lang.String"))
                 (Some (Literal (CString "NonFatalException")))
                 [(Member "scala.Product" "productPrefix" ":")]);
               (DefDef
@@ -639,7 +654,7 @@ Definition ox_RaceBranchResult : tree :=
                 (Member "ox.RaceBranchResult$.NonFatalException" "productElementName" "scala.Int:java.lang.String")
                 ["Method"; "Override"; "Synthetic"]
                 [[(ValDef (Local "n" 16) ["Param"] (TyRef "scala.Int") None)]]
-                (TyRef "scala.Predef$.String")
+                (TyAlias "scala.Predef$.String" (TyRef "java.lang.String"))
                 (Some
                   (Match
                     false
@@ -669,7 +684,12 @@ Definition ox_RaceBranchResult : tree :=
                 ["Method"; "Synthetic"]
                 [
                   [(TypeDef "T" ["Deferred"; "Param"] (TyBounds (TyRef "scala.Nothing") (TyRef "scala.Any")))];
-                  [(ValDef (Local "throwable" 17) ["HasDefault"; "Param"] (TyRef "scala.package$.Throwable") None)]]
+                  [
+                    (ValDef
+                      (Local "throwable" 17)
+                      ["HasDefault"; "Param"]
+                      (TyAlias "scala.package$.Throwable" (TyRef "java.lang.Throwable"))
+                      None)]]
                 (TyApp
                   (TyRef "ox.RaceBranchResult$.NonFatalException")
                   [(TyParam "ox.RaceBranchResult$.NonFatalException.copy" "T")])
@@ -690,7 +710,9 @@ Definition ox_RaceBranchResult : tree :=
                 (Member "ox.RaceBranchResult$.NonFatalException" "copy$default$1" "1:java.lang.Throwable")
                 ["Method"; "Synthetic"]
                 [[(TypeDef "T" ["Deferred"; "Param"] (TyBounds (TyRef "scala.Nothing") (TyRef "scala.Any")))]]
-                (TyAnnot (TyRef "scala.package$.Throwable") "scala.annotation.unchecked.uncheckedVariance")
+                (TyAnnot
+                  (TyAlias "scala.package$.Throwable" (TyRef "java.lang.Throwable"))
+                  "scala.annotation.unchecked.uncheckedVariance")
                 (Some (Ident (Member "ox.RaceBranchResult$.NonFatalException" "throwable" "")))
                 []);
               (DefDef
@@ -704,7 +726,7 @@ Definition ox_RaceBranchResult : tree :=
                 (Member "ox.RaceBranchResult$.NonFatalException" "_1" ":")
                 ["Method"; "Synthetic"]
                 []
-                (TyRef "scala.package$.Throwable")
+                (TyAlias "scala.package$.Throwable" (TyRef "java.lang.Throwable"))
                 (Some
                   (Select
                     (This "ox.RaceBranchResult$.NonFatalException")
@@ -735,7 +757,9 @@ Definition ox_RaceBranchResult : tree :=
               [])
             [
               (Apply
-                (Select (New (TyRef "scala.AnyRef")) (Member "java.lang.Object" "<init>" ":java.lang.Object"))
+                (Select
+                  (New (TyAlias "scala.AnyRef" (TyRef "java.lang.Object")))
+                  (Member "java.lang.Object" "<init>" ":java.lang.Object"))
                 []);
               (TypeTree (TyRef "scala.deriving.Mirror$.Product"))]
             (Some (ValDef NoSym [] (TyTerm (Member "ox.RaceBranchResult$" "NonFatalException" "")) None))
@@ -744,7 +768,7 @@ Definition ox_RaceBranchResult : tree :=
                 (Member "ox.RaceBranchResult$.NonFatalException$" "writeReplace" ":java.lang.Object")
                 ["Method"; "Private"; "Synthetic"]
                 [[]]
-                (TyRef "scala.AnyRef")
+                (TyAlias "scala.AnyRef" (TyRef "java.lang.Object"))
                 (Some
                   (Apply
                     (Select
@@ -763,7 +787,12 @@ Definition ox_RaceBranchResult : tree :=
                 ["Method"; "Synthetic"]
                 [
                   [(TypeDef "T" ["Deferred"; "Param"] (TyBounds (TyRef "scala.Nothing") (TyRef "scala.Any")))];
-                  [(ValDef (Local "throwable" 18) ["Param"] (TyRef "scala.package$.Throwable") None)]]
+                  [
+                    (ValDef
+                      (Local "throwable" 18)
+                      ["Param"]
+                      (TyAlias "scala.package$.Throwable" (TyRef "java.lang.Throwable"))
+                      None)]]
                 (TyApp
                   (TyRef "ox.RaceBranchResult$.NonFatalException")
                   [(TyParam "ox.RaceBranchResult$.NonFatalException$.apply" "T")])
@@ -825,14 +854,18 @@ Definition ox_RaceBranchResult : tree :=
                   "scala.Product:ox.RaceBranchResult$.NonFatalException")
                 ["Method"; "Synthetic"]
                 [[(ValDef (Local "x$0" 20) ["Param"] (TyRef "scala.Product") None)]]
-                (TyRef "ox.RaceBranchResult$.NonFatalException$.MirroredMonoType")
+                (TyAlias
+                  "ox.RaceBranchResult$.NonFatalException$.MirroredMonoType"
+                  (TyApp
+                    (TyRef "ox.RaceBranchResult$.NonFatalException")
+                    [(TyBounds (TyRef "scala.Nothing") (TyRef "scala.AnyKind"))]))
                 (Some
                   (Block
                     [
                       (ValDef
                         (Local "throwable$1" 21)
                         ["Synthetic"]
-                        (TyRef "scala.package$.Throwable")
+                        (TyAlias "scala.package$.Throwable" (TyRef "java.lang.Throwable"))
                         (Some
                           (TypeApply
                             (Select
@@ -842,7 +875,7 @@ Definition ox_RaceBranchResult : tree :=
                                   (Member "scala.Product" "productElement" "scala.Int:java.lang.Object"))
                                 [(Literal (CInt (0)%Z))])
                               (Member "scala.Any" "$asInstanceOf$" "1:java.lang.Object"))
-                            [(TyRef "scala.package$.Throwable")])))]
+                            [(TyAlias "scala.package$.Throwable" (TyRef "java.lang.Throwable"))])))]
                     (Apply
                       (TypeApply
                         (Select
@@ -865,7 +898,12 @@ Definition ox_RaceBranchResult : tree :=
               ["Method"; "StableRealizable"]
               [
                 [(TypeDef "T" ["Deferred"; "Param"] (TyBounds (TyRef "scala.Nothing") (TyRef "scala.Any")))];
-                [(ValDef (Local "throwable" 22) ["Param"] (TyRef "scala.package$.Throwable") None)]]
+                [
+                  (ValDef
+                    (Local "throwable" 22)
+                    ["Param"]
+                    (TyAlias "scala.package$.Throwable" (TyRef "java.lang.Throwable"))
+                    None)]]
               (TyRef "scala.Unit")
               None
               [])
@@ -886,7 +924,7 @@ Definition ox_RaceBranchResult : tree :=
               (ValDef
                 (Member "ox.RaceBranchResult$.FatalException" "throwable" "")
                 ["CaseAccessor"; "ParamAccessor"]
-                (TyRef "scala.package$.Throwable")
+                (TyAlias "scala.package$.Throwable" (TyRef "java.lang.Throwable"))
                 None);
               (DefDef
                 (Member "ox.RaceBranchResult$.FatalException" "hashCode" ":scala.Int")
@@ -992,7 +1030,7 @@ Definition ox_RaceBranchResult : tree :=
                 (Member "ox.RaceBranchResult$.FatalException" "productPrefix" ":")
                 ["Method"; "Override"; "Synthetic"]
                 []
-                (TyRef "scala.Predef$.String")
+                (TyAlias "scala.Predef$.String" (TyRef "java.lang.String"))
                 (Some (Literal (CString "FatalException")))
                 [(Member "scala.Product" "productPrefix" ":")]);
               (DefDef
@@ -1030,7 +1068,7 @@ Definition ox_RaceBranchResult : tree :=
                 (Member "ox.RaceBranchResult$.FatalException" "productElementName" "scala.Int:java.lang.String")
                 ["Method"; "Override"; "Synthetic"]
                 [[(ValDef (Local "n" 27) ["Param"] (TyRef "scala.Int") None)]]
-                (TyRef "scala.Predef$.String")
+                (TyAlias "scala.Predef$.String" (TyRef "java.lang.String"))
                 (Some
                   (Match
                     false
@@ -1060,7 +1098,12 @@ Definition ox_RaceBranchResult : tree :=
                 ["Method"; "Synthetic"]
                 [
                   [(TypeDef "T" ["Deferred"; "Param"] (TyBounds (TyRef "scala.Nothing") (TyRef "scala.Any")))];
-                  [(ValDef (Local "throwable" 28) ["HasDefault"; "Param"] (TyRef "scala.package$.Throwable") None)]]
+                  [
+                    (ValDef
+                      (Local "throwable" 28)
+                      ["HasDefault"; "Param"]
+                      (TyAlias "scala.package$.Throwable" (TyRef "java.lang.Throwable"))
+                      None)]]
                 (TyApp
                   (TyRef "ox.RaceBranchResult$.FatalException")
                   [(TyParam "ox.RaceBranchResult$.FatalException.copy" "T")])
@@ -1081,7 +1124,9 @@ Definition ox_RaceBranchResult : tree :=
                 (Member "ox.RaceBranchResult$.FatalException" "copy$default$1" "1:java.lang.Throwable")
                 ["Method"; "Synthetic"]
                 [[(TypeDef "T" ["Deferred"; "Param"] (TyBounds (TyRef "scala.Nothing") (TyRef "scala.Any")))]]
-                (TyAnnot (TyRef "scala.package$.Throwable") "scala.annotation.unchecked.uncheckedVariance")
+                (TyAnnot
+                  (TyAlias "scala.package$.Throwable" (TyRef "java.lang.Throwable"))
+                  "scala.annotation.unchecked.uncheckedVariance")
                 (Some (Ident (Member "ox.RaceBranchResult$.FatalException" "throwable" "")))
                 []);
               (DefDef
@@ -1095,7 +1140,7 @@ Definition ox_RaceBranchResult : tree :=
                 (Member "ox.RaceBranchResult$.FatalException" "_1" ":")
                 ["Method"; "Synthetic"]
                 []
-                (TyRef "scala.package$.Throwable")
+                (TyAlias "scala.package$.Throwable" (TyRef "java.lang.Throwable"))
                 (Some
                   (Select
                     (This "ox.RaceBranchResult$.FatalException")
@@ -1123,7 +1168,9 @@ Definition ox_RaceBranchResult : tree :=
               [])
             [
               (Apply
-                (Select (New (TyRef "scala.AnyRef")) (Member "java.lang.Object" "<init>" ":java.lang.Object"))
+                (Select
+                  (New (TyAlias "scala.AnyRef" (TyRef "java.lang.Object")))
+                  (Member "java.lang.Object" "<init>" ":java.lang.Object"))
                 []);
               (TypeTree (TyRef "scala.deriving.Mirror$.Product"))]
             (Some (ValDef NoSym [] (TyTerm (Member "ox.RaceBranchResult$" "FatalException" "")) None))
@@ -1132,7 +1179,7 @@ Definition ox_RaceBranchResult : tree :=
                 (Member "ox.RaceBranchResult$.FatalException$" "writeReplace" ":java.lang.Object")
                 ["Method"; "Private"; "Synthetic"]
                 [[]]
-                (TyRef "scala.AnyRef")
+                (TyAlias "scala.AnyRef" (TyRef "java.lang.Object"))
                 (Some
                   (Apply
                     (Select
@@ -1151,7 +1198,12 @@ Definition ox_RaceBranchResult : tree :=
                 ["Method"; "Synthetic"]
                 [
                   [(TypeDef "T" ["Deferred"; "Param"] (TyBounds (TyRef "scala.Nothing") (TyRef "scala.Any")))];
-                  [(ValDef (Local "throwable" 29) ["Param"] (TyRef "scala.package$.Throwable") None)]]
+                  [
+                    (ValDef
+                      (Local "throwable" 29)
+                      ["Param"]
+                      (TyAlias "scala.package$.Throwable" (TyRef "java.lang.Throwable"))
+                      None)]]
                 (TyApp
                   (TyRef "ox.RaceBranchResult$.FatalException")
                   [(TyParam "ox.RaceBranchResult$.FatalException$.apply" "T")])
@@ -1213,14 +1265,18 @@ Definition ox_RaceBranchResult : tree :=
                   "scala.Product:ox.RaceBranchResult$.FatalException")
                 ["Method"; "Synthetic"]
                 [[(ValDef (Local "x$0" 31) ["Param"] (TyRef "scala.Product") None)]]
-                (TyRef "ox.RaceBranchResult$.FatalException$.MirroredMonoType")
+                (TyAlias
+                  "ox.RaceBranchResult$.FatalException$.MirroredMonoType"
+                  (TyApp
+                    (TyRef "ox.RaceBranchResult$.FatalException")
+                    [(TyBounds (TyRef "scala.Nothing") (TyRef "scala.AnyKind"))]))
                 (Some
                   (Block
                     [
                       (ValDef
                         (Local "throwable$2" 32)
                         ["Synthetic"]
-                        (TyRef "scala.package$.Throwable")
+                        (TyAlias "scala.package$.Throwable" (TyRef "java.lang.Throwable"))
                         (Some
                           (TypeApply
                             (Select
@@ -1230,7 +1286,7 @@ Definition ox_RaceBranchResult : tree :=
                                   (Member "scala.Product" "productElement" "scala.Int:java.lang.Object"))
                                 [(Literal (CInt (0)%Z))])
                               (Member "scala.Any" "$asInstanceOf$" "1:java.lang.Object"))
-                            [(TyRef "scala.package$.Throwable")])))]
+                            [(TyAlias "scala.package$.Throwable" (TyRef "java.lang.Throwable"))])))]
                     (Apply
                       (TypeApply
                         (Select
@@ -1277,7 +1333,15 @@ Definition ox_RaceBranchResult : tree :=
           (DefDef
             (Member "ox.RaceBranchResult$" "ordinal" "ox.RaceBranchResult:scala.Int")
             ["Method"; "Synthetic"]
-            [[(ValDef (Local "x$0" 34) ["Param"] (TyRef "ox.RaceBranchResult$.MirroredMonoType") None)]]
+            [
+              [
+                (ValDef
+                  (Local "x$0" 34)
+                  ["Param"]
+                  (TyAlias
+                    "ox.RaceBranchResult$.MirroredMonoType"
+                    (TyApp (TyRef "ox.RaceBranchResult") [(TyBounds (TyRef "scala.Nothing") (TyRef "scala.AnyKind"))]))
+                  None)]]
             (TyRef "scala.Int")
             (Some (Select (Ident (Local "x$0" 34)) (Member "scala.reflect.Enum" "ordinal" ":")))
             [(Member "scala.deriving.Mirror$.Sum" "ordinal" "java.lang.Object:scala.Int")])])]).

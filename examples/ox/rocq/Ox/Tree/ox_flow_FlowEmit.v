@@ -69,7 +69,7 @@ Definition ox_flow_FlowEmit : tree :=
             (Member "ox.flow.FlowEmit$" "writeReplace" ":java.lang.Object")
             ["Method"; "Private"; "Synthetic"]
             [[]]
-            (TyRef "scala.AnyRef")
+            (TyAlias "scala.AnyRef" (TyRef "java.lang.Object"))
             (Some
               (Apply
                 (Select

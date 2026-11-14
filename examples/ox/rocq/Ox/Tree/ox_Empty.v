@@ -49,7 +49,7 @@ Definition ox_Empty : tree :=
               [(TyRef "scala.Nothing")])
             []);
           (TypeTree (TyRef "scala.Product"));
-          (TypeTree (TyRef "scala.package$.Serializable"));
+          (TypeTree (TyAlias "scala.package$.Serializable" (TyRef "java.io.Serializable")));
           (TypeTree (TyRef "scala.deriving.Mirror$.Singleton"))]
         (Some (ValDef NoSym [] (TyTerm (Member "ox" "Empty" "")) None))
         [
@@ -57,7 +57,7 @@ Definition ox_Empty : tree :=
             (Member "ox.Empty$" "writeReplace" ":java.lang.Object")
             ["Method"; "Private"; "Synthetic"]
             [[]]
-            (TyRef "scala.AnyRef")
+            (TyAlias "scala.AnyRef" (TyRef "java.lang.Object"))
             (Some
               (Apply
                 (Select
@@ -79,7 +79,7 @@ Definition ox_Empty : tree :=
             (Member "ox.Empty$" "productPrefix" ":")
             ["Method"; "Override"; "Synthetic"]
             []
-            (TyRef "scala.Predef$.String")
+            (TyAlias "scala.Predef$.String" (TyRef "java.lang.String"))
             (Some (Literal (CString "Empty")))
             [(Member "scala.Product" "productPrefix" ":")]);
           (DefDef
@@ -111,7 +111,7 @@ Definition ox_Empty : tree :=
             (Member "ox.Empty$" "productElementName" "scala.Int:java.lang.String")
             ["Method"; "Override"; "Synthetic"]
             [[(ValDef (Local "n" 1) ["Param"] (TyRef "scala.Int") None)]]
-            (TyRef "scala.Predef$.String")
+            (TyAlias "scala.Predef$.String" (TyRef "java.lang.String"))
             (Some
               (Match
                 false
@@ -152,7 +152,10 @@ Definition ox_Empty : tree :=
                 [
                   (Apply
                     (Select
-                      (New (TyRef "scala.package$.IndexOutOfBoundsException"))
+                      (New
+                        (TyAlias
+                          "scala.package$.IndexOutOfBoundsException"
+                          (TyRef "java.lang.IndexOutOfBoundsException")))
                       (Member
                         "java.lang.IndexOutOfBoundsException"
                         "<init>"
@@ -175,8 +178,10 @@ Definition ox_Empty : tree :=
                               (Typed
                                 (Repeated
                                   [(Literal (CString "Empty(")); (Literal (CString ") called"))]
-                                  (TyRef "scala.Predef$.String"))
-                                (TyApp (TyRef "scala.<repeated>") [(TyRef "scala.Predef$.String")]))])
+                                  (TyAlias "scala.Predef$.String" (TyRef "java.lang.String")))
+                                (TyApp
+                                  (TyRef "scala.<repeated>")
+                                  [(TyAlias "scala.Predef$.String" (TyRef "java.lang.String"))]))])
                           (Member "scala.StringContext" "s" "scala.collection.immutable.Seq:java.lang.String"))
                         [
                           (Typed

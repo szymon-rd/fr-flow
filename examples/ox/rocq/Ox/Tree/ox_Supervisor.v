@@ -73,7 +73,13 @@ Definition ox_Supervisor : tree :=
           (DefDef
             (Member "ox.Supervisor" "forkException" "java.lang.Throwable:scala.Boolean")
             ["Deferred"; "Method"]
-            [[(ValDef (Local "e" 0) ["Param"] (TyRef "scala.package$.Throwable") None)]]
+            [
+              [
+                (ValDef
+                  (Local "e" 0)
+                  ["Param"]
+                  (TyAlias "scala.package$.Throwable" (TyRef "java.lang.Throwable"))
+                  None)]]
             (TyRef "scala.Boolean")
             None
             []);

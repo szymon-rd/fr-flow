@@ -74,7 +74,7 @@ Definition ox_channels_Source : tree :=
                 []);
               (TypeTree (TyApp (TyRef "ox.channels.SelectResult") [(TyParam "ox.channels.Source" "T")]));
               (TypeTree (TyRef "scala.Product"));
-              (TypeTree (TyRef "scala.package$.Serializable"))]
+              (TypeTree (TyAlias "scala.package$.Serializable" (TyRef "java.io.Serializable")))]
             None
             [
               (ValDef
@@ -178,7 +178,7 @@ Definition ox_channels_Source : tree :=
                 (Member "ox.channels.Source.Received" "productPrefix" ":")
                 ["Method"; "Override"; "Synthetic"]
                 []
-                (TyRef "scala.Predef$.String")
+                (TyAlias "scala.Predef$.String" (TyRef "java.lang.String"))
                 (Some (Literal (CString "Received")))
                 [(Member "scala.Product" "productPrefix" ":")]);
               (DefDef
@@ -214,7 +214,7 @@ Definition ox_channels_Source : tree :=
                 (Member "ox.channels.Source.Received" "productElementName" "scala.Int:java.lang.String")
                 ["Method"; "Override"; "Synthetic"]
                 [[(ValDef (Local "n" 5) ["Param"] (TyRef "scala.Int") None)]]
-                (TyRef "scala.Predef$.String")
+                (TyAlias "scala.Predef$.String" (TyRef "java.lang.String"))
                 (Some
                   (Match
                     false
@@ -290,7 +290,9 @@ Definition ox_channels_Source : tree :=
               [])
             [
               (Apply
-                (Select (New (TyRef "scala.AnyRef")) (Member "java.lang.Object" "<init>" ":java.lang.Object"))
+                (Select
+                  (New (TyAlias "scala.AnyRef" (TyRef "java.lang.Object")))
+                  (Member "java.lang.Object" "<init>" ":java.lang.Object"))
                 []);
               (TypeTree (TyRef "scala.deriving.Mirror$.Product"))]
             (Some (ValDef NoSym [] (TyTerm (Member "ox.channels.Source" "Received" "")) None))
@@ -338,7 +340,7 @@ Definition ox_channels_Source : tree :=
                 (Member "ox.channels.Source.Received$" "fromProduct" "scala.Product:ox.channels.Source.Received")
                 ["Method"; "Synthetic"]
                 [[(ValDef (Local "x$0" 9) ["Param"] (TyRef "scala.Product") None)]]
-                (TyRef "ox.channels.Source.Received$.MirroredMonoType")
+                (TyAlias "ox.channels.Source.Received$.MirroredMonoType" (TyRef "ox.channels.Source.Received"))
                 (Some
                   (Block
                     [
@@ -390,7 +392,7 @@ Definition ox_channels_Source : tree :=
                 []);
               (TypeTree (TyApp (TyRef "ox.channels.SelectClause") [(TyParam "ox.channels.Source" "T")]));
               (TypeTree (TyRef "scala.Product"));
-              (TypeTree (TyRef "scala.package$.Serializable"))]
+              (TypeTree (TyAlias "scala.package$.Serializable" (TyRef "java.io.Serializable")))]
             None
             [
               (ValDef
@@ -497,7 +499,7 @@ Definition ox_channels_Source : tree :=
                 (Member "ox.channels.Source.Receive" "productPrefix" ":")
                 ["Method"; "Override"; "Synthetic"]
                 []
-                (TyRef "scala.Predef$.String")
+                (TyAlias "scala.Predef$.String" (TyRef "java.lang.String"))
                 (Some (Literal (CString "Receive")))
                 [(Member "scala.Product" "productPrefix" ":")]);
               (DefDef
@@ -533,7 +535,7 @@ Definition ox_channels_Source : tree :=
                 (Member "ox.channels.Source.Receive" "productElementName" "scala.Int:java.lang.String")
                 ["Method"; "Override"; "Synthetic"]
                 [[(ValDef (Local "n" 16) ["Param"] (TyRef "scala.Int") None)]]
-                (TyRef "scala.Predef$.String")
+                (TyAlias "scala.Predef$.String" (TyRef "java.lang.String"))
                 (Some
                   (Match
                     false
@@ -619,7 +621,9 @@ Definition ox_channels_Source : tree :=
               [])
             [
               (Apply
-                (Select (New (TyRef "scala.AnyRef")) (Member "java.lang.Object" "<init>" ":java.lang.Object"))
+                (Select
+                  (New (TyAlias "scala.AnyRef" (TyRef "java.lang.Object")))
+                  (Member "java.lang.Object" "<init>" ":java.lang.Object"))
                 []);
               (TypeTree (TyRef "scala.deriving.Mirror$.Product"))]
             (Some (ValDef NoSym [] (TyTerm (Member "ox.channels.Source" "Receive" "")) None))
@@ -673,7 +677,7 @@ Definition ox_channels_Source : tree :=
                 (Member "ox.channels.Source.Receive$" "fromProduct" "scala.Product:ox.channels.Source.Receive")
                 ["Method"; "Synthetic"]
                 [[(ValDef (Local "x$0" 20) ["Param"] (TyRef "scala.Product") None)]]
-                (TyRef "ox.channels.Source.Receive$.MirroredMonoType")
+                (TyAlias "ox.channels.Source.Receive$.MirroredMonoType" (TyRef "ox.channels.Source.Receive"))
                 (Some
                   (Block
                     [
@@ -781,7 +785,7 @@ Definition ox_channels_Source : tree :=
                   (ValDef
                     (Local "r" 24)
                     []
-                    (TyRef "<special-ops>.<FromJavaObject>")
+                    (TyAlias "<special-ops>.<FromJavaObject>" (TyRef "java.lang.Object"))
                     (Some
                       (Apply
                         (Select
@@ -804,7 +808,7 @@ Definition ox_channels_Source : tree :=
                       [
                         (TypeApply
                           (Select (Ident (Local "r" 24)) (Member "scala.Any" "asInstanceOf" "1:java.lang.Object"))
-                          [(TyRef "scala.AnyRef")])])
+                          [(TyAlias "scala.AnyRef" (TyRef "java.lang.Object"))])])
                     [
                       (CaseDef
                         (Bind (Local "c" 25) (Typed Wildcard (TyRef "ox.channels.ChannelClosed")))
@@ -972,7 +976,7 @@ Definition ox_channels_Source : tree :=
             (Member "ox.channels.Source$" "writeReplace" ":java.lang.Object")
             ["Method"; "Private"; "Synthetic"]
             [[]]
-            (TyRef "scala.AnyRef")
+            (TyAlias "scala.AnyRef" (TyRef "java.lang.Object"))
             (Some
               (Apply
                 (Select

@@ -67,7 +67,13 @@ Definition ox_Fork : tree :=
           (DefDef
             (Member "ox.Fork" "wasInterruptedWith" "java.lang.InterruptedException:scala.Boolean")
             ["Deferred"; "Method"]
-            [[(ValDef (Local "ie" 0) ["Param"] (TyRef "scala.package$.InterruptedException") None)]]
+            [
+              [
+                (ValDef
+                  (Local "ie" 0)
+                  ["Param"]
+                  (TyAlias "scala.package$.InterruptedException" (TyRef "java.lang.InterruptedException"))
+                  None)]]
             (TyRef "scala.Boolean")
             None
             [])]);
@@ -96,7 +102,7 @@ Definition ox_Fork : tree :=
             (Member "ox.Fork$" "writeReplace" ":java.lang.Object")
             ["Method"; "Private"; "Synthetic"]
             [[]]
-            (TyRef "scala.AnyRef")
+            (TyAlias "scala.AnyRef" (TyRef "java.lang.Object"))
             (Some
               (Apply
                 (Select
@@ -128,7 +134,12 @@ Definition ox_Fork : tree :=
             ["Method"]
             [
               [(TypeDef "T" ["Deferred"; "Param"] (TyBounds (TyRef "scala.Nothing") (TyRef "scala.Any")))];
-              [(ValDef (Local "e" 2) ["Param"] (TyRef "scala.package$.Throwable") None)]]
+              [
+                (ValDef
+                  (Local "e" 2)
+                  ["Param"]
+                  (TyAlias "scala.package$.Throwable" (TyRef "java.lang.Throwable"))
+                  None)]]
             (TyApp (TyRef "ox.Fork") [(TyParam "ox.Fork$.failed" "T")])
             (Some
               (Apply

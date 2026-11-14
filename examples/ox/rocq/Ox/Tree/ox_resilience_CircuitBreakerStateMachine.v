@@ -48,7 +48,7 @@ Definition ox_resilience_CircuitBreakerStateMachine : tree :=
             (Select (New (TyRef "java.lang.Object")) (Member "java.lang.Object" "<init>" ":java.lang.Object"))
             []);
           (TypeTree (TyRef "scala.Product"));
-          (TypeTree (TyRef "scala.package$.Serializable"))]
+          (TypeTree (TyAlias "scala.package$.Serializable" (TyRef "java.io.Serializable")))]
         None
         [
           (ValDef
@@ -182,7 +182,7 @@ Definition ox_resilience_CircuitBreakerStateMachine : tree :=
             (Member "ox.resilience.CircuitBreakerStateMachine" "productPrefix" ":")
             ["Method"; "Override"; "Synthetic"]
             []
-            (TyRef "scala.Predef$.String")
+            (TyAlias "scala.Predef$.String" (TyRef "java.lang.String"))
             (Some (Literal (CString "CircuitBreakerStateMachine")))
             [(Member "scala.Product" "productPrefix" ":")]);
           (DefDef
@@ -226,7 +226,7 @@ Definition ox_resilience_CircuitBreakerStateMachine : tree :=
             (Member "ox.resilience.CircuitBreakerStateMachine" "productElementName" "scala.Int:java.lang.String")
             ["Method"; "Override"; "Synthetic"]
             [[(ValDef (Local "n" 7) ["Param"] (TyRef "scala.Int") None)]]
-            (TyRef "scala.Predef$.String")
+            (TyAlias "scala.Predef$.String" (TyRef "java.lang.String"))
             (Some
               (Match
                 false
@@ -750,7 +750,7 @@ Definition ox_resilience_CircuitBreakerStateMachine : tree :=
             (Member "ox.resilience.CircuitBreakerStateMachine$" "writeReplace" ":java.lang.Object")
             ["Method"; "Private"; "Synthetic"]
             [[]]
-            (TyRef "scala.AnyRef")
+            (TyAlias "scala.AnyRef" (TyRef "java.lang.Object"))
             (Some
               (Apply
                 (Select

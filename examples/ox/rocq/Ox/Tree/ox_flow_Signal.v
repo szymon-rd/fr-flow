@@ -85,7 +85,11 @@ Definition ox_flow_Signal : tree :=
         ["Final"; "Module"; "Synthetic"; "@scala.annotation.internal.SourceFile"]
         (DefDef (Member "ox.flow.Signal$" "<init>" ":ox.flow.Signal$") ["Method"] [[]] (TyRef "scala.Unit") None [])
         [
-          (Apply (Select (New (TyRef "scala.AnyRef")) (Member "java.lang.Object" "<init>" ":java.lang.Object")) []);
+          (Apply
+            (Select
+              (New (TyAlias "scala.AnyRef" (TyRef "java.lang.Object")))
+              (Member "java.lang.Object" "<init>" ":java.lang.Object"))
+            []);
           (TypeTree (TyRef "scala.deriving.Mirror$.Sum"))]
         (Some (ValDef NoSym [] (TyTerm (Member "ox.flow" "Signal" "")) None))
         [
@@ -93,7 +97,7 @@ Definition ox_flow_Signal : tree :=
             (Member "ox.flow.Signal$" "writeReplace" ":java.lang.Object")
             ["Method"; "Private"; "Synthetic"]
             [[]]
-            (TyRef "scala.AnyRef")
+            (TyAlias "scala.AnyRef" (TyRef "java.lang.Object"))
             (Some
               (Apply
                 (Select
@@ -223,7 +227,7 @@ Definition ox_flow_Signal : tree :=
                 (Member "ox.flow.Signal$.Request" "productPrefix" ":")
                 ["Method"; "Override"; "Synthetic"]
                 []
-                (TyRef "scala.Predef$.String")
+                (TyAlias "scala.Predef$.String" (TyRef "java.lang.String"))
                 (Some (Literal (CString "Request")))
                 [(Member "scala.Product" "productPrefix" ":")]);
               (DefDef
@@ -259,7 +263,7 @@ Definition ox_flow_Signal : tree :=
                 (Member "ox.flow.Signal$.Request" "productElementName" "scala.Int:java.lang.String")
                 ["Method"; "Override"; "Synthetic"]
                 [[(ValDef (Local "n" 6) ["Param"] (TyRef "scala.Int") None)]]
-                (TyRef "scala.Predef$.String")
+                (TyAlias "scala.Predef$.String" (TyRef "java.lang.String"))
                 (Some
                   (Match
                     false
@@ -336,7 +340,9 @@ Definition ox_flow_Signal : tree :=
               [])
             [
               (Apply
-                (Select (New (TyRef "scala.AnyRef")) (Member "java.lang.Object" "<init>" ":java.lang.Object"))
+                (Select
+                  (New (TyAlias "scala.AnyRef" (TyRef "java.lang.Object")))
+                  (Member "java.lang.Object" "<init>" ":java.lang.Object"))
                 []);
               (TypeTree (TyRef "scala.deriving.Mirror$.Product"))]
             (Some (ValDef NoSym [] (TyTerm (Member "ox.flow.Signal$" "Request" "")) None))
@@ -345,7 +351,7 @@ Definition ox_flow_Signal : tree :=
                 (Member "ox.flow.Signal$.Request$" "writeReplace" ":java.lang.Object")
                 ["Method"; "Private"; "Synthetic"]
                 [[]]
-                (TyRef "scala.AnyRef")
+                (TyAlias "scala.AnyRef" (TyRef "java.lang.Object"))
                 (Some
                   (Apply
                     (Select
@@ -390,7 +396,7 @@ Definition ox_flow_Signal : tree :=
                 (Member "ox.flow.Signal$.Request$" "fromProduct" "scala.Product:ox.flow.Signal$.Request")
                 ["Method"; "Synthetic"]
                 [[(ValDef (Local "x$0" 10) ["Param"] (TyRef "scala.Product") None)]]
-                (TyRef "ox.flow.Signal$.Request$.MirroredMonoType")
+                (TyAlias "ox.flow.Signal$.Request$.MirroredMonoType" (TyRef "ox.flow.Signal$.Request"))
                 (Some
                   (Block
                     [
@@ -455,7 +461,7 @@ Definition ox_flow_Signal : tree :=
                         (Member "ox.flow.Signal$._$$anon#14" "readResolve" ":java.lang.Object")
                         ["Method"; "Private"; "Synthetic"]
                         [[]]
-                        (TyRef "scala.AnyRef")
+                        (TyAlias "scala.AnyRef" (TyRef "java.lang.Object"))
                         (Some
                           (Apply
                             (Select
@@ -470,7 +476,7 @@ Definition ox_flow_Signal : tree :=
                         (Member "ox.flow.Signal$._$$anon#14" "productPrefix" ":")
                         ["Method"; "Override"; "Synthetic"]
                         []
-                        (TyRef "scala.Predef$.String")
+                        (TyAlias "scala.Predef$.String" (TyRef "java.lang.String"))
                         (Some (Ident (Local "$name" 13)))
                         [(Member "scala.Product" "productPrefix" ":")]);
                       (DefDef
@@ -550,7 +556,13 @@ Definition ox_flow_Signal : tree :=
           (DefDef
             (Member "ox.flow.Signal$" "ordinal" "ox.flow.Signal:scala.Int")
             ["Method"; "Synthetic"]
-            [[(ValDef (Local "x$0" 16) ["Param"] (TyRef "ox.flow.Signal$.MirroredMonoType") None)]]
+            [
+              [
+                (ValDef
+                  (Local "x$0" 16)
+                  ["Param"]
+                  (TyAlias "ox.flow.Signal$.MirroredMonoType" (TyRef "ox.flow.Signal"))
+                  None)]]
             (TyRef "scala.Int")
             (Some (Select (Ident (Local "x$0" 16)) (Member "scala.reflect.Enum" "ordinal" ":")))
             [(Member "scala.deriving.Mirror$.Sum" "ordinal" "java.lang.Object:scala.Int")])])]).

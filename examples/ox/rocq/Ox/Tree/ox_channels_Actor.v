@@ -48,7 +48,7 @@ Definition ox_channels_Actor : tree :=
             (Member "ox.channels.Actor$" "writeReplace" ":java.lang.Object")
             ["Method"; "Private"; "Synthetic"]
             [[]]
-            (TyRef "scala.AnyRef")
+            (TyAlias "scala.AnyRef" (TyRef "java.lang.Object"))
             (Some
               (Apply
                 (Select
@@ -161,7 +161,11 @@ Definition ox_channels_Actor : tree :=
                                         [(Ident (Local "logic" 0))]))
                                     [
                                       (CaseDef
-                                        (Bind (Local "t" 7) (Typed Wildcard (TyRef "scala.package$.Throwable")))
+                                        (Bind
+                                          (Local "t" 7)
+                                          (Typed
+                                            Wildcard
+                                            (TyAlias "scala.package$.Throwable" (TyRef "java.lang.Throwable"))))
                                         None
                                         (Block
                                           [

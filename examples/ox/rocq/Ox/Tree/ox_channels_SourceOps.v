@@ -642,7 +642,10 @@ Definition ox_channels_SourceOps : tree :=
                                             [
                                               (Apply
                                                 (Select
-                                                  (New (TyRef "scala.package$.NoSuchElementException"))
+                                                  (New
+                                                    (TyAlias
+                                                      "scala.package$.NoSuchElementException"
+                                                      (TyRef "java.util.NoSuchElementException")))
                                                   (Member
                                                     "java.util.NoSuchElementException"
                                                     "<init>"

@@ -53,7 +53,7 @@ Definition ox_resource_package : tree :=
             (Member "ox.resource$package$" "writeReplace" ":java.lang.Object")
             ["Method"; "Private"; "Synthetic"]
             [[]]
-            (TyRef "scala.AnyRef")
+            (TyAlias "scala.AnyRef" (TyRef "java.lang.Object"))
             (Some
               (Apply
                 (Select
@@ -105,7 +105,7 @@ Definition ox_resource_package : tree :=
                 (Member "ox.resource$package$.NoEnclosingConcurrencyScope$" "writeReplace" ":java.lang.Object")
                 ["Method"; "Private"; "Synthetic"]
                 [[]]
-                (TyRef "scala.AnyRef")
+                (TyAlias "scala.AnyRef" (TyRef "java.lang.Object"))
                 (Some
                   (Apply
                     (Select
@@ -250,7 +250,9 @@ Definition ox_resource_package : tree :=
                     []
                     (TyApp
                       (TyRef "scala.util.Either")
-                      [(TyRef "scala.package$.Throwable"); (TyParam "ox.resource$package$.resourceScope" "T")])
+                      [
+                        (TyAlias "scala.package$.Throwable" (TyRef "java.lang.Throwable"));
+                        (TyParam "ox.resource$package$.resourceScope" "T")])
                     (Some
                       (Try
                         (Apply
@@ -267,14 +269,18 @@ Definition ox_resource_package : tree :=
                               [(Ident (Local "scope" 4))])])
                         [
                           (CaseDef
-                            (Bind (Local "e" 7) (Typed Wildcard (TyRef "scala.package$.Throwable")))
+                            (Bind
+                              (Local "e" 7)
+                              (Typed Wildcard (TyAlias "scala.package$.Throwable" (TyRef "java.lang.Throwable"))))
                             None
                             (Apply
                               (TypeApply
                                 (Select
                                   (Ident (Member "scala.package$" "Left" ""))
                                   (Member "scala.util.Left$" "apply" "2,java.lang.Object:scala.util.Left"))
-                                [(TyRef "scala.package$.Throwable"); (TyRef "scala.Nothing")])
+                                [
+                                  (TyAlias "scala.package$.Throwable" (TyRef "java.lang.Throwable"));
+                                  (TyRef "scala.Nothing")])
                               [(Ident (Local "e" 7))]))]
                         None)))]
                 (Apply
@@ -337,7 +343,9 @@ Definition ox_resource_package : tree :=
                           (Closure (Ident (Local "$anonfun" 12)) None))])
                     [
                       (CaseDef
-                        (Bind (Local "e" 13) (Typed Wildcard (TyRef "scala.package$.Throwable")))
+                        (Bind
+                          (Local "e" 13)
+                          (Typed Wildcard (TyAlias "scala.package$.Throwable" (TyRef "java.lang.Throwable"))))
                         None
                         (Block
                           [
@@ -358,7 +366,11 @@ Definition ox_resource_package : tree :=
                                     [(Ident (Local "t" 11))])])
                               [
                                 (CaseDef
-                                  (Bind (Local "e2" 14) (Typed Wildcard (TyRef "scala.package$.Throwable")))
+                                  (Bind
+                                    (Local "e2" 14)
+                                    (Typed
+                                      Wildcard
+                                      (TyAlias "scala.package$.Throwable" (TyRef "java.lang.Throwable"))))
                                   None
                                   (Apply
                                     (Select
@@ -717,7 +729,11 @@ Definition ox_resource_package : tree :=
                       []
                       (TyParam "ox.resource$package$.useInterruptible" "R")
                       (Some (Ident (Local "acquire" 41))));
-                    (ValDef (Local "caught" 45) ["Mutable"] (TyRef "scala.package$.Throwable") (Some (Literal CNull)))]
+                    (ValDef
+                      (Local "caught" 45)
+                      ["Mutable"]
+                      (TyAlias "scala.package$.Throwable" (TyRef "java.lang.Throwable"))
+                      (Some (Literal CNull)))]
                   (Try
                     (Apply
                       (Select
@@ -726,7 +742,9 @@ Definition ox_resource_package : tree :=
                       [(Ident (Local "r" 44))])
                     [
                       (CaseDef
-                        (Bind (Local "e" 46) (Typed Wildcard (TyRef "scala.package$.Throwable")))
+                        (Bind
+                          (Local "e" 46)
+                          (Typed Wildcard (TyAlias "scala.package$.Throwable" (TyRef "java.lang.Throwable"))))
                         None
                         (Block
                           [(Assign (Ident (Local "caught" 45)) (Ident (Local "e" 46)))]
@@ -753,7 +771,9 @@ Definition ox_resource_package : tree :=
                             [(Ident (Local "r" 44))])
                           [
                             (CaseDef
-                              (Bind (Local "e" 47) (Typed Wildcard (TyRef "scala.package$.Throwable")))
+                              (Bind
+                                (Local "e" 47)
+                                (Typed Wildcard (TyAlias "scala.package$.Throwable" (TyRef "java.lang.Throwable"))))
                               None
                               (Apply
                                 (Select

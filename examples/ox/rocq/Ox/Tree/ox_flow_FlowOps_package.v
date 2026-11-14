@@ -96,7 +96,7 @@ Definition ox_flow_FlowOps_package : tree :=
             (Member "ox.flow.FlowOps$package$" "writeReplace" ":java.lang.Object")
             ["Method"; "Private"; "Synthetic"]
             [[]]
-            (TyRef "scala.AnyRef")
+            (TyAlias "scala.AnyRef" (TyRef "java.lang.Object"))
             (Some
               (Apply
                 (Select

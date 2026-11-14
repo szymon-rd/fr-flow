@@ -40,7 +40,7 @@ Definition ox_channels_forkPropagate_package : tree :=
             (Member "ox.channels.forkPropagate$package$" "writeReplace" ":java.lang.Object")
             ["Method"; "Private"; "Synthetic"]
             [[]]
-            (TyRef "scala.AnyRef")
+            (TyAlias "scala.AnyRef" (TyRef "java.lang.Object"))
             (Some
               (Apply
                 (Select
@@ -88,7 +88,9 @@ Definition ox_channels_forkPropagate_package : tree :=
                           (Ident (Local "f" 1))
                           [
                             (CaseDef
-                              (Bind (Local "t" 3) (Typed Wildcard (TyRef "scala.package$.Throwable")))
+                              (Bind
+                                (Local "t" 3)
+                                (Typed Wildcard (TyAlias "scala.package$.Throwable" (TyRef "java.lang.Throwable"))))
                               None
                               (Apply
                                 (TypeApply

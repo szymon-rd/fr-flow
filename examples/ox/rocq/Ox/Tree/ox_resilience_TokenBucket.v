@@ -36,7 +36,7 @@ Definition ox_resilience_TokenBucket : tree :=
             (Select (New (TyRef "java.lang.Object")) (Member "java.lang.Object" "<init>" ":java.lang.Object"))
             []);
           (TypeTree (TyRef "scala.Product"));
-          (TypeTree (TyRef "scala.package$.Serializable"))]
+          (TypeTree (TyAlias "scala.package$.Serializable" (TyRef "java.io.Serializable")))]
         None
         [
           (ValDef
@@ -181,7 +181,7 @@ Definition ox_resilience_TokenBucket : tree :=
             (Member "ox.resilience.TokenBucket" "productPrefix" ":")
             ["Method"; "Override"; "Synthetic"]
             []
-            (TyRef "scala.Predef$.String")
+            (TyAlias "scala.Predef$.String" (TyRef "java.lang.String"))
             (Some (Literal (CString "TokenBucket")))
             [(Member "scala.Product" "productPrefix" ":")]);
           (DefDef
@@ -221,7 +221,7 @@ Definition ox_resilience_TokenBucket : tree :=
             (Member "ox.resilience.TokenBucket" "productElementName" "scala.Int:java.lang.String")
             ["Method"; "Override"; "Synthetic"]
             [[(ValDef (Local "n" 7) ["Param"] (TyRef "scala.Int") None)]]
-            (TyRef "scala.Predef$.String")
+            (TyAlias "scala.Predef$.String" (TyRef "java.lang.String"))
             (Some
               (Match
                 false
@@ -402,7 +402,11 @@ Definition ox_resilience_TokenBucket : tree :=
           None
           [])
         [
-          (Apply (Select (New (TyRef "scala.AnyRef")) (Member "java.lang.Object" "<init>" ":java.lang.Object")) []);
+          (Apply
+            (Select
+              (New (TyAlias "scala.AnyRef" (TyRef "java.lang.Object")))
+              (Member "java.lang.Object" "<init>" ":java.lang.Object"))
+            []);
           (TypeTree (TyRef "scala.deriving.Mirror$.Product"))]
         (Some (ValDef NoSym [] (TyTerm (Member "ox.resilience" "TokenBucket" "")) None))
         [
@@ -410,7 +414,7 @@ Definition ox_resilience_TokenBucket : tree :=
             (Member "ox.resilience.TokenBucket$" "writeReplace" ":java.lang.Object")
             ["Method"; "Private"; "Synthetic"]
             [[]]
-            (TyRef "scala.AnyRef")
+            (TyAlias "scala.AnyRef" (TyRef "java.lang.Object"))
             (Some
               (Apply
                 (Select
@@ -471,7 +475,7 @@ Definition ox_resilience_TokenBucket : tree :=
             (Member "ox.resilience.TokenBucket$" "fromProduct" "scala.Product:ox.resilience.TokenBucket")
             ["Method"; "Synthetic"]
             [[(ValDef (Local "x$0" 18) ["Param"] (TyRef "scala.Product") None)]]
-            (TyRef "ox.resilience.TokenBucket$.MirroredMonoType")
+            (TyAlias "ox.resilience.TokenBucket$.MirroredMonoType" (TyRef "ox.resilience.TokenBucket"))
             (Some
               (Block
                 [

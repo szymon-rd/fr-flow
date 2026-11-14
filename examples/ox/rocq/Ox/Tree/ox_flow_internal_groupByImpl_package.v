@@ -60,7 +60,7 @@ Definition ox_flow_internal_groupByImpl_package : tree :=
             (Member "ox.flow.internal.groupByImpl$package$" "writeReplace" ":java.lang.Object")
             ["Method"; "Private"; "Synthetic"]
             [[]]
-            (TyRef "scala.AnyRef")
+            (TyAlias "scala.AnyRef" (TyRef "java.lang.Object"))
             (Some
               (Apply
                 (Select
@@ -180,7 +180,7 @@ Definition ox_flow_internal_groupByImpl_package : tree :=
                           (Member "java.lang.Object" "<init>" ":java.lang.Object"))
                         []);
                       (TypeTree (TyRef "scala.Product"));
-                      (TypeTree (TyRef "scala.package$.Serializable"))]
+                      (TypeTree (TyAlias "scala.package$.Serializable" (TyRef "java.io.Serializable")))]
                     None
                     [
                       (ValDef
@@ -511,7 +511,7 @@ Definition ox_flow_internal_groupByImpl_package : tree :=
                         (Member "ox.flow.internal.groupByImpl$package$._$GroupByState#5" "productPrefix" ":")
                         ["Method"; "Override"; "Synthetic"]
                         []
-                        (TyRef "scala.Predef$.String")
+                        (TyAlias "scala.Predef$.String" (TyRef "java.lang.String"))
                         (Some (Literal (CString "GroupByState")))
                         [(Member "scala.Product" "productPrefix" ":")]);
                       (DefDef
@@ -579,7 +579,7 @@ Definition ox_flow_internal_groupByImpl_package : tree :=
                           "scala.Int:java.lang.String")
                         ["Method"; "Override"; "Synthetic"]
                         [[(ValDef (Local "n" 16) ["Param"] (TyRef "scala.Int") None)]]
-                        (TyRef "scala.Predef$.String")
+                        (TyAlias "scala.Predef$.String" (TyRef "java.lang.String"))
                         (Some
                           (Match
                             false
@@ -1639,7 +1639,9 @@ Definition ox_flow_internal_groupByImpl_package : tree :=
                       [])
                     [
                       (Apply
-                        (Select (New (TyRef "scala.AnyRef")) (Member "java.lang.Object" "<init>" ":java.lang.Object"))
+                        (Select
+                          (New (TyAlias "scala.AnyRef" (TyRef "java.lang.Object")))
+                          (Member "java.lang.Object" "<init>" ":java.lang.Object"))
                         []);
                       (TypeTree (TyRef "scala.deriving.Mirror$.Product"))]
                     (Some (ValDef NoSym [] (TyTerm (Local "GroupByState" 59)) None))
@@ -1737,7 +1739,9 @@ Definition ox_flow_internal_groupByImpl_package : tree :=
                           "scala.Product:ox.flow.internal.groupByImpl$package$._$GroupByState")
                         ["Method"; "Synthetic"]
                         [[(ValDef (Local "x$0" 67) ["Param"] (TyRef "scala.Product") None)]]
-                        (TyRef "ox.flow.internal.groupByImpl$package$._$GroupByState$.MirroredMonoType")
+                        (TyAlias
+                          "ox.flow.internal.groupByImpl$package$._$GroupByState$.MirroredMonoType"
+                          (TyRef "ox.flow.internal.groupByImpl$package$._$GroupByState#5"))
                         (Some
                           (Block
                             [
@@ -2245,7 +2249,9 @@ Definition ox_flow_internal_groupByImpl_package : tree :=
                                                                 (ValDef
                                                                   (Local "t" 91)
                                                                   ["Param"]
-                                                                  (TyRef "scala.package$.Throwable")
+                                                                  (TyAlias
+                                                                    "scala.package$.Throwable"
+                                                                    (TyRef "java.lang.Throwable"))
                                                                   None)]]
                                                             (TyRef "scala.Unit")
                                                             (Some
@@ -2645,7 +2651,9 @@ Definition ox_flow_internal_groupByImpl_package : tree :=
                                                                     (ValDef
                                                                       (Local "_$4" 107)
                                                                       ["Param"; "Synthetic"]
-                                                                      (TyRef "scala.package$.Throwable")
+                                                                      (TyAlias
+                                                                        "scala.package$.Throwable"
+                                                                        (TyRef "java.lang.Throwable"))
                                                                       None)]]
                                                                 (TyRef "scala.Unit")
                                                                 (Some

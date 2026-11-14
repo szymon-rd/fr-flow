@@ -103,7 +103,7 @@ Definition ox_flow_FlowTextOps : tree :=
                     (TyRef "scala.<:<")
                     [(TyParam "ox.flow.FlowTextOps" "T"); (TyApp (TyRef "ox.Chunk") [(TyRef "scala.Byte")])])
                   None)]]
-            (TyApp (TyRef "ox.flow.Flow") [(TyRef "scala.Predef$.String")])
+            (TyApp (TyRef "ox.flow.Flow") [(TyAlias "scala.Predef$.String" (TyRef "java.lang.String"))])
             (Some
               (Apply
                 (TypeApply
@@ -608,7 +608,7 @@ Definition ox_flow_FlowTextOps : tree :=
                     (TyRef "scala.<:<")
                     [(TyParam "ox.flow.FlowTextOps" "T"); (TyApp (TyRef "ox.Chunk") [(TyRef "scala.Byte")])])
                   None)]]
-            (TyApp (TyRef "ox.flow.Flow") [(TyRef "scala.Predef$.String")])
+            (TyApp (TyRef "ox.flow.Flow") [(TyAlias "scala.Predef$.String" (TyRef "java.lang.String"))])
             (Some
               (Apply
                 (Apply
@@ -629,7 +629,9 @@ Definition ox_flow_FlowTextOps : tree :=
                 (ValDef
                   (Local "x$1" 31)
                   ["Given"; "Param"; "Synthetic"]
-                  (TyApp (TyRef "scala.<:<") [(TyParam "ox.flow.FlowTextOps" "T"); (TyRef "scala.Predef$.String")])
+                  (TyApp
+                    (TyRef "scala.<:<")
+                    [(TyParam "ox.flow.FlowTextOps" "T"); (TyAlias "scala.Predef$.String" (TyRef "java.lang.String"))])
                   None)]]
             (TyApp (TyRef "ox.flow.Flow") [(TyApp (TyRef "ox.Chunk") [(TyRef "scala.Byte")])])
             (Some
@@ -697,7 +699,7 @@ Definition ox_flow_FlowTextOps : tree :=
                     (TyRef "scala.<:<")
                     [(TyParam "ox.flow.FlowTextOps" "T"); (TyApp (TyRef "ox.Chunk") [(TyRef "scala.Byte")])])
                   None)]]
-            (TyApp (TyRef "ox.flow.Flow") [(TyRef "scala.Predef$.String")])
+            (TyApp (TyRef "ox.flow.Flow") [(TyAlias "scala.Predef$.String" (TyRef "java.lang.String"))])
             (Some
               (Block
                 [
@@ -851,7 +853,9 @@ Definition ox_flow_FlowTextOps : tree :=
                           None)]]
                     (TyApp
                       (TyRef "scala.Tuple2")
-                      [(TyRef "scala.Predef$.String"); (TyApp (TyRef "ox.Chunk") [(TyRef "scala.Byte")])])
+                      [
+                        (TyAlias "scala.Predef$.String" (TyRef "java.lang.String"));
+                        (TyApp (TyRef "ox.Chunk") [(TyRef "scala.Byte")])])
                     (Some
                       (Block
                         [
@@ -974,7 +978,7 @@ Definition ox_flow_FlowTextOps : tree :=
                             [
                               (Apply
                                 (Select
-                                  (New (TyRef "scala.Predef$.String"))
+                                  (New (TyAlias "scala.Predef$.String" (TyRef "java.lang.String")))
                                   (Member
                                     "java.lang.String"
                                     "<init>"
@@ -1032,7 +1036,7 @@ Definition ox_flow_FlowTextOps : tree :=
                               [
                                 (Apply
                                   (Select
-                                    (New (TyRef "scala.Predef$.String"))
+                                    (New (TyAlias "scala.Predef$.String" (TyRef "java.lang.String")))
                                     (Member
                                       "java.lang.String"
                                       "<init>"
@@ -1127,7 +1131,9 @@ Definition ox_flow_FlowTextOps : tree :=
                       [])
                     [
                       (Apply
-                        (Select (New (TyRef "scala.AnyRef")) (Member "java.lang.Object" "<init>" ":java.lang.Object"))
+                        (Select
+                          (New (TyAlias "scala.AnyRef" (TyRef "java.lang.Object")))
+                          (Member "java.lang.Object" "<init>" ":java.lang.Object"))
                         []);
                       (TypeTree (TyRef "scala.deriving.Mirror$.Sum"))]
                     (Some (ValDef NoSym [] (TyTerm (Local "State" 51)) None))
@@ -1305,7 +1311,7 @@ Definition ox_flow_FlowTextOps : tree :=
                                       ":java.lang.Object")
                                     ["Method"; "Private"; "Synthetic"]
                                     [[]]
-                                    (TyRef "scala.AnyRef")
+                                    (TyAlias "scala.AnyRef" (TyRef "java.lang.Object"))
                                     (Some
                                       (Apply
                                         (Select
@@ -1323,7 +1329,7 @@ Definition ox_flow_FlowTextOps : tree :=
                                     (Member "ox.flow.FlowTextOps._$State$._$$anon#56" "productPrefix" ":")
                                     ["Method"; "Override"; "Synthetic"]
                                     []
-                                    (TyRef "scala.Predef$.String")
+                                    (TyAlias "scala.Predef$.String" (TyRef "java.lang.String"))
                                     (Some (Ident (Local "$name" 55)))
                                     [(Member "scala.Product" "productPrefix" ":")]);
                                   (DefDef
@@ -1422,7 +1428,9 @@ Definition ox_flow_FlowTextOps : tree :=
                             (ValDef
                               (Local "x$0" 58)
                               ["Param"]
-                              (TyRef "ox.flow.FlowTextOps._$State$.MirroredMonoType")
+                              (TyAlias
+                                "ox.flow.FlowTextOps._$State$.MirroredMonoType"
+                                (TyRef "ox.flow.FlowTextOps._$State#50"))
                               None)]]
                         (TyRef "scala.Int")
                         (Some (Select (Ident (Local "x$0" 58)) (Member "scala.reflect.Enum" "ordinal" ":")))
@@ -1437,7 +1445,9 @@ Definition ox_flow_FlowTextOps : tree :=
                         (ValDef
                           (Local "output" 62)
                           ["Param"]
-                          (TyApp (TyRef "ox.flow.FlowEmit") [(TyRef "scala.Predef$.String")])
+                          (TyApp
+                            (TyRef "ox.flow.FlowEmit")
+                            [(TyAlias "scala.Predef$.String" (TyRef "java.lang.String"))])
                           None)]]
                     (TyApp
                       (TyRef "scala.Tuple2")
@@ -1450,7 +1460,9 @@ Definition ox_flow_FlowTextOps : tree :=
                             ["Synthetic"]
                             (TyApp
                               (TyRef "scala.Tuple2")
-                              [(TyRef "scala.Predef$.String"); (TyApp (TyRef "ox.Chunk") [(TyRef "scala.Byte")])])
+                              [
+                                (TyAlias "scala.Predef$.String" (TyRef "java.lang.String"));
+                                (TyApp (TyRef "ox.Chunk") [(TyRef "scala.Byte")])])
                             (Some
                               (Match
                                 false
@@ -1468,7 +1480,7 @@ Definition ox_flow_FlowTextOps : tree :=
                                     (TyApp
                                       (TyRef "scala.Tuple2")
                                       [
-                                        (TyRef "scala.Predef$.String");
+                                        (TyAlias "scala.Predef$.String" (TyRef "java.lang.String"));
                                         (TyApp (TyRef "ox.Chunk") [(TyRef "scala.Byte")])])
                                     "scala.annotation.internal.RuntimeChecked"))
                                 [
@@ -1491,12 +1503,12 @@ Definition ox_flow_FlowTextOps : tree :=
                                       (TyApp
                                         (TyRef "scala.Tuple2")
                                         [
-                                          (TyRef "scala.Predef$.String");
+                                          (TyAlias "scala.Predef$.String" (TyRef "java.lang.String"));
                                           (TyApp (TyRef "ox.Chunk") [(TyRef "scala.Byte")])])))])));
                           (ValDef
                             (Local "str" 67)
                             []
-                            (TyRef "scala.Predef$.String")
+                            (TyAlias "scala.Predef$.String" (TyRef "java.lang.String"))
                             (Some (Select (Ident (Local "$6$" 63)) (Member "scala.Tuple2" "_1" ""))));
                           (ValDef
                             (Local "newBuf" 68)

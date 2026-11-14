@@ -65,7 +65,7 @@ Definition ox_channels_Sink : tree :=
                 []);
               (TypeTree (TyApp (TyRef "ox.channels.SelectResult") [(TyRef "scala.Unit")]));
               (TypeTree (TyRef "scala.Product"));
-              (TypeTree (TyRef "scala.package$.Serializable"))]
+              (TypeTree (TyAlias "scala.package$.Serializable" (TyRef "java.io.Serializable")))]
             None
             [
               (DefDef
@@ -150,7 +150,7 @@ Definition ox_channels_Sink : tree :=
                 (Member "ox.channels.Sink.Sent" "productPrefix" ":")
                 ["Method"; "Override"; "Synthetic"]
                 []
-                (TyRef "scala.Predef$.String")
+                (TyAlias "scala.Predef$.String" (TyRef "java.lang.String"))
                 (Some (Literal (CString "Sent")))
                 [(Member "scala.Product" "productPrefix" ":")]);
               (DefDef
@@ -182,7 +182,7 @@ Definition ox_channels_Sink : tree :=
                 (Member "ox.channels.Sink.Sent" "productElementName" "scala.Int:java.lang.String")
                 ["Method"; "Override"; "Synthetic"]
                 [[(ValDef (Local "n" 4) ["Param"] (TyRef "scala.Int") None)]]
-                (TyRef "scala.Predef$.String")
+                (TyAlias "scala.Predef$.String" (TyRef "java.lang.String"))
                 (Some
                   (Match
                     false
@@ -244,7 +244,9 @@ Definition ox_channels_Sink : tree :=
               [])
             [
               (Apply
-                (Select (New (TyRef "scala.AnyRef")) (Member "java.lang.Object" "<init>" ":java.lang.Object"))
+                (Select
+                  (New (TyAlias "scala.AnyRef" (TyRef "java.lang.Object")))
+                  (Member "java.lang.Object" "<init>" ":java.lang.Object"))
                 []);
               (TypeTree (TyRef "scala.deriving.Mirror$.Product"))]
             (Some (ValDef NoSym [] (TyTerm (Member "ox.channels.Sink" "Sent" "")) None))
@@ -283,7 +285,7 @@ Definition ox_channels_Sink : tree :=
                 (Member "ox.channels.Sink.Sent$" "fromProduct" "scala.Product:ox.channels.Sink.Sent")
                 ["Method"; "Synthetic"]
                 [[(ValDef (Local "x$0" 6) ["Param"] (TyRef "scala.Product") None)]]
-                (TyRef "ox.channels.Sink.Sent$.MirroredMonoType")
+                (TyAlias "ox.channels.Sink.Sent$.MirroredMonoType" (TyRef "ox.channels.Sink.Sent"))
                 (Some
                   (Block
                     []
@@ -315,7 +317,7 @@ Definition ox_channels_Sink : tree :=
                 []);
               (TypeTree (TyApp (TyRef "ox.channels.SelectClause") [(TyRef "scala.Unit")]));
               (TypeTree (TyRef "scala.Product"));
-              (TypeTree (TyRef "scala.package$.Serializable"))]
+              (TypeTree (TyAlias "scala.package$.Serializable" (TyRef "java.io.Serializable")))]
             None
             [
               (ValDef
@@ -419,7 +421,7 @@ Definition ox_channels_Sink : tree :=
                 (Member "ox.channels.Sink.Send" "productPrefix" ":")
                 ["Method"; "Override"; "Synthetic"]
                 []
-                (TyRef "scala.Predef$.String")
+                (TyAlias "scala.Predef$.String" (TyRef "java.lang.String"))
                 (Some (Literal (CString "Send")))
                 [(Member "scala.Product" "productPrefix" ":")]);
               (DefDef
@@ -455,7 +457,7 @@ Definition ox_channels_Sink : tree :=
                 (Member "ox.channels.Sink.Send" "productElementName" "scala.Int:java.lang.String")
                 ["Method"; "Override"; "Synthetic"]
                 [[(ValDef (Local "n" 12) ["Param"] (TyRef "scala.Int") None)]]
-                (TyRef "scala.Predef$.String")
+                (TyAlias "scala.Predef$.String" (TyRef "java.lang.String"))
                 (Some
                   (Match
                     false
@@ -537,7 +539,9 @@ Definition ox_channels_Sink : tree :=
               [])
             [
               (Apply
-                (Select (New (TyRef "scala.AnyRef")) (Member "java.lang.Object" "<init>" ":java.lang.Object"))
+                (Select
+                  (New (TyAlias "scala.AnyRef" (TyRef "java.lang.Object")))
+                  (Member "java.lang.Object" "<init>" ":java.lang.Object"))
                 []);
               (TypeTree (TyRef "scala.deriving.Mirror$.Product"))]
             (Some (ValDef NoSym [] (TyTerm (Member "ox.channels.Sink" "Send" "")) None))
@@ -585,7 +589,7 @@ Definition ox_channels_Sink : tree :=
                 (Member "ox.channels.Sink.Send$" "fromProduct" "scala.Product:ox.channels.Sink.Send")
                 ["Method"; "Synthetic"]
                 [[(ValDef (Local "x$0" 16) ["Param"] (TyRef "scala.Product") None)]]
-                (TyRef "ox.channels.Sink.Send$.MirroredMonoType")
+                (TyAlias "ox.channels.Sink.Send$.MirroredMonoType" (TyRef "ox.channels.Sink.Send"))
                 (Some
                   (Block
                     [
@@ -684,7 +688,7 @@ Definition ox_channels_Sink : tree :=
                   (ValDef
                     (Local "r" 22)
                     []
-                    (TyRef "<special-ops>.<FromJavaObject>")
+                    (TyAlias "<special-ops>.<FromJavaObject>" (TyRef "java.lang.Object"))
                     (Some
                       (Apply
                         (Select
@@ -709,7 +713,7 @@ Definition ox_channels_Sink : tree :=
                       [
                         (TypeApply
                           (Select (Ident (Local "r" 22)) (Member "scala.Any" "asInstanceOf" "1:java.lang.Object"))
-                          [(TyRef "scala.AnyRef")])])
+                          [(TyAlias "scala.AnyRef" (TyRef "java.lang.Object"))])])
                     [
                       (CaseDef
                         (Bind (Local "c" 23) (Typed Wildcard (TyRef "ox.channels.ChannelClosed")))
@@ -773,7 +777,13 @@ Definition ox_channels_Sink : tree :=
           (DefDef
             (Member "ox.channels.Sink" "errorOrClosed" "java.lang.Throwable:java.lang.Object")
             ["Method"]
-            [[(ValDef (Local "reason" 27) ["Param"] (TyRef "scala.package$.Throwable") None)]]
+            [
+              [
+                (ValDef
+                  (Local "reason" 27)
+                  ["Param"]
+                  (TyAlias "scala.package$.Throwable" (TyRef "java.lang.Throwable"))
+                  None)]]
             (TyOr (TyRef "scala.Unit") (TyRef "ox.channels.ChannelClosed"))
             (Some
               (Apply
@@ -793,7 +803,13 @@ Definition ox_channels_Sink : tree :=
           (DefDef
             (Member "ox.channels.Sink" "error" "java.lang.Throwable:scala.Unit")
             ["Method"]
-            [[(ValDef (Local "reason" 28) ["Param"] (TyRef "scala.package$.Throwable") None)]]
+            [
+              [
+                (ValDef
+                  (Local "reason" 28)
+                  ["Param"]
+                  (TyAlias "scala.package$.Throwable" (TyRef "java.lang.Throwable"))
+                  None)]]
             (TyRef "scala.Unit")
             (Some
               (Apply

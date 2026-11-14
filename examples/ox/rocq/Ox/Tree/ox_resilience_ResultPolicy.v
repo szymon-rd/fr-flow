@@ -45,7 +45,7 @@ Definition ox_resilience_ResultPolicy : tree :=
             (Select (New (TyRef "java.lang.Object")) (Member "java.lang.Object" "<init>" ":java.lang.Object"))
             []);
           (TypeTree (TyRef "scala.Product"));
-          (TypeTree (TyRef "scala.package$.Serializable"))]
+          (TypeTree (TyAlias "scala.package$.Serializable" (TyRef "java.io.Serializable")))]
         None
         [
           (TypeDef
@@ -190,7 +190,7 @@ Definition ox_resilience_ResultPolicy : tree :=
             (Member "ox.resilience.ResultPolicy" "productPrefix" ":")
             ["Method"; "Override"; "Synthetic"]
             []
-            (TyRef "scala.Predef$.String")
+            (TyAlias "scala.Predef$.String" (TyRef "java.lang.String"))
             (Some (Literal (CString "ResultPolicy")))
             [(Member "scala.Product" "productPrefix" ":")]);
           (DefDef
@@ -230,7 +230,7 @@ Definition ox_resilience_ResultPolicy : tree :=
             (Member "ox.resilience.ResultPolicy" "productElementName" "scala.Int:java.lang.String")
             ["Method"; "Override"; "Synthetic"]
             [[(ValDef (Local "n" 6) ["Param"] (TyRef "scala.Int") None)]]
-            (TyRef "scala.Predef$.String")
+            (TyAlias "scala.Predef$.String" (TyRef "java.lang.String"))
             (Some
               (Match
                 false
@@ -362,7 +362,7 @@ Definition ox_resilience_ResultPolicy : tree :=
             (Member "ox.resilience.ResultPolicy$" "writeReplace" ":java.lang.Object")
             ["Method"; "Private"; "Synthetic"]
             [[]]
-            (TyRef "scala.AnyRef")
+            (TyAlias "scala.AnyRef" (TyRef "java.lang.Object"))
             (Some
               (Apply
                 (Select
@@ -691,7 +691,13 @@ Definition ox_resilience_ResultPolicy : tree :=
             (Member "ox.resilience.ResultPolicy$" "fromProduct" "scala.Product:ox.resilience.ResultPolicy")
             ["Method"; "Synthetic"]
             [[(ValDef (Local "x$0" 20) ["Param"] (TyRef "scala.Product") None)]]
-            (TyRef "ox.resilience.ResultPolicy$.MirroredMonoType")
+            (TyAlias
+              "ox.resilience.ResultPolicy$.MirroredMonoType"
+              (TyApp
+                (TyRef "ox.resilience.ResultPolicy")
+                [
+                  (TyBounds (TyRef "scala.Nothing") (TyRef "scala.AnyKind"));
+                  (TyBounds (TyRef "scala.Nothing") (TyRef "scala.AnyKind"))]))
             (Some
               (Block
                 [

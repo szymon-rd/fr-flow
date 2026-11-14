@@ -50,7 +50,7 @@ Definition ox_resilience_CircuitBreakerConfig_package : tree :=
             (Member "ox.resilience.CircuitBreakerConfig$package$" "writeReplace" ":java.lang.Object")
             ["Method"; "Private"; "Synthetic"]
             [[]]
-            (TyRef "scala.AnyRef")
+            (TyAlias "scala.AnyRef" (TyRef "java.lang.Object"))
             (Some
               (Apply
                 (Select
@@ -136,7 +136,7 @@ Definition ox_resilience_CircuitBreakerConfig_package : tree :=
                   ":java.lang.Object")
                 ["Method"; "Private"; "Synthetic"]
                 [[]]
-                (TyRef "scala.AnyRef")
+                (TyAlias "scala.AnyRef" (TyRef "java.lang.Object"))
                 (Some
                   (Apply
                     (Select
@@ -209,8 +209,10 @@ Definition ox_resilience_CircuitBreakerConfig_package : tree :=
                                               (Literal
                                                 (CString "PercentageThreshold must be between 0 and 100, value: "));
                                               (Literal (CString ""))]
-                                            (TyRef "scala.Predef$.String"))
-                                          (TyApp (TyRef "scala.<repeated>") [(TyRef "scala.Predef$.String")]))])
+                                            (TyAlias "scala.Predef$.String" (TyRef "java.lang.String")))
+                                          (TyApp
+                                            (TyRef "scala.<repeated>")
+                                            [(TyAlias "scala.Predef$.String" (TyRef "java.lang.String"))]))])
                                     (Member
                                       "scala.StringContext"
                                       "s"

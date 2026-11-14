@@ -43,7 +43,7 @@ Definition ox_scheduling_repeat_package : tree :=
             (Member "ox.scheduling.repeat$package$" "writeReplace" ":java.lang.Object")
             ["Method"; "Private"; "Synthetic"]
             [[]]
-            (TyRef "scala.AnyRef")
+            (TyAlias "scala.AnyRef" (TyRef "java.lang.Object"))
             (Some
               (Apply
                 (Select
@@ -68,7 +68,9 @@ Definition ox_scheduling_repeat_package : tree :=
                   ["Param"]
                   (TyApp
                     (TyRef "ox.scheduling.RepeatConfig")
-                    [(TyRef "scala.package$.Throwable"); (TyParam "ox.scheduling.repeat$package$.repeat" "T")])
+                    [
+                      (TyAlias "scala.package$.Throwable" (TyRef "java.lang.Throwable"));
+                      (TyParam "ox.scheduling.repeat$package$.repeat" "T")])
                   None)];
               [
                 (ValDef

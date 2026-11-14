@@ -156,6 +156,9 @@ Section Logic.
     - (* Chaos *)
       unfold started in *. specialize (H u). destruct (j_th σ u) as [[c s i] |]; try contradiction.
       destruct s; try contradiction. exact H.
+    - (* LazyEnter *)
+      repeat match goal with H : match ?a with _ => _ end |- _ => destruct a end; unpack.
+      apply started_clear_intr; assumption.
   Qed.
 
   (** A configuration is good with the ghost state `Γ`. *)

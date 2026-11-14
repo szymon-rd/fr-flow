@@ -384,7 +384,9 @@ Definition ox_flow_FlowCompanionReactiveOps : tree :=
                                                                                 (ValDef
                                                                                   (Local "t" 15)
                                                                                   ["Param"]
-                                                                                  (TyRef "scala.package$.Throwable")
+                                                                                  (TyAlias
+                                                                                    "scala.package$.Throwable"
+                                                                                    (TyRef "java.lang.Throwable"))
                                                                                   None)]]
                                                                             (TyRef "scala.Unit")
                                                                             (Some
@@ -590,7 +592,9 @@ Definition ox_flow_FlowCompanionReactiveOps : tree :=
                                                       (ValDef
                                                         (Local "_$1" 20)
                                                         ["Param"]
-                                                        (TyRef "scala.package$.Throwable")
+                                                        (TyAlias
+                                                          "scala.package$.Throwable"
+                                                          (TyRef "java.lang.Throwable"))
                                                         None)]]
                                                   (TyRef "scala.Unit")
                                                   (Some

@@ -47,7 +47,7 @@ Definition ox_oxThreadFactory_package : tree :=
             (Member "ox.oxThreadFactory$package$" "writeReplace" ":java.lang.Object")
             ["Method"; "Private"; "Synthetic"]
             [[]]
-            (TyRef "scala.AnyRef")
+            (TyAlias "scala.AnyRef" (TyRef "java.lang.Object"))
             (Some
               (Apply
                 (Select
@@ -100,7 +100,7 @@ Definition ox_oxThreadFactory_package : tree :=
                     [
                       (Apply
                         (Select
-                          (New (TyRef "scala.package$.RuntimeException"))
+                          (New (TyAlias "scala.package$.RuntimeException" (TyRef "java.lang.RuntimeException")))
                           (Member "java.lang.RuntimeException" "<init>" "java.lang.String:java.lang.RuntimeException"))
                         [(Literal (CString "The thread factory was already used before setting a custom one!"))])])
                   (Literal CUnit))))

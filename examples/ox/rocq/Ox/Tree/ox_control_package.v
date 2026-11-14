@@ -46,7 +46,7 @@ Definition ox_control_package : tree :=
             (Member "ox.control$package$" "writeReplace" ":java.lang.Object")
             ["Method"; "Private"; "Synthetic"]
             [[]]
-            (TyRef "scala.AnyRef")
+            (TyAlias "scala.AnyRef" (TyRef "java.lang.Object"))
             (Some
               (Apply
                 (Select
@@ -71,7 +71,7 @@ Definition ox_control_package : tree :=
                     [
                       (Apply
                         (Select
-                          (New (TyRef "scala.package$.RuntimeException"))
+                          (New (TyAlias "scala.package$.RuntimeException" (TyRef "java.lang.RuntimeException")))
                           (Member "java.lang.RuntimeException" "<init>" "java.lang.String:java.lang.RuntimeException"))
                         [(Literal (CString "can't get here"))])]))
                 (TyRef "scala.Nothing")))
@@ -132,7 +132,10 @@ Definition ox_control_package : tree :=
                           [
                             (Apply
                               (Select
-                                (New (TyRef "scala.package$.InterruptedException"))
+                                (New
+                                  (TyAlias
+                                    "scala.package$.InterruptedException"
+                                    (TyRef "java.lang.InterruptedException")))
                                 (Member "java.lang.InterruptedException" "<init>" ":java.lang.InterruptedException"))
                               [])])
                         (Literal CUnit)))])
@@ -156,7 +159,8 @@ Definition ox_control_package : tree :=
                     [
                       (Apply
                         (Select
-                          (New (TyRef "scala.package$.InterruptedException"))
+                          (New
+                            (TyAlias "scala.package$.InterruptedException" (TyRef "java.lang.InterruptedException")))
                           (Member "java.lang.InterruptedException" "<init>" ":java.lang.InterruptedException"))
                         [])])
                   (Literal CUnit))

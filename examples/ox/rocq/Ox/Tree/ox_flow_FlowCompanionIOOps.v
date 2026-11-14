@@ -277,8 +277,10 @@ Definition ox_flow_FlowCompanionIOOps : tree :=
                                                     [
                                                       (Literal (CString "Path "));
                                                       (Literal (CString " is a directory"))]
-                                                    (TyRef "scala.Predef$.String"))
-                                                  (TyApp (TyRef "scala.<repeated>") [(TyRef "scala.Predef$.String")]))])
+                                                    (TyAlias "scala.Predef$.String" (TyRef "java.lang.String")))
+                                                  (TyApp
+                                                    (TyRef "scala.<repeated>")
+                                                    [(TyAlias "scala.Predef$.String" (TyRef "java.lang.String"))]))])
                                             (Member
                                               "scala.StringContext"
                                               "s"
@@ -313,7 +315,11 @@ Definition ox_flow_FlowCompanionIOOps : tree :=
                                           (TyApp (TyRef "scala.<repeated>") [(TyRef "java.nio.file.OpenOption")]))])
                                     [
                                       (CaseDef
-                                        (Typed Wildcard (TyRef "scala.package$.UnsupportedOperationException"))
+                                        (Typed
+                                          Wildcard
+                                          (TyAlias
+                                            "scala.package$.UnsupportedOperationException"
+                                            (TyRef "java.lang.UnsupportedOperationException")))
                                         None
                                         (Block
                                           []

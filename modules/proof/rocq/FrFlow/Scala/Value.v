@@ -141,6 +141,12 @@ Definition of_const (c : const) : option val :=
 Definition var_class : string := "<var>".
 Definition var_field : string := "value".
 
+(** A `lazy val` written in a method is an object that holds its value once it has one, and until then what
+    gives it. *)
+Definition lazy_class : string := "<lazy>".
+Definition lazy_field : string := "value".
+Definition thunk_field : string := "<thunk>".
+
 (** The variables in scope where an object of a class written inside a method was made, kept in the object. *)
 Definition scope_field : string := "<scope>".
 Definition scope_val (e : scope) : val := VList (map (fun kv => vdata "" [vstr (fst kv); snd kv]) e).

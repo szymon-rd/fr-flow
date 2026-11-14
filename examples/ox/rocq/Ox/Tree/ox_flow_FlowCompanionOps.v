@@ -278,7 +278,9 @@ Definition ox_flow_FlowCompanionOps : tree :=
                                             (CaseDef
                                               (Bind
                                                 (Local "e" 10)
-                                                (Typed Wildcard (TyRef "scala.package$.Throwable")))
+                                                (Typed
+                                                  Wildcard
+                                                  (TyAlias "scala.package$.Throwable" (TyRef "java.lang.Throwable"))))
                                               None
                                               (Apply
                                                 (TypeApply
@@ -1316,7 +1318,12 @@ Definition ox_flow_FlowCompanionOps : tree :=
             ["Method"]
             [
               [(TypeDef "T" ["Deferred"; "Param"] (TyBounds (TyRef "scala.Nothing") (TyRef "scala.Any")))];
-              [(ValDef (Local "t" 70) ["Param"] (TyRef "scala.package$.Throwable") None)]]
+              [
+                (ValDef
+                  (Local "t" 70)
+                  ["Param"]
+                  (TyAlias "scala.package$.Throwable" (TyRef "java.lang.Throwable"))
+                  None)]]
             (TyApp (TyRef "ox.flow.Flow") [(TyParam "ox.flow.FlowCompanionOps.failed" "T")])
             (Some
               (Apply

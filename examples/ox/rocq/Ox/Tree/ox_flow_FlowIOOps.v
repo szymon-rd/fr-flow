@@ -501,7 +501,10 @@ Definition ox_flow_FlowIOOps : tree :=
                                     [
                                       (Apply
                                         (Select
-                                          (New (TyRef "scala.package$.NullPointerException"))
+                                          (New
+                                            (TyAlias
+                                              "scala.package$.NullPointerException"
+                                              (TyRef "java.lang.NullPointerException")))
                                           (Member
                                             "java.lang.NullPointerException"
                                             "<init>"
@@ -542,7 +545,10 @@ Definition ox_flow_FlowIOOps : tree :=
                                     [
                                       (Apply
                                         (Select
-                                          (New (TyRef "scala.package$.IndexOutOfBoundsException"))
+                                          (New
+                                            (TyAlias
+                                              "scala.package$.IndexOutOfBoundsException"
+                                              (TyRef "java.lang.IndexOutOfBoundsException")))
                                           (Member
                                             "java.lang.IndexOutOfBoundsException"
                                             "<init>"
@@ -875,7 +881,9 @@ Definition ox_flow_FlowIOOps : tree :=
                       (Select (This "ox.flow.FlowIOOps") (Member "ox.flow.FlowIOOps" "close$default$2" ":"))]))
                 [
                   (CaseDef
-                    (Bind (Local "t" 30) (Typed Wildcard (TyRef "scala.package$.Throwable")))
+                    (Bind
+                      (Local "t" 30)
+                      (Typed Wildcard (TyAlias "scala.package$.Throwable" (TyRef "java.lang.Throwable"))))
                     None
                     (Block
                       [
@@ -890,7 +898,7 @@ Definition ox_flow_FlowIOOps : tree :=
                                 (Select
                                   (Ident (Member "scala" "Some" ""))
                                   (Member "scala.Some$" "apply" "1,java.lang.Object:scala.Some"))
-                                [(TyRef "scala.package$.Throwable")])
+                                [(TyAlias "scala.package$.Throwable" (TyRef "java.lang.Throwable"))])
                               [(Ident (Local "t" 30))])])]
                       (Apply
                         (Ident (Member "<special-ops>" "throw" "java.lang.Throwable:scala.Nothing"))
@@ -952,8 +960,10 @@ Definition ox_flow_FlowIOOps : tree :=
                                     (Typed
                                       (Repeated
                                         [(Literal (CString "Path ")); (Literal (CString " is a directory"))]
-                                        (TyRef "scala.Predef$.String"))
-                                      (TyApp (TyRef "scala.<repeated>") [(TyRef "scala.Predef$.String")]))])
+                                        (TyAlias "scala.Predef$.String" (TyRef "java.lang.String")))
+                                      (TyApp
+                                        (TyRef "scala.<repeated>")
+                                        [(TyAlias "scala.Predef$.String" (TyRef "java.lang.String"))]))])
                                 (Member "scala.StringContext" "s" "scala.collection.immutable.Seq:java.lang.String"))
                               [
                                 (Typed
@@ -988,7 +998,11 @@ Definition ox_flow_FlowIOOps : tree :=
                               (TyApp (TyRef "scala.<repeated>") [(TyRef "java.nio.file.OpenOption")]))])
                         [
                           (CaseDef
-                            (Typed Wildcard (TyRef "scala.package$.UnsupportedOperationException"))
+                            (Typed
+                              Wildcard
+                              (TyAlias
+                                "scala.package$.UnsupportedOperationException"
+                                (TyRef "java.lang.UnsupportedOperationException")))
                             None
                             (Block
                               []
@@ -1111,7 +1125,9 @@ Definition ox_flow_FlowIOOps : tree :=
                         (Select (This "ox.flow.FlowIOOps") (Member "ox.flow.FlowIOOps" "close$default$2" ":"))]))
                   [
                     (CaseDef
-                      (Bind (Local "t" 38) (Typed Wildcard (TyRef "scala.package$.Throwable")))
+                      (Bind
+                        (Local "t" 38)
+                        (Typed Wildcard (TyAlias "scala.package$.Throwable" (TyRef "java.lang.Throwable"))))
                       None
                       (Block
                         [
@@ -1126,7 +1142,7 @@ Definition ox_flow_FlowIOOps : tree :=
                                   (Select
                                     (Ident (Member "scala" "Some" ""))
                                     (Member "scala.Some$" "apply" "1,java.lang.Object:scala.Some"))
-                                  [(TyRef "scala.package$.Throwable")])
+                                  [(TyAlias "scala.package$.Throwable" (TyRef "java.lang.Throwable"))])
                                 [(Ident (Local "t" 38))])])]
                         (Apply
                           (Ident (Member "<special-ops>" "throw" "java.lang.Throwable:scala.Nothing"))
@@ -1142,7 +1158,7 @@ Definition ox_flow_FlowIOOps : tree :=
                 (ValDef
                   (Local "cause" 40)
                   ["HasDefault"; "Param"]
-                  (TyApp (TyRef "scala.Option") [(TyRef "scala.package$.Throwable")])
+                  (TyApp (TyRef "scala.Option") [(TyAlias "scala.package$.Throwable" (TyRef "java.lang.Throwable"))])
                   None)]]
             (TyRef "scala.Unit")
             (Some
@@ -1179,7 +1195,7 @@ Definition ox_flow_FlowIOOps : tree :=
                                         (ValDef
                                           (Local "_$2" 43)
                                           ["Param"; "Synthetic"]
-                                          (TyRef "scala.package$.Throwable")
+                                          (TyAlias "scala.package$.Throwable" (TyRef "java.lang.Throwable"))
                                           None)]]
                                     (TyRef "scala.Unit")
                                     (Some
@@ -1201,7 +1217,7 @@ Definition ox_flow_FlowIOOps : tree :=
                                 (Select
                                   (Ident (Local "cause" 40))
                                   (Member "scala.Option" "getOrElse" "1,scala.Function0:java.lang.Object"))
-                                [(TyRef "scala.package$.Throwable")])
+                                [(TyAlias "scala.package$.Throwable" (TyRef "java.lang.Throwable"))])
                               [(Ident (Local "closeException" 41))])])))]
                   None)
                 (TyRef "scala.Unit")))
@@ -1211,7 +1227,7 @@ Definition ox_flow_FlowIOOps : tree :=
             ["Local"; "Method"; "Private"; "PrivateLocal"]
             []
             (TyAnnot
-              (TyApp (TyRef "scala.Option") [(TyRef "scala.package$.Throwable")])
+              (TyApp (TyRef "scala.Option") [(TyAlias "scala.package$.Throwable" (TyRef "java.lang.Throwable"))])
               "scala.annotation.unchecked.uncheckedVariance")
             (Some (Ident (Member "scala" "None" "")))
             [])])]).

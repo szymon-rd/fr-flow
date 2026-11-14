@@ -39,7 +39,8 @@ Inductive const :=
 
 Inductive ty :=
   | TyNone                                                  (* no prefix *)
-  | TyRef (name : string)                                   (* a class or an alias, by its full name *)
+  | TyRef (name : string)                                   (* a class, or an abstract type, by its full name *)
+  | TyAlias (name : string) (named : ty)                    (* another name of a type, and the type *)
   | TySelect (prefix : ty) (name : string)                  (* a type member of a path *)
   | TyParam (owner : string) (name : string)                (* a type parameter of a class or a method *)
   | TyTerm (s : sym)                                        (* the type of one value: `x.type` *)

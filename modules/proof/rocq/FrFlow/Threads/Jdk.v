@@ -94,6 +94,11 @@ Section Jdk.
     | [] => None
     | (n, v) :: rest => if String.eqb n name then Some v else field rest name
     end.
+  (** Where an object keeps which thread is evaluating its lazy value `name`. *)
+  Definition evaluating (name : string) : string := (name ++ "<evaluating>")%string.
+  Definition holder (fields : list (string * val)) (name : string) : option tid :=
+    match field fields (evaluating name) with Some (VTid u) => Some u | _ => None end.
+
   Fixpoint with_field (fields : list (string * val)) (name : string) (v : val) : list (string * val) :=
     match fields with
     | [] => [(name, v)]
@@ -183,7 +188,8 @@ Section Jdk.
     | ObjSet (r : nat) (name : string) (v : val) : op (exn + unit)
     | ObjClass (r : nat) : op (exn + string)
     (* AtomicReference.compareAndSet, as `updateAndGet` uses it *)
-    | ArCas (r : nat) (expected new : option val) : op (exn + bool).
+    | ArCas (r : nat) (expected new : option val) : op (exn + bool)
+    | LazyEnter (r : nat) (name : string) (monitor : bool) : op (exn + option val).
 
   (** What one call may do, made by thread `t` in state `σ`: its result and the state it leaves. No step: the
       call does not return yet. *)
@@ -384,6 +390,22 @@ Section Jdk.
     | ArCas r expected new => fun σ x σ' =>
         (j_ar σ r = Some expected /\ x = inr true /\ σ' = set_ar σ r new) \/
         (j_ar σ r <> None /\ x = inr false /\ σ' = σ)
+
+    (* A read of a `lazy val`, as Scala's runtime gives it: its value if it has one; else the reader is the one
+       that evaluates it, if no thread is; else it waits. Of a member (`scala.runtime.LazyVals`) the wait is one
+       an interrupt ends; of one written in a method (`scala.runtime.LazyRef`, a monitor) it is not, and the
+       thread that holds it enters again. The evaluating thread then writes the value (`ObjSet`), or, if the
+       evaluation threw, gives the place up (`ObjSet` of `evaluating` to no thread): the next read evaluates
+       again. Run on the JVM in `examples/ox/probe/LazyProbe.scala`. *)
+    | LazyEnter r name monitor => fun σ x σ' => exists cls fields,
+        j_obj σ r = Some (cls, fields) /\
+        match field fields name, holder fields name with
+        | Some v, _ => x = inr (Some v) /\ σ' = σ
+        | None, None => x = inr None /\ σ' = set_obj σ r (cls, with_field fields (evaluating name) (VTid t))
+        | None, Some u =>
+            if monitor then u = t /\ x = inr None /\ σ' = σ
+            else x = inl InterruptedException /\ interrupted σ t = true /\ σ' = clear_intr σ t
+        end
     end.
 
 End Jdk.
@@ -445,6 +467,8 @@ Arguments ObjGet {code obj} r name.
 Arguments ObjSet {code obj} r name v.
 Arguments ObjClass {code obj} r.
 Arguments ArCas {code obj} r expected new.
+Arguments LazyEnter {code obj} r name monitor.
+Arguments holder {code obj} fields name.
 Arguments VUnit {code obj}.
 Arguments VBool {code obj} b.
 Arguments VTid {code obj} t.

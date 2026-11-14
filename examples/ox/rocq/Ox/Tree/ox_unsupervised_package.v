@@ -43,7 +43,7 @@ Definition ox_unsupervised_package : tree :=
             (Member "ox.unsupervised$package$" "writeReplace" ":java.lang.Object")
             ["Method"; "Private"; "Synthetic"]
             [[]]
-            (TyRef "scala.AnyRef")
+            (TyAlias "scala.AnyRef" (TyRef "java.lang.Object"))
             (Some
               (Apply
                 (Select
@@ -195,7 +195,7 @@ Definition ox_unsupervised_package : tree :=
                             (TyApp
                               (TyRef "scala.util.Either")
                               [
-                                (TyRef "scala.package$.Throwable");
+                                (TyAlias "scala.package$.Throwable" (TyRef "java.lang.Throwable"));
                                 (TyParam "ox.unsupervised$package$.scopedWithCapability" "T")])
                             (Some
                               (Try
@@ -231,14 +231,20 @@ Definition ox_unsupervised_package : tree :=
                                           [])))])
                                 [
                                   (CaseDef
-                                    (Bind (Local "e" 11) (Typed Wildcard (TyRef "scala.package$.Throwable")))
+                                    (Bind
+                                      (Local "e" 11)
+                                      (Typed
+                                        Wildcard
+                                        (TyAlias "scala.package$.Throwable" (TyRef "java.lang.Throwable"))))
                                     None
                                     (Apply
                                       (TypeApply
                                         (Select
                                           (Ident (Member "scala.package$" "Left" ""))
                                           (Member "scala.util.Left$" "apply" "2,java.lang.Object:scala.util.Left"))
-                                        [(TyRef "scala.package$.Throwable"); (TyRef "scala.Nothing")])
+                                        [
+                                          (TyAlias "scala.package$.Throwable" (TyRef "java.lang.Throwable"));
+                                          (TyRef "scala.Nothing")])
                                       [(Ident (Local "e" 11))]))]
                                 None)))]
                         (Apply
@@ -295,7 +301,9 @@ Definition ox_unsupervised_package : tree :=
                   ["Param"]
                   (TyApp
                     (TyRef "scala.util.Either")
-                    [(TyRef "scala.package$.Throwable"); (TyParam "ox.unsupervised$package$.runFinalizers" "T")])
+                    [
+                      (TyAlias "scala.package$.Throwable" (TyRef "java.lang.Throwable"));
+                      (TyParam "ox.unsupervised$package$.runFinalizers" "T")])
                   None)]]
             (TyParam "ox.unsupervised$package$.runFinalizers" "T")
             (Some
@@ -309,7 +317,9 @@ Definition ox_unsupervised_package : tree :=
                         (ValDef
                           (Local "es" 16)
                           ["Param"]
-                          (TyApp (TyRef "scala.collection.immutable.List") [(TyRef "scala.package$.Throwable")])
+                          (TyApp
+                            (TyRef "scala.collection.immutable.List")
+                            [(TyAlias "scala.package$.Throwable" (TyRef "java.lang.Throwable"))])
                           None)]]
                     (TyRef "scala.Nothing")
                     (Some
@@ -318,7 +328,7 @@ Definition ox_unsupervised_package : tree :=
                           (ValDef
                             (Local "e" 17)
                             []
-                            (TyRef "scala.package$.Throwable")
+                            (TyAlias "scala.package$.Throwable" (TyRef "java.lang.Throwable"))
                             (Some (Select (Ident (Local "es" 16)) (Member "scala.collection.IterableOps" "head" ":"))));
                           (Apply
                             (TypeApply
@@ -429,7 +439,11 @@ Definition ox_unsupervised_package : tree :=
                                                   (CaseDef
                                                     (Bind
                                                       (Local "e" 24)
-                                                      (Typed Wildcard (TyRef "scala.package$.Throwable")))
+                                                      (Typed
+                                                        Wildcard
+                                                        (TyAlias
+                                                          "scala.package$.Throwable"
+                                                          (TyRef "java.lang.Throwable"))))
                                                     None
                                                     (Apply
                                                       (TypeApply
@@ -439,7 +453,10 @@ Definition ox_unsupervised_package : tree :=
                                                             "scala.Some$"
                                                             "apply"
                                                             "1,java.lang.Object:scala.Some"))
-                                                        [(TyRef "scala.package$.Throwable")])
+                                                        [
+                                                          (TyAlias
+                                                            "scala.package$.Throwable"
+                                                            (TyRef "java.lang.Throwable"))])
                                                       [(Ident (Local "e" 24))]))]
                                                 None)))
                                           [])]

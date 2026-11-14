@@ -42,7 +42,7 @@ Definition ox_channels_ChannelClosedUnion : tree :=
             (Member "ox.channels.ChannelClosedUnion$" "writeReplace" ":java.lang.Object")
             ["Method"; "Private"; "Synthetic"]
             [[]]
-            (TyRef "scala.AnyRef")
+            (TyAlias "scala.AnyRef" (TyRef "java.lang.Object"))
             (Some
               (Apply
                 (Select

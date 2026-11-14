@@ -46,7 +46,7 @@ Definition ox_scheduling_Schedule : tree :=
             (Select (New (TyRef "java.lang.Object")) (Member "java.lang.Object" "<init>" ":java.lang.Object"))
             []);
           (TypeTree (TyRef "scala.Product"));
-          (TypeTree (TyRef "scala.package$.Serializable"))]
+          (TypeTree (TyAlias "scala.package$.Serializable" (TyRef "java.io.Serializable")))]
         None
         [
           (ValDef
@@ -172,7 +172,7 @@ Definition ox_scheduling_Schedule : tree :=
             (Member "ox.scheduling.Schedule" "productPrefix" ":")
             ["Method"; "Override"; "Synthetic"]
             []
-            (TyRef "scala.Predef$.String")
+            (TyAlias "scala.Predef$.String" (TyRef "java.lang.String"))
             (Some (Literal (CString "Schedule")))
             [(Member "scala.Product" "productPrefix" ":")]);
           (DefDef
@@ -212,7 +212,7 @@ Definition ox_scheduling_Schedule : tree :=
             (Member "ox.scheduling.Schedule" "productElementName" "scala.Int:java.lang.String")
             ["Method"; "Override"; "Synthetic"]
             [[(ValDef (Local "n" 6) ["Param"] (TyRef "scala.Int") None)]]
-            (TyRef "scala.Predef$.String")
+            (TyAlias "scala.Predef$.String" (TyRef "java.lang.String"))
             (Some
               (Match
                 false
@@ -887,7 +887,7 @@ Definition ox_scheduling_Schedule : tree :=
             (Member "ox.scheduling.Schedule$" "writeReplace" ":java.lang.Object")
             ["Method"; "Private"; "Synthetic"]
             [[]]
-            (TyRef "scala.AnyRef")
+            (TyAlias "scala.AnyRef" (TyRef "java.lang.Object"))
             (Some
               (Apply
                 (Select
@@ -1515,7 +1515,7 @@ Definition ox_scheduling_Schedule : tree :=
             (Member "ox.scheduling.Schedule$" "fromProduct" "scala.Product:ox.scheduling.Schedule")
             ["Method"; "Synthetic"]
             [[(ValDef (Local "x$0" 66) ["Param"] (TyRef "scala.Product") None)]]
-            (TyRef "ox.scheduling.Schedule$.MirroredMonoType")
+            (TyAlias "ox.scheduling.Schedule$.MirroredMonoType" (TyRef "ox.scheduling.Schedule"))
             (Some
               (Block
                 [

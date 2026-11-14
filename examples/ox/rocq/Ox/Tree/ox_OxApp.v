@@ -65,7 +65,7 @@ Definition ox_OxApp : tree :=
                 (ValDef
                   (Local "args" 0)
                   ["Param"]
-                  (TyApp (TyRef "scala.Array") [(TyRef "scala.Predef$.String")])
+                  (TyApp (TyRef "scala.Array") [(TyAlias "scala.Predef$.String" (TyRef "java.lang.String"))])
                   None)]]
             (TyRef "scala.Unit")
             (Some
@@ -267,7 +267,11 @@ Definition ox_OxApp : tree :=
                                                   (CaseDef
                                                     (Bind
                                                       (Local "e" 11)
-                                                      (Typed Wildcard (TyRef "scala.package$.InterruptedException")))
+                                                      (Typed
+                                                        Wildcard
+                                                        (TyAlias
+                                                          "scala.package$.InterruptedException"
+                                                          (TyRef "java.lang.InterruptedException"))))
                                                     None
                                                     (Block
                                                       [
@@ -323,7 +327,9 @@ Definition ox_OxApp : tree :=
                                                               (TyApp
                                                                 (TyRef "scala.util.Either")
                                                                 [
-                                                                  (TyRef "scala.package$.Throwable");
+                                                                  (TyAlias
+                                                                    "scala.package$.Throwable"
+                                                                    (TyRef "java.lang.Throwable"));
                                                                   (TyRef "ox.ExitCode")])])
                                                           [
                                                             (Select
@@ -371,10 +377,15 @@ Definition ox_OxApp : tree :=
                                                                       (Literal
                                                                         (CString "Clean shutdown timed out after "));
                                                                       (Literal (CString ", exiting."))]
-                                                                    (TyRef "scala.Predef$.String"))
+                                                                    (TyAlias
+                                                                      "scala.Predef$.String"
+                                                                      (TyRef "java.lang.String")))
                                                                   (TyApp
                                                                     (TyRef "scala.<repeated>")
-                                                                    [(TyRef "scala.Predef$.String")]))])
+                                                                    [
+                                                                      (TyAlias
+                                                                        "scala.Predef$.String"
+                                                                        (TyRef "java.lang.String"))]))])
                                                             (Member
                                                               "scala.StringContext"
                                                               "s"
@@ -457,7 +468,9 @@ Definition ox_OxApp : tree :=
                         (Closure (Ident (Local "$anonfun" 5)) None))])
                   [
                     (CaseDef
-                      (Typed Wildcard (TyRef "scala.package$.InterruptedException"))
+                      (Typed
+                        Wildcard
+                        (TyAlias "scala.package$.InterruptedException" (TyRef "java.lang.InterruptedException")))
                       None
                       (Block
                         []
@@ -508,7 +521,9 @@ Definition ox_OxApp : tree :=
                 (ValDef
                   (Local "args" 18)
                   ["Param"]
-                  (TyApp (TyRef "scala.collection.immutable.Vector") [(TyRef "scala.Predef$.String")])
+                  (TyApp
+                    (TyRef "scala.collection.immutable.Vector")
+                    [(TyAlias "scala.Predef$.String" (TyRef "java.lang.String"))])
                   None)];
               [(ValDef (Local "x$2" 19) ["Given"; "Param"; "Synthetic"] (TyRef "ox.Ox") None)]]
             (TyRef "ox.ExitCode")
@@ -533,7 +548,7 @@ Definition ox_OxApp : tree :=
             (Member "ox.OxApp$" "writeReplace" ":java.lang.Object")
             ["Method"; "Private"; "Synthetic"]
             [[]]
-            (TyRef "scala.AnyRef")
+            (TyAlias "scala.AnyRef" (TyRef "java.lang.Object"))
             (Some
               (Apply
                 (Select
@@ -561,12 +576,16 @@ Definition ox_OxApp : tree :=
                     ["Param"]
                     (TyApp
                       (TyRef "scala.Function1")
-                      [(TyRef "scala.package$.InterruptedException"); (TyRef "scala.Unit")])
+                      [
+                        (TyAlias "scala.package$.InterruptedException" (TyRef "java.lang.InterruptedException"));
+                        (TyRef "scala.Unit")])
                     None);
                   (ValDef
                     (Local "handleException" 22)
                     ["Param"]
-                    (TyApp (TyRef "scala.Function1") [(TyRef "scala.package$.Throwable"); (TyRef "scala.Unit")])
+                    (TyApp
+                      (TyRef "scala.Function1")
+                      [(TyAlias "scala.package$.Throwable" (TyRef "java.lang.Throwable")); (TyRef "scala.Unit")])
                     None);
                   (ValDef
                     (Local "threadFactory" 23)
@@ -591,7 +610,7 @@ Definition ox_OxApp : tree :=
                 (Select (New (TyRef "java.lang.Object")) (Member "java.lang.Object" "<init>" ":java.lang.Object"))
                 []);
               (TypeTree (TyRef "scala.Product"));
-              (TypeTree (TyRef "scala.package$.Serializable"))]
+              (TypeTree (TyAlias "scala.package$.Serializable" (TyRef "java.io.Serializable")))]
             None
             [
               (ValDef
@@ -604,12 +623,16 @@ Definition ox_OxApp : tree :=
                 ["CaseAccessor"; "ParamAccessor"]
                 (TyApp
                   (TyRef "scala.Function1")
-                  [(TyRef "scala.package$.InterruptedException"); (TyRef "scala.Unit")])
+                  [
+                    (TyAlias "scala.package$.InterruptedException" (TyRef "java.lang.InterruptedException"));
+                    (TyRef "scala.Unit")])
                 None);
               (ValDef
                 (Member "ox.OxApp$.Settings" "handleException" "")
                 ["CaseAccessor"; "ParamAccessor"]
-                (TyApp (TyRef "scala.Function1") [(TyRef "scala.package$.Throwable"); (TyRef "scala.Unit")])
+                (TyApp
+                  (TyRef "scala.Function1")
+                  [(TyAlias "scala.package$.Throwable" (TyRef "java.lang.Throwable")); (TyRef "scala.Unit")])
                 None);
               (ValDef
                 (Member "ox.OxApp$.Settings" "threadFactory" "")
@@ -801,7 +824,7 @@ Definition ox_OxApp : tree :=
                 (Member "ox.OxApp$.Settings" "productPrefix" ":")
                 ["Method"; "Override"; "Synthetic"]
                 []
-                (TyRef "scala.Predef$.String")
+                (TyAlias "scala.Predef$.String" (TyRef "java.lang.String"))
                 (Some (Literal (CString "Settings")))
                 [(Member "scala.Product" "productPrefix" ":")]);
               (DefDef
@@ -857,7 +880,7 @@ Definition ox_OxApp : tree :=
                 (Member "ox.OxApp$.Settings" "productElementName" "scala.Int:java.lang.String")
                 ["Method"; "Override"; "Synthetic"]
                 [[(ValDef (Local "n" 30) ["Param"] (TyRef "scala.Int") None)]]
-                (TyRef "scala.Predef$.String")
+                (TyAlias "scala.Predef$.String" (TyRef "java.lang.String"))
                 (Some
                   (Match
                     false
@@ -898,12 +921,16 @@ Definition ox_OxApp : tree :=
                       ["Param"]
                       (TyApp
                         (TyRef "scala.Function1")
-                        [(TyRef "scala.package$.InterruptedException"); (TyRef "scala.Unit")])
+                        [
+                          (TyAlias "scala.package$.InterruptedException" (TyRef "java.lang.InterruptedException"));
+                          (TyRef "scala.Unit")])
                       None);
                     (ValDef
                       (Local "handleException" 33)
                       ["Param"]
-                      (TyApp (TyRef "scala.Function1") [(TyRef "scala.package$.Throwable"); (TyRef "scala.Unit")])
+                      (TyApp
+                        (TyRef "scala.Function1")
+                        [(TyAlias "scala.package$.Throwable" (TyRef "java.lang.Throwable")); (TyRef "scala.Unit")])
                       None);
                     (ValDef
                       (Local "threadFactory" 34)
@@ -949,12 +976,16 @@ Definition ox_OxApp : tree :=
                       ["Param"]
                       (TyApp
                         (TyRef "scala.Function1")
-                        [(TyRef "scala.package$.InterruptedException"); (TyRef "scala.Unit")])
+                        [
+                          (TyAlias "scala.package$.InterruptedException" (TyRef "java.lang.InterruptedException"));
+                          (TyRef "scala.Unit")])
                       None);
                     (ValDef
                       (Local "handleException" 37)
                       ["Param"]
-                      (TyApp (TyRef "scala.Function1") [(TyRef "scala.package$.Throwable"); (TyRef "scala.Unit")])
+                      (TyApp
+                        (TyRef "scala.Function1")
+                        [(TyAlias "scala.package$.Throwable" (TyRef "java.lang.Throwable")); (TyRef "scala.Unit")])
                       None);
                     (ValDef
                       (Local "threadFactory" 38)
@@ -1000,12 +1031,16 @@ Definition ox_OxApp : tree :=
                       ["Param"]
                       (TyApp
                         (TyRef "scala.Function1")
-                        [(TyRef "scala.package$.InterruptedException"); (TyRef "scala.Unit")])
+                        [
+                          (TyAlias "scala.package$.InterruptedException" (TyRef "java.lang.InterruptedException"));
+                          (TyRef "scala.Unit")])
                       None);
                     (ValDef
                       (Local "handleException" 42)
                       ["Param"]
-                      (TyApp (TyRef "scala.Function1") [(TyRef "scala.package$.Throwable"); (TyRef "scala.Unit")])
+                      (TyApp
+                        (TyRef "scala.Function1")
+                        [(TyAlias "scala.package$.Throwable" (TyRef "java.lang.Throwable")); (TyRef "scala.Unit")])
                       None);
                     (ValDef
                       (Local "threadFactory" 43)
@@ -1043,12 +1078,16 @@ Definition ox_OxApp : tree :=
                       ["Param"]
                       (TyApp
                         (TyRef "scala.Function1")
-                        [(TyRef "scala.package$.InterruptedException"); (TyRef "scala.Unit")])
+                        [
+                          (TyAlias "scala.package$.InterruptedException" (TyRef "java.lang.InterruptedException"));
+                          (TyRef "scala.Unit")])
                       None);
                     (ValDef
                       (Local "handleException" 46)
                       ["Param"]
-                      (TyApp (TyRef "scala.Function1") [(TyRef "scala.package$.Throwable"); (TyRef "scala.Unit")])
+                      (TyApp
+                        (TyRef "scala.Function1")
+                        [(TyAlias "scala.package$.Throwable" (TyRef "java.lang.Throwable")); (TyRef "scala.Unit")])
                       None);
                     (ValDef
                       (Local "threadFactory" 47)
@@ -1091,12 +1130,16 @@ Definition ox_OxApp : tree :=
                       ["HasDefault"; "Param"]
                       (TyApp
                         (TyRef "scala.Function1")
-                        [(TyRef "scala.package$.InterruptedException"); (TyRef "scala.Unit")])
+                        [
+                          (TyAlias "scala.package$.InterruptedException" (TyRef "java.lang.InterruptedException"));
+                          (TyRef "scala.Unit")])
                       None);
                     (ValDef
                       (Local "handleException" 51)
                       ["HasDefault"; "Param"]
-                      (TyApp (TyRef "scala.Function1") [(TyRef "scala.package$.Throwable"); (TyRef "scala.Unit")])
+                      (TyApp
+                        (TyRef "scala.Function1")
+                        [(TyAlias "scala.package$.Throwable" (TyRef "java.lang.Throwable")); (TyRef "scala.Unit")])
                       None);
                     (ValDef
                       (Local "threadFactory" 52)
@@ -1144,7 +1187,9 @@ Definition ox_OxApp : tree :=
                 (TyAnnot
                   (TyApp
                     (TyRef "scala.Function1")
-                    [(TyRef "scala.package$.InterruptedException"); (TyRef "scala.Unit")])
+                    [
+                      (TyAlias "scala.package$.InterruptedException" (TyRef "java.lang.InterruptedException"));
+                      (TyRef "scala.Unit")])
                   "scala.annotation.unchecked.uncheckedVariance")
                 (Some (Ident (Member "ox.OxApp$.Settings" "handleInterruptedException" "")))
                 []);
@@ -1153,7 +1198,9 @@ Definition ox_OxApp : tree :=
                 ["Method"; "Synthetic"]
                 []
                 (TyAnnot
-                  (TyApp (TyRef "scala.Function1") [(TyRef "scala.package$.Throwable"); (TyRef "scala.Unit")])
+                  (TyApp
+                    (TyRef "scala.Function1")
+                    [(TyAlias "scala.package$.Throwable" (TyRef "java.lang.Throwable")); (TyRef "scala.Unit")])
                   "scala.annotation.unchecked.uncheckedVariance")
                 (Some (Ident (Member "ox.OxApp$.Settings" "handleException" "")))
                 []);
@@ -1197,7 +1244,9 @@ Definition ox_OxApp : tree :=
                 []
                 (TyApp
                   (TyRef "scala.Function1")
-                  [(TyRef "scala.package$.InterruptedException"); (TyRef "scala.Unit")])
+                  [
+                    (TyAlias "scala.package$.InterruptedException" (TyRef "java.lang.InterruptedException"));
+                    (TyRef "scala.Unit")])
                 (Some
                   (Select (This "ox.OxApp$.Settings") (Member "ox.OxApp$.Settings" "handleInterruptedException" "")))
                 []);
@@ -1205,7 +1254,9 @@ Definition ox_OxApp : tree :=
                 (Member "ox.OxApp$.Settings" "_3" ":")
                 ["Method"; "Synthetic"]
                 []
-                (TyApp (TyRef "scala.Function1") [(TyRef "scala.package$.Throwable"); (TyRef "scala.Unit")])
+                (TyApp
+                  (TyRef "scala.Function1")
+                  [(TyAlias "scala.package$.Throwable" (TyRef "java.lang.Throwable")); (TyRef "scala.Unit")])
                 (Some (Select (This "ox.OxApp$.Settings") (Member "ox.OxApp$.Settings" "handleException" "")))
                 []);
               (DefDef
@@ -1260,7 +1311,7 @@ Definition ox_OxApp : tree :=
                 (Member "ox.OxApp$.Settings$" "writeReplace" ":java.lang.Object")
                 ["Method"; "Private"; "Synthetic"]
                 [[]]
-                (TyRef "scala.AnyRef")
+                (TyAlias "scala.AnyRef" (TyRef "java.lang.Object"))
                 (Some
                   (Apply
                     (Select
@@ -1285,12 +1336,16 @@ Definition ox_OxApp : tree :=
                       ["Param"]
                       (TyApp
                         (TyRef "scala.Function1")
-                        [(TyRef "scala.package$.InterruptedException"); (TyRef "scala.Unit")])
+                        [
+                          (TyAlias "scala.package$.InterruptedException" (TyRef "java.lang.InterruptedException"));
+                          (TyRef "scala.Unit")])
                       None);
                     (ValDef
                       (Local "handleException" 57)
                       ["Param"]
-                      (TyApp (TyRef "scala.Function1") [(TyRef "scala.package$.Throwable"); (TyRef "scala.Unit")])
+                      (TyApp
+                        (TyRef "scala.Function1")
+                        [(TyAlias "scala.package$.Throwable" (TyRef "java.lang.Throwable")); (TyRef "scala.Unit")])
                       None);
                     (ValDef
                       (Local "threadFactory" 58)
@@ -1345,12 +1400,16 @@ Definition ox_OxApp : tree :=
                       ["Param"]
                       (TyApp
                         (TyRef "scala.Function1")
-                        [(TyRef "scala.package$.InterruptedException"); (TyRef "scala.Unit")])
+                        [
+                          (TyAlias "scala.package$.InterruptedException" (TyRef "java.lang.InterruptedException"));
+                          (TyRef "scala.Unit")])
                       None);
                     (ValDef
                       (Local "handleException" 64)
                       ["Param"]
-                      (TyApp (TyRef "scala.Function1") [(TyRef "scala.package$.Throwable"); (TyRef "scala.Unit")])
+                      (TyApp
+                        (TyRef "scala.Function1")
+                        [(TyAlias "scala.package$.Throwable" (TyRef "java.lang.Throwable")); (TyRef "scala.Unit")])
                       None);
                     (ValDef
                       (Local "threadFactory" 65)
@@ -1392,12 +1451,16 @@ Definition ox_OxApp : tree :=
                       ["Param"]
                       (TyApp
                         (TyRef "scala.Function1")
-                        [(TyRef "scala.package$.InterruptedException"); (TyRef "scala.Unit")])
+                        [
+                          (TyAlias "scala.package$.InterruptedException" (TyRef "java.lang.InterruptedException"));
+                          (TyRef "scala.Unit")])
                       None);
                     (ValDef
                       (Local "handleException" 68)
                       ["Param"]
-                      (TyApp (TyRef "scala.Function1") [(TyRef "scala.package$.Throwable"); (TyRef "scala.Unit")])
+                      (TyApp
+                        (TyRef "scala.Function1")
+                        [(TyAlias "scala.package$.Throwable" (TyRef "java.lang.Throwable")); (TyRef "scala.Unit")])
                       None);
                     (ValDef
                       (Local "threadFactory" 69)
@@ -1429,14 +1492,22 @@ Definition ox_OxApp : tree :=
               (ValDef
                 (Member "ox.OxApp$.Settings$" "DefaultLogException" "")
                 []
-                (TyApp (TyRef "scala.Function1") [(TyRef "scala.package$.Throwable"); (TyRef "scala.Unit")])
+                (TyApp
+                  (TyRef "scala.Function1")
+                  [(TyAlias "scala.package$.Throwable" (TyRef "java.lang.Throwable")); (TyRef "scala.Unit")])
                 (Some
                   (Block
                     [
                       (DefDef
                         (Local "$anonfun" 71)
                         ["Artifact"; "Method"; "Synthetic"]
-                        [[(ValDef (Local "t" 72) ["Param"] (TyRef "scala.package$.Throwable") None)]]
+                        [
+                          [
+                            (ValDef
+                              (Local "t" 72)
+                              ["Param"]
+                              (TyAlias "scala.package$.Throwable" (TyRef "java.lang.Throwable"))
+                              None)]]
                         (TyRef "scala.Unit")
                         (Some
                           (Block
@@ -1489,18 +1560,28 @@ Definition ox_OxApp : tree :=
                     (ValDef
                       (Local "logException" 74)
                       ["Param"]
-                      (TyApp (TyRef "scala.Function1") [(TyRef "scala.package$.Throwable"); (TyRef "scala.Unit")])
+                      (TyApp
+                        (TyRef "scala.Function1")
+                        [(TyAlias "scala.package$.Throwable" (TyRef "java.lang.Throwable")); (TyRef "scala.Unit")])
                       None)]]
                 (TyApp
                   (TyRef "scala.Function1")
-                  [(TyRef "scala.package$.InterruptedException"); (TyRef "scala.Unit")])
+                  [
+                    (TyAlias "scala.package$.InterruptedException" (TyRef "java.lang.InterruptedException"));
+                    (TyRef "scala.Unit")])
                 (Some
                   (Block
                     [
                       (DefDef
                         (Local "$anonfun" 75)
                         ["Artifact"; "Method"; "Synthetic"]
-                        [[(ValDef (Local "t" 76) ["Param"] (TyRef "scala.package$.InterruptedException") None)]]
+                        [
+                          [
+                            (ValDef
+                              (Local "t" 76)
+                              ["Param"]
+                              (TyAlias "scala.package$.InterruptedException" (TyRef "java.lang.InterruptedException"))
+                              None)]]
                         (TyRef "scala.Unit")
                         (Some
                           (Apply
@@ -1538,7 +1619,11 @@ Definition ox_OxApp : tree :=
                                         (Ident (Local "t2" 78))
                                         [
                                           (CaseDef
-                                            (Typed Wildcard (TyRef "scala.package$.InterruptedException"))
+                                            (Typed
+                                              Wildcard
+                                              (TyAlias
+                                                "scala.package$.InterruptedException"
+                                                (TyRef "java.lang.InterruptedException")))
                                             None
                                             (Block [] (Literal CUnit)));
                                           (CaseDef
@@ -1596,7 +1681,7 @@ Definition ox_OxApp : tree :=
                 (Member "ox.OxApp$.Settings$" "fromProduct" "scala.Product:ox.OxApp$.Settings")
                 ["Method"; "Synthetic"]
                 [[(ValDef (Local "x$0" 79) ["Param"] (TyRef "scala.Product") None)]]
-                (TyRef "ox.OxApp$.Settings$.MirroredMonoType")
+                (TyAlias "ox.OxApp$.Settings$.MirroredMonoType" (TyRef "ox.OxApp$.Settings"))
                 (Some
                   (Block
                     [
@@ -1619,7 +1704,9 @@ Definition ox_OxApp : tree :=
                         ["Synthetic"]
                         (TyApp
                           (TyRef "scala.Function1")
-                          [(TyRef "scala.package$.InterruptedException"); (TyRef "scala.Unit")])
+                          [
+                            (TyAlias "scala.package$.InterruptedException" (TyRef "java.lang.InterruptedException"));
+                            (TyRef "scala.Unit")])
                         (Some
                           (TypeApply
                             (Select
@@ -1632,11 +1719,17 @@ Definition ox_OxApp : tree :=
                             [
                               (TyApp
                                 (TyRef "scala.Function1")
-                                [(TyRef "scala.package$.InterruptedException"); (TyRef "scala.Unit")])])));
+                                [
+                                  (TyAlias
+                                    "scala.package$.InterruptedException"
+                                    (TyRef "java.lang.InterruptedException"));
+                                  (TyRef "scala.Unit")])])));
                       (ValDef
                         (Local "handleException$1" 82)
                         ["Synthetic"]
-                        (TyApp (TyRef "scala.Function1") [(TyRef "scala.package$.Throwable"); (TyRef "scala.Unit")])
+                        (TyApp
+                          (TyRef "scala.Function1")
+                          [(TyAlias "scala.package$.Throwable" (TyRef "java.lang.Throwable")); (TyRef "scala.Unit")])
                         (Some
                           (TypeApply
                             (Select
@@ -1649,7 +1742,9 @@ Definition ox_OxApp : tree :=
                             [
                               (TyApp
                                 (TyRef "scala.Function1")
-                                [(TyRef "scala.package$.Throwable"); (TyRef "scala.Unit")])])));
+                                [
+                                  (TyAlias "scala.package$.Throwable" (TyRef "java.lang.Throwable"));
+                                  (TyRef "scala.Unit")])])));
                       (ValDef
                         (Local "threadFactory$1" 83)
                         ["Synthetic"]
@@ -1728,7 +1823,9 @@ Definition ox_OxApp : tree :=
                     (ValDef
                       (Local "args" 86)
                       ["Param"]
-                      (TyApp (TyRef "scala.collection.immutable.Vector") [(TyRef "scala.Predef$.String")])
+                      (TyApp
+                        (TyRef "scala.collection.immutable.Vector")
+                        [(TyAlias "scala.Predef$.String" (TyRef "java.lang.String"))])
                       None)];
                   [(ValDef (Local "x$2" 87) ["Given"; "Param"; "Synthetic"] (TyRef "ox.Ox") None)]]
                 (TyRef "ox.ExitCode")
@@ -1797,7 +1894,9 @@ Definition ox_OxApp : tree :=
                     (ValDef
                       (Local "args" 90)
                       ["Param"]
-                      (TyApp (TyRef "scala.collection.immutable.Vector") [(TyRef "scala.Predef$.String")])
+                      (TyApp
+                        (TyRef "scala.collection.immutable.Vector")
+                        [(TyAlias "scala.Predef$.String" (TyRef "java.lang.String"))])
                       None)];
                   [(ValDef (Local "x$2" 91) ["Given"; "Param"; "Synthetic"] (TyRef "ox.Ox") None)]]
                 (TyRef "ox.ExitCode")
@@ -1859,7 +1958,9 @@ Definition ox_OxApp : tree :=
                     (ValDef
                       (Local "args" 94)
                       ["Param"]
-                      (TyApp (TyRef "scala.collection.immutable.Vector") [(TyRef "scala.Predef$.String")])
+                      (TyApp
+                        (TyRef "scala.collection.immutable.Vector")
+                        [(TyAlias "scala.Predef$.String" (TyRef "java.lang.String"))])
                       None)];
                   [(ValDef (Local "x$2" 95) ["Given"; "Param"; "Synthetic"] (TyRef "ox.Ox") None)]]
                 (TyApp (TyParam "ox.OxApp$.WithErrorMode" "F") [(TyRef "ox.ExitCode")])
@@ -1927,7 +2028,9 @@ Definition ox_OxApp : tree :=
                     (ValDef
                       (Local "args" 96)
                       ["Param"]
-                      (TyApp (TyRef "scala.collection.immutable.Vector") [(TyRef "scala.Predef$.String")])
+                      (TyApp
+                        (TyRef "scala.collection.immutable.Vector")
+                        [(TyAlias "scala.Predef$.String" (TyRef "java.lang.String"))])
                       None)];
                   [(ValDef (Local "x$2" 97) ["Given"; "Param"; "Synthetic"] (TyRef "ox.Ox") None)]]
                 (TyApp
@@ -1990,7 +2093,9 @@ Definition ox_OxApp : tree :=
                     (ValDef
                       (Local "args" 100)
                       ["Param"]
-                      (TyApp (TyRef "scala.collection.immutable.Vector") [(TyRef "scala.Predef$.String")])
+                      (TyApp
+                        (TyRef "scala.collection.immutable.Vector")
+                        [(TyAlias "scala.Predef$.String" (TyRef "java.lang.String"))])
                       None)];
                   [
                     (ValDef (Local "x$2" 101) ["Given"; "Param"; "Synthetic"] (TyRef "ox.Ox") None);

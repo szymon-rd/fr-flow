@@ -61,7 +61,7 @@ Definition ox_resilience_RetryConfig : tree :=
             (Select (New (TyRef "java.lang.Object")) (Member "java.lang.Object" "<init>" ":java.lang.Object"))
             []);
           (TypeTree (TyRef "scala.Product"));
-          (TypeTree (TyRef "scala.package$.Serializable"))]
+          (TypeTree (TyAlias "scala.package$.Serializable" (TyRef "java.io.Serializable")))]
         None
         [
           (TypeDef
@@ -232,7 +232,7 @@ Definition ox_resilience_RetryConfig : tree :=
             (Member "ox.resilience.RetryConfig" "productPrefix" ":")
             ["Method"; "Override"; "Synthetic"]
             []
-            (TyRef "scala.Predef$.String")
+            (TyAlias "scala.Predef$.String" (TyRef "java.lang.String"))
             (Some (Literal (CString "RetryConfig")))
             [(Member "scala.Product" "productPrefix" ":")]);
           (DefDef
@@ -276,7 +276,7 @@ Definition ox_resilience_RetryConfig : tree :=
             (Member "ox.resilience.RetryConfig" "productElementName" "scala.Int:java.lang.String")
             ["Method"; "Override"; "Synthetic"]
             [[(ValDef (Local "n" 7) ["Param"] (TyRef "scala.Int") None)]]
-            (TyRef "scala.Predef$.String")
+            (TyAlias "scala.Predef$.String" (TyRef "java.lang.String"))
             (Some
               (Match
                 false
@@ -706,7 +706,11 @@ Definition ox_resilience_RetryConfig : tree :=
           None
           [])
         [
-          (Apply (Select (New (TyRef "scala.AnyRef")) (Member "java.lang.Object" "<init>" ":java.lang.Object")) []);
+          (Apply
+            (Select
+              (New (TyAlias "scala.AnyRef" (TyRef "java.lang.Object")))
+              (Member "java.lang.Object" "<init>" ":java.lang.Object"))
+            []);
           (TypeTree (TyRef "scala.deriving.Mirror$.Product"))]
         (Some (ValDef NoSym [] (TyTerm (Member "ox.resilience" "RetryConfig" "")) None))
         [
@@ -714,7 +718,7 @@ Definition ox_resilience_RetryConfig : tree :=
             (Member "ox.resilience.RetryConfig$" "writeReplace" ":java.lang.Object")
             ["Method"; "Private"; "Synthetic"]
             [[]]
-            (TyRef "scala.AnyRef")
+            (TyAlias "scala.AnyRef" (TyRef "java.lang.Object"))
             (Some
               (Apply
                 (Select
@@ -886,7 +890,13 @@ Definition ox_resilience_RetryConfig : tree :=
             (Member "ox.resilience.RetryConfig$" "fromProduct" "scala.Product:ox.resilience.RetryConfig")
             ["Method"; "Synthetic"]
             [[(ValDef (Local "x$0" 27) ["Param"] (TyRef "scala.Product") None)]]
-            (TyRef "ox.resilience.RetryConfig$.MirroredMonoType")
+            (TyAlias
+              "ox.resilience.RetryConfig$.MirroredMonoType"
+              (TyApp
+                (TyRef "ox.resilience.RetryConfig")
+                [
+                  (TyBounds (TyRef "scala.Nothing") (TyRef "scala.AnyKind"));
+                  (TyBounds (TyRef "scala.Nothing") (TyRef "scala.AnyKind"))]))
             (Some
               (Block
                 [

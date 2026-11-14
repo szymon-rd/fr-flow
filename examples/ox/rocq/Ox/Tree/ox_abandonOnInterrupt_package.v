@@ -63,7 +63,7 @@ Definition ox_abandonOnInterrupt_package : tree :=
             (Member "ox.abandonOnInterrupt$package$" "writeReplace" ":java.lang.Object")
             ["Method"; "Private"; "Synthetic"]
             [[]]
-            (TyRef "scala.AnyRef")
+            (TyAlias "scala.AnyRef" (TyRef "java.lang.Object"))
             (Some
               (Apply
                 (Select
@@ -165,7 +165,9 @@ Definition ox_abandonOnInterrupt_package : tree :=
                                 [(Ident (Local "op" 1))])])
                           [
                             (CaseDef
-                              (Bind (Local "t" 4) (Typed Wildcard (TyRef "scala.package$.Throwable")))
+                              (Bind
+                                (Local "t" 4)
+                                (Typed Wildcard (TyAlias "scala.package$.Throwable" (TyRef "java.lang.Throwable"))))
                               None
                               (Apply
                                 (TypeApply
@@ -189,7 +191,11 @@ Definition ox_abandonOnInterrupt_package : tree :=
                     [])
                   [
                     (CaseDef
-                      (Bind (Local "e" 5) (Typed Wildcard (TyRef "scala.package$.InterruptedException")))
+                      (Bind
+                        (Local "e" 5)
+                        (Typed
+                          Wildcard
+                          (TyAlias "scala.package$.InterruptedException" (TyRef "java.lang.InterruptedException"))))
                       None
                       (Block
                         [
@@ -237,7 +243,7 @@ Definition ox_abandonOnInterrupt_package : tree :=
               "java.lang.String,scala.Function0:scala.Unit")
             ["Method"]
             [
-              [(ValDef (Local "name" 8) ["Param"] (TyRef "scala.Predef$.String") None)];
+              [(ValDef (Local "name" 8) ["Param"] (TyAlias "scala.Predef$.String" (TyRef "java.lang.String")) None)];
               [(ValDef (Local "body" 9) ["Param"] (TyByName (TyRef "scala.Unit")) None)]]
             (TyRef "scala.Unit")
             (Some
@@ -277,8 +283,10 @@ Definition ox_abandonOnInterrupt_package : tree :=
                                   (Typed
                                     (Repeated
                                       [(Literal (CString "ox-detached-")); (Literal (CString ""))]
-                                      (TyRef "scala.Predef$.String"))
-                                    (TyApp (TyRef "scala.<repeated>") [(TyRef "scala.Predef$.String")]))])
+                                      (TyAlias "scala.Predef$.String" (TyRef "java.lang.String")))
+                                    (TyApp
+                                      (TyRef "scala.<repeated>")
+                                      [(TyAlias "scala.Predef$.String" (TyRef "java.lang.String"))]))])
                               (Member "scala.StringContext" "s" "scala.collection.immutable.Seq:java.lang.String"))
                             [
                               (Typed
@@ -301,7 +309,7 @@ Definition ox_abandonOnInterrupt_package : tree :=
             (Member "ox.abandonOnInterrupt$package$" "fireAndForget" "java.lang.String,scala.Function0:scala.Unit")
             ["Method"]
             [
-              [(ValDef (Local "name" 11) ["Param"] (TyRef "scala.Predef$.String") None)];
+              [(ValDef (Local "name" 11) ["Param"] (TyAlias "scala.Predef$.String" (TyRef "java.lang.String")) None)];
               [(ValDef (Local "body" 12) ["Param"] (TyByName (TyRef "scala.Unit")) None)]]
             (TyRef "scala.Unit")
             (Some
@@ -318,13 +326,23 @@ Definition ox_abandonOnInterrupt_package : tree :=
                     []
                     (Try
                       (Ident (Local "body" 12))
-                      [(CaseDef (Typed Wildcard (TyRef "scala.package$.Throwable")) None (Literal CUnit))]
+                      [
+                        (CaseDef
+                          (Typed Wildcard (TyAlias "scala.package$.Throwable" (TyRef "java.lang.Throwable")))
+                          None
+                          (Literal CUnit))]
                       None))]))
             []);
           (DefDef
             (Member "ox.abandonOnInterrupt$package$" "asIOException" "java.lang.Throwable:java.io.IOException")
             ["Method"]
-            [[(ValDef (Local "t" 13) ["Param"] (TyRef "scala.package$.Throwable") None)]]
+            [
+              [
+                (ValDef
+                  (Local "t" 13)
+                  ["Param"]
+                  (TyAlias "scala.package$.Throwable" (TyRef "java.lang.Throwable"))
+                  None)]]
             (TyRef "java.io.IOException")
             (Some
               (Match
@@ -517,7 +535,9 @@ Definition ox_abandonOnInterrupt_package : tree :=
                                     (Literal CUnit))))))
                           [
                             (CaseDef
-                              (Bind (Local "t" 23) (Typed Wildcard (TyRef "scala.package$.Throwable")))
+                              (Bind
+                                (Local "t" 23)
+                                (Typed Wildcard (TyAlias "scala.package$.Throwable" (TyRef "java.lang.Throwable"))))
                               None
                               (Apply
                                 (TypeApply
@@ -690,7 +710,11 @@ Definition ox_abandonOnInterrupt_package : tree :=
                                       (CaseDef
                                         (Bind
                                           (Local "e" 27)
-                                          (Typed Wildcard (TyRef "scala.package$.InterruptedException")))
+                                          (Typed
+                                            Wildcard
+                                            (TyAlias
+                                              "scala.package$.InterruptedException"
+                                              (TyRef "java.lang.InterruptedException"))))
                                         None
                                         (Block
                                           [
@@ -1070,7 +1094,9 @@ Definition ox_abandonOnInterrupt_package : tree :=
                   (ValDef
                     (Local "pendingError" 37)
                     []
-                    (TyApp (TyRef "java.util.concurrent.atomic.AtomicReference") [(TyRef "scala.package$.Throwable")])
+                    (TyApp
+                      (TyRef "java.util.concurrent.atomic.AtomicReference")
+                      [(TyAlias "scala.package$.Throwable" (TyRef "java.lang.Throwable"))])
                     (Some
                       (Apply
                         (TypeApply
@@ -1078,12 +1104,12 @@ Definition ox_abandonOnInterrupt_package : tree :=
                             (New
                               (TyApp
                                 (TyRef "java.util.concurrent.atomic.AtomicReference")
-                                [(TyRef "scala.package$.Throwable")]))
+                                [(TyAlias "scala.package$.Throwable" (TyRef "java.lang.Throwable"))]))
                             (Member
                               "java.util.concurrent.atomic.AtomicReference"
                               "<init>"
                               "1:java.util.concurrent.atomic.AtomicReference"))
-                          [(TyRef "scala.package$.Throwable")])
+                          [(TyAlias "scala.package$.Throwable" (TyRef "java.lang.Throwable"))])
                         [])));
                   (Apply
                     (Apply
@@ -1169,7 +1195,11 @@ Definition ox_abandonOnInterrupt_package : tree :=
                                                 [(Literal (CClassOf "scala.Byte"))])])])
                                       [
                                         (CaseDef
-                                          (Bind (Local "t" 40) (Typed Wildcard (TyRef "scala.package$.Throwable")))
+                                          (Bind
+                                            (Local "t" 40)
+                                            (Typed
+                                              Wildcard
+                                              (TyAlias "scala.package$.Throwable" (TyRef "java.lang.Throwable"))))
                                           None
                                           (Apply
                                             (Select
@@ -1243,7 +1273,9 @@ Definition ox_abandonOnInterrupt_package : tree :=
                                               (CaseDef
                                                 (Bind
                                                   (Local "t" 42)
-                                                  (Typed Wildcard (TyRef "scala.package$.Throwable")))
+                                                  (Typed
+                                                    Wildcard
+                                                    (TyAlias "scala.package$.Throwable" (TyRef "java.lang.Throwable"))))
                                                 None
                                                 (Block
                                                   [
@@ -1327,14 +1359,16 @@ Definition ox_abandonOnInterrupt_package : tree :=
                                             (CaseDef
                                               (Bind
                                                 (Local "t" 46)
-                                                (Typed Wildcard (TyRef "scala.package$.Throwable")))
+                                                (Typed
+                                                  Wildcard
+                                                  (TyAlias "scala.package$.Throwable" (TyRef "java.lang.Throwable"))))
                                               None
                                               (Typed (Ident (Local "t" 46)) (TyRef "java.lang.Throwable")))]
                                           None)));
                                     (ValDef
                                       (Local "error" 47)
                                       []
-                                      (TyRef "scala.package$.Throwable")
+                                      (TyAlias "scala.package$.Throwable" (TyRef "java.lang.Throwable"))
                                       (Some
                                         (If
                                           (Apply
@@ -1503,7 +1537,13 @@ Definition ox_abandonOnInterrupt_package : tree :=
                               (Ident (Local "op" 50))
                               [
                                 (CaseDef
-                                  (Bind (Local "e" 52) (Typed Wildcard (TyRef "scala.package$.InterruptedException")))
+                                  (Bind
+                                    (Local "e" 52)
+                                    (Typed
+                                      Wildcard
+                                      (TyAlias
+                                        "scala.package$.InterruptedException"
+                                        (TyRef "java.lang.InterruptedException"))))
                                   None
                                   (Block
                                     [
@@ -1688,7 +1728,11 @@ Definition ox_abandonOnInterrupt_package : tree :=
                                       (CaseDef
                                         (Bind
                                           (Local "e" 57)
-                                          (Typed Wildcard (TyRef "scala.package$.InterruptedException")))
+                                          (Typed
+                                            Wildcard
+                                            (TyAlias
+                                              "scala.package$.InterruptedException"
+                                              (TyRef "java.lang.InterruptedException"))))
                                         None
                                         (Block
                                           []
@@ -1697,7 +1741,11 @@ Definition ox_abandonOnInterrupt_package : tree :=
                                               (Member "<special-ops>" "throw" "java.lang.Throwable:scala.Nothing"))
                                             [(Ident (Local "e" 57))])));
                                       (CaseDef
-                                        (Bind (Local "t" 58) (Typed Wildcard (TyRef "scala.package$.Throwable")))
+                                        (Bind
+                                          (Local "t" 58)
+                                          (Typed
+                                            Wildcard
+                                            (TyAlias "scala.package$.Throwable" (TyRef "java.lang.Throwable"))))
                                         None
                                         (Block
                                           []

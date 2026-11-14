@@ -65,7 +65,7 @@ Definition ox_CancellableFork : tree :=
             [[]]
             (TyApp
               (TyRef "scala.util.Either")
-              [(TyRef "scala.package$.Throwable"); (TyParam "ox.CancellableFork" "T")])
+              [(TyAlias "scala.package$.Throwable" (TyRef "java.lang.Throwable")); (TyParam "ox.CancellableFork" "T")])
             None
             []);
           (DefDef

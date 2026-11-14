@@ -39,7 +39,7 @@ Definition ox_channels_BufferCapacity_package : tree :=
             (Member "ox.channels.BufferCapacity$package$" "writeReplace" ":java.lang.Object")
             ["Method"; "Private"; "Synthetic"]
             [[]]
-            (TyRef "scala.AnyRef")
+            (TyAlias "scala.AnyRef" (TyRef "java.lang.Object"))
             (Some
               (Apply
                 (Select
@@ -94,7 +94,7 @@ Definition ox_channels_BufferCapacity_package : tree :=
                 (Member "ox.channels.BufferCapacity$package$.BufferCapacity$" "writeReplace" ":java.lang.Object")
                 ["Method"; "Private"; "Synthetic"]
                 [[]]
-                (TyRef "scala.AnyRef")
+                (TyAlias "scala.AnyRef" (TyRef "java.lang.Object"))
                 (Some
                   (Apply
                     (Select

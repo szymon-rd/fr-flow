@@ -10,7 +10,8 @@ import scala.quoted.Quotes
   * the type it denotes.
   */
 object CountSource:
-  def apply(cls: Class[?]): Map[String, Int] = Inspect.files(cls)(q => files => Counter[q.type](q).of(files.map(_._2)))
+  def apply(cls: Class[?]): Map[String, Int] =
+    Inspect.files(cls, _ => true)(q => files => Counter[q.type](q).of(files.map(_._2)))
 
   private final class Counter[Q <: Quotes & Singleton](val q: Q):
     import q.reflect.*

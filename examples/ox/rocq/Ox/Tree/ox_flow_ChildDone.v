@@ -89,7 +89,7 @@ Definition ox_flow_ChildDone : tree :=
             (Select (New (TyRef "java.lang.Object")) (Member "java.lang.Object" "<init>" ":java.lang.Object"))
             []);
           (TypeTree (TyRef "scala.Product"));
-          (TypeTree (TyRef "scala.package$.Serializable"));
+          (TypeTree (TyAlias "scala.package$.Serializable" (TyRef "java.io.Serializable")));
           (TypeTree (TyRef "scala.deriving.Mirror$.Singleton"))]
         (Some (ValDef NoSym [] (TyTerm (Member "ox.flow" "ChildDone" "")) None))
         [
@@ -97,7 +97,7 @@ Definition ox_flow_ChildDone : tree :=
             (Member "ox.flow.ChildDone$" "writeReplace" ":java.lang.Object")
             ["Method"; "Private"; "Synthetic"]
             [[]]
-            (TyRef "scala.AnyRef")
+            (TyAlias "scala.AnyRef" (TyRef "java.lang.Object"))
             (Some
               (Apply
                 (Select
@@ -143,7 +143,7 @@ Definition ox_flow_ChildDone : tree :=
             (Member "ox.flow.ChildDone$" "productPrefix" ":")
             ["Method"; "Override"; "Synthetic"]
             []
-            (TyRef "scala.Predef$.String")
+            (TyAlias "scala.Predef$.String" (TyRef "java.lang.String"))
             (Some (Literal (CString "ChildDone")))
             [(Member "scala.Product" "productPrefix" ":")]);
           (DefDef
@@ -175,7 +175,7 @@ Definition ox_flow_ChildDone : tree :=
             (Member "ox.flow.ChildDone$" "productElementName" "scala.Int:java.lang.String")
             ["Method"; "Override"; "Synthetic"]
             [[(ValDef (Local "n" 2) ["Param"] (TyRef "scala.Int") None)]]
-            (TyRef "scala.Predef$.String")
+            (TyAlias "scala.Predef$.String" (TyRef "java.lang.String"))
             (Some
               (Match
                 false

@@ -16,15 +16,18 @@ import scala.util.control.NonFatal
   */
 object Inspect:
   /** What `reading` makes of the TASTy `cls` was compiled into; Scala it does not read is a `NotRead`. */
-  def apply[A](cls: Class[?])(reading: Quotes => A): A = files(cls)(q => _ => reading(q))
+  def apply[A](cls: Class[?])(reading: Quotes => A): A = files(cls, _ => true)(q => _ => reading(q))
 
-  /** The same, `reading` given each TASTy file read: its path, and the tree it holds. */
-  def files[A](cls: Class[?])(reading: (q: Quotes) => List[(String, q.reflect.Tree)] => A): A =
+  /** The same, `reading` given each TASTy file read: its path, and the tree it holds. Of a directory of
+    * classes, only the files `keep` takes are read; a jar is read whole.
+    */
+  def files[A](cls: Class[?], keep: String => Boolean)(
+      reading: (q: Quotes) => List[(String, q.reflect.Tree)] => A): A =
     val out = mutable.ListBuffer.empty[Either[Throwable, A]]
     val inspector = new Inspector:
       def inspect(using q: Quotes)(tastys: List[Tasty[q.type]]): Unit =
         out += (try Right(reading(q)(tastys.map(t => t.path -> t.ast))) catch case NonFatal(e) => Left(e))
-    val (found, jars) = written(cls)
+    val (found, jars) = written(cls, keep)
     val read = try TastyInspector.inspectAllTastyFiles(found, jars, classpath(cls.getClassLoader))(inspector)
       catch case NonFatal(e) => throw NotRead(s"FrFlow: the TASTy of ${cls.getName} is not read: $e")
     out.headOption match
@@ -35,13 +38,13 @@ object Inspect:
         s"from (read: $read): it is compiled by Scala 3 and its TASTy kept beside its class file")
 
   /** The TASTy files beside `cls`'s class file: every one of the directory it was loaded from, or its jar. */
-  private def written(cls: Class[?]): (List[String], List[String]) =
+  private def written(cls: Class[?], keep: String => Boolean): (List[String], List[String]) =
     val from = Option(cls.getProtectionDomain.getCodeSource).map(s => Paths.get(s.getLocation.toURI))
       .getOrElse(throw NotRead(s"FrFlow: ${cls.getName} was not loaded from a directory or a jar"))
     if !Files.isDirectory(from) then (Nil, List(from.toString))
     else
       val all = Files.walk(from)
-      try (all.iterator.asScala.map(_.toString).filter(_.endsWith(".tasty")).toList.sorted, Nil)
+      try (all.iterator.asScala.map(_.toString).filter(p => p.endsWith(".tasty") && keep(p)).toList.sorted, Nil)
       finally all.close()
 
   /** The classpath `loader` and those above it load from, and the JVM's own: what the TASTy's names resolve in. */

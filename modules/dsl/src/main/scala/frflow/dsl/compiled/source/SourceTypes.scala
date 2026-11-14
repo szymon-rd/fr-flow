@@ -43,15 +43,24 @@ private[source] trait SourceTypes extends SourceSyms:
     case b: LambdaType => b.paramNames(i)
     case _             => s"_$i"
 
-  /** A class is its key, whatever path reaches it; an alias or a type member declared by a package or an object
-    * is its full name; a type parameter is named with what declares it; any other is a member of its prefix.
+  /** A class is its key, whatever path reaches it; a type member declared by a package or an object is its
+    * full name, and with it the type it is another name of, if it is one; a type parameter is named with what
+    * declares it; any other is a member of its prefix.
     */
   private def named(t: TypeRef): Datum =
     val s = t.typeSymbol
     if s.isNoSymbol then Datum.of("TySelect", ty(t.qualifier), Text(t.name))
     else if s.isTypeParam then Datum.of("TyParam", Text(scopeKey(s.maybeOwner)), Text(s.name))
     else if s.isClassDef then Datum.of("TyRef", Text(classKey(s)))
-    else if fixed(s.maybeOwner) then Datum.of("TyRef", Text(s.fullName))
+    else if fixed(s.maybeOwner) then alias(t).fold(Datum.of("TyRef", Text(s.fullName)))(is =>
+      Datum.of("TyAlias", Text(s.fullName), ty(is)))
     else Datum.of("TySelect", ty(t.qualifier), Text(t.name))
+
+  /** What `t` is another name of: nothing of a type that is abstract, or opaque. */
+  private def alias(t: TypeRef): Option[TypeRepr] =
+    val s = t.typeSymbol
+    Option.when(s.isAliasType && !s.flags.is(Flags.Opaque))(t.dealias).filter:
+      case to: TypeRef => to.typeSymbol != s
+      case _           => true
 
   private def fixed(owner: Symbol): Boolean = owner.isPackageDef || owner.flags.is(Flags.Module)

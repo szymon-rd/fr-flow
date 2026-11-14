@@ -105,9 +105,9 @@ Definition captured (t : tree) : list sym :=
     | _ => [] end) (nodes t) in
   filter (fun s => known s inner) (map fst (variables t)).
 
-(** `name` is `package`, or inside it. *)
+(** `name` is `package`, or inside it. Everything is inside the package with no name. *)
 Definition within (package name : string) : bool :=
-  String.eqb name package || String.prefix (package ++ ".")%string name.
+  String.eqb package "" || String.eqb name package || String.prefix (package ++ ".")%string name.
 
 (** A definition of `package`'s code: a member whose owner is inside it. A package, or a definition made inside
     a method, is not one. *)

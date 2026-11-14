@@ -506,7 +506,7 @@ Definition ox_Chunk : tree :=
                   ["Given"; "Param"]
                   (TyApp (TyRef "ox.Chunk$.IsText") [(TyParam "ox.Chunk" "A")])
                   None)]]
-            (TyRef "scala.Predef$.String")
+            (TyAlias "scala.Predef$.String" (TyRef "java.lang.String"))
             (Some
               (Apply
                 (Select
@@ -529,7 +529,7 @@ Definition ox_Chunk : tree :=
                   ["Given"; "Param"]
                   (TyApp (TyRef "ox.Chunk$.IsText") [(TyParam "ox.Chunk" "A")])
                   None)]]
-            (TyRef "scala.Predef$.String")
+            (TyAlias "scala.Predef$.String" (TyRef "java.lang.String"))
             (Some
               (Apply
                 (Select
@@ -864,7 +864,7 @@ Definition ox_Chunk : tree :=
             (Member "ox.Chunk$" "writeReplace" ":java.lang.Object")
             ["Method"; "Private"; "Synthetic"]
             [[]]
-            (TyRef "scala.AnyRef")
+            (TyAlias "scala.AnyRef" (TyRef "java.lang.Object"))
             (Some
               (Apply
                 (Select
@@ -1106,7 +1106,7 @@ Definition ox_Chunk : tree :=
                       (TyApp (TyRef "ox.Chunk") [(TyParam "ox.Chunk$.IsText" "T")])
                       None);
                     (ValDef (Local "charset" 38) ["Param"] (TyRef "java.nio.charset.Charset") None)]]
-                (TyRef "scala.Predef$.String")
+                (TyAlias "scala.Predef$.String" (TyRef "java.lang.String"))
                 None
                 [])]);
           (ValDef
@@ -1137,7 +1137,7 @@ Definition ox_Chunk : tree :=
                 (Member "ox.Chunk$.IsText$" "writeReplace" ":java.lang.Object")
                 ["Method"; "Private"; "Synthetic"]
                 [[]]
-                (TyRef "scala.AnyRef")
+                (TyAlias "scala.AnyRef" (TyRef "java.lang.Object"))
                 (Some
                   (Apply
                     (Select
@@ -1188,11 +1188,11 @@ Definition ox_Chunk : tree :=
                                   (TyApp (TyRef "ox.Chunk") [(TyRef "scala.Byte")])
                                   None);
                                 (ValDef (Local "charset" 41) ["Param"] (TyRef "java.nio.charset.Charset") None)]]
-                            (TyRef "scala.Predef$.String")
+                            (TyAlias "scala.Predef$.String" (TyRef "java.lang.String"))
                             (Some
                               (Apply
                                 (Select
-                                  (New (TyRef "scala.Predef$.String"))
+                                  (New (TyAlias "scala.Predef$.String" (TyRef "java.lang.String")))
                                   (Member
                                     "java.lang.String"
                                     "<init>"
@@ -1240,7 +1240,15 @@ Definition ox_Chunk : tree :=
           (DefDef
             (Member "ox.Chunk$" "ordinal" "ox.Chunk:scala.Int")
             ["Method"; "Synthetic"]
-            [[(ValDef (Local "x$0" 42) ["Param"] (TyRef "ox.Chunk$.MirroredMonoType") None)]]
+            [
+              [
+                (ValDef
+                  (Local "x$0" 42)
+                  ["Param"]
+                  (TyAlias
+                    "ox.Chunk$.MirroredMonoType"
+                    (TyApp (TyRef "ox.Chunk") [(TyBounds (TyRef "scala.Nothing") (TyRef "scala.AnyKind"))]))
+                  None)]]
             (TyRef "scala.Int")
             (Some
               (Match

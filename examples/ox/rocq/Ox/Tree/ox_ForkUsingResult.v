@@ -91,7 +91,13 @@ Definition ox_ForkUsingResult : tree :=
           (DefDef
             (Member "ox.ForkUsingResult" "wasInterruptedWith" "java.lang.InterruptedException:scala.Boolean")
             ["Method"; "Override"]
-            [[(ValDef (Local "ie" 1) ["Param"] (TyRef "scala.package$.InterruptedException") None)]]
+            [
+              [
+                (ValDef
+                  (Local "ie" 1)
+                  ["Param"]
+                  (TyAlias "scala.package$.InterruptedException" (TyRef "java.lang.InterruptedException"))
+                  None)]]
             (TyRef "scala.Boolean")
             (Some
               (Apply

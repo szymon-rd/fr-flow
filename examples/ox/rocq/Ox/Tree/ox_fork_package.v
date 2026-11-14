@@ -68,7 +68,7 @@ Definition ox_fork_package : tree :=
             (Member "ox.fork$package$" "writeReplace" ":java.lang.Object")
             ["Method"; "Private"; "Synthetic"]
             [[]]
-            (TyRef "scala.AnyRef")
+            (TyAlias "scala.AnyRef" (TyRef "java.lang.Object"))
             (Some
               (Apply
                 (Select
@@ -238,7 +238,9 @@ Definition ox_fork_package : tree :=
                                         [(Ident (Local "resultOrError" 7))])])])))
                           [
                             (CaseDef
-                              (Bind (Local "e" 9) (Typed Wildcard (TyRef "scala.package$.Throwable")))
+                              (Bind
+                                (Local "e" 9)
+                                (Typed Wildcard (TyAlias "scala.package$.Throwable" (TyRef "java.lang.Throwable"))))
                               None
                               (Block
                                 []
@@ -485,7 +487,9 @@ Definition ox_fork_package : tree :=
                                   []))))
                           [
                             (CaseDef
-                              (Bind (Local "e" 20) (Typed Wildcard (TyRef "scala.package$.Throwable")))
+                              (Bind
+                                (Local "e" 20)
+                                (Typed Wildcard (TyAlias "scala.package$.Throwable" (TyRef "java.lang.Throwable"))))
                               None
                               (Block
                                 []
@@ -621,7 +625,9 @@ Definition ox_fork_package : tree :=
                                 [(Ident (Local "f" 22))])])
                           [
                             (CaseDef
-                              (Bind (Local "e" 26) (Typed Wildcard (TyRef "scala.package$.Throwable")))
+                              (Bind
+                                (Local "e" 26)
+                                (Typed Wildcard (TyAlias "scala.package$.Throwable" (TyRef "java.lang.Throwable"))))
                               None
                               (Apply
                                 (TypeApply
@@ -809,7 +815,15 @@ Definition ox_fork_package : tree :=
                             "wasInterruptedWith"
                             "java.lang.InterruptedException:scala.Boolean")
                           ["Method"; "Override"]
-                          [[(ValDef (Local "ie" 36) ["Param"] (TyRef "scala.package$.InterruptedException") None)]]
+                          [
+                            [
+                              (ValDef
+                                (Local "ie" 36)
+                                ["Param"]
+                                (TyAlias
+                                  "scala.package$.InterruptedException"
+                                  (TyRef "java.lang.InterruptedException"))
+                                None)]]
                           (TyRef "scala.Boolean")
                           (Some
                             (Apply
@@ -1037,7 +1051,11 @@ Definition ox_fork_package : tree :=
                                                             (CaseDef
                                                               (Bind
                                                                 (Local "e" 48)
-                                                                (Typed Wildcard (TyRef "scala.package$.Throwable")))
+                                                                (Typed
+                                                                  Wildcard
+                                                                  (TyAlias
+                                                                    "scala.package$.Throwable"
+                                                                    (TyRef "java.lang.Throwable"))))
                                                               None
                                                               (Apply
                                                                 (TypeApply
@@ -1075,7 +1093,9 @@ Definition ox_fork_package : tree :=
                                 (Closure (Ident (Local "$anonfun" 46)) None))]))
                         [
                           (CaseDef
-                            (Typed Wildcard (TyRef "scala.package$.InterruptedException"))
+                            (Typed
+                              Wildcard
+                              (TyAlias "scala.package$.InterruptedException" (TyRef "java.lang.InterruptedException")))
                             None
                             (Block [] (Literal CUnit)))]
                         None)])]
@@ -1117,7 +1137,9 @@ Definition ox_fork_package : tree :=
                           [[]]
                           (TyApp
                             (TyRef "scala.util.Either")
-                            [(TyRef "scala.package$.Throwable"); (TyParam "ox.fork$package$.forkCancellable" "T")])
+                            [
+                              (TyAlias "scala.package$.Throwable" (TyRef "java.lang.Throwable"));
+                              (TyParam "ox.fork$package$.forkCancellable" "T")])
                           (Some
                             (Block
                               [
@@ -1143,7 +1165,11 @@ Definition ox_fork_package : tree :=
                                   (CaseDef
                                     (Bind
                                       (Local "e" 50)
-                                      (Typed Wildcard (TyRef "scala.concurrent.package$.ExecutionException")))
+                                      (Typed
+                                        Wildcard
+                                        (TyAlias
+                                          "scala.concurrent.package$.ExecutionException"
+                                          (TyRef "java.util.concurrent.ExecutionException"))))
                                     (Some
                                       (TypeApply
                                         (Select
@@ -1153,7 +1179,10 @@ Definition ox_fork_package : tree :=
                                               (Member "java.lang.Throwable" "getCause" ":java.lang.Throwable"))
                                             [])
                                           (Member "scala.Any" "isInstanceOf" "1:scala.Boolean"))
-                                        [(TyRef "scala.package$.InterruptedException")]))
+                                        [
+                                          (TyAlias
+                                            "scala.package$.InterruptedException"
+                                            (TyRef "java.lang.InterruptedException"))]))
                                     (Block
                                       []
                                       (Apply
@@ -1173,7 +1202,11 @@ Definition ox_fork_package : tree :=
                                   (CaseDef
                                     (Bind
                                       (Local "e" 51)
-                                      (Typed Wildcard (TyRef "scala.concurrent.package$.ExecutionException")))
+                                      (Typed
+                                        Wildcard
+                                        (TyAlias
+                                          "scala.concurrent.package$.ExecutionException"
+                                          (TyRef "java.util.concurrent.ExecutionException"))))
                                     (Some
                                       (Select
                                         (Apply
@@ -1209,7 +1242,11 @@ Definition ox_fork_package : tree :=
                                   (CaseDef
                                     (Bind
                                       (Local "e" 52)
-                                      (Typed Wildcard (TyRef "scala.package$.InterruptedException")))
+                                      (Typed
+                                        Wildcard
+                                        (TyAlias
+                                          "scala.package$.InterruptedException"
+                                          (TyRef "java.lang.InterruptedException"))))
                                     None
                                     (Block
                                       []
@@ -1218,7 +1255,11 @@ Definition ox_fork_package : tree :=
                                           (Select
                                             (Ident (Member "scala.package$" "Left" ""))
                                             (Member "scala.util.Left$" "apply" "2,java.lang.Object:scala.util.Left"))
-                                          [(TyRef "scala.package$.InterruptedException"); (TyRef "scala.Nothing")])
+                                          [
+                                            (TyAlias
+                                              "scala.package$.InterruptedException"
+                                              (TyRef "java.lang.InterruptedException"));
+                                            (TyRef "scala.Nothing")])
                                         [(Ident (Local "e" 52))])));
                                   (CaseDef
                                     (Unapply
@@ -1238,7 +1279,9 @@ Definition ox_fork_package : tree :=
                                           (Select
                                             (Ident (Member "scala.package$" "Left" ""))
                                             (Member "scala.util.Left$" "apply" "2,java.lang.Object:scala.util.Left"))
-                                          [(TyRef "scala.package$.Throwable"); (TyRef "scala.Nothing")])
+                                          [
+                                            (TyAlias "scala.package$.Throwable" (TyRef "java.lang.Throwable"));
+                                            (TyRef "scala.Nothing")])
                                         [(Ident (Local "e" 53))])))]
                                 None)))
                           [(Member "ox.CancellableFork" "cancel" ":scala.util.Either")]);
@@ -1297,7 +1340,10 @@ Definition ox_fork_package : tree :=
                                               [
                                                 (Apply
                                                   (Select
-                                                    (New (TyRef "scala.package$.InterruptedException"))
+                                                    (New
+                                                      (TyAlias
+                                                        "scala.package$.InterruptedException"
+                                                        (TyRef "java.lang.InterruptedException")))
                                                     (Member
                                                       "java.lang.InterruptedException"
                                                       "<init>"
@@ -1396,7 +1442,13 @@ Definition ox_fork_package : tree :=
                   (Ident (Local "f" 59))
                   [
                     (CaseDef
-                      (Bind (Local "e" 60) (Typed Wildcard (TyRef "scala.concurrent.package$.ExecutionException")))
+                      (Bind
+                        (Local "e" 60)
+                        (Typed
+                          Wildcard
+                          (TyAlias
+                            "scala.concurrent.package$.ExecutionException"
+                            (TyRef "java.util.concurrent.ExecutionException"))))
                       None
                       (Block
                         []
@@ -1411,7 +1463,9 @@ Definition ox_fork_package : tree :=
                                   "java.util.concurrent.ExecutionException:java.lang.Throwable"))
                               [(Ident (Local "e" 60))])])));
                     (CaseDef
-                      (Bind (Local "e" 61) (Typed Wildcard (TyRef "scala.package$.Throwable")))
+                      (Bind
+                        (Local "e" 61)
+                        (Typed Wildcard (TyAlias "scala.package$.Throwable" (TyRef "java.lang.Throwable"))))
                       None
                       (Block
                         []
@@ -1427,8 +1481,16 @@ Definition ox_fork_package : tree :=
               "causeWithSelfAsSuppressed"
               "java.util.concurrent.ExecutionException:java.lang.Throwable")
             ["Inline"; "Method"]
-            [[(ValDef (Local "e" 62) ["Param"] (TyRef "scala.concurrent.package$.ExecutionException") None)]]
-            (TyRef "scala.package$.Throwable")
+            [
+              [
+                (ValDef
+                  (Local "e" 62)
+                  ["Param"]
+                  (TyAlias
+                    "scala.concurrent.package$.ExecutionException"
+                    (TyRef "java.util.concurrent.ExecutionException"))
+                  None)]]
+            (TyAlias "scala.package$.Throwable" (TyRef "java.lang.Throwable"))
             (Some
               (Typed
                 (Block
@@ -1449,5 +1511,5 @@ Definition ox_fork_package : tree :=
                         (Member "java.lang.Throwable" "addSuppressed" "java.lang.Throwable:scala.Unit"))
                       [(Ident (Local "e" 62))])]
                   (Typed (Ident (Local "cause" 63)) (TyRef "java.lang.Throwable")))
-                (TyRef "scala.package$.Throwable")))
+                (TyAlias "scala.package$.Throwable" (TyRef "java.lang.Throwable"))))
             [])])]).

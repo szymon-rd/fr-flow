@@ -40,7 +40,7 @@ Definition ox_inScopeRunner_package : tree :=
             (Member "ox.inScopeRunner$package$" "writeReplace" ":java.lang.Object")
             ["Method"; "Private"; "Synthetic"]
             [[]]
-            (TyRef "scala.AnyRef")
+            (TyAlias "scala.AnyRef" (TyRef "java.lang.Object"))
             (Some
               (Apply
                 (Select

@@ -61,7 +61,7 @@ Definition ox_race_package : tree :=
             (Member "ox.race$package$" "writeReplace" ":java.lang.Object")
             ["Method"; "Private"; "Synthetic"]
             [[]]
-            (TyRef "scala.AnyRef")
+            (TyAlias "scala.AnyRef" (TyRef "java.lang.Object"))
             (Some
               (Apply
                 (Select
@@ -138,7 +138,10 @@ Definition ox_race_package : tree :=
                     [
                       (Apply
                         (Select
-                          (New (TyRef "scala.concurrent.package$.TimeoutException"))
+                          (New
+                            (TyAlias
+                              "scala.concurrent.package$.TimeoutException"
+                              (TyRef "java.util.concurrent.TimeoutException")))
                           (Member
                             "java.util.concurrent.TimeoutException"
                             "<init>"
@@ -161,8 +164,10 @@ Definition ox_race_package : tree :=
                                   (Typed
                                     (Repeated
                                       [(Literal (CString "Timed out after ")); (Literal (CString ""))]
-                                      (TyRef "scala.Predef$.String"))
-                                    (TyApp (TyRef "scala.<repeated>") [(TyRef "scala.Predef$.String")]))])
+                                      (TyAlias "scala.Predef$.String" (TyRef "java.lang.String")))
+                                    (TyApp
+                                      (TyRef "scala.<repeated>")
+                                      [(TyAlias "scala.Predef$.String" (TyRef "java.lang.String"))]))])
                               (Member "scala.StringContext" "s" "scala.collection.immutable.Seq:java.lang.String"))
                             [
                               (Typed
@@ -545,7 +550,7 @@ Definition ox_race_package : tree :=
                                             (TyRef "scala.util.Either")
                                             [
                                               (TyParam "ox.race$package$.raceSuccess" "E");
-                                              (TyRef "scala.package$.Throwable")])])
+                                              (TyAlias "scala.package$.Throwable" (TyRef "java.lang.Throwable"))])])
                                       None);
                                     (ValDef (Local "left" 21) ["Param"] (TyRef "scala.Int") None)]]
                                 (TyApp
@@ -572,7 +577,7 @@ Definition ox_race_package : tree :=
                                               (TyRef "scala.util.Either")
                                               [
                                                 (TyParam "ox.race$package$.raceSuccess" "E");
-                                                (TyRef "scala.package$.Throwable")])])
+                                                (TyAlias "scala.package$.Throwable" (TyRef "java.lang.Throwable"))])])
                                         [
                                           (Apply
                                             (Ident
@@ -580,7 +585,10 @@ Definition ox_race_package : tree :=
                                             [
                                               (Apply
                                                 (Select
-                                                  (New (TyRef "scala.package$.NoSuchElementException"))
+                                                  (New
+                                                    (TyAlias
+                                                      "scala.package$.NoSuchElementException"
+                                                      (TyRef "java.util.NoSuchElementException")))
                                                   (Member
                                                     "java.util.NoSuchElementException"
                                                     "<init>"
@@ -658,7 +666,9 @@ Definition ox_race_package : tree :=
                                                               (TyRef "scala.util.Either")
                                                               [
                                                                 (TyParam "ox.race$package$.raceSuccess" "E");
-                                                                (TyRef "scala.package$.Throwable")])
+                                                                (TyAlias
+                                                                  "scala.package$.Throwable"
+                                                                  (TyRef "java.lang.Throwable"))])
                                                             None)]]
                                                       (TyApp
                                                         (TyParam "ox.race$package$.raceSuccess" "F")
@@ -682,7 +692,9 @@ Definition ox_race_package : tree :=
                                                                   (TyRef "scala.util.Either")
                                                                   [
                                                                     (TyParam "ox.race$package$.raceSuccess" "E");
-                                                                    (TyRef "scala.package$.Throwable")])])
+                                                                    (TyAlias
+                                                                      "scala.package$.Throwable"
+                                                                      (TyRef "java.lang.Throwable"))])])
                                                             [(Ident (Local "x$1" 24)); (Ident (Local "x$2" 25))])
                                                           [
                                                             (CaseDef
@@ -702,7 +714,9 @@ Definition ox_race_package : tree :=
                                                                       (TyRef "scala.util.Either")
                                                                       [
                                                                         (TyParam "ox.race$package$.raceSuccess" "E");
-                                                                        (TyRef "scala.package$.Throwable")])])
+                                                                        (TyAlias
+                                                                          "scala.package$.Throwable"
+                                                                          (TyRef "java.lang.Throwable"))])])
                                                                 []
                                                                 [
                                                                   (Bind (Local "acc" 26) Wildcard);
@@ -755,7 +769,9 @@ Definition ox_race_package : tree :=
                                                                       (TyRef "scala.util.Either")
                                                                       [
                                                                         (TyParam "ox.race$package$.raceSuccess" "E");
-                                                                        (TyRef "scala.package$.Throwable")])])
+                                                                        (TyAlias
+                                                                          "scala.package$.Throwable"
+                                                                          (TyRef "java.lang.Throwable"))])])
                                                                 []
                                                                 [
                                                                   (Bind (Local "acc" 28) Wildcard);
@@ -842,7 +858,9 @@ Definition ox_race_package : tree :=
                                                                 (TyRef "scala.util.Either")
                                                                 [
                                                                   (TyParam "ox.race$package$.raceSuccess" "E");
-                                                                  (TyRef "scala.package$.Throwable")])
+                                                                  (TyAlias
+                                                                    "scala.package$.Throwable"
+                                                                    (TyRef "java.lang.Throwable"))])
                                                               None)]]
                                                         (TyRef "scala.Unit")
                                                         (Some
@@ -1010,7 +1028,9 @@ Definition ox_race_package : tree :=
                                                           (TyRef "scala.util.Either")
                                                           [
                                                             (TyParam "ox.race$package$.raceSuccess" "E");
-                                                            (TyRef "scala.package$.Throwable")])])
+                                                            (TyAlias
+                                                              "scala.package$.Throwable"
+                                                              (TyRef "java.lang.Throwable"))])])
                                                     [
                                                       (Apply
                                                         (TypeApply
@@ -1083,7 +1103,9 @@ Definition ox_race_package : tree :=
                                                         (TyRef "scala.util.Either")
                                                         [
                                                           (TyParam "ox.race$package$.raceSuccess" "E");
-                                                          (TyRef "scala.package$.Throwable")])])
+                                                          (TyAlias
+                                                            "scala.package$.Throwable"
+                                                            (TyRef "java.lang.Throwable"))])])
                                                   [
                                                     (Apply
                                                       (TypeApply
@@ -1093,7 +1115,11 @@ Definition ox_race_package : tree :=
                                                             "scala.util.Right$"
                                                             "apply"
                                                             "2,java.lang.Object:scala.util.Right"))
-                                                        [(TyRef "scala.Nothing"); (TyRef "scala.package$.Throwable")])
+                                                        [
+                                                          (TyRef "scala.Nothing");
+                                                          (TyAlias
+                                                            "scala.package$.Throwable"
+                                                            (TyRef "java.lang.Throwable"))])
                                                       [(Ident (Local "e" 36))])]);
                                                 (Apply
                                                   (Select
@@ -1147,7 +1173,7 @@ Definition ox_race_package : tree :=
                                       (TyRef "scala.util.Either")
                                       [
                                         (TyParam "ox.race$package$.raceSuccess" "E");
-                                        (TyRef "scala.package$.Throwable")])]);
+                                        (TyAlias "scala.package$.Throwable" (TyRef "java.lang.Throwable"))])]);
                                 (Select (Ident (Local "fs" 9)) (Member "scala.collection.SeqOps" "size" ":"))])))
                         [])]
                     (Closure (Ident (Local "$anonfun" 10)) None))]))
@@ -2271,7 +2297,9 @@ Definition ox_race_package : tree :=
                                               (CaseDef
                                                 (Bind
                                                   (Local "e" 99)
-                                                  (Typed Wildcard (TyRef "scala.package$.Throwable")))
+                                                  (Typed
+                                                    Wildcard
+                                                    (TyAlias "scala.package$.Throwable" (TyRef "java.lang.Throwable"))))
                                                 None
                                                 (Apply
                                                   (TypeApply

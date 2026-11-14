@@ -44,7 +44,7 @@ Definition ox_resilience_AdaptiveRetry : tree :=
             (Select (New (TyRef "java.lang.Object")) (Member "java.lang.Object" "<init>" ":java.lang.Object"))
             []);
           (TypeTree (TyRef "scala.Product"));
-          (TypeTree (TyRef "scala.package$.Serializable"))]
+          (TypeTree (TyAlias "scala.package$.Serializable" (TyRef "java.io.Serializable")))]
         None
         [
           (ValDef
@@ -213,7 +213,7 @@ Definition ox_resilience_AdaptiveRetry : tree :=
             (Member "ox.resilience.AdaptiveRetry" "productPrefix" ":")
             ["Method"; "Override"; "Synthetic"]
             []
-            (TyRef "scala.Predef$.String")
+            (TyAlias "scala.Predef$.String" (TyRef "java.lang.String"))
             (Some (Literal (CString "AdaptiveRetry")))
             [(Member "scala.Product" "productPrefix" ":")]);
           (DefDef
@@ -257,7 +257,7 @@ Definition ox_resilience_AdaptiveRetry : tree :=
             (Member "ox.resilience.AdaptiveRetry" "productElementName" "scala.Int:java.lang.String")
             ["Method"; "Override"; "Synthetic"]
             [[(ValDef (Local "n" 8) ["Param"] (TyRef "scala.Int") None)]]
-            (TyRef "scala.Predef$.String")
+            (TyAlias "scala.Predef$.String" (TyRef "java.lang.String"))
             (Some
               (Match
                 false
@@ -1193,7 +1193,9 @@ Definition ox_resilience_AdaptiveRetry : tree :=
                   ["Param"]
                   (TyApp
                     (TyRef "ox.resilience.RetryConfig")
-                    [(TyRef "scala.package$.Throwable"); (TyParam "ox.resilience.AdaptiveRetry.retry" "T")])
+                    [
+                      (TyAlias "scala.package$.Throwable" (TyRef "java.lang.Throwable"));
+                      (TyParam "ox.resilience.AdaptiveRetry.retry" "T")])
                   None);
                 (ValDef
                   (Local "shouldPayFailureCost" 45)
@@ -1203,7 +1205,9 @@ Definition ox_resilience_AdaptiveRetry : tree :=
                     [
                       (TyApp
                         (TyRef "scala.util.Either")
-                        [(TyRef "scala.package$.Throwable"); (TyParam "ox.resilience.AdaptiveRetry.retry" "T")]);
+                        [
+                          (TyAlias "scala.package$.Throwable" (TyRef "java.lang.Throwable"));
+                          (TyParam "ox.resilience.AdaptiveRetry.retry" "T")]);
                       (TyRef "scala.Boolean")])
                   None)];
               [
@@ -1234,14 +1238,16 @@ Definition ox_resilience_AdaptiveRetry : tree :=
                                 ["T"]
                                 (TyApp
                                   (TyRef "scala.util.Either")
-                                  [(TyRef "scala.package$.Throwable"); (TyParamRef "T")]))])
+                                  [
+                                    (TyAlias "scala.package$.Throwable" (TyRef "java.lang.Throwable"));
+                                    (TyParamRef "T")]))])
                           [
                             (Apply
                               (TypeApply
                                 (Select
                                   (New (TyLambda ["E"] (TyApp (TyRef "ox.EitherMode") [(TyParamRef "E")])))
                                   (Member "ox.EitherMode" "<init>" "1:ox.EitherMode"))
-                                [(TyRef "scala.package$.Throwable")])
+                                [(TyAlias "scala.package$.Throwable" (TyRef "java.lang.Throwable"))])
                               [])])
                         [(Ident (Local "config" 44)); (Ident (Local "shouldPayFailureCost" 45))])
                       [
@@ -1262,7 +1268,13 @@ Definition ox_resilience_AdaptiveRetry : tree :=
                       (DefDef
                         (Local "$anonfun" 47)
                         ["Artifact"; "Method"; "Synthetic"]
-                        [[(ValDef (Local "_$7" 48) ["Param"; "Synthetic"] (TyRef "scala.package$.Throwable") None)]]
+                        [
+                          [
+                            (ValDef
+                              (Local "_$7" 48)
+                              ["Param"; "Synthetic"]
+                              (TyAlias "scala.package$.Throwable" (TyRef "java.lang.Throwable"))
+                              None)]]
                         (TyParam "ox.resilience.AdaptiveRetry.retry" "T")
                         (Some
                           (Apply
@@ -1306,7 +1318,9 @@ Definition ox_resilience_AdaptiveRetry : tree :=
                   ["Param"]
                   (TyApp
                     (TyRef "ox.resilience.RetryConfig")
-                    [(TyRef "scala.package$.Throwable"); (TyParam "ox.resilience.AdaptiveRetry.retry" "T")])
+                    [
+                      (TyAlias "scala.package$.Throwable" (TyRef "java.lang.Throwable"));
+                      (TyParam "ox.resilience.AdaptiveRetry.retry" "T")])
                   None)];
               [
                 (ValDef
@@ -1341,7 +1355,7 @@ Definition ox_resilience_AdaptiveRetry : tree :=
                                 (TyApp
                                   (TyRef "scala.util.Either")
                                   [
-                                    (TyRef "scala.package$.Throwable");
+                                    (TyAlias "scala.package$.Throwable" (TyRef "java.lang.Throwable"));
                                     (TyParam "ox.resilience.AdaptiveRetry.retry" "T")])
                                 None)]]
                           (TyRef "scala.Boolean")
@@ -1368,7 +1382,9 @@ Definition ox_resilience_AdaptiveRetry : tree :=
                     [
                       (TyApp
                         (TyRef "scala.util.Either")
-                        [(TyRef "scala.package$.Throwable"); (TyParam "ox.resilience.AdaptiveRetry.retry" "T")]);
+                        [
+                          (TyAlias "scala.package$.Throwable" (TyRef "java.lang.Throwable"));
+                          (TyParam "ox.resilience.AdaptiveRetry.retry" "T")]);
                       (TyRef "scala.Boolean")])
                   None)];
               [
@@ -1569,7 +1585,7 @@ Definition ox_resilience_AdaptiveRetry : tree :=
             (Member "ox.resilience.AdaptiveRetry$" "writeReplace" ":java.lang.Object")
             ["Method"; "Private"; "Synthetic"]
             [[]]
-            (TyRef "scala.AnyRef")
+            (TyAlias "scala.AnyRef" (TyRef "java.lang.Object"))
             (Some
               (Apply
                 (Select
@@ -1649,7 +1665,7 @@ Definition ox_resilience_AdaptiveRetry : tree :=
             (Member "ox.resilience.AdaptiveRetry$" "fromProduct" "scala.Product:ox.resilience.AdaptiveRetry")
             ["Method"; "Synthetic"]
             [[(ValDef (Local "x$0" 67) ["Param"] (TyRef "scala.Product") None)]]
-            (TyRef "ox.resilience.AdaptiveRetry$.MirroredMonoType")
+            (TyAlias "ox.resilience.AdaptiveRetry$.MirroredMonoType" (TyRef "ox.resilience.AdaptiveRetry"))
             (Some
               (Block
                 [

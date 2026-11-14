@@ -72,7 +72,11 @@ Definition ox_resilience_CircuitBreakerResult : tree :=
           None
           [])
         [
-          (Apply (Select (New (TyRef "scala.AnyRef")) (Member "java.lang.Object" "<init>" ":java.lang.Object")) []);
+          (Apply
+            (Select
+              (New (TyAlias "scala.AnyRef" (TyRef "java.lang.Object")))
+              (Member "java.lang.Object" "<init>" ":java.lang.Object"))
+            []);
           (TypeTree (TyRef "scala.deriving.Mirror$.Sum"))]
         (Some (ValDef NoSym [] (TyTerm (Member "ox.resilience" "CircuitBreakerResult" "")) None))
         [
@@ -80,7 +84,7 @@ Definition ox_resilience_CircuitBreakerResult : tree :=
             (Member "ox.resilience.CircuitBreakerResult$" "writeReplace" ":java.lang.Object")
             ["Method"; "Private"; "Synthetic"]
             [[]]
-            (TyRef "scala.AnyRef")
+            (TyAlias "scala.AnyRef" (TyRef "java.lang.Object"))
             (Some
               (Apply
                 (Select
@@ -270,7 +274,7 @@ Definition ox_resilience_CircuitBreakerResult : tree :=
                         (Member "ox.resilience.CircuitBreakerResult$._$$anon#3" "readResolve" ":java.lang.Object")
                         ["Method"; "Private"; "Synthetic"]
                         [[]]
-                        (TyRef "scala.AnyRef")
+                        (TyAlias "scala.AnyRef" (TyRef "java.lang.Object"))
                         (Some
                           (Apply
                             (Select
@@ -288,7 +292,7 @@ Definition ox_resilience_CircuitBreakerResult : tree :=
                         (Member "ox.resilience.CircuitBreakerResult$._$$anon#3" "productPrefix" ":")
                         ["Method"; "Override"; "Synthetic"]
                         []
-                        (TyRef "scala.Predef$.String")
+                        (TyAlias "scala.Predef$.String" (TyRef "java.lang.String"))
                         (Some (Ident (Local "$name" 2)))
                         [(Member "scala.Product" "productPrefix" ":")]);
                       (DefDef
@@ -378,7 +382,15 @@ Definition ox_resilience_CircuitBreakerResult : tree :=
           (DefDef
             (Member "ox.resilience.CircuitBreakerResult$" "ordinal" "ox.resilience.CircuitBreakerResult:scala.Int")
             ["Method"; "Synthetic"]
-            [[(ValDef (Local "x$0" 5) ["Param"] (TyRef "ox.resilience.CircuitBreakerResult$.MirroredMonoType") None)]]
+            [
+              [
+                (ValDef
+                  (Local "x$0" 5)
+                  ["Param"]
+                  (TyAlias
+                    "ox.resilience.CircuitBreakerResult$.MirroredMonoType"
+                    (TyRef "ox.resilience.CircuitBreakerResult"))
+                  None)]]
             (TyRef "scala.Int")
             (Some (Select (Ident (Local "x$0" 5)) (Member "scala.reflect.Enum" "ordinal" ":")))
             [(Member "scala.deriving.Mirror$.Sum" "ordinal" "java.lang.Object:scala.Int")])])]).

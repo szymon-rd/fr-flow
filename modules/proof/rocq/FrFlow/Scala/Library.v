@@ -57,6 +57,9 @@ Definition supers (cls : string) : list string :=
   else if String.eqb cls "java.lang.NullPointerException" then runtime
   else if String.eqb cls "java.lang.ClassCastException" then runtime
   else if String.eqb cls "java.lang.IndexOutOfBoundsException" then runtime
+  else if String.eqb cls "java.lang.ArrayIndexOutOfBoundsException" then
+    "java.lang.IndexOutOfBoundsException" :: runtime
+  else if String.eqb cls "java.lang.ArithmeticException" then runtime
   else if String.eqb cls "java.lang.UnsupportedOperationException" then runtime
   else if String.eqb cls "java.util.NoSuchElementException" then runtime
   else if String.eqb cls "scala.MatchError" then runtime
@@ -367,6 +370,7 @@ Definition truth_of (m : X bool) : X val := b <~ m ;; oret (VBool b).
 Definition jdk (owner name : string) : option Run :=
   let at_ (cls : string) := String.eqb owner cls in
   let called (n : string) := String.eqb name n in
+  let known (names : list string) := existsb (String.eqb name) names in
   let run (f : val -> list ty -> list val -> X val) : option Run := Some (fun _ v ts args => f v ts args) in
   if at_ "java.lang.Thread$" && called "currentThread" then run (fun _ _ _ => t <~ oop CurrentThread ;; oret (VTid t))
   else if at_ "java.lang.Thread$" && called "sleep" then run (fun _ _ _ => unit_of (oop ThreadSleep))
@@ -381,7 +385,7 @@ Definition jdk (owner name : string) : option Run :=
     | [VObj (Ref cls r)] =>
         t <~ oop (NewThread (Bound (Member "java.lang.Runnable" "run" ":scala.Unit") (vref cls r))) ;; oret (VTid t)
     | _ => wrong "newThread" end)
-  else if at_ "java.lang.Thread" then
+  else if at_ "java.lang.Thread" && known ["start"; "interrupt"; "join"; "getName"] then
     run (fun v _ _ => match v with
       | VTid u =>
           if called "start" then unit_of (oop (ThreadStart u))
@@ -390,7 +394,7 @@ Definition jdk (owner name : string) : option Run :=
           else if called "getName" then oret (VObj Text)
           else wrong name
       | _ => wrong name end)
-  else if at_ h_local then
+  else if at_ h_local && known ["<init>"; "get"; "set"] then
     run (fun v _ args => match v, args with
       | _, _ => if called "<init>" then r <~ oop (ObjNew h_local []) ;; oret (vref h_local r) else
           match v, args with
@@ -399,7 +403,8 @@ Definition jdk (owner name : string) : option Run :=
           | _, _ => wrong name
           end
       end)
-  else if at_ h_future then
+  else if at_ h_future && known ["<init>"; "get"; "exceptionNow"; "isCompletedExceptionally"; "complete"; "completeExceptionally"]
+    then
     run (fun v _ args =>
       if called "<init>" then r <~ oop CfNew ;; oret (vref h_future r) else
       match v, args with
@@ -416,7 +421,7 @@ Definition jdk (owner name : string) : option Run :=
           else wrong name
       | _, _ => wrong name
       end)
-  else if at_ h_bool then
+  else if at_ h_bool && known ["<init>"; "set"; "getAndSet"; "get"] then
     run (fun v _ args => match v, args with
       | _, [VBool b] =>
           if called "<init>" then r <~ oop (AbNew b) ;; oret (vref h_bool r) else
@@ -429,7 +434,7 @@ Definition jdk (owner name : string) : option Run :=
           end
       | VObj (Ref _ r), [] => if called "get" then truth_of (oop (AbGet r)) else wrong name
       | _, _ => wrong name end)
-  else if at_ h_int then
+  else if at_ h_int && known ["<init>"; "incrementAndGet"; "decrementAndGet"] then
     run (fun v _ args => match v, args with
       | _, [VObj (Int z)] => if called "<init>" then r <~ oop (AiNew z) ;; oret (vref h_int r) else wrong name
       | VObj (Ref _ r), [] =>
@@ -437,7 +442,7 @@ Definition jdk (owner name : string) : option Run :=
           else if called "decrementAndGet" then z <~ oop (AiDecrementAndGet r) ;; oret (vint z)
           else wrong name
       | _, _ => wrong name end)
-  else if at_ h_ref then
+  else if at_ h_ref && known ["<init>"; "get"; "getAndSet"; "set"; "updateAndGet"] then
     run (fun v _ args =>
       if called "<init>" then match args with
         | [x] => r <~ oop (ArNew (nullable x)) ;; oret (vref h_ref r)
@@ -458,7 +463,7 @@ Definition jdk (owner name : string) : option Run :=
           else wrong name
       | _, _ => wrong name
       end)
-  else if at_ h_semaphore then
+  else if at_ h_semaphore && known ["<init>"; "acquire"; "release"] then
     run (fun v _ args => match v, args with
       | _, [VObj (Int n)] =>
           if called "<init>" then r <~ oop (SemNew (Z.to_nat n)) ;; oret (vref h_semaphore r) else wrong name
@@ -467,7 +472,7 @@ Definition jdk (owner name : string) : option Run :=
           else if called "release" then unit_of (oop (SemRelease r))
           else wrong name
       | _, _ => wrong name end)
-  else if at_ h_queue then
+  else if at_ h_queue && known ["<init>"; "take"; "put"] then
     run (fun v _ args => match v, args with
       | _, [VObj (Int n)] =>
           if called "<init>" then r <~ oop (BqNew (Z.to_nat n)) ;; oret (vref h_queue r) else wrong name
@@ -476,10 +481,10 @@ Definition jdk (owner name : string) : option Run :=
       | _, _ => wrong name end)
   else if at_ "java.util.concurrent.ConcurrentHashMap$" && called "newKeySet" then
     run (fun _ ts _ => match ts with
-      | [TyRef "java.lang.Thread"] => r <~ oop TsNew ;; oret (vref h_threads r)
       | [t] => match ty_class t with
           | Some c =>
-              if String.eqb c "java.lang.Throwable" || existsb (String.eqb "java.lang.Throwable") (supers c)
+              if String.eqb c "java.lang.Thread" then r <~ oop TsNew ;; oret (vref h_threads r)
+              else if String.eqb c "java.lang.Throwable" || existsb (String.eqb "java.lang.Throwable") (supers c)
               then r <~ oop EsNew ;; oret (vref h_exceptions r)
               else r <~ oop VsNew ;; oret (vref h_values r)
           | None => r <~ oop VsNew ;; oret (vref h_values r)
@@ -495,6 +500,55 @@ Definition jdk (owner name : string) : option Run :=
   else if at_ "java.lang.Throwable" && called "getCause" then run (fun v _ _ => match v with
     | VExn (ExecutionException cause) => back cause
     | _ => oret vnull end)
+  else None.
+
+(** ** Arrays
+
+    An array is an object of the JVM that can be written: a place per index, and its length. *)
+
+Definition h_array := "scala.Array".
+
+Fixpoint indexed (i : nat) (xs : list val) : list (string * val) :=
+  match xs with
+  | [] => []
+  | x :: rest => (nat_text i, x) :: indexed (S i) rest
+  end.
+
+Definition new_array (xs : list val) : X val :=
+  r <~ oop (ObjNew h_array (("length", vint (Z.of_nat (List.length xs))) :: indexed 0 xs)) ;; oret (vref h_array r).
+
+Fixpoint array_elems (r : nat) (n i : nat) : X (list val) :=
+  match n with
+  | 0 => oret []
+  | S n' => x <~ oop (ObjGet r (nat_text i)) ;; rest <~ array_elems r n' (S i) ;; oret (x :: rest)
+  end.
+
+Definition array_length (r : nat) : X Z :=
+  n <~ oop (ObjGet r "length") ;; match n with VObj (Int z) => oret z | _ => wrong "length" end.
+
+Definition array (owner name : string) : option Run :=
+  let called (n : string) := String.eqb name n in
+  let out_of_bounds : X val := othrow (Jdk.Other "java.lang.ArrayIndexOutOfBoundsException") in
+  if String.eqb owner "scala.Array$" && called "apply" then Some (fun _ _ _ args => match args with
+    | VList xs :: _ => new_array xs
+    | _ => wrong name end)
+  else if String.eqb owner h_array then Some (fun _ v _ args => match v, args with
+    | VObj (Ref _ r), [] =>
+        n <~ array_length r ;;
+        if called "length" then oret (vint n)
+        else if called "clone" then xs <~ array_elems r (Z.to_nat n) 0 ;; new_array xs
+        else wrong name
+    | VObj (Ref _ r), [VObj (Int i)] =>
+        n <~ array_length r ;;
+        if called "apply" then
+          if (0 <=? i)%Z && (i <? n)%Z then oop (ObjGet r (nat_text (Z.to_nat i))) else out_of_bounds
+        else wrong name
+    | VObj (Ref _ r), [VObj (Int i); x] =>
+        n <~ array_length r ;;
+        if called "update" then
+          if (0 <=? i)%Z && (i <? n)%Z then unit_of (oop (ObjSet r (nat_text (Z.to_nat i)) x)) else out_of_bounds
+        else wrong name
+    | _, _ => wrong name end)
   else None.
 
 (** A method of a concurrent set of the JDK's, by what the set holds. *)
@@ -563,7 +617,9 @@ Definition number (name : string) (a b : val) : option val :=
 Definition scalar (owner name : string) : option (list bool * Run) :=
   let at_ (cls : string) := String.eqb owner cls in
   let called (n : string) := String.eqb name n in
-  if at_ "scala.Int" || at_ "scala.Long" then
+  let known (names : list string) := existsb (String.eqb name) names in
+  if (at_ "scala.Int" || at_ "scala.Long") && known ["+"; "-"; "*"; "/"; "%"; "<"; "<="; ">"; ">="; "=="; "!=";
+      "max"; "min"; "unary_-"; "toLong"; "toInt"] then
     Some ([], fun _ v _ args => match args with
       | [w] => match number name v w with
           | Some r => oret r
@@ -602,6 +658,7 @@ Definition scalar (owner name : string) : option (list bool * Run) :=
       | VObj (Str a), [VObj (Str b)] => oret (vstr (String.append a b))
       | _, [_] => oret (VObj Text)
       | _, _ => wrong name end)
+  else if at_ "scala.StringContext$" && called "apply" then Some ([], fun _ _ _ _ => oret (VObj Text))
   else if at_ "scala.StringContext" && called "s" then Some ([], fun _ _ _ _ => oret (VObj Text))
   else None.
 
@@ -645,7 +702,6 @@ Definition product (owner name : string) : option Run :=
         if String.eqb c c_success then oret x
         else match as_exn x with Some e => othrow e | None => wrong name end
     | _ => wrong name end)
-  else if at_ "scala.util.Either$.LeftProjection" && called "getOrElse" then None
   else None.
 
 (** A collection made by its companion: `List(…)`, `Vector.empty`, `Set.empty`, `Map.empty`. *)
@@ -708,6 +764,9 @@ Definition misc (owner name : string) : option (list bool * Run) :=
     | [_] => oret (VBool true)
     | _ => wrong name end)
   else if at_ "scala.Predef$" && called "println" then plain (fun _ _ _ _ => oret VUnit)
+  else if at_ "scala.Predef$" && called "identity" then plain (fun _ _ _ args => match args with
+    | [x] => oret x
+    | _ => wrong name end)
   else if at_ "scala.Predef$" && called "classOf" then plain (fun _ _ ts _ => match ts with
     | [t] => match ty_class t with Some c => oret (VObj (ClassOf c)) | None => wrong name end
     | _ => wrong name end)
@@ -730,13 +789,17 @@ Definition misc (owner name : string) : option (list bool * Run) :=
     let scaled (factor : Z) : option (list bool * Run) := plain (fun _ v _ _ => match v with
       | VObj (Long x) | VObj (Int x) => oret (vdata c_duration [long_of (x * factor)%Z])
       | _ => wrong name end) in
-    if called "nanos" || called "nanoseconds" then scaled 1%Z
-    else if called "micros" then scaled 1000%Z
-    else if called "millis" || called "milliseconds" then scaled 1000000%Z
+    if called "nanos" || called "nanoseconds" || called "nano" || called "nanosecond" then scaled 1%Z
+    else if called "micros" || called "microseconds" || called "micro" || called "microsecond" then scaled 1000%Z
+    else if called "millis" || called "milliseconds" || called "milli" || called "millisecond" then
+      scaled 1000000%Z
     else if called "seconds" || called "second" then scaled 1000000000%Z
     else if called "minutes" || called "minute" then scaled 60000000000%Z
+    else if called "hours" || called "hour" then scaled 3600000000000%Z
+    else if called "days" || called "day" then scaled 86400000000000%Z
     else None
-  else if at_ "scala.concurrent.duration.Duration" || at_ c_duration then
+  else if (at_ "scala.concurrent.duration.Duration" || at_ c_duration)
+      && (called "toMillis" || called "toNanos" || called "isFinite") then
     plain (fun _ v _ _ => match v with
       | VObj (Data _ [VObj (Long ns)]) =>
           if called "toMillis" then oret (long_of (Z.quot ns 1000000%Z))
@@ -745,6 +808,10 @@ Definition misc (owner name : string) : option (list bool * Run) :=
           else wrong name
       | VObj (Data _ []) => if called "isFinite" then oret (VBool false) else wrong name
       | _ => wrong name end)
+  else if at_ "scala.util.Either$.LeftProjection" && called "getOrElse" then
+    Some ([true], fun _ v _ args => match v, args with
+      | VObj (Data _ [VObj (Data c [x])]), [d] => if String.eqb c c_left then oret x else apply_fn d []
+      | _, _ => wrong name end)
   else if at_ "scala.runtime.ScalaRunTime$" && called "_toString" then plain (fun _ _ _ _ => oret (VObj Text))
   else if called "toString" then plain (fun _ _ _ _ => oret (VObj Text))
   else None.
@@ -768,6 +835,9 @@ Definition outside (owner name : string) : option primitive :=
             || String.eqb owner "java.util.Collection" then set_method name else None) with
   | Some r => plain r
   | None =>
+  match array owner name with
+  | Some r => plain r
+  | None =>
   match product owner name with
   | Some r => plain r
   | None =>
@@ -789,14 +859,18 @@ Definition outside (owner name : string) : option primitive :=
   | Some p => lazy p
   | None =>
   if is_collection owner then
-    Some (Prim [] (fun ctx v ts args =>
-      match v with
-      | VObj (Module _) => match factory name with Some r => r ctx v ts args | None => wrong name end
-      | _ =>
-          match (if is_map v then map_method name else None) with
-          | Some r => r ctx v ts args
-          | None => match collection name with Some r => r ctx v ts args | None => wrong name end
-          end
-      end))
+    match factory name, map_method name, collection name with
+    | None, None, None => None
+    | _, _, _ =>
+        Some (Prim [] (fun ctx v ts args =>
+          match v with
+          | VObj (Module _) => match factory name with Some r => r ctx v ts args | None => wrong name end
+          | _ =>
+              match (if is_map v then map_method name else None) with
+              | Some r => r ctx v ts args
+              | None => match collection name with Some r => r ctx v ts args | None => wrong name end
+              end
+          end))
+    end
   else None
-  end end end end end end end end.
+  end end end end end end end end end.

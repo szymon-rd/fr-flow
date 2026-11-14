@@ -46,7 +46,7 @@ Definition ox_flow_internal_WeightedHeap : tree :=
             (Select (New (TyRef "java.lang.Object")) (Member "java.lang.Object" "<init>" ":java.lang.Object"))
             []);
           (TypeTree (TyRef "scala.Product"));
-          (TypeTree (TyRef "scala.package$.Serializable"))]
+          (TypeTree (TyAlias "scala.package$.Serializable" (TyRef "java.io.Serializable")))]
         None
         [
           (TypeDef
@@ -187,7 +187,7 @@ Definition ox_flow_internal_WeightedHeap : tree :=
             (Member "ox.flow.internal.WeightedHeap" "productPrefix" ":")
             ["Method"; "Override"; "Synthetic"]
             []
-            (TyRef "scala.Predef$.String")
+            (TyAlias "scala.Predef$.String" (TyRef "java.lang.String"))
             (Some (Literal (CString "WeightedHeap")))
             [(Member "scala.Product" "productPrefix" ":")]);
           (DefDef
@@ -227,7 +227,7 @@ Definition ox_flow_internal_WeightedHeap : tree :=
             (Member "ox.flow.internal.WeightedHeap" "productElementName" "scala.Int:java.lang.String")
             ["Method"; "Override"; "Synthetic"]
             [[(ValDef (Local "n" 6) ["Param"] (TyRef "scala.Int") None)]]
-            (TyRef "scala.Predef$.String")
+            (TyAlias "scala.Predef$.String" (TyRef "java.lang.String"))
             (Some
               (Match
                 false
@@ -1822,7 +1822,10 @@ Definition ox_flow_internal_WeightedHeap : tree :=
                         [
                           (Apply
                             (Select
-                              (New (TyRef "scala.package$.NoSuchElementException"))
+                              (New
+                                (TyAlias
+                                  "scala.package$.NoSuchElementException"
+                                  (TyRef "java.util.NoSuchElementException")))
                               (Member
                                 "java.util.NoSuchElementException"
                                 "<init>"
@@ -1845,8 +1848,10 @@ Definition ox_flow_internal_WeightedHeap : tree :=
                                       (Typed
                                         (Repeated
                                           [(Literal (CString "Value ")); (Literal (CString " not found in heap"))]
-                                          (TyRef "scala.Predef$.String"))
-                                        (TyApp (TyRef "scala.<repeated>") [(TyRef "scala.Predef$.String")]))])
+                                          (TyAlias "scala.Predef$.String" (TyRef "java.lang.String")))
+                                        (TyApp
+                                          (TyRef "scala.<repeated>")
+                                          [(TyAlias "scala.Predef$.String" (TyRef "java.lang.String"))]))])
                                   (Member "scala.StringContext" "s" "scala.collection.immutable.Seq:java.lang.String"))
                                 [
                                   (Typed
@@ -1996,7 +2001,11 @@ Definition ox_flow_internal_WeightedHeap : tree :=
           None
           [])
         [
-          (Apply (Select (New (TyRef "scala.AnyRef")) (Member "java.lang.Object" "<init>" ":java.lang.Object")) []);
+          (Apply
+            (Select
+              (New (TyAlias "scala.AnyRef" (TyRef "java.lang.Object")))
+              (Member "java.lang.Object" "<init>" ":java.lang.Object"))
+            []);
           (TypeTree (TyRef "scala.deriving.Mirror$.Product"))]
         (Some (ValDef NoSym [] (TyTerm (Member "ox.flow.internal" "WeightedHeap" "")) None))
         [
@@ -2004,7 +2013,7 @@ Definition ox_flow_internal_WeightedHeap : tree :=
             (Member "ox.flow.internal.WeightedHeap$" "writeReplace" ":java.lang.Object")
             ["Method"; "Private"; "Synthetic"]
             [[]]
-            (TyRef "scala.AnyRef")
+            (TyAlias "scala.AnyRef" (TyRef "java.lang.Object"))
             (Some
               (Apply
                 (Select
@@ -2131,7 +2140,11 @@ Definition ox_flow_internal_WeightedHeap : tree :=
             (Member "ox.flow.internal.WeightedHeap$" "fromProduct" "scala.Product:ox.flow.internal.WeightedHeap")
             ["Method"; "Synthetic"]
             [[(ValDef (Local "x$0" 86) ["Param"] (TyRef "scala.Product") None)]]
-            (TyRef "ox.flow.internal.WeightedHeap$.MirroredMonoType")
+            (TyAlias
+              "ox.flow.internal.WeightedHeap$.MirroredMonoType"
+              (TyApp
+                (TyRef "ox.flow.internal.WeightedHeap")
+                [(TyBounds (TyRef "scala.Nothing") (TyRef "scala.AnyKind"))]))
             (Some
               (Block
                 [

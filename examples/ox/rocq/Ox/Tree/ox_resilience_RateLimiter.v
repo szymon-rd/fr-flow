@@ -138,7 +138,7 @@ Definition ox_resilience_RateLimiter : tree :=
             (Member "ox.resilience.RateLimiter$" "writeReplace" ":java.lang.Object")
             ["Method"; "Private"; "Synthetic"]
             [[]]
-            (TyRef "scala.AnyRef")
+            (TyAlias "scala.AnyRef" (TyRef "java.lang.Object"))
             (Some
               (Apply
                 (Select

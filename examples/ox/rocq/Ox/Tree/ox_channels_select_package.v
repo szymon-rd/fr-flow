@@ -58,7 +58,7 @@ Definition ox_channels_select_package : tree :=
             (Member "ox.channels.select$package$" "writeReplace" ":java.lang.Object")
             ["Method"; "Private"; "Synthetic"]
             [[]]
-            (TyRef "scala.AnyRef")
+            (TyAlias "scala.AnyRef" (TyRef "java.lang.Object"))
             (Some
               (Apply
                 (Select
@@ -3946,7 +3946,10 @@ Definition ox_channels_select_package : tree :=
                     [
                       (Apply
                         (Select
-                          (New (TyRef "scala.concurrent.package$.TimeoutException"))
+                          (New
+                            (TyAlias
+                              "scala.concurrent.package$.TimeoutException"
+                              (TyRef "java.util.concurrent.TimeoutException")))
                           (Member
                             "java.util.concurrent.TimeoutException"
                             "<init>"
@@ -3969,8 +3972,10 @@ Definition ox_channels_select_package : tree :=
                                   (Typed
                                     (Repeated
                                       [(Literal (CString "select timed out after ")); (Literal (CString ""))]
-                                      (TyRef "scala.Predef$.String"))
-                                    (TyApp (TyRef "scala.<repeated>") [(TyRef "scala.Predef$.String")]))])
+                                      (TyAlias "scala.Predef$.String" (TyRef "java.lang.String")))
+                                    (TyApp
+                                      (TyRef "scala.<repeated>")
+                                      [(TyAlias "scala.Predef$.String" (TyRef "java.lang.String"))]))])
                               (Member "scala.StringContext" "s" "scala.collection.immutable.Seq:java.lang.String"))
                             [
                               (Typed
@@ -4535,7 +4540,10 @@ Definition ox_channels_select_package : tree :=
                     [
                       (Apply
                         (Select
-                          (New (TyRef "scala.concurrent.package$.TimeoutException"))
+                          (New
+                            (TyAlias
+                              "scala.concurrent.package$.TimeoutException"
+                              (TyRef "java.util.concurrent.TimeoutException")))
                           (Member
                             "java.util.concurrent.TimeoutException"
                             "<init>"
@@ -4558,8 +4566,10 @@ Definition ox_channels_select_package : tree :=
                                   (Typed
                                     (Repeated
                                       [(Literal (CString "select timed out after ")); (Literal (CString ""))]
-                                      (TyRef "scala.Predef$.String"))
-                                    (TyApp (TyRef "scala.<repeated>") [(TyRef "scala.Predef$.String")]))])
+                                      (TyAlias "scala.Predef$.String" (TyRef "java.lang.String")))
+                                    (TyApp
+                                      (TyRef "scala.<repeated>")
+                                      [(TyAlias "scala.Predef$.String" (TyRef "java.lang.String"))]))])
                               (Member "scala.StringContext" "s" "scala.collection.immutable.Seq:java.lang.String"))
                             [
                               (Typed

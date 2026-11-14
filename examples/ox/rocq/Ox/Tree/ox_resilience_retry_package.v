@@ -43,7 +43,7 @@ Definition ox_resilience_retry_package : tree :=
             (Member "ox.resilience.retry$package$" "writeReplace" ":java.lang.Object")
             ["Method"; "Private"; "Synthetic"]
             [[]]
-            (TyRef "scala.AnyRef")
+            (TyAlias "scala.AnyRef" (TyRef "java.lang.Object"))
             (Some
               (Apply
                 (Select
@@ -68,7 +68,9 @@ Definition ox_resilience_retry_package : tree :=
                   ["Param"]
                   (TyApp
                     (TyRef "ox.resilience.RetryConfig")
-                    [(TyRef "scala.package$.Throwable"); (TyParam "ox.resilience.retry$package$.retry" "T")])
+                    [
+                      (TyAlias "scala.package$.Throwable" (TyRef "java.lang.Throwable"));
+                      (TyParam "ox.resilience.retry$package$.retry" "T")])
                   None)];
               [
                 (ValDef

@@ -90,6 +90,8 @@ Section Meaning.
         | Some c => Some (is_a c name)
         | None => match v with VObj Null => Some false | _ => None end
         end
+    | TyAlias _ named => instance v named
+    | TyLambda _ body => instance v body
     | TyApp c _ => instance v c
     | TyAnnot u _ => instance v u
     | TyOr a b => match instance v a, instance v b with
@@ -157,10 +159,29 @@ Section Meaning.
 
   (** ** Variables, objects, fields *)
 
-  (** A variable read: a `var` is the object that holds it, an argument passed by name is run. *)
+  (** A lazy value read: its value, or `compute` run by the thread that is the first to read it; if that
+      throws, the next read runs it again. *)
+  Definition lazily (r : nat) (name : string) (monitor : bool) (compute : D) : D :=
+    x <~ oop (LazyEnter r name monitor) ;;
+    match x with
+    | Some v => oret v
+    | None => pbind compute (fun o => match o with
+        | Ok v => _ <~ oop (ObjSet r name v) ;; oret v
+        | other => pbind (oop (ObjSet r (evaluating name) VUnit)) (fun _ => Ret other)
+        end)
+    end.
+
+  (** A variable read: a `var` is the object that holds it, a `lazy val` the object that holds it once it is
+      evaluated, an argument passed by name is run. *)
   Definition read (e : scope) (k : string) : D :=
     match lookup e k with
-    | Some (VObj (Ref c r)) => if String.eqb c var_class then oop (ObjGet r var_field) else oret (VObj (Ref c r))
+    | Some (VObj (Ref c r)) =>
+        if String.eqb c var_class then oop (ObjGet r var_field)
+        else if String.eqb c lazy_class then
+          lazily r lazy_field true (
+            th <~ oop (ObjGet r thunk_field) ;;
+            match th with VCode c => ocall c VUnit | _ => stuck "a lazy value with nothing that gives it" end)
+        else oret (VObj (Ref c r))
     | Some (VCode (Thunk b sc)) => ocall (Thunk b sc) VUnit
     | Some v => oret v
     | None => stuck (cat "a variable that is not in scope: " k)
@@ -206,13 +227,22 @@ Section Meaning.
     | KField (d : tree)
     | KLazy (d : tree)
     | KModule (cls : string)
+    | KInner
     | KOutside.
+
+  (** What declares a member is a package or an object: the member is one, not one for each object of a class. *)
+  Definition static (owner : string) : bool :=
+    match class_of T owner with Some c => is_module c | None => true end.
 
   Definition kind_of (s : sym) : kind :=
     match member T s with
     | Some (DefDef _ _ _ _ _ _ as d) => KMethod d
     | Some (ValDef _ flags t _ as d) =>
-        if flagged "Module" flags then match ty_class t with Some c => KModule c | None => KOutside end
+        if flagged "Module" flags then
+          match s, ty_class t with
+          | Member owner _ _, Some c => if static owner then KModule c else KInner
+          | _, _ => KOutside
+          end
         else if flagged "Lazy" flags then KLazy d else KField d
     | _ => KOutside
     end.
@@ -289,6 +319,9 @@ Section Meaning.
   Definition is_universal (owner : string) : bool :=
     String.eqb owner "scala.Any" || String.eqb owner "java.lang.Object" || String.eqb owner "scala.AnyRef".
 
+  (** The names `universal` gives a meaning. *)
+  Definition universals : list string := ["=="; "!="; "eq"; "isInstanceOf"; "asInstanceOf"; "$asInstanceOf$"].
+
   (** A member selected of a value, and called with `args` if it is a method. *)
   Definition select_with (e : scope) (on : D) (s : sym) (targs : list ty) (args : list (tree * D)) : D :=
     match s with
@@ -297,8 +330,9 @@ Section Meaning.
         | KMethod d =>
             v <~ on ;; vs <~ eval_args e (map by_name (params d)) args ;; call_method s v vs
         | KField d => v <~ on ;; get_field v name
-        | KLazy d => stuck (cat "a lazy value: " name)
+        | KLazy d => v <~ on ;; call_method s v []
         | KModule c => oret (module_val c)
+        | KInner => stuck (cat "an object declared in a class, one for each object of the class: " name)
         | KOutside =>
             match (if is_universal owner then universal name on e targs args else None) with
             | Some m => m
@@ -423,7 +457,11 @@ Section Meaning.
       | st :: rest =>
           match st with
           | ValDef s flags _ (Some rhs) =>
-              if flagged "Lazy" flags then stuck (cat "a lazy value: " (key s)) else
+              if flagged "Lazy" flags then
+                r <~ oop (ObjNew lazy_class []) ;;
+                let e' := (key s, vref lazy_class r) :: e in
+                _ <~ oop (ObjSet r thunk_field (VCode (Thunk rhs e'))) ;; block e' rest k
+              else
               v <~ denote e rhs ;;
               if flagged "Mutable" flags then
                 r <~ oop (ObjNew var_class [(var_field, v)]) ;; block ((key s, vref var_class r) :: e) rest k
@@ -668,7 +706,17 @@ Section Meaning.
                     (sc <~ captured on ;; denote (bind_params (params d) args ++ this_scope cls on ++ sc) b)
                 | None => chaos_res "a method with no body"
                 end
-            | None => chaos_res (cat "a method the object's class does not have: " (key s))
+            | None =>
+                (* a value of the class is what the member is: read, and if it is lazy evaluated once *)
+                let name := match s with Member _ n _ => n | _ => "" end in
+                match named T cls name, on with
+                | Some (ValDef _ flags _ (Some rhs)), VObj (Ref _ r) =>
+                    if flagged "Lazy" flags then
+                      leave "" (sc <~ captured on ;; lazily r name false (denote (this_scope cls on ++ sc) rhs))
+                    else leave "" (get_field on name)
+                | Some (ValDef _ _ _ None), _ => leave "" (get_field on name)
+                | _, _ => chaos_res (cat "a method the object's class does not have: " (key s))
+                end
             end
         | None => chaos_res (cat "a method of the program called on what is no object of it: " (key s))
         end

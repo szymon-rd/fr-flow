@@ -155,7 +155,11 @@ Definition ox_ComputeIntensiveTask : tree :=
                     [])
                   [
                     (CaseDef
-                      (Bind (Local "e" 3) (Typed Wildcard (TyRef "scala.package$.InterruptedException")))
+                      (Bind
+                        (Local "e" 3)
+                        (Typed
+                          Wildcard
+                          (TyAlias "scala.package$.InterruptedException" (TyRef "java.lang.InterruptedException"))))
                       None
                       (Block
                         []
@@ -286,7 +290,9 @@ Definition ox_ComputeIntensiveTask : tree :=
                                   [(Ident (Local "r" 6))])])]))
                       [
                         (CaseDef
-                          (Bind (Local "t" 7) (Typed Wildcard (TyRef "scala.package$.Throwable")))
+                          (Bind
+                            (Local "t" 7)
+                            (Typed Wildcard (TyAlias "scala.package$.Throwable" (TyRef "java.lang.Throwable"))))
                           None
                           (Apply
                             (Select
@@ -351,7 +357,13 @@ Definition ox_ComputeIntensiveTask : tree :=
           (DefDef
             (Member "ox.ComputeIntensiveTask" "onCallerInterrupted" "java.lang.InterruptedException:scala.Nothing")
             ["Local"; "Method"; "Private"; "PrivateLocal"]
-            [[(ValDef (Local "e" 9) ["Param"] (TyRef "scala.package$.InterruptedException") None)]]
+            [
+              [
+                (ValDef
+                  (Local "e" 9)
+                  ["Param"]
+                  (TyAlias "scala.package$.InterruptedException" (TyRef "java.lang.InterruptedException"))
+                  None)]]
             (TyRef "scala.Nothing")
             (Some
               (Block
@@ -448,7 +460,13 @@ Definition ox_ComputeIntensiveTask : tree :=
                             (Assign (Ident (Local "done" 12)) (Literal (CBool true))))
                           [
                             (CaseDef
-                              (Bind (Local "e2" 13) (Typed Wildcard (TyRef "scala.package$.InterruptedException")))
+                              (Bind
+                                (Local "e2" 13)
+                                (Typed
+                                  Wildcard
+                                  (TyAlias
+                                    "scala.package$.InterruptedException"
+                                    (TyRef "java.lang.InterruptedException"))))
                               None
                               (Block
                                 []

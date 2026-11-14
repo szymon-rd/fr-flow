@@ -41,7 +41,7 @@ Definition ox_internal_ScopeContext_package : tree :=
             (Member "ox.internal.ScopeContext$package$" "writeReplace" ":java.lang.Object")
             ["Method"; "Private"; "Synthetic"]
             [[]]
-            (TyRef "scala.AnyRef")
+            (TyAlias "scala.AnyRef" (TyRef "java.lang.Object"))
             (Some
               (Apply
                 (Select

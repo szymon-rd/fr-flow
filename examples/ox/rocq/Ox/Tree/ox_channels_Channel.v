@@ -112,7 +112,7 @@ Definition ox_channels_Channel : tree :=
             (Member "ox.channels.Channel" "toString" ":")
             ["Method"; "Override"]
             []
-            (TyRef "scala.Predef$.String")
+            (TyAlias "scala.Predef$.String" (TyRef "java.lang.String"))
             (Some
               (Apply
                 (Select
@@ -150,7 +150,7 @@ Definition ox_channels_Channel : tree :=
             (Member "ox.channels.Channel$" "writeReplace" ":java.lang.Object")
             ["Method"; "Private"; "Synthetic"]
             [[]]
-            (TyRef "scala.AnyRef")
+            (TyAlias "scala.AnyRef" (TyRef "java.lang.Object"))
             (Some
               (Apply
                 (Select

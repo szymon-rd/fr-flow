@@ -204,7 +204,11 @@ Definition ox_resilience_CircuitBreakerState : tree :=
           None
           [])
         [
-          (Apply (Select (New (TyRef "scala.AnyRef")) (Member "java.lang.Object" "<init>" ":java.lang.Object")) []);
+          (Apply
+            (Select
+              (New (TyAlias "scala.AnyRef" (TyRef "java.lang.Object")))
+              (Member "java.lang.Object" "<init>" ":java.lang.Object"))
+            []);
           (TypeTree (TyRef "scala.deriving.Mirror$.Sum"))]
         (Some (ValDef NoSym [] (TyTerm (Member "ox.resilience" "CircuitBreakerState" "")) None))
         [
@@ -212,7 +216,7 @@ Definition ox_resilience_CircuitBreakerState : tree :=
             (Member "ox.resilience.CircuitBreakerState$" "writeReplace" ":java.lang.Object")
             ["Method"; "Private"; "Synthetic"]
             [[]]
-            (TyRef "scala.AnyRef")
+            (TyAlias "scala.AnyRef" (TyRef "java.lang.Object"))
             (Some
               (Apply
                 (Select
@@ -357,7 +361,7 @@ Definition ox_resilience_CircuitBreakerState : tree :=
                 (Member "ox.resilience.CircuitBreakerState$.Open" "productPrefix" ":")
                 ["Method"; "Override"; "Synthetic"]
                 []
-                (TyRef "scala.Predef$.String")
+                (TyAlias "scala.Predef$.String" (TyRef "java.lang.String"))
                 (Some (Literal (CString "Open")))
                 [(Member "scala.Product" "productPrefix" ":")]);
               (DefDef
@@ -395,7 +399,7 @@ Definition ox_resilience_CircuitBreakerState : tree :=
                 (Member "ox.resilience.CircuitBreakerState$.Open" "productElementName" "scala.Int:java.lang.String")
                 ["Method"; "Override"; "Synthetic"]
                 [[(ValDef (Local "n" 13) ["Param"] (TyRef "scala.Int") None)]]
-                (TyRef "scala.Predef$.String")
+                (TyAlias "scala.Predef$.String" (TyRef "java.lang.String"))
                 (Some
                   (Match
                     false
@@ -484,7 +488,9 @@ Definition ox_resilience_CircuitBreakerState : tree :=
               [])
             [
               (Apply
-                (Select (New (TyRef "scala.AnyRef")) (Member "java.lang.Object" "<init>" ":java.lang.Object"))
+                (Select
+                  (New (TyAlias "scala.AnyRef" (TyRef "java.lang.Object")))
+                  (Member "java.lang.Object" "<init>" ":java.lang.Object"))
                 []);
               (TypeTree (TyRef "scala.deriving.Mirror$.Product"))]
             (Some (ValDef NoSym [] (TyTerm (Member "ox.resilience.CircuitBreakerState$" "Open" "")) None))
@@ -493,7 +499,7 @@ Definition ox_resilience_CircuitBreakerState : tree :=
                 (Member "ox.resilience.CircuitBreakerState$.Open$" "writeReplace" ":java.lang.Object")
                 ["Method"; "Private"; "Synthetic"]
                 [[]]
-                (TyRef "scala.AnyRef")
+                (TyAlias "scala.AnyRef" (TyRef "java.lang.Object"))
                 (Some
                   (Apply
                     (Select
@@ -558,7 +564,9 @@ Definition ox_resilience_CircuitBreakerState : tree :=
                   "scala.Product:ox.resilience.CircuitBreakerState$.Open")
                 ["Method"; "Synthetic"]
                 [[(ValDef (Local "x$0" 17) ["Param"] (TyRef "scala.Product") None)]]
-                (TyRef "ox.resilience.CircuitBreakerState$.Open$.MirroredMonoType")
+                (TyAlias
+                  "ox.resilience.CircuitBreakerState$.Open$.MirroredMonoType"
+                  (TyRef "ox.resilience.CircuitBreakerState$.Open"))
                 (Some
                   (Block
                     [
@@ -719,7 +727,7 @@ Definition ox_resilience_CircuitBreakerState : tree :=
                 (Member "ox.resilience.CircuitBreakerState$.Closed" "productPrefix" ":")
                 ["Method"; "Override"; "Synthetic"]
                 []
-                (TyRef "scala.Predef$.String")
+                (TyAlias "scala.Predef$.String" (TyRef "java.lang.String"))
                 (Some (Literal (CString "Closed")))
                 [(Member "scala.Product" "productPrefix" ":")]);
               (DefDef
@@ -757,7 +765,7 @@ Definition ox_resilience_CircuitBreakerState : tree :=
                 (Member "ox.resilience.CircuitBreakerState$.Closed" "productElementName" "scala.Int:java.lang.String")
                 ["Method"; "Override"; "Synthetic"]
                 [[(ValDef (Local "n" 25) ["Param"] (TyRef "scala.Int") None)]]
-                (TyRef "scala.Predef$.String")
+                (TyAlias "scala.Predef$.String" (TyRef "java.lang.String"))
                 (Some
                   (Match
                     false
@@ -849,7 +857,9 @@ Definition ox_resilience_CircuitBreakerState : tree :=
               [])
             [
               (Apply
-                (Select (New (TyRef "scala.AnyRef")) (Member "java.lang.Object" "<init>" ":java.lang.Object"))
+                (Select
+                  (New (TyAlias "scala.AnyRef" (TyRef "java.lang.Object")))
+                  (Member "java.lang.Object" "<init>" ":java.lang.Object"))
                 []);
               (TypeTree (TyRef "scala.deriving.Mirror$.Product"))]
             (Some (ValDef NoSym [] (TyTerm (Member "ox.resilience.CircuitBreakerState$" "Closed" "")) None))
@@ -858,7 +868,7 @@ Definition ox_resilience_CircuitBreakerState : tree :=
                 (Member "ox.resilience.CircuitBreakerState$.Closed$" "writeReplace" ":java.lang.Object")
                 ["Method"; "Private"; "Synthetic"]
                 [[]]
-                (TyRef "scala.AnyRef")
+                (TyAlias "scala.AnyRef" (TyRef "java.lang.Object"))
                 (Some
                   (Apply
                     (Select
@@ -923,7 +933,9 @@ Definition ox_resilience_CircuitBreakerState : tree :=
                   "scala.Product:ox.resilience.CircuitBreakerState$.Closed")
                 ["Method"; "Synthetic"]
                 [[(ValDef (Local "x$0" 29) ["Param"] (TyRef "scala.Product") None)]]
-                (TyRef "ox.resilience.CircuitBreakerState$.Closed$.MirroredMonoType")
+                (TyAlias
+                  "ox.resilience.CircuitBreakerState$.Closed$.MirroredMonoType"
+                  (TyRef "ox.resilience.CircuitBreakerState$.Closed"))
                 (Some
                   (Block
                     [
@@ -1148,7 +1160,7 @@ Definition ox_resilience_CircuitBreakerState : tree :=
                 (Member "ox.resilience.CircuitBreakerState$.HalfOpen" "productPrefix" ":")
                 ["Method"; "Override"; "Synthetic"]
                 []
-                (TyRef "scala.Predef$.String")
+                (TyAlias "scala.Predef$.String" (TyRef "java.lang.String"))
                 (Some (Literal (CString "HalfOpen")))
                 [(Member "scala.Product" "productPrefix" ":")]);
               (DefDef
@@ -1201,7 +1213,7 @@ Definition ox_resilience_CircuitBreakerState : tree :=
                   "scala.Int:java.lang.String")
                 ["Method"; "Override"; "Synthetic"]
                 [[(ValDef (Local "n" 39) ["Param"] (TyRef "scala.Int") None)]]
-                (TyRef "scala.Predef$.String")
+                (TyAlias "scala.Predef$.String" (TyRef "java.lang.String"))
                 (Some
                   (Match
                     false
@@ -1340,7 +1352,9 @@ Definition ox_resilience_CircuitBreakerState : tree :=
               [])
             [
               (Apply
-                (Select (New (TyRef "scala.AnyRef")) (Member "java.lang.Object" "<init>" ":java.lang.Object"))
+                (Select
+                  (New (TyAlias "scala.AnyRef" (TyRef "java.lang.Object")))
+                  (Member "java.lang.Object" "<init>" ":java.lang.Object"))
                 []);
               (TypeTree (TyRef "scala.deriving.Mirror$.Product"))]
             (Some (ValDef NoSym [] (TyTerm (Member "ox.resilience.CircuitBreakerState$" "HalfOpen" "")) None))
@@ -1349,7 +1363,7 @@ Definition ox_resilience_CircuitBreakerState : tree :=
                 (Member "ox.resilience.CircuitBreakerState$.HalfOpen$" "writeReplace" ":java.lang.Object")
                 ["Method"; "Private"; "Synthetic"]
                 [[]]
-                (TyRef "scala.AnyRef")
+                (TyAlias "scala.AnyRef" (TyRef "java.lang.Object"))
                 (Some
                   (Apply
                     (Select
@@ -1428,7 +1442,9 @@ Definition ox_resilience_CircuitBreakerState : tree :=
                   "scala.Product:ox.resilience.CircuitBreakerState$.HalfOpen")
                 ["Method"; "Synthetic"]
                 [[(ValDef (Local "x$0" 47) ["Param"] (TyRef "scala.Product") None)]]
-                (TyRef "ox.resilience.CircuitBreakerState$.HalfOpen$.MirroredMonoType")
+                (TyAlias
+                  "ox.resilience.CircuitBreakerState$.HalfOpen$.MirroredMonoType"
+                  (TyRef "ox.resilience.CircuitBreakerState$.HalfOpen"))
                 (Some
                   (Block
                     [
@@ -1519,7 +1535,15 @@ Definition ox_resilience_CircuitBreakerState : tree :=
           (DefDef
             (Member "ox.resilience.CircuitBreakerState$" "ordinal" "ox.resilience.CircuitBreakerState:scala.Int")
             ["Method"; "Synthetic"]
-            [[(ValDef (Local "x$0" 52) ["Param"] (TyRef "ox.resilience.CircuitBreakerState$.MirroredMonoType") None)]]
+            [
+              [
+                (ValDef
+                  (Local "x$0" 52)
+                  ["Param"]
+                  (TyAlias
+                    "ox.resilience.CircuitBreakerState$.MirroredMonoType"
+                    (TyRef "ox.resilience.CircuitBreakerState"))
+                  None)]]
             (TyRef "scala.Int")
             (Some (Select (Ident (Local "x$0" 52)) (Member "scala.reflect.Enum" "ordinal" ":")))
             [(Member "scala.deriving.Mirror$.Sum" "ordinal" "java.lang.Object:scala.Int")])])]).

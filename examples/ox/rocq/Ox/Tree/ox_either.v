@@ -50,7 +50,7 @@ Definition ox_either : tree :=
             (Member "ox.either$" "writeReplace" ":java.lang.Object")
             ["Method"; "Private"; "Synthetic"]
             [[]]
-            (TyRef "scala.AnyRef")
+            (TyAlias "scala.AnyRef" (TyRef "java.lang.Object"))
             (Some
               (Apply
                 (Select
@@ -96,7 +96,14 @@ Definition ox_either : tree :=
                 (ValDef
                   (Local "nn" 1)
                   ["Given"; "Param"; "@scala.annotation.implicitNotFound"]
-                  (TyRef "ox.either$.NotNested")
+                  (TyAlias
+                    "ox.either$.NotNested"
+                    (TyApp
+                      (TyRef "scala.util.NotGiven")
+                      [
+                        (TyApp
+                          (TyRef "scala.util.boundary$.Label")
+                          [(TyApp (TyRef "scala.util.Either") [(TyRef "scala.Nothing"); (TyRef "scala.Nothing")])])]))
                   None)]]
             (TyApp (TyRef "scala.util.Either") [(TyParam "ox.either$.apply" "E"); (TyParam "ox.either$.apply" "A")])
             (Some
@@ -167,12 +174,16 @@ Definition ox_either : tree :=
                         [
                           (TyApp
                             (TyRef "scala.util.Either")
-                            [(TyRef "scala.package$.Throwable"); (TyParam "ox.either$.catchAll" "T")])]);
+                            [
+                              (TyAlias "scala.package$.Throwable" (TyRef "java.lang.Throwable"));
+                              (TyParam "ox.either$.catchAll" "T")])]);
                       (TyParam "ox.either$.catchAll" "T")])
                   None)]]
             (TyApp
               (TyRef "scala.util.Either")
-              [(TyRef "scala.package$.Throwable"); (TyParam "ox.either$.catchAll" "T")])
+              [
+                (TyAlias "scala.package$.Throwable" (TyRef "java.lang.Throwable"));
+                (TyParam "ox.either$.catchAll" "T")])
             (Some
               (Typed
                 (Try
@@ -184,7 +195,9 @@ Definition ox_either : tree :=
                       [
                         (TyApp
                           (TyRef "scala.util.Either")
-                          [(TyRef "scala.package$.Throwable"); (TyParam "ox.either$.catchAll" "T")])])
+                          [
+                            (TyAlias "scala.package$.Throwable" (TyRef "java.lang.Throwable"));
+                            (TyParam "ox.either$.catchAll" "T")])])
                     [
                       (Block
                         [
@@ -201,11 +214,15 @@ Definition ox_either : tree :=
                                     [
                                       (TyApp
                                         (TyRef "scala.util.Either")
-                                        [(TyRef "scala.package$.Throwable"); (TyParam "ox.either$.catchAll" "T")])])
+                                        [
+                                          (TyAlias "scala.package$.Throwable" (TyRef "java.lang.Throwable"));
+                                          (TyParam "ox.either$.catchAll" "T")])])
                                   None)]]
                             (TyApp
                               (TyRef "scala.util.Either")
-                              [(TyRef "scala.package$.Throwable"); (TyParam "ox.either$.catchAll" "T")])
+                              [
+                                (TyAlias "scala.package$.Throwable" (TyRef "java.lang.Throwable"));
+                                (TyParam "ox.either$.catchAll" "T")])
                             (Some
                               (Apply
                                 (TypeApply
@@ -235,12 +252,16 @@ Definition ox_either : tree :=
                           (Select
                             (Ident (Member "scala.package$" "Left" ""))
                             (Member "scala.util.Left$" "apply" "2,java.lang.Object:scala.util.Left"))
-                          [(TyRef "scala.package$.Throwable"); (TyRef "scala.Nothing")])
+                          [
+                            (TyAlias "scala.package$.Throwable" (TyRef "java.lang.Throwable"));
+                            (TyRef "scala.Nothing")])
                         [(Ident (Local "e" 7))]))]
                   None)
                 (TyApp
                   (TyRef "scala.util.Either")
-                  [(TyRef "scala.package$.Throwable"); (TyParam "ox.either$.catchAll" "T")])))
+                  [
+                    (TyAlias "scala.package$.Throwable" (TyRef "java.lang.Throwable"));
+                    (TyParam "ox.either$.catchAll" "T")])))
             []);
           (DefDef
             (Member "ox.either$" "ok" "2,scala.util.Either:java.lang.Object")
@@ -740,7 +761,9 @@ If it's explicitly typed, is the error type correct?"))])))]))
                 (TypeDef
                   "E"
                   ["Deferred"; "Param"]
-                  (TyBounds (TyRef "scala.Nothing") (TyRef "scala.package$.Throwable")));
+                  (TyBounds
+                    (TyRef "scala.Nothing")
+                    (TyAlias "scala.package$.Throwable" (TyRef "java.lang.Throwable"))));
                 (TypeDef "T" ["Deferred"; "Param"] (TyBounds (TyRef "scala.Nothing") (TyRef "scala.Any")))];
               [
                 (ValDef
@@ -801,7 +824,9 @@ If it's explicitly typed, is the error type correct?"))])))]))
                 (TypeDef
                   "E"
                   ["Deferred"; "Param"]
-                  (TyBounds (TyRef "scala.Nothing") (TyRef "scala.package$.Throwable")))];
+                  (TyBounds
+                    (TyRef "scala.Nothing")
+                    (TyAlias "scala.package$.Throwable" (TyRef "java.lang.Throwable"))))];
               [
                 (ValDef
                   (Local "evidence$1" 33)

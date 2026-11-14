@@ -70,7 +70,11 @@ Definition ox_ExitCode : tree :=
         ["Final"; "Module"; "Synthetic"; "@scala.annotation.internal.SourceFile"]
         (DefDef (Member "ox.ExitCode$" "<init>" ":ox.ExitCode$") ["Method"] [[]] (TyRef "scala.Unit") None [])
         [
-          (Apply (Select (New (TyRef "scala.AnyRef")) (Member "java.lang.Object" "<init>" ":java.lang.Object")) []);
+          (Apply
+            (Select
+              (New (TyAlias "scala.AnyRef" (TyRef "java.lang.Object")))
+              (Member "java.lang.Object" "<init>" ":java.lang.Object"))
+            []);
           (TypeTree (TyRef "scala.deriving.Mirror$.Sum"))]
         (Some (ValDef NoSym [] (TyTerm (Member "ox" "ExitCode" "")) None))
         [
@@ -78,7 +82,7 @@ Definition ox_ExitCode : tree :=
             (Member "ox.ExitCode$" "writeReplace" ":java.lang.Object")
             ["Method"; "Private"; "Synthetic"]
             [[]]
-            (TyRef "scala.AnyRef")
+            (TyAlias "scala.AnyRef" (TyRef "java.lang.Object"))
             (Some
               (Apply
                 (Select
@@ -118,7 +122,7 @@ Definition ox_ExitCode : tree :=
                         (Member "ox.ExitCode$._$$anon#1" "readResolve" ":java.lang.Object")
                         ["Method"; "Private"; "Synthetic"]
                         [[]]
-                        (TyRef "scala.AnyRef")
+                        (TyAlias "scala.AnyRef" (TyRef "java.lang.Object"))
                         (Some
                           (Apply
                             (Select
@@ -130,7 +134,7 @@ Definition ox_ExitCode : tree :=
                         (Member "ox.ExitCode$._$$anon#1" "productPrefix" ":")
                         ["Method"; "Override"; "Synthetic"]
                         []
-                        (TyRef "scala.Predef$.String")
+                        (TyAlias "scala.Predef$.String" (TyRef "java.lang.String"))
                         (Some (Literal (CString "Success")))
                         [(Member "scala.Product" "productPrefix" ":")]);
                       (DefDef
@@ -284,7 +288,7 @@ Definition ox_ExitCode : tree :=
                 (Member "ox.ExitCode$.Failure" "productPrefix" ":")
                 ["Method"; "Override"; "Synthetic"]
                 []
-                (TyRef "scala.Predef$.String")
+                (TyAlias "scala.Predef$.String" (TyRef "java.lang.String"))
                 (Some (Literal (CString "Failure")))
                 [(Member "scala.Product" "productPrefix" ":")]);
               (DefDef
@@ -320,7 +324,7 @@ Definition ox_ExitCode : tree :=
                 (Member "ox.ExitCode$.Failure" "productElementName" "scala.Int:java.lang.String")
                 ["Method"; "Override"; "Synthetic"]
                 [[(ValDef (Local "n" 8) ["Param"] (TyRef "scala.Int") None)]]
-                (TyRef "scala.Predef$.String")
+                (TyAlias "scala.Predef$.String" (TyRef "java.lang.String"))
                 (Some
                   (Match
                     false
@@ -397,7 +401,9 @@ Definition ox_ExitCode : tree :=
               [])
             [
               (Apply
-                (Select (New (TyRef "scala.AnyRef")) (Member "java.lang.Object" "<init>" ":java.lang.Object"))
+                (Select
+                  (New (TyAlias "scala.AnyRef" (TyRef "java.lang.Object")))
+                  (Member "java.lang.Object" "<init>" ":java.lang.Object"))
                 []);
               (TypeTree (TyRef "scala.deriving.Mirror$.Product"))]
             (Some (ValDef NoSym [] (TyTerm (Member "ox.ExitCode$" "Failure" "")) None))
@@ -406,7 +412,7 @@ Definition ox_ExitCode : tree :=
                 (Member "ox.ExitCode$.Failure$" "writeReplace" ":java.lang.Object")
                 ["Method"; "Private"; "Synthetic"]
                 [[]]
-                (TyRef "scala.AnyRef")
+                (TyAlias "scala.AnyRef" (TyRef "java.lang.Object"))
                 (Some
                   (Apply
                     (Select
@@ -458,7 +464,7 @@ Definition ox_ExitCode : tree :=
                 (Member "ox.ExitCode$.Failure$" "fromProduct" "scala.Product:ox.ExitCode$.Failure")
                 ["Method"; "Synthetic"]
                 [[(ValDef (Local "x$0" 12) ["Param"] (TyRef "scala.Product") None)]]
-                (TyRef "ox.ExitCode$.Failure$.MirroredMonoType")
+                (TyAlias "ox.ExitCode$.Failure$.MirroredMonoType" (TyRef "ox.ExitCode$.Failure"))
                 (Some
                   (Block
                     [
@@ -525,7 +531,13 @@ Definition ox_ExitCode : tree :=
           (DefDef
             (Member "ox.ExitCode$" "ordinal" "ox.ExitCode:scala.Int")
             ["Method"; "Synthetic"]
-            [[(ValDef (Local "x$0" 15) ["Param"] (TyRef "ox.ExitCode$.MirroredMonoType") None)]]
+            [
+              [
+                (ValDef
+                  (Local "x$0" 15)
+                  ["Param"]
+                  (TyAlias "ox.ExitCode$.MirroredMonoType" (TyRef "ox.ExitCode"))
+                  None)]]
             (TyRef "scala.Int")
             (Some (Select (Ident (Local "x$0" 15)) (Member "scala.reflect.Enum" "ordinal" ":")))
             [(Member "scala.deriving.Mirror$.Sum" "ordinal" "java.lang.Object:scala.Int")])])]).

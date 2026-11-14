@@ -77,7 +77,11 @@ Definition ox_WriteCommand : tree :=
           None
           [])
         [
-          (Apply (Select (New (TyRef "scala.AnyRef")) (Member "java.lang.Object" "<init>" ":java.lang.Object")) []);
+          (Apply
+            (Select
+              (New (TyAlias "scala.AnyRef" (TyRef "java.lang.Object")))
+              (Member "java.lang.Object" "<init>" ":java.lang.Object"))
+            []);
           (TypeTree (TyRef "scala.deriving.Mirror$.Sum"))]
         (Some (ValDef NoSym [] (TyTerm (Member "ox" "WriteCommand" "")) None))
         [
@@ -85,7 +89,7 @@ Definition ox_WriteCommand : tree :=
             (Member "ox.WriteCommand$" "writeReplace" ":java.lang.Object")
             ["Method"; "Private"; "Synthetic"]
             [[]]
-            (TyRef "scala.AnyRef")
+            (TyAlias "scala.AnyRef" (TyRef "java.lang.Object"))
             (Some
               (Apply
                 (Select
@@ -202,7 +206,7 @@ Definition ox_WriteCommand : tree :=
                 (Member "ox.WriteCommand$.Write" "productPrefix" ":")
                 ["Method"; "Override"; "Synthetic"]
                 []
-                (TyRef "scala.Predef$.String")
+                (TyAlias "scala.Predef$.String" (TyRef "java.lang.String"))
                 (Some (Literal (CString "Write")))
                 [(Member "scala.Product" "productPrefix" ":")]);
               (DefDef
@@ -238,7 +242,7 @@ Definition ox_WriteCommand : tree :=
                 (Member "ox.WriteCommand$.Write" "productElementName" "scala.Int:java.lang.String")
                 ["Method"; "Override"; "Synthetic"]
                 [[(ValDef (Local "n" 5) ["Param"] (TyRef "scala.Int") None)]]
-                (TyRef "scala.Predef$.String")
+                (TyAlias "scala.Predef$.String" (TyRef "java.lang.String"))
                 (Some
                   (Match
                     false
@@ -323,7 +327,9 @@ Definition ox_WriteCommand : tree :=
               [])
             [
               (Apply
-                (Select (New (TyRef "scala.AnyRef")) (Member "java.lang.Object" "<init>" ":java.lang.Object"))
+                (Select
+                  (New (TyAlias "scala.AnyRef" (TyRef "java.lang.Object")))
+                  (Member "java.lang.Object" "<init>" ":java.lang.Object"))
                 []);
               (TypeTree (TyRef "scala.deriving.Mirror$.Product"))]
             (Some (ValDef NoSym [] (TyTerm (Member "ox.WriteCommand$" "Write" "")) None))
@@ -332,7 +338,7 @@ Definition ox_WriteCommand : tree :=
                 (Member "ox.WriteCommand$.Write$" "writeReplace" ":java.lang.Object")
                 ["Method"; "Private"; "Synthetic"]
                 [[]]
-                (TyRef "scala.AnyRef")
+                (TyAlias "scala.AnyRef" (TyRef "java.lang.Object"))
                 (Some
                   (Apply
                     (Select
@@ -377,7 +383,7 @@ Definition ox_WriteCommand : tree :=
                 (Member "ox.WriteCommand$.Write$" "fromProduct" "scala.Product:ox.WriteCommand$.Write")
                 ["Method"; "Synthetic"]
                 [[(ValDef (Local "x$0" 9) ["Param"] (TyRef "scala.Product") None)]]
-                (TyRef "ox.WriteCommand$.Write$.MirroredMonoType")
+                (TyAlias "ox.WriteCommand$.Write$.MirroredMonoType" (TyRef "ox.WriteCommand$.Write"))
                 (Some
                   (Block
                     [
@@ -516,7 +522,7 @@ Definition ox_WriteCommand : tree :=
                 (Member "ox.WriteCommand$.Flush" "productPrefix" ":")
                 ["Method"; "Override"; "Synthetic"]
                 []
-                (TyRef "scala.Predef$.String")
+                (TyAlias "scala.Predef$.String" (TyRef "java.lang.String"))
                 (Some (Literal (CString "Flush")))
                 [(Member "scala.Product" "productPrefix" ":")]);
               (DefDef
@@ -552,7 +558,7 @@ Definition ox_WriteCommand : tree :=
                 (Member "ox.WriteCommand$.Flush" "productElementName" "scala.Int:java.lang.String")
                 ["Method"; "Override"; "Synthetic"]
                 [[(ValDef (Local "n" 16) ["Param"] (TyRef "scala.Int") None)]]
-                (TyRef "scala.Predef$.String")
+                (TyAlias "scala.Predef$.String" (TyRef "java.lang.String"))
                 (Some
                   (Match
                     false
@@ -643,7 +649,9 @@ Definition ox_WriteCommand : tree :=
               [])
             [
               (Apply
-                (Select (New (TyRef "scala.AnyRef")) (Member "java.lang.Object" "<init>" ":java.lang.Object"))
+                (Select
+                  (New (TyAlias "scala.AnyRef" (TyRef "java.lang.Object")))
+                  (Member "java.lang.Object" "<init>" ":java.lang.Object"))
                 []);
               (TypeTree (TyRef "scala.deriving.Mirror$.Product"))]
             (Some (ValDef NoSym [] (TyTerm (Member "ox.WriteCommand$" "Flush" "")) None))
@@ -652,7 +660,7 @@ Definition ox_WriteCommand : tree :=
                 (Member "ox.WriteCommand$.Flush$" "writeReplace" ":java.lang.Object")
                 ["Method"; "Private"; "Synthetic"]
                 [[]]
-                (TyRef "scala.AnyRef")
+                (TyAlias "scala.AnyRef" (TyRef "java.lang.Object"))
                 (Some
                   (Apply
                     (Select
@@ -709,7 +717,7 @@ Definition ox_WriteCommand : tree :=
                 (Member "ox.WriteCommand$.Flush$" "fromProduct" "scala.Product:ox.WriteCommand$.Flush")
                 ["Method"; "Synthetic"]
                 [[(ValDef (Local "x$0" 20) ["Param"] (TyRef "scala.Product") None)]]
-                (TyRef "ox.WriteCommand$.Flush$.MirroredMonoType")
+                (TyAlias "ox.WriteCommand$.Flush$.MirroredMonoType" (TyRef "ox.WriteCommand$.Flush"))
                 (Some
                   (Block
                     [
@@ -851,7 +859,7 @@ Definition ox_WriteCommand : tree :=
                 (Member "ox.WriteCommand$.Close" "productPrefix" ":")
                 ["Method"; "Override"; "Synthetic"]
                 []
-                (TyRef "scala.Predef$.String")
+                (TyAlias "scala.Predef$.String" (TyRef "java.lang.String"))
                 (Some (Literal (CString "Close")))
                 [(Member "scala.Product" "productPrefix" ":")]);
               (DefDef
@@ -887,7 +895,7 @@ Definition ox_WriteCommand : tree :=
                 (Member "ox.WriteCommand$.Close" "productElementName" "scala.Int:java.lang.String")
                 ["Method"; "Override"; "Synthetic"]
                 [[(ValDef (Local "n" 27) ["Param"] (TyRef "scala.Int") None)]]
-                (TyRef "scala.Predef$.String")
+                (TyAlias "scala.Predef$.String" (TyRef "java.lang.String"))
                 (Some
                   (Match
                     false
@@ -978,7 +986,9 @@ Definition ox_WriteCommand : tree :=
               [])
             [
               (Apply
-                (Select (New (TyRef "scala.AnyRef")) (Member "java.lang.Object" "<init>" ":java.lang.Object"))
+                (Select
+                  (New (TyAlias "scala.AnyRef" (TyRef "java.lang.Object")))
+                  (Member "java.lang.Object" "<init>" ":java.lang.Object"))
                 []);
               (TypeTree (TyRef "scala.deriving.Mirror$.Product"))]
             (Some (ValDef NoSym [] (TyTerm (Member "ox.WriteCommand$" "Close" "")) None))
@@ -987,7 +997,7 @@ Definition ox_WriteCommand : tree :=
                 (Member "ox.WriteCommand$.Close$" "writeReplace" ":java.lang.Object")
                 ["Method"; "Private"; "Synthetic"]
                 [[]]
-                (TyRef "scala.AnyRef")
+                (TyAlias "scala.AnyRef" (TyRef "java.lang.Object"))
                 (Some
                   (Apply
                     (Select
@@ -1044,7 +1054,7 @@ Definition ox_WriteCommand : tree :=
                 (Member "ox.WriteCommand$.Close$" "fromProduct" "scala.Product:ox.WriteCommand$.Close")
                 ["Method"; "Synthetic"]
                 [[(ValDef (Local "x$0" 31) ["Param"] (TyRef "scala.Product") None)]]
-                (TyRef "ox.WriteCommand$.Close$.MirroredMonoType")
+                (TyAlias "ox.WriteCommand$.Close$.MirroredMonoType" (TyRef "ox.WriteCommand$.Close"))
                 (Some
                   (Block
                     [
@@ -1101,7 +1111,13 @@ Definition ox_WriteCommand : tree :=
           (DefDef
             (Member "ox.WriteCommand$" "ordinal" "ox.WriteCommand:scala.Int")
             ["Method"; "Synthetic"]
-            [[(ValDef (Local "x$0" 34) ["Param"] (TyRef "ox.WriteCommand$.MirroredMonoType") None)]]
+            [
+              [
+                (ValDef
+                  (Local "x$0" 34)
+                  ["Param"]
+                  (TyAlias "ox.WriteCommand$.MirroredMonoType" (TyRef "ox.WriteCommand"))
+                  None)]]
             (TyRef "scala.Int")
             (Some (Select (Ident (Local "x$0" 34)) (Member "scala.reflect.Enum" "ordinal" ":")))
             [(Member "scala.deriving.Mirror$.Sum" "ordinal" "java.lang.Object:scala.Int")])])]).
