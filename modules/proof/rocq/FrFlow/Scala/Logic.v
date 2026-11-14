@@ -66,3 +66,27 @@ Ltac wp_done := wp_whd; iApply wpP_ret.
 
 (** The next step is a call of a closure: what the closure runs is proven next, a step later. *)
 Ltac wp_call := wp_whd; iApply wpP_call_then; iNext.
+
+(** A field of an object: read of one the thread holds (`H` names what holds it), read of one that no longer
+    changes, and written. *)
+Tactic Notation "wp_get" constr(H) :=
+  wp_op; iApply wp_obj_get; iModIntro; iExists _, _, _, _; iFrame H; iSplit; [done |];
+  iIntros "!>"; iIntros H; iModIntro.
+Tactic Notation "wp_read" constr(H) :=
+  wp_op; iApply wp_obj_get; iModIntro; iExists _, _, _, _; iFrame H; iSplit; [done |]; iIntros "!> _ !>".
+Tactic Notation "wp_set" constr(H) :=
+  wp_op; iApply wp_obj_set; iModIntro; iExists _, _; iFrame H; iIntros "!>"; iIntros H; iModIntro;
+  iEval (simpl) in H.
+
+(** What the program does next, shown: for finding the way through a program. *)
+Ltac wp_peek := wp_whd; lazymatch goal with |- environments.envs_entails _ (wpP _ _ ?p _ _) =>
+  lazymatch p with
+  | Vis ?o _ => idtac "op:" o
+  | Call (Method ?s) ?a _ => idtac "call method:" s a
+  | Call (Init ?s) ?a _ => idtac "call init:" s a
+  | Call (Fn _ _ _) ?a _ => idtac "call fn:" a
+  | Call (Thunk _ _) ?a _ => idtac "call thunk:" a
+  | Call (Bound ?s ?v) ?a _ => idtac "call bound:" s v a
+  | Iter _ ?s _ => idtac "iter:" s
+  | Ret ?a => idtac "ret:" a
+  end end.
