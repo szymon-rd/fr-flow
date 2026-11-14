@@ -1,5 +1,5 @@
 import ox.*
-import java.util.concurrent.atomic.{AtomicBoolean, AtomicInteger}
+import java.util.concurrent.atomic.{AtomicBoolean, AtomicInteger, AtomicLong}
 
 /** Whether a scope of Ox 1.1.0 can complete with a fork of its own still running, every fork made inside the
   * scope: nothing here hands a capability out. The closing loop ends when `threads.isEmpty` answers `true`, and
@@ -10,7 +10,8 @@ import java.util.concurrent.atomic.{AtomicBoolean, AtomicInteger}
   *   sbt "runMain EmptyProbe 200000 4"
   */
 object EmptyProbe:
-  private val leaks, lingered, interrupted, children = new AtomicInteger(0)
+  private val leaks, lingered, interrupted = new AtomicInteger(0)
+  private val children = new AtomicLong(0)
 
   /** A fork that forks short-lived forks until the scope refuses (it has begun to close), and then lingers: the
     * scope is to interrupt it and wait for it, so it should never find the scope completed.

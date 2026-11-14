@@ -78,8 +78,11 @@ and a thread asking `isEmpty`. On JDK 21.0.12, in 30 seconds, `isEmpty` answered
 of a set that was never empty. The closing loop of a scope ends when `threads.isEmpty` answers `true`. So the
 contract `TsIsEmpty` that `contained` rests on is not one the JDK keeps, and a scope of Ox can in principle
 complete with forks of its own in its set, whatever the client does. `EmptyProbe` looks for that in Ox itself
-(forks that start short-lived forks as their scope closes): none in 20,000 rounds, where the window is a few
-nanoseconds of the owner's thread. The JDK's own `ThreadFlock` does not ask `isEmpty`: it keeps a count of its
+(forks that start short-lived forks as their scope closes): none in 20,000 rounds of 4 such forks, nor in
+150,000 rounds of 16 (2.4 million forks); the window is a few nanoseconds of the owner's thread. In the longer
+run 498 of the 2.4 million forks slept their 30 milliseconds without being interrupted while their scope was
+still closing; on a loaded machine the probe cannot tell an interrupt that came late from one that did not
+come. The JDK's own `ThreadFlock` does not ask `isEmpty`: it keeps a count of its
 own.
 
 ## What is assumed
