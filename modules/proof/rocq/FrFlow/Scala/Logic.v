@@ -111,6 +111,13 @@ Ltac wp_whd :=
       end
   end.
 
+(** Where the walk has stopped at a program that a lemma is about (an object named, say): the goal is that
+    program's, with what follows it as what it must give. *)
+Ltac wp_leaf :=
+  repeat lazymatch goal with
+  | |- environments.envs_entails _ (wpP _ _ (pbind _ _) _ _) => iApply wpP_bind
+  end.
+
 (** The next step is an operation: the rule for it is applied next. *)
 Ltac wp_op := wp_whd; iApply wpP_vis.
 
@@ -161,4 +168,4 @@ Ltac wp_peek := wp_whd; lazymatch goal with |- environments.envs_entails _ (wpP 
 Lemma val_eqb_other (a b : val) : a ≠ b → val_eqb a b = false.
 Proof. intros H. unfold val_eqb. by destruct (val_eq_dec a b). Qed.
 
-Global Opaque val_eqb same_place has_thread.
+Global Opaque val_eqb same_place has_thread of_thread.

@@ -29,7 +29,7 @@ Section context.
         ∃ r fields h q o p, ⌜v = VObj (Ref c_cap r)⌝ ∗ r ↦obj□ (c_cap, fields) ∗
           ⌜field fields "herd" = Some (herd_at h) ∧ writer fields "herd" = None ∧
            field fields "parent" = Some p ∧ writer fields "parent" = None⌝ ∗
-          is_herd h q o ∗ (⌜p = vnone⌝ ∨ ∃ p', ⌜p = vsome p'⌝ ∗ is_cap n' p')
+          is_herd h q o ∗ (⌜p = Library.none⌝ ∨ ∃ p', ⌜p = Library.some p'⌝ ∗ is_cap n' p')
     end%I.
 
   Global Instance is_cap_persistent n v : Persistent (is_cap n v).
@@ -48,12 +48,14 @@ Section context.
 
   Definition ctx_inv : iProp Σ := module_inv ctx_at c_ctx ctx_unset place_tok ctx_ready.
 
+  Local Transparent of_thread.
   Lemma local_of (s : list (tid * val)) (t : tid) :
     ([∗ list] e ∈ s, scope_or_null e.2) -∗ scope_or_null (of_thread s t).
   Proof.
     iIntros "H". iInduction s as [| [u v] rest] "IH"; [by iLeft |].
     iDestruct "H" as "[Hv Hrest]". cbn. destruct (Nat.eqb u t); [done | by iApply "IH"].
   Qed.
+  Local Opaque of_thread.
 
   Context (more : table).
   Local Instance context_irisGS : irisGS (jvm (run more)) Σ := jvm_irisGS (run more).

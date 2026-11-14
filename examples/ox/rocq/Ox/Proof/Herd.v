@@ -14,6 +14,8 @@ Definition c_set : string := p_class concurrent_set.
 Definition herd_at (r : nat) : val := VObj (Ref c_herd r).
 Definition m_assertNotShuttingDown : sym := Member c_herd "assertNotShuttingDown" ":scala.Unit".
 Definition m_close : sym := Member c_herd "interruptAllAndJoinUntilCompleted" ":scala.Unit".
+Definition m_isOwnerOrHerdThread : sym :=
+  Member c_herd "isOwnerOrHerdThread" "java.lang.Thread:scala.Boolean".
 Definition herdN : namespace := nroot .@ "herd".
 
 (** A herd's fields before its initialiser has run, and after. *)
@@ -89,6 +91,20 @@ Section herd.
     iFrame "Hf". iIntros "!>" (intr choice). simpl. iIntros "Hf".
     iMod ("Hclose" with "[Hf]") as "_"; [by iExists v |]. iModIntro.
     destruct v; wp_done; [iDestruct "HΦ" as "[_ HΦ]" | iDestruct "HΦ" as "[HΦ _]"]; iApply "HΦ".
+  Qed.
+
+  (** ** `isOwnerOrHerdThread` answers: it reads the herd's owner and its set *)
+
+  Lemma herd_isOwnerOrHerdThread t r q owner u Φ :
+    scopes_inv -∗ is_herd r q owner -∗ (∀ b, Φ (inr (VBool b))) -∗
+    wpP (run more) t (run more (Method m_isOwnerOrHerdThread) (VList [herd_at r; VTid u])) ⊤ Φ.
+  Proof.
+    iIntros "#Hinv #Hherd HΦ". iDestruct "Hherd" as (tf flag) "(Hr & Hq & Hflag)".
+    wp_read "Hr". wp_whd. destruct (same_place u owner).
+    - wp_done. iApply "HΦ".
+    - wp_call. wp_read "Hr". wp_op. iApply (wp_set_read with "Hinv Hq"); [done |].
+      iIntros "!>" (held intr choice _). iExists _. iSplit; [iPureIntro; apply set_contains |].
+      wp_done. wp_done. iApply "HΦ".
   Qed.
 
   (** ** `interruptAllAndJoinUntilCompleted` ends and leaves the scope

@@ -69,9 +69,11 @@ Fixpoint classes_of (T : table) : list (string * tree) :=
 
 Definition class_of (T : table) (name : string) : option tree :=
   if foreign name then None else class_in T name.
+(** A package is no definition of a program either (the compiler names one where a path goes through it:
+    `scala`, `_root_`). *)
 Definition member (T : table) (s : sym) : option tree :=
   match s with
-  | Member owner _ _ => if foreign owner then None else member_in T s
+  | Member owner _ what => if foreign owner || String.eqb what "package" then None else member_in T s
   | _ => None
   end.
 
