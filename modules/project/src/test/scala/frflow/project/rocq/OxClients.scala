@@ -66,8 +66,9 @@ object OxClients:
 
   /** The trees the programs are run over, and how one is run. */
   private def setting(files: List[String]): String =
-    s"""Definition all : list tree :=
-       |  [${files.map(n => s"$n.$n").mkString(";\n   ")}] ++ files.
+    s"""(** Ox's trees, then the programs': what Ox's names mean does not depend on the programs. *)
+       |Definition all : list tree :=
+       |  files ++ [${files.map(n => s"$n.$n").mkString(";\n   ")}].
        |Definition T : table := Eval vm_compute in build all.
        |
        |(** The orders the threads take turns in: each in turn, and three that follow no pattern. *)

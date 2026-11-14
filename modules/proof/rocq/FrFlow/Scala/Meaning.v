@@ -67,7 +67,7 @@ Section Meaning.
     | VExn x => Some (exn_class x)
     | VList [] => Some "scala.collection.immutable.Nil$"
     | VList _ => Some "scala.collection.immutable.::"
-    | VObj (Ref c _) => Some c
+    | VObj (Ref c _) | VObj (Ext c _) => Some c
     | VObj (Int _) => Some "scala.Int"
     | VObj (Long _) => Some "scala.Long"
     | VObj (Str _) | VObj Text => Some "java.lang.String"
@@ -77,16 +77,25 @@ Section Meaning.
     | VObj Null | VCode _ => None
     end.
 
-  Definition is_a (cls target : string) : bool :=
+  (** Whether a class from outside is `target` or inherits from it. *)
+  Definition outside_is (cls target : string) : bool :=
+    String.eqb cls target || existsb (String.eqb target) (supers cls).
+
+  (** Whether a value of class `cls` is a `target`: an object of the program by what its class inherits from in
+      the program and what those inherit from outside; any other value by what `supers` says of its class. *)
+  Definition is_a (v : val) (cls target : string) : bool :=
     String.eqb target "scala.Any" || String.eqb target "java.lang.Object" || String.eqb target "scala.AnyRef"
-      || inherits T supers cls target.
+      || match v with
+         | VObj (Ref _ _) => existsb (fun a => outside_is a target) (own T cls)
+         | _ => outside_is cls target
+         end.
 
   (** Whether a value is of a type, as far as the JVM can tell when the code runs: a type parameter is not
       tested. `None`: not known here. *)
   Fixpoint instance (v : val) (t : ty) : option bool :=
     match t with
     | TyRef name => match class_of_val v with
-        | Some c => Some (is_a c name)
+        | Some c => Some (is_a v c name)
         | None => match v with VObj Null => Some false | _ => None end
         end
     | TyAlias _ named => instance v named
@@ -129,6 +138,7 @@ Section Meaning.
         | VObj (Int x), VObj (Long y) | VObj (Long x), VObj (Int y) => Some (Z.eqb x y)
         | VObj (Str x), VObj (Str y) => Some (String.eqb x y)
         | VObj Null, VObj Null => Some true
+        | VObj (Ext c r), VObj (Ext c' r') => Some (Nat.eqb r r' && String.eqb c c')
         | VObj (Ref c r), VObj (Ref c' r') => if Nat.eqb r r' && String.eqb c c' then Some true else
             match named T c "equals" with Some _ => None | None => Some false end
         | VObj (Data c xs), VObj (Data c' ys) => if String.eqb c c' then all xs ys else Some false

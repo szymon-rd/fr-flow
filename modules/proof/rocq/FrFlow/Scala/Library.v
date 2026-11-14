@@ -398,17 +398,17 @@ Definition jdk (owner name : string) : option Run :=
   let called (n : string) := String.eqb name n in
   let run (f : val -> list ty -> list val -> X val) : option Run := Some (fun _ v ts args => f v ts args) in
   let made (p : protocol) : option Run :=
-    run (fun _ _ args => r <~ oop (ExtNew p args) ;; oret (vref (p_class p) r)) in
+    run (fun _ _ args => r <~ oop (ExtNew p args) ;; oret (vext (p_class p) r)) in
   match threads owner name with
   | Some r => Some r
   | None =>
       if called "<init>" then match class_named owner with Some p => made p | None => None end
       else if at_ "java.util.concurrent.ConcurrentHashMap$" && called "newKeySet" then
-        run (fun _ _ _ => r <~ oop (ExtNew concurrent_set []) ;; oret (vref (p_class concurrent_set) r))
+        run (fun _ _ _ => r <~ oop (ExtNew concurrent_set []) ;; oret (vext (p_class concurrent_set) r))
       else if at_ (p_class atomic_reference) && called "updateAndGet" then
         (* the JDK's loop: read, apply, compare and set; again if another thread came between *)
         run (fun v _ args => match v, args with
-          | VObj (Ref _ r), [f] =>
+          | VObj (Ext _ r), [f] =>
               oloop (fun _ : unit =>
                 cur <~ ext_call r "get" [] ;;
                 next <~ apply_fn f [cur] ;;
@@ -417,7 +417,7 @@ Definition jdk (owner name : string) : option Run :=
           | _, _ => wrong name end)
       else if traversed owner && called "forEach" then
         run (fun v _ args => match v, args with
-          | VObj (Ref _ r), [f] => traverse r (fun x => apply_fn f [x])
+          | VObj (Ext _ r), [f] => traverse r (fun x => apply_fn f [x])
           | _, _ => wrong name end)
       else if at_ "java.lang.Throwable" && called "addSuppressed" then
         (* not modelled: an exception keeps no other *)
@@ -429,7 +429,7 @@ Definition jdk (owner name : string) : option Run :=
         | _ => oret vnull end)
       else match class_with owner name with
         | Some _ => run (fun v _ args => match v with
-            | VObj (Ref _ r) => ext_call r name args
+            | VObj (Ext _ r) => ext_call r name args
             | _ => wrong name end)
         | None => None
         end

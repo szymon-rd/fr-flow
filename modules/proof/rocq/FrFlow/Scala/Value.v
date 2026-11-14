@@ -31,7 +31,8 @@ Inductive code :=
   (* what making an object of a class runs: its parents' and its own initialisers *)
   | Init (cls : string)
 with obj :=
-  | Ref (cls : string) (r : nat)
+  | Ref (cls : string) (r : nat)                   (* an object of the program: its class, its place *)
+  | Ext (cls : string) (r : nat)                   (* an object of a class from outside: its class, its place *)
   | Int (z : Z)
   | Long (z : Z)
   | Str (s : string)
@@ -108,7 +109,7 @@ Definition stuck {A : Type} (why : string) : X A := Vis (Chaos (outcome A) why) 
 
 Declare Scope meaning_scope.
 Notation "x <~ m ;; k" := (obind m (fun x => k))
-  (at level 61, m at next level, right associativity) : meaning_scope.
+  (at level 20, m at level 100, k at level 200) : meaning_scope.
 Open Scope meaning_scope.
 
 (** Each of a list, in order. *)
@@ -150,6 +151,7 @@ Definition vdata (c : string) (args : list val) : val := VObj (Data c args).
 Definition vsome (v : val) : val := vdata "Some" [v].
 Definition vnone : val := vdata "None" [].
 Definition vref (cls : string) (r : nat) : val := VObj (Ref cls r).
+Definition vext (cls : string) (r : nat) : val := VObj (Ext cls r).
 
 (** Scala's `Int` and `Long` wrap around. *)
 Definition wrap (bits : Z) (z : Z) : Z :=

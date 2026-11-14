@@ -25,8 +25,25 @@ Fixpoint assoc_sym {A : Type} (xs : list (sym * A)) (s : sym) : option A :=
   | (s', a) :: rest => if sym_eqb s' s then Some a else assoc_sym rest s
   end.
 
-Definition class_of (T : table) (name : string) : option tree := assoc (t_classes T) name.
-Definition member (T : table) (s : sym) : option tree := assoc_sym (t_members T) s.
+(** A name no program defines: one inside `java`, `javax` or `scala`, or the compiler's own. The meaning never
+    looks such a name up among a program's definitions: so what a call of the JDK or a test on one of its
+    classes means does not depend on the program, and what a program's own names mean does not depend on what
+    is defined after them (`extend`). *)
+Definition foreign (name : string) : bool :=
+  within "java" name || within "javax" name || within "scala" name || String.eqb name "<special-ops>".
+
+Definition class_of (T : table) (name : string) : option tree :=
+  if foreign name then None else assoc (t_classes T) name.
+Definition member (T : table) (s : sym) : option tree :=
+  match s with
+  | Member owner _ _ => if foreign owner then None else assoc_sym (t_members T) s
+  | _ => None
+  end.
+
+(** A program with another's definitions after its own: what the first defines means what it meant. *)
+Definition extend (T more : table) : table :=
+  Table (t_classes T ++ t_classes more) (t_members T ++ t_members more) (t_lineage T ++ t_lineage more)
+    (t_modules T ++ t_modules more).
 
 (** ** A class's parts *)
 
@@ -83,7 +100,7 @@ Definition ancestors (T : table) (outside : string -> list string) (cls : string
 
 (** What a class inherits from in the program, itself first: kept in the table. *)
 Definition own (T : table) (cls : string) : list string :=
-  match assoc (t_lineage T) cls with Some line => line | None => [cls] end.
+  if foreign cls then [cls] else match assoc (t_lineage T) cls with Some line => line | None => [cls] end.
 
 Definition inherits (T : table) (outside : string -> list string) (cls target : string) : bool :=
   existsb (String.eqb target) (ancestors T outside cls).
@@ -169,7 +186,7 @@ Definition inherited (classes : list (string * tree)) (line : list string) (what
 Definition stateful_modules (T : table) : list string := map fst (t_modules T).
 
 Definition needs_init (T : table) (cls : string) : bool :=
-  match assoc (t_modules T) cls with Some runs => runs | None => false end.
+  if foreign cls then false else match assoc (t_modules T) cls with Some runs => runs | None => false end.
 
 Fixpoint index_of (xs : list string) (x : string) (i : nat) : option nat :=
   match xs with
@@ -178,7 +195,8 @@ Fixpoint index_of (xs : list string) (x : string) (i : nat) : option nat :=
   end.
 
 (** Where a module with state is: its place among them, from one. *)
-Definition module_at (T : table) (cls : string) : option nat := index_of (stateful_modules T) cls 1.
+Definition module_at (T : table) (cls : string) : option nat :=
+  if foreign cls then None else index_of (stateful_modules T) cls 1.
 
 (** ** The table of a program *)
 
