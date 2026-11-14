@@ -50,7 +50,7 @@ val inspector = "org.scala-lang" %% "scala3-tasty-inspector" % "3.10.0"
 
 lazy val root = project.in(file("."))
   .aggregate(core, dsl, proof, eval, testing, decision, wire, shell, api, cli, web, agent,
-    roomsModel, rooms, authModel, auth, shopModel, shop, paymentsModel, payments)
+    roomsModel, rooms, authModel, auth, shopModel, shop, paymentsModel, payments, oxModel, ox)
   .configs(RocqTest).settings(rocqTagged)
   .settings(publish / skip := true)
 
@@ -212,3 +212,9 @@ lazy val shop = exampleApp("shop", shopModel, layers = Nil).settings(checked)
   */
 lazy val paymentsModel = exampleModel("payments").settings(checked)
 lazy val payments = exampleApp("payments", paymentsModel, layers = Nil).settings(checked)
+
+/** Ox's scopes and forks: the laws a scope keeps, on a system of as little as says them; Ox's code is proven to
+  * be that system in `examples/ox/rocq`.
+  */
+lazy val oxModel = exampleModel("ox")
+lazy val ox = exampleApp("ox", oxModel, layers = Nil)

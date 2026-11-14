@@ -17,13 +17,14 @@ Require Ox.Client.client_Scopes.
 Import ListNotations.
 Open Scope string_scope.
 
-(** Ox's trees, then the programs': what Ox's names mean does not depend on the programs. *)
-Definition all : list tree :=
-  files ++ [client_Failures.client_Failures;
+(** Ox's definitions, then the programs': what Ox's names mean does not depend on the programs. *)
+Definition programs : list tree :=
+  [client_Failures.client_Failures;
    client_Joins.client_Joins;
    client_Observed.client_Observed;
    client_Scopes.client_Scopes].
-Definition T : table := Eval vm_compute in build all.
+Definition Ox : table := Eval vm_compute in build files.
+Definition T : table := Eval vm_compute in extend Ox (build_after Ox programs).
 
 (** The orders the threads take turns in: each in turn, and three that follow no pattern. *)
 Definition orders : list (nat -> nat) := (fun turn => turn) :: map shuffled [1; 2; 3].

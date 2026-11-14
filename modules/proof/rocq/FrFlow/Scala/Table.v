@@ -7,11 +7,13 @@ Import ListNotations.
 Open Scope string_scope.
 Open Scope list_scope.
 
-Record table := Table {
-  t_classes : list (string * tree);            (* each class, by its name *)
-  t_members : list (sym * tree);               (* each value and method a class or an object declares *)
-  t_lineage : list (string * list string);     (* each class with what it inherits from in the program *)
-  t_modules : list (string * bool) }.          (* each object with state, and whether making it runs anything *)
+(** The definitions of some files (each class by its name; each value and method a class or an object declares;
+    each class with what it inherits from in the program; each object with state, and whether making it runs
+    anything), or those of one program and then of another, linked after it. *)
+Inductive table :=
+  | Table (classes : list (string * tree)) (members : list (sym * tree))
+      (lines : list (string * list string)) (modules : list (string * bool))
+  | Extend (T more : table).
 
 Fixpoint assoc {A : Type} (xs : list (string * A)) (k : string) : option A :=
   match xs with
@@ -32,18 +34,46 @@ Fixpoint assoc_sym {A : Type} (xs : list (sym * A)) (s : sym) : option A :=
 Definition foreign (name : string) : bool :=
   within "java" name || within "javax" name || within "scala" name || String.eqb name "<special-ops>".
 
-Definition class_of (T : table) (name : string) : option tree :=
-  if foreign name then None else assoc (t_classes T) name.
-Definition member (T : table) (s : sym) : option tree :=
-  match s with
-  | Member owner _ _ => if foreign owner then None else assoc_sym (t_members T) s
-  | _ => None
+(** A lookup in a program linked after another finds what the first defines first: so what the first defines
+    means what it meant, whatever is linked after it. A lookup names the tables it reads and copies nothing of
+    them, which keeps a proof that computes one small. *)
+Fixpoint class_in (T : table) (name : string) : option tree :=
+  match T with
+  | Table classes _ _ _ => assoc classes name
+  | Extend T' more => match class_in T' name with Some c => Some c | None => class_in more name end
   end.
 
-(** A program with another's definitions after its own: what the first defines means what it meant. *)
-Definition extend (T more : table) : table :=
-  Table (t_classes T ++ t_classes more) (t_members T ++ t_members more) (t_lineage T ++ t_lineage more)
-    (t_modules T ++ t_modules more).
+Fixpoint member_in (T : table) (s : sym) : option tree :=
+  match T with
+  | Table _ members _ _ => assoc_sym members s
+  | Extend T' more => match member_in T' s with Some d => Some d | None => member_in more s end
+  end.
+
+Fixpoint line_in (T : table) (cls : string) : option (list string) :=
+  match T with
+  | Table _ _ lines _ => assoc lines cls
+  | Extend T' more => match line_in T' cls with Some l => Some l | None => line_in more cls end
+  end.
+
+Fixpoint modules_of (T : table) : list (string * bool) :=
+  match T with
+  | Table _ _ _ modules => modules
+  | Extend T' more => modules_of T' ++ modules_of more
+  end.
+
+Fixpoint classes_of (T : table) : list (string * tree) :=
+  match T with
+  | Table classes _ _ _ => classes
+  | Extend T' more => classes_of T' ++ classes_of more
+  end.
+
+Definition class_of (T : table) (name : string) : option tree :=
+  if foreign name then None else class_in T name.
+Definition member (T : table) (s : sym) : option tree :=
+  match s with
+  | Member owner _ _ => if foreign owner then None else member_in T s
+  | _ => None
+  end.
 
 (** ** A class's parts *)
 
@@ -84,26 +114,20 @@ Fixpoint dedup (xs : list string) (seen : list string) : list string :=
 
 (** A class and what it inherits from, itself first, the parent written last before those written earlier.
     `outside` gives what a class not of the program inherits from. *)
-Fixpoint lineage (fuel : nat) (classes : list (string * tree)) (outside : string -> list string) (cls : string)
-    : list string :=
+Fixpoint lineage (fuel : nat) (found : string -> option tree) (cls : string) : list string :=
   match fuel with
   | 0 => [cls]
   | S fuel' =>
-      match assoc classes cls with
-      | Some c => dedup (cls :: flat_map (lineage fuel' classes outside) (rev (parent_names c))) []
-      | None => dedup (cls :: outside cls) []
+      match found cls with
+      | Some c => dedup (cls :: flat_map (lineage fuel' found) (rev (parent_names c))) []
+      | None => [cls]
       end
   end.
 
-Definition ancestors (T : table) (outside : string -> list string) (cls : string) : list string :=
-  lineage 12 (t_classes T) outside cls.
-
-(** What a class inherits from in the program, itself first: kept in the table. *)
+(** What a class inherits from in the program, itself first, and the classes from outside those inherit from
+    directly: kept in the table. *)
 Definition own (T : table) (cls : string) : list string :=
-  if foreign cls then [cls] else match assoc (t_lineage T) cls with Some line => line | None => [cls] end.
-
-Definition inherits (T : table) (outside : string -> list string) (cls target : string) : bool :=
-  existsb (String.eqb target) (ancestors T outside cls).
+  if foreign cls then [cls] else match line_in T cls with Some line => line | None => [cls] end.
 
 (** ** Members *)
 
@@ -178,15 +202,21 @@ Definition own_initialiser (d : tree) : bool :=
   | _ => true
   end.
 
-Definition inherited (classes : list (string * tree)) (line : list string) (what : tree -> bool) : bool :=
-  existsb (fun name => match assoc classes name with
+Definition inherited (found : string -> option tree) (line : list string) (what : tree -> bool) : bool :=
+  existsb (fun name => match found name with
     | Some c => existsb what (class_body c)
     | None => false end) line.
 
-Definition stateful_modules (T : table) : list string := map fst (t_modules T).
+Definition stateful_modules (T : table) : list string := map fst (modules_of T).
+
+Fixpoint module_in (T : table) (cls : string) : option bool :=
+  match T with
+  | Table _ _ _ modules => assoc modules cls
+  | Extend T' more => match module_in T' cls with Some runs => Some runs | None => module_in more cls end
+  end.
 
 Definition needs_init (T : table) (cls : string) : bool :=
-  if foreign cls then false else match assoc (t_modules T) cls with Some runs => runs | None => false end.
+  if foreign cls then false else match module_in T cls with Some runs => runs | None => false end.
 
 Fixpoint index_of (xs : list string) (x : string) (i : nat) : option nat :=
   match xs with
@@ -194,16 +224,30 @@ Fixpoint index_of (xs : list string) (x : string) (i : nat) : option nat :=
   | y :: rest => if String.eqb y x then Some i else index_of rest x (S i)
   end.
 
+(** The place of an object with state among the program's, counted from `from`: those of a program linked
+    after another come after the other's. *)
+Fixpoint module_from (T : table) (cls : string) (from : nat) : option nat :=
+  match T with
+  | Table _ _ _ modules => index_of (map fst modules) cls from
+  | Extend T' more =>
+      match module_from T' cls from with
+      | Some r => Some r
+      | None => module_from more cls (from + List.length (modules_of T'))
+      end
+  end.
+
 (** Where a module with state is: its place among them, from one. *)
 Definition module_at (T : table) (cls : string) : option nat :=
-  if foreign cls then None else index_of (stateful_modules T) cls 1.
+  if foreign cls then None else module_from T cls 1.
 
 (** ** The table of a program *)
 
-Definition build (files : list tree) : table :=
+(** The definitions of `files`, in a program that has those of `base` before them. *)
+Definition build_after (base : table) (files : list tree) : table :=
   let all := over_list nodes files in
   let classes := flat_map (fun n => match n with ClassDef name _ _ _ _ _ => [(name, n)] | _ => [] end) all in
-  let lines := map (fun c => (fst c, lineage 12 classes (fun _ => []) (fst c))) classes in
+  let found := fun name => match class_in base name with Some c => Some c | None => assoc classes name end in
+  let lines := map (fun c => (fst c, lineage 12 found (fst c))) classes in
   Table classes
     (flat_map (fun n => match n with
        | ValDef (Member _ _ _ as s) _ _ _ | DefDef (Member _ _ _ as s) _ _ _ _ _ => [(s, n)]
@@ -212,6 +256,11 @@ Definition build (files : list tree) : table :=
     (flat_map (fun entry =>
        match assoc classes (fst entry) with
        | Some c =>
-           if is_module c && inherited classes (snd entry) (fun d => own_value d || own_initialiser d)
-           then [(fst entry, inherited classes (snd entry) own_initialiser)] else []
+           if is_module c && inherited found (snd entry) (fun d => own_value d || own_initialiser d)
+           then [(fst entry, inherited found (snd entry) own_initialiser)] else []
        | None => [] end) lines).
+
+Definition build (files : list tree) : table := build_after (Table [] [] [] []) files.
+
+(** A program that uses another: the other's definitions, then its own. *)
+Definition extend (T more : table) : table := Extend T more.

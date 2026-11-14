@@ -98,7 +98,7 @@ Definition unmeant (T : table) (outside : string -> string -> option primitive) 
             negb (String.eqb signature "" || String.eqb signature "package"
               || (is_universal owner && existsb (String.eqb name) universals)
               || existsb (fun c => match own_impl (snd c) s with Some _ => true | None => false end)
-                   (t_classes T))
+                   (classes_of T))
         end
     | _ => false end) used.
 
@@ -116,4 +116,4 @@ Definition declarer (name : string) : string :=
 Definition inner (T : table) : list string :=
   flat_map (fun c => match class_of T (declarer (fst c)) with
     | Some owner => if is_module owner || is_local (fst c) then [] else [fst c]
-    | None => [] end) (t_classes T).
+    | None => [] end) (classes_of T).
