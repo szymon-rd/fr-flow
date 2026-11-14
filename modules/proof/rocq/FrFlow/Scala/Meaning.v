@@ -507,7 +507,14 @@ Section Meaning.
 
   (** ** The meaning of a tree *)
 
-  Fixpoint denote (e : scope) (t : tree) {struct t} : D :=
+  (** The meaning is three functions that call each other: of an expression, of a call with the arguments given
+      so far, of a pattern. Each is written here as one step, over the three it calls, and the three
+      are then tied together. Written so, a call not yet computed is small where a proof walks a program: it
+      names the step, it does not hold all three functions. *)
+  Definition denote_step (denote : scope -> tree -> D)
+      (applied : scope -> tree -> list ty -> list (tree * D) -> D)
+      (pmatch : scope -> tree -> val -> X (option scope))
+      (e : scope) (t : tree) : D :=
     (* the statements of a block, in order, then what follows them in the scope they leave *)
     let block := fix block (e : scope) (stats : list tree) (k : scope -> D) {struct stats} : D :=
       match stats with
@@ -649,10 +656,13 @@ Section Meaning.
     | SummonFrom _ => stuck "a choice made by the compiler where the code is inlined"
     | Closure _ _ => stuck "a function value of what is no function made here"
     | _ => stuck "a tree that is no expression"
-    end
+    end.
 
   (** A call: `f` with the type arguments and the arguments given to it so far. *)
-  with applied (e : scope) (f : tree) (targs : list ty) (args : list (tree * D)) {struct f} : D :=
+  Definition applied_step (denote : scope -> tree -> D)
+      (applied : scope -> tree -> list ty -> list (tree * D) -> D)
+      (pmatch : scope -> tree -> val -> X (option scope))
+      (e : scope) (f : tree) (targs : list ty) (args : list (tree * D)) : D :=
     match f with
     | Apply g more => applied e g targs ((fix each (ts : list tree) : list (tree * D) :=
         match ts with [] => [] | a :: rest => (a, denote e a) :: each rest end) more ++ args)
@@ -662,10 +672,13 @@ Section Meaning.
     | Ident s => ident_with e s targs args
     | Typed g _ => applied e g targs args
     | _ => stuck "a call of what is neither a name nor a member"
-    end
+    end.
 
   (** Whether a value is what a pattern takes, and the variables the pattern then binds. *)
-  with pmatch (e : scope) (p : tree) (v : val) {struct p} : X (option scope) :=
+  Definition pmatch_step (denote : scope -> tree -> D)
+      (applied : scope -> tree -> list ty -> list (tree * D) -> D)
+      (pmatch : scope -> tree -> val -> X (option scope))
+      (e : scope) (p : tree) (v : val) : X (option scope) :=
     match p with
     | Wildcard => oret (Some e)
     | Bind s inner =>
@@ -717,6 +730,12 @@ Section Meaning.
         x <~ select_with e (denote e on) s [] [] ;; b <~ equal v x ;; oret (if b then Some e else None)
     | _ => stuck "a pattern of a form with no meaning here"
     end.
+
+  Fixpoint denote (e : scope) (t : tree) {struct t} : D := denote_step denote applied pmatch e t
+  with applied (e : scope) (f : tree) (targs : list ty) (args : list (tree * D)) {struct f} : D :=
+    applied_step denote applied pmatch e f targs args
+  with pmatch (e : scope) (p : tree) (v : val) {struct p} : X (option scope) :=
+    pmatch_step denote applied pmatch e p v.
 
   (** ** What a closure runs *)
 

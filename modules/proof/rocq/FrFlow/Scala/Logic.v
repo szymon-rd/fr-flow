@@ -8,7 +8,7 @@
 From iris.proofmode Require Import proofmode.
 From FrFlow.Threads Require Export Prog.
 From FrFlow.Jvm Require Export Adequacy.
-From FrFlow.Scala Require Export Tree Program Table Equal Value Meaning Jdk Library.
+From FrFlow.Scala Require Export Tree Program Table Equal Value Meaning Jdk Library Collections.
 
 Section logic.
   Context `{!jvmGS code obj Σ}.
@@ -50,12 +50,65 @@ Section logic.
 
 End logic.
 
-(** What the program does next, computed; the rest left as it is. *)
+(** ** Walking a program
+
+    `wp_whd` computes what the program does next (an operation, a call, a loop, its result). What follows that
+    is set aside under a name (`K`), a definition of the proof's context, and the goal speaks of it by name;
+    the walk opens a name when the program reaches it. What follows holds the meaning of every tree not yet
+    reached, as calls not yet computed, each with the variables in scope: it is large, and the tactics of
+    Iris's proof mode look through the whole goal they are given. Kept under a name, it is out of their sight.
+
+    Where the walk cannot go on because the program asks something that is not computed (whether two threads
+    are the same, a value not known), it stops with the program that asks in view and what follows it under
+    names; the proof answers (a rewrite, a case) and walks on. *)
+
+(** The program that asks, with each program that waits for it set aside. *)
+Ltac wp_peel q :=
+  match q with
+  | ?h ?q2 ?g =>
+      let _ := match goal with _ => unify (h q2 g) (pbind q2 g) end in
+      let G := fresh "K" in
+      let _ := match goal with _ => pose (G := g) end in
+      let q2' := wp_peel q2 in
+      constr:(pbind q2' G)
+  | _ => q
+  end.
+
+Ltac wp_seal := idtac.
+
+Ltac wp_shape Δ i t p E Φ :=
+  lazymatch p with
+  | Ret ?a => change (environments.envs_entails Δ (wpP i t (Ret a) E Φ))
+  | Vis ?o ?k =>
+      let K := fresh "K" in
+      pose (K := k); change (environments.envs_entails Δ (wpP i t (Vis o K) E Φ)); wp_seal
+  | Call ?c ?a ?k =>
+      let K := fresh "K" in
+      pose (K := k); change (environments.envs_entails Δ (wpP i t (Call c a K) E Φ)); wp_seal
+  | Iter ?b ?s ?k =>
+      let B := fresh "B" in
+      let K := fresh "K" in
+      pose (B := b); pose (K := k); change (environments.envs_entails Δ (wpP i t (Iter B s K) E Φ)); wp_seal
+  | _ =>
+      let q := wp_peel p in
+      change (environments.envs_entails Δ (wpP i t q E Φ)); wp_seal
+  end.
+
+(** A name the program has reached is opened; a name nothing speaks of any more is dropped. *)
+Ltac wp_walk Δ i t p E Φ :=
+  let p' := eval lazy head in p in
+  wp_shape Δ i t p' E Φ;
+  repeat match goal with K := _ |- _ => clear K end.
+
 Ltac wp_whd :=
   lazymatch goal with
-  | |- environments.envs_entails ?Δ (wpP ?i ?t ?p ?E ?Φ) =>
-      let p' := eval lazy head in p in
-      change (environments.envs_entails Δ (wpP i t p' E Φ))
+  | |- environments.envs_entails ?Δ (wpP ?i ?t ?p ?E ?Φ) => wp_walk Δ i t p E Φ
+  | |- environments.envs_entails ?Δ (?F ?a) =>
+      (* what was set aside, given the result of the program it waited for *)
+      let G := eval cbv beta head in (F a) in
+      lazymatch G with
+      | wpP ?i ?t ?p ?E ?Φ => wp_walk Δ i t p E Φ
+      end
   end.
 
 (** The next step is an operation: the rule for it is applied next. *)
@@ -89,6 +142,7 @@ Ltac wp_peek := wp_whd; lazymatch goal with |- environments.envs_entails _ (wpP 
   | Call (Bound ?s ?v) ?a _ => idtac "call bound:" s v a
   | Iter _ ?s _ => idtac "iter:" s
   | Ret ?a => idtac "ret:" a
+  | _ => idtac "stopped at a question"
   end end.
 
 (** Whether two values, two threads or two places are the same is not computed while a program is walked: the
@@ -97,4 +151,4 @@ Ltac wp_peek := wp_whd; lazymatch goal with |- environments.envs_entails _ (wpP 
 Lemma val_eqb_other (a b : val) : a ≠ b → val_eqb a b = false.
 Proof. intros H. unfold val_eqb. by destruct (val_eq_dec a b). Qed.
 
-Global Opaque val_eqb same_place.
+Global Opaque val_eqb same_place has_thread.
