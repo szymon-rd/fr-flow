@@ -459,6 +459,9 @@ its invariants are what the second needs.
   is a model of its own: it is not derived from `Herd.v`'s, whose forks have no interrupt and no bound.
 - [threads/Wakeup.v](threads/Wakeup.v): the supervisor's count and future, and that the owner's wake-up is not
   lost; `rocq compile docs/threads/Wakeup.v`. No axioms. A third model of its own.
+- [threads/Count.v](threads/Count.v): why `isEmpty` of a concurrent set can answer `true` of a set never empty
+  (the cells of its counter, read one after another); `rocq compile docs/threads/Count.v`. No axioms. The run it
+  constructs is the one `examples/ox/probe/IsEmptyProbe.scala` finds on the JDK.
 - Iris is not installed where this was written: the machine has Rocq 9.3 with its standard library, opam's default
   repository has no Iris package, and the network policy denied the hosts that have it (`gitlab.mpi-sws.org` for
   the sources of Iris and std++, `rocq-prover.org` and `coq.inria.fr` for the package archive). No rule on this

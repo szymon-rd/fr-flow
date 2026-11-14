@@ -18,3 +18,8 @@ class OxProofRocqSuite extends munit.FunSuite:
     val files = proofs.map(f => s"Ox/$f.v" -> Files.readString(ox.resolve(s"$f.v")))
     assertEquals(ThreadsRocq.failing(files, library), None)
   }
+
+  test("Rocq checks the model of a set's counters: a sum of them can be zero of a set never empty".tag(Rocq)) {
+    val model = Files.readString(Path.of("docs/threads/Count.v"))
+    assertEquals(ThreadsRocq.failing(List("Models/Count.v" -> model), Nil), None)
+  }
