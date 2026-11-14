@@ -55,9 +55,9 @@ class OxSourceSuite extends munit.FunSuite:
     assertEquals(surface.size, 513)
   }
 
-  test("Rocq reads every file, and checks that Ox's trees are closed and take from outside what is listed"
-      .tag(Rocq)) {
-    val all = files ++ List("All.v", "Surface.v").map(n => n -> Files.readString(out.resolve(n)))
+  test("Rocq reads every file, and checks that Ox's trees are closed and take from outside what is listed, the "
+      + "whole and its concurrency kernel".tag(Rocq)) {
+    val all = files ++ List("All.v", "Surface.v", "Kernel.v").map(n => n -> Files.readString(out.resolve(n)))
     assertEquals(ThreadsRocq.failing(all.map((name, text) => s"Ox/Tree/$name" -> text),
       List("Scala/Tree", "Scala/Program")), None)
   }

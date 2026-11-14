@@ -64,13 +64,26 @@ proof and the reading predict, all seen:
 None is reported to Ox. Each uses a capability or a fork outside the scope it belongs to; whether Ox should
 catch that is Ox's to say. The proof shows that containment does not hold without the condition on the client.
 
+A fourth run is of the JDK alone, and bears on the first assumption below (`IsEmptyProbe`,
+`sbt "runMain IsEmptyProbe 30 2"`): a `ConcurrentHashMap.newKeySet()` that always holds one element, other elements
+added by one thread and removed by another (as a fork is added by the thread that starts it and removes itself),
+and a thread asking `isEmpty`. On JDK 21.0.12, in 30 seconds, `isEmpty` answered `true` 44 times of 717 million:
+of a set that was never empty. The closing loop of a scope ends when `threads.isEmpty` answers `true`. So the
+contract `TsIsEmpty` that `contained` rests on is not one the JDK keeps, and a scope of Ox can in principle
+complete with forks of its own in its set, whatever the client does. `EmptyProbe` looks for that in Ox itself
+(forks that start short-lived forks as their scope closes): none in 20,000 rounds, where the window is a few
+nanoseconds of the owner's thread. The JDK's own `ThreadFlock` does not ask `isEmpty`: it keeps a count of its
+own.
+
 ## What is assumed
 
 1. **`Jdk.v`, every line.** Each JDK class Ox uses is its state and a contract per method; a call is one step
    among other threads' steps (linearizability, and the memory model's guarantee for code without data races).
    Two contracts say more than the JDK's documentation:
    - `TsIsEmpty`: `ConcurrentHashMap`'s `isEmpty` answers `true` only of a set empty at that moment. Its
-     documentation says the method is "not for program control" under concurrent updates.
+     documentation says the method is "not for program control" under concurrent updates. It is not kept: a run of the
+     JDK shows `true` of a set that was never empty ("Run against Ox itself"). `contained` is therefore a
+     theorem about Ox with an emptiness test that is exact, which Ox 1.1.0 on the JDK does not have.
    - `TypeError`: a cast the compiler inserted does not fail (the JVM's type safety). A cast the source
      writes throws `ClassCastException` when it fails.
 2. **`Gen.v` is Ox.** It is generated from the TASTy in Ox's published jar by rules over Scala's constructs

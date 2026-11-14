@@ -32,73 +32,42 @@ Fixpoint distinct (ss : list sym) : list sym :=
 Definition over_list {A : Type} (f : tree -> list A) : list tree -> list A :=
   fix go ts := match ts with [] => [] | t :: rest => f t ++ go rest end.
 
-(** The members a tree defines: the values and methods a class or an object declares. *)
-Fixpoint defines (t : tree) : list sym :=
-  let many := fix go ts := match ts with [] => [] | x :: rest => defines x ++ go rest end in
-  let maybe := fun o => match o with Some x => defines x | None => [] end in
-  let own := fun s => match s with Member _ _ _ => [s] | _ => [] end in
-  match t with
-  | ValDef s _ _ rhs => own s ++ maybe rhs
-  | DefDef s _ paramss _ rhs _ =>
-      own s ++ (fix go pss := match pss with [] => [] | ps :: rest => many ps ++ go rest end) paramss ++ maybe rhs
-  | ClassDef _ _ ctor parents self body => defines ctor ++ many parents ++ maybe self ++ many body
-  | PackageClause _ stats => many stats
-  | Block stats result => many stats ++ defines result
-  | Apply f args => defines f ++ many args
-  | TypeApply f _ => defines f
-  | Select q _ => defines q
-  | Typed e _ => defines e
-  | NamedArg _ e => defines e
-  | Assign l r => defines l ++ defines r
-  | If c a b => defines c ++ defines a ++ defines b
-  | Match _ s cases => defines s ++ many cases
-  | SummonFrom cases => many cases
-  | CaseDef _ g b => maybe g ++ defines b
-  | Try b cases fin => defines b ++ many cases ++ maybe fin
-  | Return e _ => defines e
-  | While c b => defines c ++ defines b
-  | Repeated es _ => many es
-  | Inlined _ bs b => many bs ++ defines b
-  | Closure m _ => defines m
-  | _ => []
-  end.
-
-(** The definitions a tree refers to: every name it reads, selects or calls. *)
-Fixpoint mentions (t : tree) : list sym :=
-  let many := fix go ts := match ts with [] => [] | x :: rest => mentions x ++ go rest end in
-  let maybe := fun o => match o with Some x => mentions x | None => [] end in
-  match t with
-  | Ident s => [s]
-  | Select q s => s :: mentions q
-  | SelectOuter q _ _ => mentions q
-  | Super q _ => mentions q
-  | Apply f args => mentions f ++ many args
-  | TypeApply f _ => mentions f
-  | NamedArg _ e => mentions e
-  | Typed e _ => mentions e
-  | Assign l r => mentions l ++ mentions r
-  | Block stats result => many stats ++ mentions result
-  | Closure m _ => mentions m
-  | If c a b => mentions c ++ mentions a ++ mentions b
-  | Match _ s cases => mentions s ++ many cases
-  | SummonFrom cases => many cases
-  | Try b cases fin => mentions b ++ many cases ++ maybe fin
-  | Return e _ => mentions e
-  | While c b => mentions c ++ mentions b
-  | Repeated es _ => many es
-  | Inlined call bs b => maybe call ++ many bs ++ mentions b
+(** Every tree inside a tree, itself first: the one traversal, which every reading below filters. An import is
+    not gone into: it is no code. *)
+Fixpoint nodes (t : tree) : list tree :=
+  let many := fix go ts := match ts with [] => [] | x :: rest => nodes x ++ go rest end in
+  let maybe := fun o => match o with Some x => nodes x | None => [] end in
+  t :: match t with
+  | Select q _ | SelectOuter q _ _ | Super q _ | TypeApply q _ | NamedArg _ q | Typed q _ | Closure q _
+  | Return q _ | Bind _ q | TypeTest q _ => nodes q
+  | Apply f args => nodes f ++ many args
+  | Assign l r | While l r => nodes l ++ nodes r
+  | Block stats result => many stats ++ nodes result
+  | If c a b => nodes c ++ nodes a ++ nodes b
+  | Match _ on cases => nodes on ++ many cases
+  | SummonFrom cases | Alternatives cases => many cases
+  | Try body cases fin => nodes body ++ many cases ++ maybe fin
+  | Repeated elems _ => many elems
+  | Inlined call bindings body => maybe call ++ many bindings ++ nodes body
   | ValDef _ _ _ rhs => maybe rhs
   | DefDef _ _ paramss _ rhs _ =>
       (fix go pss := match pss with [] => [] | ps :: rest => many ps ++ go rest end) paramss ++ maybe rhs
-  | ClassDef _ _ ctor parents self body => mentions ctor ++ many parents ++ maybe self ++ many body
+  | ClassDef _ _ ctor parents self body => nodes ctor ++ many parents ++ maybe self ++ many body
   | PackageClause _ stats => many stats
-  | CaseDef p g b => mentions p ++ maybe g ++ mentions b
-  | Bind _ p => mentions p
-  | Unapply f gs ps => mentions f ++ many gs ++ many ps
-  | Alternatives ps => many ps
-  | TypeTest p _ => mentions p
+  | CaseDef p guard body => nodes p ++ maybe guard ++ nodes body
+  | Unapply f givens ps => nodes f ++ many givens ++ many ps
   | _ => []
   end.
+
+(** The members a tree defines: the values and methods a class or an object declares. *)
+Definition defines (t : tree) : list sym :=
+  flat_map (fun n => match n with
+    | ValDef (Member _ _ _ as s) _ _ _ | DefDef (Member _ _ _ as s) _ _ _ _ _ => [s]
+    | _ => [] end) (nodes t).
+
+(** The definitions a tree refers to: every name it reads, selects or calls. *)
+Definition mentions (t : tree) : list sym :=
+  flat_map (fun n => match n with Ident s | Select _ s => [s] | _ => [] end) (nodes t).
 
 (** `name` is `package`, or inside it. *)
 Definition within (package name : string) : bool :=
@@ -138,3 +107,68 @@ End Program.
 (** Two lists name the same definitions. *)
 Definition same (a b : list sym) : bool :=
   forallb (fun s => known s b) a && forallb (fun s => known s a) b.
+
+(** ** What a part of a program reaches
+
+    The definitions that may run when some of them are called: what their bodies refer to, and so on. A method
+    that may be called is taken to reach every method that overrides it (any object may be the one called), and
+    making an object is taken to reach each of its methods that overrides one from outside the package (code
+    outside may call it back). So `reaches` is at least what runs; it may hold more. *)
+
+Record entry := Entry { e_sym : sym; e_calls : list sym; e_overrides : list sym }.
+
+Section Reach.
+
+  Variable package : string.
+  Variable files : list tree.
+
+  (** What making an object of a class runs: its parents' constructors, the statements and the values' right
+      sides of its body; and the methods code outside may call on it. *)
+  Definition constructs (parents body : list tree) : list sym :=
+    over_list mentions parents ++ flat_map (fun s => match s with
+      | DefDef m _ _ _ _ overridden => if existsb (outsider package) overridden then [m] else []
+      | ClassDef _ _ _ _ _ _ | TypeDef _ _ _ => []
+      | other => mentions other end) body.
+
+  Definition entry_of (t : tree) : list entry :=
+    match t with
+    | DefDef (Member _ _ _ as s) _ _ _ rhs overridden =>
+        [Entry s (match rhs with Some body => mentions body | None => [] end) overridden]
+    | ValDef (Member _ _ _ as s) _ _ (Some rhs) => [Entry s (mentions rhs) []]
+    | ClassDef _ _ (DefDef c _ _ _ _ _) parents _ body => [Entry c (constructs parents body) []]
+    | _ => []
+    end.
+
+  Definition table : list entry := flat_map entry_of (over_list nodes files).
+
+  Definition calls_of (s : sym) : list sym :=
+    flat_map (fun e => if sym_eqb s (e_sym e) then e_calls e else []) table.
+  Definition overriders (s : sym) : list sym :=
+    flat_map (fun e => if known s (e_overrides e) then [e_sym e] else []) table.
+
+  (** From `todo`, with `seen` reached already: what is reached, and what was left to look at when the fuel ran
+      out (nothing, when there was enough). *)
+  Fixpoint reach (fuel : nat) (todo seen : list sym) : list sym * list sym :=
+    match fuel with
+    | 0 => (seen, todo)
+    | S fuel' =>
+        match todo with
+        | [] => (seen, [])
+        | s :: rest =>
+            if known s seen then reach fuel' rest seen
+            else reach fuel' (filter (inside package) (calls_of s ++ overriders s) ++ rest) (s :: seen)
+        end
+    end.
+
+  (** The definitions of the program declared by one of `owners`. *)
+  Definition declared_by (owners : list string) : list sym :=
+    filter (fun s => match s with Member o _ _ => existsb (String.eqb o) owners | _ => false end)
+      (over_list defines files).
+
+  (** What the definitions `from` reach, and what they take from outside the package. *)
+  Definition reaches (from : list sym) : list sym * list sym :=
+    reach (4 * length (over_list nodes files)) from [].
+  Definition reaches_outside (reached : list sym) : list sym :=
+    distinct (filter (outsider package) (flat_map calls_of reached)).
+
+End Reach.
