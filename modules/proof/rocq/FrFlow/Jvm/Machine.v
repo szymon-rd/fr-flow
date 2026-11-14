@@ -39,7 +39,7 @@ Inductive exn :=
   | NullPointerException
   | NoSuchElementException
   | Other (class : string)
-  | Thrown (r : nat).
+  | Thrown (class : string) (r : nat).
 
 (** What is done once, by one thread at a time: a `lazy val` of an object evaluated, one written in a method, a
     class initialised. *)

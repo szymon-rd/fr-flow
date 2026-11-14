@@ -56,7 +56,7 @@ Section Meaning.
     | NullPointerException => "java.lang.NullPointerException"
     | NoSuchElementException => "java.util.NoSuchElementException"
     | Machine.Other c => c
-    | Thrown _ => "java.lang.Throwable"
+    | Thrown _ _ => "java.lang.Throwable"
     end.
 
   Definition class_of_val (v : val) : option string :=
@@ -483,7 +483,7 @@ Section Meaning.
   (** A thrown exception as the value a handler is given: an object of a class of the program is its place. *)
   Definition exn_val (x : exn) : D :=
     match x with
-    | Thrown r => cls <~ oop (ObjClass r) ;; oret (vref cls r)
+    | Thrown cls r => oret (vref cls r)
     | _ => oret (VExn x)
     end.
 

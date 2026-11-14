@@ -327,7 +327,7 @@ Definition either_method (name : string) : option (list bool * Run) :=
 (** An exception a method gave, as a value: one that is an object of the program is that object. *)
 Definition back (x : exn) : X val :=
   match x with
-  | Thrown r => cls <~ oop (ObjClass r) ;; oret (vref cls r)
+  | Thrown cls r => oret (vref cls r)
   | _ => oret (VExn x)
   end.
 

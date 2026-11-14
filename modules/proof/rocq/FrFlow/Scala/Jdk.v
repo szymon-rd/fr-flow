@@ -29,7 +29,7 @@ Definition answer (S : Type) : Type := reply code obj S.
 Definition as_exn (v : val) : option exn :=
   match v with
   | VExn x => Some x
-  | VObj (Ref _ r) => Some (Thrown r)
+  | VObj (Ref cls r) => Some (Thrown cls r)
   | _ => None
   end.
 
