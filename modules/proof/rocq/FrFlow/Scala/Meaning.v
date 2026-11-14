@@ -207,23 +207,23 @@ Section Meaning.
       as the JVM initialises a class (JLS 12.4.2): a thread that names it meanwhile waits, the thread that
       initialises it sees it as it is so far. If its initialiser throws, that thread gets
       `ExceptionInInitializerError`, and every later naming `NoClassDefFoundError`. *)
+  Definition module_init (cls : string) (r : nat) : D :=
+    x <~ oop (Enter r init_field OfClass) ;;
+    match x with
+    | Some VUnit => oret (vref cls r)
+    | Some _ => othrow (Machine.Other "java.lang.NoClassDefFoundError")
+    | None =>
+        Call (Init cls) (VList [vref cls r]) (fun made => match made with
+          | inr _ => _ <~ oop (ObjSet r init_field VUnit) ;; oret (vref cls r)
+          | inl _ =>
+              _ <~ oop (ObjSet r init_field (VBool false)) ;;
+              othrow (Machine.Other "java.lang.ExceptionInInitializerError")
+          end)
+    end.
+
   Definition module_obj (cls : string) : D :=
     match module_at T cls with
-    | Some r =>
-        if needs_init T cls then
-          x <~ oop (Enter r init_field OfClass) ;;
-          match x with
-          | Some VUnit => oret (vref cls r)
-          | Some _ => othrow (Machine.Other "java.lang.NoClassDefFoundError")
-          | None =>
-              Call (Init cls) (VList [vref cls r]) (fun made => match made with
-                | inr _ => _ <~ oop (ObjSet r init_field VUnit) ;; oret (vref cls r)
-                | inl _ =>
-                    _ <~ oop (ObjSet r init_field (VBool false)) ;;
-                    othrow (Machine.Other "java.lang.ExceptionInInitializerError")
-                end)
-          end
-        else oret (vref cls r)
+    | Some r => if needs_init T cls then module_init cls r else oret (vref cls r)
     | None => oret (VObj (Module cls))
     end.
 
@@ -619,8 +619,9 @@ Section Meaning.
           | Some f => pbind (denote e f) (fun fo => match fo with Ok _ => Ret o | other => Ret other end)
           end in
         pbind (denote e body) (fun o =>
-          match o with
-          | Exc x =>
+          match o, cases with
+          | Exc x, [] => after o          (* no handler: what was thrown is not looked at *)
+          | Exc x, _ :: _ =>
               pbind (v <~ exn_val x ;;
                 (fix try (cs : list tree) : D :=
                   match cs with
@@ -643,7 +644,7 @@ Section Meaning.
                       end
                   | _ :: _ => stuck "a handler that is no case"
                   end) cases) after
-          | _ => after o
+          | _, _ => after o
           end)
     | Return x from => v <~ denote e x ;; Ret (Brk v (key from))
     | Closure (Ident s) _ =>

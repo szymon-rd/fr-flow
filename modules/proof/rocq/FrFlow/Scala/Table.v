@@ -214,7 +214,7 @@ Definition stateful_modules (T : table) : list string := map fst (modules_of T).
 Fixpoint module_in (T : table) (cls : string) : option bool :=
   match T with
   | Table _ _ _ modules => assoc modules cls
-  | Extend T' more => match module_in T' cls with Some runs => Some runs | None => module_in more cls end
+  | Extend T' more => match class_in T' cls with Some _ => module_in T' cls | None => module_in more cls end
   end.
 
 Definition needs_init (T : table) (cls : string) : bool :=
@@ -227,13 +227,14 @@ Fixpoint index_of (xs : list string) (x : string) (i : nat) : option nat :=
   end.
 
 (** The place of an object with state among the program's, counted from `from`: those of a program linked
-    after another come after the other's. *)
+    after another come after the other's. Whether an object of the first program has state is the first
+    program's to say, as its class is. *)
 Fixpoint module_from (T : table) (cls : string) (from : nat) : option nat :=
   match T with
   | Table _ _ _ modules => index_of (map fst modules) cls from
   | Extend T' more =>
-      match module_from T' cls from with
-      | Some r => Some r
+      match class_in T' cls with
+      | Some _ => module_from T' cls from
       | None => module_from more cls (from + List.length (modules_of T'))
       end
   end.

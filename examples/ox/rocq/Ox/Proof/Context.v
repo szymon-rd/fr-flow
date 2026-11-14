@@ -62,13 +62,13 @@ Section context.
 
   (** ** The object named: by any thread that holds its place, which it keeps *)
 
-  Local Transparent module_obj.
+  Local Transparent module_init.
 
   Lemma ctx_named t pl Φ :
     ctx_inv -∗ place_is t pl -∗
     (∀ fields, ctx_at ↦obj□ (c_ctx, fields) -∗ ctx_ready fields -∗ place_is t pl -∗
        Φ (Ok (vref c_ctx ctx_at))) -∗
-    wpP (run more) t (module_obj (extend Ox more) c_ctx) ⊤ Φ.
+    wpP (run more) t (module_init c_ctx ctx_at) ⊤ Φ.
   Proof.
     iIntros "#Hctx Hplace HΦ". iDestruct (place_lend with "Hplace") as "[Htok Hpart]".
     wp_op. iApply (wp_module_enter (run more) ctx_at c_ctx ctx_unset place_tok ctx_ready place_tok_once
@@ -96,6 +96,6 @@ Section context.
       + iApply (place_back with "Htok Hpart").
   Qed.
 
-  Local Opaque module_obj.
+  Local Opaque module_init.
 
 End context.

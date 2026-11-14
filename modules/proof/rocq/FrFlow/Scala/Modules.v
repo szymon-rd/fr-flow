@@ -1,9 +1,9 @@
-(** A Scala `object` with state, initialised by the first thread that names it (`Meaning.module_obj`), as a proof
+(** A Scala `object` with state, initialised by the first thread that names it (`Meaning.module_init`), as a proof
     of a program that names it sees it.
 
     The object is in one of three states, kept in an invariant: not yet initialised; being initialised by a
     thread, which holds half of it and so alone writes its fields; initialised, its fields fixed for good and
-    what is known of them (`P`) everyone's. The rules are the steps of `module_obj` and of an initialiser:
+    what is known of them (`P`) everyone's. The rules are the steps of `module_init` and of an initialiser:
     naming the object (`Enter`), writing a field of it while it is initialised, and the write that ends its
     initialisation.
 
@@ -173,15 +173,8 @@ End modules.
 
 (** ** Naming an object, in a walk
 
-    An object with no state is its name; one with state that runs nothing when it is made is its place. Naming
-    one that is initialised on first use is a program of its own (`Meaning.module_obj`): a walk stops at it,
-    and a proof about that object's class goes on from there (by the rules above). *)
-Lemma module_plain (T : table) (cls : string) :
-  module_at T cls = None → module_obj T cls = oret (VObj (Module cls)).
-Proof. intros H. by rewrite /module_obj H. Qed.
-
-Lemma module_placed (T : table) (cls : string) (r : nat) :
-  module_at T cls = Some r → needs_init T cls = false → module_obj T cls = oret (vref cls r).
-Proof. intros H Hn. by rewrite /module_obj H Hn. Qed.
-
-Global Opaque module_obj.
+    An object with no state is its name; one with state that runs nothing when it is made is its place: the
+    walk computes those. Naming one that is initialised on first use is a program of its own
+    (`Meaning.module_init`): a walk stops at it, and a proof about that object's class goes on from there (by
+    the rules above). *)
+Global Opaque module_init.

@@ -12,6 +12,9 @@ Definition c_herd : string := "ox.internal.ThreadHerd".
 Definition c_flag : string := p_class atomic_boolean.
 Definition c_set : string := p_class concurrent_set.
 Definition herd_at (r : nat) : val := VObj (Ref c_herd r).
+(** The JDK's own thread factory (`Thread.ofVirtual().factory()`): the one a herd is taken to have. A factory
+    of the program's would be code of the program that makes the herd's threads. *)
+Definition jdk_factory : val := VObj (Module "java.util.concurrent.ThreadFactory").
 Definition m_assertNotShuttingDown : sym := Member c_herd "assertNotShuttingDown" ":scala.Unit".
 Definition m_close : sym := Member c_herd "interruptAllAndJoinUntilCompleted" ":scala.Unit".
 Definition m_isOwnerOrHerdThread : sym :=
@@ -47,7 +50,7 @@ Section herds.
   (** The herd at `r` of the scope `q`, made by `owner`: its fields no longer change; its flag is anyone's to
       read and set. *)
   Definition is_herd (r q owner : nat) : iProp Σ :=
-    ∃ tf flag, r ↦obj□ (c_herd, herd_fields tf owner flag q) ∗ scope_at q ∗
+    ∃ flag, r ↦obj□ (c_herd, herd_fields jdk_factory owner flag q) ∗ scope_at q ∗
       inv herdN (∃ v : bool, flag ↦ext (Held atomic_boolean v)).
 
   Global Instance is_herd_persistent r q owner : Persistent (is_herd r q owner).
@@ -60,11 +63,11 @@ Section herd.
 
   (** ** A herd made is a scope opened, by the thread that makes it *)
 
-  Lemma herd_init t r tf rl stack Φ :
+  Lemma herd_init t r rl stack Φ :
     rl ≠ Past →
     scopes_inv -∗ place_is t (rl, stack) -∗ r ↦obj (c_herd, herd_unset) -∗
     (∀ q, is_herd r q t -∗ place_is t (rl, q :: stack) -∗ Φ (inr VUnit)) -∗
-    wpP (run more) t (run more (Init c_herd) (VList [herd_at r; tf])) ⊤ Φ.
+    wpP (run more) t (run more (Init c_herd) (VList [herd_at r; jdk_factory])) ⊤ Φ.
   Proof.
     iIntros (Hrl) "#Hinv Hplace Hr HΦ".
     wp_set "Hr".
@@ -76,7 +79,7 @@ Section herd.
     iMod (obj_at_persist with "Hr") as "#Hr".
     iMod (inv_alloc herdN ⊤ (∃ v : bool, flag ↦ext (Held atomic_boolean v)) with "[Hflag]") as "#Hflag";
       [by iExists false |].
-    iModIntro. wp_done. iApply ("HΦ" with "[] Hplace"). iExists tf, flag. by iFrame "Hr Hscope Hflag".
+    iModIntro. wp_done. iApply ("HΦ" with "[] Hplace"). iExists flag. by iFrame "Hr Hscope Hflag".
   Qed.
 
   (** ** `assertNotShuttingDown` returns, or throws: it reads the herd's flag *)
@@ -85,7 +88,7 @@ Section herd.
     is_herd r q owner -∗ (Φ (inr VUnit) ∧ ∀ x, Φ (inl x)) -∗
     wpP (run more) t (run more (Method m_assertNotShuttingDown) (VList [herd_at r])) ⊤ Φ.
   Proof.
-    iIntros "#Hherd HΦ". iDestruct "Hherd" as (tf flag) "(Hr & Hq & Hflag)".
+    iIntros "#Hherd HΦ". iDestruct "Hherd" as (flag) "(Hr & Hq & Hflag)".
     wp_read "Hr".
     wp_op. iApply wp_ext_call. iInv "Hflag" as (v) ">Hf" "Hclose". iModIntro. iExists atomic_boolean, v.
     iFrame "Hf". iIntros "!>" (intr choice). simpl. iIntros "Hf".
@@ -99,7 +102,7 @@ Section herd.
     scopes_inv -∗ is_herd r q owner -∗ (∀ b, Φ (inr (VBool b))) -∗
     wpP (run more) t (run more (Method m_isOwnerOrHerdThread) (VList [herd_at r; VTid u])) ⊤ Φ.
   Proof.
-    iIntros "#Hinv #Hherd HΦ". iDestruct "Hherd" as (tf flag) "(Hr & Hq & Hflag)".
+    iIntros "#Hinv #Hherd HΦ". iDestruct "Hherd" as (flag) "(Hr & Hq & Hflag)".
     wp_read "Hr". wp_whd. destruct (same_place u owner).
     - wp_done. iApply "HΦ".
     - wp_call. wp_read "Hr". wp_op. iApply (wp_set_read with "Hinv Hq"); [done |].
@@ -132,7 +135,7 @@ Section herd.
        Φ (inr VUnit) ∧ Φ (inl InterruptedException)) -∗
     wpP (run more) t (run more (Method m_close) (VList [herd_at r])) ⊤ Φ.
   Proof.
-    iIntros "#Hinv #Hherd Hplace HΦ". iDestruct "Hherd" as (tf flag) "(Hr & Hq & Hflag)".
+    iIntros "#Hinv #Hherd Hplace HΦ". iDestruct "Hherd" as (flag) "(Hr & Hq & Hflag)".
     (* assertOnOwnerThread: the caller is the owner *)
     wp_call. wp_op. iApply wp_current_thread. iNext. wp_read "Hr". wp_whd. rewrite same_place_refl. wp_done.
     (* shutdownInProgress.set(true) *)
