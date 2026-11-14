@@ -11,8 +11,8 @@ Definition ox_par_package : tree :=
     [
       (Imported
         (Select
-          (Select (Ident (Member "<root>" "java" "")) (Member "java" "util" ""))
-          (Member "java.util" "concurrent" ""))
+          (Select (Ident (Member "<root>" "java" "package")) (Member "java" "util" "package"))
+          (Member "java.util" "concurrent" "package"))
         ["Semaphore"]);
       (ValDef
         (Member "ox" "par$package" "")

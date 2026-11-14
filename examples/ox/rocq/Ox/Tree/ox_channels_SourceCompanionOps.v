@@ -9,14 +9,20 @@ Definition ox_channels_SourceCompanionOps : tree :=
   (PackageClause
     "ox.channels"
     [
-      (Imported (Ident (Member "<root>" "ox" "")) ["_"]);
-      (Imported (Ident (Member "<root>" "java" "")) ["util"]);
-      (Imported (Select (Ident (Member "<root>" "scala" "")) (Member "scala" "concurrent" "")) ["ExecutionContext"]);
-      (Imported (Select (Ident (Member "<root>" "scala" "")) (Member "scala" "concurrent" "")) ["ExecutionException"]);
-      (Imported (Select (Ident (Member "<root>" "scala" "")) (Member "scala" "concurrent" "")) ["Future"]);
-      (Imported (Select (Ident (Member "<root>" "scala" "")) (Member "scala" "util" "")) ["Failure"]);
-      (Imported (Select (Ident (Member "<root>" "scala" "")) (Member "scala" "util" "")) ["Success"]);
-      (Imported (Select (Ident (Member "<root>" "ox" "")) (Member "ox" "flow" "")) ["Flow"]);
+      (Imported (Ident (Member "<root>" "ox" "package")) ["_"]);
+      (Imported (Ident (Member "<root>" "java" "package")) ["util"]);
+      (Imported
+        (Select (Ident (Member "<root>" "scala" "package")) (Member "scala" "concurrent" "package"))
+        ["ExecutionContext"]);
+      (Imported
+        (Select (Ident (Member "<root>" "scala" "package")) (Member "scala" "concurrent" "package"))
+        ["ExecutionException"]);
+      (Imported
+        (Select (Ident (Member "<root>" "scala" "package")) (Member "scala" "concurrent" "package"))
+        ["Future"]);
+      (Imported (Select (Ident (Member "<root>" "scala" "package")) (Member "scala" "util" "package")) ["Failure"]);
+      (Imported (Select (Ident (Member "<root>" "scala" "package")) (Member "scala" "util" "package")) ["Success"]);
+      (Imported (Select (Ident (Member "<root>" "ox" "package")) (Member "ox" "flow" "package")) ["Flow"]);
       (ClassDef
         "ox.channels.SourceCompanionOps"
         ["NoInits"; "Trait"; "@scala.annotation.internal.SourceFile"]

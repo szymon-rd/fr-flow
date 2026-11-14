@@ -9,7 +9,7 @@ Definition ox_channels_SourceOps : tree :=
   (PackageClause
     "ox.channels"
     [
-      (Imported (Ident (Member "<root>" "ox" "")) ["_"]);
+      (Imported (Ident (Member "<root>" "ox" "package")) ["_"]);
       (ClassDef
         "ox.channels.SourceOps"
         ["NoInits"; "Trait"; "@scala.annotation.internal.SourceFile"]

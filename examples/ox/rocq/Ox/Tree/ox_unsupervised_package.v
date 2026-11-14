@@ -9,8 +9,10 @@ Definition ox_unsupervised_package : tree :=
   (PackageClause
     "ox"
     [
-      (Imported (Select (Ident (Member "<root>" "ox" "")) (Member "ox" "internal" "")) ["currentLocals"]);
-      (Imported (Select (Ident (Member "<root>" "ox" "")) (Member "ox" "internal" "")) ["currentScope"]);
+      (Imported
+        (Select (Ident (Member "<root>" "ox" "package")) (Member "ox" "internal" "package"))
+        ["currentLocals"]);
+      (Imported (Select (Ident (Member "<root>" "ox" "package")) (Member "ox" "internal" "package")) ["currentScope"]);
       (ValDef
         (Member "ox" "unsupervised$package" "")
         ["Final"; "Lazy"; "Module"; "StableRealizable"; "Synthetic"]

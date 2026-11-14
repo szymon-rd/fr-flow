@@ -9,13 +9,19 @@ Definition ox_resilience_AdaptiveRetry : tree :=
   (PackageClause
     "ox.resilience"
     [
-      (Imported (Ident (Member "<root>" "ox" "")) ["_"]);
-      (Imported (Select (Ident (Member "<root>" "ox" "")) (Member "ox" "scheduling" "")) ["Schedule"]);
-      (Imported (Select (Ident (Member "<root>" "ox" "")) (Member "ox" "scheduling" "")) ["ScheduleStop"]);
-      (Imported (Select (Ident (Member "<root>" "ox" "")) (Member "ox" "scheduling" "")) ["ScheduledConfig"]);
-      (Imported (Select (Ident (Member "<root>" "ox" "")) (Member "ox" "scheduling" "")) ["SleepMode"]);
-      (Imported (Select (Ident (Member "<root>" "ox" "")) (Member "ox" "scheduling" "")) ["scheduledWithErrorMode"]);
-      (Imported (Select (Ident (Member "<root>" "scala" "")) (Member "scala" "util" "")) ["Try"]);
+      (Imported (Ident (Member "<root>" "ox" "package")) ["_"]);
+      (Imported (Select (Ident (Member "<root>" "ox" "package")) (Member "ox" "scheduling" "package")) ["Schedule"]);
+      (Imported
+        (Select (Ident (Member "<root>" "ox" "package")) (Member "ox" "scheduling" "package"))
+        ["ScheduleStop"]);
+      (Imported
+        (Select (Ident (Member "<root>" "ox" "package")) (Member "ox" "scheduling" "package"))
+        ["ScheduledConfig"]);
+      (Imported (Select (Ident (Member "<root>" "ox" "package")) (Member "ox" "scheduling" "package")) ["SleepMode"]);
+      (Imported
+        (Select (Ident (Member "<root>" "ox" "package")) (Member "ox" "scheduling" "package"))
+        ["scheduledWithErrorMode"]);
+      (Imported (Select (Ident (Member "<root>" "scala" "package")) (Member "scala" "util" "package")) ["Try"]);
       (ClassDef
         "ox.resilience.AdaptiveRetry"
         ["Case"; "NoInits"; "@scala.annotation.internal.SourceFile"]

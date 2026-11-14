@@ -32,9 +32,12 @@ private[source] trait SourceSyms:
     else if isLocal(s) then Datum.of("Local", Text(s.name), Nat(number(s)))
     else Datum.of("Member", Text(scopeKey(s.maybeOwner)), Text(s.name), Text(signature(s)))
 
-  /** What tells a method from the others of its name: the erased types of its parameters and its result. */
+  /** What tells a method from the others of its name: the erased types of its parameters and its result. A
+    * package says it is one: it is no definition of the code read.
+    */
   private def signature(s: Symbol): String =
-    if s.isDefDef then s"${s.signature.paramSigs.mkString(",")}:${s.signature.resultSig}" else ""
+    if s.isDefDef then s"${s.signature.paramSigs.mkString(",")}:${s.signature.resultSig}"
+    else if s.isPackageDef then "package" else ""
 
   /** A definition's flags, as the compiler names them, then its annotations' classes. */
   def flags(s: Symbol): Datum = Datum.texts(

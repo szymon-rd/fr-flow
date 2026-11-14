@@ -1833,7 +1833,9 @@ Definition ox_flow_internal_WeightedHeap : tree :=
                                   (Apply
                                     (Select
                                       (Select
-                                        (Select (Ident (Member "<none>" "_root_" "")) (Member "<root>" "scala" ""))
+                                        (Select
+                                          (Ident (Member "<none>" "_root_" "package"))
+                                          (Member "<root>" "scala" "package"))
                                         (Member "scala" "StringContext" ""))
                                       (Member
                                         "scala.StringContext$"

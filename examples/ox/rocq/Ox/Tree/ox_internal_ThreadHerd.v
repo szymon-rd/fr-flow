@@ -9,26 +9,28 @@ Definition ox_internal_ThreadHerd : tree :=
   (PackageClause
     "ox.internal"
     [
-      (Imported (Ident (Member "<root>" "ox" "")) ["OxUnsupervised"]);
-      (Imported (Ident (Member "<root>" "ox" "")) ["discard"]);
+      (Imported (Ident (Member "<root>" "ox" "package")) ["OxUnsupervised"]);
+      (Imported (Ident (Member "<root>" "ox" "package")) ["discard"]);
       (Imported
         (Select
-          (Select (Ident (Member "<root>" "java" "")) (Member "java" "util" ""))
-          (Member "java.util" "concurrent" ""))
+          (Select (Ident (Member "<root>" "java" "package")) (Member "java" "util" "package"))
+          (Member "java.util" "concurrent" "package"))
         ["ConcurrentHashMap"]);
       (Imported
         (Select
-          (Select (Ident (Member "<root>" "java" "")) (Member "java" "util" ""))
-          (Member "java.util" "concurrent" ""))
+          (Select (Ident (Member "<root>" "java" "package")) (Member "java" "util" "package"))
+          (Member "java.util" "concurrent" "package"))
         ["ThreadFactory"]);
       (Imported
         (Select
           (Select
-            (Select (Ident (Member "<root>" "java" "")) (Member "java" "util" ""))
-            (Member "java.util" "concurrent" ""))
-          (Member "java.util.concurrent" "atomic" ""))
+            (Select (Ident (Member "<root>" "java" "package")) (Member "java" "util" "package"))
+            (Member "java.util" "concurrent" "package"))
+          (Member "java.util.concurrent" "atomic" "package"))
         ["AtomicBoolean"]);
-      (Imported (Select (Ident (Member "<root>" "scala" "")) (Member "scala" "annotation" "")) ["tailrec"]);
+      (Imported
+        (Select (Ident (Member "<root>" "scala" "package")) (Member "scala" "annotation" "package"))
+        ["tailrec"]);
       (ClassDef
         "ox.internal.ThreadHerd"
         ["@scala.annotation.internal.SourceFile"]
@@ -482,8 +484,8 @@ Definition ox_internal_ThreadHerd : tree :=
                                           (Select
                                             (Select
                                               (Select
-                                                (Ident (Member "<none>" "_root_" ""))
-                                                (Member "<root>" "scala" ""))
+                                                (Ident (Member "<none>" "_root_" "package"))
+                                                (Member "<root>" "scala" "package"))
                                               (Member "scala" "StringContext" ""))
                                             (Member
                                               "scala.StringContext$"

@@ -9,38 +9,40 @@ Definition ox_computeIntensive_package : tree :=
   (PackageClause
     "ox"
     [
-      (Imported (Select (Ident (Member "<root>" "scala" "")) (Member "scala" "compiletime" "")) ["uninitialized"]);
+      (Imported
+        (Select (Ident (Member "<root>" "scala" "package")) (Member "scala" "compiletime" "package"))
+        ["uninitialized"]);
       (Imported
         (Select
-          (Select (Ident (Member "<root>" "java" "")) (Member "java" "util" ""))
-          (Member "java.util" "concurrent" ""))
+          (Select (Ident (Member "<root>" "java" "package")) (Member "java" "util" "package"))
+          (Member "java.util" "concurrent" "package"))
         ["CompletableFuture"]);
       (Imported
         (Select
-          (Select (Ident (Member "<root>" "java" "")) (Member "java" "util" ""))
-          (Member "java.util" "concurrent" ""))
+          (Select (Ident (Member "<root>" "java" "package")) (Member "java" "util" "package"))
+          (Member "java.util" "concurrent" "package"))
         ["ExecutionException"]);
       (Imported
         (Select
-          (Select (Ident (Member "<root>" "java" "")) (Member "java" "util" ""))
-          (Member "java.util" "concurrent" ""))
+          (Select (Ident (Member "<root>" "java" "package")) (Member "java" "util" "package"))
+          (Member "java.util" "concurrent" "package"))
         ["ExecutorService"]);
       (Imported
         (Select
-          (Select (Ident (Member "<root>" "java" "")) (Member "java" "util" ""))
-          (Member "java.util" "concurrent" ""))
+          (Select (Ident (Member "<root>" "java" "package")) (Member "java" "util" "package"))
+          (Member "java.util" "concurrent" "package"))
         ["Executors"]);
       (Imported
         (Select
-          (Select (Ident (Member "<root>" "java" "")) (Member "java" "util" ""))
-          (Member "java.util" "concurrent" ""))
+          (Select (Ident (Member "<root>" "java" "package")) (Member "java" "util" "package"))
+          (Member "java.util" "concurrent" "package"))
         ["ThreadFactory"]);
       (Imported
         (Select
           (Select
-            (Select (Ident (Member "<root>" "java" "")) (Member "java" "util" ""))
-            (Member "java.util" "concurrent" ""))
-          (Member "java.util.concurrent" "atomic" ""))
+            (Select (Ident (Member "<root>" "java" "package")) (Member "java" "util" "package"))
+            (Member "java.util" "concurrent" "package"))
+          (Member "java.util.concurrent" "atomic" "package"))
         ["AtomicInteger"]);
       (ValDef
         (Member "ox" "computeIntensive$package" "")
@@ -196,8 +198,8 @@ Definition ox_computeIntensive_package : tree :=
                                                     (Select
                                                       (Select
                                                         (Select
-                                                          (Ident (Member "<none>" "_root_" ""))
-                                                          (Member "<root>" "scala" ""))
+                                                          (Ident (Member "<none>" "_root_" "package"))
+                                                          (Member "<root>" "scala" "package"))
                                                         (Member "scala" "StringContext" ""))
                                                       (Member
                                                         "scala.StringContext$"

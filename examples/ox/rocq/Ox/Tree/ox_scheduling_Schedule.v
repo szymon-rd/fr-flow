@@ -11,10 +11,10 @@ Definition ox_scheduling_Schedule : tree :=
     [
       (Imported
         (Select
-          (Select (Ident (Member "<root>" "scala" "")) (Member "scala" "concurrent" ""))
-          (Member "scala.concurrent" "duration" ""))
+          (Select (Ident (Member "<root>" "scala" "package")) (Member "scala" "concurrent" "package"))
+          (Member "scala.concurrent" "duration" "package"))
         ["_"]);
-      (Imported (Select (Ident (Member "<root>" "scala" "")) (Member "scala" "util" "")) ["Random"]);
+      (Imported (Select (Ident (Member "<root>" "scala" "package")) (Member "scala" "util" "package")) ["Random"]);
       (ClassDef
         "ox.scheduling.Schedule"
         ["Case"; "NoInits"; "@scala.annotation.internal.SourceFile"]

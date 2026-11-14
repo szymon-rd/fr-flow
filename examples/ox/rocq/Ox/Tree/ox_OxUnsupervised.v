@@ -9,18 +9,22 @@ Definition ox_OxUnsupervised : tree :=
   (PackageClause
     "ox"
     [
-      (Imported (Select (Ident (Member "<root>" "ox" "")) (Member "ox" "channels" "")) ["Actor"]);
-      (Imported (Select (Ident (Member "<root>" "ox" "")) (Member "ox" "channels" "")) ["ActorRef"]);
-      (Imported (Select (Ident (Member "<root>" "ox" "")) (Member "ox" "channels" "")) ["BufferCapacity"]);
-      (Imported (Select (Ident (Member "<root>" "ox" "")) (Member "ox" "internal" "")) ["ThreadHerd"]);
+      (Imported (Select (Ident (Member "<root>" "ox" "package")) (Member "ox" "channels" "package")) ["Actor"]);
+      (Imported (Select (Ident (Member "<root>" "ox" "package")) (Member "ox" "channels" "package")) ["ActorRef"]);
+      (Imported
+        (Select (Ident (Member "<root>" "ox" "package")) (Member "ox" "channels" "package"))
+        ["BufferCapacity"]);
+      (Imported (Select (Ident (Member "<root>" "ox" "package")) (Member "ox" "internal" "package")) ["ThreadHerd"]);
       (Imported
         (Select
           (Select
-            (Select (Ident (Member "<root>" "java" "")) (Member "java" "util" ""))
-            (Member "java.util" "concurrent" ""))
-          (Member "java.util.concurrent" "atomic" ""))
+            (Select (Ident (Member "<root>" "java" "package")) (Member "java" "util" "package"))
+            (Member "java.util" "concurrent" "package"))
+          (Member "java.util.concurrent" "atomic" "package"))
         ["AtomicReference"]);
-      (Imported (Select (Ident (Member "<root>" "scala" "")) (Member "scala" "annotation" "")) ["implicitNotFound"]);
+      (Imported
+        (Select (Ident (Member "<root>" "scala" "package")) (Member "scala" "annotation" "package"))
+        ["implicitNotFound"]);
       (ClassDef
         "ox.OxUnsupervised"
         ["NoInits"; "Trait"; "@scala.annotation.internal.SourceFile"; "@scala.annotation.implicitNotFound"]

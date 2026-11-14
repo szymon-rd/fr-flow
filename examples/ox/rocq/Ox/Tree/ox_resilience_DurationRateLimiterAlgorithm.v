@@ -11,42 +11,44 @@ Definition ox_resilience_DurationRateLimiterAlgorithm : tree :=
     [
       (Imported
         (Select
-          (Select (Ident (Member "<root>" "java" "")) (Member "java" "util" ""))
-          (Member "java.util" "concurrent" ""))
+          (Select (Ident (Member "<root>" "java" "package")) (Member "java" "util" "package"))
+          (Member "java.util" "concurrent" "package"))
         ["Semaphore"]);
       (Imported
         (Select
           (Select
-            (Select (Ident (Member "<root>" "java" "")) (Member "java" "util" ""))
-            (Member "java.util" "concurrent" ""))
-          (Member "java.util.concurrent" "atomic" ""))
+            (Select (Ident (Member "<root>" "java" "package")) (Member "java" "util" "package"))
+            (Member "java.util" "concurrent" "package"))
+          (Member "java.util.concurrent" "atomic" "package"))
         ["AtomicInteger"]);
       (Imported
         (Select
           (Select
-            (Select (Ident (Member "<root>" "java" "")) (Member "java" "util" ""))
-            (Member "java.util" "concurrent" ""))
-          (Member "java.util.concurrent" "atomic" ""))
+            (Select (Ident (Member "<root>" "java" "package")) (Member "java" "util" "package"))
+            (Member "java.util" "concurrent" "package"))
+          (Member "java.util.concurrent" "atomic" "package"))
         ["AtomicLong"]);
       (Imported
         (Select
           (Select
-            (Select (Ident (Member "<root>" "java" "")) (Member "java" "util" ""))
-            (Member "java.util" "concurrent" ""))
-          (Member "java.util.concurrent" "atomic" ""))
+            (Select (Ident (Member "<root>" "java" "package")) (Member "java" "util" "package"))
+            (Member "java.util" "concurrent" "package"))
+          (Member "java.util.concurrent" "atomic" "package"))
         ["AtomicReference"]);
-      (Imported (Select (Ident (Member "<root>" "scala" "")) (Member "scala" "annotation" "")) ["tailrec"]);
+      (Imported
+        (Select (Ident (Member "<root>" "scala" "package")) (Member "scala" "annotation" "package"))
+        ["tailrec"]);
       (Imported
         (Select
-          (Select (Ident (Member "<root>" "scala" "")) (Member "scala" "collection" ""))
-          (Member "scala.collection" "immutable" ""))
+          (Select (Ident (Member "<root>" "scala" "package")) (Member "scala" "collection" "package"))
+          (Member "scala.collection" "immutable" "package"))
         ["Queue"]);
       (Imported
         (Select
-          (Select (Ident (Member "<root>" "scala" "")) (Member "scala" "concurrent" ""))
-          (Member "scala.concurrent" "duration" ""))
+          (Select (Ident (Member "<root>" "scala" "package")) (Member "scala" "concurrent" "package"))
+          (Member "scala.concurrent" "duration" "package"))
         ["FiniteDuration"]);
-      (Imported (Ident (Member "<root>" "ox" "")) ["discard"]);
+      (Imported (Ident (Member "<root>" "ox" "package")) ["discard"]);
       (ValDef
         (Member "ox.resilience" "DurationRateLimiterAlgorithm" "")
         ["Final"; "Lazy"; "Module"; "StableRealizable"; "@scala.annotation.internal.SourceFile"]

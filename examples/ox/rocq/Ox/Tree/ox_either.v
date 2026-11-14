@@ -9,22 +9,28 @@ Definition ox_either : tree :=
   (PackageClause
     "ox"
     [
-      (Imported (Select (Ident (Member "<root>" "scala" "")) (Member "scala" "annotation" "")) ["implicitNotFound"]);
       (Imported
-        (Select (Ident (Member "<root>" "scala" "")) (Member "scala" "compiletime" ""))
+        (Select (Ident (Member "<root>" "scala" "package")) (Member "scala" "annotation" "package"))
+        ["implicitNotFound"]);
+      (Imported
+        (Select (Ident (Member "<root>" "scala" "package")) (Member "scala" "compiletime" "package"))
         ["error"; "summonFrom"]);
-      (Imported (Select (Ident (Member "<root>" "scala" "")) (Member "scala" "util" "")) ["NotGiven"; "boundary"]);
+      (Imported
+        (Select (Ident (Member "<root>" "scala" "package")) (Member "scala" "util" "package"))
+        ["NotGiven"; "boundary"]);
       (Imported
         (Select
-          (Select (Ident (Member "<root>" "scala" "")) (Member "scala" "util" ""))
+          (Select (Ident (Member "<root>" "scala" "package")) (Member "scala" "util" "package"))
           (Member "scala.util" "boundary" ""))
         ["Label"; "break"]);
       (Imported
         (Select
-          (Select (Ident (Member "<root>" "scala" "")) (Member "scala" "util" ""))
-          (Member "scala.util" "control" ""))
+          (Select (Ident (Member "<root>" "scala" "package")) (Member "scala" "util" "package"))
+          (Member "scala.util" "control" "package"))
         ["NonFatal"]);
-      (Imported (Select (Ident (Member "<root>" "scala" "")) (Member "scala" "reflect" "")) ["ClassTag"]);
+      (Imported
+        (Select (Ident (Member "<root>" "scala" "package")) (Member "scala" "reflect" "package"))
+        ["ClassTag"]);
       (ValDef
         (Member "ox" "either" "")
         ["Final"; "Lazy"; "Module"; "StableRealizable"]

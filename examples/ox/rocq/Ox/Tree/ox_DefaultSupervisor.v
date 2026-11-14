@@ -9,26 +9,30 @@ Definition ox_DefaultSupervisor : tree :=
   (PackageClause
     "ox"
     [
-      (Imported (Select (Ident (Member "<root>" "ox" "")) (Member "ox" "internal" "")) ["currentLocals"]);
-      (Imported (Select (Ident (Member "<root>" "ox" "")) (Member "ox" "internal" "")) ["currentScope"]);
+      (Imported
+        (Select (Ident (Member "<root>" "ox" "package")) (Member "ox" "internal" "package"))
+        ["currentLocals"]);
+      (Imported (Select (Ident (Member "<root>" "ox" "package")) (Member "ox" "internal" "package")) ["currentScope"]);
       (Imported
         (Select
-          (Select (Ident (Member "<root>" "java" "")) (Member "java" "util" ""))
-          (Member "java.util" "concurrent" ""))
+          (Select (Ident (Member "<root>" "java" "package")) (Member "java" "util" "package"))
+          (Member "java.util" "concurrent" "package"))
         ["CompletableFuture"]);
       (Imported
         (Select
-          (Select (Ident (Member "<root>" "java" "")) (Member "java" "util" ""))
-          (Member "java.util" "concurrent" ""))
+          (Select (Ident (Member "<root>" "java" "package")) (Member "java" "util" "package"))
+          (Member "java.util" "concurrent" "package"))
         ["ConcurrentHashMap"]);
       (Imported
         (Select
           (Select
-            (Select (Ident (Member "<root>" "java" "")) (Member "java" "util" ""))
-            (Member "java.util" "concurrent" ""))
-          (Member "java.util.concurrent" "atomic" ""))
+            (Select (Ident (Member "<root>" "java" "package")) (Member "java" "util" "package"))
+            (Member "java.util" "concurrent" "package"))
+          (Member "java.util.concurrent" "atomic" "package"))
         ["AtomicInteger"]);
-      (Imported (Select (Ident (Member "<root>" "scala" "")) (Member "scala" "reflect" "")) ["ClassTag"]);
+      (Imported
+        (Select (Ident (Member "<root>" "scala" "package")) (Member "scala" "reflect" "package"))
+        ["ClassTag"]);
       (ClassDef
         "ox.DefaultSupervisor"
         ["@scala.annotation.internal.SourceFile"]

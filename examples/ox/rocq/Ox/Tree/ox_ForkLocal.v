@@ -9,7 +9,9 @@ Definition ox_ForkLocal : tree :=
   (PackageClause
     "ox"
     [
-      (Imported (Select (Ident (Member "<root>" "ox" "")) (Member "ox" "internal" "")) ["currentLocals"]);
+      (Imported
+        (Select (Ident (Member "<root>" "ox" "package")) (Member "ox" "internal" "package"))
+        ["currentLocals"]);
       (ClassDef
         "ox.ForkLocal"
         ["NoInits"; "@scala.annotation.internal.SourceFile"]

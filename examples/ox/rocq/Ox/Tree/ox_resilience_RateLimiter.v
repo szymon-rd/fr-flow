@@ -11,11 +11,13 @@ Definition ox_resilience_RateLimiter : tree :=
     [
       (Imported
         (Select
-          (Select (Ident (Member "<root>" "scala" "")) (Member "scala" "concurrent" ""))
-          (Member "scala.concurrent" "duration" ""))
+          (Select (Ident (Member "<root>" "scala" "package")) (Member "scala" "concurrent" "package"))
+          (Member "scala.concurrent" "duration" "package"))
         ["FiniteDuration"]);
-      (Imported (Ident (Member "<root>" "ox" "")) ["_"]);
-      (Imported (Select (Ident (Member "<root>" "scala" "")) (Member "scala" "annotation" "")) ["tailrec"]);
+      (Imported (Ident (Member "<root>" "ox" "package")) ["_"]);
+      (Imported
+        (Select (Ident (Member "<root>" "scala" "package")) (Member "scala" "annotation" "package"))
+        ["tailrec"]);
       (ClassDef
         "ox.resilience.RateLimiter"
         ["NoInits"; "@scala.annotation.internal.SourceFile"]

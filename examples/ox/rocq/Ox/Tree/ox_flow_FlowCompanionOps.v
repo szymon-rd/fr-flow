@@ -9,36 +9,48 @@ Definition ox_flow_FlowCompanionOps : tree :=
   (PackageClause
     "ox.flow"
     [
-      (Imported (Ident (Member "<root>" "ox" "")) ["Fork"]);
-      (Imported (Select (Ident (Member "<root>" "ox" "")) (Member "ox" "channels" "")) ["ChannelClosed"]);
+      (Imported (Ident (Member "<root>" "ox" "package")) ["Fork"]);
+      (Imported
+        (Select (Ident (Member "<root>" "ox" "package")) (Member "ox" "channels" "package"))
+        ["ChannelClosed"]);
       (Imported
         (Select
-          (Select (Ident (Member "<root>" "ox" "")) (Member "ox" "channels" ""))
+          (Select (Ident (Member "<root>" "ox" "package")) (Member "ox" "channels" "package"))
           (Member "ox.channels" "ChannelClosedUnion" ""))
         ["isValue"]);
-      (Imported (Select (Ident (Member "<root>" "ox" "")) (Member "ox" "channels" "")) ["Source"]);
-      (Imported (Select (Ident (Member "<root>" "ox" "")) (Member "ox" "channels" "")) ["Sink"]);
-      (Imported (Select (Ident (Member "<root>" "ox" "")) (Member "ox" "channels" "")) ["BufferCapacity"]);
-      (Imported (Ident (Member "<root>" "ox" "")) ["forever"]);
-      (Imported (Ident (Member "<root>" "ox" "")) ["forkUnsupervised"]);
-      (Imported (Ident (Member "<root>" "ox" "")) ["repeatWhile"]);
-      (Imported (Ident (Member "<root>" "ox" "")) ["sleep"]);
-      (Imported (Ident (Member "<root>" "ox" "")) ["unsupervised"]);
-      (Imported (Select (Ident (Member "<root>" "scala" "")) (Member "scala" "collection" "")) ["mutable"]);
-      (Imported (Select (Ident (Member "<root>" "scala" "")) (Member "scala" "concurrent" "")) ["Await"]);
-      (Imported (Select (Ident (Member "<root>" "scala" "")) (Member "scala" "concurrent" "")) ["Future"]);
+      (Imported (Select (Ident (Member "<root>" "ox" "package")) (Member "ox" "channels" "package")) ["Source"]);
+      (Imported (Select (Ident (Member "<root>" "ox" "package")) (Member "ox" "channels" "package")) ["Sink"]);
+      (Imported
+        (Select (Ident (Member "<root>" "ox" "package")) (Member "ox" "channels" "package"))
+        ["BufferCapacity"]);
+      (Imported (Ident (Member "<root>" "ox" "package")) ["forever"]);
+      (Imported (Ident (Member "<root>" "ox" "package")) ["forkUnsupervised"]);
+      (Imported (Ident (Member "<root>" "ox" "package")) ["repeatWhile"]);
+      (Imported (Ident (Member "<root>" "ox" "package")) ["sleep"]);
+      (Imported (Ident (Member "<root>" "ox" "package")) ["unsupervised"]);
+      (Imported
+        (Select (Ident (Member "<root>" "scala" "package")) (Member "scala" "collection" "package"))
+        ["mutable"]);
+      (Imported
+        (Select (Ident (Member "<root>" "scala" "package")) (Member "scala" "concurrent" "package"))
+        ["Await"]);
+      (Imported
+        (Select (Ident (Member "<root>" "scala" "package")) (Member "scala" "concurrent" "package"))
+        ["Future"]);
       (Imported
         (Select
-          (Select (Ident (Member "<root>" "scala" "")) (Member "scala" "concurrent" ""))
-          (Member "scala.concurrent" "duration" ""))
+          (Select (Ident (Member "<root>" "scala" "package")) (Member "scala" "concurrent" "package"))
+          (Member "scala.concurrent" "duration" "package"))
         ["Duration"]);
       (Imported
         (Select
-          (Select (Ident (Member "<root>" "scala" "")) (Member "scala" "concurrent" ""))
-          (Member "scala.concurrent" "duration" ""))
+          (Select (Ident (Member "<root>" "scala" "package")) (Member "scala" "concurrent" "package"))
+          (Member "scala.concurrent" "duration" "package"))
         ["FiniteDuration"]);
-      (Imported (Select (Ident (Member "<root>" "scala" "")) (Member "scala" "annotation" "")) ["nowarn"]);
-      (Imported (Ident (Member "<root>" "ox" "")) ["discard"]);
+      (Imported
+        (Select (Ident (Member "<root>" "scala" "package")) (Member "scala" "annotation" "package"))
+        ["nowarn"]);
+      (Imported (Ident (Member "<root>" "ox" "package")) ["discard"]);
       (ClassDef
         "ox.flow.FlowCompanionOps"
         ["NoInits"; "Trait"; "@scala.annotation.internal.SourceFile"]
@@ -1537,7 +1549,7 @@ Definition ox_flow_FlowCompanionOps : tree :=
                                                                                 (Member
                                                                                   "scala.collection"
                                                                                   "mutable"
-                                                                                  ""))
+                                                                                  "package"))
                                                                               (Member
                                                                                 "scala.collection.mutable"
                                                                                 "ArrayBuffer"

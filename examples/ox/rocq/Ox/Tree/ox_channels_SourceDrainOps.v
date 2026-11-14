@@ -11,16 +11,16 @@ Definition ox_channels_SourceDrainOps : tree :=
     [
       (Imported
         (Select
-          (Select (Ident (Member "<root>" "ox" "")) (Member "ox" "channels" ""))
+          (Select (Ident (Member "<root>" "ox" "package")) (Member "ox" "channels" "package"))
           (Member "ox.channels" "ChannelClosedUnion" ""))
         ["mapUnlessError"]);
       (Imported
         (Select
-          (Select (Ident (Member "<root>" "ox" "")) (Member "ox" "channels" ""))
+          (Select (Ident (Member "<root>" "ox" "package")) (Member "ox" "channels" "package"))
           (Member "ox.channels" "ChannelClosedUnion" ""))
         ["orThrow"]);
-      (Imported (Ident (Member "<root>" "ox" "")) ["discard"]);
-      (Imported (Ident (Member "<root>" "ox" "")) ["repeatWhile"]);
+      (Imported (Ident (Member "<root>" "ox" "package")) ["discard"]);
+      (Imported (Ident (Member "<root>" "ox" "package")) ["repeatWhile"]);
       (ClassDef
         "ox.channels.SourceDrainOps"
         ["NoInits"; "Trait"; "@scala.annotation.internal.SourceFile"]

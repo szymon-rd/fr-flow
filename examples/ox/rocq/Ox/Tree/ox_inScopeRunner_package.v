@@ -9,7 +9,7 @@ Definition ox_inScopeRunner_package : tree :=
   (PackageClause
     "ox"
     [
-      (Imported (Select (Ident (Member "<root>" "ox" "")) (Member "ox" "channels" "")) ["ActorRef"]);
+      (Imported (Select (Ident (Member "<root>" "ox" "package")) (Member "ox" "channels" "package")) ["ActorRef"]);
       (ValDef
         (Member "ox" "inScopeRunner$package" "")
         ["Final"; "Lazy"; "Module"; "StableRealizable"; "Synthetic"]

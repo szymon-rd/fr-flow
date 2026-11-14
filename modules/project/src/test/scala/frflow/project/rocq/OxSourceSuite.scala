@@ -42,6 +42,22 @@ class OxSourceSuite extends munit.FunSuite:
     files.foreach((name, text) => assertEquals(text, Files.readString(out.resolve(name)), name))
   }
 
-  test("Rocq reads every file: each is a tree".tag(Rocq)) {
-    assertEquals(ThreadsRocq.failing(files.map((name, text) => s"Ox/Tree/$name" -> text), List("Scala/Tree")), None)
+  /** What Ox's trees refer to outside Ox: each definition read or called whose owner is not inside `ox`. */
+  private lazy val surface: List[List[String]] =
+    read.flatMap((_, d) => OxSource.mentioned(d)).distinct.filterNot(m => OxSource.within("ox", m.head)).sorted(
+      using Ordering.Implicits.seqOrdering[List, String])
+
+  test("the generator prints the files that are kept: the index, and what Ox takes from outside") {
+    val kept = List("All.v" -> OxSource.index(files.map(_._1.stripSuffix(".v"))), "Surface.v" ->
+      OxSource.surface(surface))
+    if sys.env.contains("FRFLOW_ROCQ_WRITE") then kept.foreach((n, t) => Files.writeString(out.resolve(n), t))
+    kept.foreach((name, text) => assertEquals(text, Files.readString(out.resolve(name)), name))
+    assertEquals(surface.size, 513)
+  }
+
+  test("Rocq reads every file, and checks that Ox's trees are closed and take from outside what is listed"
+      .tag(Rocq)) {
+    val all = files ++ List("All.v", "Surface.v").map(n => n -> Files.readString(out.resolve(n)))
+    assertEquals(ThreadsRocq.failing(all.map((name, text) => s"Ox/Tree/$name" -> text),
+      List("Scala/Tree", "Scala/Program")), None)
   }

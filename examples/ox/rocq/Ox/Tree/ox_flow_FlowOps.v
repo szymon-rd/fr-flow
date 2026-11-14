@@ -9,50 +9,62 @@ Definition ox_flow_FlowOps : tree :=
   (PackageClause
     "ox.flow"
     [
-      (Imported (Ident (Member "<root>" "ox" "")) ["CancellableFork"]);
-      (Imported (Ident (Member "<root>" "ox" "")) ["Fork"]);
-      (Imported (Ident (Member "<root>" "ox" "")) ["OxUnsupervised"]);
-      (Imported (Select (Ident (Member "<root>" "ox" "")) (Member "ox" "channels" "")) ["BufferCapacity"]);
-      (Imported (Select (Ident (Member "<root>" "ox" "")) (Member "ox" "channels" "")) ["Channel"]);
-      (Imported (Select (Ident (Member "<root>" "ox" "")) (Member "ox" "channels" "")) ["ChannelClosed"]);
-      (Imported (Select (Ident (Member "<root>" "ox" "")) (Member "ox" "channels" "")) ["Default"]);
-      (Imported (Select (Ident (Member "<root>" "ox" "")) (Member "ox" "channels" "")) ["Sink"]);
-      (Imported (Select (Ident (Member "<root>" "ox" "")) (Member "ox" "channels" "")) ["Source"]);
-      (Imported (Select (Ident (Member "<root>" "ox" "")) (Member "ox" "channels" "")) ["forkPropagate"]);
-      (Imported (Select (Ident (Member "<root>" "ox" "")) (Member "ox" "channels" "")) ["selectOrClosed"]);
-      (Imported (Ident (Member "<root>" "ox" "")) ["discard"]);
+      (Imported (Ident (Member "<root>" "ox" "package")) ["CancellableFork"]);
+      (Imported (Ident (Member "<root>" "ox" "package")) ["Fork"]);
+      (Imported (Ident (Member "<root>" "ox" "package")) ["OxUnsupervised"]);
       (Imported
-        (Select (Select (Ident (Member "<root>" "ox" "")) (Member "ox" "flow" "")) (Member "ox.flow" "internal" ""))
-        ["groupByImpl"]);
-      (Imported (Ident (Member "<root>" "ox" "")) ["forkCancellable"]);
-      (Imported (Ident (Member "<root>" "ox" "")) ["forkUnsupervised"]);
-      (Imported (Ident (Member "<root>" "ox" "")) ["forkUser"]);
-      (Imported (Ident (Member "<root>" "ox" "")) ["repeatWhile"]);
-      (Imported (Select (Ident (Member "<root>" "ox" "")) (Member "ox" "resilience" "")) ["RetryConfig"]);
-      (Imported (Select (Ident (Member "<root>" "ox" "")) (Member "ox" "scheduling" "")) ["Schedule"]);
-      (Imported (Ident (Member "<root>" "ox" "")) ["sleep"]);
-      (Imported (Ident (Member "<root>" "ox" "")) ["supervised"]);
-      (Imported (Ident (Member "<root>" "ox" "")) ["tapException"]);
-      (Imported (Ident (Member "<root>" "ox" "")) ["unsupervised"]);
+        (Select (Ident (Member "<root>" "ox" "package")) (Member "ox" "channels" "package"))
+        ["BufferCapacity"]);
+      (Imported (Select (Ident (Member "<root>" "ox" "package")) (Member "ox" "channels" "package")) ["Channel"]);
+      (Imported
+        (Select (Ident (Member "<root>" "ox" "package")) (Member "ox" "channels" "package"))
+        ["ChannelClosed"]);
+      (Imported (Select (Ident (Member "<root>" "ox" "package")) (Member "ox" "channels" "package")) ["Default"]);
+      (Imported (Select (Ident (Member "<root>" "ox" "package")) (Member "ox" "channels" "package")) ["Sink"]);
+      (Imported (Select (Ident (Member "<root>" "ox" "package")) (Member "ox" "channels" "package")) ["Source"]);
+      (Imported
+        (Select (Ident (Member "<root>" "ox" "package")) (Member "ox" "channels" "package"))
+        ["forkPropagate"]);
+      (Imported
+        (Select (Ident (Member "<root>" "ox" "package")) (Member "ox" "channels" "package"))
+        ["selectOrClosed"]);
+      (Imported (Ident (Member "<root>" "ox" "package")) ["discard"]);
       (Imported
         (Select
-          (Select (Ident (Member "<root>" "java" "")) (Member "java" "util" ""))
-          (Member "java.util" "concurrent" ""))
+          (Select (Ident (Member "<root>" "ox" "package")) (Member "ox" "flow" "package"))
+          (Member "ox.flow" "internal" "package"))
+        ["groupByImpl"]);
+      (Imported (Ident (Member "<root>" "ox" "package")) ["forkCancellable"]);
+      (Imported (Ident (Member "<root>" "ox" "package")) ["forkUnsupervised"]);
+      (Imported (Ident (Member "<root>" "ox" "package")) ["forkUser"]);
+      (Imported (Ident (Member "<root>" "ox" "package")) ["repeatWhile"]);
+      (Imported
+        (Select (Ident (Member "<root>" "ox" "package")) (Member "ox" "resilience" "package"))
+        ["RetryConfig"]);
+      (Imported (Select (Ident (Member "<root>" "ox" "package")) (Member "ox" "scheduling" "package")) ["Schedule"]);
+      (Imported (Ident (Member "<root>" "ox" "package")) ["sleep"]);
+      (Imported (Ident (Member "<root>" "ox" "package")) ["supervised"]);
+      (Imported (Ident (Member "<root>" "ox" "package")) ["tapException"]);
+      (Imported (Ident (Member "<root>" "ox" "package")) ["unsupervised"]);
+      (Imported
+        (Select
+          (Select (Ident (Member "<root>" "java" "package")) (Member "java" "util" "package"))
+          (Member "java.util" "concurrent" "package"))
         ["Semaphore"]);
       (Imported
         (Select
-          (Select (Ident (Member "<root>" "scala" "")) (Member "scala" "concurrent" ""))
-          (Member "scala.concurrent" "duration" ""))
+          (Select (Ident (Member "<root>" "scala" "package")) (Member "scala" "concurrent" "package"))
+          (Member "scala.concurrent" "duration" "package"))
         ["DurationLong"]);
       (Imported
         (Select
-          (Select (Ident (Member "<root>" "scala" "")) (Member "scala" "concurrent" ""))
-          (Member "scala.concurrent" "duration" ""))
+          (Select (Ident (Member "<root>" "scala" "package")) (Member "scala" "concurrent" "package"))
+          (Member "scala.concurrent" "duration" "package"))
         ["FiniteDuration"]);
       (Imported
         (Select
-          (Select (Ident (Member "<root>" "scala" "")) (Member "scala" "util" ""))
-          (Member "scala.util" "control" ""))
+          (Select (Ident (Member "<root>" "scala" "package")) (Member "scala" "util" "package"))
+          (Member "scala.util" "control" "package"))
         ["ControlThrowable"]);
       (ClassDef
         "ox.flow.FlowOps"
@@ -4628,8 +4640,8 @@ Definition ox_flow_FlowOps : tree :=
                                                     (Select
                                                       (Select
                                                         (Select
-                                                          (Ident (Member "<root>" "scala" ""))
-                                                          (Member "scala" "runtime" ""))
+                                                          (Ident (Member "<root>" "scala" "package"))
+                                                          (Member "scala" "runtime" "package"))
                                                         (Member "scala.runtime" "Scala3RunTime" ""))
                                                       (Member
                                                         "scala.runtime.Scala3RunTime$"
@@ -4782,8 +4794,8 @@ Definition ox_flow_FlowOps : tree :=
                                                             (Select
                                                               (Select
                                                                 (Select
-                                                                  (Ident (Member "<root>" "scala" ""))
-                                                                  (Member "scala" "runtime" ""))
+                                                                  (Ident (Member "<root>" "scala" "package"))
+                                                                  (Member "scala" "runtime" "package"))
                                                                 (Member "scala.runtime" "Scala3RunTime" ""))
                                                               (Member
                                                                 "scala.runtime.Scala3RunTime$"
@@ -9734,8 +9746,8 @@ Definition ox_flow_FlowOps : tree :=
                                                                 (Select
                                                                   (Select
                                                                     (Select
-                                                                      (Ident (Member "<root>" "ox" ""))
-                                                                      (Member "ox" "resilience" ""))
+                                                                      (Ident (Member "<root>" "ox" "package"))
+                                                                      (Member "ox" "resilience" "package"))
                                                                     (Member "ox.resilience" "retry$package" ""))
                                                                   (Member
                                                                     "ox.resilience.retry$package$"
@@ -10475,8 +10487,8 @@ Definition ox_flow_FlowOps : tree :=
                                                                         (Select
                                                                           (Select
                                                                             (Select
-                                                                              (Ident (Member "<root>" "ox" ""))
-                                                                              (Member "ox" "resilience" ""))
+                                                                              (Ident (Member "<root>" "ox" "package"))
+                                                                              (Member "ox" "resilience" "package"))
                                                                             (Member
                                                                               "ox.resilience"
                                                                               "retry$package"

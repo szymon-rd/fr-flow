@@ -11,8 +11,8 @@ Definition ox_resilience_CircuitBreakerConfig : tree :=
     [
       (Imported
         (Select
-          (Select (Ident (Member "<root>" "scala" "")) (Member "scala" "concurrent" ""))
-          (Member "scala.concurrent" "duration" ""))
+          (Select (Ident (Member "<root>" "scala" "package")) (Member "scala" "concurrent" "package"))
+          (Member "scala.concurrent" "duration" "package"))
         ["_"]);
       (ClassDef
         "ox.resilience.CircuitBreakerConfig"
@@ -530,7 +530,7 @@ Definition ox_resilience_CircuitBreakerConfig : tree :=
               (Apply
                 (Select
                   (Select
-                    (Select (Ident (Member "<root>" "scala" "")) (Member "scala" "runtime" ""))
+                    (Select (Ident (Member "<root>" "scala" "package")) (Member "scala" "runtime" "package"))
                     (Member "scala.runtime" "Scala3RunTime" ""))
                   (Member "scala.runtime.Scala3RunTime$" "assertFailed" "java.lang.Object:scala.Nothing"))
                 [
@@ -542,7 +542,9 @@ Definition ox_resilience_CircuitBreakerConfig : tree :=
                         (Apply
                           (Select
                             (Select
-                              (Select (Ident (Member "<none>" "_root_" "")) (Member "<root>" "scala" ""))
+                              (Select
+                                (Ident (Member "<none>" "_root_" "package"))
+                                (Member "<root>" "scala" "package"))
                               (Member "scala" "StringContext" ""))
                             (Member
                               "scala.StringContext$"

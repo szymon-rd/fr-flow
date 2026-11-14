@@ -9,34 +9,36 @@ Definition ox_CancellableFork : tree :=
   (PackageClause
     "ox"
     [
-      (Imported (Select (Ident (Member "<root>" "ox" "")) (Member "ox" "internal" "")) ["currentScope"]);
+      (Imported (Select (Ident (Member "<root>" "ox" "package")) (Member "ox" "internal" "package")) ["currentScope"]);
       (Imported
         (Select
-          (Select (Ident (Member "<root>" "java" "")) (Member "java" "util" ""))
-          (Member "java.util" "concurrent" ""))
+          (Select (Ident (Member "<root>" "java" "package")) (Member "java" "util" "package"))
+          (Member "java.util" "concurrent" "package"))
         ["CompletableFuture"]);
       (Imported
         (Select
-          (Select (Ident (Member "<root>" "java" "")) (Member "java" "util" ""))
-          (Member "java.util" "concurrent" ""))
+          (Select (Ident (Member "<root>" "java" "package")) (Member "java" "util" "package"))
+          (Member "java.util" "concurrent" "package"))
         ["Semaphore"]);
       (Imported
         (Select
           (Select
-            (Select (Ident (Member "<root>" "java" "")) (Member "java" "util" ""))
-            (Member "java.util" "concurrent" ""))
-          (Member "java.util.concurrent" "atomic" ""))
+            (Select (Ident (Member "<root>" "java" "package")) (Member "java" "util" "package"))
+            (Member "java.util" "concurrent" "package"))
+          (Member "java.util.concurrent" "atomic" "package"))
         ["AtomicBoolean"]);
-      (Imported (Select (Ident (Member "<root>" "scala" "")) (Member "scala" "concurrent" "")) ["ExecutionException"]);
+      (Imported
+        (Select (Ident (Member "<root>" "scala" "package")) (Member "scala" "concurrent" "package"))
+        ["ExecutionException"]);
       (Imported
         (Select
-          (Select (Ident (Member "<root>" "scala" "")) (Member "scala" "util" ""))
-          (Member "scala.util" "control" ""))
+          (Select (Ident (Member "<root>" "scala" "package")) (Member "scala" "util" "package"))
+          (Member "scala.util" "control" "package"))
         ["NonFatal"]);
       (Imported
         (Select
-          (Select (Ident (Member "<root>" "scala" "")) (Member "scala" "util" ""))
-          (Member "scala.util" "control" ""))
+          (Select (Ident (Member "<root>" "scala" "package")) (Member "scala" "util" "package"))
+          (Member "scala.util" "control" "package"))
         ["NoStackTrace"]);
       (ClassDef
         "ox.CancellableFork"

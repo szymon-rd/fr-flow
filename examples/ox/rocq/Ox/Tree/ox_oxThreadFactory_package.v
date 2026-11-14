@@ -9,11 +9,13 @@ Definition ox_oxThreadFactory_package : tree :=
   (PackageClause
     "ox"
     [
-      (Imported (Select (Ident (Member "<root>" "scala" "")) (Member "scala" "compiletime" "")) ["uninitialized"]);
+      (Imported
+        (Select (Ident (Member "<root>" "scala" "package")) (Member "scala" "compiletime" "package"))
+        ["uninitialized"]);
       (Imported
         (Select
-          (Select (Ident (Member "<root>" "java" "")) (Member "java" "util" ""))
-          (Member "java.util" "concurrent" ""))
+          (Select (Ident (Member "<root>" "java" "package")) (Member "java" "util" "package"))
+          (Member "java.util" "concurrent" "package"))
         ["ThreadFactory"]);
       (ValDef
         (Member "ox" "oxThreadFactory$package" "")

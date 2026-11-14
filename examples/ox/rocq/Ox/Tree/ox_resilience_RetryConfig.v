@@ -9,10 +9,14 @@ Definition ox_resilience_RetryConfig : tree :=
   (PackageClause
     "ox.resilience"
     [
-      (Imported (Select (Ident (Member "<root>" "ox" "")) (Member "ox" "scheduling" "")) ["Schedule"]);
-      (Imported (Select (Ident (Member "<root>" "ox" "")) (Member "ox" "scheduling" "")) ["ScheduleStop"]);
-      (Imported (Select (Ident (Member "<root>" "ox" "")) (Member "ox" "scheduling" "")) ["ScheduledConfig"]);
-      (Imported (Select (Ident (Member "<root>" "ox" "")) (Member "ox" "scheduling" "")) ["SleepMode"]);
+      (Imported (Select (Ident (Member "<root>" "ox" "package")) (Member "ox" "scheduling" "package")) ["Schedule"]);
+      (Imported
+        (Select (Ident (Member "<root>" "ox" "package")) (Member "ox" "scheduling" "package"))
+        ["ScheduleStop"]);
+      (Imported
+        (Select (Ident (Member "<root>" "ox" "package")) (Member "ox" "scheduling" "package"))
+        ["ScheduledConfig"]);
+      (Imported (Select (Ident (Member "<root>" "ox" "package")) (Member "ox" "scheduling" "package")) ["SleepMode"]);
       (ClassDef
         "ox.resilience.RetryConfig"
         ["Case"; "NoInits"; "@scala.annotation.internal.SourceFile"]

@@ -12,9 +12,9 @@ Definition ox_control_package : tree :=
       (Imported
         (Select
           (Select
-            (Select (Ident (Member "<root>" "java" "")) (Member "java" "util" ""))
-            (Member "java.util" "concurrent" ""))
-          (Member "java.util.concurrent" "locks" ""))
+            (Select (Ident (Member "<root>" "java" "package")) (Member "java" "util" "package"))
+            (Member "java.util" "concurrent" "package"))
+          (Member "java.util.concurrent" "locks" "package"))
         ["LockSupport"]);
       (ValDef
         (Member "ox" "control$package" "")

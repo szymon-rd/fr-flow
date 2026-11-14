@@ -9,8 +9,12 @@ Definition ox_ErrorMode : tree :=
   (PackageClause
     "ox"
     [
-      (Imported (Select (Ident (Member "<root>" "scala" "")) (Member "scala" "annotation" "")) ["unused"]);
-      (Imported (Select (Ident (Member "<root>" "scala" "")) (Member "scala" "reflect" "")) ["ClassTag"]);
+      (Imported
+        (Select (Ident (Member "<root>" "scala" "package")) (Member "scala" "annotation" "package"))
+        ["unused"]);
+      (Imported
+        (Select (Ident (Member "<root>" "scala" "package")) (Member "scala" "reflect" "package"))
+        ["ClassTag"]);
       (ClassDef
         "ox.ErrorMode"
         ["NoInits"; "Trait"; "@scala.annotation.internal.SourceFile"]

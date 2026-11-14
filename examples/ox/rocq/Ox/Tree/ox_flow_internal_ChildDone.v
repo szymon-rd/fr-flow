@@ -9,19 +9,27 @@ Definition ox_flow_internal_ChildDone : tree :=
   (PackageClause
     "ox.flow.internal"
     [
-      (Imported (Ident (Member "<root>" "ox" "")) ["OxUnsupervised"]);
-      (Imported (Select (Ident (Member "<root>" "ox" "")) (Member "ox" "channels" "")) ["BufferCapacity"]);
-      (Imported (Select (Ident (Member "<root>" "ox" "")) (Member "ox" "channels" "")) ["Channel"]);
-      (Imported (Select (Ident (Member "<root>" "ox" "")) (Member "ox" "channels" "")) ["ChannelClosed"]);
-      (Imported (Select (Ident (Member "<root>" "ox" "")) (Member "ox" "channels" "")) ["Sink"]);
-      (Imported (Select (Ident (Member "<root>" "ox" "")) (Member "ox" "channels" "")) ["selectOrClosed"]);
-      (Imported (Ident (Member "<root>" "ox" "")) ["discard"]);
-      (Imported (Select (Ident (Member "<root>" "ox" "")) (Member "ox" "flow" "")) ["Flow"]);
-      (Imported (Select (Ident (Member "<root>" "ox" "")) (Member "ox" "flow" "")) ["isSourceDone"]);
-      (Imported (Ident (Member "<root>" "ox" "")) ["forkUnsupervised"]);
-      (Imported (Ident (Member "<root>" "ox" "")) ["pipe"]);
-      (Imported (Ident (Member "<root>" "ox" "")) ["unsupervised"]);
-      (Imported (Select (Ident (Member "<root>" "scala" "")) (Member "scala" "annotation" "")) ["tailrec"]);
+      (Imported (Ident (Member "<root>" "ox" "package")) ["OxUnsupervised"]);
+      (Imported
+        (Select (Ident (Member "<root>" "ox" "package")) (Member "ox" "channels" "package"))
+        ["BufferCapacity"]);
+      (Imported (Select (Ident (Member "<root>" "ox" "package")) (Member "ox" "channels" "package")) ["Channel"]);
+      (Imported
+        (Select (Ident (Member "<root>" "ox" "package")) (Member "ox" "channels" "package"))
+        ["ChannelClosed"]);
+      (Imported (Select (Ident (Member "<root>" "ox" "package")) (Member "ox" "channels" "package")) ["Sink"]);
+      (Imported
+        (Select (Ident (Member "<root>" "ox" "package")) (Member "ox" "channels" "package"))
+        ["selectOrClosed"]);
+      (Imported (Ident (Member "<root>" "ox" "package")) ["discard"]);
+      (Imported (Select (Ident (Member "<root>" "ox" "package")) (Member "ox" "flow" "package")) ["Flow"]);
+      (Imported (Select (Ident (Member "<root>" "ox" "package")) (Member "ox" "flow" "package")) ["isSourceDone"]);
+      (Imported (Ident (Member "<root>" "ox" "package")) ["forkUnsupervised"]);
+      (Imported (Ident (Member "<root>" "ox" "package")) ["pipe"]);
+      (Imported (Ident (Member "<root>" "ox" "package")) ["unsupervised"]);
+      (Imported
+        (Select (Ident (Member "<root>" "scala" "package")) (Member "scala" "annotation" "package"))
+        ["tailrec"]);
       (ClassDef
         "ox.flow.internal.ChildDone"
         ["Case"; "NoInits"; "@scala.annotation.internal.SourceFile"]

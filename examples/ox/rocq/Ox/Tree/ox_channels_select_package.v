@@ -11,21 +11,23 @@ Definition ox_channels_select_package : tree :=
     [
       (Imported
         (Select
-          (Select (Ident (Member "<root>" "com" "")) (Member "com" "softwaremill" ""))
-          (Member "com.softwaremill" "jox" ""))
+          (Select (Ident (Member "<root>" "com" "package")) (Member "com" "softwaremill" "package"))
+          (Member "com.softwaremill" "jox" "package"))
         ["Select => JSelect"]);
       (Imported
         (Select
-          (Select (Ident (Member "<root>" "ox" "")) (Member "ox" "channels" ""))
+          (Select (Ident (Member "<root>" "ox" "package")) (Member "ox" "channels" "package"))
           (Member "ox.channels" "ChannelClosedUnion" ""))
         ["map"; "orThrow"]);
-      (Imported (Ident (Member "<root>" "ox" "")) ["discard"; "forkUnsupervised"; "sleep"; "unsupervised"]);
+      (Imported (Ident (Member "<root>" "ox" "package")) ["discard"; "forkUnsupervised"; "sleep"; "unsupervised"]);
       (Imported
         (Select
-          (Select (Ident (Member "<root>" "scala" "")) (Member "scala" "concurrent" ""))
-          (Member "scala.concurrent" "duration" ""))
+          (Select (Ident (Member "<root>" "scala" "package")) (Member "scala" "concurrent" "package"))
+          (Member "scala.concurrent" "duration" "package"))
         ["FiniteDuration"]);
-      (Imported (Select (Ident (Member "<root>" "scala" "")) (Member "scala" "concurrent" "")) ["TimeoutException"]);
+      (Imported
+        (Select (Ident (Member "<root>" "scala" "package")) (Member "scala" "concurrent" "package"))
+        ["TimeoutException"]);
       (ValDef
         (Member "ox.channels" "select$package" "")
         ["Final"; "Lazy"; "Module"; "StableRealizable"; "Synthetic"]
@@ -3955,7 +3957,9 @@ Definition ox_channels_select_package : tree :=
                               (Apply
                                 (Select
                                   (Select
-                                    (Select (Ident (Member "<none>" "_root_" "")) (Member "<root>" "scala" ""))
+                                    (Select
+                                      (Ident (Member "<none>" "_root_" "package"))
+                                      (Member "<root>" "scala" "package"))
                                     (Member "scala" "StringContext" ""))
                                   (Member
                                     "scala.StringContext$"
@@ -4542,7 +4546,9 @@ Definition ox_channels_select_package : tree :=
                               (Apply
                                 (Select
                                   (Select
-                                    (Select (Ident (Member "<none>" "_root_" "")) (Member "<root>" "scala" ""))
+                                    (Select
+                                      (Ident (Member "<none>" "_root_" "package"))
+                                      (Member "<root>" "scala" "package"))
                                     (Member "scala" "StringContext" ""))
                                   (Member
                                     "scala.StringContext$"

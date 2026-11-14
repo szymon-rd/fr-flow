@@ -9,27 +9,29 @@ Definition ox_WriteCommand : tree :=
   (PackageClause
     "ox"
     [
-      (Imported (Select (Ident (Member "<root>" "ox" "")) (Member "ox" "channels" "")) ["Channel"]);
-      (Imported (Select (Ident (Member "<root>" "ox" "")) (Member "ox" "channels" "")) ["ChannelClosed"]);
-      (Imported (Select (Ident (Member "<root>" "java" "")) (Member "java" "io" "")) ["IOException"]);
-      (Imported (Select (Ident (Member "<root>" "java" "")) (Member "java" "io" "")) ["InputStream"]);
-      (Imported (Select (Ident (Member "<root>" "java" "")) (Member "java" "io" "")) ["OutputStream"]);
+      (Imported (Select (Ident (Member "<root>" "ox" "package")) (Member "ox" "channels" "package")) ["Channel"]);
+      (Imported
+        (Select (Ident (Member "<root>" "ox" "package")) (Member "ox" "channels" "package"))
+        ["ChannelClosed"]);
+      (Imported (Select (Ident (Member "<root>" "java" "package")) (Member "java" "io" "package")) ["IOException"]);
+      (Imported (Select (Ident (Member "<root>" "java" "package")) (Member "java" "io" "package")) ["InputStream"]);
+      (Imported (Select (Ident (Member "<root>" "java" "package")) (Member "java" "io" "package")) ["OutputStream"]);
       (Imported
         (Select
-          (Select (Ident (Member "<root>" "java" "")) (Member "java" "util" ""))
-          (Member "java.util" "concurrent" ""))
+          (Select (Ident (Member "<root>" "java" "package")) (Member "java" "util" "package"))
+          (Member "java.util" "concurrent" "package"))
         ["CompletableFuture"]);
       (Imported
         (Select
-          (Select (Ident (Member "<root>" "java" "")) (Member "java" "util" ""))
-          (Member "java.util" "concurrent" ""))
+          (Select (Ident (Member "<root>" "java" "package")) (Member "java" "util" "package"))
+          (Member "java.util" "concurrent" "package"))
         ["ExecutionException"]);
       (Imported
         (Select
           (Select
-            (Select (Ident (Member "<root>" "java" "")) (Member "java" "util" ""))
-            (Member "java.util" "concurrent" ""))
-          (Member "java.util.concurrent" "atomic" ""))
+            (Select (Ident (Member "<root>" "java" "package")) (Member "java" "util" "package"))
+            (Member "java.util" "concurrent" "package"))
+          (Member "java.util.concurrent" "atomic" "package"))
         ["AtomicReference"]);
       (ClassDef
         "ox.WriteCommand"

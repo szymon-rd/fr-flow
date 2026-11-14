@@ -9,20 +9,22 @@ Definition ox_flow_FlowRunOps : tree :=
   (PackageClause
     "ox.flow"
     [
-      (Imported (Ident (Member "<root>" "ox" "")) ["OxUnsupervised"]);
-      (Imported (Select (Ident (Member "<root>" "ox" "")) (Member "ox" "channels" "")) ["Sink"]);
-      (Imported (Select (Ident (Member "<root>" "ox" "")) (Member "ox" "channels" "")) ["Source"]);
-      (Imported (Select (Ident (Member "<root>" "ox" "")) (Member "ox" "channels" "")) ["BufferCapacity"]);
-      (Imported (Ident (Member "<root>" "ox" "")) ["discard"]);
+      (Imported (Ident (Member "<root>" "ox" "package")) ["OxUnsupervised"]);
+      (Imported (Select (Ident (Member "<root>" "ox" "package")) (Member "ox" "channels" "package")) ["Sink"]);
+      (Imported (Select (Ident (Member "<root>" "ox" "package")) (Member "ox" "channels" "package")) ["Source"]);
+      (Imported
+        (Select (Ident (Member "<root>" "ox" "package")) (Member "ox" "channels" "package"))
+        ["BufferCapacity"]);
+      (Imported (Ident (Member "<root>" "ox" "package")) ["discard"]);
       (Imported
         (Select
-          (Select (Ident (Member "<root>" "scala" "")) (Member "scala" "collection" ""))
-          (Member "scala.collection" "mutable" ""))
+          (Select (Ident (Member "<root>" "scala" "package")) (Member "scala" "collection" "package"))
+          (Member "scala.collection" "mutable" "package"))
         ["ListBuffer"]);
       (Imported
         (Select
-          (Select (Ident (Member "<root>" "scala" "")) (Member "scala" "util" ""))
-          (Member "scala.util" "control" ""))
+          (Select (Ident (Member "<root>" "scala" "package")) (Member "scala" "util" "package"))
+          (Member "scala.util" "control" "package"))
         ["NonFatal"]);
       (ClassDef
         "ox.flow.FlowRunOps"

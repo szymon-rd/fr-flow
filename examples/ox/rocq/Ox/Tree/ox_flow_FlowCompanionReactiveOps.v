@@ -9,42 +9,46 @@ Definition ox_flow_FlowCompanionReactiveOps : tree :=
   (PackageClause
     "ox.flow"
     [
-      (Imported (Select (Ident (Member "<root>" "ox" "")) (Member "ox" "channels" "")) ["BufferCapacity"]);
-      (Imported (Select (Ident (Member "<root>" "ox" "")) (Member "ox" "channels" "")) ["ChannelClosed"]);
-      (Imported (Select (Ident (Member "<root>" "ox" "")) (Member "ox" "channels" "")) ["toInt"]);
-      (Imported (Ident (Member "<root>" "ox" "")) ["discard"]);
-      (Imported (Ident (Member "<root>" "ox" "")) ["forkUnsupervised"]);
-      (Imported (Ident (Member "<root>" "ox" "")) ["pipe"]);
-      (Imported (Ident (Member "<root>" "ox" "")) ["repeatWhile"]);
-      (Imported (Ident (Member "<root>" "ox" "")) ["tapException"]);
-      (Imported (Ident (Member "<root>" "ox" "")) ["unsupervised"]);
+      (Imported
+        (Select (Ident (Member "<root>" "ox" "package")) (Member "ox" "channels" "package"))
+        ["BufferCapacity"]);
+      (Imported
+        (Select (Ident (Member "<root>" "ox" "package")) (Member "ox" "channels" "package"))
+        ["ChannelClosed"]);
+      (Imported (Select (Ident (Member "<root>" "ox" "package")) (Member "ox" "channels" "package")) ["toInt"]);
+      (Imported (Ident (Member "<root>" "ox" "package")) ["discard"]);
+      (Imported (Ident (Member "<root>" "ox" "package")) ["forkUnsupervised"]);
+      (Imported (Ident (Member "<root>" "ox" "package")) ["pipe"]);
+      (Imported (Ident (Member "<root>" "ox" "package")) ["repeatWhile"]);
+      (Imported (Ident (Member "<root>" "ox" "package")) ["tapException"]);
+      (Imported (Ident (Member "<root>" "ox" "package")) ["unsupervised"]);
       (Imported
         (Select
           (Select
-            (Select (Ident (Member "<root>" "java" "")) (Member "java" "util" ""))
-            (Member "java.util" "concurrent" ""))
+            (Select (Ident (Member "<root>" "java" "package")) (Member "java" "util" "package"))
+            (Member "java.util" "concurrent" "package"))
           (Member "java.util.concurrent" "Flow" ""))
         ["Publisher"]);
       (Imported
         (Select
           (Select
-            (Select (Ident (Member "<root>" "java" "")) (Member "java" "util" ""))
-            (Member "java.util" "concurrent" ""))
+            (Select (Ident (Member "<root>" "java" "package")) (Member "java" "util" "package"))
+            (Member "java.util" "concurrent" "package"))
           (Member "java.util.concurrent" "Flow" ""))
         ["Subscriber"]);
       (Imported
         (Select
           (Select
-            (Select (Ident (Member "<root>" "java" "")) (Member "java" "util" ""))
-            (Member "java.util" "concurrent" ""))
+            (Select (Ident (Member "<root>" "java" "package")) (Member "java" "util" "package"))
+            (Member "java.util" "concurrent" "package"))
           (Member "java.util.concurrent" "Flow" ""))
         ["Subscription"]);
       (Imported
         (Select
           (Select
-            (Select (Ident (Member "<root>" "java" "")) (Member "java" "util" ""))
-            (Member "java.util" "concurrent" ""))
-          (Member "java.util.concurrent" "atomic" ""))
+            (Select (Ident (Member "<root>" "java" "package")) (Member "java" "util" "package"))
+            (Member "java.util" "concurrent" "package"))
+          (Member "java.util.concurrent" "atomic" "package"))
         ["AtomicReference"]);
       (ClassDef
         "ox.flow.FlowCompanionReactiveOps"
@@ -177,7 +181,7 @@ Definition ox_flow_FlowCompanionReactiveOps : tree :=
                                                 (Apply
                                                   (Select
                                                     (Select
-                                                      (Ident (Member "scala" "math" ""))
+                                                      (Ident (Member "scala" "math" "package"))
                                                       (Member "scala.math" "package" ""))
                                                     (Member "scala.math.package$" "ceil" "scala.Double:scala.Double"))
                                                   [

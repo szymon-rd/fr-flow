@@ -9,12 +9,16 @@ Definition ox_collections_package : tree :=
   (PackageClause
     "ox"
     [
-      (Imported (Select (Ident (Member "<root>" "scala" "")) (Member "scala" "annotation" "")) ["unused"]);
-      (Imported (Select (Ident (Member "<root>" "scala" "")) (Member "scala" "collection" "")) ["IterableFactory"]);
+      (Imported
+        (Select (Ident (Member "<root>" "scala" "package")) (Member "scala" "annotation" "package"))
+        ["unused"]);
+      (Imported
+        (Select (Ident (Member "<root>" "scala" "package")) (Member "scala" "collection" "package"))
+        ["IterableFactory"]);
       (Imported
         (Select
-          (Select (Ident (Member "<root>" "java" "")) (Member "java" "util" ""))
-          (Member "java.util" "concurrent" ""))
+          (Select (Ident (Member "<root>" "java" "package")) (Member "java" "util" "package"))
+          (Member "java.util" "concurrent" "package"))
         ["Semaphore"]);
       (ValDef
         (Member "ox" "collections$package" "")

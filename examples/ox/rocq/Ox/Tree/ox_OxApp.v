@@ -11,28 +11,28 @@ Definition ox_OxApp : tree :=
     [
       (Imported
         (Select
-          (Select (Ident (Member "<root>" "scala" "")) (Member "scala" "util" ""))
+          (Select (Ident (Member "<root>" "scala" "package")) (Member "scala" "util" "package"))
           (Member "scala.util" "boundary" ""))
         ["_"]);
       (Imported
         (Select
-          (Select (Ident (Member "<root>" "scala" "")) (Member "scala" "util" ""))
-          (Member "scala.util" "control" ""))
+          (Select (Ident (Member "<root>" "scala" "package")) (Member "scala" "util" "package"))
+          (Member "scala.util" "control" "package"))
         ["NonFatal"]);
       (Imported
         (Select
-          (Select (Ident (Member "<root>" "java" "")) (Member "java" "util" ""))
-          (Member "java.util" "concurrent" ""))
+          (Select (Ident (Member "<root>" "java" "package")) (Member "java" "util" "package"))
+          (Member "java.util" "concurrent" "package"))
         ["ThreadFactory"]);
       (Imported
         (Select
-          (Select (Ident (Member "<root>" "java" "")) (Member "java" "util" ""))
-          (Member "java.util" "concurrent" ""))
+          (Select (Ident (Member "<root>" "java" "package")) (Member "java" "util" "package"))
+          (Member "java.util" "concurrent" "package"))
         ["ExecutorService"]);
       (Imported
         (Select
-          (Select (Ident (Member "<root>" "scala" "")) (Member "scala" "concurrent" ""))
-          (Member "scala.concurrent" "duration" ""))
+          (Select (Ident (Member "<root>" "scala" "package")) (Member "scala" "concurrent" "package"))
+          (Member "scala.concurrent" "duration" "package"))
         ["_"]);
       (ClassDef
         "ox.OxApp"
@@ -357,8 +357,8 @@ Definition ox_OxApp : tree :=
                                                               (Select
                                                                 (Select
                                                                   (Select
-                                                                    (Ident (Member "<none>" "_root_" ""))
-                                                                    (Member "<root>" "scala" ""))
+                                                                    (Ident (Member "<none>" "_root_" "package"))
+                                                                    (Member "<root>" "scala" "package"))
                                                                   (Member "scala" "StringContext" ""))
                                                                 (Member
                                                                   "scala.StringContext$"

@@ -9,16 +9,16 @@ Definition ox_channels_Actor : tree :=
   (PackageClause
     "ox.channels"
     [
-      (Imported (Ident (Member "<root>" "ox" "")) ["_"]);
+      (Imported (Ident (Member "<root>" "ox" "package")) ["_"]);
       (Imported
         (Select
-          (Select (Ident (Member "<root>" "java" "")) (Member "java" "util" ""))
-          (Member "java.util" "concurrent" ""))
+          (Select (Ident (Member "<root>" "java" "package")) (Member "java" "util" "package"))
+          (Member "java.util" "concurrent" "package"))
         ["CompletableFuture"]);
       (Imported
         (Select
-          (Select (Ident (Member "<root>" "scala" "")) (Member "scala" "util" ""))
-          (Member "scala.util" "control" ""))
+          (Select (Ident (Member "<root>" "scala" "package")) (Member "scala" "util" "package"))
+          (Member "scala.util" "control" "package"))
         ["NonFatal"]);
       (ValDef
         (Member "ox.channels" "Actor" "")

@@ -9,10 +9,14 @@ Definition ox_flow_Flow : tree :=
   (PackageClause
     "ox.flow"
     [
-      (Imported (Select (Ident (Member "<root>" "ox" "")) (Member "ox" "channels" "")) ["ChannelClosed"]);
-      (Imported (Select (Ident (Member "<root>" "ox" "")) (Member "ox" "channels" "")) ["Source"]);
-      (Imported (Ident (Member "<root>" "ox" "")) ["repeatWhile"]);
-      (Imported (Select (Ident (Member "<root>" "scala" "")) (Member "scala" "annotation" "")) ["nowarn"]);
+      (Imported
+        (Select (Ident (Member "<root>" "ox" "package")) (Member "ox" "channels" "package"))
+        ["ChannelClosed"]);
+      (Imported (Select (Ident (Member "<root>" "ox" "package")) (Member "ox" "channels" "package")) ["Source"]);
+      (Imported (Ident (Member "<root>" "ox" "package")) ["repeatWhile"]);
+      (Imported
+        (Select (Ident (Member "<root>" "scala" "package")) (Member "scala" "annotation" "package"))
+        ["nowarn"]);
       (ClassDef
         "ox.flow.Flow"
         ["NoInits"; "@scala.annotation.internal.SourceFile"]

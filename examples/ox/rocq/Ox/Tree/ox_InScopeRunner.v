@@ -9,7 +9,7 @@ Definition ox_InScopeRunner : tree :=
   (PackageClause
     "ox"
     [
-      (Imported (Select (Ident (Member "<root>" "ox" "")) (Member "ox" "channels" "")) ["ActorRef"]);
+      (Imported (Select (Ident (Member "<root>" "ox" "package")) (Member "ox" "channels" "package")) ["ActorRef"]);
       (ClassDef
         "ox.InScopeRunner"
         ["NoInits"; "@scala.annotation.internal.SourceFile"]

@@ -9,7 +9,7 @@ Definition ox_channels_forkPropagate_package : tree :=
   (PackageClause
     "ox.channels"
     [
-      (Imported (Ident (Member "<root>" "ox" "")) ["_"]);
+      (Imported (Ident (Member "<root>" "ox" "package")) ["_"]);
       (ValDef
         (Member "ox.channels" "forkPropagate$package" "")
         ["Final"; "Lazy"; "Module"; "StableRealizable"; "Synthetic"]

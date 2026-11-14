@@ -9,37 +9,45 @@ Definition ox_flow_Signal : tree :=
   (PackageClause
     "ox.flow"
     [
-      (Imported (Ident (Member "<root>" "ox" "")) ["Ox"]);
-      (Imported (Select (Ident (Member "<root>" "ox" "")) (Member "ox" "channels" "")) ["BufferCapacity"]);
-      (Imported (Select (Ident (Member "<root>" "ox" "")) (Member "ox" "channels" "")) ["Channel"]);
-      (Imported (Select (Ident (Member "<root>" "ox" "")) (Member "ox" "channels" "")) ["ChannelClosed"]);
-      (Imported (Select (Ident (Member "<root>" "ox" "")) (Member "ox" "channels" "")) ["Sink"]);
-      (Imported (Select (Ident (Member "<root>" "ox" "")) (Member "ox" "channels" "")) ["forkPropagate"]);
-      (Imported (Select (Ident (Member "<root>" "ox" "")) (Member "ox" "channels" "")) ["selectOrClosed"]);
-      (Imported (Ident (Member "<root>" "ox" "")) ["discard"]);
-      (Imported (Ident (Member "<root>" "ox" "")) ["forkDiscard"]);
-      (Imported (Ident (Member "<root>" "ox" "")) ["inScopeRunner"]);
-      (Imported (Ident (Member "<root>" "ox" "")) ["tapException"]);
-      (Imported (Ident (Member "<root>" "ox" "")) ["unsupervised"]);
+      (Imported (Ident (Member "<root>" "ox" "package")) ["Ox"]);
+      (Imported
+        (Select (Ident (Member "<root>" "ox" "package")) (Member "ox" "channels" "package"))
+        ["BufferCapacity"]);
+      (Imported (Select (Ident (Member "<root>" "ox" "package")) (Member "ox" "channels" "package")) ["Channel"]);
+      (Imported
+        (Select (Ident (Member "<root>" "ox" "package")) (Member "ox" "channels" "package"))
+        ["ChannelClosed"]);
+      (Imported (Select (Ident (Member "<root>" "ox" "package")) (Member "ox" "channels" "package")) ["Sink"]);
+      (Imported
+        (Select (Ident (Member "<root>" "ox" "package")) (Member "ox" "channels" "package"))
+        ["forkPropagate"]);
+      (Imported
+        (Select (Ident (Member "<root>" "ox" "package")) (Member "ox" "channels" "package"))
+        ["selectOrClosed"]);
+      (Imported (Ident (Member "<root>" "ox" "package")) ["discard"]);
+      (Imported (Ident (Member "<root>" "ox" "package")) ["forkDiscard"]);
+      (Imported (Ident (Member "<root>" "ox" "package")) ["inScopeRunner"]);
+      (Imported (Ident (Member "<root>" "ox" "package")) ["tapException"]);
+      (Imported (Ident (Member "<root>" "ox" "package")) ["unsupervised"]);
       (Imported
         (Select
           (Select
-            (Select (Ident (Member "<root>" "java" "")) (Member "java" "util" ""))
-            (Member "java.util" "concurrent" ""))
+            (Select (Ident (Member "<root>" "java" "package")) (Member "java" "util" "package"))
+            (Member "java.util" "concurrent" "package"))
           (Member "java.util.concurrent" "Flow" ""))
         ["Publisher"]);
       (Imported
         (Select
           (Select
-            (Select (Ident (Member "<root>" "java" "")) (Member "java" "util" ""))
-            (Member "java.util" "concurrent" ""))
+            (Select (Ident (Member "<root>" "java" "package")) (Member "java" "util" "package"))
+            (Member "java.util" "concurrent" "package"))
           (Member "java.util.concurrent" "Flow" ""))
         ["Subscriber"]);
       (Imported
         (Select
           (Select
-            (Select (Ident (Member "<root>" "java" "")) (Member "java" "util" ""))
-            (Member "java.util" "concurrent" ""))
+            (Select (Ident (Member "<root>" "java" "package")) (Member "java" "util" "package"))
+            (Member "java.util" "concurrent" "package"))
           (Member "java.util.concurrent" "Flow" ""))
         ["Subscription"]);
       (ClassDef

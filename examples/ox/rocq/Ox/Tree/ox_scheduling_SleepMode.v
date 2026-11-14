@@ -9,21 +9,23 @@ Definition ox_scheduling_SleepMode : tree :=
   (PackageClause
     "ox.scheduling"
     [
-      (Imported (Ident (Member "<root>" "ox" "")) ["EitherMode"]);
-      (Imported (Ident (Member "<root>" "ox" "")) ["ErrorMode"]);
-      (Imported (Ident (Member "<root>" "ox" "")) ["sleep"]);
-      (Imported (Select (Ident (Member "<root>" "scala" "")) (Member "scala" "annotation" "")) ["tailrec"]);
+      (Imported (Ident (Member "<root>" "ox" "package")) ["EitherMode"]);
+      (Imported (Ident (Member "<root>" "ox" "package")) ["ErrorMode"]);
+      (Imported (Ident (Member "<root>" "ox" "package")) ["sleep"]);
+      (Imported
+        (Select (Ident (Member "<root>" "scala" "package")) (Member "scala" "annotation" "package"))
+        ["tailrec"]);
       (Imported
         (Select
-          (Select (Ident (Member "<root>" "scala" "")) (Member "scala" "concurrent" ""))
-          (Member "scala.concurrent" "duration" ""))
+          (Select (Ident (Member "<root>" "scala" "package")) (Member "scala" "concurrent" "package"))
+          (Member "scala.concurrent" "duration" "package"))
         ["DurationLong"]);
       (Imported
         (Select
-          (Select (Ident (Member "<root>" "scala" "")) (Member "scala" "concurrent" ""))
-          (Member "scala.concurrent" "duration" ""))
+          (Select (Ident (Member "<root>" "scala" "package")) (Member "scala" "concurrent" "package"))
+          (Member "scala.concurrent" "duration" "package"))
         ["FiniteDuration"]);
-      (Imported (Select (Ident (Member "<root>" "scala" "")) (Member "scala" "util" "")) ["Try"]);
+      (Imported (Select (Ident (Member "<root>" "scala" "package")) (Member "scala" "util" "package")) ["Try"]);
       (ClassDef
         "ox.scheduling.SleepMode"
         [

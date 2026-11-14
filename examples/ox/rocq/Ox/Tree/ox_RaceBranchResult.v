@@ -11,22 +11,28 @@ Definition ox_RaceBranchResult : tree :=
     [
       (Imported
         (Select
-          (Select (Ident (Member "<root>" "java" "")) (Member "java" "util" ""))
-          (Member "java.util" "concurrent" ""))
+          (Select (Ident (Member "<root>" "java" "package")) (Member "java" "util" "package"))
+          (Member "java.util" "concurrent" "package"))
         ["ArrayBlockingQueue"]);
-      (Imported (Select (Ident (Member "<root>" "scala" "")) (Member "scala" "annotation" "")) ["tailrec"]);
-      (Imported (Select (Ident (Member "<root>" "scala" "")) (Member "scala" "concurrent" "")) ["TimeoutException"]);
+      (Imported
+        (Select (Ident (Member "<root>" "scala" "package")) (Member "scala" "annotation" "package"))
+        ["tailrec"]);
+      (Imported
+        (Select (Ident (Member "<root>" "scala" "package")) (Member "scala" "concurrent" "package"))
+        ["TimeoutException"]);
       (Imported
         (Select
-          (Select (Ident (Member "<root>" "scala" "")) (Member "scala" "concurrent" ""))
-          (Member "scala.concurrent" "duration" ""))
+          (Select (Ident (Member "<root>" "scala" "package")) (Member "scala" "concurrent" "package"))
+          (Member "scala.concurrent" "duration" "package"))
         ["FiniteDuration"]);
       (Imported
         (Select
-          (Select (Ident (Member "<root>" "scala" "")) (Member "scala" "util" ""))
-          (Member "scala.util" "control" ""))
+          (Select (Ident (Member "<root>" "scala" "package")) (Member "scala" "util" "package"))
+          (Member "scala.util" "control" "package"))
         ["ControlThrowable"; "NonFatal"]);
-      (Imported (Select (Ident (Member "<root>" "scala" "")) (Member "scala" "util" "")) ["Failure"; "Success"]);
+      (Imported
+        (Select (Ident (Member "<root>" "scala" "package")) (Member "scala" "util" "package"))
+        ["Failure"; "Success"]);
       (ClassDef
         "ox.RaceBranchResult"
         [

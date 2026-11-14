@@ -9,32 +9,42 @@ Definition ox_flow_FlowIOOps : tree :=
   (PackageClause
     "ox.flow"
     [
-      (Imported (Ident (Member "<root>" "ox" "")) ["_"]);
-      (Imported (Select (Ident (Member "<root>" "ox" "")) (Member "ox" "channels" "")) ["ChannelClosed"]);
-      (Imported (Select (Ident (Member "<root>" "ox" "")) (Member "ox" "channels" "")) ["BufferCapacity"]);
-      (Imported (Select (Ident (Member "<root>" "java" "")) (Member "java" "io" "")) ["Closeable"]);
-      (Imported (Select (Ident (Member "<root>" "java" "")) (Member "java" "io" "")) ["IOException"]);
-      (Imported (Select (Ident (Member "<root>" "java" "")) (Member "java" "io" "")) ["InputStream"]);
-      (Imported (Select (Ident (Member "<root>" "java" "")) (Member "java" "io" "")) ["OutputStream"]);
-      (Imported (Select (Ident (Member "<root>" "java" "")) (Member "java" "nio" "")) ["ByteBuffer"]);
+      (Imported (Ident (Member "<root>" "ox" "package")) ["_"]);
+      (Imported
+        (Select (Ident (Member "<root>" "ox" "package")) (Member "ox" "channels" "package"))
+        ["ChannelClosed"]);
+      (Imported
+        (Select (Ident (Member "<root>" "ox" "package")) (Member "ox" "channels" "package"))
+        ["BufferCapacity"]);
+      (Imported (Select (Ident (Member "<root>" "java" "package")) (Member "java" "io" "package")) ["Closeable"]);
+      (Imported (Select (Ident (Member "<root>" "java" "package")) (Member "java" "io" "package")) ["IOException"]);
+      (Imported (Select (Ident (Member "<root>" "java" "package")) (Member "java" "io" "package")) ["InputStream"]);
+      (Imported (Select (Ident (Member "<root>" "java" "package")) (Member "java" "io" "package")) ["OutputStream"]);
+      (Imported (Select (Ident (Member "<root>" "java" "package")) (Member "java" "nio" "package")) ["ByteBuffer"]);
       (Imported
         (Select
-          (Select (Ident (Member "<root>" "java" "")) (Member "java" "nio" ""))
-          (Member "java.nio" "channels" ""))
+          (Select (Ident (Member "<root>" "java" "package")) (Member "java" "nio" "package"))
+          (Member "java.nio" "channels" "package"))
         ["FileChannel"]);
       (Imported
-        (Select (Select (Ident (Member "<root>" "java" "")) (Member "java" "nio" "")) (Member "java.nio" "file" ""))
+        (Select
+          (Select (Ident (Member "<root>" "java" "package")) (Member "java" "nio" "package"))
+          (Member "java.nio" "file" "package"))
         ["Files"]);
       (Imported
-        (Select (Select (Ident (Member "<root>" "java" "")) (Member "java" "nio" "")) (Member "java.nio" "file" ""))
+        (Select
+          (Select (Ident (Member "<root>" "java" "package")) (Member "java" "nio" "package"))
+          (Member "java.nio" "file" "package"))
         ["Path"]);
       (Imported
-        (Select (Select (Ident (Member "<root>" "java" "")) (Member "java" "nio" "")) (Member "java.nio" "file" ""))
+        (Select
+          (Select (Ident (Member "<root>" "java" "package")) (Member "java" "nio" "package"))
+          (Member "java.nio" "file" "package"))
         ["StandardOpenOption"]);
       (Imported
         (Select
-          (Select (Ident (Member "<root>" "scala" "")) (Member "scala" "util" ""))
-          (Member "scala.util" "control" ""))
+          (Select (Ident (Member "<root>" "scala" "package")) (Member "scala" "util" "package"))
+          (Member "scala.util" "control" "package"))
         ["NonFatal"]);
       (ClassDef
         "ox.flow.FlowIOOps"
@@ -648,7 +658,7 @@ Definition ox_flow_FlowIOOps : tree :=
                                           (Apply
                                             (Select
                                               (Select
-                                                (Ident (Member "scala" "math" ""))
+                                                (Ident (Member "scala" "math" "package"))
                                                 (Member "scala.math" "package" ""))
                                               (Member "scala.math.package$" "min" "scala.Int,scala.Int:scala.Int"))
                                             [
@@ -930,7 +940,9 @@ Definition ox_flow_FlowIOOps : tree :=
                                 (Apply
                                   (Select
                                     (Select
-                                      (Select (Ident (Member "<none>" "_root_" "")) (Member "<root>" "scala" ""))
+                                      (Select
+                                        (Ident (Member "<none>" "_root_" "package"))
+                                        (Member "<root>" "scala" "package"))
                                       (Member "scala" "StringContext" ""))
                                     (Member
                                       "scala.StringContext$"

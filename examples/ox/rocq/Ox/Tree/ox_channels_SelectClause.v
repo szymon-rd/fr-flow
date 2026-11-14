@@ -11,8 +11,8 @@ Definition ox_channels_SelectClause : tree :=
     [
       (Imported
         (Select
-          (Select (Ident (Member "<root>" "com" "")) (Member "com" "softwaremill" ""))
-          (Member "com.softwaremill" "jox" ""))
+          (Select (Ident (Member "<root>" "com" "package")) (Member "com" "softwaremill" "package"))
+          (Member "com.softwaremill" "jox" "package"))
         [
           "Channel => JChannel";
           "Select => JSelect";
@@ -22,8 +22,8 @@ Definition ox_channels_SelectClause : tree :=
       (Imported (Ident (Member "ox.channels" "ChannelClosedUnion" "")) ["orThrow"]);
       (Imported
         (Select
-          (Select (Ident (Member "<root>" "scala" "")) (Member "scala" "annotation" ""))
-          (Member "scala.annotation" "unchecked" ""))
+          (Select (Ident (Member "<root>" "scala" "package")) (Member "scala" "annotation" "package"))
+          (Member "scala.annotation" "unchecked" "package"))
         ["uncheckedVariance"]);
       (ClassDef
         "ox.channels.SelectClause"

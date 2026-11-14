@@ -9,27 +9,29 @@ Definition ox_abandonOnInterrupt_package : tree :=
   (PackageClause
     "ox"
     [
-      (Imported (Select (Ident (Member "<root>" "ox" "")) (Member "ox" "channels" "")) ["Channel"]);
-      (Imported (Select (Ident (Member "<root>" "ox" "")) (Member "ox" "channels" "")) ["ChannelClosed"]);
-      (Imported (Select (Ident (Member "<root>" "java" "")) (Member "java" "io" "")) ["IOException"]);
-      (Imported (Select (Ident (Member "<root>" "java" "")) (Member "java" "io" "")) ["InputStream"]);
-      (Imported (Select (Ident (Member "<root>" "java" "")) (Member "java" "io" "")) ["OutputStream"]);
+      (Imported (Select (Ident (Member "<root>" "ox" "package")) (Member "ox" "channels" "package")) ["Channel"]);
+      (Imported
+        (Select (Ident (Member "<root>" "ox" "package")) (Member "ox" "channels" "package"))
+        ["ChannelClosed"]);
+      (Imported (Select (Ident (Member "<root>" "java" "package")) (Member "java" "io" "package")) ["IOException"]);
+      (Imported (Select (Ident (Member "<root>" "java" "package")) (Member "java" "io" "package")) ["InputStream"]);
+      (Imported (Select (Ident (Member "<root>" "java" "package")) (Member "java" "io" "package")) ["OutputStream"]);
       (Imported
         (Select
-          (Select (Ident (Member "<root>" "java" "")) (Member "java" "util" ""))
-          (Member "java.util" "concurrent" ""))
+          (Select (Ident (Member "<root>" "java" "package")) (Member "java" "util" "package"))
+          (Member "java.util" "concurrent" "package"))
         ["CompletableFuture"]);
       (Imported
         (Select
-          (Select (Ident (Member "<root>" "java" "")) (Member "java" "util" ""))
-          (Member "java.util" "concurrent" ""))
+          (Select (Ident (Member "<root>" "java" "package")) (Member "java" "util" "package"))
+          (Member "java.util" "concurrent" "package"))
         ["ExecutionException"]);
       (Imported
         (Select
           (Select
-            (Select (Ident (Member "<root>" "java" "")) (Member "java" "util" ""))
-            (Member "java.util" "concurrent" ""))
-          (Member "java.util.concurrent" "atomic" ""))
+            (Select (Ident (Member "<root>" "java" "package")) (Member "java" "util" "package"))
+            (Member "java.util" "concurrent" "package"))
+          (Member "java.util.concurrent" "atomic" "package"))
         ["AtomicReference"]);
       (ValDef
         (Member "ox" "abandonOnInterrupt$package" "")
@@ -263,7 +265,9 @@ Definition ox_abandonOnInterrupt_package : tree :=
                               (Apply
                                 (Select
                                   (Select
-                                    (Select (Ident (Member "<none>" "_root_" "")) (Member "<root>" "scala" ""))
+                                    (Select
+                                      (Ident (Member "<none>" "_root_" "package"))
+                                      (Member "<root>" "scala" "package"))
                                     (Member "scala" "StringContext" ""))
                                   (Member
                                     "scala.StringContext$"
@@ -814,7 +818,9 @@ Definition ox_abandonOnInterrupt_package : tree :=
                                 (Apply
                                   (Select
                                     (Select
-                                      (Select (Ident (Member "<root>" "java" "")) (Member "java" "util" ""))
+                                      (Select
+                                        (Ident (Member "<root>" "java" "package"))
+                                        (Member "java" "util" "package"))
                                       (Member "java.util" "Objects" ""))
                                     (Member
                                       "java.util.Objects$"
@@ -853,7 +859,7 @@ Definition ox_abandonOnInterrupt_package : tree :=
                                           (Apply
                                             (Select
                                               (Select
-                                                (Ident (Member "scala" "math" ""))
+                                                (Ident (Member "scala" "math" "package"))
                                                 (Member "scala.math" "package" ""))
                                               (Member "scala.math.package$" "min" "scala.Int,scala.Int:scala.Int"))
                                             [
@@ -1783,7 +1789,9 @@ Definition ox_abandonOnInterrupt_package : tree :=
                                 (Apply
                                   (Select
                                     (Select
-                                      (Select (Ident (Member "<root>" "java" "")) (Member "java" "util" ""))
+                                      (Select
+                                        (Ident (Member "<root>" "java" "package"))
+                                        (Member "java" "util" "package"))
                                       (Member "java.util" "Objects" ""))
                                     (Member
                                       "java.util.Objects$"

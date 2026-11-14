@@ -9,21 +9,25 @@ Definition ox_flow_FlowTextOps : tree :=
   (PackageClause
     "ox.flow"
     [
-      (Imported (Ident (Member "<root>" "ox" "")) ["_"]);
+      (Imported (Ident (Member "<root>" "ox" "package")) ["_"]);
       (Imported
-        (Select (Select (Ident (Member "<root>" "ox" "")) (Member "ox" "flow" "")) (Member "ox.flow" "Flow" ""))
+        (Select
+          (Select (Ident (Member "<root>" "ox" "package")) (Member "ox" "flow" "package"))
+          (Member "ox.flow" "Flow" ""))
         ["usingEmitInline"]);
       (Imported
         (Select
-          (Select (Ident (Member "<root>" "java" "")) (Member "java" "nio" ""))
-          (Member "java.nio" "charset" ""))
+          (Select (Ident (Member "<root>" "java" "package")) (Member "java" "nio" "package"))
+          (Member "java.nio" "charset" "package"))
         ["Charset"]);
       (Imported
         (Select
-          (Select (Ident (Member "<root>" "java" "")) (Member "java" "nio" ""))
-          (Member "java.nio" "charset" ""))
+          (Select (Ident (Member "<root>" "java" "package")) (Member "java" "nio" "package"))
+          (Member "java.nio" "charset" "package"))
         ["StandardCharsets"]);
-      (Imported (Select (Ident (Member "<root>" "scala" "")) (Member "scala" "annotation" "")) ["tailrec"]);
+      (Imported
+        (Select (Ident (Member "<root>" "scala" "package")) (Member "scala" "annotation" "package"))
+        ["tailrec"]);
       (ClassDef
         "ox.flow.FlowTextOps"
         ["Trait"; "@scala.annotation.internal.SourceFile"]

@@ -9,18 +9,20 @@ Definition ox_util_package : tree :=
   (PackageClause
     "ox"
     [
-      (Imported (Select (Ident (Member "<root>" "scala" "")) (Member "scala" "concurrent" "")) ["Await"; "Future"]);
+      (Imported
+        (Select (Ident (Member "<root>" "scala" "package")) (Member "scala" "concurrent" "package"))
+        ["Await"; "Future"]);
       (Imported
         (Select
-          (Select (Ident (Member "<root>" "scala" "")) (Member "scala" "concurrent" ""))
-          (Member "scala.concurrent" "duration" ""))
+          (Select (Ident (Member "<root>" "scala" "package")) (Member "scala" "concurrent" "package"))
+          (Member "scala.concurrent" "duration" "package"))
         ["_"]);
       (Imported
         (Select
-          (Select (Ident (Member "<root>" "scala" "")) (Member "scala" "util" ""))
-          (Member "scala.util" "control" ""))
+          (Select (Ident (Member "<root>" "scala" "package")) (Member "scala" "util" "package"))
+          (Member "scala.util" "control" "package"))
         ["NonFatal"]);
-      (Imported (Select (Ident (Member "<root>" "scala" "")) (Member "scala" "quoted" "")) ["_"]);
+      (Imported (Select (Ident (Member "<root>" "scala" "package")) (Member "scala" "quoted" "package")) ["_"]);
       (ValDef
         (Member "ox" "util$package" "")
         ["Final"; "Lazy"; "Module"; "StableRealizable"; "Synthetic"]
@@ -240,7 +242,9 @@ Definition ox_util_package : tree :=
                             (Apply
                               (Select
                                 (Select
-                                  (Select (Ident (Member "<none>" "_root_" "")) (Member "<root>" "scala" ""))
+                                  (Select
+                                    (Ident (Member "<none>" "_root_" "package"))
+                                    (Member "<root>" "scala" "package"))
                                   (Member "scala" "StringContext" ""))
                                 (Member
                                   "scala.StringContext$"

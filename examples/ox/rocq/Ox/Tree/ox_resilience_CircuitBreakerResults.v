@@ -11,19 +11,19 @@ Definition ox_resilience_CircuitBreakerResults : tree :=
     [
       (Imported
         (Select
-          (Select (Ident (Member "<root>" "scala" "")) (Member "scala" "concurrent" ""))
-          (Member "scala.concurrent" "duration" ""))
+          (Select (Ident (Member "<root>" "scala" "package")) (Member "scala" "concurrent" "package"))
+          (Member "scala.concurrent" "duration" "package"))
         ["_"]);
-      (Imported (Ident (Member "<root>" "ox" "")) ["_"]);
+      (Imported (Ident (Member "<root>" "ox" "package")) ["_"]);
       (Imported
         (Select
-          (Select (Ident (Member "<root>" "java" "")) (Member "java" "util" ""))
-          (Member "java.util" "concurrent" ""))
+          (Select (Ident (Member "<root>" "java" "package")) (Member "java" "util" "package"))
+          (Member "java.util" "concurrent" "package"))
         ["Semaphore"]);
-      (Imported (Select (Ident (Member "<root>" "ox" "")) (Member "ox" "channels" "")) ["ActorRef"]);
+      (Imported (Select (Ident (Member "<root>" "ox" "package")) (Member "ox" "channels" "package")) ["ActorRef"]);
       (Imported
         (Select
-          (Select (Ident (Member "<root>" "ox" "")) (Member "ox" "resilience" ""))
+          (Select (Ident (Member "<root>" "ox" "package")) (Member "ox" "resilience" "package"))
           (Member "ox.resilience" "CircuitBreakerStateMachine" ""))
         ["nextState"]);
       (ClassDef
@@ -1143,7 +1143,9 @@ Definition ox_resilience_CircuitBreakerResults : tree :=
                     (TypeApply
                       (Select
                         (Select
-                          (Select (Ident (Member "scala" "collection" "")) (Member "scala.collection" "mutable" ""))
+                          (Select
+                            (Ident (Member "scala" "collection" "package"))
+                            (Member "scala.collection" "mutable" "package"))
                           (Member "scala.collection.mutable" "ArrayDeque" ""))
                         (Member
                           "scala.collection.IterableFactory"

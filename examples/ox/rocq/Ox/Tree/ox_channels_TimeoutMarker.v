@@ -11,21 +11,23 @@ Definition ox_channels_TimeoutMarker : tree :=
     [
       (Imported
         (Select
-          (Select (Ident (Member "<root>" "com" "")) (Member "com" "softwaremill" ""))
-          (Member "com.softwaremill" "jox" ""))
+          (Select (Ident (Member "<root>" "com" "package")) (Member "com" "softwaremill" "package"))
+          (Member "com.softwaremill" "jox" "package"))
         ["Select => JSelect"]);
       (Imported
         (Select
-          (Select (Ident (Member "<root>" "ox" "")) (Member "ox" "channels" ""))
+          (Select (Ident (Member "<root>" "ox" "package")) (Member "ox" "channels" "package"))
           (Member "ox.channels" "ChannelClosedUnion" ""))
         ["map"; "orThrow"]);
-      (Imported (Ident (Member "<root>" "ox" "")) ["discard"; "forkUnsupervised"; "sleep"; "unsupervised"]);
+      (Imported (Ident (Member "<root>" "ox" "package")) ["discard"; "forkUnsupervised"; "sleep"; "unsupervised"]);
       (Imported
         (Select
-          (Select (Ident (Member "<root>" "scala" "")) (Member "scala" "concurrent" ""))
-          (Member "scala.concurrent" "duration" ""))
+          (Select (Ident (Member "<root>" "scala" "package")) (Member "scala" "concurrent" "package"))
+          (Member "scala.concurrent" "duration" "package"))
         ["FiniteDuration"]);
-      (Imported (Select (Ident (Member "<root>" "scala" "")) (Member "scala" "concurrent" "")) ["TimeoutException"]);
+      (Imported
+        (Select (Ident (Member "<root>" "scala" "package")) (Member "scala" "concurrent" "package"))
+        ["TimeoutException"]);
       (ValDef
         (Member "ox.channels" "TimeoutMarker" "")
         ["Final"; "Lazy"; "Module"; "StableRealizable"; "@scala.annotation.internal.SourceFile"]

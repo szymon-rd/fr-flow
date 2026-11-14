@@ -12,13 +12,17 @@ Definition ox_resource_package : tree :=
       (Imported
         (Select
           (Select
-            (Select (Ident (Member "<root>" "java" "")) (Member "java" "util" ""))
-            (Member "java.util" "concurrent" ""))
-          (Member "java.util.concurrent" "atomic" ""))
+            (Select (Ident (Member "<root>" "java" "package")) (Member "java" "util" "package"))
+            (Member "java.util" "concurrent" "package"))
+          (Member "java.util.concurrent" "atomic" "package"))
         ["AtomicReference"]);
-      (Imported (Select (Ident (Member "<root>" "scala" "")) (Member "scala" "annotation" "")) ["implicitNotFound"]);
-      (Imported (Select (Ident (Member "<root>" "scala" "")) (Member "scala" "annotation" "")) ["targetName"]);
-      (Imported (Select (Ident (Member "<root>" "scala" "")) (Member "scala" "util" "")) ["NotGiven"]);
+      (Imported
+        (Select (Ident (Member "<root>" "scala" "package")) (Member "scala" "annotation" "package"))
+        ["implicitNotFound"]);
+      (Imported
+        (Select (Ident (Member "<root>" "scala" "package")) (Member "scala" "annotation" "package"))
+        ["targetName"]);
+      (Imported (Select (Ident (Member "<root>" "scala" "package")) (Member "scala" "util" "package")) ["NotGiven"]);
       (ValDef
         (Member "ox" "resource$package" "")
         ["Final"; "Lazy"; "Module"; "StableRealizable"; "Synthetic"]
@@ -149,7 +153,7 @@ Definition ox_resource_package : tree :=
                 (Some
                   (Select
                     (Select
-                      (Select (Ident (Member "<root>" "scala" "")) (Member "scala" "runtime" ""))
+                      (Select (Ident (Member "<root>" "scala" "package")) (Member "scala" "runtime" "package"))
                       (Member "scala.runtime" "BoxedUnit" ""))
                     (Member "scala.runtime.BoxedUnit$" "UNIT" "")))
                 [])]);

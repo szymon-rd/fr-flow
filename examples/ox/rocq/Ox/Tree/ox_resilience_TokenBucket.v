@@ -11,8 +11,8 @@ Definition ox_resilience_TokenBucket : tree :=
     [
       (Imported
         (Select
-          (Select (Ident (Member "<root>" "java" "")) (Member "java" "util" ""))
-          (Member "java.util" "concurrent" ""))
+          (Select (Ident (Member "<root>" "java" "package")) (Member "java" "util" "package"))
+          (Member "java.util" "concurrent" "package"))
         ["Semaphore"]);
       (ClassDef
         "ox.resilience.TokenBucket"

@@ -9,10 +9,10 @@ Definition ox_scheduling_repeat_package : tree :=
   (PackageClause
     "ox.scheduling"
     [
-      (Imported (Ident (Member "<root>" "ox" "")) ["EitherMode"]);
-      (Imported (Ident (Member "<root>" "ox" "")) ["ErrorMode"]);
-      (Imported (Select (Ident (Member "<root>" "ox" "")) (Member "ox" "scheduling" "")) ["_"]);
-      (Imported (Select (Ident (Member "<root>" "scala" "")) (Member "scala" "util" "")) ["Try"]);
+      (Imported (Ident (Member "<root>" "ox" "package")) ["EitherMode"]);
+      (Imported (Ident (Member "<root>" "ox" "package")) ["ErrorMode"]);
+      (Imported (Select (Ident (Member "<root>" "ox" "package")) (Member "ox" "scheduling" "package")) ["_"]);
+      (Imported (Select (Ident (Member "<root>" "scala" "package")) (Member "scala" "util" "package")) ["Try"]);
       (ValDef
         (Member "ox.scheduling" "repeat$package" "")
         ["Final"; "Lazy"; "Module"; "StableRealizable"; "Synthetic"]

@@ -9,8 +9,12 @@ Definition ox_NoErrorMode : tree :=
   (PackageClause
     "ox"
     [
-      (Imported (Select (Ident (Member "<root>" "scala" "")) (Member "scala" "annotation" "")) ["unused"]);
-      (Imported (Select (Ident (Member "<root>" "scala" "")) (Member "scala" "reflect" "")) ["ClassTag"]);
+      (Imported
+        (Select (Ident (Member "<root>" "scala" "package")) (Member "scala" "annotation" "package"))
+        ["unused"]);
+      (Imported
+        (Select (Ident (Member "<root>" "scala" "package")) (Member "scala" "reflect" "package"))
+        ["ClassTag"]);
       (ValDef
         (Member "ox" "NoErrorMode" "")
         ["Final"; "Lazy"; "Module"; "StableRealizable"; "@scala.annotation.internal.SourceFile"]

@@ -11,16 +11,20 @@ Definition ox_MultiArrayIterator : tree :=
     [
       (Imported
         (Select
-          (Select (Ident (Member "<root>" "java" "")) (Member "java" "nio" ""))
-          (Member "java.nio" "charset" ""))
+          (Select (Ident (Member "<root>" "java" "package")) (Member "java" "nio" "package"))
+          (Member "java.nio" "charset" "package"))
         ["Charset"]);
       (Imported
         (Select
-          (Select (Ident (Member "<root>" "java" "")) (Member "java" "nio" ""))
-          (Member "java.nio" "charset" ""))
+          (Select (Ident (Member "<root>" "java" "package")) (Member "java" "nio" "package"))
+          (Member "java.nio" "charset" "package"))
         ["StandardCharsets"]);
-      (Imported (Select (Ident (Member "<root>" "scala" "")) (Member "scala" "annotation" "")) ["unused"]);
-      (Imported (Select (Ident (Member "<root>" "scala" "")) (Member "scala" "reflect" "")) ["ClassTag"]);
+      (Imported
+        (Select (Ident (Member "<root>" "scala" "package")) (Member "scala" "annotation" "package"))
+        ["unused"]);
+      (Imported
+        (Select (Ident (Member "<root>" "scala" "package")) (Member "scala" "reflect" "package"))
+        ["ClassTag"]);
       (ClassDef
         "ox.MultiArrayIterator"
         ["@scala.annotation.internal.SourceFile"]

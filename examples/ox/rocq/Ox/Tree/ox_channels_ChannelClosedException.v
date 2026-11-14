@@ -11,8 +11,8 @@ Definition ox_channels_ChannelClosedException : tree :=
     [
       (Imported
         (Select
-          (Select (Ident (Member "<root>" "com" "")) (Member "com" "softwaremill" ""))
-          (Member "com.softwaremill" "jox" ""))
+          (Select (Ident (Member "<root>" "com" "package")) (Member "com" "softwaremill" "package"))
+          (Member "com.softwaremill" "jox" "package"))
         ["ChannelDone => JChannelDone"; "ChannelError => JChannelError"]);
       (ClassDef
         "ox.channels.ChannelClosedException"

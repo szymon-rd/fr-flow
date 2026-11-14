@@ -10,7 +10,7 @@ Definition ox_channels_ChannelClosedUnion : tree :=
     "ox.channels"
     [
       (Imported
-        (Select (Ident (Member "<root>" "scala" "")) (Member "scala" "util" ""))
+        (Select (Ident (Member "<root>" "scala" "package")) (Member "scala" "util" "package"))
         ["Failure"; "Success"; "Try"]);
       (ValDef
         (Member "ox.channels" "ChannelClosedUnion" "")

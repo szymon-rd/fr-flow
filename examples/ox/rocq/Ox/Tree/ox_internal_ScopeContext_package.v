@@ -9,8 +9,8 @@ Definition ox_internal_ScopeContext_package : tree :=
   (PackageClause
     "ox.internal"
     [
-      (Imported (Ident (Member "<root>" "ox" "")) ["OxUnsupervised"]);
-      (Imported (Ident (Member "<root>" "ox" "")) ["ForkLocalMap"]);
+      (Imported (Ident (Member "<root>" "ox" "package")) ["OxUnsupervised"]);
+      (Imported (Ident (Member "<root>" "ox" "package")) ["ForkLocalMap"]);
       (ValDef
         (Member "ox.internal" "ScopeContext$package" "")
         ["Final"; "Lazy"; "Module"; "StableRealizable"; "Synthetic"]

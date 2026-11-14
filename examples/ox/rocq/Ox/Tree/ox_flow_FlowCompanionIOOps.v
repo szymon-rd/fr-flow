@@ -9,23 +9,29 @@ Definition ox_flow_FlowCompanionIOOps : tree :=
   (PackageClause
     "ox.flow"
     [
-      (Imported (Ident (Member "<root>" "ox" "")) ["_"]);
-      (Imported (Select (Ident (Member "<root>" "java" "")) (Member "java" "io" "")) ["IOException"]);
-      (Imported (Select (Ident (Member "<root>" "java" "")) (Member "java" "io" "")) ["InputStream"]);
-      (Imported (Select (Ident (Member "<root>" "java" "")) (Member "java" "nio" "")) ["ByteBuffer"]);
+      (Imported (Ident (Member "<root>" "ox" "package")) ["_"]);
+      (Imported (Select (Ident (Member "<root>" "java" "package")) (Member "java" "io" "package")) ["IOException"]);
+      (Imported (Select (Ident (Member "<root>" "java" "package")) (Member "java" "io" "package")) ["InputStream"]);
+      (Imported (Select (Ident (Member "<root>" "java" "package")) (Member "java" "nio" "package")) ["ByteBuffer"]);
       (Imported
         (Select
-          (Select (Ident (Member "<root>" "java" "")) (Member "java" "nio" ""))
-          (Member "java.nio" "channels" ""))
+          (Select (Ident (Member "<root>" "java" "package")) (Member "java" "nio" "package"))
+          (Member "java.nio" "channels" "package"))
         ["FileChannel"]);
       (Imported
-        (Select (Select (Ident (Member "<root>" "java" "")) (Member "java" "nio" "")) (Member "java.nio" "file" ""))
+        (Select
+          (Select (Ident (Member "<root>" "java" "package")) (Member "java" "nio" "package"))
+          (Member "java.nio" "file" "package"))
         ["Files"]);
       (Imported
-        (Select (Select (Ident (Member "<root>" "java" "")) (Member "java" "nio" "")) (Member "java.nio" "file" ""))
+        (Select
+          (Select (Ident (Member "<root>" "java" "package")) (Member "java" "nio" "package"))
+          (Member "java.nio" "file" "package"))
         ["Path"]);
       (Imported
-        (Select (Select (Ident (Member "<root>" "java" "")) (Member "java" "nio" "")) (Member "java.nio" "file" ""))
+        (Select
+          (Select (Ident (Member "<root>" "java" "package")) (Member "java" "nio" "package"))
+          (Member "java.nio" "file" "package"))
         ["StandardOpenOption"]);
       (ClassDef
         "ox.flow.FlowCompanionIOOps"
@@ -258,8 +264,8 @@ Definition ox_flow_FlowCompanionIOOps : tree :=
                                               (Select
                                                 (Select
                                                   (Select
-                                                    (Ident (Member "<none>" "_root_" ""))
-                                                    (Member "<root>" "scala" ""))
+                                                    (Ident (Member "<none>" "_root_" "package"))
+                                                    (Member "<root>" "scala" "package"))
                                                   (Member "scala" "StringContext" ""))
                                                 (Member
                                                   "scala.StringContext$"
