@@ -156,14 +156,21 @@ Tactic Notation "wp_put" constr(H) :=
 (** What the program does next, shown: for finding the way through a program. *)
 Ltac wp_peek := wp_whd; lazymatch goal with |- environments.envs_entails _ (wpP _ _ ?p _ _) =>
   lazymatch p with
+  | Vis (NewThread _) _ => idtac "op: NewThread"
+  | Vis (ObjNew ?c _) _ => idtac "op: ObjNew" c
   | Vis ?o _ => idtac "op:" o
-  | Call (Method ?s) ?a _ => idtac "call method:" s a
-  | Call (Init ?s) ?a _ => idtac "call init:" s a
-  | Call (Fn _ _ _) ?a _ => idtac "call fn:" a
-  | Call (Thunk _ _) ?a _ => idtac "call thunk:" a
-  | Call (Bound ?s ?v) ?a _ => idtac "call bound:" s v a
-  | Iter _ ?s _ => idtac "iter:" s
-  | Ret ?a => idtac "ret:" a
+  | Call (Method ?s) _ _ => idtac "call method:" s
+  | Call (Init ?s) _ _ => idtac "call init:" s
+  | Call (Fn _ _ _) _ _ => idtac "call fn"
+  | Call (Thunk _ _) _ _ => idtac "call thunk"
+  | Call (Bound ?s _) _ _ => idtac "call bound:" s
+  | Iter _ _ _ => idtac "iter"
+  | Ret (Ok _) => idtac "ret: Ok"
+  | Ret (Exc _) => idtac "ret: Exc"
+  | Ret (Brk _ _) => idtac "ret: Brk"
+  | Ret (inl _) => idtac "ret: inl"
+  | Ret (inr _) => idtac "ret: inr"
+  | Ret _ => idtac "ret"
   | _ => idtac "stopped at a question"
   end end.
 
