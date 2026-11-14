@@ -267,9 +267,17 @@ Section Meaning.
     | _ => stuck (cat "a field read of what is no object: " name)
     end.
 
+  (** Whether a field of a class is declared `volatile`. *)
+  Definition volatile (cls name : string) : bool :=
+    match named T cls name with Some d => flagged "@scala.volatile" (def_flags d) | None => false end.
+
+  (** A field assigned: in two steps, the field marked and then the value stored, unless the field is volatile
+      (`Machine.writing`). So is a variable of a method, and an element of an array (`Library`). *)
   Definition set_field (v : val) (name : string) (x : val) : D :=
     match v with
-    | VObj (Ref _ r) => _ <~ oop (ObjSet r name x) ;; oret VUnit
+    | VObj (Ref cls r) =>
+        if volatile cls name then _ <~ oop (ObjSet r name x) ;; oret VUnit
+        else _ <~ oop (ObjMark r name) ;; _ <~ oop (ObjSet r name x) ;; oret VUnit
     | _ => stuck (cat "a field assigned of what is no object: " name)
     end.
 
@@ -572,7 +580,7 @@ Section Meaning.
         match s with
         | Local _ _ =>
             match lookup e (key s) with
-            | Some (VObj (Ref _ r)) => v <~ denote e rhs ;; _ <~ oop (ObjSet r var_field v) ;; oret VUnit
+            | Some (VObj (Ref _ r)) => v <~ denote e rhs ;; _ <~ oop (ObjMark r var_field) ;; _ <~ oop (ObjSet r var_field v) ;; oret VUnit
             | _ => stuck (cat "an assignment to what is no variable: " (key s))
             end
         | Member owner name _ => on <~ this_val e owner ;; v <~ denote e rhs ;; set_field on name v

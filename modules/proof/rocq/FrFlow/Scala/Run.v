@@ -70,15 +70,31 @@ Definition oprun (t : tid) (next : nat) (X : Type) (o : op X) : state -> answer 
       end
   | ObjGet r name => fun σ =>
       match s_obj σ r with
-      | Some (cls, fields) => match field fields name with
-          | Some v => Did (inr v) σ
-          | None => Cannot (cat "a field the object has not: " name)
+      | Some (cls, fields) =>
+          match writer fields name, field fields name with
+          | None, Some v => Did (inr v) σ
+          | Some _, _ => Cannot (cat "a data race: a field read while it is written: " name)
+          | None, None => Cannot (cat "a field the object has not: " name)
+          end
+      | None => Cannot "no such object"
+      end
+  | ObjMark r name => fun σ =>
+      match s_obj σ r with
+      | Some (cls, fields) =>
+          match writer fields name with
+          | None => Did (inr tt) (set_obj σ r (cls, with_field fields (writing name) (VTid t)))
+          | Some _ => Cannot (cat "a data race: a field written twice at once: " name)
           end
       | None => Cannot "no such object"
       end
   | ObjSet r name v => fun σ =>
       match s_obj σ r with
-      | Some (cls, fields) => Did (inr tt) (set_obj σ r (cls, with_field fields name v))
+      | Some (cls, fields) =>
+          match writer fields name with
+          | Some u => if Nat.eqb u t then Did (inr tt) (set_obj σ r (cls, written fields name v))
+                      else Cannot (cat "a data race: a field written while another thread writes it: " name)
+          | None => Did (inr tt) (set_obj σ r (cls, written fields name v))
+          end
       | None => Cannot "no such object"
       end
   | ObjClass r => fun σ =>
@@ -138,8 +154,13 @@ Proof.
   - injection H as <- <-. eauto.
   - destruct (s_obj σ next) eqn:E; [discriminate |]. injection H as <- <-. eauto.
   - destruct (s_obj σ r) as [[cls fields] |]; [| discriminate].
+    destruct (writer fields name); [discriminate |].
     destruct (field fields name); [| discriminate]. injection H as <- <-. auto.
-  - destruct (s_obj σ r) as [[cls fields] |]; [| discriminate]. injection H as <- <-. auto.
+  - destruct (s_obj σ r) as [[cls fields] |]; [| discriminate].
+    destruct (writer fields name); [discriminate |]. injection H as <- <-. auto.
+  - destruct (s_obj σ r) as [[cls fields] |]; [| discriminate].
+    destruct (writer fields name) as [u |]; [| injection H as <- <-; auto].
+    destruct (Nat.eqb u t); [injection H as <- <-; auto | discriminate].
   - destruct (s_obj σ r) as [[cls fields] |]; [| discriminate]. injection H as <- <-. auto.
   - destruct (s_obj σ r) as [[cls fields] |]; [| discriminate].
     destruct (field fields name); [injection H as <- <-; auto |].

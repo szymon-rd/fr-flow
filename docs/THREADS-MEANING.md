@@ -73,6 +73,38 @@ at which a run stops and says why.
 - **Time.** `sleep` is a step that an interrupt ends; it does not wait. `nanoTime` gives a number that does not
   decrease.
 
+## Data races
+
+The JVM runs a program as its threads' steps taken one after another only if no such run has a data race: two
+threads at the same field or array element, one of them writing, with nothing that orders them (JLS §17.4.5).
+A semantics where every field access is one step would let a proof share a plain field between threads through
+an invariant, and prove of `x = 1; r1 = y` beside `y = 1; r2 = x` that one of the two reads 1; the JVM lets
+both read 0.
+
+So a write is not one step (`FrFlow/Jvm/Machine.v`):
+
+- A write of a field that is not `@volatile`, of a `var` of a method, or of an array element is two operations:
+  the thread marks the field as being written (`ObjMark`), then stores the value (`ObjSet`), which takes the
+  mark off. The meaning writes every assignment and every initialiser this way; a field's being volatile is
+  read from the tree, where the compiler kept the annotation.
+- A read or a write of a field that is marked goes wrong.
+- A volatile field is written in one step. So is what `Enter` guards: a lazy value, a class being
+  initialised. The JVM orders those.
+
+The rules of the logic follow the machine: marking a field needs the whole object, and what holds the object
+between the two steps says it is marked, so it cannot be an invariant that lets another thread read the field
+(`wp_obj_mark`, `wp_obj_get` in `FrFlow/Jvm/Rules.v`).
+
+What is proven: a program proven in the logic has no run in which a write of a field overlaps another thread's
+read or write of it (`jvm_race_free`, and with the scopes' invariant `scopes_adequacy`). The runs of the 25
+programs stop with "a data race" if one happens; none does under the four orders.
+
+What is argued and not proven: that two accesses the JLS calls a race (not ordered by happens-before) can be
+brought to overlap in some run of the machine, so that no overlap in any run means no race in the JLS's sense.
+That is the standard argument for this way of finding races (RustBelt's non-atomic accesses). It also rests on
+the machine's other steps being the JVM's synchronisation actions: a thread's start and join, and the methods
+of the JDK's atomics and concurrent collections, each one step by its protocol (`FrFlow/Scala/Jdk.v`).
+
 ## How it is tested
 
 `clients` holds 25 programs against Ox 1.1.0, each a method that answers a number.

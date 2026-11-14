@@ -122,6 +122,30 @@ Section Machine.
     | (n, v0) :: rest => if String.eqb n name then (n, v) :: rest else (n, v0) :: with_field rest name v
     end.
 
+  Fixpoint without_field (fields : list (string * val)) (name : string) : list (string * val) :=
+    match fields with
+    | [] => []
+    | (n, v0) :: rest => if String.eqb n name then without_field rest name else (n, v0) :: without_field rest name
+    end.
+
+  (** ** A field written
+
+      The JVM promises that a program runs as its threads' steps taken one after another only if no run of it
+      so has a data race: two threads at the same field, one of them writing it, with nothing that orders
+      them (JLS 17.4.5). So a write of a field is two steps here, unless the field is `volatile`: the thread
+      marks the field as being written (`ObjMark`), then stores the value (`ObjSet`), which takes the mark
+      off. A read or a write of a field that is marked goes wrong. A program of which no run goes wrong
+      therefore has no run where a write of a field overlaps another thread's read or write of it.
+
+      A volatile field, a class's being initialised and a lazy value (`Enter`) are written in one step: the
+      JVM orders those. *)
+  Definition writing (name : string) : string := (name ++ "<writing>")%string.
+  Definition writer (fields : list (string * val)) (name : string) : option tid :=
+    match field fields (writing name) with Some (VTid u) => Some u | _ => None end.
+  (** The fields once `name` is written: its value, and no mark. *)
+  Definition written (fields : list (string * val)) (name : string) (v : val) : list (string * val) :=
+    without_field (with_field fields name v) (writing name).
+
   (** Where an object keeps which thread has entered `name`. *)
   Definition entered (name : string) : string := (name ++ "<entered>")%string.
   Definition holder (fields : list (string * val)) (name : string) : option tid :=
@@ -156,6 +180,7 @@ Section Machine.
     (* an object of the program *)
     | ObjNew (cls : string) (fields : list (string * val)) : op (exn + nat)
     | ObjGet (r : nat) (name : string) : op (exn + val)
+    | ObjMark (r : nat) (name : string) : op (exn + unit)   (* the first step of a write that is not volatile *)
     | ObjSet (r : nat) (name : string) (v : val) : op (exn + unit)
     | ObjClass (r : nat) : op (exn + string)
     | Enter (r : nat) (name : string) (what : once) : op (exn + option val)
@@ -221,15 +246,30 @@ Section Machine.
     | ObjNew cls fields => fun σ x σ' => exists r, s_obj σ r = None /\ x = inr r /\ σ' = set_obj σ r (cls, fields)
     | ObjGet r name => fun σ x σ' =>
         match s_obj σ r with
-        | Some (cls, fields) => match field fields name with
-            | Some v => x = inr v /\ σ' = σ
-            | None => went_wrong σ'
+        | Some (cls, fields) =>
+            match writer fields name, field fields name with
+            | None, Some v => x = inr v /\ σ' = σ
+            | _, _ => went_wrong σ'                     (* no such field; or a read of a field being written *)
+            end
+        | None => went_wrong σ'
+        end
+    | ObjMark r name => fun σ x σ' =>
+        match s_obj σ r with
+        | Some (cls, fields) =>
+            match writer fields name with
+            | None => x = inr tt /\ σ' = set_obj σ r (cls, with_field fields (writing name) (VTid t))
+            | Some _ => went_wrong σ'                   (* two writes of a field at once *)
             end
         | None => went_wrong σ'
         end
     | ObjSet r name v => fun σ x σ' =>
         match s_obj σ r with
-        | Some (cls, fields) => x = inr tt /\ σ' = set_obj σ r (cls, with_field fields name v)
+        | Some (cls, fields) =>
+            match writer fields name with
+            | Some u => if Nat.eqb u t then x = inr tt /\ σ' = set_obj σ r (cls, written fields name v)
+                        else went_wrong σ'              (* a write of a field another thread is writing *)
+            | None => x = inr tt /\ σ' = set_obj σ r (cls, written fields name v)
+            end
         | None => went_wrong σ'
         end
     | ObjClass r => fun σ x σ' =>
@@ -332,6 +372,45 @@ Section Machine.
     | reaches_refl c : reaches c c
     | reaches_step c c' c'' : reaches c c' -> moves c' c'' -> reaches c c''.
 
+  (** ** Races
+
+      A thread is at a field another writes when what it does next reads or writes a field that another
+      thread has marked (`writing`): that thread's write overlaps this one's read or write. The threads race
+      then, and the next step of this thread goes wrong. So a program of which no run goes wrong has no run
+      with a race (`no_race`). *)
+  Definition at_written {X : Type} (t : tid) (o : op X) (σ : state) : Prop :=
+    match o with
+    | ObjGet r name | ObjMark r name | ObjSet r name _ =>
+        exists cls fields u, s_obj σ r = Some (cls, fields) /\ writer fields name = Some u /\ u <> t
+    | _ => False
+    end.
+
+  Definition races (c : config) : Prop :=
+    exists t X (o : op X) (k : X -> P res), In (Running t (Vis o k)) (fst c) /\ at_written t o (snd c).
+
+  Lemma race_goes_wrong (c : config) : races c -> exists c', moves c c' /\ s_wrong (snd c') <> None.
+  Proof.
+    destruct c as [pool σ]. intros (t & X & o & k & Hin & Hat). cbn in Hin, Hat.
+    apply in_split in Hin as (before & after & ->).
+    pose (σ' := State (s_th σ) (s_obj σ) (s_ext σ) (Some "a data race"%string)).
+    assert (s_wrong σ' <> None) as Hwrong by (cbn; discriminate).
+    assert (exists x, opstep t o σ x σ') as (x & Hop).
+    { destruct o; try contradiction; destruct Hat as (cls & fields & u & Ho & Hw & Hne).
+      - exists (inr VUnit). cbn. rewrite Ho, Hw. destruct (field fields name); exact Hwrong.
+      - exists (inr tt). cbn. rewrite Ho, Hw. exact Hwrong.
+      - exists (inr tt). cbn. rewrite Ho, Hw.
+        destruct (Nat.eqb u t) eqn:E; [apply Nat.eqb_eq in E; contradiction | exact Hwrong]. }
+    exists (before ++ Running t (k x) :: after ++ forked σ o, σ'). split; [| exact Hwrong].
+    apply move. cbn. exists x. auto.
+  Qed.
+
+  Lemma no_race (c0 : config) :
+    (forall c, reaches c0 c -> s_wrong (snd c) = None) -> forall c, reaches c0 c -> ~ races c.
+  Proof.
+    intros Hright c Hc Hrace. destruct (race_goes_wrong Hrace) as (c' & Hm & Hw).
+    apply Hw, Hright. eapply reaches_step; eassumption.
+  Qed.
+
 End Machine.
 
 Arguments VUnit {code obj}.
@@ -358,6 +437,7 @@ Arguments Park {code obj}.
 Arguments NanoTime {code obj}.
 Arguments ObjNew {code obj} cls fields.
 Arguments ObjGet {code obj} r name.
+Arguments ObjMark {code obj} r name.
 Arguments ObjSet {code obj} r name v.
 Arguments ObjClass {code obj} r.
 Arguments Enter {code obj} r name what.

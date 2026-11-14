@@ -121,28 +121,52 @@ Section rules.
     iMod "Hclose" as "_". iModIntro. simpl. iSplit; [done |]. by iApply "HΦ".
   Qed.
 
+  (** A field is read where no thread is writing it. *)
   Lemma wp_obj_get t r name E E' Φ :
-    (|={E,E'}=> ∃ dq cls fields v, r ↦obj{dq} (cls, fields) ∗ ⌜field fields name = Some v⌝ ∗
+    (|={E,E'}=> ∃ dq cls fields v, r ↦obj{dq} (cls, fields) ∗
+        ⌜field fields name = Some v ∧ writer fields name = None⌝ ∗
         ▷ (r ↦obj{dq} (cls, fields) ={E',E}=∗ Φ (inr v)))
     ⊢ wpp t (Vis (ObjGet r name) Ret) E Φ.
   Proof.
-    iIntros "H". iApply wpP_op. iIntros (σ) "Hσ". iMod "H" as (dq cls fields v) "(Hr & %Hf & HΦ)".
+    iIntros "H". iApply wpP_op. iIntros (σ) "Hσ". iMod "H" as (dq cls fields v) "(Hr & [%Hf %Hw] & HΦ)".
     iDestruct (interp_obj with "Hσ Hr") as %Ho.
     iApply fupd_mask_intro; [set_solver |]. iIntros "Hclose !>" (x σ' Hop).
-    simpl in Hop. rewrite Ho Hf in Hop. destruct Hop as [-> ->].
+    simpl in Hop. rewrite Ho Hw Hf in Hop. destruct Hop as [-> ->].
     iMod "Hclose" as "_". iMod ("HΦ" with "Hr") as "HΦ". iModIntro. simpl. by iFrame.
   Qed.
 
-  Lemma wp_obj_set t r name v E E' Φ :
-    (|={E,E'}=> ∃ cls fields, r ↦obj (cls, fields) ∗
-        ▷ (r ↦obj (cls, with_field fields name v) ={E',E}=∗ Φ (inr tt)))
-    ⊢ wpp t (Vis (ObjSet r name v) Ret) E Φ.
+  (** A write of a field that is not volatile is two steps, by who holds the object whole. The first marks
+      the field: no thread reads or writes it until the second. What holds the object between the two steps
+      says it is marked, so it cannot be an invariant that lets another thread read the field: a field that
+      threads share is written this way only where the proof shows no other thread is at it. *)
+  Lemma wp_obj_mark t r name E E' Φ :
+    (|={E,E'}=> ∃ cls fields, r ↦obj (cls, fields) ∗ ⌜writer fields name = None⌝ ∗
+        ▷ (r ↦obj (cls, with_field fields (writing name) (VTid t)) ={E',E}=∗ Φ (inr tt)))
+    ⊢ wpp t (Vis (ObjMark r name) Ret) E Φ.
   Proof.
-    iIntros "H". iApply wpP_op. iIntros (σ) "Hσ". iMod "H" as (cls fields) "(Hr & HΦ)".
+    iIntros "H". iApply wpP_op. iIntros (σ) "Hσ". iMod "H" as (cls fields) "(Hr & %Hw & HΦ)".
     iDestruct (interp_obj with "Hσ Hr") as %Ho.
     iApply fupd_mask_intro; [set_solver |]. iIntros "Hclose !>" (x σ' Hop).
-    simpl in Hop. rewrite Ho in Hop. destruct Hop as [-> ->].
-    iMod (interp_obj_set _ _ _ (cls, with_field fields name v) with "Hσ Hr") as "[$ Hr]".
+    simpl in Hop. rewrite Ho Hw in Hop. destruct Hop as [-> ->].
+    iMod (interp_obj_set _ _ _ (cls, with_field fields (writing name) (VTid t)) with "Hσ Hr") as "[$ Hr]".
+    iMod "Hclose" as "_". iMod ("HΦ" with "Hr") as "HΦ". iModIntro. simpl. by iFrame.
+  Qed.
+
+  (** The value stored: the second step of a write, by the thread that marked the field; or the one step of a
+      write the JVM orders (a volatile field, what `Enter` guards), of a field no thread has marked. *)
+  Lemma wp_obj_set t r name v E E' Φ :
+    (|={E,E'}=> ∃ cls fields, r ↦obj (cls, fields) ∗
+        ⌜match writer fields name with Some u => u = t | None => True end⌝ ∗
+        ▷ (r ↦obj (cls, written fields name v) ={E',E}=∗ Φ (inr tt)))
+    ⊢ wpp t (Vis (ObjSet r name v) Ret) E Φ.
+  Proof.
+    iIntros "H". iApply wpP_op. iIntros (σ) "Hσ". iMod "H" as (cls fields) "(Hr & %Hw & HΦ)".
+    iDestruct (interp_obj with "Hσ Hr") as %Ho.
+    iApply fupd_mask_intro; [set_solver |]. iIntros "Hclose !>" (x σ' Hop).
+    simpl in Hop. rewrite Ho in Hop.
+    assert (x = inr tt ∧ σ' = set_obj σ r (cls, written fields name v)) as [-> ->].
+    { destruct (writer fields name) as [u |]; [| done]. subst u. by rewrite Nat.eqb_refl in Hop. }
+    iMod (interp_obj_set _ _ _ (cls, written fields name v) with "Hσ Hr") as "[$ Hr]".
     iMod "Hclose" as "_". iMod ("HΦ" with "Hr") as "HΦ". iModIntro. simpl. by iFrame.
   Qed.
 

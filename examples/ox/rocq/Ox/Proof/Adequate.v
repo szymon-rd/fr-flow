@@ -2,8 +2,9 @@
 
     `scopes_adequacy`: a program started in one thread, proven in the logic from the invariant of scopes and
     the first thread's place (no fork, no scope open). In every state its threads reach, by any order of their
-    steps, nothing has gone wrong, and there are steps of the system of scopes, each of which could be taken
-    when it was, that the threads' places and the herds' sets agree with (`scopes_hold`).
+    steps, nothing has gone wrong, no two threads race at a field (`Machine.races`), and there are steps of
+    the system of scopes, each of which could be taken when it was, that the threads' places and the herds'
+    sets agree with (`scopes_hold`).
 
     `scopes_laws`: so the roots of the model hold of those steps. The two leaves the roots are proven from
     (`startsSound`, `everyStepCanBeTaken`) are what the invariant keeps; the roots follow by the proofs FrFlow
@@ -64,14 +65,23 @@ Section adequate.
        ⊢ scopes_inv -∗ place_is t (Root, []) -∗ ([∗ map] r ↦ o ∈ objects, r ↦obj o) -∗
          thread_is t c TStarted -∗ started t -∗
          WP (Running t p : running code obj) @ MaybeStuck; ⊤ {{ _, True }}) →
-    ∀ pool σ, Machine.reaches interp ([Running t p], σ0) (pool, σ) → s_wrong σ = None ∧ scopes_hold σ.
+    ∀ pool σ, Machine.reaches interp ([Running t p], σ0) (pool, σ) →
+      s_wrong σ = None ∧ scopes_hold σ ∧ ¬ Machine.races (pool, σ).
   Proof.
     intros Hobj Hext Hth Hwrong Hwp.
-    apply (jvm_adequacy interp oxΣ t c p σ0 objects scopes_hold Hobj Hext Hth Hwrong).
-    iIntros (G) "Hobjs Hth #Hstarted Hmade".
-    iMod (scopes_alloc ⊤ t with "Hmade") as (S) "[#Hinv Hplace]".
-    iModIntro. iSplitL; [iApply (Hwp G S with "Hinv Hplace Hobjs Hth Hstarted") |].
-    iIntros (σ) "Hσ". iApply (scopes_final with "Hinv Hσ").
+    assert (∀ `{!jvmGS code obj oxΣ},
+       ⊢ ([∗ map] r ↦ o ∈ objects, r ↦obj o) -∗ thread_is t c TStarted -∗ started t -∗ Wp.made t ={⊤}=∗
+         WP (Running t p : running code obj) @ MaybeStuck; ⊤ {{ _, True }} ∗
+         (∀ σ, jvm_interp σ ={⊤,∅}=∗ ⌜scopes_hold σ⌝)) as Hproven.
+    { iIntros (G) "Hobjs Hth #Hstarted Hmade".
+      iMod (scopes_alloc ⊤ t with "Hmade") as (S) "[#Hinv Hplace]".
+      iModIntro. iSplitL; [iApply (Hwp G S with "Hinv Hplace Hobjs Hth Hstarted") |].
+      iIntros (σ) "Hσ". iApply (scopes_final with "Hinv Hσ"). }
+    intros pool σ Hreach.
+    destruct (jvm_adequacy interp oxΣ t c p σ0 objects scopes_hold Hobj Hext Hth Hwrong Hproven pool σ Hreach)
+      as [Hright Hhold].
+    split; [exact Hright |]. split; [exact Hhold |].
+    exact (jvm_race_free interp oxΣ t c p σ0 objects scopes_hold Hobj Hext Hth Hwrong Hproven pool σ Hreach).
   Qed.
 End adequate.
 

@@ -3,7 +3,8 @@
     `jvm_adequacy`: a program started in one thread, over objects that are there from the start. If, given
     ownership of those objects and of the thread, the logic proves the thread (`WP`), then in every state the
     machine's threads reach, by any order of their steps, the state has not gone wrong: no thread ran a program
-    with no meaning, called a method as its class is not known to have it, or read a field its object has not.
+    with no meaning, called a method as its class is not known to have it, read a field its object has not,
+    or read or wrote a field while another thread was writing it.
     And any fact that the logic's account of a state gives, with what the invariants hold, is true of every
     state reached (`φ`). *)
 
@@ -76,6 +77,31 @@ Section adequacy.
       + intros u [[] Hu]. apply lookup_singleton_Some in Hu as [<- _]. by rewrite Hth Nat.eqb_refl.
     - iFrame "Hwp". iIntros "Hσ". iExists ∅.
       iDestruct (interp_right with "Hσ") as %Hw. iMod ("Hφ" with "Hσ") as %Hφ. by iPureIntro.
+  Qed.
+
+  (** And no run of a program so proven has a data race: a write of a field that is not volatile is two
+      steps of the machine, and a state where another thread is at the field between them goes wrong at that
+      thread's next step (`Machine.no_race`). This is what the JVM asks before it promises that the program
+      runs as the machine runs it, its threads' steps one after another (JLS 17.4.5): that no such run has a
+      data race. That two accesses the JVM would call a race can be brought to overlap in some run of the
+      machine is the usual argument, and is not proven here. *)
+  Corollary jvm_race_free Σ `{!jvmGpreS code obj Σ} (t : tid) (c : code)
+      (p : Machine.P code obj (Machine.res code obj)) (σ0 : mstate)
+      (objects : gmap nat (Machine.object code obj)) (φ : mstate → Prop) :
+    (∀ r, objects !! r = s_obj σ0 r) →
+    (∀ r, s_ext σ0 r = None) →
+    (∀ u, s_th σ0 u = if Nat.eqb u t then Some (Thread c TStarted false) else None) →
+    s_wrong σ0 = None →
+    (∀ `{!jvmGS code obj Σ},
+       ⊢ ([∗ map] r ↦ o ∈ objects, r ↦obj o) -∗ thread_is t c TStarted -∗ started t -∗ made t ={⊤}=∗
+         WP (Running t p : thread) @ MaybeStuck; ⊤ {{ _, True }} ∗
+         (∀ σ, jvm_interp σ ={⊤,∅}=∗ ⌜φ σ⌝)) →
+    ∀ pool σ, Machine.reaches interp ([Running t p], σ0) (pool, σ) → ¬ Machine.races (pool, σ).
+  Proof.
+    intros Hobj Hext Hth Hwrong Hwp pool σ Hreach.
+    eapply Machine.no_race; [| exact Hreach].
+    intros [pool' σ'] Hr.
+    by destruct (jvm_adequacy Σ t c p σ0 objects φ Hobj Hext Hth Hwrong Hwp pool' σ' Hr).
   Qed.
 
 End adequacy.

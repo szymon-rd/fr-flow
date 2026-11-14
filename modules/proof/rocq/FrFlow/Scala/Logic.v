@@ -123,13 +123,23 @@ Ltac wp_call := wp_whd; iApply wpP_call_then; iNext.
 (** A field of an object: read of one the thread holds (`H` names what holds it), read of one that no longer
     changes, and written. *)
 Tactic Notation "wp_get" constr(H) :=
-  wp_op; iApply wp_obj_get; iModIntro; iExists _, _, _, _; iFrame H; iSplit; [done |];
-  iIntros "!>"; iIntros H; iModIntro.
+  wp_op; iApply wp_obj_get; iModIntro; iExists _, _, _, _; iFrame H;
+  iSplit; [iPureIntro; split; reflexivity |]; iIntros "!>"; iIntros H; iModIntro.
 Tactic Notation "wp_read" constr(H) :=
-  wp_op; iApply wp_obj_get; iModIntro; iExists _, _, _, _; iFrame H; iSplit; [done |]; iIntros "!> _ !>".
+  wp_op; iApply wp_obj_get; iModIntro; iExists _, _, _, _; iFrame H;
+  iSplit; [iPureIntro; split; reflexivity |]; iIntros "!> _ !>".
+(** A field that is not volatile, written: marked, then the value stored (`Machine.writing`). *)
 Tactic Notation "wp_set" constr(H) :=
-  wp_op; iApply wp_obj_set; iModIntro; iExists _, _; iFrame H; iIntros "!>"; iIntros H; iModIntro;
-  iEval (simpl) in H.
+  wp_op; iApply wp_obj_mark; iModIntro; iExists _, _; iFrame H;
+  iSplit; [iPureIntro; reflexivity |]; iIntros "!>"; iIntros H; iModIntro;
+  wp_op; iApply wp_obj_set; iModIntro; iExists _, _; iFrame H;
+  iSplit; [iPureIntro; by cbn |]; iIntros "!>"; iIntros H; iModIntro;
+  iEval (cbn) in H.
+(** A field written in one step: a volatile field, or what a lazy value or a class's initialisation sets. *)
+Tactic Notation "wp_put" constr(H) :=
+  wp_op; iApply wp_obj_set; iModIntro; iExists _, _; iFrame H;
+  iSplit; [iPureIntro; by cbn |]; iIntros "!>"; iIntros H; iModIntro;
+  iEval (cbn) in H.
 
 (** What the program does next, shown: for finding the way through a program. *)
 Ltac wp_peek := wp_whd; lazymatch goal with |- environments.envs_entails _ (wpP _ _ ?p _ _) =>

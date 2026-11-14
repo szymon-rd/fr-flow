@@ -181,7 +181,7 @@ given, and so something a developer would decide as an assumption.
 
 | Of | Assumed | Needed for | Where it is promised |
 |---|---|---|---|
-| The memory model | A program whose shared state is `final` fields, volatiles, atomics and the concurrent collections runs as an interleaving of its threads' steps. | everything: it is what makes "steps, interleaved" the semantics | JLS §17.4.5 (programs free of data races). One field read here is neither: `customThreadFactory`, set once at start |
+| The memory model | A program none of whose interleaved runs has a data race runs as an interleaving of its threads' steps. | everything: it is what makes "steps, interleaved" the semantics | JLS §17.4.5. That no run has a race is proven, not assumed, of a program proven over the tree semantics: a write of a field that is not `volatile` is two steps of the machine and a conflicting access between them goes wrong (`FrFlow/Jvm/Machine.v`, `jvm_race_free`). See "Data races" in `docs/THREADS-MEANING.md` for what that rests on |
 | `Thread.start` | The body runs once, on a new thread, after `start` was called; a thread made by the factory does not run until then. | containment | JLS §17.4.5, `Thread`'s documentation |
 | `try … finally` | The `finally` runs however the body ends; nothing ends a thread from outside (`Thread.stop`, the JVM's own errors). | containment (the fork's removal from the set) | JLS §14.20.2; the second half is an assumption about the program |
 | `Thread.currentThread`, `ThreadLocal` | A thread's identity is its own; a value a thread sets, only it reads. | the owner check, the current scope | their documentation |

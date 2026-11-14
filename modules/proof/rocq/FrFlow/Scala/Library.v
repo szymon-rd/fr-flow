@@ -479,7 +479,7 @@ Definition array (owner name : string) : option Run :=
     | VObj (Ref _ r), [VObj (Int i); x] =>
         n <~ array_length r ;;
         if called "update" then
-          if (0 <=? i)%Z && (i <? n)%Z then unit_of (oop (ObjSet r (nat_text (Z.to_nat i)) x)) else out_of_bounds
+          if (0 <=? i)%Z && (i <? n)%Z then unit_of (_ <~ oop (ObjMark r (nat_text (Z.to_nat i))) ;; oop (ObjSet r (nat_text (Z.to_nat i)) x)) else out_of_bounds
         else wrong name
     | _, _ => wrong name end)
   else None.
