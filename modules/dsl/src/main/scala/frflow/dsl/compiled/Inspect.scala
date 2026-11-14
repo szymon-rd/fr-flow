@@ -16,13 +16,16 @@ import scala.util.control.NonFatal
   */
 object Inspect:
   /** What `reading` makes of the TASTy `cls` was compiled into; Scala it does not read is a `NotRead`. */
-  def apply[A](cls: Class[?])(reading: Quotes => A): A =
+  def apply[A](cls: Class[?])(reading: Quotes => A): A = files(cls)(q => _ => reading(q))
+
+  /** The same, `reading` given each TASTy file read: its path, and the tree it holds. */
+  def files[A](cls: Class[?])(reading: (q: Quotes) => List[(String, q.reflect.Tree)] => A): A =
     val out = mutable.ListBuffer.empty[Either[Throwable, A]]
     val inspector = new Inspector:
       def inspect(using q: Quotes)(tastys: List[Tasty[q.type]]): Unit =
-        out += (try Right(reading(q)) catch case NonFatal(e) => Left(e))
-    val (files, jars) = written(cls)
-    val read = try TastyInspector.inspectAllTastyFiles(files, jars, classpath(cls.getClassLoader))(inspector)
+        out += (try Right(reading(q)(tastys.map(t => t.path -> t.ast))) catch case NonFatal(e) => Left(e))
+    val (found, jars) = written(cls)
+    val read = try TastyInspector.inspectAllTastyFiles(found, jars, classpath(cls.getClassLoader))(inspector)
       catch case NonFatal(e) => throw NotRead(s"FrFlow: the TASTy of ${cls.getName} is not read: $e")
     out.headOption match
       case Some(Right(a))         => a

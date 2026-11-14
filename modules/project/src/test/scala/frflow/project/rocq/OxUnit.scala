@@ -34,6 +34,9 @@ object OxUnit:
     */
   val reordered: Map[String, List[String]] = Map.empty
 
+  /** Where Ox is read from. */
+  val jar: String = "com.softwaremill.ox:core_3:1.1.0"
+
   /** What the generated file says it is. */
   val title: String =
     """Ox 1.1.0's scopes and forks, as programs over the JDK's operations.
