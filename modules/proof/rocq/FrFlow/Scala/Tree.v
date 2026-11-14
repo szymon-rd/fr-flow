@@ -15,6 +15,7 @@
 
 From Stdlib Require Import String List ZArith.
 Import ListNotations.
+Set Warnings "-register-all".
 
 (** A definition referred to. *)
 Inductive sym :=

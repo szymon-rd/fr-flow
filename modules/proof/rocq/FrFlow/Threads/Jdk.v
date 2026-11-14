@@ -64,26 +64,41 @@ Section Jdk.
     j_ar : nat -> option (option val);           (* java.util.concurrent.atomic.AtomicReference; `None` is null *)
     j_tl : nat -> tid -> option val;             (* java.lang.ThreadLocal, per thread; `None` is null *)
     j_sem : nat -> option nat;                   (* java.util.concurrent.Semaphore: its permits *)
-    j_bq : nat -> option (nat * list val) }.     (* java.util.concurrent.ArrayBlockingQueue: capacity, elements *)
+    j_bq : nat -> option (nat * list val);       (* java.util.concurrent.ArrayBlockingQueue: capacity, elements *)
+    j_obj : nat -> option (string * list (string * val)) }.  (* an object of the code read: its class, its fields *)
 
   Definition upd {B : Type} (f : nat -> B) (k : nat) (v : B) : nat -> B :=
     fun x => if Nat.eq_dec x k then v else f x.
 
-  Definition set_th σ u th := Jst (upd (j_th σ) u (Some th)) (j_ab σ) (j_ai σ) (j_cf σ) (j_ts σ) (j_es σ) (j_vs σ) (j_ar σ) (j_tl σ) (j_sem σ) (j_bq σ).
-  Definition set_ab σ r b := Jst (j_th σ) (upd (j_ab σ) r (Some b)) (j_ai σ) (j_cf σ) (j_ts σ) (j_es σ) (j_vs σ) (j_ar σ) (j_tl σ) (j_sem σ) (j_bq σ).
-  Definition set_ai σ r z := Jst (j_th σ) (j_ab σ) (upd (j_ai σ) r (Some z)) (j_cf σ) (j_ts σ) (j_es σ) (j_vs σ) (j_ar σ) (j_tl σ) (j_sem σ) (j_bq σ).
-  Definition set_cf σ r c := Jst (j_th σ) (j_ab σ) (j_ai σ) (upd (j_cf σ) r (Some c)) (j_ts σ) (j_es σ) (j_vs σ) (j_ar σ) (j_tl σ) (j_sem σ) (j_bq σ).
-  Definition set_ts σ r s := Jst (j_th σ) (j_ab σ) (j_ai σ) (j_cf σ) (upd (j_ts σ) r (Some s)) (j_es σ) (j_vs σ) (j_ar σ) (j_tl σ) (j_sem σ) (j_bq σ).
-  Definition set_es σ r s := Jst (j_th σ) (j_ab σ) (j_ai σ) (j_cf σ) (j_ts σ) (upd (j_es σ) r (Some s)) (j_vs σ) (j_ar σ) (j_tl σ) (j_sem σ) (j_bq σ).
-  Definition set_vs σ r s := Jst (j_th σ) (j_ab σ) (j_ai σ) (j_cf σ) (j_ts σ) (j_es σ) (upd (j_vs σ) r (Some s)) (j_ar σ) (j_tl σ) (j_sem σ) (j_bq σ).
-  Definition set_ar σ r v := Jst (j_th σ) (j_ab σ) (j_ai σ) (j_cf σ) (j_ts σ) (j_es σ) (j_vs σ) (upd (j_ar σ) r (Some v)) (j_tl σ) (j_sem σ) (j_bq σ).
+  Definition set_th σ u th := Jst (upd (j_th σ) u (Some th)) (j_ab σ) (j_ai σ) (j_cf σ) (j_ts σ) (j_es σ) (j_vs σ) (j_ar σ) (j_tl σ) (j_sem σ) (j_bq σ) (j_obj σ).
+  Definition set_ab σ r b := Jst (j_th σ) (upd (j_ab σ) r (Some b)) (j_ai σ) (j_cf σ) (j_ts σ) (j_es σ) (j_vs σ) (j_ar σ) (j_tl σ) (j_sem σ) (j_bq σ) (j_obj σ).
+  Definition set_ai σ r z := Jst (j_th σ) (j_ab σ) (upd (j_ai σ) r (Some z)) (j_cf σ) (j_ts σ) (j_es σ) (j_vs σ) (j_ar σ) (j_tl σ) (j_sem σ) (j_bq σ) (j_obj σ).
+  Definition set_cf σ r c := Jst (j_th σ) (j_ab σ) (j_ai σ) (upd (j_cf σ) r (Some c)) (j_ts σ) (j_es σ) (j_vs σ) (j_ar σ) (j_tl σ) (j_sem σ) (j_bq σ) (j_obj σ).
+  Definition set_ts σ r s := Jst (j_th σ) (j_ab σ) (j_ai σ) (j_cf σ) (upd (j_ts σ) r (Some s)) (j_es σ) (j_vs σ) (j_ar σ) (j_tl σ) (j_sem σ) (j_bq σ) (j_obj σ).
+  Definition set_es σ r s := Jst (j_th σ) (j_ab σ) (j_ai σ) (j_cf σ) (j_ts σ) (upd (j_es σ) r (Some s)) (j_vs σ) (j_ar σ) (j_tl σ) (j_sem σ) (j_bq σ) (j_obj σ).
+  Definition set_vs σ r s := Jst (j_th σ) (j_ab σ) (j_ai σ) (j_cf σ) (j_ts σ) (j_es σ) (upd (j_vs σ) r (Some s)) (j_ar σ) (j_tl σ) (j_sem σ) (j_bq σ) (j_obj σ).
+  Definition set_ar σ r v := Jst (j_th σ) (j_ab σ) (j_ai σ) (j_cf σ) (j_ts σ) (j_es σ) (j_vs σ) (upd (j_ar σ) r (Some v)) (j_tl σ) (j_sem σ) (j_bq σ) (j_obj σ).
   Definition set_tl σ r t v := Jst (j_th σ) (j_ab σ) (j_ai σ) (j_cf σ) (j_ts σ) (j_es σ) (j_vs σ) (j_ar σ)
     (fun r' t' => if Nat.eq_dec r' r then (if Nat.eq_dec t' t then v else j_tl σ r' t') else j_tl σ r' t')
-    (j_sem σ) (j_bq σ).
+    (j_sem σ) (j_bq σ) (j_obj σ).
   Definition set_sem σ r n := Jst (j_th σ) (j_ab σ) (j_ai σ) (j_cf σ) (j_ts σ) (j_es σ) (j_vs σ) (j_ar σ) (j_tl σ)
-    (upd (j_sem σ) r (Some n)) (j_bq σ).
+    (upd (j_sem σ) r (Some n)) (j_bq σ) (j_obj σ).
   Definition set_bq σ r q := Jst (j_th σ) (j_ab σ) (j_ai σ) (j_cf σ) (j_ts σ) (j_es σ) (j_vs σ) (j_ar σ) (j_tl σ)
-    (j_sem σ) (upd (j_bq σ) r (Some q)).
+    (j_sem σ) (upd (j_bq σ) r (Some q)) (j_obj σ).
+  Definition set_obj σ r o := Jst (j_th σ) (j_ab σ) (j_ai σ) (j_cf σ) (j_ts σ) (j_es σ) (j_vs σ) (j_ar σ) (j_tl σ)
+    (j_sem σ) (j_bq σ) (upd (j_obj σ) r (Some o)).
+
+  (** A field of an object, and the fields with one given a value. *)
+  Fixpoint field (fields : list (string * val)) (name : string) : option val :=
+    match fields with
+    | [] => None
+    | (n, v) :: rest => if String.eqb n name then Some v else field rest name
+    end.
+  Fixpoint with_field (fields : list (string * val)) (name : string) (v : val) : list (string * val) :=
+    match fields with
+    | [] => [(name, v)]
+    | (n, v0) :: rest => if String.eqb n name then (n, v) :: rest else (n, v0) :: with_field rest name v
+    end.
 
   Definition interrupted σ (t : tid) : bool :=
     match j_th σ t with Some th => t_intr th | None => false end.
@@ -161,7 +176,14 @@ Section Jdk.
     (* ArrayBlockingQueue *)
     | BqNew (capacity : nat) : op (exn + nat)
     | BqPut (r : nat) (v : val) : op (exn + unit)
-    | BqTake (r : nat) : op (exn + val).
+    | BqTake (r : nat) : op (exn + val)
+    (* an object of the code read: made, a field read, a field assigned, its class *)
+    | ObjNew (cls : string) (fields : list (string * val)) : op (exn + nat)
+    | ObjGet (r : nat) (name : string) : op (exn + val)
+    | ObjSet (r : nat) (name : string) (v : val) : op (exn + unit)
+    | ObjClass (r : nat) : op (exn + string)
+    (* AtomicReference.compareAndSet, as `updateAndGet` uses it *)
+    | ArCas (r : nat) (expected new : option val) : op (exn + bool).
 
   (** What one call may do, made by thread `t` in state `σ`: its result and the state it leaves. No step: the
       call does not return yet. *)
@@ -344,6 +366,24 @@ Section Jdk.
     | BqTake r => fun σ x σ' =>
         (exists c v q, j_bq σ r = Some (c, v :: q) /\ x = inr v /\ σ' = set_bq σ r (c, q)) \/
         (j_bq σ r <> None /\ x = inl InterruptedException /\ interrupted σ t = true /\ σ' = clear_intr σ t)
+
+    (* An object of the code read: its fields are the JVM's heap. Each read and each assignment is one step:
+       that is the reading the memory model gives code with no data race (JLS 17.4.5), which is checked of the
+       code read, not assumed here. A field the object has not is no step. *)
+    | ObjNew cls fields => fun σ x σ' => exists r, j_obj σ r = None /\ x = inr r /\ σ' = set_obj σ r (cls, fields)
+    | ObjGet r name => fun σ x σ' => exists cls fields v,
+        j_obj σ r = Some (cls, fields) /\ field fields name = Some v /\ x = inr v /\ σ' = σ
+    | ObjSet r name v => fun σ x σ' => exists cls fields,
+        j_obj σ r = Some (cls, fields) /\ x = inr tt /\ σ' = set_obj σ r (cls, with_field fields name v)
+    | ObjClass r => fun σ x σ' => exists cls fields, j_obj σ r = Some (cls, fields) /\ x = inr cls /\ σ' = σ
+
+    (* AtomicReference.compareAndSet: the reference is set if it holds what the caller read; and it may fail at
+       any time, as an update that lost to another does. `updateAndGet` is the loop the JDK documents: read,
+       apply the function, compare and set, again if that failed ("the function ... may be re-applied when
+       attempted updates fail due to contention"). *)
+    | ArCas r expected new => fun σ x σ' =>
+        (j_ar σ r = Some expected /\ x = inr true /\ σ' = set_ar σ r new) \/
+        (j_ar σ r <> None /\ x = inr false /\ σ' = σ)
     end.
 
 End Jdk.
@@ -400,6 +440,11 @@ Arguments SemRelease {code obj} r.
 Arguments BqNew {code obj} capacity.
 Arguments BqPut {code obj} r v.
 Arguments BqTake {code obj} r.
+Arguments ObjNew {code obj} cls fields.
+Arguments ObjGet {code obj} r name.
+Arguments ObjSet {code obj} r name v.
+Arguments ObjClass {code obj} r.
+Arguments ArCas {code obj} r expected new.
 Arguments VUnit {code obj}.
 Arguments VBool {code obj} b.
 Arguments VTid {code obj} t.
