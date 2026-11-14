@@ -1,11 +1,11 @@
 (** What a Scala value is when the code runs, and what a piece of code gives.
 
-    The meaning of Scala's trees (`Meaning.v`) is a program over the JDK's operations (`FrFlow.Threads`): the
-    same programs, steps and logic the proofs about threads use. `FrFlow.Threads.Jdk` leaves open what a closure
-    and an object of the code are; here they are said.
+    The meaning of Scala's trees (`Meaning.v`) is a program over the JVM's operations (`FrFlow.Jvm.Machine`).
+    The machine leaves open what a closure and the program's data are; here they are said.
 
-    - A value of the JVM's heap is a reference: an object of the code read, or of the JDK, with its class
-      (`Ref`). Its fields are in the JDK model's state (`j_obj`); a `var` is such an object with one field.
+    - A value of the JVM's heap is a reference with its class (`Ref`): an object of the program, whose fields
+      are in the machine's state, or an object of a class from outside, known by its protocol. A `var` is an
+      object of the program with one field.
     - Scala's immutable data (an option, a tuple, a list, an `Either`) is the data itself (`Data`): two of them
       are told apart by what they hold, as their `equals` does, and nothing reads their identity.
     - A function is the tree of its definition with the variables in scope where it was made (`Fn`); an
@@ -13,7 +13,7 @@
       body runs is found when it is called, from the class of what it is called on. *)
 
 From Stdlib Require Import String List ZArith Bool DecimalString.
-Require Import FrFlow.Threads.Prog FrFlow.Threads.Jdk FrFlow.Threads.Sem FrFlow.Scala.Tree.
+Require Import FrFlow.Threads.Prog FrFlow.Jvm.Machine FrFlow.Scala.Tree FrFlow.Scala.Equal.
 Import ListNotations.
 Open Scope string_scope.
 Set Warnings "-register-all".
@@ -21,13 +21,13 @@ Set Warnings "-register-all".
 Inductive code :=
   (* a function made where it is written: its definition, the variables in scope, and the functions made in
      the same block, which it may call *)
-  | Fn (def : tree) (scope : list (string * Jdk.val code obj)) (group : list tree)
+  | Fn (def : tree) (scope : list (string * Machine.val code obj)) (group : list tree)
   (* an argument passed by name *)
-  | Thunk (body : tree) (scope : list (string * Jdk.val code obj))
+  | Thunk (body : tree) (scope : list (string * Machine.val code obj))
   (* a method, called with what it is called on and its arguments *)
   | Method (s : sym)
   (* a method of one object: what a thread made from that object runs *)
-  | Bound (s : sym) (on : Jdk.val code obj)
+  | Bound (s : sym) (on : Machine.val code obj)
   (* what making an object of a class runs: its parents' and its own initialisers *)
   | Init (cls : string)
 with obj :=
@@ -37,12 +37,44 @@ with obj :=
   | Str (s : string)
   | Text                                           (* a text built from values: not known *)
   | Null
-  | Data (constructor : string) (args : list (Jdk.val code obj))
+  | Data (constructor : string) (args : list (Machine.val code obj))
   | Module (name : string)                         (* an object that has no state of its own *)
   | ClassOf (name : string).
 
-Definition val : Type := Jdk.val code obj.
+Definition val : Type := Machine.val code obj.
 Definition scope : Type := list (string * val).
+
+(** Whether two values are the same. *)
+Fixpoint exn_eq_dec (a b : exn) : {a = b} + {a <> b}.
+Proof. decide equality; auto using string_dec, Nat.eq_dec. Defined.
+
+Section ValueEq.
+  Variables (code obj : Type).
+  Variable code_dec : forall a b : code, {a = b} + {a <> b}.
+  Variable obj_dec : forall a b : obj, {a = b} + {a <> b}.
+
+  Fixpoint value_eq_dec (a b : Machine.val code obj) {struct a} : {a = b} + {a <> b}.
+  Proof. decide equality; auto using bool_dec, Nat.eq_dec, exn_eq_dec, list_eq_dec. Defined.
+End ValueEq.
+
+Fixpoint code_eq_dec (a b : code) {struct a} : {a = b} + {a <> b}
+with obj_eq_dec (a b : obj) {struct a} : {a = b} + {a <> b}.
+Proof.
+  - decide equality; try (apply list_eq_dec; apply pair_eq_dec); try apply value_eq_dec;
+      auto using string_dec, sym_eq_dec, tree_eq_dec, list_eq_dec.
+  - decide equality; try (apply list_eq_dec; apply value_eq_dec);
+      auto using string_dec, Nat.eq_dec, Z.eq_dec.
+Defined.
+
+Definition val_eq_dec : forall a b : val, {a = b} + {a <> b} := value_eq_dec code obj code_eq_dec obj_eq_dec.
+
+Definition val_eqb (a b : val) : bool := if val_eq_dec a b then true else false.
+
+Lemma val_eqb_eq a b : val_eqb a b = true <-> a = b.
+Proof. unfold val_eqb. destruct (val_eq_dec a b); split; congruence. Qed.
+
+Lemma val_eqb_refl a : val_eqb a a = true.
+Proof. apply val_eqb_eq. reflexivity. Qed.
 
 (** What running a piece of code gives: a value, or an exception thrown, or a `return` on its way out of the
     method `from`. *)
@@ -55,15 +87,15 @@ Arguments Exc {A} e.
 Arguments Brk {A} v from.
 
 (** A program of the threads' language that gives an outcome. *)
-Definition X (A : Type) : Type := Sem.P code obj (outcome A).
+Definition X (A : Type) : Type := Machine.P code obj (outcome A).
 
 Definition oret {A : Type} (a : A) : X A := Ret (Ok a).
 Definition othrow {A : Type} (e : exn) : X A := Ret (Exc e).
 Definition obind {A B : Type} (m : X A) (f : A -> X B) : X B :=
   pbind m (fun o => match o with Ok a => f a | Exc e => Ret (Exc e) | Brk v from => Ret (Brk v from) end).
 
-(** A call of an operation of the JDK's model: one step. *)
-Definition oop {Y : Type} (o : Jdk.op code obj (exn + Y)) : X Y :=
+(** A call of an operation of the machine: one step. *)
+Definition oop {Y : Type} (o : Machine.op code obj (exn + Y)) : X Y :=
   Vis o (fun r => match r with inl e => Ret (Exc e) | inr y => Ret (Ok y) end).
 
 (** A call of a closure. *)

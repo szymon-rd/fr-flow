@@ -13,7 +13,7 @@
     Of all of Ox: every argument given by name is in its place; six definitions hold a tree the meaning stops
     at (a choice the compiler makes where `either`'s four `ok` and its `fail` are inlined, and a floating-point
     constant);
-    nine classes and objects are declared inside a class; and of the 513 definitions taken from outside, 186
+    nine classes and objects are declared inside a class; and of the 513 definitions taken from outside, 183
     have no meaning (channels of jox, reactive streams, input and output, and the rest of Scala's library).
     A program that reaches one of those stops there (`Run.Stopped`), and says which.
 
@@ -21,7 +21,7 @@
     computes. *)
 
 From Stdlib Require Import String List.
-Require Import FrFlow.Threads.Prog FrFlow.Threads.Jdk FrFlow.Threads.Sem.
+Require Import FrFlow.Threads.Prog FrFlow.Jvm.Machine.
 Require Import FrFlow.Scala.Tree FrFlow.Scala.Program FrFlow.Scala.Table FrFlow.Scala.Value FrFlow.Scala.Meaning.
 Require Import FrFlow.Scala.Library FrFlow.Scala.Gaps.
 Require Import Ox.Tree.All Ox.Tree.Surface Ox.Tree.Kernel.
@@ -78,5 +78,5 @@ Lemma inner_is : inner T =
    "ox.channels.Source.Receive$"; "ox.flow.FlowOps.NotSent$"].
 Proof. vm_compute. reflexivity. Qed.
 
-Lemma outside_unmeant : (length surface, length (unmeant T outside surface)) = (513, 186).
+Lemma outside_unmeant : (length surface, length (unmeant T outside surface)) = (513, 183).
 Proof. vm_compute. reflexivity. Qed.

@@ -56,7 +56,7 @@ object OxClients:
 
   private def requires(files: List[String]): String =
     s"""From Stdlib Require Import String List ZArith.
-       |Require Import FrFlow.Threads.Prog FrFlow.Threads.Jdk FrFlow.Threads.Sem.
+       |Require Import FrFlow.Threads.Prog FrFlow.Jvm.Machine.
        |Require Import FrFlow.Scala.Tree FrFlow.Scala.Program FrFlow.Scala.Table FrFlow.Scala.Value.
        |Require Import FrFlow.Scala.Meaning FrFlow.Scala.Library FrFlow.Scala.Run.
        |Require Import Ox.Tree.All.
@@ -65,15 +65,10 @@ object OxClients:
        |Open Scope string_scope.""".stripMargin
 
   /** The trees the programs are run over, and how one is run. */
-  private def setting(files: List[String], owners: List[String]): String =
+  private def setting(files: List[String]): String =
     s"""Definition all : list tree :=
        |  [${files.map(n => s"$n.$n").mkString(";\n   ")}] ++ files.
        |Definition T : table := Eval vm_compute in build all.
-       |Definition owners : list string :=
-       |  [${owners.map(quoted).mkString(";\n   ")}].
-       |
-       |(** The objects with state the programs may use: made before a program starts. *)
-       |Definition modules : list string := Eval vm_compute in needed T all (declared_by all owners).
        |
        |(** The orders the threads take turns in: each in turn, and three that follow no pattern. *)
        |Definition orders : list (nat -> nat) := (fun turn => turn) :: map shuffled [1; 2; 3].
@@ -81,14 +76,14 @@ object OxClients:
        |(** Under each order every thread ends, and the first gives the number `n`. *)
        |Definition gives (owner name : string) (n : Z) : bool :=
        |  forallb (fun order =>
-       |    match result (execute_under T outside supers order 100000 modules (Member owner name ":scala.Int")) with
+       |    match result (execute_under T outside supers order 100000 (Member owner name ":scala.Int")) with
        |    | Some (inr (VObj (Int m))) => Z.eqb m n
        |    | _ => false
        |    end) orders.""".stripMargin
 
   /** `Runs.v`: over the trees `files` name, a lemma for each program and what it gave. */
   def runs(files: List[String], gave: List[(Program, Int)]): String =
-    List(said, requires(files), setting(files, gave.map(_._1.owner).distinct), gave.map(lemma).mkString("\n\n"))
+    List(said, requires(files), setting(files), gave.map(lemma).mkString("\n\n"))
       .mkString("", "\n\n", "\n")
 
   private def lemma(p: Program, gave: Int): String =

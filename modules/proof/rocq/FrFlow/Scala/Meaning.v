@@ -14,8 +14,7 @@
     starts (`start`), where the JVM makes it when it is first used. *)
 
 From Stdlib Require Import String List ZArith Bool Ascii.
-Require Import FrFlow.Threads.Prog FrFlow.Threads.Jdk FrFlow.Threads.Sem.
-Require FrFlow.Threads.Lang.
+Require Import FrFlow.Threads.Prog FrFlow.Jvm.Machine.
 Require Import FrFlow.Scala.Tree FrFlow.Scala.Program FrFlow.Scala.Table FrFlow.Scala.Value.
 Import ListNotations.
 Open Scope string_scope.
@@ -56,7 +55,7 @@ Section Meaning.
     | IllegalThreadStateException => "java.lang.IllegalThreadStateException"
     | NullPointerException => "java.lang.NullPointerException"
     | NoSuchElementException => "java.util.NoSuchElementException"
-    | Jdk.Other c => c
+    | Machine.Other c => c
     | Thrown _ => "java.lang.Throwable"
     end.
 
@@ -75,7 +74,7 @@ Section Meaning.
     | VObj (Data c _) => Some c
     | VObj (Module m) => Some m
     | VObj (ClassOf _) => Some "java.lang.Class"
-    | VObj Null | VCode _ | VAny _ => None
+    | VObj Null | VCode _ => None
     end.
 
   Definition is_a (cls target : string) : bool :=
@@ -124,7 +123,7 @@ Section Meaning.
         | VUnit, VUnit => Some true
         | VBool x, VBool y => Some (Bool.eqb x y)
         | VTid x, VTid y => Some (Nat.eqb x y)
-        | VExn x, VExn y => Some (FrFlow.Threads.Lang.exn_eqb x y)
+        | VExn x, VExn y => Some (if exn_eq_dec x y then true else false)
         | VList xs, VList ys => all xs ys
         | VObj (Int x), VObj (Int y) | VObj (Long x), VObj (Long y) => Some (Z.eqb x y)
         | VObj (Int x), VObj (Long y) | VObj (Long x), VObj (Int y) => Some (Z.eqb x y)
@@ -135,7 +134,7 @@ Section Meaning.
         | VObj (Data c xs), VObj (Data c' ys) => if String.eqb c c' then all xs ys else Some false
         | VObj (Module m), VObj (Module m') => Some (String.eqb m m')
         | VObj (ClassOf c), VObj (ClassOf c') => Some (String.eqb c c')
-        | VObj Text, _ | _, VObj Text | VCode _, _ | _, VCode _ | VAny _, _ | _, VAny _ => None
+        | VObj Text, _ | _, VObj Text | VCode _, _ | _, VCode _ => None
         | _, _ => Some false
         end
     end.
@@ -161,13 +160,13 @@ Section Meaning.
 
   (** A lazy value read: its value, or `compute` run by the thread that is the first to read it; if that
       throws, the next read runs it again. *)
-  Definition lazily (r : nat) (name : string) (monitor : bool) (compute : D) : D :=
-    x <~ oop (LazyEnter r name monitor) ;;
+  Definition lazily (r : nat) (name : string) (what : once) (compute : D) : D :=
+    x <~ oop (Enter r name what) ;;
     match x with
     | Some v => oret v
     | None => pbind compute (fun o => match o with
         | Ok v => _ <~ oop (ObjSet r name v) ;; oret v
-        | other => pbind (oop (ObjSet r (evaluating name) VUnit)) (fun _ => Ret other)
+        | other => pbind (oop (ObjSet r (entered name) VUnit)) (fun _ => Ret other)
         end)
     end.
 
@@ -178,7 +177,7 @@ Section Meaning.
     | Some (VObj (Ref c r)) =>
         if String.eqb c var_class then oop (ObjGet r var_field)
         else if String.eqb c lazy_class then
-          lazily r lazy_field true (
+          lazily r lazy_field OfMethod (
             th <~ oop (ObjGet r thunk_field) ;;
             match th with VCode c => ocall c VUnit | _ => stuck "a lazy value with nothing that gives it" end)
         else oret (VObj (Ref c r))
@@ -191,11 +190,60 @@ Section Meaning.
   Definition module_val (cls : string) : val :=
     match module_at T cls with Some r => vref cls r | None => VObj (Module cls) end.
 
+  (** Where an object keeps that it is initialised. *)
+  Definition init_field : string := "<init>".
+
+  (** An object named. One that runs something when it is made is initialised by the first thread to name it,
+      as the JVM initialises a class (JLS 12.4.2): a thread that names it meanwhile waits, the thread that
+      initialises it sees it as it is so far. If its initialiser throws, that thread gets
+      `ExceptionInInitializerError`, and every later naming `NoClassDefFoundError`. *)
+  Definition module_obj (cls : string) : D :=
+    match module_at T cls with
+    | Some r =>
+        if needs_init T cls then
+          x <~ oop (Enter r init_field OfClass) ;;
+          match x with
+          | Some VUnit => oret (vref cls r)
+          | Some _ => othrow (Machine.Other "java.lang.NoClassDefFoundError")
+          | None =>
+              Call (Init cls) (VList [vref cls r]) (fun made => match made with
+                | inr _ => _ <~ oop (ObjSet r init_field VUnit) ;; oret (vref cls r)
+                | inl _ =>
+                    _ <~ oop (ObjSet r init_field (VBool false)) ;;
+                    othrow (Machine.Other "java.lang.ExceptionInInitializerError")
+                end)
+          end
+        else oret (vref cls r)
+    | None => oret (VObj (Module cls))
+    end.
+
+  (** The fields an object of a class has when it is made, each with what the JVM gives a field not yet
+      assigned: zero, false, or no object. A lazy value is no field until it is evaluated. *)
+  Definition unset (t : ty) : val :=
+    match ty_class t with
+    | Some c =>
+        if String.eqb c "scala.Int" || String.eqb c "scala.Short" || String.eqb c "scala.Byte"
+           || String.eqb c "scala.Char" then vint 0
+        else if String.eqb c "scala.Long" then vlong 0
+        else if String.eqb c "scala.Boolean" then VBool false
+        else if String.eqb c "scala.Unit" then VUnit
+        else vnull
+    | None => vnull
+    end.
+
+  Definition fields_of (cls : string) : list (string * val) :=
+    flat_map (fun name => match class_of T name with
+      | Some c => flat_map (fun d => match d with
+          | ValDef _ flags t _ =>
+              if flagged "Lazy" flags || flagged "Module" flags then [] else [(def_name d, unset t)]
+          | _ => [] end) (class_body c)
+      | None => [] end) (own T cls).
+
   (** `this` of the class `cls`. *)
   Definition this_val (e : scope) (cls : string) : D :=
     match class_of T cls with
     | Some c =>
-        if is_module c then oret (module_val cls) else
+        if is_module c then module_obj cls else
         match lookup e (this_key cls) with
         | Some v => oret v
         | None => stuck (cat "this, of a class the code is not in: " cls)
@@ -308,7 +356,7 @@ Section Meaning.
       | [t] => match instance v t with
           | Some false => match v with
               | VObj Null => oret v
-              | _ => othrow (Jdk.Other "java.lang.ClassCastException")
+              | _ => othrow (Machine.Other "java.lang.ClassCastException")
               end
           | _ => oret v
           end
@@ -331,7 +379,7 @@ Section Meaning.
             v <~ on ;; vs <~ eval_args e (map by_name (params d)) args ;; call_method s v vs
         | KField d => v <~ on ;; get_field v name
         | KLazy d => v <~ on ;; call_method s v []
-        | KModule c => oret (module_val c)
+        | KModule c => module_obj c
         | KInner => stuck (cat "an object declared in a class, one for each object of the class: " name)
         | KOutside =>
             match (if is_universal owner then universal name on e targs args else None) with
@@ -377,7 +425,7 @@ Section Meaning.
         end
     | Member owner name _ =>
         match kind_of s with
-        | KModule c => oret (module_val c)
+        | KModule c => module_obj c
         | KOutside =>
             match (if is_universal owner then universal name (stuck "nothing to compare") e targs args
                    else None) with
@@ -406,7 +454,7 @@ Section Meaning.
         | Some c =>
             let ps := match class_ctor c with Some ctor => params ctor | None => [] end in
             vs <~ eval_args e (map by_name ps) args ;;
-            r <~ oop (ObjNew cls (if is_local cls then [(scope_field, scope_val e)] else [])) ;;
+            r <~ oop (ObjNew cls (fields_of cls ++ if is_local cls then [(scope_field, scope_val e)] else [])) ;;
             _ <~ ocall (Init cls) (VList (vref cls r :: vs)) ;;
             oret (vref cls r)
         | None => call_outside (Member cls "<init>" "()") (oret VUnit) e targs args
@@ -440,7 +488,7 @@ Section Meaning.
     end.
 
   (** One turn of a loop gives what ends it, or goes round. *)
-  Definition turn (o : outcome val) (next : Sem.P code obj (unit + outcome val)) : Sem.P code obj (unit + outcome val) :=
+  Definition turn (o : outcome val) (next : Machine.P code obj (unit + outcome val)) : Machine.P code obj (unit + outcome val) :=
     match o with
     | Ok _ => next
     | Exc x => Ret (inr (Exc x))
@@ -520,7 +568,7 @@ Section Meaning.
         v <~ denote e on ;;
         (fix try (cs : list tree) : D :=
           match cs with
-          | [] => othrow (Jdk.Other "scala.MatchError")
+          | [] => othrow (Machine.Other "scala.MatchError")
           | CaseDef p guard body :: rest =>
               m <~ pmatch e p v ;;
               match m with
@@ -662,11 +710,11 @@ Section Meaning.
 
   (** ** What a closure runs *)
 
-  Definition chaos_res (why : string) : Sem.P code obj (Sem.res code obj) :=
-    Vis (Chaos (Sem.res code obj) why) (fun r => Ret r).
+  Definition chaos_res (why : string) : Machine.P code obj (Machine.res code obj) :=
+    Vis (Chaos (Machine.res code obj) why) (fun r => Ret r).
 
   (** A body's outcome as what a call gives: its value, or what it threw; a `return` ends the method it is of. *)
-  Definition leave (k : string) (m : D) : Sem.P code obj (Sem.res code obj) :=
+  Definition leave (k : string) (m : D) : Machine.P code obj (Machine.res code obj) :=
     pbind m (fun o => match o with
       | Ok v => Ret (inr v)
       | Exc x => Ret (inl x)
@@ -681,7 +729,7 @@ Section Meaning.
     map (fun d => (key (def_sym d), VCode (Fn d sc group))) group.
 
   Definition this_scope (cls : string) (on : val) : scope :=
-    map (fun a => (this_key a, on)) (ancestors T (fun _ => []) cls).
+    map (fun a => (this_key a, on)) (own T cls).
 
   (** The variables an object of a class written inside a method was made among. *)
   Definition captured (on : val) : X scope :=
@@ -693,7 +741,7 @@ Section Meaning.
   Definition class_of_object (on : val) : option string :=
     match on with VObj (Ref c _) => Some c | VObj (Module m) => Some m | _ => None end.
 
-  Definition run_method (s : sym) (on : val) (args : list val) : Sem.P code obj (Sem.res code obj) :=
+  Definition run_method (s : sym) (on : val) (args : list val) : Machine.P code obj (Machine.res code obj) :=
     match on with
     | VCode f => Call f (VList args) (fun r => Ret r)      (* a function used as an object with one method *)
     | _ =>
@@ -712,7 +760,7 @@ Section Meaning.
                 match named T cls name, on with
                 | Some (ValDef _ flags _ (Some rhs)), VObj (Ref _ r) =>
                     if flagged "Lazy" flags then
-                      leave "" (sc <~ captured on ;; lazily r name false (denote (this_scope cls on ++ sc) rhs))
+                      leave "" (sc <~ captured on ;; lazily r name OfMember (denote (this_scope cls on ++ sc) rhs))
                     else leave "" (get_field on name)
                 | Some (ValDef _ _ _ None), _ => leave "" (get_field on name)
                 | _, _ => chaos_res (cat "a method the object's class does not have: " (key s))
@@ -724,7 +772,7 @@ Section Meaning.
 
   (** What making an object of `cls` runs on it: its constructor's parameters become its fields, each parent of
       the program is initialised, then the values and statements of its body, in order. *)
-  Definition init (cls : string) (this : val) (args : list val) : Sem.P code obj (Sem.res code obj) :=
+  Definition init (cls : string) (this : val) (args : list val) : Machine.P code obj (Machine.res code obj) :=
     match class_of T cls with
     | Some c =>
         let ps := match class_ctor c with Some ctor => params ctor | None => [] end in
@@ -760,7 +808,7 @@ Section Meaning.
     | None => chaos_res (cat "an object made of a class that is not the program's: " cls)
     end.
 
-  Definition interp (c : code) (arg : val) : Sem.P code obj (Sem.res code obj) :=
+  Definition interp (c : code) (arg : val) : Machine.P code obj (Machine.res code obj) :=
     match c with
     | Fn d sc group =>
         let args := match arg with VList vs => vs | _ => [] end in

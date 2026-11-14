@@ -113,7 +113,7 @@ traversal), and there are more orders than four.
 | Definitions with a tree of a form that has no meaning | 0 | 6 |
 | Arguments given by name out of their place | 0 | 0 |
 | Classes and objects declared inside a class | 0 | 9 |
-| Definitions taken from outside with no meaning | 13 of 184 | 186 of 513 |
+| Definitions taken from outside with no meaning | 13 of 184 | 183 of 513 |
 
 The kernel's 13 are a hash code and a serialization proxy the compiler makes for case classes and objects and no
 operator calls, `Await.result` (an extension on Scala's futures), and nine of the compiler's own that only a

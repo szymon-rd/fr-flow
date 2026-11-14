@@ -16,7 +16,7 @@
     no class. Those show when the program is run (`Run`). *)
 
 From Stdlib Require Import String List Bool Ascii.
-Require Import FrFlow.Threads.Prog FrFlow.Threads.Jdk FrFlow.Threads.Sem.
+Require Import FrFlow.Threads.Prog FrFlow.Jvm.Machine.
 Require Import FrFlow.Scala.Tree FrFlow.Scala.Program FrFlow.Scala.Table FrFlow.Scala.Value FrFlow.Scala.Meaning.
 Import ListNotations.
 Open Scope string_scope.

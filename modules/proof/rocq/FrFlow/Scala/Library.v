@@ -10,8 +10,9 @@
     A definition that is not here has no meaning: a call of it is `stuck`. *)
 
 From Stdlib Require Import String List ZArith Bool.
-Require Import FrFlow.Threads.Prog FrFlow.Threads.Jdk FrFlow.Threads.Sem.
+Require Import FrFlow.Threads.Prog FrFlow.Jvm.Machine.
 Require Import FrFlow.Scala.Tree FrFlow.Scala.Program FrFlow.Scala.Table FrFlow.Scala.Value FrFlow.Scala.Meaning.
+Require Import FrFlow.Scala.Jdk.
 Import ListNotations.
 Open Scope string_scope.
 Open Scope list_scope.
@@ -78,13 +79,6 @@ Definition supers (cls : string) : list string :=
 
 (** ** Values read as what an operation takes *)
 
-Definition as_exn (v : val) : option exn :=
-  match v with
-  | VExn x => Some x
-  | VObj (Ref _ r) => Some (Thrown r)
-  | _ => None
-  end.
-
 Definition nullable (v : val) : option val := match v with VObj Null => None | _ => Some v end.
 Definition of_nullable (o : option val) : val := match o with Some v => v | None => vnull end.
 
@@ -95,7 +89,7 @@ Definition made_exn (cls : string) : exn :=
   else if String.eqb cls "java.lang.IllegalThreadStateException" then IllegalThreadStateException
   else if String.eqb cls "java.lang.NullPointerException" then NullPointerException
   else if String.eqb cls "java.util.NoSuchElementException" then NoSuchElementException
-  else Jdk.Other cls.
+  else Machine.Other cls.
 
 (** A function value called. *)
 Definition apply_fn (f : val) (args : list val) : X val :=
@@ -186,7 +180,7 @@ Definition collection (name : string) : option Run :=
   else if called "headOption" then on (fun _ _ xs _ => oret (match xs with x :: _ => some x | [] => none end))
   else if called "tail" then on (fun _ v xs _ => match xs with
     | _ :: rest => oret (rebuilt v rest)
-    | [] => othrow (Jdk.Other "java.lang.UnsupportedOperationException") end)
+    | [] => othrow (Machine.Other "java.lang.UnsupportedOperationException") end)
   else if called "reverse" then on (fun _ v xs _ => oret (rebuilt v (rev xs)))
   else if called "toList" then on (fun _ _ xs _ => oret (VList xs))
   else if called "toVector" then on (fun _ _ xs _ => oret (vdata c_vector [VList xs]))
@@ -204,7 +198,7 @@ Definition collection (name : string) : option Run :=
   else if called "apply" then on (fun _ _ xs args => match args with
     | [VObj (Int i)] => match nth_error xs (Z.to_nat i) with
         | Some x => oret x
-        | None => othrow (Jdk.Other "java.lang.IndexOutOfBoundsException") end
+        | None => othrow (Machine.Other "java.lang.IndexOutOfBoundsException") end
     | _ => wrong name end)
   else if called "contains" then on (fun eq _ xs args => match args with
     | [x] => b <~ any (fun y => eq y x) xs ;; oret (VBool b)
@@ -325,26 +319,23 @@ Definition either_method (name : string) : option (list bool * Run) :=
 
 (** ** The JDK
 
-    Each member is the operation of its contract. An object of the JDK is a reference with its class; a set of
-    the JDK's is named for what it holds, since the contracts are per kind. *)
+    An object of a class of the JDK is a reference with its class. A call of a method its protocol knows
+    (`Jdk.v`) is one step of the machine (`ExtCall`), and nothing more is assumed of it. A thread is the
+    machine's own. What takes a function of the program (a traversal, `updateAndGet`) is the loop the class
+    documents, over the protocol's steps: the function's steps are the program's, among other threads'. *)
 
-Definition h_future := "java.util.concurrent.CompletableFuture".
-Definition h_bool := "java.util.concurrent.atomic.AtomicBoolean".
-Definition h_int := "java.util.concurrent.atomic.AtomicInteger".
-Definition h_ref := "java.util.concurrent.atomic.AtomicReference".
-Definition h_local := "java.lang.ThreadLocal".
-Definition h_semaphore := "java.util.concurrent.Semaphore".
-Definition h_queue := "java.util.concurrent.ArrayBlockingQueue".
-Definition h_threads := "<a set of threads>".
-Definition h_exceptions := "<a set of exceptions>".
-Definition h_values := "<a set of values>".
-
-(** An exception an operation gave, as a value. *)
+(** An exception a method gave, as a value: one that is an object of the program is that object. *)
 Definition back (x : exn) : X val :=
   match x with
   | Thrown r => cls <~ oop (ObjClass r) ;; oret (vref cls r)
   | _ => oret (VExn x)
   end.
+
+Definition given (v : val) : X val := match v with VExn x => back x | _ => oret v end.
+
+(** A method of an object of the JDK. *)
+Definition ext_call (r : nat) (name : string) (args : list val) : X val :=
+  v <~ oop (ExtCall r name args) ;; given v.
 
 (** A loop: `body` gives the next state, or the result. *)
 Definition oloop {S : Type} (body : S -> X (S + val)) (s : S) : X val :=
@@ -355,19 +346,20 @@ Definition oloop {S : Type} (body : S -> X (S + val)) (s : S) : X val :=
     | Brk v from => Ret (inr (Brk v from))
     end)) s (fun r => Ret r).
 
-(** A traversal of a concurrent set: one element at a time, by its contract. *)
-Definition traverse {A : Type} (next : list A -> X (option A)) (f : A -> X val) : X val :=
-  oloop (fun seen : list A =>
-    x <~ next seen ;;
+(** A traversal of a concurrent set: one element at a time, by its protocol's `next`. *)
+Definition traverse (r : nat) (f : val -> X val) : X val :=
+  oloop (fun passed : list val =>
+    x <~ oop (ExtCall r "next" [VList passed]) ;;
     match x with
-    | Some a => _ <~ f a ;; oret (inl (a :: seen))
-    | None => oret (inr VUnit)
+    | VObj (Data _ [a]) => b <~ given a ;; _ <~ f b ;; oret (inl (a :: passed))
+    | _ => oret (inr VUnit)
     end) [].
 
 Definition unit_of (m : X unit) : X val := _ <~ m ;; oret VUnit.
 Definition truth_of (m : X bool) : X val := b <~ m ;; oret (VBool b).
 
-Definition jdk (owner name : string) : option Run :=
+(** Threads, and what else is the machine's own. *)
+Definition threads (owner name : string) : option Run :=
   let at_ (cls : string) := String.eqb owner cls in
   let called (n : string) := String.eqb name n in
   let known (names : list string) := existsb (String.eqb name) names in
@@ -391,116 +383,57 @@ Definition jdk (owner name : string) : option Run :=
           if called "start" then unit_of (oop (ThreadStart u))
           else if called "interrupt" then unit_of (oop (ThreadInterrupt u))
           else if called "join" then unit_of (oop (ThreadJoin u))
-          else if called "getName" then oret (VObj Text)
-          else wrong name
-      | _ => wrong name end)
-  else if at_ h_local && known ["<init>"; "get"; "set"] then
-    run (fun v _ args => match v, args with
-      | _, _ => if called "<init>" then r <~ oop (ObjNew h_local []) ;; oret (vref h_local r) else
-          match v, args with
-          | VObj (Ref _ r), [] => if called "get" then x <~ oop (TlGet r) ;; oret (of_nullable x) else wrong name
-          | VObj (Ref _ r), [x] => if called "set" then unit_of (oop (TlSet r (nullable x))) else wrong name
-          | _, _ => wrong name
-          end
-      end)
-  else if at_ h_future && known ["<init>"; "get"; "exceptionNow"; "isCompletedExceptionally"; "complete"; "completeExceptionally"]
-    then
-    run (fun v _ args =>
-      if called "<init>" then r <~ oop CfNew ;; oret (vref h_future r) else
-      match v, args with
-      | VObj (Ref _ r), [] =>
-          if called "get" then oop (CfGet r)
-          else if called "exceptionNow" then x <~ oop (CfExceptionNow r) ;; back x
-          else if called "isCompletedExceptionally" then truth_of (oop (CfIsCompletedExceptionally r))
-          else wrong name
-      | VObj (Ref _ r), [x] =>
-          if called "complete" then truth_of (oop (CfComplete r x))
-          else if called "completeExceptionally" then match as_exn x with
-            | Some e => truth_of (oop (CfCompleteExceptionally r e))
-            | None => wrong name end
-          else wrong name
-      | _, _ => wrong name
-      end)
-  else if at_ h_bool && known ["<init>"; "set"; "getAndSet"; "get"] then
-    run (fun v _ args => match v, args with
-      | _, [VBool b] =>
-          if called "<init>" then r <~ oop (AbNew b) ;; oret (vref h_bool r) else
-          match v with
-          | VObj (Ref _ r) =>
-              if called "set" then unit_of (oop (AbSet r b))
-              else if called "getAndSet" then truth_of (oop (AbGetAndSet r b))
-              else wrong name
-          | _ => wrong name
-          end
-      | VObj (Ref _ r), [] => if called "get" then truth_of (oop (AbGet r)) else wrong name
-      | _, _ => wrong name end)
-  else if at_ h_int && known ["<init>"; "incrementAndGet"; "decrementAndGet"] then
-    run (fun v _ args => match v, args with
-      | _, [VObj (Int z)] => if called "<init>" then r <~ oop (AiNew z) ;; oret (vref h_int r) else wrong name
-      | VObj (Ref _ r), [] =>
-          if called "incrementAndGet" then z <~ oop (AiIncrementAndGet r) ;; oret (vint z)
-          else if called "decrementAndGet" then z <~ oop (AiDecrementAndGet r) ;; oret (vint z)
-          else wrong name
-      | _, _ => wrong name end)
-  else if at_ h_ref && known ["<init>"; "get"; "getAndSet"; "set"; "updateAndGet"] then
-    run (fun v _ args =>
-      if called "<init>" then match args with
-        | [x] => r <~ oop (ArNew (nullable x)) ;; oret (vref h_ref r)
-        | [] => r <~ oop (ArNew None) ;; oret (vref h_ref r)
-        | _ => wrong name end
-      else match v, args with
-      | VObj (Ref _ r), [] => if called "get" then x <~ oop (ArGet r) ;; oret (of_nullable x) else wrong name
-      | VObj (Ref _ r), [x] =>
-          if called "getAndSet" then y <~ oop (ArGetAndSet r (nullable x)) ;; oret (of_nullable y)
-          else if called "set" then _ <~ oop (ArGetAndSet r (nullable x)) ;; oret VUnit
-          else if called "updateAndGet" then
-            (* the JDK's loop: read, apply, compare and set; again if another thread came between *)
-            oloop (fun _ : unit =>
-              cur <~ oop (ArGet r) ;;
-              next <~ apply_fn x [of_nullable cur] ;;
-              done <~ oop (ArCas r cur (nullable next)) ;;
-              oret (if done : bool then inr next else inl tt)) tt
-          else wrong name
-      | _, _ => wrong name
-      end)
-  else if at_ h_semaphore && known ["<init>"; "acquire"; "release"] then
-    run (fun v _ args => match v, args with
-      | _, [VObj (Int n)] =>
-          if called "<init>" then r <~ oop (SemNew (Z.to_nat n)) ;; oret (vref h_semaphore r) else wrong name
-      | VObj (Ref _ r), [] =>
-          if called "acquire" then unit_of (oop (SemAcquire r))
-          else if called "release" then unit_of (oop (SemRelease r))
-          else wrong name
-      | _, _ => wrong name end)
-  else if at_ h_queue && known ["<init>"; "take"; "put"] then
-    run (fun v _ args => match v, args with
-      | _, [VObj (Int n)] =>
-          if called "<init>" then r <~ oop (BqNew (Z.to_nat n)) ;; oret (vref h_queue r) else wrong name
-      | VObj (Ref _ r), [] => if called "take" then oop (BqTake r) else wrong name
-      | VObj (Ref _ r), [x] => if called "put" then unit_of (oop (BqPut r x)) else wrong name
-      | _, _ => wrong name end)
-  else if at_ "java.util.concurrent.ConcurrentHashMap$" && called "newKeySet" then
-    run (fun _ ts _ => match ts with
-      | [t] => match ty_class t with
-          | Some c =>
-              if String.eqb c "java.lang.Thread" then r <~ oop TsNew ;; oret (vref h_threads r)
-              else if String.eqb c "java.lang.Throwable" || existsb (String.eqb "java.lang.Throwable") (supers c)
-              then r <~ oop EsNew ;; oret (vref h_exceptions r)
-              else r <~ oop VsNew ;; oret (vref h_values r)
-          | None => r <~ oop VsNew ;; oret (vref h_values r)
-          end
+          else oret (VObj Text)
       | _ => wrong name end)
   else if at_ "java.util.concurrent.locks.LockSupport$" && called "park" then run (fun _ _ _ => unit_of (oop Park))
   else if at_ "java.lang.System$" && called "nanoTime" then run (fun _ _ _ => z <~ oop NanoTime ;; oret (vlong z))
-  else if at_ "java.lang.Throwable" && called "addSuppressed" then run (fun v _ args => match as_exn v, args with
-    | Some e, [x] => match as_exn x with
-        | Some e' => unit_of (oop (AddSuppressed e e'))
-        | None => wrong name end
-    | _, _ => wrong name end)
-  else if at_ "java.lang.Throwable" && called "getCause" then run (fun v _ _ => match v with
-    | VExn (ExecutionException cause) => back cause
-    | _ => oret vnull end)
   else None.
+
+Definition traversed (owner : string) : bool :=
+  String.eqb owner "java.lang.Iterable" || String.eqb owner "java.util.Set" || String.eqb owner "java.util.Collection"
+  || String.eqb owner (p_class concurrent_set) || String.eqb owner "java.util.concurrent.ConcurrentHashMap$.CollectionView".
+
+Definition jdk (owner name : string) : option Run :=
+  let at_ (cls : string) := String.eqb owner cls in
+  let called (n : string) := String.eqb name n in
+  let run (f : val -> list ty -> list val -> X val) : option Run := Some (fun _ v ts args => f v ts args) in
+  let made (p : protocol) : option Run :=
+    run (fun _ _ args => r <~ oop (ExtNew p args) ;; oret (vref (p_class p) r)) in
+  match threads owner name with
+  | Some r => Some r
+  | None =>
+      if called "<init>" then match class_named owner with Some p => made p | None => None end
+      else if at_ "java.util.concurrent.ConcurrentHashMap$" && called "newKeySet" then
+        run (fun _ _ _ => r <~ oop (ExtNew concurrent_set []) ;; oret (vref (p_class concurrent_set) r))
+      else if at_ (p_class atomic_reference) && called "updateAndGet" then
+        (* the JDK's loop: read, apply, compare and set; again if another thread came between *)
+        run (fun v _ args => match v, args with
+          | VObj (Ref _ r), [f] =>
+              oloop (fun _ : unit =>
+                cur <~ ext_call r "get" [] ;;
+                next <~ apply_fn f [cur] ;;
+                done <~ oop (ExtCall r "compareAndSet" [cur; next]) ;;
+                oret (match done with VBool true => inr next | _ => inl tt end)) tt
+          | _, _ => wrong name end)
+      else if traversed owner && called "forEach" then
+        run (fun v _ args => match v, args with
+          | VObj (Ref _ r), [f] => traverse r (fun x => apply_fn f [x])
+          | _, _ => wrong name end)
+      else if at_ "java.lang.Throwable" && called "addSuppressed" then
+        (* not modelled: an exception keeps no other *)
+        run (fun v _ args => match as_exn v, args with
+          | Some _, [x] => match as_exn x with Some _ => oret VUnit | None => wrong name end
+          | _, _ => wrong name end)
+      else if at_ "java.lang.Throwable" && called "getCause" then run (fun v _ _ => match v with
+        | VExn (ExecutionException cause) => back cause
+        | _ => oret vnull end)
+      else match class_with owner name with
+        | Some _ => run (fun v _ args => match v with
+            | VObj (Ref _ r) => ext_call r name args
+            | _ => wrong name end)
+        | None => None
+        end
+  end.
 
 (** ** Arrays
 
@@ -528,7 +461,7 @@ Definition array_length (r : nat) : X Z :=
 
 Definition array (owner name : string) : option Run :=
   let called (n : string) := String.eqb name n in
-  let out_of_bounds : X val := othrow (Jdk.Other "java.lang.ArrayIndexOutOfBoundsException") in
+  let out_of_bounds : X val := othrow (Machine.Other "java.lang.ArrayIndexOutOfBoundsException") in
   if String.eqb owner "scala.Array$" && called "apply" then Some (fun _ _ _ args => match args with
     | VList xs :: _ => new_array xs
     | _ => wrong name end)
@@ -549,41 +482,6 @@ Definition array (owner name : string) : option Run :=
           if (0 <=? i)%Z && (i <? n)%Z then unit_of (oop (ObjSet r (nat_text (Z.to_nat i)) x)) else out_of_bounds
         else wrong name
     | _, _ => wrong name end)
-  else None.
-
-(** A method of a concurrent set of the JDK's, by what the set holds. *)
-Definition set_method (name : string) : option Run :=
-  let called (n : string) := String.eqb name n in
-  if called "add" || called "remove" || called "contains" || called "isEmpty" || called "forEach" then
-    Some (fun _ v _ args => match v with
-      | VObj (Ref kind r) =>
-          if String.eqb kind h_threads then match args with
-            | [VTid u] =>
-                if called "add" then truth_of (oop (TsAdd r u))
-                else if called "remove" then truth_of (oop (TsRemove r u))
-                else if called "contains" then truth_of (oop (TsContains r u))
-                else wrong name
-            | [f] => if called "forEach" then
-                traverse (fun seen => oop (TsNext r seen)) (fun u => apply_fn f [VTid u]) else wrong name
-            | [] => if called "isEmpty" then truth_of (oop (TsIsEmpty r)) else wrong name
-            | _ => wrong name end
-          else if String.eqb kind h_exceptions then match args with
-            | [x] =>
-                if called "add" then match as_exn x with
-                  | Some e => truth_of (oop (EsAdd r e))
-                  | None => wrong name end
-                else if called "forEach" then
-                  traverse (fun seen => oop (EsNext r seen)) (fun e => y <~ back e ;; apply_fn x [y])
-                else wrong name
-            | _ => wrong name end
-          else if String.eqb kind h_values then match args with
-            | [x] =>
-                if called "add" then truth_of (oop (VsAdd r x))
-                else if called "forEach" then traverse (fun seen => oop (VsNext r seen)) (fun y => apply_fn x [y])
-                else wrong name
-            | _ => wrong name end
-          else wrong name
-      | _ => wrong name end)
   else None.
 
 (** ** Numbers, truth values, texts *)
@@ -623,7 +521,7 @@ Definition scalar (owner name : string) : option (list bool * Run) :=
     Some ([], fun _ v _ args => match args with
       | [w] => match number name v w with
           | Some r => oret r
-          | None => if called "/" || called "%" then othrow (Jdk.Other "java.lang.ArithmeticException") else wrong name
+          | None => if called "/" || called "%" then othrow (Machine.Other "java.lang.ArithmeticException") else wrong name
           end
       | [] => match v with
           | VObj (Int x) =>
@@ -829,12 +727,6 @@ Definition outside (owner name : string) : option primitive :=
   match jdk owner name with
   | Some r => plain r
   | None =>
-  match (if String.eqb owner "java.util.concurrent.ConcurrentHashMap$.KeySetView"
-            || String.eqb owner "java.util.concurrent.ConcurrentHashMap$.CollectionView"
-            || String.eqb owner "java.util.Set" || String.eqb owner "java.lang.Iterable"
-            || String.eqb owner "java.util.Collection" then set_method name else None) with
-  | Some r => plain r
-  | None =>
   match array owner name with
   | Some r => plain r
   | None =>
@@ -873,4 +765,4 @@ Definition outside (owner name : string) : option primitive :=
           end))
     end
   else None
-  end end end end end end end end end.
+  end end end end end end end end.

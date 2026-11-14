@@ -8,16 +8,10 @@ Open Scope string_scope.
 Open Scope list_scope.
 
 Record table := Table {
-  t_classes : list (string * tree);     (* each class, by its name *)
-  t_members : list (sym * tree) }.      (* each value and method a class or an object declares *)
-
-Definition build (files : list tree) : table :=
-  let all := over_list nodes files in
-  Table
-    (flat_map (fun n => match n with ClassDef name _ _ _ _ _ => [(name, n)] | _ => [] end) all)
-    (flat_map (fun n => match n with
-       | ValDef (Member _ _ _ as s) _ _ _ | DefDef (Member _ _ _ as s) _ _ _ _ _ => [(s, n)]
-       | _ => [] end) all).
+  t_classes : list (string * tree);            (* each class, by its name *)
+  t_members : list (sym * tree);               (* each value and method a class or an object declares *)
+  t_lineage : list (string * list string);     (* each class with what it inherits from in the program *)
+  t_modules : list (string * bool) }.          (* each object with state, and whether making it runs anything *)
 
 Fixpoint assoc {A : Type} (xs : list (string * A)) (k : string) : option A :=
   match xs with
@@ -73,18 +67,23 @@ Fixpoint dedup (xs : list string) (seen : list string) : list string :=
 
 (** A class and what it inherits from, itself first, the parent written last before those written earlier.
     `outside` gives what a class not of the program inherits from. *)
-Fixpoint lineage (fuel : nat) (T : table) (outside : string -> list string) (cls : string) : list string :=
+Fixpoint lineage (fuel : nat) (classes : list (string * tree)) (outside : string -> list string) (cls : string)
+    : list string :=
   match fuel with
   | 0 => [cls]
   | S fuel' =>
-      match class_of T cls with
-      | Some c => dedup (cls :: flat_map (lineage fuel' T outside) (rev (parent_names c))) []
+      match assoc classes cls with
+      | Some c => dedup (cls :: flat_map (lineage fuel' classes outside) (rev (parent_names c))) []
       | None => dedup (cls :: outside cls) []
       end
   end.
 
 Definition ancestors (T : table) (outside : string -> list string) (cls : string) : list string :=
-  lineage 12 T outside cls.
+  lineage 12 (t_classes T) outside cls.
+
+(** What a class inherits from in the program, itself first: kept in the table. *)
+Definition own (T : table) (cls : string) : list string :=
+  match assoc (t_lineage T) cls with Some line => line | None => [cls] end.
 
 Definition inherits (T : table) (outside : string -> list string) (cls target : string) : bool :=
   existsb (String.eqb target) (ancestors T outside cls).
@@ -114,13 +113,13 @@ Fixpoint first_some {A B : Type} (f : A -> option B) (xs : list A) : option B :=
 (** The body a call of `s` on an object of class `cls` runs: the nearest in what the class inherits from. *)
 Definition impl (T : table) (cls : string) (s : sym) : option tree :=
   first_some (fun name => match class_of T name with Some c => own_impl c s | None => None end)
-    (ancestors T (fun _ => []) cls).
+    (own T cls).
 
 (** The member named `name` that an object of class `cls` has: the nearest. *)
 Definition named (T : table) (cls name : string) : option tree :=
   first_some (fun n => match class_of T n with
     | Some c => find (fun d => String.eqb (def_name d) name) (class_body c)
-    | None => None end) (ancestors T (fun _ => []) cls).
+    | None => None end) (own T cls).
 
 (** A method's parameters, of every list, in order: each a `ValDef`. *)
 Definition params (d : tree) : list tree :=
@@ -143,18 +142,34 @@ Definition by_name (p : tree) : bool :=
 
 (** ** Objects that are alone of their class
 
-    A module with values of its own has state: it is an object of the heap, at a place fixed by its position
-    among the program's modules, made before the program starts (`Meaning.start`). One with none is a name. *)
+    An object (a Scala `object`) that has a value of its own, or a statement run when it is made, is an object
+    of the heap, at a place fixed by its position among the program's objects: the place is there from the
+    start, and the object is initialised when it is first used (`Meaning.module_obj`), as the JVM initialises a
+    class. One with neither is a name. What a class it inherits from declares is its own. *)
 
 Definition is_module (c : tree) : bool := flagged "Module" (class_flags c).
 
-Definition has_state (c : tree) : bool :=
-  existsb (fun d => match d with
-    | ValDef _ flags _ (Some _) => negb (flagged "Module" flags)
-    | _ => false end) (class_body c).
+(** A value the class gives its objects, lazy or not. *)
+Definition own_value (d : tree) : bool :=
+  match d with ValDef _ flags _ (Some _) => negb (flagged "Module" flags) | _ => false end.
 
-Definition stateful_modules (T : table) : list string :=
-  flat_map (fun c => if is_module (snd c) && has_state (snd c) then [fst c] else []) (t_classes T).
+(** What an object of the class runs when it is made: a value that is not lazy, or a statement. *)
+Definition own_initialiser (d : tree) : bool :=
+  match d with
+  | ValDef _ flags _ (Some _) => negb (flagged "Module" flags || flagged "Lazy" flags)
+  | ValDef _ _ _ None | DefDef _ _ _ _ _ _ | ClassDef _ _ _ _ _ _ | TypeDef _ _ _ | Imported _ _ | Exported _ _ => false
+  | _ => true
+  end.
+
+Definition inherited (classes : list (string * tree)) (line : list string) (what : tree -> bool) : bool :=
+  existsb (fun name => match assoc classes name with
+    | Some c => existsb what (class_body c)
+    | None => false end) line.
+
+Definition stateful_modules (T : table) : list string := map fst (t_modules T).
+
+Definition needs_init (T : table) (cls : string) : bool :=
+  match assoc (t_modules T) cls with Some runs => runs | None => false end.
 
 Fixpoint index_of (xs : list string) (x : string) (i : nat) : option nat :=
   match xs with
@@ -164,3 +179,21 @@ Fixpoint index_of (xs : list string) (x : string) (i : nat) : option nat :=
 
 (** Where a module with state is: its place among them, from one. *)
 Definition module_at (T : table) (cls : string) : option nat := index_of (stateful_modules T) cls 1.
+
+(** ** The table of a program *)
+
+Definition build (files : list tree) : table :=
+  let all := over_list nodes files in
+  let classes := flat_map (fun n => match n with ClassDef name _ _ _ _ _ => [(name, n)] | _ => [] end) all in
+  let lines := map (fun c => (fst c, lineage 12 classes (fun _ => []) (fst c))) classes in
+  Table classes
+    (flat_map (fun n => match n with
+       | ValDef (Member _ _ _ as s) _ _ _ | DefDef (Member _ _ _ as s) _ _ _ _ _ => [(s, n)]
+       | _ => [] end) all)
+    lines
+    (flat_map (fun entry =>
+       match assoc classes (fst entry) with
+       | Some c =>
+           if is_module c && inherited classes (snd entry) (fun d => own_value d || own_initialiser d)
+           then [(fst entry, inherited classes (snd entry) own_initialiser)] else []
+       | None => [] end) lines).
