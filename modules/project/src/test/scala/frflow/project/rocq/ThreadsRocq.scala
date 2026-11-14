@@ -24,6 +24,10 @@ object ThreadsRocq:
         Files.writeString(in.resolve(file), text)
         compiled(in, roots, file).map(file -> _) } }
 
+  /** Whether Rocq finds Iris (`bin/setup-iris.sh` installs it): the logic of threads is written in it. */
+  lazy val hasIris: Boolean =
+    failing(List("Probe/Iris.v" -> "From iris.proofmode Require Import proofmode.\n"), Nil).isEmpty
+
   /** `rocq compile` on one file of `in`: what it says, if it fails. */
   private def compiled(in: Path, roots: Seq[String], file: String): Option[String] =
     val out = StringBuilder()
