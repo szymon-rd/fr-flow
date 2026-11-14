@@ -6,7 +6,9 @@
     `FrFlow.Threads.Jdk` (`Ox/Tree/Assumed.v` says which the code uses) and the memory model (`Ox/Tree/Memory.v`).
 
     A scope is a thread herd: `h` names it by its set of threads. "Completed" is `h_exited`: its closing loop
-    has found its set empty, which is where `scopedWithCapability` goes on to return or throw.
+    has found its set empty. That is where a scope returns or throws: `ApiProofs.scopedWithCapability_spec` says
+    that whatever the body and the closing do, what follows `scopedWithCapability` finds the herd no longer among
+    its owner's open herds (`popped`), and a herd its owner has not open is completed (`i_open`).
 
     | Law | Here |
     |---|---|
