@@ -40,7 +40,7 @@ Section start.
       iAssert (□ ∀ k v Ψ, is_cap k v -∗ (Ψ (inr VUnit) ∧ ∀ x, Ψ (inl x)) -∗
                  wpP (run more) t (run more doAssert (VList [v])) ⊤ Ψ)%I as "#Hassert".
       { iIntros "!>" (k). iInduction k as [| k] "IH"; iIntros (v Ψ) "#Hk HΨ"; [done |].
-        iDestruct "Hk" as (r0 fields h0 q0 o0 p0) "(-> & Hr0 & [%Hfh [%Hwh [%Hfp %Hwp]]] & Hh0 & Hp0)".
+        iDestruct "Hk" as (r0 fields h0 q0 o0 p0) "(-> & Hr0 & [%Hfh [%Hwh [%Hfp %Hwp]]] & Hh0 & Hp0 & _)".
         wp_call. wp_op. iApply wp_obj_get. iModIntro. iExists _, _, _, _. iFrame "Hr0". iSplit; [done |].
         iIntros "!> _ !>". wp_done.
         wp_call. iApply (herd_isOwnerOrHerdThread with "Hinv Hh0"). iIntros ([]).

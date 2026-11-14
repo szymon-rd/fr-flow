@@ -1,5 +1,6 @@
 (** `ox.internal.ScopeContext`: the scope each thread is in (`currentScope`, a thread local), and the scopes
-    themselves as the code holds them (`OxError`, a capability: its herd and the capability it was made in).
+    themselves as the code holds them (`OxError`, a capability: its herd, the capability it was made in, and
+    the values of the fork locals in it).
 
     The object that holds `currentScope` is initialised by the first thread that names it (`Modules.v`). What
     is known of it once initialised: `currentScope` is a thread local whose values are no object or
@@ -29,7 +30,8 @@ Section context.
         ∃ r fields h q o p, ⌜v = VObj (Ref c_cap r)⌝ ∗ r ↦obj□ (c_cap, fields) ∗
           ⌜field fields "herd" = Some (herd_at h) ∧ writer fields "herd" = None ∧
            field fields "parent" = Some p ∧ writer fields "parent" = None⌝ ∗
-          is_herd h q o ∗ (⌜p = Library.none⌝ ∨ ∃ p', ⌜p = Library.some p'⌝ ∗ is_cap n' p')
+          is_herd h q o ∗ (⌜p = Library.none⌝ ∨ ∃ p', ⌜p = Library.some p'⌝ ∗ is_cap n' p') ∗
+          ⌜∃ l, field fields "locals" = Some l ∧ writer fields "locals" = None ∧ plain l⌝
     end%I.
 
   Global Instance is_cap_persistent n v : Persistent (is_cap n v).

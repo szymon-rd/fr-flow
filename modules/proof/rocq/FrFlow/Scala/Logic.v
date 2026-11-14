@@ -79,6 +79,11 @@ Ltac wp_seal := idtac.
 Ltac wp_shape Δ i t p E Φ :=
   lazymatch p with
   | Ret ?a => change (environments.envs_entails Δ (wpP i t (Ret a) E Φ))
+  | Vis (ObjNew ?cls ?fields) ?k =>
+      (* the fields an object is made with, computed: which they are is asked of the program's classes *)
+      let K := fresh "K" in
+      let fields' := eval lazy in fields in
+      pose (K := k); change (environments.envs_entails Δ (wpP i t (Vis (ObjNew cls fields') K) E Φ)); wp_seal
   | Vis ?o ?k =>
       let K := fresh "K" in
       pose (K := k); change (environments.envs_entails Δ (wpP i t (Vis o K) E Φ)); wp_seal
