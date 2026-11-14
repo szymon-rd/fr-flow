@@ -95,6 +95,9 @@ Section owned.
   Proof. apply ghost_map_elem_agree. Qed.
   Lemma ext_at_agree r dq1 dq2 h1 h2 : r ↦ext{dq1} h1 -∗ r ↦ext{dq2} h2 -∗ ⌜h1 = h2⌝.
   Proof. apply ghost_map_elem_agree. Qed.
+  (** Who owns an object from outside whole is alone in it. *)
+  Lemma ext_at_once r h1 h2 : r ↦ext h1 -∗ r ↦ext h2 -∗ False.
+  Proof. iIntros "H1 H2". iDestruct (ghost_map_elem_valid_2 with "H1 H2") as %[Hv _]. done. Qed.
 End owned.
 
 Section logic.
