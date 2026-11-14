@@ -35,54 +35,54 @@ Section rules.
   Qed.
 
   Lemma interp_right σ : jvm_interp σ -∗ ⌜s_wrong σ = None⌝.
-  Proof. iDestruct 1 as (mo me mt ms mz) "(_ & _ & _ & _ & _ & _ & %H)". iPureIntro. tauto. Qed.
+  Proof. iDestruct 1 as (mo me mt ms mz mn) "(_ & _ & _ & _ & _ & _ & _ & %H)". iPureIntro. tauto. Qed.
 
   Lemma interp_obj σ r dq (o : Machine.object code obj) : jvm_interp σ -∗ r ↦obj{dq} o -∗ ⌜s_obj σ r = Some o⌝.
   Proof.
-    iDestruct 1 as (mo me mt ms mz) "(Ho & _ & _ & _ & _ & _ & %H)". iIntros "Hr".
+    iDestruct 1 as (mo me mt ms mz mn) "(Ho & _ & _ & _ & _ & _ & _ & %H)". iIntros "Hr".
     iDestruct (ghost_map_lookup with "Ho Hr") as %E. iPureIntro. destruct H as (Hmo & _). by rewrite -Hmo.
   Qed.
 
   Lemma interp_obj_set σ r (o o' : Machine.object code obj) :
     jvm_interp σ -∗ r ↦obj o ==∗ jvm_interp (set_obj σ r o') ∗ r ↦obj o'.
   Proof.
-    iDestruct 1 as (mo me mt ms mz) "(Ho & He & Ht & Hs & Hz & Hzs & %H)". iIntros "Hr".
+    iDestruct 1 as (mo me mt ms mz mn) "(Ho & He & Ht & Hs & Hz & Hn & Hzs & %H)". iIntros "Hr".
     iMod (ghost_map_update o' with "Ho Hr") as "[Ho $]". iModIntro.
-    iExists _, me, mt, ms, mz. iFrame. iPureIntro. destruct H as (Hmo & H). split; [| exact H].
+    iExists _, me, mt, ms, mz, mn. iFrame. iPureIntro. destruct H as (Hmo & H). split; [| exact H].
     by apply upd_insert.
   Qed.
 
   Lemma interp_obj_new σ r (o : Machine.object code obj) :
     s_obj σ r = None → jvm_interp σ ==∗ jvm_interp (set_obj σ r o) ∗ r ↦obj o.
   Proof.
-    iIntros (Hr). iDestruct 1 as (mo me mt ms mz) "(Ho & He & Ht & Hs & Hz & Hzs & %H)".
+    iIntros (Hr). iDestruct 1 as (mo me mt ms mz mn) "(Ho & He & Ht & Hs & Hz & Hn & Hzs & %H)".
     destruct H as (Hmo & H).
     iMod (ghost_map_insert r o with "Ho") as "[Ho $]"; [by rewrite Hmo |]. iModIntro.
-    iExists _, me, mt, ms, mz. iFrame. iPureIntro. split; [by apply upd_insert | exact H].
+    iExists _, me, mt, ms, mz, mn. iFrame. iPureIntro. split; [by apply upd_insert | exact H].
   Qed.
 
   Lemma interp_ext σ r dq (h : Machine.held code obj) : jvm_interp σ -∗ r ↦ext{dq} h -∗ ⌜s_ext σ r = Some h⌝.
   Proof.
-    iDestruct 1 as (mo me mt ms mz) "(_ & He & _ & _ & _ & _ & %H)". iIntros "Hr".
+    iDestruct 1 as (mo me mt ms mz mn) "(_ & He & _ & _ & _ & _ & _ & %H)". iIntros "Hr".
     iDestruct (ghost_map_lookup with "He Hr") as %E. iPureIntro. destruct H as (_ & Hme & _). by rewrite -Hme.
   Qed.
 
   Lemma interp_ext_set σ r (h h' : Machine.held code obj) :
     jvm_interp σ -∗ r ↦ext h ==∗ jvm_interp (set_ext σ r h') ∗ r ↦ext h'.
   Proof.
-    iDestruct 1 as (mo me mt ms mz) "(Ho & He & Ht & Hs & Hz & Hzs & %H)". iIntros "Hr".
+    iDestruct 1 as (mo me mt ms mz mn) "(Ho & He & Ht & Hs & Hz & Hn & Hzs & %H)". iIntros "Hr".
     iMod (ghost_map_update h' with "He Hr") as "[He $]". iModIntro.
-    iExists mo, _, mt, ms, mz. iFrame. iPureIntro. destruct H as (Hmo & Hme & H).
+    iExists mo, _, mt, ms, mz, mn. iFrame. iPureIntro. destruct H as (Hmo & Hme & H).
     split; [exact Hmo |]. split; [by apply upd_insert | exact H].
   Qed.
 
   Lemma interp_ext_new σ r (h : Machine.held code obj) :
     s_ext σ r = None → jvm_interp σ ==∗ jvm_interp (set_ext σ r h) ∗ r ↦ext h.
   Proof.
-    iIntros (Hr). iDestruct 1 as (mo me mt ms mz) "(Ho & He & Ht & Hs & Hz & Hzs & %H)".
+    iIntros (Hr). iDestruct 1 as (mo me mt ms mz mn) "(Ho & He & Ht & Hs & Hz & Hn & Hzs & %H)".
     destruct H as (Hmo & Hme & H).
     iMod (ghost_map_insert r h with "He") as "[He $]"; [by rewrite Hme |]. iModIntro.
-    iExists mo, _, mt, ms, mz. iFrame. iPureIntro. split; [exact Hmo |]. split; [by apply upd_insert | exact H].
+    iExists mo, _, mt, ms, mz, mn. iFrame. iPureIntro. split; [exact Hmo |]. split; [by apply upd_insert | exact H].
   Qed.
 
   (** A change to a thread that leaves what it runs and where it is in its life: its interrupt status. *)
@@ -90,9 +90,9 @@ Section rules.
     s_th σ u = Some th → t_code th' = t_code th → t_status th' = t_status th →
     jvm_interp σ -∗ jvm_interp (set_th σ u th').
   Proof.
-    iIntros (Hu Hc Hs). iDestruct 1 as (mo me mt ms mz) "(Ho & He & Ht & Hs & Hz & Hzs & %H)".
-    iExists mo, me, mt, ms, mz. iFrame. iPureIntro.
-    destruct H as (Hmo & Hme & Hmt & Hms & Hmz & Hw). repeat split; try done.
+    iIntros (Hu Hc Hs). iDestruct 1 as (mo me mt ms mz mn) "(Ho & He & Ht & Hs & Hz & Hn & Hzs & %H)".
+    iExists mo, me, mt, ms, mz, mn. iFrame. iPureIntro.
+    destruct H as (Hmo & Hme & Hmt & Hms & Hmz & Hw & Hmn). repeat split; try done.
     - intros r. rewrite Hmt. simpl. unfold upd. destruct (PeanoNat.Nat.eq_dec r u) as [-> |]; [| done].
       rewrite Hu. simpl. by rewrite Hc Hs.
     - intros r Hr. specialize (Hms r Hr). unfold begun in *. simpl. unfold upd.
@@ -101,6 +101,7 @@ Section rules.
       destruct (PeanoNat.Nat.eq_dec u0 u) as [-> |]; [| done]. rewrite Hu in Hr. destruct th, th'; simpl in *. by subst.
     - intros Hr. apply Hmz. unfold over in *. simpl in Hr. unfold upd in Hr.
       destruct (PeanoNat.Nat.eq_dec u0 u) as [-> |]; [| done]. rewrite Hu. destruct th, th'; simpl in *. by subst.
+    - intros r Hr. specialize (Hmn r Hr). simpl. unfold upd. by destruct (PeanoNat.Nat.eq_dec r u).
   Qed.
 
   Lemma interp_clear σ t : jvm_interp σ -∗ jvm_interp (clear_intr σ t).
@@ -238,7 +239,7 @@ Section rules.
   Lemma interp_thread σ u c s :
     jvm_interp σ -∗ thread_is u c s -∗ ⌜∃ i, s_th σ u = Some (Thread c s i)⌝.
   Proof.
-    iDestruct 1 as (mo me mt ms mz) "(_ & _ & Ht & _ & _ & _ & %H)". iIntros "Hu".
+    iDestruct 1 as (mo me mt ms mz mn) "(_ & _ & Ht & _ & _ & _ & _ & %H)". iIntros "Hu".
     iDestruct (ghost_map_lookup with "Ht Hu") as %E. iPureIntro.
     destruct H as (_ & _ & Hmt & _). rewrite Hmt in E.
     destruct (s_th σ u) as [[c' s' i] |]; simpl in E; [| done]. injection E as -> ->. by exists i.
@@ -312,12 +313,16 @@ Section rules.
   Qed.
 
   Lemma interp_thread_new σ u c :
-    s_th σ u = None → jvm_interp σ ==∗ jvm_interp (set_th σ u (Thread c TNew false)) ∗ thread_is u c TNew.
+    s_th σ u = None →
+    jvm_interp σ ==∗ jvm_interp (set_th σ u (Thread c TNew false)) ∗ thread_is u c TNew ∗ made u.
   Proof.
-    iIntros (Hu). iDestruct 1 as (mo me mt ms mz) "(Ho & He & Ht & Hs & Hz & Hzs & %H)".
-    destruct H as (Hmo & Hme & Hmt & Hms & Hmz & Hw).
-    iMod (ghost_map_insert u (c, TNew) with "Ht") as "[Ht $]"; [by rewrite Hmt Hu |]. iModIntro.
-    iExists mo, me, _, ms, mz. iFrame. iPureIntro. repeat split; try done.
+    iIntros (Hu). iDestruct 1 as (mo me mt ms mz mn) "(Ho & He & Ht & Hs & Hz & Hn & Hzs & %H)".
+    destruct H as (Hmo & Hme & Hmt & Hms & Hmz & Hw & Hmn).
+    iMod (ghost_map_insert u (c, TNew) with "Ht") as "[Ht $]"; [by rewrite Hmt Hu |].
+    assert (mn !! u = None) as Hfresh.
+    { destruct (mn !! u) eqn:E; [| done]. exfalso. apply (Hmn u); eauto. }
+    iMod (ghost_map_insert u () with "Hn") as "[Hn $]"; [done |]. iModIntro.
+    iExists mo, me, _, ms, mz, _. iFrame. iPureIntro. repeat split; try done.
     - apply (status_upd mt σ u (Thread c TNew false)), Hmt.
     - intros r Hr. specialize (Hms r Hr). unfold begun in *. simpl. unfold upd.
       destruct (PeanoNat.Nat.eq_dec r u) as [-> |]; [| done]. by rewrite Hu in Hms.
@@ -325,6 +330,8 @@ Section rules.
       destruct (PeanoNat.Nat.eq_dec u0 u) as [-> |]; [| done]. by rewrite Hu in Hr.
     - intros Hr. apply Hmz. unfold over in *. simpl in Hr. unfold upd in Hr.
       by destruct (PeanoNat.Nat.eq_dec u0 u) as [-> |].
+    - intros r Hr. simpl. unfold upd. destruct (PeanoNat.Nat.eq_dec r u) as [-> |]; [done |].
+      apply Hmn. by rewrite lookup_insert_ne in Hr.
   Qed.
 
   Lemma interp_thread_start σ u c i :
@@ -332,14 +339,15 @@ Section rules.
     jvm_interp σ -∗ thread_is u c TNew ==∗
     jvm_interp (set_th σ u (Thread c TStarted i)) ∗ thread_is u c TStarted ∗ started u.
   Proof.
-    iIntros (Hu). iDestruct 1 as (mo me mt ms mz) "(Ho & He & Ht & Hs & Hz & Hzs & %H)". iIntros "Hth".
-    destruct H as (Hmo & Hme & Hmt & Hms & Hmz & Hw).
+    iIntros (Hu). iDestruct 1 as (mo me mt ms mz mn) "(Ho & He & Ht & Hs & Hz & Hn & Hzs & %H)".
+    iIntros "Hth".
+    destruct H as (Hmo & Hme & Hmt & Hms & Hmz & Hw & Hmn).
     iMod (ghost_map_update (c, TStarted) with "Ht Hth") as "[Ht $]".
     assert (ms !! u = None) as Hnone.
     { destruct (ms !! u) eqn:E; [| done]. assert (begun σ u) as Hb by (apply Hms; eauto).
       unfold begun in Hb. by rewrite Hu in Hb. }
     iMod (ghost_map_insert_persist u () with "Hs") as "[Hs $]"; [done |]. iModIntro.
-    iExists mo, me, _, _, mz. iFrame. iPureIntro. repeat split; try done.
+    iExists mo, me, _, _, mz, mn. iFrame. iPureIntro. repeat split; try done.
     - apply (status_upd mt σ u (Thread c TStarted i)), Hmt.
     - intros r Hr. unfold begun. simpl. unfold upd. destruct (PeanoNat.Nat.eq_dec r u) as [-> |]; [done |].
       apply Hms. by rewrite lookup_insert_ne in Hr.
@@ -347,21 +355,22 @@ Section rules.
       destruct (PeanoNat.Nat.eq_dec u0 u) as [-> |]; [| done]. by rewrite Hu in Hr.
     - intros Hr. apply Hmz. unfold over in *. simpl in Hr. unfold upd in Hr.
       by destruct (PeanoNat.Nat.eq_dec u0 u) as [-> |].
+    - intros r Hr. specialize (Hmn r Hr). simpl. unfold upd. by destruct (PeanoNat.Nat.eq_dec r u).
   Qed.
 
   Lemma interp_thread_exit σ t c :
     jvm_interp σ -∗ thread_is t c TStarted ==∗ jvm_interp (terminate σ t) ∗ ended t.
   Proof.
     iIntros "Hσ Hth". iDestruct (interp_thread with "Hσ Hth") as %(i & Hu).
-    iDestruct "Hσ" as (mo me mt ms mz) "(Ho & He & Ht & Hs & Hz & Hzs & %H)".
-    destruct H as (Hmo & Hme & Hmt & Hms & Hmz & Hw).
+    iDestruct "Hσ" as (mo me mt ms mz mn) "(Ho & He & Ht & Hs & Hz & Hn & Hzs & %H)".
+    destruct H as (Hmo & Hme & Hmt & Hms & Hmz & Hw & Hmn).
     iMod (ghost_map_update (c, TTerminated) with "Ht Hth") as "[Ht _]".
     assert (mz !! t = None) as Hnone.
     { destruct (mz !! t) eqn:E; [| done]. assert (over σ t) as Hb by (apply Hmz; eauto).
       unfold over in Hb. by rewrite Hu in Hb. }
     iMod (ghost_map_insert_persist t () with "Hz") as "[Hz #Hended]"; [done |]. iModIntro.
     iFrame "Hended". unfold terminate. rewrite Hu. simpl.
-    iExists mo, me, _, ms, _. iFrame. iSplit; [by iApply big_sepM_insert; [done | iFrame "#"] |].
+    iExists mo, me, _, ms, _, mn. iFrame. iSplit; [by iApply big_sepM_insert; [done | iFrame "#"] |].
     iPureIntro. repeat split; try done.
     - apply (status_upd mt σ t (Thread c TTerminated i)), Hmt.
     - intros r Hr. specialize (Hms r Hr). unfold begun in *. simpl. unfold upd.
@@ -371,29 +380,30 @@ Section rules.
     - intros Hr. unfold over in Hr. simpl in Hr. unfold upd in Hr.
       destruct (PeanoNat.Nat.eq_dec u t) as [-> |]; [by rewrite lookup_insert_eq |].
       rewrite lookup_insert_ne; [by apply Hmz | done].
+    - intros r Hr. specialize (Hmn r Hr). simpl. unfold upd. by destruct (PeanoNat.Nat.eq_dec r t).
   Qed.
 
   Lemma interp_ended σ u : over σ u → jvm_interp σ -∗ ended u.
   Proof.
-    iIntros (Ho). iDestruct 1 as (mo me mt ms mz) "(_ & _ & _ & _ & _ & Hzs & %H)".
+    iIntros (Ho). iDestruct 1 as (mo me mt ms mz mn) "(_ & _ & _ & _ & _ & _ & Hzs & %H)".
     destruct H as (_ & _ & _ & _ & Hmz & _). apply Hmz in Ho as [[] Ho].
     by iDestruct (big_sepM_lookup with "Hzs") as "$".
   Qed.
 
   Lemma interp_started σ u : jvm_interp σ -∗ started u -∗ ⌜begun σ u⌝.
   Proof.
-    iDestruct 1 as (mo me mt ms mz) "(_ & _ & _ & Hs & _ & _ & %H)". iIntros "Hu".
+    iDestruct 1 as (mo me mt ms mz mn) "(_ & _ & _ & Hs & _ & _ & _ & %H)". iIntros "Hu".
     iDestruct (ghost_map_lookup with "Hs Hu") as %E. iPureIntro.
     destruct H as (_ & _ & _ & Hms & _). apply Hms. eauto.
   Qed.
 
   Lemma wp_new_thread t c E Φ :
-    ▷ (∀ u, thread_is u c TNew -∗ Φ (inr u)) ⊢ wpp t (Vis (NewThread c) Ret) E Φ.
+    ▷ (∀ u, thread_is u c TNew -∗ made u -∗ Φ (inr u)) ⊢ wpp t (Vis (NewThread c) Ret) E Φ.
   Proof.
     iIntros "HΦ". iApply wpP_op. iIntros (σ) "Hσ".
     iApply fupd_mask_intro; [set_solver |]. iIntros "Hclose !>" (x σ' (u & Hu & -> & ->)).
-    iMod (interp_thread_new _ u c with "Hσ") as "[$ Hth]"; [done |].
-    iMod "Hclose" as "_". iModIntro. simpl. iSplit; [done |]. by iApply "HΦ".
+    iMod (interp_thread_new _ u c with "Hσ") as "($ & Hth & Hnew)"; [done |].
+    iMod "Hclose" as "_". iModIntro. simpl. iSplit; [done |]. iApply ("HΦ" with "Hth Hnew").
   Qed.
 
   (** A thread is started by who holds it: the new thread holds itself from then on, and must meet what a

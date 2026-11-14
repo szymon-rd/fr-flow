@@ -43,7 +43,7 @@ Section adequacy.
     (∀ u, s_th σ0 u = if Nat.eqb u t then Some (Thread c TStarted false) else None) →
     s_wrong σ0 = None →
     (∀ `{!jvmGS code obj Σ},
-       ⊢ ([∗ map] r ↦ o ∈ objects, r ↦obj o) -∗ thread_is t c TStarted -∗ started t ={⊤}=∗
+       ⊢ ([∗ map] r ↦ o ∈ objects, r ↦obj o) -∗ thread_is t c TStarted -∗ started t -∗ made t ={⊤}=∗
          WP (Running t p : thread) @ MaybeStuck; ⊤ {{ _, True }} ∗
          (∀ σ, jvm_interp σ ={⊤,∅}=∗ ⌜φ σ⌝)) →
     ∀ pool σ, Machine.reaches interp ([Running t p], σ0) (pool, σ) → s_wrong σ = None ∧ φ σ.
@@ -57,13 +57,15 @@ Section adequacy.
     iMod (ghost_map_alloc_empty (K:=tid) (V:=unit)) as (γs) "Hs".
     iMod (ghost_map_insert_persist t () with "Hs") as "[Hs #Hstarted]"; [done |].
     iMod (ghost_map_alloc_empty (K:=tid) (V:=unit)) as (γz) "Hz".
-    set (G := JvmGS code obj Σ Hinv _ _ _ _ γo γe γt γs γz).
-    iMod (Hwp G with "[Hobjs] [Hth] [$Hstarted]") as "[Hwp Hφ]".
+    iMod (ghost_map_alloc_empty (K:=tid) (V:=unit)) as (γn) "Hn".
+    iMod (ghost_map_insert t () with "Hn") as "[Hn Hmade]"; [done |].
+    set (G := JvmGS code obj Σ Hinv _ _ _ _ γo γe γt γs γz γn).
+    iMod (Hwp G with "[Hobjs] [Hth] Hstarted Hmade") as "[Hwp Hφ]".
     { iApply (big_sepM_impl with "Hobjs"). by iIntros "!>" (r o _) "H". }
     { by rewrite big_sepM_singleton. }
     iModIntro. iExists (λ σ _ _, jvm_interp σ), (λ _, True%I).
-    iSplitL "Ho He Ht Hs Hz".
-    - iExists objects, ∅, {[t := (c, TStarted)]}, {[t := ()]}, ∅. iFrame. iSplit; [done |].
+    iSplitL "Ho He Ht Hs Hz Hn".
+    - iExists objects, ∅, {[t := (c, TStarted)]}, {[t := ()]}, ∅, {[t := ()]}. iFrame. iSplit; [done |].
       iPureIntro. repeat split; try done.
       + intros u. rewrite Hth. destruct (Nat.eqb u t) eqn:E.
         * apply Nat.eqb_eq in E as ->. by rewrite lookup_singleton_eq.
@@ -71,6 +73,7 @@ Section adequacy.
       + intros u [[] Hu]. apply lookup_singleton_Some in Hu as [<- _]. unfold begun. by rewrite Hth Nat.eqb_refl.
       + by intros [? ?].
       + intros Ho. unfold over in Ho. rewrite Hth in Ho. by destruct (Nat.eqb u t).
+      + intros u [[] Hu]. apply lookup_singleton_Some in Hu as [<- _]. by rewrite Hth Nat.eqb_refl.
     - iFrame "Hwp". iIntros "Hσ". iExists ∅.
       iDestruct (interp_right with "Hσ") as %Hw. iMod ("Hφ" with "Hσ") as %Hφ. by iPureIntro.
   Qed.

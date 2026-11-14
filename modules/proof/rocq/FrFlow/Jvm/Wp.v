@@ -63,7 +63,8 @@ Class jvmGS (code obj : Type) (Σ : gFunctors) := JvmGS {
   jvm_ext : gname;
   jvm_th : gname;
   jvm_started : gname;
-  jvm_ended : gname }.
+  jvm_ended : gname;
+  jvm_new : gname }.
 
 (** An object of the program at `r`, and one of a class from outside: who owns it may change it; a part of it
     (`{dq}`) lets it be read; `□` is a part that is everyone's for good, of an object that no longer changes. *)
@@ -109,6 +110,8 @@ Section logic.
   (** A thread, with what it runs and where it is in its life: who holds it may move it on. *)
   Definition thread_is (u : tid) (c : code) (s : tstatus) : iProp Σ :=
     ghost_map_elem jvm_th u (DfracOwn 1) (c, s).
+  (** The thread was made: there is one of this for each thread, given to who made it. *)
+  Definition made (u : tid) : iProp Σ := ghost_map_elem jvm_new u (DfracOwn 1) ().
   (** The thread was started. *)
   Definition started (u : tid) : iProp Σ := ghost_map_elem jvm_started u DfracDiscarded ().
   (** The thread has ended. *)
@@ -123,6 +126,13 @@ Section logic.
   Global Instance ended_timeless u : Timeless (ended u).
   Proof. apply _. Qed.
 
+  Global Instance made_timeless u : Timeless (made u).
+  Proof. apply _. Qed.
+
+  (** A thread is made once. *)
+  Lemma made_once u : made u -∗ made u -∗ False.
+  Proof. iIntros "H1 H2". iDestruct (ghost_map_elem_valid_2 with "H1 H2") as %[Hv _]. done. Qed.
+
   Definition status_of (th : option (Machine.thread code)) : option (code * tstatus) :=
     match th with Some th => Some (t_code th, t_status th) | None => None end.
 
@@ -133,13 +143,15 @@ Section logic.
 
   Definition jvm_interp (σ : mstate) : iProp Σ :=
     ∃ (mo : gmap nat (Machine.object code obj)) (me : gmap nat (Machine.held code obj))
-      (mt : gmap tid (code * tstatus)) (ms mz : gmap tid unit),
+      (mt : gmap tid (code * tstatus)) (ms mz mn : gmap tid unit),
       ghost_map_auth jvm_obj (DfracOwn 1) mo ∗ ghost_map_auth jvm_ext (DfracOwn 1) me ∗
       ghost_map_auth jvm_th (DfracOwn 1) mt ∗
       ghost_map_auth jvm_started (DfracOwn 1) ms ∗ ghost_map_auth jvm_ended (DfracOwn 1) mz ∗
+      ghost_map_auth jvm_new (DfracOwn 1) mn ∗
       ([∗ map] u ↦ _ ∈ mz, ended u) ∗
       ⌜(∀ r, mo !! r = s_obj σ r) ∧ (∀ r, me !! r = s_ext σ r) ∧ (∀ u, mt !! u = status_of (s_th σ u)) ∧
-       (∀ u, is_Some (ms !! u) → begun σ u) ∧ (∀ u, is_Some (mz !! u) ↔ over σ u) ∧ s_wrong σ = None⌝.
+       (∀ u, is_Some (ms !! u) → begun σ u) ∧ (∀ u, is_Some (mz !! u) ↔ over σ u) ∧ s_wrong σ = None ∧
+       (∀ u, is_Some (mn !! u) → s_th σ u ≠ None)⌝.
 
   (** Iris's weakest precondition, of this machine with this account of its state. It is no instance outside
       a section that fixes `interp`: there it is declared for that `interp`. *)

@@ -254,3 +254,89 @@ Qed.
 Lemma no_step_taken (atStart : Scopes) :
   forall before e after, tookBetween nil before e after -> canTake (ran atStart before) e.
 Proof. intros before e after E. unfold tookBetween in E. destruct before; discriminate. Qed.
+
+(** ** What each kind of step changes *)
+
+Lemma open_scope (s : Scopes) (w h : Z) (p : option Z) (k : Z) :
+  scope_of (afterStep s (Step_Open w h p)) k =
+    ite (k = h) (Some (Scope_mk w p (clock_of s) False)) (scope_of s k).
+Proof. destruct s. reflexivity. Qed.
+
+Lemma open_fork (s : Scopes) (w h : Z) (p : option Z) : fork_of (afterStep s (Step_Open w h p)) = fork_of s.
+Proof. destruct s. reflexivity. Qed.
+
+Lemma open_hasOpen (s : Scopes) (w h : Z) (p : option Z) (w' h' : Z) :
+  scope_of s h = None ->
+  hasOpen (afterStep s (Step_Open w h p)) w' h' <-> (w' = w /\ h' = h) \/ hasOpen s w' h'.
+Proof.
+  intro Hfresh. unfold hasOpen. rewrite open_scope. destruct (Z.eq_dec h' h) as [-> | Hne].
+  - rewrite ite_true by reflexivity. split.
+    + intros (x & Hx & Ho & _). injection Hx as <-. left. split; [symmetry; exact Ho | reflexivity].
+    + intros [[-> _] | (x & Hx & _)]; [| rewrite Hfresh in Hx; discriminate].
+      eexists. split; [reflexivity |]. cbn. split; [reflexivity | tauto].
+  - rewrite ite_false by exact Hne. split; [tauto |]. intros [[_ E] | H]; [contradiction | exact H].
+Qed.
+
+Lemma open_openedAt (s : Scopes) (w h : Z) (p : option Z) (h' : Z) :
+  openedAt (afterStep s (Step_Open w h p)) h' = ite (h' = h) (clock_of s) (openedAt s h').
+Proof.
+  unfold openedAt. rewrite open_scope. destruct (Z.eq_dec h' h) as [-> | Hne].
+  - rewrite !ite_true by reflexivity. reflexivity.
+  - rewrite !ite_false by exact Hne. reflexivity.
+Qed.
+
+Lemma forks_scope (s : Scopes) (w h c : Z) : scope_of (afterStep s (Step_Forks w h c)) = scope_of s.
+Proof. destruct s. reflexivity. Qed.
+
+Lemma forks_fork (s : Scopes) (w h c k : Z) :
+  fork_of (afterStep s (Step_Forks w h c)) k = ite (k = c) (Some (Fork_mk h Life_Running)) (fork_of s k).
+Proof. destruct s. reflexivity. Qed.
+
+Lemma finish_scope (s : Scopes) (t : Z) : scope_of (afterStep s (Step_Finish t)) = scope_of s.
+Proof. destruct s as [sc fk ck]. cbn. reflexivity. Qed.
+
+Lemma finish_fork (s : Scopes) (t : Z) (f : Fork) (k : Z) :
+  fork_of s t = Some f ->
+  fork_of (afterStep s (Step_Finish t)) k = ite (k = t) (Some (Fork_mk (scope_of f) Life_Finished)) (fork_of s k).
+Proof. destruct s as [sc fk ck]. cbn. intros ->. destruct f. reflexivity. Qed.
+
+Lemma end_fork (s : Scopes) (w h : Z) : fork_of (afterStep s (Step_End w h)) = fork_of s.
+Proof. destruct s as [sc fk ck]. cbn. reflexivity. Qed.
+
+Lemma end_scope (s : Scopes) (w h : Z) (x : Scope) (k : Z) :
+  scope_of s h = Some x ->
+  scope_of (afterStep s (Step_End w h)) k =
+    ite (k = h) (Some (Scope_mk (owner_of x) (parent_of x) (opened_of x) True)) (scope_of s k).
+Proof. destruct s as [sc fk ck]. cbn. intros ->. destruct x. reflexivity. Qed.
+
+Lemma end_hasOpen (s : Scopes) (w h : Z) (x : Scope) (w' h' : Z) :
+  scope_of s h = Some x ->
+  hasOpen (afterStep s (Step_End w h)) w' h' <-> hasOpen s w' h' /\ h' <> h.
+Proof.
+  intro Hx. unfold hasOpen. rewrite (end_scope s w h x h' Hx). destruct (Z.eq_dec h' h) as [-> | Hne].
+  - rewrite ite_true by reflexivity. split.
+    + intros (y & Hy & _ & Hnot). injection Hy as <-. exfalso. apply Hnot. exact I.
+    + intros [_ Hc]. contradiction.
+  - rewrite ite_false by exact Hne. tauto.
+Qed.
+
+Lemma end_openedAt (s : Scopes) (w h : Z) (x : Scope) (h' : Z) :
+  scope_of s h = Some x -> openedAt (afterStep s (Step_End w h)) h' = openedAt s h'.
+Proof.
+  intro Hx. unfold openedAt. rewrite (end_scope s w h x h' Hx). destruct (Z.eq_dec h' h) as [-> | Hne].
+  - rewrite ite_true by reflexivity. rewrite Hx. reflexivity.
+  - rewrite ite_false by exact Hne. reflexivity.
+Qed.
+
+(** A program's steps so far and one more that can be taken: each still could be taken when it was. *)
+Lemma taken_snoc (atStart : Scopes) (taken : list Step) (e : Step) :
+  (forall before e' after, tookBetween taken before e' after -> canTake (ran atStart before) e') ->
+  canTake (ran atStart taken) e ->
+  forall before e' after, tookBetween (taken ++ e :: nil) before e' after -> canTake (ran atStart before) e'.
+Proof.
+  intros Hold Hnew before e' after E. unfold tookBetween in *.
+  destruct after as [| a after] using rev_ind.
+  - apply app_inj_tail in E as [-> ->]. exact Hnew.
+  - clear IHafter. rewrite app_comm_cons, app_assoc in E. apply app_inj_tail in E as [E _].
+    exact (Hold before e' after E).
+Qed.
