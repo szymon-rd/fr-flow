@@ -91,7 +91,7 @@ Section herd.
     iIntros "#Hherd HΦ". iDestruct "Hherd" as (flag) "(Hr & Hq & Hflag)".
     wp_read "Hr".
     wp_op. iApply wp_ext_call. iInv "Hflag" as (v) ">Hf" "Hclose". iModIntro. iExists atomic_boolean, v.
-    iFrame "Hf". iIntros "!>" (intr choice). simpl. iIntros "Hf".
+    iFrame "Hf". iIntros "!>" (intr choice). rewrite flag_get. iIntros "Hf".
     iMod ("Hclose" with "[Hf]") as "_"; [by iExists v |]. iModIntro.
     destruct v; wp_done; [iDestruct "HΦ" as "[_ HΦ]" | iDestruct "HΦ" as "[HΦ _]"]; iApply "HΦ".
   Qed.
@@ -140,7 +140,7 @@ Section herd.
     wp_call. wp_op. iApply wp_current_thread. iNext. wp_read "Hr". wp_whd. rewrite same_place_refl. wp_done.
     (* shutdownInProgress.set(true) *)
     wp_read "Hr". wp_op. iApply wp_ext_call. iInv "Hflag" as (v) ">Hf" "Hclose". iModIntro.
-    iExists atomic_boolean, v. iFrame "Hf". iIntros "!>" (intr choice). simpl. iIntros "Hf".
+    iExists atomic_boolean, v. iFrame "Hf". iIntros "!>" (intr choice). rewrite flag_set. iIntros "Hf".
     iMod ("Hclose" with "[Hf]") as "_"; [by iExists true |]. iModIntro.
     (* the two variables *)
     wp_op. iApply wp_obj_new. iIntros "!>" (v1) "Hv1". iEval (simpl) in "Hv1".

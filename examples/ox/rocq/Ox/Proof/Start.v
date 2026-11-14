@@ -24,15 +24,7 @@ Section start.
     iIntros "#Hctx #Hinv #Hherd Hplace HΦ".
     wp_op. iApply wp_current_thread. iNext.
     (* currentScope.get() *)
-    wp_whd. wp_leaf. iApply (ctx_named with "Hctx Hplace"). iIntros (cfields) "#Hc #Hready Hplace".
-    iDestruct "Hready" as (tl) "[[%Hcs %Hcw] Hlocal]".
-    wp_op. iApply wp_obj_get. iModIntro. iExists _, _, _, _. iFrame "Hc". iSplit; [done |].
-    iIntros "!> _ !>". wp_done.
-    wp_op. iApply wp_ext_call. iInv "Hlocal" as (s) "[>Htl #Hs]" "Hclose". iModIntro.
-    iExists thread_local, s. iFrame "Htl". iIntros "!>" (intr choice). cbn. iIntros "Htl".
-    iDestruct (local_of s t with "Hs") as "#Hv".
-    iMod ("Hclose" with "[Htl]") as "_"; [iNext; iExists s; by iFrame "Htl Hs" |]. iModIntro.
-    iClear "Hs". iRevert "Hv". generalize (of_thread s t). intros v. iIntros "#Hv". clear s intr choice.
+    ctx_local ltl. local_get t v "Hv".
     iDestruct ("HΦ" with "Hplace") as "HΦ".
     iDestruct "Hv" as "[-> | [%n Hcap]]".
     - (* the thread is in no scope: it throws *)

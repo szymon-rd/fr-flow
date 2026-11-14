@@ -180,19 +180,28 @@ Section Meaning.
         end)
     end.
 
-  (** A variable read: a `var` is the object that holds it, a `lazy val` the object that holds it once it is
-      evaluated, an argument passed by name is run. *)
-  Definition read (e : scope) (k : string) : D :=
-    match lookup e k with
-    | Some (VObj (Ref c r)) =>
+  (** What a name gives that holds `v`: a `var` is the object that holds its value, a `lazy val` the object
+      that holds it once it is evaluated, an argument passed by name is run, a function written with no
+      parameter list is called; any other value is itself. *)
+  Definition held (v : val) : D :=
+    match v with
+    | VObj (Ref c r) =>
         if String.eqb c var_class then oop (ObjGet r var_field)
         else if String.eqb c lazy_class then
           lazily r lazy_field OfMethod (
             th <~ oop (ObjGet r thunk_field) ;;
             match th with VCode c => ocall c VUnit | _ => stuck "a lazy value with nothing that gives it" end)
         else oret (VObj (Ref c r))
-    | Some (VCode (Thunk b sc)) => ocall (Thunk b sc) VUnit
-    | Some v => oret v
+    | VCode (Thunk b sc) => ocall (Thunk b sc) VUnit
+    | VCode (Fn (DefDef s flags [] type body overridden) sc group) =>
+        ocall (Fn (DefDef s flags [] type body overridden) sc group) (VList [])
+    | v => oret v
+    end.
+
+  (** A variable read. *)
+  Definition read (e : scope) (k : string) : D :=
+    match lookup e k with
+    | Some v => held v
     | None => stuck (cat "a variable that is not in scope: " k)
     end.
 
@@ -427,19 +436,13 @@ Section Meaning.
     | None => stuck (cat "a function that is not in scope: " k)
     end.
 
-  (** A function made with no parameter list is called where it is named. *)
-  Definition no_lists (d : tree) : bool :=
-    match d with DefDef _ _ [] _ _ _ => true | _ => false end.
-
   (** A name on its own: a variable, a function of the code, or a member of the object the code is in. *)
   Definition ident_with (e : scope) (s : sym) (targs : list ty) (args : list (tree * D)) : D :=
     match s with
     | Local _ _ =>
-        match args, lookup e (key s) with
-        | [], Some (VCode (Fn d sc group)) =>
-            if no_lists d then ocall (Fn d sc group) (VList []) else oret (VCode (Fn d sc group))
-        | [], _ => read e (key s)
-        | _, _ => call_local e (key s) args
+        match args with
+        | [] => read e (key s)
+        | _ => call_local e (key s) args
         end
     | Member owner name _ =>
         match kind_of s with

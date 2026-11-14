@@ -8,7 +8,7 @@
 From iris.proofmode Require Import proofmode.
 From FrFlow.Threads Require Export Prog.
 From FrFlow.Jvm Require Export Adequacy.
-From FrFlow.Scala Require Export Tree Program Table Equal Value Meaning Jdk Library Collections.
+From FrFlow.Scala Require Export Tree Program Table Equal Value Meaning Jdk Library Collections Protocols.
 
 Section logic.
   Context `{!jvmGS code obj Σ}.
@@ -168,4 +168,39 @@ Ltac wp_peek := wp_whd; lazymatch goal with |- environments.envs_entails _ (wpP 
 Lemma val_eqb_other (a b : val) : a ≠ b → val_eqb a b = false.
 Proof. intros H. unfold val_eqb. by destruct (val_eq_dec a b). Qed.
 
-Global Opaque val_eqb same_place has_thread of_thread.
+(** A value that is itself where a name holds it: no function, and no object that holds a `var` or a lazy
+    value. Of a value not known (what a body gave), the walk cannot compute what the name gives and stops; the proof
+    says it is plain (`fold (held v)`, then `held_plain`). *)
+Definition plain (v : val) : Prop :=
+  match v with
+  | VCode _ => False
+  | VObj (Ref c _) => c ≠ var_class ∧ c ≠ lazy_class
+  | _ => True
+  end.
+
+Lemma held_plain (v : val) : plain v → held v = oret v.
+Proof.
+  destruct v as [| | | | o | |]; try done. destruct o; try done. intros [H1 H2]. rewrite /held.
+  by rewrite (proj2 (String.eqb_neq _ _) H1) (proj2 (String.eqb_neq _ _) H2).
+Qed.
+
+(** Each name the walk stops at that holds the plain value `v` is read. *)
+Tactic Notation "wp_plain" constr(v) constr(H) :=
+  repeat (wp_whd; progress (fold (held v)); rewrite (held_plain v H)).
+
+(** What was thrown, as the value a handler is given: an object of the program is that object, an exception
+    of the JDK is itself. Of an exception not known the walk stops where the code takes it as a value or
+    throws a value again; these say what it is then. *)
+Definition exn_value (x : exn) : val :=
+  match x with Thrown cls r => vref cls r | _ => VExn x end.
+
+Lemma exn_val_value (x : exn) : exn_val x = oret (exn_value x).
+Proof. by destruct x. Qed.
+
+Lemma back_value (x : exn) : back x = oret (exn_value x).
+Proof. by destruct x. Qed.
+
+Lemma as_exn_value (x : exn) : as_exn (exn_value x) = Some x.
+Proof. by destruct x. Qed.
+
+Global Opaque val_eqb same_place has_thread of_thread exn_value.

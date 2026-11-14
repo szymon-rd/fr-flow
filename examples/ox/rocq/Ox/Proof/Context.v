@@ -37,6 +37,18 @@ Section context.
 
   Definition scope_or_null (v : val) : iProp Σ := ⌜v = vnull⌝ ∨ ∃ n, is_cap n v.
 
+  Lemma scope_or_null_obj (v : val) : scope_or_null v -∗ ⌜∃ o, v = VObj o⌝.
+  Proof.
+    iIntros "[-> | [%n H]]"; [by iExists Null |]. destruct n as [| n]; [done |].
+    iDestruct "H" as (r fields h q o p) "(-> & _)". by iExists _.
+  Qed.
+
+  Lemma scope_or_null_plain (v : val) : scope_or_null v -∗ ⌜plain v⌝.
+  Proof.
+    iIntros "[-> | [%n H]]"; [done |]. destruct n as [| n]; [done |].
+    iDestruct "H" as (r fields h q o p) "(-> & _)". done.
+  Qed.
+
   (** The thread local: each thread's value is no object or a capability. *)
   Definition local_inv (tl : nat) : iProp Σ :=
     inv localN (∃ s : list (tid * val), tl ↦ext (Held thread_local s) ∗ [∗ list] e ∈ s, scope_or_null e.2).
@@ -99,3 +111,42 @@ Section context.
   Local Opaque module_init.
 
 End context.
+
+(** ** `currentScope`, in a walk
+
+    `ctx_local tl`: the walk has stopped where the code names `currentScope`; with the invariant of the object
+    (`"Hctx"`) and the thread's place (`"Hplace"`, kept), the object is named and its field read: what follows
+    has the thread local `tl` and its invariant (`"Hlocal"`). *)
+Tactic Notation "ctx_local" ident(tl) :=
+  try iClear "Hc Hlocal";
+  wp_whd; wp_leaf; iApply (ctx_named with "Hctx Hplace");
+  let cf := fresh "cfields" in
+  iIntros (cf) "#Hc #Hready Hplace";
+  iDestruct "Hready" as (tl) "[[% %] #Hlocal]";
+  wp_op; iApply wp_obj_get; iModIntro; iExists _, _, _, _; iFrame "Hc"; iSplit; [done |];
+  iIntros "!> _ !>"; wp_done.
+
+(** `currentScope.set(v)`, with `"Hlocal"`: `known` shows that `v` is no object or a capability. *)
+Ltac local_set known :=
+  wp_op; iApply wp_ext_call;
+  let s := fresh "s" in
+  iInv "Hlocal" as (s) "[>Htl #Hs]" "Hclose"; iModIntro; iExists thread_local, s; iFrame "Htl";
+  let intr := fresh "intr" in
+  let choice := fresh "choice" in
+  iIntros "!>" (intr choice); rewrite local_set_call; iIntros "Htl";
+  iMod ("Hclose" with "[Htl]") as "_";
+  [iNext; iExists _; iFrame "Htl"; iSplit; [known | iExact "Hs"] |];
+  iModIntro; iClear "Hs"; clear s intr choice.
+
+(** `currentScope.get()` by thread `t`, with `"Hlocal"`: what follows has the value `v`, and what it is as `H`. *)
+Tactic Notation "local_get" constr(t) ident(v) constr(H) :=
+  wp_op; iApply wp_ext_call;
+  let s := fresh "s" in
+  iInv "Hlocal" as (s) "[>Htl #Hs]" "Hclose"; iModIntro; iExists thread_local, s; iFrame "Htl";
+  let intr := fresh "intr" in
+  let choice := fresh "choice" in
+  iIntros "!>" (intr choice); rewrite local_get_call; iIntros "Htl";
+  iDestruct (local_of s t with "Hs") as "#Hgot";
+  iMod ("Hclose" with "[Htl]") as "_"; [iNext; iExists s; by iFrame "Htl Hs" |];
+  iModIntro; iClear "Hs"; iRevert "Hgot"; generalize (of_thread s t); intros v; iIntros "#Hgot";
+  iRename "Hgot" into H; clear s intr choice.
