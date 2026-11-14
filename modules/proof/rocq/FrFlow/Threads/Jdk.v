@@ -62,21 +62,28 @@ Section Jdk.
     j_es : nat -> option (list exn);             (* ConcurrentHashMap.newKeySet[Throwable] *)
     j_vs : nat -> option (list val);             (* ConcurrentHashMap.newKeySet[E] *)
     j_ar : nat -> option (option val);           (* java.util.concurrent.atomic.AtomicReference; `None` is null *)
-    j_tl : nat -> tid -> option val }.           (* java.lang.ThreadLocal, per thread; `None` is null *)
+    j_tl : nat -> tid -> option val;             (* java.lang.ThreadLocal, per thread; `None` is null *)
+    j_sem : nat -> option nat;                   (* java.util.concurrent.Semaphore: its permits *)
+    j_bq : nat -> option (nat * list val) }.     (* java.util.concurrent.ArrayBlockingQueue: capacity, elements *)
 
   Definition upd {B : Type} (f : nat -> B) (k : nat) (v : B) : nat -> B :=
     fun x => if Nat.eq_dec x k then v else f x.
 
-  Definition set_th σ u th := Jst (upd (j_th σ) u (Some th)) (j_ab σ) (j_ai σ) (j_cf σ) (j_ts σ) (j_es σ) (j_vs σ) (j_ar σ) (j_tl σ).
-  Definition set_ab σ r b := Jst (j_th σ) (upd (j_ab σ) r (Some b)) (j_ai σ) (j_cf σ) (j_ts σ) (j_es σ) (j_vs σ) (j_ar σ) (j_tl σ).
-  Definition set_ai σ r z := Jst (j_th σ) (j_ab σ) (upd (j_ai σ) r (Some z)) (j_cf σ) (j_ts σ) (j_es σ) (j_vs σ) (j_ar σ) (j_tl σ).
-  Definition set_cf σ r c := Jst (j_th σ) (j_ab σ) (j_ai σ) (upd (j_cf σ) r (Some c)) (j_ts σ) (j_es σ) (j_vs σ) (j_ar σ) (j_tl σ).
-  Definition set_ts σ r s := Jst (j_th σ) (j_ab σ) (j_ai σ) (j_cf σ) (upd (j_ts σ) r (Some s)) (j_es σ) (j_vs σ) (j_ar σ) (j_tl σ).
-  Definition set_es σ r s := Jst (j_th σ) (j_ab σ) (j_ai σ) (j_cf σ) (j_ts σ) (upd (j_es σ) r (Some s)) (j_vs σ) (j_ar σ) (j_tl σ).
-  Definition set_vs σ r s := Jst (j_th σ) (j_ab σ) (j_ai σ) (j_cf σ) (j_ts σ) (j_es σ) (upd (j_vs σ) r (Some s)) (j_ar σ) (j_tl σ).
-  Definition set_ar σ r v := Jst (j_th σ) (j_ab σ) (j_ai σ) (j_cf σ) (j_ts σ) (j_es σ) (j_vs σ) (upd (j_ar σ) r (Some v)) (j_tl σ).
+  Definition set_th σ u th := Jst (upd (j_th σ) u (Some th)) (j_ab σ) (j_ai σ) (j_cf σ) (j_ts σ) (j_es σ) (j_vs σ) (j_ar σ) (j_tl σ) (j_sem σ) (j_bq σ).
+  Definition set_ab σ r b := Jst (j_th σ) (upd (j_ab σ) r (Some b)) (j_ai σ) (j_cf σ) (j_ts σ) (j_es σ) (j_vs σ) (j_ar σ) (j_tl σ) (j_sem σ) (j_bq σ).
+  Definition set_ai σ r z := Jst (j_th σ) (j_ab σ) (upd (j_ai σ) r (Some z)) (j_cf σ) (j_ts σ) (j_es σ) (j_vs σ) (j_ar σ) (j_tl σ) (j_sem σ) (j_bq σ).
+  Definition set_cf σ r c := Jst (j_th σ) (j_ab σ) (j_ai σ) (upd (j_cf σ) r (Some c)) (j_ts σ) (j_es σ) (j_vs σ) (j_ar σ) (j_tl σ) (j_sem σ) (j_bq σ).
+  Definition set_ts σ r s := Jst (j_th σ) (j_ab σ) (j_ai σ) (j_cf σ) (upd (j_ts σ) r (Some s)) (j_es σ) (j_vs σ) (j_ar σ) (j_tl σ) (j_sem σ) (j_bq σ).
+  Definition set_es σ r s := Jst (j_th σ) (j_ab σ) (j_ai σ) (j_cf σ) (j_ts σ) (upd (j_es σ) r (Some s)) (j_vs σ) (j_ar σ) (j_tl σ) (j_sem σ) (j_bq σ).
+  Definition set_vs σ r s := Jst (j_th σ) (j_ab σ) (j_ai σ) (j_cf σ) (j_ts σ) (j_es σ) (upd (j_vs σ) r (Some s)) (j_ar σ) (j_tl σ) (j_sem σ) (j_bq σ).
+  Definition set_ar σ r v := Jst (j_th σ) (j_ab σ) (j_ai σ) (j_cf σ) (j_ts σ) (j_es σ) (j_vs σ) (upd (j_ar σ) r (Some v)) (j_tl σ) (j_sem σ) (j_bq σ).
   Definition set_tl σ r t v := Jst (j_th σ) (j_ab σ) (j_ai σ) (j_cf σ) (j_ts σ) (j_es σ) (j_vs σ) (j_ar σ)
-    (fun r' t' => if Nat.eq_dec r' r then (if Nat.eq_dec t' t then v else j_tl σ r' t') else j_tl σ r' t').
+    (fun r' t' => if Nat.eq_dec r' r then (if Nat.eq_dec t' t then v else j_tl σ r' t') else j_tl σ r' t')
+    (j_sem σ) (j_bq σ).
+  Definition set_sem σ r n := Jst (j_th σ) (j_ab σ) (j_ai σ) (j_cf σ) (j_ts σ) (j_es σ) (j_vs σ) (j_ar σ) (j_tl σ)
+    (upd (j_sem σ) r (Some n)) (j_bq σ).
+  Definition set_bq σ r q := Jst (j_th σ) (j_ab σ) (j_ai σ) (j_cf σ) (j_ts σ) (j_es σ) (j_vs σ) (j_ar σ) (j_tl σ)
+    (j_sem σ) (upd (j_bq σ) r (Some q)).
 
   Definition interrupted σ (t : tid) : bool :=
     match j_th σ t with Some th => t_intr th | None => false end.
@@ -141,7 +148,20 @@ Section Jdk.
     (* a cast the compiler made: the JVM's type safety says it does not fail *)
     | TypeError (X : Type) : op X
     (* code that is not read: it may do anything *)
-    | Chaos (X : Type) (what : string) : op X.
+    | Chaos (X : Type) (what : string) : op X
+    (* java.lang.Thread, LockSupport, System *)
+    | ThreadInterrupted : op (exn + bool)                    (* Thread.interrupted() *)
+    | ThreadYield : op (exn + unit)                          (* Thread.yield() *)
+    | Park : op (exn + unit)                                 (* LockSupport.park() *)
+    | NanoTime : op (exn + Z)                                (* System.nanoTime() *)
+    (* Semaphore *)
+    | SemNew (permits : nat) : op (exn + nat)
+    | SemAcquire (r : nat) : op (exn + unit)
+    | SemRelease (r : nat) : op (exn + unit)
+    (* ArrayBlockingQueue *)
+    | BqNew (capacity : nat) : op (exn + nat)
+    | BqPut (r : nat) (v : val) : op (exn + unit)
+    | BqTake (r : nat) : op (exn + val).
 
   (** What one call may do, made by thread `t` in state `σ`: its result and the state it leaves. No step: the
       call does not return yet. *)
@@ -239,7 +259,10 @@ Section Jdk.
 
     (* isEmpty: `true` only of a set that is empty at that moment. ConcurrentHashMap's documentation does NOT
        promise this while other threads update the set ("not for program control"): this contract is stronger
-       than the documentation. *)
+       than the documentation, and the JDK does not keep it. `isEmpty` sums counters that the threads adding and
+       removing are changing; with an element added by one thread and removed by another, JDK 21 answered `true`
+       of a set that always held an element (`examples/ox/probe/IsEmptyProbe.scala`: 44 times of 717 million).
+       What is proven from this contract is proven of a set whose emptiness test is exact. *)
     | TsIsEmpty r => fun σ x σ' => exists s, j_ts σ r = Some s /\ σ' = σ /\
         ((x = inr true /\ forall u, s u = false) \/ (x = inr false /\ exists u, s u = true))
 
@@ -289,6 +312,38 @@ Section Jdk.
         | Some (Thread _ TStarted _) => match j_th σ' u with Some (Thread _ TStarted _) => True | _ => False end
         | _ => True
         end
+
+    (* Thread.interrupted(): the caller's status, cleared. *)
+    | ThreadInterrupted => fun σ x σ' => x = inr (interrupted σ t) /\ σ' = clear_intr σ t
+
+    (* Thread.yield(): a hint to the scheduler; nothing of the state. *)
+    | ThreadYield => fun σ x σ' => x = inr tt /\ σ' = σ
+
+    (* LockSupport.park(): returns when unparked, when the caller is interrupted, or "spuriously (that is, for no
+       reason)": it is taken to return at any time. Its callers park in a loop. *)
+    | Park => fun σ x σ' => x = inr tt /\ σ' = σ
+
+    (* System.nanoTime(): some number. Nothing is assumed of time. *)
+    | NanoTime => fun σ x σ' => exists z, x = inr z /\ σ' = σ
+
+    (* Semaphore: `acquire` takes a permit once there is one, or the caller, interrupted, throws with its status
+       cleared; `release` adds one. Each at one moment. *)
+    | SemNew n => fun σ x σ' => exists r, j_sem σ r = None /\ x = inr r /\ σ' = set_sem σ r n
+    | SemAcquire r => fun σ x σ' =>
+        (exists n, j_sem σ r = Some (S n) /\ x = inr tt /\ σ' = set_sem σ r n) \/
+        (j_sem σ r <> None /\ x = inl InterruptedException /\ interrupted σ t = true /\ σ' = clear_intr σ t)
+    | SemRelease r => fun σ x σ' => exists n, j_sem σ r = Some n /\ x = inr tt /\ σ' = set_sem σ r (S n)
+
+    (* ArrayBlockingQueue: `put` adds at the end once there is room, `take` gives the first element once there
+       is one; or the caller, interrupted, throws with its status cleared. Each at one moment. *)
+    | BqNew c => fun σ x σ' => exists r, j_bq σ r = None /\ x = inr r /\ σ' = set_bq σ r (c, [])
+    | BqPut r v => fun σ x σ' =>
+        (exists c q, j_bq σ r = Some (c, q) /\ List.length q < c /\ x = inr tt /\
+           σ' = set_bq σ r (c, (q ++ [v])%list)) \/
+        (j_bq σ r <> None /\ x = inl InterruptedException /\ interrupted σ t = true /\ σ' = clear_intr σ t)
+    | BqTake r => fun σ x σ' =>
+        (exists c v q, j_bq σ r = Some (c, v :: q) /\ x = inr v /\ σ' = set_bq σ r (c, q)) \/
+        (j_bq σ r <> None /\ x = inl InterruptedException /\ interrupted σ t = true /\ σ' = clear_intr σ t)
     end.
 
 End Jdk.
@@ -335,6 +390,16 @@ Arguments AddSuppressed {code obj} e e'.
 Arguments Extern {code obj} X name.
 Arguments TypeError {code obj} X.
 Arguments Chaos {code obj} X what.
+Arguments ThreadInterrupted {code obj}.
+Arguments ThreadYield {code obj}.
+Arguments Park {code obj}.
+Arguments NanoTime {code obj}.
+Arguments SemNew {code obj} permits.
+Arguments SemAcquire {code obj} r.
+Arguments SemRelease {code obj} r.
+Arguments BqNew {code obj} capacity.
+Arguments BqPut {code obj} r v.
+Arguments BqTake {code obj} r.
 Arguments VUnit {code obj}.
 Arguments VBool {code obj} b.
 Arguments VTid {code obj} t.

@@ -45,5 +45,6 @@ object EmptyProbe:
     Thread.sleep(200)
     println(s"isEmpty: rounds=$rounds spawners=$spawners short-lived-forks=${children.get()} " +
       s"lingered=${lingered.get()} interrupted=${interrupted.get()} " +
-      s"ran-uninterrupted-after-their-scope-completed=${leaks.get()} seconds=${(System.nanoTime() - start) / 1000000000}")
+      s"ran-uninterrupted-after-their-scope-completed=${leaks.get()} " +
+      s"seconds=${(System.nanoTime() - start) / 1000000000}")
     System.exit(0)

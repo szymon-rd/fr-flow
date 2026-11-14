@@ -94,7 +94,7 @@ Section Main.
   Definition σ0 (c0 : code) : jst :=
     Jst (fun u => if Nat.eq_dec u main then Some (Thread c0 TStarted false) else None)
         (fun _ => None) (fun _ => None) (fun _ => None) (fun _ => None) (fun _ => None) (fun _ => None)
-        (fun _ => None) (fun _ _ => None).
+        (fun _ => None) (fun _ _ => None) (fun _ => None) (fun _ => None).
 
   Definition Γinit : gh :=
     mkG (fun _ => None) (fun u => if Nat.eq_dec u main then Main else NoRole) (fun _ => false)

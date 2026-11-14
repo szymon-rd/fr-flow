@@ -69,6 +69,42 @@ Definition defines (t : tree) : list sym :=
 Definition mentions (t : tree) : list sym :=
   flat_map (fun n => match n with Ident s | Select _ s => [s] | _ => [] end) (nodes t).
 
+(** The variables a tree declares: what may be assigned after it is made. A program whose threads share none of
+    these without synchronisation has no data race, and so runs as an interleaving of its threads' steps (the
+    Java Language Specification, 17.4.5): what every proof by interleaving assumes of the code. Each comes with
+    its flags and annotations, `@scala.volatile` among them. *)
+Definition flagged (flag : string) (flags : list string) : bool := existsb (String.eqb flag) flags.
+
+Definition variables (t : tree) : list (sym * list string) :=
+  flat_map (fun n => match n with
+    | ValDef s flags _ _ => if flagged "Mutable" flags then [(s, flags)] else []
+    | _ => [] end) (nodes t).
+
+(** The classes a program declares, each with its tree. *)
+Definition classes (files : list tree) : list (string * tree) :=
+  flat_map (fun n => match n with ClassDef name _ _ _ _ _ => [(name, n)] | _ => [] end) (over_list nodes files).
+
+(** What declares the definitions of a list: their owners, each once. *)
+Fixpoint owners (ss : list sym) : list string :=
+  match ss with
+  | [] => []
+  | Member o _ _ :: rest => let os := owners rest in if existsb (String.eqb o) os then os else o :: os
+  | _ :: rest => owners rest
+  end.
+
+(** The variables of the classes named. *)
+Definition variables_of (names : list string) (files : list tree) : list (sym * list string) :=
+  flat_map (fun c => if existsb (String.eqb (fst c)) names then variables (snd c) else []) (classes files).
+
+(** The variables of a tree that a function made inside it reads or assigns, and does not itself declare: those a
+    closure captures. Only such a variable, or a field, can be reached by a second thread. *)
+Definition captured (t : tree) : list sym :=
+  let inner := flat_map (fun n => match n with
+    | DefDef (Local _ _) _ _ _ (Some body) _ =>
+        filter (fun s => negb (known s (map fst (variables body)))) (mentions body)
+    | _ => [] end) (nodes t) in
+  filter (fun s => known s inner) (map fst (variables t)).
+
 (** `name` is `package`, or inside it. *)
 Definition within (package name : string) : bool :=
   String.eqb name package || String.prefix (package ++ ".")%string name.
