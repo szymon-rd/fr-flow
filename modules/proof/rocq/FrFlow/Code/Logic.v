@@ -124,7 +124,7 @@ Section Logic.
 
   (** An operation on an object of the code. *)
   Lemma meets_op tr w0 X (o : Machine.op code obj X) (k : X -> program) w :
-    (forall m args, existT (Machine.op code obj) X o <> existT _ _ (ExtCall 0 m args)) -> ~ unsaid o ->
+    ~ outside_call o -> ~ unsaid o ->
     (forall w1 x, w0 <= w1 -> past w1 tr -> op_event T N a i o x (history w1) ->
        claim w1 /\ meets (w1 :: tr) (w1 + 1) (Running (k x)) w) ->
     meets tr w0 (Running (Vis o k)) w.
@@ -339,6 +339,16 @@ Qed.
 
 (** ** Going through a program *)
 
+(** A hypothesis taken apart: its definitions unfolded, each of its cases, each thing it says. *)
+Ltac miss_open H :=
+  try (progress autounfold with frflow_defs in H);
+  lazymatch type of H with
+  | _ /\ _ => let A := fresh in let B := fresh in destruct H as [A B]; miss_open A; miss_open B
+  | _ \/ _ => destruct H as [H | H]; miss_open H
+  | exists _, _ => let x := fresh in destruct H as [x H]; miss_open H
+  | _ => idtac
+  end.
+
 (** What a type says of a value, in the hypothesis `H` that says the value is of it: nothing kept where it
     says nothing; that a call can be made on it, of a reference; the value itself, of a truth value or unit. *)
 Ltac typed H :=
@@ -358,6 +368,8 @@ Ltac typed_all :=
   | H : returns _ (inr _) |- _ => typed H
   | H : returns _ (inl _) |- _ => clear H
   | H : called_as _ _ ?m |- _ => lazy in H; lazymatch type of H with True => clear H | _ = _ => subst m end
+  | H : op_event _ _ _ _ _ _ _ |- _ =>
+      cbn [op_event] in H; miss_open H; repeat match goal with E : ?x = inr _ |- _ => is_var x; subst x end
   end.
 
 (** What follows a step, set aside under a name: dropped once nothing speaks of it. *)
@@ -427,7 +439,13 @@ Ltac meets_head :=
           let K := fresh "K" in
           pose (K := k); change (meets T N h a i G tr w0 (Running (Call c' arg' K)) w); aside_clear
       | Ret ?x => let x' := eval lazy in x in change (meets T N h a i G tr w0 (Running (Ret x')) w); aside_clear
-      | Iter _ _ _ => change (meets T N h a i G tr w0 (Running p') w); aside_clear
+      | Iter ?body ?s ?k =>
+          first
+            [ is_var body; is_var k; change (meets T N h a i G tr w0 (Running (Iter body s k)) w)
+            | let B := fresh "B" in
+              let K := fresh "K" in
+              pose (B := body); pose (K := k); change (meets T N h a i G tr w0 (Running (Iter B s K)) w) ];
+          aside_clear
       | _ =>
           change (meets T N h a i G tr w0 (Running p') w); aside_clear;
           first [meets_each p'; meets_head | meets_answer; meets_head | idtac]
@@ -440,8 +458,7 @@ Ltac step_rule :=
   | |- meets _ _ _ _ _ _ _ _ (Running (Vis (ObjGet _ _) _)) _ => eapply meets_read; [eassumption |]
   | |- meets _ _ _ _ _ _ _ _ (Running (Vis (ExtCall 0 _ _) _)) _ => apply meets_called
   | |- meets _ _ _ _ _ _ _ _ (Running (Vis _ _)) _ =>
-      apply meets_op;
-        [intros ? ? E; apply Dependent.EqdepTheory.inj_pair2 in E; discriminate E | intros [] |]
+      apply meets_op; [intros [] | intros [] |]
   | |- meets _ _ _ _ _ _ _ _ (Running (Call (Method _) _ _)) _ => eapply meets_method; [lazy; reflexivity |]
   | |- meets _ _ _ _ _ _ _ _ (Running (Call _ _ _)) _ => apply meets_function; [exact I |]
   | |- meets _ _ _ _ _ _ _ _ (Running (Ret _)) _ => apply meets_ret
@@ -450,16 +467,6 @@ Ltac step_rule :=
 Ltac step := meets_head; step_rule.
 
 (** ** An event the claim says nothing of *)
-
-(** A hypothesis taken apart: its definitions unfolded, each of its cases, each thing it says. *)
-Ltac miss_open H :=
-  try (progress autounfold with frflow_defs in H);
-  lazymatch type of H with
-  | _ /\ _ => let A := fresh in let B := fresh in destruct H as [A B]; miss_open A; miss_open B
-  | _ \/ _ => destruct H as [H | H]; miss_open H
-  | exists _, _ => let x := fresh in destruct H as [x H]; miss_open H
-  | _ => idtac
-  end.
 
 (** A response that is not the result. *)
 Ltac miss_given :=

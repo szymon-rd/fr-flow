@@ -161,9 +161,11 @@ proven the same way and used where it is called (`assertNotShuttingDown_returns`
 
 `enterReadsItOpen` is proven so of `Latch.enter`'s tree; of Ox's `ThreadHerd`, as its jar has it
 (`examples/ox/rocq/Proofs/OxThreads`): `startThreadReadsTheFlagUnset`, `closingSetsTheFlagItself`,
-`startThreadAddsWhatItsFactoryMade`, `startThreadAddsBeforeItStarts` and
-`theForkFunctionRemovesTheCurrentThread`. The last goes through a function the code wrote, the one `startThread`
-hands the thread factory, known to be the code's by finding its tree among the trees read.
+`startThreadAddsWhatItsFactoryMade`, `startThreadAddsBeforeItStarts`,
+`theForkFunctionRemovesTheCurrentThread` and `closingEndsOnceFoundEmpty`. The fifth goes through a function the
+code wrote, the one `startThread` hands the thread factory, known to be the code's by finding its tree among the
+trees read. The last goes through a `while` loop, by `meets_iter`: what holds from each turn on is that the turn
+comes after the call; a turn asks the set whether it is empty, and on a yes the claim holds from there on.
 
 What a model must still say itself, as assumptions:
 
@@ -177,9 +179,10 @@ What a model must still say itself, as assumptions:
 - **Who else touches what a class keeps to itself.** That only a class's own methods call methods on an object it
   holds in a private field is not derived from the trees: a model states it as an assumption. With capture
   checking it is what the compiler would say.
-- **What the heap holds.** A read of a `var` is an event with any value of the field's type: that it finds what
-  was last written is not said, so a claim that needs the value of a local variable across calls (the end of a
-  loop that other threads' functions write to) is not proven of the code.
+- **What the heap holds.** A read of a field is an event with any value of the field's type, and a read of a
+  local `var` an event with any value at all: that it finds what was last written, or a value of the variable's
+  type, is not said. A claim that needs what a local variable holds (what closing does after its loop, with the
+  exception its functions kept in one) is not proven of the code.
 - **A method of what is outside taking an argument by name** is read as taking it evaluated.
 - **No law of an execution is given.** That a completion follows its call, that an actor's calls are nested, that
   a call nobody calls begins only once handed over: a model that needs one states it as an assumption.

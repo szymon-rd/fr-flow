@@ -5,31 +5,6 @@ Require Import FrFlow.Threads.Prog FrFlow.Jvm.Machine.
 Require Import FrFlow.Scala.Tree FrFlow.Scala.Table FrFlow.Scala.Value FrFlow.Scala.Meaning.
 Require Import FrFlow.Code.Outside FrFlow.Code.Conforms FrFlow.Code.Walk FrFlow.Code.Logic.
 
-(** Proven of `ThreadHerd.assertOnOwnerThread`'s tree: it compares `Thread.currentThread()` with the herd's
-    owner and throws if they differ, so a call of it by the owner does not throw. *)
-Lemma assertOnOwnerThread_returns {heldIn} {history : Z -> Event} {N h r inside w1} :
-  conforms Code_files Code_table N history -> aHerdKeepsItsFields_claim heldIn history ->
-  currentThreadIsTheCaller_claim history -> names N h (vref "ox.internal.ThreadHerd" r) ->
-  history w1 = Event_Invoke (heldIn "ox.internal.ThreadHerd herdOwner" h) inside
-    (Invocation_mk "ox.internal.ThreadHerd assertOnOwnerThread :scala.Unit" [h]) ->
-  forall w, direct (heldIn "ox.internal.ThreadHerd herdOwner" h) w1 (history w) -> forall y sp,
-    history w = Event_Respond (heldIn "ox.internal.ThreadHerd herdOwner" h) w1 (Response_Threw y) sp -> False.
-Proof.
-  intros C Hfields Hcurrent Hh Hcall.
-  refine (method_meets _ C (Member "ox.internal.ThreadHerd" "assertOnOwnerThread" ":scala.Unit") Hcall Hh
-    eq_refl _).
-  intros args k Hargs _. apply vals_none in Hargs as ->.
-  (* Thread.currentThread(): the owner *)
-  step. intros wc ys _ _ Hys Hmk. split; [miss |]. intros wd a x _ Hcur Hgives Hty.
-  apply args_none in Hys as ->. rewrite (Hcurrent _ _ _ _ (done_completed Hcur)) in Hgives.
-  destruct x as [e | current]; [contradiction |].
-  (* the herd's owner, read: the same thread *)
-  step. intros wr v y _ _ Hy Htyv Hread. split; [miss |]. apply (proj2 (Hfields h)) in Hread. subst y.
-  pose proof (names_one N _ _ _ Hy Hgives) as ->.
-  (* so nothing is thrown *)
-  pass.
-Qed.
-
 (** Proven of `ThreadHerd.interruptAllAndJoinUntilCompleted`'s tree: it first calls `assertOnOwnerThread`, which
     returns where the caller is the herd's owner; then it sets the flag; whatever it does after, it completes
     only then. *)
@@ -54,7 +29,8 @@ Proof.
     apply args_one in Hys as (y0 & -> & Hy0). pose proof (one_name N _ _ _ Hy0 Hh) as ->.
     destruct x as [e | v].
     { exfalso. destruct rr as [y | y]; [contradiction |].
-      exact (assertOnOwnerThread_returns C Hfields Hcurrent Hh Hinv w2 ltac:(rewrite Hresp; cbn; auto) y sp Hresp). }
+      exact (assertOnOwnerThread_returns C (proj2 (Hfields h)) Hcurrent Hh Hinv w2
+        ltac:(rewrite Hresp; cbn; auto) y sp Hresp). }
     (* the flag is read *)
     step. intros wr vf y Hwr _ Hy Hty Hread. split; [miss |]. apply (proj1 (proj1 (Hfields h))) in Hread. subst y.
     (* and set: whatever the call does after, it has set the flag *)

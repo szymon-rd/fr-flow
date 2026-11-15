@@ -24,11 +24,15 @@ the code makes no event of its own once it has responded); with the assumption t
 the set, a thread is added only during a call of startThread. A fifth and sixth: the thread startThread adds is
 the one its factory returned to it (`startThreadAddsWhatItsFactoryMade`), and it adds before it starts one
 (`startThreadAddsBeforeItStarts`); with the assumption that a thread a factory made for a call of startThread is
-started only by that call (`onlyItsMakerStartsAThread`), an added thread has not been started. Still stated and
-not proven of the code: that the flag stays set (`theFlagStaysSet`), that a caller of startThread neither closes
-nor leaves, when the code a fork
-was made to run is called (`codeRunsBeforeLeaving`), and the end of closing's loop (`closingEndsOnEmpty`). The
-scopes above the herd and liveness are not in the model.
+started only by that call (`onlyItsMakerStartsAThread`), an added thread has not been started. A seventh, of
+closing's `while` loop: closing completes only after a call it made asking whether the herd's set is empty was
+answered yes (`closingEndsOnceFoundEmpty`, by the loop rule: every turn asks, and only a yes leaves the loop);
+with what is assumed of `isEmpty`, closing ends on an empty set. It rests on a claim not yet proven of the code,
+that the two traversals closing makes do not throw (`closingsTraversalsReturn`), and on the JDK's `set` and
+`isEmpty` not throwing. Still stated and not proven of the code: that the flag stays set (`theFlagStaysSet`),
+that a caller of startThread neither closes nor leaves, when the code a fork
+was made to run is called (`codeRunsBeforeLeaving`), and that closing's traversals do not throw. The scopes
+above the herd and liveness are not in the model.
 
 ## The tree
 

@@ -48,3 +48,19 @@ val setMakesTheFlag = Node.assumption("Once a call that sets an atomic boolean c
 
 val currentThreadIsTheCaller = Node.assumption("`Thread.currentThread()` gives the thread that calls it.")(
   forall((c: Obj[Thread]) => Thread.currentThread().by(c).everyCall((_, a, _) => a === Returned(c))))
+
+val setReturns = Node.assumption("Setting an atomic boolean does not throw.")(
+  forall((s: Obj[AtomicBoolean], b: Term[Boolean]) => s.set(b).everyCall((_, a, _) => a === Returned(()))))
+
+val isEmptyReturns = Node.assumption("Asking a concurrent set whether it is empty does not throw.")(
+  forall((s: Obj[Threads]) =>
+    s.isEmpty().everyCall((_, a, _) => (a === Returned(True)) || (a === Returned(False)))))
+
+// The JDK says this of `isEmpty` only where no other thread changes the set during the call: it is assumed here
+// of every call.
+val isEmptyFindsItEmpty = Node.assumption(
+  "A concurrent set that answers that it is empty is empty at a moment during the call.")(
+  forall((s: Obj[Threads]) =>
+    s.isEmpty().everyCall((from, a, to) =>
+      (a === Returned(True)) implies exists((m: Term[BigInt]) =>
+        from <= m && m <= to && forall((y: Term[Value]) => !elements(s, m).contains(y))))))

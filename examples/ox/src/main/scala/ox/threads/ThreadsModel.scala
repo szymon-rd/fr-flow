@@ -16,6 +16,9 @@ val oxThreads: FrModel = FrModel("OxThreads")(
   codeRunsBeforeLeaving.refines(noForkRunsOnceClosed),
 
   closingEndsOnEmpty.refines(everyForkHasLeftOnceClosed, nothingIsAddedOnceClosed),
+  closingEndsOnceFoundEmpty.refines(closingEndsOnEmpty), isEmptyFindsItEmpty.refines(closingEndsOnEmpty),
+  setReturns.refines(closingEndsOnceFoundEmpty), isEmptyReturns.refines(closingEndsOnceFoundEmpty),
+  closingsTraversalsReturn.refines(closingEndsOnceFoundEmpty),
   nothingIsAddedOnceEmpty.refines(everyForkHasLeftOnceClosed, nothingIsAddedOnceClosed),
   liveForksAreInTheSet.refines(everyForkHasLeftOnceClosed, nothingIsAddedOnceEmpty),
 
@@ -46,10 +49,10 @@ val oxThreads: FrModel = FrModel("OxThreads")(
 
   herdsAreMade.refines(startThreadReadsTheFlagUnset, closingSetsTheFlagItself,
     theForkFunctionRemovesTheCurrentThread, startThreadAddsWhileItRuns, startThreadAddsWhatItsFactoryMade,
-    startThreadAddsBeforeItStarts),
+    startThreadAddsBeforeItStarts, closingEndsOnceFoundEmpty),
   aHerdKeepsItsFields.refines(startThreadReadsTheFlagUnset, closingSetsTheFlagItself,
-    theForkFunctionRemovesTheCurrentThread),
-  currentThreadIsTheCaller.refines(closingSetsTheFlagItself, aForkRemovesOnlyItself),
+    theForkFunctionRemovesTheCurrentThread, closingEndsOnceFoundEmpty),
+  currentThreadIsTheCaller.refines(closingSetsTheFlagItself, aForkRemovesOnlyItself, closingEndsOnceFoundEmpty),
 
   nothingBeforeTheStart.refines(liveForksAreInTheSet), setCallsAreAtomic.refines(liveForksAreInTheSet),
   addPutsItIn.refines(liveForksAreInTheSet), removeTakesOnlyItOut.refines(liveForksAreInTheSet),

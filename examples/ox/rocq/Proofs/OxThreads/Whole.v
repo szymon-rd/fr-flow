@@ -11,7 +11,13 @@ Proof.
   split.
   { intros h t code made w H. destruct (none_made_to_run_at_rest _ _ _ _ _ H). }
   split.
-  { intros h from response to H. destruct (nothing_completed_at_rest _ _ _ _ _ H). }
+  { intros s from response to [who H]. destruct (nothing_completed_at_rest _ _ _ _ _ H). }
+  split.
+  { intros s b from response to [who H]. destruct (nothing_completed_at_rest _ _ _ _ _ H). }
+  split.
+  { intros s from response to [who H]. destruct (nothing_completed_at_rest _ _ _ _ _ H). }
+  split.
+  { intros h f from a b r [[H _] _]. destruct (nothing_called_at_rest _ _ _ H). }
   split.
   { intros h code c w H. destruct (nothing_called_at_rest _ _ _ H). }
   split.

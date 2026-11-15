@@ -97,6 +97,10 @@ Lemma written_function (files : list tree) (d : tree) (sc : scope) (group : list
   among files d = true -> written files (Fn d sc group).
 Proof. unfold among. destruct (in_dec tree_eq_dec d (over_list nodes files)); [auto | discriminate]. Qed.
 
+(** A call of what is outside the code. *)
+Definition outside_call {X : Type} (o : Machine.op code obj X) : Prop :=
+  match o with ExtCall 0 _ _ => True | _ => False end.
+
 Section Walk.
 
   Variable files : list tree.
@@ -196,7 +200,7 @@ Section Walk.
 
   (** An operation on an object of the code: the event it is. *)
   Lemma takes_op_of a i w e X (o : Machine.op code obj X) (k : X -> program) st :
-    (forall m args, existT (Machine.op code obj) X o <> existT _ _ (ExtCall 0 m args)) -> ~ unsaid o ->
+    ~ outside_call o -> ~ unsaid o ->
     takes a i w e (Running (Vis o k)) st -> exists x, op_event T N a i o x e /\ st = Running (k x).
   Proof.
     intros Hext Hsaid H. apply takes_running in H as
@@ -205,8 +209,8 @@ Section Walk.
       [(s & on & args0 & k0 & ys & Hs & _) | [(c & arg & k0 & m0 & y & ys & Hs & _) | [(x0 & r & Hs & _) |
       (X0 & o0 & k0 & Hs & Hu & _)]]]]]]; apply settles_vis in Hs; try discriminate Hs.
     - injection Hs. intros _ _ HX. subst X0. apply vis_same in Hs as [Ho Hk]. subst o0 k0. eauto.
-    - exfalso. injection Hs. intros _ _ HX. subst X. apply vis_same in Hs as [Ho _]. subst o. eapply Hext. reflexivity.
-    - exfalso. injection Hs. intros _ _ HX. subst X. apply vis_same in Hs as [Ho _]. subst o. eapply Hext. reflexivity.
+    - exfalso. injection Hs. intros _ _ HX. subst X. apply vis_same in Hs as [Ho _]. subst o. exact (Hext I).
+    - exfalso. injection Hs. intros _ _ HX. subst X. apply vis_same in Hs as [Ho _]. subst o. exact (Hext I).
     - exfalso. injection Hs. intros _ _ HX. subst X0. apply vis_same in Hs as [Ho _]. subst o0. exact (Hsaid Hu).
   Qed.
 
@@ -216,7 +220,7 @@ Section Walk.
       e = Event_Read a (Some i) yo (field_label T (class_at N r) f) y /\ st = Running (k (inr v)).
   Proof.
     intros H. apply takes_op_of in H as (x & (v & y & yo & -> & H) & ->);
-      [| intros m args E; apply Dependent.EqdepTheory.inj_pair2 in E; discriminate E | intros []].
+      [| intros [] | intros []].
     destruct H as (? & ? & ? & ?). eauto 10.
   Qed.
 
@@ -380,6 +384,10 @@ Section Walk.
   Qed.
 
   (** ** Values of the execution that are data *)
+
+  (** A truth value of the execution is the code's: true where it holds. *)
+  Lemma bool_named (P : Prop) (b : bool) : names N (Value_Bool_ P) (VBool b) -> (P <-> b = true).
+  Proof. intros H. pose proof (one_name N _ _ _ H (of_bool N b)) as E. injection E as ->. tauto. Qed.
 
   Lemma named_bool y (b : bool) : names N y (VBool b) -> y = Value_Bool_ (if b then True else False).
   Proof.

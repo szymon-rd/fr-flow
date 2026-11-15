@@ -1,6 +1,7 @@
 Require Export FrFlowGen.OxThreads.Domain.
-Require Import FrFlow.Scala.Tree FrFlow.Scala.Table FrFlow.Scala.Value.
-Require Import FrFlow.Code.Outside FrFlow.Code.Conforms FrFlow.Code.Walk.
+Require Import FrFlow.Threads.Prog FrFlow.Jvm.Machine.
+Require Import FrFlow.Scala.Tree FrFlow.Scala.Table FrFlow.Scala.Value FrFlow.Scala.Meaning.
+Require Import FrFlow.Code.Outside FrFlow.Code.Conforms FrFlow.Code.Walk FrFlow.Code.Logic.
 
 (** An execution in which nothing happens is one of the code. *)
 Lemma rest_runs : Code_runs (fun _ => Event_Stutter).
@@ -32,6 +33,39 @@ Proof.
   intros [(sp & H & ->) | (H & _ & sp & Hr)].
   - left. split; [exists (Some from), sp; exact H | reflexivity].
   - right. split; [exists (Some from); exact H | exists sp; exact Hr].
+Qed.
+
+Lemma done_by_someone {history : Z -> Event} {c from m ys w1 r w2} :
+  done_inside history c from m ys w1 r w2 -> exists who, completedBy history (Invocation_mk m ys) who w1 r w2.
+Proof. intros H. exists c. exact (done_completed H). Qed.
+
+(** Proven of `ThreadHerd.assertOnOwnerThread`'s tree: it compares `Thread.currentThread()` with the herd's
+    owner and throws if they differ, so a call of it by the owner does not throw. *)
+Lemma assertOnOwnerThread_returns {heldIn} {history : Z -> Event} {N h r inside w1} :
+  conforms Code_files Code_table N history ->
+  readAs history h "ox.internal.ThreadHerd herdOwner" (heldIn "ox.internal.ThreadHerd herdOwner" h) ->
+  (forall c from response to, completedBy history
+    (Invocation_mk "java.lang.Thread$ currentThread :java.lang.Thread" []) c from response to ->
+    response = Response_Returned c) ->
+  names N h (vref "ox.internal.ThreadHerd" r) ->
+  history w1 = Event_Invoke (heldIn "ox.internal.ThreadHerd herdOwner" h) inside
+    (Invocation_mk "ox.internal.ThreadHerd assertOnOwnerThread :scala.Unit" [h]) ->
+  forall w, direct (heldIn "ox.internal.ThreadHerd herdOwner" h) w1 (history w) -> forall y sp,
+    history w = Event_Respond (heldIn "ox.internal.ThreadHerd herdOwner" h) w1 (Response_Threw y) sp -> False.
+Proof.
+  intros C Howner Hcurrent Hh Hcall.
+  refine (method_meets _ C (Member "ox.internal.ThreadHerd" "assertOnOwnerThread" ":scala.Unit") Hcall Hh
+    eq_refl _).
+  intros args k Hargs _. apply vals_none in Hargs as ->.
+  (* Thread.currentThread(): the owner *)
+  step. intros wc ys _ _ Hys Hmk. split; [miss |]. intros wd a x _ Hcur Hgives Hty.
+  apply args_none in Hys as ->. rewrite (Hcurrent _ _ _ _ (done_completed Hcur)) in Hgives.
+  destruct x as [e | current]; [contradiction |].
+  (* the herd's owner, read: the same thread *)
+  step. intros wr v y _ _ Hy Htyv Hread. split; [miss |]. apply Howner in Hread. subst y.
+  pose proof (names_one N _ _ _ Hy Hgives) as ->.
+  (* so nothing is thrown *)
+  pass.
 Qed.
 
 (** ** The moments from one on *)
