@@ -65,6 +65,10 @@ object Projects:
   /** An analysis with nothing read: an empty ledger, nothing recorded, no examples run. */
   def bare(e: Elaborated): Analysis = proving(e, Map.empty)
 
+  /** The same with the proof files of the names given read (`Ported.proofs`). */
+  def provingNamed(e: Elaborated, proofs: List[(String, String)]): Analysis =
+    proving(e, proofs.map((n, text) => NodeId(n) -> ProofFile(NodeId(n), text)).toMap)
+
   /** The same with proof files read: the obligations they prove are stated as theirs. */
   def proving(e: Elaborated, proofs: Map[NodeId, ProofFile]): Analysis =
     Analysis(Validate(e).fold(ps => throw AssertionError(ps.toString), identity),
