@@ -29,10 +29,14 @@ closing's `while` loop: closing completes only after a call it made asking wheth
 answered yes (`closingEndsOnceFoundEmpty`, by the loop rule: every turn asks, and only a yes leaves the loop);
 with what is assumed of `isEmpty`, closing ends on an empty set. It rests on a claim not yet proven of the code,
 that the two traversals closing makes do not throw (`closingsTraversalsReturn`), and on the JDK's `set` and
-`isEmpty` not throwing. Still stated and not proven of the code: that the flag stays set (`theFlagStaysSet`),
-that a caller of startThread neither closes nor leaves, when the code a fork
-was made to run is called (`codeRunsBeforeLeaving`), and that closing's traversals do not throw. The scopes
-above the herd and liveness are not in the model.
+`isEmpty` not throwing. That the flag stays set (`theFlagStaysSet`) now follows from three parts: what an atomic
+boolean holds changes only after a call that sets it so (assumed of the JDK), a herd's flag is set only by a call
+of closing itself (assumed: what capture checking would say), and closing sets it only to true
+(`closingSetsTheFlagOnlyToTrue`, a claim of the code not yet proven: past its loop closing reads a local variable
+and may throw what it holds, and what a local variable holds is not yet said of an execution). Still stated and
+not proven of the code: that a caller of startThread neither closes nor leaves, when the code a fork
+was made to run is called (`codeRunsBeforeLeaving`), that closing's traversals do not throw, and that closing
+sets the flag only to true. The scopes above the herd and liveness are not in the model.
 
 ## The tree
 

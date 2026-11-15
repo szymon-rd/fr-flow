@@ -49,6 +49,12 @@ val setMakesTheFlag = Node.assumption("Once a call that sets an atomic boolean c
 val currentThreadIsTheCaller = Node.assumption("`Thread.currentThread()` gives the thread that calls it.")(
   forall((c: Obj[Thread]) => Thread.currentThread().by(c).everyCall((_, a, _) => a === Returned(c))))
 
+// Said of the calls Ox makes on a herd's flag: the JDK has others that change an atomic boolean.
+val aFlagChangesOnlyWhenSet = Node.assumption(
+  "What an atomic boolean holds becomes a value only after a call that sets it to that value is made.")(
+  forall((s: Obj[AtomicBoolean], v: Term[Boolean], a: Term[BigInt], b: Term[BigInt]) =>
+    (a < b && (flag(s, a) =!= v) && (flag(s, b) === v)) implies s.set(v).calledBefore(b)))
+
 val setReturns = Node.assumption("Setting an atomic boolean does not throw.")(
   forall((s: Obj[AtomicBoolean], b: Term[Boolean]) => s.set(b).everyCall((_, a, _) => a === Returned(()))))
 

@@ -43,8 +43,18 @@ val closingSetsTheFlag = Node.claim("When closing a herd completes, the herd's f
   forall((h: Obj[ThreadHerd]) =>
     closing(h).by(owner(h)).everyCall((_, _, to) => flag(shutdown(h), to))))
 
-// Not proven of the code: that nothing sets the flag again rests on who else holds it, and on what closing's
-// loop does with the variables its functions write.
 val theFlagStaysSet = Node.claim("Once a herd's flag is set, it stays set.")(
   forall((h: Obj[ThreadHerd], a: Term[BigInt], b: Term[BigInt]) =>
     (a < b && flag(shutdown(h), a)) implies flag(shutdown(h), b)))
+
+// With capture checking this would be what the compiler says of a capability, not an assumption.
+val onlyClosingSetsTheFlag = Node.assumption("A herd's flag is set only by a call of closing, itself.")(
+  forall((h: Obj[ThreadHerd], v: Term[Boolean], c: Obj[Thread], w: Term[BigInt]) =>
+    shutdown(h).set(v).by(c).called(w) implies exists((from: Term[BigInt]) =>
+      closing(h).by(c).called(from) && shutdown(h).set(v).by(c).calledInside(from, w))))
+
+// Not proven of the code: past its loop, closing reads a local variable and may throw what it holds, and what a
+// local variable holds is not yet said of an execution.
+val closingSetsTheFlagOnlyToTrue = Node.claim("A call of closing itself sets the herd's flag only to true.")(
+  forall((h: Obj[ThreadHerd], v: Term[Boolean], c: Obj[Thread], from: Term[BigInt], w: Term[BigInt]) =>
+    (closing(h).by(c).called(from) && shutdown(h).set(v).by(c).calledInside(from, w)) implies v))

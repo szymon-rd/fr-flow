@@ -31,6 +31,8 @@ val oxThreads: FrModel = FrModel("OxThreads")(
 
   closingSetsTheFlag.refines(aClosedHerdRefusesToStart),
   theFlagStaysSet.refines(aClosedHerdRefusesToStart, closingSetsTheFlag),
+  aFlagChangesOnlyWhenSet.refines(theFlagStaysSet), onlyClosingSetsTheFlag.refines(theFlagStaysSet),
+  closingSetsTheFlagOnlyToTrue.refines(theFlagStaysSet),
   startThreadFirstSeesTheFlagUnset.refines(aClosedHerdRefusesToStart),
 
   startThreadReadsTheFlagUnset.refines(startThreadFirstSeesTheFlagUnset),

@@ -23,7 +23,11 @@ Proof.
   split.
   { intros h code c w (m & _ & H & _). destruct (nothing_begun_at_rest _ _ _ H). }
   split.
-  { intros h a b [_ H]. exact H. }
+  { intros s v a b [[_ H1] H2]. destruct (H1 H2). }
+  split.
+  { intros h v c w H. destruct (nothing_called_at_rest _ _ _ H). }
+  split.
+  { intros h v c from w [H _]. destruct (nothing_called_at_rest _ _ _ H). }
   split.
   { intros s b from response to [who H]. destruct (nothing_completed_at_rest _ _ _ _ _ H). }
   split.
