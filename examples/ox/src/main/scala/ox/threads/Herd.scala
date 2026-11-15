@@ -45,19 +45,3 @@ val closingEndsOnEmpty = Node.claim(
   forall((h: Obj[ThreadHerd]) =>
     closing(h).by(owner(h)).everyCall((from, _, to) =>
       exists((m: Term[BigInt]) => from < m && m <= to && empty(h, m)))))
-
-val closingSetsTheFlag = Node.claim("When closing a herd completes, the herd's flag is set.")(
-  forall((h: Obj[ThreadHerd]) =>
-    closing(h).by(owner(h)).everyCall((_, _, to) => flag(shutdown(h), to))))
-
-val theFlagStaysSet = Node.claim("Once a herd's flag is set, it stays set.")(
-  forall((h: Obj[ThreadHerd], a: Term[BigInt], b: Term[BigInt]) =>
-    (a < b && flag(shutdown(h), a)) implies flag(shutdown(h), b)))
-
-val startThreadFirstSeesTheFlagUnset = Node.claim(
-  "startThread adds a thread, or returns, only after it has seen the herd's flag unset.")(
-  forall((h: Obj[ThreadHerd], code: Obj[Code], c: Obj[Thread], t: Obj[Thread]) =>
-    forall((from: Term[BigInt], w: Term[BigInt]) =>
-      (starting(h, code).by(c).called(from) && from < w &&
-        (threads(h).add(t).by(c).called(w) || starting(h, code).by(c).completed(from, Returned(()), w))) implies
-        exists((m: Term[BigInt]) => from <= m && m < w && !flag(shutdown(h), m)))))

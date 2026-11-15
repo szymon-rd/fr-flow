@@ -55,14 +55,38 @@ Defined.
 
 Lemma nothing_runs (files : list tree) (T : table) : runs files T (fun _ => Event_Stutter).
 Proof.
-  exists plain_naming. split; [| split; [| split]].
-  - intros i a inside m ys p H. discriminate H.
-  - intros w a inside m ys r spawns p H. discriminate H.
+  exists plain_naming. repeat split.
+  - intros i a inside s cls r d y ys H. discriminate H.
+  - intros i a inside owner name signature c d ys H. discriminate H.
+  - intros i a inside m c y ys H. discriminate H.
+  - intros s cls r d y ys' _ _ _ _. discriminate H.
+  - intros owner name signature c d _ _ _ _. discriminate H.
+  - intros c y ys' _ _ _ _. discriminate H.
   - intros w b inside y cls hs H. discriminate H.
   - intros w w' b inside y cls hs b' inside' cls' hs' H. discriminate H.
 Qed.
 
 Set Implicit Arguments.
+
+(** ** Two references compared
+
+    Whether two references are the same is decided where no class of the code says what `equals` is: they are
+    the same value or they are not. *)
+Lemma equal_identity (T : table) (a b : val) :
+  identity a -> identity b -> unnamed T "equals" = true -> equal T a b = oret (val_eqb a b).
+Proof.
+  intros Ha Hb HT.
+  assert (forall x y : val, x <> y -> val_eqb x y = false) as Hne.
+  { intros x y H. unfold val_eqb. destruct (val_eq_dec x y); [contradiction | reflexivity]. }
+  destruct a as [| | ta | | oa | |]; try contradiction; destruct b as [| | tb | | ob | |]; try contradiction;
+    try (destruct oa; try contradiction); try (destruct ob; try contradiction); unfold equal; cbn;
+    try rewrite (named_none T "equals" _ HT); cbn;
+    try (rewrite Hne by discriminate; reflexivity).
+  all: unfold same_place;
+    repeat match goal with |- context [Nat.eqb ?x ?y] => destruct (Nat.eqb_spec x y) as [-> | ?]; cbn end;
+    repeat match goal with |- context [String.eqb ?x ?y] => destruct (String.eqb_spec x y) as [-> | ?]; cbn end;
+    first [reflexivity | rewrite val_eqb_refl; reflexivity | rewrite Hne by congruence; reflexivity].
+Qed.
 
 Section Walk.
 
@@ -291,10 +315,12 @@ Section Walk.
       own. *)
   Lemma follows_steps a i p :
     follows a i p -> exists at_ : Z -> stage,
+      (forall w, direct a i (history w) -> i < w) /\
       (forall w, i < w -> steps a i (i + 1) (Running p) w (at_ w)) /\
       (forall w, i < w -> its (at_ w) a i (history w) -> takes a i w (history w) (at_ w) (at_ (w + 1))).
   Proof.
-    intros (at_ & H0 & H). exists at_. split; [| intros w Hw; apply (H w Hw)].
+    intros (Hbefore & at_ & H0 & H). exists at_. split; [| split; [| intros w Hw; apply (H w Hw)]].
+    { intros w Hd. destruct (Z_lt_le_dec i w) as [Hlt | Hle]; [exact Hlt | destruct (Hbefore w Hle Hd)]. }
     assert (forall n : nat, steps a i (i + 1) (Running p) (i + 1 + Z.of_nat n) (at_ (i + 1 + Z.of_nat n))) as Hn.
     { induction n as [| n IH].
       - replace (i + 1 + Z.of_nat 0) with (i + 1) by lia. rewrite H0. apply steps_here.
@@ -494,6 +520,15 @@ Section Walk.
     - exfalso. exact (takes_ended Hgo).
   Qed.
 
+  (** A response is one result's. *)
+  Lemma gives_one r (x x' : res) : gives N r x -> gives N r x' -> x = x'.
+  Proof.
+    destruct r as [y | y], x as [e | v], x' as [e' | v']; cbn; try contradiction; intros H1 H2.
+    - rewrite (names_one N _ _ _ H1 H2). reflexivity.
+    - pose proof (names_one N _ _ _ H1 H2) as E. f_equal.
+      destruct e, e'; cbn in E; try discriminate E; try (injection E; intros; subst; reflexivity); reflexivity.
+  Qed.
+
   (** ** Values of the execution that are data *)
 
   Lemma named_bool y (b : bool) : names N y (VBool b) -> y = Value_Bool_ (if b then True else False).
@@ -519,26 +554,41 @@ Section Walk.
 
   Hypothesis conformed : conforms files T N history.
 
-  (** A call of a method on an object of the code: its stages, each reached from its start. *)
-  Lemma method_steps a inside s cls r d y ys args from :
+  (** A call of a method on an object of the code: its arguments; that its own events come after it; its
+      stages, each reached from its start; and the step of each event of its own. *)
+  Lemma method_steps a inside s cls r d y ys from :
     history from = Event_Invoke a inside (Invocation_mk (label_of s) (y :: ys)) ->
-    names N y (vref cls r) -> impl T cls s = Some d -> Forall2 (names N) ys args -> passed d args ->
-    exists at_ : Z -> stage,
+    names N y (vref cls r) -> impl T cls s = Some d ->
+    exists args (at_ : Z -> stage), Forall2 (names N) ys args /\ passed d args /\
+      (forall w, direct a from (history w) -> from < w) /\
       (forall w, from < w ->
         steps a from (from + 1) (Running (run T (Method s) (VList (vref cls r :: args)))) w (at_ w)) /\
       (forall w, from < w -> its (at_ w) a from (history w) -> takes a from w (history w) (at_ w) (at_ (w + 1))).
   Proof.
-    intros He Hy Hd Hys Hp. apply follows_steps. eapply (proj1 conformed); [exact He |].
-    left. exists s, cls, r, d, y, ys, args. auto 10.
+    intros He Hy Hd. destruct (proj1 conformed _ _ _ _ _ _ _ _ _ He Hy Hd) as (args & Hys & Hp & Hf).
+    apply follows_steps in Hf as (at_ & H0 & H1 & H2). exists args, at_. auto.
+  Qed.
+
+  (** A call of a function the code wrote. *)
+  Lemma function_steps a inside m c y ys from :
+    history from = Event_Invoke a inside (Invocation_mk m (y :: ys)) ->
+    applies m = true -> names N y (VCode c) -> written files c ->
+    exists args (at_ : Z -> stage), Forall2 (names N) ys args /\
+      (forall w, direct a from (history w) -> from < w) /\
+      (forall w, from < w -> steps a from (from + 1) (Running (run T c (VList args))) w (at_ w)) /\
+      (forall w, from < w -> its (at_ w) a from (history w) -> takes a from w (history w) (at_ w) (at_ (w + 1))).
+  Proof.
+    intros He Hm Hy Hw. destruct (proj1 (proj2 (proj2 conformed)) _ _ _ _ _ _ _ He Hm Hy Hw) as (args & Hys & Hf).
+    apply follows_steps in Hf as (at_ & H0 & H1 & H2). exists args, at_. auto.
   Qed.
 
   (** A call of a method of the code is no event made and responded to at once. *)
-  Lemma method_not_atomic w a inside s cls r d y ys args resp spawns :
+  Lemma method_not_atomic w a inside s cls r d y ys resp spawns :
     history w = Event_Atomic a inside (Invocation_mk (label_of s) (y :: ys)) resp spawns ->
-    names N y (vref cls r) -> impl T cls s = Some d -> Forall2 (names N) ys args -> passed d args -> False.
+    names N y (vref cls r) -> impl T cls s = Some d -> False.
   Proof.
-    intros He Hy Hd Hys Hp. eapply (proj1 (proj2 conformed)); [exact He |].
-    left. exists s, cls, r, d, y, ys, args. repeat split; auto.
+    intros He Hy Hd.
+    exact (proj1 (proj1 (proj2 (proj2 (proj2 conformed))) _ _ _ _ _ _ _ He) s cls r d y ys eq_refl eq_refl Hy Hd).
   Qed.
 
   (** A field read of the object a value names is a read of that value's object, of its class. *)
@@ -550,22 +600,64 @@ Section Walk.
   (** An object the execution says is made is an object of the code, of its class. *)
   Lemma made_named w b inside y cls hs :
     history w = Event_Make b inside y cls hs -> exists r, names N y (vref cls r).
-  Proof. intros H. exact (proj1 (proj2 (proj2 conformed)) _ _ _ _ _ _ H). Qed.
+  Proof. intros H. exact (proj1 (proj2 (proj2 (proj2 (proj2 conformed)))) _ _ _ _ _ _ H). Qed.
 
 End Walk.
+
+Arguments method_steps {files T N history} conformed {a inside} s {cls r d y ys from} _ _ _.
+Arguments method_not_atomic {files T N history} conformed {w a inside} s {cls r d y ys resp spawns} _ _ _.
+Arguments function_steps {files T N history} conformed {a inside m c y ys from} _ _ _ _.
+Arguments made_named {files T N history} conformed {w b inside y cls hs} _.
+Arguments gives_one {N r x x'} _ _.
 
 (** ** Walking *)
 
 (** What follows a step, set aside under a name: dropped once no hypothesis speaks of it. *)
 Ltac walk_clear := repeat match goal with K := _ : _ -> prog _ _ _ _ _ |- _ => clear K end.
 
+(** What a walk stops at and can settle itself, in the hypothesis `H`:
+    - which method of the code a call on a value runs (`implemented`): computed where the value is known; none,
+      of a value not known, where no class of the code has one;
+    - what a name gives that holds a value (`held`): computed where the value is known; itself, of a reference;
+    - whether two references are the same (`equal`), where no class of the code says what `equals` is; and a
+      value compared with itself. *)
+Ltac walk_answer H :=
+  match type of H with
+  | context [implemented ?T' ?v ?s] =>
+      let d := eval lazy in (implemented T' v s) in
+      lazymatch d with
+      | Some _ => change (implemented T' v s) with d in H
+      | None => change (implemented T' v s) with d in H
+      | _ =>
+          let E := fresh in
+          assert (E : unimplemented T' s = true) by (vm_compute; reflexivity);
+          rewrite (implemented_none T' s v E) in H; clear E
+      end
+  | context [held ?v] =>
+      first
+        [ rewrite (held_identity v ltac:(assumption)) in H
+        | let d := eval lazy in (held v) in
+          lazymatch d with
+          | Ret _ => change (held v) with d in H
+          | Vis _ _ => change (held v) with d in H
+          | Call _ _ _ => change (held v) with d in H
+          end ]
+  | context [equal ?T' ?a ?b] =>
+      let E := fresh in
+      assert (E : unnamed T' "equals" = true) by (vm_compute; reflexivity);
+      rewrite (equal_identity T' a b ltac:(assumption) ltac:(assumption) E) in H; clear E
+  | context [val_eqb ?a ?a] => rewrite (val_eqb_refl a) in H
+  end.
+
 (** The stage of a hypothesis that says where a call is, with its program's next step computed: its first
     operation, call or result, with what it is of computed (but what a call is made on, `receiver`: of a value
-    not known it is the proof's to say) and what follows it set aside under a name. *)
+    not known it is the proof's to say) and what follows it set aside under a name. Where the program asks
+    something first that the walk can settle (`walk_answer`), it does, and walks on; where it cannot, it stops
+    with the question in view, for the proof to answer. *)
 Ltac walk H :=
   lazymatch type of H with
   | steps ?T ?N ?h ?a ?i ?w0 (Running ?p) ?w ?st =>
-      let p' := eval lazy head beta iota zeta delta -[implemented] in p in
+      let p' := eval lazy head beta iota zeta delta -[implemented held equal val_eqb] in p in
       lazymatch p' with
       | Vis ?o ?k =>
           let o' := eval lazy beta iota zeta delta -[receiver] in o in
@@ -580,19 +672,8 @@ Ltac walk H :=
           pose (K := k); change (steps T N h a i w0 (Running (Call c' arg' K)) w st) in H; walk_clear
       | Ret ?x =>
           let x' := eval lazy in x in change (steps T N h a i w0 (Running (Ret x')) w st) in H; walk_clear
-      | context [implemented ?T' ?v ?s] =>
-          (* a call on a value: which method of the code it runs is computed where the value is known; of a
-             value not known, none where no class of the code has one *)
-          let d := eval lazy in (implemented T' v s) in
+      | _ =>
           change (steps T N h a i w0 (Running p') w st) in H; walk_clear;
-          lazymatch d with
-          | Some _ => change (implemented T' v s) with d in H; walk H
-          | None => change (implemented T' v s) with d in H; walk H
-          | _ =>
-              let E := fresh in
-              assert (E : unimplemented T' s = true) by (vm_compute; reflexivity);
-              rewrite (implemented_none T' s v E) in H; clear E; walk H
-          end
-      | _ => change (steps T N h a i w0 (Running p') w st) in H; walk_clear
+          first [walk_answer H; walk H | idtac]
       end
   end.

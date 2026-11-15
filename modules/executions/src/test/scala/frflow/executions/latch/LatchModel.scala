@@ -16,10 +16,6 @@ def closed(l: Obj[Latch])(using Stating): Obj[AtomicBoolean] = l.field("closed")
 /** What an atomic boolean holds at a moment. */
 val flag = Declaration[(Ref[AtomicBoolean], BigInt) => Boolean]("what the atomic boolean holds at a moment")
 
-val aCallCompletesAfterItIsMade = Node.assumption("A call completes after it is made.")(
-  forall((by: Term[Value], made: Term[BigInt], a: Term[Response], spawns: Term[List[Spawn]], k: Term[BigInt]) =>
-    (history(k) === make[Event.Respond](by, made, a, spawns)) implies (made < k)))
-
 val enterIsCalledOnALatch = Node.assumption("`enter` is called only on a latch that has been made.")(
   forall((l: Obj[Latch], w: Term[BigInt]) => l.enter().called(w) implies l.isMade(w)))
 
@@ -44,6 +40,5 @@ val enterFindsItOpen = Node.claim("`enter` returns only if the latch's flag was 
 val latch: FrModel = FrModel("Latch")(
   enterFindsItOpen,
   enterReadsItOpen.refines(enterFindsItOpen), getGivesTheFlag.refines(enterFindsItOpen),
-  aCallCompletesAfterItIsMade.refines(enterReadsItOpen), enterIsCalledOnALatch.refines(enterReadsItOpen),
-  aLatchKeepsItsFlag.refines(enterReadsItOpen),
+  enterIsCalledOnALatch.refines(enterReadsItOpen), aLatchKeepsItsFlag.refines(enterReadsItOpen),
   history.executing(Read.of(classOf[Latch], _.endsWith("latch/Latch.tasty"))))

@@ -38,8 +38,9 @@ val noForkRunsOnceClosed = Node.claim(
       (!code().by(t).pendingAt(w) && !code().by(t).called(w))))
 
 val aClosedHerdRefusesToStart = Node.claim(
-  "After closing a herd has completed, a call of its startThread does not return, and adds no thread.")(
+  "After closing a herd has completed, a call of its startThread does not return, and adds no thread itself.")(
   forall((h: Obj[ThreadHerd], code: Obj[Code], c: Obj[Thread], t: Obj[Thread]) =>
-    starting(h, code).by(c).everyCall((from, response, to) =>
-      closed(h, from) implies
-        (response =!= Returned(()) && !threads(h).add(t).by(c).calledWithin(from, to)))))
+    forall((from: Term[BigInt], w: Term[BigInt]) =>
+      (closed(h, from) && starting(h, code).by(c).called(from)) implies
+        (!starting(h, code).by(c).completed(from, Returned(()), w) &&
+          !threads(h).add(t).by(c).calledInside(from, w)))))

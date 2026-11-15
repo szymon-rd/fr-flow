@@ -50,6 +50,12 @@ val madeInside = stated { (outer: Term[Invocation], inner: Term[Invocation], by:
       exists((a: Term[Response], spawns: Term[List[Spawn]]) =>
         history(w) === make[Event.Atomic](by, some(made), inner, a, spawns)))) }
 
+/** The call made at `made` by the actor itself makes the call `inner` at the moment: not a call it makes does. */
+val itselfMakes = stated { (inner: Term[Invocation], by: Term[Value], made: Term[BigInt], w: Term[BigInt]) =>
+  history(w) === make[Event.Invoke](by, some(made), inner) ||
+    exists((a: Term[Response], spawns: Term[List[Spawn]]) =>
+      history(w) === make[Event.Atomic](by, some(made), inner, a, spawns)) }
+
 /** An object of the class, named by the value, has been made before the moment. */
 val madeBefore = stated { (made: Term[Value], cls: Term[String], w: Term[BigInt]) =>
   exists((m: Term[BigInt], by: Term[Value], inside: Term[Option[BigInt]], holding: Term[List[Held]]) =>

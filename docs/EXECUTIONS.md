@@ -140,15 +140,15 @@ What it is for an execution to be one of some code is said once, in FrFlow's Roc
 A claim of the code is then a claim with parts like any other: its parts are the assumptions it needs, and its
 step is proven in its proof file, by walking the method's program along the events of a call (`FrFlow/Code/Walk.v`:
 `walk` computes what the program does next, `step_read`, `step_called`, `step_method` say what event that is).
-`enterReadsItOpen` is proven so of `Latch.enter`'s tree.
+`enterReadsItOpen` is proven so of `Latch.enter`'s tree; `startThreadReadsTheFlagUnset` and
+`closingSetsTheFlagItself` of Ox's `ThreadHerd`, as its jar has it (`examples/ox/rocq/Proofs/OxThreads`).
 
 What a model must still say itself, as assumptions:
 
 - that a method is called only on an object the code made (`l.isMade(w)`): the JVM's type safety, where nothing
   outside the code extends the class;
 - that a `val` is read as what it holds (`l.readsAsHeld("closed")`);
-- what each method of the JDK it speaks of does;
-- that a call completes after it is made.
+- what each method of the JDK it speaks of does.
 
 ## What is not built
 

@@ -5,7 +5,7 @@ Require Export Proofs.OxThreads.Lemmas.
     set; and none was added after. *)
 Lemma everyForkHasLeftOnceClosed_Proofs_complete : everyForkHasLeftOnceClosed_Obl_complete.
 Proof.
-  intros heldIn history elements Hends Hnone Hlive h t w [Hclosed Hfork].
+  intros heldIn history elements _ Hends Hnone Hlive h t w [Hclosed Hfork].
   destruct Hclosed as [Hcalled Hnotpending].
   destruct (called_and_over_completed history _ _ w Hcalled Hnotpending) as (from & response & to & Hdone & Hfw & Htw).
   destruct (Hends h from response to Hdone) as (mm & [Hfm Hmt] & Hempty).
@@ -23,6 +23,7 @@ Qed.
 Lemma everyForkHasLeftOnceClosed_Proofs_feasible : everyForkHasLeftOnceClosed_Obl_feasible.
 Proof.
   exists (fun _ x => x), (fun _ => Event_Stutter), (fun _ _ _ => False).
+  split; [exact rest_runs |].
   split.
   { intros h from response to H. destruct (nothing_completed_at_rest _ _ _ _ _ H). }
   split.

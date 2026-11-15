@@ -8,7 +8,6 @@ Proof.
   exists (fun _ _ => False), (fun _ => Event_Stutter), (fun _ x => x).
   split; [apply nothing_runs |]. repeat split.
   - intros s b from response to [who [[(inside & spawns & H) _] | [[inside H] _]]]; discriminate H.
-  - intros by_ made a spawns k H. discriminate H.
   - intros l w [who [[inside H] | (a & inside & spawns & H)]]; discriminate H.
   - intros l w by_ inside found H. discriminate H.
 Qed.

@@ -5,7 +5,7 @@ Require Export Proofs.OxThreads.Lemmas.
     it neither closes the herd nor leaves its set, and no other thread removes it. *)
 Lemma startThreadCallersStayInside_Proofs_complete : startThreadCallersStayInside_Obl_complete.
 Proof.
-  intros history heldIn Hinside Hneither Honly h code c w [Hcalled | (m & Hm & Hbegun & Hpending)].
+  intros history heldIn _ Hinside Hneither Honly h code c w [Hcalled | (m & Hm & Hbegun & Hpending)].
   { exact (Hinside h code c w Hcalled). }
   assert (forall k, m <= k -> k <= w -> inside heldIn history c h k) as Hall; [| apply Hall; lia].
   apply (from_a_moment_on (fun k => k <= w -> inside heldIn history c h k)).
@@ -38,6 +38,7 @@ Qed.
 Lemma startThreadCallersStayInside_Proofs_feasible : startThreadCallersStayInside_Obl_feasible.
 Proof.
   exists (fun _ => Event_Stutter), (fun _ x => x).
+  split; [exact rest_runs |].
   split.
   { intros h code c w H. destruct (nothing_called_at_rest _ _ _ H). }
   split.

@@ -1,9 +1,13 @@
 package ox.threads
 
 import frflow.*
+import frflow.code.Read
+import frflow.executions.*
+import ox.internal.ThreadHerd
 
 // The model of Ox's threads: what holds once a herd is closed (the roots), and what makes it hold. The first two
-// roots rest on who starts a thread; the third, on the herd's flag alone.
+// roots rest on who starts a thread; the third, on the herd's flag alone, and on `ThreadHerd`'s code as Ox's jar
+// has it.
 
 val oxThreads: FrModel = FrModel("OxThreads")(
   noForkRunsOnceClosed, nothingIsAddedOnceClosed, aClosedHerdRefusesToStart,
@@ -22,10 +26,21 @@ val oxThreads: FrModel = FrModel("OxThreads")(
   startThreadNeitherClosesNorLeaves.refines(startThreadCallersStayInside),
   aForkRemovesOnlyItself.refines(startThreadCallersStayInside),
 
-  closingSetsTheFlag.refines(aClosedHerdRefusesToStart), theFlagStaysSet.refines(aClosedHerdRefusesToStart),
+  closingSetsTheFlag.refines(aClosedHerdRefusesToStart),
+  theFlagStaysSet.refines(aClosedHerdRefusesToStart, closingSetsTheFlag),
   startThreadFirstSeesTheFlagUnset.refines(aClosedHerdRefusesToStart),
-  aCallCompletesAfterItIsMade.refines(aClosedHerdRefusesToStart),
+
+  startThreadReadsTheFlagUnset.refines(startThreadFirstSeesTheFlagUnset),
+  getGivesTheFlag.refines(startThreadFirstSeesTheFlagUnset),
+  closingSetsTheFlagItself.refines(closingSetsTheFlag), setMakesTheFlag.refines(closingSetsTheFlag),
+
+  herdsAreMade.refines(startThreadReadsTheFlagUnset, closingSetsTheFlagItself),
+  aHerdKeepsItsFields.refines(startThreadReadsTheFlagUnset, closingSetsTheFlagItself),
+  currentThreadIsTheCaller.refines(closingSetsTheFlagItself),
 
   nothingBeforeTheStart.refines(liveForksAreInTheSet), setCallsAreAtomic.refines(liveForksAreInTheSet),
   addPutsItIn.refines(liveForksAreInTheSet), removeTakesOnlyItOut.refines(liveForksAreInTheSet),
-  onlyAddAndRemoveChangeASet.refines(liveForksAreInTheSet))
+  onlyAddAndRemoveChangeASet.refines(liveForksAreInTheSet),
+
+  // The execution is one of Ox's `ThreadHerd`, as its jar has it.
+  history.executing(Read.of(classOf[ThreadHerd], _ == "ox/internal/ThreadHerd.tasty")))

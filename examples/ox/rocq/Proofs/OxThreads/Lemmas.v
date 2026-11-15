@@ -1,4 +1,9 @@
 Require Export FrFlowGen.OxThreads.Domain.
+Require Import FrFlow.Code.Walk.
+
+(** An execution in which nothing happens is one of the code. *)
+Lemma rest_runs : Code_runs (fun _ => Event_Stutter).
+Proof. apply nothing_runs. Qed.
 
 (** ** The moments from one on *)
 

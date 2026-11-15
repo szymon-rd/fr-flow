@@ -11,6 +11,16 @@ the safety tree (roots A and B at the level of a herd) is a real model, checked 
 show: the code runs before the fork leaves at every moment of the run, closing is the owner's, and a caller of
 startThread neither closes the herd nor leaves its set.
 
+The model's execution is now one of `ThreadHerd` as Ox's jar has it, read from its TASTy
+(`docs/EXECUTIONS.md`, "An execution of code"). Two claims of the code are proven of its tree, by FrFlow's
+check: that `startThread` adds a thread, or returns, only after it has read the herd's flag as unset
+(`startThreadReadsTheFlagUnset`), and that closing, by the herd's owner, completes only after it has set the
+flag (`closingSetsTheFlagItself`). With what is assumed of an atomic boolean they give the third root. Still
+stated and not proven of the code: who else calls methods on the herd's set and flag (`onlyStartThreadAdds`,
+`aForkRemovesOnlyItself`, `theFlagStaysSet`), what the function `startThread` hands the factory does
+(`codeRunsBeforeLeaving`), and the end of closing's loop (`closingEndsOnEmpty`). The scopes above the herd and
+liveness are not in the model.
+
 ## The tree
 
 ### Safety: what never happens

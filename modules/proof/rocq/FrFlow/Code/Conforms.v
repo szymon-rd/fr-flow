@@ -69,7 +69,11 @@ Definition reference (cls : string) : bool :=
     "java.util.concurrent.Semaphore"].
 
 Definition identity (v : val) : Prop :=
-  match v with VTid _ | VObj (Ref _ _) | VObj (Ext _ _) | VObj Null => True | _ => False end.
+  match v with
+  | VTid _ | VObj (Ext _ _) | VObj Null => True
+  | VObj (Ref c _) => c <> var_class /\ c <> lazy_class     (* an object: not the place of a variable *)
+  | _ => False
+  end.
 
 (** A type that says nothing of what its values are (`Any`, a value passed where any is taken), and the class
     of an object that is alone of its class. *)
@@ -95,6 +99,13 @@ Definition of_class (cls : string) (v : val) : Prop :=
 
 Lemma identity_receiver (v : val) : identity v -> receiver v = [v].
 Proof. destruct v as [| | | | o | |]; try contradiction; try reflexivity. destruct o; try contradiction; reflexivity. Qed.
+
+(** A reference is itself where a name holds it: no variable to read, no function to call. *)
+Lemma held_identity (v : val) : identity v -> held v = oret v.
+Proof.
+  destruct v as [| | | | o | |]; try contradiction; try reflexivity. destruct o; try contradiction; try reflexivity.
+  intros [H1 H2]. unfold held. rewrite (proj2 (String.eqb_neq _ _) H1), (proj2 (String.eqb_neq _ _) H2). reflexivity.
+Qed.
 
 (** What a signature says a definition gives: what follows its last colon. *)
 Fixpoint after_last (s : string) : option string :=
@@ -267,9 +278,11 @@ Section Conforms.
 
   Variable history : Z -> Event.
 
-  (** The call made at `i` by `a` runs `p`: at each moment after it the call is at a stage; an event of its
-      own takes it to the next, and any other event leaves it where it is. *)
+  (** The call made at `i` by `a` runs `p`: it makes no event of its own before it is made; at each moment
+      after, the call is at a stage; an event of its own takes it to the next, and any other event leaves it
+      where it is. *)
   Definition follows (a : Value) (i : Z) (p : program) : Prop :=
+    (forall w, w <= i -> ~ direct a i (history w)) /\
     exists at_ : Z -> stage,
       at_ (i + 1) = Running p /\
       forall w, i < w ->
@@ -295,30 +308,48 @@ Section Conforms.
     | _ => False
     end.
 
-  (** A call of the code, which runs `p`: of a method, on an object of the code whose class has it; of a method
-      of an object that is alone of its class; or of a function the code wrote. *)
-  Definition code_call (m : string) (ys : list Value) (p : program) : Prop :=
-    (exists s cls r d y ys' args, m = label_of s /\ ys = y :: ys' /\ names N y (vref cls r) /\
-        impl T cls s = Some d /\ Forall2 (names N) ys' args /\ passed d args /\
-        p = run (Method s) (VList (vref cls r :: args)))
-    \/ (exists owner name signature c d args, m = label owner name signature /\
-        class_of T owner = Some c /\ is_module c = true /\
-        impl T owner (Member owner name signature) = Some d /\ Forall2 (names N) ys args /\ passed d args /\
-        p = run (Method (Member owner name signature)) (VList (module_val T owner :: args)))
-    \/ (exists c y ys' args, applies m = true /\ ys = y :: ys' /\ names N y (VCode c) /\ written c /\
-        Forall2 (names N) ys' args /\ p = run c (VList args)).
+  (** A call of a method of the code, on an object of the code whose class has it: its arguments are values of
+      the code, of the method's parameters' types, and the call runs the method on them. *)
+  Definition method_calls : Prop :=
+    forall i a inside s cls r d y ys,
+      history i = Event_Invoke a inside (Invocation_mk (label_of s) (y :: ys)) ->
+      names N y (vref cls r) -> impl T cls s = Some d ->
+      exists args, Forall2 (names N) ys args /\ passed d args /\
+        follows a i (run (Method s) (VList (vref cls r :: args))).
 
-  (** The execution is one of the code: every call of the code follows its program, and none is an event that
-      is made and responded to at once; an object the execution says is made is an object of the code, made
-      once. *)
-  Definition conforms : Prop :=
-    (forall i a inside m ys p,
-        history i = Event_Invoke a inside (Invocation_mk m ys) -> code_call m ys p -> follows a i p) /\
-    (forall w a inside m ys r spawns p,
-        history w = Event_Atomic a inside (Invocation_mk m ys) r spawns -> ~ code_call m ys p) /\
+  (** A call of a method of an object that is alone of its class. *)
+  Definition module_calls : Prop :=
+    forall i a inside owner name signature c d ys,
+      history i = Event_Invoke a inside (Invocation_mk (label owner name signature) ys) ->
+      class_of T owner = Some c -> is_module c = true -> impl T owner (Member owner name signature) = Some d ->
+      exists args, Forall2 (names N) ys args /\ passed d args /\
+        follows a i (run (Method (Member owner name signature)) (VList (module_val T owner :: args))).
+
+  (** A call of a function the code wrote. *)
+  Definition function_calls : Prop :=
+    forall i a inside m c y ys,
+      history i = Event_Invoke a inside (Invocation_mk m (y :: ys)) ->
+      applies m = true -> names N y (VCode c) -> written c ->
+      exists args, Forall2 (names N) ys args /\ follows a i (run c (VList args)).
+
+  (** A call of the code is no event made and responded to at once. *)
+  Definition never_atomic : Prop :=
+    forall w a inside m ys resp spawns,
+      history w = Event_Atomic a inside (Invocation_mk m ys) resp spawns ->
+      (forall s cls r d y ys', m = label_of s -> ys = y :: ys' -> names N y (vref cls r) ->
+         impl T cls s = Some d -> False) /\
+      (forall owner name signature c d, m = label owner name signature -> class_of T owner = Some c ->
+         is_module c = true -> impl T owner (Member owner name signature) = Some d -> False) /\
+      (forall c y ys', applies m = true -> ys = y :: ys' -> names N y (VCode c) -> written c -> False).
+
+  (** An object the execution says is made is an object of the code, made once. *)
+  Definition made_once : Prop :=
     (forall w b inside y cls hs, history w = Event_Make b inside y cls hs -> exists r, names N y (vref cls r)) /\
     (forall w w' b inside y cls hs b' inside' cls' hs',
         history w = Event_Make b inside y cls hs -> history w' = Event_Make b' inside' y cls' hs' -> w = w').
+
+  (** The execution is one of the code. *)
+  Definition conforms : Prop := method_calls /\ module_calls /\ function_calls /\ never_atomic /\ made_once.
 
 End Conforms.
 

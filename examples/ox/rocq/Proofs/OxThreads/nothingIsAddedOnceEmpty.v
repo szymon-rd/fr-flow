@@ -5,7 +5,7 @@ Require Export Proofs.OxThreads.Lemmas.
     has not left, which is in the set if it was added before the set was empty, and was not added after. *)
 Lemma nothingIsAddedOnceEmpty_Proofs_complete : nothingIsAddedOnceEmpty_Obl_complete.
 Proof.
-  intros heldIn history elements Hlive Hstay Honly h t m w [[Hclosing Hempty] Hmw].
+  intros heldIn history elements _ Hlive Hstay Honly h t m w [[Hclosing Hempty] Hmw].
   revert t. pattern w. apply (Zlt_lower_bound_ind _ m); [| exact Hmw].
   intros x IH Hx t (who & Hadd).
   destruct (Honly h t who x Hadd) as [(code & m0 & Hm0 & Hbegun & Hpending) _].
@@ -24,6 +24,7 @@ Qed.
 Lemma nothingIsAddedOnceEmpty_Proofs_feasible : nothingIsAddedOnceEmpty_Obl_feasible.
 Proof.
   exists (fun _ x => x), (fun _ => Event_Stutter), (fun _ _ _ => False).
+  split; [exact rest_runs |].
   split.
   { intros h t w [H _]. destruct (no_fork_at_rest _ _ _ _ H). }
   split.

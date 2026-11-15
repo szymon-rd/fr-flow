@@ -66,6 +66,9 @@ final class Call[A](val method: String, val arguments: List[Term[Value]], val ac
   def calls[B](inner: Call[B], w: World)(using Stating): Term[Boolean] =
     some(who => madeInside(invocation, inner.invocation, who, w))
 
+  /** The call made at `made` by this call's actor itself makes this call at `w`. */
+  def calledInside(made: World, w: World)(using Stating): Term[Boolean] = some(itselfMakes(invocation, _, made, w))
+
   /** A call made and completed from `from` to `to`. */
   def completedWithin(from: World, to: World)(using Stating): Term[Boolean] =
     exists((a: Term[BigInt], response: Term[Response], b: Term[BigInt]) =>

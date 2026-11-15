@@ -15,10 +15,6 @@ val elements = Declaration[(Ref[Threads], BigInt) => Set[Value]]("what is in the
 val nothingBeforeTheStart = Node.assumption("No step is taken before the run starts.")(
   forall((w: Term[BigInt]) => (w < 0) implies (history(w) === Event.Stutter)))
 
-val aCallCompletesAfterItIsMade = Node.assumption("A call completes after it is made.")(
-  forall((by: Term[Value], made: Term[BigInt], a: Term[Response], spawns: Term[List[Spawn]], k: Term[BigInt]) =>
-    (history(k) === make[Event.Respond](by, made, a, spawns)) implies (made < k)))
-
 /** What an atomic boolean holds at a moment. */
 val flag = Declaration[(Ref[AtomicBoolean], BigInt) => Boolean]("what the atomic boolean holds at a moment")
 
@@ -41,3 +37,14 @@ val onlyAddAndRemoveChangeASet = Node.assumption(
   forall((s: Obj[Threads], a: Term[BigInt], b: Term[BigInt], y: Term[Value]) =>
     (a < b && (elements(s, a).contains(y) =!= elements(s, b).contains(y))) implies
       exists((x: Obj[Thread]) => s.add(x).completedWithin(a, b) || s.remove(x).completedWithin(a, b))))
+
+val getGivesTheFlag = Node.assumption("Reading an atomic boolean gives what it holds at a moment during the read.")(
+  forall((s: Obj[AtomicBoolean], b: Term[Boolean]) =>
+    s.get().everyCall((from, a, to) =>
+      (a === Returned(b)) implies exists((m: Term[BigInt]) => from <= m && m < to && (flag(s, m) === b)))))
+
+val setMakesTheFlag = Node.assumption("Once a call that sets an atomic boolean completes, it holds what was set.")(
+  forall((s: Obj[AtomicBoolean], b: Term[Boolean]) => s.set(b).everyCall((_, _, to) => flag(s, to) === b)))
+
+val currentThreadIsTheCaller = Node.assumption("`Thread.currentThread()` gives the thread that calls it.")(
+  forall((c: Obj[Thread]) => Thread.currentThread().by(c).everyCall((_, a, _) => a === Returned(c))))
