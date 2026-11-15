@@ -107,3 +107,25 @@ Proof.
       * apply Hno. exists w. split; [lia | exists who'; exact Hcalled].
       * apply Hout. rewrite (Hrem x t w answer (w + 1)); [split; assumption | exists who'; exact Hdone].
 Qed.
+
+(** ** A run in which nothing happens
+
+    It meets every statement that says what follows a call: what shows that statements can hold together. *)
+
+Lemma nothing_begun_at_rest c who w : ~ begun (fun _ => Step_Rests) c who w.
+Proof. intros (inside & H). discriminate. Qed.
+
+Lemma nothing_called_at_rest c who w : ~ calledBy (fun _ => Step_Rests) c who w.
+Proof. intros [(inside & H) | (a & inside & hands & H)]; discriminate. Qed.
+
+Lemma nothing_completed_at_rest c who from a to : ~ completedBy (fun _ => Step_Rests) c who from a to.
+Proof. intros [[(inside & hands & H) _] | [(inside & H) _]]; discriminate. Qed.
+
+Lemma no_fork_at_rest heldIn t h w : ~ forkOf heldIn (fun _ => Step_Rests) t h w.
+Proof. intros (m & _ & who & H). exact (nothing_called_at_rest _ _ _ H). Qed.
+
+Lemma none_made_to_run_at_rest heldIn t h code w : ~ madeToRun heldIn (fun _ => Step_Rests) t h code w.
+Proof. intros (c & m & [_ H] & _). exact (nothing_called_at_rest _ _ _ H). Qed.
+
+Lemma none_closed_at_rest heldIn h w : ~ closed heldIn (fun _ => Step_Rests) h w.
+Proof. intros [(m & _ & H) _]. exact (nothing_called_at_rest _ _ _ H). Qed.
