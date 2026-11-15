@@ -33,3 +33,14 @@ Proof.
       * apply Hstays. exists m1. split; [exact Hlt | exists who; exact Hrem].
       * pose proof (Honly h c who k Hrem) as ->. exact (Hnoleave Hrem).
 Qed.
+
+(** Its parts can hold together: a run in which nothing happens meets each. *)
+Lemma startThreadCallersStayInside_Proofs_feasible : startThreadCallersStayInside_Obl_feasible.
+Proof.
+  exists (fun _ => Step_Rests), (fun _ x => x).
+  split.
+  { intros h code c w H. destruct (nothing_called_at_rest _ _ _ H). }
+  split.
+  { intros h code c w (m & _ & H & _). destruct (nothing_begun_at_rest _ _ _ H). }
+  intros h t c w H. destruct (nothing_called_at_rest _ _ _ H).
+Qed.

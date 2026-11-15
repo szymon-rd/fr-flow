@@ -19,3 +19,15 @@ Proof.
       * intros (r & Hr & Hrem). apply Hstays. exists r. split; [lia | exact Hrem].
     + apply (IH a ltac:(lia) who). exists who'. exact Hadd'.
 Qed.
+
+(** Its parts can hold together: a run in which nothing happens meets each. *)
+Lemma nothingIsAddedOnceEmpty_Proofs_feasible : nothingIsAddedOnceEmpty_Obl_feasible.
+Proof.
+  exists (fun _ x => x), (fun _ => Step_Rests), (fun _ _ _ => False).
+  split.
+  { intros h t w [H _]. destruct (no_fork_at_rest _ _ _ _ H). }
+  split.
+  { intros h code c w [H | (m & _ & H & _)];
+      [destruct (nothing_called_at_rest _ _ _ H) | destruct (nothing_begun_at_rest _ _ _ H)]. }
+  intros h t c w H. destruct (nothing_called_at_rest _ _ _ H).
+Qed.

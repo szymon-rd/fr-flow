@@ -15,3 +15,18 @@ Proof.
   - exact Hfork.
   - exact Hleft.
 Qed.
+
+(** Its parts can hold together: a run in which nothing happens meets each. *)
+Lemma liveForksAreInTheSet_Proofs_feasible : liveForksAreInTheSet_Obl_feasible.
+Proof.
+  exists (fun _ _ _ => False), (fun _ x => x), (fun _ => Step_Rests).
+  split.
+  { intros w _. reflexivity. }
+  split.
+  { intros s x. split; intros w who H; destruct (nothing_called_at_rest _ _ _ H). }
+  split.
+  { intros s x y from answer to (who & H). destruct (nothing_completed_at_rest _ _ _ _ _ H). }
+  split.
+  { intros s x y from answer to (who & H). destruct (nothing_completed_at_rest _ _ _ _ _ H). }
+  intros s a b y [_ H]. destruct H. reflexivity.
+Qed.
