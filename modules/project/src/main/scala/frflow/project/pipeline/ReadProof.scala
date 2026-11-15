@@ -36,16 +36,19 @@ object ReadProof:
     * it; and the makers below its step, its tests, its consistency.
     */
   private def local(a: Analysis, n: Node, rs: List[Result]): (List[Unproven], List[Unproven]) =
-    (List(check(a, n), open(rs), nothingBelow(a, n)).flatten,
+    (List(check(a, n), open(a, n, rs), nothingBelow(a, n)).flatten,
       List(made(a, n.id), tests(a, n.id), consistent(a, n.id)).flatten)
 
   private def check(a: Analysis, n: Node): List[Unproven] =
     val proven = a.current(n.id).exists(_.status == CheckStatus.Proven)
     Option.when(n.statement.stated && !proven)(Unproven.Check).toList
 
-  /** Each obligation it was asked that is not proven, each try that shows something wrong. */
-  private def open(rs: List[Result]): List[Unproven] = rs.collect {
-    case Result(Complete, s, _) if s != Proven      => Unproven.Parts
+  /** Each obligation it was asked that is not proven, each try that shows something wrong. A claim with no part
+    * asked `complete` is one about an execution of code: not proven of the code.
+    */
+  private def open(a: Analysis, n: Node, rs: List[Result]): List[Unproven] = rs.collect {
+    case Result(Complete, s, _) if s != Proven      =>
+      if a.decided.theory.refinement.parts(n.id).isEmpty then Unproven.OfCode else Unproven.Parts
     case Result(Tried(Needed(p)), Shown, _)         => Unproven.NotNeeded(p)
     case Result(Tried(Clash), Shown, _)             => Unproven.Clash
     case Result(Impl, s, _) if s != Proven          => Unproven.Implementation

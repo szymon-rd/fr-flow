@@ -10,14 +10,22 @@ import frflow.core.Theory
   * aside), over every possible value, mentioning a Declaration. A root mentioning one is a purpose not refined yet,
   * not checked by anything. Such a claim is the Declaration's meaning: the proven code stands in it for the
   * Definitions it mentions, its consistency group shows some meaning meets it, and nothing is proven of the code from
-  * it, so it is asked no `impl` and rests on no premise. Derived, not a kind: an ordinary claim.
+  * it, so it is asked no `impl` and rests on no premise. Derived, not a kind: an ordinary claim. A claim about an
+  * execution of code read is never one: what it says is of the code, and is proven of it or stands unproven,
+  * whatever Declaration it also mentions.
   */
 object SaysWhat:
   /** The Declarations a claim says what they are; none when it is no such claim. */
   def declarations(t: Theory, id: NodeId): List[SymbolName] =
     t.node(id).filter(n => n.statement.kind == NodeKind.Claim && n.statement.range.contains(Range.Possible) &&
-      t.refinement.parents(id).nonEmpty && t.refinement.parts(id).isEmpty).toList
+      t.refinement.parents(id).nonEmpty && t.refinement.parts(id).isEmpty && !ofExecution(t, id)).toList
       .flatMap(_ => Constrained.of(t, id).filter(Constrained.isDeclaration(t, _)))
+
+  /** The statement is about an execution of code read: it mentions a word that is one. */
+  def ofExecution(t: Theory, id: NodeId): Boolean =
+    Constrained.of(t, id).exists(s => t.code.attached.get(s).exists(_.code match
+      case Code.Executing(_) => true
+      case _                 => false))
 
   def is(t: Theory, id: NodeId): Boolean = declarations(t, id).nonEmpty
 

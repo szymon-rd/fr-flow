@@ -8,6 +8,7 @@ object Unprovens:
   def text(u: Unproven): String = u match
     case Unproven.Check          => "its check is not proven"
     case Unproven.Parts          => "its parts are not proven to make it"
+    case Unproven.OfCode         => "it is not proven of the code's executions"
     case Unproven.NotNeeded(p)   => s"Rocq proves it without $p: a part not needed"
     case Unproven.Clash          => "its parts clash"
     case Unproven.NothingBelow   => "nothing below it proves it: no parts, no code"

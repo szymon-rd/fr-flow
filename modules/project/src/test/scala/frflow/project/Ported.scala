@@ -8,7 +8,7 @@ import frflow.core.name.{NodeId, RelPath}
 import frflow.core.spec.NodeKind
 import frflow.decision.ledger.Ledger
 import frflow.project.check.CheckProgram
-import frflow.project.pipeline.{Analysis, ReadProof}
+import frflow.project.pipeline.{Analysis, ReadProof, StandsOn}
 import frflow.project.port.*
 import frflow.project.port.memory.*
 import frflow.project.port.rocq.{RocqProver, RocqTool}
@@ -92,6 +92,10 @@ object Ported:
   def unproven(a: Analysis): Map[String, List[String]] =
     a.decided.theory.nodes.map(_.node).map(n => n.id.value -> ReadProof.of(a, n).unproven.map(_.toString))
       .filter(_._2.nonEmpty).toMap
+
+  /** Of each root, the claims below it that are not proven, and how many assumptions it is proven from. */
+  def standsOn(a: Analysis): Map[String, (List[String], Int)] =
+    StandsOn.roots(a).map((id, s) => id.value -> (s.unproven.map(_.value), s.assumed.size))
 
   /** Each node's standing and, where its check found something, what: for a failing suite's message. */
   def table(a: Analysis): String =

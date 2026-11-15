@@ -30,3 +30,18 @@ class LatchSuite extends munit.CatsEffectSuite:
     Ported.run(Projects.elaborated(latch), Nil, proofs).map(r =>
       assertEquals(Ported.unproven(r), Map.empty, Ported.table(r)))
   }
+
+  test("a claim of the code with no part is asked of every execution of the code, alone") {
+    val texts = Projects.bare(Projects.elaborated(latchUnproven)).rocq.files.map((f, t) => f.toString -> t).toMap
+    val spec = texts.find(_._1.endsWith("enterReadsItOpen/Spec.v")).map(_._2).getOrElse(fail("no spec"))
+    assert(spec.contains("Definition enterReadsItOpen_Obl_complete : Prop :=\n" +
+      "  forall (heldIn : string -> Value -> Value), forall (history : Z -> Event), " +
+      "forall (o_history_0 : (Code_runs history)), (enterReadsItOpen_claim heldIn history)."), spec)
+  }
+
+  test("with no proof it stands unproven, and so does what is proven from it".tag(Live)) {
+    Ported.run(Projects.elaborated(latchUnproven), Nil, Nil).map { r =>
+      assert(Ported.unproven(r).getOrElse("enterReadsItOpen", Nil).contains("OfCode"), Ported.table(r))
+      assertEquals(Ported.standsOn(r).get("enterFindsItOpen").map(_._1.contains("enterReadsItOpen")), Some(true))
+    }
+  }

@@ -58,7 +58,8 @@ class TextsSuite extends munit.FunSuite:
     distinct(List(Forbidden.Axiom, Forbidden.Admit, Forbidden.Import("i"), Forbidden.LemmaImport("i"),
       Forbidden.Command("c"))
       .map(Findings.forbidden))
-    distinct(List(Unproven.Check, Unproven.Parts, Unproven.NotNeeded(a), Unproven.Clash, Unproven.NothingBelow,
+    distinct(List(Unproven.Check, Unproven.Parts, Unproven.OfCode, Unproven.NotNeeded(a), Unproven.Clash,
+      Unproven.NothingBelow,
       Unproven.Kept(a), Unproven.Implementation, Unproven.RootImpl, Unproven.Tests, Unproven.NotTested, Unproven.Idle,
       Unproven.Consistency).map(Unprovens.text))
     assertEquals(Unprovens.text(Unproven.NotTested), "not tested yet: run check")

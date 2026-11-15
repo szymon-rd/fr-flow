@@ -42,3 +42,9 @@ val latch: FrModel = FrModel("Latch")(
   enterReadsItOpen.refines(enterFindsItOpen), getGivesTheFlag.refines(enterFindsItOpen),
   enterIsCalledOnALatch.refines(enterReadsItOpen), aLatchKeepsItsFlag.refines(enterReadsItOpen),
   history.executing(Read.of(classOf[Latch], _.endsWith("latch/Latch.tasty"))))
+
+/** The same with nothing below the claim of the code: with no proof of it, it stands unproven. */
+val latchUnproven: FrModel = FrModel("LatchUnproven")(
+  enterFindsItOpen,
+  enterReadsItOpen.refines(enterFindsItOpen), getGivesTheFlag.refines(enterFindsItOpen),
+  history.executing(Read.of(classOf[Latch], _.endsWith("latch/Latch.tasty"))))

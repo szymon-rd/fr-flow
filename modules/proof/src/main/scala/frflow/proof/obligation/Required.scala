@@ -3,6 +3,7 @@ package frflow.proof.obligation
 import cats.data.NonEmptyList
 import frflow.core.analysis.resolution.{Callees, Constrained, Resolved, SaysWhat}
 import frflow.core.name.{NodeId, SymbolName}
+import frflow.core.spec.NodeKind
 import frflow.core.ty.Ty
 import frflow.core.vocab.SymbolType
 
@@ -20,15 +21,23 @@ object Required:
       .map(o => if authored((n, o.name)) then o.copy(discharge = Discharge.Authored) else o)
 
   /** `∀ U, C1 → … → Cn → M → N`, of a node not checked against proven code: its parts, and what the makers its parts'
-    * claims are about make (`Made.taken`).
+    * claims are about make (`Made.taken`). A claim about an execution of code read is asked it with no part too,
+    * `∀ U, N`: it is proven of every execution of the code, or stands unproven.
     */
   def complete(r: Resolved, n: NodeId): Option[Prop] =
-    NonEmptyList.fromList(r.theory.refinement.parts(n)).filter(_ => SaysWhat.checkedAgainst(r.theory, n).isEmpty)
-      .map(ps => Prop.over(List(n), Prop.Implies(Hyp.parts(ps.toList) ++ Made.taken(r, n).map(_._3),
-        Prop.claim(n))))
+    val parts = r.theory.refinement.parts(n)
+    val taken = Hyp.parts(parts) ++ Made.taken(r, n).map(_._3)
+    Option.when(SaysWhat.checkedAgainst(r.theory, n).isEmpty && (parts.nonEmpty || ofCodeAlone(r, n)))(
+      Prop.over(List(n), if taken.isEmpty then Prop.claim(n) else Prop.Implies(taken, Prop.claim(n))))
 
-  private def completes(r: Resolved, n: NodeId): String =
-    s"The parts of ${n.value} (${r.theory.refinement.parts(n).map(_.value).mkString(", ")}) together make it."
+  /** A claim with no part about an execution of code read. */
+  def ofCodeAlone(r: Resolved, n: NodeId): Boolean =
+    r.theory.refinement.parts(n).isEmpty && SaysWhat.ofExecution(r.theory, n) &&
+      r.theory.node(n).exists(_.statement.kind == NodeKind.Claim)
+
+  private def completes(r: Resolved, n: NodeId): String = r.theory.refinement.parts(n) match
+    case Nil   => s"${n.value} holds of every execution of the code read."
+    case parts => s"The parts of ${n.value} (${parts.map(_.value).mkString(", ")}) together make it."
 
   /** `∃ U, C1 ∧ … ∧ Cn`, asked of an authored `complete` on a node nothing witnesses. */
   private def feasible(r: Resolved, authored: Set[(NodeId, ObligationName)], n: NodeId): List[Obligation] =

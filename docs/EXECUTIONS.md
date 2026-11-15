@@ -127,6 +127,9 @@ code's methods and the assumptions (on the JDK, on who calls the code, on the ex
 
 - of each claim with parts, the step from its parts (`<node>_Obl_complete`): proven by hand in the claim's proof
   file, in plain Rocq over the generated definitions;
+- of each claim about the execution with no part, the claim itself of every execution of the code (the same
+  name, with no part to take): with no proof it stands unproven (`it is not proven of the code's executions`),
+  and the model is not complete. Such a claim never counts as saying what a Declaration is, whatever it mentions;
 - of each hand-proven step, that its parts can hold together (`<node>_Obl_feasible`);
 - of the model, that what it states at the bottom can hold together (`Whole_Obl_consistent_0`).
 
