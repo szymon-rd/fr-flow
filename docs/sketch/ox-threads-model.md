@@ -38,9 +38,9 @@ closing's `while` loop: closing completes only after a call it made asking wheth
 answered yes (`closingEndsOnceFoundEmpty`, by the loop rule: every turn asks, and only a yes leaves the loop);
 that closing ends on an empty set then rests on two more parts. One is assumed of the JDK, as its code has it:
 `isEmpty` sums counters read one after another and is no snapshot, so a yes means the set is empty at a moment
-of the call only where nothing is added during the call (`isEmptyFindsItEmptyUnlessAdded`). The other is a
-claim that is not proven and not known to hold: that nothing is added to the herd's set while closing's last
-check runs (`nothingIsAddedDuringTheLastCheck`). A fork that passed startThread's check before the flag was set
+of the call only where nothing is added during the call (`isEmptyFindsItEmptyUnlessAdded`). The other is an
+assumption that nothing in Ox's code makes hold, and that is suspected false in a rare race: that nothing is
+added to the herd's set while closing's last check runs (`nothingIsAddedDuringTheLastCheck`). A fork that passed startThread's check before the flag was set
 can add a thread then, and `isEmpty` may answer yes of a set that was never empty: the JDK says its answer is
 not for program control under concurrent updates. `closingEndsOnceFoundEmpty` itself rests on a claim not yet
 proven of the code, that the two traversals closing makes do not throw (`closingsTraversalsReturn`), and on the
@@ -55,7 +55,8 @@ function once (both assumed: of what startThread is given by name, and of the th
 is removed only by itself in such a function; and that function removes only after its call of the code has
 been responded to (`aForkFunctionRemovesAfterTheCode`, proven of the function's tree). Still stated and not
 proven of the code: that a caller of startThread neither closes nor leaves, that closing's traversals do not
-throw, that nothing is added during closing's last check, and that a herd's set and flag are plain. The scopes above the herd and liveness are not in the model.
+throw, and that a herd's set and flag are plain. That nothing is added during closing's last check is assumed:
+the two roots on what a closed herd holds rest on it. The scopes above the herd and liveness are not in the model.
 
 ## The tree
 
