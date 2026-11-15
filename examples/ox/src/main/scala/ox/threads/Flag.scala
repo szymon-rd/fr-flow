@@ -53,8 +53,6 @@ val onlyClosingSetsTheFlag = Node.assumption("A herd's flag is set only by a cal
     shutdown(h).set(v).by(c).called(w) implies exists((from: Term[BigInt]) =>
       closing(h).by(c).called(from) && shutdown(h).set(v).by(c).calledInside(from, w))))
 
-// Not proven of the code: past its loop, closing reads a local variable and may throw what it holds, and what a
-// local variable holds is not yet said of an execution.
 val closingSetsTheFlagOnlyToTrue = Node.claim("A call of closing itself sets the herd's flag only to true.")(
   forall((h: Obj[ThreadHerd], v: Term[Boolean], c: Obj[Thread], from: Term[BigInt], w: Term[BigInt]) =>
     (closing(h).by(c).called(from) && shutdown(h).set(v).by(c).calledInside(from, w)) implies v))

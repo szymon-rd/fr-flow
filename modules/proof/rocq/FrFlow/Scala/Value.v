@@ -181,9 +181,15 @@ Definition of_const (c : const) : option val :=
   | CFloat _ | CDouble _ => None
   end.
 
-(** A variable is an object with one field. *)
+(** A variable is an object with one field. Its class says the class of what it holds, where the code says
+    one: what a read of it gives is of that class. *)
 Definition var_class : string := "<var>".
 Definition var_field : string := "value".
+Definition var_of (holds : option string) : string :=
+  match holds with Some c => var_class ++ ":" ++ c | None => var_class end.
+Definition is_var (c : string) : bool := String.prefix var_class c.
+Definition var_holds (c : string) : option string :=
+  if String.prefix (var_class ++ ":") c then Some (String.substring 6 (String.length c - 6) c) else None.
 
 (** A `lazy val` written in a method is an object that holds its value once it has one, and until then what
     gives it. *)

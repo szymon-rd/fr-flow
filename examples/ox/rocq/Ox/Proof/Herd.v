@@ -118,8 +118,10 @@ Section herd.
 
   (** The loop's two variables: the threads interrupted so far, and the owner's first interruption. *)
   Definition close_vars (v1 v2 : nat) : iProp Σ :=
-    (∃ xs, ⌜threads_only xs⌝ ∗ v1 ↦obj (var_class, [(var_field, vdata Library.c_set [VList xs])])) ∗
-    (∃ x, ⌜x = vnull ∨ x = VExn InterruptedException⌝ ∗ v2 ↦obj (var_class, [(var_field, x)])).
+    (∃ xs, ⌜threads_only xs⌝ ∗ v1 ↦obj
+      (var_of (Some "scala.collection.immutable.Set"), [(var_field, vdata Library.c_set [VList xs])])) ∗
+    (∃ x, ⌜x = vnull ∨ x = VExn InterruptedException⌝ ∗ v2 ↦obj
+      (var_of (Some "java.lang.InterruptedException"), [(var_field, x)])).
 
   (** What each of its loops keeps: the owner's place with the scope still open, the variables, and what the
       caller is owed when the scope has been left. *)

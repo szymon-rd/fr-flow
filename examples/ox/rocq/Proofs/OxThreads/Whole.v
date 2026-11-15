@@ -27,8 +27,6 @@ Proof.
   split.
   { intros h v c w H. destruct (nothing_called_at_rest _ _ _ H). }
   split.
-  { intros h v c from w [H _]. destruct (nothing_called_at_rest _ _ _ H). }
-  split.
   { intros s b from response to [who H]. destruct (nothing_completed_at_rest _ _ _ _ _ H). }
   split.
   { intros s b from response to [who H]. destruct (nothing_completed_at_rest _ _ _ _ _ H). }

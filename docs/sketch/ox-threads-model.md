@@ -32,11 +32,12 @@ that the two traversals closing makes do not throw (`closingsTraversalsReturn`),
 `isEmpty` not throwing. That the flag stays set (`theFlagStaysSet`) now follows from three parts: what an atomic
 boolean holds changes only after a call that sets it so (assumed of the JDK), a herd's flag is set only by a call
 of closing itself (assumed: what capture checking would say), and closing sets it only to true
-(`closingSetsTheFlagOnlyToTrue`, a claim of the code not yet proven: past its loop closing reads a local variable
-and may throw what it holds, and what a local variable holds is not yet said of an execution). Still stated and
-not proven of the code: that a caller of startThread neither closes nor leaves, when the code a fork
-was made to run is called (`codeRunsBeforeLeaving`), that closing's traversals do not throw, and that closing
-sets the flag only to true. The scopes above the herd and liveness are not in the model.
+(`closingSetsTheFlagOnlyToTrue`, proven of closing's tree gone through whole). With it the third root, that a
+closed herd refuses to start a thread, rests on assumptions and on claims proven of the code, and on nothing
+else. Still stated and not proven of the code: that a caller of startThread neither closes nor leaves, when the
+code a fork
+was made to run is called (`codeRunsBeforeLeaving`), and that closing's traversals do not throw. The scopes above
+the herd and liveness are not in the model.
 
 ## The tree
 

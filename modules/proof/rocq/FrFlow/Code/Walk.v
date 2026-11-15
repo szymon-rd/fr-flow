@@ -12,6 +12,7 @@ Require Import FrFlow.Threads.Prog FrFlow.Jvm.Machine.
 Require Import FrFlow.Scala.Tree FrFlow.Scala.Program FrFlow.Scala.Table FrFlow.Scala.Equal FrFlow.Scala.Value.
 Require Import FrFlow.Scala.Meaning FrFlow.Scala.Library FrFlow.Code.Outside FrFlow.Code.Conforms.
 Require Export FrFlow.Code.Classes.
+Require FrFlow.Scala.Jdk.
 Import ListNotations.
 Open Scope string_scope.
 
@@ -87,6 +88,16 @@ Proof.
     repeat match goal with |- context [Nat.eqb ?x ?y] => destruct (Nat.eqb_spec x y) as [-> | ?]; cbn end;
     repeat match goal with |- context [String.eqb ?x ?y] => destruct (String.eqb_spec x y) as [-> | ?]; cbn end;
     first [reflexivity | rewrite val_eqb_refl; reflexivity | rewrite Hne by congruence; reflexivity].
+Qed.
+
+(** What is thrown, or none, compared with none: it is none or it is not. *)
+Lemma equal_null (T : table) (v : val) :
+  (v = vnull \/ exists e, Jdk.as_exn v = Some e) -> equal T v vnull = oret (val_eqb v vnull).
+Proof.
+  intros [-> | [e He]]; [rewrite val_eqb_refl; reflexivity |].
+  assert (val_eqb v vnull = false) as ->.
+  { unfold val_eqb. destruct (val_eq_dec v vnull) as [-> | ?]; [discriminate He | reflexivity]. }
+  destruct v as [| | | | o | |]; try discriminate He; [reflexivity |]. destruct o; try discriminate He. reflexivity.
 Qed.
 
 (** ** A function the code wrote, decided by looking for its tree among the code's *)

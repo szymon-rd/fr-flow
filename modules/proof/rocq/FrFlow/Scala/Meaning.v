@@ -186,7 +186,7 @@ Section Meaning.
   Definition held (v : val) : D :=
     match v with
     | VObj (Ref c r) =>
-        if String.eqb c var_class then oop (ObjGet r var_field)
+        if is_var c then oop (ObjGet r var_field)
         else if String.eqb c lazy_class then
           lazily r lazy_field OfMethod (
             th <~ oop (ObjGet r thunk_field) ;;
@@ -535,7 +535,7 @@ Section Meaning.
       | [] => k e
       | st :: rest =>
           match st with
-          | ValDef s flags _ (Some rhs) =>
+          | ValDef s flags t (Some rhs) =>
               if flagged "Lazy" flags then
                 r <~ oop (ObjNew lazy_class []) ;;
                 let e' := (key s, vref lazy_class r) :: e in
@@ -543,7 +543,8 @@ Section Meaning.
               else
               v <~ denote e rhs ;;
               if flagged "Mutable" flags then
-                r <~ oop (ObjNew var_class [(var_field, v)]) ;; block ((key s, vref var_class r) :: e) rest k
+                let cls := var_of (ty_class t) in
+                r <~ oop (ObjNew cls [(var_field, v)]) ;; block ((key s, vref cls r) :: e) rest k
               else block ((key s, v) :: e) rest k
           | ValDef s _ _ None => stuck (cat "a value with no right side: " (key s))
           | DefDef s _ _ _ _ _ =>

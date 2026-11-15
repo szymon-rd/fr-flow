@@ -186,14 +186,14 @@ Proof. intros H. unfold val_eqb. by destruct (val_eq_dec a b). Qed.
 Definition plain (v : val) : Prop :=
   match v with
   | VCode _ => False
-  | VObj (Ref c _) => c ≠ var_class ∧ c ≠ lazy_class
+  | VObj (Ref c _) => is_var c = false ∧ c ≠ lazy_class
   | _ => True
   end.
 
 Lemma held_plain (v : val) : plain v → held v = oret v.
 Proof.
   destruct v as [| | | | o | |]; try done. destruct o; try done. intros [H1 H2]. rewrite /held.
-  by rewrite (proj2 (String.eqb_neq _ _) H1) (proj2 (String.eqb_neq _ _) H2).
+  by rewrite H1 (proj2 (String.eqb_neq _ _) H2).
 Qed.
 
 (** Each name the walk stops at that holds the plain value `v` is read. *)

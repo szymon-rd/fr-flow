@@ -21,6 +21,7 @@ From Stdlib Require Import String List ZArith Bool Ascii.
 Require Import FrFlow.Threads.Prog FrFlow.Jvm.Machine.
 Require Import FrFlow.Scala.Tree FrFlow.Scala.Program FrFlow.Scala.Table FrFlow.Scala.Value.
 Require Import FrFlow.Scala.Meaning FrFlow.Scala.Library FrFlow.Code.Outside.
+Require FrFlow.Scala.Jdk.
 Import ListNotations.
 Open Scope string_scope.
 
@@ -71,7 +72,7 @@ Definition reference (cls : string) : bool :=
 Definition identity (v : val) : Prop :=
   match v with
   | VTid _ | VObj (Ext _ _) | VObj Null => True
-  | VObj (Ref c _) => c <> var_class /\ c <> lazy_class     (* an object: not the place of a variable *)
+  | VObj (Ref c _) => is_var c = false /\ c <> lazy_class   (* an object: not the place of a variable *)
   | _ => False
   end.
 
@@ -88,6 +89,10 @@ Fixpoint module_class (cls : string) : bool :=
   | String _ rest => module_class rest
   end.
 
+(** A class of what is thrown, and a value of one: none, or an exception. *)
+Definition throwable (cls : string) : bool :=
+  String.eqb cls "java.lang.Throwable" || existsb (String.eqb "java.lang.Throwable") (supers cls).
+
 (** A value of any other class is itself where a name holds it (the place of a variable and an argument passed
     by name are values of no class), and a value a call can be made on: neither unit nor an object named
     alone. *)
@@ -97,6 +102,7 @@ Definition of_class (cls : string) (v : val) : Prop :=
   else if String.eqb cls "scala.Int" then exists z, v = vint z
   else if reference cls then identity v
   else if general cls || module_class cls then True
+  else if throwable cls then v = vnull \/ exists e, Jdk.as_exn v = Some e
   else held v = oret v /\ receiver v = [v].
 
 Lemma identity_receiver (v : val) : identity v -> receiver v = [v].
@@ -108,7 +114,7 @@ Qed.
 Lemma held_identity (v : val) : identity v -> held v = oret v.
 Proof.
   destruct v as [| | | | o | |]; try contradiction; try reflexivity. destruct o; try contradiction; try reflexivity.
-  intros [H1 H2]. unfold held. rewrite (proj2 (String.eqb_neq _ _) H1), (proj2 (String.eqb_neq _ _) H2). reflexivity.
+  intros [H1 H2]. unfold held. rewrite H1, (proj2 (String.eqb_neq _ _) H2). reflexivity.
 Qed.
 
 (** What a signature says a definition gives: what follows its last colon. *)
@@ -155,7 +161,9 @@ Section Conforms.
     | None => name
     end.
 
+  (** The class of what a field holds: of a variable, the class it was declared with. *)
   Definition field_class (cls name : string) : option string :=
+    if is_var cls then var_holds cls else
     match named T cls name with
     | Some (ValDef _ _ t _) => ty_class t
     | _ => None

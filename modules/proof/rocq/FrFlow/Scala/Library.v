@@ -647,7 +647,12 @@ Definition misc (owner name : string) : option (list bool * Run) :=
     plain (fun _ v _ args => apply_fn v args)
   else if at_ "java.lang.Runnable" && called "run" then plain (fun _ v _ _ => apply_fn v [])
   else if at_ "<special-ops>" && called "throw" then plain (fun _ _ _ args => match args with
-    | [x] => match as_exn x with Some e => othrow e | None => wrong "a throw of what is no exception" end
+    | [x] => match as_exn x with
+        | Some e => othrow e
+        | None =>   (* `throw null` throws a NullPointerException *)
+            if val_eqb x vnull then othrow (Machine.Other "java.lang.NullPointerException")
+            else wrong "a throw of what is no exception"
+        end
     | _ => wrong name end)
   else if called "<init>" && (existsb (String.eqb "java.lang.Throwable") (supers owner)
       || at_ "java.lang.Throwable") then

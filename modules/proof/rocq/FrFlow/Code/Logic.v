@@ -24,6 +24,7 @@ Require Import FrFlow.Threads.Prog FrFlow.Jvm.Machine.
 Require Import FrFlow.Scala.Tree FrFlow.Scala.Program FrFlow.Scala.Table FrFlow.Scala.Value.
 Require Import FrFlow.Scala.Meaning FrFlow.Scala.Library.
 Require Import FrFlow.Code.Outside FrFlow.Code.Conforms FrFlow.Code.Classes FrFlow.Code.Walk.
+Require FrFlow.Scala.Jdk.
 Import ListNotations.
 Open Scope string_scope.
 Open Scope Z_scope.
@@ -350,13 +351,15 @@ Ltac miss_open H :=
   end.
 
 (** What a type says of a value, in the hypothesis `H` that says the value is of it: nothing kept where it
-    says nothing; that a call can be made on it, of a reference; the value itself, of a truth value or unit. *)
+    says nothing; that a call can be made on it, of a reference; the value itself, of a truth value or unit;
+    each of none and an exception, of what is thrown. *)
 Ltac typed H :=
-  lazy beta iota zeta delta -[identity receiver held names] in H;
+  lazy beta iota zeta delta -[identity receiver held names Jdk.as_exn] in H;
   lazymatch type of H with
   | True => clear H
   | identity ?v => pose proof (identity_receiver v H)
   | held ?v = _ /\ receiver ?v = _ => let R := fresh H in destruct H as [H R]
+  | ?v = _ \/ (exists _, Jdk.as_exn ?v = _) => destruct H as [H | [? H]]; [first [subst v | idtac] |]
   | exists _, ?v = _ => let b := fresh "b" in destruct H as [b H]; first [subst v | idtac]
   | ?v = VUnit => first [subst v | idtac]
   | _ => idtac
@@ -398,11 +401,29 @@ Ltac meets_answer :=
           | Vis _ _ => change (held v) with d
           | Call _ _ _ => change (held v) with d
           end ]
+  | |- context [Jdk.as_exn ?v] =>
+      first
+        [ match goal with E : Jdk.as_exn v = _ |- _ => rewrite E end
+        | let d := eval lazy in (Jdk.as_exn v) in
+          lazymatch d with
+          | Some _ => change (Jdk.as_exn v) with d
+          | None => change (Jdk.as_exn v) with d
+          end ]
+  | |- context [equal ?T' ?a ?b] =>
+      unify b vnull;
+      rewrite (@equal_null T' a ltac:(first [assumption | left; reflexivity | right; eexists; eassumption]))
   | |- context [equal ?T' ?a ?b] =>
       let E := fresh in
       assert (E : unnamed T' "equals" = true) by (vm_compute; reflexivity);
       rewrite (equal_identity T' a b ltac:(assumption) ltac:(assumption) E); clear E
-  | |- context [val_eqb ?a ?a] => rewrite (val_eqb_refl a)
+  | |- context [val_eqb ?a ?b] =>
+      first
+        [ unify a b; change (val_eqb a b) with (val_eqb a a); rewrite (val_eqb_refl a)
+        | let d := eval lazy in (val_eqb a b) in
+          lazymatch d with
+          | true => change (val_eqb a b) with true
+          | false => change (val_eqb a b) with false
+          end ]
   end.
 
 (** A result or a truth value the program `p` goes by, not known: each way it can be. *)
@@ -418,6 +439,7 @@ Ltac meets_each p :=
       | sum _ _ => idtac
       end;
       destruct x
+  | context [val_eqb ?a ?b] => let E := fresh "E" in destruct (val_eqb a b) eqn:E
   end.
 
 (** The program of the goal with its next step computed: its first operation, call or result, what follows
@@ -426,7 +448,7 @@ Ltac meets_head :=
   typed_all;
   lazymatch goal with
   | |- meets ?T ?N ?h ?a ?i ?G ?tr ?w0 (Running ?p) ?w =>
-      let p' := eval lazy head beta iota zeta delta -[implemented held equal val_eqb] in p in
+      let p' := eval lazy head beta iota zeta delta -[implemented held equal val_eqb Jdk.as_exn] in p in
       lazymatch p' with
       | Vis ?o ?k =>
           let o' := eval lazy beta iota zeta delta -[receiver] in o in
@@ -448,7 +470,7 @@ Ltac meets_head :=
           aside_clear
       | _ =>
           change (meets T N h a i G tr w0 (Running p') w); aside_clear;
-          first [meets_each p'; meets_head | meets_answer; meets_head | idtac]
+          first [meets_answer; meets_head | meets_each p'; meets_head | idtac]
       end
   end.
 
@@ -501,10 +523,12 @@ Ltac miss_goal :=
 
 Ltac miss := aside_clear; cbv beta; miss_goal.
 
-(** The rule of what the program does next, at an event the claim says nothing of; then on. *)
+(** The rule of what the program does next, at an event the claim says nothing of; then on. A loop is left
+    as it is, for `meets_iter`. *)
 Ltac pass :=
   meets_head;
   lazymatch goal with
   | |- meets _ _ _ _ _ _ _ _ (Running (Ret _)) _ => apply meets_ret; intros ? ? ? ? ?; miss
-  | |- _ => step_rule; intros; typed_all; split; [miss | intros; typed_all]
+  | |- meets _ _ _ _ _ _ _ _ (Running (Iter _ _ _)) _ => idtac
+  | |- _ => step_rule; intros; typed_all; (split; [miss | intros; typed_all])
   end.
