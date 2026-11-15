@@ -12,7 +12,7 @@ Proof. apply nothing_runs. Qed.
 (** A call of a method of the code, on an object the execution says was made: the object is one of the code, and
     the call is no event made and responded to at once. *)
 Lemma method_begun {history : Z -> Event} {N} s {cls d h ys c from} :
-  conforms Code_files Code_table N history -> madeBefore history h cls from ->
+  conforms Code_files Code_table Code_classes N history -> madeBefore history h cls from ->
   impl Code_table cls s = Some d -> calledBy history (Invocation_mk (label_of s) (h :: ys)) c from ->
   exists r inside, names N h (vref cls r) /\
     history from = Event_Invoke c inside (Invocation_mk (label_of s) (h :: ys)).
@@ -42,7 +42,7 @@ Proof. intros H. exists c. exact (done_completed H). Qed.
 (** Proven of `ThreadHerd.assertOnOwnerThread`'s tree: it compares `Thread.currentThread()` with the herd's
     owner and throws if they differ, so a call of it by the owner does not throw. *)
 Lemma assertOnOwnerThread_returns {heldIn} {history : Z -> Event} {N h r inside w1} :
-  conforms Code_files Code_table N history ->
+  conforms Code_files Code_table Code_classes N history ->
   readAs history h "ox.internal.ThreadHerd herdOwner" (heldIn "ox.internal.ThreadHerd herdOwner" h) ->
   (forall c from response to, completedBy history
     (Invocation_mk "java.lang.Thread$ currentThread :java.lang.Thread" []) c from response to ->
@@ -74,12 +74,12 @@ Proof. intros Hab (m & by_ & ins & hs & Hm & H). exists m, by_, ins, hs. split; 
 
 (** A call completes after it is made. *)
 Lemma completed_after {history : Z -> Event} {N c who from r to} :
-  conforms Code_files Code_table N history -> completedBy history c who from r to -> from < to.
+  conforms Code_files Code_table Code_classes N history -> completedBy history c who from r to -> from < to.
 Proof. intros C [[_ ->] | [_ (sp & Hr)]]; [lia |]. pose proof (responded_after C Hr). lia. Qed.
 
 (** A call that completes after a moment and was made before it is pending at it: it is responded to once. *)
 Lemma still_pending {history : Z -> Event} {N c who from r to} m :
-  conforms Code_files Code_table N history -> completedBy history c who from r to -> from < m -> m < to ->
+  conforms Code_files Code_table Code_classes N history -> completedBy history c who from r to -> from < m -> m < to ->
   from < m /\ begun history c who from /\ ~ overBy history who from m.
 Proof.
   intros C [[_ ->] | [Hb (sp & Hr)]] Hfm Hmt; [lia |].

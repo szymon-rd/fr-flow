@@ -59,15 +59,17 @@ Definition gives (N : naming) (a : Response) (x : res) : Prop :=
 
 (** ** Types
 
-    What the JVM keeps of types, as far as a proof needs it: a truth value, a number and unit are those; an
-    object of a class that no function and no data of Scala is an object of (a thread, an atomic boolean) is a
-    reference. Of any other type nothing is said. *)
+    What the JVM keeps of types, as far as a proof needs it: a truth value, a number and unit are those. What
+    is known of a class the code mentions is read from its class file where the code is read (`classes`):
+    whether its objects are known by their identity, whether it is a class of what is thrown, and which method
+    a function is called by where it is taken as an interface. Of any other type nothing is said. *)
 
-Definition reference (cls : string) : bool :=
-  existsb (String.eqb cls) ["java.lang.Thread"; "java.util.concurrent.atomic.AtomicBoolean";
-    "java.util.concurrent.atomic.AtomicInteger"; "java.util.concurrent.atomic.AtomicReference";
-    "java.util.concurrent.ConcurrentHashMap$.KeySetView"; "java.util.concurrent.CompletableFuture";
-    "java.util.concurrent.Semaphore"].
+Record classes := Classes {
+  identities : list string;    (* classes of the JDK that keep `Object`'s `equals`: an object is itself, no data *)
+  throwables : list string;    (* classes of what is thrown *)
+  functions : list string }.   (* the one method of each interface a function is taken as: its class and name *)
+
+Definition reference (known : classes) (cls : string) : bool := existsb (String.eqb cls) (identities known).
 
 Definition identity (v : val) : Prop :=
   match v with
@@ -90,19 +92,18 @@ Fixpoint module_class (cls : string) : bool :=
   end.
 
 (** A class of what is thrown, and a value of one: none, or an exception. *)
-Definition throwable (cls : string) : bool :=
-  String.eqb cls "java.lang.Throwable" || existsb (String.eqb "java.lang.Throwable") (supers cls).
+Definition throwable (known : classes) (cls : string) : bool := existsb (String.eqb cls) (throwables known).
 
 (** A value of any other class is itself where a name holds it (the place of a variable and an argument passed
     by name are values of no class), and a value a call can be made on: neither unit nor an object named
     alone. *)
-Definition of_class (cls : string) (v : val) : Prop :=
+Definition of_class (known : classes) (cls : string) (v : val) : Prop :=
   if String.eqb cls "scala.Unit" then v = VUnit
   else if String.eqb cls "scala.Boolean" then exists b, v = VBool b
   else if String.eqb cls "scala.Int" then exists z, v = vint z
-  else if reference cls then identity v
+  else if reference known cls then identity v
   else if general cls || module_class cls then True
-  else if throwable cls then v = vnull \/ exists e, Jdk.as_exn v = Some e
+  else if throwable known cls then v = vnull \/ exists e, Jdk.as_exn v = Some e
   else held v = oret v /\ receiver v = [v].
 
 Lemma identity_receiver (v : val) : identity v -> receiver v = [v].
@@ -128,20 +129,18 @@ Fixpoint after_last (s : string) : option string :=
       end
   end.
 
-Definition returns (method : string) (x : res) : Prop :=
+Definition returns (known : classes) (method : string) (x : res) : Prop :=
   match x, after_last method with
-  | inr v, Some cls => of_class cls v
+  | inr v, Some cls => of_class known cls v
   | _, _ => True
   end.
 
-(** A call of a function is by the method of the interface it is taken as. Of these a call runs the
-    function's body. *)
-Definition applies (method : string) : bool :=
-  existsb (fun p => String.prefix p method) ["scala.Function0 apply "; "scala.Function1 apply ";
+(** A call of a function is by the method of the interface it is taken as: of Scala's own function types, or
+    of an interface with one method. Of these a call runs the function's body. *)
+Definition applies (known : classes) (method : string) : bool :=
+  existsb (fun p => String.prefix p method) (["scala.Function0 apply "; "scala.Function1 apply ";
     "scala.Function2 apply "; "scala.Function3 apply "; "scala.ContextFunction1 apply ";
-    "scala.ContextFunction2 apply "; "java.lang.Runnable run "; "java.util.concurrent.Callable call ";
-    "java.util.function.Consumer accept "; "java.util.function.Supplier get ";
-    "java.util.function.Function apply "; "java.util.function.Predicate test "].
+    "scala.ContextFunction2 apply "] ++ functions known).
 
 Definition by_name_apply : string := "scala.Function0 apply :java.lang.Object".
 
@@ -150,6 +149,7 @@ Section Conforms.
   (** The code: its files, and the table of what they define (`Table.build`, computed where the files are). *)
   Variable files : list tree.
   Variable T : table.
+  Variable known : classes.
   Definition run : code -> val -> program := Meaning.interp T Outside.outside Library.supers.
 
   Variable N : naming.
@@ -170,7 +170,7 @@ Section Conforms.
     end.
 
   Definition field_typed (cls name : string) (v : val) : Prop :=
-    match field_class cls name with Some c => of_class c v | None => True end.
+    match field_class cls name with Some c => of_class known c v | None => True end.
 
   (** The object at a place, as the execution names it. *)
   Definition at_place (y : Value) (r : nat) : Prop := names N y (vref (class_at N r) r).
@@ -247,10 +247,10 @@ Section Conforms.
     | takes_invoke p m args k ys :
         settles p (Vis (ExtCall 0 m args) k) -> Forall2 (names N) ys args ->
         e = Event_Invoke a (Some i) (Invocation_mk m ys) ->
-        takes a i w e (Running p) (Waiting w (returns m) k)
+        takes a i w e (Running p) (Waiting w (returns known m) k)
     | takes_atomic p m args k ys r spawns x :
         settles p (Vis (ExtCall 0 m args) k) -> Forall2 (names N) ys args ->
-        e = Event_Atomic a (Some i) (Invocation_mk m ys) r spawns -> gives N r x -> returns m x ->
+        e = Event_Atomic a (Some i) (Invocation_mk m ys) r spawns -> gives N r x -> returns known m x ->
         takes a i w e (Running p) (Running (k x))
     | takes_method p s on args k ys :
         settles p (Call (Method s) (VList (on :: args)) k) -> Forall2 (names N) ys (receiver on ++ args) ->
@@ -309,7 +309,7 @@ Section Conforms.
     Forall2 (fun p v =>
       if by_name p then exists b sc, v = VCode (Thunk b sc)
       else match p with
-        | ValDef _ _ t _ => match ty_class t with Some c => of_class c v | None => True end
+        | ValDef _ _ t _ => match ty_class t with Some c => of_class known c v | None => True end
         | _ => True
         end) (params d) args.
 
@@ -342,7 +342,7 @@ Section Conforms.
   Definition function_calls : Prop :=
     forall i a inside m c y ys,
       history i = Event_Invoke a inside (Invocation_mk m (y :: ys)) ->
-      applies m = true -> names N y (VCode c) -> written c ->
+      applies known m = true -> names N y (VCode c) -> written c ->
       exists args, Forall2 (names N) ys args /\ follows a i (run c (VList args)).
 
   (** A call of the code is no event made and responded to at once. *)
@@ -353,7 +353,7 @@ Section Conforms.
          impl T cls s = Some d -> False) /\
       (forall owner name signature c d, m = label owner name signature -> class_of T owner = Some c ->
          is_module c = true -> impl T owner (Member owner name signature) = Some d -> False) /\
-      (forall c y ys', applies m = true -> ys = y :: ys' -> names N y (VCode c) -> written c -> False).
+      (forall c y ys', applies known m = true -> ys = y :: ys' -> names N y (VCode c) -> written c -> False).
 
   (** An object the execution says is made is an object of the code, made once. *)
   Definition made_once : Prop :=
@@ -374,5 +374,5 @@ Section Conforms.
 End Conforms.
 
 (** The execution is one of the code read: under some naming of its values. *)
-Definition runs (files : list tree) (T : table) (history : Z -> Event) : Prop :=
-  exists N : naming, conforms files T N history.
+Definition runs (files : list tree) (T : table) (known : classes) (history : Z -> Event) : Prop :=
+  exists N : naming, conforms files T known N history.

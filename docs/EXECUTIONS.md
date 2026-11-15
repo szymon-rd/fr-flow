@@ -159,6 +159,11 @@ What it is for an execution to be one of some code is said once, in FrFlow's Roc
 - A call of what is outside the code (the JDK, a class not read) is an event with any response of its type.
   What it gives is what the model assumes of it, in the model's own words (`getGivesTheFlag`).
 - The execution's values name the code's: each at most one, numbers, texts and truth values themselves.
+- What is known of a class the code mentions is read from its class file where the code is read, and generated
+  beside the trees (`Code_classes`): the classes of the JDK whose objects are known by their identity (they can
+  be made and keep `Object`'s `equals`), the classes of what is thrown, and the one method of each interface a
+  function can be taken as. No class is listed by hand; a class outside the JDK that extends one of the first
+  and says what `equals` is is not considered.
 - Code whose meaning is not given (`Chaos`) may make any event: a proof passes it only where it is not reached.
 
 A claim of the code is then a claim with parts like any other: its parts are the assumptions it needs, and its

@@ -34,6 +34,7 @@ Section Logic.
 
   Variable files : list tree.
   Variable T : table.
+  Variable known : classes.
   Variable N : naming.
   Variable history : Z -> Event.
 
@@ -42,8 +43,8 @@ Section Logic.
   Variable i : Z.
   Variable claim : Z -> Prop.
 
-  Abbreviation steps := (steps T N history a i).
-  Abbreviation takes := (takes T N a i).
+  Abbreviation steps := (steps T known N history a i).
+  Abbreviation takes := (takes T known N a i).
   Abbreviation quiet := (quiet history a i).
 
   (** The event makes the call `inv` inside the call: made, or made and responded to at once. *)
@@ -126,7 +127,7 @@ Section Logic.
   (** An operation on an object of the code. *)
   Lemma meets_op tr w0 X (o : Machine.op code obj X) (k : X -> program) w :
     ~ outside_call o -> ~ unsaid o ->
-    (forall w1 x, w0 <= w1 -> past w1 tr -> op_event T N a i o x (history w1) ->
+    (forall w1 x, w0 <= w1 -> past w1 tr -> op_event T known N a i o x (history w1) ->
        claim w1 /\ meets (w1 :: tr) (w1 + 1) (Running (k x)) w) ->
     meets tr w0 (Running (Vis o k)) w.
   Proof.
@@ -137,7 +138,7 @@ Section Logic.
   (** A field of an object is read: the value read is of the field's type. *)
   Lemma meets_read tr w0 yh cls r f (k : exn + val -> program) w :
     names N yh (vref cls r) ->
-    (forall w1 v y, w0 <= w1 -> past w1 tr -> names N y v -> field_typed T cls f v ->
+    (forall w1 v y, w0 <= w1 -> past w1 tr -> names N y v -> field_typed T known cls f v ->
        history w1 = Event_Read a (Some i) yh (field_label T cls f) y ->
        claim w1 /\ meets (w1 :: tr) (w1 + 1) (Running (k (inr v))) w) ->
     meets tr w0 (Running (Vis (ObjGet r f) k)) w.
@@ -153,7 +154,7 @@ Section Logic.
     (forall w1 ys, w0 <= w1 -> past w1 tr -> Forall2 (names N) ys args ->
        makes (history w1) (Invocation_mk m ys) ->
        claim w1 /\
-       forall w2 r x, w1 < w2 -> done_inside history a i m ys w1 r w2 -> gives N r x -> returns m x ->
+       forall w2 r x, w1 < w2 -> done_inside history a i m ys w1 r w2 -> gives N r x -> returns known m x ->
          meets (w1 :: tr) w2 (Running (k x)) w) ->
     meets tr w0 (Running (Vis (ExtCall 0 m args) k)) w.
   Proof.
@@ -281,13 +282,13 @@ Section Logic.
 
   (** ** A call in an execution of the code *)
 
-  Hypothesis conformed : conforms files T N history.
+  Hypothesis conformed : conforms files T known N history.
 
   (** A call of a method of the code meets a claim at every event of its own, if its program does. *)
   Lemma method_meets inside s cls r d y ys :
     history i = Event_Invoke a inside (Invocation_mk (label_of s) (y :: ys)) ->
     names N y (vref cls r) -> impl T cls s = Some d ->
-    (forall args w, Forall2 (names N) ys args -> passed d args ->
+    (forall args w, Forall2 (names N) ys args -> passed known d args ->
        meets [] (i + 1) (Running (run T (Method s) (VList (vref cls r :: args)))) w) ->
     forall w, direct a i (history w) -> claim w.
   Proof.
@@ -302,7 +303,7 @@ Section Logic.
   (** A call of a function the code wrote. *)
   Lemma function_meets inside m c y ys :
     history i = Event_Invoke a inside (Invocation_mk m (y :: ys)) ->
-    applies m = true -> names N y (VCode c) -> written files c ->
+    applies known m = true -> names N y (VCode c) -> written files c ->
     (forall args w, Forall2 (names N) ys args -> meets [] (i + 1) (Running (run T c (VList args))) w) ->
     forall w, direct a i (history w) -> claim w.
   Proof.
@@ -315,8 +316,8 @@ Section Logic.
 
 End Logic.
 
-Arguments method_meets {files T N history a i} claim conformed {inside} s {cls r d y ys} _ _ _ _ w _.
-Arguments function_meets {files T N history a i} claim conformed {inside m c y ys} _ _ _ _ _ w _.
+Arguments method_meets {files T known N history a i} claim conformed {inside} s {cls r d y ys} _ _ _ _ w _.
+Arguments function_meets {files T known N history a i} claim conformed {inside m c y ys} _ _ _ _ _ w _.
 
 (** ** The values an event names, one by one *)
 
@@ -358,7 +359,7 @@ Ltac typed H :=
   lazymatch type of H with
   | True => clear H
   | identity ?v => pose proof (identity_receiver v H)
-  | held ?v = _ /\ receiver ?v = _ => let R := fresh H in destruct H as [H R]
+  | held ?v = _ /\ receiver ?v = _ => let R := fresh "Hcalled_on" in destruct H as [H R]
   | ?v = _ \/ (exists _, Jdk.as_exn ?v = _) => destruct H as [H | [? H]]; [first [subst v | idtac] |]
   | exists _, ?v = _ => let b := fresh "b" in destruct H as [b H]; first [subst v | idtac]
   | ?v = VUnit => first [subst v | idtac]
@@ -367,11 +368,11 @@ Ltac typed H :=
 
 Ltac typed_all :=
   repeat match goal with
-  | H : field_typed _ _ _ _ |- _ => typed H
-  | H : returns _ (inr _) |- _ => typed H
-  | H : returns _ (inl _) |- _ => clear H
+  | H : field_typed _ _ _ _ _ |- _ => typed H
+  | H : returns _ _ (inr _) |- _ => typed H
+  | H : returns _ _ (inl _) |- _ => clear H
   | H : called_as _ _ ?m |- _ => lazy in H; lazymatch type of H with True => clear H | _ = _ => subst m end
-  | H : op_event _ _ _ _ _ _ _ |- _ =>
+  | H : op_event _ _ _ _ _ _ _ _ |- _ =>
       cbn [op_event] in H; miss_open H; repeat match goal with E : ?x = inr _ |- _ => is_var x; subst x end
   end.
 
@@ -447,29 +448,29 @@ Ltac meets_each p :=
 Ltac meets_head :=
   typed_all;
   lazymatch goal with
-  | |- meets ?T ?N ?h ?a ?i ?G ?tr ?w0 (Running ?p) ?w =>
+  | |- meets ?T ?C ?N ?h ?a ?i ?G ?tr ?w0 (Running ?p) ?w =>
       let p' := eval lazy head beta iota zeta delta -[implemented held equal val_eqb Jdk.as_exn] in p in
       lazymatch p' with
       | Vis ?o ?k =>
           let o' := eval lazy beta iota zeta delta -[receiver] in o in
           let K := fresh "K" in
-          pose (K := k); change (meets T N h a i G tr w0 (Running (Vis o' K)) w); aside_clear;
+          pose (K := k); change (meets T C N h a i G tr w0 (Running (Vis o' K)) w); aside_clear;
           repeat match goal with E : receiver ?v = _ |- _ => rewrite E end; cbn [app]
       | Call ?c ?arg ?k =>
           let c' := eval lazy in c in
           let arg' := eval lazy in arg in
           let K := fresh "K" in
-          pose (K := k); change (meets T N h a i G tr w0 (Running (Call c' arg' K)) w); aside_clear
-      | Ret ?x => let x' := eval lazy in x in change (meets T N h a i G tr w0 (Running (Ret x')) w); aside_clear
+          pose (K := k); change (meets T C N h a i G tr w0 (Running (Call c' arg' K)) w); aside_clear
+      | Ret ?x => let x' := eval lazy in x in change (meets T C N h a i G tr w0 (Running (Ret x')) w); aside_clear
       | Iter ?body ?s ?k =>
           first
-            [ is_var body; is_var k; change (meets T N h a i G tr w0 (Running (Iter body s k)) w)
+            [ is_var body; is_var k; change (meets T C N h a i G tr w0 (Running (Iter body s k)) w)
             | let B := fresh "B" in
               let K := fresh "K" in
-              pose (B := body); pose (K := k); change (meets T N h a i G tr w0 (Running (Iter B s K)) w) ];
+              pose (B := body); pose (K := k); change (meets T C N h a i G tr w0 (Running (Iter B s K)) w) ];
           aside_clear
       | _ =>
-          change (meets T N h a i G tr w0 (Running p') w); aside_clear;
+          change (meets T C N h a i G tr w0 (Running p') w); aside_clear;
           first [meets_answer; meets_head | meets_each p'; meets_head | idtac]
       end
   end.
@@ -477,13 +478,13 @@ Ltac meets_head :=
 (** The rule of what the program does next. *)
 Ltac step_rule :=
   lazymatch goal with
-  | |- meets _ _ _ _ _ _ _ _ (Running (Vis (ObjGet _ _) _)) _ => eapply meets_read; [eassumption |]
-  | |- meets _ _ _ _ _ _ _ _ (Running (Vis (ExtCall 0 _ _) _)) _ => apply meets_called
-  | |- meets _ _ _ _ _ _ _ _ (Running (Vis _ _)) _ =>
+  | |- meets _ _ _ _ _ _ _ _ _ (Running (Vis (ObjGet _ _) _)) _ => eapply meets_read; [eassumption |]
+  | |- meets _ _ _ _ _ _ _ _ _ (Running (Vis (ExtCall 0 _ _) _)) _ => apply meets_called
+  | |- meets _ _ _ _ _ _ _ _ _ (Running (Vis _ _)) _ =>
       apply meets_op; [intros [] | intros [] |]
-  | |- meets _ _ _ _ _ _ _ _ (Running (Call (Method _) _ _)) _ => eapply meets_method; [lazy; reflexivity |]
-  | |- meets _ _ _ _ _ _ _ _ (Running (Call _ _ _)) _ => apply meets_function; [exact I |]
-  | |- meets _ _ _ _ _ _ _ _ (Running (Ret _)) _ => apply meets_ret
+  | |- meets _ _ _ _ _ _ _ _ _ (Running (Call (Method _) _ _)) _ => eapply meets_method; [lazy; reflexivity |]
+  | |- meets _ _ _ _ _ _ _ _ _ (Running (Call _ _ _)) _ => apply meets_function; [exact I |]
+  | |- meets _ _ _ _ _ _ _ _ _ (Running (Ret _)) _ => apply meets_ret
   end.
 
 Ltac step := meets_head; step_rule.
@@ -507,7 +508,7 @@ Ltac miss_now :=
       | M : ?h ?w = _, E : makes _ _ (?h ?w) _ |- _ =>
           destruct E as [E | (? & ? & E)]; rewrite E in M;
           first [discriminate M | injection M; intros; subst; first [congruence | miss_given]]
-      | M : ?h ?w = _, E : op_event _ _ _ _ _ _ (?h ?w) |- _ =>
+      | M : ?h ?w = _, E : op_event _ _ _ _ _ _ _ (?h ?w) |- _ =>
           cbn [op_event] in E; miss_open E; congruence
       end ].
 
@@ -540,7 +541,7 @@ Ltac miss := aside_clear; cbv beta; miss_goal.
 Ltac pass :=
   meets_head;
   lazymatch goal with
-  | |- meets _ _ _ _ _ _ _ _ (Running (Ret _)) _ => apply meets_ret; intros ? ? ? ? ?; miss
-  | |- meets _ _ _ _ _ _ _ _ (Running (Iter _ _ _)) _ => idtac
+  | |- meets _ _ _ _ _ _ _ _ _ (Running (Ret _)) _ => apply meets_ret; intros ? ? ? ? ?; miss
+  | |- meets _ _ _ _ _ _ _ _ _ (Running (Iter _ _ _)) _ => idtac
   | |- _ => step_rule; intros; typed_all; (split; [miss | intros; typed_all])
   end.

@@ -55,7 +55,7 @@ Proof.
       repeat destruct (excluded_middle_informative _); discriminate.
 Defined.
 
-Lemma nothing_runs (files : list tree) (T : table) : runs files T (fun _ => Event_Stutter).
+Lemma nothing_runs (files : list tree) (T : table) (known : classes) : runs files T known (fun _ => Event_Stutter).
 Proof.
   exists plain_naming. repeat split.
   - intros i a inside s cls r d y ys H. discriminate H.
@@ -118,12 +118,13 @@ Section Walk.
 
   Variable files : list tree.
   Variable T : table.
+  Variable known : classes.
   Variable N : naming.
   Variable history : Z -> Event.
 
-  Abbreviation takes := (takes T N).
+  Abbreviation takes := (takes T known N).
   Abbreviation settles := (settles T).
-  Abbreviation follows := (follows T N history).
+  Abbreviation follows := (follows T known N history).
 
   (** ** What a program does next *)
 
@@ -157,11 +158,11 @@ Section Walk.
   (** Each way a running call takes an event. *)
   Lemma takes_running a i w e p st :
     takes a i w e (Running p) st ->
-    (exists X (o : Machine.op code obj X) k x, settles p (Vis o k) /\ op_event T N a i o x e /\ st = Running (k x)) \/
+    (exists X (o : Machine.op code obj X) k x, settles p (Vis o k) /\ op_event T known N a i o x e /\ st = Running (k x)) \/
     (exists m args k ys, settles p (Vis (ExtCall 0 m args) k) /\ Forall2 (names N) ys args /\
-       e = Event_Invoke a (Some i) (Invocation_mk m ys) /\ st = Waiting w (returns m) k) \/
+       e = Event_Invoke a (Some i) (Invocation_mk m ys) /\ st = Waiting w (returns known m) k) \/
     (exists m args k ys r spawns x, settles p (Vis (ExtCall 0 m args) k) /\ Forall2 (names N) ys args /\
-       e = Event_Atomic a (Some i) (Invocation_mk m ys) r spawns /\ gives N r x /\ returns m x /\
+       e = Event_Atomic a (Some i) (Invocation_mk m ys) r spawns /\ gives N r x /\ returns known m x /\
        st = Running (k x)) \/
     (exists s on args k ys, settles p (Call (Method s) (VList (on :: args)) k) /\
        Forall2 (names N) ys (receiver on ++ args) /\
@@ -196,9 +197,9 @@ Section Walk.
   Lemma takes_outside a i w e m args (k : res -> program) st :
     takes a i w e (Running (Vis (ExtCall 0 m args) k)) st ->
     exists ys, Forall2 (names N) ys args /\
-      ((e = Event_Invoke a (Some i) (Invocation_mk m ys) /\ st = Waiting w (returns m) k) \/
+      ((e = Event_Invoke a (Some i) (Invocation_mk m ys) /\ st = Waiting w (returns known m) k) \/
        (exists r spawns x, e = Event_Atomic a (Some i) (Invocation_mk m ys) r spawns /\ gives N r x /\
-          returns m x /\ st = Running (k x))).
+          returns known m x /\ st = Running (k x))).
   Proof.
     intros H. apply takes_running in H as
       [(X & o & k0 & x0 & Hs & Hop & _) | [(m0 & args0 & k0 & ys & Hs & Hn & -> & ->) |
@@ -214,7 +215,7 @@ Section Walk.
   (** An operation on an object of the code: the event it is. *)
   Lemma takes_op_of a i w e X (o : Machine.op code obj X) (k : X -> program) st :
     ~ outside_call o -> ~ unsaid o ->
-    takes a i w e (Running (Vis o k)) st -> exists x, op_event T N a i o x e /\ st = Running (k x).
+    takes a i w e (Running (Vis o k)) st -> exists x, op_event T known N a i o x e /\ st = Running (k x).
   Proof.
     intros Hext Hsaid H. apply takes_running in H as
       [(X0 & o0 & k0 & x0 & Hs & Hop & ->) | [(m0 & args0 & k0 & ys & Hs & _) |
@@ -229,7 +230,7 @@ Section Walk.
 
   Lemma takes_read a i w e r f (k : exn + val -> program) st :
     takes a i w e (Running (Vis (ObjGet r f) k)) st ->
-    exists v y yo, at_place N yo r /\ names N y v /\ field_typed T (class_at N r) f v /\
+    exists v y yo, at_place N yo r /\ names N y v /\ field_typed T known (class_at N r) f v /\
       e = Event_Read a (Some i) yo (field_label T (class_at N r) f) y /\ st = Running (k (inr v)).
   Proof.
     intros H. apply takes_op_of in H as (x & (v & y & yo & -> & H) & ->);
@@ -413,14 +414,14 @@ Section Walk.
 
   (** ** The calls of the code in an execution of it *)
 
-  Hypothesis conformed : conforms files T N history.
+  Hypothesis conformed : conforms files T known N history.
 
   (** A call of a method on an object of the code: its arguments; that its own events come after it; its
       stages, each reached from its start; and the step of each event of its own. *)
   Lemma method_steps a inside s cls r d y ys from :
     history from = Event_Invoke a inside (Invocation_mk (label_of s) (y :: ys)) ->
     names N y (vref cls r) -> impl T cls s = Some d ->
-    exists args (at_ : Z -> stage), Forall2 (names N) ys args /\ passed d args /\
+    exists args (at_ : Z -> stage), Forall2 (names N) ys args /\ passed known d args /\
       (forall w, direct a from (history w) -> from < w) /\
       (forall w, from < w ->
         steps a from (from + 1) (Running (run T (Method s) (VList (vref cls r :: args)))) w (at_ w)) /\
@@ -443,7 +444,7 @@ Section Walk.
   (** A call of a function the code wrote. *)
   Lemma function_steps a inside m c y ys from :
     history from = Event_Invoke a inside (Invocation_mk m (y :: ys)) ->
-    applies m = true -> names N y (VCode c) -> written files c ->
+    applies known m = true -> names N y (VCode c) -> written files c ->
     exists args (at_ : Z -> stage), Forall2 (names N) ys args /\
       (forall w, direct a from (history w) -> from < w) /\
       (forall w, from < w -> steps a from (from + 1) (Running (run T c (VList args))) w (at_ w)) /\
@@ -465,7 +466,7 @@ Section Walk.
   (** A call of a function the code wrote is no event made and responded to at once. *)
   Lemma function_not_atomic w a inside m c y ys resp spawns :
     history w = Event_Atomic a inside (Invocation_mk m (y :: ys)) resp spawns ->
-    applies m = true -> names N y (VCode c) -> written files c -> False.
+    applies known m = true -> names N y (VCode c) -> written files c -> False.
   Proof.
     intros He Hm Hy Hw.
     exact (proj2 (proj2 (proj1 (proj2 (proj2 (proj2 conformed))) _ _ _ _ _ _ _ He)) c y ys Hm eq_refl Hy Hw).
@@ -493,11 +494,11 @@ Section Walk.
 
 End Walk.
 
-Arguments method_steps {files T N history} conformed {a inside} s {cls r d y ys from} _ _ _.
-Arguments method_not_atomic {files T N history} conformed {w a inside} s {cls r d y ys resp spawns} _ _ _.
-Arguments function_steps {files T N history} conformed {a inside m c y ys from} _ _ _ _.
-Arguments made_named {files T N history} conformed {w b inside y cls hs} _.
-Arguments responded_once {files T N history} conformed {k k' a called r r' spawns spawns'} _ _.
-Arguments responded_after {files T N history} conformed {k a called r spawns} _.
-Arguments method_over {files T N history} conformed {a inside} s {cls r d y ys from k w resp spawns} _ _ _ _ _.
-Arguments function_not_atomic {files T N history} conformed {w a inside m c y ys resp spawns} _ _ _ _.
+Arguments method_steps {files T known N history} conformed {a inside} s {cls r d y ys from} _ _ _.
+Arguments method_not_atomic {files T known N history} conformed {w a inside} s {cls r d y ys resp spawns} _ _ _.
+Arguments function_steps {files T known N history} conformed {a inside m c y ys from} _ _ _ _.
+Arguments made_named {files T known N history} conformed {w b inside y cls hs} _.
+Arguments responded_once {files T known N history} conformed {k k' a called r r' spawns spawns'} _ _.
+Arguments responded_after {files T known N history} conformed {k a called r spawns} _.
+Arguments method_over {files T known N history} conformed {a inside} s {cls r d y ys from k w resp spawns} _ _ _ _ _.
+Arguments function_not_atomic {files T known N history} conformed {w a inside m c y ys resp spawns} _ _ _ _.

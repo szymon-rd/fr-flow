@@ -13,4 +13,5 @@ object ReadCode:
     def relative(path: String): String = root.filter(path.startsWith).fold(path)(r => path.drop(r.length))
       .dropWhile(_ == '/')
     ReadSource.only(cls, p => keep(relative(p))).collect { case (path, tree) if keep(relative(path)) =>
-      ReadUnit(relative(path).stripSuffix(".tasty").replaceAll("[^A-Za-z0-9]", "_"), tree) }
+      ReadUnit(relative(path).stripSuffix(".tasty").replaceAll("[^A-Za-z0-9]", "_"), tree,
+        ReadClasses.of(tree, cls.getClassLoader)) }

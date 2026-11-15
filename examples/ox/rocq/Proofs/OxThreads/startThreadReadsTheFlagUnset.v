@@ -8,7 +8,7 @@ Require Import FrFlow.Code.Outside FrFlow.Code.Conforms FrFlow.Code.Walk FrFlow.
 (** Proven of `ThreadHerd.assertNotShuttingDown`'s tree: it reads the herd's flag and throws if it is set, so a
     call of it that returns has read the flag unset. *)
 Lemma assertNotShuttingDown_returns {heldIn} {history : Z -> Event} {N h r c inside w1} :
-  conforms Code_files Code_table N history -> aHerdKeepsItsFields_claim heldIn history ->
+  conforms Code_files Code_table Code_classes N history -> aHerdKeepsItsFields_claim heldIn history ->
   names N h (vref "ox.internal.ThreadHerd" r) ->
   history w1 = Event_Invoke c inside (Invocation_mk "ox.internal.ThreadHerd assertNotShuttingDown :scala.Unit" [h]) ->
   forall w, direct c w1 (history w) -> forall v sp, history w = Event_Respond c w1 (Response_Returned v) sp ->
