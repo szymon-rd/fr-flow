@@ -23,8 +23,6 @@ Proof.
   split.
   { intros h code c w H. destruct (nothing_called_at_rest _ _ _ H). }
   split.
-  { intros h code c w (m & _ & H & _). destruct (nothing_begun_at_rest _ _ _ H). }
-  split.
   { intros s v w [[_ H1] H2]. destruct (H1 H2). }
   split.
   { intros h w (m & by_ & ins & hs & _ & H). discriminate H. }
@@ -42,6 +40,14 @@ Proof.
   { intros h code c t from b m other [[H _] _]. destruct (nothing_called_at_rest _ _ _ H). }
   split.
   { intros h t c w H. destruct (nothing_called_at_rest _ _ _ H). }
+  split.
+  { intros h h1 x. split; intros who from w [[_ H] _]; destruct (nothing_begun_at_rest _ _ _ H). }
+  split.
+  { intros f r h1 x. split; intros who from w [[_ H] _]; destruct (nothing_begun_at_rest _ _ _ H). }
+  split.
+  { intros b s t. repeat (intros; split). all: intros who from w [[_ H] _]; destruct (nothing_begun_at_rest _ _ _ H). }
+  split.
+  { intros t outer from inner w [[[_ H] _] _]. destruct (nothing_begun_at_rest _ _ _ H). }
   split.
   { intros h w H. repeat (destruct H as [H | H]); destruct (nothing_called_on_at_rest _ _ _ H). }
   split.

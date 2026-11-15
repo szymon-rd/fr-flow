@@ -2,7 +2,7 @@ Require Export FrFlowGen.OxThreads.startThreadCallersStayInside.Spec.
 Require Export Proofs.OxThreads.Lemmas.
 
 (** A caller of startThread is inside when it calls, and does nothing during the call that would take it out:
-    it neither closes the herd nor leaves its set, and no other thread removes it. *)
+    it neither closes a herd nor removes from a herd's set, and no other thread removes it. *)
 Lemma startThreadCallersStayInside_Proofs_complete : startThreadCallersStayInside_Obl_complete.
 Proof.
   intros history heldIn _ Hinside Hneither Honly h code c w [Hcalled | (m & Hm & Hbegun & Hpending)].
@@ -20,8 +20,12 @@ Proof.
     - split; intros Hc;
         destruct (one_call_at_a_moment history _ _ _ _ m Hc (begun_is_called _ _ _ _ Hbegun)) as [E _];
         discriminate E.
-    - apply (Hneither h code c k). exists m. split; [lia | split; [exact Hbegun |]].
-      intros Hover. apply Hpending. apply (over_later history c m k w); [lia | exact Hover]. }
+    - assert ((m < k /\ begun history (Invocation_mk
+          "ox.internal.ThreadHerd startThread scala.Function0:scala.Unit"%string [h; code]) c m) /\
+        ~ overBy history c m k) as Hp.
+      { split; [split; [lia | exact Hbegun] |]. intros Hover. apply Hpending.
+        apply (over_later history c m k w); [lia | exact Hover]. }
+      destruct (Hneither h code h c) as [Hclose Hremove]. split; [exact (Hclose c m k Hp) | exact (Hremove c m k Hp)]. }
   destruct IH as [[Hown Hnot] | [Hfork Hstays]].
   - left. split; [exact Hown |]. intros (m1 & Hm1 & Hc1).
     assert (m1 < k \/ m1 = k) as [Hlt | ->] by lia.
@@ -42,6 +46,6 @@ Proof.
   split.
   { intros h code c w H. destruct (nothing_called_at_rest _ _ _ H). }
   split.
-  { intros h code c w (m & _ & H & _). destruct (nothing_begun_at_rest _ _ _ H). }
+  { intros h code h1 x. split; intros who from w [[_ H] _]; destruct (nothing_begun_at_rest _ _ _ H). }
   intros h t c w H. destruct (nothing_called_at_rest _ _ _ H).
 Qed.

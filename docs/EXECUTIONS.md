@@ -66,6 +66,9 @@ A `Call[A]` names which calls of the execution are meant. `call.by(t)` is those 
 | `call.settles(w)` | There is a moment after `w` at which no call is pending. |
 | `call.spawned(w)` | The event into `w` spawns the call for its actor, to make on its own. |
 | `outer.calls(inner, w)` | At `w` a pending call of `outer` makes the call `inner` itself. |
+| `call.itselfCallsOnly(made => p)` | Each call that a call itself makes is one `p` says; `other.isCall(made)` says it is a call of `other`. |
+| `call.excludes(other)` | While a call is pending, its caller makes no call of `other`. |
+| `oneAtATime(t)` | The actor does one thing at a time: what it calls while a call of its own is pending, that call makes itself, or the actor calls while a call that call itself made is pending. A model assumes it of its threads. |
 | `eventually(w)(later => p)` | `p` at `w` or at some later moment. |
 
 ## Real code in a statement
@@ -90,6 +93,8 @@ val aThreadIsStartedOnce = Node.assumption("A thread is started at most once.")(
 - What the call takes is the statement's terms and constants in order, what it is called on first.
 - Code given by name is written `code.byName` (`h.startThread(code.byName)`); running it is `code()`.
 - `call(...)` reads code as a call where no word of a call follows it.
+- `o.method[A]("name")` is a call of the method of `o`'s class named so: a statement may name a method code
+  outside the class may not, as `o.field("name")` does of fields.
 - `methodOf[C](_.add(???))` is the name of a method as the code names it; `calledOn(o, method, w)` says a call of
   the method named `method` is made on `o` at `w`, whatever else it is given.
 

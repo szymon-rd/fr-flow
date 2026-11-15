@@ -131,6 +131,25 @@ Proof.
   - exists m, a, (m + 1). split; [left; split; [exact Hdone | reflexivity] | lia].
 Qed.
 
+(** ** One thing at a time *)
+
+(** What an actor calls while a call of its own is pending is among what that call itself calls, or is called
+    while one of those is pending. *)
+Lemma called_under (history : Z -> Event) (allowed : Invocation -> Prop) who outer from inner w :
+  oneAtATime history who ->
+  (forall made k, itselfMakes history made who from k -> allowed made) ->
+  (from < w /\ begun history outer who from) /\ ~ overBy history who from w -> calledBy history inner who w ->
+  allowed inner \/ exists between m, allowed between /\
+    (m < w /\ begun history between who m) /\ ~ overBy history who m w.
+Proof.
+  intros Hone Hall [[Hlt Hbegun] Hnot] Hcalled.
+  destruct (Hone outer from inner w (conj (conj (conj Hlt Hbegun) Hnot) Hcalled))
+    as [Hit | (between & m & [[[Hfm Hmw] Hat] Hpending])].
+  - left. exact (Hall inner w Hit).
+  - right. exists between, m. split; [apply (Hall between m); left; exact Hat |].
+    split; [split; [exact Hmw | exists (Some from); exact Hat] | exact Hpending].
+Qed.
+
 (** ** A run in which nothing happens
 
     It meets every statement that says what follows a call: what shows that statements can hold together. *)

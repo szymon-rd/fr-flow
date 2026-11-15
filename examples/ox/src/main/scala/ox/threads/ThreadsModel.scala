@@ -33,7 +33,7 @@ val oxThreads: FrModel = FrModel("OxThreads")(
   onlyStartThreadAdds.refines(nothingIsAddedOnceEmpty),
 
   startThreadIsCalledFromInside.refines(startThreadCallersStayInside),
-  startThreadNeitherClosesNorLeaves.refines(startThreadCallersStayInside),
+  startThreadStaysOutOfHerds.refines(startThreadCallersStayInside),
   aForkRemovesOnlyItself.refines(startThreadCallersStayInside, codeRunsBeforeLeaving),
 
   closingSetsTheFlag.refines(aClosedHerdRefusesToStart),
@@ -60,12 +60,20 @@ val oxThreads: FrModel = FrModel("OxThreads")(
   onlyAForkFunctionRemoves.refines(aForkRemovesOnlyItself, codeRunsBeforeLeaving),
   theForkFunctionRemovesTheCurrentThread.refines(aForkRemovesOnlyItself),
 
+  startThreadCallsFive.refines(startThreadStaysOutOfHerds),
+  theClosingCheckStaysOutOfHerds.refines(startThreadStaysOutOfHerds),
+  theTreeCheckStaysOutOfHerds.refines(startThreadStaysOutOfHerds),
+  aFactoryStaysOutOfHerds.refines(startThreadStaysOutOfHerds),
+  theClosingCheckCallsGet.refines(theClosingCheckStaysOutOfHerds),
+  theJdkStaysOutOfHerds.refines(startThreadStaysOutOfHerds, theClosingCheckStaysOutOfHerds),
+  aThreadDoesOneThingAtATime.refines(startThreadStaysOutOfHerds, theClosingCheckStaysOutOfHerds),
+
   herdsAreMade.refines(startThreadReadsTheFlagUnset, closingSetsTheFlagItself,
     theForkFunctionRemovesTheCurrentThread, startThreadAddsWhileItRuns, startThreadAddsWhatItsFactoryMade,
     startThreadAddsBeforeItStarts, closingEndsOnceFoundEmpty, closingSetsTheFlagOnlyToTrue,
     startThreadIsPendingWhileItAdds, nothingIsBeingAddedWhenEmpty, nothingIsAddedOnceEmpty,
     everyForkHasLeftOnceClosed, closingSetsTheFlag, aClosedHerdRefusesToStart,
-    aForkFunctionRemovesAfterTheCode),
+    aForkFunctionRemovesAfterTheCode, startThreadCallsFive, theClosingCheckCallsGet),
   aHerdKeepsItsFields.refines(startThreadReadsTheFlagUnset, closingSetsTheFlagItself,
     theForkFunctionRemovesTheCurrentThread, closingEndsOnceFoundEmpty),
   currentThreadIsTheCaller.refines(closingSetsTheFlagItself, aForkRemovesOnlyItself, closingEndsOnceFoundEmpty),

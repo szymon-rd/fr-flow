@@ -9,7 +9,7 @@ the moment takes it as an argument). The herd's part of
 the safety tree (roots A and B at the level of a herd) is a real model, checked by FrFlow with its steps proven:
 `examples/ox/src/main/scala/ox/threads`. Proving it changed three statements, which this sketch does not yet
 show: the code runs before the fork leaves at every moment of the run, closing is the owner's, and a caller of
-startThread neither closes the herd nor leaves its set.
+startThread neither closes a herd nor removes from a herd's set.
 
 No call of the JDK is one event any more. `add` on the herd's set and `set` on its flag are atomic as the JDK
 means it: each takes effect at one moment during the call (`addingIsAtomic`, `settingIsAtomic`). A fork is a
@@ -53,9 +53,16 @@ else. That a fork calls the code it was made to run only before it leaves (`code
 from parts: the code is called only by the function startThread handed the factory, and a thread runs one such
 function once (both assumed: of what startThread is given by name, and of the thread a factory makes); a fork
 is removed only by itself in such a function; and that function removes only after its call of the code has
-been responded to (`aForkFunctionRemovesAfterTheCode`, proven of the function's tree). Still stated and not
-proven of the code: that a caller of startThread neither closes nor leaves, that closing's traversals do not
-throw, and that a herd's set and flag are plain. That nothing is added during closing's last check is assumed:
+been responded to (`aForkFunctionRemovesAfterTheCode`, proven of the function's tree). That a thread
+calling startThread neither closes a herd nor removes from a herd's set (`startThreadStaysOutOfHerds`) now
+follows from parts too: a thread does one thing at a time (assumed: what it calls while a call of its own is
+pending is called by that call itself or during a call that call itself made); startThread itself calls only the
+herd's two checks, a factory's `newThread`, `add` and `start` (`startThreadCallsFive`, proven of its tree), and
+the first check only `get` (`theClosingCheckCallsGet`, proven); during the JDK's three calls and the factory's
+the thread stays out of herds (assumed). What is left is of the second check alone,
+`verifyCurrentThreadInScopeTree`, which calls into scopes not read here (`theTreeCheckStaysOutOfHerds`).
+Still stated and not proven of the code: that, that closing's traversals do not throw, and that a herd's set and
+flag are plain (a plain set may be asked `contains`, which the herd does). That nothing is added during closing's last check is assumed:
 the two roots on what a closed herd holds rest on it. The scopes above the herd and liveness are not in the model.
 
 ## The tree

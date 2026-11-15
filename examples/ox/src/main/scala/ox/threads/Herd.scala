@@ -101,12 +101,6 @@ val aForkRemovesOnlyItself = Node.claim("A thread is removed from a herd's set o
   forall((h: Obj[ThreadHerd], t: Obj[Thread], c: Obj[Thread], w: Term[BigInt]) =>
     threads(h).remove(t).by(c).called(w) implies (c === t)))
 
-val startThreadNeitherClosesNorLeaves = Node.claim(
-  "While a thread is calling startThread of a herd, it neither closes the herd nor removes itself from its set.")(
-  forall((h: Obj[ThreadHerd], code: Obj[Code], c: Obj[Thread], w: Term[BigInt]) =>
-    starting(h, code).by(c).pendingAt(w) implies
-      (!closing(h).by(c).called(w) && !threads(h).remove(c).by(c).called(w))))
-
 // Said of every moment `w` of a run in which the fork is made, whenever in it (`made`).
 // With capture checking this would be what the compiler says: what startThread is given by name is its own.
 val onlyAForkFunctionCallsTheCode = Node.assumption(
