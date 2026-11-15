@@ -1,6 +1,7 @@
 package frflow.proof.rocq
 
 import frflow.core.name.RelPath
+import frflow.proof.layout.ExecutionsLibrary
 import frflow.proof.prover.ast.{Decl, ProverModule, ModuleName}
 import frflow.proof.rocq.RocqNames.Scope
 
@@ -42,7 +43,8 @@ final class RocqProject(modules: List[ProverModule]):
   private def text(m: ProverModule): Either[String, String] =
     given Scope = Scope(m.namespace.map(_.text), m.opens.map(_.map(_.text)), Set.empty)
     try
-      val body = (decl.fields(m.decls) :: m.decls.map(decl(_))).filter(_.nonEmpty).mkString("\n\n")
+      val had = if m.imports.contains(ExecutionsLibrary.module) then ExecutionsLibrary.fields else Set.empty
+      val body = (decl.fields(m.decls, had) :: m.decls.map(decl(_))).filter(_.nonEmpty).mkString("\n\n")
       Right(RocqProject.header + m.imports.map(RocqProject.imported).mkString + "\n" + body + "\n")
     catch case u: RocqExpr.Unsupported => Left(u.form)
 
@@ -58,7 +60,9 @@ object RocqProject:
   def logical(m: ModuleName): String = m.parts.map(p => RocqNames.identifier(p.text)).mkString(".")
 
   private def imported(m: ModuleName): String =
-    if m.dotted == "FrFlow" then "From FrFlow Require Export Base.\n" else s"Require Export ${logical(m)}.\n"
+    if m.dotted == "FrFlow" then "From FrFlow Require Export Base.\n"
+    else if m == ExecutionsLibrary.module then "From FrFlow Require Export Executions.\n"
+    else s"Require Export ${logical(m)}.\n"
 
   /** Every constant a module declares, by its whole path. */
   private def declared(namespace: List[String], decls: List[Decl]): List[List[String]] = decls.flatMap {

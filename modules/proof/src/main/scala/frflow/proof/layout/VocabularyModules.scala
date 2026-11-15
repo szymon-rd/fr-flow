@@ -29,18 +29,20 @@ object VocabularyModules:
   private def module(l: Lowering, name: ModuleName, decls: List[Decl]): ProverModule =
     Imports.onto(l, ProverModule(name, Nil, Preamble.generated, Names.path(l.kb.value), Nil, decls))
 
+  /** The domain's types: the vocabulary of executions' are the library's (`ExecutionsLibrary`), imported. */
   private def types(l: Lowering): ProverModule =
-    val ordered = inOrder(l.resolved.theory.vocabulary.types, Nil)
-    ProverModule(l.layout.types, List(ModuleName(Names.path("FrFlow"))), Preamble.generated, Names.path(l.kb.value),
-      Nil, ordered.map(typeDecl))
+    val (library, own) = l.resolved.theory.vocabulary.types.partition(ExecutionsLibrary.has)
+    val imported = ModuleName(Names.path("FrFlow")) :: (if library.isEmpty then Nil else List(ExecutionsLibrary.module))
+    ProverModule(l.layout.types, imported, Preamble.generated, Names.path(l.kb.value), Nil,
+      inOrder(own, Nil).map(typeDecl))
 
   /** Each type after the types its fields name. */
-  private def inOrder(left: List[DataType], done: List[DataType]): List[DataType] =
+  private[layout] def inOrder(left: List[DataType], done: List[DataType]): List[DataType] =
     left.partition(d => d.uses.forall(u => done.exists(_.typeName == u) || !left.exists(_.typeName == u))) match
       case (Nil, rest)   => done ++ rest
       case (ready, rest) => inOrder(rest, done ++ ready)
 
-  private def typeDecl(d: DataType): Decl = d match
+  private[layout] def typeDecl(d: DataType): Decl = d match
     case DataType.Product(n, _, fs) =>
       Decl.Structure(Names.ident(n.value), fs.map(f => Names.ident(f.name) -> LowerType(f.ty)))
     case DataType.Sum(n, _, cs)     => Decl.Inductive(Names.ident(n.value), cs.toList.map(c =>

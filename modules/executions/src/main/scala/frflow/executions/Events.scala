@@ -35,6 +35,11 @@ val spawnedTo = stated { (c: Term[Invocation], to: Term[Value], w: Term[BigInt])
   (history(w - 1).on[Event.Invoke]((_, _, _) => False)
     .on[Event.Atomic]((_, _, _, _, spawns) => spawns.contains(make[Spawn](to, c)))
     .on[Event.Respond]((_, _, _, spawns) => spawns.contains(make[Spawn](to, c)))
+    .on[Event.Make]((_, _, _, _, _) => False)
+    .on[Event.Read]((_, _, _, _, _) => False)
+    .on[Event.Mark]((_, _, _, _) => False)
+    .on[Event.Write]((_, _, _, _, _) => False)
+    .on[Event.Enter]((_, _, _, _, _) => False)
     .on[Event.Internal](_ => False)
     .on[Event.Stutter.type](False): Term[Boolean]) }
 

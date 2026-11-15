@@ -66,9 +66,12 @@ private[rocq] final class RocqDecl(names: RocqNames):
     s"Inductive ${named(n)} : Type :=\n" + cs.map((c, bs) =>
       s"  | ${RocqNames.constructor(n.text, c.text)}${params(bs)}").mkString("\n") + "."
 
-  /** The classes of the fields' names a module's structures have: one reader and one replacer for each name. */
-  def fields(decls: List[Decl]): String =
+  /** The classes of the fields' names a module's structures have: one reader and one replacer for each name, but
+    * those a module it imports has (`had`).
+    */
+  def fields(decls: List[Decl], had: Set[String]): String =
     val all = decls.flatMap(RocqDecl.structures).flatMap(_.fields.map(f => RocqNames.identifier(f._1.text))).distinct
+      .filterNot(had)
     all.map(f => s"Class Has_$f (R : Type) := { ${f}_is : Type; ${f}_of : R -> ${f}_is }.\n" +
       s"Class With_$f (R : Type) := { ${f}_takes : Type; with_$f : R -> ${f}_takes -> R }.").mkString("\n")
 
