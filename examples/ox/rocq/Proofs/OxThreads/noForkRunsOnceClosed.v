@@ -5,19 +5,19 @@ Require Export Proofs.OxThreads.Lemmas.
     when it left. *)
 Lemma noForkRunsOnceClosed_Proofs_complete : noForkRunsOnceClosed_Obl_complete.
 Proof.
-  intros heldIn steps Hleft Hcode h t code w [Hclosed Hmade].
-  assert (hasLeft heldIn steps t h w) as (r & Hr & who & Hrem).
+  intros heldIn history Hleft Hcode h t code w [Hclosed Hmade].
+  assert (hasLeft heldIn history t h w) as (r & Hr & who & Hrem).
   { apply Hleft. split; [exact Hclosed |]. destruct Hmade as (c & m & [Hm Hadd] & _).
     exists m. split; [exact Hm | exists c; exact Hadd]. }
   destruct (Hcode h t code w r Hmade) as [_ Hnotpending].
   split.
   - intros (m1 & Hm1 & Hbegun & Hpending).
     destruct (Hcode h t code w m1 Hmade) as [Hbefore _].
-    assert (~ hasLeft heldIn steps t h m1) as Hstays by (apply Hbefore; apply begun_is_called; exact Hbegun).
+    assert (~ hasLeft heldIn history t h m1) as Hstays by (apply Hbefore; apply begun_is_called; exact Hbegun).
     assert (m1 < r \/ m1 = r \/ r < m1) as [Hlt | [-> | Hgt]] by lia.
     + apply Hnotpending; [exists who; exact Hrem |]. exists m1. split; [exact Hlt | split; [exact Hbegun |]].
-      intros Hover. apply Hpending. apply (over_later steps t m1 r w); [lia | exact Hover].
-    + destruct (one_call_at_a_moment steps _ _ _ _ r Hrem (begun_is_called _ _ _ _ Hbegun)) as [E _].
+      intros Hover. apply Hpending. apply (over_later history t m1 r w); [lia | exact Hover].
+    + destruct (one_call_at_a_moment history _ _ _ _ r Hrem (begun_is_called _ _ _ _ Hbegun)) as [E _].
       discriminate E.
     + apply Hstays. exists r. split; [exact Hgt | exists who; exact Hrem].
   - intros Hc. destruct (Hcode h t code w w Hmade) as [Hbefore _]. apply (Hbefore Hc).
@@ -27,7 +27,7 @@ Qed.
 (** Its parts can hold together: a run in which nothing happens meets each. *)
 Lemma noForkRunsOnceClosed_Proofs_feasible : noForkRunsOnceClosed_Obl_feasible.
 Proof.
-  exists (fun _ x => x), (fun _ => Step_Rests).
+  exists (fun _ x => x), (fun _ => Event_Stutter).
   split.
   { intros h t w [_ H]. destruct (no_fork_at_rest _ _ _ _ H). }
   intros h t code made w H. destruct (none_made_to_run_at_rest _ _ _ _ _ H).

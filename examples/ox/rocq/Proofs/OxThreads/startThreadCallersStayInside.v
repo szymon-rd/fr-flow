@@ -5,23 +5,23 @@ Require Export Proofs.OxThreads.Lemmas.
     it neither closes the herd nor leaves its set, and no other thread removes it. *)
 Lemma startThreadCallersStayInside_Proofs_complete : startThreadCallersStayInside_Obl_complete.
 Proof.
-  intros steps heldIn Hinside Hneither Honly h code c w [Hcalled | (m & Hm & Hbegun & Hpending)].
+  intros history heldIn Hinside Hneither Honly h code c w [Hcalled | (m & Hm & Hbegun & Hpending)].
   { exact (Hinside h code c w Hcalled). }
-  assert (forall k, m <= k -> k <= w -> inside heldIn steps c h k) as Hall; [| apply Hall; lia].
-  apply (from_a_moment_on (fun k => k <= w -> inside heldIn steps c h k)).
+  assert (forall k, m <= k -> k <= w -> inside heldIn history c h k) as Hall; [| apply Hall; lia].
+  apply (from_a_moment_on (fun k => k <= w -> inside heldIn history c h k)).
   { intros _. apply (Hinside h code c m). apply begun_is_called. exact Hbegun. }
   intros k Hk IH Hkw. specialize (IH ltac:(lia)).
-  assert (~ calledBy steps (Invocation_mk
+  assert (~ calledBy history (Invocation_mk
       "ox.internal.ThreadHerd interruptAllAndJoinUntilCompleted :scala.Unit"%string [h]) c k /\
-    ~ calledBy steps (Invocation_mk
+    ~ calledBy history (Invocation_mk
       "java.util.concurrent.ConcurrentHashMap$.KeySetView remove java.lang.Object:scala.Boolean"%string
       [heldIn "ox.internal.ThreadHerd threads"%string h; c]) c k) as [Hnoclose Hnoleave].
   { destruct (Z.eq_dec k m) as [-> | Hne].
     - split; intros Hc;
-        destruct (one_call_at_a_moment steps _ _ _ _ m Hc (begun_is_called _ _ _ _ Hbegun)) as [E _];
+        destruct (one_call_at_a_moment history _ _ _ _ m Hc (begun_is_called _ _ _ _ Hbegun)) as [E _];
         discriminate E.
     - apply (Hneither h code c k). exists m. split; [lia | split; [exact Hbegun |]].
-      intros Hover. apply Hpending. apply (over_later steps c m k w); [lia | exact Hover]. }
+      intros Hover. apply Hpending. apply (over_later history c m k w); [lia | exact Hover]. }
   destruct IH as [[Hown Hnot] | [Hfork Hstays]].
   - left. split; [exact Hown |]. intros (m1 & Hm1 & Hc1).
     assert (m1 < k \/ m1 = k) as [Hlt | ->] by lia.
@@ -37,7 +37,7 @@ Qed.
 (** Its parts can hold together: a run in which nothing happens meets each. *)
 Lemma startThreadCallersStayInside_Proofs_feasible : startThreadCallersStayInside_Obl_feasible.
 Proof.
-  exists (fun _ => Step_Rests), (fun _ x => x).
+  exists (fun _ => Event_Stutter), (fun _ x => x).
   split.
   { intros h code c w H. destruct (nothing_called_at_rest _ _ _ H). }
   split.

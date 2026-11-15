@@ -1,15 +1,17 @@
 package ox.threads
 
 import frflow.{Call as _, *}
-import frflow.runs.*
-import frflow.runs.InCode.given
+import frflow.code.*
+import frflow.code.InCode.given
+import frflow.executions.*
+import frflow.values.*
 import ox.internal.ThreadHerd
 
 // What the claims on `ThreadHerd` and the assumptions add up to, up to what holds once a herd is closed.
 
 val liveForksAreInTheSet = Node.claim("A fork that has not left is in its herd's set.")(
   forall((h: Obj[ThreadHerd], t: Obj[Thread], w: Term[BigInt]) =>
-    live(t, h, w) implies elements(threads(h), w).contains(t.thing)))
+    live(t, h, w) implies elements(threads(h), w).contains(t.asValue)))
 
 val startThreadCallersStayInside = Node.claim(
   "While a thread is calling startThread of a herd, it is inside the herd's scope.")(
@@ -38,6 +40,6 @@ val noForkRunsOnceClosed = Node.claim(
 val aClosedHerdRefusesToStart = Node.claim(
   "After closing a herd has completed, a call of its startThread does not return, and adds no thread.")(
   forall((h: Obj[ThreadHerd], code: Obj[Code], c: Obj[Thread], t: Obj[Thread]) =>
-    starting(h, code).by(c).everyCall((from, answer, to) =>
+    starting(h, code).by(c).everyCall((from, response, to) =>
       closed(h, from) implies
-        (answer =!= Returned(()) && !threads(h).add(t).by(c).calledWithin(from, to)))))
+        (response =!= Returned(()) && !threads(h).add(t).by(c).calledWithin(from, to)))))

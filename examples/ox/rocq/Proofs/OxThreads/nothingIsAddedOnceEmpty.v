@@ -5,11 +5,11 @@ Require Export Proofs.OxThreads.Lemmas.
     has not left, which is in the set if it was added before the set was empty, and was not added after. *)
 Lemma nothingIsAddedOnceEmpty_Proofs_complete : nothingIsAddedOnceEmpty_Obl_complete.
 Proof.
-  intros heldIn steps elements Hlive Hstay Honly h t m w [[Hclosing Hempty] Hmw].
+  intros heldIn history elements Hlive Hstay Honly h t m w [[Hclosing Hempty] Hmw].
   revert t. pattern w. apply (Zlt_lower_bound_ind _ m); [| exact Hmw].
   intros x IH Hx t (who & Hadd).
   destruct (Honly h t who x Hadd) as [(code & m0 & Hm0 & Hbegun & Hpending) _].
-  assert (inside heldIn steps who h x) as Hin.
+  assert (inside heldIn history who h x) as Hin.
   { apply (Hstay h code who x). right. exists m0. split; [exact Hm0 | split; [exact Hbegun | exact Hpending]]. }
   destruct Hin as [[Hown Hnot] | [(a & Ha & who' & Hadd') Hstays]].
   - apply Hnot. destruct Hclosing as (m1 & Hm1 & Hc1). exists m1. split; [lia | exact Hc1].
@@ -23,7 +23,7 @@ Qed.
 (** Its parts can hold together: a run in which nothing happens meets each. *)
 Lemma nothingIsAddedOnceEmpty_Proofs_feasible : nothingIsAddedOnceEmpty_Obl_feasible.
 Proof.
-  exists (fun _ x => x), (fun _ => Step_Rests), (fun _ _ _ => False).
+  exists (fun _ x => x), (fun _ => Event_Stutter), (fun _ _ _ => False).
   split.
   { intros h t w [H _]. destruct (no_fork_at_rest _ _ _ _ H). }
   split.

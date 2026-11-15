@@ -6,11 +6,11 @@ Require Export Proofs.OxThreads.Lemmas.
     code meet them is what proving the claims of the code will show. *)
 Lemma Whole_Proofs_consistent_0 : Whole_Obl_consistent_0.
 Proof.
-  exists (fun _ x => x), (fun _ => Step_Rests), (fun _ _ _ => False), (fun _ _ => False).
+  exists (fun _ x => x), (fun _ => Event_Stutter), (fun _ _ _ => False), (fun _ _ => False).
   split.
   { intros h t code made w H. destruct (none_made_to_run_at_rest _ _ _ _ _ H). }
   split.
-  { intros h from answer to H. destruct (nothing_completed_at_rest _ _ _ _ _ H). }
+  { intros h from response to H. destruct (nothing_completed_at_rest _ _ _ _ _ H). }
   split.
   { intros h t c w H. destruct (nothing_called_at_rest _ _ _ H). }
   split.
@@ -20,20 +20,20 @@ Proof.
   split.
   { intros h t c w H. destruct (nothing_called_at_rest _ _ _ H). }
   split.
-  { intros h from answer to H. destruct (nothing_completed_at_rest _ _ _ _ _ H). }
+  { intros h from response to H. destruct (nothing_completed_at_rest _ _ _ _ _ H). }
   split.
   { intros h a b [_ H]. exact H. }
   split.
   { intros h code c t from w [[H _] _]. destruct (nothing_called_at_rest _ _ _ H). }
   split.
-  { intros by_ made a hands k H. discriminate H. }
+  { intros by_ made a spawns k H. discriminate H. }
   split.
   { intros w _. reflexivity. }
   split.
   { intros s x. split; intros w who H; destruct (nothing_called_at_rest _ _ _ H). }
   split.
-  { intros s x y from answer to (who & H). destruct (nothing_completed_at_rest _ _ _ _ _ H). }
+  { intros s x y from response to (who & H). destruct (nothing_completed_at_rest _ _ _ _ _ H). }
   split.
-  { intros s x y from answer to (who & H). destruct (nothing_completed_at_rest _ _ _ _ _ H). }
+  { intros s x y from response to (who & H). destruct (nothing_completed_at_rest _ _ _ _ _ H). }
   intros s a b y [_ H]. destruct H. reflexivity.
 Qed.

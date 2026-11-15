@@ -1,8 +1,10 @@
 package ox.threads
 
 import frflow.{Call as _, *}
-import frflow.runs.*
-import frflow.runs.InCode.given
+import frflow.code.*
+import frflow.code.InCode.given
+import frflow.executions.*
+import frflow.values.*
 import java.util.concurrent.ConcurrentHashMap
 import java.util.concurrent.atomic.AtomicBoolean
 import ox.internal.ThreadHerd
@@ -51,4 +53,4 @@ val inside = stated { (c: Obj[Thread], h: Obj[ThreadHerd], w: Term[BigInt]) =>
 
 /** Nothing is in the herd's set. */
 val empty = stated { (h: Obj[ThreadHerd], w: Term[BigInt]) =>
-  forall((y: Term[Thing]) => !elements(threads(h), w).contains(y)) }
+  forall((y: Term[Value]) => !elements(threads(h), w).contains(y)) }
