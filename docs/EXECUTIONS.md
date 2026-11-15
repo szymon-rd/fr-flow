@@ -132,6 +132,7 @@ What it is for an execution to be one of some code is said once, in FrFlow's Roc
   actor. The events that actor makes directly inside the call are the steps of the method's program, in order:
   an object made, a field read or written, a call made and its response. Other actors' events, and what happens
   inside the calls it makes, come between; nothing is said of how they interleave.
+- A call makes no event of its own before it is made, nor after it has responded.
 - A call of what is outside the code (the JDK, a class not read) is an event with any response of its type.
   What it gives is what the model assumes of it, in the model's own words (`getGivesTheFlag`).
 - The execution's values name the code's: each at most one, numbers, texts and truth values themselves.

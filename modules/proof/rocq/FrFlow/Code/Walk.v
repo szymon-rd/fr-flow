@@ -373,7 +373,7 @@ Section Walk.
       (forall w, i < w -> steps a i (i + 1) (Running p) w (at_ w)) /\
       (forall w, i < w -> its (at_ w) a i (history w) -> takes a i w (history w) (at_ w) (at_ (w + 1))).
   Proof.
-    intros (Hbefore & at_ & H0 & H). exists at_. split; [| split; [| intros w Hw; apply (H w Hw)]].
+    intros (Hbefore & _ & at_ & H0 & H). exists at_. split; [| split; [| intros w Hw; apply (H w Hw)]].
     { intros w Hd. destruct (Z_lt_le_dec i w) as [Hlt | Hle]; [exact Hlt | destruct (Hbefore w Hle Hd)]. }
     assert (forall n : nat, steps a i (i + 1) (Running p) (i + 1 + Z.of_nat n) (at_ (i + 1 + Z.of_nat n))) as Hn.
     { induction n as [| n IH].
@@ -632,6 +632,16 @@ Section Walk.
     apply follows_steps in Hf as (at_ & H0 & H1 & H2). exists args, at_. auto.
   Qed.
 
+  (** A call of a method of the code makes no event of its own once it has responded. *)
+  Lemma method_over a inside s cls r d y ys from k w resp spawns :
+    history from = Event_Invoke a inside (Invocation_mk (label_of s) (y :: ys)) ->
+    names N y (vref cls r) -> impl T cls s = Some d ->
+    history k = Event_Respond a from resp spawns -> k < w -> ~ direct a from (history w).
+  Proof.
+    intros He Hy Hd Hk Hlt. destruct (proj1 conformed _ _ _ _ _ _ _ _ _ He Hy Hd) as (args & _ & _ & Hf).
+    exact (proj1 (proj2 Hf) _ _ _ _ Hk Hlt).
+  Qed.
+
   (** A call of a function the code wrote. *)
   Lemma function_steps a inside m c y ys from :
     history from = Event_Invoke a inside (Invocation_mk m (y :: ys)) ->
@@ -681,6 +691,7 @@ Arguments method_not_atomic {files T N history} conformed {w a inside} s {cls r 
 Arguments function_steps {files T N history} conformed {a inside m c y ys from} _ _ _ _.
 Arguments made_named {files T N history} conformed {w b inside y cls hs} _.
 Arguments gives_one {N r x x'} _ _.
+Arguments method_over {files T N history} conformed {a inside} s {cls r d y ys from k w resp spawns} _ _ _ _ _.
 Arguments function_not_atomic {files T N history} conformed {w a inside m c y ys resp spawns} _ _ _ _.
 
 (** ** Walking *)

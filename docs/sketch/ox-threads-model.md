@@ -18,11 +18,14 @@ check: that `startThread` adds a thread, or returns, only after it has read the 
 flag (`closingSetsTheFlagItself`). With what is assumed of an atomic boolean they give the third root. A third: the
 function `startThread` hands the thread factory removes from the herd's set only the thread that
 `Thread.currentThread()` gave it (`theForkFunctionRemovesTheCurrentThread`); with the assumption that only such
-a function removes from the set (what capture checking would say), a fork is removed only by itself. Still
-stated and not proven of the code: who adds to the set and that the flag stays set (`onlyStartThreadAdds`,
-`theFlagStaysSet`), that a caller of startThread neither closes nor leaves, when the code a fork was made to run
-is called (`codeRunsBeforeLeaving`), and the end of closing's loop (`closingEndsOnEmpty`). The scopes above the
-herd and liveness are not in the model.
+a function removes from the set (what capture checking would say), a fork is removed only by itself. A fourth:
+a call of startThread that itself adds a thread is pending when it does (`startThreadAddsWhileItRuns`: a call of
+the code makes no event of its own once it has responded); with the assumption that only startThread adds to
+the set, a thread is added only during a call of startThread. Still stated and not proven of the code: that the
+flag stays set (`theFlagStaysSet`), that an added thread has not been started
+(`anAddedThreadHasNotBeenStarted`), that a caller of startThread neither closes nor leaves, when the code a fork
+was made to run is called (`codeRunsBeforeLeaving`), and the end of closing's loop (`closingEndsOnEmpty`). The
+scopes above the herd and liveness are not in the model.
 
 ## The tree
 

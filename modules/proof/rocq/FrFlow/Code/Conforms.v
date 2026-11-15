@@ -280,11 +280,12 @@ Section Conforms.
 
   Variable history : Z -> Event.
 
-  (** The call made at `i` by `a` runs `p`: it makes no event of its own before it is made; at each moment
-      after, the call is at a stage; an event of its own takes it to the next, and any other event leaves it
-      where it is. *)
+  (** The call made at `i` by `a` runs `p`: it makes no event of its own before it is made, nor after it has
+      responded; at each moment after it is made, the call is at a stage; an event of its own takes it to the
+      next, and any other event leaves it where it is. *)
   Definition follows (a : Value) (i : Z) (p : program) : Prop :=
     (forall w, w <= i -> ~ direct a i (history w)) /\
+    (forall k w r spawns, history k = Event_Respond a i r spawns -> k < w -> ~ direct a i (history w)) /\
     exists at_ : Z -> stage,
       at_ (i + 1) = Running p /\
       forall w, i < w ->

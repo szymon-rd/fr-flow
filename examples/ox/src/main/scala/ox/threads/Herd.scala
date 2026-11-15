@@ -16,6 +16,26 @@ val startThreadIsCalledFromInside = Node.assumption(
   forall((h: Obj[ThreadHerd], code: Obj[Code], c: Obj[Thread], w: Term[BigInt]) =>
     starting(h, code).by(c).called(w) implies inside(c, h, w)))
 
+// With capture checking this would be what the compiler says: the set is the herd's alone.
+val onlyStartThreadAddsToTheSet = Node.assumption(
+  "A thread is added to a herd's set only by a call of startThread on the herd, itself.")(
+  forall((h: Obj[ThreadHerd], t: Obj[Thread], c: Obj[Thread], w: Term[BigInt]) =>
+    threads(h).add(t).by(c).called(w) implies
+      exists((code: Obj[Code], from: Term[BigInt]) =>
+        starting(h, code).by(c).called(from) && threads(h).add(t).by(c).calledInside(from, w))))
+
+val startThreadAddsWhileItRuns = Node.claim(
+  "A call of startThread that itself adds a thread has not completed when it does.")(
+  forall((h: Obj[ThreadHerd], code: Obj[Code], c: Obj[Thread], t: Obj[Thread]) =>
+    forall((from: Term[BigInt], w: Term[BigInt]) =>
+      (starting(h, code).by(c).called(from) && threads(h).add(t).by(c).calledInside(from, w)) implies
+        starting(h, code).by(c).pendingAt(w))))
+
+// Not proven of the code: it rests on who else holds the thread the factory made.
+val anAddedThreadHasNotBeenStarted = Node.claim("A thread has not been started when it is added to a herd's set.")(
+  forall((h: Obj[ThreadHerd], t: Obj[Thread], c: Obj[Thread], w: Term[BigInt]) =>
+    threads(h).add(t).by(c).called(w) implies !t.start().calledBefore(w)))
+
 val onlyStartThreadAdds = Node.claim(
   "A thread is added to a herd's set only during a call of startThread, by its caller, and has not been started.")(
   forall((h: Obj[ThreadHerd], t: Obj[Thread], c: Obj[Thread], w: Term[BigInt]) =>
