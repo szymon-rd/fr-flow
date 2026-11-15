@@ -19,6 +19,10 @@ object InCode:
   given numberInCode(using @unused st: Stating): Conversion[Said[BigInt], Int] = _ => throw NotRun()
   given textInCode(using @unused st: Stating): Conversion[Said[String], String] = _ => throw NotRun()
 
+extension [A](code: Obj[() => A])
+  /** The code where code takes it unevaluated (a by-name argument): `h.startThread(code.byName)`. */
+  def byName(using @unused st: Stating): A = throw NotRun()
+
 /** The call the code written is: `call(s.add(x))`. Where a word of a call follows the code (`s.add(x).atomic`), the
   * code is read so without it.
   */
@@ -62,6 +66,7 @@ object CodeMacros:
     private def thing(t: Term): Expr[Said[Thing]] = t match
       case Apply(Select(conversion, "apply"), List(of)) if conversion.tpe <:< TypeRepr.of[Conversion[?, ?]] =>
         thing(bare(of))
+      case Apply(Apply(TypeApply(byName, _), List(of)), _) if byName.symbol.name == "byName" => thing(bare(of))
       case Literal(BooleanConstant(b)) => '{ summon[AsThing[Boolean]](if ${ Expr(b) } then True else False) }
       case Literal(IntConstant(i))     => '{ summon[AsThing[BigInt]](Lift.number(BigInt(${ Expr(i) }))) }
       case Literal(StringConstant(s))  => '{ summon[AsThing[String]](Lift.text(${ Expr(s) })) }

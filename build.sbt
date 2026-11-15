@@ -222,5 +222,7 @@ lazy val payments = exampleApp("payments", paymentsModel, layers = Nil).settings
 /** Ox's scopes and forks: the laws a scope keeps, on a system of as little as says them; Ox's code is proven to
   * be that system in `examples/ox/rocq`.
   */
-lazy val oxModel = exampleModel("ox")
+lazy val oxModel = exampleModel("ox").dependsOn(runs % "compile->compile;test->test")
+  // The model of Ox's threads speaks of Ox's own classes, read from this jar.
+  .settings(libraryDependencies += "com.softwaremill.ox" %% "core" % "1.1.0")
 lazy val ox = exampleApp("ox", oxModel, layers = Nil)
