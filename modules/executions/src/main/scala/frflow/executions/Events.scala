@@ -56,6 +56,16 @@ val itselfMakes = stated { (inner: Term[Invocation], by: Term[Value], made: Term
     exists((a: Term[Response], spawns: Term[List[Spawn]]) =>
       history(w) === make[Event.Atomic](by, some(made), inner, a, spawns)) }
 
+/** The actor does one thing at a time: what it calls while a call of its own is pending, that call makes itself,
+  * or the actor calls while a call that call itself made is pending.
+  */
+val oneAtATime = stated { (by: Term[Value]) =>
+  forall((outer: Term[Invocation], from: Term[BigInt], inner: Term[Invocation], w: Term[BigInt]) =>
+    (from < w && begun(outer, by, from) && !overBy(by, from, w) && calledBy(inner, by, w)) implies
+      (itselfMakes(inner, by, from, w) ||
+        exists((between: Term[Invocation], m: Term[BigInt]) =>
+          from < m && m < w && history(m) === make[Event.Invoke](by, some(from), between) && !overBy(by, m, w)))) }
+
 /** A call of the method named `method` is made at `w` on `on`, with whatever else it is given. */
 val calledOn = stated { (on: Term[Value], method: Term[String], w: Term[BigInt]) =>
   exists((rest: Term[List[Value]], by: Term[Value]) => calledBy(make[Invocation](method, on :: rest), by, w)) }

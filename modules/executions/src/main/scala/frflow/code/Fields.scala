@@ -1,8 +1,8 @@
 package frflow.code
 
-import frflow.*
+import frflow.{Call as _, *}
 import frflow.dsl.compiled.source.MemberName
-import frflow.executions.{Changing, World, calledOn, madeBefore, readAs}
+import frflow.executions.{Call, Changing, World, calledOn, madeBefore, readAs}
 import frflow.values.{Obj, Ref, Value}
 import scala.quoted.*
 
@@ -36,6 +36,12 @@ extension [C](on: Obj[C])
   /** A method of the object's class is called on it only once it has been made. */
   inline def isMadeWhenCalled(using st: Stating): Term[Boolean] = ${ FieldMacros.madeWhenCalled[C]('on, 'st) }
 
+  /** A call of the method of the object's class named `name`, given `arguments`: a statement may name a method
+    * code outside the class may not (`h.method[Unit]("assertNotShuttingDown")`).
+    */
+  inline def method[A](inline name: String, arguments: Term[Value]*): Call[A] =
+    ${ FieldMacros.method[C, A]('on, 'name, 'arguments) }
+
 object FieldMacros:
   def readsVals[C: Type](on: Expr[Obj[C]], st: Expr[Stating])(using Quotes): Expr[Term[Boolean]] =
     import quotes.reflect.*
@@ -53,6 +59,14 @@ object FieldMacros:
     val named = Expr(methods.map(MemberName.of(_).mkString(" ")))
     val of = Expr(MemberName.ofClass(cls))
     '{ Fields.madeWhenCalled($named, $of, $on.asValue)(using $st) }
+
+  def method[C: Type, A: Type](on: Expr[Obj[C]], name: Expr[String], arguments: Expr[Seq[Term[Value]]])(
+      using Quotes): Expr[Call[A]] =
+    import quotes.reflect.*
+    val named = TypeRepr.of[C].typeSymbol.declaredMethod(name.valueOrAbort) match
+      case List(one) => Expr(MemberName.of(one).mkString(" "))
+      case found => report.errorAndAbort(s"${TypeRepr.of[C].show} has ${found.size} methods ${name.valueOrAbort}")
+    '{ Call.of[A]($named, ($on.asValue +: $arguments)*) }
 
   def made[C: Type](on: Expr[Obj[C]], w: Expr[World], st: Expr[Stating])(using Quotes): Expr[Term[Boolean]] =
     import quotes.reflect.*

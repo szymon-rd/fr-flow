@@ -80,6 +80,20 @@ final class Call[A](val method: String, val arguments: List[Term[Value]], val ac
   /** The call made at `made` by this call's actor itself makes this call at `w`. */
   def calledInside(made: World, w: World)(using Stating): Term[Boolean] = some(itselfMakes(invocation, _, made, w))
 
+  /** The invocation is a call of this. */
+  def isCall(made: Term[Invocation]): Term[Boolean] = made === invocation
+
+  /** Each call that a call of this itself makes is one `allowed` says. */
+  def itselfCallsOnly(allowed: Term[Invocation] => Term[Boolean])(using Stating): Term[Boolean] =
+    forall((from: Term[BigInt], inner: Term[Invocation], w: Term[BigInt]) =>
+      some(who => begun(invocation, who, from) && itselfMakes(inner, who, from, w)) implies allowed(inner))
+
+  /** While a call of this is pending, its caller makes no call of `other`. */
+  def excludes[B](other: Call[B])(using Stating): Term[Boolean] =
+    forall((who: Term[Value], from: Term[BigInt], w: Term[BigInt]) =>
+      (from < w && begun(invocation, who, from) && !overBy(who, from, w)) implies
+        !calledBy(other.invocation, who, w))
+
   /** A call made and completed from `from` to `to`. */
   def completedWithin(from: World, to: World)(using Stating): Term[Boolean] =
     exists((a: Term[BigInt], response: Term[Response], b: Term[BigInt]) =>
