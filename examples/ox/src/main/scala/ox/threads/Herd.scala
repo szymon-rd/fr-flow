@@ -42,7 +42,8 @@ val startThreadIsPendingWhileItAdds = Node.claim(
 // here has: a herd is made by code that is not read. That nothing else is called on it is of who can reach a
 // private field: with capture checking it is what the compiler would say.
 val aHerdsSetIsPlain = Node.claim(
-  "A herd's set is one made by newKeySet, on which nothing but add, remove, isEmpty and forEach is called.")(
+  "A herd's set is one made by newKeySet, on which nothing but add, remove, contains, isEmpty and forEach is " +
+    "called.")(
   forall((h: Obj[ThreadHerd], w: Term[BigInt]) => h.isMade(w) implies plainSet(threads(h))))
 
 // With capture checking this would be what the compiler says: the thread is a local of startThread, given to

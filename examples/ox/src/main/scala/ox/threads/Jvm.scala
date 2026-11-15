@@ -17,9 +17,9 @@ val elements = Declaration[(Ref[ConcurrentSet], BigInt) => Set[Value]]("what is 
 /** What an atomic boolean holds at a moment. */
 val flag = Declaration[(Ref[AtomicBoolean], BigInt) => Boolean]("what the atomic boolean holds at a moment")
 
-/** The set is one made by `ConcurrentHashMap.newKeySet`, and nothing but `add`, `remove`, `isEmpty` and `forEach`
-  * is ever called on it. Its map is then its own, and no call gives out the map or an iterator over the set: what
-  * is in it changes only by what is added to it and removed from it.
+/** The set is one made by `ConcurrentHashMap.newKeySet`, and nothing but `add`, `remove`, `contains`, `isEmpty`
+  * and `forEach` is ever called on it. Its map is then its own, and no call gives out the map or an iterator over
+  * the set: what is in it changes only by what is added to it and removed from it.
   */
 val plainSet = stated { (s: Obj[ConcurrentSet]) =>
   exists((from: Term[BigInt], to: Term[BigInt]) =>
@@ -27,7 +27,8 @@ val plainSet = stated { (s: Obj[ConcurrentSet]) =>
     forall((method: Term[String], w: Term[BigInt]) =>
       calledOn(s.asValue, method, w) implies
         (method === methodOf[ConcurrentSet](_.add(???)) || method === methodOf[ConcurrentSet](_.remove(???)) ||
-          method === methodOf[ConcurrentSet](_.isEmpty()) || method === methodOf[ConcurrentSet](_.forEach(???)))) }
+          method === methodOf[ConcurrentSet](_.contains(???)) || method === methodOf[ConcurrentSet](_.isEmpty()) ||
+          method === methodOf[ConcurrentSet](_.forEach(???)))) }
 
 /** Nothing but `get` and `set` is ever called on the atomic boolean. */
 val onlyReadAndSet = stated { (s: Obj[AtomicBoolean]) =>
