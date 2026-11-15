@@ -3,6 +3,7 @@ package ox.threads
 import frflow.{Call as _, *}
 import frflow.runs.*
 import frflow.runs.InCode.given
+import java.util.concurrent.atomic.AtomicBoolean
 
 // What is assumed of the JVM: of the run, and of the methods of the JDK that Ox calls.
 
@@ -11,6 +12,13 @@ val elements = Declaration[(Ref[Threads], BigInt) => Set[Thing]]("what is in the
 
 val nothingBeforeTheStart = Node.assumption("No step is taken before the run starts.")(
   forall((w: Term[BigInt]) => (w < 0) implies (steps(w) === Step.Rests)))
+
+val aCallCompletesAfterItIsMade = Node.assumption("A call completes after it is made.")(
+  forall((by: Term[Thing], made: Term[BigInt], a: Term[Answer], hands: Term[List[Handed]], k: Term[BigInt]) =>
+    (steps(k) === make[Step.Completes](by, made, a, hands)) implies (made < k)))
+
+/** What an atomic boolean holds at a moment. */
+val flag = Declaration[(Ref[AtomicBoolean], BigInt) => Boolean]("what the atomic boolean holds at a moment")
 
 val setCallsAreAtomic = Node.assumption("Adding to a concurrent set and removing from it are each atomic.")(
   forall((s: Obj[Threads], x: Obj[Thread]) => s.add(x).atomic && s.remove(x).atomic))

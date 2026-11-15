@@ -4,6 +4,7 @@ import frflow.{Call as _, *}
 import frflow.runs.*
 import frflow.runs.InCode.given
 import java.util.concurrent.ConcurrentHashMap
+import java.util.concurrent.atomic.AtomicBoolean
 import ox.internal.ThreadHerd
 
 // The words of the model: a herd's set and its owner, and what a thread is to a herd. Every word is said of calls
@@ -17,6 +18,8 @@ type Code = () => Unit
 
 def threads(h: Obj[ThreadHerd])(using Stating): Obj[Threads] = h.field("threads")
 def owner(h: Obj[ThreadHerd])(using Stating): Obj[Thread] = h.field("herdOwner")
+
+def shutdown(h: Obj[ThreadHerd])(using Stating): Obj[AtomicBoolean] = h.field("shutdownInProgress")
 
 /** Closing a herd: interrupting its threads and waiting until none is left. */
 def closing(h: Obj[ThreadHerd])(using Stating): Call[Unit] = h.interruptAllAndJoinUntilCompleted()
