@@ -25,23 +25,25 @@ import scala.jdk.CollectionConverters.*
   * cases from seed 1). What the suites tagged `Rocq` judge.
   */
 object Ported:
-  /** A fresh directory, removed after; or, for writing proofs, the one `FRFLOW_PORT_DIR` names, kept. */
-  private val directory: Resource[IO, Path] = sys.env.get("FRFLOW_PORT_DIR").fold(
+  /** A fresh directory, removed after; or, for writing proofs, the model's own under the one `FRFLOW_PORT_DIR`
+    * names, kept: a run then checks again only what changed since the last (`checks.json`).
+    */
+  private def directory(model: String): Resource[IO, Path] = sys.env.get("FRFLOW_PORT_DIR").fold(
     Resource.make(IO.blocking(Files.createTempDirectory("frflow-port")))(d =>
       IO.blocking(Files.walk(d).sorted(java.util.Comparator.reverseOrder()).forEach(p => Files.delete(p)))))(d =>
-    Resource.eval(IO.blocking(Files.createDirectories(Path.of(d)))))
+    Resource.eval(IO.blocking(Files.createDirectories(Path.of(d).resolve(model)))))
 
   /** FrFlow's Rocq library, as the build keeps it. */
   lazy val library: Path = Projects.base.resolve("modules/proof/rocq")
 
   /** A project directory, and Rocq in its `rocq/`. */
-  private val workspace: Resource[IO, (Path, Prover[IO])] = directory.flatMap(d =>
+  private def workspace(model: String): Resource[IO, (Path, Prover[IO])] = directory(model).flatMap(d =>
     RocqProver.make[IO](d.resolve("rocq"), library,
       RocqTool(Command("rocq", 30.minutes, Output.ByExit), RocqTool.Memory)).map(d -> _))
 
   /** The analysis once checked and tested; `proofs`, the developer's proof files by name (`Lemmas`, a node's). */
   def run(e: Elaborated, examples: List[Example], proofs: List[(String, String)]): IO[Analysis] =
-    workspace.use { (dir, prover) =>
+    workspace(e.theory.name.value).use { (dir, prover) =>
       val files = ProjectFiles.make[IO](dir)
       val code = RunCode.make[IO]
       val kb = e.theory.name.value

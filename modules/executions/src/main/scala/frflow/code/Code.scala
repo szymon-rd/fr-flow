@@ -2,7 +2,7 @@ package frflow.code
 
 import frflow.{Call as _, *}
 import frflow.executions.Call
-import frflow.values.Obj
+import frflow.values.{Obj, Value}
 import scala.annotation.unused
 
 // Real code in a statement. A method, function or constructor applied to the statement's terms is written as the
@@ -32,3 +32,13 @@ implicit inline def codeAsCall[A](inline code: A): Call[A] = ${ CodeMacros.call[
 
 /** The method the code calls, as the tree read names it: `methodOf[KeySet](_.add(???))`. */
 inline def methodOf[C](inline code: C => Any): String = ${ CodeMacros.method[C]('code) }
+
+/** A call by which the code applies a function itself: a local method called by its name, a function it holds
+  * applied. An execution names every such call by one method, whatever interface the function is of; what
+  * applies a function from outside the code names the interface's method (`r.run()`).
+  */
+def applicationOf[A](function: Term[Value], arguments: Term[Value]*): Call[A] =
+  Call.of[A](Applied, (function +: arguments)*)
+
+/** The method an execution names the code's own applications of a function by. */
+val Applied: String = "scala.Function apply"

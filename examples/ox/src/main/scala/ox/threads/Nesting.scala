@@ -57,8 +57,17 @@ val theClosingCheckStaysOutOfHerds = Node.claim(
     "from a herd's set.")(
   forall((h: Obj[ThreadHerd]) => staysOutOfHerds(closingCheck(h))))
 
-// Not proven of the code. The check reads the scope of the current thread and asks each scope up the tree for
-// its herd and its parent: calls on objects of classes not read here.
+val theTreeCheckCallsFour = Node.claim(
+  "A call of verifyCurrentThreadInScopeTree itself calls only Thread.currentThread, get of the current scope, " +
+    "getName of a thread, and a function of its own.")(
+  forall((h: Obj[ThreadHerd]) =>
+    treeCheck(h).itselfCallsOnly(made =>
+      Thread.currentThread().isCall(made) || ox.internal.currentScope.get().isCall(made) ||
+        exists((t: Obj[Thread]) => t.getName().isCall(made)) ||
+        exists((f: Term[Value], scope: Term[Value]) => applicationOf[Unit](f, scope).isCall(made)))))
+
+// Not proven. What the check calls itself is proven (above); the function it applies asks each scope up the
+// tree for its herd and its parent: calls on objects of classes not read here.
 val theTreeCheckStaysOutOfHerds = Node.claim(
   "While a thread is calling verifyCurrentThreadInScopeTree of a herd, it neither closes a herd nor removes a " +
     "thread from a herd's set.")(

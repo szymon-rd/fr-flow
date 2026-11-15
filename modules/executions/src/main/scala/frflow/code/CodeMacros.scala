@@ -42,9 +42,12 @@ object CodeMacros:
       case Ident(_) if t.symbol.isDefDef       => (t.symbol, None, taken)
       case _ => report.errorAndAbort(s"A call in a statement is a method, function or constructor applied: ${t.show}")
 
-    /** A package, or an object whose methods are called on no object of the statement. */
+    /** A package, an object, or a value an object holds for good (`currentScope.get()`): what a call is made on
+      * that is no object of the statement. The tree read names such a value alone, and the call takes nothing of it.
+      */
     private def static(on: Term): Boolean =
-      on.symbol.exists && (on.symbol.isPackageDef || on.symbol.flags.is(Flags.Module))
+      on.symbol.exists && (on.symbol.isPackageDef || on.symbol.flags.is(Flags.Module) ||
+        (on.symbol.isValDef && !on.symbol.flags.is(Flags.Mutable) && on.symbol.owner.flags.is(Flags.Module)))
 
     /** An argument as the statement has it: a term of the statement, or a constant. */
     private def value(t: Term): Expr[Said[Value]] = t match

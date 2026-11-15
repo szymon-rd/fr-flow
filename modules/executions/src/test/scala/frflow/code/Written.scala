@@ -15,6 +15,9 @@ def added(s: Obj[Threads], t: Obj[Thread])(using Stating): Call[Boolean] = s.add
 def asked(s: Obj[Threads])(using Stating): Call[Boolean] = s.isEmpty()
 def current: Call[Thread] = Thread.currentThread()
 
+/** A call on a value an object holds for good: `System.out` is named alone, and the call takes nothing of it. */
+def flushed: Call[Unit] = System.out.flush()
+
 def rung(till: Obj[Till], item: Obj[Item], times: Term[BigInt])(using Stating): Call[Boolean] =
   till.ring(item, times)
 def rungTwice(till: Obj[Till], item: Obj[Item])(using Stating): Call[Boolean] = till.ring(item, 2)

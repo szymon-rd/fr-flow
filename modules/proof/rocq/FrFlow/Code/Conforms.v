@@ -94,15 +94,15 @@ Fixpoint module_class (cls : string) : bool :=
 (** A class of what is thrown, and a value of one: none, or an exception. *)
 Definition throwable (known : classes) (cls : string) : bool := existsb (String.eqb cls) (throwables known).
 
-(** A value of any other class is itself where a name holds it (the place of a variable and an argument passed
-    by name are values of no class), and a value a call can be made on: neither unit nor an object named
-    alone. *)
+(** A value of any class is itself where a name holds it (the place of a variable and an argument passed by
+    name are values of no class): that much is said even of a type that says nothing else. A value of any other
+    class is also one a call can be made on: neither unit nor an object named alone. *)
 Definition of_class (known : classes) (cls : string) (v : val) : Prop :=
   if String.eqb cls "scala.Unit" then v = VUnit
   else if String.eqb cls "scala.Boolean" then exists b, v = VBool b
   else if String.eqb cls "scala.Int" then exists z, v = vint z
   else if reference known cls then identity v
-  else if general cls || module_class cls then True
+  else if general cls || module_class cls then held v = oret v
   else if throwable known cls then v = vnull \/ exists e, Jdk.as_exn v = Some e
   else held v = oret v /\ receiver v = [v].
 
@@ -135,12 +135,17 @@ Definition returns (known : classes) (method : string) (x : res) : Prop :=
   | _, _ => True
   end.
 
+(** The method a function is called by where the code applies it itself (a local method called by its name, a
+    function it holds applied): one name, whatever interface the function is of. What applies it from outside
+    the code names the interface's method. *)
+Definition function_apply : string := "scala.Function apply".
+
 (** A call of a function is by the method of the interface it is taken as: of Scala's own function types, or
     of an interface with one method. Of these a call runs the function's body. *)
 Definition applies (known : classes) (method : string) : bool :=
   existsb (fun p => String.prefix p method) (["scala.Function0 apply "; "scala.Function1 apply ";
     "scala.Function2 apply "; "scala.Function3 apply "; "scala.ContextFunction1 apply ";
-    "scala.ContextFunction2 apply "] ++ functions known).
+    "scala.ContextFunction2 apply "; function_apply] ++ functions known).
 
 Definition by_name_apply : string := "scala.Function0 apply :java.lang.Object".
 
@@ -233,11 +238,13 @@ Section Conforms.
 
   Definition arguments (arg : val) : list val := match arg with VList vs => vs | _ => [] end.
 
-  (** The method a function is called by: a by-name argument's is `Function0.apply`. *)
+  (** The method a function is called by where the code applies it: a by-name argument's is
+      `Function0.apply`; any other's is `function_apply`. Both apply a function (`applies`), so what the call
+      does is the function's body. *)
   Definition called_as (c : code) (arg : val) (method : string) : Prop :=
     match c, arg with
     | Thunk _ _, VUnit => method = by_name_apply
-    | _, _ => True
+    | _, _ => method = function_apply
     end.
 
   (** One event of the call made at `i` by `a`, at the moment `w`: the call goes from one stage to the next. *)

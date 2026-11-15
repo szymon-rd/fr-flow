@@ -60,7 +60,8 @@ pending is called by that call itself or during a call that call itself made); s
 herd's two checks, a factory's `newThread`, `add` and `start` (`startThreadCallsFive`, proven of its tree), and
 the first check only `get` (`theClosingCheckCallsGet`, proven); during the JDK's three calls and the factory's
 the thread stays out of herds (assumed). What is left is of the second check alone,
-`verifyCurrentThreadInScopeTree`, which calls into scopes not read here (`theTreeCheckStaysOutOfHerds`).
+`verifyCurrentThreadInScopeTree` (`theTreeCheckStaysOutOfHerds`): what it calls itself is proven of its tree
+(`theTreeCheckCallsFour`), and the function it applies calls into scopes not read here.
 Still stated and not proven of the code: that, that closing's traversals do not throw, and that a herd's set and
 flag are plain (a plain set may be asked `contains`, which the herd does). FrFlow reports the four as not proven
 of the code, and every node above one of them as waiting: no root is reported proven

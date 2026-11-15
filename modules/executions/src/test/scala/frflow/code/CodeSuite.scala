@@ -3,7 +3,7 @@ package frflow.code
 import frflow.{Call as _, *}
 import frflow.core.expr.Binder
 import frflow.core.name.VarId
-import frflow.project.Projects
+import frflow.project.{Ported, Projects}
 import frflow.executions.*
 import frflow.values.*
 
@@ -38,6 +38,7 @@ class CodeSuite extends munit.FunSuite:
 
   test("a method of an object of the JDK is called on no object of the statement") {
     assertEquals(read(current), ("java.lang.Thread$ currentThread :java.lang.Thread", 0))
+    assertEquals(read(flushed), ("java.io.PrintStream flush :scala.Unit", 0))
   }
 
   test("a method takes what it is called on, then objects and data, terms or constants") {
@@ -70,3 +71,7 @@ class CodeSuite extends munit.FunSuite:
     assert(text.contains("(madeInside history (Invocation_mk \"frflow.code.Till ring"), text)
   }
 
+  test("the code's own applications of a function are named as the library names them") {
+    val conforms = java.nio.file.Files.readString(Ported.library.resolve("FrFlow/Code/Conforms.v"))
+    assert(conforms.contains(s"""Definition function_apply : string := "$Applied"."""), Applied)
+  }

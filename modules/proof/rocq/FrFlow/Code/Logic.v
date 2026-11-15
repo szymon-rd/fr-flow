@@ -371,7 +371,7 @@ Ltac typed_all :=
   | H : field_typed _ _ _ _ _ |- _ => typed H
   | H : returns _ _ (inr _) |- _ => typed H
   | H : returns _ _ (inl _) |- _ => clear H
-  | H : called_as _ _ ?m |- _ => lazy in H; lazymatch type of H with True => clear H | _ = _ => subst m end
+  | H : called_as _ _ ?m |- _ => cbv beta iota delta [called_as] in H; subst m
   | H : op_event _ _ _ _ _ _ _ _ |- _ =>
       cbn [op_event] in H; miss_open H; repeat match goal with E : ?x = inr _ |- _ => is_var x; subst x end
   end.
@@ -412,7 +412,7 @@ Ltac meets_answer :=
           end ]
   | |- context [equal ?T' ?a ?b] =>
       unify b vnull;
-      rewrite (@equal_null T' a ltac:(first [assumption | left; reflexivity | right; eexists; eassumption]))
+      rewrite (@equal_null T' a)
   | |- context [equal ?T' ?a ?b] =>
       let E := fresh in
       assert (E : unnamed T' "equals" = true) by (vm_compute; reflexivity);

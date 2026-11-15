@@ -92,14 +92,13 @@ Proof.
     first [reflexivity | rewrite val_eqb_refl; reflexivity | rewrite Hne by congruence; reflexivity].
 Qed.
 
-(** What is thrown, or none, compared with none: it is none or it is not. *)
-Lemma equal_null (T : table) (v : val) :
-  (v = vnull \/ exists e, Jdk.as_exn v = Some e) -> equal T v vnull = oret (val_eqb v vnull).
+(** A value compared with `null`: it is `null` or it is not, whatever it is. *)
+Lemma equal_null (T : table) (v : val) : equal T v vnull = oret (val_eqb v vnull).
 Proof.
-  intros [-> | [e He]]; [rewrite val_eqb_refl; reflexivity |].
-  assert (val_eqb v vnull = false) as ->.
-  { unfold val_eqb. destruct (val_eq_dec v vnull) as [-> | ?]; [discriminate He | reflexivity]. }
-  destruct v as [| | | | o | |]; try discriminate He; [reflexivity |]. destruct o; try discriminate He. reflexivity.
+  assert (forall w, w <> vnull -> val_eqb w vnull = false) as Hne.
+  { intros w Hw. unfold val_eqb. destruct (val_eq_dec w vnull) as [E | _]; [destruct (Hw E) | reflexivity]. }
+  destruct v as [| | | | o | |]; try (rewrite Hne by discriminate; reflexivity).
+  destruct o; try (rewrite Hne by discriminate; reflexivity). rewrite val_eqb_refl. reflexivity.
 Qed.
 
 (** ** A function the code wrote, decided by looking for its tree among the code's *)
@@ -158,7 +157,8 @@ Section Walk.
   (** Each way a running call takes an event. *)
   Lemma takes_running a i w e p st :
     takes a i w e (Running p) st ->
-    (exists X (o : Machine.op code obj X) k x, settles p (Vis o k) /\ op_event T known N a i o x e /\ st = Running (k x)) \/
+    (exists X (o : Machine.op code obj X) k x,
+       settles p (Vis o k) /\ op_event T known N a i o x e /\ st = Running (k x)) \/
     (exists m args k ys, settles p (Vis (ExtCall 0 m args) k) /\ Forall2 (names N) ys args /\
        e = Event_Invoke a (Some i) (Invocation_mk m ys) /\ st = Waiting w (returns known m) k) \/
     (exists m args k ys r spawns x, settles p (Vis (ExtCall 0 m args) k) /\ Forall2 (names N) ys args /\

@@ -16,15 +16,19 @@ Three roots, each of a herd after `interruptAllAndJoinUntilCompleted` (closing) 
 
 ## What stands, and on what
 
-Every step from parts to a claim is proven. Twelve claims are proven of the code's trees. Four claims of the
-code have no proof yet; FrFlow reports them unproven, and the suite names them (`ThreadsSuite`):
+Every step from parts to a claim that has a proof is proven. Thirteen claims are proven of the code's trees.
+Four claims are not proven; FrFlow reports them so, and every node above one of them as waiting, and the suite
+names them (`ThreadsSuite`):
 
-| Not proven of the code | Below |
+| Not proven | Below |
 |---|---|
 | `aHerdsFlagIsOnlyReadAndSet` | `aClosedHerdRefusesToStart` |
 | `aHerdsSetIsPlain` | the first two roots |
 | `closingsTraversalsReturn` | the first two roots |
 | `theTreeCheckStaysOutOfHerds` | the first two roots |
+
+Of the last, what the check calls itself is proven (`theTreeCheckCallsFour`); the function it applies calls
+into scopes, which are not read.
 
 What is assumed, by what it is about:
 

@@ -41,8 +41,6 @@ Proof.
   split.
   { intros h t c w H. destruct (nothing_called_at_rest _ _ _ H). }
   split.
-  { intros h h1 x. split; intros who from w [[_ H] _]; destruct (nothing_begun_at_rest _ _ _ H). }
-  split.
   { intros f r h1 x. split; intros who from w [[_ H] _]; destruct (nothing_begun_at_rest _ _ _ H). }
   split.
   { intros b s t. repeat (intros; split). all: intros who from w [[_ H] _]; destruct (nothing_begun_at_rest _ _ _ H). }

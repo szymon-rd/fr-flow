@@ -65,6 +65,7 @@ val oxThreads: FrModel = FrModel("OxThreads")(
   theTreeCheckStaysOutOfHerds.refines(startThreadStaysOutOfHerds),
   aFactoryStaysOutOfHerds.refines(startThreadStaysOutOfHerds),
   theClosingCheckCallsGet.refines(theClosingCheckStaysOutOfHerds),
+  theTreeCheckCallsFour.refines(theTreeCheckStaysOutOfHerds),
   theJdkStaysOutOfHerds.refines(startThreadStaysOutOfHerds, theClosingCheckStaysOutOfHerds),
   aThreadDoesOneThingAtATime.refines(startThreadStaysOutOfHerds, theClosingCheckStaysOutOfHerds),
 
@@ -73,7 +74,7 @@ val oxThreads: FrModel = FrModel("OxThreads")(
     startThreadAddsBeforeItStarts, closingEndsOnceFoundEmpty, closingSetsTheFlagOnlyToTrue,
     startThreadIsPendingWhileItAdds, nothingIsBeingAddedWhenEmpty, nothingIsAddedOnceEmpty,
     everyForkHasLeftOnceClosed, closingSetsTheFlag, aClosedHerdRefusesToStart,
-    aForkFunctionRemovesAfterTheCode, startThreadCallsFive, theClosingCheckCallsGet),
+    aForkFunctionRemovesAfterTheCode, startThreadCallsFive, theClosingCheckCallsGet, theTreeCheckCallsFour),
   aHerdKeepsItsFields.refines(startThreadReadsTheFlagUnset, closingSetsTheFlagItself,
     theForkFunctionRemovesTheCurrentThread, closingEndsOnceFoundEmpty),
   currentThreadIsTheCaller.refines(closingSetsTheFlagItself, aForkRemovesOnlyItself, closingEndsOnceFoundEmpty),

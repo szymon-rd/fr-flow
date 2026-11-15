@@ -95,6 +95,9 @@ val aThreadIsStartedOnce = Node.assumption("A thread is started at most once.")(
 - `call(...)` reads code as a call where no word of a call follows it.
 - `o.method[A]("name")` is a call of the method of `o`'s class named so: a statement may name a method code
   outside the class may not, as `o.field("name")` does of fields.
+- `applicationOf(f, x)` is a call by which the code applies a function itself: a local method called by its
+  name, a function it holds applied. An execution names every such call by one method; what applies a function
+  from outside the code names the interface's method (`r.run()`).
 - `methodOf[C](_.add(???))` is the name of a method as the code names it; `calledOn(o, method, w)` says a call of
   the method named `method` is made on `o` at `w`, whatever else it is given.
 
@@ -223,8 +226,10 @@ What a model must still say itself, as assumptions:
   holds, and not only its type, is not proven of the code.
 - **A method of what is outside taking an argument by name** is read as taking it evaluated.
 - **Two laws of an execution are given**, with what it is to be one of the code: a call is responded to at
-  most once, and after it is made. That an actor's calls are nested, that a call nobody calls begins only once
-  handed over: a model that needs one states it as an assumption.
+  most once, and after it is made. That an actor's calls are nested (`oneAtATime`), that a call nobody calls
+  begins only once handed over: a model that needs one states it as an assumption.
+- **A constructor is in no execution.** An object of a class of the code is made by an event; that its fields
+  then hold what the class's initialisers give (a herd's set is one `newKeySet` returned) is not said.
 - **No claim of no data race** is generated.
 - **Liveness** can be stated (`eventually`, `settles`), and means what it should only over complete, fair
   executions, which nothing yet says the execution is.

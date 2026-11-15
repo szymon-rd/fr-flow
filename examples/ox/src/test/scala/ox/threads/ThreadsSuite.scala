@@ -24,21 +24,23 @@ import scala.concurrent.duration.*
     assert(text.contains("(heldIn \"ox.internal.ThreadHerd threads\"%string h)"), "threads")
   }
 
-  /** The claims of the code that have no proof yet, and the roots each is below. Everything else is proven. */
-  private val notProvenOfTheCode = Map(
+  /** The claims that are not proven for a reason of their own, and the roots each is below: three of the code
+    * with no proof, and one whose parts do not yet make it. Everything else is proven, or waits for one of them.
+    */
+  private val notProven = Map(
     "aHerdsFlagIsOnlyReadAndSet" -> List("aClosedHerdRefusesToStart"),
     "aHerdsSetIsPlain" -> List("noForkRunsOnceClosed", "nothingIsAddedOnceClosed"),
     "closingsTraversalsReturn" -> List("noForkRunsOnceClosed", "nothingIsAddedOnceClosed"),
     "theTreeCheckStaysOutOfHerds" -> List("noForkRunsOnceClosed", "nothingIsAddedOnceClosed"))
 
-  test("every step is proven; four claims of the code stand unproven, and what is above them waits".tag(Live)) {
+  test("every step is proven but four claims, named here; what is above them waits".tag(Live)) {
     Ported.run(Projects.elaborated(oxThreads), Nil, Ported.proofs("ox", "OxThreads")).map { r =>
       val unproven = Ported.unproven(r)
-      assertEquals(unproven.filter(_._2.contains("OfCode")).keySet, notProvenOfTheCode.keySet, Ported.table(r))
-      // Nothing else is open: every other node not proven only waits for one of the four.
-      assertEquals(unproven.values.toSet, Set(List("Check"), List("Check", "OfCode")), Ported.table(r))
-      val below = notProvenOfTheCode.values.flatten.toList.distinct.map(root =>
-        root -> notProvenOfTheCode.filter(_._2.contains(root)).keys.toList.sorted).toMap
+      assertEquals(unproven.filter(_._2 != List("Check")), notProven.map((n, _) =>
+        n -> (if n == "theTreeCheckStaysOutOfHerds" then List("Check", "Parts") else List("Check", "OfCode"))),
+        Ported.table(r))
+      val below = notProven.values.flatten.toList.distinct.map(root =>
+        root -> notProven.filter(_._2.contains(root)).keys.toList.sorted).toMap
       assertEquals(Ported.standsOn(r).map((root, on) => root -> on._1), below)
     }
   }
