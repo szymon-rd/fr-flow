@@ -16,7 +16,9 @@ val oxThreads: FrModel = FrModel("OxThreads")(
   codeRunsBeforeLeaving.refines(noForkRunsOnceClosed),
 
   closingEndsOnEmpty.refines(everyForkHasLeftOnceClosed, nothingIsAddedOnceClosed),
-  closingEndsOnceFoundEmpty.refines(closingEndsOnEmpty), isEmptyFindsItEmpty.refines(closingEndsOnEmpty),
+  closingEndsOnceFoundEmpty.refines(closingEndsOnEmpty),
+  isEmptyFindsItEmptyUnlessAdded.refines(closingEndsOnEmpty),
+  nothingIsAddedDuringTheLastCheck.refines(closingEndsOnEmpty),
   setReturns.refines(closingEndsOnceFoundEmpty), isEmptyReturns.refines(closingEndsOnceFoundEmpty),
   closingsTraversalsReturn.refines(closingEndsOnceFoundEmpty),
   nothingIsAddedOnceEmpty.refines(everyForkHasLeftOnceClosed, nothingIsAddedOnceClosed),

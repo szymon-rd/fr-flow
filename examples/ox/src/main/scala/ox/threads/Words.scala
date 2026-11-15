@@ -52,6 +52,12 @@ val closed = stated { (h: Obj[ThreadHerd], w: Term[BigInt]) =>
 val inside = stated { (c: Obj[Thread], h: Obj[ThreadHerd], w: Term[BigInt]) =>
   (c === owner(h) && !closing(h).by(owner(h)).calledBefore(w)) || live(c, h, w) }
 
+/** An element is being added to the set at some moment from `from` to `to`: a call that adds is pending at
+  * `from`, or is made before `to`.
+  */
+val addedDuring = stated { (s: Obj[Threads], from: Term[BigInt], to: Term[BigInt]) =>
+  exists((x: Obj[Thread]) => s.add(x).pendingAt(from) || s.add(x).calledWithin(from, to)) }
+
 /** Nothing is in the herd's set. */
 val empty = stated { (h: Obj[ThreadHerd], w: Term[BigInt]) =>
   forall((y: Term[Value]) => !elements(threads(h), w).contains(y)) }

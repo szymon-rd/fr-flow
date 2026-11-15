@@ -13,6 +13,8 @@ Proof.
   split.
   { intros s from response to [who H]. destruct (nothing_completed_at_rest _ _ _ _ _ H). }
   split.
+  { intros h a b H. destruct (nothing_completed_at_rest _ _ _ _ _ H). }
+  split.
   { intros s b from response to [who H]. destruct (nothing_completed_at_rest _ _ _ _ _ H). }
   split.
   { intros s from response to [who H]. destruct (nothing_completed_at_rest _ _ _ _ _ H). }

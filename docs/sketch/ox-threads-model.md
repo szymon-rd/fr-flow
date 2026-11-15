@@ -27,17 +27,23 @@ the one its factory returned to it (`startThreadAddsWhatItsFactoryMade`), and it
 started only by that call (`onlyItsMakerStartsAThread`), an added thread has not been started. A seventh, of
 closing's `while` loop: closing completes only after a call it made asking whether the herd's set is empty was
 answered yes (`closingEndsOnceFoundEmpty`, by the loop rule: every turn asks, and only a yes leaves the loop);
-with what is assumed of `isEmpty`, closing ends on an empty set. It rests on a claim not yet proven of the code,
-that the two traversals closing makes do not throw (`closingsTraversalsReturn`), and on the JDK's `set` and
-`isEmpty` not throwing. That the flag stays set (`theFlagStaysSet`) now follows from three parts: what an atomic
+that closing ends on an empty set then rests on two more parts. One is assumed of the JDK, as its code has it:
+`isEmpty` sums counters read one after another and is no snapshot, so a yes means the set is empty at a moment
+of the call only where nothing is added during the call (`isEmptyFindsItEmptyUnlessAdded`). The other is a
+claim that is not proven and not known to hold: that nothing is added to the herd's set while closing's last
+check runs (`nothingIsAddedDuringTheLastCheck`). A fork that passed startThread's check before the flag was set
+can add a thread then, and `isEmpty` may answer yes of a set that was never empty: the JDK says its answer is
+not for program control under concurrent updates. `closingEndsOnceFoundEmpty` itself rests on a claim not yet
+proven of the code, that the two traversals closing makes do not throw (`closingsTraversalsReturn`), and on the
+JDK's `set` and `isEmpty` not throwing. That the flag stays set (`theFlagStaysSet`) now follows from three parts: what an atomic
 boolean holds changes only after a call that sets it so (assumed of the JDK), a herd's flag is set only by a call
 of closing itself (assumed: what capture checking would say), and closing sets it only to true
 (`closingSetsTheFlagOnlyToTrue`, proven of closing's tree gone through whole). With it the third root, that a
 closed herd refuses to start a thread, rests on assumptions and on claims proven of the code, and on nothing
 else. Still stated and not proven of the code: that a caller of startThread neither closes nor leaves, when the
 code a fork
-was made to run is called (`codeRunsBeforeLeaving`), and that closing's traversals do not throw. The scopes above
-the herd and liveness are not in the model.
+was made to run is called (`codeRunsBeforeLeaving`), that closing's traversals do not throw, and that nothing is
+added during closing's last check. The scopes above the herd and liveness are not in the model.
 
 ## The tree
 

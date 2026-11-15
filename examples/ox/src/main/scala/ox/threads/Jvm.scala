@@ -62,11 +62,13 @@ val isEmptyReturns = Node.assumption("Asking a concurrent set whether it is empt
   forall((s: Obj[Threads]) =>
     s.isEmpty().everyCall((_, a, _) => (a === Returned(True)) || (a === Returned(False)))))
 
-// The JDK says this of `isEmpty` only where no other thread changes the set during the call: it is assumed here
-// of every call.
-val isEmptyFindsItEmpty = Node.assumption(
-  "A concurrent set that answers that it is empty is empty at a moment during the call.")(
+// `isEmpty` is no snapshot: it sums counters read one after another (`ConcurrentHashMap.sumCount`), and the JDK
+// says its answer is for use only where no other thread changes the set meanwhile. What is assumed is what that
+// sum gives when nothing is added during the call: every element is counted before it, and elements only leave.
+val isEmptyFindsItEmptyUnlessAdded = Node.assumption(
+  "A concurrent set that answers that it is empty, with nothing added to it during the call, is empty at a " +
+    "moment during the call.")(
   forall((s: Obj[Threads]) =>
     s.isEmpty().everyCall((from, a, to) =>
-      (a === Returned(True)) implies exists((m: Term[BigInt]) =>
+      ((a === Returned(True)) && !addedDuring(s, from, to)) implies exists((m: Term[BigInt]) =>
         from <= m && m <= to && forall((y: Term[Value]) => !elements(s, m).contains(y))))))
