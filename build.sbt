@@ -49,7 +49,7 @@ def module(name: String, libraries: ModuleID*) = Project(name, file(s"modules/$n
 val inspector = "org.scala-lang" %% "scala3-tasty-inspector" % "3.10.0"
 
 lazy val root = project.in(file("."))
-  .aggregate(core, dsl, proof, eval, testing, decision, wire, shell, api, cli, web, agent,
+  .aggregate(core, dsl, proof, eval, runs, testing, decision, wire, shell, api, cli, web, agent,
     roomsModel, rooms, authModel, auth, shopModel, shop, paymentsModel, payments, oxModel, ox)
   .configs(RocqTest).settings(rocqTagged)
   .settings(publish / skip := true)
@@ -71,6 +71,12 @@ lazy val proof = module("proof", cats).dependsOn(core % "compile->compile;test->
 lazy val eval = module("eval", cats)
   .withId("evaluation")
   .dependsOn(dsl, proof % "test->test")
+
+/** What a statement about code that takes time is written with: the moments of a run, the calls made and completed
+  * at them, and who makes them. Written in FrFlow's own DSL: its types, words and definitions are a model's like any
+  * other. Its tests prove models over it in Rocq (the shell's test harness).
+  */
+lazy val runs = module("runs", cats).dependsOn(eval, shell % "test->test")
 
 /** Generators and what draws them, property tests of plain code against its claims, model tests of implementations,
   * interleavings, the searches for witnesses and refutations, and the examples' runner (an sbt test framework, so
