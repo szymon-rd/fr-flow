@@ -21,7 +21,7 @@ Proof.
     eq_refl _).
   intros args k Hargs _. apply vals_none in Hargs as ->.
   (* the flag is read *)
-  step. intros wr vf y Hwr _ Hy Hty Hread. split; [miss |]. apply (proj1 (proj1 (Hfields h))) in Hread. subst y.
+  step. intros wr vf y Hwr _ Hy Hty Hread. split; [miss |]. apply (proj2 (proj1 (Hfields h))) in Hread. subst y.
   (* and asked what it holds *)
   step. intros wg ys Hwg _ Hys Hmk. split; [miss |]. intros wd a x Hwd Hget Hgives Htyped.
   apply args_one in Hys as (y0 & -> & Hy0). rewrite (one_name N _ _ _ Hy0 Hy) in Hget.
@@ -37,7 +37,7 @@ Lemma startThreadReadsTheFlagUnset_Proofs_complete : startThreadReadsTheFlagUnse
 Proof.
   intros heldIn history [N C] Hmade Hfields h code c t from w [Hcalled Hthen].
   destruct (method_begun (Member "ox.internal.ThreadHerd" "startThread" "scala.Function0:scala.Unit") C
-    (Hmade h code from (or_introl (ex_intro _ c Hcalled))) eq_refl Hcalled) as (r & inside & Hh & Hcall).
+    (Hmade h from ltac:(unfold calledOn; eauto 14)) eq_refl Hcalled) as (r & inside & Hh & Hcall).
   assert (forall k, direct c from (history k) ->
     (exists s t, itselfMakes history (Invocation_mk
         "java.util.concurrent.ConcurrentHashMap$.KeySetView add java.lang.Object:scala.Boolean" [s; t]) c from k) \/
@@ -71,6 +71,6 @@ Proof.
   exists (fun _ x => x), (fun _ => Event_Stutter).
   split; [exact rest_runs |].
   split.
-  { intros h code w [[who H] | [who H]]; destruct (nothing_called_at_rest _ _ _ H). }
+  { intros h w H. repeat (destruct H as [H | H]); destruct (nothing_called_on_at_rest _ _ _ H). }
   intros h. repeat split; intros w by_ inside found H; discriminate H.
 Qed.

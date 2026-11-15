@@ -107,6 +107,30 @@ val startThreadNeitherClosesNorLeaves = Node.claim(
       (!closing(h).by(c).called(w) && !threads(h).remove(c).by(c).called(w))))
 
 // Said of every moment `w` of a run in which the fork is made, whenever in it (`made`).
+// With capture checking this would be what the compiler says: what startThread is given by name is its own.
+val onlyAForkFunctionCallsTheCode = Node.assumption(
+  "The code given to startThread is called only by a function that startThread handed the herd's factory, itself.")(
+  forall((h: Obj[ThreadHerd], code: Obj[Code], t: Obj[Thread], m: Term[BigInt], w: Term[BigInt]) =>
+    (starting(h, code).called(m) && code().by(t).called(w)) implies
+      exists((r: Obj[Runnable], i: Term[BigInt]) =>
+        handedOver(r, h, i) && running(r).by(t).called(i) && code().by(t).calledInside(i, w))))
+
+// Of the thread a factory makes: it runs the function it was made for, once.
+val aThreadRunsOneForkFunctionOnce = Node.assumption(
+  "A thread runs a function that startThread handed a herd's factory at most once, and no other such function.")(
+  forall((h: Obj[ThreadHerd], g: Obj[ThreadHerd], r: Obj[Runnable], q: Obj[Runnable], t: Obj[Thread]) =>
+    forall((i: Term[BigInt], j: Term[BigInt]) =>
+      (handedOver(r, h, i) && running(r).by(t).called(i) && handedOver(q, g, j) &&
+        running(q).by(t).called(j)) implies (i === j))))
+
+val aForkFunctionRemovesAfterTheCode = Node.claim(
+  "The function startThread hands the factory removes from the herd's set, itself, only after the call of code " +
+    "it made has completed.")(
+  forall((h: Obj[ThreadHerd], r: Obj[Runnable], c: Obj[Thread], code: Obj[Code], x: Obj[Thread]) =>
+    forall((i: Term[BigInt], w: Term[BigInt], k: Term[BigInt]) =>
+      (handedOver(r, h, i) && running(r).by(c).called(i) && code().by(c).calledInside(i, w) &&
+        threads(h).remove(x).by(c).calledInside(i, k)) implies (w < k && !code().by(c).pendingSince(w, k)))))
+
 val codeRunsBeforeLeaving = Node.claim(
   "A fork calls the code it was made to run only before it leaves, and leaves only when no such call is pending.")(
   forall((h: Obj[ThreadHerd], t: Obj[Thread], code: Obj[Code], made: Term[BigInt], w: Term[BigInt]) =>

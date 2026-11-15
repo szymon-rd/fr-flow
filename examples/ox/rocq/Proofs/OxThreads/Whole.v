@@ -6,10 +6,12 @@ Require Export Proofs.OxThreads.Lemmas.
     contradict each other, and no more. *)
 Lemma Whole_Proofs_consistent_0 : Whole_Obl_consistent_0.
 Proof.
-  exists (fun _ x => x), (fun _ => Event_Stutter), (fun _ _ _ => False), (fun _ _ => False).
+  exists (fun _ => Event_Stutter), (fun _ x => x), (fun _ _ _ => False), (fun _ _ => False).
   split; [exact rest_runs |].
   split.
-  { intros h t code made w H. destruct (none_made_to_run_at_rest _ _ _ _ _ H). }
+  { intros h code t m w [[who H] _]. destruct (nothing_called_at_rest _ _ _ H). }
+  split.
+  { intros h g r q t i j [[[_ H] _] _]. destruct (nothing_called_at_rest _ _ _ H). }
   split.
   { intros s from response to [who H]. destruct (nothing_completed_at_rest _ _ _ _ _ H). }
   split.
@@ -41,7 +43,7 @@ Proof.
   split.
   { intros h t c w H. destruct (nothing_called_at_rest _ _ _ H). }
   split.
-  { intros h code w [[who H] | [who H]]; destruct (nothing_called_at_rest _ _ _ H). }
+  { intros h w H. repeat (destruct H as [H | H]); destruct (nothing_called_on_at_rest _ _ _ H). }
   split.
   { intros h. repeat split; intros w by_ inside found H; discriminate H. }
   split.

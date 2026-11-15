@@ -13,7 +13,7 @@ Proof.
   intros heldIn history [N C] Hmade Hfields Hcurrent h from response to Hdone.
   pose proof (completed_was_called _ _ _ _ _ _ Hdone) as Hcalled.
   destruct (method_begun (Member "ox.internal.ThreadHerd" "interruptAllAndJoinUntilCompleted" ":scala.Unit") C
-    (Hmade h h from (or_intror (ex_intro (fun who => calledBy history _ who from) _ Hcalled))) eq_refl Hcalled)
+    (Hmade h from ltac:(unfold calledOn; eauto 14)) eq_refl Hcalled)
     as (r & inside & Hh & Hcall).
   destruct Hdone as [[(ins & spawns & Hat) _] | [_ [spawns Hend]]]; [rewrite Hcall in Hat; discriminate Hat |].
   assert (forall k, direct (heldIn "ox.internal.ThreadHerd herdOwner" h) from (history k) ->
@@ -29,10 +29,10 @@ Proof.
     apply args_one in Hys as (y0 & -> & Hy0). pose proof (one_name N _ _ _ Hy0 Hh) as ->.
     destruct x as [e | v].
     { exfalso. destruct rr as [y | y]; [contradiction |].
-      exact (assertOnOwnerThread_returns C (proj2 (Hfields h)) Hcurrent Hh Hinv w2
+      exact (assertOnOwnerThread_returns C (proj2 (proj1 (proj1 (Hfields h)))) Hcurrent Hh Hinv w2
         ltac:(rewrite Hresp; cbn; auto) y sp Hresp). }
     (* the flag is read *)
-    step. intros wr vf y Hwr _ Hy Hty Hread. split; [miss |]. apply (proj1 (proj1 (Hfields h))) in Hread. subst y.
+    step. intros wr vf y Hwr _ Hy Hty Hread. split; [miss |]. apply (proj2 (proj1 (Hfields h))) in Hread. subst y.
     (* and set: whatever the call does after, it has set the flag *)
     step. intros ws yss Hws _ Hyss Hmk. split; [miss |]. intros wd a x Hwd Hset _ _.
     apply args_two in Hyss as (y1 & y2 & -> & Hy1 & Hy2).
@@ -49,7 +49,7 @@ Proof.
   exists (fun _ x => x), (fun _ => Event_Stutter).
   split; [exact rest_runs |].
   split.
-  { intros h code w [[who H] | [who H]]; destruct (nothing_called_at_rest _ _ _ H). }
+  { intros h w H. repeat (destruct H as [H | H]); destruct (nothing_called_on_at_rest _ _ _ H). }
   split.
   { intros h. repeat split; intros w by_ inside found H; discriminate H. }
   intros c from response to H. destruct (nothing_completed_at_rest _ _ _ _ _ H).

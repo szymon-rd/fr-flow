@@ -17,7 +17,7 @@ Proof.
     by (exists from; split; [exact Hfm | exact Hc]).
   assert (madeBefore history h "ox.internal.ThreadHerd"%string mm) as Hherd.
   { apply (made_later history h _ from); [lia |].
-    exact (Hmade h h from (or_intror (ex_intro (fun who => calledBy history _ who from) _ Hc))). }
+    exact (Hmade h from ltac:(unfold calledOn; eauto 14)). }
   destruct (classic (hasLeft heldIn history t h w)) as [H | Hstays]; [exact H | exfalso].
   destruct Hfork as (a & value & to0 & Hto0 & who & Hadd).
   assert (to0 <= mm \/ (mm < to0 /\ mm <= a) \/ (mm < to0 /\ a < mm)) as [Hle | [[Hlt Hge] | [Hlt Hlt']]] by lia.
@@ -46,5 +46,5 @@ Proof.
   { intros h t m [(m1 & _ & H) _]. destruct (nothing_called_at_rest _ _ _ H). }
   split.
   { intros h t w [(m & by_ & ins & hs & _ & H) _]. discriminate H. }
-  intros h code w [[who H] | [who H]]; destruct (nothing_called_at_rest _ _ _ H).
+  intros h w H. repeat (destruct H as [H | H]); destruct (nothing_called_on_at_rest _ _ _ H).
 Qed.

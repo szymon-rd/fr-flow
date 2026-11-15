@@ -194,9 +194,9 @@ local variable that is thrown if it holds an exception.
 
 What a model must still say itself, as assumptions:
 
-- that a method is called only on an object the code made (`l.isMade(w)`): the JVM's type safety, where nothing
-  outside the code extends the class;
-- that a `val` is read as what it holds (`l.readsAsHeld("closed")`);
+- that a method of a class is called only on an object the code made (`l.isMadeWhenCalled`, of every method
+  of the class): the JVM's type safety, where nothing outside the code extends the class;
+- that a `val` is read as what it holds (`l.readsItsValsAsHeld`, of every `val` of the class);
 - what each method of the JDK it speaks of does.
 
 ## What is not built

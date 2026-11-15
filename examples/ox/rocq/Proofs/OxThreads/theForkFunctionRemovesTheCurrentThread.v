@@ -14,7 +14,7 @@ Proof.
   intros heldIn history [N C] Hmade Hfields h r c t i w
     [[(code & c0 & from0 & m & [_ Hstart] & Hhand) Hrun] Hrem].
   destruct (method_begun (Member "ox.internal.ThreadHerd" "startThread" "scala.Function0:scala.Unit") C
-    (Hmade h code from0 (or_introl (ex_intro _ c0 Hstart))) eq_refl Hstart) as (r0 & inside0 & Hh & Hcall0).
+    (Hmade h from0 ltac:(unfold calledOn; eauto 14)) eq_refl Hstart) as (r0 & inside0 & Hh & Hcall0).
   revert c t i w Hrun Hrem.
   refine (method_meets
     (fun k => forall f r, itselfMakes history (Invocation_mk
@@ -67,6 +67,6 @@ Proof.
   exists (fun _ x => x), (fun _ => Event_Stutter).
   split; [exact rest_runs |].
   split.
-  { intros h code w [[who H] | [who H]]; destruct (nothing_called_at_rest _ _ _ H). }
+  { intros h w H. repeat (destruct H as [H | H]); destruct (nothing_called_on_at_rest _ _ _ H). }
   intros h. repeat split; intros w by_ inside found H; discriminate H.
 Qed.

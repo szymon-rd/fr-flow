@@ -15,7 +15,7 @@ Proof.
   destruct Hclosing as (m1 & Hm1 & Hc1).
   apply (Hempty c). apply (Hlive h c m). split; [| exact Hfork].
   apply (made_later history h _ m1); [lia |].
-  exact (Hmade h h m1 (or_intror (ex_intro (fun who => calledBy history _ who m1) _ Hc1))).
+  exact (Hmade h m1 ltac:(unfold calledOn; eauto 14)).
 Qed.
 
 (** Its parts can hold together: an execution in which nothing happens, of sets with nothing in them, meets
@@ -32,5 +32,5 @@ Proof.
   split.
   { intros h code c w [H | (a & _ & H & _)];
       [destruct (nothing_called_at_rest _ _ _ H) | destruct (nothing_begun_at_rest _ _ _ H)]. }
-  intros h code w [[who H] | [who H]]; destruct (nothing_called_at_rest _ _ _ H).
+  intros h w H. repeat (destruct H as [H | H]); destruct (nothing_called_on_at_rest _ _ _ H).
 Qed.

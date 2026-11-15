@@ -49,10 +49,13 @@ boolean holds changes only after a call that sets it so (assumed of the JDK), a 
 of closing itself (assumed: what capture checking would say), and closing sets it only to true
 (`closingSetsTheFlagOnlyToTrue`, proven of closing's tree gone through whole). With it the third root, that a
 closed herd refuses to start a thread, rests on assumptions and on claims proven of the code, and on nothing
-else. Still stated and not proven of the code: that a caller of startThread neither closes nor leaves, when the
-code a fork
-was made to run is called (`codeRunsBeforeLeaving`), that closing's traversals do not throw, and that nothing is
-added during closing's last check. The scopes above the herd and liveness are not in the model.
+else. That a fork calls the code it was made to run only before it leaves (`codeRunsBeforeLeaving`) now follows
+from parts: the code is called only by the function startThread handed the factory, and a thread runs one such
+function once (both assumed: of what startThread is given by name, and of the thread a factory makes); a fork
+is removed only by itself in such a function; and that function removes only after its call of the code has
+been responded to (`aForkFunctionRemovesAfterTheCode`, proven of the function's tree). Still stated and not
+proven of the code: that a caller of startThread neither closes nor leaves, that closing's traversals do not
+throw, that nothing is added during closing's last check, and that a herd's set and flag are plain. The scopes above the herd and liveness are not in the model.
 
 ## The tree
 

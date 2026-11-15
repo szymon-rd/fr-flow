@@ -13,7 +13,7 @@ Proof.
   intros heldIn history [N C] Hempty Htraversals Hset Hmade Hfields Hcurrent h from response to Hdone.
   pose proof (completed_was_called _ _ _ _ _ _ Hdone) as Hcalled.
   destruct (method_begun (Member "ox.internal.ThreadHerd" "interruptAllAndJoinUntilCompleted" ":scala.Unit") C
-    (Hmade h h from (or_intror (ex_intro (fun who => calledBy history _ who from) _ Hcalled))) eq_refl Hcalled)
+    (Hmade h from ltac:(unfold calledOn; eauto 14)) eq_refl Hcalled)
     as (r & inside & Hh & Hcall).
   destruct Hdone as [[(ins & spawns & Hat) _] | [_ [spawns Hend]]]; [rewrite Hcall in Hat; discriminate Hat |].
   assert (forall k, direct (heldIn "ox.internal.ThreadHerd herdOwner" h) from (history k) ->
@@ -30,7 +30,7 @@ Proof.
     apply args_one in Hys as (y0 & -> & Hy0). pose proof (one_name N _ _ _ Hy0 Hh) as ->.
     destruct x as [e | v].
     { exfalso. destruct rr as [y | y]; [contradiction |].
-      exact (assertOnOwnerThread_returns C (proj2 (Hfields h)) Hcurrent Hh Hinv w2
+      exact (assertOnOwnerThread_returns C (proj2 (proj1 (proj1 (Hfields h)))) Hcurrent Hh Hinv w2
         ltac:(rewrite Hresp; cbn; auto) y sp Hresp). }
     (* the flag is read, and set: setting does not throw *)
     pass.
@@ -43,7 +43,7 @@ Proof.
     intros tr1 wt s1 HJ IH.
     (* a turn: the set is read, and asked whether it is empty; asking does not throw *)
     step. intros wr vset yset Hwr _ Hyset Htyset Hread. split; [miss |].
-    apply (proj2 (proj1 (Hfields h))) in Hread. subst yset.
+    apply (proj2 (Hfields h)) in Hread. subst yset.
     step. intros we yse Hwe _ Hyse Hmke. split; [miss |]. intros wf ae xe Hwf Hask Hgivese Htye.
     apply args_one in Hyse as (y3 & -> & Hy3). pose proof (one_name N _ _ _ Hy3 Hyset) as ->.
     destruct (Hempty _ _ _ _ (done_by_someone Hask)) as [-> | ->]; (destruct xe as [e | answer]; [contradiction |]);
@@ -53,13 +53,13 @@ Proof.
     (* no: the set is traversed twice, and neither traversal throws; then the next turn *)
     destruct b; [destruct (proj2 Hgivese eq_refl) |].
     step. intros wr1 vset1 yset1 Hwr1 _ Hyset1 Htyset1 Hread1. split; [miss |].
-    apply (proj2 (proj1 (Hfields h))) in Hread1. subst yset1.
+    apply (proj2 (Hfields h)) in Hread1. subst yset1.
     step. intros wt1 yst1 Hwt1 _ Hyst1 Hmkt1. split; [miss |]. intros wu1 at1 xt1 Hwu1 Htrav1 Hgt1 _.
     apply args_two in Hyst1 as (ya1 & yf1 & -> & Hya1 & _). pose proof (one_name N _ _ _ Hya1 Hyset1) as ->.
     rewrite (Htraversals h yf1 from wt1 wu1 at1 (conj (conj Hcalled (done_made Htrav1)) (done_completed Htrav1)))
       in Hgt1. destruct xt1 as [e | u1]; [contradiction |].
     step. intros wr2 vset2 yset2 Hwr2 _ Hyset2 Htyset2 Hread2. split; [miss |].
-    apply (proj2 (proj1 (Hfields h))) in Hread2. subst yset2.
+    apply (proj2 (Hfields h)) in Hread2. subst yset2.
     step. intros wt2 yst2 Hwt2 _ Hyst2 Hmkt2. split; [miss |]. intros wu2 at2 xt2 Hwu2 Htrav2 Hgt2 _.
     apply args_two in Hyst2 as (ya2 & yf2 & -> & Hya2 & _). pose proof (one_name N _ _ _ Hya2 Hyset2) as ->.
     rewrite (Htraversals h yf2 from wt2 wu2 at2 (conj (conj Hcalled (done_made Htrav2)) (done_completed Htrav2)))
@@ -81,7 +81,7 @@ Proof.
   split.
   { intros s b from response to [who H]. destruct (nothing_completed_at_rest _ _ _ _ _ H). }
   split.
-  { intros h code w [[who H] | [who H]]; destruct (nothing_called_at_rest _ _ _ H). }
+  { intros h w H. repeat (destruct H as [H | H]); destruct (nothing_called_on_at_rest _ _ _ H). }
   split.
   { intros h. repeat split; intros w by_ inside found H; discriminate H. }
   intros c from response to H. destruct (nothing_completed_at_rest _ _ _ _ _ H).

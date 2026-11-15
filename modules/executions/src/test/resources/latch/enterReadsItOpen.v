@@ -10,7 +10,9 @@ Proof.
   intros heldIn history [N C] Hmade Hflag l from response to [who Hdone] ->.
   assert (exists r, names N l (vref "frflow.executions.latch.Latch" r)) as [r Hl].
   { destruct (Hmade l from) as (m & b & ins & hs & _ & Hmk); [| exact (made_named C Hmk)].
-    exists who. destruct Hdone as [[Hat _] | [Hcall _]]; [right; eexists; exact Hat | left; exact Hcall]. }
+    assert (calledBy history (Invocation_mk "frflow.executions.latch.Latch enter :scala.Unit" [l]) who from) as Hc
+      by (destruct Hdone as [[Hat _] | [Hcall _]]; [right; eexists; exact Hat | left; exact Hcall]).
+    unfold calledOn. eauto 14. }
   destruct Hdone as [[(inside & spawns & Hat) _] | [[inside Hcall] [spawns Hend]]].
   { exfalso. exact (method_not_atomic C (Member "frflow.executions.latch.Latch" "enter" ":scala.Unit") Hat Hl
       eq_refl). }
@@ -38,6 +40,7 @@ Qed.
 Lemma enterReadsItOpen_Proofs_feasible : enterReadsItOpen_Obl_feasible.
 Proof.
   exists (fun _ x => x), (fun _ => Event_Stutter). split; [apply nothing_runs |]. repeat split.
-  - intros l w [who [[inside H] | (a & inside & spawns & H)]]; discriminate H.
+  - intros l w H. repeat (destruct H as [H | H]);
+      destruct H as (rest & by_ & [[inside H] | (a & inside & spawns & H)]); discriminate H.
   - intros l w by_ inside found H. discriminate H.
 Qed.

@@ -141,6 +141,9 @@ Proof. intros (inside & H). discriminate. Qed.
 Lemma nothing_called_at_rest c who w : ~ calledBy (fun _ => Event_Stutter) c who w.
 Proof. intros [(inside & H) | (a & inside & spawns & H)]; discriminate. Qed.
 
+Lemma nothing_called_on_at_rest on method w : ~ calledOn (fun _ => Event_Stutter) on method w.
+Proof. intros (rest & by_ & H). exact (nothing_called_at_rest _ _ _ H). Qed.
+
 Lemma nothing_completed_at_rest c who from a to : ~ completedBy (fun _ => Event_Stutter) c who from a to.
 Proof. intros [[(inside & spawns & H) _] | [(inside & H) _]]; discriminate. Qed.
 
@@ -149,6 +152,3 @@ Proof. intros (from & value & to & _ & who & H). exact (nothing_completed_at_res
 
 Lemma none_made_to_run_at_rest heldIn t h code w : ~ madeToRun heldIn (fun _ => Event_Stutter) t h code w.
 Proof. intros (c & from & added & to & [_ H] & _). exact (nothing_completed_at_rest _ _ _ _ _ H). Qed.
-
-Lemma none_closed_at_rest heldIn h w : ~ closed heldIn (fun _ => Event_Stutter) h w.
-Proof. intros [(m & _ & H) _]. exact (nothing_called_at_rest _ _ _ H). Qed.

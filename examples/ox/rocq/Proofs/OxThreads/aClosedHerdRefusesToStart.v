@@ -8,8 +8,8 @@ Proof.
   intros heldIn history flag _ Hsets Hstays Hsees Hmade h code c t from w [[Hcalled Hnotpending] Hstart].
   destruct (called_and_over_completed history _ _ from Hcalled Hnotpending)
     as (from' & response' & to' & Hclosed & Hlt' & Hle).
-  pose proof (Hmade h h from' (or_intror (ex_intro (fun who => calledBy history _ who from') _
-    (completed_was_called _ _ _ _ _ _ Hclosed)))) as Hherd.
+  pose proof (completed_was_called _ _ _ _ _ _ Hclosed) as Hc.
+  pose proof (Hmade h from' ltac:(unfold calledOn; eauto 14)) as Hherd.
   assert (forall m, from <= m -> flag (heldIn "ox.internal.ThreadHerd shutdownInProgress"%string h) m) as Hset.
   { intros m Hm. pose proof (Hsets h from' response' to' Hclosed) as Hat.
     assert (to' = m \/ to' < m) as [<- | Hlt] by lia; [exact Hat |].
@@ -33,5 +33,5 @@ Proof.
   { intros h a b [_ H]. exact H. }
   split.
   { intros h code c t from w [H _]. destruct (nothing_called_at_rest _ _ _ H). }
-  intros h code w [[who H] | [who H]]; destruct (nothing_called_at_rest _ _ _ H).
+  intros h w H. repeat (destruct H as [H | H]); destruct (nothing_called_on_at_rest _ _ _ H).
 Qed.

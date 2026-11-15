@@ -2,7 +2,7 @@ package frflow.code
 
 import frflow.*
 import frflow.dsl.compiled.source.MemberName
-import frflow.executions.{Changing, World, madeBefore, readAs}
+import frflow.executions.{Changing, World, calledOn, madeBefore, readAs}
 import frflow.values.{Obj, Ref, Value}
 import scala.quoted.*
 
@@ -30,7 +30,30 @@ extension [C](on: Obj[C])
   inline def readsAsHeld(inline name: String)(using st: Stating): Term[Boolean] =
     ${ FieldMacros.reads[C]('on, 'name, 'st) }
 
+  /** Every read of a `val` of the object's class finds what it holds: each field the class assigns once. */
+  inline def readsItsValsAsHeld(using st: Stating): Term[Boolean] = ${ FieldMacros.readsVals[C]('on, 'st) }
+
+  /** A method of the object's class is called on it only once it has been made. */
+  inline def isMadeWhenCalled(using st: Stating): Term[Boolean] = ${ FieldMacros.madeWhenCalled[C]('on, 'st) }
+
 object FieldMacros:
+  def readsVals[C: Type](on: Expr[Obj[C]], st: Expr[Stating])(using Quotes): Expr[Term[Boolean]] =
+    import quotes.reflect.*
+    val once = TypeRepr.of[C].typeSymbol.declaredFields.filterNot(f =>
+      f.flags.is(Flags.Mutable) || f.flags.is(Flags.Lazy) || f.flags.is(Flags.Synthetic))
+    if once.isEmpty then report.errorAndAbort(s"${TypeRepr.of[C].show} has no val")
+    val named = Expr(once.map(MemberName.of(_).mkString(" ").trim))
+    '{ Fields.readsAll($named, $on.asValue)(using $st) }
+
+  def madeWhenCalled[C: Type](on: Expr[Obj[C]], st: Expr[Stating])(using Quotes): Expr[Term[Boolean]] =
+    import quotes.reflect.*
+    val cls = TypeRepr.of[C].typeSymbol
+    val methods = cls.declaredMethods.filterNot(m => m.isClassConstructor || m.flags.is(Flags.Synthetic))
+    if methods.isEmpty then report.errorAndAbort(s"${TypeRepr.of[C].show} has no method")
+    val named = Expr(methods.map(MemberName.of(_).mkString(" ")))
+    val of = Expr(MemberName.ofClass(cls))
+    '{ Fields.madeWhenCalled($named, $of, $on.asValue)(using $st) }
+
   def made[C: Type](on: Expr[Obj[C]], w: Expr[World], st: Expr[Stating])(using Quotes): Expr[Term[Boolean]] =
     import quotes.reflect.*
     val cls = Expr(MemberName.ofClass(TypeRepr.of[C].typeSymbol))
@@ -67,5 +90,12 @@ object Fields:
     new Changing(w => heldAt(name, on, w).asInstanceOf[Obj[F]])
 
   def made(on: Term[Value], cls: String, w: World)(using Stating): Term[Boolean] = madeBefore(on, cls, w)
+
+  def readsAll(names: List[String], on: Term[Value])(using Stating): Term[Boolean] =
+    names.map(reads(_, on)).reduce(_ && _)
+
+  def madeWhenCalled(methods: List[String], cls: String, on: Term[Value])(using Stating): Term[Boolean] =
+    forall((w: Term[BigInt]) =>
+      methods.map(m => calledOn(on, m, w)).reduce(_ || _) implies madeBefore(on, cls, w))
 
   def reads(name: String, on: Term[Value])(using Stating): Term[Boolean] = readAs(on, name, heldIn(name, on))

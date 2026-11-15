@@ -16,11 +16,11 @@ def closed(l: Obj[Latch])(using Stating): Obj[AtomicBoolean] = l.field("closed")
 /** What an atomic boolean holds at a moment. */
 val flag = Declaration[(Ref[AtomicBoolean], BigInt) => Boolean]("what the atomic boolean holds at a moment")
 
-val enterIsCalledOnALatch = Node.assumption("`enter` is called only on a latch that has been made.")(
-  forall((l: Obj[Latch], w: Term[BigInt]) => l.enter().called(w) implies l.isMade(w)))
+val enterIsCalledOnALatch = Node.assumption("A method of a latch is called only on a latch that has been made.")(
+  forall((l: Obj[Latch]) => l.isMadeWhenCalled))
 
-val aLatchKeepsItsFlag = Node.assumption("A latch's flag is read as the flag it holds.")(
-  forall((l: Obj[Latch]) => l.readsAsHeld("closed")))
+val aLatchKeepsItsFlag = Node.assumption("Each val of a latch is read as what the latch holds.")(
+  forall((l: Obj[Latch]) => l.readsItsValsAsHeld))
 
 val getGivesTheFlag = Node.assumption("Reading an atomic boolean gives what it holds at a moment during the read.")(
   forall((s: Obj[AtomicBoolean], b: Term[Boolean]) =>

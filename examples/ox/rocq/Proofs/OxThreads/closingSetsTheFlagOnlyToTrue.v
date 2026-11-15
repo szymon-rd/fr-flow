@@ -13,7 +13,7 @@ Lemma closingSetsTheFlagOnlyToTrue_Proofs_complete : closingSetsTheFlagOnlyToTru
 Proof.
   intros heldIn history [N C] Hmade h v c from w [Hcalled Hsets].
   destruct (method_begun (Member "ox.internal.ThreadHerd" "interruptAllAndJoinUntilCompleted" ":scala.Unit") C
-    (Hmade h h from (or_intror (ex_intro (fun who => calledBy history _ who from) _ Hcalled))) eq_refl Hcalled)
+    (Hmade h from ltac:(unfold calledOn; eauto 14)) eq_refl Hcalled)
     as (r & inside & Hh & Hcall).
   refine (method_meets
     (fun k => forall s v, itselfMakes history (Invocation_mk
@@ -39,5 +39,5 @@ Lemma closingSetsTheFlagOnlyToTrue_Proofs_feasible : closingSetsTheFlagOnlyToTru
 Proof.
   exists (fun _ x => x), (fun _ => Event_Stutter).
   split; [exact rest_runs |].
-  intros h code w [[who H] | [who H]]; destruct (nothing_called_at_rest _ _ _ H).
+  intros h w H. repeat (destruct H as [H | H]); destruct (nothing_called_on_at_rest _ _ _ H).
 Qed.

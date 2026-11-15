@@ -14,6 +14,9 @@ val oxThreads: FrModel = FrModel("OxThreads")(
 
   everyForkHasLeftOnceClosed.refines(noForkRunsOnceClosed),
   codeRunsBeforeLeaving.refines(noForkRunsOnceClosed),
+  onlyAForkFunctionCallsTheCode.refines(codeRunsBeforeLeaving),
+  aThreadRunsOneForkFunctionOnce.refines(codeRunsBeforeLeaving),
+  aForkFunctionRemovesAfterTheCode.refines(codeRunsBeforeLeaving),
 
   closingEndsOnEmpty.refines(everyForkHasLeftOnceClosed, nothingIsAddedOnceClosed),
   closingEndsOnceFoundEmpty.refines(closingEndsOnEmpty),
@@ -31,7 +34,7 @@ val oxThreads: FrModel = FrModel("OxThreads")(
 
   startThreadIsCalledFromInside.refines(startThreadCallersStayInside),
   startThreadNeitherClosesNorLeaves.refines(startThreadCallersStayInside),
-  aForkRemovesOnlyItself.refines(startThreadCallersStayInside),
+  aForkRemovesOnlyItself.refines(startThreadCallersStayInside, codeRunsBeforeLeaving),
 
   closingSetsTheFlag.refines(aClosedHerdRefusesToStart),
   theFlagStaysSet.refines(aClosedHerdRefusesToStart, closingSetsTheFlag),
@@ -54,14 +57,15 @@ val oxThreads: FrModel = FrModel("OxThreads")(
   startThreadAddsWhatItsFactoryMade.refines(anAddedThreadHasNotBeenStarted),
   startThreadAddsBeforeItStarts.refines(anAddedThreadHasNotBeenStarted),
 
-  onlyAForkFunctionRemoves.refines(aForkRemovesOnlyItself),
+  onlyAForkFunctionRemoves.refines(aForkRemovesOnlyItself, codeRunsBeforeLeaving),
   theForkFunctionRemovesTheCurrentThread.refines(aForkRemovesOnlyItself),
 
   herdsAreMade.refines(startThreadReadsTheFlagUnset, closingSetsTheFlagItself,
     theForkFunctionRemovesTheCurrentThread, startThreadAddsWhileItRuns, startThreadAddsWhatItsFactoryMade,
     startThreadAddsBeforeItStarts, closingEndsOnceFoundEmpty, closingSetsTheFlagOnlyToTrue,
     startThreadIsPendingWhileItAdds, nothingIsBeingAddedWhenEmpty, nothingIsAddedOnceEmpty,
-    everyForkHasLeftOnceClosed, closingSetsTheFlag, aClosedHerdRefusesToStart),
+    everyForkHasLeftOnceClosed, closingSetsTheFlag, aClosedHerdRefusesToStart,
+    aForkFunctionRemovesAfterTheCode),
   aHerdKeepsItsFields.refines(startThreadReadsTheFlagUnset, closingSetsTheFlagItself,
     theForkFunctionRemovesTheCurrentThread, closingEndsOnceFoundEmpty),
   currentThreadIsTheCaller.refines(closingSetsTheFlagItself, aForkRemovesOnlyItself, closingEndsOnceFoundEmpty),

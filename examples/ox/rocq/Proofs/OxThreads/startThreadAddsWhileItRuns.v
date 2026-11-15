@@ -11,8 +11,8 @@ Lemma startThreadAddsWhileItRuns_Proofs_complete : startThreadAddsWhileItRuns_Ob
 Proof.
   intros heldIn history [N C] Hmade h code c t from w [Hcalled Hadds].
   assert (exists r, names N h (vref "ox.internal.ThreadHerd" r)) as [r Hh].
-  { destruct (Hmade h code from) as (m & b & ins & hs & _ & Hmk); [| exact (made_named C Hmk)].
-    left. exists c. exact Hcalled. }
+  { destruct (Hmade h from) as (m & b & ins & hs & _ & Hmk); [| exact (made_named C Hmk)].
+    unfold calledOn. eauto 14. }
   destruct Hcalled as [[inside Hcall] | (a & inside & spawns & Hat)].
   2: { exfalso. exact (method_not_atomic C
          (Member "ox.internal.ThreadHerd" "startThread" "scala.Function0:scala.Unit") Hat Hh eq_refl). }
@@ -31,5 +31,5 @@ Lemma startThreadAddsWhileItRuns_Proofs_feasible : startThreadAddsWhileItRuns_Ob
 Proof.
   exists (fun _ x => x), (fun _ => Event_Stutter).
   split; [exact rest_runs |].
-  intros h code w [[who H] | [who H]]; destruct (nothing_called_at_rest _ _ _ H).
+  intros h w H. repeat (destruct H as [H | H]); destruct (nothing_called_on_at_rest _ _ _ H).
 Qed.

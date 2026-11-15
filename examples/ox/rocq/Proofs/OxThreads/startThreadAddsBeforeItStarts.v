@@ -11,7 +11,7 @@ Lemma startThreadAddsBeforeItStarts_Proofs_complete : startThreadAddsBeforeItSta
 Proof.
   intros heldIn history [N C] Hmade h code c t from w m started [[Hcalled Hadds] Hstarts].
   destruct (method_begun (Member "ox.internal.ThreadHerd" "startThread" "scala.Function0:scala.Unit") C
-    (Hmade h code from (or_introl (ex_intro _ c Hcalled))) eq_refl Hcalled) as (r & inside & Hh & Hcall).
+    (Hmade h from ltac:(unfold calledOn; eauto 14)) eq_refl Hcalled) as (r & inside & Hh & Hcall).
   refine (method_meets
     (fun w => forall s t, itselfMakes history (Invocation_mk
       "java.util.concurrent.ConcurrentHashMap$.KeySetView add java.lang.Object:scala.Boolean" [s; t]) c from w ->
@@ -36,5 +36,5 @@ Lemma startThreadAddsBeforeItStarts_Proofs_feasible : startThreadAddsBeforeItSta
 Proof.
   exists (fun _ x => x), (fun _ => Event_Stutter).
   split; [exact rest_runs |].
-  intros h code w [[who H] | [who H]]; destruct (nothing_called_at_rest _ _ _ H).
+  intros h w H. repeat (destruct H as [H | H]); destruct (nothing_called_on_at_rest _ _ _ H).
 Qed.
