@@ -23,6 +23,7 @@ private[rocq] final class RocqDecl(names: RocqNames):
     case Decl.Inductive(n, cs)            => inductive(n, cs)
     case Decl.MatchEqns                   => ""
     case Decl.PrintAxioms(n)              => s"Print Assumptions ${names.constant(n.map(_.text))}."
+    case Decl.Rocq(text)                  => text
     case Decl.Budgeted(h, t: Decl.Theorem) => theorem(t, Some(RocqDecl.seconds(h)))
     case t: Decl.Theorem                  => theorem(t, None)
     case other                            => throw RocqExpr.Unsupported(other.productPrefix)

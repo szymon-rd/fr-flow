@@ -49,3 +49,13 @@ val madeInside = stated { (outer: Term[Invocation], inner: Term[Invocation], by:
     (history(w) === make[Event.Invoke](by, some(made), inner) ||
       exists((a: Term[Response], spawns: Term[List[Spawn]]) =>
         history(w) === make[Event.Atomic](by, some(made), inner, a, spawns)))) }
+
+/** An object of the class, named by the value, has been made before the moment. */
+val madeBefore = stated { (made: Term[Value], cls: Term[String], w: Term[BigInt]) =>
+  exists((m: Term[BigInt], by: Term[Value], inside: Term[Option[BigInt]], holding: Term[List[Held]]) =>
+    m < w && history(m) === make[Event.Make](by, inside, made, cls, holding)) }
+
+/** Every read of the field of the object finds the value. */
+val readAs = stated { (on: Term[Value], field: Term[String], value: Term[Value]) =>
+  forall((w: Term[BigInt], by: Term[Value], inside: Term[Option[BigInt]], found: Term[Value]) =>
+    (history(w) === make[Event.Read](by, inside, on, field, found)) implies (found === value)) }

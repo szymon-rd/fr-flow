@@ -16,7 +16,7 @@ import frflow.dsl.vocab.{Definition, Held}
   */
 final case class FrModel(name: KbName, nodes: List[Node], meanings: List[(SymbolName, Deferred[Attachment])],
     generators: List[Generator[?]], writtenIn: Option[RelPath], members: Set[SymbolName] = Set.empty,
-    holdings: List[FrModel.Holding] = Nil):
+    holdings: List[FrModel.Holding] = Nil, executed: Set[SymbolName] = Set.empty):
   /** Which structures hold each structure, by their words (`Stating.held`). */
   def held: Held = Held(holdings.groupMap(_.part)(h => h.holder -> h.via).view.mapValues(_.toMap).toMap)
   /** What each word of "what a structure holds" gives: the held structure's members' words (`CodeTable.held`). */
@@ -33,6 +33,11 @@ final case class FrModel(name: KbName, nodes: List[Node], meanings: List[(Symbol
   /** The same of a structure's member: its code is its meaning whether or not a statement mentions it. */
   private[dsl] def attachMember(d: SymbolName, a: Deferred[Attachment]): FrModel =
     attach(d, a).copy(members = members + d)
+  /** The same, with a word that is an execution of code read (`Code.Executing`): the statements still read it as
+    * the word it is, known by what they say of it; it is not fixed.
+    */
+  private[dsl] def executing(d: SymbolName, a: Deferred[Attachment]): FrModel =
+    attach(d, a).copy(executed = executed + d)
   /** The same, with what a structure's class holds. */
   private[dsl] def holding(held: List[FrModel.Holding]): FrModel = copy(holdings = (holdings ++ held).distinct)
   /** The same model with these Definitions listed too: a word given a meaning here takes it in place of one it
@@ -46,7 +51,8 @@ final case class FrModel(name: KbName, nodes: List[Node], meanings: List[(Symbol
   /** The same, with what a Definition listed in it gives: each word's meaning, once. */
   private def taking(given_ : FrModel): FrModel =
     given_.meanings.foldLeft(this)((kb, m) => kb.attach(m._1, m._2))
-      .copy(members = members ++ given_.members, holdings = (holdings ++ given_.holdings).distinct)
+      .copy(members = members ++ given_.members, holdings = (holdings ++ given_.holdings).distinct,
+        executed = executed ++ given_.executed)
 
 object FrModel:
   /** A structure held by another's class: the holder's word, the held one's, the word that is what the holder

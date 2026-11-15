@@ -29,7 +29,7 @@ object Elaborate:
     * known by the statements alone.
     */
   def fixed(kb: FrModel): Set[SymbolName] =
-    val given_ = kb.meanings.map(_._1).toSet
+    val given_ = kb.meanings.map(_._1).toSet -- kb.executed
     val written = (kb.nodes.traverse(_.statement(Stating.probing(given_))), kb.meanings.traverse(_._2)).tupled.run
     given_ ++ written.andThen((d, _) => closed(d)).toOption.toList.flatMap(_._1.symbols.collect {
       case (name, ss) if ss.exists(_.kind == ValueKind.Definition) => name })

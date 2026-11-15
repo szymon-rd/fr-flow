@@ -50,7 +50,7 @@ final class Wiring(semantics: Semantics, t: Theory):
   /** The code a Definition runs as: its plain code, its proven define, or its fixed value. */
   private def runs(d: SymbolName, code: Code): Option[Impl] = code match
     case Code.Valued(v) => typeOf(d).map(ty => Impl(0, _ => Fn.ref(semantics.literal(v, ty))))
-    case Code.Provided  => None
+    case Code.Provided | Code.Executing(_) => None
     case other          =>
       other.scala.map(_.impl).orElse(other.proven.flatMap(t.vocabulary.define).map(x => proven(x.written)))
 

@@ -7,6 +7,9 @@ import frflow.proof.prover.ast.{ModuleName, Names}
 final case class Layout(kb: KbName):
   private def generated(rest: String*): ModuleName = ModuleName(Names.path("FrFlowGen" :: kb.value :: rest.toList*))
   def types: ModuleName = generated("Types")
+  /** The code read for a model that speaks of its execution: its files as trees, and what an execution of it is. */
+  def code: ModuleName = generated("Code")
+  def codeUnit(name: String): ModuleName = generated("Code", name)
   /** Every define's module: what a proof file imports to state things about the domain. */
   def domain: ModuleName = generated("Domain")
   def define(d: DefName): ModuleName = generated("Domain", s"Def_${d.value}")

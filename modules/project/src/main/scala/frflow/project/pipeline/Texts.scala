@@ -64,6 +64,7 @@ object Texts:
     case Code.Tested(_, _)  => s"tested against $d's Scala on generated cases"
     case Code.Valued(_)     => s"proven of $d's value"
     case Code.Provided      => s"stated for every value of $d provided where the code runs"
+    case Code.Executing(_)  => s"stated of every execution of the code read for $d"
 
   private def premise(p: Premise): String = p match
     case Premise.FromOutside(ty) => s"what each ${typeName(ty)} from outside meets"

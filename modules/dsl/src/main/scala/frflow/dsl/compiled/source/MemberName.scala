@@ -9,4 +9,7 @@ object MemberName:
   /** The member's declarer, name and signature, as the tree read has them. */
   def of(using q: Quotes)(s: q.reflect.Symbol): List[String] = Names[q.type](q).member(s)
 
+  /** A class, as the tree read names it. */
+  def ofClass(using q: Quotes)(cls: q.reflect.Symbol): String = Names[q.type](q).classKey(cls)
+
   private final class Names[Q <: Quotes & Singleton](val q: Q) extends SourceSyms

@@ -4,6 +4,7 @@ import frflow.core.analysis.resolution.Resolved
 import frflow.proof.audit.Audit
 import frflow.proof.layout.{Lowering, NodeModules, RootImplModule, VocabularyModules, WholeModule}
 import frflow.proof.prover.ast.ProverModule
+import frflow.proof.rocq.CodeModules
 import frflow.proof.obligation.{NodeObligations, Obligation}
 import frflow.proof.terms.TermTable
 
@@ -15,7 +16,8 @@ object ProverModules:
   def of(r: Resolved, table: TermTable, obligations: List[NodeObligations], whole: List[Obligation])
       : List[ProverModule] =
     val l = Lowering(r, table)
-    Audit.checked(r, obligations.flatMap(o => o.required ++ o.tried) ++ whole, VocabularyModules.of(l) ++
+    Audit.checked(r, obligations.flatMap(o => o.required ++ o.tried) ++ whole, CodeModules.of(l) ++
+      VocabularyModules.of(l) ++
       obligations.flatMap(NodeModules.of(l, _)) ++ RootImplModule.of(l).toList ++
       (if whole.isEmpty then Nil else WholeModule.of(l, whole)) ++ WholeModule.checks(l, whole).toList ++
       WholeModule.audit(l, whole).toList)

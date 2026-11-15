@@ -49,8 +49,19 @@ final class Lowering(val resolved: Resolved, val table: TermTable, canonical: Bo
   def isDefine(name: String): Boolean = v.defines.exists(d => d.name.value == name ||
     ruleSide.twice(d.name) && LowerEnv.guarded(d.name).value == name)
 
+  /** What a statement takes of a value where it binds it: of an execution of code read, that it is one (`runs`);
+    * of a value provided where the code runs, what always holds of it.
+    */
+  private def fromOutside(s: SymbolName): List[LExpr] = runs(s).toList ++ always(s)
+
+  /** `(Code.runs s)`, of a word that is an execution of the code read: what the generated `Code` module says. */
+  private def runs(s: SymbolName): Option[LExpr] =
+    resolved.theory.code.attached.get(s).map(_.code).collect { case Code.Executing(_) =>
+      LExpr.Paren(LExpr.App(LExpr.Const(Names.path(kb.value, "Code", "runs")),
+        List(LExpr.Name(Names.ident(s.value))))) }
+
   /** What always holds of a value provided where the code runs, at its symbol: a value from outside (owner §21). */
-  private def fromOutside(s: SymbolName): List[LExpr] =
+  private def always(s: SymbolName): List[LExpr] =
     val t = resolved.theory
     val provided = t.code.attached.get(s).exists(_.code == Code.Provided)
     v.symbol(s).map(_.ty).collect { case SymbolType.Typed(ty) if provided => ty }.toList.flatMap(ty =>

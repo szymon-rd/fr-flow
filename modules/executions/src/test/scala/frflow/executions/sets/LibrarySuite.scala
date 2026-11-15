@@ -3,6 +3,7 @@ package frflow.executions.sets
 import frflow.core.ty.DataType
 import frflow.project.Projects
 import frflow.proof.layout.ExecutionsLibrary
+import frflow.proof.rocq.ExecutionsText
 import java.nio.file.{Files, Paths}
 
 /** The vocabulary's types have one Rocq text, in FrFlow's library: it is what FrFlow generates from the Scala that
@@ -13,7 +14,7 @@ class LibrarySuite extends munit.FunSuite:
     Projects.elaborated(sets).theory.vocabulary.types.filter(ExecutionsLibrary.has)
 
   test("the library's module is what FrFlow generates from the vocabulary's types") {
-    val generated = ExecutionsLibrary.source(declared)
+    val generated = ExecutionsText.of(declared)
     val kept = Paths.get("modules/proof/rocq/FrFlow/Executions.v")
     if !Files.exists(kept) || Files.readString(kept) != generated then
       val obtained = Paths.get("modules/executions/target/Executions.v")

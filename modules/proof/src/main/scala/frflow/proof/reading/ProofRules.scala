@@ -15,11 +15,13 @@ object ProofRules:
     "propositional_extensionality", "functional_extensionality_dep")
   val AllowedCommands: Set[String] = Set("Require", "From", "Lemma", "Theorem", "Proof.", "Proof", "Qed.")
   /** Only what states things: the domain, the nodes' specs, what is asked of the theory as a whole, FrFlow's
-    * library, Rocq's own, the shared lemmas.
+    * library, Rocq's own, the shared lemmas; and, for a claim of code read from its TASTy, the code's trees and
+    * FrFlow's library of what they mean and of what an execution of them is.
     */
   val AllowedImports: Regex = List("""FrFlowGen\.\w+\.Domain""", """FrFlowGen\.\w+\.\w+\.Spec""",
     """FrFlowGen\.\w+\.Whole\.Spec""", """FrFlow\.Base|Base""", """Stdlib(\..*)?""",
-    """Proofs\.\w+\.Lemmas""").mkString("|").r
+    """Proofs\.\w+\.Lemmas""", """FrFlowGen\.\w+\.Code(\.\w+)?""", """FrFlow\.Executions|Executions""",
+    """FrFlow\.(Code|Scala)\.\w+""", """FrFlow\.Jvm\.Machine""", """FrFlow\.Threads\.Prog""").mkString("|").r
 
   /** The obligations the file's lemmas prove, by name: a lemma `<node>_Proofs_<obligation>` proves that one. */
   def theorems(f: ProofFile): List[ObligationName] =

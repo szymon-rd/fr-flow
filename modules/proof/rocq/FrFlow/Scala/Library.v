@@ -721,12 +721,11 @@ Definition misc (owner name : string) : option (list bool * Run) :=
 
 Definition is_collection (owner : string) : bool := String.prefix "scala.collection" owner.
 
-Definition outside (owner name : string) : option primitive :=
+(** What is no object of the JDK with state of its own, nor a thread: arrays, data, numbers and texts,
+    collections that do not change. A call of one is computed; it is no step among other threads' steps. *)
+Definition pure (owner name : string) : option primitive :=
   let plain (r : Run) : option primitive := Some (Prim [] r) in
   let lazy (p : list bool * Run) : option primitive := Some (Prim (fst p) (snd p)) in
-  match jdk owner name with
-  | Some r => plain r
-  | None =>
   match array owner name with
   | Some r => plain r
   | None =>
@@ -765,4 +764,12 @@ Definition outside (owner name : string) : option primitive :=
           end))
     end
   else None
-  end end end end end end end end.
+  end end end end end end end.
+
+(** A definition from outside, by its owner and its name: every definition of one name is taken to do the same,
+    whatever its signature. *)
+Definition outside (owner name signature : string) : option primitive :=
+  match jdk owner name with
+  | Some r => Some (Prim [] r)
+  | None => pure owner name
+  end.

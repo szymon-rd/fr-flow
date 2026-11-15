@@ -10,4 +10,8 @@ import frflow.core.name.SymbolName
   * its holder is proven from the claims on what is held, not from the class given for it.
   */
 final case class CodeTable(attached: Map[SymbolName, Attachment], unclaimed: Set[SymbolName] = Set.empty,
-    held: Map[SymbolName, Set[SymbolName]] = Map.empty)
+    held: Map[SymbolName, Set[SymbolName]] = Map.empty):
+  /** The files of code read for the words that are executions of it (`Code.Executing`), each once. */
+  def read: List[ReadUnit] =
+    attached.toList.sortBy(_._1.value).map(_._2.code).collect { case Code.Executing(us) => us }.flatten
+      .distinctBy(_.name)

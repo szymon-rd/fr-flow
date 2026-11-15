@@ -23,6 +23,7 @@ object Mentioned:
     case Decl.Namespace(_, ds)            => ds.flatMap(decl)
     case Decl.MatchEqns                   => Nil
     case Decl.PrintAxioms(n)              => List(n)
+    case Decl.Rocq(_)                     => Nil
 
   private def proof(p: Proof): List[List[ProverName]] = p match
     case Proof.Below(t) => expr(t)

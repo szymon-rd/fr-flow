@@ -37,8 +37,8 @@ Record primitive := Prim {
 Section Meaning.
 
   Variable T : table.
-  (** What a definition from outside does: by its owner and its name. *)
-  Variable outside : string -> string -> option primitive.
+  (** What a definition from outside does: by its owner, its name and its signature. *)
+  Variable outside : string -> string -> string -> option primitive.
   (** What a class from outside inherits from. *)
   Variable supers : string -> list string.
 
@@ -342,7 +342,7 @@ Section Meaning.
   Definition call_outside (s : sym) (on : D) (e : scope) (targs : list ty) (args : list (tree * D)) : D :=
     match s with
     | Member owner name signature =>
-        match outside owner name with
+        match outside owner name signature with
         | Some p =>
             v <~ on ;; vs <~ eval_args e (p_lazy p) args ;;
             p_run p (Context equal (fun x cls => instance x (TyRef cls))) v targs vs
@@ -397,6 +397,11 @@ Section Meaning.
   (** The names `universal` gives a meaning. *)
   Definition universals : list string := ["=="; "!="; "eq"; "isInstanceOf"; "asInstanceOf"; "$asInstanceOf$"].
 
+  (** The method of the program that a call of `s` on `v` runs: `v` is an object of the program whose class
+      has one. *)
+  Definition implemented (v : val) (s : sym) : option tree :=
+    match v with VObj (Ref cls _) => impl T cls s | _ => None end.
+
   (** A member selected of a value, and called with `args` if it is a method. *)
   Definition select_with (e : scope) (on : D) (s : sym) (targs : list ty) (args : list (tree * D)) : D :=
     match s with
@@ -414,13 +419,9 @@ Section Meaning.
             | None =>
                 (* a method declared outside, called on an object of the program that has it *)
                 v <~ on ;;
-                match v with
-                | VObj (Ref cls _) =>
-                    match impl T cls s with
-                    | Some d => vs <~ eval_args e (map by_name (params d)) args ;; call_method s v vs
-                    | None => call_outside s (oret v) e targs args
-                    end
-                | _ => call_outside s (oret v) e targs args
+                match implemented v s with
+                | Some d => vs <~ eval_args e (map by_name (params d)) args ;; call_method s v vs
+                | None => call_outside s (oret v) e targs args
                 end
             end
         end
@@ -467,8 +468,8 @@ Section Meaning.
     end.
 
   (** An object made: of a class of the program, a place of the heap, then the class's initialiser; of a class
-      from outside, what `outside` says of its constructor. *)
-  Definition construct (e : scope) (type : ty) (targs : list ty) (args : list (tree * D)) : D :=
+      from outside, what `outside` says of its constructor (`ctor`, as the code names it). *)
+  Definition construct (e : scope) (type : ty) (ctor : sym) (targs : list ty) (args : list (tree * D)) : D :=
     match ty_class type with
     | Some cls =>
         match class_of T cls with
@@ -478,7 +479,9 @@ Section Meaning.
             r <~ oop (ObjNew cls (fields_of cls ++ if is_local cls then [(scope_field, scope_val e)] else [])) ;;
             _ <~ ocall (Init cls) (VList (vref cls r :: vs)) ;;
             oret (vref cls r)
-        | None => call_outside (Member cls "<init>" "()") (oret VUnit) e targs args
+        | None =>
+            let signature := match ctor with Member _ _ sig => sig | _ => "()" end in
+            call_outside (Member cls "<init>" signature) (oret VUnit) e targs args
         end
     | None => stuck "an object made of a type that is no class"
     end.
@@ -679,7 +682,7 @@ Section Meaning.
     | Apply g more => applied e g targs ((fix each (ts : list tree) : list (tree * D) :=
         match ts with [] => [] | a :: rest => (a, denote e a) :: each rest end) more ++ args)
     | TypeApply g ts => applied e g ts args
-    | Select (New type) _ => construct e type targs args
+    | Select (New type) ctor => construct e type ctor targs args
     | Select on s => select_with e (denote e on) s targs args
     | Ident s => ident_with e s targs args
     | Typed g _ => applied e g targs args

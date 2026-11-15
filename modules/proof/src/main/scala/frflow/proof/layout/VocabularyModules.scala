@@ -32,7 +32,8 @@ object VocabularyModules:
   /** The domain's types: the vocabulary of executions' are the library's (`ExecutionsLibrary`), imported. */
   private def types(l: Lowering): ProverModule =
     val (library, own) = l.resolved.theory.vocabulary.types.partition(ExecutionsLibrary.has)
-    val imported = ModuleName(Names.path("FrFlow")) :: (if library.isEmpty then Nil else List(ExecutionsLibrary.module))
+    val imported = ModuleName(Names.path("FrFlow")) :: Option.when(library.nonEmpty)(ExecutionsLibrary.module).toList ++
+      Option.when(l.resolved.theory.code.read.nonEmpty)(l.layout.code)
     ProverModule(l.layout.types, imported, Preamble.generated, Names.path(l.kb.value), Nil,
       inOrder(own, Nil).map(typeDecl))
 

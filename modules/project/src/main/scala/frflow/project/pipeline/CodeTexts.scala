@@ -21,3 +21,4 @@ object CodeTexts:
     case Code.Tested(runs, _) => s"Scala, ${runs.written.value}"
     case Code.Valued(v)       => s"the value ${Rows.shown(v)}"
     case Code.Provided        => "provided where the code runs"
+    case Code.Executing(us)   => s"an execution of the code read from ${us.map(_.name).mkString(", ")}"

@@ -23,15 +23,19 @@ val history = Declaration[BigInt => Event]("the event at each moment of the exec
 ```
 
 An `Event` is a method invoked (`Invoke`), a method invoked and responding at once (`Atomic`), an invocation
-responded to (`Respond`), anything else an actor does (`Internal`), or nothing (`Stutter`). An `Invocation` is
-the method and its arguments, what it is invoked on first. An invocation is responded to with a `Response`:
-`Returned(value)` or `Threw(exception)`. What code handles is a `Value`: `Unit`, `Bool`, `Int`, `Str`, or a
-`Reference` to an object.
+responded to (`Respond`), an object of the code made (`Make`), a field of one read (`Read`), a write of one begun
+and done (`Mark`, `Write`), what is initialised once asked for (`Enter`), anything else an actor does
+(`Internal`), or nothing (`Stutter`). An event of a call says which pending call of its actor makes it (`inside`).
+An `Invocation` is the method and its arguments, what it is invoked on first. An invocation is responded to with
+a `Response`: `Returned(value)` or `Threw(exception)`. What code handles is a `Value`: `Unit`, `Bool`, `Int`,
+`Str`, or a `Reference` to an object.
 
 All of this is FrFlow's own DSL: data types, one declared word, and `stated` definitions over it. FrFlow generates
-its Rocq as it does any model's (`Types.v`, `Domain/Def_calledBy.v`, …), and nothing in FrFlow's core knows it.
-A case named as a type of Rocq's or Lean's prelude is written with a `_` after it there (`Value_Bool_`), as any
-such name of a model is.
+its Rocq as it does any model's (`Domain/Def_calledBy.v`, …), and nothing in FrFlow's core knows it. The types
+have one Rocq text, `FrFlow/Executions.v`, generated from the Scala and kept as generated (`LibrarySuite`): a
+model's `Types.v` imports it, so that FrFlow's library can speak of an execution in any model's types. A case
+named as a type of Rocq's or Lean's prelude is written with a `_` after it there (`Value_Bool_`), as any such
+name of a model is.
 
 ## Three kinds of expression
 
@@ -101,19 +105,64 @@ code's methods and the assumptions (on the JDK, on who calls the code, on the ex
 An execution in which nothing happens meets every statement of the form "after a call, …", so it proves the last two.
 That shows the statements do not contradict each other, and no more.
 
-`modules/executions/src/test` has a model with no code (a concurrent set known by its assumptions) checked end to end;
+`modules/executions/src/test` has a model with no code (a concurrent set known by its assumptions) and a model
+of code read from its TASTy (a latch), each checked end to end;
 `examples/ox/src/test/scala/ox/threads/ThreadsSuite.scala` checks the model of Ox's threads.
+
+## An execution of code
+
+A model says which code its execution is of. The code is read from its TASTy, as it was compiled, into the trees
+the compiler typed; nothing of it is written again:
+
+```scala
+val latch: FrModel = FrModel("Latch")(
+  enterFindsItOpen, …,
+  history.executing(Read.of(classOf[Latch], _.endsWith("latch/Latch.tasty"))))
+```
+
+FrFlow then generates, beside the model's statements, the trees (`FrFlowGen/<Model>/Code/<file>.v`) and
+`Code.v`: the files, the table of what they define, and `Code_runs history`, "the execution is one of this code".
+Every statement that binds `history` takes that as a hypothesis (`o_history_0`), and consistency is asked of an
+execution of the code.
+
+What it is for an execution to be one of some code is said once, in FrFlow's Rocq library, for any trees
+(`FrFlow/Code/Conforms.v`), over the meaning of the trees (`FrFlow/Scala/Meaning.v`):
+
+- A call of a method of the code on an object the code made, or of a function the code wrote, is made by one
+  actor. The events that actor makes directly inside the call are the steps of the method's program, in order:
+  an object made, a field read or written, a call made and its response. Other actors' events, and what happens
+  inside the calls it makes, come between; nothing is said of how they interleave.
+- A call of what is outside the code (the JDK, a class not read) is an event with any response of its type.
+  What it gives is what the model assumes of it, in the model's own words (`getGivesTheFlag`).
+- The execution's values name the code's: each at most one, numbers, texts and truth values themselves.
+- Code whose meaning is not given (`Chaos`) may make any event: a proof passes it only where it is not reached.
+
+A claim of the code is then a claim with parts like any other: its parts are the assumptions it needs, and its
+step is proven in its proof file, by walking the method's program along the events of a call (`FrFlow/Code/Walk.v`:
+`walk` computes what the program does next, `step_read`, `step_called`, `step_method` say what event that is).
+`enterReadsItOpen` is proven so of `Latch.enter`'s tree.
+
+What a model must still say itself, as assumptions:
+
+- that a method is called only on an object the code made (`l.isMade(w)`): the JVM's type safety, where nothing
+  outside the code extends the class;
+- that a `val` is read as what it holds (`l.readsAsHeld("closed")`);
+- what each method of the JDK it speaks of does;
+- that a call completes after it is made.
 
 ## What is not built
 
-- **Nothing is proven of code yet.** A claim on a method (`onlyStartThreadAdds`) is stated and stands as stated.
-  Proving it needs the meaning of an execution of code: the code's trees as programs, calls of what is not the
-  code's as events the assumptions describe, and the history as that of an execution of the program.
-- **No law of an execution is given.** That a completion follows its call, that an actor's calls are nested, that a call
-  nobody calls begins only once handed over: a model that needs one states it as an assumption for now
-  (`nothingBeforeTheStart`).
+- **Who else touches what a class keeps to itself.** That only a class's own methods call methods on an object it
+  holds in a private field is not derived from the trees: a model states it as an assumption. With capture
+  checking it is what the compiler would say.
+- **What the heap holds.** A read of a `var` is an event with any value of the field's type: that it finds what
+  was last written is not said, so a claim that needs the value of a local variable across calls (the end of a
+  loop that other threads' functions write to) is not proven of the code.
+- **A method of what is outside taking an argument by name** is read as taking it evaluated.
+- **No law of an execution is given.** That a completion follows its call, that an actor's calls are nested, that
+  a call nobody calls begins only once handed over: a model that needs one states it as an assumption.
 - **No claim of no data race** is generated.
-- **Liveness** can be stated (`eventually`, `settles`), and means what it should only over complete, fair executions,
-  which nothing yet says the execution is.
+- **Liveness** can be stated (`eventually`, `settles`), and means what it should only over complete, fair
+  executions, which nothing yet says the execution is.
 - **The old vocabulary of a structure's calls** (`.result`, `.after`, `.in`, `.steps`, `.amongOthers`) is still
   what the sequential examples are written in. It is to go.

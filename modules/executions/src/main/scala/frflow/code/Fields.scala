@@ -2,7 +2,7 @@ package frflow.code
 
 import frflow.*
 import frflow.dsl.compiled.source.MemberName
-import frflow.executions.Changing
+import frflow.executions.{Changing, World, madeBefore, readAs}
 import frflow.values.{Obj, Ref, Value}
 import scala.quoted.*
 
@@ -22,7 +22,31 @@ extension [C](on: Obj[C])
   transparent inline def field(inline name: String)(using st: Stating): Any =
     ${ FieldMacros.field[C]('on, 'name, 'st) }
 
+extension [C](on: Obj[C])
+  /** The object has been made, of its class, before the moment: by the code read. */
+  inline def isMade(w: World)(using st: Stating): Term[Boolean] = ${ FieldMacros.made[C]('on, 'w, 'st) }
+
+  /** Every read of the field finds what it holds (`field`): what Scala says of a `val`. */
+  inline def readsAsHeld(inline name: String)(using st: Stating): Term[Boolean] =
+    ${ FieldMacros.reads[C]('on, 'name, 'st) }
+
 object FieldMacros:
+  def made[C: Type](on: Expr[Obj[C]], w: Expr[World], st: Expr[Stating])(using Quotes): Expr[Term[Boolean]] =
+    import quotes.reflect.*
+    val cls = Expr(MemberName.ofClass(TypeRepr.of[C].typeSymbol))
+    '{ Fields.made($on.asValue, $cls, $w)(using $st) }
+
+  def reads[C: Type](on: Expr[Obj[C]], name: Expr[String], st: Expr[Stating])(using Quotes): Expr[Term[Boolean]] =
+    val named = Expr(label[C](name))
+    '{ Fields.reads($named, $on.asValue)(using $st) }
+
+  /** The field as the tree read names it: its class and its name. */
+  private def label[C: Type](name: Expr[String])(using Quotes): String =
+    import quotes.reflect.*
+    val member = TypeRepr.of[C].typeSymbol.fieldMember(name.valueOrAbort)
+    if !member.exists then report.errorAndAbort(s"${TypeRepr.of[C].show} has no field ${name.valueOrAbort}")
+    MemberName.of(member).mkString(" ").trim
+
   def field[C: Type](on: Expr[Obj[C]], name: Expr[String], st: Expr[Stating])(using Quotes): Expr[Any] =
     import quotes.reflect.*
     val cls = TypeRepr.of[C]
@@ -41,3 +65,7 @@ object Fields:
 
   def changing[F](name: String, on: Term[Value])(using Stating): Changing[Ref[F]] =
     new Changing(w => heldAt(name, on, w).asInstanceOf[Obj[F]])
+
+  def made(on: Term[Value], cls: String, w: World)(using Stating): Term[Boolean] = madeBefore(on, cls, w)
+
+  def reads(name: String, on: Term[Value])(using Stating): Term[Boolean] = readAs(on, name, heldIn(name, on))

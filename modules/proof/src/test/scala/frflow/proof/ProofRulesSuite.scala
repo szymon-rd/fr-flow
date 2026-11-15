@@ -24,6 +24,17 @@ class ProofRulesSuite extends munit.FunSuite:
 
   test("lemmas over the specs, each proven by tactics, are allowed")(assertEquals(refused(allowed), Nil))
 
+  test("a claim of code read may use the code's trees, their meaning and what an execution of them is") {
+    assertEquals(refused("""Require Import FrFlowGen.Latch.Code.
+      |Require Import FrFlowGen.Latch.Code.frflow_executions_latch_Latch.
+      |Require Import FrFlow.Threads.Prog FrFlow.Jvm.Machine.
+      |Require Import FrFlow.Scala.Tree FrFlow.Scala.Meaning.
+      |From FrFlow Require Import Executions.
+      |Require Import FrFlow.Code.Conforms FrFlow.Code.Walk.
+      |""".stripMargin), Nil)
+    assertEquals(refused("Require Import FrFlow.Jvm.Wp."), List(NotAllowed.Import("FrFlow.Jvm.Wp")))
+  }
+
   private val cases = List(
     "Axiom bad : False."                       -> NotAllowed.Axiom,
     "Parameter x : nat."                       -> NotAllowed.Axiom,

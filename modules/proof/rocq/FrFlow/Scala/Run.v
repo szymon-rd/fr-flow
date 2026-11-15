@@ -317,7 +317,7 @@ Definition first : tid := 0.
 Section Start.
 
   Variable T : table.
-  Variable outside : string -> string -> option primitive.
+  Variable outside : string -> string -> string -> option primitive.
   Variable supers : string -> list string.
 
   Definition state0 (c : code) : state :=

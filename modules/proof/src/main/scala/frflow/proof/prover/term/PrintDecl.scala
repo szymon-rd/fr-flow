@@ -22,6 +22,7 @@ object PrintDecl:
     case Decl.Budgeted(h, inner)      => s"set_option maxHeartbeats $h in\n" + apply(inner)
     case Decl.MatchEqns               => "frflow_match_eqns"
     case Decl.PrintAxioms(n)          => s"#print axioms ${dotted(n)}"
+    case Decl.Rocq(text)              => text
 
   private def attrs(as: List[Attr]): String = as.map { case Attr.FrflowDefs => "@[frflow_defs] " }.mkString
   private def break_(b: Break): String = b match

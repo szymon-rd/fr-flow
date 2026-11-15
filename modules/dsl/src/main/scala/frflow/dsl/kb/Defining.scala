@@ -1,6 +1,6 @@
 package frflow.dsl.kb
 
-import frflow.core.code.{Attachment, Code, Values}
+import frflow.core.code.{Attachment, Code, ReadUnit, Values}
 import frflow.core.name.RelPath
 import frflow.dsl.build.{Deferred, Site, Source}
 import frflow.dsl.lifted.steps.StructureCode
@@ -54,6 +54,12 @@ object Defining:
       */
     inline def provided: Definition[A] = Defined(d, Implementing.attach(FrModel.part, d.word,
       Deferred.pure(Attachment(Code.Provided, Spans.relative(Source.file)))))
+
+    /** `d` is an execution of `code`, read from its TASTy as trees: every statement about `d` is stated of an
+      * execution of that code.
+      */
+    inline def executing(code: List[ReadUnit]): Definition[A] = Defined(d, FrModel.part.executing(d.name,
+      Deferred.pure(Attachment(Code.Executing(code), Spans.relative(Source.file)))))
 
   extension [T](d: StructureDeclaration[T])
     /** The structure `d` is the class read here (`limits.define(lifted[RecordedLimits])`): each member's code, which

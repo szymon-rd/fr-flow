@@ -89,10 +89,10 @@ Definition misplaced (T : table) (defs : list sym) : list sym :=
     said of every value (`Meaning.universal`); that no class of the program has a method for (a call of it on
     an object of the program runs that method); and that is not only a name (an object, a package: it has no
     signature). *)
-Definition unmeant (T : table) (outside : string -> string -> option primitive) (used : list sym) : list sym :=
+Definition unmeant (T : table) (outside : string -> string -> string -> option primitive) (used : list sym) : list sym :=
   filter (fun s => match s with
     | Member owner name signature =>
-        match outside owner name with
+        match outside owner name signature with
         | Some _ => false
         | None =>
             negb (String.eqb signature "" || String.eqb signature "package"

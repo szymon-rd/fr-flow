@@ -17,3 +17,5 @@ enum Decl:
   case Budgeted(heartbeats: Int, decl: Decl)
   /** `#print axioms N`: the audit of an authored proof's axioms. */
   case PrintAxioms(name: List[ProverName])
+  /** Rocq as it is written: code read from its TASTy as data, which no statement of the model is printed from. */
+  case Rocq(text: String)
