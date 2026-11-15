@@ -21,7 +21,7 @@ val closingEndsOnceFoundEmpty = Node.claim(
 // and join it, and of what `forEach`, `interrupt` and `join` throw.
 val closingsTraversalsReturn = Node.claim(
   "A traversal of the herd's set that closing makes itself does not throw.")(
-  forall((h: Obj[ThreadHerd], f: Obj[Consumer[Thread]], from: Term[BigInt], a: Term[BigInt], b: Term[BigInt]) =>
+  forall((h: Obj[ThreadHerd], f: Obj[Consumer[AnyRef]], from: Term[BigInt], a: Term[BigInt], b: Term[BigInt]) =>
     forall((r: Term[Response]) =>
       (closing(h).by(owner(h)).called(from) && threads(h).forEach(f).by(owner(h)).calledInside(from, a) &&
         threads(h).forEach(f).by(owner(h)).completed(a, r, b)) implies (r === Returned(())))))

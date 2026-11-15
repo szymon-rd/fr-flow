@@ -12,13 +12,14 @@ import ox.internal.ThreadHerd
 // The words of the model: a herd's set and its owner, and what a thread is to a herd. Every word is said of calls
 // of Ox's own code and of the JDK.
 
-/** The set a herd keeps its threads in. */
-type Threads = ConcurrentHashMap.KeySetView[Thread, java.lang.Boolean]
+/** A concurrent set of objects, as the JDK has it: what is assumed of one is assumed of any, whatever it holds. */
+type ConcurrentSet = ConcurrentHashMap.KeySetView[AnyRef, java.lang.Boolean]
 
 /** Code given to run: what `startThread` and a fork function take. */
 type Code = () => Unit
 
-def threads(h: Obj[ThreadHerd])(using Stating): Obj[Threads] = h.field("threads")
+/** The set a herd keeps its threads in. */
+def threads(h: Obj[ThreadHerd])(using Stating): Obj[ConcurrentSet] = h.field("threads").seenAs[ConcurrentSet]
 def owner(h: Obj[ThreadHerd])(using Stating): Obj[Thread] = h.field("herdOwner")
 
 def shutdown(h: Obj[ThreadHerd])(using Stating): Obj[AtomicBoolean] = h.field("shutdownInProgress")
@@ -55,8 +56,8 @@ val inside = stated { (c: Obj[Thread], h: Obj[ThreadHerd], w: Term[BigInt]) =>
 /** An element is being added to the set at some moment from `from` to `to`: a call that adds is pending at
   * `from`, or is made before `to`.
   */
-val addedDuring = stated { (s: Obj[Threads], from: Term[BigInt], to: Term[BigInt]) =>
-  exists((x: Obj[Thread]) => s.add(x).pendingAt(from) || s.add(x).calledWithin(from, to)) }
+val addedDuring = stated { (s: Obj[ConcurrentSet], from: Term[BigInt], to: Term[BigInt]) =>
+  exists((x: Obj[AnyRef]) => s.add(x).pendingAt(from) || s.add(x).calledWithin(from, to)) }
 
 /** Nothing is in the herd's set. */
 val empty = stated { (h: Obj[ThreadHerd], w: Term[BigInt]) =>

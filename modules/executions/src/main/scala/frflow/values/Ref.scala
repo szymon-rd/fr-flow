@@ -12,5 +12,8 @@ object Ref:
     /** The object as a value of the code. */
     def asValue: Term[Value] = r.asInstanceOf[Term[Value]]
 
+    /** The same object, named as one of class `D`: a set of threads as a set of objects. */
+    def seenAs[D]: Term[Ref[D]] = r.asInstanceOf[Term[Ref[D]]]
+
 /** An object of class `C` in a statement. */
 type Obj[C] = Term[Ref[C]]

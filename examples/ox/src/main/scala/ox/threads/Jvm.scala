@@ -10,7 +10,7 @@ import java.util.concurrent.atomic.AtomicBoolean
 // What is assumed of the JVM: of the run, and of the methods of the JDK that Ox calls.
 
 /** What is in a concurrent set at a moment. It is no member of the JDK's: it is what the assumptions speak of. */
-val elements = Declaration[(Ref[Threads], BigInt) => Set[Value]]("what is in the set at a moment")
+val elements = Declaration[(Ref[ConcurrentSet], BigInt) => Set[Value]]("what is in the set at a moment")
 
 val nothingBeforeTheStart = Node.assumption("No step is taken before the run starts.")(
   forall((w: Term[BigInt]) => (w < 0) implies (history(w) === Event.Stutter)))
@@ -19,24 +19,24 @@ val nothingBeforeTheStart = Node.assumption("No step is taken before the run sta
 val flag = Declaration[(Ref[AtomicBoolean], BigInt) => Boolean]("what the atomic boolean holds at a moment")
 
 val setCallsAreAtomic = Node.assumption("Adding to a concurrent set and removing from it are each atomic.")(
-  forall((s: Obj[Threads], x: Obj[Thread]) => s.add(x).atomic && s.remove(x).atomic))
+  forall((s: Obj[ConcurrentSet], x: Obj[AnyRef]) => s.add(x).atomic && s.remove(x).atomic))
 
 val addPutsItIn = Node.assumption("Adding an element puts it in the set.")(
-  forall((s: Obj[Threads], x: Obj[Thread], y: Term[Value]) =>
+  forall((s: Obj[ConcurrentSet], x: Obj[AnyRef], y: Term[Value]) =>
     s.add(x).everyCall((from, _, to) =>
       elements(s, to).contains(y) === (y === x.asValue || elements(s, from).contains(y)))))
 
 val removeTakesOnlyItOut = Node.assumption("Removing an element takes that element out of the set, and no other.")(
-  forall((s: Obj[Threads], x: Obj[Thread], y: Term[Value]) =>
+  forall((s: Obj[ConcurrentSet], x: Obj[AnyRef], y: Term[Value]) =>
     s.remove(x).everyCall((from, _, to) =>
       elements(s, to).contains(y) === (y =!= x.asValue && elements(s, from).contains(y)))))
 
 // Said of the calls Ox makes on a herd's set: the JDK has others that change a set, which Ox does not call on it.
 val onlyAddAndRemoveChangeASet = Node.assumption(
   "What is in a set changes only when an element is added to it or removed from it.")(
-  forall((s: Obj[Threads], a: Term[BigInt], b: Term[BigInt], y: Term[Value]) =>
+  forall((s: Obj[ConcurrentSet], a: Term[BigInt], b: Term[BigInt], y: Term[Value]) =>
     (a < b && (elements(s, a).contains(y) =!= elements(s, b).contains(y))) implies
-      exists((x: Obj[Thread]) => s.add(x).completedWithin(a, b) || s.remove(x).completedWithin(a, b))))
+      exists((x: Obj[AnyRef]) => s.add(x).completedWithin(a, b) || s.remove(x).completedWithin(a, b))))
 
 val getGivesTheFlag = Node.assumption("Reading an atomic boolean gives what it holds at a moment during the read.")(
   forall((s: Obj[AtomicBoolean], b: Term[Boolean]) =>
@@ -59,7 +59,7 @@ val setReturns = Node.assumption("Setting an atomic boolean does not throw.")(
   forall((s: Obj[AtomicBoolean], b: Term[Boolean]) => s.set(b).everyCall((_, a, _) => a === Returned(()))))
 
 val isEmptyReturns = Node.assumption("Asking a concurrent set whether it is empty does not throw.")(
-  forall((s: Obj[Threads]) =>
+  forall((s: Obj[ConcurrentSet]) =>
     s.isEmpty().everyCall((_, a, _) => (a === Returned(True)) || (a === Returned(False)))))
 
 // `isEmpty` is no snapshot: it sums counters read one after another (`ConcurrentHashMap.sumCount`), and the JDK
@@ -68,7 +68,7 @@ val isEmptyReturns = Node.assumption("Asking a concurrent set whether it is empt
 val isEmptyFindsItEmptyUnlessAdded = Node.assumption(
   "A concurrent set that answers that it is empty, with nothing added to it during the call, is empty at a " +
     "moment during the call.")(
-  forall((s: Obj[Threads]) =>
+  forall((s: Obj[ConcurrentSet]) =>
     s.isEmpty().everyCall((from, a, to) =>
       ((a === Returned(True)) && !addedDuring(s, from, to)) implies exists((m: Term[BigInt]) =>
         from <= m && m <= to && forall((y: Term[Value]) => !elements(s, m).contains(y))))))
