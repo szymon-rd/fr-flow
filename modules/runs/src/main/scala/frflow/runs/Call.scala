@@ -8,9 +8,12 @@ type World = Term[BigInt]
 /** A method or function of real code applied: which calls of a run a statement means. `A` is what it returns; `by`
   * is who makes it, or anyone.
   */
-final class Call[A](val invoked: Term[Invocation], val actor: Option[Term[Thing]]):
+final class Call[A](val what: String, val takes: List[Term[Thing]], val actor: Option[Term[Thing]]):
+  /** The call as the run has it. */
+  val invoked: Term[Invocation] = make[Invocation](what, takes.foldRight(Nil: Term[List[Thing]])(_ :: _))
+
   /** The same calls, made by `t`. */
-  def by[C](t: Obj[C]): Call[A] = new Call(invoked, Some(t.thing))
+  def by[C](t: Obj[C]): Call[A] = new Call(what, takes, Some(t.thing))
 
   private def some(p: Term[Thing] => Term[Boolean]): Term[Boolean] =
     actor.fold(exists((who: Term[Thing]) => p(who)))(p)
@@ -48,8 +51,7 @@ final class Call[A](val invoked: Term[Invocation], val actor: Option[Term[Thing]
 
 object Call:
   /** The call of `what` taking `takes`, by anyone. */
-  def of[A](what: String, takes: Term[Thing]*): Call[A] =
-    new Call(make[Invocation](what, takes.foldRight(Nil: Term[List[Thing]])(_ :: _)), None)
+  def of[A](what: String, takes: Term[Thing]*): Call[A] = new Call(what, takes.toList, None)
 
 /** The call returned the value. */
 def Returned[A](value: Term[A])(using as: AsThing[A]): Term[Answer] = make[Answer.Returned](as(value))

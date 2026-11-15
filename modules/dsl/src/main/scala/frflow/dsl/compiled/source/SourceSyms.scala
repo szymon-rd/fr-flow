@@ -30,7 +30,10 @@ private[source] trait SourceSyms:
   def sym(s: Symbol): Datum =
     if s.isNoSymbol then Datum.of("NoSym")
     else if isLocal(s) then Datum.of("Local", Text(s.name), Nat(number(s)))
-    else Datum.of("Member", Text(scopeKey(s.maybeOwner)), Text(s.name), Text(signature(s)))
+    else Datum.of("Member", member(s).map(Text(_))*)
+
+  /** What a class or a package declares, as it is named: what declares it, its name, its signature. */
+  def member(s: Symbol): List[String] = List(scopeKey(s.maybeOwner), s.name, signature(s))
 
   /** What tells a method from the others of its name: the erased types of its parameters and its result. A
     * package says it is one: it is no definition of the code read.
