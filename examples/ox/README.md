@@ -30,6 +30,21 @@ names them (`ThreadsSuite`):
 Of the last, what the check calls itself is proven (`theTreeCheckCallsFour`); the function it applies calls
 into scopes, which are not read.
 
+Fourteen claims are already proven of Ox's code from the JDK, the JVM and Scala's objects alone, with no
+assumption about Ox or about who uses it (the suite computes the list and pins it). Among them:
+
+- `startThreadFirstSeesTheFlagUnset`: a call of `startThread` returns, or adds a thread, only if the herd's
+  flag was unset at a moment during the call.
+- `closingSetsTheFlagItself`: closing, by the herd's owner, completes only after it has set the flag.
+- `closingSetsTheFlagOnlyToTrue`: closing sets the flag to nothing but true.
+- `theForkFunctionRemovesTheCurrentThread`: the function `startThread` hands the factory removes from the set
+  only the thread `Thread.currentThread()` gave it.
+- `aForkFunctionRemovesAfterTheCode`: that function removes only after its call of the code has completed.
+- `theClosingCheckStaysOutOfHerds`: a thread in `assertNotShuttingDown` neither closes a herd nor removes from
+  a herd's set.
+
+No root is among them yet.
+
 What is assumed, by what it is about:
 
 - **The JDK and the JVM** (11): `addingIsAtomic`, `anElementLeavesOnlyWhenRemoved`,

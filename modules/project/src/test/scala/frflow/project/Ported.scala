@@ -99,6 +99,13 @@ object Ported:
   def standsOn(a: Analysis): Map[String, (List[String], Int)] =
     StandsOn.roots(a).map((id, s) => id.value -> (s.unproven.map(_.value), s.assumed.size))
 
+  /** Of each claim, the assumptions it is proven from and the claims below it not proven: what it stands on. */
+  def standing(a: Analysis): Map[String, (List[String], List[String])] =
+    a.decided.theory.nodes.map(_.node).filter(_.statement.kind == NodeKind.Claim).map { n =>
+      val on = StandsOn.of(a, n.id)
+      n.id.value -> (on.assumed.map(_.value), on.unproven.map(_.value))
+    }.toMap
+
   /** Each node's standing and, where its check found something, what: for a failing suite's message. */
   def table(a: Analysis): String =
     a.decided.theory.nodes.map(_.node.id).sortBy(_.value).map { id =>

@@ -33,6 +33,19 @@ import scala.concurrent.duration.*
     "closingsTraversalsReturn" -> List("noForkRunsOnceClosed", "nothingIsAddedOnceClosed"),
     "theTreeCheckStaysOutOfHerds" -> List("noForkRunsOnceClosed", "nothingIsAddedOnceClosed"))
 
+  /** What is assumed of the JDK, the JVM and Scala's objects: nothing of Ox, and nothing of who uses it. */
+  private val ofThePlatform = Set("addingIsAtomic", "anElementLeavesOnlyWhenRemoved",
+    "isEmptyFindsItEmptyUnlessAdded", "isEmptyReturns", "getGivesTheFlag", "settingIsAtomic",
+    "aFlagBecomesOnlyWhatIsSet", "setReturns", "currentThreadIsTheCaller", "theJdkStaysOutOfHerds",
+    "aThreadDoesOneThingAtATime", "herdsAreMade", "aHerdKeepsItsFields")
+
+  /** The claims proven of Ox's code from that alone: no claim below them unproven, no other assumption. */
+  private val provenOfTheCodeAlone = List("aForkFunctionRemovesAfterTheCode", "closingSetsTheFlagItself",
+    "closingSetsTheFlagOnlyToTrue", "startThreadAddsBeforeItStarts", "startThreadAddsWhatItsFactoryMade",
+    "startThreadAddsWhileItRuns", "startThreadCallsFive", "startThreadFirstSeesTheFlagUnset",
+    "startThreadIsPendingWhileItAdds", "startThreadReadsTheFlagUnset", "theClosingCheckCallsGet",
+    "theClosingCheckStaysOutOfHerds", "theForkFunctionRemovesTheCurrentThread", "theTreeCheckCallsFour")
+
   test("every step is proven but four claims, named here; what is above them waits".tag(Live)) {
     Ported.run(Projects.elaborated(oxThreads), Nil, Ported.proofs("ox", "OxThreads")).map { r =>
       val unproven = Ported.unproven(r)
@@ -42,5 +55,7 @@ import scala.concurrent.duration.*
       val below = notProven.values.flatten.toList.distinct.map(root =>
         root -> notProven.filter(_._2.contains(root)).keys.toList.sorted).toMap
       assertEquals(Ported.standsOn(r).map((root, on) => root -> on._1), below)
+      assertEquals(Ported.standing(r).collect { case (n, (assumed, Nil)) if assumed.forall(ofThePlatform) => n }
+        .toList.sorted, provenOfTheCodeAlone)
     }
   }
