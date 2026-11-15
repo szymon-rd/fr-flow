@@ -25,7 +25,8 @@ Proof.
   - rewrite map_app, in_app_iff. destruct (class_in T' cls) eqn:E; [left; eauto | right; auto].
 Qed.
 
-Lemma line_in_known (T : table) (cls : string) (l : list string) : line_in T cls = Some l -> In cls (map fst (lines_of T)).
+Lemma line_in_known (T : table) (cls : string) (l : list string) :
+  line_in T cls = Some l -> In cls (map fst (lines_of T)).
 Proof.
   induction T as [classes members lines modules | T' IH1 more IH2]; cbn.
   - apply assoc_in.

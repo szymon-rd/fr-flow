@@ -19,13 +19,13 @@ Proof.
   split.
   { intros h code c w (m & _ & H & _). destruct (nothing_begun_at_rest _ _ _ H). }
   split.
-  { intros h t c w H. destruct (nothing_called_at_rest _ _ _ H). }
-  split.
   { intros h a b [_ H]. exact H. }
   split.
   { intros s b from response to [who H]. destruct (nothing_completed_at_rest _ _ _ _ _ H). }
   split.
   { intros s b from response to [who H]. destruct (nothing_completed_at_rest _ _ _ _ _ H). }
+  split.
+  { intros h t c w H. destruct (nothing_called_at_rest _ _ _ H). }
   split.
   { intros h code w [[who H] | [who H]]; destruct (nothing_called_at_rest _ _ _ H). }
   split.

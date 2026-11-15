@@ -15,11 +15,14 @@ The model's execution is now one of `ThreadHerd` as Ox's jar has it, read from i
 (`docs/EXECUTIONS.md`, "An execution of code"). Two claims of the code are proven of its tree, by FrFlow's
 check: that `startThread` adds a thread, or returns, only after it has read the herd's flag as unset
 (`startThreadReadsTheFlagUnset`), and that closing, by the herd's owner, completes only after it has set the
-flag (`closingSetsTheFlagItself`). With what is assumed of an atomic boolean they give the third root. Still
-stated and not proven of the code: who else calls methods on the herd's set and flag (`onlyStartThreadAdds`,
-`aForkRemovesOnlyItself`, `theFlagStaysSet`), what the function `startThread` hands the factory does
-(`codeRunsBeforeLeaving`), and the end of closing's loop (`closingEndsOnEmpty`). The scopes above the herd and
-liveness are not in the model.
+flag (`closingSetsTheFlagItself`). With what is assumed of an atomic boolean they give the third root. A third: the
+function `startThread` hands the thread factory removes from the herd's set only the thread that
+`Thread.currentThread()` gave it (`theForkFunctionRemovesTheCurrentThread`); with the assumption that only such
+a function removes from the set (what capture checking would say), a fork is removed only by itself. Still
+stated and not proven of the code: who adds to the set and that the flag stays set (`onlyStartThreadAdds`,
+`theFlagStaysSet`), that a caller of startThread neither closes nor leaves, when the code a fork was made to run
+is called (`codeRunsBeforeLeaving`), and the end of closing's loop (`closingEndsOnEmpty`). The scopes above the
+herd and liveness are not in the model.
 
 ## The tree
 

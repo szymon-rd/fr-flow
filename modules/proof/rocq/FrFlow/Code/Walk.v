@@ -88,6 +88,21 @@ Proof.
     first [reflexivity | rewrite val_eqb_refl; reflexivity | rewrite Hne by congruence; reflexivity].
 Qed.
 
+(** The call an event makes, if it makes one. *)
+Definition invoked (e : Event) : option Invocation :=
+  match e with
+  | Event_Invoke _ _ c | Event_Atomic _ _ c _ _ => Some c
+  | _ => None
+  end.
+
+(** ** A function the code wrote, decided by looking for its tree among the code's *)
+Definition among (files : list tree) (t : tree) : bool :=
+  if in_dec tree_eq_dec t (over_list nodes files) then true else false.
+
+Lemma written_function (files : list tree) (d : tree) (sc : scope) (group : list tree) :
+  among files d = true -> written files (Fn d sc group).
+Proof. unfold among. destruct (in_dec tree_eq_dec d (over_list nodes files)); [auto | discriminate]. Qed.
+
 Section Walk.
 
   Variable files : list tree.
@@ -230,8 +245,8 @@ Section Walk.
     takes a i w e (Running (Call c arg k)) st ->
     exists m y ys, called_as c arg m /\ names N y (VCode c) /\ Forall2 (names N) ys (arguments arg) /\
       e = Event_Invoke a (Some i) (Invocation_mk m (y :: ys)) /\ st = Waiting w (fun _ => True) k.
-  Proof.
-    intros Hc H. assert (match c with Init _ => False | _ => True end) as Hi by (destruct c; tauto).
+  Proof using T N.
+    intros Hc H. assert (match c with Init _ => False | _ => True end) as Hi by (destruct c; try exact I; exact Hc).
     apply takes_running in H as
       [(X0 & o0 & k0 & x0 & Hs & _) | [(m0 & args0 & k0 & ys & Hs & _) |
       [(m0 & args0 & k0 & ys & r & sp & x0 & Hs & _) |
@@ -240,6 +255,45 @@ Section Walk.
     - exfalso. injection Hs. intros. subst. exact Hc.
     - injection Hs. intros. subst. eauto 10.
   Qed.
+
+  (** ** The call an event is
+
+      What call an event makes, if it makes one: a proof that looks for the event of some call passes the stages
+      whose event is another call's, or no call. *)
+
+  Lemma invoked_method a i w e s on args (k : res -> program) st :
+    takes a i w e (Running (Call (Method s) (VList (on :: args)) k)) st ->
+    exists ys, Forall2 (names N) ys (receiver on ++ args) /\ invoked e = Some (Invocation_mk (label_of s) ys).
+  Proof.
+    intros H. apply takes_method_call in H as (ys & Hys & -> & _). exists ys. split; [exact Hys | reflexivity].
+  Qed.
+
+  Lemma invoked_function a i w e c arg (k : res -> program) st :
+    (match c with Fn _ _ _ | Thunk _ _ => True | _ => False end) ->
+    takes a i w e (Running (Call c arg k)) st ->
+    exists m y ys, called_as c arg m /\ invoked e = Some (Invocation_mk m (y :: ys)).
+  Proof.
+    intros Hc H. apply (takes_function_call Hc) in H as (m & y & ys & Hm & _ & _ & -> & _).
+    exists m, y, ys. split; [exact Hm | reflexivity].
+  Qed.
+
+  Lemma invoked_outside a i w e m args (k : res -> program) st :
+    takes a i w e (Running (Vis (ExtCall 0 m args) k)) st ->
+    exists ys, Forall2 (names N) ys args /\ invoked e = Some (Invocation_mk m ys).
+  Proof.
+    intros H. apply takes_outside in H as (ys & Hys & [[-> _] | (r & sp & x & -> & _)]);
+      exists ys; (split; [exact Hys | reflexivity]).
+  Qed.
+
+  Lemma invoked_read a i w e r f (k : exn + val -> program) st :
+    takes a i w e (Running (Vis (ObjGet r f) k)) st -> invoked e = None.
+  Proof. intros H. apply takes_read in H as (v & y & yo & _ & _ & _ & -> & _). reflexivity. Qed.
+
+  Lemma invoked_waiting a i w e called typed k st : takes a i w e (Waiting called typed k) st -> invoked e = None.
+  Proof. intros H. apply takes_waiting in H as (r & sp & x & -> & _). reflexivity. Qed.
+
+  Lemma invoked_ret a i w e (x : res) st : takes a i w e (Running (Ret x)) st -> invoked e = None.
+  Proof. intros H. apply takes_ret in H as (r & -> & _). reflexivity. Qed.
 
   (** ** A call's own response
 
@@ -529,6 +583,15 @@ Section Walk.
       destruct e, e'; cbn in E; try discriminate E; try (injection E; intros; subst; reflexivity); reflexivity.
   Qed.
 
+  (** A call that has only its result left makes no call. *)
+  Lemma ends_quietly a i w0 (x : res) w st e st' :
+    steps a i w0 (Running (Ret x)) w st -> takes a i w e st st' -> invoked e = None.
+  Proof.
+    intros H Hgo. apply step_ret in H as [[-> _] | (w1 & r' & _ & _ & _ & _ & -> & _)].
+    - exact (invoked_ret Hgo).
+    - destruct (takes_ended Hgo).
+  Qed.
+
   (** ** Values of the execution that are data *)
 
   Lemma named_bool y (b : bool) : names N y (VBool b) -> y = Value_Bool_ (if b then True else False).
@@ -591,6 +654,15 @@ Section Walk.
     exact (proj1 (proj1 (proj2 (proj2 (proj2 conformed))) _ _ _ _ _ _ _ He) s cls r d y ys eq_refl eq_refl Hy Hd).
   Qed.
 
+  (** A call of a function the code wrote is no event made and responded to at once. *)
+  Lemma function_not_atomic w a inside m c y ys resp spawns :
+    history w = Event_Atomic a inside (Invocation_mk m (y :: ys)) resp spawns ->
+    applies m = true -> names N y (VCode c) -> written files c -> False.
+  Proof.
+    intros He Hm Hy Hw.
+    exact (proj2 (proj2 (proj1 (proj2 (proj2 (proj2 conformed))) _ _ _ _ _ _ _ He)) c y ys Hm eq_refl Hy Hw).
+  Qed.
+
   (** A field read of the object a value names is a read of that value's object, of its class. *)
   Lemma read_place y c r yo : names N y (vref c r) -> at_place N yo r -> yo = y /\ class_at N r = c.
   Proof.
@@ -609,6 +681,7 @@ Arguments method_not_atomic {files T N history} conformed {w a inside} s {cls r 
 Arguments function_steps {files T N history} conformed {a inside m c y ys from} _ _ _ _.
 Arguments made_named {files T N history} conformed {w b inside y cls hs} _.
 Arguments gives_one {N r x x'} _ _.
+Arguments function_not_atomic {files T N history} conformed {w a inside m c y ys resp spawns} _ _ _ _.
 
 (** ** Walking *)
 

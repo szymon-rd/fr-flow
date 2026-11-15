@@ -98,7 +98,9 @@ Definition of_class (cls : string) (v : val) : Prop :=
   else receiver v = [v].
 
 Lemma identity_receiver (v : val) : identity v -> receiver v = [v].
-Proof. destruct v as [| | | | o | |]; try contradiction; try reflexivity. destruct o; try contradiction; reflexivity. Qed.
+Proof.
+  destruct v as [| | | | o | |]; try contradiction; try reflexivity. destruct o; try contradiction; reflexivity.
+Qed.
 
 (** A reference is itself where a name holds it: no variable to read, no function to call. *)
 Lemma held_identity (v : val) : identity v -> held v = oret v.

@@ -22,6 +22,24 @@ val onlyStartThreadAdds = Node.claim(
     threads(h).add(t).by(c).called(w) implies
       (exists((code: Obj[Code]) => starting(h, code).by(c).pendingAt(w)) && !t.start().calledBefore(w))))
 
+// With capture checking this would be what the compiler says: the set is the herd's alone, and is given to
+// nothing but the functions startThread makes.
+val onlyAForkFunctionRemoves = Node.assumption(
+  "A thread is removed from a herd's set only by a function that startThread handed the herd's factory, itself.")(
+  forall((h: Obj[ThreadHerd], t: Obj[Thread], c: Obj[Thread], w: Term[BigInt]) =>
+    threads(h).remove(t).by(c).called(w) implies
+      exists((r: Obj[Runnable], i: Term[BigInt]) =>
+        handedOver(r, h, i) && running(r).by(c).called(i) && threads(h).remove(t).by(c).calledInside(i, w))))
+
+val theForkFunctionRemovesTheCurrentThread = Node.claim(
+  "The function startThread hands the factory removes from the herd's set, itself, only the thread that " +
+    "`Thread.currentThread()` has just given it.")(
+  forall((h: Obj[ThreadHerd], r: Obj[Runnable], c: Obj[Thread], t: Obj[Thread]) =>
+    forall((i: Term[BigInt], w: Term[BigInt]) =>
+      (handedOver(r, h, i) && running(r).by(c).called(i) && threads(h).remove(t).by(c).calledInside(i, w)) implies
+        exists((a: Term[BigInt], b: Term[BigInt]) =>
+          i < a && b <= w && Thread.currentThread().by(c).completed(a, Returned(t), b)))))
+
 val aForkRemovesOnlyItself = Node.claim("A thread is removed from a herd's set only by itself.")(
   forall((h: Obj[ThreadHerd], t: Obj[Thread], c: Obj[Thread], w: Term[BigInt]) =>
     threads(h).remove(t).by(c).called(w) implies (c === t)))

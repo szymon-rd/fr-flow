@@ -34,9 +34,14 @@ val oxThreads: FrModel = FrModel("OxThreads")(
   getGivesTheFlag.refines(startThreadFirstSeesTheFlagUnset),
   closingSetsTheFlagItself.refines(closingSetsTheFlag), setMakesTheFlag.refines(closingSetsTheFlag),
 
-  herdsAreMade.refines(startThreadReadsTheFlagUnset, closingSetsTheFlagItself),
-  aHerdKeepsItsFields.refines(startThreadReadsTheFlagUnset, closingSetsTheFlagItself),
-  currentThreadIsTheCaller.refines(closingSetsTheFlagItself),
+  onlyAForkFunctionRemoves.refines(aForkRemovesOnlyItself),
+  theForkFunctionRemovesTheCurrentThread.refines(aForkRemovesOnlyItself),
+
+  herdsAreMade.refines(startThreadReadsTheFlagUnset, closingSetsTheFlagItself,
+    theForkFunctionRemovesTheCurrentThread),
+  aHerdKeepsItsFields.refines(startThreadReadsTheFlagUnset, closingSetsTheFlagItself,
+    theForkFunctionRemovesTheCurrentThread),
+  currentThreadIsTheCaller.refines(closingSetsTheFlagItself, aForkRemovesOnlyItself),
 
   nothingBeforeTheStart.refines(liveForksAreInTheSet), setCallsAreAtomic.refines(liveForksAreInTheSet),
   addPutsItIn.refines(liveForksAreInTheSet), removeTakesOnlyItOut.refines(liveForksAreInTheSet),

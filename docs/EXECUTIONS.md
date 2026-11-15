@@ -140,8 +140,10 @@ What it is for an execution to be one of some code is said once, in FrFlow's Roc
 A claim of the code is then a claim with parts like any other: its parts are the assumptions it needs, and its
 step is proven in its proof file, by walking the method's program along the events of a call (`FrFlow/Code/Walk.v`:
 `walk` computes what the program does next, `step_read`, `step_called`, `step_method` say what event that is).
-`enterReadsItOpen` is proven so of `Latch.enter`'s tree; `startThreadReadsTheFlagUnset` and
-`closingSetsTheFlagItself` of Ox's `ThreadHerd`, as its jar has it (`examples/ox/rocq/Proofs/OxThreads`).
+`enterReadsItOpen` is proven so of `Latch.enter`'s tree; `startThreadReadsTheFlagUnset`,
+`closingSetsTheFlagItself` and `theForkFunctionRemovesTheCurrentThread` of Ox's `ThreadHerd`, as its jar has it
+(`examples/ox/rocq/Proofs/OxThreads`). The last walks a function the code wrote: the one `startThread` hands the
+thread factory, known to be the code's by finding its tree among the trees read.
 
 What a model must still say itself, as assumptions:
 

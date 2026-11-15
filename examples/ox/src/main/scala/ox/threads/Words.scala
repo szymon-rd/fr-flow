@@ -5,7 +5,7 @@ import frflow.code.*
 import frflow.code.InCode.given
 import frflow.executions.*
 import frflow.values.*
-import java.util.concurrent.ConcurrentHashMap
+import java.util.concurrent.{ConcurrentHashMap, ThreadFactory}
 import java.util.concurrent.atomic.AtomicBoolean
 import ox.internal.ThreadHerd
 
@@ -22,6 +22,7 @@ def threads(h: Obj[ThreadHerd])(using Stating): Obj[Threads] = h.field("threads"
 def owner(h: Obj[ThreadHerd])(using Stating): Obj[Thread] = h.field("herdOwner")
 
 def shutdown(h: Obj[ThreadHerd])(using Stating): Obj[AtomicBoolean] = h.field("shutdownInProgress")
+def factory(h: Obj[ThreadHerd])(using Stating): Obj[ThreadFactory] = h.field("threadFactory")
 
 /** Closing a herd: interrupting its threads and waiting until none is left. */
 def closing(h: Obj[ThreadHerd])(using Stating): Call[Unit] = h.interruptAllAndJoinUntilCompleted()
@@ -54,3 +55,13 @@ val inside = stated { (c: Obj[Thread], h: Obj[ThreadHerd], w: Term[BigInt]) =>
 /** Nothing is in the herd's set. */
 val empty = stated { (h: Obj[ThreadHerd], w: Term[BigInt]) =>
   forall((y: Term[Value]) => !elements(threads(h), w).contains(y)) }
+
+/** A thread running the function: `r.run()`, named as the JDK names it (a term's own `run` hides the method). */
+def running(r: Obj[Runnable]): Call[Unit] = Call.of[Unit]("java.lang.Runnable run :scala.Unit", r.asValue)
+
+/** The function was handed to the herd's factory, by a call of startThread on the herd itself, before the
+  * moment: it is what a thread of the herd runs.
+  */
+val handedOver = stated { (r: Obj[Runnable], h: Obj[ThreadHerd], w: Term[BigInt]) =>
+  exists((code: Obj[Code], c: Obj[Thread], from: Term[BigInt], m: Term[BigInt]) =>
+    m < w && starting(h, code).by(c).called(from) && factory(h).newThread(r).by(c).calledInside(from, m)) }
