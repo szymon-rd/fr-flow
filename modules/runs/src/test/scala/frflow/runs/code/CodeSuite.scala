@@ -60,3 +60,12 @@ class CodeSuite extends munit.FunSuite:
     assert(text.contains("(Answer_Returned (Thing_Truth (~ (wasIn))))"), text)
   }
 
+  test("fields are read by the names the tree read gives them, one assigned again at a moment") {
+    val text = Projects.bare(Projects.elaborated(written)).rocq.files.map(_._2).mkString("\n")
+    assert(text.contains("""(heldIn "frflow.runs.code.Till drawer"%string till)"""), text)
+    assert(text.contains("""(heldAt "frflow.runs.code.Till rings"%string till later)"""), text)
+    assert(text.contains(
+      "(handedTo steps (Invocation_mk \"frflow.runs.code.Till open :scala.Unit\"%string [till]) till later)"), text)
+    assert(text.contains("(madeInside steps (Invocation_mk \"frflow.runs.code.Till ring"), text)
+  }
+

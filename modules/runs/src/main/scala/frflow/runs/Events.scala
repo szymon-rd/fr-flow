@@ -28,3 +28,18 @@ val completedBy = stated { (c: Term[Invocation], by: Term[Thing], from: Term[Big
 val overBy = stated { (by: Term[Thing], from: Term[BigInt], w: Term[BigInt]) =>
   exists((k: Term[BigInt], a: Term[Answer], hands: Term[List[Handed]]) =>
     k < w && steps(k) === make[Step.Completes](by, from, a, hands)) }
+
+/** The step into the moment hands the call to the actor, to run on its own. */
+val handedTo = stated { (c: Term[Invocation], to: Term[Thing], w: Term[BigInt]) =>
+  (steps(w - 1).on[Step.Makes]((_, _, _) => False)
+    .on[Step.Does]((_, _, _, _, hands) => hands.contains(make[Handed](to, c)))
+    .on[Step.Completes]((_, _, _, hands) => hands.contains(make[Handed](to, c)))
+    .on[Step.Acts](_ => False)
+    .on[Step.Rests.type](False): Term[Boolean]) }
+
+/** At the moment the actor, inside its pending call of `outer`, itself makes the call `inner`. */
+val madeInside = stated { (outer: Term[Invocation], inner: Term[Invocation], by: Term[Thing], w: Term[BigInt]) =>
+  exists((made: Term[BigInt]) => begun(outer, by, made) &&
+    (steps(w) === make[Step.Makes](by, some(made), inner) ||
+      exists((a: Term[Answer], hands: Term[List[Handed]]) =>
+        steps(w) === make[Step.Does](by, some(made), inner, a, hands)))) }
