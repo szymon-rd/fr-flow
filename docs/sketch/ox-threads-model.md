@@ -5,6 +5,8 @@ The Scala is Ox's own code, unchanged (`ThreadHerd.scala`, `unsupervised.scala`,
 
 ## The tree
 
+### Safety: what never happens
+
 ```
 A  noForkRunsAfterItsScope            After a scope has completed, no fork of it runs its code.
 ├─ closedScopeIsEmptyForGood          After closing has completed, every fork has left and no thread is added.
@@ -45,16 +47,75 @@ C  supervisedReturnsOnlyOnSuccess     supervised returns a value only if its bod
 ├─ supervisedReturnsItsBodyForksJoin  local   supervised.scala
 ├─ joinReturnsWhatTheCodeReturned     local   fork.scala            <- firstCompletionStays, getAnswersTheOutcome
 ├─ successIsReportedAtZero            local   supervised.scala      <- decrementTakesOne, atomicsAreAtomic
-└─ countIsPositiveUntilSuccess        local   supervised.scala      <- incrementAddsOne   (formula open)
+└─ countIsPositiveWhileAUserForkHasNotSucceeded   local supervised.scala, fork.scala   <- incrementAddsOne
+```
+
+### Liveness: what does happen
+
+```
+D  aScopeCompletesAfterItsBody        Once the body of a scope has completed, the scope completes.
+├─ closingCompletes                   A call of closing by the herd's owner completes.
+│  ├─ theSetEmptiesForGood            While closing is pending, there is a moment from which the set stays empty.
+│  │  ├─ everyLiveForkIsInterrupted   While closing is pending, a fork that stays in the set is interrupted.
+│  │  │  ├─ closingKeepsGoing
+│  │  │  ├─ closingPassesAndAsksAgain          local   ThreadHerd   <- forEachCompletes, interruptIsAtomic
+│  │  │  ├─ aPassOfClosingInterruptsWhatStays  local   ThreadHerd   <- forEachReachesWhatStays
+│  │  │  └─ liveForksAreInTheSet
+│  │  ├─ anInterruptedForkLeaves      A fork that has been interrupted leaves.
+│  │  │  ├─ forkCodeStopsWhenInterrupted       ASSUMPTION about the user's code
+│  │  │  ├─ startThreadStartsWhatItAdds        local   ThreadHerd
+│  │  │  ├─ aStartedForkCallsItsCode           local   ThreadHerd   <- firstStartSpawnsTheBody, aStartedThreadRuns
+│  │  │  ├─ forkCodeCompletesOnceTheUsersDoes  local   fork.scala
+│  │  │  └─ aForkLeavesOnceItsCodeCompletes    local   ThreadHerd
+│  │  ├─ noThreadIsAddedForever       Once the flag is set, from some moment on no thread is added.
+│  │  │  ├─ startThreadFirstSeesTheFlagUnset
+│  │  │  ├─ theFlagStaysSet
+│  │  │  └─ onlyStartThreadAdds
+│  │  └─ onlyLiveForksAreInTheSet     Whatever is in the set is a fork that has not left.
+│  │                                                               <- addPutsItIn, removeTakesOnlyItOut
+│  ├─ closingKeepsGoing               A pending closing completes or asks again whether the set is empty.
+│  │  ├─ closingAsksWhetherTheSetIsEmpty       local   ThreadHerd
+│  │  ├─ closingPassesAndAsksAgain
+│  │  ├─ closingCompletesWhenAnsweredEmpty
+│  │  └─ aJoinInClosingCompletes      A join that closing makes completes.
+│  │     ├─ closingJoinsOnlyInterruptedForks   local   ThreadHerd   <- forEachGivesOnlyElements
+│  │     ├─ anInterruptedForkLeaves
+│  │     └─ aForkThatHasLeftFinishes           local   ThreadHerd   <- joinCompletesOnceFinished
+│  └─ closingCompletesWhenAnsweredEmpty        local   ThreadHerd   <- isEmptyIsExact
+├─ theScopeGoesOnAfterItsBody         local   unsupervised.scala
+├─ runFinalizersCompletes             local   unsupervised.scala    <- ASSUMPTION finalizersComplete
+└─ scopesAreRunOnceByTheirOwner
+
+E  aFailedForkEndsSupervised          Once the code of a fork of a supervised scope has thrown, supervised completes.
+├─ aThrowingForkReports               local   fork.scala
+├─ aSupervisorToldOfAnExceptionHasAReport  local   supervised.scala <- firstCompletionStays, completingIsAtomic
+├─ theBodyOfASupervisedScopeCompletesOnceReported
+│  ├─ supervisedsBodyOnlyWaitsForTwoJoins  local   supervised.scala <- getCompletesOnceThereIsAnOutcome
+│  ├─ successIsReportedAtZero
+│  └─ countIsPositiveWhileAUserForkHasNotSucceeded
+├─ aScopeCompletesAfterItsBody        (D)
+└─ supervisedCompletesOnceItsScopeDoes     local   supervised.scala <- forEachCompletes
+
+F  supervisedCompletesOnSuccess       Once every user fork made in a supervised scope has reported success, with
+│                                     none being made, supervised completes.
+├─ countIsZeroOnceAllUserForksSucceeded    local   supervised.scala, fork.scala
+├─ aDecrementToZeroReportsSuccess          local   supervised.scala <- firstCompletionStays
+├─ theBodyOfASupervisedScopeCompletesOnceReported
+├─ aScopeCompletesAfterItsBody        (D)
+└─ supervisedCompletesOnceItsScopeDoes
 ```
 
 What the sketch shows:
 
 - **A and B rest on three things:** the herd's set, an exact `isEmpty`, and callers staying inside the scope.
-  `join`, `interrupt` and `forEach` are not needed for them: they only matter for the scope completing at all.
-- **The flag gives a separate guarantee (R)** that needs no assumption about callers.
+  `join`, `interrupt` and `forEach` play no part in them.
+- **The flag gives a separate guarantee (R)** that needs no assumption about callers. In liveness it does a second
+  job: it is why forks stop being added, so closing can end.
+- **`join`, `interrupt` and `forEach` enter only through liveness (D).**
+- **Liveness needs two assumptions about the user's code:** a fork's code stops once its thread is interrupted, and
+  finalizers complete. Without the first, no scope with a fork can be shown to end.
 - **"A fork has finished" cannot mean "its thread has finished".** Closing leaves when the set is empty, and a
-  thread takes itself out of the set a few steps before it ends. The claim is about the fork's code.
+  thread takes itself out of the set a few steps before it ends. The claims are about the fork's code.
 - **A scope is identified by its herd.** Ox makes copies of a capability (`asNoErrorMode`); all share the herd.
 
 ## 0. Words used (FrFlow, to be built)
@@ -69,6 +130,7 @@ A run is a sequence of moments. Between two consecutive moments one actor (a thr
 | `call.called(w)` | The call is made at `w`. |
 | `call.completed(from, answer, to)` | The call made at `from` completes at `to` with `answer`. |
 | `call.spawned(w)` | At `w` the call is given to its actor to run concurrently. |
+| `outer.calls(inner, w)` | At `w` a pending call `outer` makes the call `inner` itself, not through another call. |
 
 | Defined from them | Meaning |
 |---|---|
@@ -79,6 +141,8 @@ A run is a sequence of moments. Between two consecutive moments one actor (a thr
 | `call.calledWithin(from, to)` | A call was made at a moment from `from` to `to`. |
 | `call.returnedWithin(v, from, to)` | A call made and completed from `from` to `to` returned `v`. |
 | `a.notAfter(b)` | `a` is `b` or earlier. |
+| `w.eventually(later => p)` | `p` at `w` or at some later moment. |
+| `call.settles(w)` | There is a moment after `w` at which no call of it is pending. |
 | `changing(w => …)` | Builds something that changes from a formula over the moment. |
 
 `answer` is `Returned(v)` or `Threw(e)`.
@@ -92,6 +156,11 @@ Rules of the model (not nodes):
 2. **Spawning.** A call that no code calls begins only after it was spawned, once.
 3. **Nesting.** A call an actor makes during another of its calls completes first.
 4. **Closed JDK.** A JDK method calls only what its assumptions say.
+5. **Complete runs.** A run goes on for as long as some actor can take a step.
+6. **Progress.** A thread that is running code, and is not waiting inside a JDK call, takes its next step.
+7. **Finitely many actors** exist at any moment.
+
+Rules 5 to 7 are what liveness adds. Rule 6 is an assumption about the scheduler.
 
 ## 1. The JVM: assumptions on its methods
 
@@ -104,6 +173,10 @@ val flag        = Declaration[AtomicBoolean => Changing[Boolean]]("what the atom
 val count       = Declaration[AtomicInteger => Changing[Int]]("what the atomic integer holds")
 def outcome[A]  = Declaration[CompletableFuture[A] => Changing[Option[Answer[A]]]]("what the future was completed with")
 val body        = Declaration[Thread => Runnable]("the code the thread was made to run")
+
+/** The thread has finished: it has run its body to the end. */
+val finished = define { (t: Term[Thread]) =>
+  changing(w => body(t).run().by(t).wasCalled.at(w) && !body(t).run().by(t).pending.at(w)) }
 ```
 
 ### Concurrent sets
@@ -125,6 +198,25 @@ val removeTakesOnlyItOut = Node.assumption("Removing an element takes that eleme
 val isEmptyIsExact = Node.assumption("Asking a set whether it is empty answers whether it is empty at that moment.")(
   forall([A] => (s: Term[KeySet[A]]) =>
     s.isEmpty().everyCall((from, answer, to) => answer === Returned(elements(s).at(from).isEmpty))))
+
+// The three below are used only by liveness.
+val forEachGivesOnlyElements = Node.assumption("forEach calls its function only on elements that have been in the set.")(
+  forall([A] => (s: Term[KeySet[A]], f: Term[Consumer[A]], x: Term[A], w: World) =>
+    s.forEach(f).calls(f.accept(x), w) implies
+      exists((m: World) => m.notAfter(w) && elements(s).at(m).contains(x))))
+
+val forEachReachesWhatStays = Node.assumption(
+  "forEach calls its function on every element that is in the set throughout the call.")(
+  forall([A] => (s: Term[KeySet[A]], f: Term[Consumer[A]], x: Term[A], c: Term[Thread]) =>
+    s.forEach(f).by(c).everyCall((from, answer, to) =>
+      forall((m: World) => (from.notAfter(m) && m.notAfter(to)) implies elements(s).at(m).contains(x)) implies
+        f.accept(x).by(c).calledWithin(from, to))))
+
+val forEachCompletes = Node.assumption("forEach completes once every call it makes of its function has completed.")(
+  forall([A] => (s: Term[KeySet[A]], f: Term[Consumer[A]], c: Term[Thread], w: World) =>
+    (s.forEach(f).by(c).pending.at(w) &&
+      forall((x: Term[A], a: World) => s.forEach(f).by(c).calls(f.accept(x), a) implies f.accept(x).by(c).settles(a)))
+      implies s.forEach(f).by(c).settles(w)))
 ```
 
 ### Threads
@@ -148,6 +240,18 @@ val newThreadIsUnstarted = Node.assumption(
   forall((factory: Term[ThreadFactory], r: Term[Runnable], t: Term[Thread]) =>
     factory.newThread(r).everyCall((from, answer, to) =>
       (answer === Returned(t)) implies ((body(t) === r) && !t.start().wasCalled.at(to)))))
+
+// The three below are used only by liveness.
+val aStartedThreadRuns = Node.assumption("A thread that was given its body to run eventually runs it.")(
+  forall((t: Term[Thread], w: World) =>
+    body(t).run().by(t).spawned(w) implies w.eventually(later => body(t).run().by(t).wasCalled.at(later))))
+
+val joinCompletesOnceFinished = Node.assumption("Joining a thread completes once the thread has finished.")(
+  forall((t: Term[Thread], w: World) =>
+    (t.join().pending.at(w) && finished(t).at(w)) implies t.join().settles(w)))
+
+val interruptIsAtomic = Node.assumption("Interrupting a thread is atomic.")(
+  forall((t: Term[Thread]) => t.interrupt().atomic))
 ```
 
 ### Atomics
@@ -195,6 +299,11 @@ val getAnswersTheOutcome = Node.assumption("Getting from a future returns a valu
   forall([A] => (f: Term[CompletableFuture[A]], v: Term[A]) =>
     f.get().everyCall((from, answer, to) =>
       (answer === Returned(v)) implies (outcome(f).at(to) === some(Returned(v))))))
+
+// Used only by liveness.
+val getCompletesOnceThereIsAnOutcome = Node.assumption("Getting from a future completes once the future has an outcome.")(
+  forall([A] => (f: Term[CompletableFuture[A]], w: World) =>
+    (f.get().pending.at(w) && outcome(f).at(w).isDefined) implies f.get().settles(w)))
 ```
 
 ## 2. Ox: the words of the model
@@ -202,7 +311,10 @@ val getAnswersTheOutcome = Node.assumption("Getting from a future returns a valu
 A scope is named by its herd `h`. Every word is defined from calls of Ox's own code.
 
 ```scala
-def closing(h: Term[ThreadHerd]) = h.interruptAllAndJoinUntilCompleted()   // an abbreviation, plain Scala
+// Abbreviations, plain Scala.
+def closing(h: Term[ThreadHerd]) = h.interruptAllAndJoinUntilCompleted()
+def ownerClosing(h: Term[ThreadHerd]) = closing(h).by(h.herdOwner)
+def ownerAsking(h: Term[ThreadHerd]) = h.threads.isEmpty().by(h.herdOwner)
 
 /** The thread is a fork of the scope: the herd has added it to its set. */
 val forkOf = define { (t: Term[Thread], h: Term[ThreadHerd]) => changing(w => h.threads.add(t).wasCalled.at(w)) }
@@ -218,9 +330,20 @@ val madeToRun = define { (t: Term[Thread], h: Term[ThreadHerd], code: Term[() =>
   changing(w => exists((c: Term[Thread], m: World) =>
     m.before(w) && h.threads.add(t).by(c).called(m) && h.startThread(code).by(c).pending.at(m))) }
 
+/** The fork was made for this code of the user's: its thread was added during a fork function called with it. */
+val forkFor = define { [T] => (t: Term[Thread], h: Term[ThreadHerd], user: Term[() => T]) =>
+  changing(w => exists((ox: Term[Ox], c: Term[Thread], m: World) =>
+    (ox.herd === h) && m.before(w) && h.threads.add(t).by(c).called(m) &&
+    (fork(user)(using ox).by(c).pending.at(m) || forkUser(user)(using ox).by(c).pending.at(m)))) }
+
+/** The thread is a user fork of the scope: it was added during a call of `forkUser` with the scope's capability. */
+val userFork = define { (u: Term[Thread], h: Term[ThreadHerd]) =>
+  changing(w => exists([T] => (ox: Term[Ox], user: Term[() => T], c: Term[Thread], m: World) =>
+    (ox.herd === h) && m.before(w) && h.threads.add(u).by(c).called(m) && forkUser(user)(using ox).by(c).pending.at(m))) }
+
 /** Closing the herd, by its owner, has completed. */
 val closed = define { (h: Term[ThreadHerd]) =>
-  changing(w => closing(h).by(h.herdOwner).wasCalled.at(w) && !closing(h).by(h.herdOwner).pending.at(w)) }
+  changing(w => ownerClosing(h).wasCalled.at(w) && !ownerClosing(h).pending.at(w)) }
 
 /** The scope has been opened: `scopedWithCapability` was called with a capability of this herd. */
 val opened = define { (h: Term[ThreadHerd]) => changing(w => exists([T] => (ox: Term[Ox], f: Term[Ox ?=> T]) =>
@@ -233,17 +356,33 @@ val running = define { (h: Term[ThreadHerd]) => changing(w => exists([T] => (ox:
 /** The scope has completed. */
 val done = define { (h: Term[ThreadHerd]) => changing(w => opened(h).at(w) && !running(h).at(w)) }
 
+/** The body the scope was run with has completed. */
+val bodyDone = define { [T] => (ox: Term[Ox], f: Term[Ox ?=> T]) => changing(w =>
+  f(using ox).by(ox.herd.herdOwner).wasCalled.at(w) && !f(using ox).by(ox.herd.herdOwner).pending.at(w)) }
+
 /** The thread is inside the scope: its owner before closing is called, or a fork of it that has not left. */
 val inside = define { (c: Term[Thread], h: Term[ThreadHerd]) => changing(w =>
   ((c === h.herdOwner) && running(h).at(w) && !closing(h).wasCalled.at(w)) || live(c, h).at(w)) }
 
-/** The thread is a user fork of the scope: it was added during a call of `forkUser` with the scope's capability. */
-val userFork = define { (u: Term[Thread], h: Term[ThreadHerd]) =>
-  changing(w => exists([T] => (ox: Term[Ox], user: Term[() => T], c: Term[Thread], m: World) =>
-    (ox.herd === h) && m.before(w) && h.threads.add(u).by(c).called(m) && forkUser(user)(using ox).by(c).pending.at(m))) }
+/** A call of `supervised` by `o` runs this scope, with this body of Ox's making. */
+val supervisedRuns = define { [T] => (body: Term[Ox ?=> T], o: Term[Thread], ox: Term[Ox], f: Term[Ox ?=> T]) =>
+  changing(w => exists((a: World) =>
+    a.before(w) && supervised(body).by(o).pending.at(a) && scopedWithCapability(ox)(f).by(o).called(a))) }
+
+/** The user fork has reported success to the supervisor. */
+val reportedSuccess = define { (u: Term[Thread], ox: Term[Ox]) => changing(w =>
+  ox.supervisor.forkSuccess().by(u).wasCalled.at(w) && !ox.supervisor.forkSuccess().by(u).pending.at(w)) }
+
+/** No user fork of the scope is being made, and no attempt to make one has failed. */
+val noUserForkInTheMaking = define { (h: Term[ThreadHerd]) =>
+  changing(w => !exists([T] => (ox: Term[Ox], user: Term[() => T], c: Term[Thread]) =>
+    (ox.herd === h) && (forkUser(user)(using ox).by(c).pending.at(w) ||
+      exists((a: World, e: Term[Throwable], b: World) =>
+        b.notAfter(w) && forkUser(user)(using ox).by(c).completed(a, Threw(e), b))))) }
 ```
 
-`fork` and `forkUser` stand for `forkError` and `forkUserError`, which they call.
+`fork` and `forkUser` stand for `forkError` and `forkUserError`, which they call. `ox.supervisor.running` and
+`ox.supervisor.result` are those of the `DefaultSupervisor` a supervised scope has.
 
 ## 3. Ox: what is assumed of its callers
 
@@ -254,11 +393,22 @@ val forksAreMadeFromInside = Node.assumption(
   forall([T] => (ox: Term[Ox], user: Term[() => T], c: Term[Thread], w: World) =>
     (fork(user)(using ox).by(c).called(w) || forkUser(user)(using ox).by(c).called(w)) implies
       inside(c, ox.herd).at(w)))
+
+// The two below are used only by liveness.
+val forkCodeStopsWhenInterrupted = Node.assumption(
+  "The code given to a fork completes once its thread has been interrupted.")(
+  forall([T] => (h: Term[ThreadHerd], t: Term[Thread], user: Term[() => T], w: World) =>
+    (forkFor(t, h, user).at(w) && user().by(t).pending.at(w) && t.interrupt().wasCalled.at(w)) implies
+      user().by(t).settles(w)))
+
+val finalizersComplete = Node.assumption("A finalizer registered with a scope completes whenever it is called.")(
+  forall((ox: Term[Ox], g: Term[() => Unit], w: World) =>
+    (ox.addFinalizer(g).wasCalled.at(w) && g().pending.at(w)) implies g().settles(w)))
 ```
 
 ## 4. Ox: local claims, each provable from one piece of code and the JVM assumptions
 
-### `ThreadHerd.scala`
+### `ThreadHerd.scala`, safety
 
 ```scala
 val onlyStartThreadAdds = Node.claim(
@@ -281,12 +431,12 @@ val codeRunsBeforeLeaving = Node.claim(
 val closingEndsOnEmpty = Node.claim(
   "Closing a herd completes only after a moment, during it, at which the herd's set is empty.")(
   forall((h: Term[ThreadHerd]) =>
-    closing(h).by(h.herdOwner).everyCall((from, answer, to) =>
+    ownerClosing(h).everyCall((from, answer, to) =>
       exists((m: World) => from.before(m) && m.notAfter(to) && elements(h.threads).at(m).isEmpty))))
 
 val closingSetsTheFlag = Node.claim("When closing a herd completes, the herd's flag is set.")(
   forall((h: Term[ThreadHerd]) =>
-    closing(h).by(h.herdOwner).everyCall((from, answer, to) => flag(h.shutdownInProgress).at(to))))
+    ownerClosing(h).everyCall((from, answer, to) => flag(h.shutdownInProgress).at(to))))
 
 val theFlagStaysSet = Node.claim("Once a herd's flag is set, it stays set.")(
   forall((h: Term[ThreadHerd], a: World, b: World) =>
@@ -298,6 +448,64 @@ val startThreadFirstSeesTheFlagUnset = Node.claim(
     (h.startThread(code).by(c).called(from) && from.before(w) &&
       (h.threads.add(t).by(c).called(w) || h.startThread(code).by(c).completed(from, Returned(()), w))) implies
       exists((m: World) => from.notAfter(m) && m.before(w) && !flag(h.shutdownInProgress).at(m))))
+
+// The two below are used only by liveness.
+val closingJoinsOnlyInterruptedForks = Node.claim(
+  "Closing joins a thread only if it is a fork of the herd that has been interrupted.")(
+  forall((h: Term[ThreadHerd], t: Term[Thread], w: World) =>
+    (ownerClosing(h).pending.at(w) && t.join().by(h.herdOwner).called(w)) implies
+      (forkOf(t, h).at(w) && t.interrupt().wasCalled.at(w))))
+
+val aPassOfClosingInterruptsWhatStays = Node.claim(
+  "When a pass of closing over the set completes, every thread that was in the set throughout it has been interrupted.")(
+  forall((h: Term[ThreadHerd], f: Term[Consumer[Thread]], t: Term[Thread], from: World, to: World) =>
+    (ownerClosing(h).pending.at(from) &&
+      exists((answer: Term[Answer[Unit]]) => h.threads.forEach(f).by(h.herdOwner).completed(from, answer, to)) &&
+      forall((m: World) => (from.notAfter(m) && m.notAfter(to)) implies elements(h.threads).at(m).contains(t)))
+      implies t.interrupt().wasCalled.at(to)))
+```
+
+### `ThreadHerd.scala`, liveness
+
+```scala
+val startThreadStartsWhatItAdds = Node.claim("A thread that startThread adds to the set is eventually started.")(
+  forall((h: Term[ThreadHerd], t: Term[Thread], w: World) =>
+    h.threads.add(t).called(w) implies w.eventually(later => t.start().wasCalled.at(later))))
+
+val aStartedForkCallsItsCode = Node.claim(
+  "A fork whose thread has been started eventually calls the code it was made to run.")(
+  forall((h: Term[ThreadHerd], t: Term[Thread], code: Term[() => Unit], w: World) =>
+    (madeToRun(t, h, code).at(w) && t.start().wasCalled.at(w)) implies
+      w.eventually(later => code().by(t).wasCalled.at(later))))
+
+val aForkLeavesOnceItsCodeCompletes = Node.claim("Once the code a fork was made to run has completed, the fork leaves.")(
+  forall((h: Term[ThreadHerd], t: Term[Thread], code: Term[() => Unit], w: World) =>
+    (madeToRun(t, h, code).at(w) && code().by(t).wasCalled.at(w) && !code().by(t).pending.at(w)) implies
+      w.eventually(later => left(t, h).at(later))))
+
+val aForkThatHasLeftFinishes = Node.claim("A fork that has left eventually finishes.")(
+  forall((h: Term[ThreadHerd], t: Term[Thread], w: World) =>
+    left(t, h).at(w) implies w.eventually(later => finished(t).at(later))))
+
+val closingAsksWhetherTheSetIsEmpty = Node.claim("A call of closing eventually asks whether the set is empty.")(
+  forall((h: Term[ThreadHerd], w: World) =>
+    ownerClosing(h).called(w) implies w.eventually(later => ownerAsking(h).called(later))))
+
+val closingPassesAndAsksAgain = Node.claim(
+  "After closing is answered that the set is not empty, it makes a pass over the set and asks again, provided " +
+    "the joins it makes complete.")(
+  forall((h: Term[ThreadHerd], a: World, b: World) =>
+    (ownerClosing(h).pending.at(b) && ownerAsking(h).completed(a, Returned(false), b) &&
+      forall((t: Term[Thread], j: World) =>
+        (b.notAfter(j) && t.join().by(h.herdOwner).called(j)) implies t.join().by(h.herdOwner).settles(j))) implies
+      b.eventually(later => b.before(later) && ownerAsking(h).called(later) &&
+        exists((f: Term[Consumer[Thread]], p: World, answer: Term[Answer[Unit]], q: World) =>
+          b.notAfter(p) && q.notAfter(later) && h.threads.forEach(f).by(h.herdOwner).completed(p, answer, q)))))
+
+val closingCompletesWhenAnsweredEmpty = Node.claim("When closing is answered that the set is empty, it completes.")(
+  forall((h: Term[ThreadHerd], a: World, b: World) =>
+    (ownerClosing(h).pending.at(b) && ownerAsking(h).completed(a, Returned(true), b)) implies
+      ownerClosing(h).settles(b)))
 ```
 
 ### `unsupervised.scala`
@@ -313,6 +521,21 @@ val closingIsCalledAtTheScopesEnd = Node.claim(
 val scopeEndsAfterClosing = Node.claim("A scope run by its owner completes only after closing its herd has completed.")(
   forall([T] => (ox: Term[Ox], f: Term[Ox ?=> T]) =>
     scopedWithCapability(ox)(f).by(ox.herd.herdOwner).everyCall((from, answer, to) => closed(ox.herd).at(to))))
+
+// Liveness.
+val theScopeGoesOnAfterItsBody = Node.claim(
+  "Once its body has completed, a scope completes, provided the calls it makes of closing and of runFinalizers do.")(
+  forall([T] => (ox: Term[Ox], f: Term[Ox ?=> T], w: World) =>
+    (scopedWithCapability(ox)(f).by(ox.herd.herdOwner).pending.at(w) && bodyDone(ox, f).at(w) &&
+      forall((a: World) => ownerClosing(ox.herd).called(a) implies ownerClosing(ox.herd).settles(a)) &&
+      forall((r: Term[Either[Throwable, T]], a: World) =>
+        runFinalizers(ox, r).called(a) implies runFinalizers(ox, r).settles(a))) implies
+      w.eventually(later => done(ox.herd).at(later))))
+
+// Liveness. `uninterruptible`, which runFinalizers uses, is not modelled.
+val runFinalizersCompletes = Node.claim("A call of runFinalizers completes.")(
+  forall([T] => (ox: Term[Ox], r: Term[Either[Throwable, T]], w: World) =>
+    runFinalizers(ox, r).called(w) implies runFinalizers(ox, r).settles(w)))
 ```
 
 ### `supervised.scala`, `unsupervised.scala`: where Ox runs a scope
@@ -349,9 +572,26 @@ val joinReturnsWhatTheCodeReturned = Node.claim("Joining a fork returns a value 
         k.join().everyCall((a, joined, b) =>
           ((joined === Returned(v)) && to.notAfter(a)) implies
             exists((t: Term[Thread]) => user().by(t).returnedWithin(v, from, b))))))
+
+// Liveness.
+val forkCodeCompletesOnceTheUsersDoes = Node.claim(
+  "The code a fork function gives startThread completes once the call it makes of the user's code has completed.")(
+  forall([T] => (h: Term[ThreadHerd], t: Term[Thread], code: Term[() => Unit], user: Term[() => T], w: World) =>
+    (madeToRun(t, h, code).at(w) && forkFor(t, h, user).at(w) && code().by(t).pending.at(w) &&
+      forall((a: World) => code().by(t).calls(user(), a) implies user().by(t).settles(a))) implies
+      code().by(t).settles(w)))
+
+// Liveness.
+val aThrowingForkReports = Node.claim(
+  "When the user's code of a fork throws, the fork tells the scope's supervisor of the exception.")(
+  forall([T] => (ox: Term[Ox], t: Term[Thread], code: Term[() => Unit], user: Term[() => T]) =>
+    forall((e: Term[Throwable], a: World, b: World) =>
+      (madeToRun(t, ox.herd, code).at(a) && forkFor(t, ox.herd, user).at(a) &&
+        code().by(t).calls(user(), a) && user().by(t).completed(a, Threw(e), b)) implies
+        b.eventually(later => ox.supervisor.forkException(e).by(t).wasCalled.at(later)))))
 ```
 
-### `supervised.scala`
+### `supervised.scala`, safety
 
 ```scala
 /** The code does nothing but call the body with the scope: it returns only what that call returned. */
@@ -377,15 +617,49 @@ val successIsReportedAtZero = Node.claim(
     s.result.complete(Success).by(c).called(w) implies
       exists((a: World, m: World) => m.notAfter(w) && s.running.decrementAndGet().by(c).completed(a, Returned(0), m))))
 
-// Open. It has to name "the fork this call makes" from its announcement (forkStarts), before the fork's thread
-// exists. `wasCalled` is a Boolean and cannot count calls; a count of calls may be the missing word.
-val countIsPositiveUntilSuccess = Node.claim(
-  "From the moment a user fork is announced until it reports success, the supervisor's count is positive.")(???)
+val countIsPositiveWhileAUserForkHasNotSucceeded = Node.claim(
+  "While a user fork of a scope has not reported success, the supervisor's count is positive.")(
+  forall((ox: Term[Ox], u: Term[Thread], w: World) =>
+    (userFork(u, ox.herd).at(w) && !ox.supervisor.forkSuccess().by(u).wasCalled.at(w)) implies
+      (count(ox.supervisor.running).at(w) > 0)))
+```
+
+### `supervised.scala`, liveness
+
+```scala
+val aSupervisorToldOfAnExceptionHasAReport = Node.claim("A supervisor told of an exception eventually has a report.")(
+  forall([E] => (s: Term[DefaultSupervisor[E]], e: Term[Throwable], w: World) =>
+    s.forkException(e).wasCalled.at(w) implies w.eventually(later => outcome(s.result).at(later).isDefined)))
+
+val aDecrementToZeroReportsSuccess = Node.claim(
+  "A thread whose decrement leaves the supervisor's count at zero goes on to report success.")(
+  forall([E] => (s: Term[DefaultSupervisor[E]], c: Term[Thread], a: World, m: World) =>
+    s.running.decrementAndGet().by(c).completed(a, Returned(0), m) implies
+      m.eventually(later => s.result.complete(Success).by(c).wasCalled.at(later))))
+
+val countIsZeroOnceAllUserForksSucceeded = Node.claim(
+  "When no user fork is being made and every user fork made has reported success, the supervisor's count is zero.")(
+  forall((ox: Term[Ox], w: World) =>
+    (noUserForkInTheMaking(ox.herd).at(w) &&
+      forall((u: Term[Thread]) => userFork(u, ox.herd).at(w) implies reportedSuccess(u, ox).at(w))) implies
+      (count(ox.supervisor.running).at(w) === 0)))
+
+val supervisedsBodyOnlyWaitsForTwoJoins = Node.claim(
+  "The body supervised gives its scope completes, provided its join of the supervisor and its joins of forks do.")(
+  forall([T] => (body: Term[Ox ?=> T], o: Term[Thread], ox: Term[Ox], f: Term[Ox ?=> T], w: World) =>
+    (supervisedRuns(body, o, ox, f).at(w) &&
+      forall((j: World) => ox.supervisor.join().by(o).called(j) implies ox.supervisor.join().by(o).settles(j)) &&
+      forall((k: Term[Fork[T]], j: World) => k.join().by(o).called(j) implies k.join().by(o).settles(j))) implies
+      w.eventually(later => bodyDone(ox, f).at(later))))
+
+val supervisedCompletesOnceItsScopeDoes = Node.claim("supervised completes once the scope it runs has completed.")(
+  forall([T] => (body: Term[Ox ?=> T], o: Term[Thread], ox: Term[Ox], f: Term[Ox ?=> T], w: World) =>
+    (supervisedRuns(body, o, ox, f).at(w) && done(ox.herd).at(w)) implies supervised(body).by(o).settles(w)))
 ```
 
 ## 5. Ox: the tree
 
-### What the local claims add up to
+### Safety: what the local claims add up to
 
 ```scala
 val liveForksAreInTheSet = Node.claim("A fork that has not left is in its herd's set.")(
@@ -417,7 +691,7 @@ val closedHerdRefusesToStart = Node.claim(
         ((answer =!= Returned(())) && !h.threads.add(t).by(c).calledWithin(from, to)))))
 ```
 
-### The roots
+### Safety: the roots
 
 ```scala
 val noForkRunsAfterItsScope = Node.claim("After a scope has completed, no fork of it runs the code it was made to run.")(
@@ -452,50 +726,189 @@ val supervisedReturnsOnlyOnSuccess = Node.claim(
 A call of `supervised` or `unsupervised` runs its scope in the caller's thread. By nesting (rule 3), when that
 call completes its scope is done, so A, B and R hold from the moment the public call completes.
 
+### Liveness: what the local claims add up to
+
+```scala
+val onlyLiveForksAreInTheSet = Node.claim("Whatever is in a herd's set is a fork that has not left.")(
+  forall((h: Term[ThreadHerd], t: Term[Thread], w: World) =>
+    elements(h.threads).at(w).contains(t) implies live(t, h).at(w)))
+
+val anInterruptedForkLeaves = Node.claim("A fork that has been interrupted eventually leaves.")(
+  forall((h: Term[ThreadHerd], t: Term[Thread], w: World) =>
+    (forkOf(t, h).at(w) && t.interrupt().wasCalled.at(w)) implies w.eventually(later => left(t, h).at(later))))
+
+val aJoinInClosingCompletes = Node.claim("A join that closing makes completes.")(
+  forall((h: Term[ThreadHerd], t: Term[Thread], w: World) =>
+    (ownerClosing(h).pending.at(w) && t.join().by(h.herdOwner).called(w)) implies t.join().by(h.herdOwner).settles(w)))
+
+val closingKeepsGoing = Node.claim("A pending closing completes or asks again whether the set is empty.")(
+  forall((h: Term[ThreadHerd], w: World) =>
+    ownerClosing(h).pending.at(w) implies
+      w.eventually(later => !ownerClosing(h).pending.at(later) || ownerAsking(h).called(later))))
+
+val everyLiveForkIsInterrupted = Node.claim(
+  "While closing is pending, a fork that stays in the set is eventually interrupted.")(
+  forall((h: Term[ThreadHerd], t: Term[Thread], w: World) =>
+    (ownerClosing(h).pending.at(w) && live(t, h).at(w)) implies
+      w.eventually(later => t.interrupt().wasCalled.at(later) || left(t, h).at(later))))
+
+val noThreadIsAddedForever = Node.claim("Once a herd's flag is set, there is a moment after which no thread is added.")(
+  forall((h: Term[ThreadHerd], w: World) =>
+    flag(h.shutdownInProgress).at(w) implies
+      w.eventually(last => forall((t: Term[Thread], later: World) =>
+        last.notAfter(later) implies !h.threads.add(t).called(later)))))
+
+val theSetEmptiesForGood = Node.claim(
+  "While closing is pending, there is a moment from which the herd's set stays empty.")(
+  forall((h: Term[ThreadHerd], w: World) =>
+    ownerClosing(h).pending.at(w) implies
+      w.eventually(last => !ownerClosing(h).pending.at(last) ||
+        forall((later: World) => last.notAfter(later) implies elements(h.threads).at(later).isEmpty))))
+
+val closingCompletes = Node.claim("A call of closing by the herd's owner completes.")(
+  forall((h: Term[ThreadHerd], w: World) => ownerClosing(h).called(w) implies ownerClosing(h).settles(w)))
+
+val theBodyOfASupervisedScopeCompletesOnceReported = Node.claim(
+  "Once its supervisor has a report, the body supervised gives its scope completes.")(
+  forall([T] => (body: Term[Ox ?=> T], o: Term[Thread], ox: Term[Ox], f: Term[Ox ?=> T], w: World) =>
+    (supervisedRuns(body, o, ox, f).at(w) && outcome(ox.supervisor.result).at(w).isDefined) implies
+      w.eventually(later => bodyDone(ox, f).at(later))))
+```
+
+### Liveness: the roots
+
+```scala
+val aScopeCompletesAfterItsBody = Node.claim("Once the body of a scope has completed, the scope completes.")(
+  forall([T] => (ox: Term[Ox], f: Term[Ox ?=> T], w: World) =>
+    (scopedWithCapability(ox)(f).pending.at(w) && bodyDone(ox, f).at(w)) implies
+      w.eventually(later => done(ox.herd).at(later))))
+
+val aFailedForkEndsSupervised = Node.claim(
+  "Once the code of a fork of a supervised scope has thrown, supervised completes.")(
+  forall([T, U] => (body: Term[Ox ?=> T], o: Term[Thread], ox: Term[Ox], f: Term[Ox ?=> T], user: Term[() => U]) =>
+    forall((t: Term[Thread], code: Term[() => Unit], e: Term[Throwable], a: World, b: World) =>
+      (supervisedRuns(body, o, ox, f).at(a) && forkFor(t, ox.herd, user).at(a) && madeToRun(t, ox.herd, code).at(a) &&
+        code().by(t).calls(user(), a) && user().by(t).completed(a, Threw(e), b)) implies
+        supervised(body).by(o).settles(b))))
+
+val supervisedCompletesOnSuccess = Node.claim(
+  "Once every user fork made in a supervised scope has reported success, with none being made, supervised completes.")(
+  forall([T] => (body: Term[Ox ?=> T], o: Term[Thread], ox: Term[Ox], f: Term[Ox ?=> T], w: World) =>
+    (supervisedRuns(body, o, ox, f).at(w) && exists((u: Term[Thread]) => userFork(u, ox.herd).at(w)) &&
+      noUserForkInTheMaking(ox.herd).at(w) &&
+      forall((u: Term[Thread]) => userFork(u, ox.herd).at(w) implies reportedSuccess(u, ox).at(w))) implies
+      supervised(body).by(o).settles(w)))
+```
+
+By nesting, `unsupervised` completes once the scope it runs has: D is its guarantee.
+
 ## 6. The model
 
 ```scala
 val oxThreads = FrModel("OxThreads")(
+  // Safety.
   noForkRunsAfterItsScope, noForkIsMadeAfterItsScope, aLateForkIsRefused, supervisedReturnsOnlyOnSuccess,
 
   closedScopeIsEmptyForGood.refines(noForkRunsAfterItsScope, noForkIsMadeAfterItsScope),
   scopeEndsAfterClosing.refines(noForkRunsAfterItsScope, noForkIsMadeAfterItsScope, aLateForkIsRefused),
-  scopesAreRunOnceByTheirOwner.refines(noForkRunsAfterItsScope, noForkIsMadeAfterItsScope, aLateForkIsRefused),
+  scopesAreRunOnceByTheirOwner
+    .refines(noForkRunsAfterItsScope, noForkIsMadeAfterItsScope, aLateForkIsRefused, aScopeCompletesAfterItsBody),
   codeRunsBeforeLeaving.refines(noForkRunsAfterItsScope, startThreadCallersStayInside)
     .assuming(firstStartSpawnsTheBody, startIsAtomic, newThreadIsUnstarted, currentThreadIsTheCaller),
 
   closingEndsOnEmpty.refines(closedScopeIsEmptyForGood).assuming(isEmptyIsExact, setCallsAreAtomic),
-  liveForksAreInTheSet.refines(closedScopeIsEmptyForGood, nothingIsAddedOnceEmpty)
+  liveForksAreInTheSet.refines(closedScopeIsEmptyForGood, nothingIsAddedOnceEmpty, everyLiveForkIsInterrupted)
     .assuming(addPutsItIn, removeTakesOnlyItOut, setCallsAreAtomic),
   nothingIsAddedOnceEmpty.refines(closedScopeIsEmptyForGood),
   startThreadCallersStayInside.refines(nothingIsAddedOnceEmpty).assuming(forksAreMadeFromInside),
-  onlyStartThreadAdds.refines(nothingIsAddedOnceEmpty, closedHerdRefusesToStart).assuming(newThreadIsUnstarted),
+  onlyStartThreadAdds.refines(nothingIsAddedOnceEmpty, closedHerdRefusesToStart, noThreadIsAddedForever)
+    .assuming(newThreadIsUnstarted),
   onlyForksCallStartThread.refines(startThreadCallersStayInside),
   aForkRemovesOnlyItself.refines(startThreadCallersStayInside).assuming(currentThreadIsTheCaller),
   closingIsCalledAtTheScopesEnd.refines(startThreadCallersStayInside),
 
   closedHerdRefusesToStart.refines(aLateForkIsRefused),
   closingSetsTheFlag.refines(closedHerdRefusesToStart).assuming(setStores, atomicsAreAtomic),
-  theFlagStaysSet.refines(closedHerdRefusesToStart).assuming(setStores),
-  startThreadFirstSeesTheFlagUnset.refines(closedHerdRefusesToStart).assuming(getReads),
+  theFlagStaysSet.refines(closedHerdRefusesToStart, noThreadIsAddedForever).assuming(setStores),
+  startThreadFirstSeesTheFlagUnset.refines(closedHerdRefusesToStart, noThreadIsAddedForever).assuming(getReads),
   forkReturnsOnlyIfStartThreadDid.refines(aLateForkIsRefused),
 
   supervisedReturnsItsBodyForksJoin.refines(supervisedReturnsOnlyOnSuccess),
   joinReturnsWhatTheCodeReturned.refines(supervisedReturnsOnlyOnSuccess)
     .assuming(firstCompletionStays, completingIsAtomic, getAnswersTheOutcome),
-  successIsReportedAtZero.refines(supervisedReturnsOnlyOnSuccess).assuming(decrementTakesOne, atomicsAreAtomic),
-  countIsPositiveUntilSuccess.refines(supervisedReturnsOnlyOnSuccess).assuming(incrementAddsOne, atomicsAreAtomic))
+  successIsReportedAtZero
+    .refines(supervisedReturnsOnlyOnSuccess, theBodyOfASupervisedScopeCompletesOnceReported)
+    .assuming(decrementTakesOne, atomicsAreAtomic),
+  countIsPositiveWhileAUserForkHasNotSucceeded
+    .refines(supervisedReturnsOnlyOnSuccess, theBodyOfASupervisedScopeCompletesOnceReported)
+    .assuming(incrementAddsOne, atomicsAreAtomic),
+
+  // Liveness.
+  aFailedForkEndsSupervised, supervisedCompletesOnSuccess,
+  aScopeCompletesAfterItsBody.refines(aFailedForkEndsSupervised, supervisedCompletesOnSuccess),
+
+  closingCompletes.refines(aScopeCompletesAfterItsBody),
+  theScopeGoesOnAfterItsBody.refines(aScopeCompletesAfterItsBody),
+  runFinalizersCompletes.refines(aScopeCompletesAfterItsBody).assuming(finalizersComplete),
+
+  theSetEmptiesForGood.refines(closingCompletes),
+  closingKeepsGoing.refines(closingCompletes, everyLiveForkIsInterrupted),
+  closingCompletesWhenAnsweredEmpty.refines(closingCompletes, closingKeepsGoing).assuming(isEmptyIsExact),
+
+  everyLiveForkIsInterrupted.refines(theSetEmptiesForGood),
+  anInterruptedForkLeaves.refines(theSetEmptiesForGood, aJoinInClosingCompletes),
+  noThreadIsAddedForever.refines(theSetEmptiesForGood),
+  onlyLiveForksAreInTheSet.refines(theSetEmptiesForGood).assuming(addPutsItIn, removeTakesOnlyItOut, setCallsAreAtomic),
+
+  closingPassesAndAsksAgain.refines(everyLiveForkIsInterrupted, closingKeepsGoing)
+    .assuming(forEachCompletes, interruptIsAtomic),
+  aPassOfClosingInterruptsWhatStays.refines(everyLiveForkIsInterrupted).assuming(forEachReachesWhatStays),
+  closingAsksWhetherTheSetIsEmpty.refines(closingKeepsGoing),
+  aJoinInClosingCompletes.refines(closingKeepsGoing),
+  closingJoinsOnlyInterruptedForks.refines(aJoinInClosingCompletes).assuming(forEachGivesOnlyElements),
+  aForkThatHasLeftFinishes.refines(aJoinInClosingCompletes).assuming(joinCompletesOnceFinished),
+
+  startThreadStartsWhatItAdds.refines(anInterruptedForkLeaves).assuming(startIsAtomic),
+  aStartedForkCallsItsCode.refines(anInterruptedForkLeaves).assuming(firstStartSpawnsTheBody, aStartedThreadRuns),
+  forkCodeCompletesOnceTheUsersDoes.refines(anInterruptedForkLeaves).assuming(forkCodeStopsWhenInterrupted),
+  aForkLeavesOnceItsCodeCompletes.refines(anInterruptedForkLeaves),
+
+  aThrowingForkReports.refines(aFailedForkEndsSupervised),
+  aSupervisorToldOfAnExceptionHasAReport.refines(aFailedForkEndsSupervised)
+    .assuming(firstCompletionStays, completingIsAtomic),
+  theBodyOfASupervisedScopeCompletesOnceReported.refines(aFailedForkEndsSupervised, supervisedCompletesOnSuccess),
+  supervisedsBodyOnlyWaitsForTwoJoins.refines(theBodyOfASupervisedScopeCompletesOnceReported)
+    .assuming(getCompletesOnceThereIsAnOutcome),
+  supervisedCompletesOnceItsScopeDoes.refines(aFailedForkEndsSupervised, supervisedCompletesOnSuccess)
+    .assuming(forEachCompletes),
+  countIsZeroOnceAllUserForksSucceeded.refines(supervisedCompletesOnSuccess).assuming(incrementAddsOne, decrementTakesOne),
+  aDecrementToZeroReportsSuccess.refines(supervisedCompletesOnSuccess).assuming(firstCompletionStays, completingIsAtomic))
 ```
 
 ## 7. Left out, and open
 
-- **The roots are "only if" and "never".** A scope that never completes meets all four. The other half (a scope
-  does complete once its forks do; a body is run) needs liveness.
+Safety:
+
 - **`isEmptyIsExact` is more than the JDK promises.** If it is false, A and B are false of Ox as written.
 - **`forksAreMadeFromInside` leaves out one legal use:** a fork of an inner scope forking into an outer scope.
   Covering it needs `inside` to be recursive, which FrFlow does not have.
-- **`countIsPositiveUntilSuccess` has no formula** (see the comment on it).
-- **Not modelled:** finalizers and resources, application errors (`supervisedError` with an error mode),
-  `forkUnsupervised`, `forkCancellable`, fork locals, what a scope throws, exceptions the JDK itself may throw.
-- **Words used here beyond the six primitives:** `changing`, `notAfter`, `calledWithin`, `returnedWithin`, a type
-  quantified in `forall` and in `define`, and the nesting rule.
+- **C's tree is likely one node short:** that the fork of the body is the first user fork of its scope.
+
+Liveness:
+
+- **Progress (rule 6) is an assumption about the scheduler with no formula.** The vocabulary speaks of calls, not
+  of single steps of code, so "a thread running code takes its next step" cannot be a node as things stand.
+- **D sits under E and F, so in FrFlow's sense it is not a root,** although it is the guarantee for `unsupervised`.
+  Either a root may also be a part, or E and F take D's parts directly.
+- **`theBodyOfASupervisedScopeCompletesOnceReported` is one local claim short:** that a user fork which reports
+  success has completed its own future first, so joining the body's fork does not wait.
+- **`noThreadIsAddedForever` rests on rule 7** (finitely many threads at a moment), not on a node.
+- **Nothing is claimed about a fork that ignores interruption,** nor about `forkUnsupervised` and `forkCancellable`.
+
+Both:
+
+- **Not modelled:** resources beyond "finalizers complete", application errors (`supervisedError` with an error
+  mode), fork locals, what a scope throws, `uninterruptible`, exceptions the JDK itself may throw.
+- **Words used beyond the six primitives agreed so far:** `outer.calls(inner, w)` as a seventh primitive; the
+  defined `changing`, `notAfter`, `calledWithin`, `returnedWithin`, `eventually`, `settles`; a type quantified in
+  `forall` and in `define`; and rules 3 and 5 to 7.
