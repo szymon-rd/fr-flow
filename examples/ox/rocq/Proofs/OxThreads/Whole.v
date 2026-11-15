@@ -25,7 +25,7 @@ Proof.
   split.
   { intros h t c w H. destruct (nothing_called_at_rest _ _ _ H). }
   split.
-  { intros h t c w H. destruct (nothing_called_at_rest _ _ _ H). }
+  { intros h code c t from b m other [[H _] _]. destruct (nothing_called_at_rest _ _ _ H). }
   split.
   { intros h t c w H. destruct (nothing_called_at_rest _ _ _ H). }
   split.

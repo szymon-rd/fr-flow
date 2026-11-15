@@ -65,3 +65,11 @@ def running(r: Obj[Runnable]): Call[Unit] = Call.of[Unit]("java.lang.Runnable ru
 val handedOver = stated { (r: Obj[Runnable], h: Obj[ThreadHerd], w: Term[BigInt]) =>
   exists((code: Obj[Code], c: Obj[Thread], from: Term[BigInt], m: Term[BigInt]) =>
     m < w && starting(h, code).by(c).called(from) && factory(h).newThread(r).by(c).calledInside(from, m)) }
+
+/** The thread was made by a thread factory, for the call of startThread made at `from` by `c` itself, by the
+  * moment `b`.
+  */
+val madeFor = stated { (t: Obj[Thread], c: Obj[Thread], from: Term[BigInt], b: Term[BigInt]) =>
+  exists((f: Obj[ThreadFactory], r: Obj[Runnable], a: Term[BigInt], done: Term[BigInt]) =>
+    done <= b && f.newThread(r).by(c).calledInside(from, a) &&
+      f.newThread(r).by(c).completed(a, Returned(t), done)) }

@@ -21,9 +21,12 @@ function `startThread` hands the thread factory removes from the herd's set only
 a function removes from the set (what capture checking would say), a fork is removed only by itself. A fourth:
 a call of startThread that itself adds a thread is pending when it does (`startThreadAddsWhileItRuns`: a call of
 the code makes no event of its own once it has responded); with the assumption that only startThread adds to
-the set, a thread is added only during a call of startThread. Still stated and not proven of the code: that the
-flag stays set (`theFlagStaysSet`), that an added thread has not been started
-(`anAddedThreadHasNotBeenStarted`), that a caller of startThread neither closes nor leaves, when the code a fork
+the set, a thread is added only during a call of startThread. A fifth and sixth: the thread startThread adds is
+the one its factory returned to it (`startThreadAddsWhatItsFactoryMade`), and it adds before it starts one
+(`startThreadAddsBeforeItStarts`); with the assumption that a thread a factory made for a call of startThread is
+started only by that call (`onlyItsMakerStartsAThread`), an added thread has not been started. Still stated and
+not proven of the code: that the flag stays set (`theFlagStaysSet`), that a caller of startThread neither closes
+nor leaves, when the code a fork
 was made to run is called (`codeRunsBeforeLeaving`), and the end of closing's loop (`closingEndsOnEmpty`). The
 scopes above the herd and liveness are not in the model.
 

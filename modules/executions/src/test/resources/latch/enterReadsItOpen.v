@@ -2,8 +2,9 @@ Require Export FrFlowGen.Latch.enterReadsItOpen.Spec.
 From Stdlib Require Import String List ZArith Lia.
 Require Import FrFlow.Threads.Prog FrFlow.Jvm.Machine.
 Require Import FrFlow.Scala.Tree FrFlow.Scala.Table FrFlow.Scala.Value FrFlow.Scala.Meaning.
-Require Import FrFlow.Code.Outside FrFlow.Code.Conforms FrFlow.Code.Walk.
+Require Import FrFlow.Code.Outside FrFlow.Code.Conforms FrFlow.Code.Walk FrFlow.Code.Logic.
 
+(** Of a call of `enter`: a response that is a return comes after a read of the flag that gave false. *)
 Lemma enterReadsItOpen_Proofs_complete : enterReadsItOpen_Obl_complete.
 Proof.
   intros heldIn history [N C] Hmade Hflag l from response to [who Hdone] ->.
@@ -13,39 +14,24 @@ Proof.
   destruct Hdone as [[(inside & spawns & Hat) _] | [[inside Hcall] [spawns Hend]]].
   { exfalso. exact (method_not_atomic C (Member "frflow.executions.latch.Latch" "enter" ":scala.Unit") Hat Hl
       eq_refl). }
-  destruct (method_steps C (Member "frflow.executions.latch.Latch" "enter" ":scala.Unit") Hcall Hl eq_refl)
-    as (args & at_ & Hargs & _ & Hlater & Hsteps & Htakes).
-  inversion Hargs; subst.
-  assert (direct who from (history (to - 1))) as Hdirect by (rewrite Hend; cbn; auto).
-  pose proof (Hlater _ Hdirect) as Hlate.
-  pose proof (Hsteps (to - 1) Hlate) as H.
-  pose proof (Htakes _ Hlate (or_introl Hdirect)) as Hgo. rewrite Hend in Hgo.
-  clear Hsteps Htakes. revert Hgo. generalize (at_ (to - 1 + 1)). revert H. generalize (at_ (to - 1)).
-  intros st H st' Hgo.
+  replace to with (to - 1 + 1) by lia.
+  refine (method_meets (fun w => forall sp, history w = Event_Respond who from (Response_Returned Value_Unit_) sp ->
+      exists a b, (from <= a /\ b <= w + 1) /\ exists who', completedBy history
+        (Invocation_mk "java.util.concurrent.atomic.AtomicBoolean get :scala.Boolean"
+          [heldIn "frflow.executions.latch.Latch closed" l]) who' a (Response_Returned (Value_Bool_ False)) b)
+    C (Member "frflow.executions.latch.Latch" "enter" ":scala.Unit") Hcall Hl eq_refl _ (to - 1) _ spawns Hend);
+    [| rewrite Hend; cbn; auto].
+  intros args w Hargs _. inversion Hargs; subst.
   (* the flag is read *)
-  walk H. apply step_read in H as [[-> _] | (w1 & v & y & yo & Hw1 & _ & Hyo & Hy & Hty & Hread & H)].
-  { exfalso. refine (respond_vis _ Hgo). intros []. }
-  destruct (read_place Hl Hyo) as [-> Hcls]. rewrite Hcls in Hty, Hread.
-  apply (Hflag l) in Hread. subst y.
-  apply identity_receiver in Hty.
+  step. intros w1 v y Hw1 _ Hy Hty Hread. split; [miss |]. apply (Hflag l) in Hread. subst y. typed Hty.
   (* and asked what it holds *)
-  walk H.
-  apply step_called in H as [[-> _] | (w2 & ys & Hw2 & _ & Hys & [(_ & -> & _) |
-    (w3 & a & x & Hw3 & _ & Hget & Hgives & Htyped & H)])].
-  { exfalso. refine (respond_vis _ Hgo). intros []. }
-  { exfalso. pose proof (respond_waiting Hgo). lia. }
-  inversion Hys as [| y0 v0 ys0 vs0 Hy0 Hrest]; subst. inversion Hrest; subst.
-  rewrite (one_name N _ _ _ Hy0 Hy) in Hget.
-  destruct x as [e | answer].
-  { (* the read threw: so does `enter` *)
-    exfalso. walk H. exact (ends_with H Hgo). }
-  cbn in Htyped. destruct Htyped as [flag ->]. destruct flag.
-  { (* the flag is set: `enter` throws *)
-    exfalso. walk H. exact (ends_with H Hgo). }
-  (* the flag is unset: this read is the one *)
+  step. intros w2 ys Hw2 _ Hys Hmk. split; [miss |]. intros w3 a x Hw3 Hget Hgives Htyped.
+  apply args_one in Hys as (y0 & -> & Hy0). rewrite (one_name N _ _ _ Hy0 Hy) in Hget.
+  (* it threw, or it is set: `enter` throws; it is unset: `enter` returns, and this read is the one *)
+  step; [miss | miss |]. intros r' Hw _ _ _ sp _.
   destruct a as [answer | thrown]; [| contradiction]. apply named_bool in Hgives. subst answer.
   exists w2, w3. split; [lia |]. exists who. unfold completedBy, doneAtOnce, begun.
-  destruct Hget as [(sp & Hat & ->) | (Hinv & _ & sp & Hresp)]; [left | right]; eauto.
+  destruct Hget as [(sp' & Hat & ->) | (Hinv & _ & sp' & Hresp)]; [left | right]; eauto.
 Qed.
 
 (** An execution in which nothing happens meets what the step is from. *)

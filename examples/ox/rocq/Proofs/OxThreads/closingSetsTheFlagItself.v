@@ -3,7 +3,32 @@ Require Export Proofs.OxThreads.Lemmas.
 From Stdlib Require Import String List ZArith Lia.
 Require Import FrFlow.Threads.Prog FrFlow.Jvm.Machine.
 Require Import FrFlow.Scala.Tree FrFlow.Scala.Table FrFlow.Scala.Value FrFlow.Scala.Meaning.
-Require Import FrFlow.Code.Outside FrFlow.Code.Conforms FrFlow.Code.Walk.
+Require Import FrFlow.Code.Outside FrFlow.Code.Conforms FrFlow.Code.Walk FrFlow.Code.Logic.
+
+(** Proven of `ThreadHerd.assertOnOwnerThread`'s tree: it compares `Thread.currentThread()` with the herd's
+    owner and throws if they differ, so a call of it by the owner does not throw. *)
+Lemma assertOnOwnerThread_returns {heldIn} {history : Z -> Event} {N h r inside w1} :
+  conforms Code_files Code_table N history -> aHerdKeepsItsFields_claim heldIn history ->
+  currentThreadIsTheCaller_claim history -> names N h (vref "ox.internal.ThreadHerd" r) ->
+  history w1 = Event_Invoke (heldIn "ox.internal.ThreadHerd herdOwner" h) inside
+    (Invocation_mk "ox.internal.ThreadHerd assertOnOwnerThread :scala.Unit" [h]) ->
+  forall w, direct (heldIn "ox.internal.ThreadHerd herdOwner" h) w1 (history w) -> forall y sp,
+    history w = Event_Respond (heldIn "ox.internal.ThreadHerd herdOwner" h) w1 (Response_Threw y) sp -> False.
+Proof.
+  intros C Hfields Hcurrent Hh Hcall.
+  refine (method_meets _ C (Member "ox.internal.ThreadHerd" "assertOnOwnerThread" ":scala.Unit") Hcall Hh
+    eq_refl _).
+  intros args k Hargs _. apply vals_none in Hargs as ->.
+  (* Thread.currentThread(): the owner *)
+  step. intros wc ys _ _ Hys Hmk. split; [miss |]. intros wd a x _ Hcur Hgives Hty.
+  apply args_none in Hys as ->. rewrite (Hcurrent _ _ _ _ (done_completed Hcur)) in Hgives.
+  destruct x as [e | current]; [contradiction |].
+  (* the herd's owner, read: the same thread *)
+  step. intros wr v y _ _ Hy Htyv Hread. split; [miss |]. apply (proj2 (Hfields h)) in Hread. subst y.
+  pose proof (names_one N _ _ _ Hy Hgives) as ->.
+  (* so nothing is thrown *)
+  pass.
+Qed.
 
 (** Proven of `ThreadHerd.interruptAllAndJoinUntilCompleted`'s tree: it first calls `assertOnOwnerThread`, which
     returns where the caller is the herd's owner; then it sets the flag; whatever it does after, it completes
@@ -11,79 +36,35 @@ Require Import FrFlow.Code.Outside FrFlow.Code.Conforms FrFlow.Code.Walk.
 Lemma closingSetsTheFlagItself_Proofs_complete : closingSetsTheFlagItself_Obl_complete.
 Proof.
   intros heldIn history [N C] Hmade Hfields Hcurrent h from response to Hdone.
-  assert (exists r, names N h (vref "ox.internal.ThreadHerd" r)) as [r Hh].
-  { destruct (Hmade h h from) as (m & b & ins & hs & _ & Hmk); [| exact (made_named C Hmk)].
-    right. eexists. exact (completed_was_called _ _ _ _ _ _ Hdone). }
-  destruct Hdone as [[(inside & spawns & Hat) _] | [[inside Hcall] [spawns Hend]]].
-  { exfalso. exact (method_not_atomic C
-      (Member "ox.internal.ThreadHerd" "interruptAllAndJoinUntilCompleted" ":scala.Unit") Hat Hh eq_refl). }
-  destruct (method_steps C (Member "ox.internal.ThreadHerd" "interruptAllAndJoinUntilCompleted" ":scala.Unit")
-    Hcall Hh eq_refl) as (args & at_ & Hargs & _ & Hlater & Hsteps & Htakes).
-  inversion Hargs; subst. clear Hargs.
-  assert (direct (heldIn "ox.internal.ThreadHerd herdOwner" h) from (history (to - 1))) as Hdirect
-    by (rewrite Hend; cbn; auto).
-  pose proof (Hlater _ Hdirect) as Hw.
-  pose proof (Htakes _ Hw (or_introl Hdirect)) as Hgo. rewrite Hend in Hgo.
-  pose proof (Hsteps _ Hw) as H. clear Hsteps Htakes Hlater.
-  revert Hgo. generalize (at_ (to - 1 + 1)). revert H. generalize (at_ (to - 1)). intros st H st' Hgo.
-  walk H.
-  apply step_method in H as [[-> _] | (w1 & ys & Hw1 & _ & Hys & Hinv & Hnext)].
-  { exfalso. refine (respond_call _ Hgo). exact I. }
-  destruct Hnext as [(-> & _) | (w2 & r' & sp & x & Hw2 & _ & _ & Hresp & Hgives & H)].
-  { exfalso. pose proof (respond_waiting Hgo). lia. }
-  cbn in Hys. inversion Hys as [| y0 v0 ys0 vs0 Hy0 Hrest]; subst. inversion Hrest; subst.
-  (* assertOnOwnerThread returns: the thread that calls is the herd's owner *)
-  assert (x = inr VUnit) as ->.
-  { destruct (method_steps C (Member "ox.internal.ThreadHerd" "assertOnOwnerThread" ":scala.Unit") Hinv Hy0
-      eq_refl) as (args2 & at2 & Hargs2 & _ & _ & Hsteps2 & Htakes2).
-    inversion Hargs2; subst.
-    pose proof (Hsteps2 w2 ltac:(lia)) as H2.
-    assert (takes Code_table N (heldIn "ox.internal.ThreadHerd herdOwner" h) w1 w2
-      (Event_Respond (heldIn "ox.internal.ThreadHerd herdOwner" h) w1 r' sp) (at2 w2) (at2 (w2 + 1))) as Hgo2.
-    { rewrite <- Hresp. apply Htakes2; [lia |]. left. rewrite Hresp. cbn. auto. }
-    revert Hgo2. generalize (at2 (w2 + 1)). revert H2. generalize (at2 w2). clear Hsteps2 Htakes2.
-    intros st2 H2 st2' Hgo2.
-    (* Thread.currentThread() *)
-    walk H2.
-    apply step_called in H2 as [[-> _] | (w3 & ys3 & Hw3 & _ & Hys3 & [(_ & -> & _) |
-      (w4 & a & xc & Hw4 & _ & Hcur & Hgc & Htc & H2)])].
-    { exfalso. refine (respond_vis _ Hgo2). intros []. }
-    { exfalso. pose proof (respond_waiting Hgo2). lia. }
-    inversion Hys3; subst.
-    assert (a = Response_Returned (heldIn "ox.internal.ThreadHerd herdOwner" h)) as ->.
-    { apply (Hcurrent _ w3 a w4). unfold completedBy, doneAtOnce, begun.
-      destruct Hcur as [(sp' & Hat' & ->) | (Hinv' & _ & sp' & Hresp')]; [left | right]; eauto. }
-    destruct xc as [e | current]; [contradiction |].
-    change (names N (heldIn "ox.internal.ThreadHerd herdOwner" h) current) in Hgc.
-    change (identity current) in Htc.
-    (* the herd's owner, read *)
-    walk H2.
-    apply step_read in H2 as [[-> _] | (w5 & v & y & yo & Hw5 & _ & Hyo & Hy & Hty & Hread & H2)].
-    { exfalso. refine (respond_vis _ Hgo2). intros []. }
-    destruct (read_place Hh Hyo) as [-> Hcls]. rewrite Hcls in Hty, Hread.
-    apply (proj2 (Hfields h)) in Hread. subst y.
-    pose proof (names_one N _ _ _ Hy Hgc) as ->.
-    (* they are the same thread: nothing is thrown *)
-    walk H2.
-    exact (gives_one Hgives (ends_with H2 Hgo2)). }
-  (* the flag, read *)
-  walk H.
-  apply step_read in H as [[-> _] | (w3 & v & y & yo & Hw3 & _ & Hyo & Hy & Hty & Hread & H)].
-  { exfalso. refine (respond_vis _ Hgo). intros []. }
-  destruct (read_place Hh Hyo) as [-> Hcls]. rewrite Hcls in Hty, Hread.
-  apply (proj1 (proj1 (Hfields h))) in Hread. subst y.
-  apply identity_receiver in Hty.
-  (* and set *)
-  walk H.
-  apply step_called in H as [[-> _] | (w4 & ys4 & Hw4 & _ & Hys4 & [(_ & -> & _) |
-    (w5 & a & xs & Hw5 & _ & Hset & _)])].
-  { exfalso. refine (respond_vis _ Hgo). intros []. }
-  { exfalso. pose proof (respond_waiting Hgo). lia. }
-  inversion Hys4 as [| y1 v1 ys1 vs1 Hy1 Hrest1]; subst.
-  inversion Hrest1 as [| y2 v2 ys2 vs2 Hy2 Hrest2]; subst. inversion Hrest2; subst.
-  rewrite (one_name N _ _ _ Hy1 Hy) in Hset. apply named_bool in Hy2. subst y2.
-  exists w4, a, w5. split; [lia |]. eexists. unfold completedBy, doneAtOnce, begun.
-  destruct Hset as [(sp' & Hat' & ->) | (Hinv' & _ & sp' & Hresp')]; [left | right]; eauto.
+  pose proof (completed_was_called _ _ _ _ _ _ Hdone) as Hcalled.
+  destruct (method_begun (Member "ox.internal.ThreadHerd" "interruptAllAndJoinUntilCompleted" ":scala.Unit") C
+    (Hmade h h from (or_intror (ex_intro (fun who => calledBy history _ who from) _ Hcalled))) eq_refl Hcalled)
+    as (r & inside & Hh & Hcall).
+  destruct Hdone as [[(ins & spawns & Hat) _] | [_ [spawns Hend]]]; [rewrite Hcall in Hat; discriminate Hat |].
+  assert (forall k, direct (heldIn "ox.internal.ThreadHerd herdOwner" h) from (history k) ->
+    forall resp sp, history k = Event_Respond (heldIn "ox.internal.ThreadHerd herdOwner" h) from resp sp ->
+    exists a response_1 b, (from <= a /\ b <= k) /\ exists who, completedBy history
+      (Invocation_mk "java.util.concurrent.atomic.AtomicBoolean set scala.Boolean:scala.Unit"
+        [heldIn "ox.internal.ThreadHerd shutdownInProgress" h; Value_Bool_ True]) who a response_1 b) as Hall.
+  { refine (method_meets _ C (Member "ox.internal.ThreadHerd" "interruptAllAndJoinUntilCompleted" ":scala.Unit")
+      Hcall Hh eq_refl _).
+    intros args k Hargs _. apply vals_none in Hargs as ->.
+    (* assertOnOwnerThread is called: it returns, the caller being the herd's owner *)
+    step. intros w1 ys Hw1 _ Hys Hinv. split; [miss |]. intros w2 rr sp x Hw2 Hresp Hgives.
+    apply args_one in Hys as (y0 & -> & Hy0). pose proof (one_name N _ _ _ Hy0 Hh) as ->.
+    destruct x as [e | v].
+    { exfalso. destruct rr as [y | y]; [contradiction |].
+      exact (assertOnOwnerThread_returns C Hfields Hcurrent Hh Hinv w2 ltac:(rewrite Hresp; cbn; auto) y sp Hresp). }
+    (* the flag is read *)
+    step. intros wr vf y Hwr _ Hy Hty Hread. split; [miss |]. apply (proj1 (proj1 (Hfields h))) in Hread. subst y.
+    (* and set: whatever the call does after, it has set the flag *)
+    step. intros ws yss Hws _ Hyss Hmk. split; [miss |]. intros wd a x Hwd Hset _ _.
+    apply args_two in Hyss as (y1 & y2 & -> & Hy1 & Hy2).
+    rewrite (one_name N _ _ _ Hy1 Hy) in Hset. apply named_bool in Hy2. subst y2.
+    apply meets_from. intros k' Hk' resp sp' _. exists ws, a, wd. split; [lia |]. eexists.
+    exact (done_completed Hset). }
+  destruct (Hall (to - 1) ltac:(rewrite Hend; cbn; auto) response spawns Hend) as (a & r1 & b & [Ha Hb] & Hd).
+  exists a, r1, b. split; [lia | exact Hd].
 Qed.
 
 (** Its parts can hold together: an execution in which nothing happens meets each. *)

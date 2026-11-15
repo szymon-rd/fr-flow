@@ -1,9 +1,10 @@
-(** Proving a claim of code from its execution: walking a call's program along the events it makes.
+(** A call of the code from one moment to a later one.
 
-    `conforms` gives, for a call of the code, the stage it is at before each moment (`follows`). A proof takes
-    the call from its start (`steps`), an event of its own at a time (`steps_next`): the program's next
-    operation says what the event is (`takes_read`, `takes_outside`, …), and the proof goes on with what follows
-    it. The program is never computed whole: `walk_head` computes what it does next. *)
+    `conforms` gives, for a call of the code, the stage it is at before each moment (`follows`). Here that is
+    said as a relation between moments (`steps`): the call goes from a stage to a later one by its own events,
+    each the event of what its program does next (`takes_read`, `takes_outside`, `takes_method_call`, …), other
+    events leaving it where it is. `method_steps` and `function_steps` say it of a call in an execution of the
+    code. The rules a proof of a claim uses are built on these (`FrFlow.Code.Logic`). *)
 
 From FrFlow Require Import Executions.
 From Stdlib Require Import String List ZArith Bool Ascii Lia Classical_Prop ProofIrrelevanceFacts.
@@ -87,13 +88,6 @@ Proof.
     repeat match goal with |- context [String.eqb ?x ?y] => destruct (String.eqb_spec x y) as [-> | ?]; cbn end;
     first [reflexivity | rewrite val_eqb_refl; reflexivity | rewrite Hne by congruence; reflexivity].
 Qed.
-
-(** The call an event makes, if it makes one. *)
-Definition invoked (e : Event) : option Invocation :=
-  match e with
-  | Event_Invoke _ _ c | Event_Atomic _ _ c _ _ => Some c
-  | _ => None
-  end.
 
 (** ** A function the code wrote, decided by looking for its tree among the code's *)
 Definition among (files : list tree) (t : tree) : bool :=
@@ -256,88 +250,6 @@ Section Walk.
     - injection Hs. intros. subst. eauto 10.
   Qed.
 
-  (** ** The call an event is
-
-      What call an event makes, if it makes one: a proof that looks for the event of some call passes the stages
-      whose event is another call's, or no call. *)
-
-  Lemma invoked_method a i w e s on args (k : res -> program) st :
-    takes a i w e (Running (Call (Method s) (VList (on :: args)) k)) st ->
-    exists ys, Forall2 (names N) ys (receiver on ++ args) /\ invoked e = Some (Invocation_mk (label_of s) ys).
-  Proof.
-    intros H. apply takes_method_call in H as (ys & Hys & -> & _). exists ys. split; [exact Hys | reflexivity].
-  Qed.
-
-  Lemma invoked_function a i w e c arg (k : res -> program) st :
-    (match c with Fn _ _ _ | Thunk _ _ => True | _ => False end) ->
-    takes a i w e (Running (Call c arg k)) st ->
-    exists m y ys, called_as c arg m /\ invoked e = Some (Invocation_mk m (y :: ys)).
-  Proof.
-    intros Hc H. apply (takes_function_call Hc) in H as (m & y & ys & Hm & _ & _ & -> & _).
-    exists m, y, ys. split; [exact Hm | reflexivity].
-  Qed.
-
-  Lemma invoked_outside a i w e m args (k : res -> program) st :
-    takes a i w e (Running (Vis (ExtCall 0 m args) k)) st ->
-    exists ys, Forall2 (names N) ys args /\ invoked e = Some (Invocation_mk m ys).
-  Proof.
-    intros H. apply takes_outside in H as (ys & Hys & [[-> _] | (r & sp & x & -> & _)]);
-      exists ys; (split; [exact Hys | reflexivity]).
-  Qed.
-
-  Lemma invoked_read a i w e r f (k : exn + val -> program) st :
-    takes a i w e (Running (Vis (ObjGet r f) k)) st -> invoked e = None.
-  Proof. intros H. apply takes_read in H as (v & y & yo & _ & _ & _ & -> & _). reflexivity. Qed.
-
-  Lemma invoked_waiting a i w e called typed k st : takes a i w e (Waiting called typed k) st -> invoked e = None.
-  Proof. intros H. apply takes_waiting in H as (r & sp & x & -> & _). reflexivity. Qed.
-
-  Lemma invoked_ret a i w e (x : res) st : takes a i w e (Running (Ret x)) st -> invoked e = None.
-  Proof. intros H. apply takes_ret in H as (r & -> & _). reflexivity. Qed.
-
-  (** ** A call's own response
-
-      The response of the call made at `i` is the event of a program that has ended, and of no other stage. *)
-
-  Lemma respond_ret a i w r spawns (x : res) st :
-    takes a i w (Event_Respond a i r spawns) (Running (Ret x)) st -> gives N r x.
-  Proof. intros H. apply takes_ret in H as (r' & He & Hg & _). injection He. intros _ <-. exact Hg. Qed.
-
-  Lemma respond_vis a i w r spawns X (o : Machine.op code obj X) (k : X -> program) st :
-    ~ unsaid o -> takes a i w (Event_Respond a i r spawns) (Running (Vis o k)) st -> False.
-  Proof.
-    intros Hsaid H. apply takes_running in H as
-      [(X0 & o0 & k0 & x0 & Hs & Hop & _) | [(m0 & args0 & k0 & ys & _ & _ & He & _) |
-      [(m0 & args0 & k0 & ys & r0 & sp & x0 & _ & _ & He & _) |
-      [(s & on & args0 & k0 & ys & _ & _ & He & _) | [(c & arg & k0 & m0 & y & ys & _ & _ & _ & _ & _ & He & _) |
-      [(x0 & r0 & Hs & _) | (X0 & o0 & k0 & Hs & Hu & _)]]]]]]; try discriminate He.
-    - destruct o0; cbn in Hop; try contradiction.
-      + destruct Hop as (? & ? & ? & _ & _ & _ & _ & He). discriminate He.
-      + destruct Hop as (? & ? & ? & _ & _ & _ & _ & He). discriminate He.
-      + destruct Hop as (? & _ & _ & He). discriminate He.
-      + destruct Hop as (? & ? & _ & _ & _ & He). discriminate He.
-      + destruct Hop as (? & ? & _ & He & _). discriminate He.
-    - apply settles_vis in Hs. discriminate Hs.
-    - apply settles_vis in Hs. injection Hs. intros _ _ HX. subst X0.
-      apply vis_same in Hs as [Ho _]. subst o0. exact (Hsaid Hu).
-  Qed.
-
-  Lemma respond_call a i w r spawns c arg (k : res -> program) st :
-    (match c with Init _ => False | _ => True end) ->
-    takes a i w (Event_Respond a i r spawns) (Running (Call c arg k)) st -> False.
-  Proof.
-    intros Hc H. apply takes_running in H as
-      [(X0 & o0 & k0 & x0 & Hs & _) | [(m0 & args0 & k0 & ys & Hs & _ & He & _) |
-      [(m0 & args0 & k0 & ys & r0 & sp & x0 & Hs & _ & He & _) |
-      [(s & on & args0 & k0 & ys & Hs & _ & He & _) | [(c0 & arg0 & k0 & m0 & y & ys & Hs & _ & _ & _ & _ & He & _) |
-      [(x0 & r0 & Hs & _) | (X0 & o0 & k0 & Hs & _)]]]]]]; try discriminate He;
-      apply (settles_call Hc) in Hs; discriminate Hs.
-  Qed.
-
-  Lemma respond_waiting a i w r spawns called typed k st :
-    takes a i w (Event_Respond a i r spawns) (Waiting called typed k) st -> called = i.
-  Proof. intros H. apply takes_waiting in H as (r' & sp & x & He & _). injection He. auto. Qed.
-
   (** ** A call from one moment to a later one *)
 
   (** The call made at `i` by `a`, at the stage `st0` before the moment `w0`, is at `st` before `w`. *)
@@ -447,46 +359,7 @@ Section Walk.
     - exfalso. exact (takes_ended Ht).
   Qed.
 
-  (** ** A call's next step, by what its program does next
-
-      Each says: the call has not taken the step by `w` (and is where it was); or it has, at a moment `w1`, by
-      the event the operation is, and goes on from there. *)
-
-  Lemma step_read a i w0 r f (k : exn + val -> program) w st :
-    steps a i w0 (Running (Vis (ObjGet r f) k)) w st ->
-    (st = Running (Vis (ObjGet r f) k) /\ quiet a i w0 w) \/
-    exists w1 v y yo, w0 <= w1 < w /\ quiet a i w0 w1 /\ at_place N yo r /\ names N y v /\
-      field_typed T (class_at N r) f v /\
-      history w1 = Event_Read a (Some i) yo (field_label T (class_at N r) f) y /\
-      steps a i (w1 + 1) (Running (k (inr v))) w st.
-  Proof.
-    intros H. apply steps_running in H as [H | (w1 & st1 & Hw & Hq & _ & Ht & H)]; [left; exact H | right].
-    apply takes_read in Ht as (v & y & yo & Hyo & Hy & Hty & He & ->). exists w1, v, y, yo. auto 10.
-  Qed.
-
-  (** A call of what is outside the code: not made yet; made and not responded to; made and responded to; or
-      made and responded to at once. *)
-  Lemma step_outside a i w0 m args (k : res -> program) w st :
-    steps a i w0 (Running (Vis (ExtCall 0 m args) k)) w st ->
-    (st = Running (Vis (ExtCall 0 m args) k) /\ quiet a i w0 w) \/
-    exists w1 ys, w0 <= w1 < w /\ quiet a i w0 w1 /\ Forall2 (names N) ys args /\
-      ((history w1 = Event_Invoke a (Some i) (Invocation_mk m ys) /\
-          ((st = Waiting w1 (returns m) k /\ quiet a i (w1 + 1) w /\ unanswered a w1 (w1 + 1) w) \/
-           exists w2 r spawns x, w1 < w2 < w /\ quiet a i (w1 + 1) w2 /\ unanswered a w1 (w1 + 1) w2 /\
-             history w2 = Event_Respond a w1 r spawns /\ gives N r x /\ returns m x /\
-             steps a i (w2 + 1) (Running (k x)) w st)) \/
-       (exists r spawns x, history w1 = Event_Atomic a (Some i) (Invocation_mk m ys) r spawns /\ gives N r x /\
-          returns m x /\ steps a i (w1 + 1) (Running (k x)) w st)).
-  Proof.
-    intros H. apply steps_running in H as [H | (w1 & st1 & Hw & Hq & _ & Ht & H)]; [left; exact H | right].
-    apply takes_outside in Ht as (ys & Hys & [[He ->] | (r & sp & x & He & Hg & Hr & ->)]);
-      exists w1, ys; repeat split; try lia; auto.
-    - left. split; [exact He |].
-      apply steps_waiting in H as [(-> & Hq2 & Hu) | (w2 & r & sp & x & Hw2 & Hq2 & Hu & He2 & Hg & Hr & H)].
-      + left. auto.
-      + right. exists w2, r, sp, x. repeat split; try lia; auto.
-    - right. exists r, sp, x. auto.
-  Qed.
+  (** ** A call made inside the call, and the call's end *)
 
   (** A call inside the call made at `i`, made at `w1` and responded to with `r` before `w2`: by an event made
       and responded to at once, or by a response to it. *)
@@ -494,65 +367,6 @@ Section Walk.
     (exists spawns, history w1 = Event_Atomic a (Some i) (Invocation_mk m ys) r spawns /\ w2 = w1 + 1) \/
     (history w1 = Event_Invoke a (Some i) (Invocation_mk m ys) /\ w1 < w2 - 1 /\
        exists spawns, history (w2 - 1) = Event_Respond a w1 r spawns).
-
-  (** The same as `step_outside`, the two ways a call is responded to as one. *)
-  Lemma step_called a i w0 m args (k : res -> program) w st :
-    steps a i w0 (Running (Vis (ExtCall 0 m args) k)) w st ->
-    (st = Running (Vis (ExtCall 0 m args) k) /\ quiet a i w0 w) \/
-    exists w1 ys, w0 <= w1 < w /\ quiet a i w0 w1 /\ Forall2 (names N) ys args /\
-      ((history w1 = Event_Invoke a (Some i) (Invocation_mk m ys) /\ st = Waiting w1 (returns m) k /\
-          quiet a i (w1 + 1) w /\ unanswered a w1 (w1 + 1) w) \/
-       exists w2 r x, w1 < w2 <= w /\ quiet a i (w1 + 1) (w2 - 1) /\ done_inside a i m ys w1 r w2 /\ gives N r x /\
-         returns m x /\ steps a i w2 (Running (k x)) w st).
-  Proof.
-    intros H. apply step_outside in H as [H | (w1 & ys & Hw & Hq & Hys & H)]; [left; exact H | right].
-    exists w1, ys. repeat split; try lia; auto.
-    destruct H as [[He [(-> & Hq2 & Hu) | (w2 & r & sp & x & Hw2 & Hq2 & Hu & He2 & Hg & Hr & H)]] |
-      (r & sp & x & He & Hg & Hr & H)].
-    - left. auto.
-    - right. exists (w2 + 1), r, x. replace (w2 + 1 - 1) with w2 by lia. pose proof (steps_later H).
-      repeat split; try lia; auto. right. replace (w2 + 1 - 1) with w2 by lia. repeat split; try lia; eauto.
-    - right. exists (w1 + 1), r, x. pose proof (steps_later H). repeat split; try lia; auto.
-      + intros v Hv. lia.
-      + left. eauto.
-  Qed.
-
-  (** A call of a method of the code: made, and then responded to with what the method gave. *)
-  Lemma step_method a i w0 s on args (k : res -> program) w st :
-    steps a i w0 (Running (Call (Method s) (VList (on :: args)) k)) w st ->
-    (st = Running (Call (Method s) (VList (on :: args)) k) /\ quiet a i w0 w) \/
-    exists w1 ys, w0 <= w1 < w /\ quiet a i w0 w1 /\ Forall2 (names N) ys (receiver on ++ args) /\
-      history w1 = Event_Invoke a (Some i) (Invocation_mk (label_of s) ys) /\
-      ((st = Waiting w1 (fun _ => True) k /\ quiet a i (w1 + 1) w /\ unanswered a w1 (w1 + 1) w) \/
-       exists w2 r spawns x, w1 < w2 < w /\ quiet a i (w1 + 1) w2 /\ unanswered a w1 (w1 + 1) w2 /\
-         history w2 = Event_Respond a w1 r spawns /\ gives N r x /\ steps a i (w2 + 1) (Running (k x)) w st).
-  Proof.
-    intros H. apply steps_running in H as [H | (w1 & st1 & Hw & Hq & _ & Ht & H)]; [left; exact H | right].
-    apply takes_method_call in Ht as (ys & Hys & He & ->). exists w1, ys. repeat split; try lia; auto.
-    apply steps_waiting in H as [(-> & Hq2 & Hu) | (w2 & r & sp & x & Hw2 & Hq2 & Hu & He2 & Hg & _ & H)].
-    - left. auto.
-    - right. exists w2, r, sp, x. repeat split; try lia; auto.
-  Qed.
-
-  (** A call of a function. *)
-  Lemma step_function a i w0 c arg (k : res -> program) w st :
-    (match c with Fn _ _ _ | Thunk _ _ => True | _ => False end) ->
-    steps a i w0 (Running (Call c arg k)) w st ->
-    (st = Running (Call c arg k) /\ quiet a i w0 w) \/
-    exists w1 m y ys, w0 <= w1 < w /\ quiet a i w0 w1 /\ called_as c arg m /\ names N y (VCode c) /\
-      Forall2 (names N) ys (arguments arg) /\
-      history w1 = Event_Invoke a (Some i) (Invocation_mk m (y :: ys)) /\
-      ((st = Waiting w1 (fun _ => True) k /\ quiet a i (w1 + 1) w /\ unanswered a w1 (w1 + 1) w) \/
-       exists w2 r spawns x, w1 < w2 < w /\ quiet a i (w1 + 1) w2 /\ unanswered a w1 (w1 + 1) w2 /\
-         history w2 = Event_Respond a w1 r spawns /\ gives N r x /\ steps a i (w2 + 1) (Running (k x)) w st).
-  Proof.
-    intros Hc H. apply steps_running in H as [H | (w1 & st1 & Hw & Hq & _ & Ht & H)]; [left; exact H | right].
-    apply (takes_function_call Hc) in Ht as (m & y & ys & Hm & Hy & Hys & He & ->).
-    exists w1, m, y, ys. repeat split; try lia; auto.
-    apply steps_waiting in H as [(-> & Hq2 & Hu) | (w2 & r & sp & x & Hw2 & Hq2 & Hu & He2 & Hg & _ & H)].
-    - left. auto.
-    - right. exists w2, r, sp, x. repeat split; try lia; auto.
-  Qed.
 
   (** The call's end: its response is what its program gave, and it makes no event after. *)
   Lemma step_ret a i w0 (x : res) w st :
@@ -565,33 +379,6 @@ Section Walk.
     apply takes_ret in Ht as (r & He & Hg & ->). apply steps_ended in H as [-> Hq2]. exists w1, r. auto 10.
   Qed.
 
-  (** A call that has only its result left: its response is that result. *)
-  Lemma ends_with a i w0 (x : res) w st r spawns st' :
-    steps a i w0 (Running (Ret x)) w st -> takes a i w (Event_Respond a i r spawns) st st' -> gives N r x.
-  Proof.
-    intros H Hgo. apply step_ret in H as [[-> _] | (w1 & r' & _ & _ & _ & _ & -> & _)].
-    - exact (respond_ret Hgo).
-    - exfalso. exact (takes_ended Hgo).
-  Qed.
-
-  (** A response is one result's. *)
-  Lemma gives_one r (x x' : res) : gives N r x -> gives N r x' -> x = x'.
-  Proof.
-    destruct r as [y | y], x as [e | v], x' as [e' | v']; cbn; try contradiction; intros H1 H2.
-    - rewrite (names_one N _ _ _ H1 H2). reflexivity.
-    - pose proof (names_one N _ _ _ H1 H2) as E. f_equal.
-      destruct e, e'; cbn in E; try discriminate E; try (injection E; intros; subst; reflexivity); reflexivity.
-  Qed.
-
-  (** A call that has only its result left makes no call. *)
-  Lemma ends_quietly a i w0 (x : res) w st e st' :
-    steps a i w0 (Running (Ret x)) w st -> takes a i w e st st' -> invoked e = None.
-  Proof.
-    intros H Hgo. apply step_ret in H as [[-> _] | (w1 & r' & _ & _ & _ & _ & -> & _)].
-    - exact (invoked_ret Hgo).
-    - destruct (takes_ended Hgo).
-  Qed.
-
   (** ** Values of the execution that are data *)
 
   Lemma named_bool y (b : bool) : names N y (VBool b) -> y = Value_Bool_ (if b then True else False).
@@ -599,16 +386,6 @@ Section Walk.
     intros H. rewrite (one_name N y _ _ H (of_bool N b)). f_equal. apply propositional_extensionality.
     destruct b; split; intros; [exact I | reflexivity | discriminate | contradiction].
   Qed.
-
-  Lemma named_unit y : names N y VUnit -> y = Value_Unit_.
-  Proof. intros H. exact (one_name N y _ _ H (of_unit N)). Qed.
-
-  Lemma unit_named y v : names N y v -> y = Value_Unit_ -> v = VUnit.
-  Proof. intros H ->. exact (names_one N _ _ _ H (of_unit N)). Qed.
-
-  (** The object a value of the execution names is at one place, of one class. *)
-  Lemma named_ref y c r c' r' : names N y (vref c r) -> names N y (vref c' r') -> c = c' /\ r = r'.
-  Proof. intros H1 H2. pose proof (names_one N _ _ _ H1 H2) as E. injection E. auto. Qed.
 
   Lemma at_place_of y c r : names N y (vref c r) -> class_at N r = c /\ at_place N y r.
   Proof. intros H. pose proof (ref_class N _ _ _ H) as E. split; [exact E |]. unfold at_place. rewrite E. exact H. Qed.
@@ -690,74 +467,5 @@ Arguments method_steps {files T N history} conformed {a inside} s {cls r d y ys 
 Arguments method_not_atomic {files T N history} conformed {w a inside} s {cls r d y ys resp spawns} _ _ _.
 Arguments function_steps {files T N history} conformed {a inside m c y ys from} _ _ _ _.
 Arguments made_named {files T N history} conformed {w b inside y cls hs} _.
-Arguments gives_one {N r x x'} _ _.
 Arguments method_over {files T N history} conformed {a inside} s {cls r d y ys from k w resp spawns} _ _ _ _ _.
 Arguments function_not_atomic {files T N history} conformed {w a inside m c y ys resp spawns} _ _ _ _.
-
-(** ** Walking *)
-
-(** What follows a step, set aside under a name: dropped once no hypothesis speaks of it. *)
-Ltac walk_clear := repeat match goal with K := _ : _ -> prog _ _ _ _ _ |- _ => clear K end.
-
-(** What a walk stops at and can settle itself, in the hypothesis `H`:
-    - which method of the code a call on a value runs (`implemented`): computed where the value is known; none,
-      of a value not known, where no class of the code has one;
-    - what a name gives that holds a value (`held`): computed where the value is known; itself, of a reference;
-    - whether two references are the same (`equal`), where no class of the code says what `equals` is; and a
-      value compared with itself. *)
-Ltac walk_answer H :=
-  match type of H with
-  | context [implemented ?T' ?v ?s] =>
-      let d := eval lazy in (implemented T' v s) in
-      lazymatch d with
-      | Some _ => change (implemented T' v s) with d in H
-      | None => change (implemented T' v s) with d in H
-      | _ =>
-          let E := fresh in
-          assert (E : unimplemented T' s = true) by (vm_compute; reflexivity);
-          rewrite (implemented_none T' s v E) in H; clear E
-      end
-  | context [held ?v] =>
-      first
-        [ rewrite (held_identity v ltac:(assumption)) in H
-        | let d := eval lazy in (held v) in
-          lazymatch d with
-          | Ret _ => change (held v) with d in H
-          | Vis _ _ => change (held v) with d in H
-          | Call _ _ _ => change (held v) with d in H
-          end ]
-  | context [equal ?T' ?a ?b] =>
-      let E := fresh in
-      assert (E : unnamed T' "equals" = true) by (vm_compute; reflexivity);
-      rewrite (equal_identity T' a b ltac:(assumption) ltac:(assumption) E) in H; clear E
-  | context [val_eqb ?a ?a] => rewrite (val_eqb_refl a) in H
-  end.
-
-(** The stage of a hypothesis that says where a call is, with its program's next step computed: its first
-    operation, call or result, with what it is of computed (but what a call is made on, `receiver`: of a value
-    not known it is the proof's to say) and what follows it set aside under a name. Where the program asks
-    something first that the walk can settle (`walk_answer`), it does, and walks on; where it cannot, it stops
-    with the question in view, for the proof to answer. *)
-Ltac walk H :=
-  lazymatch type of H with
-  | steps ?T ?N ?h ?a ?i ?w0 (Running ?p) ?w ?st =>
-      let p' := eval lazy head beta iota zeta delta -[implemented held equal val_eqb] in p in
-      lazymatch p' with
-      | Vis ?o ?k =>
-          let o' := eval lazy beta iota zeta delta -[receiver] in o in
-          let K := fresh "K" in
-          pose (K := k); change (steps T N h a i w0 (Running (Vis o' K)) w st) in H; walk_clear;
-          (* what the call is made on, where the proof has said it *)
-          repeat match goal with E : receiver ?v = _ |- _ => rewrite E in H end; cbn [app] in H
-      | Call ?c ?arg ?k =>
-          let c' := eval lazy in c in
-          let arg' := eval lazy in arg in
-          let K := fresh "K" in
-          pose (K := k); change (steps T N h a i w0 (Running (Call c' arg' K)) w st) in H; walk_clear
-      | Ret ?x =>
-          let x' := eval lazy in x in change (steps T N h a i w0 (Running (Ret x')) w st) in H; walk_clear
-      | _ =>
-          change (steps T N h a i w0 (Running p') w st) in H; walk_clear;
-          first [walk_answer H; walk H | idtac]
-      end
-  end.

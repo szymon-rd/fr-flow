@@ -88,14 +88,16 @@ Fixpoint module_class (cls : string) : bool :=
   | String _ rest => module_class rest
   end.
 
-(** A value of any other class is a value a call can be made on: neither unit nor an object named alone. *)
+(** A value of any other class is itself where a name holds it (the place of a variable and an argument passed
+    by name are values of no class), and a value a call can be made on: neither unit nor an object named
+    alone. *)
 Definition of_class (cls : string) (v : val) : Prop :=
   if String.eqb cls "scala.Unit" then v = VUnit
   else if String.eqb cls "scala.Boolean" then exists b, v = VBool b
   else if String.eqb cls "scala.Int" then exists z, v = vint z
   else if reference cls then identity v
   else if general cls || module_class cls then True
-  else receiver v = [v].
+  else held v = oret v /\ receiver v = [v].
 
 Lemma identity_receiver (v : val) : identity v -> receiver v = [v].
 Proof.

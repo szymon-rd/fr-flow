@@ -34,15 +34,19 @@ val oxThreads: FrModel = FrModel("OxThreads")(
   getGivesTheFlag.refines(startThreadFirstSeesTheFlagUnset),
   closingSetsTheFlagItself.refines(closingSetsTheFlag), setMakesTheFlag.refines(closingSetsTheFlag),
 
-  onlyStartThreadAddsToTheSet.refines(onlyStartThreadAdds),
+  onlyStartThreadAddsToTheSet.refines(onlyStartThreadAdds, anAddedThreadHasNotBeenStarted),
   startThreadAddsWhileItRuns.refines(onlyStartThreadAdds),
   anAddedThreadHasNotBeenStarted.refines(onlyStartThreadAdds),
+  onlyItsMakerStartsAThread.refines(anAddedThreadHasNotBeenStarted),
+  startThreadAddsWhatItsFactoryMade.refines(anAddedThreadHasNotBeenStarted),
+  startThreadAddsBeforeItStarts.refines(anAddedThreadHasNotBeenStarted),
 
   onlyAForkFunctionRemoves.refines(aForkRemovesOnlyItself),
   theForkFunctionRemovesTheCurrentThread.refines(aForkRemovesOnlyItself),
 
   herdsAreMade.refines(startThreadReadsTheFlagUnset, closingSetsTheFlagItself,
-    theForkFunctionRemovesTheCurrentThread, startThreadAddsWhileItRuns),
+    theForkFunctionRemovesTheCurrentThread, startThreadAddsWhileItRuns, startThreadAddsWhatItsFactoryMade,
+    startThreadAddsBeforeItStarts),
   aHerdKeepsItsFields.refines(startThreadReadsTheFlagUnset, closingSetsTheFlagItself,
     theForkFunctionRemovesTheCurrentThread),
   currentThreadIsTheCaller.refines(closingSetsTheFlagItself, aForkRemovesOnlyItself),

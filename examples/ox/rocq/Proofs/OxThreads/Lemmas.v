@@ -1,9 +1,38 @@
 Require Export FrFlowGen.OxThreads.Domain.
-Require Import FrFlow.Code.Walk.
+Require Import FrFlow.Scala.Tree FrFlow.Scala.Table FrFlow.Scala.Value.
+Require Import FrFlow.Code.Outside FrFlow.Code.Conforms FrFlow.Code.Walk.
 
 (** An execution in which nothing happens is one of the code. *)
 Lemma rest_runs : Code_runs (fun _ => Event_Stutter).
 Proof. apply nothing_runs. Qed.
+
+(** ** Calls of the herd's methods in an execution of the code *)
+
+(** A call of a method of the code, on an object the execution says was made: the object is one of the code, and
+    the call is no event made and responded to at once. *)
+Lemma method_begun {history : Z -> Event} {N} s {cls d h ys c from} :
+  conforms Code_files Code_table N history -> madeBefore history h cls from ->
+  impl Code_table cls s = Some d -> calledBy history (Invocation_mk (label_of s) (h :: ys)) c from ->
+  exists r inside, names N h (vref cls r) /\
+    history from = Event_Invoke c inside (Invocation_mk (label_of s) (h :: ys)).
+Proof.
+  intros C (m & b & ins & hs & _ & Hmk) Hd Hcalled. destruct (made_named C Hmk) as [r Hh].
+  destruct Hcalled as [[inside Hcall] | (a & inside & spawns & Hat)]; [exists r, inside; auto |].
+  exfalso. exact (method_not_atomic C s Hat Hh Hd).
+Qed.
+
+(** A call made inside a call and responded to: what the model's words say of it. *)
+Lemma done_made {history : Z -> Event} {c from m ys w1 r w2} :
+  done_inside history c from m ys w1 r w2 -> itselfMakes history (Invocation_mk m ys) c from w1.
+Proof. intros [(sp & H & _) | (H & _)]; [right; eauto | left; exact H]. Qed.
+
+Lemma done_completed {history : Z -> Event} {c from m ys w1 r w2} :
+  done_inside history c from m ys w1 r w2 -> completedBy history (Invocation_mk m ys) c w1 r w2.
+Proof.
+  intros [(sp & H & ->) | (H & _ & sp & Hr)].
+  - left. split; [exists (Some from), sp; exact H | reflexivity].
+  - right. split; [exists (Some from); exact H | exists sp; exact Hr].
+Qed.
 
 (** ** The moments from one on *)
 

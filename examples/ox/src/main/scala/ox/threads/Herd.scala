@@ -31,7 +31,29 @@ val startThreadAddsWhileItRuns = Node.claim(
       (starting(h, code).by(c).called(from) && threads(h).add(t).by(c).calledInside(from, w)) implies
         starting(h, code).by(c).pendingAt(w))))
 
-// Not proven of the code: it rests on who else holds the thread the factory made.
+// With capture checking this would be what the compiler says: the thread is a local of startThread, given to
+// the herd's set and to nothing else.
+val onlyItsMakerStartsAThread = Node.assumption(
+  "A thread that a factory made for a call of startThread is started only by that call, itself.")(
+  forall((h: Obj[ThreadHerd], code: Obj[Code], c: Obj[Thread], t: Obj[Thread]) =>
+    forall((from: Term[BigInt], b: Term[BigInt], m: Term[BigInt], other: Obj[Thread]) =>
+      (starting(h, code).by(c).called(from) && madeFor(t, c, from, b) && t.start().by(other).called(m)) implies
+        t.start().by(c).calledInside(from, m))))
+
+val startThreadAddsWhatItsFactoryMade = Node.claim(
+  "A call of startThread itself adds to the herd's set only a thread that a factory has made for it.")(
+  forall((h: Obj[ThreadHerd], code: Obj[Code], c: Obj[Thread], t: Obj[Thread]) =>
+    forall((from: Term[BigInt], w: Term[BigInt]) =>
+      (starting(h, code).by(c).called(from) && threads(h).add(t).by(c).calledInside(from, w)) implies
+        madeFor(t, c, from, w))))
+
+val startThreadAddsBeforeItStarts = Node.claim(
+  "A call of startThread itself adds a thread only before it itself starts one.")(
+  forall((h: Obj[ThreadHerd], code: Obj[Code], c: Obj[Thread], t: Obj[Thread]) =>
+    forall((from: Term[BigInt], w: Term[BigInt], m: Term[BigInt], started: Obj[Thread]) =>
+      (starting(h, code).by(c).called(from) && threads(h).add(t).by(c).calledInside(from, w) &&
+        started.start().by(c).calledInside(from, m)) implies (w < m))))
+
 val anAddedThreadHasNotBeenStarted = Node.claim("A thread has not been started when it is added to a herd's set.")(
   forall((h: Obj[ThreadHerd], t: Obj[Thread], c: Obj[Thread], w: Term[BigInt]) =>
     threads(h).add(t).by(c).called(w) implies !t.start().calledBefore(w)))

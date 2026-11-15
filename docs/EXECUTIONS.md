@@ -139,12 +139,31 @@ What it is for an execution to be one of some code is said once, in FrFlow's Roc
 - Code whose meaning is not given (`Chaos`) may make any event: a proof passes it only where it is not reached.
 
 A claim of the code is then a claim with parts like any other: its parts are the assumptions it needs, and its
-step is proven in its proof file, by walking the method's program along the events of a call (`FrFlow/Code/Walk.v`:
-`walk` computes what the program does next, `step_read`, `step_called`, `step_method` say what event that is).
-`enterReadsItOpen` is proven so of `Latch.enter`'s tree; `startThreadReadsTheFlagUnset`,
-`closingSetsTheFlagItself` and `theForkFunctionRemovesTheCurrentThread` of Ox's `ThreadHerd`, as its jar has it
-(`examples/ox/rocq/Proofs/OxThreads`). The last walks a function the code wrote: the one `startThread` hands the
-thread factory, known to be the code's by finding its tree among the trees read.
+step is proven in its proof file. The proof says what holds at every event the call makes itself, and goes
+through the method's program once, by one rule for each thing a program does next (`FrFlow/Code/Logic.v`):
+
+| the program | the rule | what the rule gives the rest of the proof |
+|---|---|---|
+| reads a field | `meets_read` | the event, the value read, its type |
+| calls what is outside the code | `meets_called` | the call's event, its response, the result's type |
+| calls a method of the code, a function | `meets_method`, `meets_function` | the call's event and its response |
+| makes an object, writes a field | `meets_op` | the event |
+| loops | `meets_iter` | what holds from each turn on, taken of every later turn |
+| has its result | `meets_ret` | the call's response |
+| (anything) | `meets_from` | nothing: the claim holds at every moment from here on |
+
+Each rule asks that the claim hold at the operation's own event, and that the rest of the program meet it.
+`method_meets` and `function_meets` start a proof: a call of a method of the code, or of a function it wrote,
+meets a claim at every event of its own if its program does. The tactic `step` applies the rule of what the
+program does next (computing only that); `pass` does the same at an event the claim says nothing of, and
+`miss` shows that it says nothing. What a call of another method of the code gives is a lemma of that method,
+proven the same way and used where it is called (`assertNotShuttingDown_returns`).
+
+`enterReadsItOpen` is proven so of `Latch.enter`'s tree; of Ox's `ThreadHerd`, as its jar has it
+(`examples/ox/rocq/Proofs/OxThreads`): `startThreadReadsTheFlagUnset`, `closingSetsTheFlagItself`,
+`startThreadAddsWhatItsFactoryMade`, `startThreadAddsBeforeItStarts` and
+`theForkFunctionRemovesTheCurrentThread`. The last goes through a function the code wrote, the one `startThread`
+hands the thread factory, known to be the code's by finding its tree among the trees read.
 
 What a model must still say itself, as assumptions:
 
