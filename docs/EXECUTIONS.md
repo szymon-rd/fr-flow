@@ -58,9 +58,10 @@ A `Call[A]` names which calls of the execution are meant. `call.by(t)` is those 
 | `call.called(w)` | A call is made at `w`. |
 | `call.completed(from, response, to)` | The call made at `from` completes at `to` with `response`. |
 | `call.everyCall((from, response, to) => p)` | `p` of every completed call. |
-| `call.atomic` | Every call completes at the very next moment. |
-| `call.calledBefore(w)` | A call was made before `w`. |
-| `call.pendingAt(w)` | A call made before `w` has not completed by `w`. |
+| `call.atomic((before, after) => effect)` | What a library calls atomic: every call that returns takes effect at one moment during it, `effect` said of the moment before and the moment after. |
+| `call.calledBefore(w)`, `call.returnedBefore(w)` | A call was made before `w`; a call has returned by `w`. |
+| `call.pendingAt(w)`, `call.pendingSince(from, w)` | A call made before `w`, or the call made at `from`, has not completed by `w`. |
+| `call.inProgress(w)` | A call is made at `w`, or is pending at `w`. |
 | `call.calledWithin(from, to)`, `call.completedWithin(from, to)`, `call.returnedWithin(v, from, to)` | Within the two moments. |
 | `call.settles(w)` | There is a moment after `w` at which no call is pending. |
 | `call.spawned(w)` | The event into `w` spawns the call for its actor, to make on its own. |
@@ -79,8 +80,9 @@ import frflow.code.InCode.given
 import frflow.executions.*
 import frflow.values.*
 
-val startIsAtomic = Node.assumption("Starting a thread is atomic.")(
-  forall((t: Obj[Thread]) => t.start().atomic))
+val aThreadIsStartedOnce = Node.assumption("A thread is started at most once.")(
+  forall((t: Obj[Thread], a: Term[BigInt], b: Term[BigInt]) =>
+    (t.start().called(a) && t.start().called(b)) implies (a === b)))
 ```
 
 - The call is named by the method's declarer, name and signature, as the tree read from the code's TASTy names
@@ -88,6 +90,27 @@ val startIsAtomic = Node.assumption("Starting a thread is atomic.")(
 - What the call takes is the statement's terms and constants in order, what it is called on first.
 - Code given by name is written `code.byName` (`h.startThread(code.byName)`); running it is `code()`.
 - `call(...)` reads code as a call where no word of a call follows it.
+- `methodOf[C](_.add(???))` is the name of a method as the code names it; `calledOn(o, method, w)` says a call of
+  the method named `method` is made on `o` at `w`, whatever else it is given.
+
+### A call takes time
+
+No call is one event. A method the JDK says is atomic is assumed to take effect at one moment between its
+call and its return, and others act meanwhile:
+
+```scala
+val addingIsAtomic = Node.assumption(
+  "Adding to a concurrent set is atomic: at one moment during the call, the element is put in the set.")(
+  forall((s: Obj[ConcurrentSet], x: Obj[AnyRef]) =>
+    s.add(x).atomic((before, after) => forall((y: Term[Value]) =>
+      elements(s, after).contains(y) === (y === x.asValue || elements(s, before).contains(y))))))
+```
+
+A call that is not atomic in the JDK (`isEmpty`, which sums counters one after another) can then be said as it
+is: what it answers when an `add` is in progress during it is not assumed. What changes an object besides the
+calls a model names is said of the object, not left out: a set's content is assumed to change only by `add` and
+`remove` where the set is one made by `newKeySet` on which nothing else is called (`plainSet`), and that a
+herd's set is such a set is a claim about Ox.
 - A field is read by its name: `h.field("threads")` of a `val`, `h.field("count").at(w)` of a `var`. A statement
   may name a field code outside the class may not. To speak of a class private to a package, the model is
   written in that package (`package ox.threads` for `ox.internal.ThreadHerd`).
@@ -186,8 +209,9 @@ What a model must still say itself, as assumptions:
   an exception). That a read finds what was last written is not said: a claim that needs the value a variable
   holds, and not only its type, is not proven of the code.
 - **A method of what is outside taking an argument by name** is read as taking it evaluated.
-- **No law of an execution is given.** That a completion follows its call, that an actor's calls are nested, that
-  a call nobody calls begins only once handed over: a model that needs one states it as an assumption.
+- **Two laws of an execution are given**, with what it is to be one of the code: a call is responded to at
+  most once, and after it is made. That an actor's calls are nested, that a call nobody calls begins only once
+  handed over: a model that needs one states it as an assumption.
 - **No claim of no data race** is generated.
 - **Liveness** can be stated (`eventually`, `settles`), and means what it should only over complete, fair
   executions, which nothing yet says the execution is.

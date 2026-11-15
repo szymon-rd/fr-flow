@@ -10,6 +10,7 @@ import scala.quoted.*
 /** Code written in a statement, read from its typed tree as the call it is. */
 object CodeMacros:
   def call[A: Type](code: Expr[A])(using Quotes): Expr[Call[A]] = Reading().call(code)
+  def method[C: Type](code: Expr[C => Any])(using Quotes): Expr[String] = Reading().method(code)
 
   private final class Reading(using val q: Quotes):
     import q.reflect.*
@@ -19,6 +20,11 @@ object CodeMacros:
       val named = MemberName.of(method).mkString(" ")
       val arguments = (on.toList ++ args).map(value)
       '{ Call.of[A](${ Expr(named) }, ${ Varargs(arguments) }*) }
+
+    /** The name of the method a function of one object calls on it. */
+    def method[C: Type](code: Expr[C => Any]): Expr[String] = bare(code.asTerm) match
+      case Lambda(_, body) => Expr(MemberName.of(applied(bare(body), Nil)._1).mkString(" "))
+      case other => report.errorAndAbort(s"A method is named by a call on an object, `_.add(???)`: ${other.show}")
 
     /** The tree without what the compiler wraps it in. */
     private def bare(t: Term): Term = t match

@@ -10,7 +10,7 @@ Require Import FrFlow.Code.Outside FrFlow.Code.Conforms FrFlow.Code.Walk FrFlow.
     yes. *)
 Lemma closingEndsOnceFoundEmpty_Proofs_complete : closingEndsOnceFoundEmpty_Obl_complete.
 Proof.
-  intros heldIn history [N C] Hset Hempty Htraversals Hmade Hfields Hcurrent h from response to Hdone.
+  intros heldIn history [N C] Hempty Htraversals Hset Hmade Hfields Hcurrent h from response to Hdone.
   pose proof (completed_was_called _ _ _ _ _ _ Hdone) as Hcalled.
   destruct (method_begun (Member "ox.internal.ThreadHerd" "interruptAllAndJoinUntilCompleted" ":scala.Unit") C
     (Hmade h h from (or_intror (ex_intro (fun who => calledBy history _ who from) _ Hcalled))) eq_refl Hcalled)
@@ -75,11 +75,11 @@ Proof.
   exists (fun _ x => x), (fun _ => Event_Stutter).
   split; [exact rest_runs |].
   split.
-  { intros s b from response to [who H]. destruct (nothing_completed_at_rest _ _ _ _ _ H). }
-  split.
   { intros s from response to [who H]. destruct (nothing_completed_at_rest _ _ _ _ _ H). }
   split.
   { intros h f from a b r [[H _] _]. destruct (nothing_called_at_rest _ _ _ H). }
+  split.
+  { intros s b from response to [who H]. destruct (nothing_completed_at_rest _ _ _ _ _ H). }
   split.
   { intros h code w [[who H] | [who H]]; destruct (nothing_called_at_rest _ _ _ H). }
   split.

@@ -68,6 +68,25 @@ Proof.
   pass.
 Qed.
 
+(** What was made before a moment was made before every later one. *)
+Lemma made_later (history : Z -> Event) h cls a b : a <= b -> madeBefore history h cls a -> madeBefore history h cls b.
+Proof. intros Hab (m & by_ & ins & hs & Hm & H). exists m, by_, ins, hs. split; [lia | exact H]. Qed.
+
+(** A call completes after it is made. *)
+Lemma completed_after {history : Z -> Event} {N c who from r to} :
+  conforms Code_files Code_table N history -> completedBy history c who from r to -> from < to.
+Proof. intros C [[_ ->] | [_ (sp & Hr)]]; [lia |]. pose proof (responded_after C Hr). lia. Qed.
+
+(** A call that completes after a moment and was made before it is pending at it: it is responded to once. *)
+Lemma still_pending {history : Z -> Event} {N c who from r to} m :
+  conforms Code_files Code_table N history -> completedBy history c who from r to -> from < m -> m < to ->
+  from < m /\ begun history c who from /\ ~ overBy history who from m.
+Proof.
+  intros C [[_ ->] | [Hb (sp & Hr)]] Hfm Hmt; [lia |].
+  split; [exact Hfm | split; [exact Hb |]]. intros (k & a & sp' & Hk & Hk').
+  pose proof (responded_once C Hk' Hr). lia.
+Qed.
+
 (** ** The moments from one on *)
 
 Lemma from_a_moment_on (P : Z -> Prop) (m : Z) :
@@ -79,13 +98,6 @@ Proof.
 Qed.
 
 (** ** One step from each moment *)
-
-Lemma none_called_before_the_start (history : Z -> Event) c who m :
-  (forall w, w < 0 -> history w = Event_Stutter) -> m < 0 -> ~ calledBy history c who m.
-Proof.
-  intros Hstart Hm Hc. assert (history m = Event_Stutter) as E by (apply Hstart; exact Hm).
-  destruct Hc as [(inside & Hc) | (a & inside & spawns & Hc)]; rewrite E in Hc; discriminate.
-Qed.
 
 (** What is called at a moment is one call, by one actor. *)
 Lemma one_call_at_a_moment (history : Z -> Event) c1 c2 who1 who2 w :
@@ -101,17 +113,6 @@ Proof. intros H. left. exact H. Qed.
 Lemma completed_was_called (history : Z -> Event) c who from response to :
   completedBy history c who from response to -> calledBy history c who from.
 Proof. intros [[Hdone _] | [Hbegun _]]; [right; exists response; exact Hdone | left; exact Hbegun]. Qed.
-
-(** A completed call of what is atomic was made one moment before. *)
-Lemma atomic_completes_next (history : Z -> Event) c who from response to :
-  (forall w who, calledBy history c who w -> exists a, doneAtOnce history c who w a) ->
-  completedBy history c who from response to -> to = from + 1 /\ calledBy history c who from.
-Proof.
-  intros Hatomic [[Hdone ->] | [Hbegun _]].
-  - split; [reflexivity | right; exists response; exact Hdone].
-  - destruct (Hatomic from who (or_introl Hbegun)) as (a & inside & spawns & Hdoes).
-    destruct Hbegun as (inside' & Hmakes). rewrite Hmakes in Hdoes. discriminate.
-Qed.
 
 Lemma over_later (history : Z -> Event) who from a b : a <= b -> overBy history who from a -> overBy history who from b.
 Proof. intros Hab (k & ans & spawns & Hk & Hs). exists k, ans, spawns. split; [lia | exact Hs]. Qed.
@@ -130,52 +131,6 @@ Proof.
   - exists m, a, (m + 1). split; [left; split; [exact Hdone | reflexivity] | lia].
 Qed.
 
-(** ** A set known by its add and its remove *)
-
-Lemma added_and_not_removed_is_in (history : Z -> Event) (el : Z -> Value -> Prop) (add rem : Value -> Invocation) :
-  (forall w, w < 0 -> history w = Event_Stutter) ->
-  (forall x, (forall w who, calledBy history (add x) who w -> exists a, doneAtOnce history (add x) who w a) /\
-             (forall w who, calledBy history (rem x) who w -> exists a, doneAtOnce history (rem x) who w a)) ->
-  (forall x y from response to, (exists who, completedBy history (add x) who from response to) ->
-     el to y = (y = x \/ el from y)) ->
-  (forall x y from response to, (exists who, completedBy history (rem x) who from response to) ->
-     el to y = (~ y = x /\ el from y)) ->
-  (forall a b y, a < b /\ ~ (el a y = el b y) -> exists x,
-     (exists a1 response b1, (a <= a1 /\ b1 <= b) /\ exists who, completedBy history (add x) who a1 response b1) \/
-     (exists a1 response b1, (a <= a1 /\ b1 <= b) /\ exists who, completedBy history (rem x) who a1 response b1)) ->
-  forall t w, (exists m, m < w /\ exists who, calledBy history (add t) who m) ->
-    ~ (exists m, m < w /\ exists who, calledBy history (rem t) who m) -> el w t.
-Proof.
-  intros Hstart Hatomic Hadd Hrem Honly t w.
-  destruct (Z_lt_le_dec w 0) as [Hneg | Hpos].
-  { intros (m & Hm & who & Hc) _. exfalso.
-    eapply (none_called_before_the_start history); [exact Hstart | | exact Hc]; lia. }
-  revert w Hpos. apply (natlike_ind (fun w => _ -> _ -> el w t)).
-  { intros (m & Hm & who & Hc) _. exfalso.
-    eapply (none_called_before_the_start history); [exact Hstart | | exact Hc]; lia. }
-  intros w Hw IH (m & Hm & who & Hc) Hno. unfold Z.succ in *.
-  assert (m = w \/ m < w) as [-> | Hlt] by lia.
-  - destruct (proj1 (Hatomic t) w who Hc) as (a & Hdone).
-    rewrite (Hadd t t w a (w + 1)); [left; reflexivity |].
-    exists who. left. split; [exact Hdone | reflexivity].
-  - assert (el w t) as Hin.
-    { apply IH; [exists m; split; [exact Hlt | exists who; exact Hc] |].
-      intros (m' & Hm' & Hc'). apply Hno. exists m'. split; [lia | exact Hc']. }
-    destruct (classic (el (w + 1) t)) as [H | Hout]; [exact H | exfalso].
-    destruct (Honly w (w + 1) t) as (x & [Hx | Hx]).
-    { split; [lia |]. intros E. apply Hout. rewrite <- E. exact Hin. }
-    + destruct Hx as (a & response & b & [Ha Hb] & who' & Hdone).
-      destruct (atomic_completes_next history _ who' a response b (proj1 (Hatomic x)) Hdone) as [-> _].
-      assert (a = w) as -> by lia. apply Hout.
-      rewrite (Hadd x t w response (w + 1)); [right; exact Hin | exists who'; exact Hdone].
-    + destruct Hx as (a & response & b & [Ha Hb] & who' & Hdone).
-      destruct (atomic_completes_next history _ who' a response b (proj2 (Hatomic x)) Hdone) as [-> Hcalled].
-      assert (a = w) as -> by lia.
-      destruct (classic (t = x)) as [<- | Hne].
-      * apply Hno. exists w. split; [lia | exists who'; exact Hcalled].
-      * apply Hout. rewrite (Hrem x t w response (w + 1)); [split; assumption | exists who'; exact Hdone].
-Qed.
-
 (** ** A run in which nothing happens
 
     It meets every statement that says what follows a call: what shows that statements can hold together. *)
@@ -190,10 +145,10 @@ Lemma nothing_completed_at_rest c who from a to : ~ completedBy (fun _ => Event_
 Proof. intros [[(inside & spawns & H) _] | [(inside & H) _]]; discriminate. Qed.
 
 Lemma no_fork_at_rest heldIn t h w : ~ forkOf heldIn (fun _ => Event_Stutter) t h w.
-Proof. intros (m & _ & who & H). exact (nothing_called_at_rest _ _ _ H). Qed.
+Proof. intros (from & value & to & _ & who & H). exact (nothing_completed_at_rest _ _ _ _ _ H). Qed.
 
 Lemma none_made_to_run_at_rest heldIn t h code w : ~ madeToRun heldIn (fun _ => Event_Stutter) t h code w.
-Proof. intros (c & m & [_ H] & _). exact (nothing_called_at_rest _ _ _ H). Qed.
+Proof. intros (c & from & added & to & [_ H] & _). exact (nothing_completed_at_rest _ _ _ _ _ H). Qed.
 
 Lemma none_closed_at_rest heldIn h w : ~ closed heldIn (fun _ => Event_Stutter) h w.
 Proof. intros [(m & _ & H) _]. exact (nothing_called_at_rest _ _ _ H). Qed.

@@ -5,12 +5,16 @@ Require Export Proofs.OxThreads.Lemmas.
     neither adds a thread nor returns. *)
 Lemma aClosedHerdRefusesToStart_Proofs_complete : aClosedHerdRefusesToStart_Obl_complete.
 Proof.
-  intros heldIn history flag _ Hsets Hstays Hsees h code c t from w [[Hcalled Hnotpending] Hstart].
+  intros heldIn history flag _ Hsets Hstays Hsees Hmade h code c t from w [[Hcalled Hnotpending] Hstart].
   destruct (called_and_over_completed history _ _ from Hcalled Hnotpending)
-    as (from' & response' & to' & Hclosed & _ & Hle).
+    as (from' & response' & to' & Hclosed & Hlt' & Hle).
+  pose proof (Hmade h h from' (or_intror (ex_intro (fun who => calledBy history _ who from') _
+    (completed_was_called _ _ _ _ _ _ Hclosed)))) as Hherd.
   assert (forall m, from <= m -> flag (heldIn "ox.internal.ThreadHerd shutdownInProgress"%string h) m) as Hset.
   { intros m Hm. pose proof (Hsets h from' response' to' Hclosed) as Hat.
-    assert (to' = m \/ to' < m) as [<- | Hlt] by lia; [exact Hat | apply (Hstays h to' m); split; assumption]. }
+    assert (to' = m \/ to' < m) as [<- | Hlt] by lia; [exact Hat |].
+    apply (Hstays h to' m). split; [split; [| exact Hlt] | exact Hat].
+    apply (made_later history h _ from'); [lia | exact Hherd]. }
   split; intros Hthen.
   - destruct (Hsees h code c t from w (conj Hstart (or_intror Hthen))) as (m & [Hm _] & Hunset).
     apply Hunset, Hset, Hm.
@@ -27,5 +31,7 @@ Proof.
   { intros h from response to H. destruct (nothing_completed_at_rest _ _ _ _ _ H). }
   split.
   { intros h a b [_ H]. exact H. }
-  intros h code c t from w [H _]. destruct (nothing_called_at_rest _ _ _ H).
+  split.
+  { intros h code c t from w [H _]. destruct (nothing_called_at_rest _ _ _ H). }
+  intros h code w [[who H] | [who H]]; destruct (nothing_called_at_rest _ _ _ H).
 Qed.

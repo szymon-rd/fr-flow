@@ -20,9 +20,6 @@ final class Call[A](val method: String, val arguments: List[Term[Value]], val ac
   private def some(p: Term[Value] => Term[Boolean]): Term[Boolean] =
     actor.fold(exists((who: Term[Value]) => p(who)))(p)
 
-  private def each(p: Term[Value] => Term[Boolean]): Term[Boolean] =
-    actor.fold(forall((who: Term[Value]) => p(who)))(p)
-
   /** A call is made at `w`. */
   def called(w: World)(using Stating): Term[Boolean] = some(calledBy(invocation, _, w))
 
@@ -35,17 +32,31 @@ final class Call[A](val method: String, val arguments: List[Term[Value]], val ac
     forall((from: Term[BigInt], response: Term[Response], to: Term[BigInt]) =>
       completed(from, response, to) implies holds(from, response, to))
 
-  /** Every call completes at the very next moment. */
-  def atomic(using Stating): Term[Boolean] = forall((w: Term[BigInt]) =>
-    each(who => calledBy(invocation, who, w) implies
-      exists((a: Term[Response]) => doneAtOnce(invocation, who, w, a))))
+  /** What a library calls atomic: every call that returns takes effect at one moment during it. `effect` is said
+    * of the moment before the effect and the moment after it. The call still takes time: others act meanwhile.
+    */
+  def atomic(effect: (World, World) => Term[Boolean])(using Stating): Term[Boolean] =
+    forall((from: Term[BigInt], value: Term[Value], to: Term[BigInt]) =>
+      completed(from, make[Response.Returned](value), to) implies
+        exists((m: Term[BigInt]) => from <= m && m < to && effect(m, m + 1)))
+
+  /** The call is in progress at `w`: it is made at `w`, or was made before and is not over. */
+  def inProgress(w: World)(using Stating): Term[Boolean] = called(w) || pendingAt(w)
+
+  /** A call has returned by `w`. */
+  def returnedBefore(w: World)(using Stating): Term[Boolean] =
+    exists((from: Term[BigInt], value: Term[Value], to: Term[BigInt]) =>
+      to <= w && completed(from, make[Response.Returned](value), to))
 
   /** A call was made before `w`. */
   def calledBefore(w: World)(using Stating): Term[Boolean] = exists((m: Term[BigInt]) => m < w && called(m))
 
   /** A call made before `w` has not completed by `w`. */
-  def pendingAt(w: World)(using Stating): Term[Boolean] = exists((m: Term[BigInt]) =>
-    m < w && some(who => begun(invocation, who, m) && !overBy(who, m, w)))
+  def pendingAt(w: World)(using Stating): Term[Boolean] = exists((m: Term[BigInt]) => pendingSince(m, w))
+
+  /** The call made at `from` has not completed by `w`. */
+  def pendingSince(from: World, w: World)(using Stating): Term[Boolean] =
+    from < w && some(who => begun(invocation, who, from) && !overBy(who, from, w))
 
   /** A call is made at a moment from `from` to `to`. */
   def calledWithin(from: World, to: World)(using Stating): Term[Boolean] =

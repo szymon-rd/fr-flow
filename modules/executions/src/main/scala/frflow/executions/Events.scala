@@ -56,6 +56,10 @@ val itselfMakes = stated { (inner: Term[Invocation], by: Term[Value], made: Term
     exists((a: Term[Response], spawns: Term[List[Spawn]]) =>
       history(w) === make[Event.Atomic](by, some(made), inner, a, spawns)) }
 
+/** A call of the method named `method` is made at `w` on `on`, with whatever else it is given. */
+val calledOn = stated { (on: Term[Value], method: Term[String], w: Term[BigInt]) =>
+  exists((rest: Term[List[Value]], by: Term[Value]) => calledBy(make[Invocation](method, on :: rest), by, w)) }
+
 /** An object of the class, named by the value, has been made before the moment. */
 val madeBefore = stated { (made: Term[Value], cls: Term[String], w: Term[BigInt]) =>
   exists((m: Term[BigInt], by: Term[Value], inside: Term[Option[BigInt]], holding: Term[List[Held]]) =>

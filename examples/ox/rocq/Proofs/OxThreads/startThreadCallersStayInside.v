@@ -28,7 +28,7 @@ Proof.
     + apply Hnot. exists m1. split; [exact Hlt | exact Hc1].
     + apply Hnoclose. rewrite Hown. exact Hc1.
   - right. split.
-    + destruct Hfork as (a & Ha & Hadd). exists a. split; [lia | exact Hadd].
+    + destruct Hfork as (a & value & to & Hto & Hadd). exists a, value, to. split; [lia | exact Hadd].
     + intros (m1 & Hm1 & who & Hrem). assert (m1 < k \/ m1 = k) as [Hlt | ->] by lia.
       * apply Hstays. exists m1. split; [exact Hlt | exists who; exact Hrem].
       * pose proof (Honly h c who k Hrem) as ->. exact (Hnoleave Hrem).

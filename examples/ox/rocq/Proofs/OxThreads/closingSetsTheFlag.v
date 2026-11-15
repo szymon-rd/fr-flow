@@ -1,15 +1,21 @@
 Require Export FrFlowGen.OxThreads.closingSetsTheFlag.Spec.
 Require Export Proofs.OxThreads.Lemmas.
 
-(** Closing set the flag before it completed: the flag held true when that call of `set` completed, and stays
-    set. *)
+(** Closing has set the flag: setting returns, and at a moment during the call the flag comes to hold true;
+    from there it stays set. *)
 Lemma closingSetsTheFlag_Proofs_complete : closingSetsTheFlag_Obl_complete.
 Proof.
-  intros heldIn flag history _ Hstays Hitself Hset h from response to Hdone.
+  intros heldIn flag history _ Hstays Hitself Hatomic Hreturns Hmade h from response to Hdone.
   destruct (Hitself h from response to Hdone) as (a & r1 & b & [Ha Hb] & Hcall).
-  assert (flag (heldIn "ox.internal.ThreadHerd shutdownInProgress"%string h) b) as Hflag.
-  { rewrite (Hset _ True a r1 b Hcall). exact I. }
-  assert (b = to \/ b < to) as [<- | Hlt] by lia; [exact Hflag | apply (Hstays h b to); split; assumption].
+  pose proof (Hreturns _ True a r1 b Hcall) as ->.
+  destruct (Hatomic _ True a Value_Unit_ b Hcall) as (m & [Hm1 Hm2] & Hf).
+  set (s := heldIn "ox.internal.ThreadHerd shutdownInProgress"%string h) in *.
+  assert (flag s (m + 1)) as Hflag by (rewrite Hf; exact I).
+  assert (m + 1 = to \/ m + 1 < to) as [<- | Hlt] by lia; [exact Hflag |].
+  apply (Hstays h (m + 1) to). split; [split; [| exact Hlt] | exact Hflag].
+  apply (made_later history h _ from); [lia |].
+  exact (Hmade h h from (or_intror (ex_intro (fun who => calledBy history _ who from) _
+    (completed_was_called _ _ _ _ _ _ Hdone)))).
 Qed.
 
 (** Its parts can hold together: an execution in which nothing happens, of flags never set, meets each. *)
@@ -21,5 +27,9 @@ Proof.
   { intros h a b [_ H]. exact H. }
   split.
   { intros h from response to H. destruct (nothing_completed_at_rest _ _ _ _ _ H). }
-  intros s b from response to [who H]. destruct (nothing_completed_at_rest _ _ _ _ _ H).
+  split.
+  { intros s b from value to (who & H). destruct (nothing_completed_at_rest _ _ _ _ _ H). }
+  split.
+  { intros s b from response to (who & H). destruct (nothing_completed_at_rest _ _ _ _ _ H). }
+  intros h code w [[who H] | [who H]]; destruct (nothing_called_at_rest _ _ _ H).
 Qed.

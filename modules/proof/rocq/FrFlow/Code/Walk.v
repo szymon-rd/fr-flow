@@ -66,6 +66,8 @@ Proof.
   - intros c y ys' _ _ _ _. discriminate H.
   - intros w b inside y cls hs H. discriminate H.
   - intros w w' b inside y cls hs b' inside' cls' hs' H. discriminate H.
+  - intros k k' a called r r' spawns spawns' H. discriminate H.
+  - intros k a called r spawns H. discriminate H.
 Qed.
 
 Set Implicit Arguments.
@@ -478,7 +480,16 @@ Section Walk.
   (** An object the execution says is made is an object of the code, of its class. *)
   Lemma made_named w b inside y cls hs :
     history w = Event_Make b inside y cls hs -> exists r, names N y (vref cls r).
-  Proof. intros H. exact (proj1 (proj2 (proj2 (proj2 (proj2 conformed)))) _ _ _ _ _ _ H). Qed.
+  Proof. intros H. exact (proj1 (proj1 (proj2 (proj2 (proj2 (proj2 conformed))))) _ _ _ _ _ _ H). Qed.
+
+  (** A call is responded to at one moment. *)
+  Lemma responded_once k k' a called r r' spawns spawns' :
+    history k = Event_Respond a called r spawns -> history k' = Event_Respond a called r' spawns' -> k = k'.
+  Proof. exact (proj1 (proj2 (proj2 (proj2 (proj2 (proj2 conformed))))) k k' a called r r' spawns spawns'). Qed.
+
+  (** A call is responded to after it is made. *)
+  Lemma responded_after k a called r spawns : history k = Event_Respond a called r spawns -> called < k.
+  Proof. exact (proj2 (proj2 (proj2 (proj2 (proj2 (proj2 conformed))))) k a called r spawns). Qed.
 
 End Walk.
 
@@ -486,5 +497,7 @@ Arguments method_steps {files T N history} conformed {a inside} s {cls r d y ys 
 Arguments method_not_atomic {files T N history} conformed {w a inside} s {cls r d y ys resp spawns} _ _ _.
 Arguments function_steps {files T N history} conformed {a inside m c y ys from} _ _ _ _.
 Arguments made_named {files T N history} conformed {w b inside y cls hs} _.
+Arguments responded_once {files T N history} conformed {k k' a called r r' spawns spawns'} _ _.
+Arguments responded_after {files T N history} conformed {k a called r spawns} _.
 Arguments method_over {files T N history} conformed {a inside} s {cls r d y ys from k w resp spawns} _ _ _ _ _.
 Arguments function_not_atomic {files T N history} conformed {w a inside m c y ys resp spawns} _ _ _ _.

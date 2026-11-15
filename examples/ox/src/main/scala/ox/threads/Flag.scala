@@ -45,7 +45,12 @@ val closingSetsTheFlag = Node.claim("When closing a herd completes, the herd's f
 
 val theFlagStaysSet = Node.claim("Once a herd's flag is set, it stays set.")(
   forall((h: Obj[ThreadHerd], a: Term[BigInt], b: Term[BigInt]) =>
-    (a < b && flag(shutdown(h), a)) implies flag(shutdown(h), b)))
+    (h.isMade(b) && a < b && flag(shutdown(h), a)) implies flag(shutdown(h), b)))
+
+// Not proven of the code: it is of who can reach a private field. With capture checking it is what the compiler
+// would say.
+val aHerdsFlagIsOnlyReadAndSet = Node.claim("Nothing but get and set is called on a herd's flag.")(
+  forall((h: Obj[ThreadHerd], w: Term[BigInt]) => h.isMade(w) implies onlyReadAndSet(shutdown(h))))
 
 // With capture checking this would be what the compiler says of a capability, not an assumption.
 val onlyClosingSetsTheFlag = Node.assumption("A herd's flag is set only by a call of closing, itself.")(

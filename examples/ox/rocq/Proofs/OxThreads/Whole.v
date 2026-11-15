@@ -15,8 +15,6 @@ Proof.
   split.
   { intros h a b H. destruct (nothing_completed_at_rest _ _ _ _ _ H). }
   split.
-  { intros s b from response to [who H]. destruct (nothing_completed_at_rest _ _ _ _ _ H). }
-  split.
   { intros s from response to [who H]. destruct (nothing_completed_at_rest _ _ _ _ _ H). }
   split.
   { intros h f from a b r [[H _] _]. destruct (nothing_called_at_rest _ _ _ H). }
@@ -25,11 +23,15 @@ Proof.
   split.
   { intros h code c w (m & _ & H & _). destruct (nothing_begun_at_rest _ _ _ H). }
   split.
-  { intros s v a b [[_ H1] H2]. destruct (H1 H2). }
+  { intros s v w [[_ H1] H2]. destruct (H1 H2). }
+  split.
+  { intros h w (m & by_ & ins & hs & _ & H). discriminate H. }
   split.
   { intros h v c w H. destruct (nothing_called_at_rest _ _ _ H). }
   split.
   { intros s b from response to [who H]. destruct (nothing_completed_at_rest _ _ _ _ _ H). }
+  split.
+  { intros s b from value to [who H]. destruct (nothing_completed_at_rest _ _ _ _ _ H). }
   split.
   { intros s b from response to [who H]. destruct (nothing_completed_at_rest _ _ _ _ _ H). }
   split.
@@ -45,12 +47,8 @@ Proof.
   split.
   { intros c from response to H. destruct (nothing_completed_at_rest _ _ _ _ _ H). }
   split.
-  { intros w _. reflexivity. }
+  { intros s x from value to [who H]. destruct (nothing_completed_at_rest _ _ _ _ _ H). }
   split.
-  { intros s x. split; intros w who H; destruct (nothing_called_at_rest _ _ _ H). }
-  split.
-  { intros s x y from response to (who & H). destruct (nothing_completed_at_rest _ _ _ _ _ H). }
-  split.
-  { intros s x y from response to (who & H). destruct (nothing_completed_at_rest _ _ _ _ _ H). }
-  intros s a b y [_ H]. destruct H. reflexivity.
+  { intros s x w [[_ H] _]. destruct H. }
+  intros h w (m & by_ & ins & hs & _ & H). discriminate H.
 Qed.

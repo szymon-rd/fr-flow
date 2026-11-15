@@ -22,8 +22,9 @@ def made(name: Term[String])(using Stating): Call[Till] = new Till(name)
 def closed(till: Obj[Till], manager: Obj[Till])(using Stating): Call[Int] = closeAll(till, true)(using manager)
 
 /** A statement in which the code is followed by a word of a call, and one that says what each call answers. */
-val startIsAtomic = Node.assumption("Starting a thread is atomic.")(
-  forall((t: Obj[Thread]) => t.start().atomic))
+val aThreadIsStartedOnce = Node.assumption("A thread is started at most once.")(
+  forall((t: Obj[Thread], a: Term[BigInt], b: Term[BigInt]) =>
+    (t.start().called(a) && t.start().called(b)) implies (a === b)))
 
 val addAnswersWhetherNew = Node.assumption("Adding to a set answers whether the element was not in it.")(
   forall((s: Obj[Threads], t: Obj[Thread], wasIn: Term[Boolean]) =>
@@ -38,8 +39,8 @@ val aRingIsCounted = Node.assumption("Ringing on a till calls its count, and the
       eventually(w)(later => till.field("rings").at(later) =!= till.field("rings").at(w) &&
         till.open().by(till).spawned(later))))
 
-val aStartTakesOneStep = Node.claim("A start that completes took one step.")(
-  forall((t: Obj[Thread]) => t.start().everyCall((from, _, to) => to === from + 1)))
+val noStartAfterAStart = Node.claim("A thread that was started is not started again.")(
+  forall((t: Obj[Thread], w: Term[BigInt]) => t.start().calledBefore(w) implies !t.start().called(w)))
 
-val written: FrModel = FrModel("Written")(aStartTakesOneStep, startIsAtomic.refines(aStartTakesOneStep),
-  addAnswersWhetherNew.refines(aStartTakesOneStep), aRingIsCounted.refines(aStartTakesOneStep))
+val written: FrModel = FrModel("Written")(noStartAfterAStart, aThreadIsStartedOnce.refines(noStartAfterAStart),
+  addAnswersWhetherNew.refines(noStartAfterAStart), aRingIsCounted.refines(noStartAfterAStart))

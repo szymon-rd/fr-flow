@@ -11,6 +11,15 @@ the safety tree (roots A and B at the level of a herd) is a real model, checked 
 show: the code runs before the fork leaves at every moment of the run, closing is the owner's, and a caller of
 startThread neither closes the herd nor leaves its set.
 
+No call of the JDK is one event any more. `add` on the herd's set and `set` on its flag are atomic as the JDK
+means it: each takes effect at one moment during the call (`addingIsAtomic`, `settingIsAtomic`). A fork is a
+thread whose `add` has returned; what is added in a call still in progress is handled apart
+(`whoAddsIsCallingStartThread`, `nothingIsBeingAddedWhenEmpty`, and of the code
+`startThreadIsPendingWhileItAdds`). What changes a set or a flag is assumed only of one on which nothing else is
+called (`plainSet`, `onlyReadAndSet`); that a herd's set and flag are such is stated as two claims, not proven
+(`aHerdsSetIsPlain`, `aHerdsFlagIsOnlyReadAndSet`): they are of the herd's constructor, which no execution here
+has, and of who can reach a private field.
+
 The model's execution is now one of `ThreadHerd` as Ox's jar has it, read from its TASTy
 (`docs/EXECUTIONS.md`, "An execution of code"). Two claims of the code are proven of its tree, by FrFlow's
 check: that `startThread` adds a thread, or returns, only after it has read the herd's flag as unset

@@ -19,12 +19,14 @@ val oxThreads: FrModel = FrModel("OxThreads")(
   closingEndsOnceFoundEmpty.refines(closingEndsOnEmpty),
   isEmptyFindsItEmptyUnlessAdded.refines(closingEndsOnEmpty),
   nothingIsAddedDuringTheLastCheck.refines(closingEndsOnEmpty),
-  setReturns.refines(closingEndsOnceFoundEmpty), isEmptyReturns.refines(closingEndsOnceFoundEmpty),
+  isEmptyReturns.refines(closingEndsOnceFoundEmpty),
   closingsTraversalsReturn.refines(closingEndsOnceFoundEmpty),
   nothingIsAddedOnceEmpty.refines(everyForkHasLeftOnceClosed, nothingIsAddedOnceClosed),
-  liveForksAreInTheSet.refines(everyForkHasLeftOnceClosed, nothingIsAddedOnceEmpty),
+  nothingIsBeingAddedWhenEmpty.refines(everyForkHasLeftOnceClosed, nothingIsAddedOnceEmpty),
+  liveForksAreInTheSet.refines(everyForkHasLeftOnceClosed, nothingIsAddedOnceEmpty, nothingIsBeingAddedWhenEmpty),
+  whoAddsIsCallingStartThread.refines(nothingIsBeingAddedWhenEmpty),
 
-  startThreadCallersStayInside.refines(nothingIsAddedOnceEmpty),
+  startThreadCallersStayInside.refines(nothingIsAddedOnceEmpty, nothingIsBeingAddedWhenEmpty),
   onlyStartThreadAdds.refines(nothingIsAddedOnceEmpty),
 
   startThreadIsCalledFromInside.refines(startThreadCallersStayInside),
@@ -33,16 +35,20 @@ val oxThreads: FrModel = FrModel("OxThreads")(
 
   closingSetsTheFlag.refines(aClosedHerdRefusesToStart),
   theFlagStaysSet.refines(aClosedHerdRefusesToStart, closingSetsTheFlag),
-  aFlagChangesOnlyWhenSet.refines(theFlagStaysSet), onlyClosingSetsTheFlag.refines(theFlagStaysSet),
+  aFlagBecomesOnlyWhatIsSet.refines(theFlagStaysSet), aHerdsFlagIsOnlyReadAndSet.refines(theFlagStaysSet),
+  onlyClosingSetsTheFlag.refines(theFlagStaysSet),
   closingSetsTheFlagOnlyToTrue.refines(theFlagStaysSet),
   startThreadFirstSeesTheFlagUnset.refines(aClosedHerdRefusesToStart),
 
   startThreadReadsTheFlagUnset.refines(startThreadFirstSeesTheFlagUnset),
   getGivesTheFlag.refines(startThreadFirstSeesTheFlagUnset),
-  closingSetsTheFlagItself.refines(closingSetsTheFlag), setMakesTheFlag.refines(closingSetsTheFlag),
+  closingSetsTheFlagItself.refines(closingSetsTheFlag), settingIsAtomic.refines(closingSetsTheFlag),
+  setReturns.refines(closingEndsOnceFoundEmpty, closingSetsTheFlag),
 
-  onlyStartThreadAddsToTheSet.refines(onlyStartThreadAdds, anAddedThreadHasNotBeenStarted),
-  startThreadAddsWhileItRuns.refines(onlyStartThreadAdds),
+  onlyStartThreadAddsToTheSet.refines(onlyStartThreadAdds, anAddedThreadHasNotBeenStarted,
+    whoAddsIsCallingStartThread),
+  startThreadAddsWhileItRuns.refines(onlyStartThreadAdds, whoAddsIsCallingStartThread),
+  startThreadIsPendingWhileItAdds.refines(whoAddsIsCallingStartThread),
   anAddedThreadHasNotBeenStarted.refines(onlyStartThreadAdds),
   onlyItsMakerStartsAThread.refines(anAddedThreadHasNotBeenStarted),
   startThreadAddsWhatItsFactoryMade.refines(anAddedThreadHasNotBeenStarted),
@@ -53,14 +59,15 @@ val oxThreads: FrModel = FrModel("OxThreads")(
 
   herdsAreMade.refines(startThreadReadsTheFlagUnset, closingSetsTheFlagItself,
     theForkFunctionRemovesTheCurrentThread, startThreadAddsWhileItRuns, startThreadAddsWhatItsFactoryMade,
-    startThreadAddsBeforeItStarts, closingEndsOnceFoundEmpty, closingSetsTheFlagOnlyToTrue),
+    startThreadAddsBeforeItStarts, closingEndsOnceFoundEmpty, closingSetsTheFlagOnlyToTrue,
+    startThreadIsPendingWhileItAdds, nothingIsBeingAddedWhenEmpty, nothingIsAddedOnceEmpty,
+    everyForkHasLeftOnceClosed, closingSetsTheFlag, aClosedHerdRefusesToStart),
   aHerdKeepsItsFields.refines(startThreadReadsTheFlagUnset, closingSetsTheFlagItself,
     theForkFunctionRemovesTheCurrentThread, closingEndsOnceFoundEmpty),
   currentThreadIsTheCaller.refines(closingSetsTheFlagItself, aForkRemovesOnlyItself, closingEndsOnceFoundEmpty),
 
-  nothingBeforeTheStart.refines(liveForksAreInTheSet), setCallsAreAtomic.refines(liveForksAreInTheSet),
-  addPutsItIn.refines(liveForksAreInTheSet), removeTakesOnlyItOut.refines(liveForksAreInTheSet),
-  onlyAddAndRemoveChangeASet.refines(liveForksAreInTheSet),
+  addingIsAtomic.refines(liveForksAreInTheSet), anElementLeavesOnlyWhenRemoved.refines(liveForksAreInTheSet),
+  aHerdsSetIsPlain.refines(liveForksAreInTheSet),
 
   // The execution is one of Ox's `ThreadHerd`, as its jar has it.
   history.executing(Read.of(classOf[ThreadHerd], _ == "ox/internal/ThreadHerd.tasty")))

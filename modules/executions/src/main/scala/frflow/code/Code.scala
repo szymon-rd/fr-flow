@@ -29,3 +29,6 @@ extension [A](code: Obj[() => A])
 inline def call[A](inline code: A): Call[A] = ${ CodeMacros.call[A]('code) }
 
 implicit inline def codeAsCall[A](inline code: A): Call[A] = ${ CodeMacros.call[A]('code) }
+
+/** The method the code calls, as the tree read names it: `methodOf[KeySet](_.add(???))`. */
+inline def methodOf[C](inline code: C => Any): String = ${ CodeMacros.method[C]('code) }

@@ -9,14 +9,25 @@ import ox.internal.ThreadHerd
 
 // What the claims on `ThreadHerd` and the assumptions add up to, up to what holds once a herd is closed.
 
-val liveForksAreInTheSet = Node.claim("A fork that has not left is in its herd's set.")(
+val liveForksAreInTheSet = Node.claim("A fork of a herd that has not left is in the herd's set.")(
   forall((h: Obj[ThreadHerd], t: Obj[Thread], w: Term[BigInt]) =>
-    live(t, h, w) implies elements(threads(h), w).contains(t.asValue)))
+    (h.isMade(w) && live(t, h, w)) implies elements(threads(h), w).contains(t.asValue)))
 
 val startThreadCallersStayInside = Node.claim(
   "While a thread is calling startThread of a herd, it is inside the herd's scope.")(
   forall((h: Obj[ThreadHerd], code: Obj[Code], c: Obj[Thread], w: Term[BigInt]) =>
     (starting(h, code).by(c).called(w) || starting(h, code).by(c).pendingAt(w)) implies inside(c, h, w)))
+
+val whoAddsIsCallingStartThread = Node.claim(
+  "While a thread is adding to a herd's set, it is calling startThread of the herd.")(
+  forall((h: Obj[ThreadHerd], t: Obj[Thread], c: Obj[Thread], w: Term[BigInt]) =>
+    threads(h).add(t).by(c).inProgress(w) implies
+      exists((code: Obj[Code]) => starting(h, code).by(c).pendingAt(w))))
+
+val nothingIsBeingAddedWhenEmpty = Node.claim(
+  "When a herd's set is empty after its owner called closing, no thread is being added to it.")(
+  forall((h: Obj[ThreadHerd], t: Obj[Thread], m: Term[BigInt]) =>
+    (closing(h).by(owner(h)).calledBefore(m) && empty(h, m)) implies !threads(h).add(t).inProgress(m)))
 
 val nothingIsAddedOnceEmpty = Node.claim(
   "Once a herd's set is empty after its owner called closing, no thread is added to it.")(

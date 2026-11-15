@@ -31,6 +31,20 @@ val startThreadAddsWhileItRuns = Node.claim(
       (starting(h, code).by(c).called(from) && threads(h).add(t).by(c).calledInside(from, w)) implies
         starting(h, code).by(c).pendingAt(w))))
 
+val startThreadIsPendingWhileItAdds = Node.claim(
+  "A call of startThread has not completed while an add it itself made is pending.")(
+  forall((h: Obj[ThreadHerd], code: Obj[Code], c: Obj[Thread], t: Obj[Thread]) =>
+    forall((from: Term[BigInt], a: Term[BigInt], w: Term[BigInt]) =>
+      (starting(h, code).by(c).called(from) && threads(h).add(t).by(c).calledInside(from, a) &&
+        threads(h).add(t).by(c).pendingSince(a, w)) implies starting(h, code).by(c).pendingSince(from, w))))
+
+// Not proven of the code. That the set is made by `newKeySet` is of the herd's constructor, which no execution
+// here has: a herd is made by code that is not read. That nothing else is called on it is of who can reach a
+// private field: with capture checking it is what the compiler would say.
+val aHerdsSetIsPlain = Node.claim(
+  "A herd's set is one made by newKeySet, on which nothing but add, remove, isEmpty and forEach is called.")(
+  forall((h: Obj[ThreadHerd], w: Term[BigInt]) => h.isMade(w) implies plainSet(threads(h))))
+
 // With capture checking this would be what the compiler says: the thread is a local of startThread, given to
 // the herd's set and to nothing else.
 val onlyItsMakerStartsAThread = Node.assumption(

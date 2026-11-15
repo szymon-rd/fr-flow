@@ -1,33 +1,33 @@
 Require Export FrFlowGen.OxThreads.liveForksAreInTheSet.Spec.
 Require Export Proofs.OxThreads.Lemmas.
 
-(** The set of a herd is a set: what was added to it and not removed from it is in it. *)
+(** The call that added the fork put it in the set at a moment during the call, so before `w`. From there to `w`
+    it leaves at no moment: of a plain set it would leave only during a call that removes it, and none was made. *)
 Lemma liveForksAreInTheSet_Proofs_complete : liveForksAreInTheSet_Obl_complete.
 Proof.
-  intros elements heldIn history _ Hstart Hatomic Hadd Hrem Honly h t w [Hfork Hleft].
+  intros elements heldIn history _ Hadd Hleave Hplain h t w [Hmade [(from & value & to & Hto & Hdone) Hleft]].
   set (s := heldIn "ox.internal.ThreadHerd threads"%string h) in *.
-  eapply (added_and_not_removed_is_in history (elements s)).
-  - exact Hstart.
-  - intros x. exact (Hatomic s x).
-  - intros x y. exact (Hadd s x y).
-  - intros x y. exact (Hrem s x y).
-  - intros a b y. exact (Honly s a b y).
-  - exact Hfork.
-  - exact Hleft.
+  destruct (Hadd s t from value to Hdone) as (m & [Hfm Hmt] & Hin).
+  assert (forall k, m + 1 <= k -> k <= w -> elements s k t) as Hstays.
+  { apply (from_a_moment_on (fun k => k <= w -> elements s k t)).
+    - intros _. rewrite (Hin t). left. reflexivity.
+    - intros k Hk IH Hkw. destruct (classic (elements s (k + 1) t)) as [H | Hout]; [exact H | exfalso].
+      apply Hleft.
+      destruct (Hleave s t k (conj (conj (Hplain h w Hmade) (IH ltac:(lia))) Hout))
+        as [[who Hc] | (m' & Hm' & who & Hb & _)].
+      + exists k. split; [lia | exists who; exact Hc].
+      + exists m'. split; [lia | exists who; left; exact Hb]. }
+  apply Hstays; lia.
 Qed.
 
-(** Its parts can hold together: a run in which nothing happens meets each. *)
+(** Its parts can hold together: a run in which nothing happens, of sets with nothing in them, meets each. *)
 Lemma liveForksAreInTheSet_Proofs_feasible : liveForksAreInTheSet_Obl_feasible.
 Proof.
   exists (fun _ _ _ => False), (fun _ x => x), (fun _ => Event_Stutter).
   split; [exact rest_runs |].
   split.
-  { intros w _. reflexivity. }
+  { intros s x from value to (who & H). destruct (nothing_completed_at_rest _ _ _ _ _ H). }
   split.
-  { intros s x. split; intros w who H; destruct (nothing_called_at_rest _ _ _ H). }
-  split.
-  { intros s x y from response to (who & H). destruct (nothing_completed_at_rest _ _ _ _ _ H). }
-  split.
-  { intros s x y from response to (who & H). destruct (nothing_completed_at_rest _ _ _ _ _ H). }
-  intros s a b y [_ H]. destruct H. reflexivity.
+  { intros s x w [[_ H] _]. destruct H. }
+  intros h w (m & by_ & ins & hs & _ & H). discriminate H.
 Qed.

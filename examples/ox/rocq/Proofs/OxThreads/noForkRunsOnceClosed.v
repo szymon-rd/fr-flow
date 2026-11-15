@@ -7,8 +7,8 @@ Lemma noForkRunsOnceClosed_Proofs_complete : noForkRunsOnceClosed_Obl_complete.
 Proof.
   intros heldIn history _ Hleft Hcode h t code w [Hclosed Hmade].
   assert (hasLeft heldIn history t h w) as (r & Hr & who & Hrem).
-  { apply Hleft. split; [exact Hclosed |]. destruct Hmade as (c & m & [Hm Hadd] & _).
-    exists m. split; [exact Hm | exists c; exact Hadd]. }
+  { apply Hleft. split; [exact Hclosed |]. destruct Hmade as (c & from & added & to & [Hto Hdone] & _).
+    exists from, added, to. split; [exact Hto | exists c; exact Hdone]. }
   destruct (Hcode h t code w r Hmade) as [_ Hnotpending].
   split.
   - intros (m1 & Hm1 & Hbegun & Hpending).

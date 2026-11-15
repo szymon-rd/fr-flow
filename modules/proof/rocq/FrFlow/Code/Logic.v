@@ -498,7 +498,7 @@ Ltac miss_given :=
   end.
 
 (** Two things said of the event of one moment that cannot both be. *)
-Ltac miss_end :=
+Ltac miss_now :=
   first
     [ congruence
     | match goal with
@@ -510,6 +510,18 @@ Ltac miss_end :=
       | M : ?h ?w = _, E : op_event _ _ _ _ _ _ (?h ?w) |- _ =>
           cbn [op_event] in E; miss_open E; congruence
       end ].
+
+(** What the claim takes is of an event of the call's own before the moment the walk is at: that event is one of
+    those gone through, and is none of them. *)
+Ltac miss_past :=
+  match goal with
+  | P : past _ _ _ ?k ?tr, M : ?h ?m = _ |- _ =>
+      let Hin := fresh "Hin" in
+      assert (Hin : In m tr) by (apply P; [lia | rewrite M; cbn; auto]);
+      cbn [In] in Hin; repeat (destruct Hin as [<- | Hin]); [.. | destruct Hin]; miss_now
+  end.
+
+Ltac miss_end := first [miss_now | miss_past].
 
 (** The claim holds at an event because what it is of is another event: what the claim takes of the event is
     taken apart, and cannot be with what the rule says the event is. *)

@@ -361,8 +361,15 @@ Section Conforms.
     (forall w w' b inside y cls hs b' inside' cls' hs',
         history w = Event_Make b inside y cls hs -> history w' = Event_Make b' inside' y cls' hs' -> w = w').
 
+  (** A call is responded to at most once, after it is made. *)
+  Definition answered_once : Prop :=
+    (forall k k' a called r r' spawns spawns',
+      history k = Event_Respond a called r spawns -> history k' = Event_Respond a called r' spawns' -> k = k') /\
+    (forall k a called r spawns, history k = Event_Respond a called r spawns -> called < k).
+
   (** The execution is one of the code. *)
-  Definition conforms : Prop := method_calls /\ module_calls /\ function_calls /\ never_atomic /\ made_once.
+  Definition conforms : Prop :=
+    method_calls /\ module_calls /\ function_calls /\ never_atomic /\ made_once /\ answered_once.
 
 End Conforms.
 
