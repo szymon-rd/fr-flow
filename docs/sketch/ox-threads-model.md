@@ -1,7 +1,14 @@
 # Ox threads: the model, as a sketch
 
-Status: a sketch to iterate on. Nothing here is compiled or run; the words in section 0 are not built.
+Status: a sketch to iterate on. Nothing here is compiled or run.
 The Scala is Ox's own code, unchanged (`ThreadHerd.scala`, `unsupervised.scala`, `fork.scala`, `supervised.scala`).
+
+The vocabulary is now built, with small differences from section 0 (`docs/RUNS.md` says it as built: a moment is
+a number, an object is an `Obj[C]`, a word that depends on the moment takes it as an argument). The herd's part of
+the safety tree (roots A and B at the level of a herd) is a real model, checked by FrFlow with its steps proven:
+`examples/ox/src/main/scala/ox/threads`. Proving it changed three statements, which this sketch does not yet
+show: the code runs before the fork leaves at every moment of the run, closing is the owner's, and a caller of
+startThread neither closes the herd nor leaves its set.
 
 ## The tree
 
