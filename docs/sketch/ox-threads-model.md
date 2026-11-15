@@ -10,7 +10,8 @@ The Scala is Ox's own code, unchanged (`ThreadHerd.scala`, `unsupervised.scala`,
 ```
 A  noForkRunsAfterItsScope            After a scope has completed, no fork of it runs its code.
 ├─ closedScopeIsEmptyForGood          After closing has completed, every fork has left and no thread is added.
-│  ├─ closingEndsOnEmpty              local   ThreadHerd            <- isEmptyIsExact
+│  ├─ closingEndsOnEmpty              local   ThreadHerd            <- isEmptyIsExact, joinReturnsOrIsInterrupted,
+│  │                                                                  forEachThrowsOnlyWhatItsFunctionDoes, theseJdkCallsReturn
 │  ├─ liveForksAreInTheSet            A fork that has not left is in the set.
 │  │                                                               <- addPutsItIn, removeTakesOnlyItOut, setCallsAreAtomic
 │  └─ nothingIsAddedOnceEmpty         Once the set is empty after closing was called, no thread is added.
@@ -108,10 +109,11 @@ F  supervisedCompletesOnSuccess       Once every user fork made in a supervised 
 What the sketch shows:
 
 - **A and B rest on three things:** the herd's set, an exact `isEmpty`, and callers staying inside the scope.
-  `join`, `interrupt` and `forEach` play no part in them.
+  `join`, `interrupt` and `forEach` matter to them only in what they may throw: closing must not be thrown out of
+  its loop.
 - **The flag gives a separate guarantee (R)** that needs no assumption about callers. In liveness it does a second
   job: it is why forks stop being added, so closing can end.
-- **`join`, `interrupt` and `forEach` enter only through liveness (D).**
+- **What `join`, `interrupt` and `forEach` do enters only through liveness (D).**
 - **Liveness needs two assumptions about the user's code:** a fork's code stops once its thread is interrupted, and
   finalizers complete. Without the first, no scope with a fork can be shown to end.
 - **"A fork has finished" cannot mean "its thread has finished".** Closing leaves when the set is empty, and a
@@ -121,6 +123,21 @@ What the sketch shows:
 ## 0. Words used (FrFlow, to be built)
 
 A run is a sequence of moments. Between two consecutive moments one actor (a thread) takes one step.
+
+### Steps
+
+A claim never names a step, but what a step is decides what "every run" covers. A step is one of:
+
+- an atomic call of a JDK method;
+- the making, or the completing, of a call that is not atomic;
+- one read or one write of a field, a `var` or an array element by real code.
+
+Code between two steps of a thread touches nothing another thread can see. A run is any interleaving of the
+threads' steps, so a claim holds under every schedule. Other threads can act between any two steps of Ox's code:
+between the check of the flag and the adding of a thread, for example.
+
+A JDK call may answer anything its assumptions do not exclude. So a call that waits may throw
+`InterruptedException` at any moment, and no claim depends on when a thread is interrupted.
 
 | Primitive | Meaning |
 |---|---|
@@ -211,6 +228,12 @@ val isEmptyIsExact = Node.assumption("Asking a set whether it is empty answers w
   forall([A] => (s: Term[KeySet[A]]) =>
     s.isEmpty().everyCall((from, answer, to) => answer === Returned(elements(s).at(from).isEmpty))))
 
+val forEachThrowsOnlyWhatItsFunctionDoes = Node.assumption("forEach throws only what a call of its function threw.")(
+  forall([A] => (s: Term[KeySet[A]], f: Term[Consumer[A]], c: Term[Thread], e: Term[Throwable]) =>
+    s.forEach(f).by(c).everyCall((from, answer, to) =>
+      (answer === Threw(e)) implies exists((x: Term[A], a: World, b: World) =>
+        s.forEach(f).by(c).calls(f.accept(x), a) && f.accept(x).by(c).completed(a, Threw(e), b)))))
+
 // The three below are used only by liveness.
 val forEachGivesOnlyElements = Node.assumption("forEach calls its function only on elements that have been in the set.")(
   forall([A] => (s: Term[KeySet[A]], f: Term[Consumer[A]], x: Term[A], w: World) =>
@@ -252,6 +275,20 @@ val newThreadIsUnstarted = Node.assumption(
   forall((factory: Term[ThreadFactory], r: Term[Runnable], t: Term[Thread]) =>
     factory.newThread(r).everyCall((from, answer, to) =>
       (answer === Returned(t)) implies ((body(t) === r) && !t.start().calledBefore(to)))))
+
+val joinReturnsOrIsInterrupted = Node.assumption("Joining a thread returns, or throws InterruptedException.")(
+  forall((t: Term[Thread]) =>
+    t.join().everyCall((from, answer, to) =>
+      (answer === Returned(())) || exists((e: Term[InterruptedException]) => answer === Threw(e)))))
+
+// Out of memory and the like are left out: see section 7.
+val theseJdkCallsReturn = Node.assumption(
+  "Adding to a set, removing from it, starting a thread for the first time and interrupting a thread return.")(
+  forall([A] => (s: Term[KeySet[A]], x: Term[A], t: Term[Thread]) =>
+    s.add(x).everyCall((from, answer, to) => exists((r: Term[Boolean]) => answer === Returned(r))) &&
+    s.remove(x).everyCall((from, answer, to) => exists((r: Term[Boolean]) => answer === Returned(r))) &&
+    t.start().everyCall((from, answer, to) => !t.start().calledBefore(from) implies (answer === Returned(()))) &&
+    t.interrupt().everyCall((from, answer, to) => answer === Returned(()))))
 
 // The three below are used only by liveness.
 val aStartedThreadRuns = Node.assumption("A thread that was given its body to run eventually runs it.")(
@@ -828,7 +865,8 @@ val oxThreads = FrModel("OxThreads")(
   codeRunsBeforeLeaving.refines(noForkRunsAfterItsScope, startThreadCallersStayInside)
     .assuming(firstStartSpawnsTheBody, startIsAtomic, newThreadIsUnstarted, currentThreadIsTheCaller),
 
-  closingEndsOnEmpty.refines(closedScopeIsEmptyForGood).assuming(isEmptyIsExact, setCallsAreAtomic),
+  closingEndsOnEmpty.refines(closedScopeIsEmptyForGood).assuming(isEmptyIsExact, setCallsAreAtomic,
+    joinReturnsOrIsInterrupted, forEachThrowsOnlyWhatItsFunctionDoes, theseJdkCallsReturn),
   liveForksAreInTheSet.refines(closedScopeIsEmptyForGood, nothingIsAddedOnceEmpty, everyLiveForkIsInterrupted)
     .assuming(addPutsItIn, removeTakesOnlyItOut, setCallsAreAtomic),
   nothingIsAddedOnceEmpty.refines(closedScopeIsEmptyForGood),
@@ -919,6 +957,12 @@ Liveness:
 
 Both:
 
+- **Steps are not built.** The section on steps says what the generated meaning must contain; FrFlow has no such
+  meaning for threaded code yet. Without it "every run" and "atomic" mean nothing.
+- **No claim says Ox is free of data races.** The model gives every field one value at each moment, which the JVM
+  promises only to programs without a data race. The hand-written machine proved race freedom; here it is taken
+  for granted. It should come back as a claim FrFlow states of every threaded model, since it needs no words from
+  the developer.
 - **Not modelled:** resources beyond "finalizers complete", application errors (`supervisedError` with an error
   mode), fork locals, what a scope throws, `uninterruptible`, exceptions the JDK itself may throw.
 - **Words used beyond the six primitives agreed so far:** `outer.calls(inner, w)` as a seventh primitive; the
