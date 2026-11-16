@@ -38,14 +38,14 @@ import scala.concurrent.duration.*
 
   /** Each model's digests: of its Rocq, and of its nodes' content. */
   private val expected: Map[String, (String, String)] = Map(
-    "rooms" -> ("46ef140992a0f7c3", "dbbe847152fce9cf"),
-    "auth" -> ("8612aec22d2a492b", "5ef1cc0961bcd7fe"),
-    "payments" -> ("28102079cb67a599", "9f236695fc96643d"),
-    "shop" -> ("72bddea609cb8e97", "036de7a27a4323a6"),
-    "prices" -> ("b0fe184d57c0423f", "c55df6f055a7bc15"),
-    "counter" -> ("baf882836d45dad7", "6ce488dd43988124"),
-    "rates" -> ("275bd6fa123bf55c", "f74274715f6497e0"),
-    "agree" -> ("abbe212989b49648", "b1f9d53f1ade8371"))
+    "rooms" -> ("faa233bec66e7844", "dbbe847152fce9cf"),
+    "auth" -> ("43438775ed73d05d", "5ef1cc0961bcd7fe"),
+    "payments" -> ("555080996518efa8", "9f236695fc96643d"),
+    "shop" -> ("2970b8ab303886f6", "036de7a27a4323a6"),
+    "prices" -> ("4a623e791825ebd0", "c55df6f055a7bc15"),
+    "counter" -> ("fb5d27bb6aa4b3e0", "6ce488dd43988124"),
+    "rates" -> ("1b59be6fbbfa16c8", "f74274715f6497e0"),
+    "agree" -> ("4b8e3ef8dfd7c4d8", "b1f9d53f1ade8371"))
 
   test("the Rocq generated for each model, and the content of its nodes, are what they were") {
     models.traverse((name, model, examples) => digests(model, examples()).map(name -> _)).map { got =>

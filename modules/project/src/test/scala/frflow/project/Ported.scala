@@ -39,7 +39,7 @@ object Ported:
   /** A project directory, and Rocq in its `rocq/`. */
   private def workspace(model: String): Resource[IO, (Path, Prover[IO])] = directory(model).flatMap(d =>
     RocqProver.make[IO](d.resolve("rocq"), library,
-      RocqTool(Command("rocq", 30.minutes, Output.ByExit), RocqTool.Memory)).map(d -> _))
+      RocqTool(Command("rocq", 30.minutes, Output.ByExit), RocqTool.Memory, RocqTool.jobs)).map(d -> _))
 
   /** The analysis once checked and tested; `proofs`, the developer's proof files by name (`Lemmas`, a node's). */
   def run(e: Elaborated, examples: List[Example], proofs: List[(String, String)]): IO[Analysis] =

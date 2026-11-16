@@ -17,11 +17,11 @@ import frflow.proof.verdict.*
 /** One node's check: Rocq's steps, each a build followed by a pure judge (`proof.verdict.Judge`) that may end the
   * check there. The model first (`Spec`); the proof file's rules and the shared lemmas; `complete` (by automation,
   * or the proof file), refuted on a case when it does not go through and its one part fixes an answer; `impl`; the
-  * composition `holds`; then the checks module lemma by lemma (each obligation proven or not, each try shown or
-  * not: a try Rocq does not prove shows nothing); and a root's `root_impl`. A module Rocq did not run (one it
-  * imports did not go through) proves nothing and shows nothing; a proof whose audit (`Print Assumptions`) Rocq did
-  * not print is not checked (fail closed). `Judge.node` ends a check that got through, on the axioms each proof that
-  * went through rests on, `parts` the statuses of its parts.
+  * composition `holds`; then the checks module and the tries, lemma by lemma (each obligation proven or not, each
+  * try shown or not: a try Rocq does not prove shows nothing); and a root's `root_impl`. A module Rocq did not run
+  * (one it imports did not go through) proves nothing and shows nothing; a proof whose audit (`Print Assumptions`)
+  * Rocq did not print is not checked (fail closed). `Judge.node` ends a check that got through, on the axioms each
+  * proof that went through rests on, `parts` the statuses of its parts.
   */
 final class NodeChecker[F[_]: Monad: Clock](prover: Prover[F], files: ProjectFiles[F], refutations: Refutations[F]):
   private type Step[A] = EitherT[F, Judged, A]
@@ -38,7 +38,7 @@ final class NodeChecker[F[_]: Monad: Clock](prover: Prover[F], files: ProjectFil
         (done, found, rests) <- complete(rocq, a)
         impl          <- proven(rocq, ObligationName.Impl)
         holds         <- composed(rocq, done, parts)
-        checks        <- checked(rocq)
+        checks        <- (checked(rocq), tried(rocq)).mapN((c, tries) => (c._1 ++ tries, c._2))
         root          <- rootImpl(rocq)
       yield
         val (results, axioms) =
@@ -111,14 +111,20 @@ final class NodeChecker[F[_]: Monad: Clock](prover: Prover[F], files: ProjectFil
           EitherT.pure(_))
     }
 
-  /** The checks module, theorem by theorem: each other obligation, each try. */
+  /** The checks module, theorem by theorem: each other obligation. */
   private def checked(rocq: NodeRocq): Step[Judging] =
     if !rocq.has(NodePart.Checks) then none
     else run(rocq.module(NodePart.Checks)).map { r =>
-      val e = rocq.elaborated(NodePart.Checks, r)
-      val others = rocq.others.map(o => audited(rocq, o, e))
-      val tries = rocq.tried.map(o => e.fold(Result(o.name, ObligationStatus.NotShown, Nil))(Judge.tried(o.name, _)))
-      (others.flatMap(_._1) ++ tries, others.flatMap(_._2))
+      val others = rocq.others.map(o => audited(rocq, o, rocq.elaborated(NodePart.Checks, r)))
+      (others.flatMap(_._1), others.flatMap(_._2))
+    }
+
+  /** The tries, one by one: shown where Rocq proves one. */
+  private def tried(rocq: NodeRocq): Step[List[Result]] =
+    if !rocq.has(NodePart.Tries) then EitherT.pure(Nil)
+    else run(rocq.module(NodePart.Tries)).map { r =>
+      val e = rocq.elaborated(NodePart.Tries, r)
+      rocq.tried.map(o => e.fold(Result(o.name, ObligationStatus.NotShown, Nil))(Judge.tried(o.name, _)))
     }
 
   /** A root's `root_impl`: proven when Rocq proves it, with the axioms it rests on. */

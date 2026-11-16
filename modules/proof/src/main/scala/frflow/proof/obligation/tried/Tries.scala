@@ -27,6 +27,14 @@ object Tries:
       r.theory.refinement.parts(n).isEmpty).toList.map(_ =>
       (TryKind.Vacuous, Prop.over(List(n), Prop.claim(n)), s"${n.value} holds whatever what it speaks of means."))
 
+  /** A try that the step goes through without one of its parts: automation's to show, of a step that is
+    * automation's to prove. Of a step the developer proves by hand it is not tried: automation, which is not what
+    * proves the step from all its parts, shows nothing from fewer.
+    */
+  def ofAutomation(o: Obligation): Boolean = o.name match
+    case ObligationName.Tried(TryKind.Needed(_)) => true
+    case _                                       => false
+
   private def tried(k: TryKind, p: Prop, doc: String) =
     Obligation(ObligationName.Tried(k), p, Discharge.Attempt(Heartbeats), doc)
 

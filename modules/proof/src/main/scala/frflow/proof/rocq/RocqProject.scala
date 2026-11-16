@@ -1,7 +1,7 @@
 package frflow.proof.rocq
 
 import frflow.core.name.RelPath
-import frflow.proof.layout.ExecutionsLibrary
+import frflow.proof.layout.{ExecutionsLibrary, NodePart}
 import frflow.proof.prover.ast.{Decl, ProverModule, ModuleName}
 import frflow.proof.rocq.RocqNames.Scope
 
@@ -58,6 +58,11 @@ object RocqProject:
 
   /** The module by the name Rocq loads it by. */
   def logical(m: ModuleName): String = m.parts.map(p => RocqNames.identifier(p.text)).mkString(".")
+
+  /** Whether a module, by the name Rocq loads it by, is a node's tries (`NodePart.Tries`). */
+  def tries(logical: String): Boolean = logical.split('.').toList match
+    case List("FrFlowGen", _, _, part) => part == NodePart.Tries.toString
+    case _                             => false
 
   private def imported(m: ModuleName): String =
     if m.dotted == "FrFlow" then "From FrFlow Require Export Base.\n"

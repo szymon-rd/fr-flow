@@ -81,7 +81,8 @@ What proven code hands to plain Scala meets the rules on its type (`made_<code>_
 ## 2. Nodes
 
 - A claim with parts is proven from them: its parts, with the assumptions it lists, imply it (`complete`), each is
-  needed (`needed_<part>`). Its rules (claims of `always` below it) are no part of the step.
+  needed (`needed_<part>`, tried of a step automation proves: of one proven by hand, automation shows nothing from
+  fewer parts). Its rules (claims of `always` below it) are no part of the step.
 - A claim mentioning proven code is proven of the code (`impl`), its parts or the claims about what the code calls
   as hypotheses. A claim at the bottom mentioning a Declaration says what the Declaration is: it is never asked
   `impl`, and the proven code stands in it in its consistency group (§3a).
@@ -97,7 +98,7 @@ What proven code hands to plain Scala meets the rules on its type (`made_<code>_
 ## 3. Rocq obligations
 
 What Rocq is asked of each node is a function of the resolved theory (`proof.audit.Obligations`). The generated modules
-are under `rocq/FrFlowGen/<Model>/` (a module per node, its `Spec` and its `Checks`, and the domain);
+are under `rocq/FrFlowGen/<Model>/` (a module per node, its `Spec`, its `Checks` and its `Tries`, and the domain);
 developers' proofs under `rocq/Proofs/<Model>/`.
 
 | Obligation | Asked of |

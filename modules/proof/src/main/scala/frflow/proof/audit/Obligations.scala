@@ -16,7 +16,8 @@ import frflow.proof.terms.{CallingCode, TermTable}
 object Obligations:
   def of(r: Resolved, table: TermTable, authored: Set[(NodeId, ObligationName)]): List[NodeObligations] =
     r.theory.refinement.nodes.filter(_.statement.stated).map { n =>
-      NodeObligations(n.id, Required.of(r, authored, n.id), Tries.of(r, table, n.id))
+      NodeObligations(n.id, Required.of(r, authored, n.id),
+        Tries.of(r, table, n.id).filterNot(t => authored((n.id, Complete)) && Tries.ofAutomation(t)))
     }
 
   /** The rules an obligation of `n` takes as given where it is stated: the guards its variables come with (`Guarded`),

@@ -33,5 +33,8 @@ object RocqDirs:
   val Build: String = "_build"
   val Roots: List[String] = List("FrFlow", "FrFlowGen", "Proofs")
 
+  /** Whether a module is one of FrFlow's library. */
+  def ofLibrary(logical: String): Boolean = logical == "FrFlow" || logical.startsWith("FrFlow.")
+
   /** A module's file, as a report names it: relative to `rocq/` (the library's too). */
   def file(logical: String): String = logical.replace('.', '/') + ".v"

@@ -14,7 +14,8 @@ on top, which a project enables, for an agent that proposes the nodes and writes
 
 Requirements: JDK 17+, sbt, and Rocq 9 (`rocq` on the `PATH`, or `FRFLOW_ROCQ`; `opam install rocq-prover`). One
 compile of a module may use `FRFLOW_ROCQ_MEMORY` megabytes (4000 when not given): a proof search that outgrows it is
-reported of its lemma. `bin/frflow PROJECT COMMAND`
+reported of its lemma. `FRFLOW_ROCQ_JOBS` compiles run at once (one fewer than the machine's processors when not
+given). `bin/frflow PROJECT COMMAND`
 runs a project's CLI on the terminal, with colors and the interactive review, compiling with sbt on first use and
 after a change; `sbt "PROJECT/run COMMAND"` runs it through sbt, plain. `--help` lists the commands. A project is
 `examples/PROJECT`; FrFlow's own (`rooms`, `auth`, `payments`, `shop`) are there too.
@@ -208,7 +209,10 @@ text, or that of a module it imports, changed. Each node's obligations:
 | `example_<set>_<i>_opposite` | each example, a try | the same claims give its negation: they contradict it |
 
 The tries (`vacuous`, `restates`, `clash`, `unsat`, `idle`) look for a statement that says nothing, restates its
-part, contradicts another, or holds whatever is done; each is reported as shown or not shown. A step Rocq does not
+part, contradicts another, or holds whatever is done; each is reported as shown or not shown. They are tried again
+only when what they state changed (the node, its parts, what those mention): a change to a proof or to FrFlow's
+library tries nothing again, and removing `rocq/_build/` tries everything again. Of a step proven by hand, no
+`needed_<part>` is tried: it is automation's to show, of a step automation proves. A step Rocq does not
 prove is "open", with what Rocq said; one refuted is "failed", with the case Rocq confirms.
 
 A proof FrFlow's tactics do not find is written by hand in `rocq/Proofs/<Model>/<node>.v`: a lemma

@@ -20,6 +20,11 @@ what is proven of the examples, and what is left of the move from Lean.
     each module by. Nothing is written beside a source.
   - A module is compiled again only when its text, Rocq's version, or what a module it imports was compiled to
     changed. A file's time is not read.
+  - A node's tries are a module of their own (`Tries`), which imports what the node states and no proof. It is
+    compiled again only when its text or the text of a generated module it imports changed: a change to the
+    library does not try it again. Removing `rocq/_build/` does.
+  - Builds run at once, and up to `FRFLOW_ROCQ_JOBS` compiles at a time (one fewer than the machine's processors
+    when not given); a module is compiled by one build at a time.
   - Rocq stops at a file's first error. A lemma whose proof it does not accept is given up (`Admitted`) in a copy
     under `rocq/_build/scratch/` and the file compiled again, so every lemma of the file gets its own verdict. The
     developer's proof files are never changed.

@@ -18,9 +18,9 @@ class LayoutSuite extends munit.FunSuite:
     assertEquals(named(MiniProject.modules).take(5), List("Types", "Domain.Def_bookIfFree",
       "Domain.Def_endsAfterStart", "Domain.Def_fromTheForm", "Domain"))
     assertEquals(named(MiniProject.modules).filter(_.startsWith("allowsOne")),
-      List("allowsOne.Spec", "allowsOne.Auto", "allowsOne.Theorems", "allowsOne.Checks"))
+      List("allowsOne.Spec", "allowsOne.Auto", "allowsOne.Theorems", "allowsOne.Tries"))
     assertEquals(named(MiniProject.modules).filter(_.startsWith("bookRuns")),
-      List("bookRuns.Spec", "bookRuns.Impl", "bookRuns.Checks"))
+      List("bookRuns.Spec", "bookRuns.Impl", "bookRuns.Tries"))
     assert(Set("RootImpl", "Whole", "Whole.Checks").subsetOf(named(MiniProject.modules).toSet))
   }
 
