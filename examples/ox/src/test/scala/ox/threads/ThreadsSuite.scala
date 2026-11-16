@@ -53,7 +53,8 @@ import scala.concurrent.duration.*
     "aHerdsMethodsOnlyGetAndSetAFlag", "aHerdsSetIsNew", "closingCallsFour", "closingSetsTheFlagItself",
     "theMembershipCheckCallsContains", "theOwnerCheckCallsCurrentThread", "theForkFunctionCallsFour",
     "whatAHerdsCodeCallsOfASet", "theWalkUpCallsFour", "theMembershipCheckStaysOutOfHerds",
-    "unsupervisedRunsInTheScopeItMade", "aScopeEndsAfterItsHerdIsClosed", "aScopesHerdIsItsMakers",
+    "unsupervisedRunsInTheScopeItMade", "supervisedRunsInTheScopeItMade", "aScopeEndsAfterItsHerdIsClosed",
+    "aScopesHerdIsItsMakers", "unsupervisedClosesItsScopesHerd", "supervisedClosesItsScopesHerd",
     "closingSetsTheFlagOnlyToTrue", "closingTraversesWithAFunction", "herdsAreMade",
     "startThreadAddsBeforeItStarts",
     "startThreadAddsWhatItsFactoryMade",
@@ -62,11 +63,13 @@ import scala.concurrent.duration.*
     "theClosingCheckStaysOutOfHerds", "theForkFunctionRemovesTheCurrentThread", "theTreeCheckCallsFour",
     "whatClosingsFunctionsApplyReturns")
 
-  private val roots = List("aClosedHerdRefusesToStart", "noForkRunsOnceUnsupervisedEnds", "nothingIsAddedOnceClosed")
+  /** What holds once a call of `unsupervised`, or of `supervised`, has completed. */
+  private val roots = List("Unsupervised", "Supervised").flatMap(of =>
+    List(s"noForkRunsOnce${of}Ends", s"nothingIsAddedOnce${of}Ends", s"noThreadIsStartedOnce${of}Ends"))
 
-  /** What rests on the assumption suspected false: everything but what a closed herd refuses. */
-  private val onTheLastCheck = List("noForkRunsOnceUnsupervisedEnds", "noForkRunsOnceClosed",
-    "nothingIsAddedOnceClosed")
+  /** What rests on the assumption suspected false: everything but that no thread is started. */
+  private val onTheLastCheck = roots.filterNot(_.startsWith("noThreadIsStarted")) ++
+    List("noForkRunsOnceClosed", "nothingIsAddedOnceClosed")
 
   test("every root is proven: no claim is unproven, and what each root is from is of the kinds named".tag(Live)) {
     Ported.run(Projects.elaborated(oxThreads), Nil, Ported.proofs("ox", "OxThreads")).map { r =>
@@ -75,6 +78,9 @@ import scala.concurrent.duration.*
       assertEquals(Ported.standing(r)("aClosedHerdRefusesToStart")._1.sorted, theFlagRootIsFrom)
       val named = ofThePlatform ++ ofPrivateState ++ ofWhoUsesAHerd ++ ofScopesNotRead ++ suspectedFalse
       roots.foreach(root => assertEquals(Ported.standing(r)(root)._1.filterNot(named), Nil, root))
+      // that no thread is started rests on the platform and on the herd's flag being its own, and no more
+      roots.filter(_.startsWith("noThreadIsStarted")).foreach(root => assertEquals(
+        Ported.standing(r)(root)._1.filterNot(ofThePlatform), List("aHerdKeepsItsFlagToItself"), root))
       onTheLastCheck.foreach(n =>
         assert(Ported.standing(r)(n)._1.contains("nothingIsAddedDuringTheLastCheck"), n))
       assertEquals(Ported.standing(r).collect { case (n, (assumed, Nil)) if assumed.forall(ofThePlatform) => n }

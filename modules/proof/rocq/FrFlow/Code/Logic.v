@@ -170,6 +170,22 @@ Section Logic.
   Qed.
 
   (** A call of a method of the code: made at `w1`, responded to at `w2`. *)
+  Lemma meets_method_typed tr w0 s on args (k : res -> program) m w :
+    label_of s = m ->
+    (forall w1 ys, w0 <= w1 -> past w1 tr -> Forall2 (names N) ys (receiver on ++ args) ->
+       history w1 = Event_Invoke a (Some i) (Invocation_mk m ys) ->
+       claim w1 /\
+       forall w2 r spawns x, w1 < w2 -> history w2 = Event_Respond a w1 r spawns -> gives N r x ->
+         returns known m x -> meets (w1 :: tr) (w2 + 1) (Running (k x)) w) ->
+    meets tr w0 (Running (Call (Method s) (VList (on :: args)) k)) w.
+  Proof.
+    intros <- H. apply meets_running. intros w1 st1 Hi Hw1 Hp _ Ht.
+    apply takes_method_call in Ht as (ys & Hys & He & ->). destruct (H w1 ys Hw1 Hp Hys He) as [Hc Hk].
+    split; [exact Hc |]. apply meets_waiting; [lia |]. intros w2 r sp x Hw2 He2 Hg Hty.
+    exact (Hk w2 r sp x ltac:(lia) He2 Hg Hty).
+  Qed.
+
+  (** The same, with nothing said of what the call gives. *)
   Lemma meets_method tr w0 s on args (k : res -> program) m w :
     label_of s = m ->
     (forall w1 ys, w0 <= w1 -> past w1 tr -> Forall2 (names N) ys (receiver on ++ args) ->
@@ -179,10 +195,9 @@ Section Logic.
          meets (w1 :: tr) (w2 + 1) (Running (k x)) w) ->
     meets tr w0 (Running (Call (Method s) (VList (on :: args)) k)) w.
   Proof.
-    intros <- H. apply meets_running. intros w1 st1 Hi Hw1 Hp _ Ht.
-    apply takes_method_call in Ht as (ys & Hys & He & ->). destruct (H w1 ys Hw1 Hp Hys He) as [Hc Hk].
-    split; [exact Hc |]. apply meets_waiting; [lia |]. intros w2 r sp x Hw2 He2 Hg _.
-    exact (Hk w2 r sp x ltac:(lia) He2 Hg).
+    intros E H. apply (meets_method_typed E). intros w1 ys Hw1 Hp Hys He.
+    destruct (H w1 ys Hw1 Hp Hys He) as [Hc Hk]. split; [exact Hc |].
+    intros w2 r sp x Hw2 He2 Hg _. exact (Hk w2 r sp x Hw2 He2 Hg).
   Qed.
 
   (** A call of a function. *)
@@ -487,6 +502,7 @@ Ltac typed_all :=
   repeat match goal with
   | H : field_typed _ _ _ _ _ |- _ => typed H
   | H : returns _ _ (inr _) |- _ => typed H
+  | H : returns _ _ (inl (Thrown _ _)) |- _ => cbv beta iota delta [returns] in H
   | H : returns _ _ (inl _) |- _ => clear H
   | H : called_as _ _ ?m |- _ => cbv beta iota delta [called_as] in H; subst m
   | H : op_event _ _ _ _ _ _ _ _ |- _ =>
@@ -619,6 +635,14 @@ Ltac step_rule :=
   end.
 
 Ltac step := meets_head; step_rule.
+
+(** The rule of a call of a method of the code, with what the call gives of the class its signature names. *)
+Ltac step_typed :=
+  meets_head;
+  lazymatch goal with
+  | |- meets _ _ _ _ _ _ _ _ _ (Running (Call (Method ?s) _ _)) _ =>
+      let said := eval lazy in (label_of s) in eapply meets_method_typed with (m := said); [reflexivity |]
+  end.
 
 (** ** An event the claim says nothing of *)
 

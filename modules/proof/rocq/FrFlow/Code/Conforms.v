@@ -150,9 +150,10 @@ Fixpoint after_last (s : string) : option string :=
   end.
 
 Definition returns (known : classes) (method : string) (x : res) : Prop :=
-  match x, after_last method with
-  | inr v, Some cls => of_class known cls v
-  | _, _ => True
+  match x with
+  | inr v => match after_last method with Some cls => of_class known cls v | None => True end
+  | inl (Thrown cls r) => identity (vref cls r)
+  | inl _ => True
   end.
 
 (** The method a function is called by where the code applies it itself (a local method called by its name, a
@@ -294,7 +295,7 @@ Section Conforms.
     | takes_method p s on args k ys :
         settles p (Call (Method s) (VList (on :: args)) k) -> Forall2 (names N) ys (receiver on ++ args) ->
         e = Event_Invoke a (Some i) (Invocation_mk (label_of s) ys) ->
-        takes a i w e (Running p) (Waiting w (fun _ => True) k)
+        takes a i w e (Running p) (Waiting w (returns known (label_of s)) k)
     | takes_function p c arg k m y ys :
         settles p (Call c arg k) -> applied c arg -> called_as c arg m -> names N y (VCode c) ->
         Forall2 (names N) ys (arguments arg) ->

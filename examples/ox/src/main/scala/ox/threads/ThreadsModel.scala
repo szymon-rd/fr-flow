@@ -4,19 +4,28 @@ import frflow.*
 import frflow.code.Read
 import frflow.executions.*
 import ox.internal.ThreadHerd
+import ox.scopes.*
 
-// The model of Ox's threads: what holds once a herd is closed (the roots), and what makes it hold. The first two
-// roots rest on who starts a thread; the third, on the herd's flag alone, and on `ThreadHerd`'s code as Ox's jar
-// has it.
+// The model of Ox's threads: what holds once `unsupervised` or `supervised` has completed (the roots), by what
+// holds once a herd is closed, and what makes that hold. That no thread is started rests on the herd's flag
+// alone; the other two, on who starts a thread. All of it is of Ox's code as its jar has it.
 
 val oxThreads: FrModel = FrModel("OxThreads")(
-  noForkRunsOnceUnsupervisedEnds, nothingIsAddedOnceClosed, aClosedHerdRefusesToStart,
+  noForkRunsOnceUnsupervisedEnds, nothingIsAddedOnceUnsupervisedEnds, noThreadIsStartedOnceUnsupervisedEnds,
+  noForkRunsOnceSupervisedEnds, nothingIsAddedOnceSupervisedEnds, noThreadIsStartedOnceSupervisedEnds,
 
-  // A scope: `unsupervised` makes one, runs the code in it, and closes its herd before it ends.
-  noForkRunsOnceClosed.refines(noForkRunsOnceUnsupervisedEnds),
-  unsupervisedRunsInTheScopeItMade.refines(noForkRunsOnceUnsupervisedEnds),
-  aScopeEndsAfterItsHerdIsClosed.refines(noForkRunsOnceUnsupervisedEnds),
-  aScopesHerdIsItsMakers.refines(noForkRunsOnceUnsupervisedEnds),
+  // A scope: `unsupervised` and `supervised` make one, run code in it, and its herd is closed before they end.
+  unsupervisedClosesItsScopesHerd.refines(noForkRunsOnceUnsupervisedEnds, nothingIsAddedOnceUnsupervisedEnds,
+    noThreadIsStartedOnceUnsupervisedEnds),
+  supervisedClosesItsScopesHerd.refines(noForkRunsOnceSupervisedEnds, nothingIsAddedOnceSupervisedEnds,
+    noThreadIsStartedOnceSupervisedEnds),
+  noForkRunsOnceClosed.refines(noForkRunsOnceUnsupervisedEnds, noForkRunsOnceSupervisedEnds),
+  nothingIsAddedOnceClosed.refines(nothingIsAddedOnceUnsupervisedEnds, nothingIsAddedOnceSupervisedEnds),
+  aClosedHerdRefusesToStart.refines(noThreadIsStartedOnceUnsupervisedEnds, noThreadIsStartedOnceSupervisedEnds),
+  unsupervisedRunsInTheScopeItMade.refines(unsupervisedClosesItsScopesHerd),
+  supervisedRunsInTheScopeItMade.refines(supervisedClosesItsScopesHerd),
+  aScopeEndsAfterItsHerdIsClosed.refines(unsupervisedClosesItsScopesHerd, supervisedClosesItsScopesHerd),
+  aScopesHerdIsItsMakers.refines(unsupervisedClosesItsScopesHerd, supervisedClosesItsScopesHerd),
   aScopeGivesTheHerdItHolds.refines(aScopeEndsAfterItsHerdIsClosed),
   theCurrentScopeIsReadAndSet.refines(aScopeEndsAfterItsHerdIsClosed),
   aScopeHoldsTheHerdItIsMadeWith.refines(aScopesHerdIsItsMakers),
@@ -134,6 +143,7 @@ val oxThreads: FrModel = FrModel("OxThreads")(
   addingIsAtomic.refines(liveForksAreInTheSet), anElementLeavesOnlyWhenRemoved.refines(liveForksAreInTheSet),
   aHerdsSetIsPlain.refines(liveForksAreInTheSet),
 
-  // The execution is one of Ox's `ThreadHerd`, of its scopes and of `unsupervised`, as its jar has them.
+  // The execution is one of Ox's `ThreadHerd`, of its scopes, of `unsupervised` and of `supervised`, as its jar
+  // has them.
   history.executing(Read.of(classOf[ThreadHerd], Set("ox/internal/ThreadHerd.tasty", "ox/OxError.tasty",
-    "ox/unsupervised$package.tasty"))))
+    "ox/unsupervised$package.tasty", "ox/supervised$package.tasty"))))

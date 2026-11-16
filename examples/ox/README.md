@@ -1,57 +1,65 @@
-# Ox's threads: what is proven of `ThreadHerd`, and of a scope
+# Ox's threads: what is proven of a scope, and of `ThreadHerd`
 
-A FrFlow model of the class Ox keeps a scope's threads in, `ox.internal.ThreadHerd`, of the scope class
-(`ox.OxError`) and of `unsupervised`. The code is read from Ox's jar as it is compiled (its TASTy), unchanged.
-The statements are Scala (`src/main/scala/ox/threads`); each step is proven in Rocq (`rocq/Proofs/OxThreads`),
-the claims at the bottom against the trees read.
+A FrFlow model of `unsupervised` and `supervised`, of the scope class (`ox.OxError`), and of the class Ox keeps a
+scope's threads in, `ox.internal.ThreadHerd`. The code is read from Ox's jar as it is compiled (its TASTy),
+unchanged. The statements are Scala (`src/main/scala/ox/scopes`, `src/main/scala/ox/threads`); each step is
+proven in Rocq (`rocq/Proofs/OxThreads`), the claims at the bottom against the trees read.
 
 ## What is stated
 
-Of a herd, after `interruptAllAndJoinUntilCompleted` (closing) has completed, by its owner:
+The roots, of a scope: after a call of `unsupervised` has completed, and the same after a call of `supervised`
+(`supervisedError`, which `supervised` runs), of the herd of the scope the call made:
+
+| Root | Says |
+|---|---|
+| `noForkRunsOnceUnsupervisedEnds`, `noForkRunsOnceSupervisedEnds` | No fork of the herd runs the code it was made to run. |
+| `nothingIsAddedOnceUnsupervisedEnds`, `nothingIsAddedOnceSupervisedEnds` | No thread is added to the herd's set. |
+| `noThreadIsStartedOnceUnsupervisedEnds`, `noThreadIsStartedOnceSupervisedEnds` | A call of `startThread` does not return, and adds no thread. |
+
+Each is from what holds of a herd after `interruptAllAndJoinUntilCompleted` (closing) has completed, by its
+owner:
 
 | Statement | Says |
 |---|---|
 | `noForkRunsOnceClosed` | No fork of the herd runs the code it was made to run. |
-| `nothingIsAddedOnceClosed` (root) | No thread is added to the herd's set. |
-| `aClosedHerdRefusesToStart` (root) | A call of `startThread` does not return, and adds no thread. |
-
-Of a scope:
-
-| Root | Says |
-|---|---|
-| `noForkRunsOnceUnsupervisedEnds` | After a call of `unsupervised` has completed, no fork of the herd of the scope it made runs the code it was made to run. |
+| `nothingIsAddedOnceClosed` | No thread is added to the herd's set. |
+| `aClosedHerdRefusesToStart` | A call of `startThread` does not return, and adds no thread. |
 
 ## What stands, and on what
 
-All three roots are proven, and with them the statement about a herd the scope's root is from: every claim
-below each is proven, down to the trees of `ThreadHerd`, of the scope class and of `unsupervised`. No claim of
-the model is unproven; FrFlow reports it so, and the suite pins it (`ThreadsSuite`).
+All six roots are proven: every claim below each is proven, down to the trees of `unsupervised`, of
+`supervised`, of the scope class and of `ThreadHerd`. No claim of the model is unproven; FrFlow reports it so,
+and the suite pins it (`ThreadsSuite`).
 
-Of a scope, three claims are proven of the trees: a call of `unsupervised` that made a scope completes only after
-a call it made itself, running code in that scope, has completed (`unsupervisedRunsInTheScopeItMade`); running
-code in a scope completes only after closing the scope's herd has (`aScopeEndsAfterItsHerdIsClosed`: the
-function `scopedWithCapability` applies closes the herd whatever the code gave); and the herd a scope holds is
-one whose owner is the thread that made the scope (`aScopesHerdIsItsMakers`: the herd's constructor, run where
-the scope is made, writes the current thread as its owner).
+Of a scope, four claims are proven of the trees. A call of `unsupervised` that made a scope completes only after
+a call it made itself, running code in that scope, has completed (`unsupervisedRunsInTheScopeItMade`), and so
+does a call of `supervised` (`supervisedRunsInTheScopeItMade`: it makes a supervisor and the scope, runs code
+in the scope, and whatever that gives or throws, what it does next makes no other scope). Running code in a
+scope completes only after closing the scope's herd has (`aScopeEndsAfterItsHerdIsClosed`: the function
+`scopedWithCapability` applies closes the herd whatever the code gave). The herd a scope holds is one whose
+owner is the thread that made the scope (`aScopesHerdIsItsMakers`: the herd's constructor, run where the scope
+is made, writes the current thread as its owner). So the scope's herd is closed once the call has completed
+(`unsupervisedClosesItsScopesHerd`, `supervisedClosesItsScopesHerd`).
 
 What a statement is proven from is the assumptions below it, and they differ in kind, so it is worth what the
 weakest of its assumptions is:
 
-- `aClosedHerdRefusesToStart` rests on ten assumptions: nine about the JDK, the JVM and Scala's objects, and
-  one about Ox, `aHerdKeepsItsFlagToItself`. The suite pins the ten.
-- `noForkRunsOnceUnsupervisedEnds`, `noForkRunsOnceClosed` and `nothingIsAddedOnceClosed` rest, beside the
+- That no thread is started (`noThreadIsStartedOnce…Ends`, `aClosedHerdRefusesToStart`) rests on the JDK, the
+  JVM and Scala's objects, and on one assumption about Ox, `aHerdKeepsItsFlagToItself`, and no more. The suite
+  pins it.
+- That no fork runs and that nothing is added (`noForkRunsOnce…`, `nothingIsAddedOnce…`) rest, beside the
   platform, on every other kind below, and among them on `nothingIsAddedDuringTheLastCheck`, **which is
   suspected false**. They are proven from it; they are not known to hold of Ox.
 
-Twenty-six claims are proven of the code's trees, each gone through whole (the three of a scope among them). Three are of what making a herd
-runs: a herd has been made, and its flag and its set are what `new AtomicBoolean(false)` and
-`ConcurrentHashMap.newKeySet()` returned to the call that made it. Eight say what a piece of the herd's code
+Twenty-seven claims are proven of the code's trees, each gone through whole (the four of a scope among them).
+Three are of what making a herd runs: a herd has been made, and its flag and its set are what
+`new AtomicBoolean(false)` and `ConcurrentHashMap.newKeySet()` returned to the call that made it. Eight say what a piece of the herd's code
 calls itself: one per method (`startThreadCallsFive`, `closingCallsFour`, `theClosingCheckCallsGet`,
 `theTreeCheckCallsFour`, `theOwnerCheckCallsCurrentThread`, `theMembershipCheckCallsContains`), one for the
 function `startThread` hands the factory (`theForkFunctionCallsFour`), and one for the function the tree check
 applies to go up the scopes, which applies itself (`theWalkUpCallsFour`).
 
-Thirty claims are proven of Ox's code from the JDK, the JVM and Scala's objects alone, with no assumption
+Thirty-three claims are proven of Ox's code from the JDK, the JVM and Scala's objects alone, with no assumption
 about Ox or about who uses it (the suite computes the list and pins it). Among them:
 
 - `startThreadFirstSeesTheFlagUnset`: a call of `startThread` returns, or adds a thread, only if the herd's
@@ -117,7 +125,7 @@ What is assumed, by what it is about:
   scopes are not read here, so this is an assumption about code of Ox, the one of its kind.
 - **Ox itself, suspected false** (1): `nothingIsAddedDuringTheLastCheck`. `isEmpty` on a concurrent set is no
   snapshot; a fork that starts another and leaves while closing asks can make it answer yes of a set that was
-  never empty. The first two roots rest on it; the third does not.
+  never empty. That no fork runs and that nothing is added rest on it; that no thread is started does not.
 
 A call of an inline method (`discard`, in the function `startThread` hands the factory) is, in the tree read
 from TASTy, a call: the model has it as a call of a method outside the code, where the JVM runs its expansion
@@ -129,13 +137,14 @@ threads come one after another; that what a thread reads of a variable is what w
 that thread alone made the variable and writes it (the order of one thread's own actions, JLS 17.4.5; nothing
 is taken of a variable two threads write, nor of a field); and that the VM raises no error of its own. A value
 of a class the trees give no meaning has the type its method's signature says: an option is none, some value,
-or no object.
+or no object. What a method of the code gives is of the class its signature names too, and what a call throws
+is an object like any other. A handler for every `Throwable` takes whatever is thrown, without looking at it.
 
 ## What is not covered
 
-- `fork` and `supervised`, and the scope's finalizers. Of a scope only `unsupervised` is read: the root about it
-  says what holds of the herd of the scope a call made, once the call has completed. Nothing is said of what
-  `supervised` returns, nor of the other two statements about a herd at the level of a scope.
+- `fork`, the supervisor and the scope's finalizers: they are not read. The roots say what holds of the herd of
+  the scope a call made, once the call has completed; `startThread` is the herd's, which `fork` calls. Nothing
+  is said of what `supervised` returns.
 - That anything completes: closing, a scope, `supervised`.
 - What is built on scopes (`par`, `race`, `timeout`, cancellation, error modes, `ForkLocal`), channels, `Flow`,
   retries and scheduling, actors.

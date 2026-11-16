@@ -226,7 +226,8 @@ Section Walk.
        st = Running (k x)) \/
     (exists s on args k ys, settles p (Call (Method s) (VList (on :: args)) k) /\
        Forall2 (names N) ys (receiver on ++ args) /\
-       e = Event_Invoke a (Some i) (Invocation_mk (label_of s) ys) /\ st = Waiting w (fun _ => True) k) \/
+       e = Event_Invoke a (Some i) (Invocation_mk (label_of s) ys) /\
+       st = Waiting w (returns known (label_of s)) k) \/
     (exists c arg k m y ys, settles p (Call c arg k) /\ applied c arg /\ called_as c arg m /\
        names N y (VCode c) /\ Forall2 (names N) ys (arguments arg) /\
        e = Event_Invoke a (Some i) (Invocation_mk m (y :: ys)) /\ st = Waiting w (fun _ => True) k) \/
@@ -300,7 +301,8 @@ Section Walk.
   Lemma takes_method_call a i w e s on args (k : res -> program) st :
     takes a i w e (Running (Call (Method s) (VList (on :: args)) k)) st ->
     exists ys, Forall2 (names N) ys (receiver on ++ args) /\
-      e = Event_Invoke a (Some i) (Invocation_mk (label_of s) ys) /\ st = Waiting w (fun _ => True) k.
+      e = Event_Invoke a (Some i) (Invocation_mk (label_of s) ys) /\
+       st = Waiting w (returns known (label_of s)) k.
   Proof.
     intros H. apply takes_running in H as
       [(X0 & o0 & k0 & x0 & Hs & _) | [(m0 & args0 & k0 & ys & Hs & _) |

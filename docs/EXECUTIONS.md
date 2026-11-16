@@ -252,6 +252,11 @@ What a model must still say itself, as assumptions:
   it. An object of a class of the code that is a function is told apart by the class files (`heirs`).
 - **The `apply` the compiler writes for a case class** is in no tree read: a call of it is a call of what is
   outside the code, and what it makes holds is assumed where a model needs it.
+- **What a method of the code gives** is of the class its signature names, as what it is given is of the
+  classes of its parameters (`meets_method_typed`). What a call throws, where it is an object of the code, is an
+  object like any other: no variable, no value not yet evaluated.
+- **A handler for every `Throwable`** (`case e: Throwable`) takes whatever is thrown without looking at it: what
+  is thrown is a `Throwable`, whatever it is (JLS 14.18).
 - **What a method outside the code gives** is known by the class its signature names: a truth value, a number,
   unit, a reference, what is thrown, and an option (none, some value, or no object). A method with no parameter
   clause is named with the class of what it gives (`ox.OxUnsupervised parent :scala.Option`), which the

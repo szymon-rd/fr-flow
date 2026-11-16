@@ -10,7 +10,8 @@ Require Import FrFlow.Code.Outside FrFlow.Code.Conforms FrFlow.Code.Walk FrFlow.
     the scope is one of these, and no other makes a scope: so the scope it ran the code in is the one made. *)
 Lemma unsupervisedRunsInTheScopeItMade_Proofs_complete : unsupervisedRunsInTheScopeItMade_Obl_complete.
 Proof.
-  intros history [N C] supervisor errorMode parent locals code c s from ended to a b [[Hdone Hmakes] Hmade].
+  intros history [N C] c s from to (supervisor & errorMode & parent & locals & code & ended & a & b &
+    [[Hdone Hmakes] Hmade]).
   destruct Hdone as [[(ins & sp & Hat) _] | [[inside Hcall] [sp Hend]]].
   { exfalso. exact (module_not_atomic C "ox.unsupervised$package$" "unsupervised"
       "1,ox.ForkLocalMap,scala.Function1:java.lang.Object" Hat ltac:(vm_compute; reflexivity) eq_refl

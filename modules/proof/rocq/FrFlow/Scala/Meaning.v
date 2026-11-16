@@ -497,6 +497,31 @@ Section Meaning.
     | _ => oret (VExn x)
     end.
 
+  (** A type everything thrown is of. *)
+  Fixpoint all_thrown (t : ty) : bool :=
+    match t with
+    | TyRef name => String.eqb name "java.lang.Throwable"
+    | TyAlias _ named => all_thrown named
+    | TyAnnot u _ => all_thrown u
+    | _ => false
+    end.
+
+  (** A handler's pattern that takes whatever is thrown: `_: Throwable`, named or not. What is thrown is a
+      `Throwable` whatever it is (JLS 14.18), so the handler does not look at it. *)
+  Fixpoint takes_all (p : tree) : bool :=
+    match p with
+    | Typed Wildcard t | TypeTest Wildcard t => all_thrown t
+    | Bind _ q => takes_all q
+    | _ => false
+    end.
+
+  (** What such a pattern names: what was thrown. *)
+  Fixpoint named_all (p : tree) (v : val) (e : scope) : scope :=
+    match p with
+    | Bind s q => (key s, v) :: named_all q v e
+    | _ => e
+    end.
+
   (** A component of a value taken apart by a pattern: of an object of the program, its member `_1`, `_2`, …. *)
   Definition component (v : val) (i : nat) : D :=
     match v with
@@ -638,7 +663,7 @@ Section Meaning.
                   match cs with
                   | [] => othrow x
                   | CaseDef p guard handler :: rest =>
-                      m <~ pmatch e p v ;;
+                      m <~ (if takes_all p then oret (Some (named_all p v e)) else pmatch e p v) ;;
                       match m with
                       | None => try rest
                       | Some e' =>
