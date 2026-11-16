@@ -30,6 +30,11 @@ inline def call[A](inline code: A): Call[A] = ${ CodeMacros.call[A]('code) }
 
 implicit inline def codeAsCall[A](inline code: A): Call[A] = ${ CodeMacros.call[A]('code) }
 
+/** Every name a method of the class can be called by: each method the class has, as the class it has it from
+  * names it, and as each class that declares it above names it.
+  */
+inline def methodsOf[C]: List[String] = ${ CodeMacros.methods[C] }
+
 /** The method the code calls, as the tree read names it: `methodOf[KeySet](_.add(???))`. */
 inline def methodOf[C](inline code: C => Any): String = ${ CodeMacros.method[C]('code) }
 

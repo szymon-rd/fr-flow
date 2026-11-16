@@ -10,9 +10,6 @@ import ox.internal.ThreadHerd
 // The herd's flag. What `startThread` and closing do with it is proven of `ThreadHerd`'s tree, read from Ox's
 // TASTy; what that gives once the herd is closed follows from what is assumed of an atomic boolean.
 
-val herdsAreMade = Node.assumption("A method of a herd is called only on a herd that has been made.")(
-  forall((h: Obj[ThreadHerd]) => h.isMadeWhenCalled))
-
 val aHerdKeepsItsFields = Node.assumption("Each val of a herd is read as what the herd holds.")(
   forall((h: Obj[ThreadHerd]) => h.readsItsValsAsHeld))
 

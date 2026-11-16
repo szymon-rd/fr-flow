@@ -80,6 +80,8 @@ Proof.
   - intros w w' b inside y cls hs b' inside' cls' hs' H. discriminate H.
   - intros k k' a called r r' spawns spawns' H. discriminate H.
   - intros k a called r spawns H. discriminate H.
+  - intros i a inside cls c signature ys H. discriminate H.
+  - intros w a inside cls c signature ys resp spawns H. discriminate H.
 Qed.
 
 Set Implicit Arguments.
@@ -496,6 +498,27 @@ Section Walk.
     apply follows_steps in Hf as (at_ & H0 & H1 & H2). exists args, at_. auto.
   Qed.
 
+  (** A call of the constructor of a class of the code, from outside it. *)
+  Lemma constructor_steps a inside cls c signature ys from :
+    history from = Event_Invoke a inside (Invocation_mk (label cls "<init>" signature) ys) ->
+    class_of T cls = Some c -> is_module c = false ->
+    exists args (at_ : Z -> stage), Forall2 (names N) ys args /\
+      match class_ctor c with Some ctor => passed known ctor args | None => True end /\
+      (forall w, direct a from (history w) -> from < w) /\
+      (forall w, from < w -> steps a from (from + 1) (Running (constructs T cls args)) w (at_ w)) /\
+      (forall w, from < w -> its (at_ w) a from (history w) -> takes a from w (history w) (at_ w) (at_ (w + 1))).
+  Proof.
+    intros He Hc Hm.
+    destruct (proj1 (proj2 (proj2 (proj2 (proj2 (proj2 (proj2 conformed)))))) _ _ _ _ _ _ _ He Hc Hm)
+      as (args & Hys & Hp & Hf).
+    apply follows_steps in Hf as (at_ & H0 & H1 & H2). exists args, at_. auto.
+  Qed.
+
+  Lemma constructor_not_atomic w a inside cls c signature ys resp spawns :
+    history w = Event_Atomic a inside (Invocation_mk (label cls "<init>" signature) ys) resp spawns ->
+    class_of T cls = Some c -> is_module c = false -> False.
+  Proof. exact (proj2 (proj2 (proj2 (proj2 (proj2 (proj2 (proj2 conformed)))))) w a inside cls c signature ys _ _). Qed.
+
   (** A call of a method of the code is no event made and responded to at once. *)
   Lemma method_not_atomic w a inside s cls r d y ys resp spawns :
     history w = Event_Atomic a inside (Invocation_mk (label_of s) (y :: ys)) resp spawns ->
@@ -528,17 +551,22 @@ Section Walk.
   (** A call is responded to at one moment. *)
   Lemma responded_once k k' a called r r' spawns spawns' :
     history k = Event_Respond a called r spawns -> history k' = Event_Respond a called r' spawns' -> k = k'.
-  Proof. exact (proj1 (proj2 (proj2 (proj2 (proj2 (proj2 conformed))))) k k' a called r r' spawns spawns'). Qed.
+  Proof.
+    exact (proj1 (proj1 (proj2 (proj2 (proj2 (proj2 (proj2 conformed)))))) k k' a called r r' spawns spawns').
+  Qed.
 
   (** A call is responded to after it is made. *)
   Lemma responded_after k a called r spawns : history k = Event_Respond a called r spawns -> called < k.
-  Proof. exact (proj2 (proj2 (proj2 (proj2 (proj2 (proj2 conformed))))) k a called r spawns). Qed.
+  Proof. exact (proj2 (proj1 (proj2 (proj2 (proj2 (proj2 (proj2 conformed)))))) k a called r spawns). Qed.
 
 End Walk.
 
 Arguments method_steps {files T known N history} conformed {a inside} s {cls r d y ys from} _ _ _.
 Arguments method_not_atomic {files T known N history} conformed {w a inside} s {cls r d y ys resp spawns} _ _ _.
 Arguments function_steps {files T known N history} conformed {a inside m c y ys from} _ _ _ _.
+Arguments constructor_steps {files T known N history} conformed {a inside} cls {c} signature {ys from} _ _ _.
+Arguments constructor_not_atomic {files T known N history} conformed {w a inside} cls {c} signature
+  {ys resp spawns} _ _ _.
 Arguments made_named {files T known N history} conformed {w b inside y cls hs} _.
 Arguments responded_once {files T known N history} conformed {k k' a called r r' spawns spawns'} _ _.
 Arguments responded_after {files T known N history} conformed {k a called r spawns} _.

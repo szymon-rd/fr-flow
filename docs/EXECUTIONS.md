@@ -210,11 +210,20 @@ holds from each turn on is that the turn comes after the call; a turn asks the s
 yes the claim holds from there on. The last goes through all of closing: its loop, and past it the read of a
 local variable that is thrown if it holds an exception.
 
+A call of the constructor of a class of the code, from outside it, is a call of the code too
+(`new ThreadHerd(f)` in a statement): it makes the object, runs the class's initialisers on it, each writing a
+field, and returns it. So what a field is given when the object is made is proven of the class's tree: a herd's
+flag is what `new AtomicBoolean(false)` returned to the call that made the herd (`aHerdsFlagIsNew`). Where the
+code itself makes an object, that is part of the call that makes it.
+
 What a model must still say itself, as assumptions:
 
 - that a method of a class is called only on an object the code made (`l.isMadeWhenCalled`, of every method
   of the class): the JVM's type safety, where nothing outside the code extends the class;
-- that a `val` is read as what it holds (`l.readsItsValsAsHeld`, of every `val` of the class);
+- that a `val` is read as what it holds (`l.readsItsValsAsHeld`, of every `val` of the class), and holds what
+  it is given when the object is made (`l.holdsWhatItsValsAreGiven`);
+- that a method of a class is called only on an object a call of its constructor returned
+  (`l.isConstructedWhenCalled`), where what the constructor does matters;
 - what each method of the JDK it speaks of does.
 
 ## What is not built
@@ -230,8 +239,8 @@ What a model must still say itself, as assumptions:
 - **Two laws of an execution are given**, with what it is to be one of the code: a call is responded to at
   most once, and after it is made. That an actor's calls are nested (`oneAtATime`), that a call nobody calls
   begins only once handed over: a model that needs one states it as an assumption.
-- **A constructor is in no execution.** An object of a class of the code is made by an event; that its fields
-  then hold what the class's initialisers give (a herd's set is one `newKeySet` returned) is not said.
+- **That an object of the code is made only by its constructor** is not said of an execution: a model states
+  it as an assumption (`o.isConstructedWhenCalled`).
 - **No claim of no data race** is generated.
 - **Liveness** can be stated (`eventually`, `settles`), and means what it should only over complete, fair
   executions, which nothing yet says the execution is.

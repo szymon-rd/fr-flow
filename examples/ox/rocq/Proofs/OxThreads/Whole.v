@@ -31,8 +31,6 @@ Proof.
   split.
   { intros s v w [[_ H1] H2]. destruct (H1 H2). }
   split.
-  { intros h w (m & by_ & ins & hs & _ & H). discriminate H. }
-  split.
   { intros h v c w H. destruct (nothing_called_at_rest _ _ _ H). }
   split.
   { intros s b from response to [who H]. destruct (nothing_completed_at_rest _ _ _ _ _ H). }
@@ -55,12 +53,12 @@ Proof.
   split.
   { intros h w H. repeat (destruct H as [H | H]); destruct (nothing_called_on_at_rest _ _ _ H). }
   split.
+  { intros h. repeat split; intros w by_ inside written H; discriminate H. }
+  split.
   { intros h. repeat split; intros w by_ inside found H; discriminate H. }
   split.
   { intros c from response to H. destruct (nothing_completed_at_rest _ _ _ _ _ H). }
   split.
   { intros s x from value to [who H]. destruct (nothing_completed_at_rest _ _ _ _ _ H). }
-  split.
-  { intros s x w [[_ H] _]. destruct H. }
-  intros h w (m & by_ & ins & hs & _ & H). discriminate H.
+  intros s x w [[_ H] _]. destruct H.
 Qed.

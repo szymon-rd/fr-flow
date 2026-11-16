@@ -12,6 +12,12 @@ object CodeMacros:
   def call[A: Type](code: Expr[A])(using Quotes): Expr[Call[A]] = Reading().call(code)
   def method[C: Type](code: Expr[C => Any])(using Quotes): Expr[String] = Reading().method(code)
 
+  def methods[C: Type](using Quotes): Expr[List[String]] =
+    import quotes.reflect.*
+    val all = TypeRepr.of[C].typeSymbol.methodMembers.filterNot(_.isClassConstructor)
+      .flatMap(m => m :: m.allOverriddenSymbols.toList)
+    Expr(all.map(MemberName.of(_).mkString(" ")).distinct.sorted)
+
   private final class Reading(using val q: Quotes):
     import q.reflect.*
 

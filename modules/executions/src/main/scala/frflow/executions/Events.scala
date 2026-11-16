@@ -79,3 +79,14 @@ val madeBefore = stated { (made: Term[Value], cls: Term[String], w: Term[BigInt]
 val readAs = stated { (on: Term[Value], field: Term[String], value: Term[Value]) =>
   forall((w: Term[BigInt], by: Term[Value], inside: Term[Option[BigInt]], found: Term[Value]) =>
     (history(w) === make[Event.Read](by, inside, on, field, found)) implies (found === value)) }
+
+/** Every write of the field of the object writes the value. */
+val writtenAs = stated { (on: Term[Value], field: Term[String], value: Term[Value]) =>
+  forall((w: Term[BigInt], by: Term[Value], inside: Term[Option[BigInt]], written: Term[Value]) =>
+    (history(w) === make[Event.Write](by, inside, on, field, written)) implies (written === value)) }
+
+/** A completed call of the constructor named `constructor` has returned the object by the moment. */
+val constructedBefore = stated { (made: Term[Value], constructor: Term[String], w: Term[BigInt]) =>
+  exists((taking: Term[List[Value]], by: Term[Value], from: Term[BigInt], to: Term[BigInt]) =>
+    to <= w && completedBy(make[Invocation](constructor, taking), by, from, make[Response.Returned](made), to)) }
+

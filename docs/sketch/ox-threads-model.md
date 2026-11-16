@@ -67,6 +67,10 @@ threw (assumed of the JDK), closing gives each a function and no null (proven), 
 That last is not proven: the function they apply to interrupt a thread once returns
 (`whatClosingsFunctionsApplyReturns`, proven three deep: closing, the function, `interruptIfNeeded`), but the
 second function reads a local variable twice, and that a read finds what was last written is not yet said.
+How a herd is made is now in the execution: a call of its constructor makes the object and runs its
+initialisers. That a method of a herd is called only on a herd its constructor returned is assumed
+(`herdsAreConstructed`), and from it that the herd has been made is proven, as is that its flag and its set are
+what `new AtomicBoolean(false)` and `newKeySet()` returned to that call (`aHerdsFlagIsNew`, `aHerdsSetIsNew`).
 Still stated and not proven of the code: that, what the scope check's function does, and that a herd's set and
 flag are plain (a plain set may be asked `contains`, which the herd does). FrFlow reports the four as not proven
 of the code, and every node above one of them as waiting: no root is reported proven

@@ -24,8 +24,8 @@ import scala.concurrent.duration.*
     assert(text.contains("(heldIn \"ox.internal.ThreadHerd threads\"%string h)"), "threads")
   }
 
-  /** The claims that are not proven for a reason of their own, and the roots each is below: two of the code
-    * with no proof, and two whose parts do not yet make them. Everything else is proven, or waits for one of them.
+  /** The claims that are not proven for a reason of their own, and the roots each is below: each has parts that
+    * do not yet make it. Everything else is proven, or waits for one of them.
     */
   private val notProven = Map(
     "aHerdsFlagIsOnlyReadAndSet" -> List("aClosedHerdRefusesToStart"),
@@ -33,8 +33,8 @@ import scala.concurrent.duration.*
     "closingsFunctionsReturn" -> List("noForkRunsOnceClosed", "nothingIsAddedOnceClosed"),
     "theTreeCheckStaysOutOfHerds" -> List("noForkRunsOnceClosed", "nothingIsAddedOnceClosed"))
 
-  /** Of those, the ones with parts: their step is what is not proven. */
-  private val withParts = Set("closingsFunctionsReturn", "theTreeCheckStaysOutOfHerds")
+  /** Each has parts: its step is what is not proven. */
+  private val withParts = notProven.keySet
 
   /** What is assumed of the JDK, the JVM and Scala's objects: nothing of Ox, and nothing of who uses it. */
   private val ofThePlatform = Set("addingIsAtomic", "anElementLeavesOnlyWhenRemoved",
@@ -42,11 +42,13 @@ import scala.concurrent.duration.*
     "aFlagBecomesOnlyWhatIsSet", "setReturns", "currentThreadIsTheCaller", "theJdkStaysOutOfHerds",
     "aThreadDoesOneThingAtATime", "herdsAreMade", "aHerdKeepsItsFields",
     "aTraversalThrowsOnlyWhatItsFunctionThrew", "joinThrowsOnlyAnInterruption", "interruptReturns",
-    "addSuppressedReturns")
+    "addSuppressedReturns", "herdsAreConstructed", "aHerdHoldsWhatItWasGiven")
 
   /** The claims proven of Ox's code from that alone: no claim below them unproven, no other assumption. */
-  private val provenOfTheCodeAlone = List("aForkFunctionRemovesAfterTheCode", "closingSetsTheFlagItself",
-    "closingSetsTheFlagOnlyToTrue", "closingTraversesWithAFunction", "startThreadAddsBeforeItStarts",
+  private val provenOfTheCodeAlone = List("aForkFunctionRemovesAfterTheCode", "aHerdsFlagIsNew",
+    "aHerdsSetIsNew", "closingSetsTheFlagItself",
+    "closingSetsTheFlagOnlyToTrue", "closingTraversesWithAFunction", "herdsAreMade",
+    "startThreadAddsBeforeItStarts",
     "startThreadAddsWhatItsFactoryMade",
     "startThreadAddsWhileItRuns", "startThreadCallsFive", "startThreadFirstSeesTheFlagUnset",
     "startThreadIsPendingWhileItAdds", "startThreadReadsTheFlagUnset", "theClosingCheckCallsGet",

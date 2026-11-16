@@ -361,6 +361,30 @@ Section Conforms.
       applies known m = true -> names N y (VCode c) -> written c ->
       exists args, Forall2 (names N) ys args /\ given c args /\ follows a i (run c (VList args)).
 
+  (** What a call of the constructor of a class of the code runs: the object is made, the class's initialiser
+      runs on it, and the call gives the object. *)
+  Definition constructs (cls : string) (args : list val) : program :=
+    Vis (ObjNew cls (fields_of T cls)) (fun x =>
+      match x with
+      | inr r => Call (Init cls) (VList (vref cls r :: args)) (fun made =>
+          Ret (match made with inr _ => inr (vref cls r) | inl e => inl e end))
+      | inl e => Ret (inl e)
+      end).
+
+  (** A call of the constructor of a class of the code, from outside it: it runs what making an object of the
+      class runs, and is no event made and responded to at once. Where the code itself makes an object, that is
+      part of the call that makes it, and no call of its own. *)
+  Definition constructor_calls : Prop :=
+    (forall i a inside cls c signature ys,
+      history i = Event_Invoke a inside (Invocation_mk (label cls "<init>" signature) ys) ->
+      class_of T cls = Some c -> is_module c = false ->
+      exists args, Forall2 (names N) ys args /\
+        match class_ctor c with Some ctor => passed ctor args | None => True end /\
+        follows a i (constructs cls args)) /\
+    (forall w a inside cls c signature ys resp spawns,
+      history w = Event_Atomic a inside (Invocation_mk (label cls "<init>" signature) ys) resp spawns ->
+      class_of T cls = Some c -> is_module c = false -> False).
+
   (** A call of the code is no event made and responded to at once. *)
   Definition never_atomic : Prop :=
     forall w a inside m ys resp spawns,
@@ -385,7 +409,8 @@ Section Conforms.
 
   (** The execution is one of the code. *)
   Definition conforms : Prop :=
-    method_calls /\ module_calls /\ function_calls /\ never_atomic /\ made_once /\ answered_once.
+    method_calls /\ module_calls /\ function_calls /\ never_atomic /\ made_once /\ answered_once /\
+    constructor_calls.
 
 End Conforms.
 

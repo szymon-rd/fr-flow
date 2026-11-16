@@ -280,9 +280,58 @@ Section Logic.
     intros tr0 w0 s0. apply (Hn (Z.to_nat (w - w0 + 1))). lia.
   Qed.
 
+  (** An initialiser run where an object is made makes no event of its own: what it runs is what comes next. *)
+  Lemma settles_made cls arg (k : res -> program) q :
+    settles T (Call (Init cls) arg k) q -> (match q with Call (Init _) _ _ => False | _ => True end) ->
+    settles T (pbind (run T (Init cls) arg) k) q.
+  Proof.
+    intros H Hn. remember (Call (Init cls) arg k) as p eqn:E.
+    destruct H as [p | S' B' body' s' k' p H | cls' arg' k' p H]; [subst p; destruct Hn | discriminate E |].
+    injection E as -> -> ->. exact H.
+  Qed.
+
+  Lemma takes_made cls arg (k : res -> program) w e st :
+    takes w e (Running (Call (Init cls) arg k)) st -> takes w e (Running (pbind (run T (Init cls) arg) k)) st.
+  Proof.
+    intros H. inversion H; subst.
+    - eapply takes_op; [apply settles_made; [eassumption | exact I] | eassumption].
+    - eapply takes_invoke; [apply settles_made; [eassumption | exact I] | eassumption | reflexivity].
+    - eapply takes_atomic; [apply settles_made; [eassumption | exact I] | eassumption | reflexivity |
+        eassumption | eassumption].
+    - eapply takes_method; [apply settles_made; [eassumption | exact I] | eassumption | reflexivity].
+    - eapply takes_function; [apply settles_made; [eassumption |] | eassumption | eassumption |
+        eassumption | eassumption | reflexivity].
+      match goal with Hc : match ?c with _ => _ end |- _ => destruct c; try destruct Hc; exact I end.
+    - eapply takes_end; [apply settles_made; [eassumption | exact I] | reflexivity | eassumption].
+    - eapply takes_unsaid; [apply settles_made; [eassumption | exact I] | eassumption].
+  Qed.
+
+  Lemma meets_made tr w0 cls arg (k : res -> program) w :
+    meets tr w0 (Running (pbind (run T (Init cls) arg) k)) w -> meets tr w0 (Running (Call (Init cls) arg k)) w.
+  Proof. apply meets_alike. intros v e st. apply takes_made. Qed.
+
   (** ** A call in an execution of the code *)
 
   Hypothesis conformed : conforms files T known N history.
+
+  (** A call of the constructor of a class of the code meets a claim at every event of its own, if what making
+      an object of the class runs does. *)
+  Lemma constructor_meets inside cls c signature ys :
+    history i = Event_Invoke a inside (Invocation_mk (label cls "<init>" signature) ys) ->
+    class_of T cls = Some c -> is_module c = false ->
+    (forall args w, Forall2 (names N) ys args ->
+       match class_ctor c with Some ctor => passed known ctor args | None => True end ->
+       meets [] (i + 1) (Running (constructs T cls args)) w) ->
+    forall w, direct a i (history w) -> claim w.
+  Proof.
+    intros He Hc Hm H w Hdir.
+    destruct (constructor_steps conformed cls signature He Hc Hm)
+      as (args & at_ & Hargs & Hp & Hlater & Hsteps & Htakes).
+    pose proof (Hlater w Hdir) as Hw.
+    refine (H args w Hargs Hp ltac:(lia) _ (at_ w) (at_ (w + 1)) (Hsteps w Hw) Hdir
+      (Htakes w Hw (or_introl Hdir))).
+    intros m Hm' Hdm. pose proof (Hlater m Hdm). lia.
+  Qed.
 
   (** A call of a method of the code meets a claim at every event of its own, if its program does. *)
   Lemma method_meets inside s cls r d y ys :
@@ -320,6 +369,8 @@ End Logic.
 
 Arguments method_meets {files T known N history a i} claim conformed {inside} s {cls r d y ys} _ _ _ _ w _.
 Arguments function_meets {files T known N history a i} claim conformed {inside m c y ys} _ _ _ _ _ w _.
+Arguments constructor_meets {files T known N history a i} claim conformed {inside} cls {c} signature {ys}
+  _ _ _ _ w _.
 
 (** ** The values an event names, one by one *)
 
@@ -463,6 +514,7 @@ Ltac meets_head :=
           let K := fresh "K" in
           pose (K := k); change (meets T C N h a i G tr w0 (Running (Vis o' K)) w); aside_clear;
           repeat match goal with E : receiver ?v = _ |- _ => rewrite E end; cbn [app]
+      | Call (Init ?cls) ?arg ?k => apply meets_made; meets_head
       | Call ?c ?arg ?k =>
           let c' := eval lazy beta iota zeta delta -[val_eqb some_of] in c in
           let arg' := eval lazy beta iota zeta delta -[val_eqb some_of] in arg in

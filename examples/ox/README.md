@@ -16,7 +16,9 @@ Three roots, each of a herd after `interruptAllAndJoinUntilCompleted` (closing) 
 
 ## What stands, and on what
 
-Every step from parts to a claim that has a proof is proven. Fifteen claims are proven of the code's trees.
+Every step from parts to a claim that has a proof is proven. Eighteen claims are proven of the code's trees,
+three of them of what making a herd runs: a herd has been made, and its flag and its set are what
+`new AtomicBoolean(false)` and `ConcurrentHashMap.newKeySet()` returned to the call that made it.
 Four claims are not proven; FrFlow reports them so, and every node above one of them as waiting, and the suite
 names them (`ThreadsSuite`):
 
@@ -33,7 +35,7 @@ into scopes, which are not read. Of the one before, that closing's traversals do
 (`whatClosingsFunctionsApplyReturns`); what is left is that the second function, catching an interruption,
 reads a local variable twice: that the second read finds what the first did is not yet said of an execution.
 
-Sixteen claims are already proven of Ox's code from the JDK, the JVM and Scala's objects alone, with no
+Nineteen claims are already proven of Ox's code from the JDK, the JVM and Scala's objects alone, with no
 assumption about Ox or about who uses it (the suite computes the list and pins it). Among them:
 
 - `startThreadFirstSeesTheFlagUnset`: a call of `startThread` returns, or adds a thread, only if the herd's
@@ -55,7 +57,7 @@ What is assumed, by what it is about:
   `aFlagBecomesOnlyWhatIsSet`, `setReturns`, `currentThreadIsTheCaller`, `theJdkStaysOutOfHerds`,
   `aThreadDoesOneThingAtATime`, `aTraversalThrowsOnlyWhatItsFunctionThrew`, `joinThrowsOnlyAnInterruption`,
   `interruptReturns`, `addSuppressedReturns`.
-- **Scala's objects** (2): `herdsAreMade`, `aHerdKeepsItsFields`.
+- **Scala's objects** (3): `herdsAreConstructed`, `aHerdKeepsItsFields`, `aHerdHoldsWhatItWasGiven`.
 - **Who uses a herd** (1): `startThreadIsCalledFromInside`. It is stricter than Ox's own check: it leaves out a
   fork of a nested scope starting a fork in an enclosing one.
 - **The thread factory a herd is given** (2): `aThreadRunsOneForkFunctionOnce`, `aFactoryStaysOutOfHerds`.
