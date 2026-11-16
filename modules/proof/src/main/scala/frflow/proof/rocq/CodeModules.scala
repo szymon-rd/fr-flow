@@ -28,12 +28,14 @@ object CodeModules:
     val known = us.map(_.classes).foldLeft(ClassFacts.none)(_ ++ _)
     val texts = (names: List[String]) => names.map(n => s"\"$n\"").mkString("[", "; ", "]")
     s"""(** What is known of the classes they mention, from their class files: the classes of the JDK whose
-       |    objects are known by their identity, the classes of what is thrown, and the method a function is
-       |    called by where it is taken as an interface. *)
+       |    objects are known by their identity, the classes of what is thrown, the method a function is
+       |    called by where it is taken as an interface, and the classes outside the JDK below a class known
+       |    by its identity. *)
        |Definition Code_classes : classes :=
        |  Classes ${texts(known.identities)}
        |    ${texts(known.throwables)}
-       |    ${texts(known.functions)}.""".stripMargin
+       |    ${texts(known.functions)}
+       |    ${texts(known.heirs)}.""".stripMargin
 
   private def together(l: Lowering, us: List[ReadUnit]): String =
     val logical = (u: ReadUnit) => RocqProject.logical(l.layout.codeUnit(u.name))

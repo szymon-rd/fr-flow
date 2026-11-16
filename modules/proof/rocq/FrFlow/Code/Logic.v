@@ -449,7 +449,7 @@ Ltac typed H :=
   lazy beta iota zeta delta -[identity receiver held names Jdk.as_exn] in H;
   lazymatch type of H with
   | True => clear H
-  | identity ?v => pose proof (identity_receiver v H)
+  | identity ?v /\ _ => let P := fresh "Hplain" in destruct H as [H P]; pose proof (identity_receiver v H)
   | held ?v = _ /\ receiver ?v = _ => let R := fresh "Hcalled_on" in destruct H as [H R]
   | ?v = _ \/ (exists _, Jdk.as_exn ?v = _) => destruct H as [H | [? H]]; [first [subst v | idtac] |]
   | ?v = _ \/ (exists _, ?v = _ /\ _) \/ ?v = _ =>
@@ -507,16 +507,15 @@ Ltac meets_answer :=
       unify b vnull;
       rewrite (@equal_null T' a)
   | |- context [equal ?T' ?a ?b] =>
-      let E := fresh in
-      assert (E : unnamed T' "equals" = true) by (vm_compute; reflexivity);
-      rewrite (equal_identity T' a b ltac:(assumption) ltac:(assumption) E); clear E
+      rewrite (equal_identity T' a b ltac:(assumption) ltac:(assumption) ltac:(assumption))
   | |- context [equal ?T' ?a ?b] =>
-      (* two values whose comparison is decided by what is known of them: data of two classes, none and data *)
-      let d := eval lazy in (equal T' a b) in
+      (* two values whose comparison is decided by what is known of them: data of two classes, none and data.
+         Only the head is computed: of two values not known, nothing is unfolded *)
+      let d := eval hnf in (equal T' a b) in
       lazymatch d with Ret _ => change (equal T' a b) with d end
   | |- context [any ?p ?xs] =>
       erewrite (any_decided p _ xs)
-        by (intro; cbn [c_eq]; apply equal_to_identity; [assumption | vm_compute; reflexivity])
+        by (intro; cbn [c_eq]; apply equal_to_identity; assumption)
   | |- context [val_eqb ?a ?b] =>
       first
         [ unify a b; change (val_eqb a b) with (val_eqb a a); rewrite (val_eqb_refl a)

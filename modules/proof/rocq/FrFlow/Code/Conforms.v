@@ -70,7 +70,8 @@ Definition gives (N : naming) (a : Response) (x : res) : Prop :=
 Record classes := Classes {
   identities : list string;    (* classes of the JDK that keep `Object`'s `equals`: an object is itself, no data *)
   throwables : list string;    (* classes of what is thrown *)
-  functions : list string }.   (* the one method of each interface a function is taken as: its class and name *)
+  functions : list string;     (* the one method of each interface a function is taken as: its class and name *)
+  heirs : list string }.       (* classes outside the JDK below one known by its identity *)
 
 Definition reference (known : classes) (cls : string) : bool := existsb (String.eqb cls) (identities known).
 
@@ -101,12 +102,13 @@ Definition throwable (known : classes) (cls : string) : bool := existsb (String.
     name are values of no class): that much is said even of a type that says nothing else. A set of Scala that
     does not change is the data it is made of; an option is none, some value (itself where a name holds it,
     as any value of a class is), or no object. A value of any
-    other class is also one a call can be made on: neither unit nor an object named alone. *)
+    other class is also one a call can be made on: neither unit nor an object named alone. A value of a class
+    of the JDK known by its identity is an object of the code only where the code has a class below it. *)
 Definition of_class (known : classes) (cls : string) (v : val) : Prop :=
   if String.eqb cls "scala.Unit" then v = VUnit
   else if String.eqb cls "scala.Boolean" then exists b, v = VBool b
   else if String.eqb cls "scala.Int" then exists z, v = vint z
-  else if reference known cls then identity v
+  else if reference known cls then identity v /\ forall c r, v = vref c r -> In c (heirs known)
   else if general cls || module_class cls then held v = oret v
   else if throwable known cls then v = vnull \/ exists e, Jdk.as_exn v = Some e
   else if String.eqb cls c_set then exists xs, v = vdata c_set [VList xs]

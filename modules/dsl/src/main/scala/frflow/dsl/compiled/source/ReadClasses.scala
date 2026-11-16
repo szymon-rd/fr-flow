@@ -13,7 +13,8 @@ object ReadClasses:
     val found = named(tree).distinct.flatMap(n => load(n, loader).map(n -> _))
     ClassFacts(found.collect { case (n, c) if identity(c) => n }.sorted,
       found.collect { case (n, c) if classOf[Throwable].isAssignableFrom(c) => n }.sorted,
-      found.flatMap((n, c) => function(c).map(m => s"$n $m ")).sorted)
+      found.flatMap((n, c) => function(c).map(m => s"$n $m ")).sorted,
+      found.collect { case (n, c) if heir(c) => n }.sorted)
 
   /** The names a tree holds that could be a class's: a text, or a part of a signature. */
   private def named(d: Datum): List[String] = d match
@@ -38,6 +39,11 @@ object ReadClasses:
       c.getName.startsWith("java.") &&
       c != classOf[Object] && c != classOf[Class[?]] && !classOf[Throwable].isAssignableFrom(c) &&
       Try(c.getMethod("equals", classOf[Object]).getDeclaringClass == classOf[Object]).getOrElse(false)
+
+  /** A class outside the JDK that is below a class known by its identity. */
+  private def heir(c: Class[?]): Boolean =
+    !c.getName.startsWith("java.") &&
+      Iterator.iterate(c.getSuperclass)(_.getSuperclass).takeWhile(_ != null).exists(identity)
 
   /** The one method of an interface a function can be taken as, if it has one. */
   private def function(c: Class[?]): Option[String] =

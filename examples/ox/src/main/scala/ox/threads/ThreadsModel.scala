@@ -124,5 +124,6 @@ val oxThreads: FrModel = FrModel("OxThreads")(
   addingIsAtomic.refines(liveForksAreInTheSet), anElementLeavesOnlyWhenRemoved.refines(liveForksAreInTheSet),
   aHerdsSetIsPlain.refines(liveForksAreInTheSet),
 
-  // The execution is one of Ox's `ThreadHerd`, as its jar has it.
-  history.executing(Read.of(classOf[ThreadHerd], _ == "ox/internal/ThreadHerd.tasty")))
+  // The execution is one of Ox's `ThreadHerd`, of its scopes and of `unsupervised`, as its jar has them.
+  history.executing(Read.of(classOf[ThreadHerd], Set("ox/internal/ThreadHerd.tasty", "ox/OxError.tasty",
+    "ox/unsupervised$package.tasty"))))

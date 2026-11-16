@@ -89,17 +89,17 @@ Set Implicit Arguments.
 
 (** ** Two references compared
 
-    Whether two references are the same is decided where no class of the code says what `equals` is: they are
-    the same value or they are not. *)
+    Whether two references are the same is decided where the first is no object of the code, whose class could
+    say what `equals` is: they are the same value or they are not. *)
 Lemma equal_identity (T : table) (a b : val) :
-  identity a -> identity b -> unnamed T "equals" = true -> equal T a b = oret (val_eqb a b).
+  identity a -> identity b -> (forall c r, a = vref c r -> False) -> equal T a b = oret (val_eqb a b).
 Proof.
-  intros Ha Hb HT.
+  intros Ha Hb Hplain.
   assert (forall x y : val, x <> y -> val_eqb x y = false) as Hne.
   { intros x y H. unfold val_eqb. destruct (val_eq_dec x y); [contradiction | reflexivity]. }
   destruct a as [| | ta | | oa | |]; try contradiction; destruct b as [| | tb | | ob | |]; try contradiction;
-    try (destruct oa; try contradiction); try (destruct ob; try contradiction); unfold equal; cbn;
-    try rewrite (named_none T "equals" _ HT); cbn;
+    try (destruct oa; try contradiction); try (destruct ob; try contradiction);
+    try (exfalso; exact (Hplain _ _ eq_refl)); unfold equal; cbn;
     try (rewrite Hne by discriminate; reflexivity).
   all: unfold same_place;
     repeat match goal with |- context [Nat.eqb ?x ?y] => destruct (Nat.eqb_spec x y) as [-> | ?]; cbn end;
@@ -107,22 +107,26 @@ Proof.
     first [reflexivity | rewrite val_eqb_refl; reflexivity | rewrite Hne by congruence; reflexivity].
 Qed.
 
-(** Any value compared with a reference known by its identity, where no class of the code says what `equals`
-    is: it is that reference or it is not. *)
+(** Any value compared with a reference known by its identity that is no object of the code: it is that
+    reference or it is not. *)
 Lemma equal_to_identity (T : table) (a b : val) :
-  identity b -> unnamed T "equals" = true -> equal T a b = oret (val_eqb a b).
+  identity b -> (forall c r, b = vref c r -> False) -> equal T a b = oret (val_eqb a b).
 Proof.
-  intros Hb HT.
+  intros Hb Hplain.
   assert (forall x y : val, x <> y -> val_eqb x y = false) as Hne.
   { intros x y H. unfold val_eqb. destruct (val_eq_dec x y); [contradiction | reflexivity]. }
   destruct b as [| | tb | | ob | |]; try contradiction; try (destruct ob; try contradiction);
+    try (exfalso; exact (Hplain _ _ eq_refl));
     destruct a as [| | ta | | oa | |]; try destruct oa; unfold equal; cbn;
-    try rewrite (named_none T "equals" _ HT); cbn; try (rewrite Hne by discriminate; reflexivity).
+    try (rewrite Hne by discriminate; reflexivity).
   all: unfold same_place;
     repeat match goal with |- context [Nat.eqb ?x ?y] => destruct (Nat.eqb_spec x y) as [-> | ?]; cbn end;
     repeat match goal with |- context [String.eqb ?x ?y] => destruct (String.eqb_spec x y) as [-> | ?]; cbn end;
     first [reflexivity | rewrite val_eqb_refl; reflexivity | rewrite Hne by congruence; reflexivity].
 Qed.
+
+Arguments equal_identity : clear implicits.
+Arguments equal_to_identity : clear implicits.
 
 (** Whether one of some values meets a test that is decided: decided (`some_of`, kept as it is where a program
     is computed). So is a value among those of a set that does not change, where the value is a reference known
