@@ -51,7 +51,8 @@ import scala.concurrent.duration.*
   private val ofWhoUsesAHerd = List("startThreadIsCalledFromInside", "aThreadRunsOneForkFunctionOnce",
     "aFactoryStaysOutOfHerds")
   private val ofScopesNotRead = List("aScopesHerdAndParentStayOutOfHerds")
-  private val suspectedFalse = List("nothingIsAddedDuringTheLastCheck")
+  /** False of Ox 1.1.0 (a defect that can be reproduced); assumed until the patched code is what is read. */
+  private val falseOfOx110 = List("nothingIsAddedDuringTheLastCheck")
 
   /** The root on the flag is proven from the platform and one assumption about the herd's private flag. */
   private val theFlagRootIsFrom = List("aFlagBecomesOnlyWhatIsSet", "aHerdHoldsWhatItWasGiven",
@@ -85,7 +86,7 @@ import scala.concurrent.duration.*
   private val towardsTime = List("whatClosingsFunctionsApplyInterrupts")
   private val roots = safe ++ live ++ towardsTime
 
-  /** What rests on the assumption suspected false: everything but that no thread is started. */
+  /** What rests on the assumption false of Ox 1.1.0: everything but that no thread is started. */
   private val onTheLastCheck = safe.filterNot(_.startsWith("noThreadIsStarted")) ++
     List("noForkRunsOnceClosed", "nothingIsAddedOnceClosed")
 
@@ -94,9 +95,9 @@ import scala.concurrent.duration.*
       assertEquals(Ported.unproven(r), Map.empty[String, List[String]], Ported.table(r))
       assertEquals(Ported.standsOn(r).map((root, on) => root -> on._1), roots.map(_ -> Nil).toMap)
       assertEquals(Ported.standing(r)("aClosedHerdRefusesToStart")._1.sorted, theFlagRootIsFrom)
-      val named = ofThePlatform ++ ofPrivateState ++ ofWhoUsesAHerd ++ ofScopesNotRead ++ suspectedFalse
+      val named = ofThePlatform ++ ofPrivateState ++ ofWhoUsesAHerd ++ ofScopesNotRead ++ falseOfOx110
       (safe ++ towardsTime).foreach(root => assertEquals(Ported.standing(r)(root)._1.filterNot(named), Nil, root))
-      // what happens in time rests on nothing suspected false, and on the code a fork is given ending
+      // what happens in time rests on nothing false of Ox 1.1.0, and on the code a fork is given ending
       live.foreach { root =>
         val on = Ported.standing(r)(root)._1
         assertEquals(on.filterNot(named ++ ofWhatHappensInTime ++ ofForkCode), Nil, root)

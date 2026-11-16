@@ -62,7 +62,8 @@ weakest of its assumptions is:
   pins it.
 - That no fork runs and that nothing is added (`noForkRunsOnce…`, `nothingIsAddedOnce…`) rest, beside the
   platform, on every other kind below, and among them on `nothingIsAddedDuringTheLastCheck`, **which is
-  suspected false**. They are proven from it; they are not known to hold of Ox.
+  false of Ox 1.1.0**: a defect that can be reproduced, for which its owner has a patch. They are proven from
+  it, and hold of Ox once the patched code is what the model reads; of Ox 1.1.0 they are not shown.
 
 Twenty-seven claims are proven of the code's trees, each gone through whole (the four of a scope among them). Three
 are of what making a herd runs: a herd has been made, and its flag and its set are what `new AtomicBoolean(false)` and
@@ -107,7 +108,7 @@ factory made it for (assumed of the factory and of who schedules threads). And t
 written in `startThread`, ends once the code it calls does (`aForkFunctionCompletesOnceItsCodeDoes`): it calls
 the code `startThread` was given, and then, whatever that gave, reads the set, asks for the current thread,
 removes it and discards the answer. The code ends because it is assumed to, once its thread is interrupted.
-Nothing here rests on the assumption suspected false.
+Nothing here rests on the assumption that is false of Ox 1.1.0.
 
 That closing has interrupted each thread it then joins is proven of closing's tree, three deep, with what
 holds of the variable it keeps the threads it has interrupted in (`whatClosingsFunctionsApplyInterrupts`): every
@@ -164,7 +165,7 @@ What is assumed, by what it is about:
 - **The code a fork is given** (1): `forkCodeCompletesOnceInterrupted`. The code a fork was made to run is
   responded to in time, once the fork has been interrupted, whenever that was. It is a restriction on who uses
   Ox: code that ignores interruption and never ends keeps its scope from ending.
-- **Ox itself, suspected false** (1): `nothingIsAddedDuringTheLastCheck`. `isEmpty` on a concurrent set is no
+- **Ox itself, false of Ox 1.1.0** (1): `nothingIsAddedDuringTheLastCheck`. `isEmpty` on a concurrent set is no
   snapshot; a fork that starts another and leaves while closing asks can make it answer yes of a set that was
   never empty. That no fork runs and that nothing is added rest on it; that no thread is started does not.
 
@@ -190,7 +191,13 @@ is an object like any other. A handler for every `Throwable` takes whatever is t
   a fork ends once interrupted.
 - What is built on scopes (`par`, `race`, `timeout`, cancellation, error modes, `ForkLocal`), channels, `Flow`,
   retries and scheduling, actors.
-- Every witness that the statements can hold together is the execution in which nothing happens.
+- That the statements at the bottom can hold together is shown by one execution, in which a thread makes a herd
+  and closes it (`rocq/Proofs/OxThreads/Whole.v`): its 27 events are written out, each of its three calls is
+  shown to follow the code read from Ox, event by event, and each of the 44 statements is shown of it. It has
+  no fork, no thread started and no scope: of what is assumed of those it shows only that it does not
+  contradict what happens to a herd alone. An execution with a fork is the next one to write out. That each
+  step's parts can hold together is still shown by the execution in which nothing happens; it follows from the
+  whole's and the steps, which a proof file may not use.
 
 ## Checking it
 

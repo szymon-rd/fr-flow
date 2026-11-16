@@ -143,7 +143,13 @@ code's methods and the assumptions (on the JDK, on who calls the code, on the ex
 - of the model, that what it states at the bottom can hold together (`Whole_Obl_consistent_0`).
 
 An execution in which nothing happens meets every statement of the form "after a call, …", so it proves the last two.
-That shows the statements do not contradict each other, and no more.
+That shows the statements do not contradict each other, and no more. An execution in which things happen shows
+more, and is written out: its events as a list (`FrFlow.Code.Witness`: `history_of`), which value of the code each
+of its references is (`naming_of`), and each call of it shown to follow its program one event after another
+(`goes`, with `own_at`, `answer_at` and `rests`); which method a call is of is found by its label
+(`impl_labelled`, `module_labelled`, `constructor_labelled`), and what a statement says of the execution is
+taken apart down to the events written (`reveal`, `absent`, `scan`). Ox's model shows what it states at the
+bottom of one such execution, in which a herd is made and closed (`examples/ox/rocq/Proofs/OxThreads/Whole.v`).
 
 `modules/executions/src/test` has a model with no code (a concurrent set known by its assumptions) and a model
 of code read from its TASTy (a latch), each checked end to end;

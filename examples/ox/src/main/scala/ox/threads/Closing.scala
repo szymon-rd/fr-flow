@@ -71,9 +71,10 @@ val closingsTraversalsReturn = Node.claim(
       (closing(h).by(owner(h)).called(from) && threads(h).forEach(f).by(owner(h)).calledInside(from, a) &&
         threads(h).forEach(f).by(owner(h)).completed(a, r, b)) implies (r === Returned(())))))
 
-// Assumed, and suspected false in a rare race: nothing in Ox's code makes it hold. A fork that passed
-// startThread's check before the flag was set may add a thread while closing asks; `isEmpty` is then no snapshot,
-// and may answer yes of a set that was never empty. The two roots on what a closed herd holds rest on it.
+// Assumed, and false of Ox 1.1.0 in a rare race that can be reproduced: nothing in its code makes it hold. A fork
+// that passed startThread's check before the flag was set may add a thread while closing asks; `isEmpty` is then
+// no snapshot, and may answer yes of a set that was never empty. What is proven of a closed herd's set and of
+// its forks rests on it, until the patched code is what the model reads.
 val nothingIsAddedDuringTheLastCheck = Node.assumption(
   "While a call closing makes asks whether the herd's set is empty and is answered yes, nothing is added to it.")(
   forall((h: Obj[ThreadHerd], a: Term[BigInt], b: Term[BigInt]) =>
