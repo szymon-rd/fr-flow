@@ -93,13 +93,11 @@ So a write is not one step (`FrFlow/Jvm/Machine.v`):
 - A volatile field is written in one step. So is what `Enter` guards: a lazy value, a class being
   initialised. The JVM orders those.
 
-The rules of the logic follow the machine: marking a field needs the whole object, and what holds the object
-between the two steps says it is marked, so it cannot be an invariant that lets another thread read the field
-(`wp_obj_mark`, `wp_obj_get` in `FrFlow/Jvm/Rules.v`).
-
-What is proven: a program proven in the logic has no run in which a write of a field overlaps another thread's
-read or write of it (`jvm_race_free`, and with the scopes' invariant `scopes_adequacy`). The runs of the 25
-programs stop with "a data race" if one happens; none does under the four orders.
+What is checked: the runs of the 25 programs stop with "a data race" if one happens; none does under the four
+orders. That no run of Ox's code has one was proven of a herd and of the scope context in a separation logic
+over this machine (Iris), which is removed (last at commit 9636ef8, `FrFlow/Jvm/Adequacy.v`,
+`examples/ox/rocq/Ox/Proof`): two of its files no longer compiled, and nothing connected it to the model of
+Ox's threads. It is to be proven over that model's executions.
 
 What is argued and not proven: that two accesses the JLS calls a race (not ordered by happens-before) can be
 brought to overlap in some run of the machine, so that no overlap in any run means no race in the JLS's sense.
@@ -157,27 +155,10 @@ reaches one stops there.
 
 ## What the proofs are about
 
-The theorems of `examples/ox/rocq/Ox` (containment of a scope, that it stays closed, nesting) are about `Gen.v`:
-the programs the rules read from Ox's scopes and forks. They are not yet about the meaning of the trees. The
-two are the same language over the same contracts, and differ in how an object is held: `Gen.v` reads a class
-into a record and a field into a projection, where the meaning here keeps the JVM's heap and makes each field
-read a step. Until the proofs are moved, what joins the two is that both are read from the same TASTy, and that
-the meaning here is the one tested against the JVM.
-
-What moving them takes, as far as it was tried:
-
-- **The logic applies as it is.** `Logic.v` is over any type of closures and objects and any `interp`; with
-  `Value.code`, `Value.obj` and `Meaning.interp` its `sound` is about the trees.
-- **A proof can walk the meaning.** Rocq reduces `interp` of a method of Ox to its first operation and what
-  follows it (`lazy head`) in under half a second with all of Ox's trees in the table, so a method is proven
-  as in `HerdProofs.v`, an operation at a time. The whole program of a method cannot be computed first and
-  read as `Gen.v` is: with an object not yet known, a call on it has every class's method to choose from.
-- **The invariant carries over.** `Ghost.v`, `Facts.v`, `Updates.v`, `Inner.v` and `Laws.v` speak of the JDK's
-  state and the ghost state; they name `Gen.v` only for what a herd is and for the closure a herd's thread
-  runs. Over the trees a herd is a place in the heap whose `threads` field does not change, and that closure
-  is the one `denote` makes.
-- **What is new work.** What is asked of each closure (`Specs.v`) is a table over `Gen.v`'s closures; over the
-  trees a closure is a tree and a scope, and Ox's own must be told from a client's. And each method is proven
-  again (`HerdProofs.v`, `ScopeProofs.v`, `ApiProofs.v`, `Main.v`: about a thousand lines), with the steps that
-  read fields added, and with the parts `Gen.v` leaves as `extern` or `chaos` (the error mode, a scope's
-  finalizers run uninterruptibly) proven for the first time.
+What is proven of Ox is stated over executions (`docs/EXECUTIONS.md`, `examples/ox/README.md`): histories of
+events that conform to the same trees, by the same `denote`. Two things differ from what is run here. A call of
+the JDK is there one operation named by the definition called, with what it gives said by the model's
+assumptions; here it is what `Library.v` and the machine's protocols (`Jdk.v`) do. And an execution there is a
+history that satisfies `Conforms.conforms`, where here it is a run of the machine. No theorem yet says that a run
+of this machine gives such a history, so the comparison with the JVM is evidence for `denote`, and not yet for
+the model's executions.

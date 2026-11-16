@@ -251,6 +251,12 @@ is an object like any other. A handler for every `Throwable` takes whatever is t
   for good; and the count of the threads in the set and of the calls that remove, as the calls that add are
   counted.
 - That a scope and `supervised` complete: that closing is reached, and that what follows it ends.
+- That no run of Ox's code has a data race. The model takes it that the events of threads come one after
+  another, which the JVM grants only to a program without one (JLS 17.4.5). It was proven of a herd in a
+  separation logic over the machine, which is removed with the proofs it was unconnected to; it is to be proven
+  over executions.
+- That a run of the machine the meaning of the trees is tested on against the JVM (`rocq/Ox/README.md`) is an
+  execution in the model's sense, and that what the model assumes of the JDK is what that machine's JDK does.
 - What is built on scopes (`par`, `race`, `timeout`, cancellation, error modes, `ForkLocal`), channels, `Flow`,
   retries and scheduling, actors.
 - That the statements at the bottom can hold together is shown by one execution, in which a thread makes a herd

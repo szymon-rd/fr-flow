@@ -2,8 +2,7 @@
 
     The writer marks the field and then stores; the reader reads. In the run where the reader's turn comes
     between the writer's two steps, the reader is at a field that is being written (`Machine.races`), and its
-    step goes wrong. A proof in the logic cannot be had of this program: `jvm_race_free` would contradict
-    this. *)
+    step goes wrong. *)
 
 From Stdlib Require Import String List.
 Require Import FrFlow.Threads.Prog FrFlow.Jvm.Machine.

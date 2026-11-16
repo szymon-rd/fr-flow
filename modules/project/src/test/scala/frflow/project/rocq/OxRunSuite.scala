@@ -44,7 +44,7 @@ class OxRunSuite extends munit.FunSuite:
     (names.filter(n => n.startsWith("ox_") && n.endsWith(".v")).sorted :+ "All.v").map(n =>
       s"Ox/Tree/$n" -> Files.readString(trees.resolve(n)))
 
-  private val library = List("Threads/Prog", "Jvm/Machine", "Scala/Tree", "Scala/Program", "Scala/Table",
+  private val library = List("Threads/Prog", "Jvm/Machine", "Jvm/Races", "Scala/Tree", "Scala/Program", "Scala/Table",
     "Scala/Equal", "Scala/Value", "Scala/Meaning", "Scala/Jdk", "Scala/Library", "Scala/Run")
 
   test("Rocq runs the meaning of each program over Ox's trees, and it gives what the JVM gave".tag(Rocq)) {

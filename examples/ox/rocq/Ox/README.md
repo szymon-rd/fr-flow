@@ -8,7 +8,6 @@ does not yet have a link to.
 |---|---|---|
 | `Tree/` | Ox 1.1.0 whole: the tree of each TASTy file of its jar, generated. Beside the trees, kept by hand and checked by Rocq against what it computes from them: the concurrency kernel and what it takes from outside (`Kernel.v`, `Surface.v`), what is assumed of each member of the JDK it uses (`Assumed.v`), that Ox's code shares no variable between threads (`Memory.v`), and where the meaning of the trees stops (`Meant.v`). | `frflow.project.rocq.OxSourceSuite` |
 | `Client/` | 25 programs written against Ox, as trees, and `Runs.v`: Rocq runs their meaning over Ox's trees (`FrFlow/Scala/Run.v`) and must get what the same program gave on the JVM (`docs/THREADS-MEANING.md`). | `frflow.project.rocq.OxRunSuite` |
-| `Proof/` | Proofs about Ox's trees in a separation logic over the machine (Iris; `FrFlow/Jvm`): a herd's invariant, the scope context, `startThread`. `Scope.v` and `Unsupervised.v` do not compile against the current meaning of the trees, and no suite compiles this directory. It is to be replaced by proofs in the model of executions, and removed. | nothing |
 
 The model of executions reads the files of Ox it speaks of from the same jar with the same reader
 (`frflow.dsl.compiled.source`), when it is built.
