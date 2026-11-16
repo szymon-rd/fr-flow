@@ -29,5 +29,5 @@ Proof.
   { intros s x from value to (who & H). destruct (nothing_completed_at_rest _ _ _ _ _ H). }
   split.
   { intros s x w [[_ H] _]. destruct H. }
-  intros h w (m & by_ & ins & hs & _ & H). discriminate H.
+  intros h w (x & who & from & to & _ & H). destruct (nothing_completed_at_rest _ _ _ _ _ H).
 Qed.

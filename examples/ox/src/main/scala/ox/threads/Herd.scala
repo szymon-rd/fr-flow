@@ -16,11 +16,10 @@ val startThreadIsCalledFromInside = Node.assumption(
   forall((h: Obj[ThreadHerd], code: Obj[Code], c: Obj[Thread], w: Term[BigInt]) =>
     starting(h, code).by(c).called(w) implies inside(c, h, w)))
 
-// With capture checking this would be what the compiler says: the set is the herd's alone.
-val onlyStartThreadAddsToTheSet = Node.assumption(
+val onlyStartThreadAddsToTheSet = Node.claim(
   "A thread is added to a herd's set only by a call of startThread on the herd, itself.")(
-  forall((h: Obj[ThreadHerd], t: Obj[Thread], c: Obj[Thread], w: Term[BigInt]) =>
-    threads(h).add(t).by(c).called(w) implies
+  forall((h: Obj[ThreadHerd], t: Obj[Thread], c: Obj[Thread], w: Term[BigInt], b: Term[BigInt]) =>
+    (h.isConstructed(b) && threads(h).add(t).by(c).called(w)) implies
       exists((code: Obj[Code], from: Term[BigInt]) =>
         starting(h, code).by(c).called(from) && threads(h).add(t).by(c).calledInside(from, w))))
 
@@ -38,13 +37,10 @@ val startThreadIsPendingWhileItAdds = Node.claim(
       (starting(h, code).by(c).called(from) && threads(h).add(t).by(c).calledInside(from, a) &&
         threads(h).add(t).by(c).pendingSince(a, w)) implies starting(h, code).by(c).pendingSince(from, w))))
 
-// Not proven of the code. That the set is made by `newKeySet` is of the herd's constructor, which no execution
-// here has: a herd is made by code that is not read. That nothing else is called on it is of who can reach a
-// private field: with capture checking it is what the compiler would say.
 val aHerdsSetIsPlain = Node.claim(
   "A herd's set is one made by newKeySet, on which nothing but add, remove, contains, isEmpty and forEach is " +
     "called.")(
-  forall((h: Obj[ThreadHerd], w: Term[BigInt]) => h.isMade(w) implies plainSet(threads(h))))
+  forall((h: Obj[ThreadHerd], w: Term[BigInt]) => h.isConstructed(w) implies plainSet(threads(h))))
 
 // With capture checking this would be what the compiler says: the thread is a local of startThread, given to
 // the herd's set and to nothing else.
@@ -70,21 +66,19 @@ val startThreadAddsBeforeItStarts = Node.claim(
         started.start().by(c).calledInside(from, m)) implies (w < m))))
 
 val anAddedThreadHasNotBeenStarted = Node.claim("A thread has not been started when it is added to a herd's set.")(
-  forall((h: Obj[ThreadHerd], t: Obj[Thread], c: Obj[Thread], w: Term[BigInt]) =>
-    threads(h).add(t).by(c).called(w) implies !t.start().calledBefore(w)))
+  forall((h: Obj[ThreadHerd], t: Obj[Thread], c: Obj[Thread], w: Term[BigInt], b: Term[BigInt]) =>
+    (h.isConstructed(b) && threads(h).add(t).by(c).called(w)) implies !t.start().calledBefore(w)))
 
 val onlyStartThreadAdds = Node.claim(
   "A thread is added to a herd's set only during a call of startThread, by its caller, and has not been started.")(
-  forall((h: Obj[ThreadHerd], t: Obj[Thread], c: Obj[Thread], w: Term[BigInt]) =>
-    threads(h).add(t).by(c).called(w) implies
+  forall((h: Obj[ThreadHerd], t: Obj[Thread], c: Obj[Thread], w: Term[BigInt], b: Term[BigInt]) =>
+    (h.isConstructed(b) && threads(h).add(t).by(c).called(w)) implies
       (exists((code: Obj[Code]) => starting(h, code).by(c).pendingAt(w)) && !t.start().calledBefore(w))))
 
-// With capture checking this would be what the compiler says: the set is the herd's alone, and is given to
-// nothing but the functions startThread makes.
-val onlyAForkFunctionRemoves = Node.assumption(
+val onlyAForkFunctionRemoves = Node.claim(
   "A thread is removed from a herd's set only by a function that startThread handed the herd's factory, itself.")(
-  forall((h: Obj[ThreadHerd], t: Obj[Thread], c: Obj[Thread], w: Term[BigInt]) =>
-    threads(h).remove(t).by(c).called(w) implies
+  forall((h: Obj[ThreadHerd], t: Obj[Thread], c: Obj[Thread], w: Term[BigInt], b: Term[BigInt]) =>
+    (h.isConstructed(b) && threads(h).remove(t).by(c).called(w)) implies
       exists((r: Obj[Runnable], i: Term[BigInt]) =>
         handedOver(r, h, i) && running(r).by(c).called(i) && threads(h).remove(t).by(c).calledInside(i, w))))
 
@@ -98,8 +92,8 @@ val theForkFunctionRemovesTheCurrentThread = Node.claim(
           i < a && b <= w && Thread.currentThread().by(c).completed(a, Returned(t), b)))))
 
 val aForkRemovesOnlyItself = Node.claim("A thread is removed from a herd's set only by itself.")(
-  forall((h: Obj[ThreadHerd], t: Obj[Thread], c: Obj[Thread], w: Term[BigInt]) =>
-    threads(h).remove(t).by(c).called(w) implies (c === t)))
+  forall((h: Obj[ThreadHerd], t: Obj[Thread], c: Obj[Thread], w: Term[BigInt], b: Term[BigInt]) =>
+    (h.isConstructed(b) && threads(h).remove(t).by(c).called(w)) implies (c === t)))
 
 // Said of every moment `w` of a run in which the fork is made, whenever in it (`made`).
 // With capture checking this would be what the compiler says: what startThread is given by name is its own.

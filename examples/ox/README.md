@@ -20,12 +20,11 @@ The third root, `aClosedHerdRefusesToStart`, is proven: every claim below it is,
 It rests on ten assumptions: nine about the JDK, the JVM and Scala's objects, and one about Ox,
 `aHerdKeepsItsFlagToItself` (below). The suite pins the ten (`ThreadsSuite`).
 
-The first two roots are not proven. Every step from parts to a claim that has a proof is proven; three claims
+The first two roots are not proven. Every step from parts to a claim that has a proof is proven; two claims
 are not, FrFlow reports them so, and every node above one of them as waiting, and the suite names them:
 
 | Not proven | Below |
 |---|---|
-| `aHerdsSetIsPlain` | the first two roots |
 | `closingsFunctionsReturn` | the first two roots |
 | `theTreeCheckStaysOutOfHerds` | the first two roots |
 
@@ -35,13 +34,14 @@ into scopes, which are not read. Of the one before, that closing's traversals do
 (`whatClosingsFunctionsApplyReturns`); what is left is that the second function, catching an interruption,
 reads a local variable twice: that the second read finds what the first did is not yet said of an execution.
 
-Twenty-one claims are proven of the code's trees, each gone through whole. Three are of what making a herd
+Twenty-two claims are proven of the code's trees, each gone through whole. Three are of what making a herd
 runs: a herd has been made, and its flag and its set are what `new AtomicBoolean(false)` and
-`ConcurrentHashMap.newKeySet()` returned to the call that made it. Six say what each method of a herd calls
-itself, one per method (`startThreadCallsFive`, `closingCallsFour`, `theClosingCheckCallsGet`,
-`theTreeCheckCallsFour`, `theOwnerCheckCallsCurrentThread`, `theMembershipCheckCallsContains`).
+`ConcurrentHashMap.newKeySet()` returned to the call that made it. Seven say what a piece of the herd's code
+calls itself: one per method (`startThreadCallsFive`, `closingCallsFour`, `theClosingCheckCallsGet`,
+`theTreeCheckCallsFour`, `theOwnerCheckCallsCurrentThread`, `theMembershipCheckCallsContains`), and one for the
+function `startThread` hands the factory (`theForkFunctionCallsFour`).
 
-Twenty-three claims are proven of Ox's code from the JDK, the JVM and Scala's objects alone, with no
+Twenty-five claims are proven of Ox's code from the JDK, the JVM and Scala's objects alone, with no
 assumption about Ox or about who uses it (the suite computes the list and pins it). Among them:
 
 - `startThreadFirstSeesTheFlagUnset`: a call of `startThread` returns, or adds a thread, only if the herd's
@@ -50,6 +50,9 @@ assumption about Ox or about who uses it (the suite computes the list and pins i
 - `closingSetsTheFlagOnlyToTrue`: closing sets the flag to nothing but true.
 - `aHerdsMethodsOnlyGetAndSetAFlag`: of the methods of an atomic boolean, a method of a herd itself calls only
   `get`, and closing `set(true)`.
+- `whatAHerdsCodeCallsOfASet`: of the methods of a key set, `startThread` itself calls only `add`, closing
+  `isEmpty` and `forEach`, the membership check `contains`, and the function `startThread` hands the factory
+  `remove`.
 - `theForkFunctionRemovesTheCurrentThread`: the function `startThread` hands the factory removes from the set
   only the thread `Thread.currentThread()` gave it.
 - `aForkFunctionRemovesAfterTheCode`: that function removes only after its call of the code has completed.
@@ -58,27 +61,35 @@ assumption about Ox or about who uses it (the suite computes the list and pins i
 
 What is assumed, by what it is about:
 
-- **The JDK and the JVM** (16): `addingIsAtomic`, `anElementLeavesOnlyWhenRemoved`,
+- **The JDK and the JVM** (17): `addingIsAtomic`, `anElementLeavesOnlyWhenRemoved`,
   `isEmptyFindsItEmptyUnlessAdded`, `isEmptyReturns`, `getGivesTheFlag`, `settingIsAtomic`,
   `aFlagBecomesOnlyWhatIsSet`, `setReturns`, `currentThreadIsTheCaller`, `theJdkStaysOutOfHerds`,
   `aThreadDoesOneThingAtATime`, `aTraversalThrowsOnlyWhatItsFunctionThrew`, `joinThrowsOnlyAnInterruption`,
-  `interruptReturns`, `addSuppressedReturns`, `anAtomicBooleanHasOnlyItsMethods`.
+  `interruptReturns`, `addSuppressedReturns`, `anAtomicBooleanHasOnlyItsMethods`, `aKeySetHasOnlyItsMethods`.
 - **Scala's objects** (3): `herdsAreConstructed`, `aHerdKeepsItsFields`, `aHerdHoldsWhatItWasGiven`.
 - **Who uses a herd** (1): `startThreadIsCalledFromInside`. It is stricter than Ox's own check: it leaves out a
   fork of a nested scope starting a fork in an enclosing one.
 - **The thread factory a herd is given** (2): `aThreadRunsOneForkFunctionOnce`, `aFactoryStaysOutOfHerds`.
-- **That a private field stays private** (1): `aHerdKeepsItsFlagToItself`. What a herd holds as its flag is
-  called on only by the herd's own methods, themselves. The flag is a private val, made in the constructor and
-  handed to nothing; that then nothing else reaches it is what the JVM and Scala make of a private field
-  without reflection. It is assumed, of this one field, and not derived from the code. What is derived from it
-  and the trees: that only `get` and `set` are called on the flag (`aHerdsFlagIsOnlyReadAndSet`) and that only
-  closing sets it (`onlyClosingSetsTheFlag`), which were assumptions before.
-- **Who reaches the herd's set and its threads** (4): `onlyStartThreadAddsToTheSet`,
-  `onlyItsMakerStartsAThread`, `onlyAForkFunctionRemoves`, `onlyAForkFunctionCallsTheCode`. These are
-  statements about Ox, not yet derived from its code the way the flag's are.
+- **That a private field stays private** (2): `aHerdKeepsItsFlagToItself`, `aHerdKeepsItsSetToItself`. What a
+  herd holds as its flag is called on only by the herd's own methods, themselves; what it holds as its set, only
+  by those and by the functions `startThread` handed its factory. Each is a private val, made in the constructor
+  and handed to nothing; that then nothing else reaches it is what the JVM and Scala make of a private field
+  without reflection. It is assumed, of these two fields, and not derived from the code. What is derived from
+  it and the trees, and was assumed before: that only `get` and `set` are called on the flag
+  (`aHerdsFlagIsOnlyReadAndSet`), that only closing sets it (`onlyClosingSetsTheFlag`), that only `add`,
+  `remove`, `contains`, `isEmpty` and `forEach` are called on the set (`aHerdsSetIsPlain`), that only
+  `startThread` adds to it (`onlyStartThreadAddsToTheSet`) and only a fork function removes from it
+  (`onlyAForkFunctionRemoves`).
+- **Who reaches a thread and the code startThread is given** (2): `onlyItsMakerStartsAThread`,
+  `onlyAForkFunctionCallsTheCode`. These are statements about Ox, of a local value and of a parameter, not yet
+  derived from its code.
 - **Ox itself, suspected false** (1): `nothingIsAddedDuringTheLastCheck`. `isEmpty` on a concurrent set is no
   snapshot; a fork that starts another and leaves while closing asks can make it answer yes of a set that was
   never empty. The first two roots rest on it; the third does not.
+
+A call of an inline method (`discard`, in the function `startThread` hands the factory) is, in the tree read
+from TASTy, a call: the model has it as a call of a method outside the code, where the JVM runs its expansion
+in place.
 
 Beside the nodes, three things are taken of Scala and the JVM: what an execution of the code is (the meaning of
 its trees in Rocq, written by hand and tested against the JVM, `docs/EXECUTIONS.md`); that the events of

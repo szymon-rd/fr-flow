@@ -28,7 +28,6 @@ import scala.concurrent.duration.*
     * do not yet make it. Everything else is proven, or waits for one of them.
     */
   private val notProven = Map(
-    "aHerdsSetIsPlain" -> List("noForkRunsOnceClosed", "nothingIsAddedOnceClosed"),
     "closingsFunctionsReturn" -> List("noForkRunsOnceClosed", "nothingIsAddedOnceClosed"),
     "theTreeCheckStaysOutOfHerds" -> List("noForkRunsOnceClosed", "nothingIsAddedOnceClosed"))
 
@@ -42,7 +41,7 @@ import scala.concurrent.duration.*
     "aThreadDoesOneThingAtATime", "aHerdKeepsItsFields",
     "aTraversalThrowsOnlyWhatItsFunctionThrew", "joinThrowsOnlyAnInterruption", "interruptReturns",
     "addSuppressedReturns", "herdsAreConstructed", "aHerdHoldsWhatItWasGiven",
-    "anAtomicBooleanHasOnlyItsMethods")
+    "anAtomicBooleanHasOnlyItsMethods", "aKeySetHasOnlyItsMethods")
 
   /** The root that is proven, and all it is proven from: the platform, and that a herd's flag is reached only
     * by the herd's own methods, which is assumed and not derived from the code.
@@ -55,7 +54,8 @@ import scala.concurrent.duration.*
   /** The claims proven of Ox's code from that alone: no claim below them unproven, no other assumption. */
   private val provenOfTheCodeAlone = List("aForkFunctionRemovesAfterTheCode", "aHerdsFlagIsNew",
     "aHerdsMethodsOnlyGetAndSetAFlag", "aHerdsSetIsNew", "closingCallsFour", "closingSetsTheFlagItself",
-    "theMembershipCheckCallsContains", "theOwnerCheckCallsCurrentThread",
+    "theMembershipCheckCallsContains", "theOwnerCheckCallsCurrentThread", "theForkFunctionCallsFour",
+    "whatAHerdsCodeCallsOfASet",
     "closingSetsTheFlagOnlyToTrue", "closingTraversesWithAFunction", "herdsAreMade",
     "startThreadAddsBeforeItStarts",
     "startThreadAddsWhatItsFactoryMade",
@@ -64,7 +64,7 @@ import scala.concurrent.duration.*
     "theClosingCheckStaysOutOfHerds", "theForkFunctionRemovesTheCurrentThread", "theTreeCheckCallsFour",
     "whatClosingsFunctionsApplyReturns")
 
-  test("one root is proven; every step is, but three claims named here; what is above them waits".tag(Live)) {
+  test("one root is proven; every step is, but two claims named here; what is above them waits".tag(Live)) {
     Ported.run(Projects.elaborated(oxThreads), Nil, Ported.proofs("ox", "OxThreads")).map { r =>
       val unproven = Ported.unproven(r)
       assertEquals(unproven.filter(_._2 != List("Check")), notProven.map((n, _) =>

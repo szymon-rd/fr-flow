@@ -5,7 +5,8 @@ Require Export Proofs.OxThreads.Lemmas.
     it neither closes a herd nor removes from a herd's set, and no other thread removes it. *)
 Lemma startThreadCallersStayInside_Proofs_complete : startThreadCallersStayInside_Obl_complete.
 Proof.
-  intros history heldIn _ Hinside Hneither Honly h code c w [Hcalled | (m & Hm & Hbegun & Hpending)].
+  intros history heldIn _ Hinside Hneither Honly Hconstructed h code c w
+    [Hcalled | (m & Hm & Hbegun & Hpending)].
   { exact (Hinside h code c w Hcalled). }
   assert (forall k, m <= k -> k <= w -> inside heldIn history c h k) as Hall; [| apply Hall; lia].
   apply (from_a_moment_on (fun k => k <= w -> inside heldIn history c h k)).
@@ -35,7 +36,9 @@ Proof.
     + destruct Hfork as (a & value & to & Hto & Hadd). exists a, value, to. split; [lia | exact Hadd].
     + intros (m1 & Hm1 & who & Hrem). assert (m1 < k \/ m1 = k) as [Hlt | ->] by lia.
       * apply Hstays. exists m1. split; [exact Hlt | exists who; exact Hrem].
-      * pose proof (Honly h c who k Hrem) as ->. exact (Hnoleave Hrem).
+      * pose proof (begun_is_called _ _ _ _ Hbegun) as Hstarting.
+        pose proof (Honly h c who k m (conj (Hconstructed h m ltac:(unfold calledOn; eauto 14)) Hrem)) as ->.
+        exact (Hnoleave Hrem).
 Qed.
 
 (** Its parts can hold together: a run in which nothing happens meets each. *)
@@ -47,5 +50,7 @@ Proof.
   { intros h code c w H. destruct (nothing_called_at_rest _ _ _ H). }
   split.
   { intros h code h1 x. split; intros who from w [[_ H] _]; destruct (nothing_begun_at_rest _ _ _ H). }
-  intros h t c w H. destruct (nothing_called_at_rest _ _ _ H).
+  split.
+  { intros h t c w b [_ H]. destruct (nothing_called_at_rest _ _ _ H). }
+  intros h w H. repeat (destruct H as [H | H]); destruct (nothing_called_on_at_rest _ _ _ H).
 Qed.

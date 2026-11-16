@@ -15,9 +15,8 @@ Proof.
     (Invocation_mk "ox.internal.ThreadHerd interruptAllAndJoinUntilCompleted :scala.Unit"%string [h])
     (heldIn "ox.internal.ThreadHerd herdOwner"%string h) m1) as Hclosing
     by (exists from; split; [exact Hfm | exact Hc]).
-  assert (madeBefore history h "ox.internal.ThreadHerd"%string mm) as Hherd.
-  { apply (made_later history h _ from); [lia |].
-    exact (Hmade h from ltac:(unfold calledOn; eauto 14)). }
+  pose proof (herd_constructed_later history h from mm ltac:(lia)
+    (Hmade h from ltac:(unfold calledOn; eauto 14))) as Hherd.
   destruct (classic (hasLeft heldIn history t h w)) as [H | Hstays]; [exact H | exfalso].
   destruct Hfork as (a & value & to0 & Hto0 & who & Hadd).
   assert (to0 <= mm \/ (mm < to0 /\ mm <= a) \/ (mm < to0 /\ a < mm)) as [Hle | [[Hlt Hge] | [Hlt Hlt']]] by lia.
@@ -45,6 +44,6 @@ Proof.
   split.
   { intros h t m [(m1 & _ & H) _]. destruct (nothing_called_at_rest _ _ _ H). }
   split.
-  { intros h t w [(m & by_ & ins & hs & _ & H) _]. discriminate H. }
+  { intros h t w [(x & who & from & to & _ & H) _]. destruct (nothing_completed_at_rest _ _ _ _ _ H). }
   intros h w H. repeat (destruct H as [H | H]); destruct (nothing_called_on_at_rest _ _ _ H).
 Qed.

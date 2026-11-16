@@ -35,17 +35,17 @@ Proof.
   split.
   { intros b x from to (who & H). destruct (nothing_completed_at_rest _ _ _ _ _ H). }
   split.
+  { intros h w (x & who & from & to & _ & H). destruct (nothing_completed_at_rest _ _ _ _ _ H). }
+  split.
+  { intros s from to (who & H). destruct (nothing_completed_at_rest _ _ _ _ _ H). }
+  split.
   { intros s b from response to [who H]. destruct (nothing_completed_at_rest _ _ _ _ _ H). }
   split.
   { intros s b from value to [who H]. destruct (nothing_completed_at_rest _ _ _ _ _ H). }
   split.
   { intros s b from response to [who H]. destruct (nothing_completed_at_rest _ _ _ _ _ H). }
   split.
-  { intros h t c w H. destruct (nothing_called_at_rest _ _ _ H). }
-  split.
   { intros h code c t from b m other [[H _] _]. destruct (nothing_called_at_rest _ _ _ H). }
-  split.
-  { intros h t c w H. destruct (nothing_called_at_rest _ _ _ H). }
   split.
   { intros f r h1 x. split; intros who from w [[_ H] _]; destruct (nothing_begun_at_rest _ _ _ H). }
   split.

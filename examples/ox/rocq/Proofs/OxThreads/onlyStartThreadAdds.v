@@ -5,9 +5,9 @@ Require Export Proofs.OxThreads.Lemmas.
     not been started. *)
 Lemma onlyStartThreadAdds_Proofs_complete : onlyStartThreadAdds_Obl_complete.
 Proof.
-  intros heldIn history _ Honly Hruns Hnot h t c w Hadd.
-  split; [| exact (Hnot h t c w Hadd)].
-  destruct (Honly h t c w Hadd) as (code & from & Hstart & Hitself).
+  intros heldIn history _ Honly Hruns Hnot h t c w b Hadd.
+  split; [| exact (Hnot h t c w b Hadd)].
+  destruct (Honly h t c w b Hadd) as (code & from & Hstart & Hitself).
   exists code. exact (Hruns h code c t from w (conj Hstart Hitself)).
 Qed.
 
@@ -17,8 +17,8 @@ Proof.
   exists (fun _ x => x), (fun _ => Event_Stutter).
   split; [exact rest_runs |].
   split.
-  { intros h t c w H. destruct (nothing_called_at_rest _ _ _ H). }
+  { intros h t c w b [_ H]. destruct (nothing_called_at_rest _ _ _ H). }
   split.
   { intros h code c t from w [H _]. destruct (nothing_called_at_rest _ _ _ H). }
-  intros h t c w H. destruct (nothing_called_at_rest _ _ _ H).
+  intros h t c w b [_ H]. destruct (nothing_called_at_rest _ _ _ H).
 Qed.

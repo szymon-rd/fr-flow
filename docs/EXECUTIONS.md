@@ -231,13 +231,16 @@ What a model must still say itself, as assumptions:
 - **Who else touches what a class keeps to itself.** That only a class's own methods call methods on an object it
   holds in a private field is not derived from the trees: a model states it as an assumption, of the one field
   (`h.isConstructed(w) implies h.keepsToItself(flag)(…)`: a call on what the field holds is made by a method of
-  the object, itself). From it, and from what each method calls itself (`m.itselfCallsOnly(…)`, proven of the
+  the object, itself, or by what the model names beside: a function the object's code wrote and handed out). From it, and from what each method calls itself (`m.itselfCallsOnly(…)`, proven of the
   method's tree), what is called on the field's object, and by which method, is proven
   (`onlyClosingSetsTheFlag`). With capture checking the assumption is what the compiler would say.
 - **What the heap holds.** A read of a field, or of a local `var`, is an event with any value of its type
   (a variable's place carries the class it was declared with; a value of a class of what is thrown is none or
   an exception). That a read finds what was last written is not said: a claim that needs the value a variable
   holds, and not only its type, is not proven of the code.
+- **A call of an inline method** is a call in the tree read from TASTy, which is written before the compiler
+  expands it (one expanded while typing, `transparent`, is read expanded). The model has it as a call of a method
+  outside the code; a statement names it by writing the call (`ox.discard(x)`), which is read unexpanded too.
 - **A method of what is outside taking an argument by name** is read as taking it evaluated. The right side of
   `||` and `&&` is run in place, when the left side leaves it to decide: no call is an event of it.
 - **Two laws of an execution are given**, with what it is to be one of the code: a call is responded to at

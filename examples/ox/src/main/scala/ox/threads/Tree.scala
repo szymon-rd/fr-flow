@@ -11,7 +11,7 @@ import ox.internal.ThreadHerd
 
 val liveForksAreInTheSet = Node.claim("A fork of a herd that has not left is in the herd's set.")(
   forall((h: Obj[ThreadHerd], t: Obj[Thread], w: Term[BigInt]) =>
-    (h.isMade(w) && live(t, h, w)) implies elements(threads(h), w).contains(t.asValue)))
+    (h.isConstructed(w) && live(t, h, w)) implies elements(threads(h), w).contains(t.asValue)))
 
 val startThreadCallersStayInside = Node.claim(
   "While a thread is calling startThread of a herd, it is inside the herd's scope.")(
@@ -20,8 +20,8 @@ val startThreadCallersStayInside = Node.claim(
 
 val whoAddsIsCallingStartThread = Node.claim(
   "While a thread is adding to a herd's set, it is calling startThread of the herd.")(
-  forall((h: Obj[ThreadHerd], t: Obj[Thread], c: Obj[Thread], w: Term[BigInt]) =>
-    threads(h).add(t).by(c).inProgress(w) implies
+  forall((h: Obj[ThreadHerd], t: Obj[Thread], c: Obj[Thread], w: Term[BigInt], b: Term[BigInt]) =>
+    (h.isConstructed(b) && threads(h).add(t).by(c).inProgress(w)) implies
       exists((code: Obj[Code]) => starting(h, code).by(c).pendingAt(w))))
 
 val nothingIsBeingAddedWhenEmpty = Node.claim(

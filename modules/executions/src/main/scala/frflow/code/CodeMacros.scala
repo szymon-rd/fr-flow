@@ -22,7 +22,7 @@ object CodeMacros:
     import q.reflect.*
 
     def call[A: Type](code: Expr[A]): Expr[Call[A]] =
-      val (method, on, args) = applied(bare(code.asTerm), Nil)
+      val (method, on, args) = applied(unexpanded(code.asTerm), Nil)
       val named = MemberName.of(method).mkString(" ")
       val arguments = (on.toList ++ args).map(value)
       '{ Call.of[A](${ Expr(named) }, ${ Varargs(arguments) }*) }
@@ -31,6 +31,19 @@ object CodeMacros:
     def method[C: Type](code: Expr[C => Any]): Expr[String] = bare(code.asTerm) match
       case Lambda(_, body) => Expr(MemberName.of(applied(bare(body), Nil)._1).mkString(" "))
       case other => report.errorAndAbort(s"A method is named by a call on an object, `_.add(???)`: ${other.show}")
+
+    /** A call of an inline method as the call it is written as, which is how the tree read from TASTy has it:
+      * the compiler expands it only after that tree is written. One it expands while typing is read expanded.
+      */
+    private def unexpanded(t: Term): Term = t match
+      case Inlined(Some(call: Term), _, _) if expandedLater(call.symbol) => call
+      case Inlined(_, Nil, inner)                                        => unexpanded(inner)
+      case Typed(inner, _)                                               => unexpanded(inner)
+      case Block(Nil, inner)                                             => unexpanded(inner)
+      case other                                                         => other
+
+    private def expandedLater(method: Symbol): Boolean =
+      method.exists && method.isDefDef && method.flags.is(Flags.Inline) && !method.flags.is(Flags.Transparent)
 
     /** The tree without what the compiler wraps it in. */
     private def bare(t: Term): Term = t match

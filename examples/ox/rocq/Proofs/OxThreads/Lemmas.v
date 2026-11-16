@@ -68,11 +68,16 @@ Proof.
   pass.
 Qed.
 
-(** What was made before a moment was made before every later one. *)
-Lemma made_later (history : Z -> Event) h cls a b : a <= b -> madeBefore history h cls a -> madeBefore history h cls b.
-Proof. intros Hab (m & by_ & ins & hs & Hm & H). exists m, by_, ins, hs. split; [lia | exact H]. Qed.
+(** A herd that its constructor has returned by a moment, it has returned by every later one. *)
+Lemma herd_constructed_later (history : Z -> Event) h a b : a <= b ->
+  (exists x by_ from to, to <= a /\ completedBy history (Invocation_mk
+    "ox.internal.ThreadHerd <init> java.util.concurrent.ThreadFactory:ox.internal.ThreadHerd"%string [x])
+    by_ from (Response_Returned h) to) ->
+  exists x by_ from to, to <= b /\ completedBy history (Invocation_mk
+    "ox.internal.ThreadHerd <init> java.util.concurrent.ThreadFactory:ox.internal.ThreadHerd"%string [x])
+    by_ from (Response_Returned h) to.
+Proof. intros Hab (x & by_ & from & to & Hto & H). exists x, by_, from, to. split; [lia | exact H]. Qed.
 
-(** A call completes after it is made. *)
 Lemma completed_after {history : Z -> Event} {N c who from r to} :
   conforms Code_files Code_table Code_classes N history -> completedBy history c who from r to -> from < to.
 Proof. intros C [[_ ->] | [_ (sp & Hr)]]; [lia |]. pose proof (responded_after C Hr). lia. Qed.
