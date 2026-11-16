@@ -163,8 +163,34 @@ Proof.
     | _ => Value_Null
     end).
   pose (flag := fun (s : Value) (w : Z) => s = Value_Reference 3 /\ 20 < w).
-  exists (history_of events), held, (fun _ _ _ => False), flag.
+  exists (history_of events), (fun _ _ _ => False), held, flag.
   split; [exact Hruns |]. clear Hruns.
+  split.
+  { intros s x who from [H _]. absent H. }
+  split.
+  { intros s b who from [H _]. absent H. }
+  split.
+  { intros s who from [H _]. absent H. }
+  split.
+  { intros s rest _ from response to [who H] _. reveal H. f_equal. apply truth_is. tauto. }
+  split.
+  { intros s f c from [[H _] _]. absent H. }
+  split.
+  { intros s f c x from m [H _]. absent H. }
+  split.
+  { intros s x w [_ H]. destruct H. }
+  split.
+  { intros made by_ w Hw H. reveal H; lia. }
+  split.
+  { intros f r t c a b i from [[[who H] _] _]. absent H. }
+  split.
+  { intros h f x c k [_ H]. absent H. }
+  split.
+  { intros h f x c k g t a [[_ H] _]. absent H. }
+  split.
+  { intros t who from [H _]. absent H. }
+  split.
+  { intros x y who from [H _]. absent H. }
   split.
   { intros f r t a b s [[who H] _]. absent H. }
   split.

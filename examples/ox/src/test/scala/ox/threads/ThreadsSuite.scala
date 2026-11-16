@@ -33,13 +33,17 @@ import scala.concurrent.duration.*
     "addSuppressedReturns", "herdsAreConstructed", "aHerdHoldsWhatItWasGiven",
     "anAtomicBooleanHasOnlyItsMethods", "aKeySetHasOnlyItsMethods",
     "whatTheChecksAskOfTheJdkStaysOutOfHerds", "aScopeHoldsTheHerdItIsMadeWith", "aScopeGivesTheHerdItHolds",
-    "theCurrentScopeIsReadAndSet")
+    "theCurrentScopeIsReadAndSet", "aTraversalAppliesItsFunctionToElements", "anElementWasAdded",
+    "isEmptyFindsARestingSetEmpty")
 
   /** What is assumed to happen in time: of who schedules threads (a call of code that waits for nothing makes its
     * next event), of the JDK and of the thread factory (a call is responded to; a started thread runs).
     */
   private val ofWhatHappensInTime = Set("aHerdsMethodsProceed", "aForkFunctionProceeds", "currentThreadResponds",
-    "removingResponds", "discardResponds", "aStartedThreadRunsItsFunction")
+    "removingResponds", "discardResponds", "aStartedThreadRunsItsFunction", "closingsFunctionsProceed",
+    "whatClosingsFunctionsApplyProceeds", "interruptResponds", "addSuppressedResponds",
+    "joinRespondsOnceItsThreadHasRun", "aTraversalRespondsOnceItsFunctionDoes", "theExecutionBegins",
+    "settingResponds", "isEmptyResponds", "addingResponds")
 
   /** What is assumed of the code a fork is given: a restriction on who uses Ox. */
   private val ofForkCode = List("forkCodeCompletesOnceInterrupted")
@@ -80,11 +84,8 @@ import scala.concurrent.duration.*
     List(s"noForkRunsOnce${of}Ends", s"nothingIsAddedOnce${of}Ends", s"noThreadIsStartedOnce${of}Ends"))
 
   /** What happens in time. */
-  private val live = List("aForkEndsOnceInterrupted")
-
-  /** What closing does to each thread it finds, which what happens in time is to be from. */
-  private val towardsTime = List("whatClosingsFunctionsApplyInterrupts")
-  private val roots = safe ++ live ++ towardsTime
+  private val live = List("closingCompletesOnceItsHerdEmpties")
+  private val roots = safe ++ live
 
   /** What rests on the assumption false of Ox 1.1.0: everything but that no thread is started. */
   private val onTheLastCheck = safe.filterNot(_.startsWith("noThreadIsStarted")) ++
@@ -96,13 +97,16 @@ import scala.concurrent.duration.*
       assertEquals(Ported.standsOn(r).map((root, on) => root -> on._1), roots.map(_ -> Nil).toMap)
       assertEquals(Ported.standing(r)("aClosedHerdRefusesToStart")._1.sorted, theFlagRootIsFrom)
       val named = ofThePlatform ++ ofPrivateState ++ ofWhoUsesAHerd ++ ofScopesNotRead ++ falseOfOx110
-      (safe ++ towardsTime).foreach(root => assertEquals(Ported.standing(r)(root)._1.filterNot(named), Nil, root))
+      safe.foreach(root => assertEquals(Ported.standing(r)(root)._1.filterNot(named), Nil, root))
       // what happens in time rests on nothing false of Ox 1.1.0, and on the code a fork is given ending
       live.foreach { root =>
         val on = Ported.standing(r)(root)._1
         assertEquals(on.filterNot(named ++ ofWhatHappensInTime ++ ofForkCode), Nil, root)
         assert(ofForkCode.forall(on.contains) && !on.contains("nothingIsAddedDuringTheLastCheck"), root)
       }
+      // that adding stops rests on neither
+      val adding = Ported.standing(r)("addingStopsOnceTheFlagIsSet")._1
+      assert(!adding.exists(a => ofForkCode.contains(a) || a == "nothingIsAddedDuringTheLastCheck"), adding)
       // that no thread is started rests on the platform and on the herd's flag being its own, and no more
       safe.filter(_.startsWith("noThreadIsStarted")).foreach(root => assertEquals(
         Ported.standing(r)(root)._1.filterNot(ofThePlatform), List("aHerdKeepsItsFlagToItself"), root))

@@ -6,6 +6,7 @@ import frflow.code.InCode.given
 import frflow.executions.*
 import frflow.values.*
 import java.util.concurrent.ThreadFactory
+import java.util.function.Consumer
 import ox.internal.ThreadHerd
 import ox.threads.*
 
@@ -49,3 +50,22 @@ val forkCodeCompletesOnceInterrupted = Node.assumption(
   forall((h: Obj[ThreadHerd], t: Obj[Thread], code: Obj[Code], made: Term[BigInt], m: Term[BigInt]) =>
     (madeToRun(t, h, code, made) && code().by(t).called(m) && interrupted(t)) implies
       code().by(t).respondedTo(m)))
+
+val closingsFunctionsProceed = Node.assumption(
+  "A call of a function closing has passed to a traversal, pending and waiting for no call it made, makes its " +
+    "next event in time.")(
+  forall((h: Obj[ThreadHerd], f: Obj[Consumer[AnyRef]], x: Obj[AnyRef], c: Obj[Thread], k: Term[BigInt]) =>
+    (traversedWith(f, h, k) && f.accept(x).by(c).called(k)) implies proceedsFrom(c.asValue, k)))
+
+val whatClosingsFunctionsApplyProceeds = Node.assumption(
+  "A call of a function that such a function itself makes, pending and waiting for no call it made, makes its " +
+    "next event in time.")(
+  forall((h: Obj[ThreadHerd], f: Obj[Consumer[AnyRef]], x: Obj[AnyRef], c: Obj[Thread]) =>
+    forall((k: Term[BigInt], g: Term[Value], t: Term[Value], a: Term[BigInt]) =>
+      (traversedWith(f, h, k) && f.accept(x).by(c).called(k) &&
+        applicationOf[Unit](g, t).by(c).calledInside(k, a)) implies proceedsFrom(c.asValue, a))))
+
+// Of an execution: it has a first moment.
+val theExecutionBegins = Node.assumption("Nothing is called before the execution begins.")(
+  forall((made: Term[Invocation], by: Term[Value], w: Term[BigInt]) =>
+    (w < (BigInt(0): Term[BigInt])) implies !calledBy(made, by, w)))

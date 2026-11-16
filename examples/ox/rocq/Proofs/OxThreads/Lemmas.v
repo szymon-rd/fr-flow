@@ -280,3 +280,32 @@ Proof.
   - rewrite E in E'. injection E' as <- _.
     pose proof (responded_once C Er Er') as Ew. rewrite Ew in Er. rewrite Er in Er'. injection Er'. auto.
 Qed.
+
+(** Finitely many moments in a window: what happens at most once for each has a moment after all of it. *)
+Lemma bounded_over_a_window (P : Z -> Z -> Prop) (lo : Z) :
+  (forall s w w', P s w -> P s w' -> w = w') ->
+  forall n : nat, exists B, forall s w, lo <= s < lo + Z.of_nat n -> P s w -> w < B.
+Proof.
+  intros Hone. induction n as [| n [B IH]].
+  - exists 0. intros s w Hs. lia.
+  - destruct (Classical_Prop.classic (exists w, P (lo + Z.of_nat n) w)) as [[w0 H0] | Hnone].
+    + exists (Z.max B (w0 + 1)). intros s w Hs Hp. destruct (Z.eq_dec s (lo + Z.of_nat n)) as [-> | Hne].
+      * rewrite (Hone _ _ _ Hp H0). lia.
+      * pose proof (IH s w ltac:(lia) Hp). lia.
+    + exists B. intros s w Hs Hp. destruct (Z.eq_dec s (lo + Z.of_nat n)) as [-> | Hne].
+      * exfalso. apply Hnone. exists w. exact Hp.
+      * exact (IH s w ltac:(lia) Hp).
+Qed.
+
+(** Finitely many moments in a window: what comes to hold of each, and then stays, holds of all from a moment. *)
+Lemma all_over_a_window (Q : Z -> Z -> Prop) (lo : Z) :
+  (forall s e e', Q s e -> e <= e' -> Q s e') -> (forall s, exists e, Q s e) ->
+  forall n : nat, exists E, forall s, lo <= s < lo + Z.of_nat n -> Q s E.
+Proof.
+  intros Hstays Hcomes. induction n as [| n [E IH]].
+  - exists 0. intros s Hs. lia.
+  - destruct (Hcomes (lo + Z.of_nat n)) as [e He]. exists (Z.max E e). intros s Hs.
+    destruct (Z.eq_dec s (lo + Z.of_nat n)) as [-> | Hne].
+    + apply (Hstays _ e); [exact He | lia].
+    + apply (Hstays s E); [apply IH; lia | lia].
+Qed.

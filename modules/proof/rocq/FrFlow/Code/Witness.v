@@ -272,7 +272,9 @@ Ltac take :=
                   | exact (of_bool _ _)];
         fact]]
     | solve [eapply takes_end; [settle | reflexivity | fact]]
-    | solve [eapply takes_method; [settle | ..]; revgoals; [reflexivity | fact]] ].
+    | solve [eapply takes_method; [settle | ..]; revgoals; [reflexivity | fact]]
+    | solve [eapply takes_invoke; [settle | ..]; revgoals; [reflexivity | fact]]
+    | solve [eapply takes_function; [settle | ..]; revgoals; [reflexivity | fact | fact | fact | fact]] ].
 
 (** No event written out, at the moments asked of, is the call's own. *)
 Ltac quiet :=
@@ -291,7 +293,7 @@ Ltac quiet :=
       | lazy in E;
         repeat (destruct E as [[-> ->] | E];
           [first [lia | cbn in Hits; solve [intuition (first [lia | congruence])]] |]);
-        destruct E ]
+        exact (False_ind _ E) ]
   end.
 
 (** The call's next event is the one at the moment `n`; `answer_at` where it is the response of the call it
@@ -300,7 +302,7 @@ Ltac own_at n :=
   eapply goes_step with (w1 := n); [lia | quiet | left; hnf; split; reflexivity | take |].
 Ltac answer_at n :=
   eapply goes_step with (w1 := n); [lia | quiet | right; hnf; split; reflexivity | take |].
-Ltac rests := apply goes_idle; quiet.
+Ltac rests := solve [apply goes_idle; quiet].
 
 (** ** Which class, and which method, a call is of *)
 
@@ -489,7 +491,7 @@ Ltac no_direct Hits :=
       | lazy in E;
         repeat (destruct E as [[-> ->] | E];
           [first [lia | cbn in Hits; solve [intuition (first [lia | congruence])]] |]);
-        destruct E ]
+        exact (False_ind _ E) ]
   end.
 
 (** The call made at a moment follows its program: it is none of its own events before nor after, and `G`
