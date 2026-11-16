@@ -148,8 +148,14 @@ more, and is written out: its events as a list (`FrFlow.Code.Witness`: `history_
 of its references is (`naming_of`), and each call of it shown to follow its program one event after another
 (`goes`, with `own_at`, `answer_at` and `rests`); which method a call is of is found by its label
 (`impl_labelled`, `module_labelled`, `constructor_labelled`), and what a statement says of the execution is
-taken apart down to the events written (`reveal`, `absent`, `scan`). Ox's model shows what it states at the
-bottom of one such execution, in which a herd is made and closed (`examples/ox/rocq/Proofs/OxThreads/Whole.v`).
+taken apart down to the events written (`reveal`, `absent`, `scan`). The events need not be written by hand:
+`FrFlow.Code.Replay` goes through the code as an execution of it would, given the calls made from outside, the
+moments each thread acts at and what each call of what is outside answers (`trace` prints the events, `replay`
+gives which value each reference is), and `conforms_written` then shows the execution to be one of the code,
+law by law, following each call to where it rests (`go`). Ox's model shows what it states at the bottom of one
+such execution, in which a herd is made and closed (`examples/ox/rocq/Proofs/OxThreads/Whole.v`). A proof so
+made writes the program left at each step into its term: one of 27 events is light, one of 80 (a fork still
+running when its herd is closed) outgrows the memory FrFlow gives a compile, and is not kept.
 
 `modules/executions/src/test` has a model with no code (a concurrent set known by its assumptions) and a model
 of code read from its TASTy (a latch), each checked end to end;

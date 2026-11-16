@@ -276,6 +276,14 @@ Ltac take :=
     | solve [eapply takes_invoke; [settle | ..]; revgoals; [reflexivity | fact]]
     | solve [eapply takes_function; [settle | ..]; revgoals; [reflexivity | fact | fact | fact | fact]] ].
 
+(** Two moments written out are not in the order said. *)
+Ltac out_of_order :=
+  match goal with
+  | H : _ /\ _ |- _ => destruct H; out_of_order
+  | H : (_ <= _)%Z |- _ => exact (False_ind _ (H eq_refl))
+  | H : (_ < _)%Z |- _ => (vm_compute in H; discriminate H)
+  end.
+
 (** No event written out, at the moments asked of, is the call's own. *)
 Ltac quiet :=
   let w := fresh "w" in let Hw := fresh "Hw" in let Hits := fresh "Hits" in
@@ -292,17 +300,29 @@ Ltac quiet :=
       [ rewrite E in Hits; cbn in Hits; tauto
       | lazy in E;
         repeat (destruct E as [[-> ->] | E];
-          [first [lia | cbn in Hits; solve [intuition (first [lia | congruence])]] |]);
+          [first [out_of_order | cbn in Hits; solve [intuition (first [congruence | lia])]] |]);
         exact (False_ind _ E) ]
   end.
 
 (** The call's next event is the one at the moment `n`; `answer_at` where it is the response of the call it
-    waits for. *)
+    waits for. Whether the event is the call's is looked at first: it is what fails where it is not. *)
 Ltac own_at n :=
-  eapply goes_step with (w1 := n); [lia | quiet | left; hnf; split; reflexivity | take |].
+  eapply goes_step with (w1 := n); only 3: (left; hnf; split; reflexivity); [lia | quiet | take |].
 Ltac answer_at n :=
-  eapply goes_step with (w1 := n); [lia | quiet | right; hnf; split; reflexivity | take |].
+  eapply goes_step with (w1 := n); only 3: (right; hnf; split; reflexivity); [lia | quiet | take |].
 Ltac rests := solve [apply goes_idle; quiet].
+
+(** A call goes on from its program to where it rests: each next event of its own is found, from the moment it
+    has come to, and taken. *)
+Ltac step_from n fuel :=
+  lazymatch fuel with
+  | O => fail "no next event of the call"
+  | S ?f => first [own_at n | answer_at n | let n' := eval lazy in (n + 1) in step_from n' f]
+  end.
+Ltac go :=
+  repeat (lazymatch goal with
+    | |- goes _ _ _ _ _ _ ?w0 _ => first [rests | let w := eval lazy in w0 in step_from w 400%nat]
+    end).
 
 (** ** Which class, and which method, a call is of *)
 
@@ -440,6 +460,15 @@ Ltac scan H :=
         try destruct E ]
   end.
 
+(** What two responses, or two truth values, said to be the same tell. *)
+Ltac learn :=
+  repeat match goal with
+    | H : Response_Returned _ = Response_Returned _ |- _ => injection H as H
+    | H : Response_Threw _ = Response_Threw _ |- _ => injection H as H
+    | H : Value_Bool_ _ = Value_Bool_ _ |- _ => injection H as H
+    end;
+  subst.
+
 (** What is said to be in the execution, taken apart down to the events it speaks of: one case for each way
     the events written out make it so, with what that tells. *)
 Ltac break H :=
@@ -452,7 +481,9 @@ Ltac break H :=
       | |- ?P -> _ => let Hn := fresh "B" in intro Hn; lazymatch goal with Hm : P |- _ => break Hm end
       end
   | exists _, _ => let x := fresh "x" in destruct H as [x H]; break H
-  | history_of _ _ = _ => scan H; inversion H; subst; clear H
+  | history_of _ _ = _ => scan H; inversion H; subst; clear H; learn
+  | ?x = _ => first [is_var x; subst x | idtac]
+  | _ = ?x => first [is_var x; subst x | idtac]
   | _ => idtac
   end.
 Ltac reveal H := autounfold with frflow_defs in H; break H.
@@ -490,17 +521,226 @@ Ltac no_direct Hits :=
       [ rewrite E in Hits; exact Hits
       | lazy in E;
         repeat (destruct E as [[-> ->] | E];
-          [first [lia | cbn in Hits; solve [intuition (first [lia | congruence])]] |]);
+          [first [out_of_order | cbn in Hits; solve [intuition (first [congruence | lia])]] |]);
         exact (False_ind _ E) ]
   end.
 
-(** The call made at a moment follows its program: it is none of its own events before nor after, and `G`
-    says it goes on from its program. *)
-Ltac follows_by G :=
+(** The call made at a moment follows its program: none of its own events is before it nor after its response,
+    and it goes on from its program to where it rests. *)
+Ltac follows_go :=
   apply follows_of;
   [ let w := fresh "w" in let Hw := fresh "Hw" in let Hits := fresh "Hits" in
     intros w Hw Hits; no_direct Hits
   | let k := fresh "k" in let w := fresh "w" in let r := fresh "r" in let sp := fresh "sp" in
     let H := fresh "H" in let Hk := fresh "Hk" in let Hits := fresh "Hits" in
     intros k w r sp H Hk Hits; scan H; no_direct Hits
-  | exact G ].
+  | solve [go] ].
+
+(** ** An execution written out is one of the code
+
+    Each law of `Conforms`, of an execution written out: one case for each event the law speaks of. A call of a
+    method or of a function of the code is found by its label and by what its first argument names, and
+    followed from its program to where it rests. *)
+
+(** Each call of a method of the code, on an object of the code, runs the method. *)
+Ltac law_methods :=
+  let H := fresh "H" in let Hy := fresh "Hy" in let Himpl := fresh "Himpl" in
+  let Hm := fresh "Hm" in let Hin := fresh "Hin" in let Hr := fresh "Hr" in
+  intros ? ? ? ? ? ? ? ? ? H Hy Himpl; scan H; injection H as <- <- Hm <- <-;
+  first
+    [ solve [lazy in Hy; discriminate Hy]
+    | solve [pose proof (plain_not_referred _ _ Hy) as Hr; discriminate Hr]
+    | lazy in Hy; injection Hy as <- <-;
+      pose proof (impl_labelled _ _ _ _ Himpl) as Hin; rewrite <- Hm in Hin; vm_compute in Hin;
+      repeat (lazymatch type of Hin with _ \/ _ => destruct Hin as [Hin | Hin] end);
+      first
+        [ solve [destruct Hin]
+        | subst; vm_compute in Himpl; first
+            [ discriminate Himpl
+            | injection Himpl as <-; eexists; split; [fact | split; [fact | follows_go]] ] ] ].
+
+(** No call is of a method of an object alone of its class. *)
+Ltac law_modules :=
+  let H := fresh "H" in let Hc := fresh "Hc" in let Hmod := fresh "Hmod" in let Himpl := fresh "Himpl" in
+  let Hm := fresh "Hm" in let Hin := fresh "Hin" in
+  intros ? ? ? ? ? ? ? ? ? H Hc Hmod Himpl; pose proof (module_labelled _ _ _ _ _ _ Hc Hmod Himpl) as Hin;
+  scan H; injection H as <- <- Hm <-; rewrite <- Hm in Hin; vm_compute in Hin; destruct Hin.
+
+(** Each call that applies a function runs it. *)
+Ltac law_functions :=
+  let H := fresh "H" in let Happ := fresh "Happ" in let Hy := fresh "Hy" in let Hw := fresh "Hw" in
+  let Hr := fresh "Hr" in
+  intros ? ? ? ? ? ? ? H Happ Hy Hw; scan H; injection H as <- <- <- <- <-;
+  first
+    [ solve [vm_compute in Happ; discriminate Happ]
+    | solve [lazy in Hy; discriminate Hy]
+    | solve [pose proof (plain_not_referred _ _ Hy) as Hr; discriminate Hr]
+    | lazy in Hy; injection Hy as <-; eexists; split; [fact | split; [fact | follows_go]] ].
+
+(** No call made and responded to at once is one of the code. *)
+Ltac law_atomic :=
+  let H := fresh "H" in
+  intros ? ? ? ? ? ? ? H; scan H; injection H as <- <- <- <- <- <-;
+  (split;
+   [ let Hm := fresh "Hm" in let Hys := fresh "Hys" in let Hy := fresh "Hy" in let Himpl := fresh "Himpl" in
+     let Hr := fresh "Hr" in
+     intros ? ? ? ? ? ? Hm Hys Hy Himpl;
+     first [ discriminate Hys | injection Hys as <- <-; lazy in Hy; discriminate Hy
+           | injection Hys as <- <-; pose proof (plain_not_referred _ _ Hy) as Hr; discriminate Hr ]
+   | split;
+     [ let Hm := fresh "Hm" in let Hc := fresh "Hc" in let Hmod := fresh "Hmod" in let Himpl := fresh "Himpl" in
+       let Hin := fresh "Hin" in
+       intros ? ? ? ? ? Hm Hc Hmod Himpl; pose proof (module_labelled _ _ _ _ _ _ Hc Hmod Himpl) as Hin;
+       rewrite <- Hm in Hin; vm_compute in Hin; destruct Hin
+     | let Happ := fresh "Happ" in let Hys := fresh "Hys" in let Hy := fresh "Hy" in let Hr := fresh "Hr" in
+       intros ? ? ? Happ Hys Hy ?;
+       first [ solve [vm_compute in Happ; discriminate Happ] | discriminate Hys
+             | injection Hys as <- <-; lazy in Hy; discriminate Hy
+             | injection Hys as <- <-; pose proof (plain_not_referred _ _ Hy) as Hr; discriminate Hr ] ] ]).
+
+(** An object said to be made is one of the code, made once. *)
+Ltac law_made :=
+  let H := fresh "H" in let H' := fresh "H'" in
+  split;
+  [ intros ? ? ? ? ? ? H; scan H; injection H as <- <- <- <- <-; eexists; unfold names; reflexivity
+  | intros ? ? ? ? ? ? ? ? ? ? ? H H'; scan H; injection H as <- <- <- <- <-; scan H';
+    first [reflexivity | discriminate H'] ].
+
+(** A call is responded to at most once, after it is made. *)
+Ltac law_answered :=
+  let H := fresh "H" in let H' := fresh "H'" in
+  split;
+  [ intros ? ? ? ? ? ? ? ? H H'; scan H; injection H as <- <- <- <-; scan H'; first [reflexivity | discriminate H']
+  | intros ? ? ? ? ? H; scan H; injection H as <- <- <- <-; lia ].
+
+(** A call of a constructor of a class of the code runs what making an object of the class runs. *)
+Ltac law_constructors :=
+  let H := fresh "H" in let Hc := fresh "Hc" in let Hmod := fresh "Hmod" in let Hm := fresh "Hm" in
+  let Hin := fresh "Hin" in
+  split;
+  [ intros ? ? ? ? ? signature ? H Hc Hmod; pose proof (constructor_labelled _ _ signature _ Hc) as Hin;
+    scan H; injection H as <- <- Hm <-; rewrite <- Hm in Hin; vm_compute in Hin;
+    repeat (lazymatch type of Hin with _ \/ _ => destruct Hin as [Hin | Hin] end);
+    first [ solve [destruct Hin]
+          | subst; vm_compute in Hc; injection Hc as <-; eexists; split; [fact | split; [fact | follows_go]] ]
+  | intros ? ? ? ? ? signature ? ? ? H Hc Hmod; pose proof (constructor_labelled _ _ signature _ Hc) as Hin;
+    scan H; injection H as <- <- Hm <- <- <-; rewrite <- Hm in Hin; vm_compute in Hin; destruct Hin ].
+
+(** Some moment from `n` on, within the fuel given, is one `tac` shows to be as asked. *)
+Ltac seek n fuel tac :=
+  lazymatch fuel with
+  | O => fail "no such moment"
+  | S ?f => first [exists n; tac | let n' := eval lazy in (n + 1) in seek n' f tac]
+  end.
+
+(** No event written out, at the moments asked of, is the write said. *)
+Ltac no_write :=
+  let Hw := fresh "Hw" in
+  intros; intro Hw; scan Hw; first [discriminate Hw | lia].
+
+(** What is read of a variable is what was last written there, or what it was made holding. *)
+Ltac law_variables :=
+  let H := fresh "H" in let Hyo := fresh "Hyo" in let Hvar := fresh "Hvar" in
+  intros ? ? ? ? ? ? ? ? H Hyo Hvar ? ?; scan H; injection H as <- <- <- <- <-;
+  first
+    [ solve [lazy in Hyo; discriminate Hyo]
+    | lazy in Hyo; injection Hyo as <- <-; first
+        [ discriminate Hvar
+        | right; split; [no_write | seek 0 400%nat ltac:(do 3 eexists; reflexivity)]
+        | left; seek 0 400%nat ltac:(eexists; split; [lia | split; [reflexivity | no_write]]) ] ].
+
+(** The execution written out is one of the code, under the naming given. *)
+Ltac conforms_written :=
+  split; [law_methods | split; [law_modules | split; [law_functions | split; [law_atomic | split; [law_made |
+    split; [law_answered | split; [law_constructors | law_variables]]]]]]].
+
+(** ** What a model says of an execution written out
+
+    A model's words are its own (generated with it): these go by their shape, once unfolded. *)
+
+(** The moment at which the call made at `i` by `a` is responded to, among the events written from `n` on. *)
+Ltac respond_of evs a i n fuel k :=
+  lazymatch fuel with
+  | O => fail "the call is not responded to"
+  | S ?f =>
+      let e := eval lazy in (history_of evs n) in
+      lazymatch e with
+      | Event_Respond a i _ _ => k n
+      | _ => let n' := eval lazy in (n + 1) in respond_of evs a i n' f k
+      end
+  end.
+
+(** A call made has been responded to by some moment. *)
+Ltac responded :=
+  lazymatch goal with
+  | |- exists to, _ (history_of ?evs) ?c ?from to =>
+      let c' := eval lazy in c in let i' := eval lazy in from in let n := eval lazy in (i' + 1) in
+      respond_of evs c' i' n 400%nat ltac:(fun r =>
+        let r1 := eval lazy in (r + 1) in
+        exists r1; autounfold with frflow_defs; exists r; do 2 eexists; split; [lia | reflexivity])
+  end.
+
+(** A call that is responded to makes its next event in time: its response, where it makes no other. *)
+Ltac proceeds_written :=
+  lazymatch goal with
+  | |- _ (history_of ?evs) ?c ?i =>
+      let c' := eval lazy in c in let i' := eval lazy in i in let n := eval lazy in (i' + 1) in
+      respond_of evs c' i' n 400%nat ltac:(fun r =>
+        let w := fresh "w" in let Hw := fresh "Hw" in let Hover := fresh "Hover" in
+        let Hle := fresh "Hle" in let Hgt := fresh "Hgt" in
+        autounfold with frflow_defs; intros w [[Hw Hover] _]; destruct (Z_le_gt_dec w r) as [Hle | Hgt];
+        [ exists r; split; [exact Hle | right; do 2 eexists; reflexivity]
+        | exfalso; apply Hover; exists r; do 2 eexists; split; [lia | reflexivity] ])
+  end.
+
+(** A truth value is not the one said. *)
+Ltac untrue :=
+  exfalso; learn;
+  match goal with
+  | H : (false = true) = True |- _ => assert (X : false = true) by (rewrite H; exact I); discriminate X
+  | H : True = (false = true) |- _ => assert (X : false = true) by (rewrite <- H; exact I); discriminate X
+  | H : (true = true) = False |- _ => rewrite <- H; reflexivity
+  | H : False = (true = true) |- _ => rewrite H; reflexivity
+  | H : (true = true) = (false = true) |- _ => exact (truths_differ (eq_sym H))
+  | H : (false = true) = (true = true) |- _ => exact (truths_differ H)
+  end.
+
+(** Each moment `w` from `n` on, one after another (`tac`), then those past them (`last`). *)
+Ltac each_moment w n fuel tac last :=
+  lazymatch fuel with
+  | O => last
+  | S ?f =>
+      let E := fresh "E" in
+      destruct (Z.eq_dec w n) as [E | E];
+      [ subst w; tac | let n' := eval lazy in (n + 1) in each_moment w n' f tac last ]
+  end.
+
+(** Some call the pending call itself made, before now, is not over. *)
+Ltac between_from n fuel :=
+  eexists; seek n fuel ltac:(split; [split; [lia | reflexivity] |];
+    let H := fresh "H" in intros (? & ? & ? & ? & H); scan H; lia).
+
+(** What a thread does at a moment written, while a call of its own is pending, is the call's own, or inside a
+    call the call made that is not over: `Hlt` says the call was made before, `Hover` that it is not over,
+    `Hdoes` what the thread does. *)
+Ltac one_at Hdoes n fuel :=
+  autounfold with frflow_defs in Hdoes; lazy in Hdoes;
+  first
+    [ solve [destruct Hdoes]
+    | let Ht := fresh "Ht" in let Hi := fresh "Hi" in
+      destruct Hdoes as [Ht Hi];
+      first [ discriminate Ht | subst; first [left; reflexivity | right; between_from n fuel] ] ].
+Ltac one_at_a_time Hlt Hover Hdoes :=
+  lazymatch type of Hlt with
+  | ?from < ?w =>
+      lazymatch type of Hover with
+      | ~ _ (history_of ?evs) ?t _ _ =>
+          let t' := eval lazy in t in let n := eval lazy in (from + 1) in
+          respond_of evs t' from n 400%nat ltac:(fun r =>
+            let fuel := eval lazy in (Z.to_nat (r - from)) in
+            each_moment w n fuel
+              ltac:(one_at Hdoes n fuel)
+              ltac:(exfalso; apply Hover; autounfold with frflow_defs; exists r; do 2 eexists;
+                    split; [lia | reflexivity]))
+      end
+  end.

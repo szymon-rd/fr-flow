@@ -81,67 +81,7 @@ Proof.
       | 1%nat => "<var>:scala.collection.immutable.Set"%string
       | _ => "<var>:java.lang.InterruptedException"%string
       end) eq_refl eq_refl).
-  assert (Hmade : goes Code_table Code_classes N (history_of events) (Value_Reference 0) 0 1
-    (Running (constructs Code_table "ox.internal.ThreadHerd" [vext "java.util.concurrent.ThreadFactory" 0]))).
-  { own_at 1. own_at 2. own_at 3. own_at 4. own_at 5. own_at 6. own_at 7. own_at 8. own_at 9. own_at 10.
-    own_at 11. own_at 12. own_at 13. rests. }
-  assert (Howned : goes Code_table Code_classes N (history_of events) (Value_Reference 0) 15 16
-    (Running (run Code_table (Method (Member "ox.internal.ThreadHerd" "assertOnOwnerThread" ":scala.Unit"))
-      (VList [vref "ox.internal.ThreadHerd" 0])))).
-  { own_at 16. own_at 17. own_at 18. rests. }
-  assert (Hclosed : goes Code_table Code_classes N (history_of events) (Value_Reference 0) 14 15
-    (Running (run Code_table
-      (Method (Member "ox.internal.ThreadHerd" "interruptAllAndJoinUntilCompleted" ":scala.Unit"))
-      (VList [vref "ox.internal.ThreadHerd" 0])))).
-  { own_at 15. answer_at 18. own_at 19. own_at 20. own_at 21. own_at 22. own_at 23. own_at 24. own_at 25.
-    own_at 26. rests. }
-  exists N. split; [| split; [| split; [| split; [| split; [| split; [| split]]]]]].
-  - intros i a inside s cls r d y ys H Hy Himpl. scan H; injection H as <- <- Hm <- <-.
-    + lazy in Hy. discriminate Hy.
-    + lazy in Hy. injection Hy as <- <-.
-      pose proof (impl_labelled _ _ _ _ Himpl) as Hin. rewrite <- Hm in Hin. vm_compute in Hin.
-      destruct Hin as [<- | []]. vm_compute in Himpl. injection Himpl as <-.
-      exists []. split; [apply Forall2_nil | split; [apply Forall2_nil |]]. follows_by Hclosed.
-    + lazy in Hy. injection Hy as <- <-.
-      pose proof (impl_labelled _ _ _ _ Himpl) as Hin. rewrite <- Hm in Hin. vm_compute in Hin.
-      destruct Hin as [<- | []]. vm_compute in Himpl. injection Himpl as <-.
-      exists []. split; [apply Forall2_nil | split; [apply Forall2_nil |]]. follows_by Howned.
-  - intros i a inside owner name signature c0 d ys H Hc Hmod Himpl.
-    pose proof (module_labelled _ _ _ _ _ _ Hc Hmod Himpl) as Hin.
-    scan H; injection H as <- <- Hm <-; rewrite <- Hm in Hin; vm_compute in Hin; destruct Hin.
-  - intros i a inside m f y ys H Happ Hy Hwritten.
-    scan H; injection H as <- <- <- Hys; try discriminate Hys; vm_compute in Happ; discriminate Happ.
-  - intros w a inside m ys resp spawns H. scan H; injection H as <- <- <- <- <- <-; (split; [| split]).
-    all: try (intros s cls r d y ys' Hm Hys Hy Himpl;
-      first [ discriminate Hys | injection Hys as <- <-; lazy in Hy; discriminate Hy
-            | injection Hys as <- <-; pose proof (plain_not_referred _ _ Hy) as Hr; discriminate Hr ]).
-    all: try (intros owner name signature c0 d Hm Hc Hmod Himpl;
-      pose proof (module_labelled _ _ _ _ _ _ Hc Hmod Himpl) as Hin; rewrite <- Hm in Hin; vm_compute in Hin;
-      destruct Hin).
-    all: intros f y ys' Happ Hys Hy Hwritten; vm_compute in Happ; discriminate Happ.
-  - split.
-    + intros w b inside y cls hs H. scan H; injection H as <- <- <- <- <-; eexists; unfold names; reflexivity.
-    + intros w w' b inside y cls hs b' inside' cls' hs' H H'.
-      scan H; injection H as <- <- <- <- <-; scan H'; first [reflexivity | discriminate H'].
-  - split.
-    + intros k k' a called r r' spawns spawns' H H'.
-      scan H; injection H as <- <- <- <-; scan H'; first [reflexivity | discriminate H'].
-    + intros k a called r spawns H. scan H; injection H as <- <- <- <-; lia.
-  - split.
-    + intros i a inside cls c0 signature ys H Hc Hmod.
-      pose proof (constructor_labelled _ _ signature _ Hc) as Hin.
-      scan H; injection H as <- <- Hm <-; rewrite <- Hm in Hin; vm_compute in Hin;
-        [destruct Hin as [<- | []] | destruct Hin | destruct Hin].
-      vm_compute in Hc. injection Hc as <-.
-      exists [vext "java.util.concurrent.ThreadFactory" 0]. split; [fact | split; [fact |]]. follows_by Hmade.
-    + intros w a inside cls c0 signature ys resp spawns H Hc Hmod.
-      pose proof (constructor_labelled _ _ signature _ Hc) as Hin.
-      scan H; injection H as <- <- Hm <- <- <-; rewrite <- Hm in Hin; vm_compute in Hin; destruct Hin.
-  - intros w a inside yo f y cls r H Hyo Hvar Hmk Hwrites.
-    scan H; injection H as <- <- <- <- <-; lazy in Hyo; injection Hyo as <- <-; try discriminate Hvar.
-    right. split.
-    + intros k b ins y' Hk Hw. scan Hw; discriminate Hw.
-    + exists 22, (Value_Reference 0), (Some 14), "<var>:java.lang.InterruptedException"%string. reflexivity.
+  exists N. conforms_written.
 Qed.
 
 (** What the model states at the bottom can hold together: the execution above, in which a herd is made and
