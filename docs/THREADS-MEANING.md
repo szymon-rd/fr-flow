@@ -1,10 +1,12 @@
 # The meaning of Scala's trees, in Rocq
 
-`docs/THREADS-GENERATOR.md` describes two readings of Scala into Rocq: by rules into programs (`Gen.v`), and whole
-into trees (`examples/ox/rocq/Ox/Tree`). This page is about what the second now has: a meaning. Each tree the
-compiler typed is given the program it runs, in the language the proofs about threads are in
-(`FrFlow/Threads/Prog.v`), over the same operations of the JDK and the same contracts (`FrFlow/Threads/Jdk.v`).
-The step relation of `FrFlow/Threads/Sem.v`, with this meaning for a call, is a step semantics of the trees.
+Scala is read into Rocq whole: each TASTy file as the tree the compiler typed (`FrFlow/Scala/Tree.v`), with
+nothing chosen in the reading. This page is about the meaning those trees are given. Each tree is given the
+program it runs (`FrFlow/Threads/Prog.v`: it returns, does one operation, loops, or calls a closure), and the
+machine of `FrFlow/Jvm/Machine.v` says what a step of a thread may do. The model of Ox's threads
+(`docs/EXECUTIONS.md`) is stated over the same meaning; what a call of the JDK does is said there by the model's
+assumptions, and here by the machine's protocols (`FrFlow/Scala/Jdk.v`). Nothing yet proves that a run of this
+machine is an execution in that model's sense: `examples/ox/README.md` lists it among what is not covered.
 
 It is tested: programs written against Ox are read into trees as Ox is, their meaning is run in Rocq over Ox's
 own trees, and each must give what the same method gives on the JVM.

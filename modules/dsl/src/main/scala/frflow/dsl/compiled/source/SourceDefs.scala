@@ -1,7 +1,7 @@
 package frflow.dsl.compiled.source
 
-import frflow.core.threads.Datum
-import frflow.core.threads.Datum.{Many, Maybe, Text}
+import frflow.core.code.Datum
+import frflow.core.code.Datum.{Many, Maybe, Text}
 import frflow.dsl.lifted.NotRead
 
 /** A definition as the tree read holds it: a value, a method (with the methods it overrides, which is what a call

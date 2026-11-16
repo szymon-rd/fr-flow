@@ -1,8 +1,8 @@
 package frflow.project.rocq
 
-import frflow.core.threads.Datum
+import frflow.core.code.Datum
 import frflow.dsl.compiled.source.ReadSource
-import frflow.proof.rocq.threads.PrintData
+import frflow.proof.rocq.PrintData
 import java.nio.file.{Files, Path}
 import scala.jdk.CollectionConverters.*
 

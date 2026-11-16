@@ -1,7 +1,7 @@
 package frflow.dsl.compiled.source
 
-import frflow.core.threads.Datum
-import frflow.core.threads.Datum.{Nat, Text, Truth, Whole}
+import frflow.core.code.Datum
+import frflow.core.code.Datum.{Nat, Text, Truth, Whole}
 import scala.collection.mutable
 import scala.quoted.Quotes
 

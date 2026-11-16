@@ -3,7 +3,6 @@ package frflow.proof.rocq
 import frflow.core.code.{ClassFacts, ReadUnit}
 import frflow.proof.layout.Lowering
 import frflow.proof.prover.ast.*
-import frflow.proof.rocq.threads.PrintData
 
 /** The code a model's execution is of (`Code.Executing`), as Rocq: a module for each file read, holding its tree,
   * and `Code`: the files together, the table of what they define, and what it is for an execution to be one of

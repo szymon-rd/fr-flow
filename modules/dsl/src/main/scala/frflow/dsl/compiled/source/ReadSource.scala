@@ -1,6 +1,6 @@
 package frflow.dsl.compiled.source
 
-import frflow.core.threads.Datum
+import frflow.core.code.Datum
 import frflow.dsl.compiled.Inspect
 import scala.quoted.Quotes
 

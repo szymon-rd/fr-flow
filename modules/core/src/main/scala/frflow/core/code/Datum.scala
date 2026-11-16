@@ -1,4 +1,4 @@
-package frflow.core.threads
+package frflow.core.code
 
 /** A piece of data as a Rocq file writes it: a constructor applied, a text, a number, a truth value, a list, an
   * option. What code is read into where the reading chooses nothing (`dsl.compiled.source`): the constructors are

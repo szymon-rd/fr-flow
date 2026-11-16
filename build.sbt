@@ -105,7 +105,7 @@ lazy val wire = module("wire", cats, circe, circeParser)
   */
 lazy val shell = module("project", (Seq(cats, catsEffect, munitEffect, catsEffectTestkit) ++ fs2)*)
   .dependsOn(proof, testing % "compile->compile;test->test", decision, wire)
-  // Its Rocq tests read Ox's TASTy from its jar (`rocq.OxThreadsRocqSuite`): the code `examples/ox/rocq` is about.
+  // Its Rocq tests read Ox's TASTy from its jar (`rocq.OxSourceSuite`, `rocq.OxRunSuite`).
   .settings(libraryDependencies += "com.softwaremill.ox" %% "core" % "1.1.0" % Test)
 
 /** The API front ends call: three algebras (`Reading`, `Deciding`, `Proving`) over a project, the views they return
@@ -219,8 +219,8 @@ lazy val shop = exampleApp("shop", shopModel, layers = Nil).settings(checked)
 lazy val paymentsModel = exampleModel("payments").settings(checked)
 lazy val payments = exampleApp("payments", paymentsModel, layers = Nil).settings(checked)
 
-/** Ox's scopes and forks: the laws a scope keeps, on a system of as little as says them; Ox's code is proven to
-  * be that system in `examples/ox/rocq`.
+/** Ox's threads: what holds of a scope's herd once `unsupervised` or `supervised` has completed, stated over the
+  * executions of Ox's own code, read from its jar (`examples/ox/README.md`).
   */
 lazy val oxModel = exampleModel("ox").dependsOn(executions % "compile->compile;test->test")
   // The model of Ox's threads speaks of Ox's own classes, read from this jar.

@@ -43,9 +43,9 @@ Definition kernel_unmeant : list sym :=
    Member "scala.concurrent.Await$" "result"
      "1,scala.concurrent.Awaitable,scala.concurrent.duration.Duration:java.lang.Object";
    Member "scala.quoted.Expr$" "apply" "1,java.lang.Object,scala.quoted.ToExpr,scala.quoted.Quotes:scala.quoted.Expr";
-   Member "scala.quoted.Quotes.reflectModule" "TreeMethods" ":";
+   Member "scala.quoted.Quotes.reflectModule" "TreeMethods" ":scala.quoted.Quotes.reflectModule.TreeMethods";
    Member "scala.quoted.Quotes.reflectModule" "asTerm" "scala.quoted.Expr:java.lang.Object";
-   Member "scala.quoted.Quotes.reflectModule.PrinterModule" "TreeShortCode" ":";
+   Member "scala.quoted.Quotes.reflectModule.PrinterModule" "TreeShortCode" ":scala.quoted.Quotes.reflectModule.Printer";
    Member "scala.quoted.Quotes.reflectModule.TreeMethods" "show"
      "java.lang.Object,scala.quoted.Quotes.reflectModule.Printer:java.lang.String";
    Member "scala.quoted.ToExpr$" "StringToExpr" "1:scala.quoted.ToExpr$.StringToExpr";

@@ -1,7 +1,7 @@
 package frflow.dsl.compiled.source
 
 import frflow.core.code.ClassFacts
-import frflow.core.threads.Datum
+import frflow.core.code.Datum
 import java.lang.reflect.Modifier
 import scala.util.Try
 

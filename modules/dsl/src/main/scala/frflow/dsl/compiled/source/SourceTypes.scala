@@ -1,7 +1,7 @@
 package frflow.dsl.compiled.source
 
-import frflow.core.threads.Datum
-import frflow.core.threads.Datum.{Many, Text}
+import frflow.core.code.Datum
+import frflow.core.code.Datum.{Many, Text}
 import frflow.dsl.lifted.NotRead
 
 /** A type as the tree read holds it (`FrFlow/Scala/Tree.v`, `ty`): one constructor for each form of type the

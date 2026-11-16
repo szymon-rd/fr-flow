@@ -3,18 +3,17 @@ package frflow.project.rocq
 import java.nio.file.{Files, Path}
 import scala.sys.process.{Process, ProcessLogger}
 
-/** Rocq on generated files: the files of FrFlow's library they are over (`modules/proof/rocq/FrFlow`; those of
-  * thread programs, unless others are named), then the files, each compiled after those before it.
+/** Rocq on generated files: the files of FrFlow's library they are over (`modules/proof/rocq/FrFlow`), then the
+  * files, each compiled after those before it.
   */
 object ThreadsRocq:
   private val library = Path.of("modules/proof/rocq/FrFlow")
-  private val threads = List("Threads/Prog", "Threads/Jdk", "Threads/Sem", "Threads/Lang")
   private val command: Seq[String] = sys.env.getOrElse("FRFLOW_ROCQ", "rocq compile").split(' ').toSeq
 
-  /** `files` (each by its path, `Ox/Gen.v`, its first directory its logical root) compiled in order in a directory
-    * of their own: the first that fails, with what Rocq said.
+  /** The files of the library named in `over`, then `files` (each by its path, `Ox/Tree/All.v`, its first directory
+    * its logical root), compiled in order in a directory of their own: the first that fails, with what Rocq said.
     */
-  def failing(files: List[(String, String)], over: List[String] = threads): Option[(String, String)] =
+  def failing(files: List[(String, String)], over: List[String]): Option[(String, String)] =
     val in = Files.createTempDirectory("frflow-threads")
     val all = over.map(f => s"FrFlow/$f.v" -> Files.readString(library.resolve(s"$f.v"))) ++ files
     val roots = all.map(_._1.takeWhile(_ != '/')).distinct.flatMap(root => Seq("-Q", root, root))

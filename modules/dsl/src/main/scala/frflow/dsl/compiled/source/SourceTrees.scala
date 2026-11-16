@@ -1,7 +1,7 @@
 package frflow.dsl.compiled.source
 
-import frflow.core.threads.Datum
-import frflow.core.threads.Datum.{Many, Maybe, Nat, Text, Truth}
+import frflow.core.code.Datum
+import frflow.core.code.Datum.{Many, Maybe, Nat, Text, Truth}
 
 /** An expression, a pattern, a clause of a file, as the tree read holds it (`FrFlow/Scala/Tree.v`, `tree`): the
   * constructor of its form, over its parts read the same way. A form the compiler's reader does not open (a

@@ -1,6 +1,6 @@
-package frflow.proof.rocq.threads
+package frflow.proof.rocq
 
-import frflow.core.threads.Datum
+import frflow.core.code.Datum
 
 /** Data as a Rocq term (`core.threads.Datum`): a constructor applied in parentheses, a list in brackets, a text in
   * quotes. A term that does not fit a line is broken after the parts that do, each of the others on lines of its

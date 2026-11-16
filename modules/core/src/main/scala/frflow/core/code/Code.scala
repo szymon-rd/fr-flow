@@ -2,7 +2,6 @@ package frflow.core.code
 
 import frflow.core.expr.Value
 import frflow.core.name.{DefName, SymbolName}
-import frflow.core.threads.Datum
 
 /** What is known of the classes code mentions, read from their class files: the classes of the JDK whose objects
   * are known by their identity (they keep `Object`'s `equals`), the classes of what is thrown, the one method
