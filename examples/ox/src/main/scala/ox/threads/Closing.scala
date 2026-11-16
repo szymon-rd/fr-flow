@@ -35,9 +35,16 @@ val whatClosingsFunctionsApplyReturns = Node.claim(
           applicationOf[Unit](g, t).by(c).calledInside(k, a) &&
           applicationOf[Unit](g, t).by(c).completed(a, r, b)) implies (r === Returned(()))))))
 
-// Not proven. The second function, catching an interruption, reads a local variable, finds it holds an
-// exception, and reads it again to add to it: that the second read finds what the first did is of what the
-// heap holds, which an execution does not yet say (`docs/EXECUTIONS.md`, "What is not built").
+// Assumed, not derived from the code. Closing keeps what interrupted it in a variable of its own, which the
+// function it hands its second traversal reads and writes; the JDK's traversal applies that function on the
+// thread that called it, and hands it to nothing. So only closing's caller touches the variable.
+val closingKeepsItsVariableToItself = Node.assumption(
+  "What a call of closing itself makes, only the thread that called closing reads and writes.")(
+  forall((h: Obj[ThreadHerd]) => closing(h).keepsWhatItMakesToItself))
+
+// The second function, catching an interruption, reads closing's variable, finds it holds an exception, and
+// reads it again to add to it: the second read finds what the first did, the variable being one that one thread
+// alone made and writes, and that thread doing nothing between the two.
 val closingsFunctionsReturn = Node.claim("A function closing passes to a traversal of the herd's set returns.")(
   forall((h: Obj[ThreadHerd], f: Obj[Consumer[AnyRef]], x: Obj[AnyRef], c: Obj[Thread]) =>
     forall((k: Term[BigInt], r: Term[Response], b: Term[BigInt]) =>

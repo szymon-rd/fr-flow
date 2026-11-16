@@ -20,19 +20,20 @@ The third root, `aClosedHerdRefusesToStart`, is proven: every claim below it is,
 It rests on ten assumptions: nine about the JDK, the JVM and Scala's objects, and one about Ox,
 `aHerdKeepsItsFlagToItself` (below). The suite pins the ten (`ThreadsSuite`).
 
-The first two roots are not proven. Every step from parts to a claim that has a proof is proven; two claims
-are not, FrFlow reports them so, and every node above one of them as waiting, and the suite names them:
+The first two roots are not proven. Every step from parts to a claim that has a proof is proven; one claim is
+not, FrFlow reports it so, and every node above it as waiting, and the suite names it:
 
 | Not proven | Below |
 |---|---|
-| `closingsFunctionsReturn` | the first two roots |
 | `theTreeCheckStaysOutOfHerds` | the first two roots |
 
-Of the last, what the check calls itself is proven (`theTreeCheckCallsFour`); the function it applies calls
-into scopes, which are not read. Of the one before, that closing's traversals do not throw is proven from it
-(`closingsTraversalsReturn`), and so is that the function its two functions apply to interrupt a thread returns
-(`whatClosingsFunctionsApplyReturns`); what is left is that the second function, catching an interruption,
-reads a local variable twice: that the second read finds what the first did is not yet said of an execution.
+What the check calls itself is proven (`theTreeCheckCallsFour`); the function it applies calls into scopes,
+which are not read.
+
+That closing's traversals do not throw is proven (`closingsTraversalsReturn`, `closingsFunctionsReturn`). The
+function closing hands its second traversal, catching an interruption, reads closing's variable, finds it holds
+an exception, and reads it again to add to it: the second read finds what the first did, by what is taken of a
+variable (below), with nothing written between the two, the thread doing one thing at a time.
 
 Twenty-two claims are proven of the code's trees, each gone through whole. Three are of what making a herd
 runs: a herd has been made, and its flag and its set are what `new AtomicBoolean(false)` and
@@ -80,6 +81,10 @@ What is assumed, by what it is about:
   `remove`, `contains`, `isEmpty` and `forEach` are called on the set (`aHerdsSetIsPlain`), that only
   `startThread` adds to it (`onlyStartThreadAddsToTheSet`) and only a fork function removes from it
   (`onlyAForkFunctionRemoves`).
+- **That a variable stays its call's** (1): `closingKeepsItsVariableToItself`. What a call of closing itself
+  makes (the variable it keeps what interrupted it in), only the thread that called closing reads and writes.
+  The functions closing hands its traversals hold the variable; the JDK's traversal applies them on the thread
+  that called it and hands them to nothing. It is assumed, and not derived from the code.
 - **Who reaches a thread and the code startThread is given** (2): `onlyItsMakerStartsAThread`,
   `onlyAForkFunctionCallsTheCode`. These are statements about Ox, of a local value and of a parameter, not yet
   derived from its code.
@@ -91,9 +96,11 @@ A call of an inline method (`discard`, in the function `startThread` hands the f
 from TASTy, a call: the model has it as a call of a method outside the code, where the JVM runs its expansion
 in place.
 
-Beside the nodes, three things are taken of Scala and the JVM: what an execution of the code is (the meaning of
+Beside the nodes, four things are taken of Scala and the JVM: what an execution of the code is (the meaning of
 its trees in Rocq, written by hand and tested against the JVM, `docs/EXECUTIONS.md`); that the events of
-threads come one after another; and that the VM raises no error of its own.
+threads come one after another; that what a thread reads of a variable is what was last written there, where
+that thread alone made the variable and writes it (the order of one thread's own actions, JLS 17.4.5; nothing
+is taken of a variable two threads write, nor of a field); and that the VM raises no error of its own.
 
 ## What is not covered
 

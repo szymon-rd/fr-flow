@@ -28,6 +28,7 @@ val oxThreads: FrModel = FrModel("OxThreads")(
   closingTraversesWithAFunction.refines(closingsTraversalsReturn),
   closingsFunctionsReturn.refines(closingsTraversalsReturn),
   whatClosingsFunctionsApplyReturns.refines(closingsFunctionsReturn),
+  closingKeepsItsVariableToItself.refines(closingsFunctionsReturn),
   joinThrowsOnlyAnInterruption.refines(closingsFunctionsReturn, whatClosingsFunctionsApplyReturns),
   addSuppressedReturns.refines(closingsFunctionsReturn),
   interruptReturns.refines(whatClosingsFunctionsApplyReturns),
@@ -91,7 +92,8 @@ val oxThreads: FrModel = FrModel("OxThreads")(
   theTreeCheckCallsFour.refines(theTreeCheckStaysOutOfHerds, aHerdsMethodsOnlyGetAndSetAFlag,
     whatAHerdsCodeCallsOfASet),
   theJdkStaysOutOfHerds.refines(startThreadStaysOutOfHerds, theClosingCheckStaysOutOfHerds),
-  aThreadDoesOneThingAtATime.refines(startThreadStaysOutOfHerds, theClosingCheckStaysOutOfHerds),
+  aThreadDoesOneThingAtATime.refines(startThreadStaysOutOfHerds, theClosingCheckStaysOutOfHerds,
+    closingsFunctionsReturn),
 
   // How a herd is made.
   herdsAreConstructed.refines(herdsAreMade, closingSetsTheFlag, aClosedHerdRefusesToStart, nothingIsAddedOnceEmpty,

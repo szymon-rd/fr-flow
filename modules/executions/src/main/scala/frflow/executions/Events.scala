@@ -56,15 +56,41 @@ val itselfMakes = stated { (inner: Term[Invocation], by: Term[Value], made: Term
     exists((a: Term[Response], spawns: Term[List[Spawn]]) =>
       history(w) === make[Event.Atomic](by, some(made), inner, a, spawns)) }
 
-/** The actor does one thing at a time: what it calls while a call of its own is pending, that call makes itself,
-  * or the actor calls while a call that call itself made is pending.
+/** The actor does something at the moment, inside the call made at `inside`: it makes a call or an object, or
+  * reads, marks, writes or enters a field.
+  */
+val does = stated { (by: Term[Value], inside: Term[Option[BigInt]], w: Term[BigInt]) =>
+  (history(w).on[Event.Invoke]((b, i, _) => b === by && i === inside)
+    .on[Event.Atomic]((b, i, _, _, _) => b === by && i === inside)
+    .on[Event.Respond]((_, _, _, _) => False)
+    .on[Event.Make]((b, i, _, _, _) => b === by && i === inside)
+    .on[Event.Read]((b, i, _, _, _) => b === by && i === inside)
+    .on[Event.Mark]((b, i, _, _) => b === by && i === inside)
+    .on[Event.Write]((b, i, _, _, _) => b === by && i === inside)
+    .on[Event.Enter]((b, i, _, _, _) => b === by && i === inside)
+    .on[Event.Internal](_ => False)
+    .on[Event.Stutter.type](False): Term[Boolean]) }
+
+/** The actor does one thing at a time: what it does while a call of its own is pending, that call does itself,
+  * or the actor does while a call that call itself made is pending.
   */
 val oneAtATime = stated { (by: Term[Value]) =>
-  forall((outer: Term[Invocation], from: Term[BigInt], inner: Term[Invocation], w: Term[BigInt]) =>
-    (from < w && begun(outer, by, from) && !overBy(by, from, w) && calledBy(inner, by, w)) implies
-      (itselfMakes(inner, by, from, w) ||
+  forall((outer: Term[Invocation], from: Term[BigInt], inside: Term[Option[BigInt]], w: Term[BigInt]) =>
+    (from < w && begun(outer, by, from) && !overBy(by, from, w) && does(by, inside, w)) implies
+      (inside === some(from) ||
         exists((between: Term[Invocation], m: Term[BigInt]) =>
           from < m && m < w && history(m) === make[Event.Invoke](by, some(from), between) && !overBy(by, m, w)))) }
+
+/** The call made at `from` by the actor itself makes the object. */
+val itselfCreates = stated { (made: Term[Value], by: Term[Value], from: Term[BigInt]) =>
+  exists((m: Term[BigInt], cls: Term[String], holding: Term[List[Held]]) =>
+    history(m) === make[Event.Make](by, some(from), made, cls, holding)) }
+
+/** The actor reads or writes a field of the object at the moment. */
+val touches = stated { (on: Term[Value], by: Term[Value], w: Term[BigInt]) =>
+  exists((inside: Term[Option[BigInt]], field: Term[String], value: Term[Value]) =>
+    history(w) === make[Event.Read](by, inside, on, field, value) ||
+      history(w) === make[Event.Write](by, inside, on, field, value)) }
 
 /** A call of the method named `method` is made at `w` on `on`, with whatever else it is given. */
 val calledOn = stated { (on: Term[Value], method: Term[String], w: Term[BigInt]) =>

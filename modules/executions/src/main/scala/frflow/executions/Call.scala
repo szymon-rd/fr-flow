@@ -88,6 +88,14 @@ final class Call[A](val method: String, val arguments: List[Term[Value]], val ac
     forall((from: Term[BigInt], inner: Term[Invocation], w: Term[BigInt]) =>
       some(who => begun(invocation, who, from) && itselfMakes(inner, who, from, w)) implies allowed(inner))
 
+  /** What a call of this itself makes, only its caller reads and writes: a variable of the call's own, which
+    * the functions the call wrote may hold, and nothing else does.
+    */
+  def keepsWhatItMakesToItself(using Stating): Term[Boolean] =
+    forall((who: Term[Value], from: Term[BigInt], made: Term[Value], by: Term[Value], w: Term[BigInt]) =>
+      (begun(invocation, who, from) && actor.fold(True)(_ === who) && itselfCreates(made, who, from) &&
+        touches(made, by, w)) implies (by === who))
+
   /** While a call of this is pending, its caller makes no call of `other`. */
   def excludes[B](other: Call[B])(using Stating): Term[Boolean] =
     forall((who: Term[Value], from: Term[BigInt], w: Term[BigInt]) =>

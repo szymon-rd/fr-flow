@@ -160,11 +160,30 @@ Lemma called_under (history : Z -> Event) (allowed : Invocation -> Prop) who out
     (m < w /\ begun history between who m) /\ ~ overBy history who m w.
 Proof.
   intros Hone Hall [[Hlt Hbegun] Hnot] Hcalled.
-  destruct (Hone outer from inner w (conj (conj (conj Hlt Hbegun) Hnot) Hcalled))
-    as [Hit | (between & m & [[[Hfm Hmw] Hat] Hpending])].
-  - left. exact (Hall inner w Hit).
+  assert (exists inside, does history who inside w /\
+    (inside = Some from -> itselfMakes history inner who from w)) as (inside & Hdoes & Hthen).
+  { destruct Hcalled as [(inside & H) | (a & inside & sp & H)]; exists inside;
+      (split; [unfold does; rewrite H; split; reflexivity |]); intros ->; [left | right; exists a, sp]; exact H. }
+  destruct (Hone outer from inside w (conj (conj (conj Hlt Hbegun) Hnot) Hdoes))
+    as [E | (between & m & [[[Hfm Hmw] Hat] Hpending])].
+  - left. exact (Hall inner w (Hthen E)).
   - right. exists between, m. split; [apply (Hall between m); left; exact Hat |].
     split; [split; [exact Hmw | exists (Some from); exact Hat] | exact Hpending].
+Qed.
+
+(** What an actor writes while a call of its own is pending, and every call that call itself made is over, the
+    call writes itself. *)
+Lemma written_itself (history : Z -> Event) who outer from inside on field value w :
+  oneAtATime history who -> from < w -> begun history outer who from -> ~ overBy history who from w ->
+  history w = Event_Write who inside on field value ->
+  (forall between m, from < m -> m < w -> history m = Event_Invoke who (Some from) between ->
+    overBy history who m w) ->
+  inside = Some from.
+Proof.
+  intros Hone Hlt Hbegun Hnot Hwrite Hover.
+  destruct (Hone outer from inside w) as [E | (between & m & [[[Hfm Hmw] Hat] Hpending])]; [| exact E |].
+  - split; [split; [split; assumption | exact Hnot] |]. unfold does. rewrite Hwrite. split; reflexivity.
+  - destruct (Hpending (Hover between m Hfm Hmw Hat)).
 Qed.
 
 (** ** A run in which nothing happens

@@ -82,6 +82,7 @@ Proof.
   - intros k a called r spawns H. discriminate H.
   - intros i a inside cls c signature ys H. discriminate H.
   - intros w a inside cls c signature ys resp spawns H. discriminate H.
+  - intros w a inside yo f y cls r H. discriminate H.
 Qed.
 
 Set Implicit Arguments.
@@ -509,6 +510,17 @@ Section Walk.
     apply follows_steps in Hf as (at_ & H0 & H1 & H2). exists args, at_. auto.
   Qed.
 
+  (** A call of a function the code wrote makes no event of its own once it has responded. *)
+  Lemma function_over a inside m c y ys from k w resp spawns :
+    history from = Event_Invoke a inside (Invocation_mk m (y :: ys)) ->
+    applies known m = true -> names N y (VCode c) -> written files c ->
+    history k = Event_Respond a from resp spawns -> k < w -> ~ direct a from (history w).
+  Proof.
+    intros He Hm Hy Hw Hk Hlt.
+    destruct (proj1 (proj2 (proj2 conformed)) _ _ _ _ _ _ _ He Hm Hy Hw) as (args & _ & _ & Hf).
+    exact (proj1 (proj2 Hf) _ _ _ _ Hk Hlt).
+  Qed.
+
   (** A call of the constructor of a class of the code, from outside it. *)
   Lemma constructor_steps a inside cls c signature ys from :
     history from = Event_Invoke a inside (Invocation_mk (label cls "<init>" signature) ys) ->
@@ -520,7 +532,7 @@ Section Walk.
       (forall w, from < w -> its (at_ w) a from (history w) -> takes a from w (history w) (at_ w) (at_ (w + 1))).
   Proof.
     intros He Hc Hm.
-    destruct (proj1 (proj2 (proj2 (proj2 (proj2 (proj2 (proj2 conformed)))))) _ _ _ _ _ _ _ He Hc Hm)
+    destruct (proj1 (proj1 (proj2 (proj2 (proj2 (proj2 (proj2 (proj2 conformed))))))) _ _ _ _ _ _ _ He Hc Hm)
       as (args & Hys & Hp & Hf).
     apply follows_steps in Hf as (at_ & H0 & H1 & H2). exists args, at_. auto.
   Qed.
@@ -528,7 +540,9 @@ Section Walk.
   Lemma constructor_not_atomic w a inside cls c signature ys resp spawns :
     history w = Event_Atomic a inside (Invocation_mk (label cls "<init>" signature) ys) resp spawns ->
     class_of T cls = Some c -> is_module c = false -> False.
-  Proof. exact (proj2 (proj2 (proj2 (proj2 (proj2 (proj2 (proj2 conformed)))))) w a inside cls c signature ys _ _). Qed.
+  Proof.
+    exact (proj2 (proj1 (proj2 (proj2 (proj2 (proj2 (proj2 (proj2 conformed))))))) w a inside cls c signature ys _ _).
+  Qed.
 
   (** A call of a method of the code is no event made and responded to at once. *)
   Lemma method_not_atomic w a inside s cls r d y ys resp spawns :
@@ -570,6 +584,45 @@ Section Walk.
   Lemma responded_after k a called r spawns : history k = Event_Respond a called r spawns -> called < k.
   Proof. exact (proj2 (proj1 (proj2 (proj2 (proj2 (proj2 (proj2 conformed)))))) k a called r spawns). Qed.
 
+  (** An object is made at one moment. *)
+  Lemma made_at_one w w' b inside y cls hs b' inside' cls' hs' :
+    history w = Event_Make b inside y cls hs -> history w' = Event_Make b' inside' y cls' hs' -> w = w'.
+  Proof.
+    exact (proj2 (proj1 (proj2 (proj2 (proj2 (proj2 conformed))))) w w' b inside y cls hs b' inside' cls' hs').
+  Qed.
+
+  (** Two reads a thread makes of a variable that it alone made and writes, with no write of it between them,
+      find the same. *)
+  Lemma reads_agree a yo cls r f w1 w2 ins1 ins2 y1 y2 :
+    history w1 = Event_Read a ins1 yo f y1 -> history w2 = Event_Read a ins2 yo f y2 -> w1 <= w2 ->
+    names N yo (vref cls r) -> is_var cls = true ->
+    (forall k b ins cls' hs, history k = Event_Make b ins yo cls' hs -> b = a) ->
+    (forall k b ins f' y', history k = Event_Write b ins yo f' y' -> b = a) ->
+    (forall k ins y', w1 < k -> k < w2 -> history k <> Event_Write a ins yo f y') ->
+    y1 = y2.
+  Proof.
+    intros H1 H2 Hle Hyo Hvar Hmakes Hwrites Hnone.
+    pose proof (proj2 (proj2 (proj2 (proj2 (proj2 (proj2 (proj2 conformed))))))) as Hold.
+    destruct (Hold _ _ _ _ _ _ _ _ H1 Hyo Hvar Hmakes Hwrites)
+      as [(k1 & i1 & Hk1 & Hw1 & Hlast1) | [Hno1 (k1 & b1 & i1 & c1 & Hm1)]];
+      destruct (Hold _ _ _ _ _ _ _ _ H2 Hyo Hvar Hmakes Hwrites)
+        as [(k2 & i2 & Hk2 & Hw2 & Hlast2) | [Hno2 (k2 & b2 & i2 & c2 & Hm2)]].
+    - assert (k1 = k2) as ->.
+      { destruct (Z.lt_trichotomy k1 k2) as [Hlt | [E | Hgt]]; [exfalso | exact E | exfalso].
+        - destruct (Z.lt_trichotomy k2 w1) as [Hb | [E | Ha]].
+          + exact (Hlast1 k2 a i2 y2 Hlt Hb Hw2).
+          + subst k2. rewrite H1 in Hw2. discriminate Hw2.
+          + exact (Hnone k2 i2 y2 Ha Hk2 Hw2).
+        - exact (Hlast2 k1 a i1 y1 Hgt ltac:(lia) Hw1). }
+      rewrite Hw1 in Hw2. injection Hw2. auto.
+    - exfalso. exact (Hno2 k1 a i1 y1 ltac:(lia) Hw1).
+    - exfalso. destruct (Z.lt_trichotomy k2 w1) as [Hb | [E | Ha]].
+      + exact (Hno1 k2 a i2 y2 Hb Hw2).
+      + subst k2. rewrite H1 in Hw2. discriminate Hw2.
+      + exact (Hnone k2 i2 y2 Ha Hk2 Hw2).
+    - pose proof (made_at_one Hm1 Hm2) as E. subst k2. rewrite Hm1 in Hm2. injection Hm2. auto.
+  Qed.
+
 End Walk.
 
 Arguments method_steps {files T known N history} conformed {a inside} s {cls r d y ys from} _ _ _.
@@ -578,8 +631,11 @@ Arguments function_steps {files T known N history} conformed {a inside m c y ys 
 Arguments constructor_steps {files T known N history} conformed {a inside} cls {c} signature {ys from} _ _ _.
 Arguments constructor_not_atomic {files T known N history} conformed {w a inside} cls {c} signature
   {ys resp spawns} _ _ _.
+Arguments made_at_one {files T known N history} conformed {w w' b inside y cls hs b' inside' cls' hs'} _ _.
+Arguments reads_agree {files T known N history} conformed {a yo cls r f w1 w2 ins1 ins2 y1 y2} _ _ _ _ _ _ _ _.
 Arguments made_named {files T known N history} conformed {w b inside y cls hs} _.
 Arguments responded_once {files T known N history} conformed {k k' a called r r' spawns spawns'} _ _.
 Arguments responded_after {files T known N history} conformed {k a called r spawns} _.
 Arguments method_over {files T known N history} conformed {a inside} s {cls r d y ys from k w resp spawns} _ _ _ _ _.
+Arguments function_over {files T known N history} conformed {a inside m c y ys from k w resp spawns} _ _ _ _ _ _.
 Arguments function_not_atomic {files T known N history} conformed {w a inside m c y ys resp spawns} _ _ _ _.

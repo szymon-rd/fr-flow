@@ -24,11 +24,10 @@ import scala.concurrent.duration.*
     assert(text.contains("(heldIn \"ox.internal.ThreadHerd threads\"%string h)"), "threads")
   }
 
-  /** The claims that are not proven for a reason of their own, and the roots each is below: each has parts that
-    * do not yet make it. Everything else is proven, or waits for one of them.
+  /** The claim that is not proven for a reason of its own, and the roots it is below: it has parts that do not
+    * yet make it. Everything else is proven, or waits for it.
     */
   private val notProven = Map(
-    "closingsFunctionsReturn" -> List("noForkRunsOnceClosed", "nothingIsAddedOnceClosed"),
     "theTreeCheckStaysOutOfHerds" -> List("noForkRunsOnceClosed", "nothingIsAddedOnceClosed"))
 
   /** Each has parts: its step is what is not proven. */
@@ -64,7 +63,7 @@ import scala.concurrent.duration.*
     "theClosingCheckStaysOutOfHerds", "theForkFunctionRemovesTheCurrentThread", "theTreeCheckCallsFour",
     "whatClosingsFunctionsApplyReturns")
 
-  test("one root is proven; every step is, but two claims named here; what is above them waits".tag(Live)) {
+  test("one root is proven; every step is, but one claim named here; what is above them waits".tag(Live)) {
     Ported.run(Projects.elaborated(oxThreads), Nil, Ported.proofs("ox", "OxThreads")).map { r =>
       val unproven = Ported.unproven(r)
       assertEquals(unproven.filter(_._2 != List("Check")), notProven.map((n, _) =>

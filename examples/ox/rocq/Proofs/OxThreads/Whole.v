@@ -21,6 +21,8 @@ Proof.
   split.
   { intros s f c _ from response to H. destruct (nothing_completed_at_rest _ _ _ _ _ H). }
   split.
+  { intros h who from made by_ w [[[H _] _] _]. destruct (nothing_begun_at_rest _ _ _ H). }
+  split.
   { intros t from response to [who H]. destruct (nothing_completed_at_rest _ _ _ _ _ H). }
   split.
   { intros x _ from response to [who H]. destruct (nothing_completed_at_rest _ _ _ _ _ H). }

@@ -418,10 +418,23 @@ Section Conforms.
       history k = Event_Respond a called r spawns -> history k' = Event_Respond a called r' spawns' -> k = k') /\
     (forall k a called r spawns, history k = Event_Respond a called r spawns -> called < k).
 
+  (** What a thread reads of a variable is what was last written there, or else what the variable was made
+      holding, where that thread alone made the variable and writes it: the order of one thread's own actions
+      (JLS 17.4.5). Nothing is said of a variable that two threads write, nor of a field of an object. *)
+  Definition variables_hold : Prop :=
+    forall w a inside yo f y cls r,
+      history w = Event_Read a inside yo f y -> names N yo (vref cls r) -> is_var cls = true ->
+      (forall k b ins cls' hs, history k = Event_Make b ins yo cls' hs -> b = a) ->
+      (forall k b ins f' y', history k = Event_Write b ins yo f' y' -> b = a) ->
+      (exists k ins, k < w /\ history k = Event_Write a ins yo f y /\
+         forall k' b ins' y', k < k' -> k' < w -> history k' <> Event_Write b ins' yo f y') \/
+      ((forall k b ins y', k < w -> history k <> Event_Write b ins yo f y') /\
+       exists k b ins cls', history k = Event_Make b ins yo cls' [Held_mk f y]).
+
   (** The execution is one of the code. *)
   Definition conforms : Prop :=
     method_calls /\ module_calls /\ function_calls /\ never_atomic /\ made_once /\ answered_once /\
-    constructor_calls.
+    constructor_calls /\ variables_hold.
 
 End Conforms.
 

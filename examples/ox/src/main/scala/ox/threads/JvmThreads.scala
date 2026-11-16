@@ -10,7 +10,7 @@ import java.util.function.Consumer
 // What is assumed of the JDK's threads, of what it throws, and of a traversal of a concurrent set.
 
 val aThreadDoesOneThingAtATime = Node.assumption(
-  "A thread does one thing at a time: what it calls while a call of its own is pending is called by that call " +
+  "A thread does one thing at a time: what it does while a call of its own is pending is done by that call " +
     "itself, or while a call that call itself made is pending.")(
   forall((t: Obj[Thread]) => oneAtATime(t.asValue)))
 

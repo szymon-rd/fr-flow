@@ -68,7 +68,8 @@ A `Call[A]` names which calls of the execution are meant. `call.by(t)` is those 
 | `outer.calls(inner, w)` | At `w` a pending call of `outer` makes the call `inner` itself. |
 | `call.itselfCallsOnly(made => p)` | Each call that a call itself makes is one `p` says; `other.isCall(made)` says it is a call of `other`. |
 | `call.excludes(other)` | While a call is pending, its caller makes no call of `other`. |
-| `oneAtATime(t)` | The actor does one thing at a time: what it calls while a call of its own is pending, that call makes itself, or the actor calls while a call that call itself made is pending. A model assumes it of its threads. |
+| `oneAtATime(t)` | The actor does one thing at a time: what it does (a call, an object made, a field read or written) while a call of its own is pending, that call does itself, or the actor does while a call that call itself made is pending. A model assumes it of its threads. |
+| `call.keepsWhatItMakesToItself` | What a call itself makes, only its caller reads and writes: a variable of the call's own. |
 | `eventually(w)(later => p)` | `p` at `w` or at some later moment. |
 
 ## Real code in a statement
@@ -234,17 +235,20 @@ What a model must still say itself, as assumptions:
   the object, itself, or by what the model names beside: a function the object's code wrote and handed out). From it, and from what each method calls itself (`m.itselfCallsOnly(…)`, proven of the
   method's tree), what is called on the field's object, and by which method, is proven
   (`onlyClosingSetsTheFlag`). With capture checking the assumption is what the compiler would say.
-- **What the heap holds.** A read of a field, or of a local `var`, is an event with any value of its type
-  (a variable's place carries the class it was declared with; a value of a class of what is thrown is none or
-  an exception). That a read finds what was last written is not said: a claim that needs the value a variable
-  holds, and not only its type, is not proven of the code.
+- **What the heap holds**, but for a variable of one thread. What a thread reads of a local `var` is what was
+  last written there, or what the variable was made holding, where that thread alone made the variable and
+  writes it (`variables_hold`, a law of an execution of the code: the order of one thread's own actions, JLS
+  17.4.5). That only one thread touches a variable a function holds is not derived: a model states it
+  (`call.keepsWhatItMakesToItself`). Of a variable two threads write, and of a field of an object, a read is an
+  event with any value of its type: a claim that needs the value a field holds is not proven of the code.
 - **A call of an inline method** is a call in the tree read from TASTy, which is written before the compiler
   expands it (one expanded while typing, `transparent`, is read expanded). The model has it as a call of a method
   outside the code; a statement names it by writing the call (`ox.discard(x)`), which is read unexpanded too.
 - **A method of what is outside taking an argument by name** is read as taking it evaluated. The right side of
   `||` and `&&` is run in place, when the left side leaves it to decide: no call is an event of it.
-- **Two laws of an execution are given**, with what it is to be one of the code: a call is responded to at
-  most once, and after it is made. That an actor's calls are nested (`oneAtATime`), that a call nobody calls
+- **Three laws of an execution are given**, with what it is to be one of the code: a call is responded to at
+  most once, and after it is made; and what a variable of one thread holds (above). That what an actor does is
+  nested in its calls (`oneAtATime`), that a call nobody calls
   begins only once handed over: a model that needs one states it as an assumption.
 - **That an object of the code is made only by its constructor** is not said of an execution: a model states
   it as an assumption (`o.isConstructedWhenCalled`).
