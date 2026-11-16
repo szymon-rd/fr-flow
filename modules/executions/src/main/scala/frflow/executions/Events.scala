@@ -83,6 +83,19 @@ val waitsForACall = stated { (by: Term[Value], from: Term[BigInt], w: Term[BigIn
   exists((m: Term[BigInt], inner: Term[Invocation]) =>
     m < w && history(m) === make[Event.Invoke](by, some(from), inner) && !overBy(by, m, w)) }
 
+/** The call made at `from` by the actor proceeds: whenever it is pending and waits for no call it made, it makes
+  * an event of its own in time. It is what moves code: the thread that runs the call is given its turn.
+  */
+val proceedsFrom = stated { (by: Term[Value], from: Term[BigInt]) =>
+  forall((w: Term[BigInt]) =>
+    (from < w && !overBy(by, from, w) && !waitsForACall(by, from, w)) implies
+      exists((later: Term[BigInt]) => w <= later && actsItself(by, from, later))) }
+
+/** The actor writes a field of the object at the moment, inside the call `inside` says. */
+val writesAt = stated { (on: Term[Value], by: Term[Value], inside: Term[Option[BigInt]], w: Term[BigInt]) =>
+  exists((field: Term[String], value: Term[Value]) =>
+    history(w) === make[Event.Write](by, inside, on, field, value)) }
+
 /** The actor does one thing at a time: what it does while a call of its own is pending, that call does itself,
   * or the actor does while a call that call itself made is pending.
   */

@@ -13,9 +13,10 @@ import ox.threads.*
 // for nothing makes its next event (`proceeds`). Of what is outside the code: a call is responded to (`responds`).
 // Nothing happens in time without these: an execution in which every thread stops for good is one of the code.
 
-val startThreadProceeds = Node.assumption(
-  "A call of startThread, pending and waiting for no call it made, makes its next event in time.")(
-  forall((h: Obj[ThreadHerd], code: Obj[Code]) => starting(h, code).proceeds))
+val aHerdsMethodsProceed = Node.assumption(
+  "A call of a method of a herd, pending and waiting for no call it made, makes its next event in time.")(
+  forall((h: Obj[ThreadHerd], c: Obj[Thread], i: Term[BigInt]) =>
+    h.isCalledBy(c.asValue, i) implies proceedsFrom(c.asValue, i)))
 
 val aForkFunctionProceeds = Node.assumption(
   "A call of a function startThread handed a thread factory, pending and waiting for no call it made, makes " +

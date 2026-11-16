@@ -253,16 +253,14 @@ Qed.
 
 (** A call that proceeds, as the walk takes it: pending and waiting for no call it made, it makes its next
     event. *)
-Lemma proceeds_moves (history : Z -> Event) who from :
-  (forall w, from < w -> ~ overBy history who from w -> ~ waitsForACall history who from w ->
-     exists later, w <= later /\ actsItself history who from later) ->
-  moves history who from.
+Lemma proceeds_moves (history : Z -> Event) who from : proceedsFrom history who from -> moves history who from.
 Proof.
-  intros H w Hw Hp Ha. destruct (H w Hw) as (later & Hl & Hact).
-  - intros (k & r & sp & Hk & E). exact (Hp k r sp Hk E).
-  - intros (m & inner & [Hm E] & Hnot).
-    destruct (Ha m inner Hm ltac:(discriminate) E) as (k & r & sp & Hk & Ek).
-    apply Hnot. exists k, r, sp. split; assumption.
+  intros H w Hw Hp Ha. destruct (H w) as (later & Hl & Hact).
+  - split; [split; [exact Hw |] |].
+    + intros (k & r & sp & Hk & E). exact (Hp k r sp Hk E).
+    + intros (m & inner & [Hm E] & Hnot).
+      destruct (Ha m inner Hm ltac:(discriminate) E) as (k & r & sp & Hk & Ek).
+      apply Hnot. exists k, r, sp. split; assumption.
   - exists later. split; [exact Hl | exact (acts_direct _ _ _ _ Hact)].
 Qed.
 

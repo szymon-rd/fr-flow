@@ -31,9 +31,16 @@ One statement says what happens in time:
 |---|---|
 | `aForkEndsOnceInterrupted` | A thread added to a herd's set runs, to its end and in time, the function a factory made it for, once it has been interrupted. |
 
+And one, of what closing does to each thread it finds in the herd's set, is what the rest of what happens in
+time is to be proven from:
+
+| Root | Says |
+|---|---|
+| `whatClosingsFunctionsApplyInterrupts` | Once the function that closing's functions apply to a thread has completed, the thread has been interrupted. |
+
 ## What stands, and on what
 
-All seven roots are proven: every claim below each is proven, down to the trees of `unsupervised`, of
+All eight roots are proven: every claim below each is proven, down to the trees of `unsupervised`, of
 `supervised`, of the scope class and of `ThreadHerd`. No claim of the model is unproven; FrFlow reports it so,
 and the suite pins it (`ThreadsSuite`).
 
@@ -57,13 +64,13 @@ weakest of its assumptions is:
   platform, on every other kind below, and among them on `nothingIsAddedDuringTheLastCheck`, **which is
   suspected false**. They are proven from it; they are not known to hold of Ox.
 
-Twenty-seven claims are proven of the code's trees, each gone through whole (the four of a scope among them).
-Three are of what making a herd runs: a herd has been made, and its flag and its set are what
-`new AtomicBoolean(false)` and `ConcurrentHashMap.newKeySet()` returned to the call that made it. Eight say what a piece of the herd's code
-calls itself: one per method (`startThreadCallsFive`, `closingCallsFour`, `theClosingCheckCallsGet`,
-`theTreeCheckCallsFour`, `theOwnerCheckCallsCurrentThread`, `theMembershipCheckCallsContains`), one for the
-function `startThread` hands the factory (`theForkFunctionCallsFour`), and one for the function the tree check
-applies to go up the scopes, which applies itself (`theWalkUpCallsFour`).
+Twenty-seven claims are proven of the code's trees, each gone through whole (the four of a scope among them). Three
+are of what making a herd runs: a herd has been made, and its flag and its set are what `new AtomicBoolean(false)` and
+`ConcurrentHashMap.newKeySet()` returned to the call that made it. Eight say what a piece of the herd's code calls
+itself: one per method (`startThreadCallsFive`, `closingCallsFour`, `theClosingCheckCallsGet`,
+`theTreeCheckCallsFour`, `theOwnerCheckCallsCurrentThread`, `theMembershipCheckCallsContains`), one for the function
+`startThread` hands the factory (`theForkFunctionCallsFour`), and one for the function the tree check applies to go up
+the scopes, which applies itself (`theWalkUpCallsFour`).
 
 Thirty-three claims are proven of Ox's code from the JDK, the JVM and Scala's objects alone, with no assumption
 about Ox or about who uses it (the suite computes the list and pins it). Among them:
@@ -102,6 +109,12 @@ the code `startThread` was given, and then, whatever that gave, reads the set, a
 removes it and discards the answer. The code ends because it is assumed to, once its thread is interrupted.
 Nothing here rests on the assumption suspected false.
 
+That closing has interrupted each thread it then joins is proven of closing's tree, three deep, with what
+holds of the variable it keeps the threads it has interrupted in (`whatClosingsFunctionsApplyInterrupts`): every
+set written there holds only threads that have been interrupted, by induction on when it is written. The function
+closing's functions apply reads the variable; a thread it finds there has been interrupted, by what was last
+written; one it does not find, it interrupts and writes among them.
+
 What is assumed, by what it is about:
 
 - **The JDK and the JVM** (19): `addingIsAtomic`, `anElementLeavesOnlyWhenRemoved`,
@@ -128,10 +141,12 @@ What is assumed, by what it is about:
   `remove`, `contains`, `isEmpty` and `forEach` are called on the set (`aHerdsSetIsPlain`), that only
   `startThread` adds to it (`onlyStartThreadAddsToTheSet`) and only a fork function removes from it
   (`onlyAForkFunctionRemoves`).
-- **That a variable stays its call's** (1): `closingKeepsItsVariableToItself`. What a call of closing itself
-  makes (the variable it keeps what interrupted it in), only the thread that called closing reads and writes.
-  The functions closing hands its traversals hold the variable; the JDK's traversal applies them on the thread
-  that called it and hands them to nothing. It is assumed, and not derived from the code.
+- **That a variable stays its call's** (2): `closingKeepsItsVariableToItself`. What a call of closing itself
+  makes (the variable it keeps what interrupted it in, and the one it keeps the threads it has interrupted in),
+  only the thread that called closing reads and writes. The functions closing hands its traversals hold the
+  variables; the JDK's traversal applies them on the thread that called it and hands them to nothing.
+  `closingsVariablesAreWrittenByItsFunctions`: and they are written only by such a function, or by the function
+  it applies, itself. Both are assumed, and not derived from the code.
 - **Who reaches a thread and the code startThread is given** (2): `onlyItsMakerStartsAThread`,
   `onlyAForkFunctionCallsTheCode`. These are statements about Ox, of a local value and of a parameter, not yet
   derived from its code.
@@ -140,8 +155,9 @@ What is assumed, by what it is about:
   scopes are not read here, so this is an assumption about code of Ox, the one of its kind.
 - **What happens in time** (6). Nothing happens in time unless it is assumed that threads are given their turn
   and that calls of what is outside the code are responded to: an execution in which every thread stops for
-  good is one of the code. `startThreadProceeds`, `aForkFunctionProceeds`: a call of this code that is pending
-  and waits for no call it made makes its next event. `currentThreadResponds`, `removingResponds`,
+  good is one of the code. `aHerdsMethodsProceed`, `aForkFunctionProceeds`: a call of this code that is pending
+  and waits for no call it made makes its next event (`aHerdsMethodsProceed` is of every method of a herd).
+  `currentThreadResponds`, `removingResponds`,
   `discardResponds`: a call is responded to. `aStartedThreadRunsItsFunction`: a thread a factory made for a
   function calls the function, once `start` is called on it (of the thread factory, and of who schedules
   threads).

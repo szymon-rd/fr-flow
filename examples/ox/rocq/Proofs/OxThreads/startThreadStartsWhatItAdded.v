@@ -14,9 +14,7 @@ Proof.
   destruct (method_begun (Member "ox.internal.ThreadHerd" "startThread" "scala.Function0:scala.Unit") C
     (Hmade h from ltac:(unfold calledOn; eauto 14)) eq_refl Hcalled) as (r & inside & Hh & Hcall).
   assert (moves history c from) as Hmoves.
-  { apply proceeds_moves. intros w Hw Hnover Hnwaits. apply (Hproceeds h code c from w).
-    split; [split; [split; [split; [exact Hw | exists inside; exact Hcall] | exact I] | exact Hnover] |
-      exact Hnwaits]. }
+  { apply proceeds_moves. apply (Hproceeds h c from). do 5 left. exists code, inside. exact Hcall. }
   pose proof (makes_direct Hadds) as Hdir.
   assert (from + 1 <= a) as Hahead.
   { destruct (method_steps C (Member "ox.internal.ThreadHerd" "startThread" "scala.Function0:scala.Unit") Hcall Hh eq_refl) as (_ & _ & _ & _ & Hlater & _).
@@ -103,6 +101,7 @@ Proof.
   split.
   { intros h code c from s t a s2 t2 a2 [[H _] _]. destruct (nothing_called_at_rest _ _ _ H). }
   split.
-  { intros h code who from w [[[[_ H] _] _] _]. destruct (nothing_begun_at_rest _ _ _ H). }
+  { intros h c i H. exfalso. repeat (destruct H as [H | H]);
+      first [exact (nothing_begun_at_rest _ _ _ H) | destruct H as [x H]; exact (nothing_begun_at_rest _ _ _ H)]. }
   intros h w H. repeat (destruct H as [H | H]); destruct (nothing_called_on_at_rest _ _ _ H).
 Qed.

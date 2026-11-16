@@ -25,9 +25,8 @@ Proof.
       (forall m, itselfMakes history (Invocation_mk "scala.Function0 apply :java.lang.Object" [code]) t i m ->
         begun history (Invocation_mk "scala.Function0 apply :java.lang.Object" [code]) t m /\
         exists to, overBy history t m to) ->
-      (forall w, (((i < w /\ begun history (Invocation_mk "java.lang.Runnable run :scala.Unit" [r]) t i) /\ True) /\
-        ~ overBy history t i w) /\ ~ waitsForACall history t i w ->
-        exists later, w <= later /\ actsItself history t i later) ->
+      (begun history (Invocation_mk "java.lang.Runnable run :scala.Unit" [r]) t i /\ True ->
+        proceedsFrom history t i) ->
       begun history (Invocation_mk "java.lang.Runnable run :scala.Unit" [r]) t i /\ exists to, overBy history t i to)
     C (Member "ox.internal.ThreadHerd" "startThread" "scala.Function0:scala.Unit") Hcall0 Hh eq_refl _ m
     (makes_direct Hhand) _ r Hhand).
@@ -47,9 +46,7 @@ Proof.
     [| exfalso; exact (function_not_atomic C Hat eq_refl Hr Hwritten)].
   split; [exists inside; exact Hcall |].
   assert (moves history t i) as Hmoves.
-  { apply proceeds_moves. intros w Hw Hnover Hnwaits. apply Hgoes.
-    split; [split; [split; [split; [exact Hw | exists inside; exact Hcall] | exact I] | exact Hnover] |
-      exact Hnwaits]. }
+  { apply proceeds_moves. apply Hgoes. split; [exists inside; exact Hcall | exact I]. }
   refine (function_leads _ C Hcall eq_refl Hr Hwritten Hmoves _).
   intros args' Hargs' _. apply vals_none in Hargs' as ->.
   (* it calls the code it was made to run, which is responded to *)
@@ -90,7 +87,7 @@ Proof.
   exists (fun _ => Event_Stutter).
   split; [exact rest_runs |].
   split.
-  { intros h r code _ who from w [[[[_ H] _] _] _]. destruct (nothing_begun_at_rest _ _ _ H). }
+  { intros h r code _ who from [H _]. destruct (nothing_begun_at_rest _ _ _ H). }
   split.
   { intros who from [H _]. destruct (nothing_begun_at_rest _ _ _ H). }
   split.

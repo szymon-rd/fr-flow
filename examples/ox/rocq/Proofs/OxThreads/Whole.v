@@ -13,9 +13,10 @@ Proof.
   split.
   { intros h t code made m [[_ H] _]. destruct (nothing_called_at_rest _ _ _ H). }
   split.
-  { intros h code who from w [[[[_ H] _] _] _]. destruct (nothing_begun_at_rest _ _ _ H). }
+  { intros h c i H. exfalso. repeat (destruct H as [H | H]);
+      first [exact (nothing_begun_at_rest _ _ _ H) | destruct H as [x H]; exact (nothing_begun_at_rest _ _ _ H)]. }
   split.
-  { intros h r code _ who from w [[[[_ H] _] _] _]. destruct (nothing_begun_at_rest _ _ _ H). }
+  { intros h r code _ who from [H _]. destruct (nothing_begun_at_rest _ _ _ H). }
   split.
   { intros who from [H _]. destruct (nothing_begun_at_rest _ _ _ H). }
   split.
@@ -49,6 +50,8 @@ Proof.
   { intros s f c _ from response to H. destruct (nothing_completed_at_rest _ _ _ _ _ H). }
   split.
   { intros h who from made by_ w [[[H _] _] _]. destruct (nothing_begun_at_rest _ _ _ H). }
+  split.
+  { intros h from made by_ inside w [[H _] _]. destruct (nothing_called_at_rest _ _ _ H). }
   split.
   { intros t from response to [who H]. destruct (nothing_completed_at_rest _ _ _ _ _ H). }
   split.

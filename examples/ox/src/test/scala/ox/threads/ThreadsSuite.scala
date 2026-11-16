@@ -38,7 +38,7 @@ import scala.concurrent.duration.*
   /** What is assumed to happen in time: of who schedules threads (a call of code that waits for nothing makes its
     * next event), of the JDK and of the thread factory (a call is responded to; a started thread runs).
     */
-  private val ofWhatHappensInTime = Set("startThreadProceeds", "aForkFunctionProceeds", "currentThreadResponds",
+  private val ofWhatHappensInTime = Set("aHerdsMethodsProceed", "aForkFunctionProceeds", "currentThreadResponds",
     "removingResponds", "discardResponds", "aStartedThreadRunsItsFunction")
 
   /** What is assumed of the code a fork is given: a restriction on who uses Ox. */
@@ -46,7 +46,8 @@ import scala.concurrent.duration.*
 
   /** What is assumed beside the platform, by what it is about: each named in the README. */
   private val ofPrivateState = List("aHerdKeepsItsFlagToItself", "aHerdKeepsItsSetToItself",
-    "closingKeepsItsVariableToItself", "onlyItsMakerStartsAThread", "onlyAForkFunctionCallsTheCode")
+    "closingKeepsItsVariableToItself", "closingsVariablesAreWrittenByItsFunctions", "onlyItsMakerStartsAThread",
+    "onlyAForkFunctionCallsTheCode")
   private val ofWhoUsesAHerd = List("startThreadIsCalledFromInside", "aThreadRunsOneForkFunctionOnce",
     "aFactoryStaysOutOfHerds")
   private val ofScopesNotRead = List("aScopesHerdAndParentStayOutOfHerds")
@@ -79,7 +80,10 @@ import scala.concurrent.duration.*
 
   /** What happens in time. */
   private val live = List("aForkEndsOnceInterrupted")
-  private val roots = safe ++ live
+
+  /** What closing does to each thread it finds, which what happens in time is to be from. */
+  private val towardsTime = List("whatClosingsFunctionsApplyInterrupts")
+  private val roots = safe ++ live ++ towardsTime
 
   /** What rests on the assumption suspected false: everything but that no thread is started. */
   private val onTheLastCheck = safe.filterNot(_.startsWith("noThreadIsStarted")) ++
@@ -91,7 +95,7 @@ import scala.concurrent.duration.*
       assertEquals(Ported.standsOn(r).map((root, on) => root -> on._1), roots.map(_ -> Nil).toMap)
       assertEquals(Ported.standing(r)("aClosedHerdRefusesToStart")._1.sorted, theFlagRootIsFrom)
       val named = ofThePlatform ++ ofPrivateState ++ ofWhoUsesAHerd ++ ofScopesNotRead ++ suspectedFalse
-      safe.foreach(root => assertEquals(Ported.standing(r)(root)._1.filterNot(named), Nil, root))
+      (safe ++ towardsTime).foreach(root => assertEquals(Ported.standing(r)(root)._1.filterNot(named), Nil, root))
       // what happens in time rests on nothing suspected false, and on the code a fork is given ending
       live.foreach { root =>
         val on = Ported.standing(r)(root)._1

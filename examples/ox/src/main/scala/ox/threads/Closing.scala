@@ -42,6 +42,20 @@ val closingKeepsItsVariableToItself = Node.assumption(
   "What a call of closing itself makes, only the thread that called closing reads and writes.")(
   forall((h: Obj[ThreadHerd]) => closing(h).keepsWhatItMakesToItself))
 
+// Assumed, not derived from the code, as the last: the two variables closing makes are held only by the functions
+// it writes, so nothing else writes them.
+val closingsVariablesAreWrittenByItsFunctions = Node.assumption(
+  "What a call of closing itself makes is written only by a function closing has passed to a traversal, or by " +
+    "a function such a function applies, itself.")(
+  forall((h: Obj[ThreadHerd], from: Term[BigInt], made: Term[Value]) =>
+    forall((by: Term[Value], inside: Term[Option[BigInt]], w: Term[BigInt]) =>
+      (closing(h).by(owner(h)).called(from) && itselfCreates(made, owner(h).asValue, from) &&
+        writesAt(made, by, inside, w)) implies
+        exists((f: Obj[Consumer[AnyRef]], x: Obj[AnyRef], k: Term[BigInt]) =>
+          traversedWith(f, h, k) && f.accept(x).by(owner(h)).called(k) &&
+            (inside === some(k) || exists((g: Term[Value], t: Term[Value], j: Term[BigInt]) =>
+              inside === some(j) && applicationOf[Unit](g, t).by(owner(h)).calledInside(k, j)))))))
+
 // The second function, catching an interruption, reads closing's variable, finds it holds an exception, and
 // reads it again to add to it: the second read finds what the first did, the variable being one that one thread
 // alone made and writes, and that thread doing nothing between the two.
