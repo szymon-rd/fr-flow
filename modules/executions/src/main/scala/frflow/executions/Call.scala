@@ -109,6 +109,13 @@ def Returned[A](value: Term[A])(using as: AsValue[A]): Term[Response] = make[Res
 /** The call threw the exception. */
 def Threw[C <: Throwable](exception: Obj[C]): Term[Response] = make[Response.Threw](exception.asValue)
 
+/** No object: what `null` is, as a value of the code. */
+def noObject: Term[Value] = make[Value.Null.type]().asInstanceOf[Term[Value]]
+
+/** An exception of the class as the JDK throws it: known by its class alone (`Value.Thrown`). */
+def thrown[C <: Throwable](using c: scala.reflect.ClassTag[C]): Obj[C] =
+  make[Value.Thrown](c.runtimeClass.getName).asInstanceOf[Obj[C]]
+
 /** `holds` at `w` or at some later moment. */
 def eventually(w: World)(holds: World => Term[Boolean]): Term[Boolean] =
   exists((later: Term[BigInt]) => w <= later && holds(later))

@@ -23,7 +23,9 @@ Inductive Value : Type :=
   | Value_Bool_ (value : Prop)
   | Value_Int_ (value : Z)
   | Value_Str (value : string)
-  | Value_Reference (address : Z).
+  | Value_Reference (address : Z)
+  | Value_Thrown (cls : string)
+  | Value_Null.
 
 Record Held := Held_mk { Held_field : string; Held_value : Value }.
 #[global] Instance Held_has_field : Has_field Held := {| field_of := Held_field |}.

@@ -62,7 +62,12 @@ the first check only `get` (`theClosingCheckCallsGet`, proven); during the JDK's
 the thread stays out of herds (assumed). What is left is of the second check alone,
 `verifyCurrentThreadInScopeTree` (`theTreeCheckStaysOutOfHerds`): what it calls itself is proven of its tree
 (`theTreeCheckCallsFour`), and the function it applies calls into scopes not read here.
-Still stated and not proven of the code: that, that closing's traversals do not throw, and that a herd's set and
+That closing's traversals do not throw now follows from parts: a traversal throws only what its function
+threw (assumed of the JDK), closing gives each a function and no null (proven), and those functions return.
+That last is not proven: the function they apply to interrupt a thread once returns
+(`whatClosingsFunctionsApplyReturns`, proven three deep: closing, the function, `interruptIfNeeded`), but the
+second function reads a local variable twice, and that a read finds what was last written is not yet said.
+Still stated and not proven of the code: that, what the scope check's function does, and that a herd's set and
 flag are plain (a plain set may be asked `contains`, which the herd does). FrFlow reports the four as not proven
 of the code, and every node above one of them as waiting: no root is reported proven
 (`examples/ox/README.md` says what each rests on). That nothing is added during closing's last check is assumed:

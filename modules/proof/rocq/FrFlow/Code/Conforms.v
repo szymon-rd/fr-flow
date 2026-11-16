@@ -30,7 +30,8 @@ Definition program : Type := Machine.P code obj res.
 
 (** ** Names *)
 
-(** Which value of the code a value of the execution is, and the class of the object at each place. *)
+(** Which value of the code a value of the execution is, and the class of the object at each place. What the
+    JDK throws is known by its class alone, here as in the code's values. *)
 Record naming := Naming {
   val_of : Value -> option val;
   class_at : nat -> string;
@@ -38,6 +39,8 @@ Record naming := Naming {
   of_bool : forall b : bool, val_of (Value_Bool_ (b = true)) = Some (VBool b);
   of_int : forall z, val_of (Value_Int_ z) = Some (vint z);
   of_str : forall s, val_of (Value_Str s) = Some (vstr s);
+  of_thrown : forall cls, val_of (Value_Thrown cls) = Some (VExn (made_exn cls));
+  of_null : val_of Value_Null = Some vnull;
   one_name : forall x y v, val_of x = Some v -> val_of y = Some v -> x = y;
   ref_class : forall x c r, val_of x = Some (vref c r) -> class_at r = c }.
 
@@ -95,8 +98,9 @@ Fixpoint module_class (cls : string) : bool :=
 Definition throwable (known : classes) (cls : string) : bool := existsb (String.eqb cls) (throwables known).
 
 (** A value of any class is itself where a name holds it (the place of a variable and an argument passed by
-    name are values of no class): that much is said even of a type that says nothing else. A value of any other
-    class is also one a call can be made on: neither unit nor an object named alone. *)
+    name are values of no class): that much is said even of a type that says nothing else. A set of Scala that
+    does not change is the data it is made of. A value of any other class is also one a call can be made on:
+    neither unit nor an object named alone. *)
 Definition of_class (known : classes) (cls : string) (v : val) : Prop :=
   if String.eqb cls "scala.Unit" then v = VUnit
   else if String.eqb cls "scala.Boolean" then exists b, v = VBool b
@@ -104,6 +108,7 @@ Definition of_class (known : classes) (cls : string) (v : val) : Prop :=
   else if reference known cls then identity v
   else if general cls || module_class cls then held v = oret v
   else if throwable known cls then v = vnull \/ exists e, Jdk.as_exn v = Some e
+  else if String.eqb cls c_set then exists xs, v = vdata c_set [VList xs]
   else held v = oret v /\ receiver v = [v].
 
 Lemma identity_receiver (v : val) : identity v -> receiver v = [v].
@@ -345,12 +350,16 @@ Section Conforms.
       exists args, Forall2 (names N) ys args /\ passed d args /\
         follows a i (run (Method (Member owner name signature)) (VList (module_val T owner :: args))).
 
+  (** What a function is given, by its parameters: as a method's arguments are. *)
+  Definition given (c : code) (args : list val) : Prop :=
+    match c with Fn d _ _ => passed d args | _ => True end.
+
   (** A call of a function the code wrote. *)
   Definition function_calls : Prop :=
     forall i a inside m c y ys,
       history i = Event_Invoke a inside (Invocation_mk m (y :: ys)) ->
       applies known m = true -> names N y (VCode c) -> written c ->
-      exists args, Forall2 (names N) ys args /\ follows a i (run c (VList args)).
+      exists args, Forall2 (names N) ys args /\ given c args /\ follows a i (run c (VList args)).
 
   (** A call of the code is no event made and responded to at once. *)
   Definition never_atomic : Prop :=

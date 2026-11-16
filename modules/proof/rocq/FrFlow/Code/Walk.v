@@ -32,26 +32,38 @@ Definition plain_val (x : Value) : option val :=
   | Value_Int_ z => Some (vint z)
   | Value_Str s => Some (vstr s)
   | Value_Reference _ => None
+  | Value_Thrown cls => Some (VExn (made_exn cls))
+  | Value_Null => Some vnull
   end.
 
 Lemma truths_differ : (false = true) <> (true = true).
 Proof. intros H. assert (false = true) as F by (rewrite H; reflexivity). discriminate F. Qed.
 
+(** Two classes of what the JDK throws give two exceptions. *)
+Lemma made_exn_one (a b : string) : made_exn a = made_exn b -> a = b.
+Proof.
+  unfold made_exn.
+  repeat match goal with |- context [String.eqb ?x ?y] => destruct (String.eqb_spec x y) end;
+    intros H; subst; try discriminate H; try reflexivity; injection H; auto.
+Qed.
+
 Lemma plain_one (x y : Value) (v : val) : plain_val x = Some v -> plain_val y = Some v -> x = y.
 Proof.
-  destruct x as [| P | z | s | r], y as [| Q | z' | s' | r']; cbn; try congruence;
+  destruct x as [| P | z | s | r | c |], y as [| Q | z' | s' | r' | c' |]; cbn; try congruence;
     repeat match goal with |- context [excluded_middle_informative ?A] => destruct (excluded_middle_informative A) end;
-    try congruence; intros H1 H2; rewrite <- H2 in H1; try discriminate H1; injection H1; intros; congruence.
+    try congruence; intros H1 H2; rewrite <- H2 in H1; try discriminate H1; injection H1; intros;
+    first [congruence | f_equal; apply made_exn_one; congruence].
 Qed.
 
 Definition plain_naming : naming.
 Proof.
-  refine (Naming plain_val (fun _ => "") eq_refl _ (fun _ => eq_refl) (fun _ => eq_refl) plain_one _).
+  refine (Naming plain_val (fun _ => "") eq_refl _ (fun _ => eq_refl) (fun _ => eq_refl) (fun _ => eq_refl)
+    eq_refl plain_one _).
   - intros [|]; cbn.
     + destruct (excluded_middle_informative _) as [_ | n]; [reflexivity | exfalso; apply n; reflexivity].
     + destruct (excluded_middle_informative _) as [e | _]; [exfalso; exact (truths_differ e) |].
       destruct (excluded_middle_informative _) as [_ | n]; [reflexivity | exfalso; apply n; reflexivity].
-  - intros [| P | z | s | r] c r'; cbn; try discriminate;
+  - intros [| P | z | s | r | cls |] c r'; cbn; try discriminate;
       repeat destruct (excluded_middle_informative _); discriminate.
 Defined.
 
@@ -90,6 +102,35 @@ Proof.
     repeat match goal with |- context [Nat.eqb ?x ?y] => destruct (Nat.eqb_spec x y) as [-> | ?]; cbn end;
     repeat match goal with |- context [String.eqb ?x ?y] => destruct (String.eqb_spec x y) as [-> | ?]; cbn end;
     first [reflexivity | rewrite val_eqb_refl; reflexivity | rewrite Hne by congruence; reflexivity].
+Qed.
+
+(** Any value compared with a reference known by its identity, where no class of the code says what `equals`
+    is: it is that reference or it is not. *)
+Lemma equal_to_identity (T : table) (a b : val) :
+  identity b -> unnamed T "equals" = true -> equal T a b = oret (val_eqb a b).
+Proof.
+  intros Hb HT.
+  assert (forall x y : val, x <> y -> val_eqb x y = false) as Hne.
+  { intros x y H. unfold val_eqb. destruct (val_eq_dec x y); [contradiction | reflexivity]. }
+  destruct b as [| | tb | | ob | |]; try contradiction; try (destruct ob; try contradiction);
+    destruct a as [| | ta | | oa | |]; try destruct oa; unfold equal; cbn;
+    try rewrite (named_none T "equals" _ HT); cbn; try (rewrite Hne by discriminate; reflexivity).
+  all: unfold same_place;
+    repeat match goal with |- context [Nat.eqb ?x ?y] => destruct (Nat.eqb_spec x y) as [-> | ?]; cbn end;
+    repeat match goal with |- context [String.eqb ?x ?y] => destruct (String.eqb_spec x y) as [-> | ?]; cbn end;
+    first [reflexivity | rewrite val_eqb_refl; reflexivity | rewrite Hne by congruence; reflexivity].
+Qed.
+
+(** Whether one of some values meets a test that is decided: decided (`some_of`, kept as it is where a program
+    is computed). So is a value among those of a set that does not change, where the value is a reference known
+    by its identity. *)
+Definition some_of (f : val -> bool) (xs : list val) : bool := existsb f xs.
+
+Lemma any_decided (p : val -> X bool) (f : val -> bool) (xs : list val) :
+  (forall y, p y = oret (f y)) -> any p xs = oret (some_of f xs).
+Proof.
+  intros H. unfold some_of. induction xs as [| x rest IH]; [reflexivity |]. cbn. rewrite H. cbn.
+  destruct (f x); [reflexivity | exact IH].
 Qed.
 
 (** A value compared with `null`: it is `null` or it is not, whatever it is. *)
@@ -445,12 +486,13 @@ Section Walk.
   Lemma function_steps a inside m c y ys from :
     history from = Event_Invoke a inside (Invocation_mk m (y :: ys)) ->
     applies known m = true -> names N y (VCode c) -> written files c ->
-    exists args (at_ : Z -> stage), Forall2 (names N) ys args /\
+    exists args (at_ : Z -> stage), Forall2 (names N) ys args /\ given known c args /\
       (forall w, direct a from (history w) -> from < w) /\
       (forall w, from < w -> steps a from (from + 1) (Running (run T c (VList args))) w (at_ w)) /\
       (forall w, from < w -> its (at_ w) a from (history w) -> takes a from w (history w) (at_ w) (at_ (w + 1))).
   Proof.
-    intros He Hm Hy Hw. destruct (proj1 (proj2 (proj2 conformed)) _ _ _ _ _ _ _ He Hm Hy Hw) as (args & Hys & Hf).
+    intros He Hm Hy Hw.
+    destruct (proj1 (proj2 (proj2 conformed)) _ _ _ _ _ _ _ He Hm Hy Hw) as (args & Hys & Hg & Hf).
     apply follows_steps in Hf as (at_ & H0 & H1 & H2). exists args, at_. auto.
   Qed.
 

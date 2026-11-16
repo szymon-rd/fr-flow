@@ -54,7 +54,7 @@ Proof.
         history w = Event_Invoke c (Some i) (Invocation_mk "scala.Function0 apply :java.lang.Object" [code]) ->
         overBy history c w j)) as Hall.
   { refine (function_meets _ C Hcall eq_refl Hr Hwritten _).
-    intros args' j' Hargs'. apply vals_none in Hargs' as ->.
+    intros args' j' Hargs' _. apply vals_none in Hargs' as ->.
     (* it calls the code it was made to run, and is responded to *)
     step. intros wt mt yt yst Hwt Hp0 Hmt _ _ Hinv. typed_all. split; [miss |].
     intros wback rback spback xback Hwback Hresp _.

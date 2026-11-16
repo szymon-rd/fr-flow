@@ -131,6 +131,18 @@ Proof.
   - exists m, a, (m + 1). split; [left; split; [exact Hdone | reflexivity] | lia].
 Qed.
 
+(** A response that gives unit is the return of unit. *)
+Lemma returned_unit (N : naming) (r : Response) : gives N r (inr VUnit) -> r = Response_Returned Value_Unit_.
+Proof. destruct r as [y | y]; [| contradiction]. intros H. f_equal. exact (one_name N _ _ _ H (of_unit N)). Qed.
+
+(** What is thrown, where the response says it is an InterruptedException of the JDK. *)
+Lemma threw_interruption (N : naming) (e : exn) :
+  gives N (Response_Threw (Value_Thrown "java.lang.InterruptedException")) (inl e) -> e = InterruptedException.
+Proof.
+  intros H. pose proof (names_one N _ _ _ H (of_thrown N _)) as E.
+  destruct e; cbn in E; try discriminate E; try reflexivity; injection E as E; discriminate E.
+Qed.
+
 (** ** One thing at a time *)
 
 (** What an actor calls while a call of its own is pending is among what that call itself calls, or is called

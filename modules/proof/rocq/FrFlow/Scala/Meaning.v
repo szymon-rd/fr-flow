@@ -114,7 +114,8 @@ Section Meaning.
     end.
 
   (** Two values compared as data: `None` where it is for a method of the code to say (an object of a class
-      with its own `equals`), or is not known (two functions). A text or a function is not `null`. *)
+      with its own `equals`), or is not known (two functions, two texts not both known). A text is only a
+      text, and a function only itself: neither is `null`, a number or another object. *)
   Fixpoint same_val (fuel : nat) (a b : val) : option bool :=
     match fuel with
     | 0 => None
@@ -144,8 +145,10 @@ Section Meaning.
         | VObj (Data c xs), VObj (Data c' ys) => if String.eqb c c' then all xs ys else Some false
         | VObj (Module m), VObj (Module m') => Some (String.eqb m m')
         | VObj (ClassOf c), VObj (ClassOf c') => Some (String.eqb c c')
-        | VObj Text, VObj Null | VObj Null, VObj Text | VCode _, VObj Null | VObj Null, VCode _ => Some false
-        | VObj Text, _ | _, VObj Text | VCode _, _ | _, VCode _ => None
+        | VObj Text, VObj Text | VObj Text, VObj (Str _) | VObj (Str _), VObj Text | VCode _, VCode _ => None
+        | VObj (Ref c _), VObj Text | VObj (Ref c _), VCode _ =>
+            match named T c "equals" with Some _ => None | None => Some false end
+        | VObj Text, _ | _, VObj Text | VCode _, _ | _, VCode _ => Some false
         | _, _ => Some false
         end
     end.

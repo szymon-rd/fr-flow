@@ -16,7 +16,7 @@ Three roots, each of a herd after `interruptAllAndJoinUntilCompleted` (closing) 
 
 ## What stands, and on what
 
-Every step from parts to a claim that has a proof is proven. Thirteen claims are proven of the code's trees.
+Every step from parts to a claim that has a proof is proven. Fifteen claims are proven of the code's trees.
 Four claims are not proven; FrFlow reports them so, and every node above one of them as waiting, and the suite
 names them (`ThreadsSuite`):
 
@@ -24,13 +24,16 @@ names them (`ThreadsSuite`):
 |---|---|
 | `aHerdsFlagIsOnlyReadAndSet` | `aClosedHerdRefusesToStart` |
 | `aHerdsSetIsPlain` | the first two roots |
-| `closingsTraversalsReturn` | the first two roots |
+| `closingsFunctionsReturn` | the first two roots |
 | `theTreeCheckStaysOutOfHerds` | the first two roots |
 
 Of the last, what the check calls itself is proven (`theTreeCheckCallsFour`); the function it applies calls
-into scopes, which are not read.
+into scopes, which are not read. Of the one before, that closing's traversals do not throw is proven from it
+(`closingsTraversalsReturn`), and so is that the function its two functions apply to interrupt a thread returns
+(`whatClosingsFunctionsApplyReturns`); what is left is that the second function, catching an interruption,
+reads a local variable twice: that the second read finds what the first did is not yet said of an execution.
 
-Fourteen claims are already proven of Ox's code from the JDK, the JVM and Scala's objects alone, with no
+Sixteen claims are already proven of Ox's code from the JDK, the JVM and Scala's objects alone, with no
 assumption about Ox or about who uses it (the suite computes the list and pins it). Among them:
 
 - `startThreadFirstSeesTheFlagUnset`: a call of `startThread` returns, or adds a thread, only if the herd's
@@ -47,10 +50,11 @@ No root is among them yet.
 
 What is assumed, by what it is about:
 
-- **The JDK and the JVM** (11): `addingIsAtomic`, `anElementLeavesOnlyWhenRemoved`,
+- **The JDK and the JVM** (15): `addingIsAtomic`, `anElementLeavesOnlyWhenRemoved`,
   `isEmptyFindsItEmptyUnlessAdded`, `isEmptyReturns`, `getGivesTheFlag`, `settingIsAtomic`,
   `aFlagBecomesOnlyWhatIsSet`, `setReturns`, `currentThreadIsTheCaller`, `theJdkStaysOutOfHerds`,
-  `aThreadDoesOneThingAtATime`.
+  `aThreadDoesOneThingAtATime`, `aTraversalThrowsOnlyWhatItsFunctionThrew`, `joinThrowsOnlyAnInterruption`,
+  `interruptReturns`, `addSuppressedReturns`.
 - **Scala's objects** (2): `herdsAreMade`, `aHerdKeepsItsFields`.
 - **Who uses a herd** (1): `startThreadIsCalledFromInside`. It is stricter than Ox's own check: it leaves out a
   fork of a nested scope starting a fork in an enclosing one.

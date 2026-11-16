@@ -89,8 +89,3 @@ val isEmptyFindsItEmptyUnlessAdded = Node.assumption(
     s.isEmpty().everyCall((from, a, to) =>
       ((a === Returned(True)) && !addedDuring(s, from, to)) implies exists((m: Term[BigInt]) =>
         from <= m && m <= to && forall((y: Term[Value]) => !elements(s, m).contains(y))))))
-
-val aThreadDoesOneThingAtATime = Node.assumption(
-  "A thread does one thing at a time: what it calls while a call of its own is pending is called by that call " +
-    "itself, or while a call that call itself made is pending.")(
-  forall((t: Obj[Thread]) => oneAtATime(t.asValue)))

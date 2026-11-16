@@ -19,7 +19,13 @@ Proof.
   split.
   { intros s from response to [who H]. destruct (nothing_completed_at_rest _ _ _ _ _ H). }
   split.
-  { intros h f from a b r [[H _] _]. destruct (nothing_called_at_rest _ _ _ H). }
+  { intros s f c _ from response to H. destruct (nothing_completed_at_rest _ _ _ _ _ H). }
+  split.
+  { intros t from response to [who H]. destruct (nothing_completed_at_rest _ _ _ _ _ H). }
+  split.
+  { intros x _ from response to [who H]. destruct (nothing_completed_at_rest _ _ _ _ _ H). }
+  split.
+  { intros t from response to [who H]. destruct (nothing_completed_at_rest _ _ _ _ _ H). }
   split.
   { intros h code c w H. destruct (nothing_called_at_rest _ _ _ H). }
   split.

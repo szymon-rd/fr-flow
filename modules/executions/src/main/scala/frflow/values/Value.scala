@@ -12,3 +12,7 @@ enum Value derives RocqType:
   case Int(value: BigInt)
   case Str(value: String)
   case Reference(address: BigInt)
+  /** What the JDK throws, known by its class alone: an execution does not tell two of one class apart. */
+  case Thrown(cls: String)
+  /** No object: `null`. */
+  case Null

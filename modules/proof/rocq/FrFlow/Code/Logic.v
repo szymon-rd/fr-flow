@@ -304,13 +304,15 @@ Section Logic.
   Lemma function_meets inside m c y ys :
     history i = Event_Invoke a inside (Invocation_mk m (y :: ys)) ->
     applies known m = true -> names N y (VCode c) -> written files c ->
-    (forall args w, Forall2 (names N) ys args -> meets [] (i + 1) (Running (run T c (VList args))) w) ->
+    (forall args w, Forall2 (names N) ys args -> given known c args ->
+       meets [] (i + 1) (Running (run T c (VList args))) w) ->
     forall w, direct a i (history w) -> claim w.
   Proof.
     intros He Hm Hy Hc H w Hdir.
-    destruct (function_steps conformed He Hm Hy Hc) as (args & at_ & Hargs & Hlater & Hsteps & Htakes).
+    destruct (function_steps conformed He Hm Hy Hc) as (args & at_ & Hargs & Hgiven & Hlater & Hsteps & Htakes).
     pose proof (Hlater w Hdir) as Hw.
-    refine (H args w Hargs ltac:(lia) _ (at_ w) (at_ (w + 1)) (Hsteps w Hw) Hdir (Htakes w Hw (or_introl Hdir))).
+    refine (H args w Hargs Hgiven ltac:(lia) _ (at_ w) (at_ (w + 1)) (Hsteps w Hw) Hdir
+      (Htakes w Hw (or_introl Hdir))).
     intros k Hk Hdk. pose proof (Hlater k Hdk). lia.
   Qed.
 
@@ -417,6 +419,9 @@ Ltac meets_answer :=
       let E := fresh in
       assert (E : unnamed T' "equals" = true) by (vm_compute; reflexivity);
       rewrite (equal_identity T' a b ltac:(assumption) ltac:(assumption) E); clear E
+  | |- context [any ?p ?xs] =>
+      erewrite (any_decided p _ xs)
+        by (intro; cbn [c_eq]; apply equal_to_identity; [assumption | vm_compute; reflexivity])
   | |- context [val_eqb ?a ?b] =>
       first
         [ unify a b; change (val_eqb a b) with (val_eqb a a); rewrite (val_eqb_refl a)
@@ -441,6 +446,7 @@ Ltac meets_each p :=
       end;
       destruct x
   | context [val_eqb ?a ?b] => let E := fresh "E" in destruct (val_eqb a b) eqn:E
+  | context [some_of ?f ?xs] => let E := fresh "E" in destruct (some_of f xs) eqn:E
   end.
 
 (** The program of the goal with its next step computed: its first operation, call or result, what follows
@@ -449,19 +455,22 @@ Ltac meets_head :=
   typed_all;
   lazymatch goal with
   | |- meets ?T ?C ?N ?h ?a ?i ?G ?tr ?w0 (Running ?p) ?w =>
-      let p' := eval lazy head beta iota zeta delta -[implemented held equal val_eqb Jdk.as_exn] in p in
+      let p' :=
+        eval lazy head beta iota zeta delta -[implemented held equal val_eqb Jdk.as_exn any some_of] in p in
       lazymatch p' with
       | Vis ?o ?k =>
-          let o' := eval lazy beta iota zeta delta -[receiver] in o in
+          let o' := eval lazy beta iota zeta delta -[receiver val_eqb some_of] in o in
           let K := fresh "K" in
           pose (K := k); change (meets T C N h a i G tr w0 (Running (Vis o' K)) w); aside_clear;
           repeat match goal with E : receiver ?v = _ |- _ => rewrite E end; cbn [app]
       | Call ?c ?arg ?k =>
-          let c' := eval lazy in c in
-          let arg' := eval lazy in arg in
+          let c' := eval lazy beta iota zeta delta -[val_eqb some_of] in c in
+          let arg' := eval lazy beta iota zeta delta -[val_eqb some_of] in arg in
           let K := fresh "K" in
           pose (K := k); change (meets T C N h a i G tr w0 (Running (Call c' arg' K)) w); aside_clear
-      | Ret ?x => let x' := eval lazy in x in change (meets T C N h a i G tr w0 (Running (Ret x')) w); aside_clear
+      | Ret ?x =>
+          let x' := eval lazy beta iota zeta delta -[val_eqb some_of] in x in
+          change (meets T C N h a i G tr w0 (Running (Ret x')) w); aside_clear
       | Iter ?body ?s ?k =>
           first
             [ is_var body; is_var k; change (meets T C N h a i G tr w0 (Running (Iter body s k)) w)

@@ -95,6 +95,8 @@ val aThreadIsStartedOnce = Node.assumption("A thread is started at most once.")(
 - `call(...)` reads code as a call where no word of a call follows it.
 - `o.method[A]("name")` is a call of the method of `o`'s class named so: a statement may name a method code
   outside the class may not, as `o.field("name")` does of fields.
+- `thrown[InterruptedException]` is an exception of the class as the JDK throws it, known by its class alone
+  (an execution does not tell two of one class apart); `noObject` is `null`.
 - `applicationOf(f, x)` is a call by which the code applies a function itself: a local method called by its
   name, a function it holds applied. An execution names every such call by one method; what applies a function
   from outside the code names the interface's method (`r.run()`).

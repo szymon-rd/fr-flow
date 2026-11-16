@@ -47,7 +47,7 @@ Proof.
       exists a b, (i < a /\ b <= k) /\ completedBy history
         (Invocation_mk "java.lang.Thread$ currentThread :java.lang.Thread" []) c a (Response_Returned t) b)
     C Hcall eq_refl Hr Hwritten _ w (makes_direct Hrem) _ t Hrem).
-  intros args' k' Hargs'. apply vals_none in Hargs' as ->.
+  intros args' k' Hargs' _. apply vals_none in Hargs' as ->.
   (* it calls the code it was made to run; whatever that gave, the herd's set is read *)
   pass. pass.
   (* Thread.currentThread() *)
