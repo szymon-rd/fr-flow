@@ -38,6 +38,11 @@ inline def methodsOf[C]: List[String] = ${ CodeMacros.methods[C] }
 /** The method the code calls, as the tree read names it: `methodOf[KeySet](_.add(???))`. */
 inline def methodOf[C](inline code: C => Any): String = ${ CodeMacros.method[C]('code) }
 
+/** The method the code written applies, as the tree read names it, whatever it is applied to:
+  * `methodCalled(scoped(???)(???))`, of a method of a package or of a companion.
+  */
+inline def methodCalled(inline code: Any): String = ${ CodeMacros.called('code) }
+
 /** A call by which the code applies a function itself: a local method called by its name, a function it holds
   * applied. An execution names every such call by one method, whatever interface the function is of; what
   * applies a function from outside the code names the interface's method (`r.run()`).

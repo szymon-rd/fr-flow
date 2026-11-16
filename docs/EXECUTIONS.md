@@ -103,6 +103,9 @@ val aThreadIsStartedOnce = Node.assumption("A thread is started at most once.")(
   from outside the code names the interface's method (`r.run()`).
 - `methodOf[C](_.add(???))` is the name of a method as the code names it; `calledOn(o, method, w)` says a call of
   the method named `method` is made on `o` at `w`, whatever else it is given.
+- `methodCalled(scoped(???)(???))` is the name of the method the code written applies, of a package's method or
+  a companion's, where what it takes cannot be written as terms: `Call.of[A](methodCalled(…), arguments*)` is
+  then the call.
 
 ### A call takes time
 
@@ -195,8 +198,9 @@ through the method's program once, by one rule for each thing a program does nex
 | (anything) | `meets_from` | nothing: the claim holds at every moment from here on |
 
 Each rule asks that the claim hold at the operation's own event, and that the rest of the program meet it.
-`method_meets` and `function_meets` start a proof: a call of a method of the code, or of a function it wrote,
-meets a claim at every event of its own if its program does. The tactic `step` applies the rule of what the
+`method_meets`, `module_meets` and `function_meets` start a proof: a call of a method of the code on an object,
+of a method of an object alone of its class (a package's, a companion's), or of a function the code wrote, meets
+a claim at every event of its own if its program does. The tactic `step` applies the rule of what the
 program does next (computing only that); `pass` does the same at an event the claim says nothing of, and
 `miss` shows that it says nothing. What a call of another method of the code gives is a lemma of that method,
 proven the same way and used where it is called (`assertNotShuttingDown_returns`).
@@ -241,6 +245,8 @@ What a model must still say itself, as assumptions:
   17.4.5). That only one thread touches a variable a function holds is not derived: a model states it
   (`call.keepsWhatItMakesToItself`). Of a variable two threads write, and of a field of an object, a read is an
   event with any value of its type: a claim that needs the value a field holds is not proven of the code.
+- **A function the code is given** (a parameter of a function type) has no type that says it is a function, so
+  the walk of a method stops where it applies one: `scopedWithCapability` applying the code it was given.
 - **What a method outside the code gives** is known by the class its signature names: a truth value, a number,
   unit, a reference, what is thrown, and an option (none, some value, or no object). A method with no parameter
   clause is named with the class of what it gives (`ox.OxUnsupervised parent :scala.Option`), which the

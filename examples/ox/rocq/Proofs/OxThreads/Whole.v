@@ -9,6 +9,15 @@ Proof.
   exists (fun _ => Event_Stutter), (fun _ x => x), (fun _ _ _ => False), (fun _ _ => False).
   split; [exact rest_runs |].
   split.
+  { intros supervisor errorMode parent locals code c s from ended to a b [[H _] _].
+    destruct (nothing_completed_at_rest _ _ _ _ _ H). }
+  split.
+  { intros s from response to [who H]. destruct (nothing_completed_at_rest _ _ _ _ _ H). }
+  split.
+  { intros s. split; intros from response to [who H]; destruct (nothing_completed_at_rest _ _ _ _ _ H). }
+  split.
+  { intros s. repeat split; intros w by_ inside written H; discriminate H. }
+  split.
   { intros h code t m w [[who H] _]. destruct (nothing_called_at_rest _ _ _ H). }
   split.
   { intros h g r q t i j [[[_ H] _] _]. destruct (nothing_called_at_rest _ _ _ H). }

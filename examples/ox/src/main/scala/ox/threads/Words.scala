@@ -48,9 +48,10 @@ val madeToRun = stated { (t: Obj[Thread], h: Obj[ThreadHerd], code: Obj[Code], w
     to <= w && threads(h).add(t).by(c).completed(from, make[Response.Returned](added), to) &&
       starting(h, code).by(c).pendingAt(from)) }
 
-/** Closing the herd, by its owner, has completed. */
+/** Closing the herd, by its owner, has completed: a call of it has, by the moment. */
 val closed = stated { (h: Obj[ThreadHerd], w: Term[BigInt]) =>
-  closing(h).by(owner(h)).calledBefore(w) && !closing(h).by(owner(h)).pendingAt(w) }
+  exists((from: Term[BigInt], ended: Term[Response], to: Term[BigInt]) =>
+    to <= w && closing(h).by(owner(h)).completed(from, ended, to)) }
 
 /** The thread is inside the herd's scope: its owner before it calls closing, or a fork of it that has not left. */
 val inside = stated { (c: Obj[Thread], h: Obj[ThreadHerd], w: Term[BigInt]) =>

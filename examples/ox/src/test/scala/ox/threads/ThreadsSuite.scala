@@ -32,7 +32,8 @@ import scala.concurrent.duration.*
     "aTraversalThrowsOnlyWhatItsFunctionThrew", "joinThrowsOnlyAnInterruption", "interruptReturns",
     "addSuppressedReturns", "herdsAreConstructed", "aHerdHoldsWhatItWasGiven",
     "anAtomicBooleanHasOnlyItsMethods", "aKeySetHasOnlyItsMethods",
-    "whatTheChecksAskOfTheJdkStaysOutOfHerds")
+    "whatTheChecksAskOfTheJdkStaysOutOfHerds", "aScopeHoldsWhatItWasGiven", "aScopeGivesTheHerdItHolds",
+    "theCurrentScopeIsReadAndSet")
 
   /** What is assumed beside the platform, by what it is about: each named in the README. */
   private val ofPrivateState = List("aHerdKeepsItsFlagToItself", "aHerdKeepsItsSetToItself",
@@ -52,6 +53,7 @@ import scala.concurrent.duration.*
     "aHerdsMethodsOnlyGetAndSetAFlag", "aHerdsSetIsNew", "closingCallsFour", "closingSetsTheFlagItself",
     "theMembershipCheckCallsContains", "theOwnerCheckCallsCurrentThread", "theForkFunctionCallsFour",
     "whatAHerdsCodeCallsOfASet", "theWalkUpCallsFour", "theMembershipCheckStaysOutOfHerds",
+    "unsupervisedRunsInTheScopeItMade",
     "closingSetsTheFlagOnlyToTrue", "closingTraversesWithAFunction", "herdsAreMade",
     "startThreadAddsBeforeItStarts",
     "startThreadAddsWhatItsFactoryMade",
@@ -60,17 +62,25 @@ import scala.concurrent.duration.*
     "theClosingCheckStaysOutOfHerds", "theForkFunctionRemovesTheCurrentThread", "theTreeCheckCallsFour",
     "whatClosingsFunctionsApplyReturns")
 
-  private val roots = List("aClosedHerdRefusesToStart", "noForkRunsOnceClosed", "nothingIsAddedOnceClosed")
+  /** The claims about a scope that are not proven yet, each for a reason of its own: its step from its parts. */
+  private val notProven = List("aScopeEndsAfterItsHerdIsClosed", "aScopesHerdIsItsMakers")
 
-  test("every root is proven: no claim is unproven, and what each root is from is of the kinds named".tag(Live)) {
+  /** What is said of a herd is all proven: the two roots on a herd, and the claim the scope's root is from. */
+  private val ofAHerd = List("aClosedHerdRefusesToStart", "noForkRunsOnceClosed", "nothingIsAddedOnceClosed")
+
+  test("what is said of a herd is proven; of a scope, the root waits for two claims named here".tag(Live)) {
     Ported.run(Projects.elaborated(oxThreads), Nil, Ported.proofs("ox", "OxThreads")).map { r =>
-      assertEquals(Ported.unproven(r), Map.empty[String, List[String]], Ported.table(r))
-      assertEquals(Ported.standsOn(r).map((root, on) => root -> on._1), roots.map(_ -> Nil).toMap)
+      assertEquals(Ported.unproven(r).filter(_._2 != List("Check")),
+        notProven.map(_ -> List("Check", "Parts")).toMap, Ported.table(r))
+      assertEquals(Ported.standsOn(r).map((root, on) => root -> on._1.sorted), Map(
+        "aClosedHerdRefusesToStart" -> Nil, "nothingIsAddedOnceClosed" -> Nil,
+        "noForkRunsOnceUnsupervisedEnds" -> notProven))
+      ofAHerd.foreach(n => assertEquals(Ported.standing(r)(n)._2, Nil, n))
       assertEquals(Ported.standing(r)("aClosedHerdRefusesToStart")._1.sorted, theFlagRootIsFrom)
       val named = ofThePlatform ++ ofPrivateState ++ ofWhoUsesAHerd ++ ofScopesNotRead ++ suspectedFalse
-      roots.foreach(root => assertEquals(Ported.standing(r)(root)._1.filterNot(named), Nil, root))
-      List("noForkRunsOnceClosed", "nothingIsAddedOnceClosed").foreach(root =>
-        assert(Ported.standing(r)(root)._1.contains("nothingIsAddedDuringTheLastCheck"), root))
+      ofAHerd.foreach(n => assertEquals(Ported.standing(r)(n)._1.filterNot(named), Nil, n))
+      List("noForkRunsOnceClosed", "nothingIsAddedOnceClosed").foreach(n =>
+        assert(Ported.standing(r)(n)._1.contains("nothingIsAddedDuringTheLastCheck"), n))
       assertEquals(Ported.standing(r).collect { case (n, (assumed, Nil)) if assumed.forall(ofThePlatform) => n }
         .toList.sorted, provenOfTheCodeAlone.sorted)
     }

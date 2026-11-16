@@ -11,6 +11,7 @@ import scala.quoted.*
 object CodeMacros:
   def call[A: Type](code: Expr[A])(using Quotes): Expr[Call[A]] = Reading().call(code)
   def method[C: Type](code: Expr[C => Any])(using Quotes): Expr[String] = Reading().method(code)
+  def called(code: Expr[Any])(using Quotes): Expr[String] = Reading().called(code)
 
   def methods[C: Type](using Quotes): Expr[List[String]] =
     import quotes.reflect.*
@@ -44,6 +45,10 @@ object CodeMacros:
 
     private def expandedLater(method: Symbol): Boolean =
       method.exists && method.isDefDef && method.flags.is(Flags.Inline) && !method.flags.is(Flags.Transparent)
+
+    /** The name of the method the code applies. */
+    def called(code: Expr[Any]): Expr[String] =
+      Expr(MemberName.of(applied(unexpanded(code.asTerm), Nil)._1).mkString(" "))
 
     /** The tree without what the compiler wraps it in. */
     private def bare(t: Term): Term = t match

@@ -387,6 +387,24 @@ Section Logic.
     intros m Hm Hdm. pose proof (Hlater m Hdm). lia.
   Qed.
 
+  (** A call of a method of an object of the code that is alone of its class. *)
+  Lemma module_meets inside owner name signature c d ys :
+    history i = Event_Invoke a inside (Invocation_mk (label owner name signature) ys) ->
+    class_of T owner = Some c -> is_module c = true -> impl T owner (Member owner name signature) = Some d ->
+    (forall args w, Forall2 (names N) ys args -> passed known d args ->
+       meets [] (i + 1)
+         (Running (run T (Method (Member owner name signature)) (VList (module_val T owner :: args)))) w) ->
+    forall w, direct a i (history w) -> claim w.
+  Proof.
+    intros He Hc Hm Hd H w Hdir.
+    destruct (module_steps conformed owner name signature He Hc Hm Hd)
+      as (args & at_ & Hargs & Hp & Hlater & Hsteps & Htakes).
+    pose proof (Hlater w Hdir) as Hw.
+    refine (H args w Hargs Hp ltac:(lia) _ (at_ w) (at_ (w + 1)) (Hsteps w Hw) Hdir
+      (Htakes w Hw (or_introl Hdir))).
+    intros m Hm' Hdm. pose proof (Hlater m Hdm). lia.
+  Qed.
+
   (** A call of a function the code wrote. *)
   Lemma function_meets inside m c y ys :
     history i = Event_Invoke a inside (Invocation_mk m (y :: ys)) ->
@@ -406,6 +424,8 @@ Section Logic.
 End Logic.
 
 Arguments method_meets {files T known N history a i} claim conformed {inside} s {cls r d y ys} _ _ _ _ w _.
+Arguments module_meets {files T known N history a i} claim conformed {inside} owner name signature {c d ys}
+  _ _ _ _ _ w _.
 Arguments function_meets {files T known N history a i} claim conformed {inside m c y ys} _ _ _ _ _ w _.
 Arguments constructor_meets {files T known N history a i} claim conformed {inside} cls {c} signature {ys}
   _ _ _ _ w _.

@@ -591,8 +591,7 @@ Definition product (owner name : string) : option Run :=
     else if called "unapply" then Some (fun _ _ _ args => match args with [x] => oret x | _ => wrong name end)
     else None
   else if at_ "scala.Option$" && called "apply" then Some (fun _ _ _ args => match args with
-    | [VObj Null] => oret none
-    | [x] => oret (some x)
+    | [x] => oret (if val_eqb x vnull then none else some x)   (* asked of the value whole: not looked into *)
     | _ => wrong name end)
   else if at_ "scala.Option$" && called "empty" then Some (fun _ _ _ _ => oret none)
   else if at_ "scala.util.Try" && called "get" then Some (fun _ v _ _ => match v with

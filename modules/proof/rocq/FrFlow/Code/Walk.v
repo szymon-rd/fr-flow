@@ -490,6 +490,43 @@ Section Walk.
     apply follows_steps in Hf as (at_ & H0 & H1 & H2). exists args, at_. auto.
   Qed.
 
+  (** A call of a method of an object of the code that is alone of its class: a package's, a companion's. *)
+  Lemma module_steps a inside owner name signature c d ys from :
+    history from = Event_Invoke a inside (Invocation_mk (label owner name signature) ys) ->
+    class_of T owner = Some c -> is_module c = true -> impl T owner (Member owner name signature) = Some d ->
+    exists args (at_ : Z -> stage), Forall2 (names N) ys args /\ passed known d args /\
+      (forall w, direct a from (history w) -> from < w) /\
+      (forall w, from < w -> steps a from (from + 1)
+        (Running (run T (Method (Member owner name signature)) (VList (module_val T owner :: args)))) w (at_ w)) /\
+      (forall w, from < w -> its (at_ w) a from (history w) -> takes a from w (history w) (at_ w) (at_ (w + 1))).
+  Proof.
+    intros He Hc Hm Hd.
+    destruct (proj1 (proj2 conformed) _ _ _ _ _ _ _ _ _ He Hc Hm Hd) as (args & Hys & Hp & Hf).
+    apply follows_steps in Hf as (at_ & H0 & H1 & H2). exists args, at_. auto.
+  Qed.
+
+  (** A call of such a method makes no event of its own once it has responded. *)
+  Lemma module_over a inside owner name signature c d ys from k w resp spawns :
+    history from = Event_Invoke a inside (Invocation_mk (label owner name signature) ys) ->
+    class_of T owner = Some c -> is_module c = true -> impl T owner (Member owner name signature) = Some d ->
+    history k = Event_Respond a from resp spawns -> k < w -> ~ direct a from (history w).
+  Proof.
+    intros He Hc Hm Hd Hk Hlt.
+    destruct (proj1 (proj2 conformed) _ _ _ _ _ _ _ _ _ He Hc Hm Hd) as (args & _ & _ & Hf).
+    exact (proj1 (proj2 Hf) _ _ _ _ Hk Hlt).
+  Qed.
+
+  (** A call of such a method is no event made and responded to at once. *)
+  Lemma module_not_atomic w a inside owner name signature c d ys resp spawns :
+    history w = Event_Atomic a inside (Invocation_mk (label owner name signature) ys) resp spawns ->
+    class_of T owner = Some c -> is_module c = true -> impl T owner (Member owner name signature) = Some d ->
+    False.
+  Proof.
+    intros He Hc Hm Hd.
+    exact (proj1 (proj2 (proj1 (proj2 (proj2 (proj2 conformed))) _ _ _ _ _ _ _ He)) owner name signature c d
+      eq_refl Hc Hm Hd).
+  Qed.
+
   (** A call of a method of the code makes no event of its own once it has responded. *)
   Lemma method_over a inside s cls r d y ys from k w resp spawns :
     history from = Event_Invoke a inside (Invocation_mk (label_of s) (y :: ys)) ->
@@ -630,6 +667,11 @@ Section Walk.
 End Walk.
 
 Arguments method_steps {files T known N history} conformed {a inside} s {cls r d y ys from} _ _ _.
+Arguments module_steps {files T known N history} conformed {a inside} owner name signature {c d ys from} _ _ _ _.
+Arguments module_over {files T known N history} conformed {a inside} owner name signature
+  {c d ys from k w resp spawns} _ _ _ _ _ _.
+Arguments module_not_atomic {files T known N history} conformed {w a inside} owner name signature
+  {c d ys resp spawns} _ _ _ _.
 Arguments method_not_atomic {files T known N history} conformed {w a inside} s {cls r d y ys resp spawns} _ _ _.
 Arguments function_steps {files T known N history} conformed {a inside m c y ys from} _ _ _ _.
 Arguments constructor_steps {files T known N history} conformed {a inside} cls {c} signature {ys from} _ _ _.

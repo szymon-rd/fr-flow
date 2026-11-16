@@ -1,24 +1,43 @@
-# Ox's threads: what is proven of `ThreadHerd`
+# Ox's threads: what is proven of `ThreadHerd`, and of a scope
 
-A FrFlow model of the class Ox keeps a scope's threads in, `ox.internal.ThreadHerd`. The code is read from Ox's
-jar as it is compiled (its TASTy), unchanged. The statements are Scala (`src/main/scala/ox/threads`); each step is
-proven in Rocq (`rocq/Proofs/OxThreads`), the claims at the bottom against the trees read.
+A FrFlow model of the class Ox keeps a scope's threads in, `ox.internal.ThreadHerd`, of the scope class
+(`ox.OxError`) and of `unsupervised`. The code is read from Ox's jar as it is compiled (its TASTy), unchanged.
+The statements are Scala (`src/main/scala/ox/threads`); each step is proven in Rocq (`rocq/Proofs/OxThreads`),
+the claims at the bottom against the trees read.
 
 ## What is stated
 
-Three roots, each of a herd after `interruptAllAndJoinUntilCompleted` (closing) has returned:
+Of a herd, after `interruptAllAndJoinUntilCompleted` (closing) has completed, by its owner:
+
+| Statement | Says |
+|---|---|
+| `noForkRunsOnceClosed` | No fork of the herd runs the code it was made to run. |
+| `nothingIsAddedOnceClosed` (root) | No thread is added to the herd's set. |
+| `aClosedHerdRefusesToStart` (root) | A call of `startThread` does not return, and adds no thread. |
+
+Of a scope:
 
 | Root | Says |
 |---|---|
-| `noForkRunsOnceClosed` | No fork of the herd runs the code it was made to run. |
-| `nothingIsAddedOnceClosed` | No thread is added to the herd's set. |
-| `aClosedHerdRefusesToStart` | A call of `startThread` does not return, and adds no thread. |
+| `noForkRunsOnceUnsupervisedEnds` | After a call of `unsupervised` has completed, no fork of the herd of the scope it made runs the code it was made to run. |
 
 ## What stands, and on what
 
-All three roots are proven: every claim below each is proven, down to `ThreadHerd`'s trees. No claim of the
-model is unproven; FrFlow reports it so, and the suite pins it (`ThreadsSuite`). What a root is proven from is
-the assumptions below it, and they differ in kind, so a root is worth what the weakest of its assumptions is:
+The three statements about a herd are proven: every claim below each is proven, down to `ThreadHerd`'s trees.
+The root about a scope is not proven yet: its own step is (from the statement about a herd and three claims
+about `unsupervised` and a scope), and one of those three is; two are not, FrFlow reports them so and the root
+as waiting, and the suite names them (`ThreadsSuite`):
+
+| Not proven | What is missing |
+|---|---|
+| `aScopeEndsAfterItsHerdIsClosed` | The walk of `scopedWithCapability` stops where it applies the code it was given: a function received as a parameter has no type that says it is a function. |
+| `aScopesHerdIsItsMakers` | The walk of the scope's companion `apply`, through the herd's constructor, is not written. |
+
+`unsupervisedRunsInTheScopeItMade` is proven of `unsupervised`'s tree: a call of it that made a scope completes
+only after a call it made itself, running code in that scope, has completed.
+
+What a statement is proven from is the assumptions below it, and they differ in kind, so it is worth what the
+weakest of its assumptions is:
 
 - `aClosedHerdRefusesToStart` rests on ten assumptions: nine about the JDK, the JVM and Scala's objects, and
   one about Ox, `aHerdKeepsItsFlagToItself`. The suite pins the ten.
@@ -34,7 +53,7 @@ calls itself: one per method (`startThreadCallsFive`, `closingCallsFour`, `theCl
 function `startThread` hands the factory (`theForkFunctionCallsFour`), and one for the function the tree check
 applies to go up the scopes, which applies itself (`theWalkUpCallsFour`).
 
-Twenty-seven claims are proven of Ox's code from the JDK, the JVM and Scala's objects alone, with no assumption
+Twenty-eight claims are proven of Ox's code from the JDK, the JVM and Scala's objects alone, with no assumption
 about Ox or about who uses it (the suite computes the list and pins it). Among them:
 
 - `startThreadFirstSeesTheFlagUnset`: a call of `startThread` returns, or adds a thread, only if the herd's
@@ -64,13 +83,16 @@ itself, and what holds of one application holds of the next by induction on when
 
 What is assumed, by what it is about:
 
-- **The JDK and the JVM** (18): `addingIsAtomic`, `anElementLeavesOnlyWhenRemoved`,
+- **The JDK and the JVM** (19): `addingIsAtomic`, `anElementLeavesOnlyWhenRemoved`,
   `isEmptyFindsItEmptyUnlessAdded`, `isEmptyReturns`, `getGivesTheFlag`, `settingIsAtomic`,
   `aFlagBecomesOnlyWhatIsSet`, `setReturns`, `currentThreadIsTheCaller`, `theJdkStaysOutOfHerds`,
   `whatTheChecksAskOfTheJdkStaysOutOfHerds`, `aThreadDoesOneThingAtATime`,
   `aTraversalThrowsOnlyWhatItsFunctionThrew`, `joinThrowsOnlyAnInterruption`, `interruptReturns`,
-  `addSuppressedReturns`, `anAtomicBooleanHasOnlyItsMethods`, `aKeySetHasOnlyItsMethods`.
-- **Scala's objects** (3): `herdsAreConstructed`, `aHerdKeepsItsFields`, `aHerdHoldsWhatItWasGiven`.
+  `addSuppressedReturns`, `anAtomicBooleanHasOnlyItsMethods`, `aKeySetHasOnlyItsMethods`,
+  `theCurrentScopeIsReadAndSet`.
+- **Scala's objects** (5): `herdsAreConstructed`, `aHerdKeepsItsFields`, `aHerdHoldsWhatItWasGiven`,
+  `aScopeHoldsWhatItWasGiven`, `aScopeGivesTheHerdItHolds` (a scope's herd is a val, asked for through the
+  trait that declares it).
 - **Who uses a herd** (1): `startThreadIsCalledFromInside`. It is stricter than Ox's own check: it leaves out a
   fork of a nested scope starting a fork in an enclosing one.
 - **The thread factory a herd is given** (2): `aThreadRunsOneForkFunctionOnce`, `aFactoryStaysOutOfHerds`.
@@ -112,8 +134,8 @@ or no object.
 
 ## What is not covered
 
-- The scopes above a herd: `unsupervised`, `fork`, `supervised`. So nothing here is yet about a scope, and
-  nothing about what `supervised` returns.
+- `fork` and `supervised`, and the scope's finalizers. Of a scope only `unsupervised` is read, and the root about
+  it is not proven yet (above). Nothing is said of what `supervised` returns.
 - That anything completes: closing, a scope, `supervised`.
 - What is built on scopes (`par`, `race`, `timeout`, cancellation, error modes, `ForkLocal`), channels, `Flow`,
   retries and scheduling, actors.

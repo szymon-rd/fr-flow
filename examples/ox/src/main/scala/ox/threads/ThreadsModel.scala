@@ -10,7 +10,16 @@ import ox.internal.ThreadHerd
 // has it.
 
 val oxThreads: FrModel = FrModel("OxThreads")(
-  noForkRunsOnceClosed, nothingIsAddedOnceClosed, aClosedHerdRefusesToStart,
+  noForkRunsOnceUnsupervisedEnds, nothingIsAddedOnceClosed, aClosedHerdRefusesToStart,
+
+  // A scope: `unsupervised` makes one, runs the code in it, and closes its herd before it ends.
+  noForkRunsOnceClosed.refines(noForkRunsOnceUnsupervisedEnds),
+  unsupervisedRunsInTheScopeItMade.refines(noForkRunsOnceUnsupervisedEnds),
+  aScopeEndsAfterItsHerdIsClosed.refines(noForkRunsOnceUnsupervisedEnds),
+  aScopesHerdIsItsMakers.refines(noForkRunsOnceUnsupervisedEnds),
+  aScopeGivesTheHerdItHolds.refines(aScopeEndsAfterItsHerdIsClosed),
+  theCurrentScopeIsReadAndSet.refines(aScopeEndsAfterItsHerdIsClosed),
+  aScopeHoldsWhatItWasGiven.refines(aScopesHerdIsItsMakers),
 
   everyForkHasLeftOnceClosed.refines(noForkRunsOnceClosed),
   codeRunsBeforeLeaving.refines(noForkRunsOnceClosed),
@@ -108,7 +117,7 @@ val oxThreads: FrModel = FrModel("OxThreads")(
   herdsAreConstructed.refines(herdsAreMade, closingSetsTheFlag, aClosedHerdRefusesToStart, nothingIsAddedOnceEmpty,
     nothingIsBeingAddedWhenEmpty, everyForkHasLeftOnceClosed, startThreadCallersStayInside, codeRunsBeforeLeaving),
   aHerdsFlagIsNew.refines(aHerdsFlagIsOnlyReadAndSet), aHerdsSetIsNew.refines(aHerdsSetIsPlain),
-  aHerdHoldsWhatItWasGiven.refines(aHerdsFlagIsNew, aHerdsSetIsNew),
+  aHerdHoldsWhatItWasGiven.refines(aHerdsFlagIsNew, aHerdsSetIsNew, aScopesHerdIsItsMakers),
 
   herdsAreMade.refines(startThreadReadsTheFlagUnset, closingSetsTheFlagItself,
     theForkFunctionRemovesTheCurrentThread, startThreadAddsWhileItRuns, startThreadAddsWhatItsFactoryMade,
@@ -119,7 +128,8 @@ val oxThreads: FrModel = FrModel("OxThreads")(
     closingCallsFour, theOwnerCheckCallsCurrentThread, theMembershipCheckCallsContains, theWalkUpCallsFour),
   aHerdKeepsItsFields.refines(startThreadReadsTheFlagUnset, closingSetsTheFlagItself,
     theForkFunctionRemovesTheCurrentThread, closingEndsOnceFoundEmpty),
-  currentThreadIsTheCaller.refines(closingSetsTheFlagItself, aForkRemovesOnlyItself, closingEndsOnceFoundEmpty),
+  currentThreadIsTheCaller.refines(closingSetsTheFlagItself, aForkRemovesOnlyItself, closingEndsOnceFoundEmpty,
+    aScopesHerdIsItsMakers),
 
   addingIsAtomic.refines(liveForksAreInTheSet), anElementLeavesOnlyWhenRemoved.refines(liveForksAreInTheSet),
   aHerdsSetIsPlain.refines(liveForksAreInTheSet),

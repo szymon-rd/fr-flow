@@ -6,9 +6,8 @@ Require Export Proofs.OxThreads.Lemmas.
 Lemma everyForkHasLeftOnceClosed_Proofs_complete : everyForkHasLeftOnceClosed_Obl_complete.
 Proof.
   intros heldIn history elements [N C] Hends Hnone Hnow Hlive Hmade h t w [Hclosed Hfork].
-  destruct Hclosed as [Hcalled Hnotpending].
-  destruct (called_and_over_completed history _ _ w Hcalled Hnotpending)
-    as (from & response & to & Hdone & Hfw & Htw).
+  destruct Hclosed as (from & response & to & Htw & Hdone).
+  pose proof (completed_after C Hdone) as Hfw.
   destruct (Hends h from response to Hdone) as (mm & [Hfm Hmt] & Hempty).
   pose proof (completed_was_called _ _ _ _ _ _ Hdone) as Hc.
   assert (exists m1, m1 < mm /\ calledBy history
