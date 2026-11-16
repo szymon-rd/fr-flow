@@ -472,6 +472,10 @@ Ltac typed H :=
   | identity ?v /\ _ => let P := fresh "Hplain" in destruct H as [H P]; pose proof (identity_receiver v H)
   | held ?v = _ /\ receiver ?v = _ => let R := fresh "Hcalled_on" in destruct H as [H R]
   | ?v = _ \/ (exists _, Jdk.as_exn ?v = _) => destruct H as [H | [? H]]; [first [subst v | idtac] |]
+  | (exists _ _ _, ?v = VCode _ /\ _) \/ (exists _ _, ?v = _ /\ _) =>
+      (* a function: an object of the code that is one is taken apart only where the code has no such class *)
+      let Hh := fresh "Hheld" in
+      first [destruct H as [(? & ? & ? & H & Hh) | (? & ? & _ & [])]; first [subst v | idtac] | idtac]
   | ?v = _ \/ (exists _, ?v = _ /\ _) \/ ?v = _ =>
       let Hx := fresh "Hheld" in destruct H as [H | [[? [H Hx]] | H]]; first [subst v | idtac]
   | exists _, ?v = _ => let b := fresh "b" in destruct H as [b H]; first [subst v | idtac]

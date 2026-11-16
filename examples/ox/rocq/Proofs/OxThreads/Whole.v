@@ -16,7 +16,8 @@ Proof.
   split.
   { intros s. split; intros from response to [who H]; destruct (nothing_completed_at_rest _ _ _ _ _ H). }
   split.
-  { intros s. repeat split; intros w by_ inside written H; discriminate H. }
+  { intros h finalizers supervisor errorMode parent locals s from response to [who H].
+    destruct (nothing_completed_at_rest _ _ _ _ _ H). }
   split.
   { intros h code t m w [[who H] _]. destruct (nothing_called_at_rest _ _ _ H). }
   split.

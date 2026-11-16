@@ -14,7 +14,27 @@ object ReadClasses:
     ClassFacts(found.collect { case (n, c) if identity(c) => n }.sorted,
       found.collect { case (n, c) if classOf[Throwable].isAssignableFrom(c) => n }.sorted,
       found.flatMap((n, c) => function(c).map(m => s"$n $m ")).sorted,
-      found.collect { case (n, c) if heir(c) => n }.sorted)
+      (found.collect { case (n, c) if heir(c) => n } ++ functions(tree, loader)).distinct.sorted)
+
+  /** The classes the tree defines that are functions of Scala's: an object of one can be given where a function
+    * is taken. A class made inside a method is not found by its name, and is not among them.
+    */
+  private def functions(tree: Datum, loader: ClassLoader): List[String] =
+    defined(tree).distinct.filter(n => load(n, loader).exists(c => above(c).exists(_.getName.matches(function))))
+
+  private val function = "scala\\.Function\\d+"
+
+  private def defined(d: Datum): List[String] = d match
+    case Datum.Of("ClassDef", Datum.Text(key) :: rest) => key :: rest.flatMap(defined)
+    case Datum.Of(_, args)                             => args.flatMap(defined)
+    case Datum.Many(elems)                             => elems.flatMap(defined)
+    case Datum.Maybe(value)                            => value.toList.flatMap(defined)
+    case _                                             => Nil
+
+  /** Every class and interface a class is below. */
+  private def above(c: Class[?]): List[Class[?]] =
+    val direct = Option(c.getSuperclass).toList ++ c.getInterfaces.toList
+    direct ++ direct.flatMap(above)
 
   /** The names a tree holds that could be a class's: a text, or a part of a signature. */
   private def named(d: Datum): List[String] = d match

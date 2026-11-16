@@ -31,9 +31,17 @@ def runningIn(s: Obj[Scope], code: Term[Value]): Call[Any] =
 def unsupervisedWith(locals: Term[Value], code: Term[Value]): Call[Any] =
   Call.of[Any](methodCalled(ox.unsupervised[Any](???, ???)), locals, code)
 
-val aScopeHoldsWhatItWasGiven = Node.assumption(
-  "Each val of a scope holds what it was given when the scope was made.")(
-  forall((s: Obj[Scope]) => s.holdsWhatItsValsAreGiven))
+/** Making a scope of a herd and the rest of what it holds: the `apply` the compiler writes for a case class. */
+def makingAScopeOf(herd: Obj[ThreadHerd], rest: Term[Value]*): Call[Scope] =
+  Call.of[Scope](methodCalled(OxError[Nothing, [T] =>> T](???, ???, ???, ???, ???, ???)), (herd.asValue +: rest)*)
+
+// Of Scala: the `apply` of a case class is written by the compiler, and is in no tree read. It makes an object
+// whose vals hold what it is given.
+val aScopeHoldsTheHerdItIsMadeWith = Node.assumption("A scope made with a herd holds that herd.")(
+  forall((h: Obj[ThreadHerd], finalizers: Term[Value], supervisor: Term[Value], errorMode: Term[Value]) =>
+    forall((parent: Term[Value], locals: Term[Value], s: Obj[Scope]) =>
+      makingAScopeOf(h, finalizers, supervisor, errorMode, parent, locals).everyCall((_, reply, _) =>
+        (reply === Returned(s)) implies (herdOf(s) === h)))))
 
 // Of Scala: `herd` is a val of a scope, asked for through the trait it is declared in.
 val aScopeGivesTheHerdItHolds = Node.assumption("A scope asked for its herd gives the herd it holds.")(

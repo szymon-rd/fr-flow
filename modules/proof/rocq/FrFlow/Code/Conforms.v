@@ -71,7 +71,7 @@ Record classes := Classes {
   identities : list string;    (* classes of the JDK that keep `Object`'s `equals`: an object is itself, no data *)
   throwables : list string;    (* classes of what is thrown *)
   functions : list string;     (* the one method of each interface a function is taken as: its class and name *)
-  heirs : list string }.       (* classes outside the JDK below one known by its identity *)
+  heirs : list string }.       (* classes outside the JDK below one known by its identity, or functions *)
 
 Definition reference (known : classes) (cls : string) : bool := existsb (String.eqb cls) (identities known).
 
@@ -95,6 +95,12 @@ Fixpoint module_class (cls : string) : bool :=
   | String _ rest => module_class rest
   end.
 
+(** Scala's own types of functions, of the arities code is read with. *)
+Definition function_class (cls : string) : bool :=
+  existsb (String.eqb cls) ["scala.Function0"; "scala.Function1"; "scala.Function2"; "scala.Function3";
+    "scala.Function4"; "scala.Function5"; "scala.ContextFunction1"; "scala.ContextFunction2";
+    "scala.ContextFunction3"].
+
 (** A class of what is thrown, and a value of one: none, or an exception. *)
 Definition throwable (known : classes) (cls : string) : bool := existsb (String.eqb cls) (throwables known).
 
@@ -102,7 +108,9 @@ Definition throwable (known : classes) (cls : string) : bool := existsb (String.
     name are values of no class): that much is said even of a type that says nothing else. A set of Scala that
     does not change is the data it is made of; an option is none, some value (itself where a name holds it,
     as any value of a class is), or no object. A value of any
-    other class is also one a call can be made on: neither unit nor an object named alone. A value of a class
+    other class is also one a call can be made on: neither unit nor an object named alone. A value of a type
+    of functions is a function made where it is written (in the code or outside it), itself where a name holds
+    it (no method that a name alone calls), or an object of a class of the code that is one. A value of a class
     of the JDK known by its identity is an object of the code only where the code has a class below it. *)
 Definition of_class (known : classes) (cls : string) (v : val) : Prop :=
   if String.eqb cls "scala.Unit" then v = VUnit
@@ -112,6 +120,8 @@ Definition of_class (known : classes) (cls : string) (v : val) : Prop :=
   else if general cls || module_class cls then held v = oret v
   else if throwable known cls then v = vnull \/ exists e, Jdk.as_exn v = Some e
   else if String.eqb cls c_set then exists xs, v = vdata c_set [VList xs]
+  else if function_class cls then
+    (exists d e g, v = VCode (Fn d e g) /\ held v = oret v) \/ (exists c r, v = vref c r /\ In c (heirs known))
   else if String.eqb cls "scala.Option" then
     v = Library.none \/ (exists x, v = Library.some x /\ held x = oret x) \/ v = vnull
   else held v = oret v /\ receiver v = [v].
@@ -286,7 +296,8 @@ Section Conforms.
         e = Event_Invoke a (Some i) (Invocation_mk (label_of s) ys) ->
         takes a i w e (Running p) (Waiting w (fun _ => True) k)
     | takes_function p c arg k m y ys :
-        settles p (Call c arg k) -> applied c arg -> called_as c arg m -> names N y (VCode c) -> Forall2 (names N) ys (arguments arg) ->
+        settles p (Call c arg k) -> applied c arg -> called_as c arg m -> names N y (VCode c) ->
+        Forall2 (names N) ys (arguments arg) ->
         e = Event_Invoke a (Some i) (Invocation_mk m (y :: ys)) ->
         takes a i w e (Running p) (Waiting w (fun _ => True) k)
     | takes_response called typed k r spawns x :

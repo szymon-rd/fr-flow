@@ -198,6 +198,8 @@ through the method's program once, by one rule for each thing a program does nex
 | (anything) | `meets_from` | nothing: the claim holds at every moment from here on |
 
 Each rule asks that the claim hold at the operation's own event, and that the rest of the program meet it.
+Where what is claimed holds at every moment from one on (a call has completed, whatever follows), nothing is
+left to go through (`meets_from`).
 `method_meets`, `module_meets` and `function_meets` start a proof: a call of a method of the code on an object,
 of a method of an object alone of its class (a package's, a companion's), or of a function the code wrote, meets
 a claim at every event of its own if its program does. The tactic `step` applies the rule of what the
@@ -245,8 +247,11 @@ What a model must still say itself, as assumptions:
   17.4.5). That only one thread touches a variable a function holds is not derived: a model states it
   (`call.keepsWhatItMakesToItself`). Of a variable two threads write, and of a field of an object, a read is an
   event with any value of its type: a claim that needs the value a field holds is not proven of the code.
-- **A function the code is given** (a parameter of a function type) has no type that says it is a function, so
-  the walk of a method stops where it applies one: `scopedWithCapability` applying the code it was given.
+- **A function the code is given** (a parameter of one of Scala's function types) is a function made where it
+  is written, in the code or outside it: applying it is a call, of which nothing is known unless the code wrote
+  it. An object of a class of the code that is a function is told apart by the class files (`heirs`).
+- **The `apply` the compiler writes for a case class** is in no tree read: a call of it is a call of what is
+  outside the code, and what it makes holds is assumed where a model needs it.
 - **What a method outside the code gives** is known by the class its signature names: a truth value, a number,
   unit, a reference, what is thrown, and an option (none, some value, or no object). A method with no parameter
   clause is named with the class of what it gives (`ox.OxUnsupervised parent :scala.Option`), which the

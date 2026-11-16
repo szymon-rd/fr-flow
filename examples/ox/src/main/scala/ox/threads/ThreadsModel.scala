@@ -19,7 +19,7 @@ val oxThreads: FrModel = FrModel("OxThreads")(
   aScopesHerdIsItsMakers.refines(noForkRunsOnceUnsupervisedEnds),
   aScopeGivesTheHerdItHolds.refines(aScopeEndsAfterItsHerdIsClosed),
   theCurrentScopeIsReadAndSet.refines(aScopeEndsAfterItsHerdIsClosed),
-  aScopeHoldsWhatItWasGiven.refines(aScopesHerdIsItsMakers),
+  aScopeHoldsTheHerdItIsMadeWith.refines(aScopesHerdIsItsMakers),
 
   everyForkHasLeftOnceClosed.refines(noForkRunsOnceClosed),
   codeRunsBeforeLeaving.refines(noForkRunsOnceClosed),
