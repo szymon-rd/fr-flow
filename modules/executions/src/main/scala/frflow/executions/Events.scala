@@ -71,6 +71,18 @@ val does = stated { (by: Term[Value], inside: Term[Option[BigInt]], w: Term[BigI
     .on[Event.Internal](_ => False)
     .on[Event.Stutter.type](False): Term[Boolean]) }
 
+/** The call made at `from` by the actor makes an event of its own at the moment: it does something itself, or is
+  * responded to.
+  */
+val actsItself = stated { (by: Term[Value], from: Term[BigInt], w: Term[BigInt]) =>
+  does(by, some(from), w) || exists((a: Term[Response], spawns: Term[List[Spawn]]) =>
+    history(w) === make[Event.Respond](by, from, a, spawns)) }
+
+/** At the moment, the call made at `from` by the actor waits for a call it made itself: one not yet over. */
+val waitsForACall = stated { (by: Term[Value], from: Term[BigInt], w: Term[BigInt]) =>
+  exists((m: Term[BigInt], inner: Term[Invocation]) =>
+    m < w && history(m) === make[Event.Invoke](by, some(from), inner) && !overBy(by, m, w)) }
+
 /** The actor does one thing at a time: what it does while a call of its own is pending, that call does itself,
   * or the actor does while a call that call itself made is pending.
   */

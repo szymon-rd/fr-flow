@@ -273,7 +273,12 @@ What a model must still say itself, as assumptions:
 - **That an object of the code is made only by its constructor** is not said of an execution: a model states
   it as an assumption (`o.isConstructedWhenCalled`).
 - **No claim of no data race** is generated.
-- **Liveness** can be stated (`eventually`, `settles`), and means what it should only over complete, fair
-  executions, which nothing yet says the execution is.
+- **Nothing happens in time** unless a model assumes it. An execution in which every thread stops for good is
+  one of the code. A model says what moves, as assumptions: of a call of code, that pending and waiting for no
+  call it made, it makes its next event (`call.proceeds`: its thread is given its turn); of a call of what is
+  outside the code, that it is responded to (`call.responds`). What a call of code then comes to is proven by
+  going through its program (`FrFlow.Code.Live`: `leads`, with a rule for each thing a program does next, as
+  `Logic` has for what holds at each event). A call that is seen to make an event has been responded to in each
+  call it made before it.
 - **The old vocabulary of a structure's calls** (`.result`, `.after`, `.in`, `.steps`, `.amongOthers`) is still
   what the sequential examples are written in. It is to go.

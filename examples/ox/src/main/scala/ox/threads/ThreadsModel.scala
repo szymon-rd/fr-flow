@@ -4,6 +4,7 @@ import frflow.*
 import frflow.code.Read
 import frflow.executions.*
 import ox.internal.ThreadHerd
+import ox.live.*
 import ox.scopes.*
 
 // The model of Ox's threads: what holds once `unsupervised` or `supervised` has completed (the roots), by what
@@ -13,6 +14,19 @@ import ox.scopes.*
 val oxThreads: FrModel = FrModel("OxThreads")(
   noForkRunsOnceUnsupervisedEnds, nothingIsAddedOnceUnsupervisedEnds, noThreadIsStartedOnceUnsupervisedEnds,
   noForkRunsOnceSupervisedEnds, nothingIsAddedOnceSupervisedEnds, noThreadIsStartedOnceSupervisedEnds,
+  aForkEndsOnceInterrupted,
+
+  // What happens in time: a fork ends once interrupted.
+  startThreadStartsWhatItAdded.refines(aForkEndsOnceInterrupted),
+  aStartedThreadRunsItsFunction.refines(aForkEndsOnceInterrupted),
+  aForkFunctionCompletesOnceItsCodeDoes.refines(aForkEndsOnceInterrupted),
+  forkCodeCompletesOnceInterrupted.refines(aForkEndsOnceInterrupted),
+  startThreadAddsOnce.refines(startThreadStartsWhatItAdded),
+  startThreadProceeds.refines(startThreadStartsWhatItAdded),
+  aForkFunctionProceeds.refines(aForkFunctionCompletesOnceItsCodeDoes),
+  currentThreadResponds.refines(aForkFunctionCompletesOnceItsCodeDoes),
+  removingResponds.refines(aForkFunctionCompletesOnceItsCodeDoes),
+  discardResponds.refines(aForkFunctionCompletesOnceItsCodeDoes),
 
   // A scope: `unsupervised` and `supervised` make one, run code in it, and its herd is closed before they end.
   unsupervisedClosesItsScopesHerd.refines(noForkRunsOnceUnsupervisedEnds, nothingIsAddedOnceUnsupervisedEnds,
@@ -90,12 +104,12 @@ val oxThreads: FrModel = FrModel("OxThreads")(
   setReturns.refines(closingEndsOnceFoundEmpty, closingSetsTheFlag),
 
   onlyStartThreadAddsToTheSet.refines(onlyStartThreadAdds, anAddedThreadHasNotBeenStarted,
-    whoAddsIsCallingStartThread),
-  startThreadAddsWhileItRuns.refines(onlyStartThreadAdds, whoAddsIsCallingStartThread),
+    whoAddsIsCallingStartThread, aForkEndsOnceInterrupted),
+  startThreadAddsWhileItRuns.refines(onlyStartThreadAdds, whoAddsIsCallingStartThread, aForkEndsOnceInterrupted),
   startThreadIsPendingWhileItAdds.refines(whoAddsIsCallingStartThread),
   anAddedThreadHasNotBeenStarted.refines(onlyStartThreadAdds),
   onlyItsMakerStartsAThread.refines(anAddedThreadHasNotBeenStarted),
-  startThreadAddsWhatItsFactoryMade.refines(anAddedThreadHasNotBeenStarted),
+  startThreadAddsWhatItsFactoryMade.refines(anAddedThreadHasNotBeenStarted, aForkEndsOnceInterrupted),
   startThreadAddsBeforeItStarts.refines(anAddedThreadHasNotBeenStarted),
 
   onlyAForkFunctionRemoves.refines(aForkRemovesOnlyItself, codeRunsBeforeLeaving),
@@ -124,6 +138,7 @@ val oxThreads: FrModel = FrModel("OxThreads")(
 
   // How a herd is made.
   herdsAreConstructed.refines(herdsAreMade, closingSetsTheFlag, aClosedHerdRefusesToStart, nothingIsAddedOnceEmpty,
+    aForkEndsOnceInterrupted,
     nothingIsBeingAddedWhenEmpty, everyForkHasLeftOnceClosed, startThreadCallersStayInside, codeRunsBeforeLeaving),
   aHerdsFlagIsNew.refines(aHerdsFlagIsOnlyReadAndSet), aHerdsSetIsNew.refines(aHerdsSetIsPlain),
   aHerdHoldsWhatItWasGiven.refines(aHerdsFlagIsNew, aHerdsSetIsNew, aScopesHerdIsItsMakers),
@@ -134,7 +149,8 @@ val oxThreads: FrModel = FrModel("OxThreads")(
     startThreadIsPendingWhileItAdds, theForkFunctionCallsFour,
     aForkFunctionRemovesAfterTheCode, startThreadCallsFive, theClosingCheckCallsGet, theTreeCheckCallsFour,
     closingTraversesWithAFunction, whatClosingsFunctionsApplyReturns, closingsFunctionsReturn,
-    closingCallsFour, theOwnerCheckCallsCurrentThread, theMembershipCheckCallsContains, theWalkUpCallsFour),
+    closingCallsFour, theOwnerCheckCallsCurrentThread, theMembershipCheckCallsContains, theWalkUpCallsFour,
+    aForkFunctionCompletesOnceItsCodeDoes, startThreadAddsOnce, startThreadStartsWhatItAdded),
   aHerdKeepsItsFields.refines(startThreadReadsTheFlagUnset, closingSetsTheFlagItself,
     theForkFunctionRemovesTheCurrentThread, closingEndsOnceFoundEmpty),
   currentThreadIsTheCaller.refines(closingSetsTheFlagItself, aForkRemovesOnlyItself, closingEndsOnceFoundEmpty,

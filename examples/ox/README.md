@@ -25,9 +25,15 @@ owner:
 | `nothingIsAddedOnceClosed` | No thread is added to the herd's set. |
 | `aClosedHerdRefusesToStart` | A call of `startThread` does not return, and adds no thread. |
 
+One statement says what happens in time:
+
+| Root | Says |
+|---|---|
+| `aForkEndsOnceInterrupted` | A thread added to a herd's set runs, to its end and in time, the function a factory made it for, once it has been interrupted. |
+
 ## What stands, and on what
 
-All six roots are proven: every claim below each is proven, down to the trees of `unsupervised`, of
+All seven roots are proven: every claim below each is proven, down to the trees of `unsupervised`, of
 `supervised`, of the scope class and of `ThreadHerd`. No claim of the model is unproven; FrFlow reports it so,
 and the suite pins it (`ThreadsSuite`).
 
@@ -87,6 +93,15 @@ That a thread calling `startThread` neither closes a herd nor leaves one is prov
 itself, and what holds of one application holds of the next by induction on when it was made
 (`theWalkUpStaysOutOfHerds`).
 
+That a fork ends once interrupted is proven in three steps. A call of `startThread` that has added a thread
+calls `start` on it in time (`startThreadStartsWhatItAdded`: each call it made before the add was responded
+to, the add being seen; and it adds but once, `startThreadAddsOnce`). The thread then runs the function the
+factory made it for (assumed of the factory and of who schedules threads). And that function, which is the one
+written in `startThread`, ends once the code it calls does (`aForkFunctionCompletesOnceItsCodeDoes`): it calls
+the code `startThread` was given, and then, whatever that gave, reads the set, asks for the current thread,
+removes it and discards the answer. The code ends because it is assumed to, once its thread is interrupted.
+Nothing here rests on the assumption suspected false.
+
 What is assumed, by what it is about:
 
 - **The JDK and the JVM** (19): `addingIsAtomic`, `anElementLeavesOnlyWhenRemoved`,
@@ -123,6 +138,16 @@ What is assumed, by what it is about:
 - **Ox's scopes, which are not read** (1): `aScopesHerdAndParentStayOutOfHerds`. Asking a scope for its herd or
   its parent neither closes a herd nor removes from a herd's set. Both are vals of a scope; the classes of
   scopes are not read here, so this is an assumption about code of Ox, the one of its kind.
+- **What happens in time** (6). Nothing happens in time unless it is assumed that threads are given their turn
+  and that calls of what is outside the code are responded to: an execution in which every thread stops for
+  good is one of the code. `startThreadProceeds`, `aForkFunctionProceeds`: a call of this code that is pending
+  and waits for no call it made makes its next event. `currentThreadResponds`, `removingResponds`,
+  `discardResponds`: a call is responded to. `aStartedThreadRunsItsFunction`: a thread a factory made for a
+  function calls the function, once `start` is called on it (of the thread factory, and of who schedules
+  threads).
+- **The code a fork is given** (1): `forkCodeCompletesOnceInterrupted`. The code a fork was made to run is
+  responded to in time, once the fork has been interrupted, whenever that was. It is a restriction on who uses
+  Ox: code that ignores interruption and never ends keeps its scope from ending.
 - **Ox itself, suspected false** (1): `nothingIsAddedDuringTheLastCheck`. `isEmpty` on a concurrent set is no
   snapshot; a fork that starts another and leaves while closing asks can make it answer yes of a set that was
   never empty. That no fork runs and that nothing is added rest on it; that no thread is started does not.
@@ -145,7 +170,8 @@ is an object like any other. A handler for every `Throwable` takes whatever is t
 - `fork`, the supervisor and the scope's finalizers: they are not read. The roots say what holds of the herd of
   the scope a call made, once the call has completed; `startThread` is the herd's, which `fork` calls. Nothing
   is said of what `supervised` returns.
-- That anything completes: closing, a scope, `supervised`.
+- That closing a herd completes, and so that a scope and `supervised` do. What is proven of time so far is that
+  a fork ends once interrupted.
 - What is built on scopes (`par`, `race`, `timeout`, cancellation, error modes, `ForkLocal`), channels, `Flow`,
   retries and scheduling, actors.
 - Every witness that the statements can hold together is the execution in which nothing happens.

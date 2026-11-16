@@ -102,6 +102,26 @@ final class Call[A](val method: String, val arguments: List[Term[Value]], val ac
       (from < w && begun(invocation, who, from) && !overBy(who, from, w)) implies
         !calledBy(other.invocation, who, w))
 
+  /** A call of this that is pending and waits for no call it made makes its next event in time: the thread that
+    * runs it is given its turn, and what it runs comes to its next step. It is what moves code: said of a call of
+    * code, it is an assumption about who schedules its thread.
+    */
+  def proceeds(using Stating): Term[Boolean] =
+    forall((who: Term[Value], from: Term[BigInt], w: Term[BigInt]) =>
+      (from < w && begun(invocation, who, from) && actor.fold(True)(_ === who) && !overBy(who, from, w) &&
+        !waitsForACall(who, from, w)) implies
+        exists((later: Term[BigInt]) => w <= later && actsItself(who, from, later)))
+
+  /** Every call of this is responded to, in time. */
+  def responds(using Stating): Term[Boolean] =
+    forall((who: Term[Value], from: Term[BigInt]) =>
+      (begun(invocation, who, from) && actor.fold(True)(_ === who)) implies
+        exists((to: Term[BigInt]) => overBy(who, from, to)))
+
+  /** The call made at `from` is responded to, in time. */
+  def respondedTo(from: World)(using Stating): Term[Boolean] =
+    some(who => begun(invocation, who, from) && exists((to: Term[BigInt]) => overBy(who, from, to)))
+
   /** A call made and completed from `from` to `to`. */
   def completedWithin(from: World, to: World)(using Stating): Term[Boolean] =
     exists((a: Term[BigInt], response: Term[Response], b: Term[BigInt]) =>

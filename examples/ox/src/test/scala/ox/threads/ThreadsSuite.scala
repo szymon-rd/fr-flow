@@ -35,6 +35,15 @@ import scala.concurrent.duration.*
     "whatTheChecksAskOfTheJdkStaysOutOfHerds", "aScopeHoldsTheHerdItIsMadeWith", "aScopeGivesTheHerdItHolds",
     "theCurrentScopeIsReadAndSet")
 
+  /** What is assumed to happen in time: of who schedules threads (a call of code that waits for nothing makes its
+    * next event), of the JDK and of the thread factory (a call is responded to; a started thread runs).
+    */
+  private val ofWhatHappensInTime = Set("startThreadProceeds", "aForkFunctionProceeds", "currentThreadResponds",
+    "removingResponds", "discardResponds", "aStartedThreadRunsItsFunction")
+
+  /** What is assumed of the code a fork is given: a restriction on who uses Ox. */
+  private val ofForkCode = List("forkCodeCompletesOnceInterrupted")
+
   /** What is assumed beside the platform, by what it is about: each named in the README. */
   private val ofPrivateState = List("aHerdKeepsItsFlagToItself", "aHerdKeepsItsSetToItself",
     "closingKeepsItsVariableToItself", "onlyItsMakerStartsAThread", "onlyAForkFunctionCallsTheCode")
@@ -55,6 +64,7 @@ import scala.concurrent.duration.*
     "whatAHerdsCodeCallsOfASet", "theWalkUpCallsFour", "theMembershipCheckStaysOutOfHerds",
     "unsupervisedRunsInTheScopeItMade", "supervisedRunsInTheScopeItMade", "aScopeEndsAfterItsHerdIsClosed",
     "aScopesHerdIsItsMakers", "unsupervisedClosesItsScopesHerd", "supervisedClosesItsScopesHerd",
+    "startThreadAddsOnce",
     "closingSetsTheFlagOnlyToTrue", "closingTraversesWithAFunction", "herdsAreMade",
     "startThreadAddsBeforeItStarts",
     "startThreadAddsWhatItsFactoryMade",
@@ -64,11 +74,15 @@ import scala.concurrent.duration.*
     "whatClosingsFunctionsApplyReturns")
 
   /** What holds once a call of `unsupervised`, or of `supervised`, has completed. */
-  private val roots = List("Unsupervised", "Supervised").flatMap(of =>
+  private val safe = List("Unsupervised", "Supervised").flatMap(of =>
     List(s"noForkRunsOnce${of}Ends", s"nothingIsAddedOnce${of}Ends", s"noThreadIsStartedOnce${of}Ends"))
 
+  /** What happens in time. */
+  private val live = List("aForkEndsOnceInterrupted")
+  private val roots = safe ++ live
+
   /** What rests on the assumption suspected false: everything but that no thread is started. */
-  private val onTheLastCheck = roots.filterNot(_.startsWith("noThreadIsStarted")) ++
+  private val onTheLastCheck = safe.filterNot(_.startsWith("noThreadIsStarted")) ++
     List("noForkRunsOnceClosed", "nothingIsAddedOnceClosed")
 
   test("every root is proven: no claim is unproven, and what each root is from is of the kinds named".tag(Live)) {
@@ -77,9 +91,15 @@ import scala.concurrent.duration.*
       assertEquals(Ported.standsOn(r).map((root, on) => root -> on._1), roots.map(_ -> Nil).toMap)
       assertEquals(Ported.standing(r)("aClosedHerdRefusesToStart")._1.sorted, theFlagRootIsFrom)
       val named = ofThePlatform ++ ofPrivateState ++ ofWhoUsesAHerd ++ ofScopesNotRead ++ suspectedFalse
-      roots.foreach(root => assertEquals(Ported.standing(r)(root)._1.filterNot(named), Nil, root))
+      safe.foreach(root => assertEquals(Ported.standing(r)(root)._1.filterNot(named), Nil, root))
+      // what happens in time rests on nothing suspected false, and on the code a fork is given ending
+      live.foreach { root =>
+        val on = Ported.standing(r)(root)._1
+        assertEquals(on.filterNot(named ++ ofWhatHappensInTime ++ ofForkCode), Nil, root)
+        assert(ofForkCode.forall(on.contains) && !on.contains("nothingIsAddedDuringTheLastCheck"), root)
+      }
       // that no thread is started rests on the platform and on the herd's flag being its own, and no more
-      roots.filter(_.startsWith("noThreadIsStarted")).foreach(root => assertEquals(
+      safe.filter(_.startsWith("noThreadIsStarted")).foreach(root => assertEquals(
         Ported.standing(r)(root)._1.filterNot(ofThePlatform), List("aHerdKeepsItsFlagToItself"), root))
       onTheLastCheck.foreach(n =>
         assert(Ported.standing(r)(n)._1.contains("nothingIsAddedDuringTheLastCheck"), n))

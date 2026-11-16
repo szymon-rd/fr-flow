@@ -1,7 +1,7 @@
 Require Export FrFlowGen.OxThreads.Domain.
 Require Import FrFlow.Threads.Prog FrFlow.Jvm.Machine.
 Require Import FrFlow.Scala.Tree FrFlow.Scala.Table FrFlow.Scala.Value FrFlow.Scala.Meaning.
-Require Import FrFlow.Code.Outside FrFlow.Code.Conforms FrFlow.Code.Walk FrFlow.Code.Logic.
+Require Import FrFlow.Code.Outside FrFlow.Code.Conforms FrFlow.Code.Walk FrFlow.Code.Logic FrFlow.Code.Live.
 
 (** An execution in which nothing happens is one of the code. *)
 Lemma rest_runs : Code_runs (fun _ => Event_Stutter).
@@ -241,3 +241,44 @@ Proof. intros (from & value & to & _ & who & H). exact (nothing_completed_at_res
 
 Lemma none_made_to_run_at_rest heldIn t h code w : ~ madeToRun heldIn (fun _ => Event_Stutter) t h code w.
 Proof. intros (c & from & added & to & [_ H] & _). exact (nothing_completed_at_rest _ _ _ _ _ H). Qed.
+
+(** ** What happens in time *)
+
+(** An event of a call's own, as the model's word has it. *)
+Lemma acts_direct (history : Z -> Event) who from w : actsItself history who from w -> direct who from (history w).
+Proof.
+  intros [H | (r & sp & E)]; [| rewrite E; cbn; auto].
+  unfold does in H. destruct (history w); cbn; try contradiction; exact H.
+Qed.
+
+(** A call that proceeds, as the walk takes it: pending and waiting for no call it made, it makes its next
+    event. *)
+Lemma proceeds_moves (history : Z -> Event) who from :
+  (forall w, from < w -> ~ overBy history who from w -> ~ waitsForACall history who from w ->
+     exists later, w <= later /\ actsItself history who from later) ->
+  moves history who from.
+Proof.
+  intros H w Hw Hp Ha. destruct (H w Hw) as (later & Hl & Hact).
+  - intros (k & r & sp & Hk & E). exact (Hp k r sp Hk E).
+  - intros (m & inner & [Hm E] & Hnot).
+    destruct (Ha m inner Hm ltac:(discriminate) E) as (k & r & sp & Hk & Ek).
+    apply Hnot. exists k, r, sp. split; assumption.
+  - exists later. split; [exact Hl | exact (acts_direct _ _ _ _ Hact)].
+Qed.
+
+(** A call that is over was responded to. *)
+Lemma over_responded (history : Z -> Event) who i w1 to : overBy history who w1 to -> responded history who i w1.
+Proof. intros (k & r & sp & _ & E). left. exists k, r, sp. exact E. Qed.
+
+(** What a call inside another gave, where the execution says how it completed: the one response. *)
+Lemma done_gave {history : Z -> Event} {N c from m ys w1 r w2} who r' w2' :
+  conforms Code_files Code_table Code_classes N history ->
+  done_inside history c from m ys w1 r w2 -> completedBy history (Invocation_mk m ys) who w1 r' w2' -> r = r'.
+Proof.
+  intros C [(sp & E & _) | (E & _ & sp & Er)] [[(ins & sp' & E') _] | [[ins E'] [sp' Er']]].
+  - rewrite E in E'. injection E'. intros. subst. reflexivity.
+  - rewrite E in E'. discriminate E'.
+  - rewrite E in E'. discriminate E'.
+  - rewrite E in E'. injection E' as <- _.
+    pose proof (responded_once C Er Er') as Ew. rewrite Ew in Er. rewrite Er in Er'. injection Er'. auto.
+Qed.
