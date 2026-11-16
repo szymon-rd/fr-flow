@@ -6,6 +6,7 @@ import frflow.code.InCode.given
 import frflow.executions.*
 import frflow.values.*
 import java.util.concurrent.ThreadFactory
+import java.util.function.Consumer
 import ox.threads.*
 
 // What is assumed of the JDK, in time: its calls are responded to, some on a condition.
@@ -24,3 +25,29 @@ val joinRespondsOnceItsThreadHasRun = Node.assumption(
     forall((a: Term[BigInt], b: Term[BigInt], i: Term[BigInt], from: Term[BigInt]) =>
       (f.newThread(r).completed(a, Returned(t), b) && running(r).by(t).respondedTo(i) &&
         t.join().by(c).called(from)) implies t.join().by(c).respondedTo(from))))
+
+// A traversal of a concurrent set goes through what the set holds while it runs: it ends when no more is added.
+val aTraversalRespondsOnceItsFunctionDoes = Node.assumption(
+  "A traversal of a concurrent set to which nothing more is added is responded to in time, if each call of its " +
+    "function that it itself makes is.")(
+  forall((s: Obj[ConcurrentSet], f: Obj[Consumer[AnyRef]], c: Obj[Thread], from: Term[BigInt]) =>
+    (s.forEach(f).by(c).called(from) && addingStops(s) &&
+      forall((x: Obj[AnyRef], m: Term[BigInt]) =>
+        f.accept(x).by(c).calledInside(from, m) implies f.accept(x).by(c).respondedTo(m))) implies
+      s.forEach(f).by(c).respondedTo(from)))
+
+val aTraversalAppliesItsFunctionToElements = Node.assumption(
+  "A traversal of a concurrent set applies its function only to what is in the set at a moment from its call " +
+    "to the application.")(
+  forall((s: Obj[ConcurrentSet], f: Obj[Consumer[AnyRef]], c: Obj[Thread], x: Obj[AnyRef]) =>
+    forall((from: Term[BigInt], m: Term[BigInt]) =>
+      (s.forEach(f).by(c).called(from) && f.accept(x).by(c).calledInside(from, m)) implies
+        exists((w: Term[BigInt]) => from <= w && w <= m && elements(s, w).contains(x.asValue)))))
+
+// What is in a set got there by `add`, and the call that put it there returns: it may still be pending.
+val anElementWasAdded = Node.assumption(
+  "What is in a plain concurrent set is there by a call that adds it, and returns.")(
+  forall((s: Obj[ConcurrentSet], x: Obj[AnyRef], w: Term[BigInt]) =>
+    (plainSet(s) && elements(s, w).contains(x.asValue)) implies
+      exists((c: Obj[Thread], from: Term[BigInt], added: Term[Value], to: Term[BigInt]) =>
+        s.add(x).by(c).completed(from, make[Response.Returned](added), to))))

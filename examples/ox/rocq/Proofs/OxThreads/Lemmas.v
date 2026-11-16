@@ -280,3 +280,19 @@ Proof.
   - rewrite E in E'. injection E' as <- _.
     pose proof (responded_once C Er Er') as Ew. rewrite Ew in Er. rewrite Er in Er'. injection Er'. auto.
 Qed.
+
+(** Finitely many moments in a window: what happens at most once for each has a moment after all of it. *)
+Lemma bounded_over_a_window (P : Z -> Z -> Prop) (lo : Z) :
+  (forall s w w', P s w -> P s w' -> w = w') ->
+  forall n : nat, exists B, forall s w, lo <= s < lo + Z.of_nat n -> P s w -> w < B.
+Proof.
+  intros Hone. induction n as [| n [B IH]].
+  - exists 0. intros s w Hs. lia.
+  - destruct (Classical_Prop.classic (exists w, P (lo + Z.of_nat n) w)) as [[w0 H0] | Hnone].
+    + exists (Z.max B (w0 + 1)). intros s w Hs Hp. destruct (Z.eq_dec s (lo + Z.of_nat n)) as [-> | Hne].
+      * rewrite (Hone _ _ _ Hp H0). lia.
+      * pose proof (IH s w ltac:(lia) Hp). lia.
+    + exists B. intros s w Hs Hp. destruct (Z.eq_dec s (lo + Z.of_nat n)) as [-> | Hne].
+      * exfalso. apply Hnone. exists w. exact Hp.
+      * exact (IH s w ltac:(lia) Hp).
+Qed.

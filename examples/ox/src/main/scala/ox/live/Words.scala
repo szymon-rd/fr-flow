@@ -18,3 +18,8 @@ val forkFunction = stated { (r: Obj[Runnable], h: Obj[ThreadHerd], code: Obj[Cod
 
 /** The thread has been interrupted: a call of `interrupt` on it has returned. */
 val interrupted = stated { (t: Obj[Thread]) => exists((w: Term[BigInt]) => t.interrupt().returnedBefore(w)) }
+
+/** From some moment on, nothing is added to the set. */
+val addingStops = stated { (s: Obj[ConcurrentSet]) =>
+  exists((last: Term[BigInt]) =>
+    forall((y: Obj[AnyRef], w: Term[BigInt]) => (last <= w) implies !s.add(y).called(w))) }

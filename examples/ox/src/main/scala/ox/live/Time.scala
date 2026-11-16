@@ -64,3 +64,8 @@ val whatClosingsFunctionsApplyProceeds = Node.assumption(
     forall((k: Term[BigInt], g: Term[Value], t: Term[Value], a: Term[BigInt]) =>
       (traversedWith(f, h, k) && f.accept(x).by(c).called(k) &&
         applicationOf[Unit](g, t).by(c).calledInside(k, a)) implies proceedsFrom(c.asValue, a))))
+
+// Of an execution: it has a first moment.
+val theExecutionBegins = Node.assumption("Nothing is called before the execution begins.")(
+  forall((made: Term[Invocation], by: Term[Value], w: Term[BigInt]) =>
+    (w < (BigInt(0): Term[BigInt])) implies !calledBy(made, by, w)))
