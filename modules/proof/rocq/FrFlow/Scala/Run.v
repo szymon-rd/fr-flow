@@ -116,7 +116,11 @@ Definition oprun (t : tid) (next : nat) (X : Type) (o : op X) : state -> answer 
       end
   | ExtNew p args => fun σ =>
       match p_new p args, s_ext σ next with
-      | Some s, None => Did (inr next) (set_ext σ next (Held p s))
+      | Some s, None =>
+          match next with
+          | 0 => Cannot "the place 0 is no object's"
+          | _ => Did (inr next) (set_ext σ next (Held p s))
+          end
       | Some _, Some _ => Cannot "the next free number is an object's"
       | None, _ => Cannot (cat "an object made as its class is not known to be: " (p_class p))
       end
@@ -170,7 +174,7 @@ Proof.
     + destruct (Nat.eqb u t) eqn:E; [| discriminate]. apply Nat.eqb_eq in E. injection H as <- <-. auto.
     + destruct (Nat.eqb u t) eqn:E; [| discriminate]. apply Nat.eqb_eq in E. injection H as <- <-. auto.
   - destruct (p_new p args); [| discriminate]. destruct (s_ext σ next) eqn:E; [discriminate |].
-    injection H as <- <-. eauto.
+    destruct next as [| n]; [discriminate |]. injection H as <- <-. exists (S n). auto.
   - destruct (s_ext σ r) as [[p s] |]; [| discriminate]. cbn in H. exists 0.
     destruct (p_call p method t (interrupted σ t) s args 0).
     + injection H as <- <-. auto.
@@ -210,6 +214,19 @@ Fixpoint alive_from (pool : list running) (i : nat) : list (nat * tid) :=
 Section Run.
 
   Variable interp : code -> val -> P res.
+  Variable named : string -> list val -> option (P res).
+
+  (** A call named by its label alone, begun: the program known for the label, then what follows the call; none
+      where the operation is no such call. *)
+  Definition begun {X : Type} (o : op X) : (X -> P res) -> option (P res + string) :=
+    match o in Machine.op _ _ X return (X -> P res) -> option (P res + string) with
+    | ExtCall 0 label args => fun k =>
+        Some (match named label args with
+          | Some p => inl (pbind p k)
+          | None => inr (cat "a call from outside with no meaning in the library: " label)
+          end)
+    | _ => fun _ => None
+    end.
 
   (** One step of a thread: what it becomes, the state, and the thread it started; or that it waits; or why it
       cannot be run. *)
@@ -221,10 +238,15 @@ Section Run.
         match p with
         | Ret r => inl (Ended t r, terminate σ t, [])
         | Vis o k =>
-            match oprun t next o σ with
-            | Did x σ' => inl (Running t (k x), σ', forked interp σ o)
-            | Waits => inr (inl tt)
-            | Cannot why => inr (inr why)
+            match begun o k with
+            | Some (inl p') => inl (Running t p', σ, [])
+            | Some (inr why) => inr (inr why)
+            | None =>
+                match oprun t next o σ with
+                | Did x σ' => inl (Running t (k x), σ', forked interp σ o)
+                | Waits => inr (inl tt)
+                | Cannot why => inr (inr why)
+                end
             end
         | Iter body s k => inl (Running t (unfold_iter body s k), σ, [])
         | Call c arg k => inl (Running t (pbind (interp c arg) k), σ, [])
@@ -232,12 +254,15 @@ Section Run.
     end.
 
   Lemma step_of_sound next σ e e' σ' started :
-    step_of next σ e = inl (e', σ', started) -> Machine.step interp e σ e' σ' started.
+    step_of next σ e = inl (e', σ', started) -> Machine.step interp named e σ e' σ' started.
   Proof.
     destruct e as [t p | t r]; [| discriminate]. destruct p; cbn; intro H.
     - injection H as <- <- <-. auto.
-    - destruct (oprun t next o σ) eqn:E; try discriminate. injection H as <- <- <-.
-      exists x. split; [eapply oprun_sound; exact E | auto].
+    - destruct (begun o k) as [[p' | why] |] eqn:B; [| discriminate |].
+      + injection H as <- <- <-. right. destruct o; try discriminate B. destruct r; [| discriminate B].
+        cbn in B. cbn. destruct (named method args) as [p |]; [| discriminate B]. injection B as <-. eauto.
+      + destruct (oprun t next o σ) eqn:E; try discriminate. injection H as <- <- <-.
+        left. exists x. split; [eapply oprun_sound; exact E | auto].
     - injection H as <- <- <-. auto.
     - injection H as <- <- <-. auto.
   Qed.
@@ -275,7 +300,8 @@ Section Run.
         end
     end.
 
-  Lemma reaches_first (c c' c'' : config) : Machine.moves interp c c' -> Machine.reaches interp c' c'' -> Machine.reaches interp c c''.
+  Lemma reaches_first (c c' c'' : config) : Machine.moves interp named c c' -> Machine.reaches interp named c' c'' ->
+    Machine.reaches interp named c c''.
   Proof.
     intros M R. induction R as [| ? ? ? R IH M']; [eapply Machine.reaches_step; [constructor | exact M] |].
     eapply Machine.reaches_step; [apply IH, M | exact M'].
@@ -290,7 +316,7 @@ Section Run.
 
   (** Where a run ends is somewhere the machine's threads can get. *)
   Lemma run_reaches fuel : forall c next turn idle steps,
-    Machine.reaches interp c (snd (run fuel c next turn idle steps)).
+    Machine.reaches interp named c (snd (run fuel c next turn idle steps)).
   Proof.
     induction fuel as [| fuel IH]; intros [pool σ] next turn idle steps; cbn [run fst snd]; [constructor |].
     destruct (alive_from pool 0) as [| a alive] eqn:A; [constructor |].
@@ -319,6 +345,7 @@ Section Start.
   Variable T : table.
   Variable outside : string -> string -> string -> option primitive.
   Variable supers : string -> list string.
+  Variable named : string -> list val -> option (P res).
 
   Definition state0 (c : code) : state :=
     State (fun u => if Nat.eqb u first then Some (Thread c TStarted false) else None)
@@ -340,7 +367,8 @@ Section Start.
 
   (** The program run from `main`, for at most `fuel` steps, the threads taking turns as `order` says. *)
   Definition execute_under (order : nat -> nat) (fuel : nat) (main : sym) : verdict :=
-    fst (run (interp T outside supers) order fuel (config0 main) (S (List.length (stateful_modules T))) 0 0 0).
+    fst (run (interp T outside supers) named order fuel (config0 main) (S (List.length (stateful_modules T)))
+      0 0 0).
 
   (** Each thread in turn. *)
   Definition execute : nat -> sym -> verdict := execute_under (fun turn => turn).

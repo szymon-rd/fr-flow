@@ -176,6 +176,15 @@ Definition thread_local : protocol := {|
     | _ => Unknown
     end |}.
 
+(** An object of the JDK with nothing of its own that changes and no method known here: a thread builder, a
+    thread factory. It is an object all the same, one among others of its class. *)
+Definition stateless (cls : string) : protocol := {|
+  p_class := cls;
+  p_methods := [];
+  p_state := unit;
+  p_new := fun _ => Some tt;
+  p_call := fun _ _ _ _ _ _ => Unknown |}.
+
 (** ** A concurrent set (`ConcurrentHashMap.newKeySet`): its elements
 
     `next` is one step of a traversal (`forEach`, an iterator): given the elements the traversal has passed, one

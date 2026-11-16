@@ -4,9 +4,7 @@ Scala is read into Rocq whole: each TASTy file as the tree the compiler typed (`
 nothing chosen in the reading. This page is about the meaning those trees are given. Each tree is given the
 program it runs (`FrFlow/Threads/Prog.v`: it returns, does one operation, loops, or calls a closure), and the
 machine of `FrFlow/Jvm/Machine.v` says what a step of a thread may do. The model of Ox's threads
-(`docs/EXECUTIONS.md`) is stated over the same meaning; what a call of the JDK does is said there by the model's
-assumptions, and here by the machine's protocols (`FrFlow/Scala/Jdk.v`). Nothing yet proves that a run of this
-machine is an execution in that model's sense: `examples/ox/README.md` lists it among what is not covered.
+(`docs/EXECUTIONS.md`) is stated over the same programs ("What the proofs are about", below).
 
 It is tested: programs written against Ox are read into trees as Ox is, their meaning is run in Rocq over Ox's
 own trees, and each must give what the same method gives on the JVM.
@@ -156,9 +154,12 @@ reaches one stops there.
 ## What the proofs are about
 
 What is proven of Ox is stated over executions (`docs/EXECUTIONS.md`, `examples/ox/README.md`): histories of
-events that conform to the same trees, by the same `denote`. Two things differ from what is run here. A call of
-the JDK is there one operation named by the definition called, with what it gives said by the model's
-assumptions; here it is what `Library.v` and the machine's protocols (`Jdk.v`) do. And an execution there is a
-history that satisfies `Conforms.conforms`, where here it is a run of the machine. No theorem yet says that a run
-of this machine gives such a history, so the comparison with the JVM is evidence for `denote`, and not yet for
-the model's executions.
+events that conform to the same trees, by the same `denote`. In the programs an execution is of, a call of the
+JDK is one operation named by the definition called (`FrFlow/Code/Outside.v`), and what it gives is said by the
+model's assumptions. The machine runs those same programs: for such an operation it runs what the library says
+of the definition (`Library.of_label`, a rule of `Machine.step`), and the 25 programs are compared with the JVM
+run that way. So the comparison is of the programs the proofs are about, with the library as what the JDK does.
+
+Two things are not proven. That a run of the machine gives a history that satisfies `Conforms.conforms`: the
+machine runs a call of the code in place, and an execution has it as an event of its own, with the caller
+waiting. And that what the model assumes of the JDK holds of what the library does.

@@ -7,7 +7,8 @@ import java.nio.file.{Files, Path}
 import scala.jdk.CollectionConverters.*
 
 /** Programs written against Ox (`clients`), read into trees as Ox itself is, and the meaning of the trees run in
-  * Rocq (`modules/proof/rocq/FrFlow/Scala/Run.v`): each must give there what the same method gives on the JVM.
+  * Rocq (`modules/proof/rocq/FrFlow/Scala/Run.v`), as the programs an execution of the code is of
+  * (`FrFlow/Code/Outside.v`): each must give there what the same method gives on the JVM.
   * It is how the meaning given to Scala's trees and to the JDK is tested. `FRFLOW_ROCQ_WRITE=1` writes the files
   * anew.
   */
@@ -45,7 +46,7 @@ class OxRunSuite extends munit.FunSuite:
       s"Ox/Tree/$n" -> Files.readString(trees.resolve(n)))
 
   private val library = List("Threads/Prog", "Jvm/Machine", "Jvm/Races", "Scala/Tree", "Scala/Program", "Scala/Table",
-    "Scala/Equal", "Scala/Value", "Scala/Meaning", "Scala/Jdk", "Scala/Library", "Scala/Run")
+    "Scala/Equal", "Scala/Value", "Scala/Meaning", "Scala/Jdk", "Scala/Library", "Scala/Run", "Code/Outside")
 
   test("Rocq runs the meaning of each program over Ox's trees, and it gives what the JVM gave".tag(Rocq)) {
     assertEquals(ThreadsRocq.failing(ox ++ files.map((name, text) => s"Ox/Client/$name" -> text), library), None)

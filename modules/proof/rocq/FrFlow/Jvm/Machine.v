@@ -327,10 +327,11 @@ Section Machine.
         | None => went_wrong σ'
         end
 
-    (* An object from outside: a place that held none, in the state its protocol gives a new one. *)
+    (* An object from outside: a place that held none, in the state its protocol gives a new one. No object is
+       at the place 0: a call "on" it is a call named by its label alone (`named`, below). *)
     | ExtNew p args => fun σ x σ' =>
         match p_new p args with
-        | Some s => exists r, s_ext σ r = None /\ x = inr r /\ σ' = set_ext σ r (Held p s)
+        | Some s => exists r, r <> 0 /\ s_ext σ r = None /\ x = inr r /\ σ' = set_ext σ r (Held p s)
         | None => went_wrong σ'
         end
 
@@ -344,7 +345,7 @@ Section Machine.
             | Interrupted => x = inl InterruptedException /\ σ' = clear_intr σ t
             | Unknown => went_wrong σ'
             end
-        | None => went_wrong σ'
+        | None => r <> 0 /\ went_wrong σ'
         end
 
     | Chaos _ _ => fun σ x σ' => went_wrong σ'
@@ -374,14 +375,30 @@ Section Machine.
     | _ => []
     end.
 
-  (** One step of one thread: an operation by `opstep`, a turn of a loop, a call of a closure, or its end. *)
+  (** What a call named by its label alone runs (`ExtCall 0 label args`): a program, where one is known for the
+      label. So a program can leave what a definition from outside does unsaid, as one operation, and the
+      machine be told what it is. *)
+  Variable named : string -> list val -> option (P res).
+
+  Definition runs_named {X : Type} (t : tid) (o : op X)
+      : (X -> P res) -> running -> state -> state -> list running -> Prop :=
+    match o in op X return (X -> P res) -> running -> state -> state -> list running -> Prop with
+    | ExtCall 0 label args => fun k e' σ σ' started =>
+        exists p, named label args = Some p /\ e' = Running t (pbind p k) /\ σ' = σ /\ started = []
+    | _ => fun _ _ _ _ _ => False
+    end.
+
+  (** One step of one thread: an operation by `opstep`, a call named by its label begun, a turn of a loop, a call
+      of a closure, or its end. *)
   Definition step (e : running) (σ : state) (e' : running) (σ' : state) (started : list running) : Prop :=
     match e with
     | Ended _ _ => False
     | Running t p =>
         match p with
         | Ret r => e' = Ended t r /\ σ' = terminate σ t /\ started = []
-        | Vis o k => exists x, opstep t o σ x σ' /\ e' = Running t (k x) /\ started = forked σ o
+        | Vis o k =>
+            (exists x, opstep t o σ x σ' /\ e' = Running t (k x) /\ started = forked σ o) \/
+            runs_named t o k e' σ σ' started
         | Iter body s k => e' = Running t (unfold_iter body s k) /\ σ' = σ /\ started = []
         | Call c arg k => e' = Running t (pbind (interp c arg) k) /\ σ' = σ /\ started = []
         end
@@ -428,7 +445,7 @@ Section Machine.
       - exists (inr tt). cbn. rewrite Ho, Hw.
         destruct (Nat.eqb u t) eqn:E; [apply Nat.eqb_eq in E; contradiction | exact Hwrong]. }
     exists (before ++ Running t (k x) :: after ++ forked σ o, σ'). split; [| exact Hwrong].
-    apply move. cbn. exists x. auto.
+    apply move. cbn. left. exists x. auto.
   Qed.
 
   Lemma no_race (c0 : config) :

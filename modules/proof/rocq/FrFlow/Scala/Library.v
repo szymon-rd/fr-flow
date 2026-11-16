@@ -9,7 +9,7 @@
 
     A definition that is not here has no meaning: a call of it is `stuck`. *)
 
-From Stdlib Require Import String List ZArith Bool.
+From Stdlib Require Import String List ZArith Bool Ascii.
 Require Import FrFlow.Threads.Prog FrFlow.Jvm.Machine.
 Require Import FrFlow.Scala.Tree FrFlow.Scala.Program FrFlow.Scala.Table FrFlow.Scala.Value FrFlow.Scala.Meaning.
 Require Import FrFlow.Scala.Jdk.
@@ -358,6 +358,9 @@ Definition traverse (r : nat) (f : val -> X val) : X val :=
 Definition unit_of (m : X unit) : X val := _ <~ m ;; oret VUnit.
 Definition truth_of (m : X bool) : X val := b <~ m ;; oret (VBool b).
 
+(** A new object of a class of the JDK, with no argument. *)
+Definition made_of (p : protocol) : X val := r <~ oop (ExtNew p []) ;; oret (vext (p_class p) r).
+
 (** Threads, and what else is the machine's own. *)
 Definition threads (owner name : string) : option Run :=
   let at_ (cls : string) := String.eqb owner cls in
@@ -369,9 +372,9 @@ Definition threads (owner name : string) : option Run :=
   else if at_ "java.lang.Thread$" && called "interrupted" then run (fun _ _ _ => truth_of (oop ThreadInterrupted))
   else if at_ "java.lang.Thread$" && called "yield" then run (fun _ _ _ => unit_of (oop ThreadYield))
   else if at_ "java.lang.Thread$" && called "ofVirtual" then
-    run (fun _ _ _ => oret (VObj (Module "java.lang.Thread$.Builder")))
+    run (fun _ _ _ => made_of (stateless "java.lang.Thread$.Builder"))
   else if at_ "java.lang.Thread$.Builder" && called "factory" then
-    run (fun _ _ _ => oret (VObj (Module "java.util.concurrent.ThreadFactory")))
+    run (fun _ _ _ => made_of (stateless "java.util.concurrent.ThreadFactory"))
   else if at_ "java.util.concurrent.ThreadFactory" && called "newThread" then run (fun _ _ args => match args with
     | [VCode c] => t <~ oop (NewThread c) ;; oret (VTid t)
     | [VObj (Ref cls r)] =>
@@ -776,4 +779,49 @@ Definition outside (owner name signature : string) : option primitive :=
   match jdk owner name with
   | Some r => Some (Prim [] r)
   | None => pure owner name
+  end.
+
+(** ** A call named by its label
+
+    A program may leave a call of the JDK unsaid, as one operation named by the definition called
+    (`ExtCall 0 label args`, the label an owner, a name and a signature with a space between: what an execution
+    of code has, `FrFlow.Code.Outside`). `of_label` is what the machine then runs for it: what `jdk` says of the
+    owner and the name, on the object the call is made on (the first of `args`; none for a constructor and for
+    a method of an object alone of its class, whose owner ends in `$`) and the rest. *)
+
+Fixpoint upto_space (s : string) : string * string :=
+  match s with
+  | EmptyString => (EmptyString, EmptyString)
+  | String c rest =>
+      if Ascii.eqb c " "%char then (EmptyString, rest)
+      else let (a, b) := upto_space rest in (String c a, b)
+  end.
+
+Fixpoint ends_in_dollar (s : string) : bool :=
+  match s with
+  | EmptyString => false
+  | String c EmptyString => Ascii.eqb c "$"%char
+  | String _ rest => ends_in_dollar rest
+  end.
+
+Definition no_context : context := Context (fun _ _ => oret false) (fun _ _ => None).
+
+Definition of_label (label : string) (args : list val) : option (Machine.P code obj (Machine.res code obj)) :=
+  let (owner, rest) := upto_space label in
+  let (name, _) := upto_space rest in
+  let ended (m : X val) : Machine.P code obj (Machine.res code obj) :=
+    pbind m (fun o => match o with
+      | Ok v => Ret (inr v)
+      | Exc x => Ret (inl x)
+      | Brk _ _ => Vis (Chaos _ "a call from outside ended as a return does") (fun r => Ret r)
+      end) in
+  match jdk owner name with
+  | Some run =>
+      if String.eqb name "<init>" || ends_in_dollar owner
+      then Some (ended (run no_context (VObj (Module owner)) [] args))
+      else match args with
+        | on :: more => Some (ended (run no_context on [] more))
+        | [] => None
+        end
+  | None => None
   end.

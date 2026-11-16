@@ -13,6 +13,7 @@ Section example.
   Let code : Type := unit.
   Let obj : Type := unit.
   Let interp (c : code) (arg : val code obj) : P code obj (res code obj) := Ret (inr VUnit).
+  Let named (label : string) (args : list (val code obj)) : option (P code obj (res code obj)) := None.
 
   Definition writes : P code obj (res code obj) :=
     Vis (ObjMark 0 "x") (fun _ => Vis (ObjSet 0 "x" (VBool true)) (fun _ => Ret (inr VUnit))).
@@ -23,24 +24,24 @@ Section example.
       (fun _ => None) None.
 
   Lemma a_race_is_reached :
-    exists c, reaches interp ([Running 0 writes; Running 1 reads], before) c /\ races c.
+    exists c, reaches interp named ([Running 0 writes; Running 1 reads], before) c /\ races c.
   Proof.
     exists ([Running 0 (Vis (ObjSet 0 "x" (VBool true)) (fun _ => Ret (inr VUnit))); Running 1 reads],
             set_obj before 0 ("C", with_field [("x", VBool false)] (writing "x") (VTid 0))).
     split.
     - eapply reaches_step; [apply reaches_refl |].
-      apply (move interp [] (Running 0 writes) [Running 1 reads] before
+      apply (move interp named [] (Running 0 writes) [Running 1 reads] before
                (Running 0 (Vis (ObjSet 0 "x" (VBool true)) (fun _ => Ret (inr VUnit)))) _ []).
-      cbn. exists (inr tt). auto.
+      cbn. left. exists (inr tt). auto.
     - exists 1, _, (ObjGet 0 "x"), (fun r => Ret r). split; [right; left; reflexivity |].
       cbn. eexists _, _, 0. split; [reflexivity |]. split; [reflexivity | discriminate].
   Qed.
 
   (** And so a state that has gone wrong. *)
   Lemma the_race_goes_wrong :
-    exists c, reaches interp ([Running 0 writes; Running 1 reads], before) c /\ s_wrong (snd c) <> None.
+    exists c, reaches interp named ([Running 0 writes; Running 1 reads], before) c /\ s_wrong (snd c) <> None.
   Proof.
-    destruct a_race_is_reached as (c & Hc & Hrace). destruct (race_goes_wrong interp Hrace) as (c' & Hm & Hw).
+    destruct a_race_is_reached as (c & Hc & Hrace). destruct (race_goes_wrong interp named Hrace) as (c' & Hm & Hw).
     exists c'. split; [eapply reaches_step; eassumption | exact Hw].
   Qed.
 End example.
