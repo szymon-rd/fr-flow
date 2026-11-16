@@ -48,6 +48,14 @@ val oxThreads: FrModel = FrModel("OxThreads")(
   aFlagBecomesOnlyWhatIsSet.refines(theFlagStaysSet), aHerdsFlagIsOnlyReadAndSet.refines(theFlagStaysSet),
   onlyClosingSetsTheFlag.refines(theFlagStaysSet),
   closingSetsTheFlagOnlyToTrue.refines(theFlagStaysSet),
+
+  // What a herd keeps to itself: its flag.
+  aHerdKeepsItsFlagToItself.refines(aHerdsFlagIsOnlyReadAndSet, onlyClosingSetsTheFlag),
+  anAtomicBooleanHasOnlyItsMethods.refines(aHerdsFlagIsOnlyReadAndSet),
+  aHerdsMethodsOnlyGetAndSetAFlag.refines(aHerdsFlagIsOnlyReadAndSet, onlyClosingSetsTheFlag),
+  closingCallsFour.refines(aHerdsMethodsOnlyGetAndSetAFlag),
+  theOwnerCheckCallsCurrentThread.refines(aHerdsMethodsOnlyGetAndSetAFlag),
+  theMembershipCheckCallsContains.refines(aHerdsMethodsOnlyGetAndSetAFlag),
   startThreadFirstSeesTheFlagUnset.refines(aClosedHerdRefusesToStart),
 
   startThreadReadsTheFlagUnset.refines(startThreadFirstSeesTheFlagUnset),
@@ -67,17 +75,17 @@ val oxThreads: FrModel = FrModel("OxThreads")(
   onlyAForkFunctionRemoves.refines(aForkRemovesOnlyItself, codeRunsBeforeLeaving),
   theForkFunctionRemovesTheCurrentThread.refines(aForkRemovesOnlyItself),
 
-  startThreadCallsFive.refines(startThreadStaysOutOfHerds),
+  startThreadCallsFive.refines(startThreadStaysOutOfHerds, aHerdsMethodsOnlyGetAndSetAFlag),
   theClosingCheckStaysOutOfHerds.refines(startThreadStaysOutOfHerds),
   theTreeCheckStaysOutOfHerds.refines(startThreadStaysOutOfHerds),
   aFactoryStaysOutOfHerds.refines(startThreadStaysOutOfHerds),
-  theClosingCheckCallsGet.refines(theClosingCheckStaysOutOfHerds),
-  theTreeCheckCallsFour.refines(theTreeCheckStaysOutOfHerds),
+  theClosingCheckCallsGet.refines(theClosingCheckStaysOutOfHerds, aHerdsMethodsOnlyGetAndSetAFlag),
+  theTreeCheckCallsFour.refines(theTreeCheckStaysOutOfHerds, aHerdsMethodsOnlyGetAndSetAFlag),
   theJdkStaysOutOfHerds.refines(startThreadStaysOutOfHerds, theClosingCheckStaysOutOfHerds),
   aThreadDoesOneThingAtATime.refines(startThreadStaysOutOfHerds, theClosingCheckStaysOutOfHerds),
 
   // How a herd is made.
-  herdsAreConstructed.refines(herdsAreMade),
+  herdsAreConstructed.refines(herdsAreMade, closingSetsTheFlag, aClosedHerdRefusesToStart),
   aHerdsFlagIsNew.refines(aHerdsFlagIsOnlyReadAndSet), aHerdsSetIsNew.refines(aHerdsSetIsPlain),
   aHerdHoldsWhatItWasGiven.refines(aHerdsFlagIsNew, aHerdsSetIsNew),
 
@@ -85,9 +93,10 @@ val oxThreads: FrModel = FrModel("OxThreads")(
     theForkFunctionRemovesTheCurrentThread, startThreadAddsWhileItRuns, startThreadAddsWhatItsFactoryMade,
     startThreadAddsBeforeItStarts, closingEndsOnceFoundEmpty, closingSetsTheFlagOnlyToTrue,
     startThreadIsPendingWhileItAdds, nothingIsBeingAddedWhenEmpty, nothingIsAddedOnceEmpty,
-    everyForkHasLeftOnceClosed, closingSetsTheFlag, aClosedHerdRefusesToStart,
+    everyForkHasLeftOnceClosed,
     aForkFunctionRemovesAfterTheCode, startThreadCallsFive, theClosingCheckCallsGet, theTreeCheckCallsFour,
-    closingTraversesWithAFunction, whatClosingsFunctionsApplyReturns, closingsFunctionsReturn),
+    closingTraversesWithAFunction, whatClosingsFunctionsApplyReturns, closingsFunctionsReturn,
+    closingCallsFour, theOwnerCheckCallsCurrentThread, theMembershipCheckCallsContains),
   aHerdKeepsItsFields.refines(startThreadReadsTheFlagUnset, closingSetsTheFlagItself,
     theForkFunctionRemovesTheCurrentThread, closingEndsOnceFoundEmpty),
   currentThreadIsTheCaller.refines(closingSetsTheFlagItself, aForkRemovesOnlyItself, closingEndsOnceFoundEmpty),

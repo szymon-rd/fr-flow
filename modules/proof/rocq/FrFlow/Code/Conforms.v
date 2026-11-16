@@ -225,13 +225,16 @@ Section Conforms.
   (** ** A call's steps *)
 
   (** What a program does next, past what makes no event: a loop's turn, an initialiser run where an object is
-      made. *)
+      made, an argument that a primitive of the language takes by name evaluated where it stands (the right side
+      of `&&` and `||`). *)
   Inductive settles : program -> program -> Prop :=
     | settled p : settles p p
     | settles_iter (S B : Type) (body : S -> Machine.P code obj (S + B)) s k p :
         settles (unfold_iter body s k) p -> settles (Iter body s k) p
     | settles_init cls arg k p :
-        settles (pbind (run (Init cls) arg) k) p -> settles (Call (Init cls) arg k) p.
+        settles (pbind (run (Init cls) arg) k) p -> settles (Call (Init cls) arg k) p
+    | settles_forced b sc k p :
+        settles (pbind (run (Thunk b sc) (VList [])) k) p -> settles (Call (Thunk b sc) (VList []) k) p.
 
   (** Where a call is: running what is left of its program; waiting for the response of a call it made;
       ended; or lost, in code with no meaning. *)
@@ -242,6 +245,15 @@ Section Conforms.
     | Lost.
 
   Definition arguments (arg : val) : list val := match arg with VList vs => vs | _ => [] end.
+
+  (** A function applied as a call of its own: not an argument a primitive takes by name, which is evaluated
+      where it stands. *)
+  Definition applied (c : code) (arg : val) : Prop :=
+    match c, arg with
+    | Thunk _ _, VList [] => False
+    | Fn _ _ _, _ | Thunk _ _, _ => True
+    | _, _ => False
+    end.
 
   (** The method a function is called by where the code applies it: a by-name argument's is
       `Function0.apply`; any other's is `function_apply`. Both apply a function (`applies`), so what the call
@@ -269,8 +281,7 @@ Section Conforms.
         e = Event_Invoke a (Some i) (Invocation_mk (label_of s) ys) ->
         takes a i w e (Running p) (Waiting w (fun _ => True) k)
     | takes_function p c arg k m y ys :
-        settles p (Call c arg k) -> (match c with Fn _ _ _ | Thunk _ _ => True | _ => False end) ->
-        called_as c arg m -> names N y (VCode c) -> Forall2 (names N) ys (arguments arg) ->
+        settles p (Call c arg k) -> applied c arg -> called_as c arg m -> names N y (VCode c) -> Forall2 (names N) ys (arguments arg) ->
         e = Event_Invoke a (Some i) (Invocation_mk m (y :: ys)) ->
         takes a i w e (Running p) (Waiting w (fun _ => True) k)
     | takes_response called typed k r spawns x :

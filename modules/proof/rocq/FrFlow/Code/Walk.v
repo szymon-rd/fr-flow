@@ -176,9 +176,21 @@ Section Walk.
   Lemma settles_ret (x : res) q : settles (Ret x) q -> q = Ret x.
   Proof. intros H. inversion H. reflexivity. Qed.
 
+  (** A call that no step with no event runs: neither an initialiser, nor an argument evaluated where it
+      stands. *)
+  Definition waits_to_be_called (c : code) (arg : val) : Prop :=
+    match c, arg with Init _, _ => False | Thunk _ _, VList [] => False | _, _ => True end.
+
   Lemma settles_call c arg (k : res -> program) q :
-    (match c with Init _ => False | _ => True end) -> settles (Call c arg k) q -> q = Call c arg k.
-  Proof. intros Hc H. inversion H; subst; [reflexivity | contradiction]. Qed.
+    waits_to_be_called c arg -> settles (Call c arg k) q -> q = Call c arg k.
+  Proof. intros Hc H. inversion H; subst; [reflexivity | contradiction | contradiction]. Qed.
+
+  (** A function applied as a call is one. *)
+  Lemma applied_call c arg : applied c arg -> waits_to_be_called c arg.
+  Proof.
+    unfold waits_to_be_called. destruct c; try exact (fun _ => I); try (intros []); intros Hc.
+    destruct arg as [| | | | | | vs]; try exact I. destruct vs; [exact Hc | exact I].
+  Qed.
 
   Lemma vis_same X (o o' : Machine.op code obj X) (k k' : X -> program) :
     Vis o k = Vis o' k' -> o = o' /\ k = k'.
@@ -210,8 +222,7 @@ Section Walk.
     (exists s on args k ys, settles p (Call (Method s) (VList (on :: args)) k) /\
        Forall2 (names N) ys (receiver on ++ args) /\
        e = Event_Invoke a (Some i) (Invocation_mk (label_of s) ys) /\ st = Waiting w (fun _ => True) k) \/
-    (exists c arg k m y ys, settles p (Call c arg k) /\
-       (match c with Fn _ _ _ | Thunk _ _ => True | _ => False end) /\ called_as c arg m /\
+    (exists c arg k m y ys, settles p (Call c arg k) /\ applied c arg /\ called_as c arg m /\
        names N y (VCode c) /\ Forall2 (names N) ys (arguments arg) /\
        e = Event_Invoke a (Some i) (Invocation_mk m (y :: ys)) /\ st = Waiting w (fun _ => True) k) \/
     (exists x r, settles p (Ret x) /\ e = Event_Respond a i r [] /\ gives N r x /\ st = Ended) \/
@@ -296,12 +307,12 @@ Section Walk.
   Qed.
 
   Lemma takes_function_call a i w e c arg (k : res -> program) st :
-    (match c with Fn _ _ _ | Thunk _ _ => True | _ => False end) ->
+    applied c arg ->
     takes a i w e (Running (Call c arg k)) st ->
     exists m y ys, called_as c arg m /\ names N y (VCode c) /\ Forall2 (names N) ys (arguments arg) /\
       e = Event_Invoke a (Some i) (Invocation_mk m (y :: ys)) /\ st = Waiting w (fun _ => True) k.
   Proof using T N.
-    intros Hc H. assert (match c with Init _ => False | _ => True end) as Hi by (destruct c; try exact I; exact Hc).
+    intros Hc H. pose proof (applied_call c arg Hc) as Hi.
     apply takes_running in H as
       [(X0 & o0 & k0 & x0 & Hs & _) | [(m0 & args0 & k0 & ys & Hs & _) |
       [(m0 & args0 & k0 & ys & r & sp & x0 & Hs & _) |

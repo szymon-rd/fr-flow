@@ -2,7 +2,7 @@ package frflow.code
 
 import frflow.{Call as _, *}
 import frflow.dsl.compiled.source.MemberName
-import frflow.executions.{Call, Changing, Invocation, World, begun, calledOn, constructedBefore, itselfMakes}
+import frflow.executions.{Call, Changing, Invocation, Response, World, begun, calledOn, completedBy, itselfMakes}
 import frflow.executions.{calledBy as calledByAt, madeBefore, readAs, writtenAs}
 import frflow.values.{Obj, Ref, Value}
 import scala.quoted.*
@@ -39,10 +39,13 @@ object FieldMacros:
     if found.isEmpty then report.errorAndAbort(s"${TypeRepr.of[C].show} has no method")
     found.map(m => MemberName.of(m).mkString(" ") -> m.paramSymss.flatten.count(!_.isTypeParam))
 
-  /** The class's constructor, its methods and its vals, as the tree read names them. */
-  private def constructor[C: Type](using Quotes): String =
+  /** The class's constructor with how many things it takes, its methods and its vals, as the tree read names
+    * them.
+    */
+  private def constructor[C: Type](using Quotes): (String, Int) =
     import quotes.reflect.*
-    MemberName.of(TypeRepr.of[C].typeSymbol.primaryConstructor).mkString(" ")
+    val made = TypeRepr.of[C].typeSymbol.primaryConstructor
+    MemberName.of(made).mkString(" ") -> made.paramSymss.flatten.count(!_.isTypeParam)
 
   private def methods[C: Type](using Quotes): List[String] =
     import quotes.reflect.*
@@ -117,8 +120,14 @@ object Fields:
 
   def reads(name: String, on: Term[Value])(using Stating): Term[Boolean] = readAs(on, name, heldIn(name, on))
 
-  def constructed(on: Term[Value], constructor: String, w: World)(using Stating): Term[Boolean] =
-    constructedBefore(on, constructor, w)
+  /** A completed call of the constructor, with as many things as it takes, has returned the object by `w`. */
+  def constructed(on: Term[Value], constructor: (String, Int), w: World)(using Stating): Term[Boolean] =
+    def taking(left: Int, so: List[Term[Value]]): Term[Boolean] =
+      if left == 0 then exists((by: Term[Value], from: Term[BigInt], to: Term[BigInt]) =>
+        to <= w && completedBy(make[Invocation](constructor._1, so.reverse.foldRight(Nil: Term[List[Value]])(_ :: _)),
+          by, from, make[Response.Returned](on), to))
+      else exists((x: Term[Value]) => taking(left - 1, x :: so))
+    taking(constructor._2, Nil)
 
   /** A call of one of the methods on the object, with as many more things as it takes, is made at the moment. */
   def calledBy(methods: List[(String, Int)], on: Term[Value], by: Term[Value], w: World)(using Stating)
@@ -138,7 +147,7 @@ object Fields:
   def givenAll(names: List[String], on: Term[Value])(using Stating): Term[Boolean] =
     names.map(n => writtenAs(on, n, heldIn(n, on))).reduce(_ && _)
 
-  def constructedWhenCalled(methods: List[String], constructor: String, on: Term[Value])(using Stating)
+  def constructedWhenCalled(methods: List[String], constructor: (String, Int), on: Term[Value])(using Stating)
       : Term[Boolean] =
     forall((w: Term[BigInt]) =>
-      methods.map(m => calledOn(on, m, w)).reduce(_ || _) implies constructedBefore(on, constructor, w))
+      methods.map(m => calledOn(on, m, w)).reduce(_ || _) implies constructed(on, constructor, w))

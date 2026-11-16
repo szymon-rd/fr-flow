@@ -21,7 +21,7 @@ Proof.
       + apply propositional_extensionality. tauto.
     - exists who, k. exact Hc.
     - exists who, m. left. exact Hb. }
-  destruct (Honly h False who m Hcall) as (from & Hclosing & Hitself).
+  destruct (Honly h False who m b (conj Hmade Hcall)) as (from & Hclosing & Hitself).
   exact (Htrue h False who from m (conj Hclosing Hitself)).
 Qed.
 
@@ -33,8 +33,8 @@ Proof.
   split.
   { intros s v w [[_ H1] H2]. destruct (H1 H2). }
   split.
-  { intros h w (m & by_ & ins & hs & _ & H). discriminate H. }
+  { intros h w (x & who & from & to & _ & H). destruct (nothing_completed_at_rest _ _ _ _ _ H). }
   split.
-  { intros h v c w H. destruct (nothing_called_at_rest _ _ _ H). }
+  { intros h v c w b [_ H]. destruct (nothing_called_at_rest _ _ _ H). }
   intros h v c from w [H _]. destruct (nothing_called_at_rest _ _ _ H).
 Qed.

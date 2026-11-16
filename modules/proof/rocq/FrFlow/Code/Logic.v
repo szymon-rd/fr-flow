@@ -187,7 +187,7 @@ Section Logic.
 
   (** A call of a function. *)
   Lemma meets_function tr w0 c arg (k : res -> program) w :
-    (match c with Fn _ _ _ | Thunk _ _ => True | _ => False end) ->
+    applied c arg ->
     (forall w1 m y ys, w0 <= w1 -> past w1 tr -> called_as c arg m -> names N y (VCode c) ->
        Forall2 (names N) ys (arguments arg) ->
        history w1 = Event_Invoke a (Some i) (Invocation_mk m (y :: ys)) ->
@@ -241,7 +241,8 @@ Section Logic.
     settles T (unfold_iter body s k) q.
   Proof.
     intros H Hn. remember (Iter body s k) as p eqn:E.
-    destruct H as [p | S' B' body' s' k' p H | cls arg k' p H]; [subst p; destruct Hn | | discriminate E].
+    destruct H as [p | S' B' body' s' k' p H | cls arg k' p H | b sc k' p H];
+      [subst p; destruct Hn | | discriminate E | discriminate E].
     injection E. intros Hk Hs Hb HB HS. subst S' B'.
     repeat match goal with E : existT _ _ _ = existT _ _ _ |- _ =>
       apply Dependent.EqdepTheory.inj_pair2 in E end.
@@ -286,7 +287,20 @@ Section Logic.
     settles T (pbind (run T (Init cls) arg) k) q.
   Proof.
     intros H Hn. remember (Call (Init cls) arg k) as p eqn:E.
-    destruct H as [p | S' B' body' s' k' p H | cls' arg' k' p H]; [subst p; destruct Hn | discriminate E |].
+    destruct H as [p | S' B' body' s' k' p H | cls' arg' k' p H | b sc k' p H];
+      [subst p; destruct Hn | discriminate E | | discriminate E].
+    injection E as -> -> ->. exact H.
+  Qed.
+
+  (** An argument that a primitive takes by name is evaluated where it stands: no event of its own either. *)
+  Lemma settles_stood b sc (k : res -> program) q :
+    settles T (Call (Thunk b sc) (VList []) k) q ->
+    (match q with Call (Thunk _ _) (VList []) _ => False | _ => True end) ->
+    settles T (pbind (run T (Thunk b sc) (VList [])) k) q.
+  Proof.
+    intros H Hn. remember (Call (Thunk b sc) (VList []) k) as p eqn:E.
+    destruct H as [p | S' B' body' s' k' p H | cls' arg' k' p H | b' sc' k' p H];
+      [subst p; destruct Hn | discriminate E | discriminate E |].
     injection E as -> -> ->. exact H.
   Qed.
 
@@ -301,7 +315,7 @@ Section Logic.
     - eapply takes_method; [apply settles_made; [eassumption | exact I] | eassumption | reflexivity].
     - eapply takes_function; [apply settles_made; [eassumption |] | eassumption | eassumption |
         eassumption | eassumption | reflexivity].
-      match goal with Hc : match ?c with _ => _ end |- _ => destruct c; try destruct Hc; exact I end.
+      match goal with Hc : applied ?c _ |- _ => destruct c; try destruct Hc; exact I end.
     - eapply takes_end; [apply settles_made; [eassumption | exact I] | reflexivity | eassumption].
     - eapply takes_unsaid; [apply settles_made; [eassumption | exact I] | eassumption].
   Qed.
@@ -309,6 +323,30 @@ Section Logic.
   Lemma meets_made tr w0 cls arg (k : res -> program) w :
     meets tr w0 (Running (pbind (run T (Init cls) arg) k)) w -> meets tr w0 (Running (Call (Init cls) arg k)) w.
   Proof. apply meets_alike. intros v e st. apply takes_made. Qed.
+
+  Lemma takes_stood b sc (k : res -> program) w e st :
+    takes w e (Running (Call (Thunk b sc) (VList []) k)) st ->
+    takes w e (Running (pbind (run T (Thunk b sc) (VList [])) k)) st.
+  Proof.
+    intros H. inversion H; subst.
+    - eapply takes_op; [apply settles_stood; [eassumption | exact I] | eassumption].
+    - eapply takes_invoke; [apply settles_stood; [eassumption | exact I] | eassumption | reflexivity].
+    - eapply takes_atomic; [apply settles_stood; [eassumption | exact I] | eassumption | reflexivity |
+        eassumption | eassumption].
+    - eapply takes_method; [apply settles_stood; [eassumption | exact I] | eassumption | reflexivity].
+    - eapply takes_function; [apply settles_stood; [eassumption |] | eassumption | eassumption |
+        eassumption | eassumption | reflexivity].
+      match goal with Hc : applied ?c ?arg |- _ =>
+        destruct c; try destruct Hc; try exact I; destruct arg as [| | | | | | vs]; try exact I;
+        destruct vs; [destruct Hc | exact I] end.
+    - eapply takes_end; [apply settles_stood; [eassumption | exact I] | reflexivity | eassumption].
+    - eapply takes_unsaid; [apply settles_stood; [eassumption | exact I] | eassumption].
+  Qed.
+
+  Lemma meets_stood tr w0 b sc (k : res -> program) w :
+    meets tr w0 (Running (pbind (run T (Thunk b sc) (VList [])) k)) w ->
+    meets tr w0 (Running (Call (Thunk b sc) (VList []) k)) w.
+  Proof. apply meets_alike. intros v e st. apply takes_stood. Qed.
 
   (** ** A call in an execution of the code *)
 
@@ -515,6 +553,7 @@ Ltac meets_head :=
           pose (K := k); change (meets T C N h a i G tr w0 (Running (Vis o' K)) w); aside_clear;
           repeat match goal with E : receiver ?v = _ |- _ => rewrite E end; cbn [app]
       | Call (Init ?cls) ?arg ?k => apply meets_made; meets_head
+      | Call (Thunk ?b ?sc) (VList []) ?k => apply meets_stood; meets_head
       | Call ?c ?arg ?k =>
           let c' := eval lazy beta iota zeta delta -[val_eqb some_of] in c in
           let arg' := eval lazy beta iota zeta delta -[val_eqb some_of] in arg in

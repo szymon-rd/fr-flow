@@ -14,7 +14,8 @@ Proof.
   { intros m Hm. pose proof (Hsets h from' response' to' Hclosed) as Hat.
     assert (to' = m \/ to' < m) as [<- | Hlt] by lia; [exact Hat |].
     apply (Hstays h to' m). split; [split; [| exact Hlt] | exact Hat].
-    apply (made_later history h _ from'); [lia | exact Hherd]. }
+    destruct Hherd as (x & maker & since & by_then & Hthen & Hherd).
+    exists x, maker, since, by_then. split; [lia | exact Hherd]. }
   split; intros Hthen.
   - destruct (Hsees h code c t from w (conj Hstart (or_intror Hthen))) as (m & [Hm _] & Hunset).
     apply Hunset, Hset, Hm.

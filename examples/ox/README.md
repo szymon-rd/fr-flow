@@ -16,15 +16,15 @@ Three roots, each of a herd after `interruptAllAndJoinUntilCompleted` (closing) 
 
 ## What stands, and on what
 
-Every step from parts to a claim that has a proof is proven. Eighteen claims are proven of the code's trees,
-three of them of what making a herd runs: a herd has been made, and its flag and its set are what
-`new AtomicBoolean(false)` and `ConcurrentHashMap.newKeySet()` returned to the call that made it.
-Four claims are not proven; FrFlow reports them so, and every node above one of them as waiting, and the suite
-names them (`ThreadsSuite`):
+The third root, `aClosedHerdRefusesToStart`, is proven: every claim below it is, down to `ThreadHerd`'s trees.
+It rests on ten assumptions: nine about the JDK, the JVM and Scala's objects, and one about Ox,
+`aHerdKeepsItsFlagToItself` (below). The suite pins the ten (`ThreadsSuite`).
+
+The first two roots are not proven. Every step from parts to a claim that has a proof is proven; three claims
+are not, FrFlow reports them so, and every node above one of them as waiting, and the suite names them:
 
 | Not proven | Below |
 |---|---|
-| `aHerdsFlagIsOnlyReadAndSet` | `aClosedHerdRefusesToStart` |
 | `aHerdsSetIsPlain` | the first two roots |
 | `closingsFunctionsReturn` | the first two roots |
 | `theTreeCheckStaysOutOfHerds` | the first two roots |
@@ -35,38 +35,50 @@ into scopes, which are not read. Of the one before, that closing's traversals do
 (`whatClosingsFunctionsApplyReturns`); what is left is that the second function, catching an interruption,
 reads a local variable twice: that the second read finds what the first did is not yet said of an execution.
 
-Nineteen claims are already proven of Ox's code from the JDK, the JVM and Scala's objects alone, with no
+Twenty-one claims are proven of the code's trees, each gone through whole. Three are of what making a herd
+runs: a herd has been made, and its flag and its set are what `new AtomicBoolean(false)` and
+`ConcurrentHashMap.newKeySet()` returned to the call that made it. Six say what each method of a herd calls
+itself, one per method (`startThreadCallsFive`, `closingCallsFour`, `theClosingCheckCallsGet`,
+`theTreeCheckCallsFour`, `theOwnerCheckCallsCurrentThread`, `theMembershipCheckCallsContains`).
+
+Twenty-three claims are proven of Ox's code from the JDK, the JVM and Scala's objects alone, with no
 assumption about Ox or about who uses it (the suite computes the list and pins it). Among them:
 
 - `startThreadFirstSeesTheFlagUnset`: a call of `startThread` returns, or adds a thread, only if the herd's
   flag was unset at a moment during the call.
 - `closingSetsTheFlagItself`: closing, by the herd's owner, completes only after it has set the flag.
 - `closingSetsTheFlagOnlyToTrue`: closing sets the flag to nothing but true.
+- `aHerdsMethodsOnlyGetAndSetAFlag`: of the methods of an atomic boolean, a method of a herd itself calls only
+  `get`, and closing `set(true)`.
 - `theForkFunctionRemovesTheCurrentThread`: the function `startThread` hands the factory removes from the set
   only the thread `Thread.currentThread()` gave it.
 - `aForkFunctionRemovesAfterTheCode`: that function removes only after its call of the code has completed.
 - `theClosingCheckStaysOutOfHerds`: a thread in `assertNotShuttingDown` neither closes a herd nor removes from
   a herd's set.
 
-No root is among them yet.
-
 What is assumed, by what it is about:
 
-- **The JDK and the JVM** (15): `addingIsAtomic`, `anElementLeavesOnlyWhenRemoved`,
+- **The JDK and the JVM** (16): `addingIsAtomic`, `anElementLeavesOnlyWhenRemoved`,
   `isEmptyFindsItEmptyUnlessAdded`, `isEmptyReturns`, `getGivesTheFlag`, `settingIsAtomic`,
   `aFlagBecomesOnlyWhatIsSet`, `setReturns`, `currentThreadIsTheCaller`, `theJdkStaysOutOfHerds`,
   `aThreadDoesOneThingAtATime`, `aTraversalThrowsOnlyWhatItsFunctionThrew`, `joinThrowsOnlyAnInterruption`,
-  `interruptReturns`, `addSuppressedReturns`.
+  `interruptReturns`, `addSuppressedReturns`, `anAtomicBooleanHasOnlyItsMethods`.
 - **Scala's objects** (3): `herdsAreConstructed`, `aHerdKeepsItsFields`, `aHerdHoldsWhatItWasGiven`.
 - **Who uses a herd** (1): `startThreadIsCalledFromInside`. It is stricter than Ox's own check: it leaves out a
   fork of a nested scope starting a fork in an enclosing one.
 - **The thread factory a herd is given** (2): `aThreadRunsOneForkFunctionOnce`, `aFactoryStaysOutOfHerds`.
-- **Who reaches what the herd keeps private** (5): `onlyStartThreadAddsToTheSet`, `onlyItsMakerStartsAThread`,
-  `onlyAForkFunctionRemoves`, `onlyAForkFunctionCallsTheCode`, `onlyClosingSetsTheFlag`. These are statements
-  about Ox, not yet derived from its code and a rule of the language.
+- **That a private field stays private** (1): `aHerdKeepsItsFlagToItself`. What a herd holds as its flag is
+  called on only by the herd's own methods, themselves. The flag is a private val, made in the constructor and
+  handed to nothing; that then nothing else reaches it is what the JVM and Scala make of a private field
+  without reflection. It is assumed, of this one field, and not derived from the code. What is derived from it
+  and the trees: that only `get` and `set` are called on the flag (`aHerdsFlagIsOnlyReadAndSet`) and that only
+  closing sets it (`onlyClosingSetsTheFlag`), which were assumptions before.
+- **Who reaches the herd's set and its threads** (4): `onlyStartThreadAddsToTheSet`,
+  `onlyItsMakerStartsAThread`, `onlyAForkFunctionRemoves`, `onlyAForkFunctionCallsTheCode`. These are
+  statements about Ox, not yet derived from its code the way the flag's are.
 - **Ox itself, suspected false** (1): `nothingIsAddedDuringTheLastCheck`. `isEmpty` on a concurrent set is no
   snapshot; a fork that starts another and leaves while closing asks can make it answer yes of a set that was
-  never empty. The first two roots rest on it.
+  never empty. The first two roots rest on it; the third does not.
 
 Beside the nodes, three things are taken of Scala and the JVM: what an execution of the code is (the meaning of
 its trees in Rocq, written by hand and tested against the JVM, `docs/EXECUTIONS.md`); that the events of
