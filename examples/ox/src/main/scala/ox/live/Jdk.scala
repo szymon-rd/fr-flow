@@ -6,6 +6,7 @@ import frflow.code.InCode.given
 import frflow.executions.*
 import frflow.values.*
 import java.util.concurrent.ThreadFactory
+import java.util.concurrent.atomic.AtomicBoolean
 import java.util.function.Consumer
 import ox.threads.*
 
@@ -51,3 +52,23 @@ val anElementWasAdded = Node.assumption(
     (plainSet(s) && elements(s, w).contains(x.asValue)) implies
       exists((c: Obj[Thread], from: Term[BigInt], added: Term[Value], to: Term[BigInt]) =>
         s.add(x).by(c).completed(from, make[Response.Returned](added), to))))
+
+val settingResponds = Node.assumption("A call that sets an atomic boolean is responded to, in time.")(
+  forall((s: Obj[AtomicBoolean], b: Term[Boolean]) => s.set(b).responds))
+
+val addingResponds = Node.assumption("A call that adds to a concurrent set is responded to, in time.")(
+  forall((s: Obj[ConcurrentSet], x: Obj[AnyRef]) => s.add(x).responds))
+
+val isEmptyResponds = Node.assumption(
+  "A call that asks a concurrent set whether it is empty is responded to, in time.")(
+  forall((s: Obj[ConcurrentSet]) => s.isEmpty().responds))
+
+// `isEmpty` sums counters: with nothing in the set and every call that removed from it over, each decrement has
+// been counted, so the sum is not above what the set holds.
+val isEmptyFindsARestingSetEmpty = Node.assumption(
+  "A concurrent set that holds nothing from a moment on, with no call that removes from it in progress, answers " +
+    "that it is empty to a call made from that moment on.")(
+  forall((s: Obj[ConcurrentSet], rest: Term[BigInt]) =>
+    forall((y: Obj[AnyRef], w: Term[BigInt]) =>
+      (rest <= w) implies (!elements(s, w).contains(y.asValue) && !s.remove(y).inProgress(w))) implies
+      s.isEmpty().everyCall((from, a, _) => (rest <= from) implies (a === Returned(True)))))

@@ -33,7 +33,8 @@ import scala.concurrent.duration.*
     "addSuppressedReturns", "herdsAreConstructed", "aHerdHoldsWhatItWasGiven",
     "anAtomicBooleanHasOnlyItsMethods", "aKeySetHasOnlyItsMethods",
     "whatTheChecksAskOfTheJdkStaysOutOfHerds", "aScopeHoldsTheHerdItIsMadeWith", "aScopeGivesTheHerdItHolds",
-    "theCurrentScopeIsReadAndSet", "aTraversalAppliesItsFunctionToElements", "anElementWasAdded")
+    "theCurrentScopeIsReadAndSet", "aTraversalAppliesItsFunctionToElements", "anElementWasAdded",
+    "isEmptyFindsARestingSetEmpty")
 
   /** What is assumed to happen in time: of who schedules threads (a call of code that waits for nothing makes its
     * next event), of the JDK and of the thread factory (a call is responded to; a started thread runs).
@@ -41,7 +42,8 @@ import scala.concurrent.duration.*
   private val ofWhatHappensInTime = Set("aHerdsMethodsProceed", "aForkFunctionProceeds", "currentThreadResponds",
     "removingResponds", "discardResponds", "aStartedThreadRunsItsFunction", "closingsFunctionsProceed",
     "whatClosingsFunctionsApplyProceeds", "interruptResponds", "addSuppressedResponds",
-    "joinRespondsOnceItsThreadHasRun", "aTraversalRespondsOnceItsFunctionDoes", "theExecutionBegins")
+    "joinRespondsOnceItsThreadHasRun", "aTraversalRespondsOnceItsFunctionDoes", "theExecutionBegins",
+    "settingResponds", "isEmptyResponds", "addingResponds")
 
   /** What is assumed of the code a fork is given: a restriction on who uses Ox. */
   private val ofForkCode = List("forkCodeCompletesOnceInterrupted")
@@ -81,8 +83,7 @@ import scala.concurrent.duration.*
     List(s"noForkRunsOnce${of}Ends", s"nothingIsAddedOnce${of}Ends", s"noThreadIsStartedOnce${of}Ends"))
 
   /** What happens in time. */
-  private val onForkCode = List("closingsTraversalsRespond")
-  private val live = onForkCode ++ List("addingStopsOnceTheFlagIsSet")
+  private val live = List("closingCompletesOnceItsHerdEmpties")
   private val roots = safe ++ live
 
   /** What rests on the assumption suspected false: everything but that no thread is started. */
@@ -96,13 +97,15 @@ import scala.concurrent.duration.*
       assertEquals(Ported.standing(r)("aClosedHerdRefusesToStart")._1.sorted, theFlagRootIsFrom)
       val named = ofThePlatform ++ ofPrivateState ++ ofWhoUsesAHerd ++ ofScopesNotRead ++ suspectedFalse
       safe.foreach(root => assertEquals(Ported.standing(r)(root)._1.filterNot(named), Nil, root))
-      // what happens in time rests on nothing suspected false; a traversal, on the code a fork is given ending
+      // what happens in time rests on nothing suspected false, and on the code a fork is given ending
       live.foreach { root =>
         val on = Ported.standing(r)(root)._1
         assertEquals(on.filterNot(named ++ ofWhatHappensInTime ++ ofForkCode), Nil, root)
-        assert(!on.contains("nothingIsAddedDuringTheLastCheck"), root)
-        assertEquals(ofForkCode.forall(on.contains), onForkCode.contains(root), root)
+        assert(ofForkCode.forall(on.contains) && !on.contains("nothingIsAddedDuringTheLastCheck"), root)
       }
+      // that adding stops rests on neither
+      val adding = Ported.standing(r)("addingStopsOnceTheFlagIsSet")._1
+      assert(!adding.exists(a => ofForkCode.contains(a) || a == "nothingIsAddedDuringTheLastCheck"), adding)
       // that no thread is started rests on the platform and on the herd's flag being its own, and no more
       safe.filter(_.startsWith("noThreadIsStarted")).foreach(root => assertEquals(
         Ported.standing(r)(root)._1.filterNot(ofThePlatform), List("aHerdKeepsItsFlagToItself"), root))

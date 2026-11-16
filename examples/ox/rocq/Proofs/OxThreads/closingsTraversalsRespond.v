@@ -9,8 +9,10 @@ Lemma closingsTraversalsRespond_Proofs_complete : closingsTraversalsRespond_Obl_
 Proof.
   intros heldIn history elements _ Hfunctions Htraversal Helements Hmadetorun Hconstructed h f from a
     [[Hcalled Hmakes] Hstops].
-  assert (calledBy history (Invocation_mk "java.util.concurrent.ConcurrentHashMap$.KeySetView forEach java.util.function.Consumer:scala.Unit"%string
-    [heldIn "ox.internal.ThreadHerd threads"%string h; f]) (heldIn "ox.internal.ThreadHerd herdOwner"%string h) a)
+  assert (calledBy history
+    (Invocation_mk
+      "java.util.concurrent.ConcurrentHashMap$.KeySetView forEach java.util.function.Consumer:scala.Unit"%string
+      [heldIn "ox.internal.ThreadHerd threads"%string h; f]) (heldIn "ox.internal.ThreadHerd herdOwner"%string h) a)
     as Htrav.
   { destruct Hmakes as [E | (r & sp & E)]; [left; exists (Some from); exact E |].
     right. exists r, (Some from), sp. exact E. }
@@ -19,7 +21,8 @@ Proof.
   split; [split; [exact Htrav | exact Hstops] |].
   intros x m Happ.
   destruct (Helements _ f _ x a m (conj Htrav Happ)) as (w & [Haw Hwm] & Hin).
-  assert (calledBy history (Invocation_mk "java.util.function.Consumer accept java.lang.Object:scala.Unit"%string [f; x])
+  assert (calledBy history
+    (Invocation_mk "java.util.function.Consumer accept java.lang.Object:scala.Unit"%string [f; x])
     (heldIn "ox.internal.ThreadHerd herdOwner"%string h) m) as Hacc.
   { destruct Happ as [E | (r & sp & E)]; [left; exists (Some a); exact E |].
     right. exists r, (Some a), sp. exact E. }

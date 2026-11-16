@@ -9,9 +9,11 @@ Lemma addingStopsOnceTheFlagIsSet_Proofs_complete : addingStopsOnceTheFlagIsSet_
 Proof.
   intros flag heldIn history _ Hbegins Honce Hstays Hunset Honly h w0 [Hcons Hflag].
   pose (P := fun (s w : Z) => exists c code t,
-    calledBy history (Invocation_mk "ox.internal.ThreadHerd startThread scala.Function0:scala.Unit"%string [h; code]) c s /\
-    itselfMakes history (Invocation_mk "java.util.concurrent.ConcurrentHashMap$.KeySetView add java.lang.Object:scala.Boolean"%string
-      [heldIn "ox.internal.ThreadHerd threads"%string h; t]) c s w).
+    calledBy history
+      (Invocation_mk "ox.internal.ThreadHerd startThread scala.Function0:scala.Unit"%string [h; code]) c s /\
+    itselfMakes history
+      (Invocation_mk "java.util.concurrent.ConcurrentHashMap$.KeySetView add java.lang.Object:scala.Boolean"%string
+        [heldIn "ox.internal.ThreadHerd threads"%string h; t]) c s w).
   assert (forall s w w', P s w -> P s w' -> w = w') as Hone.
   { intros s w w' (c & code & t & Hc & Ha) (c' & code' & t' & Hc' & Ha').
     destruct (one_call_at_a_moment _ _ _ _ _ _ Hc Hc') as [E ->]. injection E as <-.

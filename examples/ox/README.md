@@ -25,22 +25,34 @@ owner:
 | `nothingIsAddedOnceClosed` | No thread is added to the herd's set. |
 | `aClosedHerdRefusesToStart` | A call of `startThread` does not return, and adds no thread. |
 
-Two statements say what happens in time:
+One statement says what happens in time:
 
 | Root | Says |
 |---|---|
+| `closingCompletesOnceItsHerdEmpties` | A call of closing on a herd by its owner is responded to in time, if the herd's set comes to rest empty once closing has traversed it with no call adding to it in progress. |
+
+The condition is in the statement, and is not proven: that once a traversal closing made of the herd's set, with
+no call that adds to the set in progress from the traversal's call on, has completed, from some moment on nothing
+is in the set and no call that removes from it is in progress. It holds if each thread the traversal found ends
+and removes itself; see *What is not covered*.
+
+The root is from three statements, each proven:
+
+| Statement | Says |
+|---|---|
 | `closingsTraversalsRespond` | A traversal of the herd's set that closing makes itself is responded to in time, once nothing more is added to the set. |
 | `addingStopsOnceTheFlagIsSet` | From some moment on, nothing is added to the set of a herd whose flag is set. |
+| `addingEndsOnceTheFlagIsSet` | From some moment on, no call that adds to the set of a herd whose flag is set is in progress. |
 
-The first is from three statements, each proven: a call of a function closing has passed to a traversal, on a
-thread that was added to the herd's set, is responded to in time (`closingsFunctionsRespond`); a thread added to
-a herd's set runs, to its end and in time, the function a factory made it for, once it has been interrupted
-(`aForkEndsOnceInterrupted`); and once the function that closing's functions apply to a thread has completed,
-the thread has been interrupted (`whatClosingsFunctionsApplyInterrupts`).
+The first of these is from three statements, each proven: a call of a function closing has passed to a
+traversal, on a thread that was added to the herd's set, is responded to in time (`closingsFunctionsRespond`); a
+thread added to a herd's set runs, to its end and in time, the function a factory made it for, once it has been
+interrupted (`aForkEndsOnceInterrupted`); and once the function that closing's functions apply to a thread has
+completed, the thread has been interrupted (`whatClosingsFunctionsApplyInterrupts`).
 
 ## What stands, and on what
 
-All eight roots are proven: every claim below each is proven, down to the trees of `unsupervised`, of
+All seven roots are proven: every claim below each is proven, down to the trees of `unsupervised`, of
 `supervised`, of the scope class and of `ThreadHerd`. No claim of the model is unproven; FrFlow reports it so,
 and the suite pins it (`ThreadsSuite`).
 
@@ -131,11 +143,22 @@ it.
 That adding stops (`addingStopsOnceTheFlagIsSet`) is a count. A call that adds to the herd's set is one a call
 of `startThread` on the herd makes itself; that call saw the flag unset at a moment during it, so it was made
 before the flag was set, and after the execution began. There are finitely many moments in between, a moment
-has one call, and a call of `startThread` adds but once: so there is a last add.
+has one call, and a call of `startThread` adds but once: so there is a last add. A call that adds takes time,
+and what it adds is in the set from a moment during it; each such call is responded to (assumed), and they are
+finitely many, so from some moment on none is in progress (`addingEndsOnceTheFlagIsSet`).
+
+That closing completes, on that condition (`closingCompletesOnceItsHerdEmpties`), is proven of closing's tree.
+Given its turn, the call checks its caller (`theOwnerCheckResponds`, proven of that method's tree), sets the flag
+and loops, and each call it makes is responded to. Once the flag is set adding stops, so each traversal is
+responded to. A turn of the loop asks the set whether it is empty: on a yes the call ends; on a no it traverses
+the set twice and comes to the next turn. Until adding ends there are finitely many moments, so finitely many
+turns. A turn after that traverses the set with no call adding to it, so by the condition the set comes to rest
+empty from some moment; until then there are finitely many turns again; and a turn after it is answered yes
+(assumed of the JDK, of a set that holds nothing and from which no call is removing).
 
 What is assumed, by what it is about:
 
-- **The JDK and the JVM** (21): `addingIsAtomic`, `anElementLeavesOnlyWhenRemoved`,
+- **The JDK and the JVM** (22): `addingIsAtomic`, `anElementLeavesOnlyWhenRemoved`,
   `isEmptyFindsItEmptyUnlessAdded`, `isEmptyReturns`, `getGivesTheFlag`, `settingIsAtomic`,
   `aFlagBecomesOnlyWhatIsSet`, `setReturns`, `currentThreadIsTheCaller`, `theJdkStaysOutOfHerds`,
   `whatTheChecksAskOfTheJdkStaysOutOfHerds`, `aThreadDoesOneThingAtATime`,
@@ -143,7 +166,9 @@ What is assumed, by what it is about:
   `addSuppressedReturns`, `anAtomicBooleanHasOnlyItsMethods`, `aKeySetHasOnlyItsMethods`,
   `theCurrentScopeIsReadAndSet`, `aTraversalAppliesItsFunctionToElements` (a traversal applies its function
   only to what is in the set at a moment from its call to the application), `anElementWasAdded` (what is in a
-  set is there by a call that adds it, and returns).
+  set is there by a call that adds it, and returns), `isEmptyFindsARestingSetEmpty` (a set that holds nothing
+  from a moment on, with no call that removes from it in progress, answers that it is empty to a call made from
+  that moment on: `isEmpty` sums counters, and with every removal over each decrement has been counted).
 - **Scala's objects** (5): `herdsAreConstructed`, `aHerdKeepsItsFields`, `aHerdHoldsWhatItWasGiven`,
   `aScopeHoldsTheHerdItIsMadeWith` (the `apply` the compiler writes for a case class is in no tree read: a scope
   made with a herd holds that herd), `aScopeGivesTheHerdItHolds` (a scope's herd is a val, asked for through
@@ -173,7 +198,7 @@ What is assumed, by what it is about:
 - **Ox's scopes, which are not read** (1): `aScopesHerdAndParentStayOutOfHerds`. Asking a scope for its herd or
   its parent neither closes a herd nor removes from a herd's set. Both are vals of a scope; the classes of
   scopes are not read here, so this is an assumption about code of Ox, the one of its kind.
-- **What happens in time** (13). Nothing happens in time unless it is assumed that threads are given their turn
+- **What happens in time** (16). Nothing happens in time unless it is assumed that threads are given their turn
   and that calls of what is outside the code are responded to: an execution in which every thread stops for
   good is one of the code. `aHerdsMethodsProceed`, `aForkFunctionProceeds`: a call of this code that is pending
   and waits for no call it made makes its next event (`aHerdsMethodsProceed` is of every method of a herd).
@@ -188,6 +213,8 @@ What is assumed, by what it is about:
   thread ends when the function does). `aTraversalRespondsOnceItsFunctionDoes`: a traversal of a concurrent set
   to which nothing more is added is responded to, if each call of its function that it itself makes is.
   `theExecutionBegins`: nothing is called before the execution begins (an execution has a first moment).
+  `settingResponds`, `isEmptyResponds`, `addingResponds`: a call that sets an atomic boolean, one that asks a
+  set whether it is empty, and one that adds to a set, is responded to.
 - **The code a fork is given** (1): `forkCodeCompletesOnceInterrupted`. The code a fork was made to run is
   responded to in time, once the fork has been interrupted, whenever that was. It is a restriction on who uses
   Ox: code that ignores interruption and never ends keeps its scope from ending.
@@ -213,10 +240,16 @@ is an object like any other. A handler for every `Throwable` takes whatever is t
 - `fork`, the supervisor and the scope's finalizers: they are not read. The roots say what holds of the herd of
   the scope a call made, once the call has completed; `startThread` is the herd's, which `fork` calls. Nothing
   is said of what `supervised` returns.
-- That closing a herd completes, and so that a scope and `supervised` do. What is proven of time so far is that
-  a fork ends once interrupted, that closing's traversals are responded to once nothing more is added to the
-  set, and that adding stops once the flag is set. That the set then empties, and that closing's loop ends, is
-  not.
+- That a herd's set comes to rest empty once closing has traversed it with no call adding to it in progress: the
+  condition of the statement about time. What is proven towards it: a thread in the set was made to run code;
+  once the function closing's functions apply to a thread has completed, the thread has been interrupted; a
+  thread made to run code ends the function it was made for, once interrupted. What is not: that a traversal
+  applies its function to what stays in the set while it runs, and that what is in a set came in during a call
+  that adds it (to be assumed of the JDK); that closing's function applies the interrupting function to the
+  thread it is given; that a fork function that has ended has removed its thread, which is then out of the set
+  for good; and the count of the threads in the set and of the calls that remove, as the calls that add are
+  counted.
+- That a scope and `supervised` complete: that closing is reached, and that what follows it ends.
 - What is built on scopes (`par`, `race`, `timeout`, cancellation, error modes, `ForkLocal`), channels, `Flow`,
   retries and scheduling, actors.
 - Every witness that the statements can hold together is the execution in which nothing happens.

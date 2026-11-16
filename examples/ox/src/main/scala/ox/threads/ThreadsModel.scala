@@ -14,7 +14,16 @@ import ox.scopes.*
 val oxThreads: FrModel = FrModel("OxThreads")(
   noForkRunsOnceUnsupervisedEnds, nothingIsAddedOnceUnsupervisedEnds, noThreadIsStartedOnceUnsupervisedEnds,
   noForkRunsOnceSupervisedEnds, nothingIsAddedOnceSupervisedEnds, noThreadIsStartedOnceSupervisedEnds,
-  closingsTraversalsRespond, addingStopsOnceTheFlagIsSet,
+  closingCompletesOnceItsHerdEmpties,
+
+  // What happens in time: closing's loop ends, once the herd's set rests empty.
+  closingsTraversalsRespond.refines(closingCompletesOnceItsHerdEmpties),
+  addingStopsOnceTheFlagIsSet.refines(closingCompletesOnceItsHerdEmpties, addingEndsOnceTheFlagIsSet),
+  addingEndsOnceTheFlagIsSet.refines(closingCompletesOnceItsHerdEmpties),
+  addingResponds.refines(addingEndsOnceTheFlagIsSet), theOwnerCheckResponds.refines(closingCompletesOnceItsHerdEmpties),
+  settingResponds.refines(closingCompletesOnceItsHerdEmpties),
+  isEmptyResponds.refines(closingCompletesOnceItsHerdEmpties),
+  isEmptyFindsARestingSetEmpty.refines(closingCompletesOnceItsHerdEmpties),
 
   // What happens in time: closing's traversals are responded to, and adding stops.
   closingsFunctionsRespond.refines(closingsTraversalsRespond),
@@ -22,7 +31,7 @@ val oxThreads: FrModel = FrModel("OxThreads")(
   aTraversalAppliesItsFunctionToElements.refines(closingsTraversalsRespond),
   whatIsInAHerdsSetWasMadeToRun.refines(closingsTraversalsRespond),
   anElementWasAdded.refines(whatIsInAHerdsSetWasMadeToRun),
-  theExecutionBegins.refines(addingStopsOnceTheFlagIsSet),
+  theExecutionBegins.refines(addingStopsOnceTheFlagIsSet, addingEndsOnceTheFlagIsSet),
 
   // What happens in time: closing's functions are responded to.
   whatClosingsFunctionsApplyInterrupts.refines(closingsFunctionsRespond),
@@ -39,9 +48,10 @@ val oxThreads: FrModel = FrModel("OxThreads")(
   aForkFunctionCompletesOnceItsCodeDoes.refines(aForkEndsOnceInterrupted),
   forkCodeCompletesOnceInterrupted.refines(aForkEndsOnceInterrupted),
   startThreadAddsOnce.refines(startThreadStartsWhatItAdded, addingStopsOnceTheFlagIsSet),
-  aHerdsMethodsProceed.refines(startThreadStartsWhatItAdded),
+  aHerdsMethodsProceed.refines(startThreadStartsWhatItAdded, theOwnerCheckResponds,
+    closingCompletesOnceItsHerdEmpties),
   aForkFunctionProceeds.refines(aForkFunctionCompletesOnceItsCodeDoes),
-  currentThreadResponds.refines(aForkFunctionCompletesOnceItsCodeDoes),
+  currentThreadResponds.refines(aForkFunctionCompletesOnceItsCodeDoes, theOwnerCheckResponds),
   removingResponds.refines(aForkFunctionCompletesOnceItsCodeDoes),
   discardResponds.refines(aForkFunctionCompletesOnceItsCodeDoes),
 
@@ -119,7 +129,8 @@ val oxThreads: FrModel = FrModel("OxThreads")(
 
   startThreadReadsTheFlagUnset.refines(startThreadFirstSeesTheFlagUnset),
   getGivesTheFlag.refines(startThreadFirstSeesTheFlagUnset),
-  closingSetsTheFlagItself.refines(closingSetsTheFlag), settingIsAtomic.refines(closingSetsTheFlag),
+  closingSetsTheFlagItself.refines(closingSetsTheFlag),
+  settingIsAtomic.refines(closingSetsTheFlag, closingCompletesOnceItsHerdEmpties),
   setReturns.refines(closingEndsOnceFoundEmpty, closingSetsTheFlag),
 
   onlyStartThreadAddsToTheSet.refines(onlyStartThreadAdds, anAddedThreadHasNotBeenStarted,
@@ -159,7 +170,7 @@ val oxThreads: FrModel = FrModel("OxThreads")(
 
   // How a herd is made.
   herdsAreConstructed.refines(herdsAreMade, closingSetsTheFlag, aClosedHerdRefusesToStart, nothingIsAddedOnceEmpty,
-    aForkEndsOnceInterrupted, closingsTraversalsRespond,
+    aForkEndsOnceInterrupted, closingsTraversalsRespond, closingCompletesOnceItsHerdEmpties,
     nothingIsBeingAddedWhenEmpty, everyForkHasLeftOnceClosed, startThreadCallersStayInside, codeRunsBeforeLeaving),
   aHerdsFlagIsNew.refines(aHerdsFlagIsOnlyReadAndSet), aHerdsSetIsNew.refines(aHerdsSetIsPlain),
   aHerdHoldsWhatItWasGiven.refines(aHerdsFlagIsNew, aHerdsSetIsNew, aScopesHerdIsItsMakers),
@@ -172,9 +183,10 @@ val oxThreads: FrModel = FrModel("OxThreads")(
     closingTraversesWithAFunction, whatClosingsFunctionsApplyReturns, closingsFunctionsReturn,
     closingCallsFour, theOwnerCheckCallsCurrentThread, theMembershipCheckCallsContains, theWalkUpCallsFour,
     aForkFunctionCompletesOnceItsCodeDoes, startThreadAddsOnce, startThreadStartsWhatItAdded,
-    whatClosingsFunctionsApplyInterrupts, closingsFunctionsRespond),
+    whatClosingsFunctionsApplyInterrupts, closingsFunctionsRespond, theOwnerCheckResponds,
+    closingCompletesOnceItsHerdEmpties),
   aHerdKeepsItsFields.refines(startThreadReadsTheFlagUnset, closingSetsTheFlagItself,
-    theForkFunctionRemovesTheCurrentThread, closingEndsOnceFoundEmpty),
+    theForkFunctionRemovesTheCurrentThread, closingEndsOnceFoundEmpty, closingCompletesOnceItsHerdEmpties),
   currentThreadIsTheCaller.refines(closingSetsTheFlagItself, aForkRemovesOnlyItself, closingEndsOnceFoundEmpty,
     aScopesHerdIsItsMakers),
 

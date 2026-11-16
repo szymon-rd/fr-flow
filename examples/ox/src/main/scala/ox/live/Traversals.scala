@@ -28,3 +28,10 @@ val addingStopsOnceTheFlagIsSet = Node.claim(
   "From some moment on, nothing is added to the set of a herd whose flag is set.")(
   forall((h: Obj[ThreadHerd], w: Term[BigInt]) =>
     (h.isConstructed(w) && flag(shutdown(h), w)) implies addingStops(threads(h))))
+
+// A call that adds takes time, and what it adds is in the set from a moment during it: so adding has ended only
+// when each call that adds is over.
+val addingEndsOnceTheFlagIsSet = Node.claim(
+  "From some moment on, no call that adds to the set of a herd whose flag is set is in progress.")(
+  forall((h: Obj[ThreadHerd], w: Term[BigInt]) =>
+    (h.isConstructed(w) && flag(shutdown(h), w)) implies addingEnds(threads(h))))
