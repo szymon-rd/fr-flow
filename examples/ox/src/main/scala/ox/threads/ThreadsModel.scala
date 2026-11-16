@@ -14,7 +14,16 @@ import ox.scopes.*
 val oxThreads: FrModel = FrModel("OxThreads")(
   noForkRunsOnceUnsupervisedEnds, nothingIsAddedOnceUnsupervisedEnds, noThreadIsStartedOnceUnsupervisedEnds,
   noForkRunsOnceSupervisedEnds, nothingIsAddedOnceSupervisedEnds, noThreadIsStartedOnceSupervisedEnds,
-  aForkEndsOnceInterrupted, whatClosingsFunctionsApplyInterrupts,
+  closingsFunctionsRespond,
+
+  // What happens in time: closing's functions are responded to.
+  whatClosingsFunctionsApplyInterrupts.refines(closingsFunctionsRespond),
+  aForkEndsOnceInterrupted.refines(closingsFunctionsRespond),
+  joinRespondsOnceItsThreadHasRun.refines(closingsFunctionsRespond),
+  closingsFunctionsProceed.refines(closingsFunctionsRespond),
+  whatClosingsFunctionsApplyProceeds.refines(closingsFunctionsRespond),
+  interruptResponds.refines(closingsFunctionsRespond),
+  addSuppressedResponds.refines(closingsFunctionsRespond),
 
   // What happens in time: a fork ends once interrupted.
   startThreadStartsWhatItAdded.refines(aForkEndsOnceInterrupted),
@@ -63,7 +72,7 @@ val oxThreads: FrModel = FrModel("OxThreads")(
   closingKeepsItsVariableToItself.refines(closingsFunctionsReturn, whatClosingsFunctionsApplyInterrupts),
   closingsVariablesAreWrittenByItsFunctions.refines(whatClosingsFunctionsApplyInterrupts),
   joinThrowsOnlyAnInterruption.refines(closingsFunctionsReturn, whatClosingsFunctionsApplyReturns,
-    whatClosingsFunctionsApplyInterrupts),
+    whatClosingsFunctionsApplyInterrupts, closingsFunctionsRespond),
   addSuppressedReturns.refines(closingsFunctionsReturn),
   interruptReturns.refines(whatClosingsFunctionsApplyReturns, whatClosingsFunctionsApplyInterrupts),
   nothingIsAddedOnceEmpty.refines(everyForkHasLeftOnceClosed, nothingIsAddedOnceClosed),
@@ -153,7 +162,7 @@ val oxThreads: FrModel = FrModel("OxThreads")(
     closingTraversesWithAFunction, whatClosingsFunctionsApplyReturns, closingsFunctionsReturn,
     closingCallsFour, theOwnerCheckCallsCurrentThread, theMembershipCheckCallsContains, theWalkUpCallsFour,
     aForkFunctionCompletesOnceItsCodeDoes, startThreadAddsOnce, startThreadStartsWhatItAdded,
-    whatClosingsFunctionsApplyInterrupts),
+    whatClosingsFunctionsApplyInterrupts, closingsFunctionsRespond),
   aHerdKeepsItsFields.refines(startThreadReadsTheFlagUnset, closingSetsTheFlagItself,
     theForkFunctionRemovesTheCurrentThread, closingEndsOnceFoundEmpty),
   currentThreadIsTheCaller.refines(closingSetsTheFlagItself, aForkRemovesOnlyItself, closingEndsOnceFoundEmpty,

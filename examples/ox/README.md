@@ -29,18 +29,16 @@ One statement says what happens in time:
 
 | Root | Says |
 |---|---|
-| `aForkEndsOnceInterrupted` | A thread added to a herd's set runs, to its end and in time, the function a factory made it for, once it has been interrupted. |
+| `closingsFunctionsRespond` | A call of a function closing has passed to a traversal, on a thread that was added to the herd's set, is responded to in time. |
 
-And one, of what closing does to each thread it finds in the herd's set, is what the rest of what happens in
-time is to be proven from:
-
-| Root | Says |
-|---|---|
-| `whatClosingsFunctionsApplyInterrupts` | Once the function that closing's functions apply to a thread has completed, the thread has been interrupted. |
+It is from two statements, each proven: a thread added to a herd's set runs, to its end and in time, the function
+a factory made it for, once it has been interrupted (`aForkEndsOnceInterrupted`); and once the function that
+closing's functions apply to a thread has completed, the thread has been interrupted
+(`whatClosingsFunctionsApplyInterrupts`).
 
 ## What stands, and on what
 
-All eight roots are proven: every claim below each is proven, down to the trees of `unsupervised`, of
+All seven roots are proven: every claim below each is proven, down to the trees of `unsupervised`, of
 `supervised`, of the scope class and of `ThreadHerd`. No claim of the model is unproven; FrFlow reports it so,
 and the suite pins it (`ThreadsSuite`).
 
@@ -115,6 +113,12 @@ set written there holds only threads that have been interrupted, by induction on
 closing's functions apply reads the variable; a thread it finds there has been interrupted, by what was last
 written; one it does not find, it interrupts and writes among them.
 
+That closing's functions are responded to is proven of the same tree (`closingsFunctionsRespond`). Each applies
+the function that interrupts a thread once, which reads, interrupts, writes and returns, each step in time. The
+second then joins the thread: the thread has been interrupted by then and was added to the herd's set, so it ends
+the function it was made for, and the join is responded to (assumed of the JDK and of the thread factory, of a
+thread whose function has ended). Whatever the join gave, the function ends.
+
 What is assumed, by what it is about:
 
 - **The JDK and the JVM** (19): `addingIsAtomic`, `anElementLeavesOnlyWhenRemoved`,
@@ -153,7 +157,7 @@ What is assumed, by what it is about:
 - **Ox's scopes, which are not read** (1): `aScopesHerdAndParentStayOutOfHerds`. Asking a scope for its herd or
   its parent neither closes a herd nor removes from a herd's set. Both are vals of a scope; the classes of
   scopes are not read here, so this is an assumption about code of Ox, the one of its kind.
-- **What happens in time** (6). Nothing happens in time unless it is assumed that threads are given their turn
+- **What happens in time** (11). Nothing happens in time unless it is assumed that threads are given their turn
   and that calls of what is outside the code are responded to: an execution in which every thread stops for
   good is one of the code. `aHerdsMethodsProceed`, `aForkFunctionProceeds`: a call of this code that is pending
   and waits for no call it made makes its next event (`aHerdsMethodsProceed` is of every method of a herd).
@@ -161,6 +165,11 @@ What is assumed, by what it is about:
   `discardResponds`: a call is responded to. `aStartedThreadRunsItsFunction`: a thread a factory made for a
   function calls the function, once `start` is called on it (of the thread factory, and of who schedules
   threads).
+  `closingsFunctionsProceed`, `whatClosingsFunctionsApplyProceeds`: the same of a function closing has passed
+  to a traversal, and of the function it applies. `interruptResponds`, `addSuppressedResponds`: a call is
+  responded to. `joinRespondsOnceItsThreadHasRun`: a call of join on a thread a factory made for a function is
+  responded to, once the thread's call of the function has been (of the JDK and of the thread factory: the
+  thread ends when the function does).
 - **The code a fork is given** (1): `forkCodeCompletesOnceInterrupted`. The code a fork was made to run is
   responded to in time, once the fork has been interrupted, whenever that was. It is a restriction on who uses
   Ox: code that ignores interruption and never ends keeps its scope from ending.

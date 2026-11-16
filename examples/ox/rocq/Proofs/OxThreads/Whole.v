@@ -9,6 +9,16 @@ Proof.
   exists (fun _ => Event_Stutter), (fun _ x => x), (fun _ _ _ => False), (fun _ _ => False).
   split; [exact rest_runs |].
   split.
+  { intros f r t c a b i from [[[who H] _] _]. destruct (nothing_completed_at_rest _ _ _ _ _ H). }
+  split.
+  { intros h f x c k [_ H]. destruct (nothing_called_at_rest _ _ _ H). }
+  split.
+  { intros h f x c k g t a [[_ H] _]. destruct (nothing_called_at_rest _ _ _ H). }
+  split.
+  { intros t who from [H _]. destruct (nothing_begun_at_rest _ _ _ H). }
+  split.
+  { intros x y who from [H _]. destruct (nothing_begun_at_rest _ _ _ H). }
+  split.
   { intros f r t a b s [[who H] _]. destruct (nothing_completed_at_rest _ _ _ _ _ H). }
   split.
   { intros h t code made m [[_ H] _]. destruct (nothing_called_at_rest _ _ _ H). }

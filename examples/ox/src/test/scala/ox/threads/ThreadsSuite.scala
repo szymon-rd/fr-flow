@@ -39,7 +39,9 @@ import scala.concurrent.duration.*
     * next event), of the JDK and of the thread factory (a call is responded to; a started thread runs).
     */
   private val ofWhatHappensInTime = Set("aHerdsMethodsProceed", "aForkFunctionProceeds", "currentThreadResponds",
-    "removingResponds", "discardResponds", "aStartedThreadRunsItsFunction")
+    "removingResponds", "discardResponds", "aStartedThreadRunsItsFunction", "closingsFunctionsProceed",
+    "whatClosingsFunctionsApplyProceeds", "interruptResponds", "addSuppressedResponds",
+    "joinRespondsOnceItsThreadHasRun")
 
   /** What is assumed of the code a fork is given: a restriction on who uses Ox. */
   private val ofForkCode = List("forkCodeCompletesOnceInterrupted")
@@ -79,11 +81,8 @@ import scala.concurrent.duration.*
     List(s"noForkRunsOnce${of}Ends", s"nothingIsAddedOnce${of}Ends", s"noThreadIsStartedOnce${of}Ends"))
 
   /** What happens in time. */
-  private val live = List("aForkEndsOnceInterrupted")
-
-  /** What closing does to each thread it finds, which what happens in time is to be from. */
-  private val towardsTime = List("whatClosingsFunctionsApplyInterrupts")
-  private val roots = safe ++ live ++ towardsTime
+  private val live = List("closingsFunctionsRespond")
+  private val roots = safe ++ live
 
   /** What rests on the assumption suspected false: everything but that no thread is started. */
   private val onTheLastCheck = safe.filterNot(_.startsWith("noThreadIsStarted")) ++
@@ -95,7 +94,7 @@ import scala.concurrent.duration.*
       assertEquals(Ported.standsOn(r).map((root, on) => root -> on._1), roots.map(_ -> Nil).toMap)
       assertEquals(Ported.standing(r)("aClosedHerdRefusesToStart")._1.sorted, theFlagRootIsFrom)
       val named = ofThePlatform ++ ofPrivateState ++ ofWhoUsesAHerd ++ ofScopesNotRead ++ suspectedFalse
-      (safe ++ towardsTime).foreach(root => assertEquals(Ported.standing(r)(root)._1.filterNot(named), Nil, root))
+      safe.foreach(root => assertEquals(Ported.standing(r)(root)._1.filterNot(named), Nil, root))
       // what happens in time rests on nothing suspected false, and on the code a fork is given ending
       live.foreach { root =>
         val on = Ported.standing(r)(root)._1

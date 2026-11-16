@@ -20,3 +20,11 @@ val whatClosingsFunctionsApplyInterrupts = Node.claim(
           applicationOf[Unit](g, t.asValue).by(c).calledInside(k, a) &&
           applicationOf[Unit](g, t.asValue).by(c).completed(a, r, b)) implies
           t.interrupt().returnedBefore(b)))))
+
+val closingsFunctionsRespond = Node.claim(
+  "A call of a function closing has passed to a traversal, on a thread that was added to the herd's set, is " +
+    "responded to in time.")(
+  forall((h: Obj[ThreadHerd], f: Obj[Consumer[AnyRef]], x: Obj[Thread], c: Obj[Thread]) =>
+    forall((k: Term[BigInt], code: Obj[Code], made: Term[BigInt]) =>
+      (traversedWith(f, h, k) && f.accept(x.seenAs[AnyRef]).by(c).called(k) && madeToRun(x, h, code, made)) implies
+        f.accept(x.seenAs[AnyRef]).by(c).respondedTo(k))))
