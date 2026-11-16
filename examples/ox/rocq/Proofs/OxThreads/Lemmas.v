@@ -68,6 +68,28 @@ Proof.
   pass.
 Qed.
 
+(** Proven of `ThreadHerd.isOwnerOrHerdThread`'s tree: what a call of it returns is a truth value. *)
+Lemma isOwnerOrHerdThread_returns {history : Z -> Event} {N h r t c inside w1} :
+  conforms Code_files Code_table Code_classes N history ->
+  names N h (vref "ox.internal.ThreadHerd" r) ->
+  history w1 = Event_Invoke c inside
+    (Invocation_mk "ox.internal.ThreadHerd isOwnerOrHerdThread java.lang.Thread:scala.Boolean" [h; t]) ->
+  forall w, direct c w1 (history w) -> forall resp sp x,
+    history w = Event_Respond c w1 resp sp -> gives N resp (inr x) -> exists b, x = VBool b.
+Proof.
+  intros C Hh Hcall.
+  refine (method_meets _ C (Member "ox.internal.ThreadHerd" "isOwnerOrHerdThread" "java.lang.Thread:scala.Boolean")
+    Hcall Hh eq_refl _).
+  intros args k Hargs Hpassed. apply vals_one in Hargs as (vt & -> & _).
+  inversion Hpassed as [| pt vt' pst vst Hthread _]; subst. typed Hthread.
+  (* the owner is read: it is the thread, or the set is read and asked *)
+  pass. meets_head; [| pass; step; intros wask ys _ _ Hys Hmk1; (split; [miss |]);
+    intros wasked rask xask _ _ _ Hretask; meets_head].
+  all: apply meets_ret; intros rr _ _ Hrr Hgives resp sp x Hresp Hgx; rewrite Hrr in Hresp;
+    injection Hresp as <- _; destruct rr; cbn in Hgives, Hgx; try contradiction; eexists;
+    exact (names_one N _ _ _ Hgx Hgives).
+Qed.
+
 (** A herd that its constructor has returned by a moment, it has returned by every later one. *)
 Lemma herd_constructed_later (history : Z -> Event) h a b : a <= b ->
   (exists x by_ from to, to <= a /\ completedBy history (Invocation_mk
@@ -151,12 +173,12 @@ Qed.
 (** ** One thing at a time *)
 
 (** What an actor calls while a call of its own is pending is among what that call itself calls, or is called
-    while one of those is pending. *)
-Lemma called_under (history : Z -> Event) (allowed : Invocation -> Prop) who outer from inner w :
+    while one of those, made later, is pending. *)
+Lemma called_under_later (history : Z -> Event) (allowed : Invocation -> Prop) who outer from inner w :
   oneAtATime history who ->
   (forall made k, itselfMakes history made who from k -> allowed made) ->
   (from < w /\ begun history outer who from) /\ ~ overBy history who from w -> calledBy history inner who w ->
-  allowed inner \/ exists between m, allowed between /\
+  allowed inner \/ exists between m, from < m /\ allowed between /\
     (m < w /\ begun history between who m) /\ ~ overBy history who m w.
 Proof.
   intros Hone Hall [[Hlt Hbegun] Hnot] Hcalled.
@@ -167,8 +189,20 @@ Proof.
   destruct (Hone outer from inside w (conj (conj (conj Hlt Hbegun) Hnot) Hdoes))
     as [E | (between & m & [[[Hfm Hmw] Hat] Hpending])].
   - left. exact (Hall inner w (Hthen E)).
-  - right. exists between, m. split; [apply (Hall between m); left; exact Hat |].
+  - right. exists between, m. split; [exact Hfm |]. split; [apply (Hall between m); left; exact Hat |].
     split; [split; [exact Hmw | exists (Some from); exact Hat] | exact Hpending].
+Qed.
+
+Lemma called_under (history : Z -> Event) (allowed : Invocation -> Prop) who outer from inner w :
+  oneAtATime history who ->
+  (forall made k, itselfMakes history made who from k -> allowed made) ->
+  (from < w /\ begun history outer who from) /\ ~ overBy history who from w -> calledBy history inner who w ->
+  allowed inner \/ exists between m, allowed between /\
+    (m < w /\ begun history between who m) /\ ~ overBy history who m w.
+Proof.
+  intros Hone Hall Hpending Hcalled.
+  destruct (called_under_later history allowed who outer from inner w Hone Hall Hpending Hcalled)
+    as [H | (between & m & _ & H)]; [left; exact H | right; exists between, m; exact H].
 Qed.
 
 (** What an actor writes while a call of its own is pending, and every call that call itself made is over, the

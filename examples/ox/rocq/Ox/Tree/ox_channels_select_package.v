@@ -468,7 +468,10 @@ Definition ox_channels_select_package : tree :=
                                   (Some
                                     (Select
                                       (Ident (Local "_$1" 16))
-                                      (Member "ox.channels.SelectClause" "delegate" ":")))
+                                      (Member
+                                        "ox.channels.SelectClause"
+                                        "delegate"
+                                        ":com.softwaremill.jox.SelectClause")))
                                   [])]
                               (Closure (Ident (Local "$anonfun" 15)) None))])
                         (TyApp
@@ -873,8 +876,12 @@ Definition ox_channels_select_package : tree :=
                             "selectOrClosed"
                             "ox.channels.SelectClause,ox.channels.SelectClause:java.lang.Object"))
                         [
-                          (Select (Ident (Local "source1" 32)) (Member "ox.channels.Source" "receiveClause" ":"));
-                          (Select (Ident (Local "source2" 33)) (Member "ox.channels.Source" "receiveClause" ":"))])])
+                          (Select
+                            (Ident (Local "source1" 32))
+                            (Member "ox.channels.Source" "receiveClause" ":ox.channels.Source.Receive"));
+                          (Select
+                            (Ident (Local "source2" 33))
+                            (Member "ox.channels.Source" "receiveClause" ":ox.channels.Source.Receive"))])])
                   [
                     (TyOr
                       (TyParam "ox.channels.select$package$.selectOrClosed" "T1")
@@ -999,9 +1006,15 @@ Definition ox_channels_select_package : tree :=
                             "selectOrClosed"
                             "ox.channels.SelectClause,ox.channels.SelectClause,ox.channels.SelectClause:java.lang.Object"))
                         [
-                          (Select (Ident (Local "source1" 38)) (Member "ox.channels.Source" "receiveClause" ":"));
-                          (Select (Ident (Local "source2" 39)) (Member "ox.channels.Source" "receiveClause" ":"));
-                          (Select (Ident (Local "source3" 40)) (Member "ox.channels.Source" "receiveClause" ":"))])])
+                          (Select
+                            (Ident (Local "source1" 38))
+                            (Member "ox.channels.Source" "receiveClause" ":ox.channels.Source.Receive"));
+                          (Select
+                            (Ident (Local "source2" 39))
+                            (Member "ox.channels.Source" "receiveClause" ":ox.channels.Source.Receive"));
+                          (Select
+                            (Ident (Local "source3" 40))
+                            (Member "ox.channels.Source" "receiveClause" ":ox.channels.Source.Receive"))])])
                   [
                     (TyOr
                       (TyOr
@@ -1160,10 +1173,18 @@ Definition ox_channels_select_package : tree :=
                             "selectOrClosed"
                             "ox.channels.SelectClause,ox.channels.SelectClause,ox.channels.SelectClause,ox.channels.SelectClause:java.lang.Object"))
                         [
-                          (Select (Ident (Local "source1" 46)) (Member "ox.channels.Source" "receiveClause" ":"));
-                          (Select (Ident (Local "source2" 47)) (Member "ox.channels.Source" "receiveClause" ":"));
-                          (Select (Ident (Local "source3" 48)) (Member "ox.channels.Source" "receiveClause" ":"));
-                          (Select (Ident (Local "source4" 49)) (Member "ox.channels.Source" "receiveClause" ":"))])])
+                          (Select
+                            (Ident (Local "source1" 46))
+                            (Member "ox.channels.Source" "receiveClause" ":ox.channels.Source.Receive"));
+                          (Select
+                            (Ident (Local "source2" 47))
+                            (Member "ox.channels.Source" "receiveClause" ":ox.channels.Source.Receive"));
+                          (Select
+                            (Ident (Local "source3" 48))
+                            (Member "ox.channels.Source" "receiveClause" ":ox.channels.Source.Receive"));
+                          (Select
+                            (Ident (Local "source4" 49))
+                            (Member "ox.channels.Source" "receiveClause" ":ox.channels.Source.Receive"))])])
                   [
                     (TyOr
                       (TyOr
@@ -1356,11 +1377,21 @@ Definition ox_channels_select_package : tree :=
                             "selectOrClosed"
                             "ox.channels.SelectClause,ox.channels.SelectClause,ox.channels.SelectClause,ox.channels.SelectClause,ox.channels.SelectClause:java.lang.Object"))
                         [
-                          (Select (Ident (Local "source1" 56)) (Member "ox.channels.Source" "receiveClause" ":"));
-                          (Select (Ident (Local "source2" 57)) (Member "ox.channels.Source" "receiveClause" ":"));
-                          (Select (Ident (Local "source3" 58)) (Member "ox.channels.Source" "receiveClause" ":"));
-                          (Select (Ident (Local "source4" 59)) (Member "ox.channels.Source" "receiveClause" ":"));
-                          (Select (Ident (Local "source5" 60)) (Member "ox.channels.Source" "receiveClause" ":"))])])
+                          (Select
+                            (Ident (Local "source1" 56))
+                            (Member "ox.channels.Source" "receiveClause" ":ox.channels.Source.Receive"));
+                          (Select
+                            (Ident (Local "source2" 57))
+                            (Member "ox.channels.Source" "receiveClause" ":ox.channels.Source.Receive"));
+                          (Select
+                            (Ident (Local "source3" 58))
+                            (Member "ox.channels.Source" "receiveClause" ":ox.channels.Source.Receive"));
+                          (Select
+                            (Ident (Local "source4" 59))
+                            (Member "ox.channels.Source" "receiveClause" ":ox.channels.Source.Receive"));
+                          (Select
+                            (Ident (Local "source5" 60))
+                            (Member "ox.channels.Source" "receiveClause" ":ox.channels.Source.Receive"))])])
                   [
                     (TyOr
                       (TyOr
@@ -1567,7 +1598,9 @@ Definition ox_channels_select_package : tree :=
                                 [(TyParam "ox.channels.select$package$.selectOrClosed" "T")])
                               (Some
                                 (Typed
-                                  (Select (Ident (Local "_$2" 71)) (Member "ox.channels.Source" "receiveClause" ":"))
+                                  (Select
+                                    (Ident (Local "_$2" 71))
+                                    (Member "ox.channels.Source" "receiveClause" ":ox.channels.Source.Receive"))
                                   (TyApp
                                     (TyRef "ox.channels.SelectClause")
                                     [(TyParam "ox.channels.select$package$.selectOrClosed" "T")])))
@@ -1644,8 +1677,12 @@ Definition ox_channels_select_package : tree :=
                       "select"
                       "ox.channels.SelectClause,ox.channels.SelectClause:ox.channels.SelectResult"))
                   [
-                    (Select (Ident (Local "source1" 74)) (Member "ox.channels.Source" "receiveClause" ":"));
-                    (Select (Ident (Local "source2" 75)) (Member "ox.channels.Source" "receiveClause" ":"))])
+                    (Select
+                      (Ident (Local "source1" 74))
+                      (Member "ox.channels.Source" "receiveClause" ":ox.channels.Source.Receive"));
+                    (Select
+                      (Ident (Local "source2" 75))
+                      (Member "ox.channels.Source" "receiveClause" ":ox.channels.Source.Receive"))])
                 [
                   (CaseDef
                     (TypeTest
@@ -1718,9 +1755,15 @@ Definition ox_channels_select_package : tree :=
                       "select"
                       "ox.channels.SelectClause,ox.channels.SelectClause,ox.channels.SelectClause:ox.channels.SelectResult"))
                   [
-                    (Select (Ident (Local "source1" 78)) (Member "ox.channels.Source" "receiveClause" ":"));
-                    (Select (Ident (Local "source2" 79)) (Member "ox.channels.Source" "receiveClause" ":"));
-                    (Select (Ident (Local "source3" 80)) (Member "ox.channels.Source" "receiveClause" ":"))])
+                    (Select
+                      (Ident (Local "source1" 78))
+                      (Member "ox.channels.Source" "receiveClause" ":ox.channels.Source.Receive"));
+                    (Select
+                      (Ident (Local "source2" 79))
+                      (Member "ox.channels.Source" "receiveClause" ":ox.channels.Source.Receive"));
+                    (Select
+                      (Ident (Local "source3" 80))
+                      (Member "ox.channels.Source" "receiveClause" ":ox.channels.Source.Receive"))])
                 [
                   (CaseDef
                     (TypeTest
@@ -1815,10 +1858,18 @@ Definition ox_channels_select_package : tree :=
                       "select"
                       "ox.channels.SelectClause,ox.channels.SelectClause,ox.channels.SelectClause,ox.channels.SelectClause:ox.channels.SelectResult"))
                   [
-                    (Select (Ident (Local "source1" 84)) (Member "ox.channels.Source" "receiveClause" ":"));
-                    (Select (Ident (Local "source2" 85)) (Member "ox.channels.Source" "receiveClause" ":"));
-                    (Select (Ident (Local "source3" 86)) (Member "ox.channels.Source" "receiveClause" ":"));
-                    (Select (Ident (Local "source4" 87)) (Member "ox.channels.Source" "receiveClause" ":"))])
+                    (Select
+                      (Ident (Local "source1" 84))
+                      (Member "ox.channels.Source" "receiveClause" ":ox.channels.Source.Receive"));
+                    (Select
+                      (Ident (Local "source2" 85))
+                      (Member "ox.channels.Source" "receiveClause" ":ox.channels.Source.Receive"));
+                    (Select
+                      (Ident (Local "source3" 86))
+                      (Member "ox.channels.Source" "receiveClause" ":ox.channels.Source.Receive"));
+                    (Select
+                      (Ident (Local "source4" 87))
+                      (Member "ox.channels.Source" "receiveClause" ":ox.channels.Source.Receive"))])
                 [
                   (CaseDef
                     (TypeTest
@@ -1935,11 +1986,21 @@ Definition ox_channels_select_package : tree :=
                       "select"
                       "ox.channels.SelectClause,ox.channels.SelectClause,ox.channels.SelectClause,ox.channels.SelectClause,ox.channels.SelectClause:ox.channels.SelectResult"))
                   [
-                    (Select (Ident (Local "source1" 92)) (Member "ox.channels.Source" "receiveClause" ":"));
-                    (Select (Ident (Local "source2" 93)) (Member "ox.channels.Source" "receiveClause" ":"));
-                    (Select (Ident (Local "source3" 94)) (Member "ox.channels.Source" "receiveClause" ":"));
-                    (Select (Ident (Local "source4" 95)) (Member "ox.channels.Source" "receiveClause" ":"));
-                    (Select (Ident (Local "source5" 96)) (Member "ox.channels.Source" "receiveClause" ":"))])
+                    (Select
+                      (Ident (Local "source1" 92))
+                      (Member "ox.channels.Source" "receiveClause" ":ox.channels.Source.Receive"));
+                    (Select
+                      (Ident (Local "source2" 93))
+                      (Member "ox.channels.Source" "receiveClause" ":ox.channels.Source.Receive"));
+                    (Select
+                      (Ident (Local "source3" 94))
+                      (Member "ox.channels.Source" "receiveClause" ":ox.channels.Source.Receive"));
+                    (Select
+                      (Ident (Local "source4" 95))
+                      (Member "ox.channels.Source" "receiveClause" ":ox.channels.Source.Receive"));
+                    (Select
+                      (Ident (Local "source5" 96))
+                      (Member "ox.channels.Source" "receiveClause" ":ox.channels.Source.Receive"))])
                 [
                   (CaseDef
                     (TypeTest
@@ -2552,7 +2613,7 @@ Definition ox_channels_select_package : tree :=
               (TyRef "ox.channels.ChannelClosed"))
             (Some
               (If
-                (Select (Ident (Local "clauses" 131)) (Member "scala.collection.SeqOps" "isEmpty" ":"))
+                (Select (Ident (Local "clauses" 131)) (Member "scala.collection.SeqOps" "isEmpty" ":scala.Boolean"))
                 (Ident (Local "timeoutValue" 130))
                 (Apply
                   (TypeApply
@@ -2670,7 +2731,7 @@ Definition ox_channels_select_package : tree :=
                                       [
                                         (Select
                                           (Ident (Local "timeoutChannel" 134))
-                                          (Member "ox.channels.Source" "receiveClause" ":"))])))]
+                                          (Member "ox.channels.Source" "receiveClause" ":ox.channels.Source.Receive"))])))]
                               (Match
                                 false
                                 (Apply
@@ -2771,7 +2832,10 @@ Definition ox_channels_select_package : tree :=
                           "1,scala.concurrent.duration.FiniteDuration,java.lang.Object,ox.channels.SelectClause:java.lang.Object"))
                       [(TyParam "ox.channels.select$package$.selectOrClosedWithin" "TV")])
                     [(Ident (Local "timeout" 138)); (Ident (Local "timeoutValue" 139))])
-                  [(Select (Ident (Local "source1" 140)) (Member "ox.channels.Source" "receiveClause" ":"))])
+                  [
+                    (Select
+                      (Ident (Local "source1" 140))
+                      (Member "ox.channels.Source" "receiveClause" ":ox.channels.Source.Receive"))])
                 [
                   (CaseDef
                     (TypeTest
@@ -2851,8 +2915,12 @@ Definition ox_channels_select_package : tree :=
                       [(TyParam "ox.channels.select$package$.selectOrClosedWithin" "TV")])
                     [(Ident (Local "timeout" 143)); (Ident (Local "timeoutValue" 144))])
                   [
-                    (Select (Ident (Local "source1" 145)) (Member "ox.channels.Source" "receiveClause" ":"));
-                    (Select (Ident (Local "source2" 146)) (Member "ox.channels.Source" "receiveClause" ":"))])
+                    (Select
+                      (Ident (Local "source1" 145))
+                      (Member "ox.channels.Source" "receiveClause" ":ox.channels.Source.Receive"));
+                    (Select
+                      (Ident (Local "source2" 146))
+                      (Member "ox.channels.Source" "receiveClause" ":ox.channels.Source.Receive"))])
                 [
                   (CaseDef
                     (TypeTest
@@ -2960,9 +3028,15 @@ Definition ox_channels_select_package : tree :=
                       [(TyParam "ox.channels.select$package$.selectOrClosedWithin" "TimeoutValue")])
                     [(Ident (Local "timeout" 150)); (Ident (Local "timeoutValue" 151))])
                   [
-                    (Select (Ident (Local "source1" 152)) (Member "ox.channels.Source" "receiveClause" ":"));
-                    (Select (Ident (Local "source2" 153)) (Member "ox.channels.Source" "receiveClause" ":"));
-                    (Select (Ident (Local "source3" 154)) (Member "ox.channels.Source" "receiveClause" ":"))])
+                    (Select
+                      (Ident (Local "source1" 152))
+                      (Member "ox.channels.Source" "receiveClause" ":ox.channels.Source.Receive"));
+                    (Select
+                      (Ident (Local "source2" 153))
+                      (Member "ox.channels.Source" "receiveClause" ":ox.channels.Source.Receive"));
+                    (Select
+                      (Ident (Local "source3" 154))
+                      (Member "ox.channels.Source" "receiveClause" ":ox.channels.Source.Receive"))])
                 [
                   (CaseDef
                     (TypeTest
@@ -3098,10 +3172,18 @@ Definition ox_channels_select_package : tree :=
                       [(TyParam "ox.channels.select$package$.selectOrClosedWithin" "TV")])
                     [(Ident (Local "timeout" 159)); (Ident (Local "timeoutValue" 160))])
                   [
-                    (Select (Ident (Local "source1" 161)) (Member "ox.channels.Source" "receiveClause" ":"));
-                    (Select (Ident (Local "source2" 162)) (Member "ox.channels.Source" "receiveClause" ":"));
-                    (Select (Ident (Local "source3" 163)) (Member "ox.channels.Source" "receiveClause" ":"));
-                    (Select (Ident (Local "source4" 164)) (Member "ox.channels.Source" "receiveClause" ":"))])
+                    (Select
+                      (Ident (Local "source1" 161))
+                      (Member "ox.channels.Source" "receiveClause" ":ox.channels.Source.Receive"));
+                    (Select
+                      (Ident (Local "source2" 162))
+                      (Member "ox.channels.Source" "receiveClause" ":ox.channels.Source.Receive"));
+                    (Select
+                      (Ident (Local "source3" 163))
+                      (Member "ox.channels.Source" "receiveClause" ":ox.channels.Source.Receive"));
+                    (Select
+                      (Ident (Local "source4" 164))
+                      (Member "ox.channels.Source" "receiveClause" ":ox.channels.Source.Receive"))])
                 [
                   (CaseDef
                     (TypeTest
@@ -3265,11 +3347,21 @@ Definition ox_channels_select_package : tree :=
                       [(TyParam "ox.channels.select$package$.selectOrClosedWithin" "TV")])
                     [(Ident (Local "timeout" 170)); (Ident (Local "timeoutValue" 171))])
                   [
-                    (Select (Ident (Local "source1" 172)) (Member "ox.channels.Source" "receiveClause" ":"));
-                    (Select (Ident (Local "source2" 173)) (Member "ox.channels.Source" "receiveClause" ":"));
-                    (Select (Ident (Local "source3" 174)) (Member "ox.channels.Source" "receiveClause" ":"));
-                    (Select (Ident (Local "source4" 175)) (Member "ox.channels.Source" "receiveClause" ":"));
-                    (Select (Ident (Local "source5" 176)) (Member "ox.channels.Source" "receiveClause" ":"))])
+                    (Select
+                      (Ident (Local "source1" 172))
+                      (Member "ox.channels.Source" "receiveClause" ":ox.channels.Source.Receive"));
+                    (Select
+                      (Ident (Local "source2" 173))
+                      (Member "ox.channels.Source" "receiveClause" ":ox.channels.Source.Receive"));
+                    (Select
+                      (Ident (Local "source3" 174))
+                      (Member "ox.channels.Source" "receiveClause" ":ox.channels.Source.Receive"));
+                    (Select
+                      (Ident (Local "source4" 175))
+                      (Member "ox.channels.Source" "receiveClause" ":ox.channels.Source.Receive"));
+                    (Select
+                      (Ident (Local "source5" 176))
+                      (Member "ox.channels.Source" "receiveClause" ":ox.channels.Source.Receive"))])
                 [
                   (CaseDef
                     (TypeTest
@@ -3446,7 +3538,9 @@ Definition ox_channels_select_package : tree :=
                                 [(TyParam "ox.channels.select$package$.selectOrClosedWithin" "T")])
                               (Some
                                 (Typed
-                                  (Select (Ident (Local "_$3" 188)) (Member "ox.channels.Source" "receiveClause" ":"))
+                                  (Select
+                                    (Ident (Local "_$3" 188))
+                                    (Member "ox.channels.Source" "receiveClause" ":ox.channels.Source.Receive"))
                                   (TyApp
                                     (TyRef "ox.channels.SelectClause")
                                     [(TyParam "ox.channels.select$package$.selectOrClosedWithin" "T")])))
@@ -4026,7 +4120,10 @@ Definition ox_channels_select_package : tree :=
                         "selectWithin"
                         "scala.concurrent.duration.FiniteDuration,ox.channels.SelectClause:ox.channels.SelectResult"))
                     [(Ident (Local "timeout" 214))])
-                  [(Select (Ident (Local "source1" 215)) (Member "ox.channels.Source" "receiveClause" ":"))])
+                  [
+                    (Select
+                      (Ident (Local "source1" 215))
+                      (Member "ox.channels.Source" "receiveClause" ":ox.channels.Source.Receive"))])
                 [
                   (CaseDef
                     (Unapply
@@ -4080,8 +4177,12 @@ Definition ox_channels_select_package : tree :=
                         "scala.concurrent.duration.FiniteDuration,ox.channels.SelectClause,ox.channels.SelectClause:ox.channels.SelectResult"))
                     [(Ident (Local "timeout" 217))])
                   [
-                    (Select (Ident (Local "source1" 218)) (Member "ox.channels.Source" "receiveClause" ":"));
-                    (Select (Ident (Local "source2" 219)) (Member "ox.channels.Source" "receiveClause" ":"))])
+                    (Select
+                      (Ident (Local "source1" 218))
+                      (Member "ox.channels.Source" "receiveClause" ":ox.channels.Source.Receive"));
+                    (Select
+                      (Ident (Local "source2" 219))
+                      (Member "ox.channels.Source" "receiveClause" ":ox.channels.Source.Receive"))])
                 [
                   (CaseDef
                     (TypeTest
@@ -4161,9 +4262,15 @@ Definition ox_channels_select_package : tree :=
                         "scala.concurrent.duration.FiniteDuration,ox.channels.SelectClause,ox.channels.SelectClause,ox.channels.SelectClause:ox.channels.SelectResult"))
                     [(Ident (Local "timeout" 222))])
                   [
-                    (Select (Ident (Local "source1" 223)) (Member "ox.channels.Source" "receiveClause" ":"));
-                    (Select (Ident (Local "source2" 224)) (Member "ox.channels.Source" "receiveClause" ":"));
-                    (Select (Ident (Local "source3" 225)) (Member "ox.channels.Source" "receiveClause" ":"))])
+                    (Select
+                      (Ident (Local "source1" 223))
+                      (Member "ox.channels.Source" "receiveClause" ":ox.channels.Source.Receive"));
+                    (Select
+                      (Ident (Local "source2" 224))
+                      (Member "ox.channels.Source" "receiveClause" ":ox.channels.Source.Receive"));
+                    (Select
+                      (Ident (Local "source3" 225))
+                      (Member "ox.channels.Source" "receiveClause" ":ox.channels.Source.Receive"))])
                 [
                   (CaseDef
                     (TypeTest
@@ -4267,10 +4374,18 @@ Definition ox_channels_select_package : tree :=
                         "scala.concurrent.duration.FiniteDuration,ox.channels.SelectClause,ox.channels.SelectClause,ox.channels.SelectClause,ox.channels.SelectClause:ox.channels.SelectResult"))
                     [(Ident (Local "timeout" 229))])
                   [
-                    (Select (Ident (Local "source1" 230)) (Member "ox.channels.Source" "receiveClause" ":"));
-                    (Select (Ident (Local "source2" 231)) (Member "ox.channels.Source" "receiveClause" ":"));
-                    (Select (Ident (Local "source3" 232)) (Member "ox.channels.Source" "receiveClause" ":"));
-                    (Select (Ident (Local "source4" 233)) (Member "ox.channels.Source" "receiveClause" ":"))])
+                    (Select
+                      (Ident (Local "source1" 230))
+                      (Member "ox.channels.Source" "receiveClause" ":ox.channels.Source.Receive"));
+                    (Select
+                      (Ident (Local "source2" 231))
+                      (Member "ox.channels.Source" "receiveClause" ":ox.channels.Source.Receive"));
+                    (Select
+                      (Ident (Local "source3" 232))
+                      (Member "ox.channels.Source" "receiveClause" ":ox.channels.Source.Receive"));
+                    (Select
+                      (Ident (Local "source4" 233))
+                      (Member "ox.channels.Source" "receiveClause" ":ox.channels.Source.Receive"))])
                 [
                   (CaseDef
                     (TypeTest
@@ -4398,11 +4513,21 @@ Definition ox_channels_select_package : tree :=
                         "scala.concurrent.duration.FiniteDuration,ox.channels.SelectClause,ox.channels.SelectClause,ox.channels.SelectClause,ox.channels.SelectClause,ox.channels.SelectClause:ox.channels.SelectResult"))
                     [(Ident (Local "timeout" 238))])
                   [
-                    (Select (Ident (Local "source1" 239)) (Member "ox.channels.Source" "receiveClause" ":"));
-                    (Select (Ident (Local "source2" 240)) (Member "ox.channels.Source" "receiveClause" ":"));
-                    (Select (Ident (Local "source3" 241)) (Member "ox.channels.Source" "receiveClause" ":"));
-                    (Select (Ident (Local "source4" 242)) (Member "ox.channels.Source" "receiveClause" ":"));
-                    (Select (Ident (Local "source5" 243)) (Member "ox.channels.Source" "receiveClause" ":"))])
+                    (Select
+                      (Ident (Local "source1" 239))
+                      (Member "ox.channels.Source" "receiveClause" ":ox.channels.Source.Receive"));
+                    (Select
+                      (Ident (Local "source2" 240))
+                      (Member "ox.channels.Source" "receiveClause" ":ox.channels.Source.Receive"));
+                    (Select
+                      (Ident (Local "source3" 241))
+                      (Member "ox.channels.Source" "receiveClause" ":ox.channels.Source.Receive"));
+                    (Select
+                      (Ident (Local "source4" 242))
+                      (Member "ox.channels.Source" "receiveClause" ":ox.channels.Source.Receive"));
+                    (Select
+                      (Ident (Local "source5" 243))
+                      (Member "ox.channels.Source" "receiveClause" ":ox.channels.Source.Receive"))])
                 [
                   (CaseDef
                     (TypeTest

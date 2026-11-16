@@ -177,19 +177,19 @@ Definition ox_flow_internal_WeightedHeap : tree :=
                     "scala.unchecked")]))
             [(Member "scala.Equals" "canEqual" "java.lang.Object:scala.Boolean")]);
           (DefDef
-            (Member "ox.flow.internal.WeightedHeap" "productArity" ":")
+            (Member "ox.flow.internal.WeightedHeap" "productArity" ":scala.Int")
             ["Method"; "Override"; "Synthetic"]
             []
             (TyRef "scala.Int")
             (Some (Literal (CInt (2)%Z)))
-            [(Member "scala.Product" "productArity" ":")]);
+            [(Member "scala.Product" "productArity" ":scala.Int")]);
           (DefDef
-            (Member "ox.flow.internal.WeightedHeap" "productPrefix" ":")
+            (Member "ox.flow.internal.WeightedHeap" "productPrefix" ":java.lang.String")
             ["Method"; "Override"; "Synthetic"]
             []
             (TyAlias "scala.Predef$.String" (TyRef "java.lang.String"))
             (Some (Literal (CString "WeightedHeap")))
-            [(Member "scala.Product" "productPrefix" ":")]);
+            [(Member "scala.Product" "productPrefix" ":java.lang.String")]);
           (DefDef
             (Member "ox.flow.internal.WeightedHeap" "productElement" "scala.Int:java.lang.Object")
             ["Method"; "Override"; "Synthetic"]
@@ -203,11 +203,15 @@ Definition ox_flow_internal_WeightedHeap : tree :=
                   (CaseDef
                     (Literal (CInt (0)%Z))
                     None
-                    (Select (This "ox.flow.internal.WeightedHeap") (Member "ox.flow.internal.WeightedHeap" "_1" ":")));
+                    (Select
+                      (This "ox.flow.internal.WeightedHeap")
+                      (Member "ox.flow.internal.WeightedHeap" "_1" ":scala.collection.immutable.Vector")));
                   (CaseDef
                     (Literal (CInt (1)%Z))
                     None
-                    (Select (This "ox.flow.internal.WeightedHeap") (Member "ox.flow.internal.WeightedHeap" "_2" ":")));
+                    (Select
+                      (This "ox.flow.internal.WeightedHeap")
+                      (Member "ox.flow.internal.WeightedHeap" "_2" ":scala.collection.immutable.Map")));
                   (CaseDef
                     Wildcard
                     None
@@ -758,7 +762,7 @@ Definition ox_flow_internal_WeightedHeap : tree :=
                                 [
                                   (Select
                                     (Ident (Local "currentHeap" 32))
-                                    (Member "scala.collection.immutable.Vector" "length" ":"))])
+                                    (Member "scala.collection.immutable.Vector" "length" ":scala.Int"))])
                               (Member "scala.Boolean" "&&" "scala.Boolean:scala.Boolean"))
                             [
                               (Apply
@@ -789,7 +793,7 @@ Definition ox_flow_internal_WeightedHeap : tree :=
                                 [
                                   (Select
                                     (Ident (Local "currentHeap" 32))
-                                    (Member "scala.collection.immutable.Vector" "length" ":"))])
+                                    (Member "scala.collection.immutable.Vector" "length" ":scala.Int"))])
                               (Member "scala.Boolean" "&&" "scala.Boolean:scala.Boolean"))
                             [
                               (Apply
@@ -1064,7 +1068,7 @@ Definition ox_flow_internal_WeightedHeap : tree :=
                                       (Select
                                         (Select
                                           (Ident (Local "newHeap" 45))
-                                          (Member "scala.collection.immutable.Vector" "length" ":"))
+                                          (Member "scala.collection.immutable.Vector" "length" ":scala.Int"))
                                         (Member "scala.Int" "-" "scala.Int:scala.Int"))
                                       [(Literal (CInt (1)%Z))])])])));
                         (ValDef
@@ -1100,7 +1104,7 @@ Definition ox_flow_internal_WeightedHeap : tree :=
                                       (Select
                                         (Select
                                           (Ident (Local "newHeap" 45))
-                                          (Member "scala.collection.immutable.Vector" "length" ":"))
+                                          (Member "scala.collection.immutable.Vector" "length" ":scala.Int"))
                                         (Member "scala.Int" "-" "scala.Int:scala.Int"))
                                       [(Literal (CInt (1)%Z))])])
                                 (TyAnnot
@@ -1199,7 +1203,7 @@ Definition ox_flow_internal_WeightedHeap : tree :=
               (If
                 (Select
                   (Ident (Member "ox.flow.internal.WeightedHeap" "heap" ""))
-                  (Member "scala.collection.SeqOps" "isEmpty" ":"))
+                  (Member "scala.collection.SeqOps" "isEmpty" ":scala.Boolean"))
                 (Apply
                   (TypeApply
                     (Select
@@ -1214,7 +1218,7 @@ Definition ox_flow_internal_WeightedHeap : tree :=
                     (Select
                       (Select
                         (Ident (Member "ox.flow.internal.WeightedHeap" "heap" ""))
-                        (Member "scala.collection.immutable.Vector" "length" ":"))
+                        (Member "scala.collection.immutable.Vector" "length" ":scala.Int"))
                       (Member "scala.Int" "==" "scala.Int:scala.Boolean"))
                     [(Literal (CInt (1)%Z))])
                   (Apply
@@ -1318,7 +1322,7 @@ Definition ox_flow_internal_WeightedHeap : tree :=
                                     (TyRef "scala.Tuple2")
                                     [(TyParam "ox.flow.internal.WeightedHeap" "T"); (TyRef "scala.Long")])])
                               [(Literal (CInt (0)%Z)); (Ident (Local "last" 54))])
-                            (Member "scala.collection.immutable.Vector" "init" ":"))));
+                            (Member "scala.collection.immutable.Vector" "init" ":scala.collection.immutable.Vector"))));
                       (ValDef
                         (Local "updatedMap" 56)
                         []
@@ -1868,27 +1872,27 @@ Definition ox_flow_internal_WeightedHeap : tree :=
             (Some
               (Select
                 (Ident (Member "ox.flow.internal.WeightedHeap" "heap" ""))
-                (Member "scala.collection.IndexedSeqOps" "headOption" ":")))
+                (Member "scala.collection.IndexedSeqOps" "headOption" ":scala.Option")))
             []);
           (DefDef
-            (Member "ox.flow.internal.WeightedHeap" "size" ":")
+            (Member "ox.flow.internal.WeightedHeap" "size" ":scala.Int")
             ["Method"]
             []
             (TyRef "scala.Int")
             (Some
               (Select
                 (Ident (Member "ox.flow.internal.WeightedHeap" "heap" ""))
-                (Member "scala.collection.SeqOps" "size" ":")))
+                (Member "scala.collection.SeqOps" "size" ":scala.Int")))
             []);
           (DefDef
-            (Member "ox.flow.internal.WeightedHeap" "isEmpty" ":")
+            (Member "ox.flow.internal.WeightedHeap" "isEmpty" ":scala.Boolean")
             ["Method"]
             []
             (TyRef "scala.Boolean")
             (Some
               (Select
                 (Ident (Member "ox.flow.internal.WeightedHeap" "heap" ""))
-                (Member "scala.collection.SeqOps" "isEmpty" ":")))
+                (Member "scala.collection.SeqOps" "isEmpty" ":scala.Boolean")))
             []);
           (DefDef
             (Member "ox.flow.internal.WeightedHeap" "contains" "java.lang.Object:scala.Boolean")
@@ -1960,7 +1964,7 @@ Definition ox_flow_internal_WeightedHeap : tree :=
             (Some (Ident (Member "ox.flow.internal.WeightedHeap" "valueToIndex" "")))
             []);
           (DefDef
-            (Member "ox.flow.internal.WeightedHeap" "_1" ":")
+            (Member "ox.flow.internal.WeightedHeap" "_1" ":scala.collection.immutable.Vector")
             ["Method"; "Synthetic"]
             []
             (TyApp
@@ -1969,7 +1973,7 @@ Definition ox_flow_internal_WeightedHeap : tree :=
             (Some (Select (This "ox.flow.internal.WeightedHeap") (Member "ox.flow.internal.WeightedHeap" "heap" "")))
             []);
           (DefDef
-            (Member "ox.flow.internal.WeightedHeap" "_2" ":")
+            (Member "ox.flow.internal.WeightedHeap" "_2" ":scala.collection.immutable.Map")
             ["Method"; "Synthetic"]
             []
             (TyApp
@@ -2083,7 +2087,7 @@ Definition ox_flow_internal_WeightedHeap : tree :=
             (Some (Ident (Local "x$1" 85)))
             []);
           (DefDef
-            (Member "ox.flow.internal.WeightedHeap$" "toString" ":")
+            (Member "ox.flow.internal.WeightedHeap$" "toString" ":java.lang.String")
             ["Method"; "Override"; "Synthetic"]
             []
             (TyRef "java.lang.String")

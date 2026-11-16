@@ -225,19 +225,19 @@ Definition ox_scheduling_ScheduledConfig : tree :=
                     "scala.unchecked")]))
             [(Member "scala.Equals" "canEqual" "java.lang.Object:scala.Boolean")]);
           (DefDef
-            (Member "ox.scheduling.ScheduledConfig" "productArity" ":")
+            (Member "ox.scheduling.ScheduledConfig" "productArity" ":scala.Int")
             ["Method"; "Override"; "Synthetic"]
             []
             (TyRef "scala.Int")
             (Some (Literal (CInt (3)%Z)))
-            [(Member "scala.Product" "productArity" ":")]);
+            [(Member "scala.Product" "productArity" ":scala.Int")]);
           (DefDef
-            (Member "ox.scheduling.ScheduledConfig" "productPrefix" ":")
+            (Member "ox.scheduling.ScheduledConfig" "productPrefix" ":java.lang.String")
             ["Method"; "Override"; "Synthetic"]
             []
             (TyAlias "scala.Predef$.String" (TyRef "java.lang.String"))
             (Some (Literal (CString "ScheduledConfig")))
-            [(Member "scala.Product" "productPrefix" ":")]);
+            [(Member "scala.Product" "productPrefix" ":java.lang.String")]);
           (DefDef
             (Member "ox.scheduling.ScheduledConfig" "productElement" "scala.Int:java.lang.Object")
             ["Method"; "Override"; "Synthetic"]
@@ -251,15 +251,21 @@ Definition ox_scheduling_ScheduledConfig : tree :=
                   (CaseDef
                     (Literal (CInt (0)%Z))
                     None
-                    (Select (This "ox.scheduling.ScheduledConfig") (Member "ox.scheduling.ScheduledConfig" "_1" ":")));
+                    (Select
+                      (This "ox.scheduling.ScheduledConfig")
+                      (Member "ox.scheduling.ScheduledConfig" "_1" ":ox.scheduling.Schedule")));
                   (CaseDef
                     (Literal (CInt (1)%Z))
                     None
-                    (Select (This "ox.scheduling.ScheduledConfig") (Member "ox.scheduling.ScheduledConfig" "_2" ":")));
+                    (Select
+                      (This "ox.scheduling.ScheduledConfig")
+                      (Member "ox.scheduling.ScheduledConfig" "_2" ":scala.Function2")));
                   (CaseDef
                     (Literal (CInt (2)%Z))
                     None
-                    (Select (This "ox.scheduling.ScheduledConfig") (Member "ox.scheduling.ScheduledConfig" "_3" ":")));
+                    (Select
+                      (This "ox.scheduling.ScheduledConfig")
+                      (Member "ox.scheduling.ScheduledConfig" "_3" ":ox.scheduling.SleepMode")));
                   (CaseDef
                     Wildcard
                     None
@@ -499,7 +505,7 @@ Definition ox_scheduling_ScheduledConfig : tree :=
               (Select (This "ox.scheduling.ScheduledConfig") (Member "ox.scheduling.ScheduledConfig" "sleepMode" "")))
             []);
           (DefDef
-            (Member "ox.scheduling.ScheduledConfig" "_1" ":")
+            (Member "ox.scheduling.ScheduledConfig" "_1" ":ox.scheduling.Schedule")
             ["Method"; "Synthetic"]
             []
             (TyRef "ox.scheduling.Schedule")
@@ -507,7 +513,7 @@ Definition ox_scheduling_ScheduledConfig : tree :=
               (Select (This "ox.scheduling.ScheduledConfig") (Member "ox.scheduling.ScheduledConfig" "schedule" "")))
             []);
           (DefDef
-            (Member "ox.scheduling.ScheduledConfig" "_2" ":")
+            (Member "ox.scheduling.ScheduledConfig" "_2" ":scala.Function2")
             ["Method"; "Synthetic"]
             []
             (TyApp
@@ -524,7 +530,7 @@ Definition ox_scheduling_ScheduledConfig : tree :=
                 (Member "ox.scheduling.ScheduledConfig" "afterAttempt" "")))
             []);
           (DefDef
-            (Member "ox.scheduling.ScheduledConfig" "_3" ":")
+            (Member "ox.scheduling.ScheduledConfig" "_3" ":ox.scheduling.SleepMode")
             ["Method"; "Synthetic"]
             []
             (TyRef "ox.scheduling.SleepMode")
@@ -652,7 +658,7 @@ Definition ox_scheduling_ScheduledConfig : tree :=
             (Some (Ident (Local "x$1" 17)))
             []);
           (DefDef
-            (Member "ox.scheduling.ScheduledConfig$" "toString" ":")
+            (Member "ox.scheduling.ScheduledConfig$" "toString" ":java.lang.String")
             ["Method"; "Override"; "Synthetic"]
             []
             (TyRef "java.lang.String")

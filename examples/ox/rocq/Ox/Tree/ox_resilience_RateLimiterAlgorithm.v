@@ -68,7 +68,7 @@ Definition ox_resilience_RateLimiterAlgorithm : tree :=
             None
             []);
           (DefDef
-            (Member "ox.resilience.RateLimiterAlgorithm" "getNextUpdate" ":")
+            (Member "ox.resilience.RateLimiterAlgorithm" "getNextUpdate" ":scala.Long")
             ["Deferred"; "Method"]
             []
             (TyRef "scala.Long")

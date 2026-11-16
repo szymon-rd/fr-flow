@@ -351,19 +351,19 @@ Definition ox_resilience_CircuitBreakerState : tree :=
                     [(TyAnnot (TyRef "ox.resilience.CircuitBreakerState$.Open") "scala.unchecked")]))
                 [(Member "scala.Equals" "canEqual" "java.lang.Object:scala.Boolean")]);
               (DefDef
-                (Member "ox.resilience.CircuitBreakerState$.Open" "productArity" ":")
+                (Member "ox.resilience.CircuitBreakerState$.Open" "productArity" ":scala.Int")
                 ["Method"; "Override"; "Synthetic"]
                 []
                 (TyRef "scala.Int")
                 (Some (Literal (CInt (1)%Z)))
-                [(Member "scala.Product" "productArity" ":")]);
+                [(Member "scala.Product" "productArity" ":scala.Int")]);
               (DefDef
-                (Member "ox.resilience.CircuitBreakerState$.Open" "productPrefix" ":")
+                (Member "ox.resilience.CircuitBreakerState$.Open" "productPrefix" ":java.lang.String")
                 ["Method"; "Override"; "Synthetic"]
                 []
                 (TyAlias "scala.Predef$.String" (TyRef "java.lang.String"))
                 (Some (Literal (CString "Open")))
-                [(Member "scala.Product" "productPrefix" ":")]);
+                [(Member "scala.Product" "productPrefix" ":java.lang.String")]);
               (DefDef
                 (Member "ox.resilience.CircuitBreakerState$.Open" "productElement" "scala.Int:java.lang.Object")
                 ["Method"; "Override"; "Synthetic"]
@@ -379,7 +379,7 @@ Definition ox_resilience_CircuitBreakerState : tree :=
                         None
                         (Select
                           (This "ox.resilience.CircuitBreakerState$.Open")
-                          (Member "ox.resilience.CircuitBreakerState$.Open" "_1" ":")));
+                          (Member "ox.resilience.CircuitBreakerState$.Open" "_1" ":scala.Long")));
                       (CaseDef
                         Wildcard
                         None
@@ -440,21 +440,21 @@ Definition ox_resilience_CircuitBreakerState : tree :=
                     [(Ident (Local "since" 14))]))
                 []);
               (DefDef
-                (Member "ox.resilience.CircuitBreakerState$.Open" "copy$default$1" ":")
+                (Member "ox.resilience.CircuitBreakerState$.Open" "copy$default$1" ":scala.Long")
                 ["Method"; "Synthetic"]
                 []
                 (TyAnnot (TyRef "scala.Long") "scala.annotation.unchecked.uncheckedVariance")
                 (Some (Ident (Member "ox.resilience.CircuitBreakerState$.Open" "since" "")))
                 []);
               (DefDef
-                (Member "ox.resilience.CircuitBreakerState$.Open" "ordinal" ":")
+                (Member "ox.resilience.CircuitBreakerState$.Open" "ordinal" ":scala.Int")
                 ["Method"; "Synthetic"]
                 []
                 (TyRef "scala.Int")
                 (Some (Literal (CInt (0)%Z)))
-                [(Member "scala.reflect.Enum" "ordinal" ":")]);
+                [(Member "scala.reflect.Enum" "ordinal" ":scala.Int")]);
               (DefDef
-                (Member "ox.resilience.CircuitBreakerState$.Open" "_1" ":")
+                (Member "ox.resilience.CircuitBreakerState$.Open" "_1" ":scala.Long")
                 ["Method"; "Synthetic"]
                 []
                 (TyRef "scala.Long")
@@ -545,7 +545,7 @@ Definition ox_resilience_CircuitBreakerState : tree :=
                 (Some (Ident (Local "x$1" 16)))
                 []);
               (DefDef
-                (Member "ox.resilience.CircuitBreakerState$.Open$" "toString" ":")
+                (Member "ox.resilience.CircuitBreakerState$.Open$" "toString" ":java.lang.String")
                 ["Method"; "Override"; "Synthetic"]
                 []
                 (TyRef "java.lang.String")
@@ -717,19 +717,19 @@ Definition ox_resilience_CircuitBreakerState : tree :=
                     [(TyAnnot (TyRef "ox.resilience.CircuitBreakerState$.Closed") "scala.unchecked")]))
                 [(Member "scala.Equals" "canEqual" "java.lang.Object:scala.Boolean")]);
               (DefDef
-                (Member "ox.resilience.CircuitBreakerState$.Closed" "productArity" ":")
+                (Member "ox.resilience.CircuitBreakerState$.Closed" "productArity" ":scala.Int")
                 ["Method"; "Override"; "Synthetic"]
                 []
                 (TyRef "scala.Int")
                 (Some (Literal (CInt (1)%Z)))
-                [(Member "scala.Product" "productArity" ":")]);
+                [(Member "scala.Product" "productArity" ":scala.Int")]);
               (DefDef
-                (Member "ox.resilience.CircuitBreakerState$.Closed" "productPrefix" ":")
+                (Member "ox.resilience.CircuitBreakerState$.Closed" "productPrefix" ":java.lang.String")
                 ["Method"; "Override"; "Synthetic"]
                 []
                 (TyAlias "scala.Predef$.String" (TyRef "java.lang.String"))
                 (Some (Literal (CString "Closed")))
-                [(Member "scala.Product" "productPrefix" ":")]);
+                [(Member "scala.Product" "productPrefix" ":java.lang.String")]);
               (DefDef
                 (Member "ox.resilience.CircuitBreakerState$.Closed" "productElement" "scala.Int:java.lang.Object")
                 ["Method"; "Override"; "Synthetic"]
@@ -745,7 +745,7 @@ Definition ox_resilience_CircuitBreakerState : tree :=
                         None
                         (Select
                           (This "ox.resilience.CircuitBreakerState$.Closed")
-                          (Member "ox.resilience.CircuitBreakerState$.Closed" "_1" ":")));
+                          (Member "ox.resilience.CircuitBreakerState$.Closed" "_1" ":scala.Long")));
                       (CaseDef
                         Wildcard
                         None
@@ -806,21 +806,21 @@ Definition ox_resilience_CircuitBreakerState : tree :=
                     [(Ident (Local "since" 26))]))
                 []);
               (DefDef
-                (Member "ox.resilience.CircuitBreakerState$.Closed" "copy$default$1" ":")
+                (Member "ox.resilience.CircuitBreakerState$.Closed" "copy$default$1" ":scala.Long")
                 ["Method"; "Synthetic"]
                 []
                 (TyAnnot (TyRef "scala.Long") "scala.annotation.unchecked.uncheckedVariance")
                 (Some (Ident (Member "ox.resilience.CircuitBreakerState$.Closed" "since" "")))
                 []);
               (DefDef
-                (Member "ox.resilience.CircuitBreakerState$.Closed" "ordinal" ":")
+                (Member "ox.resilience.CircuitBreakerState$.Closed" "ordinal" ":scala.Int")
                 ["Method"; "Synthetic"]
                 []
                 (TyRef "scala.Int")
                 (Some (Literal (CInt (1)%Z)))
-                [(Member "scala.reflect.Enum" "ordinal" ":")]);
+                [(Member "scala.reflect.Enum" "ordinal" ":scala.Int")]);
               (DefDef
-                (Member "ox.resilience.CircuitBreakerState$.Closed" "_1" ":")
+                (Member "ox.resilience.CircuitBreakerState$.Closed" "_1" ":scala.Long")
                 ["Method"; "Synthetic"]
                 []
                 (TyRef "scala.Long")
@@ -914,7 +914,7 @@ Definition ox_resilience_CircuitBreakerState : tree :=
                 (Some (Ident (Local "x$1" 28)))
                 []);
               (DefDef
-                (Member "ox.resilience.CircuitBreakerState$.Closed$" "toString" ":")
+                (Member "ox.resilience.CircuitBreakerState$.Closed$" "toString" ":java.lang.String")
                 ["Method"; "Override"; "Synthetic"]
                 []
                 (TyRef "java.lang.String")
@@ -1150,19 +1150,19 @@ Definition ox_resilience_CircuitBreakerState : tree :=
                     [(TyAnnot (TyRef "ox.resilience.CircuitBreakerState$.HalfOpen") "scala.unchecked")]))
                 [(Member "scala.Equals" "canEqual" "java.lang.Object:scala.Boolean")]);
               (DefDef
-                (Member "ox.resilience.CircuitBreakerState$.HalfOpen" "productArity" ":")
+                (Member "ox.resilience.CircuitBreakerState$.HalfOpen" "productArity" ":scala.Int")
                 ["Method"; "Override"; "Synthetic"]
                 []
                 (TyRef "scala.Int")
                 (Some (Literal (CInt (3)%Z)))
-                [(Member "scala.Product" "productArity" ":")]);
+                [(Member "scala.Product" "productArity" ":scala.Int")]);
               (DefDef
-                (Member "ox.resilience.CircuitBreakerState$.HalfOpen" "productPrefix" ":")
+                (Member "ox.resilience.CircuitBreakerState$.HalfOpen" "productPrefix" ":java.lang.String")
                 ["Method"; "Override"; "Synthetic"]
                 []
                 (TyAlias "scala.Predef$.String" (TyRef "java.lang.String"))
                 (Some (Literal (CString "HalfOpen")))
-                [(Member "scala.Product" "productPrefix" ":")]);
+                [(Member "scala.Product" "productPrefix" ":java.lang.String")]);
               (DefDef
                 (Member "ox.resilience.CircuitBreakerState$.HalfOpen" "productElement" "scala.Int:java.lang.Object")
                 ["Method"; "Override"; "Synthetic"]
@@ -1178,19 +1178,22 @@ Definition ox_resilience_CircuitBreakerState : tree :=
                         None
                         (Select
                           (This "ox.resilience.CircuitBreakerState$.HalfOpen")
-                          (Member "ox.resilience.CircuitBreakerState$.HalfOpen" "_1" ":")));
+                          (Member "ox.resilience.CircuitBreakerState$.HalfOpen" "_1" ":scala.Long")));
                       (CaseDef
                         (Literal (CInt (1)%Z))
                         None
                         (Select
                           (This "ox.resilience.CircuitBreakerState$.HalfOpen")
-                          (Member "ox.resilience.CircuitBreakerState$.HalfOpen" "_2" ":")));
+                          (Member
+                            "ox.resilience.CircuitBreakerState$.HalfOpen"
+                            "_2"
+                            ":java.util.concurrent.Semaphore")));
                       (CaseDef
                         (Literal (CInt (2)%Z))
                         None
                         (Select
                           (This "ox.resilience.CircuitBreakerState$.HalfOpen")
-                          (Member "ox.resilience.CircuitBreakerState$.HalfOpen" "_3" ":")));
+                          (Member "ox.resilience.CircuitBreakerState$.HalfOpen" "_3" ":scala.Int")));
                       (CaseDef
                         Wildcard
                         None
@@ -1267,35 +1270,38 @@ Definition ox_resilience_CircuitBreakerState : tree :=
                       (Ident (Local "completedOperations" 42))]))
                 []);
               (DefDef
-                (Member "ox.resilience.CircuitBreakerState$.HalfOpen" "copy$default$1" ":")
+                (Member "ox.resilience.CircuitBreakerState$.HalfOpen" "copy$default$1" ":scala.Long")
                 ["Method"; "Synthetic"]
                 []
                 (TyAnnot (TyRef "scala.Long") "scala.annotation.unchecked.uncheckedVariance")
                 (Some (Ident (Member "ox.resilience.CircuitBreakerState$.HalfOpen" "since" "")))
                 []);
               (DefDef
-                (Member "ox.resilience.CircuitBreakerState$.HalfOpen" "copy$default$2" ":")
+                (Member
+                  "ox.resilience.CircuitBreakerState$.HalfOpen"
+                  "copy$default$2"
+                  ":java.util.concurrent.Semaphore")
                 ["Method"; "Synthetic"]
                 []
                 (TyAnnot (TyRef "java.util.concurrent.Semaphore") "scala.annotation.unchecked.uncheckedVariance")
                 (Some (Ident (Member "ox.resilience.CircuitBreakerState$.HalfOpen" "semaphore" "")))
                 []);
               (DefDef
-                (Member "ox.resilience.CircuitBreakerState$.HalfOpen" "copy$default$3" ":")
+                (Member "ox.resilience.CircuitBreakerState$.HalfOpen" "copy$default$3" ":scala.Int")
                 ["Method"; "Synthetic"]
                 []
                 (TyAnnot (TyRef "scala.Int") "scala.annotation.unchecked.uncheckedVariance")
                 (Some (Ident (Member "ox.resilience.CircuitBreakerState$.HalfOpen" "completedOperations" "")))
                 []);
               (DefDef
-                (Member "ox.resilience.CircuitBreakerState$.HalfOpen" "ordinal" ":")
+                (Member "ox.resilience.CircuitBreakerState$.HalfOpen" "ordinal" ":scala.Int")
                 ["Method"; "Synthetic"]
                 []
                 (TyRef "scala.Int")
                 (Some (Literal (CInt (2)%Z)))
-                [(Member "scala.reflect.Enum" "ordinal" ":")]);
+                [(Member "scala.reflect.Enum" "ordinal" ":scala.Int")]);
               (DefDef
-                (Member "ox.resilience.CircuitBreakerState$.HalfOpen" "_1" ":")
+                (Member "ox.resilience.CircuitBreakerState$.HalfOpen" "_1" ":scala.Long")
                 ["Method"; "Synthetic"]
                 []
                 (TyRef "scala.Long")
@@ -1305,7 +1311,7 @@ Definition ox_resilience_CircuitBreakerState : tree :=
                     (Member "ox.resilience.CircuitBreakerState$.HalfOpen" "since" "")))
                 []);
               (DefDef
-                (Member "ox.resilience.CircuitBreakerState$.HalfOpen" "_2" ":")
+                (Member "ox.resilience.CircuitBreakerState$.HalfOpen" "_2" ":java.util.concurrent.Semaphore")
                 ["Method"; "Synthetic"]
                 []
                 (TyRef "java.util.concurrent.Semaphore")
@@ -1315,7 +1321,7 @@ Definition ox_resilience_CircuitBreakerState : tree :=
                     (Member "ox.resilience.CircuitBreakerState$.HalfOpen" "semaphore" "")))
                 []);
               (DefDef
-                (Member "ox.resilience.CircuitBreakerState$.HalfOpen" "_3" ":")
+                (Member "ox.resilience.CircuitBreakerState$.HalfOpen" "_3" ":scala.Int")
                 ["Method"; "Synthetic"]
                 []
                 (TyRef "scala.Int")
@@ -1416,14 +1422,14 @@ Definition ox_resilience_CircuitBreakerState : tree :=
                 (Some (Ident (Local "x$1" 46)))
                 []);
               (DefDef
-                (Member "ox.resilience.CircuitBreakerState$.HalfOpen$" "toString" ":")
+                (Member "ox.resilience.CircuitBreakerState$.HalfOpen$" "toString" ":java.lang.String")
                 ["Method"; "Override"; "Synthetic"]
                 []
                 (TyRef "java.lang.String")
                 (Some (Literal (CString "HalfOpen")))
                 [(Member "scala.Any" "toString" ":java.lang.String")]);
               (DefDef
-                (Member "ox.resilience.CircuitBreakerState$.HalfOpen$" "$lessinit$greater$default$3" ":")
+                (Member "ox.resilience.CircuitBreakerState$.HalfOpen$" "$lessinit$greater$default$3" ":scala.Int")
                 ["Method"]
                 []
                 (TyAnnot (TyRef "scala.Int") "scala.annotation.unchecked.uncheckedVariance")
@@ -1545,5 +1551,5 @@ Definition ox_resilience_CircuitBreakerState : tree :=
                     (TyRef "ox.resilience.CircuitBreakerState"))
                   None)]]
             (TyRef "scala.Int")
-            (Some (Select (Ident (Local "x$0" 52)) (Member "scala.reflect.Enum" "ordinal" ":")))
+            (Some (Select (Ident (Local "x$0" 52)) (Member "scala.reflect.Enum" "ordinal" ":scala.Int")))
             [(Member "scala.deriving.Mirror$.Sum" "ordinal" "java.lang.Object:scala.Int")])])]).

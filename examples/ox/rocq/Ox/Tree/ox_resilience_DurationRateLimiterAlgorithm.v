@@ -267,19 +267,19 @@ Definition ox_resilience_DurationRateLimiterAlgorithm : tree :=
                     [(TyAnnot (TyRef "ox.resilience.DurationRateLimiterAlgorithm$.FixedWindow") "scala.unchecked")]))
                 [(Member "scala.Equals" "canEqual" "java.lang.Object:scala.Boolean")]);
               (DefDef
-                (Member "ox.resilience.DurationRateLimiterAlgorithm$.FixedWindow" "productArity" ":")
+                (Member "ox.resilience.DurationRateLimiterAlgorithm$.FixedWindow" "productArity" ":scala.Int")
                 ["Method"; "Override"; "Synthetic"]
                 []
                 (TyRef "scala.Int")
                 (Some (Literal (CInt (2)%Z)))
-                [(Member "scala.Product" "productArity" ":")]);
+                [(Member "scala.Product" "productArity" ":scala.Int")]);
               (DefDef
-                (Member "ox.resilience.DurationRateLimiterAlgorithm$.FixedWindow" "productPrefix" ":")
+                (Member "ox.resilience.DurationRateLimiterAlgorithm$.FixedWindow" "productPrefix" ":java.lang.String")
                 ["Method"; "Override"; "Synthetic"]
                 []
                 (TyAlias "scala.Predef$.String" (TyRef "java.lang.String"))
                 (Some (Literal (CString "FixedWindow")))
-                [(Member "scala.Product" "productPrefix" ":")]);
+                [(Member "scala.Product" "productPrefix" ":java.lang.String")]);
               (DefDef
                 (Member
                   "ox.resilience.DurationRateLimiterAlgorithm$.FixedWindow"
@@ -298,13 +298,16 @@ Definition ox_resilience_DurationRateLimiterAlgorithm : tree :=
                         None
                         (Select
                           (This "ox.resilience.DurationRateLimiterAlgorithm$.FixedWindow")
-                          (Member "ox.resilience.DurationRateLimiterAlgorithm$.FixedWindow" "_1" ":")));
+                          (Member "ox.resilience.DurationRateLimiterAlgorithm$.FixedWindow" "_1" ":scala.Int")));
                       (CaseDef
                         (Literal (CInt (1)%Z))
                         None
                         (Select
                           (This "ox.resilience.DurationRateLimiterAlgorithm$.FixedWindow")
-                          (Member "ox.resilience.DurationRateLimiterAlgorithm$.FixedWindow" "_2" ":")));
+                          (Member
+                            "ox.resilience.DurationRateLimiterAlgorithm$.FixedWindow"
+                            "_2"
+                            ":scala.concurrent.duration.FiniteDuration")));
                       (CaseDef
                         Wildcard
                         None
@@ -423,7 +426,7 @@ Definition ox_resilience_DurationRateLimiterAlgorithm : tree :=
                     [(Ident (Local "permits" 9))]))
                 [(Member "ox.resilience.RateLimiterAlgorithm" "tryAcquire" "scala.Int:scala.Boolean")]);
               (DefDef
-                (Member "ox.resilience.DurationRateLimiterAlgorithm$.FixedWindow" "getNextUpdate" ":")
+                (Member "ox.resilience.DurationRateLimiterAlgorithm$.FixedWindow" "getNextUpdate" ":scala.Long")
                 ["Method"]
                 []
                 (TyRef "scala.Long")
@@ -454,7 +457,7 @@ Definition ox_resilience_DurationRateLimiterAlgorithm : tree :=
                                   (Select
                                     (Ident
                                       (Member "ox.resilience.DurationRateLimiterAlgorithm$.FixedWindow" "per" ""))
-                                    (Member "scala.concurrent.duration.FiniteDuration" "toNanos" ":"))])
+                                    (Member "scala.concurrent.duration.FiniteDuration" "toNanos" ":scala.Long"))])
                               (Member "scala.Long" "-" "scala.Long:scala.Long"))
                             [
                               (Apply
@@ -470,7 +473,7 @@ Definition ox_resilience_DurationRateLimiterAlgorithm : tree :=
                         (Ident (Local "waitTime" 10))
                         (Literal (CLong (0)%Z)))
                       (TyRef "scala.Long"))))
-                [(Member "ox.resilience.RateLimiterAlgorithm" "getNextUpdate" ":")]);
+                [(Member "ox.resilience.RateLimiterAlgorithm" "getNextUpdate" ":scala.Long")]);
               (DefDef
                 (Member "ox.resilience.DurationRateLimiterAlgorithm$.FixedWindow" "update" ":scala.Unit")
                 ["Method"]
@@ -647,14 +650,17 @@ Definition ox_resilience_DurationRateLimiterAlgorithm : tree :=
                     [(Ident (Local "rate" 18)); (Ident (Local "per" 19))]))
                 []);
               (DefDef
-                (Member "ox.resilience.DurationRateLimiterAlgorithm$.FixedWindow" "copy$default$1" ":")
+                (Member "ox.resilience.DurationRateLimiterAlgorithm$.FixedWindow" "copy$default$1" ":scala.Int")
                 ["Method"; "Synthetic"]
                 []
                 (TyAnnot (TyRef "scala.Int") "scala.annotation.unchecked.uncheckedVariance")
                 (Some (Ident (Member "ox.resilience.DurationRateLimiterAlgorithm$.FixedWindow" "rate" "")))
                 []);
               (DefDef
-                (Member "ox.resilience.DurationRateLimiterAlgorithm$.FixedWindow" "copy$default$2" ":")
+                (Member
+                  "ox.resilience.DurationRateLimiterAlgorithm$.FixedWindow"
+                  "copy$default$2"
+                  ":scala.concurrent.duration.FiniteDuration")
                 ["Method"; "Synthetic"]
                 []
                 (TyAnnot
@@ -663,7 +669,7 @@ Definition ox_resilience_DurationRateLimiterAlgorithm : tree :=
                 (Some (Ident (Member "ox.resilience.DurationRateLimiterAlgorithm$.FixedWindow" "per" "")))
                 []);
               (DefDef
-                (Member "ox.resilience.DurationRateLimiterAlgorithm$.FixedWindow" "_1" ":")
+                (Member "ox.resilience.DurationRateLimiterAlgorithm$.FixedWindow" "_1" ":scala.Int")
                 ["Method"; "Synthetic"]
                 []
                 (TyRef "scala.Int")
@@ -673,7 +679,10 @@ Definition ox_resilience_DurationRateLimiterAlgorithm : tree :=
                     (Member "ox.resilience.DurationRateLimiterAlgorithm$.FixedWindow" "rate" "")))
                 []);
               (DefDef
-                (Member "ox.resilience.DurationRateLimiterAlgorithm$.FixedWindow" "_2" ":")
+                (Member
+                  "ox.resilience.DurationRateLimiterAlgorithm$.FixedWindow"
+                  "_2"
+                  ":scala.concurrent.duration.FiniteDuration")
                 ["Method"; "Synthetic"]
                 []
                 (TyRef "scala.concurrent.duration.FiniteDuration")
@@ -771,7 +780,7 @@ Definition ox_resilience_DurationRateLimiterAlgorithm : tree :=
                 (Some (Ident (Local "x$1" 22)))
                 []);
               (DefDef
-                (Member "ox.resilience.DurationRateLimiterAlgorithm$.FixedWindow$" "toString" ":")
+                (Member "ox.resilience.DurationRateLimiterAlgorithm$.FixedWindow$" "toString" ":java.lang.String")
                 ["Method"; "Override"; "Synthetic"]
                 []
                 (TyRef "java.lang.String")
@@ -1016,19 +1025,22 @@ Definition ox_resilience_DurationRateLimiterAlgorithm : tree :=
                     [(TyAnnot (TyRef "ox.resilience.DurationRateLimiterAlgorithm$.SlidingWindow") "scala.unchecked")]))
                 [(Member "scala.Equals" "canEqual" "java.lang.Object:scala.Boolean")]);
               (DefDef
-                (Member "ox.resilience.DurationRateLimiterAlgorithm$.SlidingWindow" "productArity" ":")
+                (Member "ox.resilience.DurationRateLimiterAlgorithm$.SlidingWindow" "productArity" ":scala.Int")
                 ["Method"; "Override"; "Synthetic"]
                 []
                 (TyRef "scala.Int")
                 (Some (Literal (CInt (2)%Z)))
-                [(Member "scala.Product" "productArity" ":")]);
+                [(Member "scala.Product" "productArity" ":scala.Int")]);
               (DefDef
-                (Member "ox.resilience.DurationRateLimiterAlgorithm$.SlidingWindow" "productPrefix" ":")
+                (Member
+                  "ox.resilience.DurationRateLimiterAlgorithm$.SlidingWindow"
+                  "productPrefix"
+                  ":java.lang.String")
                 ["Method"; "Override"; "Synthetic"]
                 []
                 (TyAlias "scala.Predef$.String" (TyRef "java.lang.String"))
                 (Some (Literal (CString "SlidingWindow")))
-                [(Member "scala.Product" "productPrefix" ":")]);
+                [(Member "scala.Product" "productPrefix" ":java.lang.String")]);
               (DefDef
                 (Member
                   "ox.resilience.DurationRateLimiterAlgorithm$.SlidingWindow"
@@ -1047,13 +1059,16 @@ Definition ox_resilience_DurationRateLimiterAlgorithm : tree :=
                         None
                         (Select
                           (This "ox.resilience.DurationRateLimiterAlgorithm$.SlidingWindow")
-                          (Member "ox.resilience.DurationRateLimiterAlgorithm$.SlidingWindow" "_1" ":")));
+                          (Member "ox.resilience.DurationRateLimiterAlgorithm$.SlidingWindow" "_1" ":scala.Int")));
                       (CaseDef
                         (Literal (CInt (1)%Z))
                         None
                         (Select
                           (This "ox.resilience.DurationRateLimiterAlgorithm$.SlidingWindow")
-                          (Member "ox.resilience.DurationRateLimiterAlgorithm$.SlidingWindow" "_2" ":")));
+                          (Member
+                            "ox.resilience.DurationRateLimiterAlgorithm$.SlidingWindow"
+                            "_2"
+                            ":scala.concurrent.duration.FiniteDuration")));
                       (CaseDef
                         Wildcard
                         None
@@ -1270,7 +1285,7 @@ Definition ox_resilience_DurationRateLimiterAlgorithm : tree :=
                     (Literal CUnit)))
                 []);
               (DefDef
-                (Member "ox.resilience.DurationRateLimiterAlgorithm$.SlidingWindow" "getNextUpdate" ":")
+                (Member "ox.resilience.DurationRateLimiterAlgorithm$.SlidingWindow" "getNextUpdate" ":scala.Long")
                 ["Method"]
                 []
                 (TyRef "scala.Long")
@@ -1285,7 +1300,7 @@ Definition ox_resilience_DurationRateLimiterAlgorithm : tree :=
                             (Member "ox.resilience.DurationRateLimiterAlgorithm$.SlidingWindow" "log" ""))
                           (Member "java.util.concurrent.atomic.AtomicReference" "get" ":java.lang.Object"))
                         [])
-                      (Member "scala.collection.LinearSeqOps" "headOption" ":"))
+                      (Member "scala.collection.LinearSeqOps" "headOption" ":scala.Option"))
                     [
                       (CaseDef
                         (Ident (Member "scala" "None" ""))
@@ -1294,7 +1309,7 @@ Definition ox_resilience_DurationRateLimiterAlgorithm : tree :=
                           []
                           (Select
                             (Ident (Member "ox.resilience.DurationRateLimiterAlgorithm$.SlidingWindow" "per" ""))
-                            (Member "scala.concurrent.duration.FiniteDuration" "toNanos" ":"))));
+                            (Member "scala.concurrent.duration.FiniteDuration" "toNanos" ":scala.Long"))));
                       (CaseDef
                         (TypeTest
                           (Unapply
@@ -1329,7 +1344,7 @@ Definition ox_resilience_DurationRateLimiterAlgorithm : tree :=
                                               "ox.resilience.DurationRateLimiterAlgorithm$.SlidingWindow"
                                               "per"
                                               ""))
-                                          (Member "scala.concurrent.duration.FiniteDuration" "toNanos" ":"))])
+                                          (Member "scala.concurrent.duration.FiniteDuration" "toNanos" ":scala.Long"))])
                                     (Member "scala.Long" "-" "scala.Long:scala.Long"))
                                   [
                                     (Apply
@@ -1347,7 +1362,7 @@ Definition ox_resilience_DurationRateLimiterAlgorithm : tree :=
                               (Ident (Local "waitTime" 41))
                               (Literal (CLong (0)%Z)))
                             (TyRef "scala.Long"))))]))
-                [(Member "ox.resilience.RateLimiterAlgorithm" "getNextUpdate" ":")]);
+                [(Member "ox.resilience.RateLimiterAlgorithm" "getNextUpdate" ":scala.Long")]);
               (DefDef
                 (Member
                   "ox.resilience.DurationRateLimiterAlgorithm$.SlidingWindow"
@@ -1660,7 +1675,9 @@ Definition ox_resilience_DurationRateLimiterAlgorithm : tree :=
                 (Some
                   (Match
                     false
-                    (Select (Ident (Local "q" 56)) (Member "scala.collection.immutable.Queue" "dequeueOption" ":"))
+                    (Select
+                      (Ident (Local "q" 56))
+                      (Member "scala.collection.immutable.Queue" "dequeueOption" ":scala.Option"))
                     [
                       (CaseDef (Ident (Member "scala" "None" "")) None (Block [] (Ident (Local "q" 56))));
                       (CaseDef
@@ -1716,7 +1733,7 @@ Definition ox_resilience_DurationRateLimiterAlgorithm : tree :=
                                     (Select
                                       (Ident
                                         (Member "ox.resilience.DurationRateLimiterAlgorithm$.SlidingWindow" "per" ""))
-                                      (Member "scala.concurrent.duration.FiniteDuration" "toNanos" ":"))])
+                                      (Member "scala.concurrent.duration.FiniteDuration" "toNanos" ":scala.Long"))])
                                 (Member "scala.Long" "<" "scala.Long:scala.Boolean"))
                               [(Ident (Local "now" 57))])
                             (Block
@@ -1800,14 +1817,17 @@ Definition ox_resilience_DurationRateLimiterAlgorithm : tree :=
                     [(Ident (Local "rate" 64)); (Ident (Local "per" 65))]))
                 []);
               (DefDef
-                (Member "ox.resilience.DurationRateLimiterAlgorithm$.SlidingWindow" "copy$default$1" ":")
+                (Member "ox.resilience.DurationRateLimiterAlgorithm$.SlidingWindow" "copy$default$1" ":scala.Int")
                 ["Method"; "Synthetic"]
                 []
                 (TyAnnot (TyRef "scala.Int") "scala.annotation.unchecked.uncheckedVariance")
                 (Some (Ident (Member "ox.resilience.DurationRateLimiterAlgorithm$.SlidingWindow" "rate" "")))
                 []);
               (DefDef
-                (Member "ox.resilience.DurationRateLimiterAlgorithm$.SlidingWindow" "copy$default$2" ":")
+                (Member
+                  "ox.resilience.DurationRateLimiterAlgorithm$.SlidingWindow"
+                  "copy$default$2"
+                  ":scala.concurrent.duration.FiniteDuration")
                 ["Method"; "Synthetic"]
                 []
                 (TyAnnot
@@ -1816,7 +1836,7 @@ Definition ox_resilience_DurationRateLimiterAlgorithm : tree :=
                 (Some (Ident (Member "ox.resilience.DurationRateLimiterAlgorithm$.SlidingWindow" "per" "")))
                 []);
               (DefDef
-                (Member "ox.resilience.DurationRateLimiterAlgorithm$.SlidingWindow" "_1" ":")
+                (Member "ox.resilience.DurationRateLimiterAlgorithm$.SlidingWindow" "_1" ":scala.Int")
                 ["Method"; "Synthetic"]
                 []
                 (TyRef "scala.Int")
@@ -1826,7 +1846,10 @@ Definition ox_resilience_DurationRateLimiterAlgorithm : tree :=
                     (Member "ox.resilience.DurationRateLimiterAlgorithm$.SlidingWindow" "rate" "")))
                 []);
               (DefDef
-                (Member "ox.resilience.DurationRateLimiterAlgorithm$.SlidingWindow" "_2" ":")
+                (Member
+                  "ox.resilience.DurationRateLimiterAlgorithm$.SlidingWindow"
+                  "_2"
+                  ":scala.concurrent.duration.FiniteDuration")
                 ["Method"; "Synthetic"]
                 []
                 (TyRef "scala.concurrent.duration.FiniteDuration")
@@ -1931,7 +1954,7 @@ Definition ox_resilience_DurationRateLimiterAlgorithm : tree :=
                 (Some (Ident (Local "x$1" 68)))
                 []);
               (DefDef
-                (Member "ox.resilience.DurationRateLimiterAlgorithm$.SlidingWindow$" "toString" ":")
+                (Member "ox.resilience.DurationRateLimiterAlgorithm$.SlidingWindow$" "toString" ":java.lang.String")
                 ["Method"; "Override"; "Synthetic"]
                 []
                 (TyRef "java.lang.String")

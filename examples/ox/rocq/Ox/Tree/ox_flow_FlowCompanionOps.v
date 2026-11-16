@@ -370,7 +370,10 @@ Definition ox_flow_FlowCompanionOps : tree :=
                     (This "ox.flow.FlowCompanionOps")
                     (Member "ox.flow.FlowCompanionOps" "fromIterator" "1,scala.Function0:ox.flow.Flow"))
                   [(TyParam "ox.flow.FlowCompanionOps.fromIterable" "T")])
-                [(Select (Ident (Local "it" 12)) (Member "scala.collection.IterableOnce" "iterator" ":"))]))
+                [
+                  (Select
+                    (Ident (Local "it" 12))
+                    (Member "scala.collection.IterableOnce" "iterator" ":scala.collection.Iterator"))]))
             []);
           (DefDef
             (Member "ox.flow.FlowCompanionOps" "fromValues" "1,scala.collection.immutable.Seq:ox.flow.Flow")
@@ -395,7 +398,10 @@ Definition ox_flow_FlowCompanionOps : tree :=
                     (This "ox.flow.FlowCompanionOps")
                     (Member "ox.flow.FlowCompanionOps" "fromIterator" "1,scala.Function0:ox.flow.Flow"))
                   [(TyParam "ox.flow.FlowCompanionOps.fromValues" "T")])
-                [(Select (Ident (Local "ts" 13)) (Member "scala.collection.IterableOnce" "iterator" ":"))]))
+                [
+                  (Select
+                    (Ident (Local "ts" 13))
+                    (Member "scala.collection.IterableOnce" "iterator" ":scala.collection.Iterator"))]))
             []);
           (DefDef
             (Member "ox.flow.FlowCompanionOps" "fromIterator" "1,scala.Function0:ox.flow.Flow")
@@ -446,7 +452,9 @@ Definition ox_flow_FlowCompanionOps : tree :=
                                   [(TyParam "ox.flow.FlowCompanionOps.fromIterator" "T")])
                                 (Some (Ident (Local "it" 14))))]
                             (While
-                              (Select (Ident (Local "theIt" 17)) (Member "scala.collection.Iterator" "hasNext" ":"))
+                              (Select
+                                (Ident (Local "theIt" 17))
+                                (Member "scala.collection.Iterator" "hasNext" ":scala.Boolean"))
                               (Apply
                                 (Select
                                   (Ident (Local "emit" 16))
@@ -840,7 +848,10 @@ Definition ox_flow_FlowCompanionOps : tree :=
                                         (Select
                                           (Select
                                             (Ident (Local "interval" 39))
-                                            (Member "scala.concurrent.duration.FiniteDuration" "toNanos" ":"))
+                                            (Member
+                                              "scala.concurrent.duration.FiniteDuration"
+                                              "toNanos"
+                                              ":scala.Long"))
                                           (Member "scala.Long" "-" "scala.Long:scala.Long"))
                                         [
                                           (Apply
@@ -870,7 +881,7 @@ Definition ox_flow_FlowCompanionOps : tree :=
                                             (Ident (Local "sleep" 45))
                                             (Member "scala.Long" "%" "scala.Int:scala.Long"))
                                           [(Literal (CInt (1000000)%Z))])
-                                        (Member "scala.Long" "toInt" ":"))])
+                                        (Member "scala.Long" "toInt" ":scala.Int"))])
                                   (Literal CUnit)))]))
                         [])]
                     (Closure (Ident (Local "$anonfun" 41)) None))]))
@@ -1097,7 +1108,7 @@ Definition ox_flow_FlowCompanionOps : tree :=
                               (Select
                                 (Select
                                   (Ident (Local "flows" 57))
-                                  (Member "scala.collection.IterableOnce" "iterator" ":"))
+                                  (Member "scala.collection.IterableOnce" "iterator" ":scala.collection.Iterator"))
                                 (Member "scala.collection.IterableOnceOps" "foreach" "1,scala.Function1:scala.Unit"))
                               [(TyRef "scala.Unit")])
                             [
@@ -1697,7 +1708,7 @@ Definition ox_flow_FlowCompanionOps : tree :=
                                                                                   (Member
                                                                                     "scala.collection.SeqOps"
                                                                                     "size"
-                                                                                    ":"))
+                                                                                    ":scala.Int"))
                                                                                 (Member
                                                                                   "scala.Int"
                                                                                   "-"
@@ -1745,7 +1756,7 @@ Definition ox_flow_FlowCompanionOps : tree :=
                                                                                   (Member
                                                                                     "scala.collection.SeqOps"
                                                                                     "size"
-                                                                                    ":"))]))]
+                                                                                    ":scala.Int"))]))]
                                                                         (Assign
                                                                           (Ident (Local "elementsRead" 87))
                                                                           (Literal (CInt (0)%Z)))))
@@ -1808,7 +1819,7 @@ Definition ox_flow_FlowCompanionOps : tree :=
                                                                                     (Member
                                                                                       "scala.collection.SeqOps"
                                                                                       "isEmpty"
-                                                                                      ":"))])
+                                                                                      ":scala.Boolean"))])
                                                                               (Block
                                                                                 [
                                                                                   (Apply
@@ -1938,7 +1949,7 @@ Definition ox_flow_FlowCompanionOps : tree :=
                                                                                           (Member
                                                                                             "scala.collection.SeqOps"
                                                                                             "size"
-                                                                                            ":"))
+                                                                                            ":scala.Int"))
                                                                                         (Member
                                                                                           "scala.Int"
                                                                                           ">"

@@ -65,7 +65,7 @@ Definition ox_internal_ScopeContext_package : tree :=
                   [(TyRef "ox.OxUnsupervised")])
                 [])));
           (DefDef
-            (Member "ox.internal.ScopeContext$package$" "currentLocals" ":")
+            (Member "ox.internal.ScopeContext$package$" "currentLocals" ":ox.ForkLocalMap")
             ["Method"]
             []
             (TyRef "ox.ForkLocalMap")
@@ -98,5 +98,5 @@ Definition ox_internal_ScopeContext_package : tree :=
                         [
                           (TyApp (TyRef "ox.ForkLocal") [(TyBounds (TyRef "scala.Nothing") (TyRef "scala.Any"))]);
                           (TyRef "scala.Any")])])
-                  (Select (Ident (Local "scope" 0)) (Member "ox.OxUnsupervised" "locals" ":")))))
+                  (Select (Ident (Local "scope" 0)) (Member "ox.OxUnsupervised" "locals" ":ox.ForkLocalMap")))))
             [])])]).

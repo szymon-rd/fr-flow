@@ -62,7 +62,7 @@ Definition ox_oxThreadFactory_package : tree :=
             (Member "ox.oxThreadFactory$package$" "customThreadFactory" "")
             ["Mutable"]
             (TyRef "java.util.concurrent.ThreadFactory")
-            (Some (Ident (Member "scala.compiletime.package$package$" "uninitialized" ":"))));
+            (Some (Ident (Member "scala.compiletime.package$package$" "uninitialized" ":scala.Nothing"))));
           (DefDef
             (Member
               "ox.oxThreadFactory$package$"
@@ -94,7 +94,7 @@ Definition ox_oxThreadFactory_package : tree :=
                         (Ident (Member "ox.oxThreadFactory$package$" "oxThreadFactory" ""))
                         (Member "java.lang.Object" "eq" "java.lang.Object:scala.Boolean"))
                       [(Ident (Member "ox.oxThreadFactory$package$" "customThreadFactory" ""))])
-                    (Member "scala.Boolean" "unary_!" ":"))
+                    (Member "scala.Boolean" "unary_!" ":scala.Boolean"))
                   (Apply
                     (Ident (Member "<special-ops>" "throw" "java.lang.Throwable:scala.Nothing"))
                     [

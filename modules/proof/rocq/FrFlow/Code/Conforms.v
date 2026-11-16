@@ -99,8 +99,9 @@ Definition throwable (known : classes) (cls : string) : bool := existsb (String.
 
 (** A value of any class is itself where a name holds it (the place of a variable and an argument passed by
     name are values of no class): that much is said even of a type that says nothing else. A set of Scala that
-    does not change is the data it is made of. A value of any other class is also one a call can be made on:
-    neither unit nor an object named alone. *)
+    does not change is the data it is made of; an option is none, some value (itself where a name holds it,
+    as any value of a class is), or no object. A value of any
+    other class is also one a call can be made on: neither unit nor an object named alone. *)
 Definition of_class (known : classes) (cls : string) (v : val) : Prop :=
   if String.eqb cls "scala.Unit" then v = VUnit
   else if String.eqb cls "scala.Boolean" then exists b, v = VBool b
@@ -109,6 +110,8 @@ Definition of_class (known : classes) (cls : string) (v : val) : Prop :=
   else if general cls || module_class cls then held v = oret v
   else if throwable known cls then v = vnull \/ exists e, Jdk.as_exn v = Some e
   else if String.eqb cls c_set then exists xs, v = vdata c_set [VList xs]
+  else if String.eqb cls "scala.Option" then
+    v = Library.none \/ (exists x, v = Library.some x /\ held x = oret x) \/ v = vnull
   else held v = oret v /\ receiver v = [v].
 
 Lemma identity_receiver (v : val) : identity v -> receiver v = [v].

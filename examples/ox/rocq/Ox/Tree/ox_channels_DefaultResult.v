@@ -146,19 +146,19 @@ Definition ox_channels_DefaultResult : tree :=
                     "scala.unchecked")]))
             [(Member "scala.Equals" "canEqual" "java.lang.Object:scala.Boolean")]);
           (DefDef
-            (Member "ox.channels.DefaultResult" "productArity" ":")
+            (Member "ox.channels.DefaultResult" "productArity" ":scala.Int")
             ["Method"; "Override"; "Synthetic"]
             []
             (TyRef "scala.Int")
             (Some (Literal (CInt (1)%Z)))
-            [(Member "scala.Product" "productArity" ":")]);
+            [(Member "scala.Product" "productArity" ":scala.Int")]);
           (DefDef
-            (Member "ox.channels.DefaultResult" "productPrefix" ":")
+            (Member "ox.channels.DefaultResult" "productPrefix" ":java.lang.String")
             ["Method"; "Override"; "Synthetic"]
             []
             (TyAlias "scala.Predef$.String" (TyRef "java.lang.String"))
             (Some (Literal (CString "DefaultResult")))
-            [(Member "scala.Product" "productPrefix" ":")]);
+            [(Member "scala.Product" "productPrefix" ":java.lang.String")]);
           (DefDef
             (Member "ox.channels.DefaultResult" "productElement" "scala.Int:java.lang.Object")
             ["Method"; "Override"; "Synthetic"]
@@ -319,7 +319,7 @@ Definition ox_channels_DefaultResult : tree :=
             (Some (Ident (Local "x$1" 8)))
             []);
           (DefDef
-            (Member "ox.channels.DefaultResult$" "toString" ":")
+            (Member "ox.channels.DefaultResult$" "toString" ":java.lang.String")
             ["Method"; "Override"; "Synthetic"]
             []
             (TyRef "java.lang.String")

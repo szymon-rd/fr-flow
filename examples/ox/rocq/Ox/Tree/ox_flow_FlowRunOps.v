@@ -785,7 +785,7 @@ Definition ox_flow_FlowRunOps : tree :=
                           (This "ox.flow.FlowRunOps")
                           (Member "ox.flow.FlowRunOps" "runLastOption" ":scala.Option"))
                         [])
-                      (Member "scala.Option" "toList" ":"))
+                      (Member "scala.Option" "toList" ":scala.collection.immutable.List"))
                     (Block
                       [
                         (ValDef
@@ -838,7 +838,7 @@ Definition ox_flow_FlowRunOps : tree :=
                                                 (Select
                                                   (Select
                                                     (Ident (Local "buffer" 40))
-                                                    (Member "scala.collection.SeqOps" "size" ":"))
+                                                    (Member "scala.collection.SeqOps" "size" ":scala.Int"))
                                                   (Member "scala.Int" "==" "scala.Int:scala.Boolean"))
                                                 [(Ident (Local "n" 39))])
                                               (Block

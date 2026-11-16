@@ -204,19 +204,19 @@ Definition ox_resilience_SlidingWindow : tree :=
                     [(TyAnnot (TyRef "ox.resilience.SlidingWindow$.CountBased") "scala.unchecked")]))
                 [(Member "scala.Equals" "canEqual" "java.lang.Object:scala.Boolean")]);
               (DefDef
-                (Member "ox.resilience.SlidingWindow$.CountBased" "productArity" ":")
+                (Member "ox.resilience.SlidingWindow$.CountBased" "productArity" ":scala.Int")
                 ["Method"; "Override"; "Synthetic"]
                 []
                 (TyRef "scala.Int")
                 (Some (Literal (CInt (1)%Z)))
-                [(Member "scala.Product" "productArity" ":")]);
+                [(Member "scala.Product" "productArity" ":scala.Int")]);
               (DefDef
-                (Member "ox.resilience.SlidingWindow$.CountBased" "productPrefix" ":")
+                (Member "ox.resilience.SlidingWindow$.CountBased" "productPrefix" ":java.lang.String")
                 ["Method"; "Override"; "Synthetic"]
                 []
                 (TyAlias "scala.Predef$.String" (TyRef "java.lang.String"))
                 (Some (Literal (CString "CountBased")))
-                [(Member "scala.Product" "productPrefix" ":")]);
+                [(Member "scala.Product" "productPrefix" ":java.lang.String")]);
               (DefDef
                 (Member "ox.resilience.SlidingWindow$.CountBased" "productElement" "scala.Int:java.lang.Object")
                 ["Method"; "Override"; "Synthetic"]
@@ -232,7 +232,7 @@ Definition ox_resilience_SlidingWindow : tree :=
                         None
                         (Select
                           (This "ox.resilience.SlidingWindow$.CountBased")
-                          (Member "ox.resilience.SlidingWindow$.CountBased" "_1" ":")));
+                          (Member "ox.resilience.SlidingWindow$.CountBased" "_1" ":scala.Int")));
                       (CaseDef
                         Wildcard
                         None
@@ -293,21 +293,21 @@ Definition ox_resilience_SlidingWindow : tree :=
                     [(Ident (Local "windowSize" 7))]))
                 []);
               (DefDef
-                (Member "ox.resilience.SlidingWindow$.CountBased" "copy$default$1" ":")
+                (Member "ox.resilience.SlidingWindow$.CountBased" "copy$default$1" ":scala.Int")
                 ["Method"; "Synthetic"]
                 []
                 (TyAnnot (TyRef "scala.Int") "scala.annotation.unchecked.uncheckedVariance")
                 (Some (Ident (Member "ox.resilience.SlidingWindow$.CountBased" "windowSize" "")))
                 []);
               (DefDef
-                (Member "ox.resilience.SlidingWindow$.CountBased" "ordinal" ":")
+                (Member "ox.resilience.SlidingWindow$.CountBased" "ordinal" ":scala.Int")
                 ["Method"; "Synthetic"]
                 []
                 (TyRef "scala.Int")
                 (Some (Literal (CInt (0)%Z)))
-                [(Member "scala.reflect.Enum" "ordinal" ":")]);
+                [(Member "scala.reflect.Enum" "ordinal" ":scala.Int")]);
               (DefDef
-                (Member "ox.resilience.SlidingWindow$.CountBased" "_1" ":")
+                (Member "ox.resilience.SlidingWindow$.CountBased" "_1" ":scala.Int")
                 ["Method"; "Synthetic"]
                 []
                 (TyRef "scala.Int")
@@ -398,7 +398,7 @@ Definition ox_resilience_SlidingWindow : tree :=
                 (Some (Ident (Local "x$1" 9)))
                 []);
               (DefDef
-                (Member "ox.resilience.SlidingWindow$.CountBased$" "toString" ":")
+                (Member "ox.resilience.SlidingWindow$.CountBased$" "toString" ":java.lang.String")
                 ["Method"; "Override"; "Synthetic"]
                 []
                 (TyRef "java.lang.String")
@@ -557,19 +557,19 @@ Definition ox_resilience_SlidingWindow : tree :=
                     [(TyAnnot (TyRef "ox.resilience.SlidingWindow$.TimeBased") "scala.unchecked")]))
                 [(Member "scala.Equals" "canEqual" "java.lang.Object:scala.Boolean")]);
               (DefDef
-                (Member "ox.resilience.SlidingWindow$.TimeBased" "productArity" ":")
+                (Member "ox.resilience.SlidingWindow$.TimeBased" "productArity" ":scala.Int")
                 ["Method"; "Override"; "Synthetic"]
                 []
                 (TyRef "scala.Int")
                 (Some (Literal (CInt (1)%Z)))
-                [(Member "scala.Product" "productArity" ":")]);
+                [(Member "scala.Product" "productArity" ":scala.Int")]);
               (DefDef
-                (Member "ox.resilience.SlidingWindow$.TimeBased" "productPrefix" ":")
+                (Member "ox.resilience.SlidingWindow$.TimeBased" "productPrefix" ":java.lang.String")
                 ["Method"; "Override"; "Synthetic"]
                 []
                 (TyAlias "scala.Predef$.String" (TyRef "java.lang.String"))
                 (Some (Literal (CString "TimeBased")))
-                [(Member "scala.Product" "productPrefix" ":")]);
+                [(Member "scala.Product" "productPrefix" ":java.lang.String")]);
               (DefDef
                 (Member "ox.resilience.SlidingWindow$.TimeBased" "productElement" "scala.Int:java.lang.Object")
                 ["Method"; "Override"; "Synthetic"]
@@ -585,7 +585,10 @@ Definition ox_resilience_SlidingWindow : tree :=
                         None
                         (Select
                           (This "ox.resilience.SlidingWindow$.TimeBased")
-                          (Member "ox.resilience.SlidingWindow$.TimeBased" "_1" ":")));
+                          (Member
+                            "ox.resilience.SlidingWindow$.TimeBased"
+                            "_1"
+                            ":scala.concurrent.duration.FiniteDuration")));
                       (CaseDef
                         Wildcard
                         None
@@ -652,7 +655,10 @@ Definition ox_resilience_SlidingWindow : tree :=
                     [(Ident (Local "duration" 18))]))
                 []);
               (DefDef
-                (Member "ox.resilience.SlidingWindow$.TimeBased" "copy$default$1" ":")
+                (Member
+                  "ox.resilience.SlidingWindow$.TimeBased"
+                  "copy$default$1"
+                  ":scala.concurrent.duration.FiniteDuration")
                 ["Method"; "Synthetic"]
                 []
                 (TyAnnot
@@ -661,14 +667,14 @@ Definition ox_resilience_SlidingWindow : tree :=
                 (Some (Ident (Member "ox.resilience.SlidingWindow$.TimeBased" "duration" "")))
                 []);
               (DefDef
-                (Member "ox.resilience.SlidingWindow$.TimeBased" "ordinal" ":")
+                (Member "ox.resilience.SlidingWindow$.TimeBased" "ordinal" ":scala.Int")
                 ["Method"; "Synthetic"]
                 []
                 (TyRef "scala.Int")
                 (Some (Literal (CInt (1)%Z)))
-                [(Member "scala.reflect.Enum" "ordinal" ":")]);
+                [(Member "scala.reflect.Enum" "ordinal" ":scala.Int")]);
               (DefDef
-                (Member "ox.resilience.SlidingWindow$.TimeBased" "_1" ":")
+                (Member "ox.resilience.SlidingWindow$.TimeBased" "_1" ":scala.concurrent.duration.FiniteDuration")
                 ["Method"; "Synthetic"]
                 []
                 (TyRef "scala.concurrent.duration.FiniteDuration")
@@ -759,7 +765,7 @@ Definition ox_resilience_SlidingWindow : tree :=
                 (Some (Ident (Local "x$1" 20)))
                 []);
               (DefDef
-                (Member "ox.resilience.SlidingWindow$.TimeBased$" "toString" ":")
+                (Member "ox.resilience.SlidingWindow$.TimeBased$" "toString" ":java.lang.String")
                 ["Method"; "Override"; "Synthetic"]
                 []
                 (TyRef "java.lang.String")
@@ -848,5 +854,5 @@ Definition ox_resilience_SlidingWindow : tree :=
                   (TyAlias "ox.resilience.SlidingWindow$.MirroredMonoType" (TyRef "ox.resilience.SlidingWindow"))
                   None)]]
             (TyRef "scala.Int")
-            (Some (Select (Ident (Local "x$0" 24)) (Member "scala.reflect.Enum" "ordinal" ":")))
+            (Some (Select (Ident (Local "x$0" 24)) (Member "scala.reflect.Enum" "ordinal" ":scala.Int")))
             [(Member "scala.deriving.Mirror$.Sum" "ordinal" "java.lang.Object:scala.Int")])])]).

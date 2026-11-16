@@ -149,7 +149,7 @@ Definition ox_scheduling_SleepMode : tree :=
                         (Ident (Member "scala.Predef$" "classOf" "1:java.lang.Class"))
                         [(TyRef "ox.scheduling.SleepMode")])])])));
           (DefDef
-            (Member "ox.scheduling.SleepMode$" "values" ":")
+            (Member "ox.scheduling.SleepMode$" "values" ":scala.Array")
             ["Method"; "Synthetic"]
             []
             (TyApp (TyRef "scala.Array") [(TyRef "ox.scheduling.SleepMode")])
@@ -242,15 +242,15 @@ Definition ox_scheduling_SleepMode : tree :=
                             [
                               (Select
                                 (This "ox.scheduling.SleepMode$._$$anon#3")
-                                (Member "ox.scheduling.SleepMode$._$$anon#3" "ordinal" ":"))]))
+                                (Member "ox.scheduling.SleepMode$._$$anon#3" "ordinal" ":scala.Int"))]))
                         []);
                       (DefDef
-                        (Member "ox.scheduling.SleepMode$._$$anon#3" "productPrefix" ":")
+                        (Member "ox.scheduling.SleepMode$._$$anon#3" "productPrefix" ":java.lang.String")
                         ["Method"; "Override"; "Synthetic"]
                         []
                         (TyAlias "scala.Predef$.String" (TyRef "java.lang.String"))
                         (Some (Ident (Local "$name" 2)))
-                        [(Member "scala.Product" "productPrefix" ":")]);
+                        [(Member "scala.Product" "productPrefix" ":java.lang.String")]);
                       (DefDef
                         (Member "ox.scheduling.SleepMode$._$$anon#3" "toString" ":java.lang.String")
                         ["Method"; "Override"; "Synthetic"]
@@ -259,12 +259,12 @@ Definition ox_scheduling_SleepMode : tree :=
                         (Some (Ident (Local "$name" 2)))
                         [(Member "scala.Any" "toString" ":java.lang.String")]);
                       (DefDef
-                        (Member "ox.scheduling.SleepMode$._$$anon#3" "ordinal" ":")
+                        (Member "ox.scheduling.SleepMode$._$$anon#3" "ordinal" ":scala.Int")
                         ["Method"; "Override"; "Synthetic"]
                         []
                         (TyRef "scala.Int")
                         (Some (Ident (Local "_$ordinal" 1)))
-                        [(Member "scala.reflect.Enum" "ordinal" ":")]);
+                        [(Member "scala.reflect.Enum" "ordinal" ":scala.Int")]);
                       (DefDef
                         (Member "ox.scheduling.SleepMode$._$$anon#3" "hashCode" ":scala.Int")
                         ["Method"; "Override"; "Synthetic"]
@@ -339,5 +339,5 @@ Definition ox_scheduling_SleepMode : tree :=
                   (TyAlias "ox.scheduling.SleepMode$.MirroredMonoType" (TyRef "ox.scheduling.SleepMode"))
                   None)]]
             (TyRef "scala.Int")
-            (Some (Select (Ident (Local "x$0" 5)) (Member "scala.reflect.Enum" "ordinal" ":")))
+            (Some (Select (Ident (Local "x$0" 5)) (Member "scala.reflect.Enum" "ordinal" ":scala.Int")))
             [(Member "scala.deriving.Mirror$.Sum" "ordinal" "java.lang.Object:scala.Int")])])]).

@@ -265,19 +265,22 @@ Definition ox_resilience_StartTimeRateLimiterAlgorithm : tree :=
                     [(TyAnnot (TyRef "ox.resilience.StartTimeRateLimiterAlgorithm$.FixedWindow") "scala.unchecked")]))
                 [(Member "scala.Equals" "canEqual" "java.lang.Object:scala.Boolean")]);
               (DefDef
-                (Member "ox.resilience.StartTimeRateLimiterAlgorithm$.FixedWindow" "productArity" ":")
+                (Member "ox.resilience.StartTimeRateLimiterAlgorithm$.FixedWindow" "productArity" ":scala.Int")
                 ["Method"; "Override"; "Synthetic"]
                 []
                 (TyRef "scala.Int")
                 (Some (Literal (CInt (2)%Z)))
-                [(Member "scala.Product" "productArity" ":")]);
+                [(Member "scala.Product" "productArity" ":scala.Int")]);
               (DefDef
-                (Member "ox.resilience.StartTimeRateLimiterAlgorithm$.FixedWindow" "productPrefix" ":")
+                (Member
+                  "ox.resilience.StartTimeRateLimiterAlgorithm$.FixedWindow"
+                  "productPrefix"
+                  ":java.lang.String")
                 ["Method"; "Override"; "Synthetic"]
                 []
                 (TyAlias "scala.Predef$.String" (TyRef "java.lang.String"))
                 (Some (Literal (CString "FixedWindow")))
-                [(Member "scala.Product" "productPrefix" ":")]);
+                [(Member "scala.Product" "productPrefix" ":java.lang.String")]);
               (DefDef
                 (Member
                   "ox.resilience.StartTimeRateLimiterAlgorithm$.FixedWindow"
@@ -296,13 +299,16 @@ Definition ox_resilience_StartTimeRateLimiterAlgorithm : tree :=
                         None
                         (Select
                           (This "ox.resilience.StartTimeRateLimiterAlgorithm$.FixedWindow")
-                          (Member "ox.resilience.StartTimeRateLimiterAlgorithm$.FixedWindow" "_1" ":")));
+                          (Member "ox.resilience.StartTimeRateLimiterAlgorithm$.FixedWindow" "_1" ":scala.Int")));
                       (CaseDef
                         (Literal (CInt (1)%Z))
                         None
                         (Select
                           (This "ox.resilience.StartTimeRateLimiterAlgorithm$.FixedWindow")
-                          (Member "ox.resilience.StartTimeRateLimiterAlgorithm$.FixedWindow" "_2" ":")));
+                          (Member
+                            "ox.resilience.StartTimeRateLimiterAlgorithm$.FixedWindow"
+                            "_2"
+                            ":scala.concurrent.duration.FiniteDuration")));
                       (CaseDef
                         Wildcard
                         None
@@ -408,7 +414,7 @@ Definition ox_resilience_StartTimeRateLimiterAlgorithm : tree :=
                     [(Ident (Local "permits" 9))]))
                 [(Member "ox.resilience.RateLimiterAlgorithm" "tryAcquire" "scala.Int:scala.Boolean")]);
               (DefDef
-                (Member "ox.resilience.StartTimeRateLimiterAlgorithm$.FixedWindow" "getNextUpdate" ":")
+                (Member "ox.resilience.StartTimeRateLimiterAlgorithm$.FixedWindow" "getNextUpdate" ":scala.Long")
                 ["Method"]
                 []
                 (TyRef "scala.Long")
@@ -439,7 +445,7 @@ Definition ox_resilience_StartTimeRateLimiterAlgorithm : tree :=
                                   (Select
                                     (Ident
                                       (Member "ox.resilience.StartTimeRateLimiterAlgorithm$.FixedWindow" "per" ""))
-                                    (Member "scala.concurrent.duration.FiniteDuration" "toNanos" ":"))])
+                                    (Member "scala.concurrent.duration.FiniteDuration" "toNanos" ":scala.Long"))])
                               (Member "scala.Long" "-" "scala.Long:scala.Long"))
                             [
                               (Apply
@@ -455,7 +461,7 @@ Definition ox_resilience_StartTimeRateLimiterAlgorithm : tree :=
                         (Ident (Local "waitTime" 10))
                         (Literal (CLong (0)%Z)))
                       (TyRef "scala.Long"))))
-                [(Member "ox.resilience.RateLimiterAlgorithm" "getNextUpdate" ":")]);
+                [(Member "ox.resilience.RateLimiterAlgorithm" "getNextUpdate" ":scala.Long")]);
               (DefDef
                 (Member "ox.resilience.StartTimeRateLimiterAlgorithm$.FixedWindow" "update" ":scala.Unit")
                 ["Method"]
@@ -549,14 +555,17 @@ Definition ox_resilience_StartTimeRateLimiterAlgorithm : tree :=
                     [(Ident (Local "rate" 14)); (Ident (Local "per" 15))]))
                 []);
               (DefDef
-                (Member "ox.resilience.StartTimeRateLimiterAlgorithm$.FixedWindow" "copy$default$1" ":")
+                (Member "ox.resilience.StartTimeRateLimiterAlgorithm$.FixedWindow" "copy$default$1" ":scala.Int")
                 ["Method"; "Synthetic"]
                 []
                 (TyAnnot (TyRef "scala.Int") "scala.annotation.unchecked.uncheckedVariance")
                 (Some (Ident (Member "ox.resilience.StartTimeRateLimiterAlgorithm$.FixedWindow" "rate" "")))
                 []);
               (DefDef
-                (Member "ox.resilience.StartTimeRateLimiterAlgorithm$.FixedWindow" "copy$default$2" ":")
+                (Member
+                  "ox.resilience.StartTimeRateLimiterAlgorithm$.FixedWindow"
+                  "copy$default$2"
+                  ":scala.concurrent.duration.FiniteDuration")
                 ["Method"; "Synthetic"]
                 []
                 (TyAnnot
@@ -565,7 +574,7 @@ Definition ox_resilience_StartTimeRateLimiterAlgorithm : tree :=
                 (Some (Ident (Member "ox.resilience.StartTimeRateLimiterAlgorithm$.FixedWindow" "per" "")))
                 []);
               (DefDef
-                (Member "ox.resilience.StartTimeRateLimiterAlgorithm$.FixedWindow" "_1" ":")
+                (Member "ox.resilience.StartTimeRateLimiterAlgorithm$.FixedWindow" "_1" ":scala.Int")
                 ["Method"; "Synthetic"]
                 []
                 (TyRef "scala.Int")
@@ -575,7 +584,10 @@ Definition ox_resilience_StartTimeRateLimiterAlgorithm : tree :=
                     (Member "ox.resilience.StartTimeRateLimiterAlgorithm$.FixedWindow" "rate" "")))
                 []);
               (DefDef
-                (Member "ox.resilience.StartTimeRateLimiterAlgorithm$.FixedWindow" "_2" ":")
+                (Member
+                  "ox.resilience.StartTimeRateLimiterAlgorithm$.FixedWindow"
+                  "_2"
+                  ":scala.concurrent.duration.FiniteDuration")
                 ["Method"; "Synthetic"]
                 []
                 (TyRef "scala.concurrent.duration.FiniteDuration")
@@ -676,7 +688,7 @@ Definition ox_resilience_StartTimeRateLimiterAlgorithm : tree :=
                 (Some (Ident (Local "x$1" 18)))
                 []);
               (DefDef
-                (Member "ox.resilience.StartTimeRateLimiterAlgorithm$.FixedWindow$" "toString" ":")
+                (Member "ox.resilience.StartTimeRateLimiterAlgorithm$.FixedWindow$" "toString" ":java.lang.String")
                 ["Method"; "Override"; "Synthetic"]
                 []
                 (TyRef "java.lang.String")
@@ -921,19 +933,22 @@ Definition ox_resilience_StartTimeRateLimiterAlgorithm : tree :=
                     [(TyAnnot (TyRef "ox.resilience.StartTimeRateLimiterAlgorithm$.SlidingWindow") "scala.unchecked")]))
                 [(Member "scala.Equals" "canEqual" "java.lang.Object:scala.Boolean")]);
               (DefDef
-                (Member "ox.resilience.StartTimeRateLimiterAlgorithm$.SlidingWindow" "productArity" ":")
+                (Member "ox.resilience.StartTimeRateLimiterAlgorithm$.SlidingWindow" "productArity" ":scala.Int")
                 ["Method"; "Override"; "Synthetic"]
                 []
                 (TyRef "scala.Int")
                 (Some (Literal (CInt (2)%Z)))
-                [(Member "scala.Product" "productArity" ":")]);
+                [(Member "scala.Product" "productArity" ":scala.Int")]);
               (DefDef
-                (Member "ox.resilience.StartTimeRateLimiterAlgorithm$.SlidingWindow" "productPrefix" ":")
+                (Member
+                  "ox.resilience.StartTimeRateLimiterAlgorithm$.SlidingWindow"
+                  "productPrefix"
+                  ":java.lang.String")
                 ["Method"; "Override"; "Synthetic"]
                 []
                 (TyAlias "scala.Predef$.String" (TyRef "java.lang.String"))
                 (Some (Literal (CString "SlidingWindow")))
-                [(Member "scala.Product" "productPrefix" ":")]);
+                [(Member "scala.Product" "productPrefix" ":java.lang.String")]);
               (DefDef
                 (Member
                   "ox.resilience.StartTimeRateLimiterAlgorithm$.SlidingWindow"
@@ -952,13 +967,16 @@ Definition ox_resilience_StartTimeRateLimiterAlgorithm : tree :=
                         None
                         (Select
                           (This "ox.resilience.StartTimeRateLimiterAlgorithm$.SlidingWindow")
-                          (Member "ox.resilience.StartTimeRateLimiterAlgorithm$.SlidingWindow" "_1" ":")));
+                          (Member "ox.resilience.StartTimeRateLimiterAlgorithm$.SlidingWindow" "_1" ":scala.Int")));
                       (CaseDef
                         (Literal (CInt (1)%Z))
                         None
                         (Select
                           (This "ox.resilience.StartTimeRateLimiterAlgorithm$.SlidingWindow")
-                          (Member "ox.resilience.StartTimeRateLimiterAlgorithm$.SlidingWindow" "_2" ":")));
+                          (Member
+                            "ox.resilience.StartTimeRateLimiterAlgorithm$.SlidingWindow"
+                            "_2"
+                            ":scala.concurrent.duration.FiniteDuration")));
                       (CaseDef
                         Wildcard
                         None
@@ -1198,7 +1216,7 @@ Definition ox_resilience_StartTimeRateLimiterAlgorithm : tree :=
                     (Literal CUnit)))
                 []);
               (DefDef
-                (Member "ox.resilience.StartTimeRateLimiterAlgorithm$.SlidingWindow" "getNextUpdate" ":")
+                (Member "ox.resilience.StartTimeRateLimiterAlgorithm$.SlidingWindow" "getNextUpdate" ":scala.Long")
                 ["Method"]
                 []
                 (TyRef "scala.Long")
@@ -1213,7 +1231,7 @@ Definition ox_resilience_StartTimeRateLimiterAlgorithm : tree :=
                             (Member "ox.resilience.StartTimeRateLimiterAlgorithm$.SlidingWindow" "log" ""))
                           (Member "java.util.concurrent.atomic.AtomicReference" "get" ":java.lang.Object"))
                         [])
-                      (Member "scala.collection.LinearSeqOps" "headOption" ":"))
+                      (Member "scala.collection.LinearSeqOps" "headOption" ":scala.Option"))
                     [
                       (CaseDef
                         (Ident (Member "scala" "None" ""))
@@ -1222,7 +1240,7 @@ Definition ox_resilience_StartTimeRateLimiterAlgorithm : tree :=
                           []
                           (Select
                             (Ident (Member "ox.resilience.StartTimeRateLimiterAlgorithm$.SlidingWindow" "per" ""))
-                            (Member "scala.concurrent.duration.FiniteDuration" "toNanos" ":"))));
+                            (Member "scala.concurrent.duration.FiniteDuration" "toNanos" ":scala.Long"))));
                       (CaseDef
                         (TypeTest
                           (Unapply
@@ -1257,7 +1275,7 @@ Definition ox_resilience_StartTimeRateLimiterAlgorithm : tree :=
                                               "ox.resilience.StartTimeRateLimiterAlgorithm$.SlidingWindow"
                                               "per"
                                               ""))
-                                          (Member "scala.concurrent.duration.FiniteDuration" "toNanos" ":"))])
+                                          (Member "scala.concurrent.duration.FiniteDuration" "toNanos" ":scala.Long"))])
                                     (Member "scala.Long" "-" "scala.Long:scala.Long"))
                                   [
                                     (Apply
@@ -1275,7 +1293,7 @@ Definition ox_resilience_StartTimeRateLimiterAlgorithm : tree :=
                               (Ident (Local "waitTime" 37))
                               (Literal (CLong (0)%Z)))
                             (TyRef "scala.Long"))))]))
-                [(Member "ox.resilience.RateLimiterAlgorithm" "getNextUpdate" ":")]);
+                [(Member "ox.resilience.RateLimiterAlgorithm" "getNextUpdate" ":scala.Long")]);
               (DefDef
                 (Member "ox.resilience.StartTimeRateLimiterAlgorithm$.SlidingWindow" "update" ":scala.Unit")
                 ["Method"]
@@ -1553,7 +1571,9 @@ Definition ox_resilience_StartTimeRateLimiterAlgorithm : tree :=
                 (Some
                   (Match
                     false
-                    (Select (Ident (Local "q" 50)) (Member "scala.collection.immutable.Queue" "dequeueOption" ":"))
+                    (Select
+                      (Ident (Local "q" 50))
+                      (Member "scala.collection.immutable.Queue" "dequeueOption" ":scala.Option"))
                     [
                       (CaseDef (Ident (Member "scala" "None" "")) None (Block [] (Ident (Local "q" 50))));
                       (CaseDef
@@ -1609,7 +1629,7 @@ Definition ox_resilience_StartTimeRateLimiterAlgorithm : tree :=
                                     (Select
                                       (Ident
                                         (Member "ox.resilience.StartTimeRateLimiterAlgorithm$.SlidingWindow" "per" ""))
-                                      (Member "scala.concurrent.duration.FiniteDuration" "toNanos" ":"))])
+                                      (Member "scala.concurrent.duration.FiniteDuration" "toNanos" ":scala.Long"))])
                                 (Member "scala.Long" "<" "scala.Long:scala.Boolean"))
                               [(Ident (Local "now" 51))])
                             (Block
@@ -1716,14 +1736,17 @@ Definition ox_resilience_StartTimeRateLimiterAlgorithm : tree :=
                     [(Ident (Local "rate" 60)); (Ident (Local "per" 61))]))
                 []);
               (DefDef
-                (Member "ox.resilience.StartTimeRateLimiterAlgorithm$.SlidingWindow" "copy$default$1" ":")
+                (Member "ox.resilience.StartTimeRateLimiterAlgorithm$.SlidingWindow" "copy$default$1" ":scala.Int")
                 ["Method"; "Synthetic"]
                 []
                 (TyAnnot (TyRef "scala.Int") "scala.annotation.unchecked.uncheckedVariance")
                 (Some (Ident (Member "ox.resilience.StartTimeRateLimiterAlgorithm$.SlidingWindow" "rate" "")))
                 []);
               (DefDef
-                (Member "ox.resilience.StartTimeRateLimiterAlgorithm$.SlidingWindow" "copy$default$2" ":")
+                (Member
+                  "ox.resilience.StartTimeRateLimiterAlgorithm$.SlidingWindow"
+                  "copy$default$2"
+                  ":scala.concurrent.duration.FiniteDuration")
                 ["Method"; "Synthetic"]
                 []
                 (TyAnnot
@@ -1732,7 +1755,7 @@ Definition ox_resilience_StartTimeRateLimiterAlgorithm : tree :=
                 (Some (Ident (Member "ox.resilience.StartTimeRateLimiterAlgorithm$.SlidingWindow" "per" "")))
                 []);
               (DefDef
-                (Member "ox.resilience.StartTimeRateLimiterAlgorithm$.SlidingWindow" "_1" ":")
+                (Member "ox.resilience.StartTimeRateLimiterAlgorithm$.SlidingWindow" "_1" ":scala.Int")
                 ["Method"; "Synthetic"]
                 []
                 (TyRef "scala.Int")
@@ -1742,7 +1765,10 @@ Definition ox_resilience_StartTimeRateLimiterAlgorithm : tree :=
                     (Member "ox.resilience.StartTimeRateLimiterAlgorithm$.SlidingWindow" "rate" "")))
                 []);
               (DefDef
-                (Member "ox.resilience.StartTimeRateLimiterAlgorithm$.SlidingWindow" "_2" ":")
+                (Member
+                  "ox.resilience.StartTimeRateLimiterAlgorithm$.SlidingWindow"
+                  "_2"
+                  ":scala.concurrent.duration.FiniteDuration")
                 ["Method"; "Synthetic"]
                 []
                 (TyRef "scala.concurrent.duration.FiniteDuration")
@@ -1847,7 +1873,7 @@ Definition ox_resilience_StartTimeRateLimiterAlgorithm : tree :=
                 (Some (Ident (Local "x$1" 64)))
                 []);
               (DefDef
-                (Member "ox.resilience.StartTimeRateLimiterAlgorithm$.SlidingWindow$" "toString" ":")
+                (Member "ox.resilience.StartTimeRateLimiterAlgorithm$.SlidingWindow$" "toString" ":java.lang.String")
                 ["Method"; "Override"; "Synthetic"]
                 []
                 (TyRef "java.lang.String")
@@ -2086,19 +2112,22 @@ Definition ox_resilience_StartTimeRateLimiterAlgorithm : tree :=
                     [(TyAnnot (TyRef "ox.resilience.StartTimeRateLimiterAlgorithm$.LeakyBucket") "scala.unchecked")]))
                 [(Member "scala.Equals" "canEqual" "java.lang.Object:scala.Boolean")]);
               (DefDef
-                (Member "ox.resilience.StartTimeRateLimiterAlgorithm$.LeakyBucket" "productArity" ":")
+                (Member "ox.resilience.StartTimeRateLimiterAlgorithm$.LeakyBucket" "productArity" ":scala.Int")
                 ["Method"; "Override"; "Synthetic"]
                 []
                 (TyRef "scala.Int")
                 (Some (Literal (CInt (2)%Z)))
-                [(Member "scala.Product" "productArity" ":")]);
+                [(Member "scala.Product" "productArity" ":scala.Int")]);
               (DefDef
-                (Member "ox.resilience.StartTimeRateLimiterAlgorithm$.LeakyBucket" "productPrefix" ":")
+                (Member
+                  "ox.resilience.StartTimeRateLimiterAlgorithm$.LeakyBucket"
+                  "productPrefix"
+                  ":java.lang.String")
                 ["Method"; "Override"; "Synthetic"]
                 []
                 (TyAlias "scala.Predef$.String" (TyRef "java.lang.String"))
                 (Some (Literal (CString "LeakyBucket")))
-                [(Member "scala.Product" "productPrefix" ":")]);
+                [(Member "scala.Product" "productPrefix" ":java.lang.String")]);
               (DefDef
                 (Member
                   "ox.resilience.StartTimeRateLimiterAlgorithm$.LeakyBucket"
@@ -2117,13 +2146,16 @@ Definition ox_resilience_StartTimeRateLimiterAlgorithm : tree :=
                         None
                         (Select
                           (This "ox.resilience.StartTimeRateLimiterAlgorithm$.LeakyBucket")
-                          (Member "ox.resilience.StartTimeRateLimiterAlgorithm$.LeakyBucket" "_1" ":")));
+                          (Member "ox.resilience.StartTimeRateLimiterAlgorithm$.LeakyBucket" "_1" ":scala.Int")));
                       (CaseDef
                         (Literal (CInt (1)%Z))
                         None
                         (Select
                           (This "ox.resilience.StartTimeRateLimiterAlgorithm$.LeakyBucket")
-                          (Member "ox.resilience.StartTimeRateLimiterAlgorithm$.LeakyBucket" "_2" ":")));
+                          (Member
+                            "ox.resilience.StartTimeRateLimiterAlgorithm$.LeakyBucket"
+                            "_2"
+                            ":scala.concurrent.duration.FiniteDuration")));
                       (CaseDef
                         Wildcard
                         None
@@ -2176,7 +2208,7 @@ Definition ox_resilience_StartTimeRateLimiterAlgorithm : tree :=
                 (Some
                   (Select
                     (Ident (Member "ox.resilience.StartTimeRateLimiterAlgorithm$.LeakyBucket" "per" ""))
-                    (Member "scala.concurrent.duration.FiniteDuration" "toNanos" ":"))));
+                    (Member "scala.concurrent.duration.FiniteDuration" "toNanos" ":scala.Long"))));
               (ValDef
                 (Member "ox.resilience.StartTimeRateLimiterAlgorithm$.LeakyBucket" "lastRefillTime" "")
                 ["Local"; "Private"; "PrivateLocal"]
@@ -2245,7 +2277,7 @@ Definition ox_resilience_StartTimeRateLimiterAlgorithm : tree :=
                     [(Ident (Local "permits" 77))]))
                 [(Member "ox.resilience.RateLimiterAlgorithm" "tryAcquire" "scala.Int:scala.Boolean")]);
               (DefDef
-                (Member "ox.resilience.StartTimeRateLimiterAlgorithm$.LeakyBucket" "getNextUpdate" ":")
+                (Member "ox.resilience.StartTimeRateLimiterAlgorithm$.LeakyBucket" "getNextUpdate" ":scala.Long")
                 ["Method"]
                 []
                 (TyRef "scala.Long")
@@ -2294,7 +2326,7 @@ Definition ox_resilience_StartTimeRateLimiterAlgorithm : tree :=
                         (Ident (Local "waitTime" 78))
                         (Literal (CLong (0)%Z)))
                       (TyRef "scala.Long"))))
-                [(Member "ox.resilience.RateLimiterAlgorithm" "getNextUpdate" ":")]);
+                [(Member "ox.resilience.RateLimiterAlgorithm" "getNextUpdate" ":scala.Long")]);
               (DefDef
                 (Member "ox.resilience.StartTimeRateLimiterAlgorithm$.LeakyBucket" "update" ":scala.Unit")
                 ["Method"]
@@ -2376,14 +2408,17 @@ Definition ox_resilience_StartTimeRateLimiterAlgorithm : tree :=
                     [(Ident (Local "rate" 82)); (Ident (Local "per" 83))]))
                 []);
               (DefDef
-                (Member "ox.resilience.StartTimeRateLimiterAlgorithm$.LeakyBucket" "copy$default$1" ":")
+                (Member "ox.resilience.StartTimeRateLimiterAlgorithm$.LeakyBucket" "copy$default$1" ":scala.Int")
                 ["Method"; "Synthetic"]
                 []
                 (TyAnnot (TyRef "scala.Int") "scala.annotation.unchecked.uncheckedVariance")
                 (Some (Ident (Member "ox.resilience.StartTimeRateLimiterAlgorithm$.LeakyBucket" "rate" "")))
                 []);
               (DefDef
-                (Member "ox.resilience.StartTimeRateLimiterAlgorithm$.LeakyBucket" "copy$default$2" ":")
+                (Member
+                  "ox.resilience.StartTimeRateLimiterAlgorithm$.LeakyBucket"
+                  "copy$default$2"
+                  ":scala.concurrent.duration.FiniteDuration")
                 ["Method"; "Synthetic"]
                 []
                 (TyAnnot
@@ -2392,7 +2427,7 @@ Definition ox_resilience_StartTimeRateLimiterAlgorithm : tree :=
                 (Some (Ident (Member "ox.resilience.StartTimeRateLimiterAlgorithm$.LeakyBucket" "per" "")))
                 []);
               (DefDef
-                (Member "ox.resilience.StartTimeRateLimiterAlgorithm$.LeakyBucket" "_1" ":")
+                (Member "ox.resilience.StartTimeRateLimiterAlgorithm$.LeakyBucket" "_1" ":scala.Int")
                 ["Method"; "Synthetic"]
                 []
                 (TyRef "scala.Int")
@@ -2402,7 +2437,10 @@ Definition ox_resilience_StartTimeRateLimiterAlgorithm : tree :=
                     (Member "ox.resilience.StartTimeRateLimiterAlgorithm$.LeakyBucket" "rate" "")))
                 []);
               (DefDef
-                (Member "ox.resilience.StartTimeRateLimiterAlgorithm$.LeakyBucket" "_2" ":")
+                (Member
+                  "ox.resilience.StartTimeRateLimiterAlgorithm$.LeakyBucket"
+                  "_2"
+                  ":scala.concurrent.duration.FiniteDuration")
                 ["Method"; "Synthetic"]
                 []
                 (TyRef "scala.concurrent.duration.FiniteDuration")
@@ -2503,7 +2541,7 @@ Definition ox_resilience_StartTimeRateLimiterAlgorithm : tree :=
                 (Some (Ident (Local "x$1" 86)))
                 []);
               (DefDef
-                (Member "ox.resilience.StartTimeRateLimiterAlgorithm$.LeakyBucket$" "toString" ":")
+                (Member "ox.resilience.StartTimeRateLimiterAlgorithm$.LeakyBucket$" "toString" ":java.lang.String")
                 ["Method"; "Override"; "Synthetic"]
                 []
                 (TyRef "java.lang.String")

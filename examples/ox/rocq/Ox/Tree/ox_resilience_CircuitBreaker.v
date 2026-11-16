@@ -154,19 +154,19 @@ Definition ox_resilience_CircuitBreaker : tree :=
                 [(TyAnnot (TyRef "ox.resilience.CircuitBreaker") "scala.unchecked")]))
             [(Member "scala.Equals" "canEqual" "java.lang.Object:scala.Boolean")]);
           (DefDef
-            (Member "ox.resilience.CircuitBreaker" "productArity" ":")
+            (Member "ox.resilience.CircuitBreaker" "productArity" ":scala.Int")
             ["Method"; "Override"; "Synthetic"]
             []
             (TyRef "scala.Int")
             (Some (Literal (CInt (1)%Z)))
-            [(Member "scala.Product" "productArity" ":")]);
+            [(Member "scala.Product" "productArity" ":scala.Int")]);
           (DefDef
-            (Member "ox.resilience.CircuitBreaker" "productPrefix" ":")
+            (Member "ox.resilience.CircuitBreaker" "productPrefix" ":java.lang.String")
             ["Method"; "Override"; "Synthetic"]
             []
             (TyAlias "scala.Predef$.String" (TyRef "java.lang.String"))
             (Some (Literal (CString "CircuitBreaker")))
-            [(Member "scala.Product" "productPrefix" ":")]);
+            [(Member "scala.Product" "productPrefix" ":java.lang.String")]);
           (DefDef
             (Member "ox.resilience.CircuitBreaker" "productElement" "scala.Int:java.lang.Object")
             ["Method"; "Override"; "Synthetic"]
@@ -180,7 +180,9 @@ Definition ox_resilience_CircuitBreaker : tree :=
                   (CaseDef
                     (Literal (CInt (0)%Z))
                     None
-                    (Select (This "ox.resilience.CircuitBreaker") (Member "ox.resilience.CircuitBreaker" "_1" ":")));
+                    (Select
+                      (This "ox.resilience.CircuitBreaker")
+                      (Member "ox.resilience.CircuitBreaker" "_1" ":ox.resilience.CircuitBreakerConfig")));
                   (CaseDef
                     Wildcard
                     None
@@ -276,7 +278,7 @@ Definition ox_resilience_CircuitBreaker : tree :=
                   (Select
                     (This "ox.resilience.CircuitBreaker")
                     (Member "ox.resilience.CircuitBreaker" "stateMachine" ""))
-                  (Member "ox.resilience.CircuitBreakerStateMachine" "state" ":"))
+                  (Member "ox.resilience.CircuitBreakerStateMachine" "state" ":ox.resilience.CircuitBreakerState"))
                 [
                   (CaseDef
                     (Bind
@@ -733,7 +735,7 @@ Definition ox_resilience_CircuitBreaker : tree :=
                                 (Member "scala.util.Try$" "apply" "1,scala.Function0:scala.util.Try"))
                               [(TyParam "ox.resilience.CircuitBreaker.runOrDrop" "T")])
                             [(Ident (Local "operation" 28))])
-                          (Member "scala.util.Try" "toEither" ":"))])
+                          (Member "scala.util.Try" "toEither" ":scala.util.Either"))])
                     (Member "scala.Option" "map" "1,scala.Function1:scala.Option"))
                   [(TyParam "ox.resilience.CircuitBreaker.runOrDrop" "T")])
                 [
@@ -838,14 +840,14 @@ Definition ox_resilience_CircuitBreaker : tree :=
                 [(Ident (Local "ox" 36)); (Ident (Local "bufferCapacity" 37))]))
             []);
           (DefDef
-            (Member "ox.resilience.CircuitBreaker" "copy$default$1" ":")
+            (Member "ox.resilience.CircuitBreaker" "copy$default$1" ":ox.resilience.CircuitBreakerConfig")
             ["Method"; "Synthetic"]
             []
             (TyAnnot (TyRef "ox.resilience.CircuitBreakerConfig") "scala.annotation.unchecked.uncheckedVariance")
             (Some (Ident (Member "ox.resilience.CircuitBreaker" "config" "")))
             []);
           (DefDef
-            (Member "ox.resilience.CircuitBreaker" "_1" ":")
+            (Member "ox.resilience.CircuitBreaker" "_1" ":ox.resilience.CircuitBreakerConfig")
             ["Method"; "Synthetic"]
             []
             (TyRef "ox.resilience.CircuitBreakerConfig")
@@ -931,14 +933,17 @@ Definition ox_resilience_CircuitBreaker : tree :=
             (Some (Ident (Local "x$1" 41)))
             []);
           (DefDef
-            (Member "ox.resilience.CircuitBreaker$" "$lessinit$greater$default$1" ":")
+            (Member
+              "ox.resilience.CircuitBreaker$"
+              "$lessinit$greater$default$1"
+              ":ox.resilience.CircuitBreakerConfig")
             ["Method"]
             []
             (TyAnnot (TyRef "ox.resilience.CircuitBreakerConfig") "scala.annotation.unchecked.uncheckedVariance")
             (Some
               (Select
                 (Ident (Member "ox.resilience" "CircuitBreakerConfig" ""))
-                (Member "ox.resilience.CircuitBreakerConfig$" "default" ":")))
+                (Member "ox.resilience.CircuitBreakerConfig$" "default" ":ox.resilience.CircuitBreakerConfig")))
             []);
           (ValDef
             (Member "ox.resilience.CircuitBreaker$" "default" "")

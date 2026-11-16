@@ -221,19 +221,19 @@ Definition ox_flow_FlowStage : tree :=
                         "scala.unchecked")]))
                 [(Member "scala.Equals" "canEqual" "java.lang.Object:scala.Boolean")]);
               (DefDef
-                (Member "ox.flow.FlowStage$.FromSource" "productArity" ":")
+                (Member "ox.flow.FlowStage$.FromSource" "productArity" ":scala.Int")
                 ["Method"; "Override"; "Synthetic"]
                 []
                 (TyRef "scala.Int")
                 (Some (Literal (CInt (1)%Z)))
-                [(Member "scala.Product" "productArity" ":")]);
+                [(Member "scala.Product" "productArity" ":scala.Int")]);
               (DefDef
-                (Member "ox.flow.FlowStage$.FromSource" "productPrefix" ":")
+                (Member "ox.flow.FlowStage$.FromSource" "productPrefix" ":java.lang.String")
                 ["Method"; "Override"; "Synthetic"]
                 []
                 (TyAlias "scala.Predef$.String" (TyRef "java.lang.String"))
                 (Some (Literal (CString "FromSource")))
-                [(Member "scala.Product" "productPrefix" ":")]);
+                [(Member "scala.Product" "productPrefix" ":java.lang.String")]);
               (DefDef
                 (Member "ox.flow.FlowStage$.FromSource" "productElement" "scala.Int:java.lang.Object")
                 ["Method"; "Override"; "Synthetic"]
@@ -249,7 +249,7 @@ Definition ox_flow_FlowStage : tree :=
                         None
                         (Select
                           (This "ox.flow.FlowStage$.FromSource")
-                          (Member "ox.flow.FlowStage$.FromSource" "_1" ":")));
+                          (Member "ox.flow.FlowStage$.FromSource" "_1" ":ox.channels.Source")));
                       (CaseDef
                         Wildcard
                         None
@@ -346,7 +346,7 @@ Definition ox_flow_FlowStage : tree :=
                 (Some (Ident (Member "ox.flow.FlowStage$.FromSource" "source" "")))
                 []);
               (DefDef
-                (Member "ox.flow.FlowStage$.FromSource" "_1" ":")
+                (Member "ox.flow.FlowStage$.FromSource" "_1" ":ox.channels.Source")
                 ["Method"; "Synthetic"]
                 []
                 (TyApp (TyRef "ox.channels.Source") [(TyParam "ox.flow.FlowStage$.FromSource" "T")])
@@ -443,7 +443,7 @@ Definition ox_flow_FlowStage : tree :=
                 (Some (Ident (Local "x$1" 10)))
                 []);
               (DefDef
-                (Member "ox.flow.FlowStage$.FromSource$" "toString" ":")
+                (Member "ox.flow.FlowStage$.FromSource$" "toString" ":java.lang.String")
                 ["Method"; "Override"; "Synthetic"]
                 []
                 (TyRef "java.lang.String")

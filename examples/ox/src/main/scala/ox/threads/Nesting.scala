@@ -66,8 +66,7 @@ val theTreeCheckCallsFour = Node.claim(
         exists((t: Obj[Thread]) => t.getName().isCall(made)) ||
         exists((f: Term[Value], scope: Term[Value]) => applicationOf[Unit](f, scope).isCall(made)))))
 
-// Not proven. What the check calls itself is proven (above); the function it applies asks each scope up the
-// tree for its herd and its parent: calls on objects of classes not read here.
+// What the check calls itself is proven (above); what the function it applies does, in `Climb.scala`.
 val theTreeCheckStaysOutOfHerds = Node.claim(
   "While a thread is calling verifyCurrentThreadInScopeTree of a herd, it neither closes a herd nor removes a " +
     "thread from a herd's set.")(

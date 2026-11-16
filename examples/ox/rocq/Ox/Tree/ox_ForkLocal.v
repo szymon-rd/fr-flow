@@ -51,7 +51,7 @@ Definition ox_ForkLocal : tree :=
                     (Apply
                       (TypeApply
                         (Select
-                          (Ident (Member "ox.internal.ScopeContext$package$" "currentLocals" ":"))
+                          (Ident (Member "ox.internal.ScopeContext$package$" "currentLocals" ":ox.ForkLocalMap"))
                           (Member "ox.ForkLocalMap" "get" "1,ox.ForkLocal:scala.Option"))
                         [(TyParam "ox.ForkLocal" "T")])
                       [(This "ox.ForkLocal")])
@@ -87,7 +87,7 @@ Definition ox_ForkLocal : tree :=
                   (Apply
                     (TypeApply
                       (Select
-                        (Ident (Member "ox.internal.ScopeContext$package$" "currentLocals" ":"))
+                        (Ident (Member "ox.internal.ScopeContext$package$" "currentLocals" ":ox.ForkLocalMap"))
                         (Member "ox.ForkLocalMap" "set" "1,ox.ForkLocal,java.lang.Object:ox.ForkLocalMap"))
                       [(TyParam "ox.ForkLocal" "T")])
                     [(This "ox.ForkLocal"); (Ident (Local "newValue" 1))]);
@@ -140,7 +140,7 @@ Definition ox_ForkLocal : tree :=
                     (Apply
                       (TypeApply
                         (Select
-                          (Ident (Member "ox.internal.ScopeContext$package$" "currentLocals" ":"))
+                          (Ident (Member "ox.internal.ScopeContext$package$" "currentLocals" ":ox.ForkLocalMap"))
                           (Member "ox.ForkLocalMap" "set" "1,ox.ForkLocal,java.lang.Object:ox.ForkLocalMap"))
                         [(TyParam "ox.ForkLocal" "T")])
                       [(This "ox.ForkLocal"); (Ident (Local "newValue" 5))])])
@@ -231,7 +231,7 @@ Definition ox_ForkLocal : tree :=
                     (Apply
                       (TypeApply
                         (Select
-                          (Ident (Member "ox.internal.ScopeContext$package$" "currentLocals" ":"))
+                          (Ident (Member "ox.internal.ScopeContext$package$" "currentLocals" ":ox.ForkLocalMap"))
                           (Member "ox.ForkLocalMap" "set" "1,ox.ForkLocal,java.lang.Object:ox.ForkLocalMap"))
                         [(TyParam "ox.ForkLocal" "T")])
                       [(This "ox.ForkLocal"); (Ident (Local "newValue" 10))])])

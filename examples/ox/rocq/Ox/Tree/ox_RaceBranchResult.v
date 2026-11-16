@@ -224,19 +224,19 @@ Definition ox_RaceBranchResult : tree :=
                         "scala.unchecked")]))
                 [(Member "scala.Equals" "canEqual" "java.lang.Object:scala.Boolean")]);
               (DefDef
-                (Member "ox.RaceBranchResult$.Success" "productArity" ":")
+                (Member "ox.RaceBranchResult$.Success" "productArity" ":scala.Int")
                 ["Method"; "Override"; "Synthetic"]
                 []
                 (TyRef "scala.Int")
                 (Some (Literal (CInt (1)%Z)))
-                [(Member "scala.Product" "productArity" ":")]);
+                [(Member "scala.Product" "productArity" ":scala.Int")]);
               (DefDef
-                (Member "ox.RaceBranchResult$.Success" "productPrefix" ":")
+                (Member "ox.RaceBranchResult$.Success" "productPrefix" ":java.lang.String")
                 ["Method"; "Override"; "Synthetic"]
                 []
                 (TyAlias "scala.Predef$.String" (TyRef "java.lang.String"))
                 (Some (Literal (CString "Success")))
-                [(Member "scala.Product" "productPrefix" ":")]);
+                [(Member "scala.Product" "productPrefix" ":java.lang.String")]);
               (DefDef
                 (Member "ox.RaceBranchResult$.Success" "productElement" "scala.Int:java.lang.Object")
                 ["Method"; "Override"; "Synthetic"]
@@ -326,12 +326,12 @@ Definition ox_RaceBranchResult : tree :=
                 (Some (Ident (Member "ox.RaceBranchResult$.Success" "value" "")))
                 []);
               (DefDef
-                (Member "ox.RaceBranchResult$.Success" "ordinal" ":")
+                (Member "ox.RaceBranchResult$.Success" "ordinal" ":scala.Int")
                 ["Method"; "Synthetic"]
                 []
                 (TyRef "scala.Int")
                 (Some (Literal (CInt (0)%Z)))
-                [(Member "scala.reflect.Enum" "ordinal" ":")]);
+                [(Member "scala.reflect.Enum" "ordinal" ":scala.Int")]);
               (DefDef
                 (Member "ox.RaceBranchResult$.Success" "_1" ":")
                 ["Method"; "Synthetic"]
@@ -423,7 +423,7 @@ Definition ox_RaceBranchResult : tree :=
                 (Some (Ident (Local "x$1" 8)))
                 []);
               (DefDef
-                (Member "ox.RaceBranchResult$.Success$" "toString" ":")
+                (Member "ox.RaceBranchResult$.Success$" "toString" ":java.lang.String")
                 ["Method"; "Override"; "Synthetic"]
                 []
                 (TyRef "java.lang.String")
@@ -606,19 +606,19 @@ Definition ox_RaceBranchResult : tree :=
                         "scala.unchecked")]))
                 [(Member "scala.Equals" "canEqual" "java.lang.Object:scala.Boolean")]);
               (DefDef
-                (Member "ox.RaceBranchResult$.NonFatalException" "productArity" ":")
+                (Member "ox.RaceBranchResult$.NonFatalException" "productArity" ":scala.Int")
                 ["Method"; "Override"; "Synthetic"]
                 []
                 (TyRef "scala.Int")
                 (Some (Literal (CInt (1)%Z)))
-                [(Member "scala.Product" "productArity" ":")]);
+                [(Member "scala.Product" "productArity" ":scala.Int")]);
               (DefDef
-                (Member "ox.RaceBranchResult$.NonFatalException" "productPrefix" ":")
+                (Member "ox.RaceBranchResult$.NonFatalException" "productPrefix" ":java.lang.String")
                 ["Method"; "Override"; "Synthetic"]
                 []
                 (TyAlias "scala.Predef$.String" (TyRef "java.lang.String"))
                 (Some (Literal (CString "NonFatalException")))
-                [(Member "scala.Product" "productPrefix" ":")]);
+                [(Member "scala.Product" "productPrefix" ":java.lang.String")]);
               (DefDef
                 (Member "ox.RaceBranchResult$.NonFatalException" "productElement" "scala.Int:java.lang.Object")
                 ["Method"; "Override"; "Synthetic"]
@@ -634,7 +634,7 @@ Definition ox_RaceBranchResult : tree :=
                         None
                         (Select
                           (This "ox.RaceBranchResult$.NonFatalException")
-                          (Member "ox.RaceBranchResult$.NonFatalException" "_1" ":")));
+                          (Member "ox.RaceBranchResult$.NonFatalException" "_1" ":java.lang.Throwable")));
                       (CaseDef
                         Wildcard
                         None
@@ -716,14 +716,14 @@ Definition ox_RaceBranchResult : tree :=
                 (Some (Ident (Member "ox.RaceBranchResult$.NonFatalException" "throwable" "")))
                 []);
               (DefDef
-                (Member "ox.RaceBranchResult$.NonFatalException" "ordinal" ":")
+                (Member "ox.RaceBranchResult$.NonFatalException" "ordinal" ":scala.Int")
                 ["Method"; "Synthetic"]
                 []
                 (TyRef "scala.Int")
                 (Some (Literal (CInt (1)%Z)))
-                [(Member "scala.reflect.Enum" "ordinal" ":")]);
+                [(Member "scala.reflect.Enum" "ordinal" ":scala.Int")]);
               (DefDef
-                (Member "ox.RaceBranchResult$.NonFatalException" "_1" ":")
+                (Member "ox.RaceBranchResult$.NonFatalException" "_1" ":java.lang.Throwable")
                 ["Method"; "Synthetic"]
                 []
                 (TyAlias "scala.package$.Throwable" (TyRef "java.lang.Throwable"))
@@ -831,7 +831,7 @@ Definition ox_RaceBranchResult : tree :=
                 (Some (Ident (Local "x$1" 19)))
                 []);
               (DefDef
-                (Member "ox.RaceBranchResult$.NonFatalException$" "toString" ":")
+                (Member "ox.RaceBranchResult$.NonFatalException$" "toString" ":java.lang.String")
                 ["Method"; "Override"; "Synthetic"]
                 []
                 (TyRef "java.lang.String")
@@ -1020,19 +1020,19 @@ Definition ox_RaceBranchResult : tree :=
                         "scala.unchecked")]))
                 [(Member "scala.Equals" "canEqual" "java.lang.Object:scala.Boolean")]);
               (DefDef
-                (Member "ox.RaceBranchResult$.FatalException" "productArity" ":")
+                (Member "ox.RaceBranchResult$.FatalException" "productArity" ":scala.Int")
                 ["Method"; "Override"; "Synthetic"]
                 []
                 (TyRef "scala.Int")
                 (Some (Literal (CInt (1)%Z)))
-                [(Member "scala.Product" "productArity" ":")]);
+                [(Member "scala.Product" "productArity" ":scala.Int")]);
               (DefDef
-                (Member "ox.RaceBranchResult$.FatalException" "productPrefix" ":")
+                (Member "ox.RaceBranchResult$.FatalException" "productPrefix" ":java.lang.String")
                 ["Method"; "Override"; "Synthetic"]
                 []
                 (TyAlias "scala.Predef$.String" (TyRef "java.lang.String"))
                 (Some (Literal (CString "FatalException")))
-                [(Member "scala.Product" "productPrefix" ":")]);
+                [(Member "scala.Product" "productPrefix" ":java.lang.String")]);
               (DefDef
                 (Member "ox.RaceBranchResult$.FatalException" "productElement" "scala.Int:java.lang.Object")
                 ["Method"; "Override"; "Synthetic"]
@@ -1048,7 +1048,7 @@ Definition ox_RaceBranchResult : tree :=
                         None
                         (Select
                           (This "ox.RaceBranchResult$.FatalException")
-                          (Member "ox.RaceBranchResult$.FatalException" "_1" ":")));
+                          (Member "ox.RaceBranchResult$.FatalException" "_1" ":java.lang.Throwable")));
                       (CaseDef
                         Wildcard
                         None
@@ -1130,14 +1130,14 @@ Definition ox_RaceBranchResult : tree :=
                 (Some (Ident (Member "ox.RaceBranchResult$.FatalException" "throwable" "")))
                 []);
               (DefDef
-                (Member "ox.RaceBranchResult$.FatalException" "ordinal" ":")
+                (Member "ox.RaceBranchResult$.FatalException" "ordinal" ":scala.Int")
                 ["Method"; "Synthetic"]
                 []
                 (TyRef "scala.Int")
                 (Some (Literal (CInt (2)%Z)))
-                [(Member "scala.reflect.Enum" "ordinal" ":")]);
+                [(Member "scala.reflect.Enum" "ordinal" ":scala.Int")]);
               (DefDef
-                (Member "ox.RaceBranchResult$.FatalException" "_1" ":")
+                (Member "ox.RaceBranchResult$.FatalException" "_1" ":java.lang.Throwable")
                 ["Method"; "Synthetic"]
                 []
                 (TyAlias "scala.package$.Throwable" (TyRef "java.lang.Throwable"))
@@ -1242,7 +1242,7 @@ Definition ox_RaceBranchResult : tree :=
                 (Some (Ident (Local "x$1" 30)))
                 []);
               (DefDef
-                (Member "ox.RaceBranchResult$.FatalException$" "toString" ":")
+                (Member "ox.RaceBranchResult$.FatalException$" "toString" ":java.lang.String")
                 ["Method"; "Override"; "Synthetic"]
                 []
                 (TyRef "java.lang.String")
@@ -1343,5 +1343,5 @@ Definition ox_RaceBranchResult : tree :=
                     (TyApp (TyRef "ox.RaceBranchResult") [(TyBounds (TyRef "scala.Nothing") (TyRef "scala.AnyKind"))]))
                   None)]]
             (TyRef "scala.Int")
-            (Some (Select (Ident (Local "x$0" 34)) (Member "scala.reflect.Enum" "ordinal" ":")))
+            (Some (Select (Ident (Local "x$0" 34)) (Member "scala.reflect.Enum" "ordinal" ":scala.Int")))
             [(Member "scala.deriving.Mirror$.Sum" "ordinal" "java.lang.Object:scala.Int")])])]).

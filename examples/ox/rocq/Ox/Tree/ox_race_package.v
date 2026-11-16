@@ -355,7 +355,10 @@ Definition ox_race_package : tree :=
                                             (TyApp
                                               (TyParam "ox.race$package$.raceSuccess" "F")
                                               [(TyParam "ox.race$package$.raceSuccess" "T")])])])
-                                    [(Select (Ident (Local "fs" 9)) (Member "scala.collection.SeqOps" "size" ":"))])));
+                                    [
+                                      (Select
+                                        (Ident (Local "fs" 9))
+                                        (Member "scala.collection.SeqOps" "size" ":scala.Int"))])));
                               (Apply
                                 (TypeApply
                                   (Select
@@ -570,7 +573,7 @@ Definition ox_race_package : tree :=
                                           (Select
                                             (Select
                                               (Ident (Local "failures" 20))
-                                              (Member "scala.collection.IndexedSeqOps" "headOption" ":"))
+                                              (Member "scala.collection.IndexedSeqOps" "headOption" ":scala.Option"))
                                             (Member "scala.Option" "getOrElse" "1,scala.Function0:java.lang.Object"))
                                           [
                                             (TyApp
@@ -624,7 +627,10 @@ Definition ox_race_package : tree :=
                                                   (Select
                                                     (Select
                                                       (Ident (Local "failures" 20))
-                                                      (Member "scala.collection.immutable.Vector" "tail" ":"))
+                                                      (Member
+                                                        "scala.collection.immutable.Vector"
+                                                        "tail"
+                                                        ":scala.collection.immutable.Vector"))
                                                     (Member
                                                       "scala.collection.IterableOnceOps"
                                                       "foldLeft"
@@ -837,7 +843,10 @@ Definition ox_race_package : tree :=
                                                   (Select
                                                     (Select
                                                       (Ident (Local "failures" 20))
-                                                      (Member "scala.collection.immutable.Vector" "tail" ":"))
+                                                      (Member
+                                                        "scala.collection.immutable.Vector"
+                                                        "tail"
+                                                        ":scala.collection.immutable.Vector"))
                                                     (Member
                                                       "scala.collection.immutable.Vector"
                                                       "foreach"
@@ -1174,7 +1183,7 @@ Definition ox_race_package : tree :=
                                       [
                                         (TyParam "ox.race$package$.raceSuccess" "E");
                                         (TyAlias "scala.package$.Throwable" (TyRef "java.lang.Throwable"))])]);
-                                (Select (Ident (Local "fs" 9)) (Member "scala.collection.SeqOps" "size" ":"))])))
+                                (Select (Ident (Local "fs" 9)) (Member "scala.collection.SeqOps" "size" ":scala.Int"))])))
                         [])]
                     (Closure (Ident (Local "$anonfun" 10)) None))]))
             []);

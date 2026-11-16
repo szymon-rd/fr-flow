@@ -218,19 +218,19 @@ Definition ox_channels_ChannelClosedException : tree :=
                     [(TyAnnot (TyRef "ox.channels.ChannelClosedException$.Error") "scala.unchecked")]))
                 [(Member "scala.Equals" "canEqual" "java.lang.Object:scala.Boolean")]);
               (DefDef
-                (Member "ox.channels.ChannelClosedException$.Error" "productArity" ":")
+                (Member "ox.channels.ChannelClosedException$.Error" "productArity" ":scala.Int")
                 ["Method"; "Override"; "Synthetic"]
                 []
                 (TyRef "scala.Int")
                 (Some (Literal (CInt (1)%Z)))
-                [(Member "scala.Product" "productArity" ":")]);
+                [(Member "scala.Product" "productArity" ":scala.Int")]);
               (DefDef
-                (Member "ox.channels.ChannelClosedException$.Error" "productPrefix" ":")
+                (Member "ox.channels.ChannelClosedException$.Error" "productPrefix" ":java.lang.String")
                 ["Method"; "Override"; "Synthetic"]
                 []
                 (TyAlias "scala.Predef$.String" (TyRef "java.lang.String"))
                 (Some (Literal (CString "Error")))
-                [(Member "scala.Product" "productPrefix" ":")]);
+                [(Member "scala.Product" "productPrefix" ":java.lang.String")]);
               (DefDef
                 (Member "ox.channels.ChannelClosedException$.Error" "productElement" "scala.Int:java.lang.Object")
                 ["Method"; "Override"; "Synthetic"]
@@ -246,7 +246,7 @@ Definition ox_channels_ChannelClosedException : tree :=
                         None
                         (Select
                           (This "ox.channels.ChannelClosedException$.Error")
-                          (Member "ox.channels.ChannelClosedException$.Error" "_1" ":")));
+                          (Member "ox.channels.ChannelClosedException$.Error" "_1" ":java.lang.Throwable")));
                       (CaseDef
                         Wildcard
                         None
@@ -313,7 +313,7 @@ Definition ox_channels_ChannelClosedException : tree :=
                     [(Ident (Local "cause" 7))]))
                 []);
               (DefDef
-                (Member "ox.channels.ChannelClosedException$.Error" "copy$default$1" ":")
+                (Member "ox.channels.ChannelClosedException$.Error" "copy$default$1" ":java.lang.Throwable")
                 ["Method"; "Synthetic"]
                 []
                 (TyAnnot
@@ -322,14 +322,14 @@ Definition ox_channels_ChannelClosedException : tree :=
                 (Some (Ident (Member "ox.channels.ChannelClosedException$.Error" "cause" "")))
                 []);
               (DefDef
-                (Member "ox.channels.ChannelClosedException$.Error" "ordinal" ":")
+                (Member "ox.channels.ChannelClosedException$.Error" "ordinal" ":scala.Int")
                 ["Method"; "Synthetic"]
                 []
                 (TyRef "scala.Int")
                 (Some (Literal (CInt (0)%Z)))
-                [(Member "scala.reflect.Enum" "ordinal" ":")]);
+                [(Member "scala.reflect.Enum" "ordinal" ":scala.Int")]);
               (DefDef
-                (Member "ox.channels.ChannelClosedException$.Error" "_1" ":")
+                (Member "ox.channels.ChannelClosedException$.Error" "_1" ":java.lang.Throwable")
                 ["Method"; "Synthetic"]
                 []
                 (TyAlias "scala.package$.Throwable" (TyRef "java.lang.Throwable"))
@@ -429,7 +429,7 @@ Definition ox_channels_ChannelClosedException : tree :=
                 (Some (Ident (Local "x$1" 9)))
                 []);
               (DefDef
-                (Member "ox.channels.ChannelClosedException$.Error$" "toString" ":")
+                (Member "ox.channels.ChannelClosedException$.Error$" "toString" ":java.lang.String")
                 ["Method"; "Override"; "Synthetic"]
                 []
                 (TyRef "java.lang.String")
@@ -553,19 +553,19 @@ Definition ox_channels_ChannelClosedException : tree :=
                     [(TyAnnot (TyRef "ox.channels.ChannelClosedException$.Done") "scala.unchecked")]))
                 [(Member "scala.Equals" "canEqual" "java.lang.Object:scala.Boolean")]);
               (DefDef
-                (Member "ox.channels.ChannelClosedException$.Done" "productArity" ":")
+                (Member "ox.channels.ChannelClosedException$.Done" "productArity" ":scala.Int")
                 ["Method"; "Override"; "Synthetic"]
                 []
                 (TyRef "scala.Int")
                 (Some (Literal (CInt (0)%Z)))
-                [(Member "scala.Product" "productArity" ":")]);
+                [(Member "scala.Product" "productArity" ":scala.Int")]);
               (DefDef
-                (Member "ox.channels.ChannelClosedException$.Done" "productPrefix" ":")
+                (Member "ox.channels.ChannelClosedException$.Done" "productPrefix" ":java.lang.String")
                 ["Method"; "Override"; "Synthetic"]
                 []
                 (TyAlias "scala.Predef$.String" (TyRef "java.lang.String"))
                 (Some (Literal (CString "Done")))
-                [(Member "scala.Product" "productPrefix" ":")]);
+                [(Member "scala.Product" "productPrefix" ":java.lang.String")]);
               (DefDef
                 (Member "ox.channels.ChannelClosedException$.Done" "productElement" "scala.Int:java.lang.Object")
                 ["Method"; "Override"; "Synthetic"]
@@ -632,12 +632,12 @@ Definition ox_channels_ChannelClosedException : tree :=
                     []))
                 []);
               (DefDef
-                (Member "ox.channels.ChannelClosedException$.Done" "ordinal" ":")
+                (Member "ox.channels.ChannelClosedException$.Done" "ordinal" ":scala.Int")
                 ["Method"; "Synthetic"]
                 []
                 (TyRef "scala.Int")
                 (Some (Literal (CInt (1)%Z)))
-                [(Member "scala.reflect.Enum" "ordinal" ":")])]);
+                [(Member "scala.reflect.Enum" "ordinal" ":scala.Int")])]);
           (ValDef
             (Member "ox.channels.ChannelClosedException$" "Done" "")
             ["Final"; "Lazy"; "Module"; "StableRealizable"; "Synthetic"]
@@ -723,7 +723,7 @@ Definition ox_channels_ChannelClosedException : tree :=
                 (Some (Literal (CBool true)))
                 []);
               (DefDef
-                (Member "ox.channels.ChannelClosedException$.Done$" "toString" ":")
+                (Member "ox.channels.ChannelClosedException$.Done$" "toString" ":java.lang.String")
                 ["Method"; "Override"; "Synthetic"]
                 []
                 (TyRef "java.lang.String")
@@ -803,5 +803,5 @@ Definition ox_channels_ChannelClosedException : tree :=
                     (TyRef "ox.channels.ChannelClosedException"))
                   None)]]
             (TyRef "scala.Int")
-            (Some (Select (Ident (Local "x$0" 20)) (Member "scala.reflect.Enum" "ordinal" ":")))
+            (Some (Select (Ident (Local "x$0" 20)) (Member "scala.reflect.Enum" "ordinal" ":scala.Int")))
             [(Member "scala.deriving.Mirror$.Sum" "ordinal" "java.lang.Object:scala.Int")])])]).

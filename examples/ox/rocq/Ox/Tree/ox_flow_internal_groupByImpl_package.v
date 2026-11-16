@@ -501,19 +501,22 @@ Definition ox_flow_internal_groupByImpl_package : tree :=
                                 "scala.unchecked")]))
                         [(Member "scala.Equals" "canEqual" "java.lang.Object:scala.Boolean")]);
                       (DefDef
-                        (Member "ox.flow.internal.groupByImpl$package$._$GroupByState#5" "productArity" ":")
+                        (Member "ox.flow.internal.groupByImpl$package$._$GroupByState#5" "productArity" ":scala.Int")
                         ["Method"; "Override"; "Synthetic"]
                         []
                         (TyRef "scala.Int")
                         (Some (Literal (CInt (5)%Z)))
-                        [(Member "scala.Product" "productArity" ":")]);
+                        [(Member "scala.Product" "productArity" ":scala.Int")]);
                       (DefDef
-                        (Member "ox.flow.internal.groupByImpl$package$._$GroupByState#5" "productPrefix" ":")
+                        (Member
+                          "ox.flow.internal.groupByImpl$package$._$GroupByState#5"
+                          "productPrefix"
+                          ":java.lang.String")
                         ["Method"; "Override"; "Synthetic"]
                         []
                         (TyAlias "scala.Predef$.String" (TyRef "java.lang.String"))
                         (Some (Literal (CString "GroupByState")))
-                        [(Member "scala.Product" "productPrefix" ":")]);
+                        [(Member "scala.Product" "productPrefix" ":java.lang.String")]);
                       (DefDef
                         (Member
                           "ox.flow.internal.groupByImpl$package$._$GroupByState#5"
@@ -532,31 +535,43 @@ Definition ox_flow_internal_groupByImpl_package : tree :=
                                 None
                                 (Select
                                   (This "ox.flow.internal.groupByImpl$package$._$GroupByState#5")
-                                  (Member "ox.flow.internal.groupByImpl$package$._$GroupByState#5" "_1" ":")));
+                                  (Member
+                                    "ox.flow.internal.groupByImpl$package$._$GroupByState#5"
+                                    "_1"
+                                    ":scala.Boolean")));
                               (CaseDef
                                 (Literal (CInt (1)%Z))
                                 None
                                 (Select
                                   (This "ox.flow.internal.groupByImpl$package$._$GroupByState#5")
-                                  (Member "ox.flow.internal.groupByImpl$package$._$GroupByState#5" "_2" ":")));
+                                  (Member
+                                    "ox.flow.internal.groupByImpl$package$._$GroupByState#5"
+                                    "_2"
+                                    ":scala.Option")));
                               (CaseDef
                                 (Literal (CInt (2)%Z))
                                 None
                                 (Select
                                   (This "ox.flow.internal.groupByImpl$package$._$GroupByState#5")
-                                  (Member "ox.flow.internal.groupByImpl$package$._$GroupByState#5" "_3" ":")));
+                                  (Member
+                                    "ox.flow.internal.groupByImpl$package$._$GroupByState#5"
+                                    "_3"
+                                    ":scala.collection.immutable.Map")));
                               (CaseDef
                                 (Literal (CInt (3)%Z))
                                 None
                                 (Select
                                   (This "ox.flow.internal.groupByImpl$package$._$GroupByState#5")
-                                  (Member "ox.flow.internal.groupByImpl$package$._$GroupByState#5" "_4" ":")));
+                                  (Member "ox.flow.internal.groupByImpl$package$._$GroupByState#5" "_4" ":scala.Long")));
                               (CaseDef
                                 (Literal (CInt (4)%Z))
                                 None
                                 (Select
                                   (This "ox.flow.internal.groupByImpl$package$._$GroupByState#5")
-                                  (Member "ox.flow.internal.groupByImpl$package$._$GroupByState#5" "_5" ":")));
+                                  (Member
+                                    "ox.flow.internal.groupByImpl$package$._$GroupByState#5"
+                                    "_5"
+                                    ":ox.flow.internal.WeightedHeap")));
                               (CaseDef
                                 Wildcard
                                 None
@@ -685,7 +700,7 @@ Definition ox_flow_internal_groupByImpl_package : tree :=
                                     (Member
                                       "ox.flow.internal.groupByImpl$package$._$GroupByState#5"
                                       "copy$default$1"
-                                      ":"))));
+                                      ":scala.Boolean"))));
                               (ValDef
                                 (Local "pendingFromParent$1" 21)
                                 ["Synthetic"]
@@ -706,7 +721,7 @@ Definition ox_flow_internal_groupByImpl_package : tree :=
                                     (Member
                                       "ox.flow.internal.groupByImpl$package$._$GroupByState#5"
                                       "copy$default$2"
-                                      ":"))));
+                                      ":scala.Option"))));
                               (ValDef
                                 (Local "fromParentCounter$1" 22)
                                 ["Synthetic"]
@@ -717,7 +732,7 @@ Definition ox_flow_internal_groupByImpl_package : tree :=
                                     (Member
                                       "ox.flow.internal.groupByImpl$package$._$GroupByState#5"
                                       "copy$default$4"
-                                      ":"))));
+                                      ":scala.Long"))));
                               (ValDef
                                 (Local "childMostRecentCounters$1" 23)
                                 ["Synthetic"]
@@ -732,7 +747,7 @@ Definition ox_flow_internal_groupByImpl_package : tree :=
                                     (Member
                                       "ox.flow.internal.groupByImpl$package$._$GroupByState#5"
                                       "copy$default$5"
-                                      ":"))))]
+                                      ":ox.flow.internal.WeightedHeap"))))]
                             (Apply
                               (Select
                                 (This "ox.flow.internal.groupByImpl$package$._$GroupByState#5")
@@ -797,7 +812,7 @@ Definition ox_flow_internal_groupByImpl_package : tree :=
                                     (Member
                                       "ox.flow.internal.groupByImpl$package$._$GroupByState#5"
                                       "copy$default$1"
-                                      ":"))));
+                                      ":scala.Boolean"))));
                               (ValDef
                                 (Local "pendingFromParent$2" 27)
                                 ["Synthetic"]
@@ -818,7 +833,7 @@ Definition ox_flow_internal_groupByImpl_package : tree :=
                                     (Member
                                       "ox.flow.internal.groupByImpl$package$._$GroupByState#5"
                                       "copy$default$2"
-                                      ":"))));
+                                      ":scala.Option"))));
                               (ValDef
                                 (Local "fromParentCounter$2" 28)
                                 ["Synthetic"]
@@ -829,7 +844,7 @@ Definition ox_flow_internal_groupByImpl_package : tree :=
                                     (Member
                                       "ox.flow.internal.groupByImpl$package$._$GroupByState#5"
                                       "copy$default$4"
-                                      ":"))));
+                                      ":scala.Long"))));
                               (ValDef
                                 (Local "childMostRecentCounters$2" 29)
                                 ["Synthetic"]
@@ -844,7 +859,7 @@ Definition ox_flow_internal_groupByImpl_package : tree :=
                                     (Member
                                       "ox.flow.internal.groupByImpl$package$._$GroupByState#5"
                                       "copy$default$5"
-                                      ":"))))]
+                                      ":ox.flow.internal.WeightedHeap"))))]
                             (Apply
                               (Select
                                 (This "ox.flow.internal.groupByImpl$package$._$GroupByState#5")
@@ -890,7 +905,10 @@ Definition ox_flow_internal_groupByImpl_package : tree :=
                             [
                               (Select
                                 (This "ox.flow.internal.groupByImpl$package$._$GroupByState#5")
-                                (Member "ox.flow.internal.groupByImpl$package$._$GroupByState#5" "copy$default$1" ":"));
+                                (Member
+                                  "ox.flow.internal.groupByImpl$package$._$GroupByState#5"
+                                  "copy$default$1"
+                                  ":scala.Boolean"));
                               (NamedArg
                                 "pendingFromParent"
                                 (Apply
@@ -921,13 +939,22 @@ Definition ox_flow_internal_groupByImpl_package : tree :=
                                       [(Ident (Local "t" 30)); (Ident (Local "v" 31)); (Ident (Local "counter" 32))])]));
                               (Select
                                 (This "ox.flow.internal.groupByImpl$package$._$GroupByState#5")
-                                (Member "ox.flow.internal.groupByImpl$package$._$GroupByState#5" "copy$default$3" ":"));
+                                (Member
+                                  "ox.flow.internal.groupByImpl$package$._$GroupByState#5"
+                                  "copy$default$3"
+                                  ":scala.collection.immutable.Map"));
                               (Select
                                 (This "ox.flow.internal.groupByImpl$package$._$GroupByState#5")
-                                (Member "ox.flow.internal.groupByImpl$package$._$GroupByState#5" "copy$default$4" ":"));
+                                (Member
+                                  "ox.flow.internal.groupByImpl$package$._$GroupByState#5"
+                                  "copy$default$4"
+                                  ":scala.Long"));
                               (Select
                                 (This "ox.flow.internal.groupByImpl$package$._$GroupByState#5")
-                                (Member "ox.flow.internal.groupByImpl$package$._$GroupByState#5" "copy$default$5" ":"))]))
+                                (Member
+                                  "ox.flow.internal.groupByImpl$package$._$GroupByState#5"
+                                  "copy$default$5"
+                                  ":ox.flow.internal.WeightedHeap"))]))
                         []);
                       (DefDef
                         (Member
@@ -949,22 +976,34 @@ Definition ox_flow_internal_groupByImpl_package : tree :=
                               (NamedArg "parentDone" (Ident (Local "done" 33)));
                               (Select
                                 (This "ox.flow.internal.groupByImpl$package$._$GroupByState#5")
-                                (Member "ox.flow.internal.groupByImpl$package$._$GroupByState#5" "copy$default$2" ":"));
+                                (Member
+                                  "ox.flow.internal.groupByImpl$package$._$GroupByState#5"
+                                  "copy$default$2"
+                                  ":scala.Option"));
                               (Select
                                 (This "ox.flow.internal.groupByImpl$package$._$GroupByState#5")
-                                (Member "ox.flow.internal.groupByImpl$package$._$GroupByState#5" "copy$default$3" ":"));
+                                (Member
+                                  "ox.flow.internal.groupByImpl$package$._$GroupByState#5"
+                                  "copy$default$3"
+                                  ":scala.collection.immutable.Map"));
                               (Select
                                 (This "ox.flow.internal.groupByImpl$package$._$GroupByState#5")
-                                (Member "ox.flow.internal.groupByImpl$package$._$GroupByState#5" "copy$default$4" ":"));
+                                (Member
+                                  "ox.flow.internal.groupByImpl$package$._$GroupByState#5"
+                                  "copy$default$4"
+                                  ":scala.Long"));
                               (Select
                                 (This "ox.flow.internal.groupByImpl$package$._$GroupByState#5")
-                                (Member "ox.flow.internal.groupByImpl$package$._$GroupByState#5" "copy$default$5" ":"))]))
+                                (Member
+                                  "ox.flow.internal.groupByImpl$package$._$GroupByState#5"
+                                  "copy$default$5"
+                                  ":ox.flow.internal.WeightedHeap"))]))
                         []);
                       (DefDef
                         (Member
                           "ox.flow.internal.groupByImpl$package$._$GroupByState#5"
                           "withFromParentCounterIncremented"
-                          ":")
+                          ":ox.flow.internal.groupByImpl$package$._$GroupByState")
                         ["Method"]
                         []
                         (TyRef "ox.flow.internal.groupByImpl$package$._$GroupByState#5")
@@ -995,7 +1034,7 @@ Definition ox_flow_internal_groupByImpl_package : tree :=
                                     (Member
                                       "ox.flow.internal.groupByImpl$package$._$GroupByState#5"
                                       "copy$default$1"
-                                      ":"))));
+                                      ":scala.Boolean"))));
                               (ValDef
                                 (Local "pendingFromParent$3" 36)
                                 ["Synthetic"]
@@ -1016,7 +1055,7 @@ Definition ox_flow_internal_groupByImpl_package : tree :=
                                     (Member
                                       "ox.flow.internal.groupByImpl$package$._$GroupByState#5"
                                       "copy$default$2"
-                                      ":"))));
+                                      ":scala.Option"))));
                               (ValDef
                                 (Local "children$3" 37)
                                 ["Synthetic"]
@@ -1035,7 +1074,7 @@ Definition ox_flow_internal_groupByImpl_package : tree :=
                                     (Member
                                       "ox.flow.internal.groupByImpl$package$._$GroupByState#5"
                                       "copy$default$3"
-                                      ":"))));
+                                      ":scala.collection.immutable.Map"))));
                               (ValDef
                                 (Local "childMostRecentCounters$3" 38)
                                 ["Synthetic"]
@@ -1050,7 +1089,7 @@ Definition ox_flow_internal_groupByImpl_package : tree :=
                                     (Member
                                       "ox.flow.internal.groupByImpl$package$._$GroupByState#5"
                                       "copy$default$5"
-                                      ":"))))]
+                                      ":ox.flow.internal.WeightedHeap"))))]
                             (Apply
                               (Select
                                 (This "ox.flow.internal.groupByImpl$package$._$GroupByState#5")
@@ -1112,7 +1151,7 @@ Definition ox_flow_internal_groupByImpl_package : tree :=
                                     (Member
                                       "ox.flow.internal.groupByImpl$package$._$GroupByState#5"
                                       "copy$default$1"
-                                      ":"))));
+                                      ":scala.Boolean"))));
                               (ValDef
                                 (Local "pendingFromParent$4" 43)
                                 ["Synthetic"]
@@ -1133,7 +1172,7 @@ Definition ox_flow_internal_groupByImpl_package : tree :=
                                     (Member
                                       "ox.flow.internal.groupByImpl$package$._$GroupByState#5"
                                       "copy$default$2"
-                                      ":"))));
+                                      ":scala.Option"))));
                               (ValDef
                                 (Local "children$4" 44)
                                 ["Synthetic"]
@@ -1152,7 +1191,7 @@ Definition ox_flow_internal_groupByImpl_package : tree :=
                                     (Member
                                       "ox.flow.internal.groupByImpl$package$._$GroupByState#5"
                                       "copy$default$3"
-                                      ":"))));
+                                      ":scala.collection.immutable.Map"))));
                               (ValDef
                                 (Local "fromParentCounter$4" 45)
                                 ["Synthetic"]
@@ -1163,7 +1202,7 @@ Definition ox_flow_internal_groupByImpl_package : tree :=
                                     (Member
                                       "ox.flow.internal.groupByImpl$package$._$GroupByState#5"
                                       "copy$default$4"
-                                      ":"))))]
+                                      ":scala.Long"))))]
                             (Apply
                               (Select
                                 (This "ox.flow.internal.groupByImpl$package$._$GroupByState#5")
@@ -1182,7 +1221,7 @@ Definition ox_flow_internal_groupByImpl_package : tree :=
                         (Member
                           "ox.flow.internal.groupByImpl$package$._$GroupByState#5"
                           "withoutLongestInactiveChild"
-                          ":")
+                          ":scala.Tuple2")
                         ["Method"]
                         []
                         (TyApp
@@ -1355,29 +1394,32 @@ Definition ox_flow_internal_groupByImpl_package : tree :=
                                       (Member
                                         "ox.flow.internal.groupByImpl$package$._$GroupByState#5"
                                         "copy$default$1"
-                                        ":"));
+                                        ":scala.Boolean"));
                                     (Select
                                       (This "ox.flow.internal.groupByImpl$package$._$GroupByState#5")
                                       (Member
                                         "ox.flow.internal.groupByImpl$package$._$GroupByState#5"
                                         "copy$default$2"
-                                        ":"));
+                                        ":scala.Option"));
                                     (Select
                                       (This "ox.flow.internal.groupByImpl$package$._$GroupByState#5")
                                       (Member
                                         "ox.flow.internal.groupByImpl$package$._$GroupByState#5"
                                         "copy$default$3"
-                                        ":"));
+                                        ":scala.collection.immutable.Map"));
                                     (Select
                                       (This "ox.flow.internal.groupByImpl$package$._$GroupByState#5")
                                       (Member
                                         "ox.flow.internal.groupByImpl$package$._$GroupByState#5"
                                         "copy$default$4"
-                                        ":"));
+                                        ":scala.Long"));
                                     (NamedArg "childMostRecentCounters" (Ident (Local "counters2" 51)))])])))
                         []);
                       (DefDef
-                        (Member "ox.flow.internal.groupByImpl$package$._$GroupByState#5" "elementsCanBeReceived" ":")
+                        (Member
+                          "ox.flow.internal.groupByImpl$package$._$GroupByState#5"
+                          "elementsCanBeReceived"
+                          ":scala.Boolean")
                         ["Method"]
                         []
                         (TyRef "scala.Boolean")
@@ -1388,18 +1430,18 @@ Definition ox_flow_internal_groupByImpl_package : tree :=
                                 (Select
                                   (Ident
                                     (Member "ox.flow.internal.groupByImpl$package$._$GroupByState#5" "children" ""))
-                                  (Member "scala.collection.IterableOnceOps" "isEmpty" ":"))
+                                  (Member "scala.collection.IterableOnceOps" "isEmpty" ":scala.Boolean"))
                                 (Member "scala.Boolean" "&&" "scala.Boolean:scala.Boolean"))
                               [
                                 (Ident
                                   (Member "ox.flow.internal.groupByImpl$package$._$GroupByState#5" "parentDone" ""))])
-                            (Member "scala.Boolean" "unary_!" ":")))
+                            (Member "scala.Boolean" "unary_!" ":scala.Boolean")))
                         []);
                       (DefDef
                         (Member
                           "ox.flow.internal.groupByImpl$package$._$GroupByState#5"
                           "shouldReceiveFromParentChannel"
-                          ":")
+                          ":scala.Boolean")
                         ["Method"]
                         []
                         (TyRef "scala.Boolean")
@@ -1416,7 +1458,7 @@ Definition ox_flow_internal_groupByImpl_package : tree :=
                                     "ox.flow.internal.groupByImpl$package$._$GroupByState#5"
                                     "pendingFromParent"
                                     ""))
-                                (Member "scala.Option" "isDefined" ":"))]))
+                                (Member "scala.Option" "isDefined" ":scala.Boolean"))]))
                         []);
                       (DefDef
                         (Member
@@ -1476,7 +1518,10 @@ Definition ox_flow_internal_groupByImpl_package : tree :=
                               (Ident (Local "childMostRecentCounters" 58))]))
                         []);
                       (DefDef
-                        (Member "ox.flow.internal.groupByImpl$package$._$GroupByState#5" "copy$default$1" ":")
+                        (Member
+                          "ox.flow.internal.groupByImpl$package$._$GroupByState#5"
+                          "copy$default$1"
+                          ":scala.Boolean")
                         ["Method"; "Synthetic"]
                         []
                         (TyAnnot (TyRef "scala.Boolean") "scala.annotation.unchecked.uncheckedVariance")
@@ -1484,7 +1529,10 @@ Definition ox_flow_internal_groupByImpl_package : tree :=
                           (Ident (Member "ox.flow.internal.groupByImpl$package$._$GroupByState#5" "parentDone" "")))
                         []);
                       (DefDef
-                        (Member "ox.flow.internal.groupByImpl$package$._$GroupByState#5" "copy$default$2" ":")
+                        (Member
+                          "ox.flow.internal.groupByImpl$package$._$GroupByState#5"
+                          "copy$default$2"
+                          ":scala.Option")
                         ["Method"; "Synthetic"]
                         []
                         (TyAnnot
@@ -1503,7 +1551,10 @@ Definition ox_flow_internal_groupByImpl_package : tree :=
                             (Member "ox.flow.internal.groupByImpl$package$._$GroupByState#5" "pendingFromParent" "")))
                         []);
                       (DefDef
-                        (Member "ox.flow.internal.groupByImpl$package$._$GroupByState#5" "copy$default$3" ":")
+                        (Member
+                          "ox.flow.internal.groupByImpl$package$._$GroupByState#5"
+                          "copy$default$3"
+                          ":scala.collection.immutable.Map")
                         ["Method"; "Synthetic"]
                         []
                         (TyAnnot
@@ -1518,7 +1569,10 @@ Definition ox_flow_internal_groupByImpl_package : tree :=
                         (Some (Ident (Member "ox.flow.internal.groupByImpl$package$._$GroupByState#5" "children" "")))
                         []);
                       (DefDef
-                        (Member "ox.flow.internal.groupByImpl$package$._$GroupByState#5" "copy$default$4" ":")
+                        (Member
+                          "ox.flow.internal.groupByImpl$package$._$GroupByState#5"
+                          "copy$default$4"
+                          ":scala.Long")
                         ["Method"; "Synthetic"]
                         []
                         (TyAnnot (TyRef "scala.Long") "scala.annotation.unchecked.uncheckedVariance")
@@ -1527,7 +1581,10 @@ Definition ox_flow_internal_groupByImpl_package : tree :=
                             (Member "ox.flow.internal.groupByImpl$package$._$GroupByState#5" "fromParentCounter" "")))
                         []);
                       (DefDef
-                        (Member "ox.flow.internal.groupByImpl$package$._$GroupByState#5" "copy$default$5" ":")
+                        (Member
+                          "ox.flow.internal.groupByImpl$package$._$GroupByState#5"
+                          "copy$default$5"
+                          ":ox.flow.internal.WeightedHeap")
                         ["Method"; "Synthetic"]
                         []
                         (TyAnnot
@@ -1543,7 +1600,7 @@ Definition ox_flow_internal_groupByImpl_package : tree :=
                               "")))
                         []);
                       (DefDef
-                        (Member "ox.flow.internal.groupByImpl$package$._$GroupByState#5" "_1" ":")
+                        (Member "ox.flow.internal.groupByImpl$package$._$GroupByState#5" "_1" ":scala.Boolean")
                         ["Method"; "Synthetic"]
                         []
                         (TyRef "scala.Boolean")
@@ -1553,7 +1610,7 @@ Definition ox_flow_internal_groupByImpl_package : tree :=
                             (Member "ox.flow.internal.groupByImpl$package$._$GroupByState#5" "parentDone" "")))
                         []);
                       (DefDef
-                        (Member "ox.flow.internal.groupByImpl$package$._$GroupByState#5" "_2" ":")
+                        (Member "ox.flow.internal.groupByImpl$package$._$GroupByState#5" "_2" ":scala.Option")
                         ["Method"; "Synthetic"]
                         []
                         (TyApp
@@ -1571,7 +1628,10 @@ Definition ox_flow_internal_groupByImpl_package : tree :=
                             (Member "ox.flow.internal.groupByImpl$package$._$GroupByState#5" "pendingFromParent" "")))
                         []);
                       (DefDef
-                        (Member "ox.flow.internal.groupByImpl$package$._$GroupByState#5" "_3" ":")
+                        (Member
+                          "ox.flow.internal.groupByImpl$package$._$GroupByState#5"
+                          "_3"
+                          ":scala.collection.immutable.Map")
                         ["Method"; "Synthetic"]
                         []
                         (TyApp
@@ -1587,7 +1647,7 @@ Definition ox_flow_internal_groupByImpl_package : tree :=
                             (Member "ox.flow.internal.groupByImpl$package$._$GroupByState#5" "children" "")))
                         []);
                       (DefDef
-                        (Member "ox.flow.internal.groupByImpl$package$._$GroupByState#5" "_4" ":")
+                        (Member "ox.flow.internal.groupByImpl$package$._$GroupByState#5" "_4" ":scala.Long")
                         ["Method"; "Synthetic"]
                         []
                         (TyRef "scala.Long")
@@ -1597,7 +1657,10 @@ Definition ox_flow_internal_groupByImpl_package : tree :=
                             (Member "ox.flow.internal.groupByImpl$package$._$GroupByState#5" "fromParentCounter" "")))
                         []);
                       (DefDef
-                        (Member "ox.flow.internal.groupByImpl$package$._$GroupByState#5" "_5" ":")
+                        (Member
+                          "ox.flow.internal.groupByImpl$package$._$GroupByState#5"
+                          "_5"
+                          ":ox.flow.internal.WeightedHeap")
                         ["Method"; "Synthetic"]
                         []
                         (TyApp
@@ -1720,7 +1783,10 @@ Definition ox_flow_internal_groupByImpl_package : tree :=
                         (Some (Ident (Local "x$1" 66)))
                         []);
                       (DefDef
-                        (Member "ox.flow.internal.groupByImpl$package$._$GroupByState$#60" "toString" ":")
+                        (Member
+                          "ox.flow.internal.groupByImpl$package$._$GroupByState$#60"
+                          "toString"
+                          ":java.lang.String")
                         ["Method"; "Override"; "Synthetic"]
                         []
                         (TyRef "java.lang.String")
@@ -1954,26 +2020,26 @@ Definition ox_flow_internal_groupByImpl_package : tree :=
                                           (Member
                                             "ox.flow.internal.groupByImpl$package$._$GroupByState#5"
                                             "copy$default$1"
-                                            ":"));
+                                            ":scala.Boolean"));
                                         (NamedArg "pendingFromParent" (Ident (Member "scala" "None" "")));
                                         (Select
                                           (Ident (Local "state" 74))
                                           (Member
                                             "ox.flow.internal.groupByImpl$package$._$GroupByState#5"
                                             "copy$default$3"
-                                            ":"));
+                                            ":scala.collection.immutable.Map"));
                                         (Select
                                           (Ident (Local "state" 74))
                                           (Member
                                             "ox.flow.internal.groupByImpl$package$._$GroupByState#5"
                                             "copy$default$4"
-                                            ":"));
+                                            ":scala.Long"));
                                         (Select
                                           (Ident (Local "state" 74))
                                           (Member
                                             "ox.flow.internal.groupByImpl$package$._$GroupByState#5"
                                             "copy$default$5"
-                                            ":"))]);
+                                            ":ox.flow.internal.WeightedHeap"))]);
                                     (Ident (Local "childOutput" 75));
                                     (Ident (Local "t" 77));
                                     (Ident (Local "v" 78));
@@ -2083,7 +2149,7 @@ Definition ox_flow_internal_groupByImpl_package : tree :=
                                             "ox.flow.internal.groupByImpl$package$._$GroupByState#5"
                                             "children"
                                             ""))
-                                        (Member "scala.collection.IterableOnceOps" "size" ":"))
+                                        (Member "scala.collection.IterableOnceOps" "size" ":scala.Int"))
                                       (Member "scala.Int" "<" "scala.Int:scala.Boolean"))
                                     [(Ident (Local "parallelism" 1))]))
                                 (Block
@@ -2313,7 +2379,7 @@ Definition ox_flow_internal_groupByImpl_package : tree :=
                                                     ""))
                                                 (Member "scala.Any" "==" "java.lang.Object:scala.Boolean"))
                                               [(Ident (Member "scala" "None" ""))]))
-                                          (Member "scala.Boolean" "unary_!" ":"))
+                                          (Member "scala.Boolean" "unary_!" ":scala.Boolean"))
                                         (Apply
                                           (Select
                                             (Select
@@ -2362,7 +2428,7 @@ Definition ox_flow_internal_groupByImpl_package : tree :=
                                               (Member
                                                 "ox.flow.internal.groupByImpl$package$._$GroupByState#5"
                                                 "withoutLongestInactiveChild"
-                                                ":"))])
+                                                ":scala.Tuple2"))])
                                         [(TyRef "ox.flow.internal.groupByImpl$package$._$GroupByState#5")])
                                       [
                                         (Block
@@ -2759,7 +2825,7 @@ Definition ox_flow_internal_groupByImpl_package : tree :=
                                               (Member
                                                 "ox.flow.internal.groupByImpl$package$._$GroupByState#5"
                                                 "elementsCanBeReceived"
-                                                ":"))
+                                                ":scala.Boolean"))
                                             (Block
                                               [
                                                 (Inlined
@@ -2779,10 +2845,13 @@ Definition ox_flow_internal_groupByImpl_package : tree :=
                                                                   "ox.flow.internal.groupByImpl$package$._$GroupByState#5"
                                                                   "children"
                                                                   ""))
-                                                              (Member "scala.collection.IterableOnceOps" "size" ":"))
+                                                              (Member
+                                                                "scala.collection.IterableOnceOps"
+                                                                "size"
+                                                                ":scala.Int"))
                                                             (Member "scala.Int" "<=" "scala.Int:scala.Boolean"))
                                                           [(Ident (Local "parallelism" 1))]))
-                                                      (Member "scala.Boolean" "unary_!" ":"))
+                                                      (Member "scala.Boolean" "unary_!" ":scala.Boolean"))
                                                     (Apply
                                                       (Select
                                                         (Select
@@ -2829,7 +2898,7 @@ Definition ox_flow_internal_groupByImpl_package : tree :=
                                                         (Member
                                                           "ox.flow.internal.groupByImpl$package$._$GroupByState#5"
                                                           "shouldReceiveFromParentChannel"
-                                                          ":"))
+                                                          ":scala.Boolean"))
                                                       (Apply
                                                         (TypeApply
                                                           (Select
@@ -3032,7 +3101,7 @@ Definition ox_flow_internal_groupByImpl_package : tree :=
                                                                     "ox.flow.internal.groupByImpl$package$._$GroupByState#5"
                                                                     "parentDone"
                                                                     "")))
-                                                              (Member "scala.Boolean" "unary_!" ":"))
+                                                              (Member "scala.Boolean" "unary_!" ":scala.Boolean"))
                                                             (Apply
                                                               (Select
                                                                 (Select
@@ -3067,7 +3136,7 @@ Definition ox_flow_internal_groupByImpl_package : tree :=
                                                                 (Member
                                                                   "ox.flow.internal.groupByImpl$package$._$GroupByState#5"
                                                                   "withoutLongestInactiveChild"
-                                                                  ":"))
+                                                                  ":scala.Tuple2"))
                                                               [
                                                                 (CaseDef
                                                                   (Unapply
@@ -3188,7 +3257,10 @@ Definition ox_flow_internal_groupByImpl_package : tree :=
                                                         [
                                                           (Select
                                                             (Ident (Local "e" 115))
-                                                            (Member "ox.channels.ChannelClosed" "toThrowable" ":"))])));
+                                                            (Member
+                                                              "ox.channels.ChannelClosed"
+                                                              "toThrowable"
+                                                              ":java.lang.Throwable"))])));
                                                   (CaseDef
                                                     (TypeTest
                                                       (Unapply
@@ -3225,7 +3297,7 @@ Definition ox_flow_internal_groupByImpl_package : tree :=
                                                             (Member
                                                               "ox.flow.internal.groupByImpl$package$._$GroupByState#5"
                                                               "withFromParentCounterIncremented"
-                                                              ":")))]
+                                                              ":ox.flow.internal.groupByImpl$package$._$GroupByState")))]
                                                       (Assign
                                                         (Ident (Local "state" 108))
                                                         (Apply

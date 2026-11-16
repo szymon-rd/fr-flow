@@ -78,7 +78,7 @@ Definition ox_unsupervised_package : tree :=
                       "1,ox.ForkLocalMap,scala.Function1:java.lang.Object"))
                   [(TyParam "ox.unsupervised$package$.unsupervised" "T")])
                 [
-                  (Ident (Member "ox.internal.ScopeContext$package$" "currentLocals" ":"));
+                  (Ident (Member "ox.internal.ScopeContext$package$" "currentLocals" ":ox.ForkLocalMap"));
                   (Block
                     [
                       (DefDef
@@ -223,7 +223,7 @@ Definition ox_unsupervised_package : tree :=
                                           (Select
                                             (Select
                                               (Ident (Local "capability" 7))
-                                              (Member "ox.OxUnsupervised" "herd" ":"))
+                                              (Member "ox.OxUnsupervised" "herd" ":ox.internal.ThreadHerd"))
                                             (Member
                                               "ox.internal.ThreadHerd"
                                               "interruptAllAndJoinUntilCompleted"
@@ -374,7 +374,9 @@ Definition ox_unsupervised_package : tree :=
                     (Some
                       (Apply
                         (Select
-                          (Select (Ident (Local "scope" 13)) (Member "ox.ResourceScope" "finalizers" ":"))
+                          (Select
+                            (Ident (Local "scope" 13))
+                            (Member "ox.ResourceScope" "finalizers" ":java.util.concurrent.atomic.AtomicReference"))
                           (Member
                             "java.util.concurrent.atomic.AtomicReference"
                             "getAndSet"
@@ -386,7 +388,9 @@ Definition ox_unsupervised_package : tree :=
                     (TyApp (TyRef "scala.collection.immutable.List") [(TyRef "java.lang.Throwable")])
                     (Some
                       (If
-                        (Select (Ident (Local "fs" 20)) (Member "scala.collection.immutable.List" "isEmpty" ":"))
+                        (Select
+                          (Ident (Local "fs" 20))
+                          (Member "scala.collection.immutable.List" "isEmpty" ":scala.Boolean"))
                         (Ident (Member "scala.package$" "Nil" ""))
                         (Apply
                           (TypeApply
@@ -507,7 +511,10 @@ Definition ox_unsupervised_package : tree :=
                         (TyApp
                           (TyRef "scala.util.Right")
                           [(TyRef "java.lang.Throwable"); (TyParam "ox.unsupervised$package$.runFinalizers" "T")]))
-                      (Some (Select (Ident (Local "es" 21)) (Member "scala.collection.immutable.List" "isEmpty" ":")))
+                      (Some
+                        (Select
+                          (Ident (Local "es" 21))
+                          (Member "scala.collection.immutable.List" "isEmpty" ":scala.Boolean")))
                       (Block [] (Typed (Ident (Local "t" 26)) (TyParam "ox.unsupervised$package$.runFinalizers" "T"))));
                     (CaseDef
                       Wildcard

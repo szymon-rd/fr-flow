@@ -69,19 +69,19 @@ Definition ox_Empty : tree :=
                 [(Literal (CClassOf "ox.Empty"))]))
             []);
           (DefDef
-            (Member "ox.Empty$" "productArity" ":")
+            (Member "ox.Empty$" "productArity" ":scala.Int")
             ["Method"; "Override"; "Synthetic"]
             []
             (TyRef "scala.Int")
             (Some (Literal (CInt (0)%Z)))
-            [(Member "scala.Product" "productArity" ":")]);
+            [(Member "scala.Product" "productArity" ":scala.Int")]);
           (DefDef
-            (Member "ox.Empty$" "productPrefix" ":")
+            (Member "ox.Empty$" "productPrefix" ":java.lang.String")
             ["Method"; "Override"; "Synthetic"]
             []
             (TyAlias "scala.Predef$.String" (TyRef "java.lang.String"))
             (Some (Literal (CString "Empty")))
-            [(Member "scala.Product" "productPrefix" ":")]);
+            [(Member "scala.Product" "productPrefix" ":java.lang.String")]);
           (DefDef
             (Member "ox.Empty$" "productElement" "scala.Int:java.lang.Object")
             ["Method"; "Override"; "Synthetic"]
@@ -133,14 +133,14 @@ Definition ox_Empty : tree :=
                           [(Ident (Local "n" 1))])]))]))
             [(Member "scala.Product" "productElementName" "scala.Int:java.lang.String")]);
           (DefDef
-            (Member "ox.Empty$" "backingArrays" ":")
+            (Member "ox.Empty$" "backingArrays" ":scala.collection.immutable.List")
             ["Method"; "Override"]
             []
             (TyApp
               (TyRef "scala.collection.immutable.List")
               [(TyApp (TyRef "scala.IArray$package$.IArray") [(TyRef "scala.Nothing")])])
             (Some (Ident (Member "scala.package$" "Nil" "")))
-            [(Member "ox.Chunk" "backingArrays" ":")]);
+            [(Member "ox.Chunk" "backingArrays" ":scala.collection.immutable.List")]);
           (DefDef
             (Member "ox.Empty$" "apply" "scala.Int:scala.Nothing")
             ["Method"; "Override"]
@@ -191,7 +191,7 @@ Definition ox_Empty : tree :=
               (Member "scala.collection.SeqOps" "apply" "scala.Int:java.lang.Object");
               (Member "scala.Function1" "apply" "java.lang.Object:java.lang.Object")]);
           (DefDef
-            (Member "ox.Empty$" "iterator" ":")
+            (Member "ox.Empty$" "iterator" ":scala.collection.Iterator")
             ["Method"; "Override"]
             []
             (TyApp (TyRef "scala.collection.Iterator") [(TyRef "scala.Nothing")])
@@ -202,15 +202,15 @@ Definition ox_Empty : tree :=
                   (Member "scala.collection.Iterator$" "empty" "1:scala.collection.Iterator"))
                 [(TyRef "scala.Nothing")]))
             [
-              (Member "scala.collection.IndexedSeqOps" "iterator" ":");
-              (Member "scala.collection.IterableOnce" "iterator" ":")]);
+              (Member "scala.collection.IndexedSeqOps" "iterator" ":scala.collection.Iterator");
+              (Member "scala.collection.IterableOnce" "iterator" ":scala.collection.Iterator")]);
           (DefDef
-            (Member "ox.Empty$" "length" ":")
+            (Member "ox.Empty$" "length" ":scala.Int")
             ["Method"; "Override"]
             []
             (TyRef "scala.Int")
             (Some (Literal (CInt (0)%Z)))
-            [(Member "scala.collection.SeqOps" "length" ":")]);
+            [(Member "scala.collection.SeqOps" "length" ":scala.Int")]);
           (DefDef
             (Member "ox.Empty$" "toArray" "1,scala.reflect.ClassTag:java.lang.Object")
             ["Method"; "Override"]

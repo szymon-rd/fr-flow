@@ -152,19 +152,19 @@ Definition ox_flow_internal_FromParent : tree :=
                     "scala.unchecked")]))
             [(Member "scala.Equals" "canEqual" "java.lang.Object:scala.Boolean")]);
           (DefDef
-            (Member "ox.flow.internal.FromParent" "productArity" ":")
+            (Member "ox.flow.internal.FromParent" "productArity" ":scala.Int")
             ["Method"; "Override"; "Synthetic"]
             []
             (TyRef "scala.Int")
             (Some (Literal (CInt (1)%Z)))
-            [(Member "scala.Product" "productArity" ":")]);
+            [(Member "scala.Product" "productArity" ":scala.Int")]);
           (DefDef
-            (Member "ox.flow.internal.FromParent" "productPrefix" ":")
+            (Member "ox.flow.internal.FromParent" "productPrefix" ":java.lang.String")
             ["Method"; "Override"; "Synthetic"]
             []
             (TyAlias "scala.Predef$.String" (TyRef "java.lang.String"))
             (Some (Literal (CString "FromParent")))
-            [(Member "scala.Product" "productPrefix" ":")]);
+            [(Member "scala.Product" "productPrefix" ":java.lang.String")]);
           (DefDef
             (Member "ox.flow.internal.FromParent" "productElement" "scala.Int:java.lang.Object")
             ["Method"; "Override"; "Synthetic"]
@@ -328,7 +328,7 @@ Definition ox_flow_internal_FromParent : tree :=
             (Some (Ident (Local "x$1" 8)))
             []);
           (DefDef
-            (Member "ox.flow.internal.FromParent$" "toString" ":")
+            (Member "ox.flow.internal.FromParent$" "toString" ":java.lang.String")
             ["Method"; "Override"; "Synthetic"]
             []
             (TyRef "java.lang.String")

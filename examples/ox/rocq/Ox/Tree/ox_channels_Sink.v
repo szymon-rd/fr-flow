@@ -43,7 +43,7 @@ Definition ox_channels_Sink : tree :=
             ["Contravariant"; "Deferred"; "Local"; "Param"; "Private"; "PrivateLocal"]
             (TyBounds (TyRef "scala.Nothing") (TyRef "scala.Any")));
           (DefDef
-            (Member "ox.channels.Sink" "delegate" ":")
+            (Member "ox.channels.Sink" "delegate" ":com.softwaremill.jox.Sink")
             ["Deferred"; "Method"; "Protected"]
             []
             (TyApp (TyRef "com.softwaremill.jox.Sink") [(TyRef "scala.Any")])
@@ -140,19 +140,19 @@ Definition ox_channels_Sink : tree :=
                     [(TyAnnot (TyRef "ox.channels.Sink.Sent") "scala.unchecked")]))
                 [(Member "scala.Equals" "canEqual" "java.lang.Object:scala.Boolean")]);
               (DefDef
-                (Member "ox.channels.Sink.Sent" "productArity" ":")
+                (Member "ox.channels.Sink.Sent" "productArity" ":scala.Int")
                 ["Method"; "Override"; "Synthetic"]
                 []
                 (TyRef "scala.Int")
                 (Some (Literal (CInt (0)%Z)))
-                [(Member "scala.Product" "productArity" ":")]);
+                [(Member "scala.Product" "productArity" ":scala.Int")]);
               (DefDef
-                (Member "ox.channels.Sink.Sent" "productPrefix" ":")
+                (Member "ox.channels.Sink.Sent" "productPrefix" ":java.lang.String")
                 ["Method"; "Override"; "Synthetic"]
                 []
                 (TyAlias "scala.Predef$.String" (TyRef "java.lang.String"))
                 (Some (Literal (CString "Sent")))
-                [(Member "scala.Product" "productPrefix" ":")]);
+                [(Member "scala.Product" "productPrefix" ":java.lang.String")]);
               (DefDef
                 (Member "ox.channels.Sink.Sent" "productElement" "scala.Int:java.lang.Object")
                 ["Method"; "Override"; "Synthetic"]
@@ -204,7 +204,7 @@ Definition ox_channels_Sink : tree :=
                               [(Ident (Local "n" 4))])]))]))
                 [(Member "scala.Product" "productElementName" "scala.Int:java.lang.String")]);
               (DefDef
-                (Member "ox.channels.Sink.Sent" "value" ":")
+                (Member "ox.channels.Sink.Sent" "value" ":scala.Unit")
                 ["Method"; "Override"]
                 []
                 (TyRef "scala.Unit")
@@ -271,7 +271,7 @@ Definition ox_channels_Sink : tree :=
                 (Some (Literal (CBool true)))
                 []);
               (DefDef
-                (Member "ox.channels.Sink.Sent$" "toString" ":")
+                (Member "ox.channels.Sink.Sent$" "toString" ":java.lang.String")
                 ["Method"; "Override"; "Synthetic"]
                 []
                 (TyRef "java.lang.String")
@@ -411,19 +411,19 @@ Definition ox_channels_Sink : tree :=
                     [(TyAnnot (TyRef "ox.channels.Sink.Send") "scala.unchecked")]))
                 [(Member "scala.Equals" "canEqual" "java.lang.Object:scala.Boolean")]);
               (DefDef
-                (Member "ox.channels.Sink.Send" "productArity" ":")
+                (Member "ox.channels.Sink.Send" "productArity" ":scala.Int")
                 ["Method"; "Override"; "Synthetic"]
                 []
                 (TyRef "scala.Int")
                 (Some (Literal (CInt (1)%Z)))
-                [(Member "scala.Product" "productArity" ":")]);
+                [(Member "scala.Product" "productArity" ":scala.Int")]);
               (DefDef
-                (Member "ox.channels.Sink.Send" "productPrefix" ":")
+                (Member "ox.channels.Sink.Send" "productPrefix" ":java.lang.String")
                 ["Method"; "Override"; "Synthetic"]
                 []
                 (TyAlias "scala.Predef$.String" (TyRef "java.lang.String"))
                 (Some (Literal (CString "Send")))
-                [(Member "scala.Product" "productPrefix" ":")]);
+                [(Member "scala.Product" "productPrefix" ":java.lang.String")]);
               (DefDef
                 (Member "ox.channels.Sink.Send" "productElement" "scala.Int:java.lang.Object")
                 ["Method"; "Override"; "Synthetic"]
@@ -437,7 +437,9 @@ Definition ox_channels_Sink : tree :=
                       (CaseDef
                         (Literal (CInt (0)%Z))
                         None
-                        (Select (This "ox.channels.Sink.Send") (Member "ox.channels.Sink.Send" "_1" ":")));
+                        (Select
+                          (This "ox.channels.Sink.Send")
+                          (Member "ox.channels.Sink.Send" "_1" ":com.softwaremill.jox.SelectClause")));
                       (CaseDef
                         Wildcard
                         None
@@ -502,7 +504,7 @@ Definition ox_channels_Sink : tree :=
                     [(Ident (Local "delegate" 13))]))
                 []);
               (DefDef
-                (Member "ox.channels.Sink.Send" "copy$default$1" ":")
+                (Member "ox.channels.Sink.Send" "copy$default$1" ":com.softwaremill.jox.SelectClause")
                 ["Method"; "Synthetic"]
                 []
                 (TyAnnot
@@ -511,7 +513,7 @@ Definition ox_channels_Sink : tree :=
                 (Some (Ident (Member "ox.channels.Sink.Send" "delegate" "")))
                 []);
               (DefDef
-                (Member "ox.channels.Sink.Send" "_1" ":")
+                (Member "ox.channels.Sink.Send" "_1" ":com.softwaremill.jox.SelectClause")
                 ["Method"; "Synthetic"]
                 []
                 (TyApp (TyRef "com.softwaremill.jox.SelectClause") [(TyRef "scala.Any")])
@@ -575,7 +577,7 @@ Definition ox_channels_Sink : tree :=
                 (Some (Ident (Local "x$1" 15)))
                 []);
               (DefDef
-                (Member "ox.channels.Sink.Send$" "toString" ":")
+                (Member "ox.channels.Sink.Send$" "toString" ":java.lang.String")
                 ["Method"; "Override"; "Synthetic"]
                 []
                 (TyRef "java.lang.String")
@@ -632,7 +634,9 @@ Definition ox_channels_Sink : tree :=
                       (Select
                         (TypeApply
                           (Select
-                            (Select (This "ox.channels.Sink") (Member "ox.channels.Sink" "delegate" ":"))
+                            (Select
+                              (This "ox.channels.Sink")
+                              (Member "ox.channels.Sink" "delegate" ":com.softwaremill.jox.Sink"))
                             (Member "scala.Any" "asInstanceOf" "1:java.lang.Object"))
                           [(TyApp (TyRef "com.softwaremill.jox.Sink") [(TyParam "ox.channels.Sink" "T")])])
                         (Member
@@ -694,7 +698,9 @@ Definition ox_channels_Sink : tree :=
                         (Select
                           (TypeApply
                             (Select
-                              (Select (This "ox.channels.Sink") (Member "ox.channels.Sink" "delegate" ":"))
+                              (Select
+                                (This "ox.channels.Sink")
+                                (Member "ox.channels.Sink" "delegate" ":com.softwaremill.jox.Sink"))
                               (Member "scala.Any" "asInstanceOf" "1:java.lang.Object"))
                             [(TyApp (TyRef "com.softwaremill.jox.Sink") [(TyParam "ox.channels.Sink" "T")])])
                           (Member "com.softwaremill.jox.Sink" "trySendOrClosed" "java.lang.Object:java.lang.Object"))
@@ -743,7 +749,9 @@ Definition ox_channels_Sink : tree :=
                             (Select
                               (TypeApply
                                 (Select
-                                  (Select (This "ox.channels.Sink") (Member "ox.channels.Sink" "delegate" ":"))
+                                  (Select
+                                    (This "ox.channels.Sink")
+                                    (Member "ox.channels.Sink" "delegate" ":com.softwaremill.jox.Sink"))
                                   (Member "scala.Any" "asInstanceOf" "1:java.lang.Object"))
                                 [(TyApp (TyRef "com.softwaremill.jox.Sink") [(TyParam "ox.channels.Sink" "T")])])
                               (Member "com.softwaremill.jox.Sink" "sendOrClosed" "java.lang.Object:java.lang.Object"))
@@ -793,7 +801,9 @@ Definition ox_channels_Sink : tree :=
                 [
                   (Apply
                     (Select
-                      (Select (This "ox.channels.Sink") (Member "ox.channels.Sink" "delegate" ":"))
+                      (Select
+                        (This "ox.channels.Sink")
+                        (Member "ox.channels.Sink" "delegate" ":com.softwaremill.jox.Sink"))
                       (Member
                         "com.softwaremill.jox.CloseableChannel"
                         "errorOrClosed"
@@ -836,7 +846,9 @@ Definition ox_channels_Sink : tree :=
                 [
                   (Apply
                     (Select
-                      (Select (This "ox.channels.Sink") (Member "ox.channels.Sink" "delegate" ":"))
+                      (Select
+                        (This "ox.channels.Sink")
+                        (Member "ox.channels.Sink" "delegate" ":com.softwaremill.jox.Sink"))
                       (Member "com.softwaremill.jox.CloseableChannel" "doneOrClosed" ":java.lang.Object"))
                     [])]))
             []);
@@ -856,19 +868,21 @@ Definition ox_channels_Sink : tree :=
                     [])]))
             []);
           (DefDef
-            (Member "ox.channels.Sink" "isClosedForSend" ":")
+            (Member "ox.channels.Sink" "isClosedForSend" ":scala.Boolean")
             ["Method"]
             []
             (TyRef "scala.Boolean")
             (Some
               (Apply
                 (Select
-                  (Select (This "ox.channels.Sink") (Member "ox.channels.Sink" "delegate" ":"))
+                  (Select
+                    (This "ox.channels.Sink")
+                    (Member "ox.channels.Sink" "delegate" ":com.softwaremill.jox.Sink"))
                   (Member "com.softwaremill.jox.CloseableChannel" "isClosedForSend" ":scala.Boolean"))
                 []))
             []);
           (DefDef
-            (Member "ox.channels.Sink" "isClosedForSendDetail" ":")
+            (Member "ox.channels.Sink" "isClosedForSendDetail" ":scala.Option")
             ["Method"]
             []
             (TyApp (TyRef "scala.Option") [(TyRef "ox.channels.ChannelClosed")])
@@ -889,7 +903,9 @@ Definition ox_channels_Sink : tree :=
                     [
                       (Apply
                         (Select
-                          (Select (This "ox.channels.Sink") (Member "ox.channels.Sink" "delegate" ":"))
+                          (Select
+                            (This "ox.channels.Sink")
+                            (Member "ox.channels.Sink" "delegate" ":com.softwaremill.jox.Sink"))
                           (Member
                             "com.softwaremill.jox.CloseableChannel"
                             "closedForSend"

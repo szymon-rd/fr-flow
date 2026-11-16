@@ -171,19 +171,19 @@ Definition ox_resilience_TokenBucket : tree :=
                 [(TyAnnot (TyRef "ox.resilience.TokenBucket") "scala.unchecked")]))
             [(Member "scala.Equals" "canEqual" "java.lang.Object:scala.Boolean")]);
           (DefDef
-            (Member "ox.resilience.TokenBucket" "productArity" ":")
+            (Member "ox.resilience.TokenBucket" "productArity" ":scala.Int")
             ["Method"; "Override"; "Synthetic"]
             []
             (TyRef "scala.Int")
             (Some (Literal (CInt (2)%Z)))
-            [(Member "scala.Product" "productArity" ":")]);
+            [(Member "scala.Product" "productArity" ":scala.Int")]);
           (DefDef
-            (Member "ox.resilience.TokenBucket" "productPrefix" ":")
+            (Member "ox.resilience.TokenBucket" "productPrefix" ":java.lang.String")
             ["Method"; "Override"; "Synthetic"]
             []
             (TyAlias "scala.Predef$.String" (TyRef "java.lang.String"))
             (Some (Literal (CString "TokenBucket")))
-            [(Member "scala.Product" "productPrefix" ":")]);
+            [(Member "scala.Product" "productPrefix" ":java.lang.String")]);
           (DefDef
             (Member "ox.resilience.TokenBucket" "productElement" "scala.Int:java.lang.Object")
             ["Method"; "Override"; "Synthetic"]
@@ -197,11 +197,13 @@ Definition ox_resilience_TokenBucket : tree :=
                   (CaseDef
                     (Literal (CInt (0)%Z))
                     None
-                    (Select (This "ox.resilience.TokenBucket") (Member "ox.resilience.TokenBucket" "_1" ":")));
+                    (Select (This "ox.resilience.TokenBucket") (Member "ox.resilience.TokenBucket" "_1" ":scala.Int")));
                   (CaseDef
                     (Literal (CInt (1)%Z))
                     None
-                    (Select (This "ox.resilience.TokenBucket") (Member "ox.resilience.TokenBucket" "_2" ":")));
+                    (Select
+                      (This "ox.resilience.TokenBucket")
+                      (Member "ox.resilience.TokenBucket" "_2" ":scala.Option")));
                   (CaseDef
                     Wildcard
                     None
@@ -352,14 +354,14 @@ Definition ox_resilience_TokenBucket : tree :=
                 [(Ident (Local "bucketSize" 13)); (Ident (Local "initSize" 14))]))
             []);
           (DefDef
-            (Member "ox.resilience.TokenBucket" "copy$default$1" ":")
+            (Member "ox.resilience.TokenBucket" "copy$default$1" ":scala.Int")
             ["Method"; "Synthetic"]
             []
             (TyAnnot (TyRef "scala.Int") "scala.annotation.unchecked.uncheckedVariance")
             (Some (Ident (Member "ox.resilience.TokenBucket" "bucketSize" "")))
             []);
           (DefDef
-            (Member "ox.resilience.TokenBucket" "copy$default$2" ":")
+            (Member "ox.resilience.TokenBucket" "copy$default$2" ":scala.Option")
             ["Method"; "Synthetic"]
             []
             (TyAnnot
@@ -368,14 +370,14 @@ Definition ox_resilience_TokenBucket : tree :=
             (Some (Ident (Member "ox.resilience.TokenBucket" "initSize" "")))
             []);
           (DefDef
-            (Member "ox.resilience.TokenBucket" "_1" ":")
+            (Member "ox.resilience.TokenBucket" "_1" ":scala.Int")
             ["Method"; "Synthetic"]
             []
             (TyRef "scala.Int")
             (Some (Select (This "ox.resilience.TokenBucket") (Member "ox.resilience.TokenBucket" "bucketSize" "")))
             []);
           (DefDef
-            (Member "ox.resilience.TokenBucket" "_2" ":")
+            (Member "ox.resilience.TokenBucket" "_2" ":scala.Option")
             ["Method"; "Synthetic"]
             []
             (TyApp (TyRef "scala.Option") [(TyRef "scala.Int")])
@@ -452,14 +454,14 @@ Definition ox_resilience_TokenBucket : tree :=
             (Some (Ident (Local "x$1" 17)))
             []);
           (DefDef
-            (Member "ox.resilience.TokenBucket$" "toString" ":")
+            (Member "ox.resilience.TokenBucket$" "toString" ":java.lang.String")
             ["Method"; "Override"; "Synthetic"]
             []
             (TyRef "java.lang.String")
             (Some (Literal (CString "TokenBucket")))
             [(Member "scala.Any" "toString" ":java.lang.String")]);
           (DefDef
-            (Member "ox.resilience.TokenBucket$" "$lessinit$greater$default$2" ":")
+            (Member "ox.resilience.TokenBucket$" "$lessinit$greater$default$2" ":scala.Option")
             ["Method"]
             []
             (TyAnnot

@@ -39,7 +39,7 @@ Definition ox_ResourceScope : tree :=
         None
         [
           (DefDef
-            (Member "ox.ResourceScope" "finalizers" ":")
+            (Member "ox.ResourceScope" "finalizers" ":java.util.concurrent.atomic.AtomicReference")
             ["Deferred"; "Method"]
             []
             (TyApp
@@ -66,7 +66,9 @@ Definition ox_ResourceScope : tree :=
                 [
                   (Apply
                     (Select
-                      (Select (This "ox.ResourceScope") (Member "ox.ResourceScope" "finalizers" ":"))
+                      (Select
+                        (This "ox.ResourceScope")
+                        (Member "ox.ResourceScope" "finalizers" ":java.util.concurrent.atomic.AtomicReference"))
                       (Member
                         "java.util.concurrent.atomic.AtomicReference"
                         "updateAndGet"

@@ -484,7 +484,10 @@ Definition ox_util_package : tree :=
                   (Select
                     (Ident (Member "java.lang" "Thread" ""))
                     (Member "java.lang.Thread$" "sleep" "scala.Long:scala.Unit"))
-                  [(Select (Ident (Local "howLong" 26)) (Member "scala.concurrent.duration.Duration" "toMillis" ":"))])
+                  [
+                    (Select
+                      (Ident (Local "howLong" 26))
+                      (Member "scala.concurrent.duration.Duration" "toMillis" ":scala.Long"))])
                 (TyRef "scala.Unit")))
             []);
           (DefDef
@@ -538,7 +541,10 @@ Definition ox_util_package : tree :=
                               (Apply
                                 (Select (Ident (Local "after" 30)) (Member "scala.Long" "-" "scala.Long:scala.Long"))
                                 [(Ident (Local "before" 28))])])
-                          (Member "scala.concurrent.duration.DurationConversions" "nanos" ":"))))]
+                          (Member
+                            "scala.concurrent.duration.DurationConversions"
+                            "nanos"
+                            ":scala.concurrent.duration.FiniteDuration"))))]
                   (Apply
                     (TypeApply
                       (Select
@@ -643,7 +649,10 @@ Definition ox_util_package : tree :=
                           (Select
                             (Select
                               (Select (Ident (Local "qctx" 37)) (Member "scala.quoted.Quotes" "reflect" ""))
-                              (Member "scala.quoted.Quotes.reflectModule" "TreeMethods" ":"))
+                              (Member
+                                "scala.quoted.Quotes.reflectModule"
+                                "TreeMethods"
+                                ":scala.quoted.Quotes.reflectModule.TreeMethods"))
                             (Member
                               "scala.quoted.Quotes.reflectModule.TreeMethods"
                               "show"
@@ -662,7 +671,10 @@ Definition ox_util_package : tree :=
                             (Select
                               (Select (Ident (Local "qctx" 37)) (Member "scala.quoted.Quotes" "reflect" ""))
                               (Member "scala.quoted.Quotes.reflectModule" "Printer" ""))
-                            (Member "scala.quoted.Quotes.reflectModule.PrinterModule" "TreeShortCode" ":"))])))]
+                            (Member
+                              "scala.quoted.Quotes.reflectModule.PrinterModule"
+                              "TreeShortCode"
+                              ":scala.quoted.Quotes.reflectModule.Printer"))])))]
                 (Apply
                   (Select
                     (Apply

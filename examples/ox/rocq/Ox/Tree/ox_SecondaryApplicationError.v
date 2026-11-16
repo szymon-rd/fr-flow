@@ -129,19 +129,19 @@ Definition ox_SecondaryApplicationError : tree :=
                     "scala.unchecked")]))
             [(Member "scala.Equals" "canEqual" "java.lang.Object:scala.Boolean")]);
           (DefDef
-            (Member "ox.SecondaryApplicationError" "productArity" ":")
+            (Member "ox.SecondaryApplicationError" "productArity" ":scala.Int")
             ["Method"; "Override"; "Synthetic"]
             []
             (TyRef "scala.Int")
             (Some (Literal (CInt (1)%Z)))
-            [(Member "scala.Product" "productArity" ":")]);
+            [(Member "scala.Product" "productArity" ":scala.Int")]);
           (DefDef
-            (Member "ox.SecondaryApplicationError" "productPrefix" ":")
+            (Member "ox.SecondaryApplicationError" "productPrefix" ":java.lang.String")
             ["Method"; "Override"; "Synthetic"]
             []
             (TyAlias "scala.Predef$.String" (TyRef "java.lang.String"))
             (Some (Literal (CString "SecondaryApplicationError")))
-            [(Member "scala.Product" "productPrefix" ":")]);
+            [(Member "scala.Product" "productPrefix" ":java.lang.String")]);
           (DefDef
             (Member "ox.SecondaryApplicationError" "productElement" "scala.Int:java.lang.Object")
             ["Method"; "Override"; "Synthetic"]
@@ -307,7 +307,7 @@ Definition ox_SecondaryApplicationError : tree :=
             (Some (Ident (Local "x$1" 8)))
             []);
           (DefDef
-            (Member "ox.SecondaryApplicationError$" "toString" ":")
+            (Member "ox.SecondaryApplicationError$" "toString" ":java.lang.String")
             ["Method"; "Override"; "Synthetic"]
             []
             (TyRef "java.lang.String")

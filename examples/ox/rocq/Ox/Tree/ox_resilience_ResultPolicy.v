@@ -180,19 +180,19 @@ Definition ox_resilience_ResultPolicy : tree :=
                     "scala.unchecked")]))
             [(Member "scala.Equals" "canEqual" "java.lang.Object:scala.Boolean")]);
           (DefDef
-            (Member "ox.resilience.ResultPolicy" "productArity" ":")
+            (Member "ox.resilience.ResultPolicy" "productArity" ":scala.Int")
             ["Method"; "Override"; "Synthetic"]
             []
             (TyRef "scala.Int")
             (Some (Literal (CInt (2)%Z)))
-            [(Member "scala.Product" "productArity" ":")]);
+            [(Member "scala.Product" "productArity" ":scala.Int")]);
           (DefDef
-            (Member "ox.resilience.ResultPolicy" "productPrefix" ":")
+            (Member "ox.resilience.ResultPolicy" "productPrefix" ":java.lang.String")
             ["Method"; "Override"; "Synthetic"]
             []
             (TyAlias "scala.Predef$.String" (TyRef "java.lang.String"))
             (Some (Literal (CString "ResultPolicy")))
-            [(Member "scala.Product" "productPrefix" ":")]);
+            [(Member "scala.Product" "productPrefix" ":java.lang.String")]);
           (DefDef
             (Member "ox.resilience.ResultPolicy" "productElement" "scala.Int:java.lang.Object")
             ["Method"; "Override"; "Synthetic"]
@@ -206,11 +206,15 @@ Definition ox_resilience_ResultPolicy : tree :=
                   (CaseDef
                     (Literal (CInt (0)%Z))
                     None
-                    (Select (This "ox.resilience.ResultPolicy") (Member "ox.resilience.ResultPolicy" "_1" ":")));
+                    (Select
+                      (This "ox.resilience.ResultPolicy")
+                      (Member "ox.resilience.ResultPolicy" "_1" ":scala.Function1")));
                   (CaseDef
                     (Literal (CInt (1)%Z))
                     None
-                    (Select (This "ox.resilience.ResultPolicy") (Member "ox.resilience.ResultPolicy" "_2" ":")));
+                    (Select
+                      (This "ox.resilience.ResultPolicy")
+                      (Member "ox.resilience.ResultPolicy" "_2" ":scala.Function1")));
                   (CaseDef
                     Wildcard
                     None
@@ -317,14 +321,14 @@ Definition ox_resilience_ResultPolicy : tree :=
             (Some (Ident (Member "ox.resilience.ResultPolicy" "isWorthRetrying" "")))
             []);
           (DefDef
-            (Member "ox.resilience.ResultPolicy" "_1" ":")
+            (Member "ox.resilience.ResultPolicy" "_1" ":scala.Function1")
             ["Method"; "Synthetic"]
             []
             (TyApp (TyRef "scala.Function1") [(TyParam "ox.resilience.ResultPolicy" "T"); (TyRef "scala.Boolean")])
             (Some (Select (This "ox.resilience.ResultPolicy") (Member "ox.resilience.ResultPolicy" "isSuccess" "")))
             []);
           (DefDef
-            (Member "ox.resilience.ResultPolicy" "_2" ":")
+            (Member "ox.resilience.ResultPolicy" "_2" ":scala.Function1")
             ["Method"; "Synthetic"]
             []
             (TyApp (TyRef "scala.Function1") [(TyParam "ox.resilience.ResultPolicy" "E"); (TyRef "scala.Boolean")])

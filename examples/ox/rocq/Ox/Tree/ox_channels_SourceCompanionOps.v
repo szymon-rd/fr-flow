@@ -140,7 +140,10 @@ Definition ox_channels_SourceCompanionOps : tree :=
                         "fromIterator"
                         "1,scala.Function0,ox.Ox,scala.Int:ox.channels.Source"))
                     [(TyParam "ox.channels.SourceCompanionOps.fromIterable" "T")])
-                  [(Select (Ident (Local "it" 3)) (Member "scala.collection.IterableOnce" "iterator" ":"))])
+                  [
+                    (Select
+                      (Ident (Local "it" 3))
+                      (Member "scala.collection.IterableOnce" "iterator" ":scala.collection.Iterator"))])
                 [(Ident (Local "x$2" 4)); (Ident (Local "x$3" 5))]))
             []);
           (DefDef
@@ -180,7 +183,10 @@ Definition ox_channels_SourceCompanionOps : tree :=
                         "fromIterator"
                         "1,scala.Function0,ox.Ox,scala.Int:ox.channels.Source"))
                     [(TyParam "ox.channels.SourceCompanionOps.fromValues" "T")])
-                  [(Select (Ident (Local "ts" 6)) (Member "scala.collection.IterableOnce" "iterator" ":"))])
+                  [
+                    (Select
+                      (Ident (Local "ts" 6))
+                      (Member "scala.collection.IterableOnce" "iterator" ":scala.collection.Iterator"))])
                 [(Ident (Local "x$2" 7)); (Ident (Local "x$3" 8))]))
             []);
           (DefDef

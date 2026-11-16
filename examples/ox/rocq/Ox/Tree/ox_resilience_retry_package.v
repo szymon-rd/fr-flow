@@ -102,7 +102,7 @@ Definition ox_resilience_retry_package : tree :=
                                 (Member "scala.util.Try$" "apply" "1,scala.Function0:scala.util.Try"))
                               [(TyParam "ox.resilience.retry$package$.retry" "T")])
                             [(Ident (Local "operation" 1))])
-                          (Member "scala.util.Try" "toEither" ":"))])
+                          (Member "scala.util.Try" "toEither" ":scala.util.Either"))])
                     (Member "scala.util.Either" "fold" "1,scala.Function1,scala.Function1:java.lang.Object"))
                   [(TyParam "ox.resilience.retry$package$.retry" "T")])
                 [
@@ -392,7 +392,10 @@ Definition ox_resilience_retry_package : tree :=
                         (TyParam "ox.resilience.retry$package$.retryWithErrorMode" "F");
                         (TyParam "ox.resilience.retry$package$.retryWithErrorMode" "T")])
                     [(Ident (Local "em" 12))])
-                  [(Select (Ident (Local "config" 13)) (Member "ox.resilience.RetryConfig" "toScheduledConfig" ":"))])
+                  [
+                    (Select
+                      (Ident (Local "config" 13))
+                      (Member "ox.resilience.RetryConfig" "toScheduledConfig" ":ox.scheduling.ScheduledConfig"))])
                 [(Ident (Local "operation" 14))]))
             []);
           (DefDef

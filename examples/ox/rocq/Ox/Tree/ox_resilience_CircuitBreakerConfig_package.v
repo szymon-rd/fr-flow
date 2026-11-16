@@ -176,7 +176,7 @@ Definition ox_resilience_CircuitBreakerConfig_package : tree :=
                                   (Apply
                                     (Select (Ident (Local "c" 3)) (Member "scala.Int" "<=" "scala.Int:scala.Boolean"))
                                     [(Literal (CInt (100)%Z))])]))
-                            (Member "scala.Boolean" "unary_!" ":"))
+                            (Member "scala.Boolean" "unary_!" ":scala.Boolean"))
                           (Apply
                             (Select
                               (Select

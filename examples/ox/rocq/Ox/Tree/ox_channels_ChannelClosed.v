@@ -34,7 +34,7 @@ Definition ox_channels_ChannelClosed : tree :=
         None
         [
           (DefDef
-            (Member "ox.channels.ChannelClosed" "toThrowable" ":")
+            (Member "ox.channels.ChannelClosed" "toThrowable" ":java.lang.Throwable")
             ["Method"]
             []
             (TyAlias "scala.package$.Throwable" (TyRef "java.lang.Throwable"))
@@ -259,19 +259,19 @@ Definition ox_channels_ChannelClosed : tree :=
                     [(TyAnnot (TyRef "ox.channels.ChannelClosed$.Error") "scala.unchecked")]))
                 [(Member "scala.Equals" "canEqual" "java.lang.Object:scala.Boolean")]);
               (DefDef
-                (Member "ox.channels.ChannelClosed$.Error" "productArity" ":")
+                (Member "ox.channels.ChannelClosed$.Error" "productArity" ":scala.Int")
                 ["Method"; "Override"; "Synthetic"]
                 []
                 (TyRef "scala.Int")
                 (Some (Literal (CInt (1)%Z)))
-                [(Member "scala.Product" "productArity" ":")]);
+                [(Member "scala.Product" "productArity" ":scala.Int")]);
               (DefDef
-                (Member "ox.channels.ChannelClosed$.Error" "productPrefix" ":")
+                (Member "ox.channels.ChannelClosed$.Error" "productPrefix" ":java.lang.String")
                 ["Method"; "Override"; "Synthetic"]
                 []
                 (TyAlias "scala.Predef$.String" (TyRef "java.lang.String"))
                 (Some (Literal (CString "Error")))
-                [(Member "scala.Product" "productPrefix" ":")]);
+                [(Member "scala.Product" "productPrefix" ":java.lang.String")]);
               (DefDef
                 (Member "ox.channels.ChannelClosed$.Error" "productElement" "scala.Int:java.lang.Object")
                 ["Method"; "Override"; "Synthetic"]
@@ -287,7 +287,7 @@ Definition ox_channels_ChannelClosed : tree :=
                         None
                         (Select
                           (This "ox.channels.ChannelClosed$.Error")
-                          (Member "ox.channels.ChannelClosed$.Error" "_1" ":")));
+                          (Member "ox.channels.ChannelClosed$.Error" "_1" ":java.lang.Throwable")));
                       (CaseDef
                         Wildcard
                         None
@@ -354,7 +354,7 @@ Definition ox_channels_ChannelClosed : tree :=
                     [(Ident (Local "reason" 7))]))
                 []);
               (DefDef
-                (Member "ox.channels.ChannelClosed$.Error" "copy$default$1" ":")
+                (Member "ox.channels.ChannelClosed$.Error" "copy$default$1" ":java.lang.Throwable")
                 ["Method"; "Synthetic"]
                 []
                 (TyAnnot
@@ -363,7 +363,7 @@ Definition ox_channels_ChannelClosed : tree :=
                 (Some (Ident (Member "ox.channels.ChannelClosed$.Error" "reason" "")))
                 []);
               (DefDef
-                (Member "ox.channels.ChannelClosed$.Error" "_1" ":")
+                (Member "ox.channels.ChannelClosed$.Error" "_1" ":java.lang.Throwable")
                 ["Method"; "Synthetic"]
                 []
                 (TyAlias "scala.package$.Throwable" (TyRef "java.lang.Throwable"))
@@ -451,7 +451,7 @@ Definition ox_channels_ChannelClosed : tree :=
                 (Some (Ident (Local "x$1" 9)))
                 []);
               (DefDef
-                (Member "ox.channels.ChannelClosed$.Error$" "toString" ":")
+                (Member "ox.channels.ChannelClosed$.Error$" "toString" ":java.lang.String")
                 ["Method"; "Override"; "Synthetic"]
                 []
                 (TyRef "java.lang.String")
@@ -567,19 +567,19 @@ Definition ox_channels_ChannelClosed : tree :=
                     [(TyAnnot (TyRef "ox.channels.ChannelClosed$.Done$") "scala.unchecked")]))
                 [(Member "scala.Equals" "canEqual" "java.lang.Object:scala.Boolean")]);
               (DefDef
-                (Member "ox.channels.ChannelClosed$.Done$" "productArity" ":")
+                (Member "ox.channels.ChannelClosed$.Done$" "productArity" ":scala.Int")
                 ["Method"; "Override"; "Synthetic"]
                 []
                 (TyRef "scala.Int")
                 (Some (Literal (CInt (0)%Z)))
-                [(Member "scala.Product" "productArity" ":")]);
+                [(Member "scala.Product" "productArity" ":scala.Int")]);
               (DefDef
-                (Member "ox.channels.ChannelClosed$.Done$" "productPrefix" ":")
+                (Member "ox.channels.ChannelClosed$.Done$" "productPrefix" ":java.lang.String")
                 ["Method"; "Override"; "Synthetic"]
                 []
                 (TyAlias "scala.Predef$.String" (TyRef "java.lang.String"))
                 (Some (Literal (CString "Done")))
-                [(Member "scala.Product" "productPrefix" ":")]);
+                [(Member "scala.Product" "productPrefix" ":java.lang.String")]);
               (DefDef
                 (Member "ox.channels.ChannelClosed$.Done$" "productElement" "scala.Int:java.lang.Object")
                 ["Method"; "Override"; "Synthetic"]

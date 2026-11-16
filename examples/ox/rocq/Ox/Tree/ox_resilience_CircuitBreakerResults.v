@@ -192,10 +192,10 @@ Definition ox_resilience_CircuitBreakerResults : tree :=
                       (Select
                         (Apply
                           (Select (Ident (Local "observed" 6)) (Member "scala.Int" "/" "scala.Float:scala.Float"))
-                          [(Select (Ident (Local "size" 7)) (Member "scala.Int" "toFloat" ":"))])
+                          [(Select (Ident (Local "size" 7)) (Member "scala.Int" "toFloat" ":scala.Float"))])
                         (Member "scala.Float" "*" "scala.Int:scala.Float"))
                       [(Literal (CInt (100)%Z))])
-                    (Member "scala.Float" "toInt" ":")))
+                    (Member "scala.Float" "toInt" ":scala.Int")))
                 [])]);
           (ClassDef
             "ox.resilience.CircuitBreakerResults$.CountBased"
@@ -345,19 +345,19 @@ Definition ox_resilience_CircuitBreakerResults : tree :=
                     [(TyAnnot (TyRef "ox.resilience.CircuitBreakerResults$.CountBased") "scala.unchecked")]))
                 [(Member "scala.Equals" "canEqual" "java.lang.Object:scala.Boolean")]);
               (DefDef
-                (Member "ox.resilience.CircuitBreakerResults$.CountBased" "productArity" ":")
+                (Member "ox.resilience.CircuitBreakerResults$.CountBased" "productArity" ":scala.Int")
                 ["Method"; "Override"; "Synthetic"]
                 []
                 (TyRef "scala.Int")
                 (Some (Literal (CInt (1)%Z)))
-                [(Member "scala.Product" "productArity" ":")]);
+                [(Member "scala.Product" "productArity" ":scala.Int")]);
               (DefDef
-                (Member "ox.resilience.CircuitBreakerResults$.CountBased" "productPrefix" ":")
+                (Member "ox.resilience.CircuitBreakerResults$.CountBased" "productPrefix" ":java.lang.String")
                 ["Method"; "Override"; "Synthetic"]
                 []
                 (TyAlias "scala.Predef$.String" (TyRef "java.lang.String"))
                 (Some (Literal (CString "CountBased")))
-                [(Member "scala.Product" "productPrefix" ":")]);
+                [(Member "scala.Product" "productPrefix" ":java.lang.String")]);
               (DefDef
                 (Member
                   "ox.resilience.CircuitBreakerResults$.CountBased"
@@ -376,7 +376,7 @@ Definition ox_resilience_CircuitBreakerResults : tree :=
                         None
                         (Select
                           (This "ox.resilience.CircuitBreakerResults$.CountBased")
-                          (Member "ox.resilience.CircuitBreakerResults$.CountBased" "_1" ":")));
+                          (Member "ox.resilience.CircuitBreakerResults$.CountBased" "_1" ":scala.Int")));
                       (CaseDef
                         Wildcard
                         None
@@ -502,7 +502,7 @@ Definition ox_resilience_CircuitBreakerResults : tree :=
                             "isSameState"
                             "ox.resilience.CircuitBreakerState:scala.Boolean"))
                         [(Ident (Local "newState" 17))])
-                      (Member "scala.Boolean" "unary_!" ":"))
+                      (Member "scala.Boolean" "unary_!" ":scala.Boolean"))
                     (Apply
                       (Select
                         (This "ox.resilience.CircuitBreakerResults$.CountBased")
@@ -593,7 +593,7 @@ Definition ox_resilience_CircuitBreakerResults : tree :=
                         (Select
                           (Select
                             (Ident (Local "resultingQueue" 19))
-                            (Member "scala.collection.mutable.ArrayDeque" "length" ":"))
+                            (Member "scala.collection.mutable.ArrayDeque" "length" ":scala.Int"))
                           (Member "scala.Int" ">" "scala.Int:scala.Boolean"))
                         [(Ident (Member "ox.resilience.CircuitBreakerResults$.CountBased" "windowSize" ""))])
                       (Match
@@ -713,7 +713,7 @@ Definition ox_resilience_CircuitBreakerResults : tree :=
                             (Select
                               (This "ox.resilience.CircuitBreakerResults$.CountBased")
                               (Member "ox.resilience.CircuitBreakerResults$.CountBased" "results" ""))
-                            (Member "scala.collection.mutable.ArrayDeque" "length" ":"))));
+                            (Member "scala.collection.mutable.ArrayDeque" "length" ":scala.Int"))));
                       (ValDef
                         (Local "failuresRate" 23)
                         []
@@ -789,14 +789,14 @@ Definition ox_resilience_CircuitBreakerResults : tree :=
                     [(Ident (Local "ox" 26))]))
                 []);
               (DefDef
-                (Member "ox.resilience.CircuitBreakerResults$.CountBased" "copy$default$1" ":")
+                (Member "ox.resilience.CircuitBreakerResults$.CountBased" "copy$default$1" ":scala.Int")
                 ["Method"; "Synthetic"]
                 []
                 (TyAnnot (TyRef "scala.Int") "scala.annotation.unchecked.uncheckedVariance")
                 (Some (Ident (Member "ox.resilience.CircuitBreakerResults$.CountBased" "windowSize" "")))
                 []);
               (DefDef
-                (Member "ox.resilience.CircuitBreakerResults$.CountBased" "_1" ":")
+                (Member "ox.resilience.CircuitBreakerResults$.CountBased" "_1" ":scala.Int")
                 ["Method"; "Synthetic"]
                 []
                 (TyRef "scala.Int")
@@ -893,7 +893,7 @@ Definition ox_resilience_CircuitBreakerResults : tree :=
                 (Some (Ident (Local "x$1" 29)))
                 []);
               (DefDef
-                (Member "ox.resilience.CircuitBreakerResults$.CountBased$" "toString" ":")
+                (Member "ox.resilience.CircuitBreakerResults$.CountBased$" "toString" ":java.lang.String")
                 ["Method"; "Override"; "Synthetic"]
                 []
                 (TyRef "java.lang.String")
@@ -1055,19 +1055,19 @@ Definition ox_resilience_CircuitBreakerResults : tree :=
                     [(TyAnnot (TyRef "ox.resilience.CircuitBreakerResults$.TimeWindowBased") "scala.unchecked")]))
                 [(Member "scala.Equals" "canEqual" "java.lang.Object:scala.Boolean")]);
               (DefDef
-                (Member "ox.resilience.CircuitBreakerResults$.TimeWindowBased" "productArity" ":")
+                (Member "ox.resilience.CircuitBreakerResults$.TimeWindowBased" "productArity" ":scala.Int")
                 ["Method"; "Override"; "Synthetic"]
                 []
                 (TyRef "scala.Int")
                 (Some (Literal (CInt (1)%Z)))
-                [(Member "scala.Product" "productArity" ":")]);
+                [(Member "scala.Product" "productArity" ":scala.Int")]);
               (DefDef
-                (Member "ox.resilience.CircuitBreakerResults$.TimeWindowBased" "productPrefix" ":")
+                (Member "ox.resilience.CircuitBreakerResults$.TimeWindowBased" "productPrefix" ":java.lang.String")
                 ["Method"; "Override"; "Synthetic"]
                 []
                 (TyAlias "scala.Predef$.String" (TyRef "java.lang.String"))
                 (Some (Literal (CString "TimeWindowBased")))
-                [(Member "scala.Product" "productPrefix" ":")]);
+                [(Member "scala.Product" "productPrefix" ":java.lang.String")]);
               (DefDef
                 (Member
                   "ox.resilience.CircuitBreakerResults$.TimeWindowBased"
@@ -1086,7 +1086,10 @@ Definition ox_resilience_CircuitBreakerResults : tree :=
                         None
                         (Select
                           (This "ox.resilience.CircuitBreakerResults$.TimeWindowBased")
-                          (Member "ox.resilience.CircuitBreakerResults$.TimeWindowBased" "_1" ":")));
+                          (Member
+                            "ox.resilience.CircuitBreakerResults$.TimeWindowBased"
+                            "_1"
+                            ":scala.concurrent.duration.FiniteDuration")));
                       (CaseDef
                         Wildcard
                         None
@@ -1283,7 +1286,10 @@ Definition ox_resilience_CircuitBreakerResults : tree :=
                                                       "ox.resilience.CircuitBreakerResults$.TimeWindowBased"
                                                       "windowDuration"
                                                       ""))
-                                                  (Member "scala.concurrent.duration.FiniteDuration" "toMillis" ":"))])])))
+                                                  (Member
+                                                    "scala.concurrent.duration.FiniteDuration"
+                                                    "toMillis"
+                                                    ":scala.Long"))])])))
                                     [])]
                                 (Closure (Ident (Local "$anonfun" 40)) None))])));
                       (Apply
@@ -1389,7 +1395,7 @@ Definition ox_resilience_CircuitBreakerResults : tree :=
                             (Select
                               (This "ox.resilience.CircuitBreakerResults$.TimeWindowBased")
                               (Member "ox.resilience.CircuitBreakerResults$.TimeWindowBased" "results" ""))
-                            (Member "scala.collection.mutable.ArrayDeque" "length" ":"))));
+                            (Member "scala.collection.mutable.ArrayDeque" "length" ":scala.Int"))));
                       (ValDef
                         (Local "failuresRate" 47)
                         []
@@ -1552,7 +1558,7 @@ Definition ox_resilience_CircuitBreakerResults : tree :=
                             "isSameState"
                             "ox.resilience.CircuitBreakerState:scala.Boolean"))
                         [(Ident (Local "newState" 51))])
-                      (Member "scala.Boolean" "unary_!" ":"))
+                      (Member "scala.Boolean" "unary_!" ":scala.Boolean"))
                     (Apply
                       (Select
                         (This "ox.resilience.CircuitBreakerResults$.TimeWindowBased")
@@ -1592,7 +1598,10 @@ Definition ox_resilience_CircuitBreakerResults : tree :=
                     [(Ident (Local "ox" 53))]))
                 []);
               (DefDef
-                (Member "ox.resilience.CircuitBreakerResults$.TimeWindowBased" "copy$default$1" ":")
+                (Member
+                  "ox.resilience.CircuitBreakerResults$.TimeWindowBased"
+                  "copy$default$1"
+                  ":scala.concurrent.duration.FiniteDuration")
                 ["Method"; "Synthetic"]
                 []
                 (TyAnnot
@@ -1601,7 +1610,10 @@ Definition ox_resilience_CircuitBreakerResults : tree :=
                 (Some (Ident (Member "ox.resilience.CircuitBreakerResults$.TimeWindowBased" "windowDuration" "")))
                 []);
               (DefDef
-                (Member "ox.resilience.CircuitBreakerResults$.TimeWindowBased" "_1" ":")
+                (Member
+                  "ox.resilience.CircuitBreakerResults$.TimeWindowBased"
+                  "_1"
+                  ":scala.concurrent.duration.FiniteDuration")
                 ["Method"; "Synthetic"]
                 []
                 (TyRef "scala.concurrent.duration.FiniteDuration")
@@ -1704,7 +1716,7 @@ Definition ox_resilience_CircuitBreakerResults : tree :=
                 (Some (Ident (Local "x$1" 56)))
                 []);
               (DefDef
-                (Member "ox.resilience.CircuitBreakerResults$.TimeWindowBased$" "toString" ":")
+                (Member "ox.resilience.CircuitBreakerResults$.TimeWindowBased$" "toString" ":java.lang.String")
                 ["Method"; "Override"; "Synthetic"]
                 []
                 (TyRef "java.lang.String")

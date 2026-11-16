@@ -53,7 +53,7 @@ Definition ox_Chunk : tree :=
             ["Covariant"; "Deferred"; "Local"; "Param"; "Private"; "PrivateLocal"]
             (TyBounds (TyRef "scala.Nothing") (TyRef "scala.Any")));
           (DefDef
-            (Member "ox.Chunk" "backingArrays" ":")
+            (Member "ox.Chunk" "backingArrays" ":scala.collection.immutable.List")
             ["Deferred"; "Method"]
             []
             (TyApp
@@ -75,7 +75,7 @@ Definition ox_Chunk : tree :=
                 (If
                   (Apply
                     (Select (Ident (Local "n" 0)) (Member "scala.Int" ">=" "scala.Int:scala.Boolean"))
-                    [(Select (This "ox.Chunk") (Member "scala.collection.SeqOps" "length" ":"))])
+                    [(Select (This "ox.Chunk") (Member "scala.collection.SeqOps" "length" ":scala.Int"))])
                   (TypeApply
                     (Select (Ident (Member "ox" "Chunk" "")) (Member "ox.Chunk$" "empty" "1:ox.Chunk"))
                     [(TyParam "ox.Chunk" "A")])
@@ -87,7 +87,10 @@ Definition ox_Chunk : tree :=
                         (TyApp
                           (TyRef "scala.collection.immutable.List")
                           [(TyApp (TyRef "scala.IArray$package$.IArray") [(TyParam "ox.Chunk" "A")])])
-                        (Some (Select (This "ox.Chunk") (Member "ox.Chunk" "backingArrays" ":"))))]
+                        (Some
+                          (Select
+                            (This "ox.Chunk")
+                            (Member "ox.Chunk" "backingArrays" ":scala.collection.immutable.List"))))]
                     (Apply
                       (TypeApply
                         (Select
@@ -115,7 +118,7 @@ Definition ox_Chunk : tree :=
                 (If
                   (Apply
                     (Select (Ident (Local "n" 2)) (Member "scala.Int" ">=" "scala.Int:scala.Boolean"))
-                    [(Select (This "ox.Chunk") (Member "scala.collection.SeqOps" "length" ":"))])
+                    [(Select (This "ox.Chunk") (Member "scala.collection.SeqOps" "length" ":scala.Int"))])
                   (This "ox.Chunk")
                   (Block
                     [
@@ -125,7 +128,10 @@ Definition ox_Chunk : tree :=
                         (TyApp
                           (TyRef "scala.collection.immutable.List")
                           [(TyApp (TyRef "scala.IArray$package$.IArray") [(TyParam "ox.Chunk" "A")])])
-                        (Some (Select (This "ox.Chunk") (Member "ox.Chunk" "backingArrays" ":"))))]
+                        (Some
+                          (Select
+                            (This "ox.Chunk")
+                            (Member "ox.Chunk" "backingArrays" ":scala.collection.immutable.List"))))]
                     (Apply
                       (TypeApply
                         (Select
@@ -160,7 +166,7 @@ Definition ox_Chunk : tree :=
                 (If
                   (Apply
                     (Select (Ident (Local "from" 5)) (Member "scala.Int" ">=" "scala.Int:scala.Boolean"))
-                    [(Select (This "ox.Chunk") (Member "scala.collection.SeqOps" "length" ":"))])
+                    [(Select (This "ox.Chunk") (Member "scala.collection.SeqOps" "length" ":scala.Int"))])
                   (Literal (CInt (-1)%Z))
                   (Block
                     [
@@ -170,7 +176,10 @@ Definition ox_Chunk : tree :=
                         (TyApp
                           (TyRef "scala.collection.immutable.List")
                           [(TyApp (TyRef "scala.IArray$package$.IArray") [(TyParam "ox.Chunk" "A")])])
-                        (Some (Select (This "ox.Chunk") (Member "ox.Chunk" "backingArrays" ":"))));
+                        (Some
+                          (Select
+                            (This "ox.Chunk")
+                            (Member "ox.Chunk" "backingArrays" ":scala.collection.immutable.List"))));
                       (ValDef (Local "currentIndex" 7) ["Mutable"] (TyRef "scala.Int") (Some (Literal (CInt (0)%Z))));
                       (ValDef (Local "arrayIndex" 8) ["Mutable"] (TyRef "scala.Int") (Some (Literal (CInt (0)%Z))));
                       (While
@@ -183,7 +192,7 @@ Definition ox_Chunk : tree :=
                               [
                                 (Select
                                   (Ident (Local "arrays" 6))
-                                  (Member "scala.collection.immutable.List" "length" ":"))])
+                                  (Member "scala.collection.immutable.List" "length" ":scala.Int"))])
                             (Member "scala.Boolean" "&&" "scala.Boolean:scala.Boolean"))
                           [
                             (Apply
@@ -248,7 +257,10 @@ Definition ox_Chunk : tree :=
                     (If
                       (Apply
                         (Select (Ident (Local "arrayIndex" 8)) (Member "scala.Int" ">=" "scala.Int:scala.Boolean"))
-                        [(Select (Ident (Local "arrays" 6)) (Member "scala.collection.immutable.List" "length" ":"))])
+                        [
+                          (Select
+                            (Ident (Local "arrays" 6))
+                            (Member "scala.collection.immutable.List" "length" ":scala.Int"))])
                       (Literal (CInt (-1)%Z))
                       (Block
                         [
@@ -331,7 +343,7 @@ Definition ox_Chunk : tree :=
                                   [
                                     (Select
                                       (Ident (Local "arrays" 6))
-                                      (Member "scala.collection.immutable.List" "length" ":"))])
+                                      (Member "scala.collection.immutable.List" "length" ":scala.Int"))])
                                 (Block
                                   [
                                     (Assign
@@ -431,10 +443,10 @@ Definition ox_Chunk : tree :=
             (TyApp (TyRef "ox.Chunk") [(TyParam "ox.Chunk.concat" "B")])
             (Some
               (If
-                (Select (This "ox.Chunk") (Member "scala.collection.SeqOps" "isEmpty" ":"))
+                (Select (This "ox.Chunk") (Member "scala.collection.SeqOps" "isEmpty" ":scala.Boolean"))
                 (Ident (Local "that" 12))
                 (If
-                  (Select (Ident (Local "that" 12)) (Member "scala.collection.SeqOps" "isEmpty" ":"))
+                  (Select (Ident (Local "that" 12)) (Member "scala.collection.SeqOps" "isEmpty" ":scala.Boolean"))
                   (This "ox.Chunk")
                   (Apply
                     (TypeApply
@@ -446,13 +458,18 @@ Definition ox_Chunk : tree :=
                       (Apply
                         (TypeApply
                           (Select
-                            (Select (This "ox.Chunk") (Member "ox.Chunk" "backingArrays" ":"))
+                            (Select
+                              (This "ox.Chunk")
+                              (Member "ox.Chunk" "backingArrays" ":scala.collection.immutable.List"))
                             (Member
                               "scala.collection.IterableOps"
                               "++"
                               "1,scala.collection.IterableOnce:java.lang.Object"))
                           [(TyApp (TyRef "scala.IArray$package$.IArray") [(TyParam "ox.Chunk.concat" "B")])])
-                        [(Select (Ident (Local "that" 12)) (Member "ox.Chunk" "backingArrays" ":"))])]))))
+                        [
+                          (Select
+                            (Ident (Local "that" 12))
+                            (Member "ox.Chunk" "backingArrays" ":scala.collection.immutable.List"))])]))))
             []);
           (DefDef
             (Member "ox.Chunk" "++" "1,ox.Chunk:ox.Chunk")
@@ -568,7 +585,7 @@ Definition ox_Chunk : tree :=
                       (Select
                         (Select
                           (Ident (Local "currentArrays" 21))
-                          (Member "scala.collection.IterableOnceOps" "nonEmpty" ":"))
+                          (Member "scala.collection.IterableOnceOps" "nonEmpty" ":scala.Boolean"))
                         (Member "scala.Boolean" "&&" "scala.Boolean:scala.Boolean"))
                       [
                         (Apply
@@ -680,7 +697,9 @@ Definition ox_Chunk : tree :=
                               "dropFromArrays"
                               "1,scala.collection.immutable.List,scala.Int:ox.Chunk"))))))]
                 (If
-                  (Select (Ident (Local "currentArrays" 21)) (Member "scala.collection.immutable.List" "isEmpty" ":"))
+                  (Select
+                    (Ident (Local "currentArrays" 21))
+                    (Member "scala.collection.immutable.List" "isEmpty" ":scala.Boolean"))
                   (TypeApply
                     (Select (Ident (Member "ox" "Chunk" "")) (Member "ox.Chunk$" "empty" "1:ox.Chunk"))
                     [(TyRef "scala.Nothing")])
@@ -735,7 +754,7 @@ Definition ox_Chunk : tree :=
                       (Select
                         (Select
                           (Ident (Local "currentArrays" 28))
-                          (Member "scala.collection.IterableOnceOps" "nonEmpty" ":"))
+                          (Member "scala.collection.IterableOnceOps" "nonEmpty" ":scala.Boolean"))
                         (Member "scala.Boolean" "&&" "scala.Boolean:scala.Boolean"))
                       [
                         (Apply
@@ -842,7 +861,10 @@ Definition ox_Chunk : tree :=
                       (Ident (Member "ox" "NonEmptyChunk" ""))
                       (Member "ox.NonEmptyChunk$" "apply" "1,scala.collection.immutable.List:ox.NonEmptyChunk"))
                     [(TyParam "ox.Chunk.takeFromArrays" "A1")])
-                  [(Select (Ident (Local "result" 27)) (Member "scala.collection.immutable.List" "reverse" ":"))])))
+                  [
+                    (Select
+                      (Ident (Local "result" 27))
+                      (Member "scala.collection.immutable.List" "reverse" ":scala.collection.immutable.List"))])))
             [])]);
       (ValDef
         (Member "ox" "Chunk" "")
@@ -908,7 +930,7 @@ Definition ox_Chunk : tree :=
                       (Ident (Member "scala.Predef$" "genericArrayOps" "1,java.lang.Object:java.lang.Object"))
                       [(TyParam "ox.Chunk$.fromArray" "A")])
                     [(Ident (Local "array" 31))])
-                  (Member "scala.collection.ArrayOps" "isEmpty" ":"))
+                  (Member "scala.collection.ArrayOps" "isEmpty" ":scala.Boolean"))
                 (Ident (Member "ox" "Empty" ""))
                 (Apply
                   (TypeApply
@@ -1020,7 +1042,7 @@ Definition ox_Chunk : tree :=
             (TyApp (TyRef "ox.Chunk") [(TyParam "ox.Chunk$.apply" "A")])
             (Some
               (If
-                (Select (Ident (Local "elements" 35)) (Member "scala.collection.SeqOps" "isEmpty" ":"))
+                (Select (Ident (Local "elements" 35)) (Member "scala.collection.SeqOps" "isEmpty" ":scala.Boolean"))
                 (Ident (Member "ox" "Empty" ""))
                 (Apply
                   (TypeApply

@@ -56,7 +56,8 @@ val oxThreads: FrModel = FrModel("OxThreads")(
   aHerdsMethodsOnlyGetAndSetAFlag.refines(aHerdsFlagIsOnlyReadAndSet, onlyClosingSetsTheFlag),
   closingCallsFour.refines(aHerdsMethodsOnlyGetAndSetAFlag, whatAHerdsCodeCallsOfASet),
   theOwnerCheckCallsCurrentThread.refines(aHerdsMethodsOnlyGetAndSetAFlag, whatAHerdsCodeCallsOfASet),
-  theMembershipCheckCallsContains.refines(aHerdsMethodsOnlyGetAndSetAFlag, whatAHerdsCodeCallsOfASet),
+  theMembershipCheckCallsContains.refines(aHerdsMethodsOnlyGetAndSetAFlag, whatAHerdsCodeCallsOfASet,
+    theMembershipCheckStaysOutOfHerds),
   startThreadFirstSeesTheFlagUnset.refines(aClosedHerdRefusesToStart),
 
   // What a herd keeps to itself: its set.
@@ -92,8 +93,16 @@ val oxThreads: FrModel = FrModel("OxThreads")(
   theTreeCheckCallsFour.refines(theTreeCheckStaysOutOfHerds, aHerdsMethodsOnlyGetAndSetAFlag,
     whatAHerdsCodeCallsOfASet),
   theJdkStaysOutOfHerds.refines(startThreadStaysOutOfHerds, theClosingCheckStaysOutOfHerds),
+
+  // The tree check, and the function it applies to go up the scopes.
+  theWalkUpStaysOutOfHerds.refines(theTreeCheckStaysOutOfHerds),
+  whatTheChecksAskOfTheJdkStaysOutOfHerds.refines(theTreeCheckStaysOutOfHerds, theMembershipCheckStaysOutOfHerds),
+  theWalkUpCallsFour.refines(theWalkUpStaysOutOfHerds),
+  aScopesHerdAndParentStayOutOfHerds.refines(theWalkUpStaysOutOfHerds),
+  theMembershipCheckStaysOutOfHerds.refines(theWalkUpStaysOutOfHerds),
   aThreadDoesOneThingAtATime.refines(startThreadStaysOutOfHerds, theClosingCheckStaysOutOfHerds,
-    closingsFunctionsReturn),
+    closingsFunctionsReturn, theTreeCheckStaysOutOfHerds, theMembershipCheckStaysOutOfHerds,
+    theWalkUpStaysOutOfHerds),
 
   // How a herd is made.
   herdsAreConstructed.refines(herdsAreMade, closingSetsTheFlag, aClosedHerdRefusesToStart, nothingIsAddedOnceEmpty,
@@ -107,7 +116,7 @@ val oxThreads: FrModel = FrModel("OxThreads")(
     startThreadIsPendingWhileItAdds, theForkFunctionCallsFour,
     aForkFunctionRemovesAfterTheCode, startThreadCallsFive, theClosingCheckCallsGet, theTreeCheckCallsFour,
     closingTraversesWithAFunction, whatClosingsFunctionsApplyReturns, closingsFunctionsReturn,
-    closingCallsFour, theOwnerCheckCallsCurrentThread, theMembershipCheckCallsContains),
+    closingCallsFour, theOwnerCheckCallsCurrentThread, theMembershipCheckCallsContains, theWalkUpCallsFour),
   aHerdKeepsItsFields.refines(startThreadReadsTheFlagUnset, closingSetsTheFlagItself,
     theForkFunctionRemovesTheCurrentThread, closingEndsOnceFoundEmpty),
   currentThreadIsTheCaller.refines(closingSetsTheFlagItself, aForkRemovesOnlyItself, closingEndsOnceFoundEmpty),

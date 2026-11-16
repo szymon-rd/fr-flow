@@ -437,11 +437,13 @@ Definition ox_ComputeIntensiveTask : tree :=
                                   None
                                   (Block [] (Literal (CBool true))))]))])));
                   (If
-                    (Select (Ident (Local "cancelledBeforeStart" 10)) (Member "scala.Boolean" "unary_!" ":"))
+                    (Select
+                      (Ident (Local "cancelledBeforeStart" 10))
+                      (Member "scala.Boolean" "unary_!" ":scala.Boolean"))
                     (Block
                       [(ValDef (Local "done" 12) ["Mutable"] (TyRef "scala.Boolean") (Some (Literal (CBool false))))]
                       (While
-                        (Select (Ident (Local "done" 12)) (Member "scala.Boolean" "unary_!" ":"))
+                        (Select (Ident (Local "done" 12)) (Member "scala.Boolean" "unary_!" ":scala.Boolean"))
                         (Try
                           (Block
                             [

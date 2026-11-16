@@ -137,7 +137,10 @@ Definition ox_channels_ChannelClosedUnion : tree :=
                         []
                         (Apply
                           (Ident (Member "<special-ops>" "throw" "java.lang.Throwable:scala.Nothing"))
-                          [(Select (Ident (Local "c" 5)) (Member "ox.channels.ChannelClosed" "toThrowable" ":"))])));
+                          [
+                            (Select
+                              (Ident (Local "c" 5))
+                              (Member "ox.channels.ChannelClosed" "toThrowable" ":java.lang.Throwable"))])));
                     (CaseDef
                       (Bind
                         (Local "t" 6)
@@ -231,7 +234,10 @@ Definition ox_channels_ChannelClosedUnion : tree :=
                               (Ident (Member "scala.util" "Failure" ""))
                               (Member "scala.util.Failure$" "apply" "1,java.lang.Throwable:scala.util.Failure"))
                             [(TyRef "scala.Nothing")])
-                          [(Select (Ident (Local "c" 11)) (Member "ox.channels.ChannelClosed" "toThrowable" ":"))])));
+                          [
+                            (Select
+                              (Ident (Local "c" 11))
+                              (Member "ox.channels.ChannelClosed" "toThrowable" ":java.lang.Throwable"))])));
                     (CaseDef
                       (Bind
                         (Local "t" 12)

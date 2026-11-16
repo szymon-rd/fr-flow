@@ -634,7 +634,7 @@ Definition ox_abandonOnInterrupt_package : tree :=
                                         (Select
                                           (This "ox.abandonOnInterrupt$package$._$$anon#24")
                                           (Member "ox.abandonOnInterrupt$package$._$$anon#24" "current" ""))
-                                        (Member "scala.collection.SeqOps" "length" ":"))])
+                                        (Member "scala.collection.SeqOps" "length" ":scala.Int"))])
                                   (Literal (CBool true))
                                   (Try
                                     (Match
@@ -784,7 +784,7 @@ Definition ox_abandonOnInterrupt_package : tree :=
                                       "ensureAvailable"
                                       ":scala.Boolean"))
                                   [])
-                                (Member "scala.Boolean" "unary_!" ":"))
+                                (Member "scala.Boolean" "unary_!" ":scala.Boolean"))
                               (Literal (CInt (-1)%Z))
                               (Block
                                 [
@@ -853,7 +853,7 @@ Definition ox_abandonOnInterrupt_package : tree :=
                                   [
                                     (Ident (Local "off" 30));
                                     (Ident (Local "len" 31));
-                                    (Select (Ident (Local "b" 29)) (Member "scala.Array" "length" ":"))])]
+                                    (Select (Ident (Local "b" 29)) (Member "scala.Array" "length" ":scala.Int"))])]
                               (If
                                 (Apply
                                   (Select
@@ -871,7 +871,7 @@ Definition ox_abandonOnInterrupt_package : tree :=
                                           "ensureAvailable"
                                           ":scala.Boolean"))
                                       [])
-                                    (Member "scala.Boolean" "unary_!" ":"))
+                                    (Member "scala.Boolean" "unary_!" ":scala.Boolean"))
                                   (Literal (CInt (-1)%Z))
                                   (Block
                                     [
@@ -897,7 +897,7 @@ Definition ox_abandonOnInterrupt_package : tree :=
                                                         "ox.abandonOnInterrupt$package$._$$anon#24"
                                                         "current"
                                                         ""))
-                                                    (Member "scala.collection.SeqOps" "length" ":"))
+                                                    (Member "scala.collection.SeqOps" "length" ":scala.Int"))
                                                   (Member "scala.Int" "-" "scala.Int:scala.Int"))
                                                 [
                                                   (Select
@@ -996,7 +996,7 @@ Definition ox_abandonOnInterrupt_package : tree :=
                                     (Select
                                       (This "ox.abandonOnInterrupt$package$._$$anon#24")
                                       (Member "ox.abandonOnInterrupt$package$._$$anon#24" "current" ""))
-                                    (Member "scala.collection.SeqOps" "length" ":"))
+                                    (Member "scala.collection.SeqOps" "length" ":scala.Int"))
                                   (Member "scala.Int" "-" "scala.Int:scala.Int"))
                                 [
                                   (Select
@@ -1014,7 +1014,7 @@ Definition ox_abandonOnInterrupt_package : tree :=
                                 (Select
                                   (This "ox.abandonOnInterrupt$package$._$$anon#24")
                                   (Member "ox.abandonOnInterrupt$package$._$$anon#24" "closed" ""))
-                                (Member "scala.Boolean" "unary_!" ":"))
+                                (Member "scala.Boolean" "unary_!" ":scala.Boolean"))
                               (Block
                                 [
                                   (Assign
@@ -1054,14 +1054,14 @@ Definition ox_abandonOnInterrupt_package : tree :=
                     (TyRef "java.io.InputStream")))))
             []);
           (DefDef
-            (Member "ox.abandonOnInterrupt$package$" "abandonOnInterruptReads$default$2" ":")
+            (Member "ox.abandonOnInterrupt$package$" "abandonOnInterruptReads$default$2" ":scala.Int")
             ["Method"]
             []
             (TyAnnot (TyRef "scala.Int") "scala.annotation.unchecked.uncheckedVariance")
             (Some (Literal (CInt (8192)%Z)))
             []);
           (DefDef
-            (Member "ox.abandonOnInterrupt$package$" "abandonOnInterruptReads$default$3" ":")
+            (Member "ox.abandonOnInterrupt$package$" "abandonOnInterruptReads$default$3" ":scala.Boolean")
             ["Method"]
             []
             (TyAnnot (TyRef "scala.Boolean") "scala.annotation.unchecked.uncheckedVariance")
@@ -1573,7 +1573,7 @@ Definition ox_abandonOnInterrupt_package : tree :=
                                           (If
                                             (Select
                                               (Ident (Local "alreadyClosing" 51))
-                                              (Member "scala.Boolean" "unary_!" ":"))
+                                              (Member "scala.Boolean" "unary_!" ":scala.Boolean"))
                                             (Apply
                                               (Apply
                                                 (Ident
@@ -1765,7 +1765,7 @@ Definition ox_abandonOnInterrupt_package : tree :=
                                 (Ident (Local "alreadyClosing" 55))]))
                           []);
                         (DefDef
-                          (Member "ox.abandonOnInterrupt$package$._$$anon#48" "await$default$2" ":")
+                          (Member "ox.abandonOnInterrupt$package$._$$anon#48" "await$default$2" ":scala.Boolean")
                           ["Local"; "Method"; "Private"; "PrivateLocal"]
                           []
                           (TyAnnot (TyRef "scala.Boolean") "scala.annotation.unchecked.uncheckedVariance")
@@ -1798,7 +1798,10 @@ Definition ox_abandonOnInterrupt_package : tree :=
                                     [
                                       (Typed
                                         (Repeated
-                                          [(Select (Ident (Local "b" 59)) (Member "scala.Int" "toByte" ":"))]
+                                          [
+                                            (Select
+                                              (Ident (Local "b" 59))
+                                              (Member "scala.Int" "toByte" ":scala.Byte"))]
                                           (TyRef "scala.Byte"))
                                         (TyApp (TyRef "scala.<repeated>") [(TyRef "scala.Byte")]))])
                                   [
@@ -1848,7 +1851,7 @@ Definition ox_abandonOnInterrupt_package : tree :=
                                   [
                                     (Ident (Local "off" 61));
                                     (Ident (Local "len" 62));
-                                    (Select (Ident (Local "b" 60)) (Member "scala.Array" "length" ":"))]);
+                                    (Select (Ident (Local "b" 60)) (Member "scala.Array" "length" ":scala.Int"))]);
                                 (Apply
                                   (Select
                                     (This "ox.abandonOnInterrupt$package$._$$anon#48")
@@ -1981,7 +1984,10 @@ Definition ox_abandonOnInterrupt_package : tree :=
                                   (Ident (Local "ack" 63));
                                   (Select
                                     (This "ox.abandonOnInterrupt$package$._$$anon#48")
-                                    (Member "ox.abandonOnInterrupt$package$._$$anon#48" "await$default$2" ":"))])))
+                                    (Member
+                                      "ox.abandonOnInterrupt$package$._$$anon#48"
+                                      "await$default$2"
+                                      ":scala.Boolean"))])))
                           [
                             (Member "java.io.OutputStream" "flush" ":scala.Unit");
                             (Member "java.io.Flushable" "flush" ":scala.Unit")]);
@@ -1996,7 +2002,7 @@ Definition ox_abandonOnInterrupt_package : tree :=
                                 (Select
                                   (This "ox.abandonOnInterrupt$package$._$$anon#48")
                                   (Member "ox.abandonOnInterrupt$package$._$$anon#48" "closed" ""))
-                                (Member "scala.Boolean" "unary_!" ":"))
+                                (Member "scala.Boolean" "unary_!" ":scala.Boolean"))
                               (Block
                                 [
                                   (ValDef
@@ -2067,7 +2073,7 @@ Definition ox_abandonOnInterrupt_package : tree :=
                     (TyRef "java.io.OutputStream")))))
             []);
           (DefDef
-            (Member "ox.abandonOnInterrupt$package$" "abandonOnInterruptWrites$default$2" ":")
+            (Member "ox.abandonOnInterrupt$package$" "abandonOnInterruptWrites$default$2" ":scala.Boolean")
             ["Method"]
             []
             (TyAnnot (TyRef "scala.Boolean") "scala.annotation.unchecked.uncheckedVariance")

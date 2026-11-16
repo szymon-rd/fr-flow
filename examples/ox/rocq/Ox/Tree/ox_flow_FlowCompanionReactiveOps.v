@@ -190,7 +190,7 @@ Definition ox_flow_FlowCompanionReactiveOps : tree :=
                                                         (Ident (Local "capacity" 7))
                                                         (Member "scala.Int" "/" "scala.Double:scala.Double"))
                                                       [(Literal (CDouble "2.0"))])])
-                                                (Member "scala.Double" "toInt" ":"))));
+                                                (Member "scala.Double" "toInt" ":scala.Int"))));
                                           (ValDef
                                             (Local "subscriptionRef" 9)
                                             []
@@ -501,7 +501,7 @@ Definition ox_flow_FlowCompanionReactiveOps : tree :=
                                                                     (Member
                                                                       "ox.channels.ChannelClosed"
                                                                       "toThrowable"
-                                                                      ":"))])));
+                                                                      ":java.lang.Throwable"))])));
                                                           (CaseDef
                                                             (Bind
                                                               (Local "t" 18)

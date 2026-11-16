@@ -241,6 +241,10 @@ What a model must still say itself, as assumptions:
   17.4.5). That only one thread touches a variable a function holds is not derived: a model states it
   (`call.keepsWhatItMakesToItself`). Of a variable two threads write, and of a field of an object, a read is an
   event with any value of its type: a claim that needs the value a field holds is not proven of the code.
+- **What a method outside the code gives** is known by the class its signature names: a truth value, a number,
+  unit, a reference, what is thrown, and an option (none, some value, or no object). A method with no parameter
+  clause is named with the class of what it gives (`ox.OxUnsupervised parent :scala.Option`), which the
+  compiler's signature leaves out.
 - **A call of an inline method** is a call in the tree read from TASTy, which is written before the compiler
   expands it (one expanded while typing, `transparent`, is read expanded). The model has it as a call of a method
   outside the code; a statement names it by writing the call (`ox.discard(x)`), which is read unexpanded too.

@@ -68,19 +68,19 @@ Definition ox_NonEmptyChunk : tree :=
               [(TyApp (TyRef "scala.IArray$package$.IArray") [(TyParam "ox.NonEmptyChunk" "A")])])
             None);
           (DefDef
-            (Member "ox.NonEmptyChunk" "productArity" ":")
+            (Member "ox.NonEmptyChunk" "productArity" ":scala.Int")
             ["Method"; "Override"; "Synthetic"]
             []
             (TyRef "scala.Int")
             (Some (Literal (CInt (1)%Z)))
-            [(Member "scala.Product" "productArity" ":")]);
+            [(Member "scala.Product" "productArity" ":scala.Int")]);
           (DefDef
-            (Member "ox.NonEmptyChunk" "productPrefix" ":")
+            (Member "ox.NonEmptyChunk" "productPrefix" ":java.lang.String")
             ["Method"; "Override"; "Synthetic"]
             []
             (TyAlias "scala.Predef$.String" (TyRef "java.lang.String"))
             (Some (Literal (CString "NonEmptyChunk")))
-            [(Member "scala.Product" "productPrefix" ":")]);
+            [(Member "scala.Product" "productPrefix" ":java.lang.String")]);
           (DefDef
             (Member "ox.NonEmptyChunk" "productElement" "scala.Int:java.lang.Object")
             ["Method"; "Override"; "Synthetic"]
@@ -94,7 +94,9 @@ Definition ox_NonEmptyChunk : tree :=
                   (CaseDef
                     (Literal (CInt (0)%Z))
                     None
-                    (Select (This "ox.NonEmptyChunk") (Member "ox.NonEmptyChunk" "_1" ":")));
+                    (Select
+                      (This "ox.NonEmptyChunk")
+                      (Member "ox.NonEmptyChunk" "_1" ":scala.collection.immutable.List")));
                   (CaseDef
                     Wildcard
                     None
@@ -137,14 +139,14 @@ Definition ox_NonEmptyChunk : tree :=
                           [(Ident (Local "n" 2))])]))]))
             [(Member "scala.Product" "productElementName" "scala.Int:java.lang.String")]);
           (DefDef
-            (Member "ox.NonEmptyChunk" "backingArrays" ":")
+            (Member "ox.NonEmptyChunk" "backingArrays" ":scala.collection.immutable.List")
             ["Method"; "Override"]
             []
             (TyApp
               (TyRef "scala.collection.immutable.List")
               [(TyApp (TyRef "scala.IArray$package$.IArray") [(TyParam "ox.NonEmptyChunk" "A")])])
             (Some (Ident (Member "ox.NonEmptyChunk" "arrays" "")))
-            [(Member "ox.Chunk" "backingArrays" ":")]);
+            [(Member "ox.Chunk" "backingArrays" ":scala.collection.immutable.List")]);
           (DefDef
             (Member "ox.NonEmptyChunk" "apply" "scala.Int:java.lang.Object")
             ["Method"; "Override"]
@@ -163,7 +165,7 @@ Definition ox_NonEmptyChunk : tree :=
                       [
                         (Apply
                           (Select (Ident (Local "i" 3)) (Member "scala.Int" ">=" "scala.Int:scala.Boolean"))
-                          [(Select (This "ox.NonEmptyChunk") (Member "ox.NonEmptyChunk" "length" ":"))])])
+                          [(Select (This "ox.NonEmptyChunk") (Member "ox.NonEmptyChunk" "length" ":scala.Int"))])])
                     (Apply
                       (Ident (Member "<special-ops>" "throw" "java.lang.Throwable:scala.Nothing"))
                       [
@@ -208,7 +210,9 @@ Definition ox_NonEmptyChunk : tree :=
                                   (Repeated
                                     [
                                       (Ident (Local "i" 3));
-                                      (Select (This "ox.NonEmptyChunk") (Member "ox.NonEmptyChunk" "length" ":"))]
+                                      (Select
+                                        (This "ox.NonEmptyChunk")
+                                        (Member "ox.NonEmptyChunk" "length" ":scala.Int"))]
                                     (TyRef "scala.Any"))
                                   (TyApp (TyRef "scala.<repeated>") [(TyRef "scala.Any")]))])])])
                     (Literal CUnit));
@@ -223,7 +227,7 @@ Definition ox_NonEmptyChunk : tree :=
                   (While
                     (Select
                       (Ident (Local "currentArrays" 5))
-                      (Member "scala.collection.IterableOnceOps" "nonEmpty" ":"))
+                      (Member "scala.collection.IterableOnceOps" "nonEmpty" ":scala.Boolean"))
                     (Block
                       [
                         (ValDef
@@ -319,7 +323,7 @@ Definition ox_NonEmptyChunk : tree :=
               (Member "scala.collection.SeqOps" "apply" "scala.Int:java.lang.Object");
               (Member "scala.Function1" "apply" "java.lang.Object:java.lang.Object")]);
           (DefDef
-            (Member "ox.NonEmptyChunk" "iterator" ":")
+            (Member "ox.NonEmptyChunk" "iterator" ":scala.collection.Iterator")
             ["Method"; "Override"]
             []
             (TyApp (TyRef "scala.collection.Iterator") [(TyParam "ox.NonEmptyChunk" "A")])
@@ -335,8 +339,8 @@ Definition ox_NonEmptyChunk : tree :=
                   [(TyParam "ox.NonEmptyChunk" "A")])
                 [(Ident (Member "ox.NonEmptyChunk" "arrays" ""))]))
             [
-              (Member "scala.collection.IndexedSeqOps" "iterator" ":");
-              (Member "scala.collection.IterableOnce" "iterator" ":")]);
+              (Member "scala.collection.IndexedSeqOps" "iterator" ":scala.collection.Iterator");
+              (Member "scala.collection.IterableOnce" "iterator" ":scala.collection.Iterator")]);
           (ValDef
             (Member "ox.NonEmptyChunk" "_length" "")
             ["Lazy"; "Local"; "Private"; "PrivateLocal"]
@@ -382,12 +386,12 @@ Definition ox_NonEmptyChunk : tree :=
                   [(TyRef "scala.Int")])
                 [(Ident (Member "scala.math.Numeric$" "IntIsIntegral" ""))])));
           (DefDef
-            (Member "ox.NonEmptyChunk" "length" ":")
+            (Member "ox.NonEmptyChunk" "length" ":scala.Int")
             ["Method"; "Override"]
             []
             (TyRef "scala.Int")
             (Some (Select (This "ox.NonEmptyChunk") (Member "ox.NonEmptyChunk" "_length" "")))
-            [(Member "scala.collection.SeqOps" "length" ":")]);
+            [(Member "scala.collection.SeqOps" "length" ":scala.Int")]);
           (DefDef
             (Member "ox.NonEmptyChunk" "toArray" "1,scala.reflect.ClassTag:java.lang.Object")
             ["Method"; "Override"]
@@ -418,7 +422,7 @@ Definition ox_NonEmptyChunk : tree :=
                                 "newGenericArray"
                                 "1,scala.Int,scala.reflect.ClassTag:java.lang.Object"))
                             [(TyParam "ox.NonEmptyChunk.toArray" "A1")])
-                          [(Select (This "ox.NonEmptyChunk") (Member "ox.NonEmptyChunk" "length" ":"))])
+                          [(Select (This "ox.NonEmptyChunk") (Member "ox.NonEmptyChunk" "length" ":scala.Int"))])
                         [(Ident (Local "evidence$1" 9))])));
                   (ValDef (Local "pos" 11) ["Mutable"] (TyRef "scala.Int") (Some (Literal (CInt (0)%Z))));
                   (Apply
@@ -538,7 +542,7 @@ Definition ox_NonEmptyChunk : tree :=
             (Some (Ident (Member "ox.NonEmptyChunk" "arrays" "")))
             []);
           (DefDef
-            (Member "ox.NonEmptyChunk" "_1" ":")
+            (Member "ox.NonEmptyChunk" "_1" ":scala.collection.immutable.List")
             ["Method"; "Synthetic"]
             []
             (TyApp
@@ -626,7 +630,7 @@ Definition ox_NonEmptyChunk : tree :=
             (Some (Ident (Local "x$1" 16)))
             []);
           (DefDef
-            (Member "ox.NonEmptyChunk$" "toString" ":")
+            (Member "ox.NonEmptyChunk$" "toString" ":java.lang.String")
             ["Method"; "Override"; "Synthetic"]
             []
             (TyRef "java.lang.String")

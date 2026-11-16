@@ -162,19 +162,19 @@ Definition ox_scheduling_Schedule : tree :=
                 [(TyAnnot (TyRef "ox.scheduling.Schedule") "scala.unchecked")]))
             [(Member "scala.Equals" "canEqual" "java.lang.Object:scala.Boolean")]);
           (DefDef
-            (Member "ox.scheduling.Schedule" "productArity" ":")
+            (Member "ox.scheduling.Schedule" "productArity" ":scala.Int")
             ["Method"; "Override"; "Synthetic"]
             []
             (TyRef "scala.Int")
             (Some (Literal (CInt (2)%Z)))
-            [(Member "scala.Product" "productArity" ":")]);
+            [(Member "scala.Product" "productArity" ":scala.Int")]);
           (DefDef
-            (Member "ox.scheduling.Schedule" "productPrefix" ":")
+            (Member "ox.scheduling.Schedule" "productPrefix" ":java.lang.String")
             ["Method"; "Override"; "Synthetic"]
             []
             (TyAlias "scala.Predef$.String" (TyRef "java.lang.String"))
             (Some (Literal (CString "Schedule")))
-            [(Member "scala.Product" "productPrefix" ":")]);
+            [(Member "scala.Product" "productPrefix" ":java.lang.String")]);
           (DefDef
             (Member "ox.scheduling.Schedule" "productElement" "scala.Int:java.lang.Object")
             ["Method"; "Override"; "Synthetic"]
@@ -188,11 +188,11 @@ Definition ox_scheduling_Schedule : tree :=
                   (CaseDef
                     (Literal (CInt (0)%Z))
                     None
-                    (Select (This "ox.scheduling.Schedule") (Member "ox.scheduling.Schedule" "_1" ":")));
+                    (Select (This "ox.scheduling.Schedule") (Member "ox.scheduling.Schedule" "_1" ":scala.Function0")));
                   (CaseDef
                     (Literal (CInt (1)%Z))
                     None
-                    (Select (This "ox.scheduling.Schedule") (Member "ox.scheduling.Schedule" "_2" ":")));
+                    (Select (This "ox.scheduling.Schedule") (Member "ox.scheduling.Schedule" "_2" ":scala.Option")));
                   (CaseDef
                     Wildcard
                     None
@@ -301,7 +301,9 @@ Definition ox_scheduling_Schedule : tree :=
                                   (Closure (Ident (Local "$anonfun" 9)) None))]))
                           [])]
                       (Closure (Ident (Local "$anonfun" 8)) None)));
-                  (Select (This "ox.scheduling.Schedule") (Member "ox.scheduling.Schedule" "copy$default$2" ":"))]))
+                  (Select
+                    (This "ox.scheduling.Schedule")
+                    (Member "ox.scheduling.Schedule" "copy$default$2" ":scala.Option"))]))
             []);
           (DefDef
             (Member "ox.scheduling.Schedule" "maxAttempts" "scala.Int:ox.scheduling.Schedule")
@@ -343,7 +345,9 @@ Definition ox_scheduling_Schedule : tree :=
                                   [(Literal (CInt (1)%Z))])]))
                           [])]
                       (Closure (Ident (Local "$anonfun" 12)) None)));
-                  (Select (This "ox.scheduling.Schedule") (Member "ox.scheduling.Schedule" "copy$default$2" ":"))]))
+                  (Select
+                    (This "ox.scheduling.Schedule")
+                    (Member "ox.scheduling.Schedule" "copy$default$2" ":scala.Option"))]))
             []);
           (DefDef
             (Member "ox.scheduling.Schedule" "maxRetries" "scala.Int:ox.scheduling.Schedule")
@@ -430,7 +434,7 @@ Definition ox_scheduling_Schedule : tree :=
                                                       (Member
                                                         "scala.concurrent.duration.DurationConversions"
                                                         "seconds"
-                                                        ":"))])
+                                                        ":scala.concurrent.duration.FiniteDuration"))])
                                                 [
                                                   (Block
                                                     [
@@ -528,7 +532,9 @@ Definition ox_scheduling_Schedule : tree :=
                                     (Closure (Ident (Local "$anonfun" 22)) None))])))
                           [])]
                       (Closure (Ident (Local "$anonfun" 15)) None)));
-                  (Select (This "ox.scheduling.Schedule") (Member "ox.scheduling.Schedule" "copy$default$2" ":"))]))
+                  (Select
+                    (This "ox.scheduling.Schedule")
+                    (Member "ox.scheduling.Schedule" "copy$default$2" ":scala.Option"))]))
             []);
           (DefDef
             (Member "ox.scheduling.Schedule" "jitter" "ox.scheduling.Jitter:ox.scheduling.Schedule")
@@ -616,11 +622,11 @@ Definition ox_scheduling_Schedule : tree :=
                                                               (Member
                                                                 "scala.concurrent.duration.FiniteDuration"
                                                                 "toMillis"
-                                                                ":"))])])
+                                                                ":scala.Long"))])])
                                                     (Member
                                                       "scala.concurrent.duration.DurationConversions"
                                                       "millis"
-                                                      ":"))));
+                                                      ":scala.concurrent.duration.FiniteDuration"))));
                                               (CaseDef
                                                 (Select
                                                   (Ident (Member "ox.scheduling" "Jitter" ""))
@@ -638,7 +644,7 @@ Definition ox_scheduling_Schedule : tree :=
                                                           (Member
                                                             "scala.concurrent.duration.FiniteDuration"
                                                             "toMillis"
-                                                            ":"))))]
+                                                            ":scala.Long"))))]
                                                   (Select
                                                     (Apply
                                                       (Ident
@@ -673,15 +679,17 @@ Definition ox_scheduling_Schedule : tree :=
                                                     (Member
                                                       "scala.concurrent.duration.DurationConversions"
                                                       "millis"
-                                                      ":"))))]))
+                                                      ":scala.concurrent.duration.FiniteDuration"))))]))
                                         [])]
                                     (Closure (Ident (Local "$anonfun" 26)) None))])))
                           [])]
                       (Closure (Ident (Local "$anonfun" 25)) None)));
-                  (Select (This "ox.scheduling.Schedule") (Member "ox.scheduling.Schedule" "copy$default$2" ":"))]))
+                  (Select
+                    (This "ox.scheduling.Schedule")
+                    (Member "ox.scheduling.Schedule" "copy$default$2" ":scala.Option"))]))
             []);
           (DefDef
-            (Member "ox.scheduling.Schedule" "jitter$default$1" ":")
+            (Member "ox.scheduling.Schedule" "jitter$default$1" ":ox.scheduling.Jitter")
             ["Method"]
             []
             (TyAnnot (TyRef "ox.scheduling.Jitter") "scala.annotation.unchecked.uncheckedVariance")
@@ -701,7 +709,9 @@ Definition ox_scheduling_Schedule : tree :=
                   (This "ox.scheduling.Schedule")
                   (Member "ox.scheduling.Schedule" "copy" "scala.Function0,scala.Option:ox.scheduling.Schedule"))
                 [
-                  (Select (This "ox.scheduling.Schedule") (Member "ox.scheduling.Schedule" "copy$default$1" ":"));
+                  (Select
+                    (This "ox.scheduling.Schedule")
+                    (Member "ox.scheduling.Schedule" "copy$default$1" ":scala.Function0"));
                   (NamedArg
                     "initialDelay"
                     (Apply
@@ -723,7 +733,9 @@ Definition ox_scheduling_Schedule : tree :=
                   (This "ox.scheduling.Schedule")
                   (Member "ox.scheduling.Schedule" "copy" "scala.Function0,scala.Option:ox.scheduling.Schedule"))
                 [
-                  (Select (This "ox.scheduling.Schedule") (Member "ox.scheduling.Schedule" "copy$default$1" ":"));
+                  (Select
+                    (This "ox.scheduling.Schedule")
+                    (Member "ox.scheduling.Schedule" "copy$default$1" ":scala.Function0"));
                   (NamedArg "initialDelay" (Ident (Member "scala" "None" "")))]))
             []);
           (DefDef
@@ -772,7 +784,9 @@ Definition ox_scheduling_Schedule : tree :=
                                   [])]))
                           [])]
                       (Closure (Ident (Local "$anonfun" 31)) None)));
-                  (Select (This "ox.scheduling.Schedule") (Member "ox.scheduling.Schedule" "copy$default$2" ":"))]))
+                  (Select
+                    (This "ox.scheduling.Schedule")
+                    (Member "ox.scheduling.Schedule" "copy$default$2" ":scala.Option"))]))
             []);
           (DefDef
             (Member "ox.scheduling.Schedule" "++" "ox.scheduling.Schedule:ox.scheduling.Schedule")
@@ -815,7 +829,7 @@ Definition ox_scheduling_Schedule : tree :=
                 [(Ident (Local "intervals" 33)); (Ident (Local "initialDelay" 34))]))
             []);
           (DefDef
-            (Member "ox.scheduling.Schedule" "copy$default$1" ":")
+            (Member "ox.scheduling.Schedule" "copy$default$1" ":scala.Function0")
             ["Method"; "Synthetic"]
             []
             (TyAnnot
@@ -829,7 +843,7 @@ Definition ox_scheduling_Schedule : tree :=
             (Some (Ident (Member "ox.scheduling.Schedule" "intervals" "")))
             []);
           (DefDef
-            (Member "ox.scheduling.Schedule" "copy$default$2" ":")
+            (Member "ox.scheduling.Schedule" "copy$default$2" ":scala.Option")
             ["Method"; "Synthetic"]
             []
             (TyAnnot
@@ -838,7 +852,7 @@ Definition ox_scheduling_Schedule : tree :=
             (Some (Ident (Member "ox.scheduling.Schedule" "initialDelay" "")))
             []);
           (DefDef
-            (Member "ox.scheduling.Schedule" "_1" ":")
+            (Member "ox.scheduling.Schedule" "_1" ":scala.Function0")
             ["Method"; "Synthetic"]
             []
             (TyApp
@@ -850,7 +864,7 @@ Definition ox_scheduling_Schedule : tree :=
             (Some (Select (This "ox.scheduling.Schedule") (Member "ox.scheduling.Schedule" "intervals" "")))
             []);
           (DefDef
-            (Member "ox.scheduling.Schedule" "_2" ":")
+            (Member "ox.scheduling.Schedule" "_2" ":scala.Option")
             ["Method"; "Synthetic"]
             []
             (TyApp (TyRef "scala.Option") [(TyRef "scala.concurrent.duration.FiniteDuration")])
@@ -934,7 +948,7 @@ Definition ox_scheduling_Schedule : tree :=
             (Some (Ident (Local "x$1" 37)))
             []);
           (DefDef
-            (Member "ox.scheduling.Schedule$" "$lessinit$greater$default$2" ":")
+            (Member "ox.scheduling.Schedule$" "$lessinit$greater$default$2" ":scala.Option")
             ["Method"]
             []
             (TyAnnot
@@ -958,7 +972,10 @@ Definition ox_scheduling_Schedule : tree :=
                     (Apply
                       (Ident (Member "scala.concurrent.duration.package$" "DurationInt" "scala.Int:scala.Int"))
                       [(Literal (CInt (0)%Z))])
-                    (Member "scala.concurrent.duration.DurationConversions" "seconds" ":"))])));
+                    (Member
+                      "scala.concurrent.duration.DurationConversions"
+                      "seconds"
+                      ":scala.concurrent.duration.FiniteDuration"))])));
           (DefDef
             (Member
               "ox.scheduling.Schedule$"
@@ -997,7 +1014,7 @@ Definition ox_scheduling_Schedule : tree :=
                     (Closure (Ident (Local "$anonfun" 39)) None));
                   (Select
                     (Ident (Member "ox.scheduling" "Schedule" ""))
-                    (Member "ox.scheduling.Schedule$" "$lessinit$greater$default$2" ":"))]))
+                    (Member "ox.scheduling.Schedule$" "$lessinit$greater$default$2" ":scala.Option"))]))
             []);
           (DefDef
             (Member "ox.scheduling.Schedule$" "intervals" "scala.collection.immutable.Seq:ox.scheduling.Schedule")
@@ -1044,7 +1061,7 @@ Definition ox_scheduling_Schedule : tree :=
                     (Closure (Ident (Local "$anonfun" 41)) None));
                   (Select
                     (Ident (Member "ox.scheduling" "Schedule" ""))
-                    (Member "ox.scheduling.Schedule$" "$lessinit$greater$default$2" ":"))]))
+                    (Member "ox.scheduling.Schedule$" "$lessinit$greater$default$2" ":scala.Option"))]))
             []);
           (DefDef
             (Member
@@ -1128,7 +1145,7 @@ Definition ox_scheduling_Schedule : tree :=
                     (Closure (Ident (Local "$anonfun" 43)) None));
                   (Select
                     (Ident (Member "ox.scheduling" "Schedule" ""))
-                    (Member "ox.scheduling.Schedule$" "$lessinit$greater$default$2" ":"))]))
+                    (Member "ox.scheduling.Schedule$" "$lessinit$greater$default$2" ":scala.Option"))]))
             []);
           (DefDef
             (Member
@@ -1220,7 +1237,7 @@ Definition ox_scheduling_Schedule : tree :=
                     (Closure (Ident (Local "$anonfun" 47)) None));
                   (Select
                     (Ident (Member "ox.scheduling" "Schedule" ""))
-                    (Member "ox.scheduling.Schedule$" "$lessinit$greater$default$2" ":"))]))
+                    (Member "ox.scheduling.Schedule$" "$lessinit$greater$default$2" ":scala.Option"))]))
             []);
           (DefDef
             (Member
@@ -1255,7 +1272,7 @@ Definition ox_scheduling_Schedule : tree :=
                                 (Some
                                   (Select
                                     (Ident (Local "min" 51))
-                                    (Member "scala.concurrent.duration.FiniteDuration" "toMillis" ":"))));
+                                    (Member "scala.concurrent.duration.FiniteDuration" "toMillis" ":scala.Long"))));
                               (DefDef
                                 (Local "loop" 54)
                                 ["Method"]
@@ -1305,7 +1322,10 @@ Definition ox_scheduling_Schedule : tree :=
                                                       "DurationLong"
                                                       "scala.Long:scala.Long"))
                                                   [(Ident (Local "next" 56))])
-                                                (Member "scala.concurrent.duration.DurationConversions" "millis" ":"))])))]
+                                                (Member
+                                                  "scala.concurrent.duration.DurationConversions"
+                                                  "millis"
+                                                  ":scala.concurrent.duration.FiniteDuration"))])))]
                                     (Apply
                                       (TypeApply
                                         (Select
@@ -1323,7 +1343,10 @@ Definition ox_scheduling_Schedule : tree :=
                                                 [
                                                   (Select
                                                     (Ident (Local "nextDuration" 57))
-                                                    (Member "scala.concurrent.duration.FiniteDuration" "toMillis" ":"))])])
+                                                    (Member
+                                                      "scala.concurrent.duration.FiniteDuration"
+                                                      "toMillis"
+                                                      ":scala.Long"))])])
                                           (Member
                                             "scala.collection.immutable.LazyList$.Deferrer"
                                             "#::"
@@ -1336,7 +1359,7 @@ Definition ox_scheduling_Schedule : tree :=
                     (Closure (Ident (Local "$anonfun" 52)) None));
                   (Select
                     (Ident (Member "ox.scheduling" "Schedule" ""))
-                    (Member "ox.scheduling.Schedule$" "$lessinit$greater$default$2" ":"))]))
+                    (Member "ox.scheduling.Schedule$" "$lessinit$greater$default$2" ":scala.Option"))]))
             []);
           (DefDef
             (Member "ox.scheduling.Schedule$" "computed" "1,java.lang.Object,scala.Function1:ox.scheduling.Schedule")
@@ -1476,7 +1499,7 @@ Definition ox_scheduling_Schedule : tree :=
                     (Closure (Ident (Local "$anonfun" 60)) None));
                   (Select
                     (Ident (Member "ox.scheduling" "Schedule" ""))
-                    (Member "ox.scheduling.Schedule$" "$lessinit$greater$default$2" ":"))]))
+                    (Member "ox.scheduling.Schedule$" "$lessinit$greater$default$2" ":scala.Option"))]))
             []);
           (ValDef
             (Member "ox.scheduling.Schedule$" "intervalCap" "")
@@ -1490,7 +1513,10 @@ Definition ox_scheduling_Schedule : tree :=
                     (Apply
                       (Select (Literal (CInt (365)%Z)) (Member "scala.Int" "*" "scala.Int:scala.Int"))
                       [(Literal (CInt (10)%Z))])])
-                (Member "scala.concurrent.duration.DurationConversions" "days" ":"))));
+                (Member
+                  "scala.concurrent.duration.DurationConversions"
+                  "days"
+                  ":scala.concurrent.duration.FiniteDuration"))));
           (DefDef
             (Member
               "ox.scheduling.Schedule$"

@@ -199,7 +199,7 @@ Definition ox_flow_FlowCompanionIOOps : tree :=
                     (Closure (Ident (Local "$anonfun" 2)) None))]))
             []);
           (DefDef
-            (Member "ox.flow.FlowCompanionIOOps" "fromInputStream$default$2" ":")
+            (Member "ox.flow.FlowCompanionIOOps" "fromInputStream$default$2" ":scala.Int")
             ["Method"]
             []
             (TyAnnot (TyRef "scala.Int") "scala.annotation.unchecked.uncheckedVariance")
@@ -463,7 +463,7 @@ Definition ox_flow_FlowCompanionIOOps : tree :=
                     (Closure (Ident (Local "$anonfun" 8)) None))]))
             []);
           (DefDef
-            (Member "ox.flow.FlowCompanionIOOps" "fromFile$default$2" ":")
+            (Member "ox.flow.FlowCompanionIOOps" "fromFile$default$2" ":scala.Int")
             ["Method"]
             []
             (TyAnnot (TyRef "scala.Int") "scala.annotation.unchecked.uncheckedVariance")

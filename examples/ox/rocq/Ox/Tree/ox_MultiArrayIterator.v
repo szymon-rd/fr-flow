@@ -77,7 +77,7 @@ Definition ox_MultiArrayIterator : tree :=
               (If
                 (Select
                   (Ident (Member "ox.MultiArrayIterator" "arrays" ""))
-                  (Member "scala.collection.IterableOnceOps" "nonEmpty" ":"))
+                  (Member "scala.collection.IterableOnceOps" "nonEmpty" ":scala.Boolean"))
                 (Apply
                   (TypeApply
                     (Select
@@ -97,7 +97,7 @@ Definition ox_MultiArrayIterator : tree :=
                     (Member "scala.collection.Iterator$" "empty" "1:scala.collection.Iterator"))
                   [(TyParam "ox.MultiArrayIterator" "A")]))));
           (DefDef
-            (Member "ox.MultiArrayIterator" "hasNext" ":")
+            (Member "ox.MultiArrayIterator" "hasNext" ":scala.Boolean")
             ["Method"]
             []
             (TyRef "scala.Boolean")
@@ -111,7 +111,7 @@ Definition ox_MultiArrayIterator : tree :=
                           (Select
                             (This "ox.MultiArrayIterator")
                             (Member "ox.MultiArrayIterator" "currentArrayIterator" ""))
-                          (Member "scala.collection.Iterator" "isEmpty" ":"))
+                          (Member "scala.collection.Iterator" "isEmpty" ":scala.Boolean"))
                         (Member "scala.Boolean" "&&" "scala.Boolean:scala.Boolean"))
                       [
                         (Select
@@ -120,7 +120,7 @@ Definition ox_MultiArrayIterator : tree :=
                               (This "ox.MultiArrayIterator")
                               (Member "ox.MultiArrayIterator" "currentArrays" ""))
                             (Member "scala.collection.IterableOps" "tail" ":"))
-                          (Member "scala.collection.IterableOnceOps" "nonEmpty" ":"))])
+                          (Member "scala.collection.IterableOnceOps" "nonEmpty" ":scala.Boolean"))])
                     (Block
                       [
                         (Assign
@@ -151,8 +151,8 @@ Definition ox_MultiArrayIterator : tree :=
                               (Member "scala.collection.IterableOps" "head" ":"))]))))]
                 (Select
                   (Select (This "ox.MultiArrayIterator") (Member "ox.MultiArrayIterator" "currentArrayIterator" ""))
-                  (Member "scala.collection.Iterator" "hasNext" ":"))))
-            [(Member "scala.collection.Iterator" "hasNext" ":")]);
+                  (Member "scala.collection.Iterator" "hasNext" ":scala.Boolean"))))
+            [(Member "scala.collection.Iterator" "hasNext" ":scala.Boolean")]);
           (DefDef
             (Member "ox.MultiArrayIterator" "next" ":java.lang.Object")
             ["Method"]
@@ -163,8 +163,10 @@ Definition ox_MultiArrayIterator : tree :=
                 [
                   (If
                     (Select
-                      (Select (This "ox.MultiArrayIterator") (Member "ox.MultiArrayIterator" "hasNext" ":"))
-                      (Member "scala.Boolean" "unary_!" ":"))
+                      (Select
+                        (This "ox.MultiArrayIterator")
+                        (Member "ox.MultiArrayIterator" "hasNext" ":scala.Boolean"))
+                      (Member "scala.Boolean" "unary_!" ":scala.Boolean"))
                     (Apply
                       (Ident (Member "<special-ops>" "throw" "java.lang.Throwable:scala.Nothing"))
                       [

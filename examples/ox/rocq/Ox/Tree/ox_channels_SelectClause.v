@@ -50,7 +50,7 @@ Definition ox_channels_SelectClause : tree :=
             ["Covariant"; "Deferred"; "Local"; "Param"; "Private"; "PrivateLocal"]
             (TyBounds (TyRef "scala.Nothing") (TyRef "scala.Any")));
           (DefDef
-            (Member "ox.channels.SelectClause" "delegate" ":")
+            (Member "ox.channels.SelectClause" "delegate" ":com.softwaremill.jox.SelectClause")
             ["Deferred"; "Method"]
             []
             (TyApp (TyRef "com.softwaremill.jox.SelectClause") [(TyRef "scala.Any")])

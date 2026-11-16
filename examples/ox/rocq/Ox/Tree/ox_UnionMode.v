@@ -71,7 +71,7 @@ Definition ox_UnionMode : tree :=
                       (Some (TypeTree (TyRef "scala.Predef$")))
                       []
                       (Inlined None [] (Ident (Member "ox.UnionMode" "evidence$1" ""))))
-                    (Member "scala.reflect.ClassTag" "runtimeClass" ":"))
+                    (Member "scala.reflect.ClassTag" "runtimeClass" ":java.lang.Class"))
                   (Member "java.lang.Class" "isInstance" "java.lang.Object:scala.Boolean"))
                 [(Ident (Local "f" 1))]))
             [(Member "ox.ErrorMode" "isError" "1,java.lang.Object:scala.Boolean")]);

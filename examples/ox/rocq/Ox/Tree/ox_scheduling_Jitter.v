@@ -126,7 +126,7 @@ Definition ox_scheduling_Jitter : tree :=
                         (Ident (Member "scala.Predef$" "classOf" "1:java.lang.Class"))
                         [(TyRef "ox.scheduling.Jitter")])])])));
           (DefDef
-            (Member "ox.scheduling.Jitter$" "values" ":")
+            (Member "ox.scheduling.Jitter$" "values" ":scala.Array")
             ["Method"; "Synthetic"]
             []
             (TyApp (TyRef "scala.Array") [(TyRef "ox.scheduling.Jitter")])
@@ -219,15 +219,15 @@ Definition ox_scheduling_Jitter : tree :=
                             [
                               (Select
                                 (This "ox.scheduling.Jitter$._$$anon#3")
-                                (Member "ox.scheduling.Jitter$._$$anon#3" "ordinal" ":"))]))
+                                (Member "ox.scheduling.Jitter$._$$anon#3" "ordinal" ":scala.Int"))]))
                         []);
                       (DefDef
-                        (Member "ox.scheduling.Jitter$._$$anon#3" "productPrefix" ":")
+                        (Member "ox.scheduling.Jitter$._$$anon#3" "productPrefix" ":java.lang.String")
                         ["Method"; "Override"; "Synthetic"]
                         []
                         (TyAlias "scala.Predef$.String" (TyRef "java.lang.String"))
                         (Some (Ident (Local "$name" 2)))
-                        [(Member "scala.Product" "productPrefix" ":")]);
+                        [(Member "scala.Product" "productPrefix" ":java.lang.String")]);
                       (DefDef
                         (Member "ox.scheduling.Jitter$._$$anon#3" "toString" ":java.lang.String")
                         ["Method"; "Override"; "Synthetic"]
@@ -236,12 +236,12 @@ Definition ox_scheduling_Jitter : tree :=
                         (Some (Ident (Local "$name" 2)))
                         [(Member "scala.Any" "toString" ":java.lang.String")]);
                       (DefDef
-                        (Member "ox.scheduling.Jitter$._$$anon#3" "ordinal" ":")
+                        (Member "ox.scheduling.Jitter$._$$anon#3" "ordinal" ":scala.Int")
                         ["Method"; "Override"; "Synthetic"]
                         []
                         (TyRef "scala.Int")
                         (Some (Ident (Local "_$ordinal" 1)))
-                        [(Member "scala.reflect.Enum" "ordinal" ":")]);
+                        [(Member "scala.reflect.Enum" "ordinal" ":scala.Int")]);
                       (DefDef
                         (Member "ox.scheduling.Jitter$._$$anon#3" "hashCode" ":scala.Int")
                         ["Method"; "Override"; "Synthetic"]
@@ -316,5 +316,5 @@ Definition ox_scheduling_Jitter : tree :=
                   (TyAlias "ox.scheduling.Jitter$.MirroredMonoType" (TyRef "ox.scheduling.Jitter"))
                   None)]]
             (TyRef "scala.Int")
-            (Some (Select (Ident (Local "x$0" 5)) (Member "scala.reflect.Enum" "ordinal" ":")))
+            (Some (Select (Ident (Local "x$0" 5)) (Member "scala.reflect.Enum" "ordinal" ":scala.Int")))
             [(Member "scala.deriving.Mirror$.Sum" "ordinal" "java.lang.Object:scala.Int")])])]).

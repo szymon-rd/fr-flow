@@ -33,7 +33,7 @@ Definition ox_Ox : tree :=
         None
         [
           (DefDef
-            (Member "ox.Ox" "asNoErrorMode" ":")
+            (Member "ox.Ox" "asNoErrorMode" ":ox.OxError")
             ["Deferred"; "Method"]
             []
             (TyApp (TyRef "ox.OxError") [(TyRef "scala.Nothing"); (TyLambda ["T"] (TyParamRef "T"))])

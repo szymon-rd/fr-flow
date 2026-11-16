@@ -123,7 +123,9 @@ Definition ox_flow_FlowOps_package : tree :=
                 (Apply
                   (TypeApply
                     (Select
-                      (Select (Ident (Local "ch" 0)) (Member "ox.channels.Source" "isClosedForReceiveDetail" ":"))
+                      (Select
+                        (Ident (Local "ch" 0))
+                        (Member "ox.channels.Source" "isClosedForReceiveDetail" ":scala.Option"))
                       (Member "scala.Option" "contains" "1,java.lang.Object:scala.Boolean"))
                     [(TyRef "ox.channels.ChannelClosed")])
                   [

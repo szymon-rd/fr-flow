@@ -39,8 +39,22 @@ private[source] trait SourceSyms:
     * package says it is one: it is no definition of the code read.
     */
   private def signature(s: Symbol): String =
-    if s.isDefDef then s"${s.signature.paramSigs.mkString(",")}:${s.signature.resultSig}"
+    if s.isDefDef then
+      val result = if s.signature.resultSig.nonEmpty then s.signature.resultSig else resultOf(s)
+      s"${s.signature.paramSigs.mkString(",")}:$result"
     else if s.isPackageDef then "package" else ""
+
+  /** The class of what a method with no parameter clause gives, which its signature leaves out: nothing, where
+    * what it gives is of no class.
+    */
+  private def resultOf(s: Symbol): String =
+    if !s.maybeOwner.isClassDef then ""
+    else
+      val gives = scala.util.Try(s.maybeOwner.typeRef.memberType(s)).toOption.map {
+        case ByNameType(t) => t
+        case t             => t
+      }
+      gives.map(_.widen.dealias.typeSymbol).filter(_.isClassDef).fold("")(_.fullName)
 
   /** A definition's flags, as the compiler names them, then its annotations' classes. */
   def flags(s: Symbol): Datum = Datum.texts(

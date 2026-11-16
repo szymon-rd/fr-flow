@@ -46,7 +46,7 @@ Definition ox_channels_Source : tree :=
             ["Covariant"; "Deferred"; "Local"; "Param"; "Private"; "PrivateLocal"]
             (TyBounds (TyRef "scala.Nothing") (TyRef "scala.Any")));
           (DefDef
-            (Member "ox.channels.Source" "delegate" ":")
+            (Member "ox.channels.Source" "delegate" ":com.softwaremill.jox.Source")
             ["Deferred"; "Method"; "Protected"]
             []
             (TyApp (TyRef "com.softwaremill.jox.Source") [(TyRef "scala.Any")])
@@ -168,19 +168,19 @@ Definition ox_channels_Source : tree :=
                     [(TyAnnot (TyRef "ox.channels.Source.Received") "scala.unchecked")]))
                 [(Member "scala.Equals" "canEqual" "java.lang.Object:scala.Boolean")]);
               (DefDef
-                (Member "ox.channels.Source.Received" "productArity" ":")
+                (Member "ox.channels.Source.Received" "productArity" ":scala.Int")
                 ["Method"; "Override"; "Synthetic"]
                 []
                 (TyRef "scala.Int")
                 (Some (Literal (CInt (1)%Z)))
-                [(Member "scala.Product" "productArity" ":")]);
+                [(Member "scala.Product" "productArity" ":scala.Int")]);
               (DefDef
-                (Member "ox.channels.Source.Received" "productPrefix" ":")
+                (Member "ox.channels.Source.Received" "productPrefix" ":java.lang.String")
                 ["Method"; "Override"; "Synthetic"]
                 []
                 (TyAlias "scala.Predef$.String" (TyRef "java.lang.String"))
                 (Some (Literal (CString "Received")))
-                [(Member "scala.Product" "productPrefix" ":")]);
+                [(Member "scala.Product" "productPrefix" ":java.lang.String")]);
               (DefDef
                 (Member "ox.channels.Source.Received" "productElement" "scala.Int:java.lang.Object")
                 ["Method"; "Override"; "Synthetic"]
@@ -326,7 +326,7 @@ Definition ox_channels_Source : tree :=
                 (Some (Ident (Local "x$1" 8)))
                 []);
               (DefDef
-                (Member "ox.channels.Source.Received$" "toString" ":")
+                (Member "ox.channels.Source.Received$" "toString" ":java.lang.String")
                 ["Method"; "Override"; "Synthetic"]
                 []
                 (TyRef "java.lang.String")
@@ -489,19 +489,19 @@ Definition ox_channels_Source : tree :=
                     [(TyAnnot (TyRef "ox.channels.Source.Receive") "scala.unchecked")]))
                 [(Member "scala.Equals" "canEqual" "java.lang.Object:scala.Boolean")]);
               (DefDef
-                (Member "ox.channels.Source.Receive" "productArity" ":")
+                (Member "ox.channels.Source.Receive" "productArity" ":scala.Int")
                 ["Method"; "Override"; "Synthetic"]
                 []
                 (TyRef "scala.Int")
                 (Some (Literal (CInt (1)%Z)))
-                [(Member "scala.Product" "productArity" ":")]);
+                [(Member "scala.Product" "productArity" ":scala.Int")]);
               (DefDef
-                (Member "ox.channels.Source.Receive" "productPrefix" ":")
+                (Member "ox.channels.Source.Receive" "productPrefix" ":java.lang.String")
                 ["Method"; "Override"; "Synthetic"]
                 []
                 (TyAlias "scala.Predef$.String" (TyRef "java.lang.String"))
                 (Some (Literal (CString "Receive")))
-                [(Member "scala.Product" "productPrefix" ":")]);
+                [(Member "scala.Product" "productPrefix" ":java.lang.String")]);
               (DefDef
                 (Member "ox.channels.Source.Receive" "productElement" "scala.Int:java.lang.Object")
                 ["Method"; "Override"; "Synthetic"]
@@ -515,7 +515,9 @@ Definition ox_channels_Source : tree :=
                       (CaseDef
                         (Literal (CInt (0)%Z))
                         None
-                        (Select (This "ox.channels.Source.Receive") (Member "ox.channels.Source.Receive" "_1" ":")));
+                        (Select
+                          (This "ox.channels.Source.Receive")
+                          (Member "ox.channels.Source.Receive" "_1" ":com.softwaremill.jox.SelectClause")));
                       (CaseDef
                         Wildcard
                         None
@@ -583,7 +585,7 @@ Definition ox_channels_Source : tree :=
                     [(Ident (Local "delegate" 17))]))
                 []);
               (DefDef
-                (Member "ox.channels.Source.Receive" "copy$default$1" ":")
+                (Member "ox.channels.Source.Receive" "copy$default$1" ":com.softwaremill.jox.SelectClause")
                 ["Method"; "Synthetic"]
                 []
                 (TyAnnot
@@ -592,7 +594,7 @@ Definition ox_channels_Source : tree :=
                 (Some (Ident (Member "ox.channels.Source.Receive" "delegate" "")))
                 []);
               (DefDef
-                (Member "ox.channels.Source.Receive" "_1" ":")
+                (Member "ox.channels.Source.Receive" "_1" ":com.softwaremill.jox.SelectClause")
                 ["Method"; "Synthetic"]
                 []
                 (TyApp (TyRef "com.softwaremill.jox.SelectClause") [(TyRef "scala.Any")])
@@ -663,7 +665,7 @@ Definition ox_channels_Source : tree :=
                 (Some (Ident (Local "x$1" 19)))
                 []);
               (DefDef
-                (Member "ox.channels.Source.Receive$" "toString" ":")
+                (Member "ox.channels.Source.Receive$" "toString" ":java.lang.String")
                 ["Method"; "Override"; "Synthetic"]
                 []
                 (TyRef "java.lang.String")
@@ -705,7 +707,7 @@ Definition ox_channels_Source : tree :=
                       [(Ident (Local "delegate$1" 21))])))
                 [(Member "scala.deriving.Mirror$.Product" "fromProduct" "scala.Product:java.lang.Object")])]);
           (DefDef
-            (Member "ox.channels.Source" "receiveClause" ":")
+            (Member "ox.channels.Source" "receiveClause" ":ox.channels.Source.Receive")
             ["Method"]
             []
             (TyRef "ox.channels.Source.Receive")
@@ -721,7 +723,9 @@ Definition ox_channels_Source : tree :=
                   (Apply
                     (TypeApply
                       (Select
-                        (Select (This "ox.channels.Source") (Member "ox.channels.Source" "delegate" ":"))
+                        (Select
+                          (This "ox.channels.Source")
+                          (Member "ox.channels.Source" "delegate" ":com.softwaremill.jox.Source"))
                         (Member
                           "com.softwaremill.jox.Source"
                           "receiveClause"
@@ -789,7 +793,9 @@ Definition ox_channels_Source : tree :=
                     (Some
                       (Apply
                         (Select
-                          (Select (This "ox.channels.Source") (Member "ox.channels.Source" "delegate" ":"))
+                          (Select
+                            (This "ox.channels.Source")
+                            (Member "ox.channels.Source" "delegate" ":com.softwaremill.jox.Source"))
                           (Member "com.softwaremill.jox.Source" "tryReceiveOrClosed" ":java.lang.Object"))
                         [])))]
                 (If
@@ -844,7 +850,9 @@ Definition ox_channels_Source : tree :=
                 [
                   (Apply
                     (Select
-                      (Select (This "ox.channels.Source") (Member "ox.channels.Source" "delegate" ":"))
+                      (Select
+                        (This "ox.channels.Source")
+                        (Member "ox.channels.Source" "delegate" ":com.softwaremill.jox.Source"))
                       (Member "com.softwaremill.jox.Source" "receiveOrClosed" ":java.lang.Object"))
                     [])]))
             []);
@@ -869,7 +877,10 @@ Definition ox_channels_Source : tree :=
                       []
                       (Apply
                         (Ident (Member "<special-ops>" "throw" "java.lang.Throwable:scala.Nothing"))
-                        [(Select (Ident (Local "e" 27)) (Member "ox.channels.ChannelClosed" "toThrowable" ":"))])));
+                        [
+                          (Select
+                            (Ident (Local "e" 27))
+                            (Member "ox.channels.ChannelClosed" "toThrowable" ":java.lang.Throwable"))])));
                   (CaseDef
                     (Select
                       (Ident (Member "ox.channels" "ChannelClosed" ""))
@@ -905,19 +916,21 @@ Definition ox_channels_Source : tree :=
                     [])]))
             []);
           (DefDef
-            (Member "ox.channels.Source" "isClosedForReceive" ":")
+            (Member "ox.channels.Source" "isClosedForReceive" ":scala.Boolean")
             ["Method"]
             []
             (TyRef "scala.Boolean")
             (Some
               (Apply
                 (Select
-                  (Select (This "ox.channels.Source") (Member "ox.channels.Source" "delegate" ":"))
+                  (Select
+                    (This "ox.channels.Source")
+                    (Member "ox.channels.Source" "delegate" ":com.softwaremill.jox.Source"))
                   (Member "com.softwaremill.jox.CloseableChannel" "isClosedForReceive" ":scala.Boolean"))
                 []))
             []);
           (DefDef
-            (Member "ox.channels.Source" "isClosedForReceiveDetail" ":")
+            (Member "ox.channels.Source" "isClosedForReceiveDetail" ":scala.Option")
             ["Method"]
             []
             (TyApp (TyRef "scala.Option") [(TyRef "ox.channels.ChannelClosed")])
@@ -938,7 +951,9 @@ Definition ox_channels_Source : tree :=
                     [
                       (Apply
                         (Select
-                          (Select (This "ox.channels.Source") (Member "ox.channels.Source" "delegate" ":"))
+                          (Select
+                            (This "ox.channels.Source")
+                            (Member "ox.channels.Source" "delegate" ":com.softwaremill.jox.Source"))
                           (Member
                             "com.softwaremill.jox.CloseableChannel"
                             "closedForReceive"

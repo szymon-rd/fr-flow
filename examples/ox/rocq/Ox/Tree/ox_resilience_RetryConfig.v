@@ -222,19 +222,19 @@ Definition ox_resilience_RetryConfig : tree :=
                     "scala.unchecked")]))
             [(Member "scala.Equals" "canEqual" "java.lang.Object:scala.Boolean")]);
           (DefDef
-            (Member "ox.resilience.RetryConfig" "productArity" ":")
+            (Member "ox.resilience.RetryConfig" "productArity" ":scala.Int")
             ["Method"; "Override"; "Synthetic"]
             []
             (TyRef "scala.Int")
             (Some (Literal (CInt (3)%Z)))
-            [(Member "scala.Product" "productArity" ":")]);
+            [(Member "scala.Product" "productArity" ":scala.Int")]);
           (DefDef
-            (Member "ox.resilience.RetryConfig" "productPrefix" ":")
+            (Member "ox.resilience.RetryConfig" "productPrefix" ":java.lang.String")
             ["Method"; "Override"; "Synthetic"]
             []
             (TyAlias "scala.Predef$.String" (TyRef "java.lang.String"))
             (Some (Literal (CString "RetryConfig")))
-            [(Member "scala.Product" "productPrefix" ":")]);
+            [(Member "scala.Product" "productPrefix" ":java.lang.String")]);
           (DefDef
             (Member "ox.resilience.RetryConfig" "productElement" "scala.Int:java.lang.Object")
             ["Method"; "Override"; "Synthetic"]
@@ -248,15 +248,21 @@ Definition ox_resilience_RetryConfig : tree :=
                   (CaseDef
                     (Literal (CInt (0)%Z))
                     None
-                    (Select (This "ox.resilience.RetryConfig") (Member "ox.resilience.RetryConfig" "_1" ":")));
+                    (Select
+                      (This "ox.resilience.RetryConfig")
+                      (Member "ox.resilience.RetryConfig" "_1" ":ox.scheduling.Schedule")));
                   (CaseDef
                     (Literal (CInt (1)%Z))
                     None
-                    (Select (This "ox.resilience.RetryConfig") (Member "ox.resilience.RetryConfig" "_2" ":")));
+                    (Select
+                      (This "ox.resilience.RetryConfig")
+                      (Member "ox.resilience.RetryConfig" "_2" ":ox.resilience.ResultPolicy")));
                   (CaseDef
                     (Literal (CInt (2)%Z))
                     None
-                    (Select (This "ox.resilience.RetryConfig") (Member "ox.resilience.RetryConfig" "_3" ":")));
+                    (Select
+                      (This "ox.resilience.RetryConfig")
+                      (Member "ox.resilience.RetryConfig" "_3" ":scala.Function2")));
                   (CaseDef
                     Wildcard
                     None
@@ -412,7 +418,7 @@ Definition ox_resilience_RetryConfig : tree :=
                   (NamedArg "afterAttempt" (Ident (Local "newAfterAttempt" 10)))]))
             []);
           (DefDef
-            (Member "ox.resilience.RetryConfig" "toScheduledConfig" ":")
+            (Member "ox.resilience.RetryConfig" "toScheduledConfig" ":ox.scheduling.ScheduledConfig")
             ["Method"]
             []
             (TyApp
@@ -509,7 +515,7 @@ Definition ox_resilience_RetryConfig : tree :=
                                                     "apply"
                                                     "java.lang.Object:java.lang.Object"))
                                                 [(Ident (Local "value" 15))])
-                                              (Member "scala.Boolean" "unary_!" ":"))])));
+                                              (Member "scala.Boolean" "unary_!" ":scala.Boolean"))])));
                                     (CaseDef
                                       (TypeTest
                                         (Unapply
@@ -656,14 +662,14 @@ Definition ox_resilience_RetryConfig : tree :=
             (Some (Select (This "ox.resilience.RetryConfig") (Member "ox.resilience.RetryConfig" "afterAttempt" "")))
             []);
           (DefDef
-            (Member "ox.resilience.RetryConfig" "_1" ":")
+            (Member "ox.resilience.RetryConfig" "_1" ":ox.scheduling.Schedule")
             ["Method"; "Synthetic"]
             []
             (TyRef "ox.scheduling.Schedule")
             (Some (Select (This "ox.resilience.RetryConfig") (Member "ox.resilience.RetryConfig" "schedule" "")))
             []);
           (DefDef
-            (Member "ox.resilience.RetryConfig" "_2" ":")
+            (Member "ox.resilience.RetryConfig" "_2" ":ox.resilience.ResultPolicy")
             ["Method"; "Synthetic"]
             []
             (TyApp
@@ -672,7 +678,7 @@ Definition ox_resilience_RetryConfig : tree :=
             (Some (Select (This "ox.resilience.RetryConfig") (Member "ox.resilience.RetryConfig" "resultPolicy" "")))
             []);
           (DefDef
-            (Member "ox.resilience.RetryConfig" "_3" ":")
+            (Member "ox.resilience.RetryConfig" "_3" ":scala.Function2")
             ["Method"; "Synthetic"]
             []
             (TyApp
@@ -805,7 +811,7 @@ Definition ox_resilience_RetryConfig : tree :=
             (Some (Ident (Local "x$1" 23)))
             []);
           (DefDef
-            (Member "ox.resilience.RetryConfig$" "toString" ":")
+            (Member "ox.resilience.RetryConfig$" "toString" ":java.lang.String")
             ["Method"; "Override"; "Synthetic"]
             []
             (TyRef "java.lang.String")

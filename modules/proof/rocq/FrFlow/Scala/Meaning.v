@@ -735,10 +735,18 @@ Section Meaning.
         | VObj (Data c xs) =>
             if String.eqb c "scala.None$" then oret None
             else if String.eqb c "scala.Some" then
-              match ps, xs with
-              | [_], [_] => zip ps xs e
-              | _, [VObj (Data _ parts)] => zip ps parts e
-              | _, _ => stuck "an extractor's result that does not fit the pattern"
+              (* one pattern takes what the option holds, whatever it is: it is not looked into *)
+              match ps with
+              | [_] =>
+                  match xs with
+                  | [_] => zip ps xs e
+                  | _ => stuck "an extractor's result that does not fit the pattern"
+                  end
+              | _ =>
+                  match xs with
+                  | [VObj (Data _ parts)] => zip ps parts e
+                  | _ => stuck "an extractor's result that does not fit the pattern"
+                  end
               end
             else zip ps xs e
         | VObj (Ref _ _) => xs <~ components r 1 (List.length ps) ;; zip ps xs e

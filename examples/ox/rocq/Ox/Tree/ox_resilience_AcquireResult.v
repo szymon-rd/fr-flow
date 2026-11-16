@@ -187,19 +187,19 @@ Definition ox_resilience_AcquireResult : tree :=
                 [(TyAnnot (TyRef "ox.resilience.AcquireResult") "scala.unchecked")]))
             [(Member "scala.Equals" "canEqual" "java.lang.Object:scala.Boolean")]);
           (DefDef
-            (Member "ox.resilience.AcquireResult" "productArity" ":")
+            (Member "ox.resilience.AcquireResult" "productArity" ":scala.Int")
             ["Method"; "Override"; "Synthetic"]
             []
             (TyRef "scala.Int")
             (Some (Literal (CInt (2)%Z)))
-            [(Member "scala.Product" "productArity" ":")]);
+            [(Member "scala.Product" "productArity" ":scala.Int")]);
           (DefDef
-            (Member "ox.resilience.AcquireResult" "productPrefix" ":")
+            (Member "ox.resilience.AcquireResult" "productPrefix" ":java.lang.String")
             ["Method"; "Override"; "Synthetic"]
             []
             (TyAlias "scala.Predef$.String" (TyRef "java.lang.String"))
             (Some (Literal (CString "AcquireResult")))
-            [(Member "scala.Product" "productPrefix" ":")]);
+            [(Member "scala.Product" "productPrefix" ":java.lang.String")]);
           (DefDef
             (Member "ox.resilience.AcquireResult" "productElement" "scala.Int:java.lang.Object")
             ["Method"; "Override"; "Synthetic"]
@@ -213,11 +213,15 @@ Definition ox_resilience_AcquireResult : tree :=
                   (CaseDef
                     (Literal (CInt (0)%Z))
                     None
-                    (Select (This "ox.resilience.AcquireResult") (Member "ox.resilience.AcquireResult" "_1" ":")));
+                    (Select
+                      (This "ox.resilience.AcquireResult")
+                      (Member "ox.resilience.AcquireResult" "_1" ":scala.Boolean")));
                   (CaseDef
                     (Literal (CInt (1)%Z))
                     None
-                    (Select (This "ox.resilience.AcquireResult") (Member "ox.resilience.AcquireResult" "_2" ":")));
+                    (Select
+                      (This "ox.resilience.AcquireResult")
+                      (Member "ox.resilience.AcquireResult" "_2" ":ox.resilience.CircuitBreakerState")));
                   (CaseDef
                     Wildcard
                     None
@@ -286,28 +290,28 @@ Definition ox_resilience_AcquireResult : tree :=
                 [(Ident (Local "acquired" 8)); (Ident (Local "circuitState" 9))]))
             []);
           (DefDef
-            (Member "ox.resilience.AcquireResult" "copy$default$1" ":")
+            (Member "ox.resilience.AcquireResult" "copy$default$1" ":scala.Boolean")
             ["Method"; "Synthetic"]
             []
             (TyAnnot (TyRef "scala.Boolean") "scala.annotation.unchecked.uncheckedVariance")
             (Some (Ident (Member "ox.resilience.AcquireResult" "acquired" "")))
             []);
           (DefDef
-            (Member "ox.resilience.AcquireResult" "copy$default$2" ":")
+            (Member "ox.resilience.AcquireResult" "copy$default$2" ":ox.resilience.CircuitBreakerState")
             ["Method"; "Synthetic"]
             []
             (TyAnnot (TyRef "ox.resilience.CircuitBreakerState") "scala.annotation.unchecked.uncheckedVariance")
             (Some (Ident (Member "ox.resilience.AcquireResult" "circuitState" "")))
             []);
           (DefDef
-            (Member "ox.resilience.AcquireResult" "_1" ":")
+            (Member "ox.resilience.AcquireResult" "_1" ":scala.Boolean")
             ["Method"; "Synthetic"]
             []
             (TyRef "scala.Boolean")
             (Some (Select (This "ox.resilience.AcquireResult") (Member "ox.resilience.AcquireResult" "acquired" "")))
             []);
           (DefDef
-            (Member "ox.resilience.AcquireResult" "_2" ":")
+            (Member "ox.resilience.AcquireResult" "_2" ":ox.resilience.CircuitBreakerState")
             ["Method"; "Synthetic"]
             []
             (TyRef "ox.resilience.CircuitBreakerState")
@@ -390,7 +394,7 @@ Definition ox_resilience_AcquireResult : tree :=
             (Some (Ident (Local "x$1" 12)))
             []);
           (DefDef
-            (Member "ox.resilience.AcquireResult$" "toString" ":")
+            (Member "ox.resilience.AcquireResult$" "toString" ":java.lang.String")
             ["Method"; "Override"; "Synthetic"]
             []
             (TyRef "java.lang.String")

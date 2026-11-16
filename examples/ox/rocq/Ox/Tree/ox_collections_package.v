@@ -239,7 +239,10 @@ Definition ox_collections_package : tree :=
                                         (Select
                                           (Select
                                             (Ident (Local "forks" 7))
-                                            (Member "scala.collection.IterableOnceOps" "toSeq" ":"))
+                                            (Member
+                                              "scala.collection.IterableOnceOps"
+                                              "toSeq"
+                                              ":scala.collection.immutable.Seq"))
                                           (Member
                                             "scala.collection.IterableOps"
                                             "map"
@@ -447,7 +450,10 @@ Definition ox_collections_package : tree :=
                                 (Select
                                   (Select
                                     (Ident (Local "iterable" 14))
-                                    (Member "scala.collection.Iterable" "iterableFactory" ":"))
+                                    (Member
+                                      "scala.collection.Iterable"
+                                      "iterableFactory"
+                                      ":scala.collection.IterableFactory"))
                                   (Member "scala.Any" "asInstanceOf" "1:java.lang.Object"))
                                 [
                                   (TyApp
@@ -679,7 +685,10 @@ Definition ox_collections_package : tree :=
                                 (Select
                                   (Select
                                     (Ident (Local "iterable" 28))
-                                    (Member "scala.collection.Iterable" "iterableFactory" ":"))
+                                    (Member
+                                      "scala.collection.Iterable"
+                                      "iterableFactory"
+                                      ":scala.collection.IterableFactory"))
                                   (Member "scala.Any" "asInstanceOf" "1:java.lang.Object"))
                                 [
                                   (TyApp
@@ -914,7 +923,10 @@ Definition ox_collections_package : tree :=
                                 (Select
                                   (Select
                                     (Ident (Local "iterable" 49))
-                                    (Member "scala.collection.Iterable" "iterableFactory" ":"))
+                                    (Member
+                                      "scala.collection.Iterable"
+                                      "iterableFactory"
+                                      ":scala.collection.IterableFactory"))
                                   (Member "scala.Any" "asInstanceOf" "1:java.lang.Object"))
                                 [
                                   (TyApp

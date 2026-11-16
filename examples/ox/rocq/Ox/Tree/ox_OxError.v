@@ -251,19 +251,19 @@ Definition ox_OxError : tree :=
                     "scala.unchecked")]))
             [(Member "scala.Equals" "canEqual" "java.lang.Object:scala.Boolean")]);
           (DefDef
-            (Member "ox.OxError" "productArity" ":")
+            (Member "ox.OxError" "productArity" ":scala.Int")
             ["Method"; "Override"; "Synthetic"]
             []
             (TyRef "scala.Int")
             (Some (Literal (CInt (6)%Z)))
-            [(Member "scala.Product" "productArity" ":")]);
+            [(Member "scala.Product" "productArity" ":scala.Int")]);
           (DefDef
-            (Member "ox.OxError" "productPrefix" ":")
+            (Member "ox.OxError" "productPrefix" ":java.lang.String")
             ["Method"; "Override"; "Synthetic"]
             []
             (TyAlias "scala.Predef$.String" (TyRef "java.lang.String"))
             (Some (Literal (CString "OxError")))
-            [(Member "scala.Product" "productPrefix" ":")]);
+            [(Member "scala.Product" "productPrefix" ":java.lang.String")]);
           (DefDef
             (Member "ox.OxError" "productElement" "scala.Int:java.lang.Object")
             ["Method"; "Override"; "Synthetic"]
@@ -274,12 +274,32 @@ Definition ox_OxError : tree :=
                 false
                 (Ident (Local "n" 9))
                 [
-                  (CaseDef (Literal (CInt (0)%Z)) None (Select (This "ox.OxError") (Member "ox.OxError" "_1" ":")));
-                  (CaseDef (Literal (CInt (1)%Z)) None (Select (This "ox.OxError") (Member "ox.OxError" "_2" ":")));
-                  (CaseDef (Literal (CInt (2)%Z)) None (Select (This "ox.OxError") (Member "ox.OxError" "_3" ":")));
-                  (CaseDef (Literal (CInt (3)%Z)) None (Select (This "ox.OxError") (Member "ox.OxError" "_4" ":")));
-                  (CaseDef (Literal (CInt (4)%Z)) None (Select (This "ox.OxError") (Member "ox.OxError" "_5" ":")));
-                  (CaseDef (Literal (CInt (5)%Z)) None (Select (This "ox.OxError") (Member "ox.OxError" "_6" ":")));
+                  (CaseDef
+                    (Literal (CInt (0)%Z))
+                    None
+                    (Select (This "ox.OxError") (Member "ox.OxError" "_1" ":ox.internal.ThreadHerd")));
+                  (CaseDef
+                    (Literal (CInt (1)%Z))
+                    None
+                    (Select
+                      (This "ox.OxError")
+                      (Member "ox.OxError" "_2" ":java.util.concurrent.atomic.AtomicReference")));
+                  (CaseDef
+                    (Literal (CInt (2)%Z))
+                    None
+                    (Select (This "ox.OxError") (Member "ox.OxError" "_3" ":ox.Supervisor")));
+                  (CaseDef
+                    (Literal (CInt (3)%Z))
+                    None
+                    (Select (This "ox.OxError") (Member "ox.OxError" "_4" ":ox.ErrorMode")));
+                  (CaseDef
+                    (Literal (CInt (4)%Z))
+                    None
+                    (Select (This "ox.OxError") (Member "ox.OxError" "_5" ":scala.Option")));
+                  (CaseDef
+                    (Literal (CInt (5)%Z))
+                    None
+                    (Select (This "ox.OxError") (Member "ox.OxError" "_6" ":ox.ForkLocalMap")));
                   (CaseDef
                     Wildcard
                     None
@@ -327,7 +347,7 @@ Definition ox_OxError : tree :=
                           [(Ident (Local "n" 10))])]))]))
             [(Member "scala.Product" "productElementName" "scala.Int:java.lang.String")]);
           (DefDef
-            (Member "ox.OxError" "asNoErrorMode" ":")
+            (Member "ox.OxError" "asNoErrorMode" ":ox.OxError")
             ["Method"; "Override"]
             []
             (TyApp (TyRef "ox.OxError") [(TyRef "scala.Nothing"); (TyLambda ["T"] (TyParamRef "T"))])
@@ -357,7 +377,7 @@ Definition ox_OxError : tree :=
                     (Ident (Member "ox" "NoErrorMode" ""));
                     (Ident (Member "ox.OxError" "parent" ""));
                     (Ident (Member "ox.OxError" "locals" ""))])))
-            [(Member "ox.Ox" "asNoErrorMode" ":")]);
+            [(Member "ox.Ox" "asNoErrorMode" ":ox.OxError")]);
           (DefDef
             (Member
               "ox.OxError"
@@ -506,14 +526,14 @@ Definition ox_OxError : tree :=
             (Some (Ident (Member "ox.OxError" "locals" "")))
             []);
           (DefDef
-            (Member "ox.OxError" "_1" ":")
+            (Member "ox.OxError" "_1" ":ox.internal.ThreadHerd")
             ["Method"; "Synthetic"]
             []
             (TyRef "ox.internal.ThreadHerd")
             (Some (Select (This "ox.OxError") (Member "ox.OxError" "herd" "")))
             []);
           (DefDef
-            (Member "ox.OxError" "_2" ":")
+            (Member "ox.OxError" "_2" ":java.util.concurrent.atomic.AtomicReference")
             ["Method"; "Synthetic"]
             []
             (TyApp
@@ -525,28 +545,28 @@ Definition ox_OxError : tree :=
             (Some (Select (This "ox.OxError") (Member "ox.OxError" "finalizers" "")))
             []);
           (DefDef
-            (Member "ox.OxError" "_3" ":")
+            (Member "ox.OxError" "_3" ":ox.Supervisor")
             ["Method"; "Synthetic"]
             []
             (TyApp (TyRef "ox.Supervisor") [(TyParam "ox.OxError" "E")])
             (Some (Select (This "ox.OxError") (Member "ox.OxError" "supervisor" "")))
             []);
           (DefDef
-            (Member "ox.OxError" "_4" ":")
+            (Member "ox.OxError" "_4" ":ox.ErrorMode")
             ["Method"; "Synthetic"]
             []
             (TyApp (TyRef "ox.ErrorMode") [(TyParam "ox.OxError" "E"); (TyParam "ox.OxError" "F")])
             (Some (Select (This "ox.OxError") (Member "ox.OxError" "errorMode" "")))
             []);
           (DefDef
-            (Member "ox.OxError" "_5" ":")
+            (Member "ox.OxError" "_5" ":scala.Option")
             ["Method"; "Synthetic"]
             []
             (TyApp (TyRef "scala.Option") [(TyRef "ox.OxUnsupervised")])
             (Some (Select (This "ox.OxError") (Member "ox.OxError" "parent" "")))
             []);
           (DefDef
-            (Member "ox.OxError" "_6" ":")
+            (Member "ox.OxError" "_6" ":ox.ForkLocalMap")
             ["Method"; "Synthetic"]
             []
             (TyRef "ox.ForkLocalMap")

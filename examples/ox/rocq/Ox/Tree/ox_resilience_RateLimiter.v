@@ -177,7 +177,7 @@ Definition ox_resilience_RateLimiter : tree :=
                             (Some
                               (Select
                                 (Ident (Local "algorithm" 3))
-                                (Member "ox.resilience.RateLimiterAlgorithm" "getNextUpdate" ":"))));
+                                (Member "ox.resilience.RateLimiterAlgorithm" "getNextUpdate" ":scala.Long"))));
                           (ValDef
                             (Local "millis" 7)
                             []
@@ -200,7 +200,7 @@ Definition ox_resilience_RateLimiter : tree :=
                               (Member "java.lang.Thread$" "sleep" "scala.Long,scala.Int:scala.Unit"))
                             [
                               (Ident (Local "millis" 7));
-                              (Select (Ident (Local "nanos" 8)) (Member "scala.Long" "toInt" ":"))]);
+                              (Select (Ident (Local "nanos" 8)) (Member "scala.Long" "toInt" ":scala.Int"))]);
                           (Apply
                             (Select
                               (Ident (Local "algorithm" 3))

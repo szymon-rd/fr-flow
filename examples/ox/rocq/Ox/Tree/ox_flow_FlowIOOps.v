@@ -167,7 +167,7 @@ Definition ox_flow_FlowIOOps : tree :=
                                         (Select
                                           (This "ox.flow.FlowIOOps._$$anon#4")
                                           (Member "ox.flow.FlowIOOps._$$anon#4" "currentArrays" ""))
-                                        (Member "scala.collection.IterableOnceOps" "nonEmpty" ":"))
+                                        (Member "scala.collection.IterableOnceOps" "nonEmpty" ":scala.Boolean"))
                                       (Member "scala.Boolean" "&&" "scala.Boolean:scala.Boolean"))
                                     [
                                       (Apply
@@ -181,7 +181,7 @@ Definition ox_flow_FlowIOOps : tree :=
                                             (Select
                                               (This "ox.flow.FlowIOOps._$$anon#4")
                                               (Member "ox.flow.FlowIOOps._$$anon#4" "currentArrays" ""))
-                                            (Member "scala.collection.immutable.List" "length" ":"))])])
+                                            (Member "scala.collection.immutable.List" "length" ":scala.Int"))])])
                                   (Block
                                     [
                                       (ValDef
@@ -266,7 +266,7 @@ Definition ox_flow_FlowIOOps : tree :=
                                   (Select
                                     (This "ox.flow.FlowIOOps._$$anon#4")
                                     (Member "ox.flow.FlowIOOps._$$anon#4" "isEndOfStream" ""))
-                                  (Member "scala.Boolean" "unary_!" ":"))
+                                  (Member "scala.Boolean" "unary_!" ":scala.Boolean"))
                                 (Match
                                   false
                                   (Apply
@@ -303,7 +303,10 @@ Definition ox_flow_FlowIOOps : tree :=
                                           [
                                             (Select
                                               (Ident (Local "e" 6))
-                                              (Member "ox.channels.ChannelClosed" "toThrowable" ":"))])));
+                                              (Member
+                                                "ox.channels.ChannelClosed"
+                                                "toThrowable"
+                                                ":java.lang.Throwable"))])));
                                     (CaseDef
                                       (Bind
                                         (Local "chunk" 7)
@@ -321,7 +324,7 @@ Definition ox_flow_FlowIOOps : tree :=
                                                   (Ident (Local "x$1" 0))
                                                   (Member "scala.<:<" "apply" "java.lang.Object:java.lang.Object"))
                                                 [(Ident (Local "chunk" 7))])
-                                              (Member "ox.Chunk" "backingArrays" ":")));
+                                              (Member "ox.Chunk" "backingArrays" ":scala.collection.immutable.List")));
                                           (Assign
                                             (Select
                                               (This "ox.flow.FlowIOOps._$$anon#4")
@@ -406,7 +409,7 @@ Definition ox_flow_FlowIOOps : tree :=
                                     (This "ox.flow.FlowIOOps._$$anon#4")
                                     (Member "ox.flow.FlowIOOps._$$anon#4" "ensureDataAvailable" ":scala.Boolean"))
                                   [])
-                                (Member "scala.Boolean" "unary_!" ":"))
+                                (Member "scala.Boolean" "unary_!" ":scala.Boolean"))
                               (Literal (CInt (-1)%Z))
                               (Block
                                 [
@@ -537,7 +540,9 @@ Definition ox_flow_FlowIOOps : tree :=
                                         [
                                           (Apply
                                             (Select
-                                              (Select (Ident (Local "b" 12)) (Member "scala.Array" "length" ":"))
+                                              (Select
+                                                (Ident (Local "b" 12))
+                                                (Member "scala.Array" "length" ":scala.Int"))
                                               (Member "scala.Int" "-" "scala.Int:scala.Int"))
                                             [(Ident (Local "off" 13))])])])
                                   (Apply
@@ -575,7 +580,7 @@ Definition ox_flow_FlowIOOps : tree :=
                                         (This "ox.flow.FlowIOOps._$$anon#4")
                                         (Member "ox.flow.FlowIOOps._$$anon#4" "ensureDataAvailable" ":scala.Boolean"))
                                       [])
-                                    (Member "scala.Boolean" "unary_!" ":"))
+                                    (Member "scala.Boolean" "unary_!" ":scala.Boolean"))
                                   (Return
                                     (Literal (CInt (-1)%Z))
                                     (Member
@@ -739,7 +744,7 @@ Definition ox_flow_FlowIOOps : tree :=
                               (Typed (Ident (Local "totalBytesRead" 15)) (TyRef "scala.Int"))))
                           [(Member "java.io.InputStream" "read" "scala.Byte[],scala.Int,scala.Int:scala.Int")]);
                         (DefDef
-                          (Member "ox.flow.FlowIOOps._$$anon#4" "available" ":")
+                          (Member "ox.flow.FlowIOOps._$$anon#4" "available" ":scala.Int")
                           ["Method"; "Override"]
                           []
                           (TyRef "scala.Int")
@@ -830,7 +835,7 @@ Definition ox_flow_FlowIOOps : tree :=
                                             (Ident (Local "x$2" 25))
                                             (Member "scala.<:<" "apply" "java.lang.Object:java.lang.Object"))
                                           [(Ident (Local "chunk" 27))])
-                                        (Member "ox.Chunk" "backingArrays" ":"))
+                                        (Member "ox.Chunk" "backingArrays" ":scala.collection.immutable.List"))
                                       (Member
                                         "scala.collection.immutable.List"
                                         "foreach"
@@ -878,7 +883,9 @@ Definition ox_flow_FlowIOOps : tree :=
                       (Member "ox.flow.FlowIOOps" "close" "java.io.Closeable,scala.Option:scala.Unit"))
                     [
                       (Ident (Local "outputStream" 24));
-                      (Select (This "ox.flow.FlowIOOps") (Member "ox.flow.FlowIOOps" "close$default$2" ":"))]))
+                      (Select
+                        (This "ox.flow.FlowIOOps")
+                        (Member "ox.flow.FlowIOOps" "close$default$2" ":scala.Option"))]))
                 [
                   (CaseDef
                     (Bind
@@ -1052,7 +1059,7 @@ Definition ox_flow_FlowIOOps : tree :=
                                               (Ident (Local "x$2" 32))
                                               (Member "scala.<:<" "apply" "java.lang.Object:java.lang.Object"))
                                             [(Ident (Local "chunk" 35))])
-                                          (Member "ox.Chunk" "backingArrays" ":"))
+                                          (Member "ox.Chunk" "backingArrays" ":scala.collection.immutable.List"))
                                         (Member
                                           "scala.collection.immutable.List"
                                           "foreach"
@@ -1122,7 +1129,9 @@ Definition ox_flow_FlowIOOps : tree :=
                         (Member "ox.flow.FlowIOOps" "close" "java.io.Closeable,scala.Option:scala.Unit"))
                       [
                         (Ident (Local "jFileChannel" 33));
-                        (Select (This "ox.flow.FlowIOOps") (Member "ox.flow.FlowIOOps" "close$default$2" ":"))]))
+                        (Select
+                          (This "ox.flow.FlowIOOps")
+                          (Member "ox.flow.FlowIOOps" "close$default$2" ":scala.Option"))]))
                   [
                     (CaseDef
                       (Bind
@@ -1223,7 +1232,7 @@ Definition ox_flow_FlowIOOps : tree :=
                 (TyRef "scala.Unit")))
             []);
           (DefDef
-            (Member "ox.flow.FlowIOOps" "close$default$2" ":")
+            (Member "ox.flow.FlowIOOps" "close$default$2" ":scala.Option")
             ["Local"; "Method"; "Private"; "PrivateLocal"]
             []
             (TyAnnot

@@ -48,7 +48,7 @@ Definition ox_OxApp : tree :=
         None
         [
           (DefDef
-            (Member "ox.OxApp" "settings" ":")
+            (Member "ox.OxApp" "settings" ":ox.OxApp$.Settings")
             ["Method"; "Protected"]
             []
             (TyRef "ox.OxApp$.Settings")
@@ -75,7 +75,7 @@ Definition ox_OxApp : tree :=
                     (TypeApply
                       (Select
                         (Select
-                          (Select (This "ox.OxApp") (Member "ox.OxApp" "settings" ":"))
+                          (Select (This "ox.OxApp") (Member "ox.OxApp" "settings" ":ox.OxApp$.Settings"))
                           (Member "ox.OxApp$.Settings" "threadFactory" ""))
                         (Member "scala.Option" "foreach" "1,scala.Function1:scala.Unit"))
                       [(TyRef "scala.Unit")])
@@ -107,7 +107,7 @@ Definition ox_OxApp : tree :=
                     (TypeApply
                       (Select
                         (Select
-                          (Select (This "ox.OxApp") (Member "ox.OxApp" "settings" ":"))
+                          (Select (This "ox.OxApp") (Member "ox.OxApp" "settings" ":ox.OxApp$.Settings"))
                           (Member "ox.OxApp$.Settings" "computeExecutor" ""))
                         (Member "scala.Option" "foreach" "1,scala.Function1:scala.Unit"))
                       [(TyRef "scala.Unit")])
@@ -214,7 +214,7 @@ Definition ox_OxApp : tree :=
                                                                     (Member
                                                                       "scala.collection.IterableOnceOps"
                                                                       "toVector"
-                                                                      ":"))])
+                                                                      ":scala.collection.immutable.Vector"))])
                                                               [(Ident (Local "contextual$2" 9))]))
                                                           [])]
                                                       (Closure (Ident (Local "$anonfun" 8)) None))])
@@ -237,7 +237,7 @@ Definition ox_OxApp : tree :=
                                                             (Select
                                                               (Select
                                                                 (This "ox.OxApp")
-                                                                (Member "ox.OxApp" "settings" ":"))
+                                                                (Member "ox.OxApp" "settings" ":ox.OxApp$.Settings"))
                                                               (Member "ox.OxApp$.Settings" "handleException" ""))
                                                             (Member
                                                               "scala.Function1"
@@ -262,7 +262,7 @@ Definition ox_OxApp : tree :=
                                                               (Member
                                                                 "ox.ExitCode$.Failure$"
                                                                 "$lessinit$greater$default$1"
-                                                                ":"))])
+                                                                ":scala.Int"))])
                                                         (TyRef "ox.ExitCode"))));
                                                   (CaseDef
                                                     (Bind
@@ -280,7 +280,7 @@ Definition ox_OxApp : tree :=
                                                             (Select
                                                               (Select
                                                                 (This "ox.OxApp")
-                                                                (Member "ox.OxApp" "settings" ":"))
+                                                                (Member "ox.OxApp" "settings" ":ox.OxApp$.Settings"))
                                                               (Member
                                                                 "ox.OxApp$.Settings"
                                                                 "handleInterruptedException"
@@ -291,7 +291,9 @@ Definition ox_OxApp : tree :=
                                                               "java.lang.Object:java.lang.Object"))
                                                           [(Ident (Local "e" 11))])]
                                                       (Select
-                                                        (Select (This "ox.OxApp") (Member "ox.OxApp" "settings" ":"))
+                                                        (Select
+                                                          (This "ox.OxApp")
+                                                          (Member "ox.OxApp" "settings" ":ox.OxApp$.Settings"))
                                                         (Member "ox.OxApp$.Settings" "interruptedExitCode" ""))))]
                                                 None))])
                                         [(Ident (Local "contextual$1" 6))])));
@@ -335,7 +337,7 @@ Definition ox_OxApp : tree :=
                                                             (Select
                                                               (Select
                                                                 (This "ox.OxApp")
-                                                                (Member "ox.OxApp" "settings" ":"))
+                                                                (Member "ox.OxApp" "settings" ":ox.OxApp$.Settings"))
                                                               (Member "ox.OxApp$.Settings" "shutdownTimeout" ""))])
                                                         [
                                                           (Apply
@@ -346,12 +348,12 @@ Definition ox_OxApp : tree :=
                                                                 "cancel"
                                                                 ":scala.util.Either"))
                                                             [])])
-                                                      (Member "scala.Option" "isEmpty" ":"))
+                                                      (Member "scala.Option" "isEmpty" ":scala.Boolean"))
                                                     (Apply
                                                       (Select
                                                         (Select
                                                           (Ident (Member "scala" "Console" ""))
-                                                          (Member "scala.Console$" "err" ":"))
+                                                          (Member "scala.Console$" "err" ":java.io.PrintStream"))
                                                         (Member
                                                           "java.io.PrintStream"
                                                           "println"
@@ -397,7 +399,10 @@ Definition ox_OxApp : tree :=
                                                                   (Select
                                                                     (Select
                                                                       (This "ox.OxApp")
-                                                                      (Member "ox.OxApp" "settings" ":"))
+                                                                      (Member
+                                                                        "ox.OxApp"
+                                                                        "settings"
+                                                                        ":ox.OxApp$.Settings"))
                                                                     (Member "ox.OxApp$.Settings" "shutdownTimeout" ""))]
                                                                 (TyRef "scala.Any"))
                                                               (TyApp (TyRef "scala.<repeated>") [(TyRef "scala.Any")]))])])
@@ -478,7 +483,7 @@ Definition ox_OxApp : tree :=
                           (Select (This "ox.OxApp") (Member "ox.OxApp" "exit" "ox.ExitCode:scala.Unit"))
                           [
                             (Select
-                              (Select (This "ox.OxApp") (Member "ox.OxApp" "settings" ":"))
+                              (Select (This "ox.OxApp") (Member "ox.OxApp" "settings" ":ox.OxApp$.Settings"))
                               (Member "ox.OxApp$.Settings" "interruptedExitCode" ""))])))]
                   None)))
             []);
@@ -814,19 +819,19 @@ Definition ox_OxApp : tree :=
                     [(TyAnnot (TyRef "ox.OxApp$.Settings") "scala.unchecked")]))
                 [(Member "scala.Equals" "canEqual" "java.lang.Object:scala.Boolean")]);
               (DefDef
-                (Member "ox.OxApp$.Settings" "productArity" ":")
+                (Member "ox.OxApp$.Settings" "productArity" ":scala.Int")
                 ["Method"; "Override"; "Synthetic"]
                 []
                 (TyRef "scala.Int")
                 (Some (Literal (CInt (6)%Z)))
-                [(Member "scala.Product" "productArity" ":")]);
+                [(Member "scala.Product" "productArity" ":scala.Int")]);
               (DefDef
-                (Member "ox.OxApp$.Settings" "productPrefix" ":")
+                (Member "ox.OxApp$.Settings" "productPrefix" ":java.lang.String")
                 ["Method"; "Override"; "Synthetic"]
                 []
                 (TyAlias "scala.Predef$.String" (TyRef "java.lang.String"))
                 (Some (Literal (CString "Settings")))
-                [(Member "scala.Product" "productPrefix" ":")]);
+                [(Member "scala.Product" "productPrefix" ":java.lang.String")]);
               (DefDef
                 (Member "ox.OxApp$.Settings" "productElement" "scala.Int:java.lang.Object")
                 ["Method"; "Override"; "Synthetic"]
@@ -840,27 +845,29 @@ Definition ox_OxApp : tree :=
                       (CaseDef
                         (Literal (CInt (0)%Z))
                         None
-                        (Select (This "ox.OxApp$.Settings") (Member "ox.OxApp$.Settings" "_1" ":")));
+                        (Select (This "ox.OxApp$.Settings") (Member "ox.OxApp$.Settings" "_1" ":ox.ExitCode")));
                       (CaseDef
                         (Literal (CInt (1)%Z))
                         None
-                        (Select (This "ox.OxApp$.Settings") (Member "ox.OxApp$.Settings" "_2" ":")));
+                        (Select (This "ox.OxApp$.Settings") (Member "ox.OxApp$.Settings" "_2" ":scala.Function1")));
                       (CaseDef
                         (Literal (CInt (2)%Z))
                         None
-                        (Select (This "ox.OxApp$.Settings") (Member "ox.OxApp$.Settings" "_3" ":")));
+                        (Select (This "ox.OxApp$.Settings") (Member "ox.OxApp$.Settings" "_3" ":scala.Function1")));
                       (CaseDef
                         (Literal (CInt (3)%Z))
                         None
-                        (Select (This "ox.OxApp$.Settings") (Member "ox.OxApp$.Settings" "_4" ":")));
+                        (Select (This "ox.OxApp$.Settings") (Member "ox.OxApp$.Settings" "_4" ":scala.Option")));
                       (CaseDef
                         (Literal (CInt (4)%Z))
                         None
-                        (Select (This "ox.OxApp$.Settings") (Member "ox.OxApp$.Settings" "_5" ":")));
+                        (Select
+                          (This "ox.OxApp$.Settings")
+                          (Member "ox.OxApp$.Settings" "_5" ":scala.concurrent.duration.FiniteDuration")));
                       (CaseDef
                         (Literal (CInt (5)%Z))
                         None
-                        (Select (This "ox.OxApp$.Settings") (Member "ox.OxApp$.Settings" "_6" ":")));
+                        (Select (This "ox.OxApp$.Settings") (Member "ox.OxApp$.Settings" "_6" ":scala.Option")));
                       (CaseDef
                         Wildcard
                         None
@@ -958,7 +965,10 @@ Definition ox_OxApp : tree :=
                               (Ident
                                 (Member "scala.concurrent.duration.package$" "DurationInt" "scala.Int:scala.Int"))
                               [(Literal (CInt (10)%Z))])
-                            (Member "scala.concurrent.duration.DurationConversions" "seconds" ":"));
+                            (Member
+                              "scala.concurrent.duration.DurationConversions"
+                              "seconds"
+                              ":scala.concurrent.duration.FiniteDuration"));
                           (Ident (Member "scala" "None" ""))])]
                     (Literal CUnit)))
                 []);
@@ -1174,14 +1184,14 @@ Definition ox_OxApp : tree :=
                       (Ident (Local "computeExecutor" 54))]))
                 []);
               (DefDef
-                (Member "ox.OxApp$.Settings" "copy$default$1" ":")
+                (Member "ox.OxApp$.Settings" "copy$default$1" ":ox.ExitCode")
                 ["Method"; "Synthetic"]
                 []
                 (TyAnnot (TyRef "ox.ExitCode") "scala.annotation.unchecked.uncheckedVariance")
                 (Some (Ident (Member "ox.OxApp$.Settings" "interruptedExitCode" "")))
                 []);
               (DefDef
-                (Member "ox.OxApp$.Settings" "copy$default$2" ":")
+                (Member "ox.OxApp$.Settings" "copy$default$2" ":scala.Function1")
                 ["Method"; "Synthetic"]
                 []
                 (TyAnnot
@@ -1194,7 +1204,7 @@ Definition ox_OxApp : tree :=
                 (Some (Ident (Member "ox.OxApp$.Settings" "handleInterruptedException" "")))
                 []);
               (DefDef
-                (Member "ox.OxApp$.Settings" "copy$default$3" ":")
+                (Member "ox.OxApp$.Settings" "copy$default$3" ":scala.Function1")
                 ["Method"; "Synthetic"]
                 []
                 (TyAnnot
@@ -1205,7 +1215,7 @@ Definition ox_OxApp : tree :=
                 (Some (Ident (Member "ox.OxApp$.Settings" "handleException" "")))
                 []);
               (DefDef
-                (Member "ox.OxApp$.Settings" "copy$default$4" ":")
+                (Member "ox.OxApp$.Settings" "copy$default$4" ":scala.Option")
                 ["Method"; "Synthetic"]
                 []
                 (TyAnnot
@@ -1214,7 +1224,7 @@ Definition ox_OxApp : tree :=
                 (Some (Ident (Member "ox.OxApp$.Settings" "threadFactory" "")))
                 []);
               (DefDef
-                (Member "ox.OxApp$.Settings" "copy$default$5" ":")
+                (Member "ox.OxApp$.Settings" "copy$default$5" ":scala.concurrent.duration.FiniteDuration")
                 ["Method"; "Synthetic"]
                 []
                 (TyAnnot
@@ -1223,7 +1233,7 @@ Definition ox_OxApp : tree :=
                 (Some (Ident (Member "ox.OxApp$.Settings" "shutdownTimeout" "")))
                 []);
               (DefDef
-                (Member "ox.OxApp$.Settings" "copy$default$6" ":")
+                (Member "ox.OxApp$.Settings" "copy$default$6" ":scala.Option")
                 ["Method"; "Synthetic"]
                 []
                 (TyAnnot
@@ -1232,14 +1242,14 @@ Definition ox_OxApp : tree :=
                 (Some (Ident (Member "ox.OxApp$.Settings" "computeExecutor" "")))
                 []);
               (DefDef
-                (Member "ox.OxApp$.Settings" "_1" ":")
+                (Member "ox.OxApp$.Settings" "_1" ":ox.ExitCode")
                 ["Method"; "Synthetic"]
                 []
                 (TyRef "ox.ExitCode")
                 (Some (Select (This "ox.OxApp$.Settings") (Member "ox.OxApp$.Settings" "interruptedExitCode" "")))
                 []);
               (DefDef
-                (Member "ox.OxApp$.Settings" "_2" ":")
+                (Member "ox.OxApp$.Settings" "_2" ":scala.Function1")
                 ["Method"; "Synthetic"]
                 []
                 (TyApp
@@ -1251,7 +1261,7 @@ Definition ox_OxApp : tree :=
                   (Select (This "ox.OxApp$.Settings") (Member "ox.OxApp$.Settings" "handleInterruptedException" "")))
                 []);
               (DefDef
-                (Member "ox.OxApp$.Settings" "_3" ":")
+                (Member "ox.OxApp$.Settings" "_3" ":scala.Function1")
                 ["Method"; "Synthetic"]
                 []
                 (TyApp
@@ -1260,21 +1270,21 @@ Definition ox_OxApp : tree :=
                 (Some (Select (This "ox.OxApp$.Settings") (Member "ox.OxApp$.Settings" "handleException" "")))
                 []);
               (DefDef
-                (Member "ox.OxApp$.Settings" "_4" ":")
+                (Member "ox.OxApp$.Settings" "_4" ":scala.Option")
                 ["Method"; "Synthetic"]
                 []
                 (TyApp (TyRef "scala.Option") [(TyRef "java.util.concurrent.ThreadFactory")])
                 (Some (Select (This "ox.OxApp$.Settings") (Member "ox.OxApp$.Settings" "threadFactory" "")))
                 []);
               (DefDef
-                (Member "ox.OxApp$.Settings" "_5" ":")
+                (Member "ox.OxApp$.Settings" "_5" ":scala.concurrent.duration.FiniteDuration")
                 ["Method"; "Synthetic"]
                 []
                 (TyRef "scala.concurrent.duration.FiniteDuration")
                 (Some (Select (This "ox.OxApp$.Settings") (Member "ox.OxApp$.Settings" "shutdownTimeout" "")))
                 []);
               (DefDef
-                (Member "ox.OxApp$.Settings" "_6" ":")
+                (Member "ox.OxApp$.Settings" "_6" ":scala.Option")
                 ["Method"; "Synthetic"]
                 []
                 (TyApp (TyRef "scala.Option") [(TyRef "java.util.concurrent.ExecutorService")])
@@ -1434,7 +1444,10 @@ Definition ox_OxApp : tree :=
                         (Apply
                           (Ident (Member "scala.concurrent.duration.package$" "DurationInt" "scala.Int:scala.Int"))
                           [(Literal (CInt (10)%Z))])
-                        (Member "scala.concurrent.duration.DurationConversions" "seconds" ":"));
+                        (Member
+                          "scala.concurrent.duration.DurationConversions"
+                          "seconds"
+                          ":scala.concurrent.duration.FiniteDuration"));
                       (Ident (Member "scala" "None" ""))]))
                 []);
               (DefDef
@@ -1602,7 +1615,10 @@ Definition ox_OxApp : tree :=
                                           (Ident (Local "t" 76))
                                           (Member "java.lang.Throwable" "getSuppressed" ":java.lang.Throwable[]"))
                                         [])])
-                                  (Member "scala.collection.IterableOnceOps" "toList" ":"))
+                                  (Member
+                                    "scala.collection.IterableOnceOps"
+                                    "toList"
+                                    ":scala.collection.immutable.List"))
                                 (Member "scala.collection.immutable.List" "foreach" "1,scala.Function1:scala.Unit"))
                               [(TyRef "scala.Unit")])
                             [
@@ -1671,7 +1687,10 @@ Definition ox_OxApp : tree :=
                         (Apply
                           (Ident (Member "scala.concurrent.duration.package$" "DurationInt" "scala.Int:scala.Int"))
                           [(Literal (CInt (10)%Z))])
-                        (Member "scala.concurrent.duration.DurationConversions" "seconds" ":"));
+                        (Member
+                          "scala.concurrent.duration.DurationConversions"
+                          "seconds"
+                          ":scala.concurrent.duration.FiniteDuration"));
                       (Ident (Member "scala" "None" ""))])));
               (TypeDef
                 "MirroredMonoType"
@@ -2076,7 +2095,7 @@ Definition ox_OxApp : tree :=
                                   [(Ident (Local "x$2" 97)); (Ident (Local "contextual$3" 99))]))
                               [])]
                           (Closure (Ident (Local "$anonfun" 98)) None))])
-                    [(Ident (Member "scala.util.NotGiven$" "value" ":"))]))
+                    [(Ident (Member "scala.util.NotGiven$" "value" ":scala.util.NotGiven"))]))
                 [
                   (Member
                     "ox.OxApp$.WithErrorMode"

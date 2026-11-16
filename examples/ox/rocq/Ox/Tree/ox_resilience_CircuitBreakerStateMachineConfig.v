@@ -400,19 +400,19 @@ Definition ox_resilience_CircuitBreakerStateMachineConfig : tree :=
                 [(TyAnnot (TyRef "ox.resilience.CircuitBreakerStateMachineConfig") "scala.unchecked")]))
             [(Member "scala.Equals" "canEqual" "java.lang.Object:scala.Boolean")]);
           (DefDef
-            (Member "ox.resilience.CircuitBreakerStateMachineConfig" "productArity" ":")
+            (Member "ox.resilience.CircuitBreakerStateMachineConfig" "productArity" ":scala.Int")
             ["Method"; "Override"; "Synthetic"]
             []
             (TyRef "scala.Int")
             (Some (Literal (CInt (7)%Z)))
-            [(Member "scala.Product" "productArity" ":")]);
+            [(Member "scala.Product" "productArity" ":scala.Int")]);
           (DefDef
-            (Member "ox.resilience.CircuitBreakerStateMachineConfig" "productPrefix" ":")
+            (Member "ox.resilience.CircuitBreakerStateMachineConfig" "productPrefix" ":java.lang.String")
             ["Method"; "Override"; "Synthetic"]
             []
             (TyAlias "scala.Predef$.String" (TyRef "java.lang.String"))
             (Some (Literal (CString "CircuitBreakerStateMachineConfig")))
-            [(Member "scala.Product" "productPrefix" ":")]);
+            [(Member "scala.Product" "productPrefix" ":java.lang.String")]);
           (DefDef
             (Member "ox.resilience.CircuitBreakerStateMachineConfig" "productElement" "scala.Int:java.lang.Object")
             ["Method"; "Override"; "Synthetic"]
@@ -440,31 +440,40 @@ Definition ox_resilience_CircuitBreakerStateMachineConfig : tree :=
                     None
                     (Select
                       (This "ox.resilience.CircuitBreakerStateMachineConfig")
-                      (Member "ox.resilience.CircuitBreakerStateMachineConfig" "_3" ":")));
+                      (Member
+                        "ox.resilience.CircuitBreakerStateMachineConfig"
+                        "_3"
+                        ":scala.concurrent.duration.FiniteDuration")));
                   (CaseDef
                     (Literal (CInt (3)%Z))
                     None
                     (Select
                       (This "ox.resilience.CircuitBreakerStateMachineConfig")
-                      (Member "ox.resilience.CircuitBreakerStateMachineConfig" "_4" ":")));
+                      (Member "ox.resilience.CircuitBreakerStateMachineConfig" "_4" ":scala.Int")));
                   (CaseDef
                     (Literal (CInt (4)%Z))
                     None
                     (Select
                       (This "ox.resilience.CircuitBreakerStateMachineConfig")
-                      (Member "ox.resilience.CircuitBreakerStateMachineConfig" "_5" ":")));
+                      (Member "ox.resilience.CircuitBreakerStateMachineConfig" "_5" ":scala.Int")));
                   (CaseDef
                     (Literal (CInt (5)%Z))
                     None
                     (Select
                       (This "ox.resilience.CircuitBreakerStateMachineConfig")
-                      (Member "ox.resilience.CircuitBreakerStateMachineConfig" "_6" ":")));
+                      (Member
+                        "ox.resilience.CircuitBreakerStateMachineConfig"
+                        "_6"
+                        ":scala.concurrent.duration.FiniteDuration")));
                   (CaseDef
                     (Literal (CInt (6)%Z))
                     None
                     (Select
                       (This "ox.resilience.CircuitBreakerStateMachineConfig")
-                      (Member "ox.resilience.CircuitBreakerStateMachineConfig" "_7" ":")));
+                      (Member
+                        "ox.resilience.CircuitBreakerStateMachineConfig"
+                        "_7"
+                        ":scala.concurrent.duration.FiniteDuration")));
                   (CaseDef
                     Wildcard
                     None
@@ -587,7 +596,10 @@ Definition ox_resilience_CircuitBreakerStateMachineConfig : tree :=
             (Some (Ident (Member "ox.resilience.CircuitBreakerStateMachineConfig" "slowCallThreshold" "")))
             []);
           (DefDef
-            (Member "ox.resilience.CircuitBreakerStateMachineConfig" "copy$default$3" ":")
+            (Member
+              "ox.resilience.CircuitBreakerStateMachineConfig"
+              "copy$default$3"
+              ":scala.concurrent.duration.FiniteDuration")
             ["Method"; "Synthetic"]
             []
             (TyAnnot
@@ -596,21 +608,24 @@ Definition ox_resilience_CircuitBreakerStateMachineConfig : tree :=
             (Some (Ident (Member "ox.resilience.CircuitBreakerStateMachineConfig" "slowCallDurationThreshold" "")))
             []);
           (DefDef
-            (Member "ox.resilience.CircuitBreakerStateMachineConfig" "copy$default$4" ":")
+            (Member "ox.resilience.CircuitBreakerStateMachineConfig" "copy$default$4" ":scala.Int")
             ["Method"; "Synthetic"]
             []
             (TyAnnot (TyRef "scala.Int") "scala.annotation.unchecked.uncheckedVariance")
             (Some (Ident (Member "ox.resilience.CircuitBreakerStateMachineConfig" "minimumNumberOfCalls" "")))
             []);
           (DefDef
-            (Member "ox.resilience.CircuitBreakerStateMachineConfig" "copy$default$5" ":")
+            (Member "ox.resilience.CircuitBreakerStateMachineConfig" "copy$default$5" ":scala.Int")
             ["Method"; "Synthetic"]
             []
             (TyAnnot (TyRef "scala.Int") "scala.annotation.unchecked.uncheckedVariance")
             (Some (Ident (Member "ox.resilience.CircuitBreakerStateMachineConfig" "numberOfCallsInHalfOpenState" "")))
             []);
           (DefDef
-            (Member "ox.resilience.CircuitBreakerStateMachineConfig" "copy$default$6" ":")
+            (Member
+              "ox.resilience.CircuitBreakerStateMachineConfig"
+              "copy$default$6"
+              ":scala.concurrent.duration.FiniteDuration")
             ["Method"; "Synthetic"]
             []
             (TyAnnot
@@ -619,7 +634,10 @@ Definition ox_resilience_CircuitBreakerStateMachineConfig : tree :=
             (Some (Ident (Member "ox.resilience.CircuitBreakerStateMachineConfig" "waitDurationOpenState" "")))
             []);
           (DefDef
-            (Member "ox.resilience.CircuitBreakerStateMachineConfig" "copy$default$7" ":")
+            (Member
+              "ox.resilience.CircuitBreakerStateMachineConfig"
+              "copy$default$7"
+              ":scala.concurrent.duration.FiniteDuration")
             ["Method"; "Synthetic"]
             []
             (TyAnnot
@@ -648,7 +666,7 @@ Definition ox_resilience_CircuitBreakerStateMachineConfig : tree :=
                 (Member "ox.resilience.CircuitBreakerStateMachineConfig" "slowCallThreshold" "")))
             []);
           (DefDef
-            (Member "ox.resilience.CircuitBreakerStateMachineConfig" "_3" ":")
+            (Member "ox.resilience.CircuitBreakerStateMachineConfig" "_3" ":scala.concurrent.duration.FiniteDuration")
             ["Method"; "Synthetic"]
             []
             (TyRef "scala.concurrent.duration.FiniteDuration")
@@ -658,7 +676,7 @@ Definition ox_resilience_CircuitBreakerStateMachineConfig : tree :=
                 (Member "ox.resilience.CircuitBreakerStateMachineConfig" "slowCallDurationThreshold" "")))
             []);
           (DefDef
-            (Member "ox.resilience.CircuitBreakerStateMachineConfig" "_4" ":")
+            (Member "ox.resilience.CircuitBreakerStateMachineConfig" "_4" ":scala.Int")
             ["Method"; "Synthetic"]
             []
             (TyRef "scala.Int")
@@ -668,7 +686,7 @@ Definition ox_resilience_CircuitBreakerStateMachineConfig : tree :=
                 (Member "ox.resilience.CircuitBreakerStateMachineConfig" "minimumNumberOfCalls" "")))
             []);
           (DefDef
-            (Member "ox.resilience.CircuitBreakerStateMachineConfig" "_5" ":")
+            (Member "ox.resilience.CircuitBreakerStateMachineConfig" "_5" ":scala.Int")
             ["Method"; "Synthetic"]
             []
             (TyRef "scala.Int")
@@ -678,7 +696,7 @@ Definition ox_resilience_CircuitBreakerStateMachineConfig : tree :=
                 (Member "ox.resilience.CircuitBreakerStateMachineConfig" "numberOfCallsInHalfOpenState" "")))
             []);
           (DefDef
-            (Member "ox.resilience.CircuitBreakerStateMachineConfig" "_6" ":")
+            (Member "ox.resilience.CircuitBreakerStateMachineConfig" "_6" ":scala.concurrent.duration.FiniteDuration")
             ["Method"; "Synthetic"]
             []
             (TyRef "scala.concurrent.duration.FiniteDuration")
@@ -688,7 +706,7 @@ Definition ox_resilience_CircuitBreakerStateMachineConfig : tree :=
                 (Member "ox.resilience.CircuitBreakerStateMachineConfig" "waitDurationOpenState" "")))
             []);
           (DefDef
-            (Member "ox.resilience.CircuitBreakerStateMachineConfig" "_7" ":")
+            (Member "ox.resilience.CircuitBreakerStateMachineConfig" "_7" ":scala.concurrent.duration.FiniteDuration")
             ["Method"; "Synthetic"]
             []
             (TyRef "scala.concurrent.duration.FiniteDuration")

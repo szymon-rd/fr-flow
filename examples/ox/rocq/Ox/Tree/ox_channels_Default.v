@@ -144,19 +144,19 @@ Definition ox_channels_Default : tree :=
                     "scala.unchecked")]))
             [(Member "scala.Equals" "canEqual" "java.lang.Object:scala.Boolean")]);
           (DefDef
-            (Member "ox.channels.Default" "productArity" ":")
+            (Member "ox.channels.Default" "productArity" ":scala.Int")
             ["Method"; "Override"; "Synthetic"]
             []
             (TyRef "scala.Int")
             (Some (Literal (CInt (1)%Z)))
-            [(Member "scala.Product" "productArity" ":")]);
+            [(Member "scala.Product" "productArity" ":scala.Int")]);
           (DefDef
-            (Member "ox.channels.Default" "productPrefix" ":")
+            (Member "ox.channels.Default" "productPrefix" ":java.lang.String")
             ["Method"; "Override"; "Synthetic"]
             []
             (TyAlias "scala.Predef$.String" (TyRef "java.lang.String"))
             (Some (Literal (CString "Default")))
-            [(Member "scala.Product" "productPrefix" ":")]);
+            [(Member "scala.Product" "productPrefix" ":java.lang.String")]);
           (DefDef
             (Member "ox.channels.Default" "productElement" "scala.Int:java.lang.Object")
             ["Method"; "Override"; "Synthetic"]
@@ -213,7 +213,7 @@ Definition ox_channels_Default : tree :=
                           [(Ident (Local "n" 5))])]))]))
             [(Member "scala.Product" "productElementName" "scala.Int:java.lang.String")]);
           (DefDef
-            (Member "ox.channels.Default" "delegate" ":")
+            (Member "ox.channels.Default" "delegate" ":com.softwaremill.jox.SelectClause")
             ["Method"; "Override"]
             []
             (TyApp (TyRef "com.softwaremill.jox.SelectClause") [(TyRef "scala.Any")])
@@ -250,7 +250,7 @@ Definition ox_channels_Default : tree :=
                     (Closure
                       (Ident (Local "$anonfun" 6))
                       (Some (TyApp (TyRef "java.util.function.Supplier") [(TyRef "scala.Any")]))))]))
-            [(Member "ox.channels.SelectClause" "delegate" ":")]);
+            [(Member "ox.channels.SelectClause" "delegate" ":com.softwaremill.jox.SelectClause")]);
           (TypeDef "Result" [] (TyApp (TyRef "ox.channels.DefaultResult") [(TyParam "ox.channels.Default" "T")]));
           (DefDef
             (Member "ox.channels.Default" "copy" "1,java.lang.Object:ox.channels.Default")
@@ -357,7 +357,7 @@ Definition ox_channels_Default : tree :=
             (Some (Ident (Local "x$1" 9)))
             []);
           (DefDef
-            (Member "ox.channels.Default$" "toString" ":")
+            (Member "ox.channels.Default$" "toString" ":java.lang.String")
             ["Method"; "Override"; "Synthetic"]
             []
             (TyRef "java.lang.String")

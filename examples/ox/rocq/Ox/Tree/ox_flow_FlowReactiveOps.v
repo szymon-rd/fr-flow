@@ -432,7 +432,7 @@ Definition ox_flow_FlowReactiveOps : tree :=
                                           (If
                                             (Select
                                               (Ident (Local "cancelled" 11))
-                                              (Member "scala.Boolean" "unary_!" ":"))
+                                              (Member "scala.Boolean" "unary_!" ":scala.Boolean"))
                                             (Block
                                               [
                                                 (Apply (Ident (Local "cancel" 19)) []);
@@ -496,7 +496,9 @@ Definition ox_flow_FlowReactiveOps : tree :=
                                                 (Literal CUnit)))))
                                         [])]
                                     (While
-                                      (Select (Ident (Local "cancelled" 11)) (Member "scala.Boolean" "unary_!" ":"))
+                                      (Select
+                                        (Ident (Local "cancelled" 11))
+                                        (Member "scala.Boolean" "unary_!" ":scala.Boolean"))
                                       (If
                                         (Apply
                                           (Select
@@ -514,10 +516,16 @@ Definition ox_flow_FlowReactiveOps : tree :=
                                             [
                                               (Select
                                                 (Ident (Local "errors" 15))
-                                                (Member "ox.channels.Source" "receiveClause" ":"));
+                                                (Member
+                                                  "ox.channels.Source"
+                                                  "receiveClause"
+                                                  ":ox.channels.Source.Receive"));
                                               (Select
                                                 (Ident (Local "signals" 14))
-                                                (Member "ox.channels.Source" "receiveClause" ":"))])
+                                                (Member
+                                                  "ox.channels.Source"
+                                                  "receiveClause"
+                                                  ":ox.channels.Source.Receive"))])
                                           [
                                             (CaseDef
                                               (TypeTest
@@ -629,13 +637,22 @@ Definition ox_flow_FlowReactiveOps : tree :=
                                             [
                                               (Select
                                                 (Ident (Local "errors" 15))
-                                                (Member "ox.channels.Source" "receiveClause" ":"));
+                                                (Member
+                                                  "ox.channels.Source"
+                                                  "receiveClause"
+                                                  ":ox.channels.Source.Receive"));
                                               (Select
                                                 (Ident (Local "signals" 14))
-                                                (Member "ox.channels.Source" "receiveClause" ":"));
+                                                (Member
+                                                  "ox.channels.Source"
+                                                  "receiveClause"
+                                                  ":ox.channels.Source.Receive"));
                                               (Select
                                                 (Ident (Local "data" 16))
-                                                (Member "ox.channels.Source" "receiveClause" ":"))])
+                                                (Member
+                                                  "ox.channels.Source"
+                                                  "receiveClause"
+                                                  ":ox.channels.Source.Receive"))])
                                           [
                                             (CaseDef
                                               (TypeTest
@@ -798,7 +815,7 @@ Definition ox_flow_FlowReactiveOps : tree :=
                                         (If
                                           (Select
                                             (Ident (Local "errorSent" 12))
-                                            (Member "scala.Boolean" "unary_!" ":"))
+                                            (Member "scala.Boolean" "unary_!" ":scala.Boolean"))
                                           (Apply
                                             (Select
                                               (Ident (Local "subscriber" 7))

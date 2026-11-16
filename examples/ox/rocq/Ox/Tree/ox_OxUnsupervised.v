@@ -39,28 +39,28 @@ Definition ox_OxUnsupervised : tree :=
         None
         [
           (DefDef
-            (Member "ox.OxUnsupervised" "herd" ":")
+            (Member "ox.OxUnsupervised" "herd" ":ox.internal.ThreadHerd")
             ["Deferred"; "Method"]
             []
             (TyRef "ox.internal.ThreadHerd")
             None
             []);
           (DefDef
-            (Member "ox.OxUnsupervised" "supervisor" ":")
+            (Member "ox.OxUnsupervised" "supervisor" ":ox.Supervisor")
             ["Deferred"; "Method"]
             []
             (TyApp (TyRef "ox.Supervisor") [(TyRef "scala.Nothing")])
             None
             []);
           (DefDef
-            (Member "ox.OxUnsupervised" "parent" ":")
+            (Member "ox.OxUnsupervised" "parent" ":scala.Option")
             ["Deferred"; "Method"]
             []
             (TyApp (TyRef "scala.Option") [(TyRef "ox.OxUnsupervised")])
             None
             []);
           (DefDef
-            (Member "ox.OxUnsupervised" "locals" ":")
+            (Member "ox.OxUnsupervised" "locals" ":ox.ForkLocalMap")
             ["Deferred"; "Method"]
             []
             (TyRef "ox.ForkLocalMap")

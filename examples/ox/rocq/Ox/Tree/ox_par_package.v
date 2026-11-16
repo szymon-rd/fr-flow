@@ -135,7 +135,7 @@ Definition ox_par_package : tree :=
                                           (TyOr
                                             (TyParam "ox.par$package$.par" "T1")
                                             (TyParam "ox.par$package$.par" "T2"))])]))])])
-                        (Member "scala.collection.IterableOnceOps" "toVector" ":"))))]
+                        (Member "scala.collection.IterableOnceOps" "toVector" ":scala.collection.immutable.Vector"))))]
                 (TypeApply
                   (Select
                     (Apply
@@ -277,7 +277,7 @@ Definition ox_par_package : tree :=
                                               (TyParam "ox.par$package$.par" "T1")
                                               (TyParam "ox.par$package$.par" "T2"))
                                             (TyParam "ox.par$package$.par" "T3"))])]))])])
-                        (Member "scala.collection.IterableOnceOps" "toVector" ":"))))]
+                        (Member "scala.collection.IterableOnceOps" "toVector" ":scala.collection.immutable.Vector"))))]
                 (TypeApply
                   (Select
                     (Apply
@@ -459,7 +459,7 @@ Definition ox_par_package : tree :=
                                             (TyOr
                                               (TyParam "ox.par$package$.par" "T3")
                                               (TyParam "ox.par$package$.par" "T4")))])]))])])
-                        (Member "scala.collection.IterableOnceOps" "toVector" ":"))))]
+                        (Member "scala.collection.IterableOnceOps" "toVector" ":scala.collection.immutable.Vector"))))]
                 (TypeApply
                   (Select
                     (Apply

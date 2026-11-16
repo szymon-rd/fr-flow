@@ -140,7 +140,10 @@ Definition client_Observed : tree :=
                           (Apply
                             (Ident (Member "scala.concurrent.duration.package$" "DurationInt" "scala.Int:scala.Int"))
                             [(Literal (CInt (1)%Z))])
-                          (Member "scala.concurrent.duration.DurationConversions" "milli" ":"))])])
+                          (Member
+                            "scala.concurrent.duration.DurationConversions"
+                            "milli"
+                            ":scala.concurrent.duration.FiniteDuration"))])])
                 [
                   (CaseDef
                     (Bind
@@ -253,7 +256,7 @@ Definition client_Observed : tree :=
                                                       (Member
                                                         "scala.concurrent.duration.DurationConversions"
                                                         "milli"
-                                                        ":"))])]
+                                                        ":scala.concurrent.duration.FiniteDuration"))])]
                                               (Apply
                                                 (Select
                                                   (Ident (Local "a" 6))
@@ -297,7 +300,7 @@ Definition client_Observed : tree :=
                                                       (Member
                                                         "scala.concurrent.duration.DurationConversions"
                                                         "millis"
-                                                        ":"))])]
+                                                        ":scala.concurrent.duration.FiniteDuration"))])]
                                               (Apply
                                                 (Select
                                                   (Ident (Local "b" 7))
@@ -1042,7 +1045,7 @@ Definition client_Observed : tree :=
                                         (Ident (Local "running" 33))
                                         (Member "java.util.concurrent.atomic.AtomicBoolean" "get" ":scala.Boolean"))
                                       [])
-                                    (Member "scala.Boolean" "unary_!" ":"))
+                                    (Member "scala.Boolean" "unary_!" ":scala.Boolean"))
                                   (Apply
                                     (Ident
                                       (Member
@@ -1058,7 +1061,10 @@ Definition client_Observed : tree :=
                                               "DurationInt"
                                               "scala.Int:scala.Int"))
                                           [(Literal (CInt (1)%Z))])
-                                        (Member "scala.concurrent.duration.DurationConversions" "milli" ":"))]));
+                                        (Member
+                                          "scala.concurrent.duration.DurationConversions"
+                                          "milli"
+                                          ":scala.concurrent.duration.FiniteDuration"))]));
                                 (Match
                                   false
                                   (Typed

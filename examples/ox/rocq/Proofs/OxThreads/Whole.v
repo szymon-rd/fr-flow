@@ -53,6 +53,10 @@ Proof.
   split.
   { intros b s t. repeat (intros; split). all: intros who from w [[_ H] _]; destruct (nothing_begun_at_rest _ _ _ H). }
   split.
+  { intros t s x. repeat (intros; split). all: intros who from w [[_ H] _]; destruct (nothing_begun_at_rest _ _ _ H). }
+  split.
+  { intros s. repeat (intros; split). all: intros who from w [[_ H] _]; destruct (nothing_begun_at_rest _ _ _ H). }
+  split.
   { intros t outer from inner w [[[_ H] _] _]. destruct (nothing_begun_at_rest _ _ _ H). }
   split.
   { intros h w H. repeat (destruct H as [H | H]); destruct (nothing_called_on_at_rest _ _ _ H). }

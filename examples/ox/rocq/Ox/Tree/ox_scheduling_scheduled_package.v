@@ -115,7 +115,7 @@ Definition ox_scheduling_scheduled_package : tree :=
                                 (Member "scala.util.Try$" "apply" "1,scala.Function0:scala.util.Try"))
                               [(TyParam "ox.scheduling.scheduled$package$.scheduled" "T")])
                             [(Ident (Local "operation" 1))])
-                          (Member "scala.util.Try" "toEither" ":"))])
+                          (Member "scala.util.Try" "toEither" ":scala.util.Either"))])
                     (Member "scala.util.Either" "fold" "1,scala.Function1,scala.Function1:java.lang.Object"))
                   [(TyParam "ox.scheduling.scheduled$package$.scheduled" "T")])
                 [
@@ -346,7 +346,7 @@ Definition ox_scheduling_scheduled_package : tree :=
                                                           (Member
                                                             "scala.concurrent.duration.FiniteDuration"
                                                             "toNanos"
-                                                            ":"))
+                                                            ":scala.Long"))
                                                         (Member "scala.Long" "-" "scala.Long:scala.Long"))
                                                       [(Ident (Local "elapsed" 18))])))]
                                               (Select
@@ -357,7 +357,10 @@ Definition ox_scheduling_scheduled_package : tree :=
                                                       "DurationLong"
                                                       "scala.Long:scala.Long"))
                                                   [(Ident (Local "remaining" 19))])
-                                                (Member "scala.concurrent.duration.DurationConversions" "nanos" ":"))));
+                                                (Member
+                                                  "scala.concurrent.duration.DurationConversions"
+                                                  "nanos"
+                                                  ":scala.concurrent.duration.FiniteDuration"))));
                                           (CaseDef
                                             (Select
                                               (Ident (Member "ox.scheduling" "SleepMode" ""))
@@ -369,7 +372,7 @@ Definition ox_scheduling_scheduled_package : tree :=
                                     (Select
                                       (Select
                                         (Ident (Local "delay" 17))
-                                        (Member "scala.concurrent.duration.FiniteDuration" "toMillis" ":"))
+                                        (Member "scala.concurrent.duration.FiniteDuration" "toMillis" ":scala.Long"))
                                       (Member "scala.Long" ">" "scala.Int:scala.Boolean"))
                                     [(Literal (CInt (0)%Z))])
                                   (Apply
@@ -398,7 +401,7 @@ Definition ox_scheduling_scheduled_package : tree :=
                             (Some
                               (Select
                                 (Ident (Local "intervals" 13))
-                                (Member "scala.collection.LinearSeqOps" "headOption" ":"))))]
+                                (Member "scala.collection.LinearSeqOps" "headOption" ":scala.Option"))))]
                         (Match
                           false
                           (Ident (Local "operation" 10))
@@ -479,7 +482,7 @@ Definition ox_scheduling_scheduled_package : tree :=
                                           (Select
                                             (Ident (Local "shouldStop" 24))
                                             (Member "ox.scheduling.ScheduleStop" "stop" ""))
-                                          (Member "scala.Boolean" "unary_!" ":")))
+                                          (Member "scala.Boolean" "unary_!" ":scala.Boolean")))
                                       (Block
                                         [
                                           (Apply
@@ -495,7 +498,10 @@ Definition ox_scheduling_scheduled_package : tree :=
                                               [(Literal (CInt (1)%Z))]);
                                             (Select
                                               (Ident (Local "intervals" 13))
-                                              (Member "scala.collection.immutable.LazyList" "tail" ":"))])));
+                                              (Member
+                                                "scala.collection.immutable.LazyList"
+                                                "tail"
+                                                ":scala.collection.immutable.LazyList"))])));
                                     (CaseDef Wildcard None (Block [] (Ident (Local "v" 22))))])));
                             (CaseDef
                               (Bind (Local "v" 26) Wildcard)
@@ -566,7 +572,7 @@ Definition ox_scheduling_scheduled_package : tree :=
                                           (Select
                                             (Ident (Local "shouldStop" 28))
                                             (Member "ox.scheduling.ScheduleStop" "stop" ""))
-                                          (Member "scala.Boolean" "unary_!" ":")))
+                                          (Member "scala.Boolean" "unary_!" ":scala.Boolean")))
                                       (Block
                                         [
                                           (Apply
@@ -582,7 +588,10 @@ Definition ox_scheduling_scheduled_package : tree :=
                                               [(Literal (CInt (1)%Z))]);
                                             (Select
                                               (Ident (Local "intervals" 13))
-                                              (Member "scala.collection.immutable.LazyList" "tail" ":"))])));
+                                              (Member
+                                                "scala.collection.immutable.LazyList"
+                                                "tail"
+                                                ":scala.collection.immutable.LazyList"))])));
                                     (CaseDef Wildcard None (Block [] (Ident (Local "v" 26))))])))])))
                     []);
                   (Apply

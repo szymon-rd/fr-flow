@@ -211,7 +211,7 @@ Definition ox_internal_ThreadHerd : tree :=
                               (Ident (Local "interruptedThreads" 4))
                               (Member "scala.collection.SetOps" "contains" "java.lang.Object:scala.Boolean"))
                             [(Ident (Local "t" 6))])
-                          (Member "scala.Boolean" "unary_!" ":"))
+                          (Member "scala.Boolean" "unary_!" ":scala.Boolean"))
                         (Block
                           [
                             (Apply
@@ -241,7 +241,7 @@ Definition ox_internal_ThreadHerd : tree :=
                           (Select (This "ox.internal.ThreadHerd") (Member "ox.internal.ThreadHerd" "threads" ""))
                           (Member "java.util.concurrent.ConcurrentHashMap$.CollectionView" "isEmpty" ":scala.Boolean"))
                         [])
-                      (Member "scala.Boolean" "unary_!" ":"))
+                      (Member "scala.Boolean" "unary_!" ":scala.Boolean"))
                     (Block
                       [
                         (Apply
@@ -407,7 +407,9 @@ Definition ox_internal_ThreadHerd : tree :=
                           (If
                             (Apply
                               (Select
-                                (Select (Ident (Local "scope" 16)) (Member "ox.OxUnsupervised" "herd" ":"))
+                                (Select
+                                  (Ident (Local "scope" 16))
+                                  (Member "ox.OxUnsupervised" "herd" ":ox.internal.ThreadHerd"))
                                 (Member
                                   "ox.internal.ThreadHerd"
                                   "isOwnerOrHerdThread"
@@ -417,7 +419,7 @@ Definition ox_internal_ThreadHerd : tree :=
                             (Literal CUnit))]
                         (Match
                           false
-                          (Select (Ident (Local "scope" 16)) (Member "ox.OxUnsupervised" "parent" ":"))
+                          (Select (Ident (Local "scope" 16)) (Member "ox.OxUnsupervised" "parent" ":scala.Option"))
                           [
                             (CaseDef
                               (Ident (Member "scala" "None" ""))

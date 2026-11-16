@@ -126,7 +126,7 @@ Definition ox_channels_SourceDrainOps : tree :=
                   (TyOr (TyRef "scala.Unit") (TyRef "ox.channels.ChannelClosed$.Error")))))
             []);
           (DefDef
-            (Member "ox.channels.SourceDrainOps" "toList" ":")
+            (Member "ox.channels.SourceDrainOps" "toList" ":scala.collection.immutable.List")
             ["Method"]
             []
             (TyApp (TyRef "scala.collection.immutable.List") [(TyParam "ox.channels.SourceDrainOps" "T")])

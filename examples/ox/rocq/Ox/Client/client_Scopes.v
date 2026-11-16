@@ -227,7 +227,10 @@ Definition client_Scopes : tree :=
                               (Ident
                                 (Member "scala.concurrent.duration.package$" "DurationInt" "scala.Int:scala.Int"))
                               [(Literal (CInt (1)%Z))])
-                            (Member "scala.concurrent.duration.DurationConversions" "milli" ":"))])])]))
+                            (Member
+                              "scala.concurrent.duration.DurationConversions"
+                              "milli"
+                              ":scala.concurrent.duration.FiniteDuration"))])])]))
             []);
           (DefDef
             (Member "frflow.project.rocq.clients.Scopes$" "timedOut" ":scala.Int")
@@ -250,7 +253,10 @@ Definition client_Scopes : tree :=
                         (Apply
                           (Ident (Member "scala.concurrent.duration.package$" "DurationInt" "scala.Int:scala.Int"))
                           [(Literal (CInt (5)%Z))])
-                        (Member "scala.concurrent.duration.DurationConversions" "millis" ":"))])
+                        (Member
+                          "scala.concurrent.duration.DurationConversions"
+                          "millis"
+                          ":scala.concurrent.duration.FiniteDuration"))])
                   [
                     (Apply
                       (Ident (Member "ox.control$package$" "forever" "scala.runtime.BoxedUnit:scala.Nothing"))
@@ -263,7 +269,10 @@ Definition client_Scopes : tree :=
                                 (Ident
                                   (Member "scala.concurrent.duration.package$" "DurationInt" "scala.Int:scala.Int"))
                                 [(Literal (CInt (1)%Z))])
-                              (Member "scala.concurrent.duration.DurationConversions" "milli" ":"))])])])
+                              (Member
+                                "scala.concurrent.duration.DurationConversions"
+                                "milli"
+                                ":scala.concurrent.duration.FiniteDuration"))])])])
                 [
                   (CaseDef
                     (Typed Wildcard (TyRef "java.util.concurrent.TimeoutException"))

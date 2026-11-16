@@ -99,7 +99,7 @@ Definition ox_fork_package : tree :=
                   [
                     (Select
                       (Inlined (Some (TypeTree (TyRef "scala.Predef$"))) [] (Inlined None [] (Ident (Local "x$2" 1))))
-                      (Member "ox.Ox" "asNoErrorMode" ":"))])
+                      (Member "ox.Ox" "asNoErrorMode" ":ox.OxError"))])
                 [(Ident (Local "f" 0))]))
             []);
           (DefDef
@@ -251,7 +251,7 @@ Definition ox_fork_package : tree :=
                                         (Ident (Local "supervisor" 6))
                                         (Member "ox.Supervisor" "forkException" "java.lang.Throwable:scala.Boolean"))
                                       [(Ident (Local "e" 9))])
-                                    (Member "scala.Boolean" "unary_!" ":"))
+                                    (Member "scala.Boolean" "unary_!" ":scala.Boolean"))
                                   (Apply
                                     (TypeApply
                                       (Ident (Member "ox.util$package$" "discard" "1,java.lang.Object:scala.Unit"))
@@ -328,7 +328,7 @@ Definition ox_fork_package : tree :=
                         (Some (TypeTree (TyRef "scala.Predef$")))
                         []
                         (Inlined None [] (Ident (Local "x$2" 12))))
-                      (Member "ox.Ox" "asNoErrorMode" ":"))])
+                      (Member "ox.Ox" "asNoErrorMode" ":ox.OxError"))])
                 [(Ident (Local "f" 11))]))
             []);
           (DefDef
@@ -503,7 +503,7 @@ Definition ox_fork_package : tree :=
                                           "forkException"
                                           "java.lang.Throwable:scala.Boolean"))
                                       [(Ident (Local "e" 20))])
-                                    (Member "scala.Boolean" "unary_!" ":"))
+                                    (Member "scala.Boolean" "unary_!" ":scala.Boolean"))
                                   (Apply
                                     (TypeApply
                                       (Ident (Member "ox.util$package$" "discard" "1,java.lang.Object:scala.Unit"))
@@ -599,7 +599,9 @@ Definition ox_fork_package : tree :=
                         [])));
                   (Apply
                     (Select
-                      (Select (Ident (Local "oxUnsupervised" 24)) (Member "ox.OxUnsupervised" "herd" ":"))
+                      (Select
+                        (Ident (Local "oxUnsupervised" 24))
+                        (Member "ox.OxUnsupervised" "herd" ":ox.internal.ThreadHerd"))
                       (Member "ox.internal.ThreadHerd" "startThread" "scala.Function0:scala.Unit"))
                     [
                       (Block
@@ -934,7 +936,7 @@ Definition ox_fork_package : tree :=
                         (Inlined None [] (Ident (Local "x$2" 40))))));
                   (Apply
                     (Select
-                      (Select (Ident (Local "ox" 44)) (Member "ox.OxUnsupervised" "herd" ":"))
+                      (Select (Ident (Local "ox" 44)) (Member "ox.OxUnsupervised" "herd" ":ox.internal.ThreadHerd"))
                       (Member "ox.internal.ThreadHerd" "startThread" "scala.Function0:scala.Unit"))
                     [
                       (Try
@@ -966,7 +968,9 @@ Definition ox_fork_package : tree :=
                                           (Member "scala.Some$" "apply" "1,java.lang.Object:scala.Some"))
                                         [(TyRef "ox.OxUnsupervised")])
                                       [(Ident (Local "ox" 44))]);
-                                    (Select (Ident (Local "ox" 44)) (Member "ox.OxUnsupervised" "locals" ":"))])))]
+                                    (Select
+                                      (Ident (Local "ox" 44))
+                                      (Member "ox.OxUnsupervised" "locals" ":ox.ForkLocalMap"))])))]
                           (Apply
                             (Apply
                               (TypeApply
@@ -1028,7 +1032,7 @@ Definition ox_fork_package : tree :=
                                                                 "getAndSet"
                                                                 "scala.Boolean:scala.Boolean"))
                                                             [(Literal (CBool true))])
-                                                          (Member "scala.Boolean" "unary_!" ":"))
+                                                          (Member "scala.Boolean" "unary_!" ":scala.Boolean"))
                                                         (Try
                                                           (Apply
                                                             (TypeApply
@@ -1222,7 +1226,7 @@ Definition ox_fork_package : tree :=
                                                 (Ident (Local "e" 51))
                                                 (Member "java.lang.Throwable" "getCause" ":java.lang.Throwable"))
                                               [])])
-                                        (Member "scala.Option" "isDefined" ":")))
+                                        (Member "scala.Option" "isDefined" ":scala.Boolean")))
                                     (Block
                                       []
                                       (Apply
@@ -1308,7 +1312,7 @@ Definition ox_fork_package : tree :=
                                         "getAndSet"
                                         "scala.Boolean:scala.Boolean"))
                                     [(Literal (CBool true))])
-                                  (Member "scala.Boolean" "unary_!" ":"))
+                                  (Member "scala.Boolean" "unary_!" ":scala.Boolean"))
                                 (Apply
                                   (TypeApply
                                     (Ident (Member "ox.util$package$" "discard" "1,java.lang.Object:scala.Unit"))

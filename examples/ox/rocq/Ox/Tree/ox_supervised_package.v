@@ -180,7 +180,9 @@ Definition ox_supervised_package : tree :=
                       (TyParam "ox.supervised$package$.supervisedError" "E");
                       (TyParam "ox.supervised$package$.supervisedError" "F");
                       (TyParam "ox.supervised$package$.supervisedError" "T")])
-                  [(Ident (Local "em" 3)); (Ident (Member "ox.internal.ScopeContext$package$" "currentLocals" ":"))])
+                  [
+                    (Ident (Local "em" 3));
+                    (Ident (Member "ox.internal.ScopeContext$package$" "currentLocals" ":ox.ForkLocalMap"))])
                 [
                   (Block
                     [

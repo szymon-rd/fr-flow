@@ -265,19 +265,19 @@ Definition ox_resilience_Metrics : tree :=
                 [(TyAnnot (TyRef "ox.resilience.Metrics") "scala.unchecked")]))
             [(Member "scala.Equals" "canEqual" "java.lang.Object:scala.Boolean")]);
           (DefDef
-            (Member "ox.resilience.Metrics" "productArity" ":")
+            (Member "ox.resilience.Metrics" "productArity" ":scala.Int")
             ["Method"; "Override"; "Synthetic"]
             []
             (TyRef "scala.Int")
             (Some (Literal (CInt (5)%Z)))
-            [(Member "scala.Product" "productArity" ":")]);
+            [(Member "scala.Product" "productArity" ":scala.Int")]);
           (DefDef
-            (Member "ox.resilience.Metrics" "productPrefix" ":")
+            (Member "ox.resilience.Metrics" "productPrefix" ":java.lang.String")
             ["Method"; "Override"; "Synthetic"]
             []
             (TyAlias "scala.Predef$.String" (TyRef "java.lang.String"))
             (Some (Literal (CString "Metrics")))
-            [(Member "scala.Product" "productPrefix" ":")]);
+            [(Member "scala.Product" "productPrefix" ":java.lang.String")]);
           (DefDef
             (Member "ox.resilience.Metrics" "productElement" "scala.Int:java.lang.Object")
             ["Method"; "Override"; "Synthetic"]
@@ -291,23 +291,23 @@ Definition ox_resilience_Metrics : tree :=
                   (CaseDef
                     (Literal (CInt (0)%Z))
                     None
-                    (Select (This "ox.resilience.Metrics") (Member "ox.resilience.Metrics" "_1" ":")));
+                    (Select (This "ox.resilience.Metrics") (Member "ox.resilience.Metrics" "_1" ":scala.Int")));
                   (CaseDef
                     (Literal (CInt (1)%Z))
                     None
-                    (Select (This "ox.resilience.Metrics") (Member "ox.resilience.Metrics" "_2" ":")));
+                    (Select (This "ox.resilience.Metrics") (Member "ox.resilience.Metrics" "_2" ":scala.Int")));
                   (CaseDef
                     (Literal (CInt (2)%Z))
                     None
-                    (Select (This "ox.resilience.Metrics") (Member "ox.resilience.Metrics" "_3" ":")));
+                    (Select (This "ox.resilience.Metrics") (Member "ox.resilience.Metrics" "_3" ":scala.Int")));
                   (CaseDef
                     (Literal (CInt (3)%Z))
                     None
-                    (Select (This "ox.resilience.Metrics") (Member "ox.resilience.Metrics" "_4" ":")));
+                    (Select (This "ox.resilience.Metrics") (Member "ox.resilience.Metrics" "_4" ":scala.Option")));
                   (CaseDef
                     (Literal (CInt (4)%Z))
                     None
-                    (Select (This "ox.resilience.Metrics") (Member "ox.resilience.Metrics" "_5" ":")));
+                    (Select (This "ox.resilience.Metrics") (Member "ox.resilience.Metrics" "_5" ":scala.Long")));
                   (CaseDef
                     Wildcard
                     None
@@ -387,28 +387,28 @@ Definition ox_resilience_Metrics : tree :=
                   (Ident (Local "timestamp" 15))]))
             []);
           (DefDef
-            (Member "ox.resilience.Metrics" "copy$default$1" ":")
+            (Member "ox.resilience.Metrics" "copy$default$1" ":scala.Int")
             ["Method"; "Synthetic"]
             []
             (TyAnnot (TyRef "scala.Int") "scala.annotation.unchecked.uncheckedVariance")
             (Some (Ident (Member "ox.resilience.Metrics" "failurePercentage" "")))
             []);
           (DefDef
-            (Member "ox.resilience.Metrics" "copy$default$2" ":")
+            (Member "ox.resilience.Metrics" "copy$default$2" ":scala.Int")
             ["Method"; "Synthetic"]
             []
             (TyAnnot (TyRef "scala.Int") "scala.annotation.unchecked.uncheckedVariance")
             (Some (Ident (Member "ox.resilience.Metrics" "slowCallsPercentage" "")))
             []);
           (DefDef
-            (Member "ox.resilience.Metrics" "copy$default$3" ":")
+            (Member "ox.resilience.Metrics" "copy$default$3" ":scala.Int")
             ["Method"; "Synthetic"]
             []
             (TyAnnot (TyRef "scala.Int") "scala.annotation.unchecked.uncheckedVariance")
             (Some (Ident (Member "ox.resilience.Metrics" "operationsInWindow" "")))
             []);
           (DefDef
-            (Member "ox.resilience.Metrics" "copy$default$4" ":")
+            (Member "ox.resilience.Metrics" "copy$default$4" ":scala.Option")
             ["Method"; "Synthetic"]
             []
             (TyAnnot
@@ -417,42 +417,42 @@ Definition ox_resilience_Metrics : tree :=
             (Some (Ident (Member "ox.resilience.Metrics" "lastAcquisitionResult" "")))
             []);
           (DefDef
-            (Member "ox.resilience.Metrics" "copy$default$5" ":")
+            (Member "ox.resilience.Metrics" "copy$default$5" ":scala.Long")
             ["Method"; "Synthetic"]
             []
             (TyAnnot (TyRef "scala.Long") "scala.annotation.unchecked.uncheckedVariance")
             (Some (Ident (Member "ox.resilience.Metrics" "timestamp" "")))
             []);
           (DefDef
-            (Member "ox.resilience.Metrics" "_1" ":")
+            (Member "ox.resilience.Metrics" "_1" ":scala.Int")
             ["Method"; "Synthetic"]
             []
             (TyRef "scala.Int")
             (Some (Select (This "ox.resilience.Metrics") (Member "ox.resilience.Metrics" "failurePercentage" "")))
             []);
           (DefDef
-            (Member "ox.resilience.Metrics" "_2" ":")
+            (Member "ox.resilience.Metrics" "_2" ":scala.Int")
             ["Method"; "Synthetic"]
             []
             (TyRef "scala.Int")
             (Some (Select (This "ox.resilience.Metrics") (Member "ox.resilience.Metrics" "slowCallsPercentage" "")))
             []);
           (DefDef
-            (Member "ox.resilience.Metrics" "_3" ":")
+            (Member "ox.resilience.Metrics" "_3" ":scala.Int")
             ["Method"; "Synthetic"]
             []
             (TyRef "scala.Int")
             (Some (Select (This "ox.resilience.Metrics") (Member "ox.resilience.Metrics" "operationsInWindow" "")))
             []);
           (DefDef
-            (Member "ox.resilience.Metrics" "_4" ":")
+            (Member "ox.resilience.Metrics" "_4" ":scala.Option")
             ["Method"; "Synthetic"]
             []
             (TyApp (TyRef "scala.Option") [(TyRef "ox.resilience.AcquireResult")])
             (Some (Select (This "ox.resilience.Metrics") (Member "ox.resilience.Metrics" "lastAcquisitionResult" "")))
             []);
           (DefDef
-            (Member "ox.resilience.Metrics" "_5" ":")
+            (Member "ox.resilience.Metrics" "_5" ":scala.Long")
             ["Method"; "Synthetic"]
             []
             (TyRef "scala.Long")
@@ -543,7 +543,7 @@ Definition ox_resilience_Metrics : tree :=
             (Some (Ident (Local "x$1" 21)))
             []);
           (DefDef
-            (Member "ox.resilience.Metrics$" "toString" ":")
+            (Member "ox.resilience.Metrics$" "toString" ":java.lang.String")
             ["Method"; "Override"; "Synthetic"]
             []
             (TyRef "java.lang.String")

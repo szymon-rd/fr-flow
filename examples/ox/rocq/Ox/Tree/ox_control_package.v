@@ -101,11 +101,11 @@ Definition ox_control_package : tree :=
                     (Ident (Local "loop" 4))
                     (Assign
                       (Ident (Local "loop" 4))
-                      (Select (Ident (Local "f" 3)) (Member "scala.Boolean" "unary_!" ":")))))
+                      (Select (Ident (Local "f" 3)) (Member "scala.Boolean" "unary_!" ":scala.Boolean")))))
                 (TyRef "scala.Unit")))
             []);
           (DefDef
-            (Member "ox.control$package$" "never" ":")
+            (Member "ox.control$package$" "never" ":scala.Nothing")
             ["Inline"; "Method"]
             []
             (TyRef "scala.Nothing")

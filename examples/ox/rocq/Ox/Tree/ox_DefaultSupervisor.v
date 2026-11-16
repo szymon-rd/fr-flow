@@ -195,7 +195,7 @@ Definition ox_DefaultSupervisor : tree :=
                             "completeExceptionally"
                             "java.lang.Throwable:scala.Boolean"))
                         [(Ident (Local "e" 1))])
-                      (Member "scala.Boolean" "unary_!" ":"))
+                      (Member "scala.Boolean" "unary_!" ":scala.Boolean"))
                     (Apply
                       (TypeApply
                         (Ident (Member "ox.util$package$" "discard" "1,java.lang.Object:scala.Unit"))
@@ -224,7 +224,7 @@ Definition ox_DefaultSupervisor : tree :=
                       (Select (This "ox.DefaultSupervisor") (Member "ox.DefaultSupervisor" "result" ""))
                       (Member "java.util.concurrent.CompletableFuture" "complete" "java.lang.Object:scala.Boolean"))
                     [(Ident (Local "e" 2))])
-                  (Member "scala.Boolean" "unary_!" ":"))
+                  (Member "scala.Boolean" "unary_!" ":scala.Boolean"))
                 (Apply
                   (TypeApply
                     (Ident (Member "ox.util$package$" "discard" "1,java.lang.Object:scala.Unit"))

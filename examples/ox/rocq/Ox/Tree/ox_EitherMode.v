@@ -55,7 +55,7 @@ Definition ox_EitherMode : tree :=
                     [(TyParam "ox.EitherMode" "E"); (TyParam "ox.EitherMode.isError" "T")])
                   None)]]
             (TyRef "scala.Boolean")
-            (Some (Select (Ident (Local "f" 0)) (Member "scala.util.Either" "isLeft" ":")))
+            (Some (Select (Ident (Local "f" 0)) (Member "scala.util.Either" "isLeft" ":scala.Boolean")))
             [(Member "ox.ErrorMode" "isError" "1,java.lang.Object:scala.Boolean")]);
           (DefDef
             (Member "ox.EitherMode" "getError" "1,scala.util.Either:java.lang.Object")
@@ -75,7 +75,9 @@ Definition ox_EitherMode : tree :=
               (Apply
                 (TypeApply
                   (Select
-                    (Select (Ident (Local "f" 1)) (Member "scala.util.Either" "left" ":"))
+                    (Select
+                      (Ident (Local "f" 1))
+                      (Member "scala.util.Either" "left" ":scala.util.Either$.LeftProjection"))
                     (Member "scala.util.Either$.LeftProjection" "getOrElse" "1,scala.Function0:java.lang.Object"))
                   [(TyParam "ox.EitherMode" "E")])
                 [

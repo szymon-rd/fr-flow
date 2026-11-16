@@ -188,7 +188,10 @@ Definition ox_flow_FlowEmit : tree :=
                             []
                             (Apply
                               (Ident (Member "<special-ops>" "throw" "java.lang.Throwable:scala.Nothing"))
-                              [(Select (Ident (Local "e" 7)) (Member "ox.channels.ChannelClosed" "toThrowable" ":"))])));
+                              [
+                                (Select
+                                  (Ident (Local "e" 7))
+                                  (Member "ox.channels.ChannelClosed" "toThrowable" ":java.lang.Throwable"))])));
                         (CaseDef
                           (Bind
                             (Local "t" 8)

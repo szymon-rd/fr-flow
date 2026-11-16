@@ -109,7 +109,7 @@ Definition ox_channels_Channel : tree :=
                           [(TyRef "scala.Any")])
                         [(Ident (Member "ox.channels.Channel" "capacity" ""))])))])));
           (DefDef
-            (Member "ox.channels.Channel" "toString" ":")
+            (Member "ox.channels.Channel" "toString" ":java.lang.String")
             ["Method"; "Override"]
             []
             (TyAlias "scala.Predef$.String" (TyRef "java.lang.String"))

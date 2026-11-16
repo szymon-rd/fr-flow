@@ -594,7 +594,7 @@ Definition ox_channels_SourceOps : tree :=
                                               (TyRef "ox.channels.ChannelClosed")))))]))
                                 []);
                               (DefDef
-                                (Member "ox.channels.SourceOps._$_$$anon#26" "hasNext" ":")
+                                (Member "ox.channels.SourceOps._$_$$anon#26" "hasNext" ":scala.Boolean")
                                 ["Method"; "Override"]
                                 []
                                 (TyRef "scala.Boolean")
@@ -614,7 +614,7 @@ Definition ox_channels_SourceOps : tree :=
                                         None
                                         (Block [] (Literal (CBool false))));
                                       (CaseDef Wildcard None (Block [] (Literal (CBool true))))]))
-                                [(Member "scala.collection.Iterator" "hasNext" ":")]);
+                                [(Member "scala.collection.Iterator" "hasNext" ":scala.Boolean")]);
                               (DefDef
                                 (Member "ox.channels.SourceOps._$_$$anon#26" "next" ":java.lang.Object")
                                 ["Method"; "Override"]
@@ -664,7 +664,10 @@ Definition ox_channels_SourceOps : tree :=
                                             [
                                               (Select
                                                 (Ident (Local "e" 29))
-                                                (Member "ox.channels.ChannelClosed" "toThrowable" ":"))])));
+                                                (Member
+                                                  "ox.channels.ChannelClosed"
+                                                  "toThrowable"
+                                                  ":java.lang.Throwable"))])));
                                       (CaseDef
                                         (Bind
                                           (Local "t" 30)

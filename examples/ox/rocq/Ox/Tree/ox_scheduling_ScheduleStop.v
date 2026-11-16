@@ -137,15 +137,15 @@ Definition ox_scheduling_ScheduleStop : tree :=
                             [
                               (Select
                                 (This "ox.scheduling.ScheduleStop$._$$anon#1")
-                                (Member "ox.scheduling.ScheduleStop$._$$anon#1" "ordinal" ":"))]))
+                                (Member "ox.scheduling.ScheduleStop$._$$anon#1" "ordinal" ":scala.Int"))]))
                         []);
                       (DefDef
-                        (Member "ox.scheduling.ScheduleStop$._$$anon#1" "productPrefix" ":")
+                        (Member "ox.scheduling.ScheduleStop$._$$anon#1" "productPrefix" ":java.lang.String")
                         ["Method"; "Override"; "Synthetic"]
                         []
                         (TyAlias "scala.Predef$.String" (TyRef "java.lang.String"))
                         (Some (Literal (CString "Yes")))
-                        [(Member "scala.Product" "productPrefix" ":")]);
+                        [(Member "scala.Product" "productPrefix" ":java.lang.String")]);
                       (DefDef
                         (Member "ox.scheduling.ScheduleStop$._$$anon#1" "toString" ":java.lang.String")
                         ["Method"; "Override"; "Synthetic"]
@@ -154,12 +154,12 @@ Definition ox_scheduling_ScheduleStop : tree :=
                         (Some (Literal (CString "Yes")))
                         [(Member "scala.Any" "toString" ":java.lang.String")]);
                       (DefDef
-                        (Member "ox.scheduling.ScheduleStop$._$$anon#1" "ordinal" ":")
+                        (Member "ox.scheduling.ScheduleStop$._$$anon#1" "ordinal" ":scala.Int")
                         ["Method"; "Override"; "Synthetic"]
                         []
                         (TyRef "scala.Int")
                         (Some (Literal (CInt (0)%Z)))
-                        [(Member "scala.reflect.Enum" "ordinal" ":")]);
+                        [(Member "scala.reflect.Enum" "ordinal" ":scala.Int")]);
                       (DefDef
                         (Member "ox.scheduling.ScheduleStop$._$$anon#1" "hashCode" ":scala.Int")
                         ["Method"; "Override"; "Synthetic"]
@@ -222,15 +222,15 @@ Definition ox_scheduling_ScheduleStop : tree :=
                             [
                               (Select
                                 (This "ox.scheduling.ScheduleStop$._$$anon#2")
-                                (Member "ox.scheduling.ScheduleStop$._$$anon#2" "ordinal" ":"))]))
+                                (Member "ox.scheduling.ScheduleStop$._$$anon#2" "ordinal" ":scala.Int"))]))
                         []);
                       (DefDef
-                        (Member "ox.scheduling.ScheduleStop$._$$anon#2" "productPrefix" ":")
+                        (Member "ox.scheduling.ScheduleStop$._$$anon#2" "productPrefix" ":java.lang.String")
                         ["Method"; "Override"; "Synthetic"]
                         []
                         (TyAlias "scala.Predef$.String" (TyRef "java.lang.String"))
                         (Some (Literal (CString "No")))
-                        [(Member "scala.Product" "productPrefix" ":")]);
+                        [(Member "scala.Product" "productPrefix" ":java.lang.String")]);
                       (DefDef
                         (Member "ox.scheduling.ScheduleStop$._$$anon#2" "toString" ":java.lang.String")
                         ["Method"; "Override"; "Synthetic"]
@@ -239,12 +239,12 @@ Definition ox_scheduling_ScheduleStop : tree :=
                         (Some (Literal (CString "No")))
                         [(Member "scala.Any" "toString" ":java.lang.String")]);
                       (DefDef
-                        (Member "ox.scheduling.ScheduleStop$._$$anon#2" "ordinal" ":")
+                        (Member "ox.scheduling.ScheduleStop$._$$anon#2" "ordinal" ":scala.Int")
                         ["Method"; "Override"; "Synthetic"]
                         []
                         (TyRef "scala.Int")
                         (Some (Literal (CInt (1)%Z)))
-                        [(Member "scala.reflect.Enum" "ordinal" ":")]);
+                        [(Member "scala.reflect.Enum" "ordinal" ":scala.Int")]);
                       (DefDef
                         (Member "ox.scheduling.ScheduleStop$._$$anon#2" "hashCode" ":scala.Int")
                         ["Method"; "Override"; "Synthetic"]
@@ -299,7 +299,7 @@ Definition ox_scheduling_ScheduleStop : tree :=
                         (Ident (Member "scala.Predef$" "classOf" "1:java.lang.Class"))
                         [(TyRef "ox.scheduling.ScheduleStop")])])])));
           (DefDef
-            (Member "ox.scheduling.ScheduleStop$" "values" ":")
+            (Member "ox.scheduling.ScheduleStop$" "values" ":scala.Array")
             ["Method"; "Synthetic"]
             []
             (TyApp (TyRef "scala.Array") [(TyRef "ox.scheduling.ScheduleStop")])
@@ -413,5 +413,5 @@ Definition ox_scheduling_ScheduleStop : tree :=
                   (TyAlias "ox.scheduling.ScheduleStop$.MirroredMonoType" (TyRef "ox.scheduling.ScheduleStop"))
                   None)]]
             (TyRef "scala.Int")
-            (Some (Select (Ident (Local "x$0" 6)) (Member "scala.reflect.Enum" "ordinal" ":")))
+            (Some (Select (Ident (Local "x$0" 6)) (Member "scala.reflect.Enum" "ordinal" ":scala.Int")))
             [(Member "scala.deriving.Mirror$.Sum" "ordinal" "java.lang.Object:scala.Int")])])]).

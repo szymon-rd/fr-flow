@@ -184,19 +184,19 @@ Definition ox_flow_Nested : tree :=
                 [(TyAnnot (TyApp (TyRef "ox.flow.Nested") [(TyParam "ox.flow.Nested" "U")]) "scala.unchecked")]))
             [(Member "scala.Equals" "canEqual" "java.lang.Object:scala.Boolean")]);
           (DefDef
-            (Member "ox.flow.Nested" "productArity" ":")
+            (Member "ox.flow.Nested" "productArity" ":scala.Int")
             ["Method"; "Override"; "Synthetic"]
             []
             (TyRef "scala.Int")
             (Some (Literal (CInt (1)%Z)))
-            [(Member "scala.Product" "productArity" ":")]);
+            [(Member "scala.Product" "productArity" ":scala.Int")]);
           (DefDef
-            (Member "ox.flow.Nested" "productPrefix" ":")
+            (Member "ox.flow.Nested" "productPrefix" ":java.lang.String")
             ["Method"; "Override"; "Synthetic"]
             []
             (TyAlias "scala.Predef$.String" (TyRef "java.lang.String"))
             (Some (Literal (CString "Nested")))
-            [(Member "scala.Product" "productPrefix" ":")]);
+            [(Member "scala.Product" "productPrefix" ":java.lang.String")]);
           (DefDef
             (Member "ox.flow.Nested" "productElement" "scala.Int:java.lang.Object")
             ["Method"; "Override"; "Synthetic"]
@@ -210,7 +210,7 @@ Definition ox_flow_Nested : tree :=
                   (CaseDef
                     (Literal (CInt (0)%Z))
                     None
-                    (Select (This "ox.flow.Nested") (Member "ox.flow.Nested" "_1" ":")));
+                    (Select (This "ox.flow.Nested") (Member "ox.flow.Nested" "_1" ":ox.flow.Flow")));
                   (CaseDef
                     Wildcard
                     None
@@ -281,7 +281,7 @@ Definition ox_flow_Nested : tree :=
             (Some (Ident (Member "ox.flow.Nested" "child" "")))
             []);
           (DefDef
-            (Member "ox.flow.Nested" "_1" ":")
+            (Member "ox.flow.Nested" "_1" ":ox.flow.Flow")
             ["Method"; "Synthetic"]
             []
             (TyApp (TyRef "ox.flow.Flow") [(TyParam "ox.flow.Nested" "U")])
@@ -363,7 +363,7 @@ Definition ox_flow_Nested : tree :=
             (Some (Ident (Local "x$1" 8)))
             []);
           (DefDef
-            (Member "ox.flow.Nested$" "toString" ":")
+            (Member "ox.flow.Nested$" "toString" ":java.lang.String")
             ["Method"; "Override"; "Synthetic"]
             []
             (TyRef "java.lang.String")

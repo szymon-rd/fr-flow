@@ -102,7 +102,7 @@ Definition ox_scheduling_repeat_package : tree :=
                                 (Member "scala.util.Try$" "apply" "1,scala.Function0:scala.util.Try"))
                               [(TyParam "ox.scheduling.repeat$package$.repeat" "T")])
                             [(Ident (Local "operation" 1))])
-                          (Member "scala.util.Try" "toEither" ":"))])
+                          (Member "scala.util.Try" "toEither" ":scala.util.Either"))])
                     (Member "scala.util.Either" "fold" "1,scala.Function1,scala.Function1:java.lang.Object"))
                   [(TyParam "ox.scheduling.repeat$package$.repeat" "T")])
                 [
@@ -374,7 +374,10 @@ Definition ox_scheduling_repeat_package : tree :=
                         (TyParam "ox.scheduling.repeat$package$.repeatWithErrorMode" "F");
                         (TyParam "ox.scheduling.repeat$package$.repeatWithErrorMode" "T")])
                     [(Ident (Local "em" 12))])
-                  [(Select (Ident (Local "config" 13)) (Member "ox.scheduling.RepeatConfig" "toScheduledConfig" ":"))])
+                  [
+                    (Select
+                      (Ident (Local "config" 13))
+                      (Member "ox.scheduling.RepeatConfig" "toScheduledConfig" ":ox.scheduling.ScheduledConfig"))])
                 [(Ident (Local "operation" 14))]))
             []);
           (DefDef

@@ -196,19 +196,19 @@ Definition ox_WriteCommand : tree :=
                     [(TyAnnot (TyRef "ox.WriteCommand$.Write") "scala.unchecked")]))
                 [(Member "scala.Equals" "canEqual" "java.lang.Object:scala.Boolean")]);
               (DefDef
-                (Member "ox.WriteCommand$.Write" "productArity" ":")
+                (Member "ox.WriteCommand$.Write" "productArity" ":scala.Int")
                 ["Method"; "Override"; "Synthetic"]
                 []
                 (TyRef "scala.Int")
                 (Some (Literal (CInt (1)%Z)))
-                [(Member "scala.Product" "productArity" ":")]);
+                [(Member "scala.Product" "productArity" ":scala.Int")]);
               (DefDef
-                (Member "ox.WriteCommand$.Write" "productPrefix" ":")
+                (Member "ox.WriteCommand$.Write" "productPrefix" ":java.lang.String")
                 ["Method"; "Override"; "Synthetic"]
                 []
                 (TyAlias "scala.Predef$.String" (TyRef "java.lang.String"))
                 (Some (Literal (CString "Write")))
-                [(Member "scala.Product" "productPrefix" ":")]);
+                [(Member "scala.Product" "productPrefix" ":java.lang.String")]);
               (DefDef
                 (Member "ox.WriteCommand$.Write" "productElement" "scala.Int:java.lang.Object")
                 ["Method"; "Override"; "Synthetic"]
@@ -222,7 +222,7 @@ Definition ox_WriteCommand : tree :=
                       (CaseDef
                         (Literal (CInt (0)%Z))
                         None
-                        (Select (This "ox.WriteCommand$.Write") (Member "ox.WriteCommand$.Write" "_1" ":")));
+                        (Select (This "ox.WriteCommand$.Write") (Member "ox.WriteCommand$.Write" "_1" ":ox.Chunk")));
                       (CaseDef
                         Wildcard
                         None
@@ -283,7 +283,7 @@ Definition ox_WriteCommand : tree :=
                     [(Ident (Local "chunk" 6))]))
                 []);
               (DefDef
-                (Member "ox.WriteCommand$.Write" "copy$default$1" ":")
+                (Member "ox.WriteCommand$.Write" "copy$default$1" ":ox.Chunk")
                 ["Method"; "Synthetic"]
                 []
                 (TyAnnot
@@ -292,14 +292,14 @@ Definition ox_WriteCommand : tree :=
                 (Some (Ident (Member "ox.WriteCommand$.Write" "chunk" "")))
                 []);
               (DefDef
-                (Member "ox.WriteCommand$.Write" "ordinal" ":")
+                (Member "ox.WriteCommand$.Write" "ordinal" ":scala.Int")
                 ["Method"; "Synthetic"]
                 []
                 (TyRef "scala.Int")
                 (Some (Literal (CInt (0)%Z)))
-                [(Member "scala.reflect.Enum" "ordinal" ":")]);
+                [(Member "scala.reflect.Enum" "ordinal" ":scala.Int")]);
               (DefDef
-                (Member "ox.WriteCommand$.Write" "_1" ":")
+                (Member "ox.WriteCommand$.Write" "_1" ":ox.Chunk")
                 ["Method"; "Synthetic"]
                 []
                 (TyApp (TyRef "ox.Chunk") [(TyRef "scala.Byte")])
@@ -369,7 +369,7 @@ Definition ox_WriteCommand : tree :=
                 (Some (Ident (Local "x$1" 8)))
                 []);
               (DefDef
-                (Member "ox.WriteCommand$.Write$" "toString" ":")
+                (Member "ox.WriteCommand$.Write$" "toString" ":java.lang.String")
                 ["Method"; "Override"; "Synthetic"]
                 []
                 (TyRef "java.lang.String")
@@ -512,19 +512,19 @@ Definition ox_WriteCommand : tree :=
                     [(TyAnnot (TyRef "ox.WriteCommand$.Flush") "scala.unchecked")]))
                 [(Member "scala.Equals" "canEqual" "java.lang.Object:scala.Boolean")]);
               (DefDef
-                (Member "ox.WriteCommand$.Flush" "productArity" ":")
+                (Member "ox.WriteCommand$.Flush" "productArity" ":scala.Int")
                 ["Method"; "Override"; "Synthetic"]
                 []
                 (TyRef "scala.Int")
                 (Some (Literal (CInt (1)%Z)))
-                [(Member "scala.Product" "productArity" ":")]);
+                [(Member "scala.Product" "productArity" ":scala.Int")]);
               (DefDef
-                (Member "ox.WriteCommand$.Flush" "productPrefix" ":")
+                (Member "ox.WriteCommand$.Flush" "productPrefix" ":java.lang.String")
                 ["Method"; "Override"; "Synthetic"]
                 []
                 (TyAlias "scala.Predef$.String" (TyRef "java.lang.String"))
                 (Some (Literal (CString "Flush")))
-                [(Member "scala.Product" "productPrefix" ":")]);
+                [(Member "scala.Product" "productPrefix" ":java.lang.String")]);
               (DefDef
                 (Member "ox.WriteCommand$.Flush" "productElement" "scala.Int:java.lang.Object")
                 ["Method"; "Override"; "Synthetic"]
@@ -538,7 +538,9 @@ Definition ox_WriteCommand : tree :=
                       (CaseDef
                         (Literal (CInt (0)%Z))
                         None
-                        (Select (This "ox.WriteCommand$.Flush") (Member "ox.WriteCommand$.Flush" "_1" ":")));
+                        (Select
+                          (This "ox.WriteCommand$.Flush")
+                          (Member "ox.WriteCommand$.Flush" "_1" ":java.util.concurrent.CompletableFuture")));
                       (CaseDef
                         Wildcard
                         None
@@ -605,7 +607,7 @@ Definition ox_WriteCommand : tree :=
                     [(Ident (Local "ack" 17))]))
                 []);
               (DefDef
-                (Member "ox.WriteCommand$.Flush" "copy$default$1" ":")
+                (Member "ox.WriteCommand$.Flush" "copy$default$1" ":java.util.concurrent.CompletableFuture")
                 ["Method"; "Synthetic"]
                 []
                 (TyAnnot
@@ -614,14 +616,14 @@ Definition ox_WriteCommand : tree :=
                 (Some (Ident (Member "ox.WriteCommand$.Flush" "ack" "")))
                 []);
               (DefDef
-                (Member "ox.WriteCommand$.Flush" "ordinal" ":")
+                (Member "ox.WriteCommand$.Flush" "ordinal" ":scala.Int")
                 ["Method"; "Synthetic"]
                 []
                 (TyRef "scala.Int")
                 (Some (Literal (CInt (1)%Z)))
-                [(Member "scala.reflect.Enum" "ordinal" ":")]);
+                [(Member "scala.reflect.Enum" "ordinal" ":scala.Int")]);
               (DefDef
-                (Member "ox.WriteCommand$.Flush" "_1" ":")
+                (Member "ox.WriteCommand$.Flush" "_1" ":java.util.concurrent.CompletableFuture")
                 ["Method"; "Synthetic"]
                 []
                 (TyApp (TyRef "java.util.concurrent.CompletableFuture") [(TyRef "scala.Unit")])
@@ -703,7 +705,7 @@ Definition ox_WriteCommand : tree :=
                 (Some (Ident (Local "x$1" 19)))
                 []);
               (DefDef
-                (Member "ox.WriteCommand$.Flush$" "toString" ":")
+                (Member "ox.WriteCommand$.Flush$" "toString" ":java.lang.String")
                 ["Method"; "Override"; "Synthetic"]
                 []
                 (TyRef "java.lang.String")
@@ -849,19 +851,19 @@ Definition ox_WriteCommand : tree :=
                     [(TyAnnot (TyRef "ox.WriteCommand$.Close") "scala.unchecked")]))
                 [(Member "scala.Equals" "canEqual" "java.lang.Object:scala.Boolean")]);
               (DefDef
-                (Member "ox.WriteCommand$.Close" "productArity" ":")
+                (Member "ox.WriteCommand$.Close" "productArity" ":scala.Int")
                 ["Method"; "Override"; "Synthetic"]
                 []
                 (TyRef "scala.Int")
                 (Some (Literal (CInt (1)%Z)))
-                [(Member "scala.Product" "productArity" ":")]);
+                [(Member "scala.Product" "productArity" ":scala.Int")]);
               (DefDef
-                (Member "ox.WriteCommand$.Close" "productPrefix" ":")
+                (Member "ox.WriteCommand$.Close" "productPrefix" ":java.lang.String")
                 ["Method"; "Override"; "Synthetic"]
                 []
                 (TyAlias "scala.Predef$.String" (TyRef "java.lang.String"))
                 (Some (Literal (CString "Close")))
-                [(Member "scala.Product" "productPrefix" ":")]);
+                [(Member "scala.Product" "productPrefix" ":java.lang.String")]);
               (DefDef
                 (Member "ox.WriteCommand$.Close" "productElement" "scala.Int:java.lang.Object")
                 ["Method"; "Override"; "Synthetic"]
@@ -875,7 +877,9 @@ Definition ox_WriteCommand : tree :=
                       (CaseDef
                         (Literal (CInt (0)%Z))
                         None
-                        (Select (This "ox.WriteCommand$.Close") (Member "ox.WriteCommand$.Close" "_1" ":")));
+                        (Select
+                          (This "ox.WriteCommand$.Close")
+                          (Member "ox.WriteCommand$.Close" "_1" ":java.util.concurrent.CompletableFuture")));
                       (CaseDef
                         Wildcard
                         None
@@ -942,7 +946,7 @@ Definition ox_WriteCommand : tree :=
                     [(Ident (Local "ack" 28))]))
                 []);
               (DefDef
-                (Member "ox.WriteCommand$.Close" "copy$default$1" ":")
+                (Member "ox.WriteCommand$.Close" "copy$default$1" ":java.util.concurrent.CompletableFuture")
                 ["Method"; "Synthetic"]
                 []
                 (TyAnnot
@@ -951,14 +955,14 @@ Definition ox_WriteCommand : tree :=
                 (Some (Ident (Member "ox.WriteCommand$.Close" "ack" "")))
                 []);
               (DefDef
-                (Member "ox.WriteCommand$.Close" "ordinal" ":")
+                (Member "ox.WriteCommand$.Close" "ordinal" ":scala.Int")
                 ["Method"; "Synthetic"]
                 []
                 (TyRef "scala.Int")
                 (Some (Literal (CInt (2)%Z)))
-                [(Member "scala.reflect.Enum" "ordinal" ":")]);
+                [(Member "scala.reflect.Enum" "ordinal" ":scala.Int")]);
               (DefDef
-                (Member "ox.WriteCommand$.Close" "_1" ":")
+                (Member "ox.WriteCommand$.Close" "_1" ":java.util.concurrent.CompletableFuture")
                 ["Method"; "Synthetic"]
                 []
                 (TyApp (TyRef "java.util.concurrent.CompletableFuture") [(TyRef "scala.Unit")])
@@ -1040,7 +1044,7 @@ Definition ox_WriteCommand : tree :=
                 (Some (Ident (Local "x$1" 30)))
                 []);
               (DefDef
-                (Member "ox.WriteCommand$.Close$" "toString" ":")
+                (Member "ox.WriteCommand$.Close$" "toString" ":java.lang.String")
                 ["Method"; "Override"; "Synthetic"]
                 []
                 (TyRef "java.lang.String")
@@ -1119,5 +1123,5 @@ Definition ox_WriteCommand : tree :=
                   (TyAlias "ox.WriteCommand$.MirroredMonoType" (TyRef "ox.WriteCommand"))
                   None)]]
             (TyRef "scala.Int")
-            (Some (Select (Ident (Local "x$0" 34)) (Member "scala.reflect.Enum" "ordinal" ":")))
+            (Some (Select (Ident (Local "x$0" 34)) (Member "scala.reflect.Enum" "ordinal" ":scala.Int")))
             [(Member "scala.deriving.Mirror$.Sum" "ordinal" "java.lang.Object:scala.Int")])])]).

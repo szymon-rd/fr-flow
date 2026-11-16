@@ -410,7 +410,7 @@ Definition ox_flow_FlowTextOps : tree :=
                                                                 "apply"
                                                                 "java.lang.Object:java.lang.Object"))
                                                             [(Ident (Local "nextChunk" 6))])
-                                                          (Member "scala.collection.SeqOps" "length" ":"))
+                                                          (Member "scala.collection.SeqOps" "length" ":scala.Int"))
                                                         (Member "scala.Int" "==" "scala.Int:scala.Boolean"))
                                                       [(Literal (CInt (0)%Z))])
                                                     (Apply
@@ -770,7 +770,7 @@ Definition ox_flow_FlowTextOps : tree :=
                                 [
                                   (Apply
                                     (Select
-                                      (Select (Ident (Local "bs" 39)) (Member "scala.Array" "length" ":"))
+                                      (Select (Ident (Local "bs" 39)) (Member "scala.Array" "length" ":scala.Int"))
                                       (Member "scala.Int" "-" "scala.Int:scala.Int"))
                                     [(Literal (CInt (3)%Z))])])));
                           (ValDef
@@ -780,7 +780,7 @@ Definition ox_flow_FlowTextOps : tree :=
                             (Some
                               (Apply
                                 (Select
-                                  (Select (Ident (Local "bs" 39)) (Member "scala.Array" "length" ":"))
+                                  (Select (Ident (Local "bs" 39)) (Member "scala.Array" "length" ":scala.Int"))
                                   (Member "scala.Int" "-" "scala.Int:scala.Int"))
                                 [(Literal (CInt (1)%Z))])));
                           (ValDef (Local "counter" 42) ["Mutable"] (TyRef "scala.Int") (Some (Literal (CInt (0)%Z))));
@@ -865,7 +865,9 @@ Definition ox_flow_FlowTextOps : tree :=
                             (TyApp (TyRef "scala.Array") [(TyRef "scala.Byte")])
                             (Some
                               (If
-                                (Select (Ident (Local "buffer" 46)) (Member "scala.collection.SeqOps" "isEmpty" ":"))
+                                (Select
+                                  (Ident (Local "buffer" 46))
+                                  (Member "scala.collection.SeqOps" "isEmpty" ":scala.Boolean"))
                                 (Apply
                                   (TypeApply
                                     (Select
@@ -962,13 +964,13 @@ Definition ox_flow_FlowTextOps : tree :=
                             (Some
                               (Apply
                                 (Select
-                                  (Select (Ident (Local "allBytes" 48)) (Member "scala.Array" "length" ":"))
+                                  (Select (Ident (Local "allBytes" 48)) (Member "scala.Array" "length" ":scala.Int"))
                                   (Member "scala.Int" "-" "scala.Int:scala.Int"))
                                 [(Apply (Ident (Local "lastIncompleteBytes" 38)) [(Ident (Local "allBytes" 48))])])))]
                         (If
                           (Apply
                             (Select (Ident (Local "splitAt" 49)) (Member "scala.Int" "==" "scala.Int:scala.Boolean"))
-                            [(Select (Ident (Local "allBytes" 48)) (Member "scala.Array" "length" ":"))])
+                            [(Select (Ident (Local "allBytes" 48)) (Member "scala.Array" "length" ":scala.Int"))])
                           (Apply
                             (TypeApply
                               (Select
@@ -1205,7 +1207,7 @@ Definition ox_flow_FlowTextOps : tree :=
                                     (Ident (Member "scala.Predef$" "classOf" "1:java.lang.Class"))
                                     [(TyRef "ox.flow.FlowTextOps._$State#50")])])])));
                       (DefDef
-                        (Member "ox.flow.FlowTextOps._$State$#52" "values" ":")
+                        (Member "ox.flow.FlowTextOps._$State$#52" "values" ":scala.Array")
                         ["Method"; "Synthetic"]
                         []
                         (TyApp (TyRef "scala.Array") [(TyRef "ox.flow.FlowTextOps._$State#50")])
@@ -1323,15 +1325,18 @@ Definition ox_flow_FlowTextOps : tree :=
                                         [
                                           (Select
                                             (This "ox.flow.FlowTextOps._$State$._$$anon#56")
-                                            (Member "ox.flow.FlowTextOps._$State$._$$anon#56" "ordinal" ":"))]))
+                                            (Member "ox.flow.FlowTextOps._$State$._$$anon#56" "ordinal" ":scala.Int"))]))
                                     []);
                                   (DefDef
-                                    (Member "ox.flow.FlowTextOps._$State$._$$anon#56" "productPrefix" ":")
+                                    (Member
+                                      "ox.flow.FlowTextOps._$State$._$$anon#56"
+                                      "productPrefix"
+                                      ":java.lang.String")
                                     ["Method"; "Override"; "Synthetic"]
                                     []
                                     (TyAlias "scala.Predef$.String" (TyRef "java.lang.String"))
                                     (Some (Ident (Local "$name" 55)))
-                                    [(Member "scala.Product" "productPrefix" ":")]);
+                                    [(Member "scala.Product" "productPrefix" ":java.lang.String")]);
                                   (DefDef
                                     (Member "ox.flow.FlowTextOps._$State$._$$anon#56" "toString" ":java.lang.String")
                                     ["Method"; "Override"; "Synthetic"]
@@ -1340,12 +1345,12 @@ Definition ox_flow_FlowTextOps : tree :=
                                     (Some (Ident (Local "$name" 55)))
                                     [(Member "scala.Any" "toString" ":java.lang.String")]);
                                   (DefDef
-                                    (Member "ox.flow.FlowTextOps._$State$._$$anon#56" "ordinal" ":")
+                                    (Member "ox.flow.FlowTextOps._$State$._$$anon#56" "ordinal" ":scala.Int")
                                     ["Method"; "Override"; "Synthetic"]
                                     []
                                     (TyRef "scala.Int")
                                     (Some (Ident (Local "_$ordinal" 54)))
-                                    [(Member "scala.reflect.Enum" "ordinal" ":")]);
+                                    [(Member "scala.reflect.Enum" "ordinal" ":scala.Int")]);
                                   (DefDef
                                     (Member "ox.flow.FlowTextOps._$State$._$$anon#56" "hashCode" ":scala.Int")
                                     ["Method"; "Override"; "Synthetic"]
@@ -1433,7 +1438,7 @@ Definition ox_flow_FlowTextOps : tree :=
                                 (TyRef "ox.flow.FlowTextOps._$State#50"))
                               None)]]
                         (TyRef "scala.Int")
-                        (Some (Select (Ident (Local "x$0" 58)) (Member "scala.reflect.Enum" "ordinal" ":")))
+                        (Some (Select (Ident (Local "x$0" 58)) (Member "scala.reflect.Enum" "ordinal" ":scala.Int")))
                         [(Member "scala.deriving.Mirror$.Sum" "ordinal" "java.lang.Object:scala.Int")])]);
                   (DefDef
                     (Local "doPull" 59)
@@ -1570,7 +1575,7 @@ Definition ox_flow_FlowTextOps : tree :=
                                           (Ident (Local "x$1" 34))
                                           (Member "scala.<:<" "apply" "java.lang.Object:java.lang.Object"))
                                         [(Ident (Local "bytes" 70))])
-                                      (Member "scala.collection.SeqOps" "length" ":"))
+                                      (Member "scala.collection.SeqOps" "length" ":scala.Int"))
                                     (Member "scala.Int" ">=" "scala.Int:scala.Boolean"))
                                   [(Ident (Local "bomSize" 35))])])
                             (Member "scala.Boolean" "&&" "scala.Boolean:scala.Boolean"))
@@ -1604,7 +1609,7 @@ Definition ox_flow_FlowTextOps : tree :=
                                         (Ident (Local "$7$" 72))
                                         (Member "scala.collection.SeqOps" "startsWith$default$2" "1:scala.Int"))
                                       [(TyRef "scala.Byte")])]))
-                              (Member "scala.Boolean" "unary_!" ":"))])
+                              (Member "scala.Boolean" "unary_!" ":scala.Boolean"))])
                         (Apply
                           (TypeApply
                             (Select
@@ -1661,7 +1666,7 @@ Definition ox_flow_FlowTextOps : tree :=
                               (Select
                                 (Select
                                   (Ident (Local "newBuffer" 74))
-                                  (Member "scala.collection.SeqOps" "length" ":"))
+                                  (Member "scala.collection.SeqOps" "length" ":scala.Int"))
                                 (Member "scala.Int" ">=" "scala.Int:scala.Boolean"))
                               [(Ident (Local "bomSize" 35))])
                             (Block
@@ -1732,7 +1737,7 @@ Definition ox_flow_FlowTextOps : tree :=
                                     [
                                       (Select
                                         (Ident (Local "newBuffer" 74))
-                                        (Member "scala.collection.SeqOps" "length" ":"))]);
+                                        (Member "scala.collection.SeqOps" "length" ":scala.Int"))]);
                                   (TypeApply
                                     (Select
                                       (Ident (Local "newBuffer" 74))
@@ -1953,7 +1958,7 @@ Definition ox_flow_FlowTextOps : tree :=
                                   [
                                     (Select
                                       (Ident (Local "buffer" 79))
-                                      (Member "scala.collection.IterableOnceOps" "nonEmpty" ":"))])
+                                      (Member "scala.collection.IterableOnceOps" "nonEmpty" ":scala.Boolean"))])
                                 (Apply
                                   (Select
                                     (Ident (Local "emit" 77))

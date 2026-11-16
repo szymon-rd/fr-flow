@@ -172,19 +172,19 @@ Definition ox_resilience_CircuitBreakerStateMachine : tree :=
                 [(TyAnnot (TyRef "ox.resilience.CircuitBreakerStateMachine") "scala.unchecked")]))
             [(Member "scala.Equals" "canEqual" "java.lang.Object:scala.Boolean")]);
           (DefDef
-            (Member "ox.resilience.CircuitBreakerStateMachine" "productArity" ":")
+            (Member "ox.resilience.CircuitBreakerStateMachine" "productArity" ":scala.Int")
             ["Method"; "Override"; "Synthetic"]
             []
             (TyRef "scala.Int")
             (Some (Literal (CInt (2)%Z)))
-            [(Member "scala.Product" "productArity" ":")]);
+            [(Member "scala.Product" "productArity" ":scala.Int")]);
           (DefDef
-            (Member "ox.resilience.CircuitBreakerStateMachine" "productPrefix" ":")
+            (Member "ox.resilience.CircuitBreakerStateMachine" "productPrefix" ":java.lang.String")
             ["Method"; "Override"; "Synthetic"]
             []
             (TyAlias "scala.Predef$.String" (TyRef "java.lang.String"))
             (Some (Literal (CString "CircuitBreakerStateMachine")))
-            [(Member "scala.Product" "productPrefix" ":")]);
+            [(Member "scala.Product" "productPrefix" ":java.lang.String")]);
           (DefDef
             (Member "ox.resilience.CircuitBreakerStateMachine" "productElement" "scala.Int:java.lang.Object")
             ["Method"; "Override"; "Synthetic"]
@@ -200,13 +200,16 @@ Definition ox_resilience_CircuitBreakerStateMachine : tree :=
                     None
                     (Select
                       (This "ox.resilience.CircuitBreakerStateMachine")
-                      (Member "ox.resilience.CircuitBreakerStateMachine" "_1" ":")));
+                      (Member
+                        "ox.resilience.CircuitBreakerStateMachine"
+                        "_1"
+                        ":ox.resilience.CircuitBreakerStateMachineConfig")));
                   (CaseDef
                     (Literal (CInt (1)%Z))
                     None
                     (Select
                       (This "ox.resilience.CircuitBreakerStateMachine")
-                      (Member "ox.resilience.CircuitBreakerStateMachine" "_2" ":")));
+                      (Member "ox.resilience.CircuitBreakerStateMachine" "_2" ":ox.resilience.CircuitBreakerResults")));
                   (CaseDef
                     Wildcard
                     None
@@ -272,7 +275,7 @@ Definition ox_resilience_CircuitBreakerStateMachine : tree :=
                       [])])
                 (TyRef "ox.resilience.CircuitBreakerState"))));
           (DefDef
-            (Member "ox.resilience.CircuitBreakerStateMachine" "state" ":")
+            (Member "ox.resilience.CircuitBreakerStateMachine" "state" ":ox.resilience.CircuitBreakerState")
             ["Method"]
             []
             (TyRef "ox.resilience.CircuitBreakerState")
@@ -411,7 +414,7 @@ Definition ox_resilience_CircuitBreakerStateMachine : tree :=
                           "isSameState"
                           "ox.resilience.CircuitBreakerState:scala.Boolean"))
                       [(Ident (Local "newState" 14))])
-                    (Member "scala.Boolean" "unary_!" ":"))
+                    (Member "scala.Boolean" "unary_!" ":scala.Boolean"))
                   (Block
                     [
                       (Apply
@@ -433,7 +436,7 @@ Definition ox_resilience_CircuitBreakerStateMachine : tree :=
                   (Literal CUnit))))
             []);
           (DefDef
-            (Member "ox.resilience.CircuitBreakerStateMachine" "updateState$default$2" ":")
+            (Member "ox.resilience.CircuitBreakerStateMachine" "updateState$default$2" ":scala.Option")
             ["Method"]
             []
             (TyAnnot
@@ -566,7 +569,7 @@ Definition ox_resilience_CircuitBreakerStateMachine : tree :=
                               (Select
                                 (Ident (Member "ox.resilience.CircuitBreakerStateMachine" "config" ""))
                                 (Member "ox.resilience.CircuitBreakerStateMachineConfig" "halfOpenTimeoutDuration" ""))
-                              (Member "scala.concurrent.duration.FiniteDuration" "toMillis" ":"))
+                              (Member "scala.concurrent.duration.FiniteDuration" "toMillis" ":scala.Long"))
                             (Member "scala.Long" "!=" "scala.Int:scala.Boolean"))
                           [(Literal (CInt (0)%Z))])
                         (Apply
@@ -644,7 +647,7 @@ Definition ox_resilience_CircuitBreakerStateMachine : tree :=
                                         (Member
                                           "ox.resilience.CircuitBreakerStateMachine"
                                           "updateState$default$2"
-                                          ":"))]))
+                                          ":scala.Option"))]))
                                 [])]
                             (Closure (Ident (Local "$anonfun" 20)) None))]))])
                 [(Ident (Member "ox.resilience.CircuitBreakerStateMachine" "ox" ""))]))
@@ -682,7 +685,10 @@ Definition ox_resilience_CircuitBreakerStateMachine : tree :=
                 [(Ident (Local "ox" 24))]))
             []);
           (DefDef
-            (Member "ox.resilience.CircuitBreakerStateMachine" "copy$default$1" ":")
+            (Member
+              "ox.resilience.CircuitBreakerStateMachine"
+              "copy$default$1"
+              ":ox.resilience.CircuitBreakerStateMachineConfig")
             ["Method"; "Synthetic"]
             []
             (TyAnnot
@@ -691,14 +697,17 @@ Definition ox_resilience_CircuitBreakerStateMachine : tree :=
             (Some (Ident (Member "ox.resilience.CircuitBreakerStateMachine" "config" "")))
             []);
           (DefDef
-            (Member "ox.resilience.CircuitBreakerStateMachine" "copy$default$2" ":")
+            (Member
+              "ox.resilience.CircuitBreakerStateMachine"
+              "copy$default$2"
+              ":ox.resilience.CircuitBreakerResults")
             ["Method"; "Synthetic"]
             []
             (TyAnnot (TyRef "ox.resilience.CircuitBreakerResults") "scala.annotation.unchecked.uncheckedVariance")
             (Some (Ident (Member "ox.resilience.CircuitBreakerStateMachine" "results" "")))
             []);
           (DefDef
-            (Member "ox.resilience.CircuitBreakerStateMachine" "_1" ":")
+            (Member "ox.resilience.CircuitBreakerStateMachine" "_1" ":ox.resilience.CircuitBreakerStateMachineConfig")
             ["Method"; "Synthetic"]
             []
             (TyRef "ox.resilience.CircuitBreakerStateMachineConfig")
@@ -708,7 +717,7 @@ Definition ox_resilience_CircuitBreakerStateMachine : tree :=
                 (Member "ox.resilience.CircuitBreakerStateMachine" "config" "")))
             []);
           (DefDef
-            (Member "ox.resilience.CircuitBreakerStateMachine" "_2" ":")
+            (Member "ox.resilience.CircuitBreakerStateMachine" "_2" ":ox.resilience.CircuitBreakerResults")
             ["Method"; "Synthetic"]
             []
             (TyRef "ox.resilience.CircuitBreakerResults")
@@ -1024,7 +1033,7 @@ Definition ox_resilience_CircuitBreakerStateMachine : tree :=
                                       "ox.resilience.CircuitBreakerStateMachineConfig"
                                       "waitDurationOpenState"
                                       ""))
-                                  (Member "scala.concurrent.duration.FiniteDuration" "toMillis" ":"))
+                                  (Member "scala.concurrent.duration.FiniteDuration" "toMillis" ":scala.Long"))
                                 (Member "scala.Long" "==" "scala.Int:scala.Boolean"))
                               [(Literal (CInt (0)%Z))])
                             (Typed
@@ -1060,7 +1069,7 @@ Definition ox_resilience_CircuitBreakerStateMachine : tree :=
                                     (Member
                                       "ox.resilience.CircuitBreakerState$.HalfOpen$"
                                       "$lessinit$greater$default$3"
-                                      ":"))])
+                                      ":scala.Int"))])
                               (TyRef "ox.resilience.CircuitBreakerState"))
                             (Typed
                               (Apply
@@ -1115,7 +1124,7 @@ Definition ox_resilience_CircuitBreakerStateMachine : tree :=
                                         "ox.resilience.CircuitBreakerStateMachineConfig"
                                         "waitDurationOpenState"
                                         ""))
-                                    (Member "scala.concurrent.duration.FiniteDuration" "toMillis" ":"))])))]
+                                    (Member "scala.concurrent.duration.FiniteDuration" "toMillis" ":scala.Long"))])))]
                         (If
                           (Ident (Local "timePassed" 42))
                           (Typed
@@ -1151,7 +1160,7 @@ Definition ox_resilience_CircuitBreakerStateMachine : tree :=
                                   (Member
                                     "ox.resilience.CircuitBreakerState$.HalfOpen$"
                                     "$lessinit$greater$default$3"
-                                    ":"))])
+                                    ":scala.Int"))])
                             (TyRef "ox.resilience.CircuitBreakerState"))
                           (Ident (Local "self" 40)))));
                     (CaseDef
@@ -1184,7 +1193,7 @@ Definition ox_resilience_CircuitBreakerStateMachine : tree :=
                                   (Select
                                     (Ident (Local "metrics" 33))
                                     (Member "ox.resilience.Metrics" "lastAcquisitionResult" ""))
-                                  (Member "scala.Option" "isDefined" ":"))
+                                  (Member "scala.Option" "isDefined" ":scala.Boolean"))
                                 (Literal (CInt (1)%Z))
                                 (Literal (CInt (0)%Z)))));
                           (ValDef
@@ -1228,7 +1237,7 @@ Definition ox_resilience_CircuitBreakerStateMachine : tree :=
                                         "ox.resilience.CircuitBreakerStateMachineConfig"
                                         "halfOpenTimeoutDuration"
                                         ""))
-                                    (Member "scala.concurrent.duration.FiniteDuration" "toMillis" ":"))])))]
+                                    (Member "scala.concurrent.duration.FiniteDuration" "toMillis" ":scala.Long"))])))]
                         (If
                           (Apply
                             (Select
@@ -1236,7 +1245,7 @@ Definition ox_resilience_CircuitBreakerStateMachine : tree :=
                                 (Select
                                   (Select
                                     (Ident (Local "allCallsInHalfOpenCompleted" 47))
-                                    (Member "scala.Boolean" "unary_!" ":"))
+                                    (Member "scala.Boolean" "unary_!" ":scala.Boolean"))
                                   (Member "scala.Boolean" "&&" "scala.Boolean:scala.Boolean"))
                                 [
                                   (Apply
@@ -1248,7 +1257,7 @@ Definition ox_resilience_CircuitBreakerStateMachine : tree :=
                                             "ox.resilience.CircuitBreakerStateMachineConfig"
                                             "halfOpenTimeoutDuration"
                                             ""))
-                                        (Member "scala.concurrent.duration.FiniteDuration" "toMillis" ":"))
+                                        (Member "scala.concurrent.duration.FiniteDuration" "toMillis" ":scala.Long"))
                                       (Member "scala.Long" "!=" "scala.Int:scala.Boolean"))
                                     [(Literal (CInt (0)%Z))])])
                               (Member "scala.Boolean" "&&" "scala.Boolean:scala.Boolean"))
@@ -1270,7 +1279,10 @@ Definition ox_resilience_CircuitBreakerStateMachine : tree :=
                               (Select
                                 (Ident (Local "allCallsInHalfOpenCompleted" 47))
                                 (Member "scala.Boolean" "&&" "scala.Boolean:scala.Boolean"))
-                              [(Select (Ident (Local "exceededThreshold" 37)) (Member "scala.Boolean" "unary_!" ":"))])
+                              [
+                                (Select
+                                  (Ident (Local "exceededThreshold" 37))
+                                  (Member "scala.Boolean" "unary_!" ":scala.Boolean"))])
                             (Typed
                               (Apply
                                 (Select

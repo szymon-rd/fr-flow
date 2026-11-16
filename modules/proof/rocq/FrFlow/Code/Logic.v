@@ -444,7 +444,7 @@ Ltac miss_open H :=
 
 (** What a type says of a value, in the hypothesis `H` that says the value is of it: nothing kept where it
     says nothing; that a call can be made on it, of a reference; the value itself, of a truth value or unit;
-    each of none and an exception, of what is thrown. *)
+    each of none and an exception, of what is thrown; each of none, some value and no object, of an option. *)
 Ltac typed H :=
   lazy beta iota zeta delta -[identity receiver held names Jdk.as_exn] in H;
   lazymatch type of H with
@@ -452,6 +452,8 @@ Ltac typed H :=
   | identity ?v => pose proof (identity_receiver v H)
   | held ?v = _ /\ receiver ?v = _ => let R := fresh "Hcalled_on" in destruct H as [H R]
   | ?v = _ \/ (exists _, Jdk.as_exn ?v = _) => destruct H as [H | [? H]]; [first [subst v | idtac] |]
+  | ?v = _ \/ (exists _, ?v = _ /\ _) \/ ?v = _ =>
+      let Hx := fresh "Hheld" in destruct H as [H | [[? [H Hx]] | H]]; first [subst v | idtac]
   | exists _, ?v = _ => let b := fresh "b" in destruct H as [b H]; first [subst v | idtac]
   | ?v = VUnit => first [subst v | idtac]
   | _ => idtac
@@ -508,6 +510,10 @@ Ltac meets_answer :=
       let E := fresh in
       assert (E : unnamed T' "equals" = true) by (vm_compute; reflexivity);
       rewrite (equal_identity T' a b ltac:(assumption) ltac:(assumption) E); clear E
+  | |- context [equal ?T' ?a ?b] =>
+      (* two values whose comparison is decided by what is known of them: data of two classes, none and data *)
+      let d := eval lazy in (equal T' a b) in
+      lazymatch d with Ret _ => change (equal T' a b) with d end
   | |- context [any ?p ?xs] =>
       erewrite (any_decided p _ xs)
         by (intro; cbn [c_eq]; apply equal_to_identity; [assumption | vm_compute; reflexivity])
@@ -582,7 +588,9 @@ Ltac step_rule :=
   | |- meets _ _ _ _ _ _ _ _ _ (Running (Vis (ExtCall 0 _ _) _)) _ => apply meets_called
   | |- meets _ _ _ _ _ _ _ _ _ (Running (Vis _ _)) _ =>
       apply meets_op; [intros [] | intros [] |]
-  | |- meets _ _ _ _ _ _ _ _ _ (Running (Call (Method _) _ _)) _ => eapply meets_method; [lazy; reflexivity |]
+  | |- meets _ _ _ _ _ _ _ _ _ (Running (Call (Method ?s) _ _)) _ =>
+      (* the label is computed alone: nothing of the goal, where the rest of the program is, is reduced *)
+      let said := eval lazy in (label_of s) in eapply meets_method with (m := said); [reflexivity |]
   | |- meets _ _ _ _ _ _ _ _ _ (Running (Call _ _ _)) _ => apply meets_function; [exact I |]
   | |- meets _ _ _ _ _ _ _ _ _ (Running (Ret _)) _ => apply meets_ret
   end.

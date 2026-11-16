@@ -216,7 +216,7 @@ Definition client_Failures : tree :=
                                                     (Member
                                                       "scala.concurrent.duration.DurationConversions"
                                                       "milli"
-                                                      ":"))])])])
+                                                      ":scala.concurrent.duration.FiniteDuration"))])])])
                                       [(Ident (Local "contextual$3" 5))])
                                     (TyAnnot
                                       (TyApp (TyRef "ox.Fork") [(TyRef "scala.Nothing")])
@@ -296,7 +296,10 @@ Definition client_Failures : tree :=
                                                         "DurationInt"
                                                         "scala.Int:scala.Int"))
                                                     [(Literal (CInt (1)%Z))])
-                                                  (Member "scala.concurrent.duration.DurationConversions" "milli" ":"))])])])
+                                                  (Member
+                                                    "scala.concurrent.duration.DurationConversions"
+                                                    "milli"
+                                                    ":scala.concurrent.duration.FiniteDuration"))])])])
                                     [(Ident (Local "contextual$4" 7))])
                                   (TyAnnot
                                     (TyApp (TyRef "ox.Fork") [(TyRef "scala.Nothing")])
@@ -423,7 +426,10 @@ Definition client_Failures : tree :=
                                                         "DurationInt"
                                                         "scala.Int:scala.Int"))
                                                     [(Literal (CInt (1)%Z))])
-                                                  (Member "scala.concurrent.duration.DurationConversions" "milli" ":"))])])])
+                                                  (Member
+                                                    "scala.concurrent.duration.DurationConversions"
+                                                    "milli"
+                                                    ":scala.concurrent.duration.FiniteDuration"))])])])
                                     [(Ident (Local "contextual$6" 12))])))]
                             (Match
                               false

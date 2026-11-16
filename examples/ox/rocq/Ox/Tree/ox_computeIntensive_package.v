@@ -89,7 +89,7 @@ Definition ox_computeIntensive_package : tree :=
             (Member "ox.computeIntensive$package$" "customComputeExecutor" "")
             ["Mutable"]
             (TyRef "java.util.concurrent.ExecutorService")
-            (Some (Ident (Member "scala.compiletime.package$package$" "uninitialized" ":"))));
+            (Some (Ident (Member "scala.compiletime.package$package$" "uninitialized" ":scala.Nothing"))));
           (DefDef
             (Member
               "ox.computeIntensive$package$"
@@ -121,7 +121,7 @@ Definition ox_computeIntensive_package : tree :=
                         (Ident (Member "ox.computeIntensive$package$" "oxComputeExecutor" ""))
                         (Member "java.lang.Object" "eq" "java.lang.Object:scala.Boolean"))
                       [(Ident (Member "ox.computeIntensive$package$" "customComputeExecutor" ""))])
-                    (Member "scala.Boolean" "unary_!" ":"))
+                    (Member "scala.Boolean" "unary_!" ":scala.Boolean"))
                   (Apply
                     (Ident (Member "<special-ops>" "throw" "java.lang.Throwable:scala.Nothing"))
                     [

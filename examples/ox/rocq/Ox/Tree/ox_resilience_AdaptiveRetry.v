@@ -203,19 +203,19 @@ Definition ox_resilience_AdaptiveRetry : tree :=
                 [(TyAnnot (TyRef "ox.resilience.AdaptiveRetry") "scala.unchecked")]))
             [(Member "scala.Equals" "canEqual" "java.lang.Object:scala.Boolean")]);
           (DefDef
-            (Member "ox.resilience.AdaptiveRetry" "productArity" ":")
+            (Member "ox.resilience.AdaptiveRetry" "productArity" ":scala.Int")
             ["Method"; "Override"; "Synthetic"]
             []
             (TyRef "scala.Int")
             (Some (Literal (CInt (3)%Z)))
-            [(Member "scala.Product" "productArity" ":")]);
+            [(Member "scala.Product" "productArity" ":scala.Int")]);
           (DefDef
-            (Member "ox.resilience.AdaptiveRetry" "productPrefix" ":")
+            (Member "ox.resilience.AdaptiveRetry" "productPrefix" ":java.lang.String")
             ["Method"; "Override"; "Synthetic"]
             []
             (TyAlias "scala.Predef$.String" (TyRef "java.lang.String"))
             (Some (Literal (CString "AdaptiveRetry")))
-            [(Member "scala.Product" "productPrefix" ":")]);
+            [(Member "scala.Product" "productPrefix" ":java.lang.String")]);
           (DefDef
             (Member "ox.resilience.AdaptiveRetry" "productElement" "scala.Int:java.lang.Object")
             ["Method"; "Override"; "Synthetic"]
@@ -229,15 +229,21 @@ Definition ox_resilience_AdaptiveRetry : tree :=
                   (CaseDef
                     (Literal (CInt (0)%Z))
                     None
-                    (Select (This "ox.resilience.AdaptiveRetry") (Member "ox.resilience.AdaptiveRetry" "_1" ":")));
+                    (Select
+                      (This "ox.resilience.AdaptiveRetry")
+                      (Member "ox.resilience.AdaptiveRetry" "_1" ":ox.resilience.TokenBucket")));
                   (CaseDef
                     (Literal (CInt (1)%Z))
                     None
-                    (Select (This "ox.resilience.AdaptiveRetry") (Member "ox.resilience.AdaptiveRetry" "_2" ":")));
+                    (Select
+                      (This "ox.resilience.AdaptiveRetry")
+                      (Member "ox.resilience.AdaptiveRetry" "_2" ":scala.Int")));
                   (CaseDef
                     (Literal (CInt (2)%Z))
                     None
-                    (Select (This "ox.resilience.AdaptiveRetry") (Member "ox.resilience.AdaptiveRetry" "_3" ":")));
+                    (Select
+                      (This "ox.resilience.AdaptiveRetry")
+                      (Member "ox.resilience.AdaptiveRetry" "_3" ":scala.Int")));
                   (CaseDef
                     Wildcard
                     None
@@ -457,7 +463,7 @@ Definition ox_resilience_AdaptiveRetry : tree :=
                                                         "tryAcquire"
                                                         "scala.Int:scala.Boolean"))
                                                     [(Ident (Member "ox.resilience.AdaptiveRetry" "failureCost" ""))])
-                                                  (Member "scala.Boolean" "unary_!" ":"))])
+                                                  (Member "scala.Boolean" "unary_!" ":scala.Boolean"))])
                                             (Select
                                               (Ident (Member "ox.scheduling" "ScheduleStop" ""))
                                               (Member "ox.scheduling.ScheduleStop$" "No" "")))
@@ -542,7 +548,7 @@ Definition ox_resilience_AdaptiveRetry : tree :=
                                                         "tryAcquire"
                                                         "scala.Int:scala.Boolean"))
                                                     [(Ident (Member "ox.resilience.AdaptiveRetry" "failureCost" ""))])
-                                                  (Member "scala.Boolean" "unary_!" ":"))])
+                                                  (Member "scala.Boolean" "unary_!" ":scala.Boolean"))])
                                             (Select
                                               (Ident (Member "ox.scheduling" "ScheduleStop" ""))
                                               (Member "ox.scheduling.ScheduleStop$" "No" ""))))))])))
@@ -1259,7 +1265,7 @@ Definition ox_resilience_AdaptiveRetry : tree :=
                                 (Member "scala.util.Try$" "apply" "1,scala.Function0:scala.util.Try"))
                               [(TyParam "ox.resilience.AdaptiveRetry.retry" "T")])
                             [(Ident (Local "operation" 46))])
-                          (Member "scala.util.Try" "toEither" ":"))])
+                          (Member "scala.util.Try" "toEither" ":scala.util.Either"))])
                     (Member "scala.util.Either" "fold" "1,scala.Function1,scala.Function1:java.lang.Object"))
                   [(TyParam "ox.resilience.AdaptiveRetry.retry" "T")])
                 [
@@ -1510,28 +1516,28 @@ Definition ox_resilience_AdaptiveRetry : tree :=
                   (Ident (Local "successReward" 62))]))
             []);
           (DefDef
-            (Member "ox.resilience.AdaptiveRetry" "copy$default$1" ":")
+            (Member "ox.resilience.AdaptiveRetry" "copy$default$1" ":ox.resilience.TokenBucket")
             ["Method"; "Synthetic"]
             []
             (TyAnnot (TyRef "ox.resilience.TokenBucket") "scala.annotation.unchecked.uncheckedVariance")
             (Some (Ident (Member "ox.resilience.AdaptiveRetry" "tokenBucket" "")))
             []);
           (DefDef
-            (Member "ox.resilience.AdaptiveRetry" "copy$default$2" ":")
+            (Member "ox.resilience.AdaptiveRetry" "copy$default$2" ":scala.Int")
             ["Method"; "Synthetic"]
             []
             (TyAnnot (TyRef "scala.Int") "scala.annotation.unchecked.uncheckedVariance")
             (Some (Ident (Member "ox.resilience.AdaptiveRetry" "failureCost" "")))
             []);
           (DefDef
-            (Member "ox.resilience.AdaptiveRetry" "copy$default$3" ":")
+            (Member "ox.resilience.AdaptiveRetry" "copy$default$3" ":scala.Int")
             ["Method"; "Synthetic"]
             []
             (TyAnnot (TyRef "scala.Int") "scala.annotation.unchecked.uncheckedVariance")
             (Some (Ident (Member "ox.resilience.AdaptiveRetry" "successReward" "")))
             []);
           (DefDef
-            (Member "ox.resilience.AdaptiveRetry" "_1" ":")
+            (Member "ox.resilience.AdaptiveRetry" "_1" ":ox.resilience.TokenBucket")
             ["Method"; "Synthetic"]
             []
             (TyRef "ox.resilience.TokenBucket")
@@ -1539,7 +1545,7 @@ Definition ox_resilience_AdaptiveRetry : tree :=
               (Select (This "ox.resilience.AdaptiveRetry") (Member "ox.resilience.AdaptiveRetry" "tokenBucket" "")))
             []);
           (DefDef
-            (Member "ox.resilience.AdaptiveRetry" "_2" ":")
+            (Member "ox.resilience.AdaptiveRetry" "_2" ":scala.Int")
             ["Method"; "Synthetic"]
             []
             (TyRef "scala.Int")
@@ -1547,7 +1553,7 @@ Definition ox_resilience_AdaptiveRetry : tree :=
               (Select (This "ox.resilience.AdaptiveRetry") (Member "ox.resilience.AdaptiveRetry" "failureCost" "")))
             []);
           (DefDef
-            (Member "ox.resilience.AdaptiveRetry" "_3" ":")
+            (Member "ox.resilience.AdaptiveRetry" "_3" ":scala.Int")
             ["Method"; "Synthetic"]
             []
             (TyRef "scala.Int")
@@ -1632,7 +1638,7 @@ Definition ox_resilience_AdaptiveRetry : tree :=
             (Some (Ident (Local "x$1" 66)))
             []);
           (DefDef
-            (Member "ox.resilience.AdaptiveRetry$" "default" ":")
+            (Member "ox.resilience.AdaptiveRetry$" "default" ":ox.resilience.AdaptiveRetry")
             ["Method"]
             []
             (TyRef "ox.resilience.AdaptiveRetry")
@@ -1653,7 +1659,7 @@ Definition ox_resilience_AdaptiveRetry : tree :=
                       (Literal (CInt (500)%Z));
                       (Select
                         (Ident (Member "ox.resilience" "TokenBucket" ""))
-                        (Member "ox.resilience.TokenBucket$" "$lessinit$greater$default$2" ":"))]);
+                        (Member "ox.resilience.TokenBucket$" "$lessinit$greater$default$2" ":scala.Option"))]);
                   (Literal (CInt (5)%Z));
                   (Literal (CInt (1)%Z))]))
             []);

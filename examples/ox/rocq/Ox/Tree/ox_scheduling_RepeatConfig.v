@@ -174,19 +174,19 @@ Definition ox_scheduling_RepeatConfig : tree :=
                     "scala.unchecked")]))
             [(Member "scala.Equals" "canEqual" "java.lang.Object:scala.Boolean")]);
           (DefDef
-            (Member "ox.scheduling.RepeatConfig" "productArity" ":")
+            (Member "ox.scheduling.RepeatConfig" "productArity" ":scala.Int")
             ["Method"; "Override"; "Synthetic"]
             []
             (TyRef "scala.Int")
             (Some (Literal (CInt (2)%Z)))
-            [(Member "scala.Product" "productArity" ":")]);
+            [(Member "scala.Product" "productArity" ":scala.Int")]);
           (DefDef
-            (Member "ox.scheduling.RepeatConfig" "productPrefix" ":")
+            (Member "ox.scheduling.RepeatConfig" "productPrefix" ":java.lang.String")
             ["Method"; "Override"; "Synthetic"]
             []
             (TyAlias "scala.Predef$.String" (TyRef "java.lang.String"))
             (Some (Literal (CString "RepeatConfig")))
-            [(Member "scala.Product" "productPrefix" ":")]);
+            [(Member "scala.Product" "productPrefix" ":java.lang.String")]);
           (DefDef
             (Member "ox.scheduling.RepeatConfig" "productElement" "scala.Int:java.lang.Object")
             ["Method"; "Override"; "Synthetic"]
@@ -200,11 +200,15 @@ Definition ox_scheduling_RepeatConfig : tree :=
                   (CaseDef
                     (Literal (CInt (0)%Z))
                     None
-                    (Select (This "ox.scheduling.RepeatConfig") (Member "ox.scheduling.RepeatConfig" "_1" ":")));
+                    (Select
+                      (This "ox.scheduling.RepeatConfig")
+                      (Member "ox.scheduling.RepeatConfig" "_1" ":ox.scheduling.Schedule")));
                   (CaseDef
                     (Literal (CInt (1)%Z))
                     None
-                    (Select (This "ox.scheduling.RepeatConfig") (Member "ox.scheduling.RepeatConfig" "_2" ":")));
+                    (Select
+                      (This "ox.scheduling.RepeatConfig")
+                      (Member "ox.scheduling.RepeatConfig" "_2" ":scala.Function1")));
                   (CaseDef
                     Wildcard
                     None
@@ -309,7 +313,7 @@ Definition ox_scheduling_RepeatConfig : tree :=
                   (NamedArg "shouldContinueOnResult" (Ident (Local "newShouldContinueOnResult" 8)))]))
             []);
           (DefDef
-            (Member "ox.scheduling.RepeatConfig" "toScheduledConfig" ":")
+            (Member "ox.scheduling.RepeatConfig" "toScheduledConfig" ":ox.scheduling.ScheduledConfig")
             ["Method"]
             []
             (TyApp
@@ -412,7 +416,7 @@ Definition ox_scheduling_RepeatConfig : tree :=
                                                   (Member "ox.scheduling.RepeatConfig" "shouldContinueOnResult" ""))
                                                 (Member "scala.Function1" "apply" "java.lang.Object:java.lang.Object"))
                                               [(Ident (Local "value" 13))])
-                                            (Member "scala.Boolean" "unary_!" ":"))])))]))
+                                            (Member "scala.Boolean" "unary_!" ":scala.Boolean"))])))]))
                             [])]
                         (Closure (Ident (Local "$anonfun" 10)) None))))]
                 (Apply
@@ -492,14 +496,14 @@ Definition ox_scheduling_RepeatConfig : tree :=
                 (Member "ox.scheduling.RepeatConfig" "shouldContinueOnResult" "")))
             []);
           (DefDef
-            (Member "ox.scheduling.RepeatConfig" "_1" ":")
+            (Member "ox.scheduling.RepeatConfig" "_1" ":ox.scheduling.Schedule")
             ["Method"; "Synthetic"]
             []
             (TyRef "ox.scheduling.Schedule")
             (Some (Select (This "ox.scheduling.RepeatConfig") (Member "ox.scheduling.RepeatConfig" "schedule" "")))
             []);
           (DefDef
-            (Member "ox.scheduling.RepeatConfig" "_2" ":")
+            (Member "ox.scheduling.RepeatConfig" "_2" ":scala.Function1")
             ["Method"; "Synthetic"]
             []
             (TyApp (TyRef "scala.Function1") [(TyParam "ox.scheduling.RepeatConfig" "T"); (TyRef "scala.Boolean")])
@@ -616,7 +620,7 @@ Definition ox_scheduling_RepeatConfig : tree :=
             (Some (Ident (Local "x$1" 18)))
             []);
           (DefDef
-            (Member "ox.scheduling.RepeatConfig$" "toString" ":")
+            (Member "ox.scheduling.RepeatConfig$" "toString" ":java.lang.String")
             ["Method"; "Override"; "Synthetic"]
             []
             (TyRef "java.lang.String")
