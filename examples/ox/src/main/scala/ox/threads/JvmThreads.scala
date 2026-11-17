@@ -29,7 +29,8 @@ val joinThrowsOnlyAnInterruption = Node.assumption(
   forall((t: Obj[Thread]) =>
     t.join().everyCall((_, r, _) => r === Returned(()) || r === Threw(thrown[InterruptedException]))))
 
-// With no security manager to refuse it, which the JDK no longer has.
+// With no security manager to refuse it: none can be installed from JDK 24 on, and before that only if the JVM is
+// started to allow one. Of `Thread`'s own `interrupt`, which a class of threads can override.
 val interruptReturns = Node.assumption("A call of interrupt on a thread returns.")(
   forall((t: Obj[Thread]) => t.interrupt().everyCall((_, r, _) => r === Returned(()))))
 

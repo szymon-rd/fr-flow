@@ -15,6 +15,10 @@ The roots, of a scope: after a call of `unsupervised` has completed, and the sam
 | `noForkRunsOnceUnsupervisedEnds`, `noForkRunsOnceSupervisedEnds` | No fork of the herd runs the code it was made to run. |
 | `nothingIsAddedOnceUnsupervisedEnds`, `nothingIsAddedOnceSupervisedEnds` | No thread is added to the herd's set. |
 | `noThreadIsStartedOnceUnsupervisedEnds`, `noThreadIsStartedOnceSupervisedEnds` | A call of `startThread` does not return, and adds no thread. |
+| `whatAForkBeganIsOverOnceUnsupervisedEnds`, `whatAForkBeganIsOverOnceSupervisedEnds` | Each call that a fork of the herd began while running the code it was made to run is over. |
+
+The last is the nesting of scopes: a scope a fork opened, by `unsupervised` or by `supervised`, is a call the
+fork began while running its code, so it has ended by the time the scope the fork is of has.
 
 Each is from what holds of a herd after `interruptAllAndJoinUntilCompleted` (closing) has completed, by its
 owner:
@@ -24,6 +28,13 @@ owner:
 | `noForkRunsOnceClosed` | No fork of the herd runs the code it was made to run. |
 | `nothingIsAddedOnceClosed` | No thread is added to the herd's set. |
 | `aClosedHerdRefusesToStart` | A call of `startThread` does not return, and adds no thread. |
+| `whatAForkBeganIsOverOnceClosed` | Each call that a fork of the herd began while running the code it was made to run is over. |
+
+That one is from `noForkRunsOnceClosed` and from how a thread's calls nest (`callsNest`: a call that a thread
+begins while a call of its own is pending is over before that call is). The fork's call of its code was pending
+when the call was begun, and is pending no more once the herd is closed. That calls nest is proven from two
+statements about the JVM: a thread does one thing at a time, and a call is responded to only once each call it
+made itself is over (`aCallEndsAfterTheCallsItMade`); by how far the inner call is from the outer one.
 
 One statement says what happens in time:
 
@@ -78,7 +89,7 @@ it are finitely many and each is responded to.
 
 ## What stands, and on what
 
-All seven roots are proven: every claim below each is proven, down to the trees of `unsupervised`, of
+All nine roots are proven: every claim below each is proven, down to the trees of `unsupervised`, of
 `supervised`, of the scope class and of `ThreadHerd`. No claim of the model is unproven; FrFlow reports it so,
 and the suite pins it (`ThreadsSuite`).
 
@@ -103,7 +114,7 @@ weakest of its assumptions is:
   false of Ox 1.1.0**: a defect that can be reproduced, for which its owner has a patch. They are proven from
   it, and hold of Ox once the patched code is what the model reads; of Ox 1.1.0 they are not shown.
 
-Twenty-seven claims are proven of the code's trees, each gone through whole (the four of a scope among them). Three
+Thirty claims are proven of the code's trees, each gone through whole (the four of a scope among them). Three
 are of what making a herd runs: a herd has been made, and its flag and its set are what `new AtomicBoolean(false)` and
 `ConcurrentHashMap.newKeySet()` returned to the call that made it. Eight say what a piece of the herd's code calls
 itself: one per method (`startThreadCallsFive`, `closingCallsFour`, `theClosingCheckCallsGet`,
@@ -111,7 +122,7 @@ itself: one per method (`startThreadCallsFive`, `closingCallsFour`, `theClosingC
 `startThread` hands the factory (`theForkFunctionCallsFour`), and one for the function the tree check applies to go up
 the scopes, which applies itself (`theWalkUpCallsFour`).
 
-Thirty-three claims are proven of Ox's code from the JDK, the JVM and Scala's objects alone, with no assumption
+Thirty-seven claims are proven from the JDK, the JVM and Scala's objects alone, with no assumption
 about Ox or about who uses it (the suite computes the list and pins it). Among them:
 
 - `startThreadFirstSeesTheFlagUnset`: a call of `startThread` returns, or adds a thread, only if the herd's
@@ -186,7 +197,7 @@ JDK, of a set that holds nothing, once each call that was removing from it befor
 What is assumed, by what it is about (each statement about the JDK is set beside what the JDK says, its
 documentation or its code, in [`JDK.md`](JDK.md)):
 
-- **The JDK and the JVM** (27): `addingIsAtomic`, `anElementLeavesOnlyWhenRemoved`,
+- **The JDK and the JVM** (28): `addingIsAtomic`, `anElementLeavesOnlyWhenRemoved`,
   `isEmptyFindsItEmptyUnlessAdded`, `isEmptyReturns`, `getGivesTheFlag`, `settingIsAtomic`,
   `aFlagBecomesOnlyWhatIsSet`, `setReturns`, `currentThreadIsTheCaller`, `theJdkStaysOutOfHerds`,
   `whatTheChecksAskOfTheJdkStaysOutOfHerds`, `aThreadDoesOneThingAtATime`,
@@ -202,7 +213,9 @@ documentation or its code, in [`JDK.md`](JDK.md)):
   takes it out at one moment during the call, and nothing else), `aTraversalReachesWhatStays` (a traversal that
   returns has applied its function to each element that was in the set from its call to its return: the
   iteration is weakly consistent), `aThreadActsOnlyOnceStarted` (a thread a factory made makes no call before
-  `start` is called on it), `currentThreadIsAnObject` (`Thread.currentThread()` gives no null).
+  `start` is called on it), `currentThreadIsAnObject` (`Thread.currentThread()` gives no null),
+  `aCallEndsAfterTheCallsItMade` (a call is responded to only once each call it made itself is over: a call
+  returns to the call that made it).
 - **Scala's objects** (5): `herdsAreConstructed`, `aHerdKeepsItsFields`, `aHerdHoldsWhatItWasGiven`,
   `aScopeHoldsTheHerdItIsMadeWith` (the `apply` the compiler writes for a case class is in no tree read: a scope
   made with a herd holds that herd), `aScopeGivesTheHerdItHolds` (a scope's herd is a val, asked for through
@@ -298,7 +311,7 @@ is an object like any other. A handler for every `Throwable` takes whatever is t
   retries and scheduling, actors.
 - That the statements at the bottom can hold together is shown by one execution, in which a thread makes a herd
   and closes it (`rocq/Proofs/OxThreads/Whole.v`): its 27 events are written out, each of its three calls is
-  shown to follow the code read from Ox, event by event, and each of the 62 statements is shown of it. It has
+  shown to follow the code read from Ox, event by event, and each of the 63 statements is shown of it. It has
   no fork, no thread started and no scope: of what is assumed of those it shows only that it does not
   contradict what happens to a herd alone. An execution with a fork is the next one to write out. That each
   step's parts can hold together is still shown by the execution in which nothing happens; it follows from the

@@ -162,6 +162,9 @@ Proof.
   split.
   { intros f r t a b made w [[who H] _]. absent H. }
   split.
+  { intros by_ from a spawns k inner m [[Hresp Hmk] Hinv]. reveal Hinv. reveal Hresp.
+    exists 18, (Response_Returned Value_Unit_), []. split; [lia | reflexivity]. }
+  split.
   { intros c s from to (supervisor & errorMode & parent & locals & code & ended & a & b & [[H _] _]). absent H. }
   split.
   { intros c s from to (supervisor & errorMode & parent & locals & code & ended & a & b & [[H _] _]). absent H. }

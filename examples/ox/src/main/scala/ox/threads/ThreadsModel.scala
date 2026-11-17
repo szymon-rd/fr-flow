@@ -14,16 +14,21 @@ import ox.scopes.*
 private val roots: List[FrModel.Part] = List(
   noForkRunsOnceUnsupervisedEnds, nothingIsAddedOnceUnsupervisedEnds, noThreadIsStartedOnceUnsupervisedEnds,
   noForkRunsOnceSupervisedEnds, nothingIsAddedOnceSupervisedEnds, noThreadIsStartedOnceSupervisedEnds,
+  whatAForkBeganIsOverOnceUnsupervisedEnds, whatAForkBeganIsOverOnceSupervisedEnds,
   closingCompletes, closingCompletesOnceItsHerdEmpties.refines(closingCompletes))
 
 // What holds once a scope's call has completed, and of a herd once closed.
 private val once: List[FrModel.Part] = List(
   // A scope: `unsupervised` and `supervised` make one, run code in it, and its herd is closed before they end.
   unsupervisedClosesItsScopesHerd.refines(noForkRunsOnceUnsupervisedEnds, nothingIsAddedOnceUnsupervisedEnds,
-    noThreadIsStartedOnceUnsupervisedEnds),
+    noThreadIsStartedOnceUnsupervisedEnds, whatAForkBeganIsOverOnceUnsupervisedEnds),
   supervisedClosesItsScopesHerd.refines(noForkRunsOnceSupervisedEnds, nothingIsAddedOnceSupervisedEnds,
-    noThreadIsStartedOnceSupervisedEnds),
-  noForkRunsOnceClosed.refines(noForkRunsOnceUnsupervisedEnds, noForkRunsOnceSupervisedEnds),
+    noThreadIsStartedOnceSupervisedEnds, whatAForkBeganIsOverOnceSupervisedEnds),
+  whatAForkBeganIsOverOnceClosed.refines(whatAForkBeganIsOverOnceUnsupervisedEnds,
+    whatAForkBeganIsOverOnceSupervisedEnds),
+  noForkRunsOnceClosed.refines(noForkRunsOnceUnsupervisedEnds, noForkRunsOnceSupervisedEnds,
+    whatAForkBeganIsOverOnceClosed),
+  callsNest.refines(whatAForkBeganIsOverOnceClosed), aCallEndsAfterTheCallsItMade.refines(callsNest),
   nothingIsAddedOnceClosed.refines(nothingIsAddedOnceUnsupervisedEnds, nothingIsAddedOnceSupervisedEnds),
   aClosedHerdRefusesToStart.refines(noThreadIsStartedOnceUnsupervisedEnds, noThreadIsStartedOnceSupervisedEnds),
   unsupervisedRunsInTheScopeItMade.refines(unsupervisedClosesItsScopesHerd),
@@ -130,7 +135,7 @@ private val once: List[FrModel.Part] = List(
   theMembershipCheckStaysOutOfHerds.refines(theWalkUpStaysOutOfHerds),
   aThreadDoesOneThingAtATime.refines(startThreadStaysOutOfHerds, theClosingCheckStaysOutOfHerds,
     closingsFunctionsReturn, theTreeCheckStaysOutOfHerds, theMembershipCheckStaysOutOfHerds,
-    theWalkUpStaysOutOfHerds),
+    theWalkUpStaysOutOfHerds, callsNest),
 
   // How a herd is made.
   herdsAreConstructed.refines(herdsAreMade, closingSetsTheFlag, aClosedHerdRefusesToStart, nothingIsAddedOnceEmpty,
