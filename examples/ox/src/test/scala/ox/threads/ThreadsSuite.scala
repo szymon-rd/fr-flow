@@ -81,19 +81,22 @@ import scala.concurrent.duration.*
     "startThreadIsPendingWhileItAdds", "startThreadReadsTheFlagUnset", "theClosingCheckCallsGet",
     "theClosingCheckStaysOutOfHerds", "theForkFunctionRemovesTheCurrentThread", "theTreeCheckCallsFour",
     "whatClosingsFunctionsApplyReturns", "startThreadStartsAfterItsAddIsOver", "aForkFunctionRemovesItsThread",
-    "callsNest")
+    "callsNest", "forkUnsupervisedStartsAThread")
 
   /** What holds once a call of `unsupervised`, or of `supervised`, has completed. */
   private val safe = List("Unsupervised", "Supervised").flatMap(of =>
     List(s"noForkRunsOnce${of}Ends", s"nothingIsAddedOnce${of}Ends", s"noThreadIsStartedOnce${of}Ends",
-      s"whatAForkBeganIsOverOnce${of}Ends"))
+      s"whatAForkBeganIsOverOnce${of}Ends", s"forkUnsupervisedIsRefusedOnce${of}Ends"))
 
   /** What happens in time. */
   private val live = List("aScopesHerdIsClosedInTime")
   private val roots = safe ++ live
 
-  /** What rests on the assumption false of Ox 1.1.0: everything but that no thread is started. */
-  private val onTheLastCheck = safe.filterNot(_.startsWith("noThreadIsStarted")) ++
+  /** What rests on the herd's flag alone: that no thread is started, and so that a fork is refused. */
+  private val onTheFlag = safe.filter(n => n.startsWith("noThreadIsStarted") || n.startsWith("forkUnsupervised"))
+
+  /** What rests on the assumption false of Ox 1.1.0: everything else. */
+  private val onTheLastCheck = safe.filterNot(onTheFlag.contains) ++
     List("noForkRunsOnceClosed", "nothingIsAddedOnceClosed", "whatAForkBeganIsOverOnceClosed")
 
   test("every root is proven: no claim is unproven, and what each root is from is of the kinds named".tag(Live)) {
@@ -113,7 +116,7 @@ import scala.concurrent.duration.*
       val adding = Ported.standing(r)("addingStopsOnceTheFlagIsSet")._1
       assert(!adding.exists(a => ofForkCode.contains(a) || a == "nothingIsAddedDuringTheLastCheck"), adding)
       // that no thread is started rests on the platform and on the herd's flag being its own, and no more
-      safe.filter(_.startsWith("noThreadIsStarted")).foreach(root => assertEquals(
+      onTheFlag.foreach(root => assertEquals(
         Ported.standing(r)(root)._1.filterNot(ofThePlatform), List("aHerdKeepsItsFlagToItself"), root))
       onTheLastCheck.foreach(n =>
         assert(Ported.standing(r)(n)._1.contains("nothingIsAddedDuringTheLastCheck"), n))

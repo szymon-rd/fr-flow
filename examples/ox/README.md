@@ -16,9 +16,14 @@ The roots, of a scope: after a call of `unsupervised` has completed, and the sam
 | `nothingIsAddedOnceUnsupervisedEnds`, `nothingIsAddedOnceSupervisedEnds` | No thread is added to the herd's set. |
 | `noThreadIsStartedOnceUnsupervisedEnds`, `noThreadIsStartedOnceSupervisedEnds` | A call of `startThread` does not return, and adds no thread. |
 | `whatAForkBeganIsOverOnceUnsupervisedEnds`, `whatAForkBeganIsOverOnceSupervisedEnds` | Each call that a fork of the herd began while running the code it was made to run is over. |
+| `forkUnsupervisedIsRefusedOnceUnsupervisedEnds`, `forkUnsupervisedIsRefusedOnceSupervisedEnds` | A call of `forkUnsupervised` in the scope does not return. |
 
 The last is the nesting of scopes: a scope a fork opened, by `unsupervised` or by `supervised`, is a call the
 fork began while running its code, so it has ended by the time the scope the fork is of has.
+
+That a fork is refused is what a user of Ox sees of the third: `forkUnsupervised`, read from Ox's code, returns
+only after a call of `startThread` on the herd of its scope, that it made itself, has returned
+(`forkUnsupervisedStartsAThread`, proven of its tree), and that call does not return once the herd is closed.
 
 Each is from what holds of a herd after `interruptAllAndJoinUntilCompleted` (closing) has completed, by its
 owner:
@@ -103,7 +108,7 @@ it are finitely many and each is responded to.
 
 ## What stands, and on what
 
-All nine roots are proven: every claim below each is proven, down to the trees of `unsupervised`, of
+All eleven roots are proven: every claim below each is proven, down to the trees of `unsupervised`, of
 `supervised`, of the scope class and of `ThreadHerd`. No claim of the model is unproven; FrFlow reports it so,
 and the suite pins it (`ThreadsSuite`).
 
@@ -128,7 +133,7 @@ weakest of its assumptions is:
   false of Ox 1.1.0**: a defect that can be reproduced, for which its owner has a patch. They are proven from
   it, and hold of Ox once the patched code is what the model reads; of Ox 1.1.0 they are not shown.
 
-Thirty-one claims are proven of the code's trees, each gone through whole (the four of a scope among them). Three
+Thirty-two claims are proven of the code's trees, each gone through whole (the four of a scope among them). Three
 are of what making a herd runs: a herd has been made, and its flag and its set are what `new AtomicBoolean(false)` and
 `ConcurrentHashMap.newKeySet()` returned to the call that made it. Eight say what a piece of the herd's code calls
 itself: one per method (`startThreadCallsFive`, `closingCallsFour`, `theClosingCheckCallsGet`,
@@ -136,7 +141,7 @@ itself: one per method (`startThreadCallsFive`, `closingCallsFour`, `theClosingC
 `startThread` hands the factory (`theForkFunctionCallsFour`), and one for the function the tree check applies to go up
 the scopes, which applies itself (`theWalkUpCallsFour`).
 
-Thirty-seven claims are proven from the JDK, the JVM and Scala's objects alone, with no assumption
+Thirty-eight claims are proven from the JDK, the JVM and Scala's objects alone, with no assumption
 about Ox or about who uses it (the suite computes the list and pins it). Among them:
 
 - `startThreadFirstSeesTheFlagUnset`: a call of `startThread` returns, or adds a thread, only if the herd's
@@ -301,9 +306,10 @@ is an object like any other. A handler for every `Throwable` takes whatever is t
 
 ## What is not covered
 
-- `fork`, the supervisor and the scope's finalizers: they are not read. The roots say what holds of the herd of
-  the scope a call made, once the call has completed; `startThread` is the herd's, which `fork` calls. Nothing
-  is said of what `supervised` returns.
+- The supervisor and the scope's finalizers: they are not read. Of the functions that start a fork, the file is
+  read, and one is gone through: `forkUnsupervised`. Of `fork`, `forkUser`, `forkError`, `forkUserError` and
+  `forkCancellable` nothing is claimed yet; each calls `startThread` on the herd of its scope, of which the
+  roots speak. Nothing is said of what `supervised` returns.
 - That closing completes is of a herd whose forks end once interrupted: that the code a fork was made to run is
   responded to in time once the fork has been interrupted is assumed of that code
   (`forkCodeCompletesOnceInterrupted`), and shown of none. A fork that swallows the interruption and goes on

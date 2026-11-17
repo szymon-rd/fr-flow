@@ -15,6 +15,7 @@ private val roots: List[FrModel.Part] = List(
   noForkRunsOnceUnsupervisedEnds, nothingIsAddedOnceUnsupervisedEnds, noThreadIsStartedOnceUnsupervisedEnds,
   noForkRunsOnceSupervisedEnds, nothingIsAddedOnceSupervisedEnds, noThreadIsStartedOnceSupervisedEnds,
   whatAForkBeganIsOverOnceUnsupervisedEnds, whatAForkBeganIsOverOnceSupervisedEnds,
+  forkUnsupervisedIsRefusedOnceUnsupervisedEnds, forkUnsupervisedIsRefusedOnceSupervisedEnds,
   aScopesHerdIsClosedInTime, closingCompletes.refines(aScopesHerdIsClosedInTime),
   closingCompletesOnceItsHerdEmpties.refines(closingCompletes),
   aScopesClosingIsReached.refines(aScopesHerdIsClosedInTime),
@@ -26,22 +27,29 @@ private val roots: List[FrModel.Part] = List(
 private val once: List[FrModel.Part] = List(
   // A scope: `unsupervised` and `supervised` make one, run code in it, and its herd is closed before they end.
   unsupervisedClosesItsScopesHerd.refines(noForkRunsOnceUnsupervisedEnds, nothingIsAddedOnceUnsupervisedEnds,
-    noThreadIsStartedOnceUnsupervisedEnds, whatAForkBeganIsOverOnceUnsupervisedEnds),
+    noThreadIsStartedOnceUnsupervisedEnds, whatAForkBeganIsOverOnceUnsupervisedEnds,
+    forkUnsupervisedIsRefusedOnceUnsupervisedEnds),
   supervisedClosesItsScopesHerd.refines(noForkRunsOnceSupervisedEnds, nothingIsAddedOnceSupervisedEnds,
-    noThreadIsStartedOnceSupervisedEnds, whatAForkBeganIsOverOnceSupervisedEnds),
+    noThreadIsStartedOnceSupervisedEnds, whatAForkBeganIsOverOnceSupervisedEnds,
+    forkUnsupervisedIsRefusedOnceSupervisedEnds),
+  forkUnsupervisedIsRefusedOnceClosed.refines(forkUnsupervisedIsRefusedOnceUnsupervisedEnds,
+    forkUnsupervisedIsRefusedOnceSupervisedEnds),
+  forkUnsupervisedStartsAThread.refines(forkUnsupervisedIsRefusedOnceClosed),
   whatAForkBeganIsOverOnceClosed.refines(whatAForkBeganIsOverOnceUnsupervisedEnds,
     whatAForkBeganIsOverOnceSupervisedEnds),
   noForkRunsOnceClosed.refines(noForkRunsOnceUnsupervisedEnds, noForkRunsOnceSupervisedEnds,
     whatAForkBeganIsOverOnceClosed),
   callsNest.refines(whatAForkBeganIsOverOnceClosed), aCallEndsAfterTheCallsItMade.refines(callsNest),
   nothingIsAddedOnceClosed.refines(nothingIsAddedOnceUnsupervisedEnds, nothingIsAddedOnceSupervisedEnds),
-  aClosedHerdRefusesToStart.refines(noThreadIsStartedOnceUnsupervisedEnds, noThreadIsStartedOnceSupervisedEnds),
+  aClosedHerdRefusesToStart.refines(noThreadIsStartedOnceUnsupervisedEnds, noThreadIsStartedOnceSupervisedEnds,
+    forkUnsupervisedIsRefusedOnceClosed),
   unsupervisedRunsInTheScopeItMade.refines(unsupervisedClosesItsScopesHerd),
   supervisedRunsInTheScopeItMade.refines(supervisedClosesItsScopesHerd),
   aScopeEndsAfterItsHerdIsClosed.refines(unsupervisedClosesItsScopesHerd, supervisedClosesItsScopesHerd),
   aScopesHerdIsItsMakers.refines(unsupervisedClosesItsScopesHerd, supervisedClosesItsScopesHerd,
     aScopesHerdIsClosedInTime),
-  aScopeGivesTheHerdItHolds.refines(aScopeEndsAfterItsHerdIsClosed, aScopesClosingIsReached),
+  aScopeGivesTheHerdItHolds.refines(aScopeEndsAfterItsHerdIsClosed, aScopesClosingIsReached,
+    forkUnsupervisedStartsAThread),
   theCurrentScopeIsReadAndSet.refines(aScopeEndsAfterItsHerdIsClosed, aScopesClosingIsReached),
   aScopeHoldsTheHerdItIsMadeWith.refines(aScopesHerdIsItsMakers),
 
@@ -175,6 +183,6 @@ private val once: List[FrModel.Part] = List(
   // The execution is one of Ox's `ThreadHerd`, of its scopes, of `unsupervised` and of `supervised`, as its jar
   // has them.
   history.executing(Read.of(classOf[ThreadHerd], Set("ox/internal/ThreadHerd.tasty", "ox/OxError.tasty",
-    "ox/unsupervised$package.tasty", "ox/supervised$package.tasty"))))
+    "ox/unsupervised$package.tasty", "ox/supervised$package.tasty", "ox/fork$package.tasty"))))
 
 val oxThreads: FrModel = FrModel("OxThreads")((roots ++ inTime ++ once)*)

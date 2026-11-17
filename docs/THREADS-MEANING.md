@@ -199,7 +199,8 @@ Proving it found two places where `Conforms` said what no run of Ox does, both c
   without state, and the other is a call on an object as any other.
 
 Three things are not proven. The comparison runs are over the whole of Ox with the programs, and are executions
-of that code; the model's statements are of the four files it reads, the rest of Ox being outside them: the
+of that code; the model's statements are of the five files it reads, the rest of Ox being outside them: the
 theorem holds of that table too, but no run has been made with the rest of Ox as what is outside. That the
 machine does what the JVM does is the comparison itself. And that what the model assumes of the JDK holds of
-what the library does: it is read against the JDK's documentation, not derived.
+what the library does: it is read against the JDK's documentation and code (`examples/ox/JDK.md`), not
+derived.
