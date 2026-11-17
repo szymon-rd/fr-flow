@@ -60,5 +60,5 @@ Proof.
   { intros h f x c k r b [_ H]. destruct (nothing_completed_at_rest _ _ _ _ _ H). }
   split.
   { intros h f from a b r [[H _] _]. destruct (nothing_called_at_rest _ _ _ H). }
-  intros h w (x & by_ & from & to & _ & H). destruct (nothing_completed_at_rest _ _ _ _ _ H).
+  intros h w Hready. destruct (nothing_ready_at_rest _ _ _ Hready).
 Qed.

@@ -28,7 +28,7 @@ val aHerdKeepsItsSetToItself = Node.assumption(
   "What a herd holds as its set is called on only by the herd's own methods and by the functions startThread " +
     "handed its factory, themselves.")(
   forall((h: Obj[ThreadHerd], w: Term[BigInt]) =>
-    h.isConstructed(w) implies h.keepsToItself(threads(h).asValue)((by, i) => aForkFunctionRuns(h, by, i))))
+    ready(h, w) implies h.keepsToItself(threads(h).asValue)((by, i) => aForkFunctionRuns(h, by, i))))
 
 val aKeySetHasOnlyItsMethods = Node.assumption(
   "On what `ConcurrentHashMap.newKeySet` returned, only methods of a key set are called.")(

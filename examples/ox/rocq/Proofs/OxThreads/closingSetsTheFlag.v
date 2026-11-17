@@ -14,8 +14,7 @@ Proof.
   assert (m + 1 = to \/ m + 1 < to) as [<- | Hlt] by lia; [exact Hflag |].
   apply (Hstays h (m + 1) to). split; [split; [| exact Hlt] | exact Hflag].
   pose proof (completed_was_called _ _ _ _ _ _ Hdone) as Hc.
-  destruct (Hmade h from ltac:(unfold calledOn; eauto 14)) as (x & maker & since & by_then & Hthen & Hherd).
-  exists x, maker, since, by_then. split; [lia | exact Hherd].
+  refine (herd_constructed_later history h from _ _ (Hmade h from ltac:(unfold calledOn; eauto 14))). lia.
 Qed.
 
 (** Its parts can hold together: an execution in which nothing happens, of flags never set, meets each. *)

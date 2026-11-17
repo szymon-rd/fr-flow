@@ -98,7 +98,7 @@ Proof.
     assert (ce = heldIn "ox.internal.ThreadHerd herdOwner"%string h) as Hce.
     { apply (Hkeeps h _ from yvar ce wread1).
       split; [split; [split; [exists inside; exact Hcall | exact I] | unfold itselfCreates; eauto] |].
-      unfold touches. eauto 6. }
+      unfold touches. eauto 7. }
     meets_head.
     (* it holds none: it is written, and the function returns *)
     1, 2: pass; pass; meets_head; apply meets_ret; intros rr _ _ Hrr Hgives re sp1 Hre; rewrite Hrr in Hre;
@@ -111,7 +111,7 @@ Proof.
         rewrite Hevar in Hm. injection Hm as <- _ _ _. symmetry. exact Hce.
       - intros kw bw insw fw yw Hw. rewrite Hce. apply (Hkeeps h _ from yvar bw kw).
         split; [split; [split; [exists inside; exact Hcall | exact I] | unfold itselfCreates; eauto] |].
-        unfold touches. eauto 6.
+        unfold touches. eauto 7.
       - intros kw insw yw Hafter Hbefore Hw.
         assert (insw = Some ke) as ->.
         { refine (written_itself history ce _ ke insw _ _ _ kw (Hone ce) ltac:(lia)

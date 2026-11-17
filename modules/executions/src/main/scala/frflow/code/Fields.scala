@@ -42,6 +42,10 @@ extension [C](on: Obj[C])
   inline def isConstructedWhenCalled(using st: Stating): Term[Boolean] =
     ${ FieldMacros.constructedWhenCalled[C]('on, 'st) }
 
+  /** Whenever a method of the object's class is called on it, `holds` of the moment. */
+  inline def whenCalled(inline holds: World => Term[Boolean])(using st: Stating): Term[Boolean] =
+    ${ FieldMacros.whenCalled[C]('on, 'holds, 'st) }
+
   /** Each `val` of the object's class holds what it is given when the object is made: every write of one writes
     * what it holds (`field`).
     */

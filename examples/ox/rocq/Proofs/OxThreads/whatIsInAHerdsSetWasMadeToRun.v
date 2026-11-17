@@ -26,5 +26,5 @@ Proof.
   { intros h t c w b [_ H]. destruct (nothing_called_at_rest _ _ _ H). }
   split.
   { intros h code c t from w [H _]. destruct (nothing_called_at_rest _ _ _ H). }
-  intros h w (x & by_ & from & to & _ & H). destruct (nothing_completed_at_rest _ _ _ _ _ H).
+  intros h w Hready. destruct (nothing_ready_at_rest _ _ _ Hready).
 Qed.

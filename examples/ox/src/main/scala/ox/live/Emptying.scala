@@ -41,12 +41,12 @@ val whatStaysInATraversedSetIsInterrupted = Node.claim(
     "interrupted.")(
   forall((h: Obj[ThreadHerd], x: Obj[Thread], a: Term[BigInt], b: Term[BigInt], w: Term[BigInt]) =>
     forall((made: Term[BigInt]) =>
-      (h.isConstructed(made) && traversedWithNoneAdding(h, a, b) && b <= w &&
+      (ready(h, made) && traversedWithNoneAdding(h, a, b) && b <= w &&
         elements(threads(h), w).contains(x.asValue)) implies interrupted(x))))
 
 val aHerdsSetEmptiesOnceTraversed = Node.claim(
   "A herd's set comes to rest empty, once closing has traversed it with no call adding to it in progress.")(
-  forall((h: Obj[ThreadHerd], made: Term[BigInt]) => h.isConstructed(made) implies emptiesOnceTraversed(h)))
+  forall((h: Obj[ThreadHerd], made: Term[BigInt]) => ready(h, made) implies emptiesOnceTraversed(h)))
 
 val closingCompletes = Node.claim("A call of closing on a herd by its owner is responded to, in time.")(
   forall((h: Obj[ThreadHerd], from: Term[BigInt]) =>

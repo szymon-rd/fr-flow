@@ -39,7 +39,7 @@ val whatClosingsFunctionsApplyReturns = Node.claim(
 // function it hands its second traversal reads and writes; the JDK's traversal applies that function on the
 // thread that called it, and hands it to nothing. So only closing's caller touches the variable.
 val closingKeepsItsVariableToItself = Node.assumption(
-  "What a call of closing itself makes, only the thread that called closing reads and writes.")(
+  "What a call of closing itself makes, only the thread that called closing reads, marks and writes.")(
   forall((h: Obj[ThreadHerd]) => closing(h).keepsWhatItMakesToItself))
 
 // Assumed, not derived from the code, as the last: the two variables closing makes are held only by the functions

@@ -45,7 +45,7 @@ val aForkThatEndedStaysOut = Node.claim(
     "herd's set for good.")(
   forall((h: Obj[ThreadHerd], r: Obj[Runnable], code: Obj[Code], t: Obj[Thread]) =>
     forall((i: Term[BigInt], ended: Term[Response], e: Term[BigInt], w: Term[BigInt], b: Term[BigInt]) =>
-      (h.isConstructed(b) && forkFunction(r, h, code) && running(r).by(t).completed(i, ended, e) && e <= w) implies
+      (ready(h, b) && forkFunction(r, h, code) && running(r).by(t).completed(i, ended, e) && e <= w) implies
         !elements(threads(h), w).contains(t.asValue))))
 
 val anInterruptedForkLeavesForGood = Node.claim(

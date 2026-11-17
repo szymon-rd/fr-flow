@@ -22,6 +22,6 @@ Proof.
   exists (fun _ x => x), (fun _ => Event_Stutter).
   split; [exact rest_runs |].
   split.
-  { intros h w (x & who & from & to & _ & H). destruct (nothing_completed_at_rest _ _ _ _ _ H). }
+  { intros h w Hready. destruct (nothing_ready_at_rest _ _ _ Hready). }
   intros h c i made w [[_ H] _]. destruct H as [H | (a & spawns & H)]; discriminate H.
 Qed.

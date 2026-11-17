@@ -23,6 +23,10 @@ object FieldMacros:
   def constructedWhenCalled[C: Type](on: Expr[Obj[C]], st: Expr[Stating])(using Quotes): Expr[Term[Boolean]] =
     '{ Fields.constructedWhenCalled(${ Expr(methods[C]) }, ${ Expr(constructor[C]) }, $on.asValue)(using $st) }
 
+  def whenCalled[C: Type](on: Expr[Obj[C]], holds: Expr[World => Term[Boolean]], st: Expr[Stating])(using Quotes)
+      : Expr[Term[Boolean]] =
+    '{ Fields.whenCalled(${ Expr(methods[C]) }, $on.asValue, $holds)(using $st) }
+
   def calledBy[C: Type](on: Expr[Obj[C]], by: Expr[Term[Value]], w: Expr[World], st: Expr[Stating])(using Quotes)
       : Expr[Term[Boolean]] =
     '{ Fields.calledBy(${ Expr(taking[C]) }, $on.asValue, $by, $w)(using $st) }
@@ -32,7 +36,7 @@ object FieldMacros:
     '{ Fields.keeps(${ Expr(taking[C]) }, $on.asValue, $kept, $also)(using $st) }
 
   /** Each method of the class with how many things it takes. */
-  private def taking[C: Type](using Quotes): List[(String, Int)] =
+  private[code] def taking[C: Type](using Quotes): List[(String, Int)] =
     import quotes.reflect.*
     val found = TypeRepr.of[C].typeSymbol.declaredMethods.filterNot(m =>
       m.isClassConstructor || m.flags.is(Flags.Synthetic))
@@ -54,7 +58,7 @@ object FieldMacros:
     if found.isEmpty then report.errorAndAbort(s"${TypeRepr.of[C].show} has no method")
     found.map(MemberName.of(_).mkString(" "))
 
-  private def vals[C: Type](using Quotes): List[String] =
+  private[code] def vals[C: Type](using Quotes): List[String] =
     import quotes.reflect.*
     val once = TypeRepr.of[C].typeSymbol.declaredFields.filterNot(f =>
       f.flags.is(Flags.Mutable) || f.flags.is(Flags.Lazy) || f.flags.is(Flags.Synthetic))
@@ -119,6 +123,10 @@ object Fields:
       methods.map(m => calledOn(on, m, w)).reduce(_ || _) implies madeBefore(on, cls, w))
 
   def reads(name: String, on: Term[Value])(using Stating): Term[Boolean] = readAs(on, name, heldIn(name, on))
+
+  /** `holds` of each moment a call of one of the methods on the object is made at. */
+  def whenCalled(methods: List[String], on: Term[Value], holds: World => Term[Boolean])(using Stating): Term[Boolean] =
+    forall((w: Term[BigInt]) => methods.map(m => calledOn(on, m, w)).reduce(_ || _) implies holds(w))
 
   /** A completed call of the constructor, with as many things as it takes, has returned the object by `w`. */
   def constructed(on: Term[Value], constructor: (String, Int), w: World)(using Stating): Term[Boolean] =

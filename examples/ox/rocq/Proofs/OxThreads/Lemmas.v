@@ -90,15 +90,14 @@ Proof.
     exact (names_one N _ _ _ Hgx Hgives).
 Qed.
 
-(** A herd that its constructor has returned by a moment, it has returned by every later one. *)
-Lemma herd_constructed_later (history : Z -> Event) h a b : a <= b ->
-  (exists x by_ from to, to <= a /\ completedBy history (Invocation_mk
-    "ox.internal.ThreadHerd <init> java.util.concurrent.ThreadFactory:ox.internal.ThreadHerd"%string [x])
-    by_ from (Response_Returned h) to) ->
-  exists x by_ from to, to <= b /\ completedBy history (Invocation_mk
-    "ox.internal.ThreadHerd <init> java.util.concurrent.ThreadFactory:ox.internal.ThreadHerd"%string [x])
-    by_ from (Response_Returned h) to.
-Proof. intros Hab (x & by_ & from & to & Hto & H). exists x, by_, from, to. split; [lia | exact H]. Qed.
+(** A herd that is ready by a moment is ready by every later one. *)
+Lemma herd_constructed_later {heldIn : string -> Value -> Value} (history : Z -> Event) h a b : a <= b ->
+  ready heldIn history h a -> ready heldIn history h b.
+Proof.
+  intros Hab [(x & by_ & from & to & Hto & H) | (su & em & pa & lo & s & from & to & [[Hto H] E])].
+  - left. exists x, by_, from, to. split; [lia | exact H].
+  - right. exists su, em, pa, lo, s, from, to. split; [split; [lia | exact H] | exact E].
+Qed.
 
 Lemma completed_after {history : Z -> Event} {N c who from r to} :
   conforms Code_files Code_table Code_classes N history -> completedBy history c who from r to -> from < to.
@@ -220,6 +219,43 @@ Proof.
   - destruct (Hpending (Hover between m Hfm Hmw Hat)).
 Qed.
 
+(** Of an object and a call that itself made it and has responded, having written each field of the object it
+    marked. A field that only the maker of the object marks and writes, inside the call that makes it, is marked
+    and written by that call alone: so it is not being written once the call has responded, nor marked or written
+    again. *)
+Lemma made_then_settled (history : Z -> Event) (N : naming) (h : Value) (cls : string) (c : Value)
+    (from k : Z) r sp (field : string) :
+  conforms Code_files Code_table Code_classes N history ->
+  (exists m hs, history m = Event_Make c (Some from) h cls hs) ->
+  history k = Event_Respond c from r sp ->
+  (forall w, k < w -> ~ direct c from (history w)) ->
+  (forall m f, m < k -> history m = Event_Mark c (Some from) h f ->
+     exists k' v, m < k' /\ k' < k /\ history k' = Event_Write c (Some from) h f v) ->
+  (forall by_ inside w, assigns history h field by_ inside w ->
+     exists m cls hs, m < w /\ history m = Event_Make by_ inside h cls hs) ->
+  forall by_ inside later, k < later ->
+    ~ Def_writing.writing history h field by_ later /\ ~ assigns history h field by_ inside later.
+Proof.
+  intros C (m0 & hs0 & Hmade) Hk Hover Hmarks Hassigned.
+  assert (forall by_ inside w, assigns history h field by_ inside w -> by_ = c /\ inside = Some from) as Hwho.
+  { intros by_ inside w Ha. destruct (Hassigned by_ inside w Ha) as (m & cls' & hs & _ & Hm).
+    pose proof (made_at_one C Hm Hmade) as ->. rewrite Hmade in Hm. injection Hm; intros; subst.
+    split; reflexivity. }
+  intros by_ inside later Hlater. split.
+  - intros (m & ins & [Hm Hmark] & Hnone).
+    destruct (Hwho by_ ins m (or_introl Hmark)) as [-> ->].
+    assert (m < k) as Hmk.
+    { destruct (Z_lt_le_dec m k) as [Hlt | Hge]; [exact Hlt | exfalso].
+      assert (m = k \/ k < m) as [-> | Hgt] by lia.
+      - rewrite Hk in Hmark. discriminate Hmark.
+      - apply (Hover m Hgt). rewrite Hmark. cbn. auto. }
+    destruct (Hmarks m field Hmk Hmark) as (k' & v & Hk1 & Hk2 & Hwrite).
+    assert (m < k' /\ k' < later) as Hbetween by lia.
+    exact (Hnone k' (Some from) v Hbetween Hwrite).
+  - intros Ha. destruct (Hwho by_ inside later Ha) as [-> ->].
+    apply (Hover later Hlater). destruct Ha as [Ha | [v Ha]]; rewrite Ha; cbn; auto.
+Qed.
+
 (** ** A run in which nothing happens
 
     It meets every statement that says what follows a call: what shows that statements can hold together. *)
@@ -235,6 +271,13 @@ Proof. intros (rest & by_ & H). exact (nothing_called_at_rest _ _ _ H). Qed.
 
 Lemma nothing_completed_at_rest c who from a to : ~ completedBy (fun _ => Event_Stutter) c who from a to.
 Proof. intros [[(inside & spawns & H) _] | [(inside & H) _]]; discriminate. Qed.
+
+(** At rest no herd is ready. *)
+Lemma nothing_ready_at_rest heldIn h w : ~ ready heldIn (fun _ => Event_Stutter) h w.
+Proof.
+  intros [(x & by_ & from & to & _ & H) | (su & em & pa & lo & s & from & to & [[_ [who H]] _])];
+    exact (nothing_completed_at_rest _ _ _ _ _ H).
+Qed.
 
 Lemma no_fork_at_rest heldIn t h w : ~ forkOf heldIn (fun _ => Event_Stutter) t h w.
 Proof. intros (from & value & to & _ & who & H). exact (nothing_completed_at_rest _ _ _ _ _ H). Qed.

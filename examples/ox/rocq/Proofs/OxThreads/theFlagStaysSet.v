@@ -33,7 +33,7 @@ Proof.
   split.
   { intros s v w [[_ H1] H2]. destruct (H1 H2). }
   split.
-  { intros h w (x & who & from & to & _ & H). destruct (nothing_completed_at_rest _ _ _ _ _ H). }
+  { intros h w Hready. destruct (nothing_ready_at_rest _ _ _ Hready). }
   split.
   { intros h v c w b [_ H]. destruct (nothing_called_at_rest _ _ _ H). }
   intros h v c from w [H _]. destruct (nothing_called_at_rest _ _ _ H).

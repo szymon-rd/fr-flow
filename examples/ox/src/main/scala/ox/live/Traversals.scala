@@ -14,7 +14,7 @@ import ox.threads.*
 val whatIsInAHerdsSetWasMadeToRun = Node.claim(
   "A thread in a herd's set was made to run code: it was added during a call of startThread on the herd.")(
   forall((h: Obj[ThreadHerd], x: Obj[Thread], w: Term[BigInt], b: Term[BigInt]) =>
-    (h.isConstructed(b) && elements(threads(h), w).contains(x.asValue)) implies
+    (ready(h, b) && elements(threads(h), w).contains(x.asValue)) implies
       exists((code: Obj[Code], made: Term[BigInt]) => madeToRun(x, h, code, made))))
 
 val closingsTraversalsRespond = Node.claim(
@@ -27,11 +27,11 @@ val closingsTraversalsRespond = Node.claim(
 val addingStopsOnceTheFlagIsSet = Node.claim(
   "From some moment on, nothing is added to the set of a herd whose flag is set.")(
   forall((h: Obj[ThreadHerd], w: Term[BigInt]) =>
-    (h.isConstructed(w) && flag(shutdown(h), w)) implies addingStops(threads(h))))
+    (ready(h, w) && flag(shutdown(h), w)) implies addingStops(threads(h))))
 
 // A call that adds takes time, and what it adds is in the set from a moment during it: so adding has ended only
 // when each call that adds is over.
 val addingEndsOnceTheFlagIsSet = Node.claim(
   "From some moment on, no call that adds to the set of a herd whose flag is set is in progress.")(
   forall((h: Obj[ThreadHerd], w: Term[BigInt]) =>
-    (h.isConstructed(w) && flag(shutdown(h), w)) implies addingEnds(threads(h))))
+    (ready(h, w) && flag(shutdown(h), w)) implies addingEnds(threads(h))))

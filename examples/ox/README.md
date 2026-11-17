@@ -134,9 +134,43 @@ was added at a moment before it, a moment has one call, so they are finitely man
 which each is out for good. A call that removes after that moment finds nothing to remove; those made before
 it are finitely many and each is responded to.
 
+Three statements say that what Ox's code writes plainly has no data race:
+
+| Root | Says |
+|---|---|
+| `noRaceOnAHerdsVals` | No thread reads, marks or writes a val of a herd while another thread is writing it. |
+| `noRaceOnAScopesVals` | The same of a val of a scope. |
+| `noRaceOnClosingsVariables` | The same of a variable that a call of closing itself made. |
+
+A plain write of a field is two events, a mark and the write, and the field is being written from the one to
+the other. A data race is two accesses to a field by two threads, one of them a write, that nothing orders
+(JLS 17.4.5); here, a read, a mark or a write of the field by another thread while it is being written. It is
+said of every execution of the code, in whatever order the threads take their turns: an order in which two such
+accesses can come next to each other is one in which the second comes between the mark and the write of the
+first. The fields are the four vals of `ThreadHerd`, the six of the scope class, and the two variables closing
+keeps (in the bytecode, `private final` fields written only in the constructors, and the `elem` of two
+`ObjectRef`s). What the code keeps in the JDK's own objects (the flag, the set, the finalizers) is not plain.
+
+For a herd it is from three statements. Only the thread that makes a herd marks and writes its vals, inside the
+call that makes it (assumed of the JVM, `aHerdsValsAreAssignedWhereItIsMade`). Once a herd is ready, none of its
+vals is being written, nor marked or written again (`aReadyHerdsValsAreWritten`, proven of the two things that
+make a herd, each gone through to its end: the constructor, and the scope's `apply`, which makes its herd in
+place; each writes a field it has marked before it does anything else to the herd, and returns the herd, or the
+scope that holds it, only at its end). And a val of a herd is read only once the herd is ready
+(`aHerdsValsAreReadOnceItIsReady`): what reads one is a method called on the herd, or the function `startThread`
+handed the factory (assumed, `aHerdsValsAreReadByItsCode`), and a method is called only on a herd that is ready.
+So a thread that reads a val does so when none is being written, and a thread that marks or writes one is the
+thread that made the herd, a herd being made once. A scope is the same, with its constructor for what makes it
+(`aConstructedScopesValsAreWritten`), and with it assumed that its vals are read only once the constructor has
+returned it (`aScopesValsAreReadOnceItIsConstructed`). For closing's variables it is what is assumed already: only
+the thread that called closing reads, marks and writes them.
+
+None of the three rests on what a read finds (`aHerdKeepsItsFields`, `aScopeKeepsItsFields`): that a val is
+read as what the object holds is true only of a read that comes after the write, which is what these show.
+
 ## What stands, and on what
 
-All fifteen roots are proven: every claim below each is proven, down to the trees of `unsupervised`, of
+All eighteen roots are proven: every claim below each is proven, down to the trees of `unsupervised`, of
 `supervised`, of the scope class and of `ThreadHerd`. No claim of the model is unproven; FrFlow reports it so,
 and the suite pins it (`ThreadsSuite`).
 
@@ -164,16 +198,25 @@ weakest of its assumptions is:
 - That a scope's herd is closed in time (`unsupervisedClosesItsHerdInTime`) rests on what is assumed to happen in
   time, and on the code a fork is given ending once interrupted; it does not rest on the assumption false of
   Ox 1.1.0.
+- That there is no data race rests on who writes and who reads a field, and on when a herd or a scope is in
+  other hands; on no assumption about time, about the JDK's classes or about what a read finds. The suite pins
+  what each is from: `noRaceOnAHerdsVals` from `aHerdsValsAreAssignedWhereItIsMade`,
+  `aHerdsValsAreReadByItsCode`, `herdsAreConstructed` and `aScopeHoldsTheHerdItIsMadeWith`;
+  `noRaceOnAScopesVals` from `aScopesValsAreAssignedWhereItIsMade` and `aScopesValsAreReadOnceItIsConstructed`;
+  `noRaceOnClosingsVariables` from `closingKeepsItsVariableToItself`, `herdsAreConstructed` and
+  `aScopeHoldsTheHerdItIsMadeWith`.
 
-Forty-three claims are proven of the code's trees, each gone through whole (the four of a scope among them). Three
-are of what making a herd runs: a herd has been made, and its flag and its set are what `new AtomicBoolean(false)` and
-`ConcurrentHashMap.newKeySet()` returned to the call that made it. Eight say what a piece of the herd's code calls
+Forty-five claims are proven of the code's trees, each gone through whole (the four of a scope among them). Four
+are of what making a herd runs, the constructor and the scope's `apply`: a herd has been made, its flag and its
+set are what `new AtomicBoolean(false)` and `ConcurrentHashMap.newKeySet()` returned to the call that made it,
+and each of its vals has been written by the time the herd is ready. One is the last of these, of a scope's
+constructor. Eight say what a piece of the herd's code calls
 itself: one per method (`startThreadCallsFive`, `closingCallsFour`, `theClosingCheckCallsGet`,
 `theTreeCheckCallsFour`, `theOwnerCheckCallsCurrentThread`, `theMembershipCheckCallsContains`), one for the function
 `startThread` hands the factory (`theForkFunctionCallsFour`), and one for the function the tree check applies to go up
 the scopes, which applies itself (`theWalkUpCallsFour`).
 
-Forty-six claims are proven from the JDK, the JVM and Scala's objects alone, with no assumption
+Forty-eight claims are proven from the JDK, the JVM and Scala's objects alone, with no assumption
 about Ox or about who uses it (the suite computes the list and pins it). Among them:
 
 - `startThreadFirstSeesTheFlagUnset`: a call of `startThread` returns, or adds a thread, only if the herd's
@@ -248,7 +291,7 @@ JDK, of a set that holds nothing, once each call that was removing from it befor
 What is assumed, by what it is about (each statement about the JDK is set beside what the JDK says, its
 documentation or its code, in [`JDK.md`](JDK.md)):
 
-- **The JDK and the JVM** (28): `addingIsAtomic`, `anElementLeavesOnlyWhenRemoved`,
+- **The JDK and the JVM** (30): `addingIsAtomic`, `anElementLeavesOnlyWhenRemoved`,
   `isEmptyFindsItEmptyUnlessAdded`, `isEmptyReturns`, `getGivesTheFlag`, `settingIsAtomic`,
   `aFlagBecomesOnlyWhatIsSet`, `setReturns`, `currentThreadIsTheCaller`, `theJdkStaysOutOfHerds`,
   `whatTheChecksAskOfTheJdkStaysOutOfHerds`, `aThreadDoesOneThingAtATime`,
@@ -266,8 +309,14 @@ documentation or its code, in [`JDK.md`](JDK.md)):
   iteration is weakly consistent), `aThreadActsOnlyOnceStarted` (a thread a factory made makes no call before
   `start` is called on it), `currentThreadIsAnObject` (`Thread.currentThread()` gives no null),
   `aCallEndsAfterTheCallsItMade` (a call is responded to only once each call it made itself is over: a call
-  returns to the call that made it).
-- **Scala's objects** (7): `herdsAreConstructed`, `aHerdKeepsItsFields`, `aHerdHoldsWhatItWasGiven`,
+  returns to the call that made it), `aHerdsValsAreAssignedWhereItIsMade`,
+  `aScopesValsAreAssignedWhereItIsMade` (a val of a herd, or of a scope, is marked and written only by the
+  thread that makes the object, inside the call that makes it: a val is a final field, which the JVM lets be
+  assigned only in a constructor of its class, run once, where the object is made).
+- **Scala's objects** (7): `herdsAreConstructed` (a method of a herd is called only on a herd that is ready: one
+  that a call of its constructor has returned, or one held by a scope that a call making a scope has returned.
+  The scope's `apply`, as read, makes its herd in place, by no call of the constructor from outside the code;
+  a herd leaves neither before it is ready), `aHerdKeepsItsFields`, `aHerdHoldsWhatItWasGiven`,
   `aScopeHoldsTheHerdItIsMadeWith` (the `apply` the compiler writes for a case class is in no tree read: a scope
   made with a herd holds that herd), `aScopeIsConstructed` (and it is one that a call of the class's
   constructor has returned), `aScopeKeepsItsFields` (each val of a scope is read as what the scope holds),
@@ -285,9 +334,16 @@ documentation or its code, in [`JDK.md`](JDK.md)):
   `remove`, `contains`, `isEmpty` and `forEach` are called on the set (`aHerdsSetIsPlain`), that only
   `startThread` adds to it (`onlyStartThreadAddsToTheSet`) and only a fork function removes from it
   (`onlyAForkFunctionRemoves`).
+- **Who reads a val** (2): `aHerdsValsAreReadByItsCode`: a val of a herd is read only by a method of the herd
+  called on it, or by a function `startThread` handed its factory, themselves, after the call was made. The
+  fields are private, so only code of the class is let read them (JVMS 5.4.4); in Ox's bytecode the reads are
+  in the six methods and in that function, and nowhere else. `aScopesValsAreReadOnceItIsConstructed`: a val of
+  a scope is read only once a call of the class's constructor has returned the scope. The constructor hands
+  the scope to nothing, so it is in other hands only then; it is what the JVM asks of a final field for its
+  readers to see it assigned (JLS 17.5). Both are assumed, and not derived from the code.
 - **That a variable stays its call's** (2): `closingKeepsItsVariableToItself`. What a call of closing itself
   makes (the variable it keeps what interrupted it in, and the one it keeps the threads it has interrupted in),
-  only the thread that called closing reads and writes. The functions closing hands its traversals hold the
+  only the thread that called closing reads, marks and writes. The functions closing hands its traversals hold the
   variables; the JDK's traversal applies them on the thread that called it and hands them to nothing.
   `closingsVariablesAreWrittenByItsFunctions`: and they are written only by such a function, or by the function
   it applies, itself. Both are assumed, and not derived from the code.
@@ -338,7 +394,8 @@ Beside the nodes, four things are taken of Scala and the JVM: what an execution 
 its trees in Rocq, written by hand and tested against the JVM, `docs/EXECUTIONS.md`); that the events of
 threads come one after another; that what a thread reads of a variable is what was last written there, where
 that thread alone made the variable and writes it (the order of one thread's own actions, JLS 17.4.5; nothing
-is taken of a variable two threads write, nor of a field); and that the VM raises no error of its own. A value
+is taken of a variable two threads write, nor of what a read of a field finds, which is assumed of a val by a
+node); and that the VM raises no error of its own. A value
 of a class the trees give no meaning has the type its method's signature says: an option is none, some value,
 or no object. What a method of the code gives is of the class its signature names too, and what a call throws
 is an object like any other. A handler for every `Throwable` takes whatever is thrown, without looking at it.
@@ -360,10 +417,15 @@ is an object like any other. A handler for every `Throwable` takes whatever is t
   which are the user's code, run uninterruptibly), that `supervised` comes to running code in its scope
   (making its supervisor is responded to), and that the code `supervised` runs in its scope ends (it waits for
   the supervisor).
-- That no run of Ox's code has a data race. The model takes it that the events of threads come one after
-  another, which the JVM grants only to a program without one (JLS 17.4.5). It was proven of a herd in a
-  separation logic over the machine, which is removed with the proofs it was unconnected to; it is to be proven
-  over executions.
+- That no run of a program that uses Ox has a data race. The model takes it that the events of threads come
+  one after another, which the JVM grants only to a program without one (JLS 17.4.5). Proven: none on a herd's
+  vals, on a scope's vals, or on closing's variables, in any execution of the code read that meets what is
+  assumed. Not covered: the rest of Ox (the supervisor, forks' results, channels), the user's code, and the
+  slot of the scope's lazy val, which Scala enters by a protocol of its own. That only closing's caller touches
+  closing's variables is assumed, so of them the statement adds little; it would be derived from who holds the
+  two functions closing writes, which is not modelled. And the statement is of executions, not of the machine
+  that is run against the JVM: that machine stops at a racing step, and that it never stops so on these fields
+  would follow, but is not written out as a theorem.
 - The link to the JVM is a theorem and a test. The theorem (`FrFlow/Code/Executed.v`, `machine_conforms`): the
   events a run of the machine writes out (`FrFlow/Code/Frames.v`) are an execution in the model's sense, for any
   code, any library of what is outside it and any order of the threads' turns; the machine stops where a step
@@ -379,7 +441,7 @@ is an object like any other. A handler for every `Throwable` takes whatever is t
   retries and scheduling, actors.
 - That the statements at the bottom can hold together is shown by one execution, in which a thread makes a herd
   and closes it (`rocq/Proofs/OxThreads/Whole.v`): its 27 events are written out, each of its three calls is
-  shown to follow the code read from Ox, event by event, and each of the 77 statements is shown of it. It has
+  shown to follow the code read from Ox, event by event, and each of the 81 statements is shown of it. It has
   no fork, no thread started and no scope: of what is assumed of those it shows only that it does not
   contradict what happens to a herd alone. An execution with a fork is the next one to write out. That each
   step's parts can hold together is still shown by the execution in which nothing happens; it follows from the

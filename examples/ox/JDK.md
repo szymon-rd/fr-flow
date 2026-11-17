@@ -66,6 +66,27 @@ statements about `isEmpty` cannot be had from the documentation.
 | `addSuppressedReturns`: `addSuppressed`, on an exception that is not null, given an `InterruptedException` the JDK threw, returns. | documented, with one remark. It throws if given the exception itself. In the JVM each `join` that throws makes a new exception, so the two are never one object; the model has one value for every `InterruptedException` the JDK throws, and the statement is read of the JVM's objects. |
 | `theCurrentScopeIsReadAndSet`: `get` and `set` of the `ThreadLocal` return. | documented. |
 
+## Fields: the JVM
+
+What is assumed of who writes and who reads a field is of the JVM, not of the JDK's classes. The specifications
+(JVMS, JLS) were not reachable from where this was written: the clauses are given by number and paraphrased, not
+quoted. What could be read is Ox's bytecode (`javap -p -c` on the jar the model reads), and it is set beside
+each.
+
+| Assumed | Basis |
+|---|---|
+| `aHerdsValsAreAssignedWhereItIsMade`, `aScopesValsAreAssignedWhereItIsMade`: a val of a herd, or of a scope, is marked and written only by the thread that makes the object, inside the call that makes it. | the JVM, with a **condition**. A val is compiled to a `final` field: in the bytecode the four fields of `ThreadHerd` and the six of `OxError` are `private final`. `putfield` on a final field is let only in an instance initialisation method of the field's class (JVMS 6.5, putfield; otherwise `IllegalAccessError`), and such a method runs on an object once, where the object is created (JVMS 4.10.2.4). In the bytecode the only `putfield`s of these fields are in the two constructors, on `this`. The model has the constructor's events as events of the call that makes the object, where the code makes it in place. The condition: no reflection (`Field.setAccessible` lets a final instance field be set), no `Unsafe`, no native code. |
+| `aHerdsValsAreReadByItsCode`: a val of a herd is read only by a method of the herd called on it, or by the function `startThread` handed its factory, after the call was made. | the JVM and the code, with the same **condition**. The fields are private: only code of the class (its nest) is let read them (JVMS 5.4.4). In the bytecode the `getfield`s of the four fields are in the six methods and in `$anonfun$1`, the function `startThread` hands the factory, each on `this`; the static methods closing's functions are compiled to read none. |
+| `aScopesValsAreReadOnceItIsConstructed`: a val of a scope is read only once a call of the class's constructor has returned the scope. | the code, and who is given a scope. The constructor assigns the six fields and hands `this` to nothing (the lazy val of its trait is made on first use, after it); so no other thread has the scope before the constructor returns. It is the condition under which the JVM lets every reader of a final field see it assigned (JLS 17.5: the object is seen only after its constructor has finished). The fields are read through the scope's accessors, by any code that holds the scope: who holds one is not modelled, so this is assumed. |
+| `herdsAreConstructed`: a method of a herd is called only on a herd that is ready (its constructor has returned it, or a scope that the call making a scope returned holds it). | the code: the herd's constructor hands `this` to nothing, and the scope's `apply` hands the herd it makes only to the scope it returns. |
+| `closingKeepsItsVariableToItself`: what a call of closing itself makes, only the thread that called closing reads, marks and writes. | the code and the JDK, **implementation**. The two variables are `scala.runtime.ObjectRef`s, whose `elem` is a public field that is neither final nor volatile: nothing but who holds them keeps them from another thread. They are held by the two functions closing hands `forEach`, and `KeySetView.forEach` in OpenJDK 21 applies its function in the calling thread and keeps it nowhere. |
+
+What a data race is here: two accesses to a field by two threads, one of them a write, not ordered by
+happens-before (JLS 17.4.1, 17.4.5). The model writes a field in two events, and takes a read, a mark or a
+write by another thread between them as the race. Over every order of the threads' turns the two agree: two
+plain accesses by two threads that come next to each other have nothing between them to order them, and where
+two can come next to each other, the second can come between the mark and the write of the first.
+
 ## In time
 
 | Assumed | Basis |
@@ -101,3 +122,9 @@ statements about `isEmpty` cannot be had from the documentation.
    nothing is claimed of it.
 6. **Errors of the JVM** (`OutOfMemoryError`, `StackOverflowError`) are not modelled: "returns" is said of calls
    that the JVM lets run.
+7. **Reflection, `Unsafe` and native code** can write a final field and read a private one: what is assumed of
+   fields is of a program that does neither to Ox's objects.
+8. **The scope's constructor as read.** The model first assumed that a herd is one a call of its constructor
+   returned. That is false of the herds Ox's own code makes: the scope's `apply`, read from the jar, makes its
+   herd in place, and in the model that is no call of the constructor. The statement now says a herd is ready
+   when either has happened, and what was proven of a constructed herd is proven of a ready one.

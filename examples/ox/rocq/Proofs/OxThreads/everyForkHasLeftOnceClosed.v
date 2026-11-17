@@ -43,6 +43,6 @@ Proof.
   split.
   { intros h t m [(m1 & _ & H) _]. destruct (nothing_called_at_rest _ _ _ H). }
   split.
-  { intros h t w [(x & who & from & to & _ & H) _]. destruct (nothing_completed_at_rest _ _ _ _ _ H). }
+  { intros h t w [Hready _]. destruct (nothing_ready_at_rest _ _ _ Hready). }
   intros h w H. repeat (destruct H as [H | H]); destruct (nothing_called_on_at_rest _ _ _ H).
 Qed.

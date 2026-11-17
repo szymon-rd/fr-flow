@@ -9,7 +9,7 @@ From Stdlib Require Import String List ZArith Lia.
     responded to: by a later moment each is over. *)
 Lemma aHerdsSetEmptiesOnceTraversed_Proofs_complete : aHerdsSetEmptiesOnceTraversed_Obl_complete.
 Proof.
-  intros history heldIn elements _ Hmade Hadded Hbegins Hresponds Hinterrupted Hleaves Hplain h made Hcons
+  intros heldIn history elements _ Hmade Hadded Hbegins Hresponds Hinterrupted Hleaves Hplain h made Hcons
     f from a r b [[[Hcalled Hmakes] Hdone] Hnone].
   set (S := heldIn "ox.internal.ThreadHerd threads"%string h) in *.
   assert (traversedWithNoneAdding heldIn history h a b) as Htrav.
@@ -62,7 +62,7 @@ Qed.
 (** What it is from can hold: an execution in which nothing happens, of sets that hold nothing, meets each. *)
 Lemma aHerdsSetEmptiesOnceTraversed_Proofs_feasible : aHerdsSetEmptiesOnceTraversed_Obl_feasible.
 Proof.
-  exists (fun _ => Event_Stutter), (fun _ x => x), (fun _ _ _ => False).
+  exists (fun _ x => x), (fun _ => Event_Stutter), (fun _ _ _ => False).
   split; [exact rest_runs |].
   split.
   { intros h x w b [_ H]. destruct H. }
@@ -76,5 +76,5 @@ Proof.
   { intros h x a b w made [_ H]. destruct H. }
   split.
   { intros h t code made [H _]. destruct (none_made_to_run_at_rest _ _ _ _ _ H). }
-  intros h w (x & by_ & from & to & _ & H). destruct (nothing_completed_at_rest _ _ _ _ _ H).
+  intros h w Hready. destruct (nothing_ready_at_rest _ _ _ Hready).
 Qed.

@@ -111,11 +111,12 @@ val itselfCreates = stated { (made: Term[Value], by: Term[Value], from: Term[Big
   exists((m: Term[BigInt], cls: Term[String], holding: Term[List[Held]]) =>
     history(m) === make[Event.Make](by, some(from), made, cls, holding)) }
 
-/** The actor reads or writes a field of the object at the moment. */
+/** The actor reads, marks or writes a field of the object at the moment. */
 val touches = stated { (on: Term[Value], by: Term[Value], w: Term[BigInt]) =>
   exists((inside: Term[Option[BigInt]], field: Term[String], value: Term[Value]) =>
     history(w) === make[Event.Read](by, inside, on, field, value) ||
-      history(w) === make[Event.Write](by, inside, on, field, value)) }
+      history(w) === make[Event.Write](by, inside, on, field, value) ||
+      history(w) === make[Event.Mark](by, inside, on, field)) }
 
 /** A call of the method named `method` is made at `w` on `on`, with whatever else it is given. */
 val calledOn = stated { (on: Term[Value], method: Term[String], w: Term[BigInt]) =>
@@ -135,3 +136,27 @@ val readAs = stated { (on: Term[Value], field: Term[String], value: Term[Value])
 val writtenAs = stated { (on: Term[Value], field: Term[String], value: Term[Value]) =>
   forall((w: Term[BigInt], by: Term[Value], inside: Term[Option[BigInt]], written: Term[Value]) =>
     (history(w) === make[Event.Write](by, inside, on, field, written)) implies (written === value)) }
+
+/** The actor marks or writes the field of the object at the moment, inside the call `inside` says. */
+val assigns = stated { (on: Term[Value], field: Term[String], by: Term[Value], inside: Term[Option[BigInt]],
+    w: Term[BigInt]) =>
+  history(w) === make[Event.Mark](by, inside, on, field) ||
+    exists((value: Term[Value]) => history(w) === make[Event.Write](by, inside, on, field, value)) }
+
+/** The actor reads the field of the object at the moment, inside the call `inside` says. */
+val readsField = stated { (on: Term[Value], field: Term[String], by: Term[Value], inside: Term[Option[BigInt]],
+    w: Term[BigInt]) =>
+  exists((value: Term[Value]) => history(w) === make[Event.Read](by, inside, on, field, value)) }
+
+/** The actor is writing the field of the object at the moment: it has marked it, and has not written it since. */
+val writing = stated { (on: Term[Value], field: Term[String], by: Term[Value], w: Term[BigInt]) =>
+  exists((m: Term[BigInt], inside: Term[Option[BigInt]]) =>
+    m < w && history(m) === make[Event.Mark](by, inside, on, field) &&
+      forall((k: Term[BigInt], i: Term[Option[BigInt]], value: Term[Value]) =>
+        (m < k && k < w) implies (history(k) =!= make[Event.Write](by, i, on, field, value)))) }
+
+/** The field of the object has no data race: no actor reads, marks or writes it while another is writing it. */
+val unraced = stated { (on: Term[Value], field: Term[String]) =>
+  forall((by: Term[Value], other: Term[Value], inside: Term[Option[BigInt]], w: Term[BigInt]) =>
+    (writing(on, field, by, w) &&
+      (assigns(on, field, other, inside, w) || readsField(on, field, other, inside, w))) implies (other === by)) }

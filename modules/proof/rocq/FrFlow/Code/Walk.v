@@ -582,6 +582,18 @@ Section Walk.
     apply follows_steps in Hf as (at_ & H0 & H1 & H2). exists args, at_. auto.
   Qed.
 
+  (** A call of such a constructor makes no event of its own once it has responded. *)
+  Lemma constructor_over a inside cls c signature ys from k w resp spawns :
+    history from = Event_Invoke a inside (Invocation_mk (label cls "<init>" signature) ys) ->
+    class_of T cls = Some c -> is_module c = false ->
+    history k = Event_Respond a from resp spawns -> k < w -> ~ direct a from (history w).
+  Proof.
+    intros He Hc Hm Hk Hlt.
+    destruct (proj1 (proj1 (proj2 (proj2 (proj2 (proj2 (proj2 (proj2 conformed))))))) _ _ _ _ _ _ _ He Hc Hm)
+      as (args & _ & _ & Hf).
+    exact (proj1 (proj2 Hf) _ _ _ _ Hk Hlt).
+  Qed.
+
   Lemma constructor_not_atomic w a inside cls c signature ys resp spawns :
     history w = Event_Atomic a inside (Invocation_mk (label cls "<init>" signature) ys) resp spawns ->
     class_of T cls = Some c -> is_module c = false -> False.

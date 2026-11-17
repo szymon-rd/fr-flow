@@ -19,6 +19,6 @@ Proof.
   split.
   { intros h from [H _]. destruct (nothing_called_at_rest _ _ _ H). }
   split.
-  { intros h made (x & by_ & from & to & _ & H). destruct (nothing_completed_at_rest _ _ _ _ _ H). }
+  { intros h made Hready. destruct (nothing_ready_at_rest _ _ _ Hready). }
   intros h w H. repeat (destruct H as [H | H]); destruct (nothing_called_on_at_rest _ _ _ H).
 Qed.

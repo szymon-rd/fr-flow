@@ -88,7 +88,7 @@ final class Call[A](val method: String, val arguments: List[Term[Value]], val ac
     forall((from: Term[BigInt], inner: Term[Invocation], w: Term[BigInt]) =>
       some(who => begun(invocation, who, from) && itselfMakes(inner, who, from, w)) implies allowed(inner))
 
-  /** What a call of this itself makes, only its caller reads and writes: a variable of the call's own, which
+  /** What a call of this itself makes, only its caller reads, marks and writes: a variable of the call's own, which
     * the functions the call wrote may hold, and nothing else does.
     */
   def keepsWhatItMakesToItself(using Stating): Term[Boolean] =

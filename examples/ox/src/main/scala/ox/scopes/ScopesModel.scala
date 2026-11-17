@@ -74,4 +74,6 @@ val ofScopes: List[FrModel.Part] = List(
     forkUnsupervisedStartsAThread, forkCancellableStartsAThread),
   theCurrentScopeIsReadAndSet.refines(aScopeEndsAfterItsHerdIsClosed, aScopesClosingIsReached,
     unsupervisedComesToItsScope),
-  aScopeHoldsTheHerdItIsMadeWith.refines(aScopesHerdIsItsMakers, asNoErrorModeKeepsTheHerd))
+  aScopeHoldsTheHerdItIsMadeWith.refines(aScopesHerdIsItsMakers, asNoErrorModeKeepsTheHerd, aHerdsFlagIsNew,
+    aHerdsSetIsNew, herdsAreMade,
+    aReadyHerdsValsAreWritten))

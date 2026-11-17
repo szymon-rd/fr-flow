@@ -40,14 +40,14 @@ val closingSetsTheFlag = Node.claim("When closing a herd completes, the herd's f
 
 val theFlagStaysSet = Node.claim("Once a herd's flag is set, it stays set.")(
   forall((h: Obj[ThreadHerd], a: Term[BigInt], b: Term[BigInt]) =>
-    (h.isConstructed(b) && a < b && flag(shutdown(h), a)) implies flag(shutdown(h), b)))
+    (ready(h, b) && a < b && flag(shutdown(h), a)) implies flag(shutdown(h), b)))
 
 val aHerdsFlagIsOnlyReadAndSet = Node.claim("Nothing but get and set is called on a herd's flag.")(
-  forall((h: Obj[ThreadHerd], w: Term[BigInt]) => h.isConstructed(w) implies onlyReadAndSet(shutdown(h))))
+  forall((h: Obj[ThreadHerd], w: Term[BigInt]) => ready(h, w) implies onlyReadAndSet(shutdown(h))))
 
 val onlyClosingSetsTheFlag = Node.claim("A herd's flag is set only by a call of closing, itself.")(
   forall((h: Obj[ThreadHerd], v: Term[Boolean], c: Obj[Thread], w: Term[BigInt], b: Term[BigInt]) =>
-    (h.isConstructed(b) && shutdown(h).set(v).by(c).called(w)) implies exists((from: Term[BigInt]) =>
+    (ready(h, b) && shutdown(h).set(v).by(c).called(w)) implies exists((from: Term[BigInt]) =>
       closing(h).by(c).called(from) && shutdown(h).set(v).by(c).calledInside(from, w))))
 
 val closingSetsTheFlagOnlyToTrue = Node.claim("A call of closing itself sets the herd's flag only to true.")(

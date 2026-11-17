@@ -37,7 +37,7 @@ Proof.
   split.
   { intros h t m [(m1 & _ & H) _]. destruct (nothing_called_at_rest _ _ _ H). }
   split.
-  { intros h t w [(x & who & from & to & _ & H) _]. destruct (nothing_completed_at_rest _ _ _ _ _ H). }
+  { intros h t w [Hready _]. destruct (nothing_ready_at_rest _ _ _ Hready). }
   split.
   { intros h code c w [H | (m & _ & H & _)];
       [destruct (nothing_called_at_rest _ _ _ H) | destruct (nothing_begun_at_rest _ _ _ H)]. }

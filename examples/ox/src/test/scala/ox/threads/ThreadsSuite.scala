@@ -36,7 +36,8 @@ import scala.concurrent.duration.*
     "theCurrentScopeIsReadAndSet", "aTraversalAppliesItsFunctionToElements", "anElementWasAdded",
     "isEmptyFindsARestingSetEmpty", "anElementEntersOnlyWhenAdded", "aTraversalReachesWhatStays",
     "removingTakesTheElementOut", "aThreadActsOnlyOnceStarted", "currentThreadIsAnObject",
-    "aCallEndsAfterTheCallsItMade", "aScopeIsConstructed", "aScopeKeepsItsFields")
+    "aCallEndsAfterTheCallsItMade", "aScopeIsConstructed", "aScopeKeepsItsFields",
+    "aHerdsValsAreAssignedWhereItIsMade", "aScopesValsAreAssignedWhereItIsMade")
 
   /** What is assumed to happen in time: of who schedules threads (a call of code that waits for nothing makes its
     * next event), of the JDK and of the thread factory (a call is responded to; a started thread runs).
@@ -56,7 +57,7 @@ import scala.concurrent.duration.*
   /** What is assumed beside the platform, by what it is about: each named in the README. */
   private val ofPrivateState = List("aHerdKeepsItsFlagToItself", "aHerdKeepsItsSetToItself",
     "closingKeepsItsVariableToItself", "closingsVariablesAreWrittenByItsFunctions", "onlyItsMakerStartsAThread",
-    "onlyAForkFunctionCallsTheCode")
+    "onlyAForkFunctionCallsTheCode", "aHerdsValsAreReadByItsCode", "aScopesValsAreReadOnceItIsConstructed")
   private val ofWhoUsesAHerd = List("startThreadIsCalledFromInside", "aThreadRunsOneForkFunctionOnce",
     "aFactoryStaysOutOfHerds")
   private val ofScopesNotRead = List("aScopesHerdAndParentStayOutOfHerds")
@@ -65,7 +66,8 @@ import scala.concurrent.duration.*
 
   /** The root on the flag is proven from the platform and one assumption about the herd's private flag. */
   private val theFlagRootIsFrom = List("aFlagBecomesOnlyWhatIsSet", "aHerdHoldsWhatItWasGiven",
-    "aHerdKeepsItsFields", "aHerdKeepsItsFlagToItself", "anAtomicBooleanHasOnlyItsMethods",
+    "aHerdKeepsItsFields", "aHerdKeepsItsFlagToItself", "aScopeHoldsTheHerdItIsMadeWith",
+    "anAtomicBooleanHasOnlyItsMethods",
     "currentThreadIsTheCaller", "getGivesTheFlag", "herdsAreConstructed", "setReturns", "settingIsAtomic")
 
   /** The claims proven of Ox's code from that alone: no claim below them unproven, no other assumption. */
@@ -85,7 +87,8 @@ import scala.concurrent.duration.*
     "whatClosingsFunctionsApplyReturns", "startThreadStartsAfterItsAddIsOver", "aForkFunctionRemovesItsThread",
     "callsNest", "forkUnsupervisedStartsAThread", "aConstructedScopeIsMade", "aScopeMadeIsAnObject",
     "asNoErrorModeKeepsTheHerd", "forkErrorStartsAThread", "forkStartsAThread", "forkCancellableStartsAThread",
-    "forkUserErrorStartsAThread", "forkUserStartsAThread")
+    "forkUserErrorStartsAThread", "forkUserStartsAThread", "aReadyHerdsValsAreWritten",
+    "aConstructedScopesValsAreWritten")
 
   /** What holds once a call of `unsupervised`, or of `supervised`, has completed. */
   private val safe = List("Unsupervised", "Supervised").flatMap(of =>
@@ -96,7 +99,15 @@ import scala.concurrent.duration.*
 
   /** What happens in time. */
   private val live = List("unsupervisedClosesItsHerdInTime")
-  private val roots = safe ++ live
+
+  /** That what Ox's code writes plainly has no data race, with what each is from. */
+  private val unraced = Map(
+    "noRaceOnAHerdsVals" -> List("aHerdsValsAreAssignedWhereItIsMade", "aHerdsValsAreReadByItsCode",
+      "aScopeHoldsTheHerdItIsMadeWith", "herdsAreConstructed"),
+    "noRaceOnClosingsVariables" -> List("aScopeHoldsTheHerdItIsMadeWith", "closingKeepsItsVariableToItself",
+      "herdsAreConstructed"),
+    "noRaceOnAScopesVals" -> List("aScopesValsAreAssignedWhereItIsMade", "aScopesValsAreReadOnceItIsConstructed"))
+  private val roots = safe ++ live ++ unraced.keys
 
   /** What rests on the herd's flag alone: that no thread is started, and so that a fork is refused. */
   private val onTheFlag = safe.filter(n => n.startsWith("noThreadIsStarted") || n.startsWith("fork"))
@@ -109,24 +120,27 @@ import scala.concurrent.duration.*
     Ported.run(Projects.elaborated(oxThreads), Nil, Ported.proofs("ox", "OxThreads")).map { r =>
       assertEquals(Ported.unproven(r), Map.empty[String, List[String]], Ported.table(r))
       assertEquals(Ported.standsOn(r).map((root, on) => root -> on._1), roots.map(_ -> Nil).toMap)
-      assertEquals(Ported.standing(r)("aClosedHerdRefusesToStart")._1.sorted, theFlagRootIsFrom)
+      val standing = Ported.standing(r)
+      assertEquals(standing("aClosedHerdRefusesToStart")._1.sorted, theFlagRootIsFrom)
       val named = ofThePlatform ++ ofPrivateState ++ ofWhoUsesAHerd ++ ofScopesNotRead ++ falseOfOx110
-      safe.foreach(root => assertEquals(Ported.standing(r)(root)._1.filterNot(named), Nil, root))
+      safe.foreach(root => assertEquals(standing(root)._1.filterNot(named), Nil, root))
       // what happens in time rests on nothing false of Ox 1.1.0, and on the code a fork is given ending
       live.foreach { root =>
-        val on = Ported.standing(r)(root)._1
+        val on = standing(root)._1
         assertEquals(on.filterNot(named ++ ofWhatHappensInTime ++ ofForkCode), Nil, root)
         assert(ofForkCode.forall(on.contains) && !on.contains("nothingIsAddedDuringTheLastCheck"), root)
       }
+      // that there is no data race rests on who reads and who writes a field, and on no value read
+      unraced.foreach((root, from) => assertEquals(standing(root)._1.sorted, from, root))
       // that adding stops rests on neither
-      val adding = Ported.standing(r)("addingStopsOnceTheFlagIsSet")._1
+      val adding = standing("addingStopsOnceTheFlagIsSet")._1
       assert(!adding.exists(a => ofForkCode.contains(a) || a == "nothingIsAddedDuringTheLastCheck"), adding)
       // that no thread is started rests on the platform and on the herd's flag being its own, and no more
       onTheFlag.foreach(root => assertEquals(
-        Ported.standing(r)(root)._1.filterNot(ofThePlatform), List("aHerdKeepsItsFlagToItself"), root))
+        standing(root)._1.filterNot(ofThePlatform), List("aHerdKeepsItsFlagToItself"), root))
       onTheLastCheck.foreach(n =>
-        assert(Ported.standing(r)(n)._1.contains("nothingIsAddedDuringTheLastCheck"), n))
-      assertEquals(Ported.standing(r).collect { case (n, (assumed, Nil)) if assumed.forall(ofThePlatform) => n }
+        assert(standing(n)._1.contains("nothingIsAddedDuringTheLastCheck"), n))
+      assertEquals(standing.collect { case (n, (assumed, Nil)) if assumed.forall(ofThePlatform) => n }
         .toList.sorted, provenOfTheCodeAlone.sorted)
     }
   }

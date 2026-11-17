@@ -103,7 +103,7 @@ Proof.
     | _ => Value_Null
     end).
   pose (flag := fun (s : Value) (w : Z) => s = Value_Reference 3 /\ 20 < w).
-  exists (history_of events), (fun _ _ _ => False), held, flag.
+  exists (history_of events), held, (fun _ _ _ => False), flag.
   split; [exact Hruns |]. clear Hruns.
   split.
   { intros locals code c from s g k m [[H _] _]. absent H. }
@@ -130,6 +130,21 @@ Proof.
   { intros s. split; intros who from [H _]; absent H. }
   split.
   { intros s who from [H _]. absent H. }
+  split.
+  { intros h field by_ inside w [_ H]. reveal H.
+    all: exists 1; eexists; eexists; (split; [lia | reflexivity]). }
+  split.
+  { intros h field by_ inside w [Hf H]. reveal H.
+    all: first
+      [ exfalso; repeat (destruct Hf as [Hf | Hf]); discriminate Hf
+      | exists 15; split; [split; [reflexivity | lia] |]; left; right; eexists; reflexivity
+      | exists 14; split; [split; [reflexivity | lia] |]; do 5 left; right; eexists; reflexivity ]. }
+  split.
+  { intros s field by_ inside w [Hf H]. reveal H.
+    all: exfalso; repeat (destruct Hf as [Hf | Hf]); discriminate Hf. }
+  split.
+  { intros s field by_ inside w [Hf H]. reveal H.
+    all: exfalso; repeat (destruct Hf as [Hf | Hf]); discriminate Hf. }
   split.
   { intros s x who from [H _]. absent H. }
   split.
@@ -239,7 +254,9 @@ Proof.
       split; intros [Hs Hw]; (split; [exact Hs |]); [lia |].
       destruct (Z.eq_dec w 20) as [Ew | Nw]; [destruct (Hno (conj Hs Ew)) | lia]. }
   split.
-  { intros h w (x & by_ & from & to & Hto & Hctor) method rest by2 w1 Hcall. reveal Hctor.
+  { intros h w [(x & by_ & from & to & Hto & Hctor) |
+      (su & em & pa & lo & s & from & to & [[_ [who H]] _])]; [| absent H].
+    intros method rest by2 w1 Hcall. reveal Hctor.
     change (held "ox.internal.ThreadHerd shutdownInProgress"%string (Value_Reference 2))
       with (Value_Reference 3) in *.
     reveal Hcall. exists 14. split; [right; eexists; eexists; reflexivity |].
@@ -247,7 +264,9 @@ Proof.
   split.
   { intros b x from to [who Hmade] method w Hon. reveal Hmade. reveal Hon. somewhere ltac:(reflexivity). }
   split.
-  { intros h w (x & by_ & from & to & Hto & Hctor) method rest by2 w1 Hcall. reveal Hctor.
+  { intros h w [(x & by_ & from & to & Hto & Hctor) |
+      (su & em & pa & lo & s & from & to & [[_ [who H]] _])]; [| absent H].
+    intros method rest by2 w1 Hcall. reveal Hctor.
     change (held "ox.internal.ThreadHerd threads"%string (Value_Reference 2)) with (Value_Reference 4) in *.
     reveal Hcall. exists 14. split; [right; eexists; eexists; reflexivity |].
     somewhere ltac:(eexists; reflexivity). }
@@ -283,7 +302,7 @@ Proof.
         intros (k & a & sp & Hk & Hr); scan Hr; lia ]. }
   split.
   { intros h w H. reveal H.
-    all: exists (Value_Reference 1), (Value_Reference 0), 0, 14;
+    all: left; exists (Value_Reference 1), (Value_Reference 0), 0, 14;
       split; [lia | right; split; [exists None; reflexivity | exists []; reflexivity]]. }
   split.
   { intros h. repeat split; intros w by_ inside written Hw; scan Hw; inversion Hw; subst; reflexivity. }

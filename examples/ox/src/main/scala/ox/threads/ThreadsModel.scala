@@ -29,7 +29,8 @@ private val once: List[FrModel.Part] = List(
   closingTraversesWithAFunction.refines(closingsTraversalsReturn),
   closingsFunctionsReturn.refines(closingsTraversalsReturn),
   whatClosingsFunctionsApplyReturns.refines(closingsFunctionsReturn),
-  closingKeepsItsVariableToItself.refines(closingsFunctionsReturn, whatClosingsFunctionsApplyInterrupts),
+  closingKeepsItsVariableToItself.refines(closingsFunctionsReturn, whatClosingsFunctionsApplyInterrupts,
+    noRaceOnClosingsVariables),
   closingsVariablesAreWrittenByItsFunctions.refines(whatClosingsFunctionsApplyInterrupts),
   joinThrowsOnlyAnInterruption.refines(closingsFunctionsReturn, whatClosingsFunctionsApplyReturns,
     whatClosingsFunctionsApplyInterrupts, closingsFunctionsRespond, closingsFunctionsInterrupt),
@@ -115,7 +116,7 @@ private val once: List[FrModel.Part] = List(
   herdsAreConstructed.refines(herdsAreMade, closingSetsTheFlag, aClosedHerdRefusesToStart, nothingIsAddedOnceEmpty,
     aForkEndsOnceInterrupted, closingsTraversalsRespond, closingCompletesOnceItsHerdEmpties,
     nothingIsBeingAddedWhenEmpty, everyForkHasLeftOnceClosed, startThreadCallersStayInside, codeRunsBeforeLeaving,
-    anInterruptedForkLeavesForGood, closingCompletes),
+    anInterruptedForkLeavesForGood, closingCompletes, aHerdsValsAreReadOnceItIsReady),
   aHerdsFlagIsNew.refines(aHerdsFlagIsOnlyReadAndSet), aHerdsSetIsNew.refines(aHerdsSetIsPlain),
   aHerdHoldsWhatItWasGiven.refines(aHerdsFlagIsNew, aHerdsSetIsNew, aScopesHerdIsItsMakers),
 
@@ -129,7 +130,8 @@ private val once: List[FrModel.Part] = List(
     aForkFunctionCompletesOnceItsCodeDoes, startThreadAddsOnce, startThreadStartsWhatItAdded,
     whatClosingsFunctionsApplyInterrupts, closingsFunctionsRespond, theOwnerCheckResponds,
     closingCompletesOnceItsHerdEmpties, closingsFunctionsInterrupt,
-    aForkFunctionRemovesItsThread, startThreadStartsAfterItsAddIsOver),
+    aForkFunctionRemovesItsThread, startThreadStartsAfterItsAddIsOver, aHerdsValsAreReadOnceItIsReady,
+    noRaceOnClosingsVariables),
   aHerdKeepsItsFields.refines(startThreadReadsTheFlagUnset, closingSetsTheFlagItself,
     theForkFunctionRemovesTheCurrentThread, closingEndsOnceFoundEmpty, closingCompletesOnceItsHerdEmpties,
     aForkFunctionRemovesItsThread),
@@ -145,4 +147,5 @@ private val once: List[FrModel.Part] = List(
   history.executing(Read.of(classOf[ThreadHerd], Set("ox/internal/ThreadHerd.tasty", "ox/OxError.tasty",
     "ox/unsupervised$package.tasty", "ox/supervised$package.tasty", "ox/fork$package.tasty"))))
 
-val oxThreads: FrModel = FrModel("OxThreads")((roots ++ inTime ++ ofScopes ++ once)*)
+val oxThreads: FrModel =
+  FrModel("OxThreads")((roots ++ withoutRaces ++ scopesWithoutRaces ++ inTime ++ ofScopes ++ once)*)

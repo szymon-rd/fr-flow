@@ -2,21 +2,20 @@ package ox.threads
 
 import frflow.{Call as _, *}
 import frflow.code.*
-import frflow.code.InCode.given
 import frflow.executions.*
 import frflow.values.*
-import java.util.concurrent.{ConcurrentHashMap, ThreadFactory}
+import java.util.concurrent.ConcurrentHashMap
 import java.util.concurrent.atomic.AtomicBoolean
 import ox.internal.ThreadHerd
 
 // How a herd is made: what its constructor, as Ox's jar has it, gives each of its fields.
 
-/** Making a herd with the factory: a call of its constructor. */
-def makingAHerd(f: Obj[ThreadFactory])(using Stating): Call[ThreadHerd] = new ThreadHerd(f)
-
+// A herd does not leave what makes it before it is made: its constructor hands it to nothing, and the scope's
+// `apply`, which makes one in place, only to the scope it returns.
 val herdsAreConstructed = Node.assumption(
-  "A method of a herd is called only on a herd that a call of its constructor has returned.")(
-  forall((h: Obj[ThreadHerd]) => h.isConstructedWhenCalled))
+  "A method of a herd is called only on a herd that is ready: one that a call of its constructor has " +
+    "returned, or that a scope returned by a call making a scope holds.")(
+  forall((h: Obj[ThreadHerd]) => h.whenCalled(w => ready(h, w))))
 
 val aHerdHoldsWhatItWasGiven = Node.assumption("Each val of a herd holds what it was given when the herd was made.")(
   forall((h: Obj[ThreadHerd]) => h.holdsWhatItsValsAreGiven))
@@ -25,19 +24,13 @@ val herdsAreMade = Node.claim("A method of a herd is called only on a herd that 
   forall((h: Obj[ThreadHerd]) => h.isMadeWhenCalled))
 
 val aHerdsFlagIsNew = Node.claim(
-  "What a herd holds as its flag is what `new AtomicBoolean(false)` returned to the call of the constructor " +
-    "that returned the herd.")(
-  forall((f: Obj[ThreadFactory], c: Obj[Thread], h: Obj[ThreadHerd], from: Term[BigInt], to: Term[BigInt]) =>
-    makingAHerd(f).by(c).completed(from, Returned(h), to) implies
-      exists((a: Term[BigInt], b: Term[BigInt]) => from < a && b <= to &&
-        call(new AtomicBoolean(false)).by(c).calledInside(from, a) &&
-        call(new AtomicBoolean(false)).by(c).completed(a, Returned(shutdown(h)), b))))
+  "What a ready herd holds as its flag is what a call of `new AtomicBoolean(false)` returned.")(
+  forall((h: Obj[ThreadHerd], w: Term[BigInt]) =>
+    ready(h, w) implies exists((a: Term[BigInt], b: Term[BigInt]) =>
+      call(new AtomicBoolean(false)).completed(a, Returned(shutdown(h)), b))))
 
 val aHerdsSetIsNew = Node.claim(
-  "What a herd holds as its set is what `ConcurrentHashMap.newKeySet()` returned to the call of the constructor " +
-    "that returned the herd.")(
-  forall((f: Obj[ThreadFactory], c: Obj[Thread], h: Obj[ThreadHerd], from: Term[BigInt], to: Term[BigInt]) =>
-    makingAHerd(f).by(c).completed(from, Returned(h), to) implies
-      exists((a: Term[BigInt], b: Term[BigInt]) => from < a && b <= to &&
-        ConcurrentHashMap.newKeySet[AnyRef]().by(c).calledInside(from, a) &&
-        ConcurrentHashMap.newKeySet[AnyRef]().by(c).completed(a, Returned(threads(h)), b))))
+  "What a ready herd holds as its set is what a call of `ConcurrentHashMap.newKeySet()` returned.")(
+  forall((h: Obj[ThreadHerd], w: Term[BigInt]) =>
+    ready(h, w) implies exists((a: Term[BigInt], b: Term[BigInt]) =>
+      ConcurrentHashMap.newKeySet[AnyRef]().completed(a, Returned(threads(h)), b))))

@@ -12,18 +12,6 @@ import ox.threads.*
 // A scope of Ox: an object holding a herd of its own. Code is run in a scope by `scopedWithCapability`, which
 // closes the scope's herd before it ends: so what holds of a closed herd holds of the scope's herd from then on.
 
-/** A scope, as `unsupervised` and `supervised` make it. */
-type Scope = OxError[Nothing, [T] =>> T]
-
-/** The herd a scope holds. */
-def herdOf(s: Obj[Scope])(using Stating): Obj[ThreadHerd] = s.field("herd")
-
-/** Making a scope: `OxError(supervisor, errorMode, parent, locals)`, which makes the scope's herd. */
-def makingAScope(supervisor: Term[Value], errorMode: Term[Value], parent: Term[Value], locals: Term[Value])
-    : Call[Scope] =
-  Call.of[Scope](methodCalled(OxError[Nothing, [T] =>> T](???, ???, ???, ???)), supervisor, errorMode, parent,
-    locals)
-
 /** Running code in a scope until the scope ends: `scopedWithCapability(scope)(code)`. */
 def runningIn(s: Obj[Scope], code: Term[Value]): Call[Any] =
   Call.of[Any](methodCalled(ox.scopedWithCapability[Any](???)(???)), s.asValue, code)

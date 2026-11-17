@@ -27,7 +27,7 @@ def ofAnAtomicBoolean(made: Term[Invocation]): Term[Boolean] =
 val aHerdKeepsItsFlagToItself = Node.assumption(
   "What a herd holds as its flag is called on only by the herd's own methods, themselves.")(
   forall((h: Obj[ThreadHerd], w: Term[BigInt]) =>
-    h.isConstructed(w) implies h.keepsToItself(shutdown(h).asValue)((_, _) => False)))
+    ready(h, w) implies h.keepsToItself(shutdown(h).asValue)((_, _) => False)))
 
 val anAtomicBooleanHasOnlyItsMethods = Node.assumption(
   "On what `new AtomicBoolean` returned, only methods of an atomic boolean are called.")(

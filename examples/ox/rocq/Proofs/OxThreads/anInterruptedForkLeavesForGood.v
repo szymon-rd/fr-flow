@@ -12,9 +12,7 @@ Proof.
     h t code made [Hmade Hint].
   destruct Hmade as (c & afrom & added & ato & [Hto Hadded] & (m0 & Hm0 & Hbegun0 & Hnotover0)).
   pose proof (begun_is_called _ _ _ _ Hbegun0) as Hcalled0.
-  assert (exists x by_ from to, to <= afrom /\ completedBy history (Invocation_mk
-    "ox.internal.ThreadHerd <init> java.util.concurrent.ThreadFactory:ox.internal.ThreadHerd"%string [x])
-    by_ from (Response_Returned h) to) as Hcons.
+  assert (ready heldIn history h afrom) as Hcons.
   { apply (herd_constructed_later history h m0 afrom ltac:(lia)). apply (Hconstructed h m0).
     do 5 left. unfold calledOn. eauto 14. }
   destruct (Honly h t c afrom afrom (conj Hcons (completed_was_called _ _ _ _ _ _ Hadded)))

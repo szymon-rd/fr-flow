@@ -7,8 +7,7 @@ Require Export Proofs.OxThreads.Lemmas.
 Lemma aHerdsSetIsPlain_Proofs_complete : aHerdsSetIsPlain_Obl_complete.
 Proof.
   intros heldIn history _ Hkeeps Hkeyset Hcalls Hnew h w Hconstructed.
-  pose proof Hconstructed as (x & maker & from & to & _ & Hdone).
-  destruct (Hnew x maker h from to Hdone) as (a & b & [_ Hmadeset]).
+  destruct (Hnew h w Hconstructed) as (a & b & maker & Hmadeset).
   split; [exists a, b, maker; exact Hmadeset |].
   intros method w1 (rest & who & Hcalled).
   pose proof (Hkeyset _ a b (ex_intro _ maker Hmadeset) method w1
@@ -26,10 +25,10 @@ Proof.
   exists (fun _ x => x), (fun _ => Event_Stutter).
   split; [exact rest_runs |].
   split.
-  { intros h w (x & who & from & to & _ & H). destruct (nothing_completed_at_rest _ _ _ _ _ H). }
+  { intros h w Hready. destruct (nothing_ready_at_rest _ _ _ Hready). }
   split.
   { intros s from to (who & H). destruct (nothing_completed_at_rest _ _ _ _ _ H). }
   split.
   { intros h c i made w [[_ H] _]. destruct H as [H | (a & spawns & H)]; discriminate H. }
-  intros f c h from to H. destruct (nothing_completed_at_rest _ _ _ _ _ H).
+  intros h w Hready. destruct (nothing_ready_at_rest _ _ _ Hready).
 Qed.

@@ -94,7 +94,7 @@ Proof.
       assert (ce = owner h) as Hce.
       { apply (Hkeeps h (owner h) from yvar ce wr).
         split; [split; [split; [exists inside; exact Hcall | exact I] | exists wvar; eauto] |].
-        unfold touches. eauto 6. }
+        unfold touches. eauto 7. }
       assert ((exists kw insw, kw < wr /\ history kw = Event_Write ce insw yvar
           (field_label Code_table "<var>:scala.collection.immutable.Set" "value") yheld) \/
         names N yheld (vdata c_set [VList []])) as Hfound.
@@ -104,7 +104,7 @@ Proof.
           rewrite Hevar in Hm. injection Hm as <- _ _ _. symmetry. exact Hce.
         - intros kw bw insw fw yw Hw. rewrite Hce. apply (Hkeeps h (owner h) from yvar bw kw).
           split; [split; [split; [exists inside; exact Hcall | exact I] | exists wvar; eauto] |].
-          unfold touches. eauto 6.
+          unfold touches. eauto 7.
         - left. eauto.
         - right. pose proof (made_at_one C Hm Hevar) as ->. rewrite Hevar in Hm. injection Hm as _ _ _ Ehs.
           exact (Hfirst _ _ Ehs). }
@@ -144,7 +144,7 @@ Proof.
           rewrite Hevar in Hm. injection Hm as <- _ _ _. symmetry. exact Hce.
         - intros kw bw insw fw yw Hw. rewrite Hce. apply (Hkeeps h (owner h) from yvar bw kw).
           split; [split; [split; [exists inside; exact Hcall | exact I] | exists wvar; eauto] |].
-          unfold touches. eauto 6.
+          unfold touches. eauto 7.
         - left. eauto.
         - right. pose proof (made_at_one C Hm Hevar) as ->. rewrite Hevar in Hm. injection Hm as _ _ _ Ehs.
           exact (Hfirst _ _ Ehs). }
@@ -221,7 +221,7 @@ Proof.
       assert (ce = owner h) as Hce.
       { apply (Hkeeps h (owner h) from yvar ce wr).
         split; [split; [split; [exists inside; exact Hcall | exact I] | exists wvar; eauto] |].
-        unfold touches. eauto 6. }
+        unfold touches. eauto 7. }
       assert ((exists kw insw, kw < wr /\ history kw = Event_Write ce insw yvar
           (field_label Code_table "<var>:scala.collection.immutable.Set" "value") yheld) \/
         names N yheld (vdata c_set [VList []])) as Hfound.
@@ -231,7 +231,7 @@ Proof.
           rewrite Hevar in Hm. injection Hm as <- _ _ _. symmetry. exact Hce.
         - intros kw bw insw fw yw Hw. rewrite Hce. apply (Hkeeps h (owner h) from yvar bw kw).
           split; [split; [split; [exists inside; exact Hcall | exact I] | exists wvar; eauto] |].
-          unfold touches. eauto 6.
+          unfold touches. eauto 7.
         - left. eauto.
         - right. pose proof (made_at_one C Hm Hevar) as ->. rewrite Hevar in Hm. injection Hm as _ _ _ Ehs.
           exact (Hfirst _ _ Ehs). }
@@ -271,7 +271,7 @@ Proof.
           rewrite Hevar in Hm. injection Hm as <- _ _ _. symmetry. exact Hce.
         - intros kw bw insw fw yw Hw. rewrite Hce. apply (Hkeeps h (owner h) from yvar bw kw).
           split; [split; [split; [exists inside; exact Hcall | exact I] | exists wvar; eauto] |].
-          unfold touches. eauto 6.
+          unfold touches. eauto 7.
         - left. eauto.
         - right. pose proof (made_at_one C Hm Hevar) as ->. rewrite Hevar in Hm. injection Hm as _ _ _ Ehs.
           exact (Hfirst _ _ Ehs). }
@@ -318,7 +318,7 @@ Proof.
       assert (b = owner h0) as ->.
       { apply (Hkeeps h0 (owner h0) from0 yo b k).
         split; [split; [split; [exists inside0; exact Hcall0 | exact I] | exists m0; eauto] |].
-        unfold touches. eauto 6. }
+        unfold touches. eauto 7. }
       destruct (Hwriters h0 from0 yo (owner h0) ins k)
         as (f & x & kf & [(from' & a & [[Ha Hcalled'] Hmakes']) Hacc] & Hwhere).
       { split; [split; [exact Hcalled0 | exists m0, cls0, hs0; exact Hmake0] | exists fld, y; exact Hwrite]. }

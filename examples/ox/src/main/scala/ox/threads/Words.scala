@@ -7,6 +7,7 @@ import frflow.executions.*
 import frflow.values.*
 import java.util.concurrent.{ConcurrentHashMap, ThreadFactory}
 import java.util.concurrent.atomic.AtomicBoolean
+import ox.OxError
 import ox.internal.ThreadHerd
 
 // The words of the model: a herd's set and its owner, and what a thread is to a herd. Every word is said of calls
@@ -80,3 +81,26 @@ val madeFor = stated { (t: Obj[Thread], c: Obj[Thread], from: Term[BigInt], b: T
   exists((f: Obj[ThreadFactory], r: Obj[Runnable], a: Term[BigInt], done: Term[BigInt]) =>
     done <= b && f.newThread(r).by(c).calledInside(from, a) &&
       f.newThread(r).by(c).completed(a, Returned(t), done)) }
+
+/** A scope, as `unsupervised` and `supervised` make it. */
+type Scope = OxError[Nothing, [T] =>> T]
+
+/** The herd a scope holds. */
+def herdOf(s: Obj[Scope])(using Stating): Obj[ThreadHerd] = s.field("herd")
+
+/** Making a scope: `OxError(supervisor, errorMode, parent, locals)`, which makes the scope's herd. */
+def makingAScope(supervisor: Term[Value], errorMode: Term[Value], parent: Term[Value], locals: Term[Value])
+    : Call[Scope] =
+  Call.of[Scope](methodCalled(OxError[Nothing, [T] =>> T](???, ???, ???, ???)), supervisor, errorMode, parent,
+    locals)
+
+/** The herd is ready by the moment: a call of its constructor has returned it, or a call making a scope has
+  * returned a scope that holds it. These are the two ways the code read makes a herd: where Ox's own code makes
+  * one, for a scope, it makes it in place, and no call of the constructor is an event.
+  */
+val ready = stated { (h: Obj[ThreadHerd], w: Term[BigInt]) =>
+  h.isConstructed(w) ||
+    exists((supervisor: Term[Value], errorMode: Term[Value], parent: Term[Value], locals: Term[Value]) =>
+      exists((s: Obj[Scope], from: Term[BigInt], to: Term[BigInt]) =>
+        to <= w && makingAScope(supervisor, errorMode, parent, locals).completed(from, Returned(s), to) &&
+          (herdOf(s) === h))) }
