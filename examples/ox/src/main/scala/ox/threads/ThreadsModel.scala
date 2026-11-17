@@ -15,7 +15,12 @@ private val roots: List[FrModel.Part] = List(
   noForkRunsOnceUnsupervisedEnds, nothingIsAddedOnceUnsupervisedEnds, noThreadIsStartedOnceUnsupervisedEnds,
   noForkRunsOnceSupervisedEnds, nothingIsAddedOnceSupervisedEnds, noThreadIsStartedOnceSupervisedEnds,
   whatAForkBeganIsOverOnceUnsupervisedEnds, whatAForkBeganIsOverOnceSupervisedEnds,
-  closingCompletes, closingCompletesOnceItsHerdEmpties.refines(closingCompletes))
+  aScopesHerdIsClosedInTime, closingCompletes.refines(aScopesHerdIsClosedInTime),
+  closingCompletesOnceItsHerdEmpties.refines(closingCompletes),
+  aScopesClosingIsReached.refines(aScopesHerdIsClosedInTime),
+  runningInAScopeProceeds.refines(aScopesClosingIsReached),
+  whatRunningInAScopeAppliesProceeds.refines(aScopesClosingIsReached),
+  theCurrentScopeResponds.refines(aScopesClosingIsReached), aScopesHerdResponds.refines(aScopesClosingIsReached))
 
 // What holds once a scope's call has completed, and of a herd once closed.
 private val once: List[FrModel.Part] = List(
@@ -34,9 +39,10 @@ private val once: List[FrModel.Part] = List(
   unsupervisedRunsInTheScopeItMade.refines(unsupervisedClosesItsScopesHerd),
   supervisedRunsInTheScopeItMade.refines(supervisedClosesItsScopesHerd),
   aScopeEndsAfterItsHerdIsClosed.refines(unsupervisedClosesItsScopesHerd, supervisedClosesItsScopesHerd),
-  aScopesHerdIsItsMakers.refines(unsupervisedClosesItsScopesHerd, supervisedClosesItsScopesHerd),
-  aScopeGivesTheHerdItHolds.refines(aScopeEndsAfterItsHerdIsClosed),
-  theCurrentScopeIsReadAndSet.refines(aScopeEndsAfterItsHerdIsClosed),
+  aScopesHerdIsItsMakers.refines(unsupervisedClosesItsScopesHerd, supervisedClosesItsScopesHerd,
+    aScopesHerdIsClosedInTime),
+  aScopeGivesTheHerdItHolds.refines(aScopeEndsAfterItsHerdIsClosed, aScopesClosingIsReached),
+  theCurrentScopeIsReadAndSet.refines(aScopeEndsAfterItsHerdIsClosed, aScopesClosingIsReached),
   aScopeHoldsTheHerdItIsMadeWith.refines(aScopesHerdIsItsMakers),
 
   everyForkHasLeftOnceClosed.refines(noForkRunsOnceClosed),

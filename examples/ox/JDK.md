@@ -71,6 +71,7 @@ statements about `isEmpty` cannot be had from the documentation.
 | Assumed | Basis |
 |---|---|
 | `currentThreadResponds`, `interruptResponds`, `addSuppressedResponds`, `settingResponds`, `isEmptyResponds`, `addingResponds`, `removingResponds`: the call is responded to. | implementation, given the caller its turn: none of them blocks. `add` and `remove` take a bin's lock, held by other threads for a bounded number of their own steps. |
+| `theCurrentScopeResponds`: `get` and `set` of the `ThreadLocal` are responded to. | implementation, given the caller its turn: neither blocks. |
 | `aTraversalRespondsOnceItsFunctionDoes`: `forEach` on a set to which nothing more is added is responded to, if each call of its function is. | implementation: the walk is over a table that no longer grows. |
 | `joinRespondsOnceItsThreadHasRun`: `join` on a thread a factory made for a function is responded to, once the thread's call of the function has been. | documented ("Waits for this thread to terminate"), of a thread whose `run` is the function it was made for: it terminates when the function ends. |
 | `aStartedThreadRunsItsFunction`: a thread a factory made for a function calls it, once started. | documented (`start`: "Schedules this thread to begin execution"), of such a thread, and of a scheduler that gives it a turn. |

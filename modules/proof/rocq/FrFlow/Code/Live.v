@@ -14,7 +14,7 @@
     - `leads_called`: a call of what is outside the code is made in time, and once it is responded to;
     - `leads_method`, `leads_function`: the same of a method of the code, of a function;
     - `leads_iter`: a loop is its body, then the loop again or what follows it;
-    - `leads_called_done`, `leads_method_done`: the call made is what was to come.
+    - `leads_called_done`, `leads_method_done`, `leads_function_done`: the call made is what was to come.
 
     A call known to make an event later (`ahead_…`) is responded to in each call it makes before it.
 
@@ -363,6 +363,18 @@ Section Live.
     apply takes_method_call in Ht as (ys & Hys & He & _). exact (H w1 ys Hw1 Hq Hys He).
   Qed.
 
+  Lemma leads_function_done w0 c arg (k : res -> program) :
+    applied c arg ->
+    (forall w1 m y ys, w0 <= w1 -> quiet w0 w1 -> called_as c arg m -> names N y (VCode c) ->
+       Forall2 (names N) ys (arguments arg) ->
+       history w1 = Event_Invoke a (Some i) (Invocation_mk m (y :: ys)) -> G) ->
+    leads w0 (Running (Call c arg k)).
+  Proof.
+    intros Hc H. apply leads_running. intros w1 st1 at_ Hw1 Hi1 Hq Ht _ _ _ _ _.
+    apply (takes_function_call Hc) in Ht as (m & y & ys & Hcm & Hy & Hys & He & _).
+    exact (H w1 m y ys Hw1 Hq Hcm Hy Hys He).
+  Qed.
+
   (** ** An event the call is known to make later
 
       A call that is known to make an event at `later` (it has been seen to add a thread, say) is responded to
@@ -561,4 +573,5 @@ Ltac lstep_done :=
   | |- leads _ _ _ _ _ _ _ _ (Running (Vis (ExtCall 0 _ _) _)) => apply leads_called_done
   | |- leads _ _ _ _ _ _ _ _ (Running (Call (Method ?s) _ _)) =>
       let said := eval lazy in (label_of s) in eapply leads_method_done with (m := said); [reflexivity |]
+  | |- leads _ _ _ _ _ _ _ _ (Running (Call _ _ _)) => apply leads_function_done; [exact I |]
   end.

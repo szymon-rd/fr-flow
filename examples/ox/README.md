@@ -40,9 +40,23 @@ One statement says what happens in time:
 
 | Root | Says |
 |---|---|
+| `aScopesHerdIsClosedInTime` | A call running code in a scope, by the thread that made the scope, closes the scope's herd in time, if each call of the code on the scope that the thread makes is responded to: closing is called, and is responded to. |
+
+Running code in a scope is `scopedWithCapability`, which `unsupervised` and `supervised` both call, on the
+thread that made the scope. The root is from three statements, each proven:
+
+| Statement | Says |
+|---|---|
+| `aScopesClosingIsReached` | A call running code in a scope calls closing on the scope's herd in time, if each call of the code on the scope that its thread makes is responded to. |
+| `aScopesHerdIsItsMakers` | The herd a scope holds is one whose owner is the thread that made the scope. |
 | `closingCompletes` | A call of closing on a herd by its owner is responded to, in time. |
 
-The root is from two statements, each proven:
+The first is proven of `scopedWithCapability`'s tree and of the tree of the function it applies, gone through
+in time: given its turn, the call reads the thread's scope and sets it, each responded to; the function it
+applies, given its turn, applies the code to the scope; whatever that gave, it asks the scope for its herd, and
+calls closing on it.
+
+That closing completes is from two statements, each proven:
 
 | Statement | Says |
 |---|---|
@@ -114,7 +128,7 @@ weakest of its assumptions is:
   false of Ox 1.1.0**: a defect that can be reproduced, for which its owner has a patch. They are proven from
   it, and hold of Ox once the patched code is what the model reads; of Ox 1.1.0 they are not shown.
 
-Thirty claims are proven of the code's trees, each gone through whole (the four of a scope among them). Three
+Thirty-one claims are proven of the code's trees, each gone through whole (the four of a scope among them). Three
 are of what making a herd runs: a herd has been made, and its flag and its set are what `new AtomicBoolean(false)` and
 `ConcurrentHashMap.newKeySet()` returned to the call that made it. Eight say what a piece of the herd's code calls
 itself: one per method (`startThreadCallsFive`, `closingCallsFour`, `theClosingCheckCallsGet`,
@@ -245,7 +259,7 @@ documentation or its code, in [`JDK.md`](JDK.md)):
 - **Ox's scopes, which are not read** (1): `aScopesHerdAndParentStayOutOfHerds`. Asking a scope for its herd or
   its parent neither closes a herd nor removes from a herd's set. Both are vals of a scope; the classes of
   scopes are not read here, so this is an assumption about code of Ox, the one of its kind.
-- **What happens in time** (16). Nothing happens in time unless it is assumed that threads are given their turn
+- **What happens in time** (20). Nothing happens in time unless it is assumed that threads are given their turn
   and that calls of what is outside the code are responded to: an execution in which every thread stops for
   good is one of the code. `aHerdsMethodsProceed`, `aForkFunctionProceeds`: a call of this code that is pending
   and waits for no call it made makes its next event (`aHerdsMethodsProceed` is of every method of a herd).
@@ -261,7 +275,10 @@ documentation or its code, in [`JDK.md`](JDK.md)):
   to which nothing more is added is responded to, if each call of its function that it itself makes is.
   `theExecutionBegins`: nothing is called before the execution begins (an execution has a first moment).
   `settingResponds`, `isEmptyResponds`, `addingResponds`: a call that sets an atomic boolean, one that asks a
-  set whether it is empty, and one that adds to a set, is responded to.
+  set whether it is empty, and one that adds to a set, is responded to. `runningInAScopeProceeds`,
+  `whatRunningInAScopeAppliesProceeds`: a call running code in a scope, and a call of a function it itself
+  makes, proceed. `theCurrentScopeResponds`, `aScopesHerdResponds`: reading a thread's current scope, setting
+  it, and asking a scope for its herd are responded to.
 - **The code a fork is given** (1): `forkCodeCompletesOnceInterrupted`. The code a fork was made to run is
   responded to in time, once the fork has been interrupted, whenever that was. It is a restriction on who uses
   Ox: code that ignores interruption and never ends keeps its scope from ending.
@@ -291,7 +308,11 @@ is an object like any other. A handler for every `Throwable` takes whatever is t
   responded to in time once the fork has been interrupted is assumed of that code
   (`forkCodeCompletesOnceInterrupted`), and shown of none. A fork that swallows the interruption and goes on
   keeps closing waiting, in Ox as in the model.
-- That a scope and `supervised` complete: that closing is reached, and that what follows it ends.
+- That `unsupervised` and `supervised` complete. What is proven is the middle: running code in a scope comes
+  to closing the scope's herd once the code has ended, and closing completes. Not proven: that the call comes to
+  running code in the scope (making the scope, and for `supervised` its supervisor, is responded to), that the
+  code given to `supervised`'s scope ends (it waits for the supervisor), and that what follows closing ends (the
+  scope's finalizers, which are the user's code, run uninterruptibly).
 - That no run of Ox's code has a data race. The model takes it that the events of threads come one after
   another, which the JVM grants only to a program without one (JLS 17.4.5). It was proven of a herd in a
   separation logic over the machine, which is removed with the proofs it was unconnected to; it is to be proven
@@ -311,7 +332,7 @@ is an object like any other. A handler for every `Throwable` takes whatever is t
   retries and scheduling, actors.
 - That the statements at the bottom can hold together is shown by one execution, in which a thread makes a herd
   and closes it (`rocq/Proofs/OxThreads/Whole.v`): its 27 events are written out, each of its three calls is
-  shown to follow the code read from Ox, event by event, and each of the 63 statements is shown of it. It has
+  shown to follow the code read from Ox, event by event, and each of the 67 statements is shown of it. It has
   no fork, no thread started and no scope: of what is assumed of those it shows only that it does not
   contradict what happens to a herd alone. An execution with a fork is the next one to write out. That each
   step's parts can hold together is still shown by the execution in which nothing happens; it follows from the

@@ -45,7 +45,8 @@ import scala.concurrent.duration.*
     "removingResponds", "discardResponds", "aStartedThreadRunsItsFunction", "closingsFunctionsProceed",
     "whatClosingsFunctionsApplyProceeds", "interruptResponds", "addSuppressedResponds",
     "joinRespondsOnceItsThreadHasRun", "aTraversalRespondsOnceItsFunctionDoes", "theExecutionBegins",
-    "settingResponds", "isEmptyResponds", "addingResponds")
+    "settingResponds", "isEmptyResponds", "addingResponds", "runningInAScopeProceeds",
+    "whatRunningInAScopeAppliesProceeds", "theCurrentScopeResponds", "aScopesHerdResponds")
 
   /** What is assumed of the code a fork is given: a restriction on who uses Ox. */
   private val ofForkCode = List("forkCodeCompletesOnceInterrupted")
@@ -88,7 +89,7 @@ import scala.concurrent.duration.*
       s"whatAForkBeganIsOverOnce${of}Ends"))
 
   /** What happens in time. */
-  private val live = List("closingCompletes")
+  private val live = List("aScopesHerdIsClosedInTime")
   private val roots = safe ++ live
 
   /** What rests on the assumption false of Ox 1.1.0: everything but that no thread is started. */

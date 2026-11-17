@@ -106,6 +106,14 @@ Proof.
   exists (history_of events), (fun _ _ _ => False), held, flag.
   split; [exact Hruns |]. clear Hruns.
   split.
+  { intros s g c from H. absent H. }
+  split.
+  { intros s g c from own a [H _]. absent H. }
+  split.
+  { intros s. split; intros who from [H _]; absent H. }
+  split.
+  { intros s who from [H _]. absent H. }
+  split.
   { intros s x who from [H _]. absent H. }
   split.
   { intros s b who from [H _]. absent H. }
