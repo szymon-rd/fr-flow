@@ -11,55 +11,8 @@ import ox.scopes.*
 // holds once a herd is closed, and what makes that hold. That no thread is started rests on the herd's flag
 // alone; the other two, on who starts a thread. All of it is of Ox's code as its jar has it.
 
-private val roots: List[FrModel.Part] = List(
-  noForkRunsOnceUnsupervisedEnds, nothingIsAddedOnceUnsupervisedEnds, noThreadIsStartedOnceUnsupervisedEnds,
-  noForkRunsOnceSupervisedEnds, nothingIsAddedOnceSupervisedEnds, noThreadIsStartedOnceSupervisedEnds,
-  whatAForkBeganIsOverOnceUnsupervisedEnds, whatAForkBeganIsOverOnceSupervisedEnds,
-  forkUnsupervisedIsRefusedOnceUnsupervisedEnds, forkUnsupervisedIsRefusedOnceSupervisedEnds,
-  forkIsRefusedOnceSupervisedEnds,
-  aScopesHerdIsClosedInTime, closingCompletes.refines(aScopesHerdIsClosedInTime),
-  closingCompletesOnceItsHerdEmpties.refines(closingCompletes),
-  aScopesClosingIsReached.refines(aScopesHerdIsClosedInTime),
-  runningInAScopeProceeds.refines(aScopesClosingIsReached),
-  whatRunningInAScopeAppliesProceeds.refines(aScopesClosingIsReached),
-  theCurrentScopeResponds.refines(aScopesClosingIsReached), aScopesHerdResponds.refines(aScopesClosingIsReached))
-
 // What holds once a scope's call has completed, and of a herd once closed.
 private val once: List[FrModel.Part] = List(
-  // A scope: `unsupervised` and `supervised` make one, run code in it, and its herd is closed before they end.
-  unsupervisedClosesItsScopesHerd.refines(noForkRunsOnceUnsupervisedEnds, nothingIsAddedOnceUnsupervisedEnds,
-    noThreadIsStartedOnceUnsupervisedEnds, whatAForkBeganIsOverOnceUnsupervisedEnds,
-    forkUnsupervisedIsRefusedOnceUnsupervisedEnds),
-  supervisedClosesItsScopesHerd.refines(noForkRunsOnceSupervisedEnds, nothingIsAddedOnceSupervisedEnds,
-    noThreadIsStartedOnceSupervisedEnds, whatAForkBeganIsOverOnceSupervisedEnds,
-    forkUnsupervisedIsRefusedOnceSupervisedEnds, forkIsRefusedOnceSupervisedEnds),
-  forkUnsupervisedIsRefusedOnceClosed.refines(forkUnsupervisedIsRefusedOnceUnsupervisedEnds,
-    forkUnsupervisedIsRefusedOnceSupervisedEnds),
-  forkUnsupervisedStartsAThread.refines(forkUnsupervisedIsRefusedOnceClosed),
-  forkStartsAThread.refines(forkIsRefusedOnceSupervisedEnds),
-  aScopeMadeIsAnObject.refines(forkIsRefusedOnceSupervisedEnds),
-  forkErrorStartsAThread.refines(forkStartsAThread), asNoErrorModeKeepsTheHerd.refines(forkStartsAThread),
-  aConstructedScopeIsMade.refines(aScopeMadeIsAnObject, asNoErrorModeKeepsTheHerd),
-  aScopeIsConstructed.refines(aScopeMadeIsAnObject, asNoErrorModeKeepsTheHerd),
-  aScopeKeepsItsFields.refines(asNoErrorModeKeepsTheHerd, forkErrorStartsAThread),
-  whatAForkBeganIsOverOnceClosed.refines(whatAForkBeganIsOverOnceUnsupervisedEnds,
-    whatAForkBeganIsOverOnceSupervisedEnds),
-  noForkRunsOnceClosed.refines(noForkRunsOnceUnsupervisedEnds, noForkRunsOnceSupervisedEnds,
-    whatAForkBeganIsOverOnceClosed),
-  callsNest.refines(whatAForkBeganIsOverOnceClosed), aCallEndsAfterTheCallsItMade.refines(callsNest),
-  nothingIsAddedOnceClosed.refines(nothingIsAddedOnceUnsupervisedEnds, nothingIsAddedOnceSupervisedEnds),
-  aClosedHerdRefusesToStart.refines(noThreadIsStartedOnceUnsupervisedEnds, noThreadIsStartedOnceSupervisedEnds,
-    forkUnsupervisedIsRefusedOnceClosed, forkIsRefusedOnceSupervisedEnds),
-  unsupervisedRunsInTheScopeItMade.refines(unsupervisedClosesItsScopesHerd),
-  supervisedRunsInTheScopeItMade.refines(supervisedClosesItsScopesHerd),
-  aScopeEndsAfterItsHerdIsClosed.refines(unsupervisedClosesItsScopesHerd, supervisedClosesItsScopesHerd),
-  aScopesHerdIsItsMakers.refines(unsupervisedClosesItsScopesHerd, supervisedClosesItsScopesHerd,
-    aScopesHerdIsClosedInTime),
-  aScopeGivesTheHerdItHolds.refines(aScopeEndsAfterItsHerdIsClosed, aScopesClosingIsReached,
-    forkUnsupervisedStartsAThread),
-  theCurrentScopeIsReadAndSet.refines(aScopeEndsAfterItsHerdIsClosed, aScopesClosingIsReached),
-  aScopeHoldsTheHerdItIsMadeWith.refines(aScopesHerdIsItsMakers, asNoErrorModeKeepsTheHerd),
-
   everyForkHasLeftOnceClosed.refines(noForkRunsOnceClosed),
   codeRunsBeforeLeaving.refines(noForkRunsOnceClosed),
   onlyAForkFunctionCallsTheCode.refines(codeRunsBeforeLeaving),
@@ -192,4 +145,4 @@ private val once: List[FrModel.Part] = List(
   history.executing(Read.of(classOf[ThreadHerd], Set("ox/internal/ThreadHerd.tasty", "ox/OxError.tasty",
     "ox/unsupervised$package.tasty", "ox/supervised$package.tasty", "ox/fork$package.tasty"))))
 
-val oxThreads: FrModel = FrModel("OxThreads")((roots ++ inTime ++ once)*)
+val oxThreads: FrModel = FrModel("OxThreads")((roots ++ inTime ++ ofScopes ++ once)*)

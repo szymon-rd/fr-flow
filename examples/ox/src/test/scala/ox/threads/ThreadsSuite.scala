@@ -82,13 +82,15 @@ import scala.concurrent.duration.*
     "theClosingCheckStaysOutOfHerds", "theForkFunctionRemovesTheCurrentThread", "theTreeCheckCallsFour",
     "whatClosingsFunctionsApplyReturns", "startThreadStartsAfterItsAddIsOver", "aForkFunctionRemovesItsThread",
     "callsNest", "forkUnsupervisedStartsAThread", "aConstructedScopeIsMade", "aScopeMadeIsAnObject",
-    "asNoErrorModeKeepsTheHerd", "forkErrorStartsAThread", "forkStartsAThread")
+    "asNoErrorModeKeepsTheHerd", "forkErrorStartsAThread", "forkStartsAThread", "forkCancellableStartsAThread",
+    "forkUserErrorStartsAThread", "forkUserStartsAThread")
 
   /** What holds once a call of `unsupervised`, or of `supervised`, has completed. */
   private val safe = List("Unsupervised", "Supervised").flatMap(of =>
     List(s"noForkRunsOnce${of}Ends", s"nothingIsAddedOnce${of}Ends", s"noThreadIsStartedOnce${of}Ends",
-      s"whatAForkBeganIsOverOnce${of}Ends", s"forkUnsupervisedIsRefusedOnce${of}Ends")) ++
-    List("forkIsRefusedOnceSupervisedEnds")
+      s"whatAForkBeganIsOverOnce${of}Ends", s"forkUnsupervisedIsRefusedOnce${of}Ends",
+      s"forkCancellableIsRefusedOnce${of}Ends")) ++
+    List("forkIsRefusedOnceSupervisedEnds", "forkUserIsRefusedOnceSupervisedEnds")
 
   /** What happens in time. */
   private val live = List("aScopesHerdIsClosedInTime")

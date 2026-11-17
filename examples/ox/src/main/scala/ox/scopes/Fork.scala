@@ -20,6 +20,14 @@ def forking(code: Term[Value], s: Obj[Scope]): Call[Any] =
 def forkingError(s: Obj[Scope], code: Term[Value]): Call[Any] =
   Call.of[Any](methodCalled(ox.forkError[Nothing, [T] =>> T, Any](using ???)(???)), s.asValue, code)
 
+/** Starting a user fork of the code in the scope: `forkUser(code)(using s)`. */
+def forkingUser(code: Term[Value], s: Obj[Scope]): Call[Any] =
+  Call.of[Any](methodCalled(ox.forkUser[Any](???)(using ???)), code, s.asValue)
+
+/** Starting a user fork of the code in the scope, with its error mode: `forkUserError(using s)(code)`. */
+def forkingUserError(s: Obj[Scope], code: Term[Value]): Call[Any] =
+  Call.of[Any](methodCalled(ox.forkUserError[Nothing, [T] =>> T, Any](using ???)(???)), s.asValue, code)
+
 /** The scope without an error mode: `s.asNoErrorMode`. */
 def withoutErrorMode(s: Obj[Scope]): Call[Scope] = Call.of[Scope](methodOf[Ox](_.asNoErrorMode), s.asValue)
 
@@ -82,3 +90,30 @@ val forkIsRefusedOnceSupervisedEnds = Node.claim(
     forall((code: Term[Value], d: Obj[Thread], m: Term[BigInt], fork: Term[Value], w: Term[BigInt]) =>
       (supervisedMade(c, s, from, to) && to <= m && forking(code, s).by(d).called(m)) implies
         !forking(code, s).by(d).completed(m, make[Response.Returned](fork), w))))
+
+val forkUserErrorStartsAThread = Node.claim(
+  "A call of forkUserError in a scope returns only after a call of startThread on the scope's herd, that it " +
+    "made itself, has returned.")(
+  forall((code: Term[Value], s: Obj[Scope], c: Obj[Thread]) =>
+    forall((from: Term[BigInt], fork: Term[Value], to: Term[BigInt]) =>
+      (scopeMade(s) &&
+        forkingUserError(s, code).by(c).completed(from, make[Response.Returned](fork), to)) implies
+        exists((run: Obj[Code], a: Term[BigInt], b: Term[BigInt]) =>
+          from < a && b <= to && starting(herdOf(s), run).by(c).calledInside(from, a) &&
+            starting(herdOf(s), run).by(c).completed(a, Returned(()), b)))))
+
+val forkUserStartsAThread = Node.claim(
+  "A call of forkUser in a scope returns only after a call of startThread on the scope's herd, made during it " +
+    "by its thread, has returned.")(
+  forall((code: Term[Value], s: Obj[Scope], c: Obj[Thread]) =>
+    forall((from: Term[BigInt], fork: Term[Value], to: Term[BigInt]) =>
+      (scopeMade(s) && forkingUser(code, s).by(c).completed(from, make[Response.Returned](fork), to)) implies
+        exists((run: Obj[Code], a: Term[BigInt], b: Term[BigInt]) =>
+          from < a && b <= to && starting(herdOf(s), run).by(c).completed(a, Returned(()), b)))))
+
+val forkUserIsRefusedOnceSupervisedEnds = Node.claim(
+  "After a call of supervised has completed, a call of forkUser in the scope it made does not return.")(
+  forall((c: Obj[Thread], s: Obj[Scope], from: Term[BigInt], to: Term[BigInt]) =>
+    forall((code: Term[Value], d: Obj[Thread], m: Term[BigInt], fork: Term[Value], w: Term[BigInt]) =>
+      (supervisedMade(c, s, from, to) && to <= m && forkingUser(code, s).by(d).called(m)) implies
+        !forkingUser(code, s).by(d).completed(m, make[Response.Returned](fork), w))))

@@ -53,7 +53,8 @@ Proof.
     split; [split; [split; lia | left; exact Hinvst] |].
     right. split; [exists (Some from); exact Hinvst |].
     exists spst. replace (wstd + 1 - 1) with wstd by lia. exact Hrespst. }
-  destruct (Hall (to - 1) ltac:(rewrite Hend; cbn; auto) _ sp Hend fork eq_refl) as (run & a & b & [[Ha Hb] Hmakes] & Hst).
+  destruct (Hall (to - 1) ltac:(rewrite Hend; cbn; auto) _ sp Hend fork eq_refl)
+    as (run & a & b & [[Ha Hb] Hmakes] & Hst).
   exists run, a, b. split; [split; [split; [exact Ha | lia] | exact Hmakes] | exact Hst].
 Qed.
 

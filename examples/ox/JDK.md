@@ -82,12 +82,13 @@ statements about `isEmpty` cannot be had from the documentation.
    end once its thread has been interrupted, whenever that was, and closing can interrupt a thread that
    `startThread` has added and not yet started. Of that the JDK says: "Interrupting a thread that is not alive
    need not have any effect", and, as a note on its own implementation, that it "still records that the
-   interrupt request was made". So on OpenJDK the request is not lost; by the documentation it may be. Ox does
-   not depend on it: closing interrupts every thread still in the set on each turn of its loop, and joining a
-   thread that has not started returns at once, so a thread started late is interrupted again. The model's
-   proof does depend on it, through that assumption. To be free of it, the assumption is to be weakened to an
-   interruption made after the thread's code was called, and the proof to show that closing makes one: not
-   done.
+   interrupt request was made". So on OpenJDK the request is kept, and code that ends when it finds its thread
+   interrupted meets the assumption; by the documentation alone the request may be lost. Ox itself needs it
+   kept: closing interrupts the threads in the set and then joins them, and a thread started between the two,
+   whose interruption was lost, is joined while it runs uninterrupted. (A thread not yet started when it is
+   joined is no problem: joining it returns at once, and the next turn of closing's loop interrupts it again.)
+   The assumption is therefore of the user's code and of the JVM together: it holds of code that ends on
+   interruption, on a JVM that keeps an interruption made before the start, as OpenJDK does.
 2. **`isEmpty`** is assumed as OpenJDK implements it, not as documented (above).
 3. **Threads of other classes.** `interrupt()` and `start()` are not final, and a set calls `hashCode` and
    `equals`: what is assumed of them is of `java.lang.Thread`'s own. A thread factory that returns threads of a

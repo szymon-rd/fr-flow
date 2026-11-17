@@ -4,7 +4,8 @@ From Stdlib Require Import ZArith Lia.
 
 (** The herd of the scope is closed by the moment unsupervised completes: so a call of forkUnsupervised in the scope,
     made from then on, does not return. *)
-Lemma forkUnsupervisedIsRefusedOnceUnsupervisedEnds_Proofs_complete : forkUnsupervisedIsRefusedOnceUnsupervisedEnds_Obl_complete.
+Lemma forkUnsupervisedIsRefusedOnceUnsupervisedEnds_Proofs_complete :
+  forkUnsupervisedIsRefusedOnceUnsupervisedEnds_Obl_complete.
 Proof.
   intros history heldIn _ Hcloses Hrefuses c s from to code d m fork w [[Hmade Hle] Hcalled].
   apply (Hrefuses code s d m fork w). split; [| exact Hcalled].
@@ -13,7 +14,8 @@ Proof.
 Qed.
 
 (** Its parts can hold together: an execution in which nothing happens meets each. *)
-Lemma forkUnsupervisedIsRefusedOnceUnsupervisedEnds_Proofs_feasible : forkUnsupervisedIsRefusedOnceUnsupervisedEnds_Obl_feasible.
+Lemma forkUnsupervisedIsRefusedOnceUnsupervisedEnds_Proofs_feasible :
+  forkUnsupervisedIsRefusedOnceUnsupervisedEnds_Obl_feasible.
 Proof.
   exists (fun _ => Event_Stutter), (fun _ x => x).
   split; [exact rest_runs |].
