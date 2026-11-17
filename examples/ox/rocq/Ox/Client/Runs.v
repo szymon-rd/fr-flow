@@ -1,7 +1,8 @@
 (** Programs written against Ox 1.1.0 (`frflow.project.rocq.clients`), run: the meaning of their trees and of
-    Ox's (`FrFlow.Scala.Meaning`), executed (`FrFlow.Scala.Run`). The programs run are those an execution
-    of the code is of (`FrFlow.Code.Outside`): a call of the JDK is one operation named by the definition
-    called, and the machine runs for it what the library says of that definition (`Library.of_label`).
+    Ox's (`FrFlow.Scala.Meaning`), executed by the machine that keeps calls apart and writes its run out as
+    an execution (`FrFlow.Code.Frames`). The programs run are those an execution of the code is of
+    (`FrFlow.Code.Outside`): a call of the JDK is one operation named by the definition called, and the
+    machine runs for it what the library says of that definition (`Library.of_label`).
     Each lemma says that the first thread gives the number the same method gave on the JVM when this file
     was generated, and that every thread ended, with the threads taking turns in each of four orders. Four
     runs of each are checked: the runs under other orders, and with the JDK doing another of the things
@@ -11,7 +12,7 @@
 From Stdlib Require Import String List ZArith.
 Require Import FrFlow.Threads.Prog FrFlow.Jvm.Machine.
 Require Import FrFlow.Scala.Tree FrFlow.Scala.Program FrFlow.Scala.Table FrFlow.Scala.Value.
-Require Import FrFlow.Scala.Meaning FrFlow.Scala.Library FrFlow.Scala.Run FrFlow.Code.Outside.
+Require Import FrFlow.Scala.Meaning FrFlow.Scala.Library FrFlow.Scala.Run FrFlow.Code.Frames.
 Require Import Ox.Tree.All.
 Require Ox.Client.client_Failures.
 Require Ox.Client.client_Joins.
@@ -35,8 +36,7 @@ Definition orders : list (nat -> nat) := (fun turn => turn) :: map shuffled [1; 
 (** Under each order every thread ends, and the first gives the number `n`. *)
 Definition gives (owner name : string) (n : Z) : bool :=
   forallb (fun order =>
-    match result (execute_under T Outside.outside supers of_label order 100000
-                    (Member owner name ":scala.Int")) with
+    match result (fst (fst (execute_frames T of_label order 100000 (Member owner name ":scala.Int")))) with
     | Some (inr (VObj (Int m))) => Z.eqb m n
     | _ => false
     end) orders.

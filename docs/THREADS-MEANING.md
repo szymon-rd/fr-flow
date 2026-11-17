@@ -156,10 +156,16 @@ reaches one stops there.
 What is proven of Ox is stated over executions (`docs/EXECUTIONS.md`, `examples/ox/README.md`): histories of
 events that conform to the same trees, by the same `denote`. In the programs an execution is of, a call of the
 JDK is one operation named by the definition called (`FrFlow/Code/Outside.v`), and what it gives is said by the
-model's assumptions. The machine runs those same programs: for such an operation it runs what the library says
-of the definition (`Library.of_label`, a rule of `Machine.step`), and the 25 programs are compared with the JVM
-run that way. So the comparison is of the programs the proofs are about, with the library as what the JDK does.
+model's assumptions.
 
-Two things are not proven. That a run of the machine gives a history that satisfies `Conforms.conforms`: the
-machine runs a call of the code in place, and an execution has it as an event of its own, with the caller
-waiting. And that what the model assumes of the JDK holds of what the library does.
+The machine the 25 programs are run on is over those same programs, and writes its run out as an execution
+(`FrFlow/Code/Frames.v`). A thread is a stack of calls, each with what is left of its program. A call of a method
+or a function of the code is an event, the caller waiting under it; a call named by its label is an event too,
+and on top of it runs what the library says of the definition (`Library.of_label`), whose steps are the JDK's own
+and are no events; an operation on an object of the code is its event; a call that ends responds. So the
+comparison with the JVM is of the programs the proofs are about, with the library as what the JDK does, on a
+machine whose every step is an event of an execution or none.
+
+Two things are not proven. That the events such a run writes out satisfy `Conforms.conforms`: it is so by how
+the machine is built, and is to be a theorem. And that what the model assumes of the JDK holds of what the
+library does: it is read against the JDK's documentation, not derived.

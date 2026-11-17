@@ -255,10 +255,11 @@ is an object like any other. A handler for every `Throwable` takes whatever is t
   another, which the JVM grants only to a program without one (JLS 17.4.5). It was proven of a herd in a
   separation logic over the machine, which is removed with the proofs it was unconnected to; it is to be proven
   over executions.
-- The link to the JVM is a test, and two steps short of the model. 25 programs written against Ox are run in
-  Rocq, as the programs the model's executions are of, and give what they give on the JVM (`rocq/Ox/README.md`).
-  Not proven: that a run of that machine is an execution in the model's sense (a history that conforms), and
-  that what the model assumes of the JDK holds of the library the machine runs for it.
+- The link to the JVM is a test, and one theorem short of the model. 25 programs written against Ox are run in
+  Rocq, as the programs the model's executions are of, by a machine that writes its run out event by event
+  (`FrFlow/Code/Frames.v`), and give what they give on the JVM (`rocq/Ox/README.md`). Not proven: that the
+  events of such a run are an execution in the model's sense (a history that conforms). What the model assumes
+  of the JDK is not derived from the library that machine runs for it; it rests on the JDK's documentation.
 - What is built on scopes (`par`, `race`, `timeout`, cancellation, error modes, `ForkLocal`), channels, `Flow`,
   retries and scheduling, actors.
 - That the statements at the bottom can hold together is shown by one execution, in which a thread makes a herd
