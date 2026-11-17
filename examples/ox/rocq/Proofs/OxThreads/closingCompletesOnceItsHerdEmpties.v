@@ -124,22 +124,17 @@ Proof.
       | exact (done_completed Htrav1)]. }
   (* once the set rests empty, a turn that asks is answered yes: the loop ends within the moments left *)
   lazymatch goal with |- leads ?T ?Cl ?Nn ?hh ?aa ?ii ?GG _ (Running (Iter B tt K)) =>
-    assert (forall E n w,
-      (forall y w0, E <= w0 -> ~ elements (heldIn "ox.internal.ThreadHerd threads" h) w0 y /\
-        ~ ((exists who, calledBy history
-            (Invocation_mk "java.util.concurrent.ConcurrentHashMap$.KeySetView remove java.lang.Object:scala.Boolean"
-              [heldIn "ox.internal.ThreadHerd threads" h; y]) who w0) \/
-          (exists m, m < w0 /\ exists who, begun history
-            (Invocation_mk "java.util.concurrent.ConcurrentHashMap$.KeySetView remove java.lang.Object:scala.Boolean"
-              [heldIn "ox.internal.ThreadHerd threads" h; y]) who m /\ ~ overBy history who m w0))) ->
+    assert (forall E0 E n w,
+      E0 <= E -> emptyFrom elements history (heldIn "ox.internal.ThreadHerd threads" h) E0 E ->
       from < w -> E - w < Z.of_nat n -> leads T Cl Nn hh aa ii GG w (Running (Iter B tt K))) as Hrested end.
-  { intros E n. induction n as [| n IH]; intros w HE Hw Hn; apply Hturn; try exact Hw.
+  { intros E0 E n. induction n as [| n IH]; intros w H0E HE Hw Hn; apply Hturn; try exact Hw.
     all: intros wN weN rrN wqN fN wtN rN wuN Hwe Hwt1 HwN Hasked Hno Hmk1 Hdone1.
     all: destruct (Z_le_gt_dec E weN) as [Hle | Hgt];
       [exfalso; apply Hno;
-        exact (Hfinds _ E HE weN rrN wqN (ex_intro (fun who => completedBy history _ who weN rrN wqN) _ Hasked) Hle) |].
+        exact (Hfinds _ E0 E (conj H0E HE) weN rrN wqN
+          (ex_intro (fun who => completedBy history _ who weN rrN wqN) _ Hasked) Hle) |].
     - lia.
-    - apply IH; [exact HE | lia | lia]. }
+    - apply IH; [exact H0E | exact HE | lia | lia]. }
   (* until adding ends there are finitely many moments; a traversal made after is followed by the set at rest *)
   lazymatch goal with |- leads ?T ?Cl ?Nn ?hh ?aa ?ii ?GG _ (Running (Iter B tt K)) =>
     assert (forall L n w,
@@ -160,8 +155,8 @@ Proof.
           (Invocation_mk "java.util.concurrent.ConcurrentHashMap$.KeySetView add java.lang.Object:scala.Boolean"
             [heldIn "ox.internal.ThreadHerd threads" h; y]) who m /\ ~ overBy history who m w0)))
         as HLt by (intros y w0 Hw0; apply HL; lia);
-      destruct (Hempties fN from wtN rN wuN (conj (conj (conj Hcalled Hmk1) Hdone1) HLt)) as [E HE];
-      apply (Hrested E (Z.to_nat (E - wN + 1)) wN HE); lia.
+      destruct (Hempties fN from wtN rN wuN (conj (conj (conj Hcalled Hmk1) Hdone1) HLt)) as (E0 & E & H0E & HE);
+      apply (Hrested E0 E (Z.to_nat (E - wN + 1)) wN H0E HE); lia.
     - lia.
     - apply IH; [exact HL | lia | lia]. }
   destruct Hending as [L HL]. apply (Hstopped L (Z.to_nat (L - wv2 + 1))); [exact HL | lia | lia].
@@ -185,7 +180,7 @@ Proof.
   split.
   { intros s who from [H _]. destruct (nothing_begun_at_rest _ _ _ H). }
   split.
-  { intros s rest _ from response to [who H]. destruct (nothing_completed_at_rest _ _ _ _ _ H). }
+  { intros s empty rest _ from response to [who H]. destruct (nothing_completed_at_rest _ _ _ _ _ H). }
   split.
   { intros h c i H. exfalso. repeat (destruct H as [H | H]);
       first [exact (nothing_begun_at_rest _ _ _ H) | destruct H as [x H]; exact (nothing_begun_at_rest _ _ _ H)]. }

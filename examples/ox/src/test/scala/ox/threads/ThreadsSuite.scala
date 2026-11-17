@@ -34,7 +34,8 @@ import scala.concurrent.duration.*
     "anAtomicBooleanHasOnlyItsMethods", "aKeySetHasOnlyItsMethods",
     "whatTheChecksAskOfTheJdkStaysOutOfHerds", "aScopeHoldsTheHerdItIsMadeWith", "aScopeGivesTheHerdItHolds",
     "theCurrentScopeIsReadAndSet", "aTraversalAppliesItsFunctionToElements", "anElementWasAdded",
-    "isEmptyFindsARestingSetEmpty")
+    "isEmptyFindsARestingSetEmpty", "anElementEntersOnlyWhenAdded", "aTraversalReachesWhatStays",
+    "removingTakesTheElementOut", "aThreadActsOnlyOnceStarted", "currentThreadIsAnObject")
 
   /** What is assumed to happen in time: of who schedules threads (a call of code that waits for nothing makes its
     * next event), of the JDK and of the thread factory (a call is responded to; a started thread runs).
@@ -77,14 +78,14 @@ import scala.concurrent.duration.*
     "startThreadAddsWhileItRuns", "startThreadCallsFive", "startThreadFirstSeesTheFlagUnset",
     "startThreadIsPendingWhileItAdds", "startThreadReadsTheFlagUnset", "theClosingCheckCallsGet",
     "theClosingCheckStaysOutOfHerds", "theForkFunctionRemovesTheCurrentThread", "theTreeCheckCallsFour",
-    "whatClosingsFunctionsApplyReturns")
+    "whatClosingsFunctionsApplyReturns", "startThreadStartsAfterItsAddIsOver", "aForkFunctionRemovesItsThread")
 
   /** What holds once a call of `unsupervised`, or of `supervised`, has completed. */
   private val safe = List("Unsupervised", "Supervised").flatMap(of =>
     List(s"noForkRunsOnce${of}Ends", s"nothingIsAddedOnce${of}Ends", s"noThreadIsStartedOnce${of}Ends"))
 
   /** What happens in time. */
-  private val live = List("closingCompletesOnceItsHerdEmpties")
+  private val live = List("closingCompletes")
   private val roots = safe ++ live
 
   /** What rests on the assumption false of Ox 1.1.0: everything but that no thread is started. */

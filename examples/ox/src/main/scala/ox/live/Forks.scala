@@ -27,6 +27,24 @@ val startThreadStartsWhatItAdded = Node.claim(
         threads(h).add(t).by(c).completed(a, make[Response.Returned](added), b)) implies
         exists((m: Term[BigInt]) => t.start().by(c).calledInside(from, m)))))
 
+val startThreadStartsAfterItsAddIsOver = Node.claim(
+  "A call of startThread itself starts a thread only once each call it itself made to add to the herd's set is " +
+    "over.")(
+  forall((h: Obj[ThreadHerd], code: Obj[Code], c: Obj[Thread], t: Obj[Thread]) =>
+    forall((from: Term[BigInt], w: Term[BigInt], m: Term[BigInt], started: Obj[Thread]) =>
+      (starting(h, code).by(c).called(from) && threads(h).add(t).by(c).calledInside(from, w) &&
+        started.start().by(c).calledInside(from, m)) implies !threads(h).add(t).by(c).pendingSince(w, m))))
+
+val aForkFunctionRemovesItsThread = Node.claim(
+  "A call of a function startThread handed a thread factory that has completed has asked for the current " +
+    "thread and then removed it from the herd's set, by a call that is over.")(
+  forall((h: Obj[ThreadHerd], r: Obj[Runnable], code: Obj[Code], t: Obj[Thread]) =>
+    forall((i: Term[BigInt], ended: Term[Response], e: Term[BigInt]) =>
+      (forkFunction(r, h, code) && running(r).by(t).completed(i, ended, e)) implies
+        exists((a: Term[BigInt], b: Term[BigInt]) =>
+          Thread.currentThread().by(t).completed(a, Returned(t), b) &&
+            threads(h).remove(t).by(t).completedWithin(b, e)))))
+
 val aForkFunctionCompletesOnceItsCodeDoes = Node.claim(
   "A call of a function startThread handed a thread factory is responded to in time, if each call it itself " +
     "makes of the code startThread was given is.")(

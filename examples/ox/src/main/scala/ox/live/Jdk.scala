@@ -63,12 +63,13 @@ val isEmptyResponds = Node.assumption(
   "A call that asks a concurrent set whether it is empty is responded to, in time.")(
   forall((s: Obj[ConcurrentSet]) => s.isEmpty().responds))
 
-// `isEmpty` sums counters: with nothing in the set and every call that removed from it over, each decrement has
-// been counted, so the sum is not above what the set holds.
+// `isEmpty` sums counters (`ConcurrentHashMap.sumCount`), which a call that takes an element out decrements
+// before it returns. With nothing in the set from a moment on, a call that removes made after that moment takes
+// nothing out; once each made before it is over, every decrement has been counted, and the sum is not above what
+// the set holds.
 val isEmptyFindsARestingSetEmpty = Node.assumption(
-  "A concurrent set that holds nothing from a moment on, with no call that removes from it in progress, answers " +
-    "that it is empty to a call made from that moment on.")(
-  forall((s: Obj[ConcurrentSet], rest: Term[BigInt]) =>
-    forall((y: Obj[AnyRef], w: Term[BigInt]) =>
-      (rest <= w) implies (!elements(s, w).contains(y.asValue) && !s.remove(y).inProgress(w))) implies
+  "A concurrent set that holds nothing from a moment on answers that it is empty to a call made once each call " +
+    "that was removing from it before that moment is over.")(
+  forall((s: Obj[ConcurrentSet], empty: Term[BigInt], rest: Term[BigInt]) =>
+    (empty <= rest && emptyFrom(s, empty, rest)) implies
       s.isEmpty().everyCall((from, a, _) => (rest <= from) implies (a === Returned(True)))))

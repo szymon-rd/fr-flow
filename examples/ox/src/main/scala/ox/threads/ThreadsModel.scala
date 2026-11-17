@@ -11,50 +11,13 @@ import ox.scopes.*
 // holds once a herd is closed, and what makes that hold. That no thread is started rests on the herd's flag
 // alone; the other two, on who starts a thread. All of it is of Ox's code as its jar has it.
 
-val oxThreads: FrModel = FrModel("OxThreads")(
+private val roots: List[FrModel.Part] = List(
   noForkRunsOnceUnsupervisedEnds, nothingIsAddedOnceUnsupervisedEnds, noThreadIsStartedOnceUnsupervisedEnds,
   noForkRunsOnceSupervisedEnds, nothingIsAddedOnceSupervisedEnds, noThreadIsStartedOnceSupervisedEnds,
-  closingCompletesOnceItsHerdEmpties,
+  closingCompletes, closingCompletesOnceItsHerdEmpties.refines(closingCompletes))
 
-  // What happens in time: closing's loop ends, once the herd's set rests empty.
-  closingsTraversalsRespond.refines(closingCompletesOnceItsHerdEmpties),
-  addingStopsOnceTheFlagIsSet.refines(closingCompletesOnceItsHerdEmpties, addingEndsOnceTheFlagIsSet),
-  addingEndsOnceTheFlagIsSet.refines(closingCompletesOnceItsHerdEmpties),
-  addingResponds.refines(addingEndsOnceTheFlagIsSet), theOwnerCheckResponds.refines(closingCompletesOnceItsHerdEmpties),
-  settingResponds.refines(closingCompletesOnceItsHerdEmpties),
-  isEmptyResponds.refines(closingCompletesOnceItsHerdEmpties),
-  isEmptyFindsARestingSetEmpty.refines(closingCompletesOnceItsHerdEmpties),
-
-  // What happens in time: closing's traversals are responded to, and adding stops.
-  closingsFunctionsRespond.refines(closingsTraversalsRespond),
-  aTraversalRespondsOnceItsFunctionDoes.refines(closingsTraversalsRespond),
-  aTraversalAppliesItsFunctionToElements.refines(closingsTraversalsRespond),
-  whatIsInAHerdsSetWasMadeToRun.refines(closingsTraversalsRespond),
-  anElementWasAdded.refines(whatIsInAHerdsSetWasMadeToRun),
-  theExecutionBegins.refines(addingStopsOnceTheFlagIsSet, addingEndsOnceTheFlagIsSet),
-
-  // What happens in time: closing's functions are responded to.
-  whatClosingsFunctionsApplyInterrupts.refines(closingsFunctionsRespond),
-  aForkEndsOnceInterrupted.refines(closingsFunctionsRespond),
-  joinRespondsOnceItsThreadHasRun.refines(closingsFunctionsRespond),
-  closingsFunctionsProceed.refines(closingsFunctionsRespond),
-  whatClosingsFunctionsApplyProceeds.refines(closingsFunctionsRespond),
-  interruptResponds.refines(closingsFunctionsRespond),
-  addSuppressedResponds.refines(closingsFunctionsRespond),
-
-  // What happens in time: a fork ends once interrupted.
-  startThreadStartsWhatItAdded.refines(aForkEndsOnceInterrupted),
-  aStartedThreadRunsItsFunction.refines(aForkEndsOnceInterrupted),
-  aForkFunctionCompletesOnceItsCodeDoes.refines(aForkEndsOnceInterrupted),
-  forkCodeCompletesOnceInterrupted.refines(aForkEndsOnceInterrupted),
-  startThreadAddsOnce.refines(startThreadStartsWhatItAdded, addingStopsOnceTheFlagIsSet),
-  aHerdsMethodsProceed.refines(startThreadStartsWhatItAdded, theOwnerCheckResponds,
-    closingCompletesOnceItsHerdEmpties),
-  aForkFunctionProceeds.refines(aForkFunctionCompletesOnceItsCodeDoes),
-  currentThreadResponds.refines(aForkFunctionCompletesOnceItsCodeDoes, theOwnerCheckResponds),
-  removingResponds.refines(aForkFunctionCompletesOnceItsCodeDoes),
-  discardResponds.refines(aForkFunctionCompletesOnceItsCodeDoes),
-
+// What holds once a scope's call has completed, and of a herd once closed.
+private val once: List[FrModel.Part] = List(
   // A scope: `unsupervised` and `supervised` make one, run code in it, and its herd is closed before they end.
   unsupervisedClosesItsScopesHerd.refines(noForkRunsOnceUnsupervisedEnds, nothingIsAddedOnceUnsupervisedEnds,
     noThreadIsStartedOnceUnsupervisedEnds),
@@ -82,7 +45,7 @@ val oxThreads: FrModel = FrModel("OxThreads")(
   isEmptyFindsItEmptyUnlessAdded.refines(closingEndsOnEmpty),
   nothingIsAddedDuringTheLastCheck.refines(closingEndsOnEmpty),
   isEmptyReturns.refines(closingEndsOnceFoundEmpty),
-  closingsTraversalsReturn.refines(closingEndsOnceFoundEmpty),
+  closingsTraversalsReturn.refines(closingEndsOnceFoundEmpty, whatStaysInATraversedSetIsInterrupted),
   aTraversalThrowsOnlyWhatItsFunctionThrew.refines(closingsTraversalsReturn),
   closingTraversesWithAFunction.refines(closingsTraversalsReturn),
   closingsFunctionsReturn.refines(closingsTraversalsReturn),
@@ -90,7 +53,7 @@ val oxThreads: FrModel = FrModel("OxThreads")(
   closingKeepsItsVariableToItself.refines(closingsFunctionsReturn, whatClosingsFunctionsApplyInterrupts),
   closingsVariablesAreWrittenByItsFunctions.refines(whatClosingsFunctionsApplyInterrupts),
   joinThrowsOnlyAnInterruption.refines(closingsFunctionsReturn, whatClosingsFunctionsApplyReturns,
-    whatClosingsFunctionsApplyInterrupts, closingsFunctionsRespond),
+    whatClosingsFunctionsApplyInterrupts, closingsFunctionsRespond, closingsFunctionsInterrupt),
   addSuppressedReturns.refines(closingsFunctionsReturn),
   interruptReturns.refines(whatClosingsFunctionsApplyReturns, whatClosingsFunctionsApplyInterrupts),
   nothingIsAddedOnceEmpty.refines(everyForkHasLeftOnceClosed, nothingIsAddedOnceClosed),
@@ -135,14 +98,15 @@ val oxThreads: FrModel = FrModel("OxThreads")(
 
   onlyStartThreadAddsToTheSet.refines(onlyStartThreadAdds, anAddedThreadHasNotBeenStarted,
     whoAddsIsCallingStartThread, aForkEndsOnceInterrupted, whatIsInAHerdsSetWasMadeToRun,
-    addingStopsOnceTheFlagIsSet),
+    addingStopsOnceTheFlagIsSet, anInterruptedForkLeavesForGood, aForkThatEndedStaysOut),
   startThreadAddsWhileItRuns.refines(onlyStartThreadAdds, whoAddsIsCallingStartThread, aForkEndsOnceInterrupted,
-    whatIsInAHerdsSetWasMadeToRun),
+    whatIsInAHerdsSetWasMadeToRun, anInterruptedForkLeavesForGood),
   startThreadIsPendingWhileItAdds.refines(whoAddsIsCallingStartThread),
-  anAddedThreadHasNotBeenStarted.refines(onlyStartThreadAdds),
-  onlyItsMakerStartsAThread.refines(anAddedThreadHasNotBeenStarted),
-  startThreadAddsWhatItsFactoryMade.refines(anAddedThreadHasNotBeenStarted, aForkEndsOnceInterrupted),
-  startThreadAddsBeforeItStarts.refines(anAddedThreadHasNotBeenStarted),
+  anAddedThreadHasNotBeenStarted.refines(onlyStartThreadAdds, aForkThatEndedStaysOut),
+  onlyItsMakerStartsAThread.refines(anAddedThreadHasNotBeenStarted, aForkThatEndedStaysOut),
+  startThreadAddsWhatItsFactoryMade.refines(anAddedThreadHasNotBeenStarted, aForkEndsOnceInterrupted,
+    anInterruptedForkLeavesForGood, aForkThatEndedStaysOut),
+  startThreadAddsBeforeItStarts.refines(anAddedThreadHasNotBeenStarted, aForkThatEndedStaysOut),
 
   onlyAForkFunctionRemoves.refines(aForkRemovesOnlyItself, codeRunsBeforeLeaving),
   theForkFunctionRemovesTheCurrentThread.refines(aForkRemovesOnlyItself),
@@ -171,7 +135,8 @@ val oxThreads: FrModel = FrModel("OxThreads")(
   // How a herd is made.
   herdsAreConstructed.refines(herdsAreMade, closingSetsTheFlag, aClosedHerdRefusesToStart, nothingIsAddedOnceEmpty,
     aForkEndsOnceInterrupted, closingsTraversalsRespond, closingCompletesOnceItsHerdEmpties,
-    nothingIsBeingAddedWhenEmpty, everyForkHasLeftOnceClosed, startThreadCallersStayInside, codeRunsBeforeLeaving),
+    nothingIsBeingAddedWhenEmpty, everyForkHasLeftOnceClosed, startThreadCallersStayInside, codeRunsBeforeLeaving,
+    anInterruptedForkLeavesForGood, closingCompletes),
   aHerdsFlagIsNew.refines(aHerdsFlagIsOnlyReadAndSet), aHerdsSetIsNew.refines(aHerdsSetIsPlain),
   aHerdHoldsWhatItWasGiven.refines(aHerdsFlagIsNew, aHerdsSetIsNew, aScopesHerdIsItsMakers),
 
@@ -184,16 +149,21 @@ val oxThreads: FrModel = FrModel("OxThreads")(
     closingCallsFour, theOwnerCheckCallsCurrentThread, theMembershipCheckCallsContains, theWalkUpCallsFour,
     aForkFunctionCompletesOnceItsCodeDoes, startThreadAddsOnce, startThreadStartsWhatItAdded,
     whatClosingsFunctionsApplyInterrupts, closingsFunctionsRespond, theOwnerCheckResponds,
-    closingCompletesOnceItsHerdEmpties),
+    closingCompletesOnceItsHerdEmpties, closingsFunctionsInterrupt,
+    aForkFunctionRemovesItsThread, startThreadStartsAfterItsAddIsOver),
   aHerdKeepsItsFields.refines(startThreadReadsTheFlagUnset, closingSetsTheFlagItself,
-    theForkFunctionRemovesTheCurrentThread, closingEndsOnceFoundEmpty, closingCompletesOnceItsHerdEmpties),
+    theForkFunctionRemovesTheCurrentThread, closingEndsOnceFoundEmpty, closingCompletesOnceItsHerdEmpties,
+    aForkFunctionRemovesItsThread),
   currentThreadIsTheCaller.refines(closingSetsTheFlagItself, aForkRemovesOnlyItself, closingEndsOnceFoundEmpty,
-    aScopesHerdIsItsMakers),
+    aScopesHerdIsItsMakers, aForkFunctionRemovesItsThread),
 
   addingIsAtomic.refines(liveForksAreInTheSet), anElementLeavesOnlyWhenRemoved.refines(liveForksAreInTheSet),
-  aHerdsSetIsPlain.refines(liveForksAreInTheSet, whatIsInAHerdsSetWasMadeToRun),
+  aHerdsSetIsPlain.refines(liveForksAreInTheSet, whatIsInAHerdsSetWasMadeToRun, aHerdsSetEmptiesOnceTraversed,
+    whatStaysInATraversedSetIsInterrupted, aForkThatEndedStaysOut),
 
   // The execution is one of Ox's `ThreadHerd`, of its scopes, of `unsupervised` and of `supervised`, as its jar
   // has them.
   history.executing(Read.of(classOf[ThreadHerd], Set("ox/internal/ThreadHerd.tasty", "ox/OxError.tasty",
     "ox/unsupervised$package.tasty", "ox/supervised$package.tasty"))))
+
+val oxThreads: FrModel = FrModel("OxThreads")((roots ++ inTime ++ once)*)

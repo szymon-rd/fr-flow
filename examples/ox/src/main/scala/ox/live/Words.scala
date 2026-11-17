@@ -29,8 +29,16 @@ val addingEnds = stated { (s: Obj[ConcurrentSet]) =>
   exists((last: Term[BigInt]) =>
     forall((y: Obj[AnyRef], w: Term[BigInt]) => (last <= w) implies !s.add(y).inProgress(w))) }
 
-/** From some moment on nothing is in the set, and no call that removes from it is in progress. */
+/** Nothing is in the set from `empty` on, and no call that removes from it, made before `empty`, is pending at
+  * `rest`.
+  */
+val emptyFrom = stated { (s: Obj[ConcurrentSet], empty: Term[BigInt], rest: Term[BigInt]) =>
+  forall((y: Obj[AnyRef], w: Term[BigInt]) =>
+    ((empty <= w) implies !elements(s, w).contains(y.asValue)) &&
+      ((w < empty) implies !s.remove(y).pendingSince(w, rest))) }
+
+/** From a moment on nothing is in the set, and by a later one each call that was removing from it before is over:
+  * a call that removes from a set that holds nothing takes nothing out.
+  */
 val restsEmpty = stated { (s: Obj[ConcurrentSet]) =>
-  exists((rest: Term[BigInt]) =>
-    forall((y: Obj[AnyRef], w: Term[BigInt]) =>
-      (rest <= w) implies (!elements(s, w).contains(y.asValue) && !s.remove(y).inProgress(w)))) }
+  exists((empty: Term[BigInt], rest: Term[BigInt]) => empty <= rest && emptyFrom(s, empty, rest)) }

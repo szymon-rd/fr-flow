@@ -112,7 +112,7 @@ Proof.
   split.
   { intros s who from [H _]. absent H. }
   split.
-  { intros s rest _ from response to [who H] _. reveal H. f_equal. apply truth_is. tauto. }
+  { intros s empty rest _ from response to [who H] _. reveal H. f_equal. apply truth_is. tauto. }
   split.
   { intros s f c from [[H _] _]. absent H. }
   split.
@@ -151,6 +151,16 @@ Proof.
   { intros s x who from [H _]. absent H. }
   split.
   { intros x who from [H _]. absent H. }
+  split.
+  { intros s x w [_ H]. destruct H. }
+  split.
+  { intros s f c x from to [H _]. absent H. }
+  split.
+  { intros from response to [who H]. reveal H; discriminate. }
+  split.
+  { intros s x _ from response to [who H]. absent H. }
+  split.
+  { intros f r t a b made w [[who H] _]. absent H. }
   split.
   { intros c s from to (supervisor & errorMode & parent & locals & code & ended & a & b & [[H _] _]). absent H. }
   split.
