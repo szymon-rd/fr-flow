@@ -417,6 +417,32 @@ is an object like any other. A handler for every `Throwable` takes whatever is t
   which are the user's code, run uninterruptibly), that `supervised` comes to running code in its scope
   (making its supervisor is responded to), and that the code `supervised` runs in its scope ends (it waits for
   the supervisor).
+- What `unsupervised` and `supervised` return, and that they return. Both go through `runFinalizers`, which
+  `scopedWithCapability` calls after the code and closing, and through the `catch` around the code; and the
+  meaning the model gives those two cannot be gone through yet. Four things stand in the way, found by going
+  through the trees:
+  1. `runFinalizers` binds what `getAndSet` on the scope's finalizers gives to a value declared a list. The
+     method's type is erased, so the model knows the result only as an object, and the next step (`isEmpty`)
+     has no meaning on a value of no known shape. On the JVM the compiler puts a cast where the value is bound,
+     which throws if it is no list; the meaning can do the same (tried: every file of the library, the machine's
+     among them, still checks).
+  2. A method of a collection called on no object has no meaning; on the JVM it throws a
+     `NullPointerException` (tried likewise).
+  3. `uninterruptible`, which runs what was registered, is an inline method of Ox that is not read. The tree
+     read from TASTy has it as a call, and the model evaluates its argument where it stands, in the caller's
+     thread; its body runs it in a fork of a scope of its own. So of a scope with something registered, the
+     model's execution is not the JVM's. (`discard` is mapped the same way, and rightly: its body evaluates
+     its argument where it stands.) The faithful mapping reads the inline methods and runs their bodies in
+     place, with no call.
+  4. What a call of a function throws is not known to be an object: the rules of an execution say it of a
+     method and of a call from outside, and not of a function. The `catch` in `scopedWithCapability` names
+     what the code threw, and the meaning of a name reads through a variable; so the catch cannot be gone
+     through for what a function threw.
+  And of `supervised`: the supervisor, the error mode and what a fork's `join` does are classes of Ox that
+  are not read.
+  A scope in which nothing is registered avoids the first three (what making a scope does with its
+  finalizers is proven in a draft: it makes the reference of the empty list); the fourth is a change to the
+  rules of an execution and to the machine that is checked against them.
 - That no run of a program that uses Ox has a data race. The model takes it that the events of threads come
   one after another, which the JVM grants only to a program without one (JLS 17.4.5). Proven: none on a herd's
   vals, on a scope's vals, or on closing's variables, in any execution of the code read that meets what is
