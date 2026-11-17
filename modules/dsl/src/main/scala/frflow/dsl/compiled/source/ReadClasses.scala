@@ -11,10 +11,22 @@ import scala.util.Try
 object ReadClasses:
   def of(tree: Datum, loader: ClassLoader): ClassFacts =
     val found = named(tree).distinct.flatMap(n => load(n, loader).map(n -> _))
+    val alone = objects(tree).distinct.flatMap(load(_, loader))
     ClassFacts(found.collect { case (n, c) if identity(c) => n }.sorted,
       found.collect { case (n, c) if classOf[Throwable].isAssignableFrom(c) => n }.sorted,
       found.flatMap((n, c) => function(c).map(m => s"$n $m ")).sorted,
-      (found.collect { case (n, c) if heir(c) => n } ++ functions(tree, loader)).distinct.sorted)
+      (found.collect { case (n, c) if heir(c) => n } ++ functions(tree, loader)).distinct.sorted,
+      found.collect { case (n, c) if c != classOf[Object] && alone.exists(c.isAssignableFrom) => n }.sorted)
+
+  /** The classes of the Scala objects a tree names: a name with no signature is an object's or a package's, and
+    * the class of an object `a.B` is `a.B$`. One that is not found is no object.
+    */
+  private def objects(d: Datum): List[String] = d match
+    case Datum.Of("Member", List(Datum.Text(owner), Datum.Text(name), Datum.Text(""))) => List(s"$owner.$name$$")
+    case Datum.Of(_, args)                                                              => args.flatMap(objects)
+    case Datum.Many(elems)                                                              => elems.flatMap(objects)
+    case Datum.Maybe(value)                                                             => value.toList.flatMap(objects)
+    case _                                                                              => Nil
 
   /** The classes the tree defines that are functions of Scala's: an object of one can be given where a function
     * is taken. A class made inside a method is not found by its name, and is not among them.

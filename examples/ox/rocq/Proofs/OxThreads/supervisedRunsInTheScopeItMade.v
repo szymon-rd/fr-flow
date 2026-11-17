@@ -30,10 +30,10 @@ Proof.
       assert (a = k \/ k < a) as [-> | Hlater] by lia.
       - destruct Hmakes as [E | (? & ? & E)]; rewrite Hrr in E; discriminate E.
       - exact (module_over C "ox.supervised$package$" "supervisedError"
-          "3,ox.ErrorMode,ox.ForkLocalMap,scala.Function1:java.lang.Object" Hcall ltac:(vm_compute; reflexivity) eq_refl
+          "3,ox.ErrorMode,ox.ForkLocalMap,scala.Function1:java.lang.Object" Hcall ltac:(vm_compute; reflexivity) eq_refl eq_refl
           ltac:(vm_compute; reflexivity) Hrr Hlater (makes_direct Hmakes)). }
     refine (module_meets _ C "ox.supervised$package$" "supervisedError"
-      "3,ox.ErrorMode,ox.ForkLocalMap,scala.Function1:java.lang.Object" Hcall ltac:(vm_compute; reflexivity) eq_refl
+      "3,ox.ErrorMode,ox.ForkLocalMap,scala.Function1:java.lang.Object" Hcall ltac:(vm_compute; reflexivity) eq_refl eq_refl
       ltac:(vm_compute; reflexivity) _).
     intros args k Hargs Hpassed.
     inversion Hargs as [| ? vmode ? rest0 Hvmode Hrest0]; subst.
@@ -41,7 +41,10 @@ Proof.
     apply vals_one in Hrest as (vcode & -> & Hvcode).
     inversion Hpassed as [| p0 v0 ps0 vs0 Hmode Hpassed0]; subst.
     inversion Hpassed0 as [| p1 v1 ps1 vs1 Hlocals Hpassed1]; subst.
-    inversion Hpassed1 as [| p2 v2 ps2 vs2 Hcode _]; subst. typed Hmode. typed Hlocals. typed Hcode.
+    inversion Hpassed1 as [| p2 v2 ps2 vs2 Hcode _]; subst.
+    (* the error mode may be a Scala object: what is kept of it is that a name holds it *)
+    lazy beta iota zeta delta -[identity receiver held names Jdk.as_exn] in Hmode. destruct Hmode as [Hmode _].
+    typed Hlocals. typed Hcode.
     (* a supervisor is made *)
     step. intros wsup yssup Hwsup _ Hyssup Hmksup. split; [miss |].
     intros wsupd rsup xsup Hwsupd Hdonesup Hgivessup Hretsup.

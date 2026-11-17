@@ -405,14 +405,15 @@ Section Logic.
   (** A call of a method of an object of the code that is alone of its class. *)
   Lemma module_meets inside owner name signature c d ys :
     history i = Event_Invoke a inside (Invocation_mk (label owner name signature) ys) ->
-    class_of T owner = Some c -> is_module c = true -> impl T owner (Member owner name signature) = Some d ->
+    class_of T owner = Some c -> is_module c = true -> module_at T owner = None ->
+    impl T owner (Member owner name signature) = Some d ->
     (forall args w, Forall2 (names N) ys args -> passed known d args ->
        meets [] (i + 1)
          (Running (run T (Method (Member owner name signature)) (VList (module_val T owner :: args)))) w) ->
     forall w, direct a i (history w) -> claim w.
   Proof.
-    intros He Hc Hm Hd H w Hdir.
-    destruct (module_steps conformed owner name signature He Hc Hm Hd)
+    intros He Hc Hm Ha Hd H w Hdir.
+    destruct (module_steps conformed owner name signature He Hc Hm Ha Hd)
       as (args & at_ & Hargs & Hp & Hlater & Hsteps & Htakes).
     pose proof (Hlater w Hdir) as Hw.
     refine (H args w Hargs Hp ltac:(lia) _ (at_ w) (at_ (w + 1)) (Hsteps w Hw) Hdir
@@ -440,7 +441,7 @@ End Logic.
 
 Arguments method_meets {files T known N history a i} claim conformed {inside} s {cls r d y ys} _ _ _ _ w _.
 Arguments module_meets {files T known N history a i} claim conformed {inside} owner name signature {c d ys}
-  _ _ _ _ _ w _.
+  _ _ _ _ _ _ w _.
 Arguments function_meets {files T known N history a i} claim conformed {inside m c y ys} _ _ _ _ _ w _.
 Arguments constructor_meets {files T known N history a i} claim conformed {inside} cls {c} signature {ys}
   _ _ _ _ w _.
@@ -486,6 +487,10 @@ Ltac typed H :=
   | True => clear H
   | identity ?v /\ _ => let P := fresh "Hplain" in destruct H as [H P]; pose proof (identity_receiver v H)
   | held ?v = _ /\ receiver ?v = _ => let R := fresh "Hcalled_on" in destruct H as [H R]
+  | held ?v = _ /\ (receiver ?v = _ \/ _) =>
+      (* a value of a class: one a call is made on, or an object named alone *)
+      let R := fresh "Hcalled_on" in let alone := fresh "alone" in
+      destruct H as [H [R | [alone R]]]; [| first [subst v | idtac]]
   | ?v = _ \/ (exists _, Jdk.as_exn ?v = _) => destruct H as [H | [? H]]; [first [subst v | idtac] |]
   | (exists _ _ _, ?v = VCode _ /\ _) \/ (exists _ _, ?v = _ /\ _) =>
       (* a function: an object of the code that is one is taken apart only where the code has no such class *)

@@ -255,11 +255,17 @@ is an object like any other. A handler for every `Throwable` takes whatever is t
   another, which the JVM grants only to a program without one (JLS 17.4.5). It was proven of a herd in a
   separation logic over the machine, which is removed with the proofs it was unconnected to; it is to be proven
   over executions.
-- The link to the JVM is a test, and one theorem short of the model. 25 programs written against Ox are run in
-  Rocq, as the programs the model's executions are of, by a machine that writes its run out event by event
-  (`FrFlow/Code/Frames.v`), and give what they give on the JVM (`rocq/Ox/README.md`). Not proven: that the
-  events of such a run are an execution in the model's sense (a history that conforms). What the model assumes
-  of the JDK is not derived from the library that machine runs for it; it rests on the JDK's documentation.
+- The link to the JVM is a theorem and a test. The theorem (`FrFlow/Code/Executed.v`, `machine_conforms`): the
+  events a run of the machine writes out (`FrFlow/Code/Frames.v`) are an execution in the model's sense, for any
+  code, any library of what is outside it and any order of the threads' turns; the machine stops where a step
+  would not be one an execution has. The test: 25 programs written against Ox are run on that machine and give
+  what they give on the JVM, none stopping (`rocq/Ox/README.md`). Not proven: that the machine does what the
+  JVM does; and the runs are over the whole of Ox, where the model's statements are of the files it reads with
+  the rest of Ox outside them. What the model assumes of the JDK is not derived from the library the machine
+  runs for it; it rests on the JDK's documentation.
+- That a value of a class of the JDK, or of a class of Ox that no object the code names is of, is no Scala
+  `object`: assumed of what calls the code (`Conforms.of_class`). The classes that have an object among their
+  values (`ox.ErrorMode`, `ox.Supervisor` among them) are read from the code.
 - What is built on scopes (`par`, `race`, `timeout`, cancellation, error modes, `ForkLocal`), channels, `Flow`,
   retries and scheduling, actors.
 - That the statements at the bottom can hold together is shown by one execution, in which a thread makes a herd

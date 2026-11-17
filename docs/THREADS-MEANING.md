@@ -166,6 +166,40 @@ and are no events; an operation on an object of the code is its event; a call th
 comparison with the JVM is of the programs the proofs are about, with the library as what the JDK does, on a
 machine whose every step is an event of an execution or none.
 
-Two things are not proven. That the events such a run writes out satisfy `Conforms.conforms`: it is so by how
-the machine is built, and is to be a theorem. And that what the model assumes of the JDK holds of what the
-library does: it is read against the JDK's documentation, not derived.
+That the events such a run writes out are an execution is proven (`FrFlow/Code/Executed.v`,
+`machine_conforms`): for every table of code, every library of what is outside it, every order of the threads'
+turns and every length of run, the events `execute_frames` gives satisfy `Conforms.runs`, the hypothesis every
+statement of a model about the code is proven from. It rests on two axioms, `classic` and
+`constructive_definite_description`. The proof is in `FrFlow/Code`: what one step is (`Steps.v`), what every
+step keeps (`Kept.v`), where a call is and that a step takes it there by the rule `Conforms.takes` has for the
+step's event (`Stages.v`), the heap and the events that speak of it (`Heap.v`), the laws (`Bridge.v`).
+
+The machine takes a step only where an execution of the code has one, and a run that would take another stops,
+saying why (`FrFlow/Code/Checks.v`, `Frames.v`). What it checks of a step:
+
+- the arguments of a method or a function of the code are of its parameters' types, what a call gives is of
+  the type its signature says, and what a call of the code reads of a field is of the field's class;
+- a call runs what each law of `Conforms` that speaks of a call of its label, showing those values, says it
+  runs; a call of what is outside the code is one no law speaks of;
+- each object an event names is in the heap, of the class it is named with;
+- a variable is made with its one field, and read and written there;
+- an operation in a call of the code is one that is an event.
+
+None of the 25 programs stops so, under the four orders: their runs took only such steps.
+
+Proving it found two places where `Conforms` said what no run of Ox does, both corrected:
+
+- It said a value of an ordinary class is never a Scala `object`. `supervised` passes `NoErrorMode` where an
+  `ErrorMode` is taken, and `unsupervised` passes `NoOpSupervisor`: no run through them was an execution.
+  Now the classes above an object the code names are known (`objects`, read with the other facts of the
+  classes), and a value of one may be an object. Of any other class it is still assumed that none of its
+  values is one: of what calls the code, it is a restriction on how Ox is used.
+- It took a call of a method of an object alone of its class to name no object, whether the object has
+  state or not. One with state is an object of the heap and the call names it: the law is now of objects
+  without state, and the other is a call on an object as any other.
+
+Three things are not proven. The comparison runs are over the whole of Ox with the programs, and are executions
+of that code; the model's statements are of the four files it reads, the rest of Ox being outside them: the
+theorem holds of that table too, but no run has been made with the rest of Ox as what is outside. That the
+machine does what the JVM does is the comparison itself. And that what the model assumes of the JDK holds of
+what the library does: it is read against the JDK's documentation, not derived.

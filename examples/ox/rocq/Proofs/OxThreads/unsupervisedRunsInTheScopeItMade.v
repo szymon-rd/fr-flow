@@ -30,10 +30,10 @@ Proof.
       assert (a = k \/ k < a) as [-> | Hlater] by lia.
       - destruct Hmakes as [E | (? & ? & E)]; rewrite Hrr in E; discriminate E.
       - exact (module_over C "ox.unsupervised$package$" "unsupervised"
-          "1,ox.ForkLocalMap,scala.Function1:java.lang.Object" Hcall ltac:(vm_compute; reflexivity) eq_refl
+          "1,ox.ForkLocalMap,scala.Function1:java.lang.Object" Hcall ltac:(vm_compute; reflexivity) eq_refl eq_refl
           ltac:(vm_compute; reflexivity) Hrr Hlater (makes_direct Hmakes)). }
     refine (module_meets _ C "ox.unsupervised$package$" "unsupervised"
-      "1,ox.ForkLocalMap,scala.Function1:java.lang.Object" Hcall ltac:(vm_compute; reflexivity) eq_refl
+      "1,ox.ForkLocalMap,scala.Function1:java.lang.Object" Hcall ltac:(vm_compute; reflexivity) eq_refl eq_refl
       ltac:(vm_compute; reflexivity) _).
     intros args k Hargs Hpassed.
     inversion Hargs as [| ? vlocals ? rest Hvlocals Hrest]; subst.

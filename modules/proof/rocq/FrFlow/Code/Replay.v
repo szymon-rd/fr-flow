@@ -13,6 +13,7 @@ Require Import FrFlow.Threads.Prog FrFlow.Jvm.Machine.
 Require Import FrFlow.Scala.Tree FrFlow.Scala.Program FrFlow.Scala.Table FrFlow.Scala.Value.
 Require Import FrFlow.Scala.Meaning FrFlow.Scala.Library.
 Require Import FrFlow.Code.Outside FrFlow.Code.Conforms FrFlow.Code.Classes FrFlow.Code.Walk FrFlow.Code.Witness.
+Require Import FrFlow.Code.Names.
 Import ListNotations.
 Open Scope string_scope.
 Open Scope Z_scope.
@@ -24,19 +25,6 @@ Inductive Ans :=
   | Slow (v : val)
   | Each (m : string) (xs : list val) (v : val).
 
-Definition name_of (refs : list (Z * val)) (v : val) : Value :=
-  match v with
-  | VUnit => Value_Unit_
-  | VBool b => Value_Bool_ (b = true)
-  | VObj Null => Value_Null
-  | VObj (Int z) => Value_Int_ z
-  | VObj (Str s) => Value_Str s
-  | _ => match find (fun kv => val_eqb (snd kv) v) refs with
-         | Some kv => Value_Reference (fst kv)
-         | None => Value_Str "UNNAMED"
-         end
-  end.
-
 Definition Heap := list ((nat * string) * val).
 Fixpoint heap_get (h : Heap) (r : nat) (f : string) : val :=
   match h with
@@ -47,15 +35,6 @@ Definition heap_new (h : Heap) (r : nat) (fields : list (string * val)) : Heap :
   (map (fun fv => ((r, fst fv), snd fv)) fields ++ h)%list.
 Fixpoint class_of_place (ps : list (nat * string)) (r : nat) : string :=
   match ps with [] => "?" | (r', c) :: rest => if Nat.eqb r r' then c else class_of_place rest r end.
-
-(** The references known, with one more for each of the values given that has none yet. *)
-Fixpoint extend (refs : list (Z * val)) (vs : list val) : list (Z * val) :=
-  match vs with
-  | [] => refs
-  | v :: rest =>
-      extend (if (referred v && negb (existsb (fun kv => val_eqb (snd kv) v) refs))%bool
-              then (refs ++ [(Z.of_nat (List.length refs), v)])%list else refs) rest
-  end.
 
 (** A value, short enough to read. *)
 Inductive Short := Fun (s : sym) | ByName | Plain (v : val).

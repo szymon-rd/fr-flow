@@ -71,7 +71,8 @@ Record classes := Classes {
   identities : list string;    (* classes of the JDK that keep `Object`'s `equals`: an object is itself, no data *)
   throwables : list string;    (* classes of what is thrown *)
   functions : list string;     (* the one method of each interface a function is taken as: its class and name *)
-  heirs : list string }.       (* classes outside the JDK below one known by its identity, or functions *)
+  heirs : list string;         (* classes outside the JDK below one known by its identity, or functions *)
+  objects : list string }.     (* classes above an object the code names: a Scala `object` is a value of them *)
 
 Definition reference (known : classes) (cls : string) : bool := existsb (String.eqb cls) (identities known).
 
@@ -108,7 +109,10 @@ Definition throwable (known : classes) (cls : string) : bool := existsb (String.
     name are values of no class): that much is said even of a type that says nothing else. A set of Scala that
     does not change is the data it is made of; an option is none, some value (itself where a name holds it,
     as any value of a class is), or no object. A value of any
-    other class is also one a call can be made on: neither unit nor an object named alone. A value of a type
+    other class is also one a call can be made on: neither unit nor an object named alone, but where the
+    class is above an object the code names (`objects`): a Scala `object` is a value of the classes its class
+    inherits from, and the code read passes some as such. That no other class has one among its values is
+    assumed of what calls the code. A value of a type
     of functions is a function made where it is written (in the code or outside it), itself where a name holds
     it (no method that a name alone calls), or an object of a class of the code that is one. A value of a class
     of the JDK known by its identity is an object of the code only where the code has a class below it. *)
@@ -124,7 +128,9 @@ Definition of_class (known : classes) (cls : string) (v : val) : Prop :=
     (exists d e g, v = VCode (Fn d e g) /\ held v = oret v) \/ (exists c r, v = vref c r /\ In c (heirs known))
   else if String.eqb cls "scala.Option" then
     v = Library.none \/ (exists x, v = Library.some x /\ held x = oret x) \/ v = vnull
-  else held v = oret v /\ receiver v = [v].
+  else if existsb (String.eqb cls) (objects known)
+    then held v = oret v /\ (receiver v = [v] \/ exists m, v = VObj (Module m))
+    else held v = oret v /\ receiver v = [v].
 
 Lemma identity_receiver (v : val) : identity v -> receiver v = [v].
 Proof.
@@ -370,11 +376,13 @@ Section Conforms.
       exists args, Forall2 (names N) ys args /\ passed d args /\
         follows a i (run (Method s) (VList (vref cls r :: args))).
 
-  (** A call of a method of an object that is alone of its class. *)
+  (** A call of a method of an object that is alone of its class and has no state: the call names no object.
+      One with state is an object of the heap, and a call of its method is made on it (`method_calls`). *)
   Definition module_calls : Prop :=
     forall i a inside owner name signature c d ys,
       history i = Event_Invoke a inside (Invocation_mk (label owner name signature) ys) ->
-      class_of T owner = Some c -> is_module c = true -> impl T owner (Member owner name signature) = Some d ->
+      class_of T owner = Some c -> is_module c = true -> module_at T owner = None ->
+      impl T owner (Member owner name signature) = Some d ->
       exists args, Forall2 (names N) ys args /\ passed d args /\
         follows a i (run (Method (Member owner name signature)) (VList (module_val T owner :: args))).
 

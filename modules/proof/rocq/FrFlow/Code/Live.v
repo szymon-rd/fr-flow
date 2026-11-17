@@ -467,15 +467,16 @@ Section Live.
   (** A call of a method of an object of the code that is alone of its class. *)
   Lemma module_leads inside owner name signature c d ys :
     history i = Event_Invoke a inside (Invocation_mk (label owner name signature) ys) ->
-    class_of T owner = Some c -> is_module c = true -> impl T owner (Member owner name signature) = Some d ->
+    class_of T owner = Some c -> is_module c = true -> module_at T owner = None ->
+    impl T owner (Member owner name signature) = Some d ->
     moves ->
     (forall args, Forall2 (names N) ys args -> passed known d args ->
        leads (i + 1)
          (Running (run T (Method (Member owner name signature)) (VList (module_val T owner :: args))))) ->
     G.
   Proof.
-    intros He Hc Hmod Hd Hm H. destruct conformed as (_ & Hcalls & _).
-    destruct (Hcalls i a inside owner name signature c d ys He Hc Hmod Hd) as (args & Hargs & Hp & Hf).
+    intros He Hc Hmod Hat Hd Hm H. destruct conformed as (_ & Hcalls & _).
+    destruct (Hcalls i a inside owner name signature c d ys He Hc Hmod Hat Hd) as (args & Hargs & Hp & Hf).
     destruct (begins Hf) as (Hpend & Hans & at_ & H0 & Hst).
     exact (H args Hargs Hp Hm ltac:(lia) Hpend Hans at_ H0 Hst).
   Qed.
@@ -497,7 +498,7 @@ End Live.
 
 Arguments method_leads {files T known N history a i} G conformed {inside} s {cls r d y ys} _ _ _ _ _.
 Arguments module_leads {files T known N history a i} G conformed {inside} owner name signature {c d ys}
-  _ _ _ _ _ _.
+  _ _ _ _ _ _ _.
 Arguments function_leads {files T known N history a i} G conformed {inside m c y ys} _ _ _ _ _ _.
 
 (** ** Going through a program, to what it comes to *)

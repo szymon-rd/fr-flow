@@ -7,16 +7,16 @@ import frflow.core.name.{DefName, SymbolName}
   * are known by their identity (they keep `Object`'s `equals`), the classes of what is thrown, the one method
   * of each interface a function can be taken as (`"java.lang.Runnable run "`), and the classes outside the JDK
   * that are below a class known by its identity, or are functions of Scala's (an object of the code may be of
-  * one).
+  * one), and the classes above a Scala `object` the code names (that object is a value of them).
   */
 final case class ClassFacts(identities: List[String], throwables: List[String], functions: List[String],
-    heirs: List[String]):
+    heirs: List[String], objects: List[String]):
   def ++(more: ClassFacts): ClassFacts = ClassFacts((identities ++ more.identities).distinct.sorted,
     (throwables ++ more.throwables).distinct.sorted, (functions ++ more.functions).distinct.sorted,
-    (heirs ++ more.heirs).distinct.sorted)
+    (heirs ++ more.heirs).distinct.sorted, (objects ++ more.objects).distinct.sorted)
 
 object ClassFacts:
-  val none: ClassFacts = ClassFacts(Nil, Nil, Nil, Nil)
+  val none: ClassFacts = ClassFacts(Nil, Nil, Nil, Nil, Nil)
 
 /** A file of code read from its TASTy: its name, the tree it holds, and what is known of the classes it
   * mentions.

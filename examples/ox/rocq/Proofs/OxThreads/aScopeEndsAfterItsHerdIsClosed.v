@@ -22,7 +22,7 @@ Proof.
       "ox.internal.ThreadHerd interruptAllAndJoinUntilCompleted :scala.Unit" [heldIn "ox.OxError herd" s])
       c a closed b) as Hall.
   { refine (module_meets _ C "ox.unsupervised$package$" "scopedWithCapability"
-      "1,ox.Ox,scala.Function1:java.lang.Object" Hcall ltac:(vm_compute; reflexivity) eq_refl
+      "1,ox.Ox,scala.Function1:java.lang.Object" Hcall ltac:(vm_compute; reflexivity) eq_refl eq_refl
       ltac:(vm_compute; reflexivity) _).
     intros args k Hargs Hpassed.
     inversion Hargs as [| ? vscope ? rest Hvscope Hrest]; subst.

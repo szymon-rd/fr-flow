@@ -68,12 +68,68 @@ Definition named_by (refs : list (Z * val)) (x : Value) : option val :=
   | other => plain_val other
   end.
 
-(** A value a reference can be: none that a number, a text, a truth value, unit or no object is. *)
-Definition referred (v : val) : bool :=
-  match v with
-  | VTid _ | VCode _ | VList _ | VObj (Ref _ _) | VObj (Ext _ _) | VObj (Data _ _) => true
-  | _ => false
+(** The class of an exception of the JDK that is known by its class alone. *)
+Definition exn_class (e : exn) : option string :=
+  match e with
+  | InterruptedException => Some "java.lang.InterruptedException"
+  | IllegalStateException => Some "java.lang.IllegalStateException"
+  | IllegalThreadStateException => Some "java.lang.IllegalThreadStateException"
+  | NullPointerException => Some "java.lang.NullPointerException"
+  | NoSuchElementException => Some "java.util.NoSuchElementException"
+  | Machine.Other cls => match made_exn cls with Machine.Other _ => Some cls | _ => None end
+  | _ => None
   end.
+
+Lemma exn_class_made (e : exn) (cls : string) : exn_class e = Some cls -> made_exn cls = e.
+Proof.
+  destruct e; cbn; try discriminate; try (intros H; injection H as <-; reflexivity).
+  destruct (made_exn class) eqn:E; try discriminate. intros H. injection H as <-.
+  unfold made_exn in *.
+  repeat match type of E with context [String.eqb ?x ?y] => destruct (String.eqb x y); try discriminate E end.
+  reflexivity.
+Qed.
+
+Lemma made_exn_class (cls : string) : exn_class (made_exn cls) = Some cls.
+Proof.
+  unfold made_exn.
+  repeat match goal with |- context [String.eqb ?x ?y] => destruct (String.eqb_spec x y) as [-> | ?]; [reflexivity |] end.
+  cbn. unfold made_exn.
+  repeat match goal with |- context [String.eqb ?x ?y] => destruct (String.eqb_spec x y) as [-> | ?]; [contradiction |] end.
+  reflexivity.
+Qed.
+
+(** The value of an execution that a value of the code is in every execution: unit, a truth value, a number, a
+    text, no object, an exception of the JDK by its class. None for any other value: a reference names it. *)
+Definition plain_of (v : val) : option Value :=
+  match v with
+  | VUnit => Some Value_Unit_
+  | VBool b => Some (Value_Bool_ (b = true))
+  | VObj (Int z) => Some (Value_Int_ z)
+  | VObj (Str s) => Some (Value_Str s)
+  | VObj Null => Some Value_Null
+  | VExn e => option_map Value_Thrown (exn_class e)
+  | _ => None
+  end.
+
+Lemma plain_of_val (v : val) (x : Value) : plain_of v = Some x -> plain_val x = Some v.
+Proof.
+  destruct v as [| b | | e | o | |]; cbn; try discriminate.
+  - intros H. injection H as <-. reflexivity.
+  - intros H. injection H as <-. exact (of_bool plain_naming b).
+  - destruct (exn_class e) as [cls |] eqn:E; cbn; [| discriminate]. intros H. injection H as <-. cbn.
+    rewrite (exn_class_made e cls E). reflexivity.
+  - destruct o; try discriminate; intros H; injection H as <-; reflexivity.
+Qed.
+
+Lemma plain_val_of (x : Value) (v : val) : plain_val x = Some v -> plain_of v <> None.
+Proof.
+  destruct x as [| P | z | s | r | cls |]; cbn; try discriminate; try (intros H; injection H as <-; discriminate).
+  - repeat destruct (excluded_middle_informative _); try discriminate; intros H; injection H as <-; discriminate.
+  - intros H. injection H as <-. cbn. rewrite made_exn_class. discriminate.
+Qed.
+
+(** A value a reference can be: one that is no value of every execution. *)
+Definition referred (v : val) : bool := match plain_of v with None => true | Some _ => false end.
 
 (** The table names each value once, by one reference, and only values a reference can be. *)
 Fixpoint well_named (refs : list (Z * val)) : bool :=
@@ -117,10 +173,7 @@ Proof.
 Qed.
 
 Lemma plain_not_referred x v : plain_val x = Some v -> referred v = false.
-Proof.
-  destruct x as [| P | z | s | r | cls |]; cbn; try (intros E; injection E as <-; reflexivity); try discriminate.
-  repeat destruct (excluded_middle_informative _); intros E; try discriminate E; injection E as <-; reflexivity.
-Qed.
+Proof. intros H. unfold referred. destruct (plain_of v) eqn:E; [reflexivity | destruct (plain_val_of x v H E)]. Qed.
 
 Definition naming_of (refs : list (Z * val)) (places : nat -> string) :
   well_named refs = true -> placed places refs = true -> naming.
@@ -563,7 +616,7 @@ Ltac law_methods :=
 Ltac law_modules :=
   let H := fresh "H" in let Hc := fresh "Hc" in let Hmod := fresh "Hmod" in let Himpl := fresh "Himpl" in
   let Hm := fresh "Hm" in let Hin := fresh "Hin" in
-  intros ? ? ? ? ? ? ? ? ? H Hc Hmod Himpl; pose proof (module_labelled _ _ _ _ _ _ Hc Hmod Himpl) as Hin;
+  intros ? ? ? ? ? ? ? ? ? H Hc Hmod _ Himpl; pose proof (module_labelled _ _ _ _ _ _ Hc Hmod Himpl) as Hin;
   scan H; injection H as <- <- Hm <-; rewrite <- Hm in Hin; vm_compute in Hin; destruct Hin.
 
 (** Each call that applies a function runs it. *)

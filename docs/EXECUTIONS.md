@@ -213,7 +213,8 @@ Each rule asks that the claim hold at the operation's own event, and that the re
 Where what is claimed holds at every moment from one on (a call has completed, whatever follows), nothing is
 left to go through (`meets_from`).
 `method_meets`, `module_meets` and `function_meets` start a proof: a call of a method of the code on an object,
-of a method of an object alone of its class (a package's, a companion's), or of a function the code wrote, meets
+of a method of an object alone of its class that has no state (a package's, a companion's), or of a function the
+code wrote, meets
 a claim at every event of its own if its program does. The tactic `step` applies the rule of what the
 program does next (computing only that); `pass` does the same at an event the claim says nothing of, and
 `miss` shows that it says nothing. What a call of another method of the code gives is a lemma of that method,
@@ -264,6 +265,10 @@ What a model must still say itself, as assumptions:
   it. An object of a class of the code that is a function is told apart by the class files (`heirs`).
 - **The `apply` the compiler writes for a case class** is in no tree read: a call of it is a call of what is
   outside the code, and what it makes holds is assumed where a model needs it.
+- **A value of a class is no Scala `object`**, but where the code names an object of that class or below it
+  (`objects`, told by the class files: Ox passes `NoErrorMode` as an `ErrorMode`). A call on a value that is an
+  object names no object, as a call on an object named where it is called does: so of a parameter of such a
+  class, a proof has both cases (`typed`). Of every other class it is assumed of what calls the code.
 - **What a method of the code gives** is of the class its signature names, as what it is given is of the
   classes of its parameters (`meets_method_typed`). What a call throws, where it is an object of the code, is an
   object like any other: no variable, no value not yet evaluated.

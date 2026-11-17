@@ -21,7 +21,7 @@ Proof.
     heldIn "ox.internal.ThreadHerd herdOwner" (heldIn "ox.OxError herd" s) = c) as Hall.
   { refine (module_meets _ C "ox.OxError$" "apply"
       "2,ox.Supervisor,ox.ErrorMode,scala.Option,ox.ForkLocalMap:ox.OxError" Hcall ltac:(vm_compute; reflexivity)
-      eq_refl ltac:(vm_compute; reflexivity) _).
+      eq_refl eq_refl ltac:(vm_compute; reflexivity) _).
     intros args k Hargs Hpassed.
     inversion Hargs as [| ? vsupervisor ? rest1 Hvsupervisor Hrest1]; subst.
     inversion Hrest1 as [| ? verrormode ? rest2 Hverrormode Hrest2]; subst.
@@ -31,7 +31,9 @@ Proof.
     inversion Hp1 as [| p2 v2 ps2 vs2 Hterrormode Hp2]; subst.
     inversion Hp2 as [| p3 v3 ps3 vs3 Htparent Hp3]; subst.
     inversion Hp3 as [| p4 v4 ps4 vs4 Htlocals _]; subst.
-    typed Htsupervisor. typed Hterrormode. typed Htlocals.
+    (* the supervisor and the error mode may be Scala objects: what is kept of each is that a name holds it *)
+    lazy beta iota zeta delta -[identity receiver held names Jdk.as_exn] in Htsupervisor, Hterrormode.
+    destruct Htsupervisor as [Htsupervisor _]. destruct Hterrormode as [Hterrormode _]. typed Htlocals.
     assert (held vparent = oret vparent) as Hheldparent.
     { lazy beta iota zeta delta -[identity receiver held names Jdk.as_exn] in Htparent.
       destruct Htparent as [-> | [(x & -> & _) | ->]]; reflexivity. }
