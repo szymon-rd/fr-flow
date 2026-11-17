@@ -36,7 +36,7 @@ import scala.concurrent.duration.*
     "theCurrentScopeIsReadAndSet", "aTraversalAppliesItsFunctionToElements", "anElementWasAdded",
     "isEmptyFindsARestingSetEmpty", "anElementEntersOnlyWhenAdded", "aTraversalReachesWhatStays",
     "removingTakesTheElementOut", "aThreadActsOnlyOnceStarted", "currentThreadIsAnObject",
-    "aCallEndsAfterTheCallsItMade")
+    "aCallEndsAfterTheCallsItMade", "aScopeIsConstructed", "aScopeKeepsItsFields")
 
   /** What is assumed to happen in time: of who schedules threads (a call of code that waits for nothing makes its
     * next event), of the JDK and of the thread factory (a call is responded to; a started thread runs).
@@ -81,19 +81,21 @@ import scala.concurrent.duration.*
     "startThreadIsPendingWhileItAdds", "startThreadReadsTheFlagUnset", "theClosingCheckCallsGet",
     "theClosingCheckStaysOutOfHerds", "theForkFunctionRemovesTheCurrentThread", "theTreeCheckCallsFour",
     "whatClosingsFunctionsApplyReturns", "startThreadStartsAfterItsAddIsOver", "aForkFunctionRemovesItsThread",
-    "callsNest", "forkUnsupervisedStartsAThread")
+    "callsNest", "forkUnsupervisedStartsAThread", "aConstructedScopeIsMade", "aScopeMadeIsAnObject",
+    "asNoErrorModeKeepsTheHerd", "forkErrorStartsAThread", "forkStartsAThread")
 
   /** What holds once a call of `unsupervised`, or of `supervised`, has completed. */
   private val safe = List("Unsupervised", "Supervised").flatMap(of =>
     List(s"noForkRunsOnce${of}Ends", s"nothingIsAddedOnce${of}Ends", s"noThreadIsStartedOnce${of}Ends",
-      s"whatAForkBeganIsOverOnce${of}Ends", s"forkUnsupervisedIsRefusedOnce${of}Ends"))
+      s"whatAForkBeganIsOverOnce${of}Ends", s"forkUnsupervisedIsRefusedOnce${of}Ends")) ++
+    List("forkIsRefusedOnceSupervisedEnds")
 
   /** What happens in time. */
   private val live = List("aScopesHerdIsClosedInTime")
   private val roots = safe ++ live
 
   /** What rests on the herd's flag alone: that no thread is started, and so that a fork is refused. */
-  private val onTheFlag = safe.filter(n => n.startsWith("noThreadIsStarted") || n.startsWith("forkUnsupervised"))
+  private val onTheFlag = safe.filter(n => n.startsWith("noThreadIsStarted") || n.startsWith("fork"))
 
   /** What rests on the assumption false of Ox 1.1.0: everything else. */
   private val onTheLastCheck = safe.filterNot(onTheFlag.contains) ++
