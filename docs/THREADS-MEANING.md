@@ -124,10 +124,11 @@ Writing the last one showed a behaviour of Ox worth knowing: a fork made by `for
 before its thread has started never runs its body (`cancel` then gives the interrupt). Whether a fork cancelled
 at once runs is the scheduler's choice; the program here waits until the fork runs before it cancels.
 
-`OxRunSuite` runs each on the JVM, reads the programs' TASTy into trees, and writes `Runs.v`: over the programs'
-trees and Ox's 116, one lemma for each program, that under each of four orders of the threads' turns (each
-thread in turn, and three shuffled orders) every thread ends and the first gives the number the JVM gave. Rocq
-proves each by running the meaning (`vm_compute`): a hundred runs.
+`OxRunSuite` runs each on the JVM, reads the programs' TASTy into trees, and writes `Runs.v`, which says how a
+program is run over the programs' trees and Ox's 116, and `Runs1.v` to `Runs4.v`: one lemma for each program,
+that under each of four orders of the threads' turns (each thread in turn, and three shuffled orders) every
+thread ends and the first gives the number the JVM gave. Rocq proves each by running the meaning
+(`vm_compute`): a hundred runs. The lemmas are in four files so that the four are checked at once.
 
 What this shows is that the meaning of the forms these programs and Ox's kernel use, and of the JDK's members
 they call, agrees with the JVM on these runs. It shows nothing of the runs not made: the contracts allow the JDK

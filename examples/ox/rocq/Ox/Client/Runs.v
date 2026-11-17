@@ -3,10 +3,10 @@
     an execution (`FrFlow.Code.Frames`). The programs run are those an execution of the code is of
     (`FrFlow.Code.Outside`): a call of the JDK is one operation named by the definition called, and the
     machine runs for it what the library says of that definition (`Library.of_label`).
-    Each lemma says that the first thread gives the number the same method gave on the JVM when this file
-    was generated, and that every thread ended, with the threads taking turns in each of four orders. Four
-    runs of each are checked: the runs under other orders, and with the JDK doing another of the things
-    its contracts allow, are not.
+    A lemma for each program (`Runs1.v` to `Runs4.v`, which Rocq can check at once) says that the first
+    thread gives the number the same method gave on the JVM when the files were generated, and that every
+    thread ended, with the threads taking turns in each of four orders. Four runs of each are checked: the
+    runs under other orders, and with the JDK doing another of the things its contracts allow, are not.
     The machine takes a step only where an execution of the code has one (`FrFlow.Code.Checks`), and stops
     otherwise: so each run that ends here took only such steps, and what it did is an execution of the
     code (`executions`, by `FrFlow.Code.Executed`).
@@ -60,78 +60,3 @@ Lemma executions (order : nat -> nat) (fuel : nat) (main : sym) v es refs :
   execute_frames T known of_label order fuel main = (v, es, refs) ->
   runs (files ++ programs) T known (Witness.history_of es).
 Proof. apply Executed.machine_conforms. vm_compute. reflexivity. Qed.
-
-Lemma Joins_plain : gives "frflow.project.rocq.clients.Joins$" "plain" (3)%Z = true.
-Proof. vm_compute. reflexivity. Qed.
-
-Lemma Joins_scoped : gives "frflow.project.rocq.clients.Joins$" "scoped" (42)%Z = true.
-Proof. vm_compute. reflexivity. Qed.
-
-Lemma Joins_forkJoin : gives "frflow.project.rocq.clients.Joins$" "forkJoin" (3)%Z = true.
-Proof. vm_compute. reflexivity. Qed.
-
-Lemma Joins_two : gives "frflow.project.rocq.clients.Joins$" "two" (42)%Z = true.
-Proof. vm_compute. reflexivity. Qed.
-
-Lemma Failures_userForkThrows : gives "frflow.project.rocq.clients.Failures$" "userForkThrows" (2)%Z = true.
-Proof. vm_compute. reflexivity. Qed.
-
-Lemma Failures_joinedForkThrows : gives "frflow.project.rocq.clients.Failures$" "joinedForkThrows" (2)%Z = true.
-Proof. vm_compute. reflexivity. Qed.
-
-Lemma Failures_bodyThrows : gives "frflow.project.rocq.clients.Failures$" "bodyThrows" (3)%Z = true.
-Proof. vm_compute. reflexivity. Qed.
-
-Lemma Failures_daemonInterrupted : gives "frflow.project.rocq.clients.Failures$" "daemonInterrupted" (4)%Z = true.
-Proof. vm_compute. reflexivity. Qed.
-
-Lemma Failures_unsupervisedThrows : gives "frflow.project.rocq.clients.Failures$" "unsupervisedThrows" (5)%Z = true.
-Proof. vm_compute. reflexivity. Qed.
-
-Lemma Failures_cancelled : gives "frflow.project.rocq.clients.Failures$" "cancelled" (6)%Z = true.
-Proof. vm_compute. reflexivity. Qed.
-
-Lemma Failures_applicationError : gives "frflow.project.rocq.clients.Failures$" "applicationError" (7)%Z = true.
-Proof. vm_compute. reflexivity. Qed.
-
-Lemma Scopes_nested : gives "frflow.project.rocq.clients.Scopes$" "nested" (42)%Z = true.
-Proof. vm_compute. reflexivity. Qed.
-
-Lemma Scopes_parTwo : gives "frflow.project.rocq.clients.Scopes$" "parTwo" (3)%Z = true.
-Proof. vm_compute. reflexivity. Qed.
-
-Lemma Scopes_raceOne : gives "frflow.project.rocq.clients.Scopes$" "raceOne" (5)%Z = true.
-Proof. vm_compute. reflexivity. Qed.
-
-Lemma Scopes_timedOut : gives "frflow.project.rocq.clients.Scopes$" "timedOut" (6)%Z = true.
-Proof. vm_compute. reflexivity. Qed.
-
-Lemma Scopes_finalizers : gives "frflow.project.rocq.clients.Scopes$" "finalizers" (70)%Z = true.
-Proof. vm_compute. reflexivity. Qed.
-
-Lemma Scopes_resource : gives "frflow.project.rocq.clients.Scopes$" "resource" (80)%Z = true.
-Proof. vm_compute. reflexivity. Qed.
-
-Lemma Scopes_forkLocal : gives "frflow.project.rocq.clients.Scopes$" "forkLocal" (21)%Z = true.
-Proof. vm_compute. reflexivity. Qed.
-
-Lemma Observed_waitsForUserForks : gives "frflow.project.rocq.clients.Observed$" "waitsForUserForks" (111)%Z = true.
-Proof. vm_compute. reflexivity. Qed.
-
-Lemma Observed_interruptsAndWaits : gives "frflow.project.rocq.clients.Observed$" "interruptsAndWaits" (11)%Z = true.
-Proof. vm_compute. reflexivity. Qed.
-
-Lemma Observed_failureInterruptsSibling : gives "frflow.project.rocq.clients.Observed$" "failureInterruptsSibling" (21)%Z = true.
-Proof. vm_compute. reflexivity. Qed.
-
-Lemma Observed_innerEndsFirst : gives "frflow.project.rocq.clients.Observed$" "innerEndsFirst" (11)%Z = true.
-Proof. vm_compute. reflexivity. Qed.
-
-Lemma Observed_finalizerAfterForks : gives "frflow.project.rocq.clients.Observed$" "finalizerAfterForks" (11)%Z = true.
-Proof. vm_compute. reflexivity. Qed.
-
-Lemma Observed_unsupervisedWaits : gives "frflow.project.rocq.clients.Observed$" "unsupervisedWaits" (1)%Z = true.
-Proof. vm_compute. reflexivity. Qed.
-
-Lemma Observed_cancelWaits : gives "frflow.project.rocq.clients.Observed$" "cancelWaits" (1)%Z = true.
-Proof. vm_compute. reflexivity. Qed.

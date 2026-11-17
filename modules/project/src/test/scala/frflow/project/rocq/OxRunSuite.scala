@@ -31,10 +31,9 @@ class OxRunSuite extends munit.FunSuite:
     (ReadSource(classOf[_root_.ox.Ox]) ++ read).map((_, d) => ReadClasses.of(d, getClass.getClassLoader))
       .foldLeft(ClassFacts.none)(_ ++ _)
 
-  /** The programs' trees, and the file that says what each program gave on the JVM, now. */
+  /** The programs' trees, and the files that say what each program gave on the JVM, now. */
   private lazy val files: List[(String, String)] =
-    programs :+ ("Runs.v" -> OxClients.runs(programs.map(_._1.stripSuffix(".v")), known,
-      OxClients.all.map(p => p -> p.run())))
+    programs ++ OxClients.runs(programs.map(_._1.stripSuffix(".v")), known, OxClients.all.map(p => p -> p.run()))
 
   test("the generator prints the files that are kept: the programs' trees, and what each gives on the JVM") {
     if sys.env.contains("FRFLOW_ROCQ_WRITE") then
@@ -58,5 +57,7 @@ class OxRunSuite extends munit.FunSuite:
     "Code/Executed")
 
   test("Rocq runs the meaning of each program over Ox's trees, and it gives what the JVM gave".tag(Rocq)) {
-    assertEquals(ThreadsRocq.failing(ox ++ files.map((name, text) => s"Ox/Client/$name" -> text), library), None)
+    val (lemmas, before) = files.partition((name, _) => OxClients.together(name))
+    def placed(of: List[(String, String)]) = of.map((name, text) => s"Ox/Client/$name" -> text)
+    assertEquals(ThreadsRocq.failingTogether(ox ++ placed(before), library, placed(lemmas)), None)
   }
