@@ -106,6 +106,23 @@ Proof.
   exists (history_of events), (fun _ _ _ => False), held, flag.
   split; [exact Hruns |]. clear Hruns.
   split.
+  { intros locals code c from s g k m [[H _] _]. absent H. }
+  split.
+  { intros locals code c from H. absent H. }
+  split.
+  { intros supervisor errorMode parent locals c from H. absent H. }
+  split.
+  { intros b. split; [intros who from [H _]; absent H |].
+    intros from response to [who H]. reveal H. eexists. reflexivity. }
+  split.
+  { split; [intros who from [H _]; absent H |].
+    intros from response to [who H]. reveal H. eexists. reflexivity. }
+  split.
+  { intros x. split; [intros who from [H _]; absent H |]. intros from response to [who H]. absent H. }
+  split.
+  { intros h finalizers supervisor errorMode parent locals. split; [intros who from [H _]; absent H |].
+    intros from response to [who H]. absent H. }
+  split.
   { intros s g c from H. absent H. }
   split.
   { intros s g c from own a [H _]. absent H. }

@@ -14,12 +14,24 @@ val roots: List[FrModel.Part] = List(
   forkUnsupervisedIsRefusedOnceUnsupervisedEnds, forkUnsupervisedIsRefusedOnceSupervisedEnds,
   forkIsRefusedOnceSupervisedEnds, forkUserIsRefusedOnceSupervisedEnds,
   forkCancellableIsRefusedOnceUnsupervisedEnds, forkCancellableIsRefusedOnceSupervisedEnds,
-  aScopesHerdIsClosedInTime, closingCompletes.refines(aScopesHerdIsClosedInTime),
+  unsupervisedClosesItsHerdInTime, aScopesHerdIsClosedInTime.refines(unsupervisedClosesItsHerdInTime),
+  unsupervisedComesToItsScope.refines(unsupervisedClosesItsHerdInTime),
+  whatUnsupervisedRunsEndsOnceItsCodeDoes.refines(unsupervisedClosesItsHerdInTime),
+  whatUnsupervisedRunsProceeds.refines(whatUnsupervisedRunsEndsOnceItsCodeDoes),
+  makingAScopeReturnsInTime.refines(unsupervisedComesToItsScope),
+  unsupervisedProceeds.refines(unsupervisedComesToItsScope),
+  makingAScopeProceeds.refines(makingAScopeReturnsInTime),
+  makingAFlagReturnsInTime.refines(makingAScopeReturnsInTime),
+  makingASetReturnsInTime.refines(makingAScopeReturnsInTime),
+  makingAReferenceReturnsInTime.refines(makingAScopeReturnsInTime),
+  aScopeIsMadeInTime.refines(makingAScopeReturnsInTime),
+  closingCompletes.refines(aScopesHerdIsClosedInTime),
   closingCompletesOnceItsHerdEmpties.refines(closingCompletes),
   aScopesClosingIsReached.refines(aScopesHerdIsClosedInTime),
   runningInAScopeProceeds.refines(aScopesClosingIsReached),
   whatRunningInAScopeAppliesProceeds.refines(aScopesClosingIsReached),
-  theCurrentScopeResponds.refines(aScopesClosingIsReached), aScopesHerdResponds.refines(aScopesClosingIsReached))
+  theCurrentScopeResponds.refines(aScopesClosingIsReached, unsupervisedComesToItsScope),
+  aScopesHerdResponds.refines(aScopesClosingIsReached))
 
 val ofScopes: List[FrModel.Part] = List(
   // A scope: `unsupervised` and `supervised` make one, run code in it, and its herd is closed before they end.
@@ -60,5 +72,6 @@ val ofScopes: List[FrModel.Part] = List(
     aScopesHerdIsClosedInTime),
   aScopeGivesTheHerdItHolds.refines(aScopeEndsAfterItsHerdIsClosed, aScopesClosingIsReached,
     forkUnsupervisedStartsAThread, forkCancellableStartsAThread),
-  theCurrentScopeIsReadAndSet.refines(aScopeEndsAfterItsHerdIsClosed, aScopesClosingIsReached),
+  theCurrentScopeIsReadAndSet.refines(aScopeEndsAfterItsHerdIsClosed, aScopesClosingIsReached,
+    unsupervisedComesToItsScope),
   aScopeHoldsTheHerdItIsMadeWith.refines(aScopesHerdIsItsMakers, asNoErrorModeKeepsTheHerd))

@@ -134,7 +134,7 @@ private val once: List[FrModel.Part] = List(
     theForkFunctionRemovesTheCurrentThread, closingEndsOnceFoundEmpty, closingCompletesOnceItsHerdEmpties,
     aForkFunctionRemovesItsThread),
   currentThreadIsTheCaller.refines(closingSetsTheFlagItself, aForkRemovesOnlyItself, closingEndsOnceFoundEmpty,
-    aScopesHerdIsItsMakers, aForkFunctionRemovesItsThread),
+    aScopesHerdIsItsMakers, aForkFunctionRemovesItsThread, makingAScopeReturnsInTime),
 
   addingIsAtomic.refines(liveForksAreInTheSet), anElementLeavesOnlyWhenRemoved.refines(liveForksAreInTheSet),
   aHerdsSetIsPlain.refines(liveForksAreInTheSet, whatIsInAHerdsSetWasMadeToRun, aHerdsSetEmptiesOnceTraversed,

@@ -46,7 +46,9 @@ import scala.concurrent.duration.*
     "whatClosingsFunctionsApplyProceeds", "interruptResponds", "addSuppressedResponds",
     "joinRespondsOnceItsThreadHasRun", "aTraversalRespondsOnceItsFunctionDoes", "theExecutionBegins",
     "settingResponds", "isEmptyResponds", "addingResponds", "runningInAScopeProceeds",
-    "whatRunningInAScopeAppliesProceeds", "theCurrentScopeResponds", "aScopesHerdResponds")
+    "whatRunningInAScopeAppliesProceeds", "theCurrentScopeResponds", "aScopesHerdResponds",
+    "unsupervisedProceeds", "makingAScopeProceeds", "whatUnsupervisedRunsProceeds", "makingAFlagReturnsInTime",
+    "makingASetReturnsInTime", "makingAReferenceReturnsInTime", "aScopeIsMadeInTime")
 
   /** What is assumed of the code a fork is given: a restriction on who uses Ox. */
   private val ofForkCode = List("forkCodeCompletesOnceInterrupted")
@@ -93,7 +95,7 @@ import scala.concurrent.duration.*
     List("forkIsRefusedOnceSupervisedEnds", "forkUserIsRefusedOnceSupervisedEnds")
 
   /** What happens in time. */
-  private val live = List("aScopesHerdIsClosedInTime")
+  private val live = List("unsupervisedClosesItsHerdInTime")
   private val roots = safe ++ live
 
   /** What rests on the herd's flag alone: that no thread is started, and so that a fork is refused. */

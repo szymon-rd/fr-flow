@@ -1,6 +1,7 @@
 package ox.live
 
 import frflow.*
+import ox.scopes.makingAScopeReturnsInTime
 
 // What happens in time, as the model has it: each statement under what it helps prove.
 
@@ -42,7 +43,8 @@ val inTime: List[FrModel.Part] = List(
   aHerdsMethodsProceed.refines(startThreadStartsWhatItAdded, theOwnerCheckResponds,
     closingCompletesOnceItsHerdEmpties),
   aForkFunctionProceeds.refines(aForkFunctionCompletesOnceItsCodeDoes),
-  currentThreadResponds.refines(aForkFunctionCompletesOnceItsCodeDoes, theOwnerCheckResponds),
+  currentThreadResponds.refines(aForkFunctionCompletesOnceItsCodeDoes, theOwnerCheckResponds,
+    makingAScopeReturnsInTime),
   removingResponds.refines(aForkFunctionCompletesOnceItsCodeDoes, aHerdsSetEmptiesOnceTraversed),
   discardResponds.refines(aForkFunctionCompletesOnceItsCodeDoes),
   // What happens in time: the herd's set empties, so closing completes.
