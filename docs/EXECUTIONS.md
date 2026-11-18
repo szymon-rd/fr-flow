@@ -44,7 +44,7 @@ name of a model is.
 | Looking at what can change | `Changing[A]`, read with `.at(w)` | `h.field("count").at(w)` |
 | Doing | `Call[A]` | `s.add(x)`, `code()`, `supervised(body)` |
 
-- A moment is a `Term[BigInt]` (`World`). Moments are compared with `<` and `<=`.
+- A moment is a `Moment` (a `Term[BigInt]`). Moments are compared with `<` and `<=`.
 - An `Obj[C]` says which object, not what is in it. In Rocq every object and piece of data is a `Value`.
 - A word of the model that depends on the moment takes the moment as an argument: `elements(s, w)`.
 
@@ -82,7 +82,7 @@ import frflow.executions.*
 import frflow.values.*
 
 val aThreadIsStartedOnce = Node.assumption("A thread is started at most once.")(
-  forall((t: Obj[Thread], a: Term[BigInt], b: Term[BigInt]) =>
+  forall((t: Obj[Thread], a: Moment, b: Moment) =>
     (t.start().called(a) && t.start().called(b)) implies (a === b)))
 ```
 

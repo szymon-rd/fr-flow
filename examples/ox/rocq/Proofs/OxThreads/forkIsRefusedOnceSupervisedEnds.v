@@ -7,15 +7,14 @@ From Stdlib Require Import String List ZArith Lia.
     herd, made after it was closed, would have returned: it does not. *)
 Lemma forkIsRefusedOnceSupervisedEnds_Proofs_complete : forkIsRefusedOnceSupervisedEnds_Obl_complete.
 Proof.
-  intros history heldIn _ Hcloses Hstarts Hobject Hrefuses c s from to code d m fork w [[Hmade Hle] Hcalled] Hdone.
+  intros history heldIn _ Hcloses Hstarts Hobject Hrefuses c s from to Hmade code d m fork w [Hle Hcalled] Hdone.
   pose proof Hmade as (supervisor & errorMode & parent & locals & code0 & ended & a & b & [_ Hmk]).
   assert (scopeMade history s) as Hs
     by exact (Hobject supervisor errorMode parent locals s a b (ex_intro _ c Hmk)).
   destruct (Hstarts code s d m fork w (conj Hs Hdone)) as (run & a1 & b1 & [Ha1 Hb1] & Hst).
-  destruct (Hrefuses (heldIn L.OxError_herd s) run d d a1 b1) as [Hnot _]; [| exact (Hnot Hst)].
-  split.
-  - destruct (Hcloses c s from to Hmade) as (f0 & e0 & t0 & Ht0 & Hclosed).
-    exists f0, e0, t0. split; [lia | exact Hclosed].
-  - destruct Hst as [[(ins & sp & Hat) _] | [Hbegun _]]; [| left; exact Hbegun].
-    right. exists (Response_Returned Value_Unit_), ins, sp. exact Hat.
+  destruct (Hrefuses (heldIn L.OxError_herd s) to (Hcloses c s from to Hmade) run d d a1 b1) as [Hnot _];
+    [| exact (Hnot Hst)].
+  split; [lia |].
+  destruct Hst as [[(ins & sp & Hat) _] | [Hbegun _]]; [| left; exact Hbegun].
+  right. exists (Response_Returned Value_Unit_), ins, sp. exact Hat.
 Qed.

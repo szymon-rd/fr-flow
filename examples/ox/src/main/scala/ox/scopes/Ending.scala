@@ -13,22 +13,22 @@ import ox.threads.*
 // code has ended; and closing, by the thread that made the scope, completes.
 
 /** Each call of the code on the scope that the thread makes after the moment is responded to, in time. */
-val codeEndsIn = stated { (g: Term[Value], s: Obj[Scope], c: Obj[Thread], from: Term[BigInt]) =>
-  forall((m: Term[BigInt]) =>
+val codeEndsIn = stated { (g: Term[Value], s: Obj[Scope], c: Obj[Thread], from: Moment) =>
+  forall((m: Moment) =>
     (from < m && applicationOf[Any](g, s.asValue).by(c).called(m)) implies
       applicationOf[Any](g, s.asValue).by(c).respondedTo(m)) }
 
 // Of who schedules threads: the thread running code in a scope is given its turn.
 val runningInAScopeProceeds = Node.assumption(
   "A call running code in a scope, pending and waiting for no call it made, makes its next event in time.")(
-  forall((s: Obj[Scope], g: Term[Value], c: Obj[Thread], from: Term[BigInt]) =>
+  forall((s: Obj[Scope], g: Term[Value], c: Obj[Thread], from: Moment) =>
     runningIn(s, g).by(c).called(from) implies proceedsFrom(c.asValue, from))).about(About.time)
 
 val whatRunningInAScopeAppliesProceeds = Node.assumption(
   "A call of a function that such a call itself makes, pending and waiting for no call it made, makes its " +
     "next event in time.")(
-  forall((s: Obj[Scope], g: Term[Value], c: Obj[Thread], from: Term[BigInt]) =>
-    forall((own: Term[Value], a: Term[BigInt]) =>
+  forall((s: Obj[Scope], g: Term[Value], c: Obj[Thread], from: Moment) =>
+    forall((own: Term[Value], a: Moment) =>
       (runningIn(s, g).by(c).called(from) && applicationOf[Any](own).by(c).calledInside(from, a)) implies
         proceedsFrom(c.asValue, a)))).about(About.time)
 
@@ -45,9 +45,9 @@ val aScopesHerdResponds = Node.assumption("A scope asked for its herd is respond
 val aScopesClosingIsReached = Node.claim(
   "A call running code in a scope calls closing on the scope's herd in time, if each call of the code on the " +
     "scope that its thread makes is responded to.")(
-  forall((s: Obj[Scope], g: Term[Value], c: Obj[Thread], from: Term[BigInt]) =>
+  forall((s: Obj[Scope], g: Term[Value], c: Obj[Thread], from: Moment) =>
     (runningIn(s, g).by(c).called(from) && codeEndsIn(g, s, c, from)) implies
-      exists((k: Term[BigInt]) => from < k && closing(herdOf(s)).by(c).called(k))))
+      exists((k: Moment) => from < k && closing(herdOf(s)).by(c).called(k))))
   .from(runningInAScopeProceeds, whatRunningInAScopeAppliesProceeds, theCurrentScopeResponds, aScopesHerdResponds,
     aScopeGivesTheHerdItHolds, theCurrentScopeIsReadAndSet)
 
@@ -56,10 +56,10 @@ val aScopesHerdIsClosedInTime = Node.claim(
     "each call of the code on the scope that the thread makes is responded to: closing is called, and is " +
     "responded to.")(
   forall((supervisor: Term[Value], errorMode: Term[Value], parent: Term[Value], locals: Term[Value]) =>
-    forall((s: Obj[Scope], g: Term[Value], c: Obj[Thread], a: Term[BigInt], b: Term[BigInt]) =>
-      forall((from: Term[BigInt]) =>
+    forall((s: Obj[Scope], g: Term[Value], c: Obj[Thread], a: Moment, b: Moment) =>
+      forall((from: Moment) =>
         (makingAScope(supervisor, errorMode, parent, locals).by(c).completed(a, Returned(s), b) &&
           runningIn(s, g).by(c).called(from) && codeEndsIn(g, s, c, from)) implies
-          exists((k: Term[BigInt]) =>
+          exists((k: Moment) =>
             from < k && closing(herdOf(s)).by(c).called(k) && closing(herdOf(s)).by(c).respondedTo(k))))))
   .from(closingCompletes, aScopesClosingIsReached, aScopesHerdIsItsMakers)

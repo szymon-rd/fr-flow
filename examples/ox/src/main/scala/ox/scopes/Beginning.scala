@@ -21,13 +21,13 @@ private def returns(reply: Term[Response]): Term[Boolean] =
 // Of who schedules threads: the thread calling `unsupervised` is given its turn.
 val unsupervisedProceeds = Node.assumption(
   "A call of unsupervised, pending and waiting for no call it made, makes its next event in time.")(
-  forall((locals: Term[Value], code: Term[Value], c: Obj[Thread], from: Term[BigInt]) =>
+  forall((locals: Term[Value], code: Term[Value], c: Obj[Thread], from: Moment) =>
     unsupervisedWith(locals, code).by(c).called(from) implies proceedsFrom(c.asValue, from))).about(About.time)
 
 val makingAScopeProceeds = Node.assumption(
   "A call making a scope, pending and waiting for no call it made, makes its next event in time.")(
   forall((supervisor: Term[Value], errorMode: Term[Value], parent: Term[Value], locals: Term[Value]) =>
-    forall((c: Obj[Thread], from: Term[BigInt]) =>
+    forall((c: Obj[Thread], from: Moment) =>
       makingAScope(supervisor, errorMode, parent, locals).by(c).called(from) implies
         proceedsFrom(c.asValue, from)))).about(About.time)
 
@@ -57,19 +57,19 @@ val aScopeIsMadeInTime = Node.assumption(
 
 val makingAScopeReturnsInTime = Node.claim("A call making a scope returns a scope, in time.")(
   forall((supervisor: Term[Value], errorMode: Term[Value], parent: Term[Value], locals: Term[Value]) =>
-    forall((c: Obj[Thread], from: Term[BigInt]) =>
+    forall((c: Obj[Thread], from: Moment) =>
       makingAScope(supervisor, errorMode, parent, locals).by(c).called(from) implies
-        exists((s: Obj[Scope], to: Term[BigInt]) =>
+        exists((s: Obj[Scope], to: Moment) =>
           makingAScope(supervisor, errorMode, parent, locals).by(c).completed(from, Returned(s), to)))))
   .from(makingAScopeProceeds, makingAFlagReturnsInTime, makingASetReturnsInTime, makingAReferenceReturnsInTime,
     aScopeIsMadeInTime, currentThreadResponds, currentThreadIsTheCaller)
 
 val unsupervisedComesToItsScope = Node.claim(
   "A call of unsupervised makes a scope and itself calls running a function in it, in time.")(
-  forall((locals: Term[Value], code: Term[Value], c: Obj[Thread], from: Term[BigInt]) =>
+  forall((locals: Term[Value], code: Term[Value], c: Obj[Thread], from: Moment) =>
     unsupervisedWith(locals, code).by(c).called(from) implies
       exists((supervisor: Term[Value], errorMode: Term[Value], parent: Term[Value], s: Obj[Scope]) =>
-        exists((g: Term[Value], a: Term[BigInt], b: Term[BigInt], k: Term[BigInt]) =>
+        exists((g: Term[Value], a: Moment, b: Moment, k: Moment) =>
           makingAScope(supervisor, errorMode, parent, locals).by(c).completed(a, Returned(s), b) &&
             from < k && runningIn(s, g).by(c).calledInside(from, k)))))
   .from(makingAScopeReturnsInTime, unsupervisedProceeds, theCurrentScopeResponds, theCurrentScopeIsReadAndSet)
@@ -78,16 +78,16 @@ val unsupervisedComesToItsScope = Node.claim(
 val whatUnsupervisedRunsProceeds = Node.assumption(
   "A call of the function unsupervised runs in its scope, pending and waiting for no call it made, makes its " +
     "next event in time.")(
-  forall((locals: Term[Value], code: Term[Value], c: Obj[Thread], from: Term[BigInt]) =>
-    forall((s: Obj[Scope], g: Term[Value], k: Term[BigInt], m: Term[BigInt]) =>
+  forall((locals: Term[Value], code: Term[Value], c: Obj[Thread], from: Moment) =>
+    forall((s: Obj[Scope], g: Term[Value], k: Moment, m: Moment) =>
       (unsupervisedWith(locals, code).by(c).called(from) && runningIn(s, g).by(c).calledInside(from, k) &&
         applicationOf[Any](g, s.asValue).by(c).called(m)) implies proceedsFrom(c.asValue, m)))).about(About.time)
 
 val whatUnsupervisedRunsEndsOnceItsCodeDoes = Node.claim(
   "A call of the function unsupervised runs in its scope is responded to in time, if each call of the code on " +
     "the scope that its thread makes is.")(
-  forall((locals: Term[Value], code: Term[Value], c: Obj[Thread], from: Term[BigInt]) =>
-    forall((s: Obj[Scope], g: Term[Value], k: Term[BigInt], m: Term[BigInt]) =>
+  forall((locals: Term[Value], code: Term[Value], c: Obj[Thread], from: Moment) =>
+    forall((s: Obj[Scope], g: Term[Value], k: Moment, m: Moment) =>
       (unsupervisedWith(locals, code).by(c).called(from) && runningIn(s, g).by(c).calledInside(from, k) &&
         codeEndsIn(code, s, c, from) && from < m && applicationOf[Any](g, s.asValue).by(c).called(m)) implies
         applicationOf[Any](g, s.asValue).by(c).respondedTo(m))))
@@ -96,9 +96,9 @@ val whatUnsupervisedRunsEndsOnceItsCodeDoes = Node.claim(
 val unsupervisedClosesItsHerdInTime = Node.claim(
   "A call of unsupervised closes the herd of a scope it makes in time, if each call of its code on a scope " +
     "that its thread makes is responded to: closing is called, and is responded to.")(
-  forall((locals: Term[Value], code: Term[Value], c: Obj[Thread], from: Term[BigInt]) =>
+  forall((locals: Term[Value], code: Term[Value], c: Obj[Thread], from: Moment) =>
     (unsupervisedWith(locals, code).by(c).called(from) &&
       forall((s: Obj[Scope]) => codeEndsIn(code, s, c, from))) implies
-      exists((s: Obj[Scope], k: Term[BigInt]) =>
+      exists((s: Obj[Scope], k: Moment) =>
         from < k && closing(herdOf(s)).by(c).called(k) && closing(herdOf(s)).by(c).respondedTo(k))))
   .from(aScopesHerdIsClosedInTime, unsupervisedComesToItsScope, whatUnsupervisedRunsEndsOnceItsCodeDoes)

@@ -13,13 +13,19 @@ import ox.threads.*
 def forkingUnsupervised(code: Term[Value], s: Obj[Scope]): Call[Any] =
   Call.of[Any](methodCalled(ox.forkUnsupervised[Any](???)(using ???)), code, s.asValue)
 
+/** A call of the fork method in the scope, made from the moment on, does not return a fork. */
+def refusesFrom(call: (Term[Value], Obj[Scope]) => Call[Any])(s: Obj[Scope], from: Moment)(using Stating)
+    : Term[Boolean] =
+  forall((code: Term[Value], d: Obj[Thread], m: Moment, fork: Term[Value], w: Moment) =>
+    (from <= m && call(code, s).by(d).called(m)) implies !call(code, s).by(d).completed(m, Returned(fork), w))
+
 val forkUnsupervisedStartsAThread = Node.claim(
   "A call of forkUnsupervised returns only after a call of startThread on the herd of its scope, that it made " +
     "itself, has returned.")(
   forall((code: Term[Value], s: Obj[Scope], c: Obj[Thread]) =>
-    forall((from: Term[BigInt], fork: Term[Value], to: Term[BigInt]) =>
+    forall((from: Moment, fork: Term[Value], to: Moment) =>
       forkingUnsupervised(code, s).by(c).completed(from, make[Response.Returned](fork), to) implies
-        exists((run: Obj[Code], a: Term[BigInt], b: Term[BigInt]) =>
+        exists((run: Obj[Code], a: Moment, b: Moment) =>
           from < a && b <= to && starting(herdOf(s), run).by(c).calledInside(from, a) &&
             starting(herdOf(s), run).by(c).completed(a, Returned(()), b)))))
   .from(aScopeGivesTheHerdItHolds)
@@ -27,26 +33,17 @@ val forkUnsupervisedStartsAThread = Node.claim(
 val forkUnsupervisedIsRefusedOnceClosed = Node.claim(
   "After closing a herd has completed, a call of forkUnsupervised in a scope that holds the herd does not " +
     "return.")(
-  forall((code: Term[Value], s: Obj[Scope], c: Obj[Thread]) =>
-    forall((m: Term[BigInt], fork: Term[Value], w: Term[BigInt]) =>
-      (closed(herdOf(s), m) && forkingUnsupervised(code, s).by(c).called(m)) implies
-        !forkingUnsupervised(code, s).by(c).completed(m, make[Response.Returned](fork), w))))
+  forall((s: Obj[Scope], from: Moment) => closed(herdOf(s), from) implies refusesFrom(forkingUnsupervised)(s, from)))
   .from(forkUnsupervisedStartsAThread, aClosedHerdRefusesToStart)
 
 val forkUnsupervisedIsRefusedOnceUnsupervisedEnds = Node.claim(
   "After a call of unsupervised has completed, a call of forkUnsupervised in the scope it made does not return.")(
-  forall((c: Obj[Thread], s: Obj[Scope], from: Term[BigInt], to: Term[BigInt]) =>
-    forall((code: Term[Value], d: Obj[Thread], m: Term[BigInt], fork: Term[Value], w: Term[BigInt]) =>
-      (unsupervisedMade(c, s, from, to) && to <= m && forkingUnsupervised(code, s).by(d).called(m)) implies
-        !forkingUnsupervised(code, s).by(d).completed(m, make[Response.Returned](fork), w))))
+  onceUnsupervisedEnds(refusesFrom(forkingUnsupervised)))
   .from(unsupervisedClosesItsScopesHerd, forkUnsupervisedIsRefusedOnceClosed)
 
 val forkUnsupervisedIsRefusedOnceSupervisedEnds = Node.claim(
   "After a call of supervised has completed, a call of forkUnsupervised in the scope it made does not return.")(
-  forall((c: Obj[Thread], s: Obj[Scope], from: Term[BigInt], to: Term[BigInt]) =>
-    forall((code: Term[Value], d: Obj[Thread], m: Term[BigInt], fork: Term[Value], w: Term[BigInt]) =>
-      (supervisedMade(c, s, from, to) && to <= m && forkingUnsupervised(code, s).by(d).called(m)) implies
-        !forkingUnsupervised(code, s).by(d).completed(m, make[Response.Returned](fork), w))))
+  onceSupervisedEnds(refusesFrom(forkingUnsupervised)))
   .from(supervisedClosesItsScopesHerd, forkUnsupervisedIsRefusedOnceClosed)
 
 /** Starting a fork of the code in the scope, that can be cancelled: `forkCancellable(code)(using s)`. */
@@ -57,9 +54,9 @@ val forkCancellableStartsAThread = Node.claim(
   "A call of forkCancellable returns only after a call of startThread on the herd of its scope, that it made " +
     "itself, has returned.")(
   forall((code: Term[Value], s: Obj[Scope], c: Obj[Thread]) =>
-    forall((from: Term[BigInt], fork: Term[Value], to: Term[BigInt]) =>
+    forall((from: Moment, fork: Term[Value], to: Moment) =>
       forkingCancellable(code, s).by(c).completed(from, make[Response.Returned](fork), to) implies
-        exists((run: Obj[Code], a: Term[BigInt], b: Term[BigInt]) =>
+        exists((run: Obj[Code], a: Moment, b: Moment) =>
           from < a && b <= to && starting(herdOf(s), run).by(c).calledInside(from, a) &&
             starting(herdOf(s), run).by(c).completed(a, Returned(()), b)))))
   .from(aScopeGivesTheHerdItHolds)
@@ -67,24 +64,15 @@ val forkCancellableStartsAThread = Node.claim(
 val forkCancellableIsRefusedOnceClosed = Node.claim(
   "After closing a herd has completed, a call of forkCancellable in a scope that holds the herd does not " +
     "return.")(
-  forall((code: Term[Value], s: Obj[Scope], c: Obj[Thread]) =>
-    forall((m: Term[BigInt], fork: Term[Value], w: Term[BigInt]) =>
-      (closed(herdOf(s), m) && forkingCancellable(code, s).by(c).called(m)) implies
-        !forkingCancellable(code, s).by(c).completed(m, make[Response.Returned](fork), w))))
+  forall((s: Obj[Scope], from: Moment) => closed(herdOf(s), from) implies refusesFrom(forkingCancellable)(s, from)))
   .from(forkCancellableStartsAThread, aClosedHerdRefusesToStart)
 
 val forkCancellableIsRefusedOnceUnsupervisedEnds = Node.claim(
   "After a call of unsupervised has completed, a call of forkCancellable in the scope it made does not return.")(
-  forall((c: Obj[Thread], s: Obj[Scope], from: Term[BigInt], to: Term[BigInt]) =>
-    forall((code: Term[Value], d: Obj[Thread], m: Term[BigInt], fork: Term[Value], w: Term[BigInt]) =>
-      (unsupervisedMade(c, s, from, to) && to <= m && forkingCancellable(code, s).by(d).called(m)) implies
-        !forkingCancellable(code, s).by(d).completed(m, make[Response.Returned](fork), w))))
+  onceUnsupervisedEnds(refusesFrom(forkingCancellable)))
   .from(unsupervisedClosesItsScopesHerd, forkCancellableIsRefusedOnceClosed)
 
 val forkCancellableIsRefusedOnceSupervisedEnds = Node.claim(
   "After a call of supervised has completed, a call of forkCancellable in the scope it made does not return.")(
-  forall((c: Obj[Thread], s: Obj[Scope], from: Term[BigInt], to: Term[BigInt]) =>
-    forall((code: Term[Value], d: Obj[Thread], m: Term[BigInt], fork: Term[Value], w: Term[BigInt]) =>
-      (supervisedMade(c, s, from, to) && to <= m && forkingCancellable(code, s).by(d).called(m)) implies
-        !forkingCancellable(code, s).by(d).completed(m, make[Response.Returned](fork), w))))
+  onceSupervisedEnds(refusesFrom(forkingCancellable)))
   .from(supervisedClosesItsScopesHerd, forkCancellableIsRefusedOnceClosed)

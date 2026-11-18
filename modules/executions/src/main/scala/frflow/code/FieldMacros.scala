@@ -2,7 +2,7 @@ package frflow.code
 
 import frflow.{Call as _, *}
 import frflow.dsl.compiled.source.MemberName
-import frflow.executions.{Call, Changing, Invocation, Response, World, begun, calledOn, completedBy, itselfMakes}
+import frflow.executions.{Call, Changing, Invocation, Response, Moment, begun, calledOn, completedBy, itselfMakes}
 import frflow.executions.{calledBy as calledByAt, madeBefore, readAs, writtenAs}
 import frflow.values.{Obj, Ref, Value}
 import scala.quoted.*
@@ -17,18 +17,18 @@ object FieldMacros:
   def givenVals[C: Type](on: Expr[Obj[C]], st: Expr[Stating])(using Quotes): Expr[Term[Boolean]] =
     '{ Fields.givenAll(${ Expr(vals[C]) }, $on.asValue)(using $st) }
 
-  def constructed[C: Type](on: Expr[Obj[C]], w: Expr[World], st: Expr[Stating])(using Quotes): Expr[Term[Boolean]] =
+  def constructed[C: Type](on: Expr[Obj[C]], w: Expr[Moment], st: Expr[Stating])(using Quotes): Expr[Term[Boolean]] =
     '{ Fields.constructed($on.asValue, ${ Expr(constructor[C]) }, $w)(using $st) }
 
-  def whenCalled[C: Type](on: Expr[Obj[C]], holds: Expr[World => Term[Boolean]], st: Expr[Stating])(using Quotes)
+  def whenCalled[C: Type](on: Expr[Obj[C]], holds: Expr[Moment => Term[Boolean]], st: Expr[Stating])(using Quotes)
       : Expr[Term[Boolean]] =
     '{ Fields.whenCalled(${ Expr(methods[C]) }, $on.asValue, $holds)(using $st) }
 
-  def calledBy[C: Type](on: Expr[Obj[C]], by: Expr[Term[Value]], w: Expr[World], st: Expr[Stating])(using Quotes)
+  def calledBy[C: Type](on: Expr[Obj[C]], by: Expr[Term[Value]], w: Expr[Moment], st: Expr[Stating])(using Quotes)
       : Expr[Term[Boolean]] =
     '{ Fields.calledBy(${ Expr(taking[C]) }, $on.asValue, $by, $w)(using $st) }
 
-  def keeps[C: Type](on: Expr[Obj[C]], kept: Expr[Term[Value]], also: Expr[(Term[Value], World) => Term[Boolean]],
+  def keeps[C: Type](on: Expr[Obj[C]], kept: Expr[Term[Value]], also: Expr[(Term[Value], Moment) => Term[Boolean]],
       st: Expr[Stating])(using Quotes): Expr[Term[Boolean]] =
     '{ Fields.keeps(${ Expr(taking[C]) }, $on.asValue, $kept, $also)(using $st) }
 
@@ -99,11 +99,11 @@ object Fields:
   def reads(name: String, on: Term[Value])(using Stating): Term[Boolean] = readAs(on, name, heldIn(name, on))
 
   /** `holds` of each moment a call of one of the methods on the object is made at. */
-  def whenCalled(methods: List[String], on: Term[Value], holds: World => Term[Boolean])(using Stating): Term[Boolean] =
+  def whenCalled(methods: List[String], on: Term[Value], holds: Moment => Term[Boolean])(using Stating): Term[Boolean] =
     forall((w: Term[BigInt]) => methods.map(m => calledOn(on, m, w)).reduce(_ || _) implies holds(w))
 
   /** A completed call of the constructor, with as many things as it takes, has returned the object by `w`. */
-  def constructed(on: Term[Value], constructor: (String, Int), w: World)(using Stating): Term[Boolean] =
+  def constructed(on: Term[Value], constructor: (String, Int), w: Moment)(using Stating): Term[Boolean] =
     def taking(left: Int, so: List[Term[Value]]): Term[Boolean] =
       if left == 0 then exists((by: Term[Value], from: Term[BigInt], to: Term[BigInt]) =>
         to <= w && completedBy(make[Invocation](constructor._1, so.reverse.foldRight(Nil: Term[List[Value]])(_ :: _)),
@@ -112,7 +112,7 @@ object Fields:
     taking(constructor._2, Nil)
 
   /** A call of one of the methods on the object, with as many more things as it takes, is made at the moment. */
-  def calledBy(methods: List[(String, Int)], on: Term[Value], by: Term[Value], w: World)(using Stating)
+  def calledBy(methods: List[(String, Int)], on: Term[Value], by: Term[Value], w: Moment)(using Stating)
       : Term[Boolean] =
     def taking(m: String, left: Int, so: List[Term[Value]]): Term[Boolean] =
       if left == 0 then begun(make[Invocation](m, (on :: so.reverse).foldRight(Nil: Term[List[Value]])(_ :: _)),
@@ -121,7 +121,7 @@ object Fields:
     methods.map((m, n) => taking(m, n, Nil)).reduce(_ || _)
 
   def keeps(methods: List[(String, Int)], on: Term[Value], kept: Term[Value],
-      also: (Term[Value], World) => Term[Boolean])(using Stating): Term[Boolean] =
+      also: (Term[Value], Moment) => Term[Boolean])(using Stating): Term[Boolean] =
     forall((method: Term[String], rest: Term[List[Value]], by: Term[Value], w: Term[BigInt]) =>
       calledByAt(make[Invocation](method, kept :: rest), by, w) implies exists((i: Term[BigInt]) =>
         itselfMakes(make[Invocation](method, kept :: rest), by, i, w) && (calledBy(methods, on, by, i) || also(by, i))))

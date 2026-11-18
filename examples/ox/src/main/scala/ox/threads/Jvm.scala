@@ -22,9 +22,9 @@ val flag = Declaration[(Ref[AtomicBoolean], BigInt) => Boolean]("what the atomic
   * the set: what is in it changes only by what is added to it and removed from it.
   */
 val plainSet = stated { (s: Obj[ConcurrentSet]) =>
-  exists((from: Term[BigInt], to: Term[BigInt]) =>
+  exists((from: Moment, to: Moment) =>
     ConcurrentHashMap.newKeySet[AnyRef]().completed(from, Returned(s), to)) &&
-    forall((method: Term[String], w: Term[BigInt]) =>
+    forall((method: Term[String], w: Moment) =>
       calledOn(s.asValue, method, w) implies
         (method === methodOf[ConcurrentSet](_.add(???)) || method === methodOf[ConcurrentSet](_.remove(???)) ||
           method === methodOf[ConcurrentSet](_.contains(???)) || method === methodOf[ConcurrentSet](_.isEmpty()) ||
@@ -32,14 +32,14 @@ val plainSet = stated { (s: Obj[ConcurrentSet]) =>
 
 /** Nothing but `get` and `set` is ever called on the atomic boolean. */
 val onlyReadAndSet = stated { (s: Obj[AtomicBoolean]) =>
-  forall((method: Term[String], w: Term[BigInt]) =>
+  forall((method: Term[String], w: Moment) =>
     calledOn(s.asValue, method, w) implies
       (method === methodOf[AtomicBoolean](_.get()) || method === methodOf[AtomicBoolean](_.set(???)))) }
 
 /** An element is being added to the set at some moment from `from` to `to`: a call that adds is pending at
   * `from`, or is made before `to`.
   */
-val addedDuring = stated { (s: Obj[ConcurrentSet], from: Term[BigInt], to: Term[BigInt]) =>
+val addedDuring = stated { (s: Obj[ConcurrentSet], from: Moment, to: Moment) =>
   exists((x: Obj[AnyRef]) => s.add(x).pendingAt(from) || s.add(x).calledWithin(from, to)) }
 
 val addingIsAtomic = Node.assumption(
@@ -50,14 +50,14 @@ val addingIsAtomic = Node.assumption(
 
 val anElementLeavesOnlyWhenRemoved = Node.assumption(
   "An element leaves a plain concurrent set only at a moment during a call that removes it.")(
-  forall((s: Obj[ConcurrentSet], x: Obj[AnyRef], w: Term[BigInt]) =>
+  forall((s: Obj[ConcurrentSet], x: Obj[AnyRef], w: Moment) =>
     (plainSet(s) && elements(s, w).contains(x.asValue) && !elements(s, w + 1).contains(x.asValue)) implies
       s.remove(x).inProgress(w))).about(About.jdk)
 
 val getGivesTheFlag = Node.assumption("Reading an atomic boolean gives what it holds at a moment during the read.")(
   forall((s: Obj[AtomicBoolean], b: Term[Boolean]) =>
     s.get().everyCall((from, a, to) =>
-      (a === Returned(b)) implies exists((m: Term[BigInt]) => from <= m && m < to && (flag(s, m) === b)))))
+      (a === Returned(b)) implies exists((m: Moment) => from <= m && m < to && (flag(s, m) === b)))))
     .about(About.jdk)
 
 val settingIsAtomic = Node.assumption(
@@ -68,7 +68,7 @@ val settingIsAtomic = Node.assumption(
 val aFlagBecomesOnlyWhatIsSet = Node.assumption(
   "What an atomic boolean that is only read and set holds becomes a value only at a moment during a call that " +
     "sets it to that value.")(
-  forall((s: Obj[AtomicBoolean], v: Term[Boolean], w: Term[BigInt]) =>
+  forall((s: Obj[AtomicBoolean], v: Term[Boolean], w: Moment) =>
     (onlyReadAndSet(s) && (flag(s, w) =!= v) && (flag(s, w + 1) === v)) implies s.set(v).inProgress(w)))
     .about(About.jdk)
 
@@ -91,5 +91,5 @@ val isEmptyFindsItEmptyUnlessAdded = Node.assumption(
     "moment during the call.")(
   forall((s: Obj[ConcurrentSet]) =>
     s.isEmpty().everyCall((from, a, to) =>
-      ((a === Returned(True)) && !addedDuring(s, from, to)) implies exists((m: Term[BigInt]) =>
+      ((a === Returned(True)) && !addedDuring(s, from, to)) implies exists((m: Moment) =>
         from <= m && m <= to && forall((y: Term[Value]) => !elements(s, m).contains(y)))))).about(About.jdk)

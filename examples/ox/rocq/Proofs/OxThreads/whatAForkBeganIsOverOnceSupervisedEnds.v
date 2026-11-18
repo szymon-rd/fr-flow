@@ -6,7 +6,6 @@ From Stdlib Require Import ZArith Lia.
     its code is over by then. *)
 Lemma whatAForkBeganIsOverOnceSupervisedEnds_Proofs_complete : whatAForkBeganIsOverOnceSupervisedEnds_Obl_complete.
 Proof.
-  intros heldIn history _ Hcloses Hover c s from to t forked inner m [[[Hmade Hfork] Hrunning] Hinner].
-  apply (Hover (heldIn L.OxError_herd s) t forked inner m to).
-  split; [split; [split; [exact (Hcloses c s from to Hmade) | exact Hfork] | exact Hrunning] | exact Hinner].
+  intros ? ? _ Hcloses Hlaw c s from to Hmade.
+  exact (Hlaw _ to (Hcloses c s from to Hmade)).
 Qed.

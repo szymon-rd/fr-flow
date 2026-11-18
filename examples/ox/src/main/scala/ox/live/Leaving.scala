@@ -16,7 +16,7 @@ import ox.threads.*
 // call of `remove` makes, each done once, in the bin's lock.
 val anElementEntersOnlyWhenAdded = Node.assumption(
   "An element enters a plain concurrent set only at a moment during a call that adds it.")(
-  forall((s: Obj[ConcurrentSet], x: Obj[AnyRef], w: Term[BigInt]) =>
+  forall((s: Obj[ConcurrentSet], x: Obj[AnyRef], w: Moment) =>
     (plainSet(s) && !elements(s, w).contains(x.asValue) && elements(s, w + 1).contains(x.asValue)) implies
       s.add(x).inProgress(w))).about(About.jdk)
 
@@ -26,14 +26,14 @@ val removingTakesTheElementOut = Node.assumption(
     "else.")(
   forall((s: Obj[ConcurrentSet], x: Obj[AnyRef]) =>
     (x.asValue =!= noObject) implies s.remove(x).everyCall((from, _, to) =>
-      exists((m: Term[BigInt]) => from <= m && m < to && forall((y: Term[Value]) =>
+      exists((m: Moment) => from <= m && m < to && forall((y: Term[Value]) =>
         elements(s, m + 1).contains(y) === ((y =!= x.asValue) && elements(s, m).contains(y))))))).about(About.jdk)
 
 // The JVM: a thread begins to run when `start` is called on it (`Thread.start`), and not before.
 val aThreadActsOnlyOnceStarted = Node.assumption(
   "A thread a factory made makes no call before start is called on it.")(
   forall((f: Obj[ThreadFactory], r: Obj[Runnable], t: Obj[Thread]) =>
-    forall((a: Term[BigInt], b: Term[BigInt], made: Term[Invocation], w: Term[BigInt]) =>
+    forall((a: Moment, b: Moment, made: Term[Invocation], w: Moment) =>
       (f.newThread(r).completed(a, Returned(t), b) && calledBy(made, t.asValue, w)) implies
         t.start().calledBefore(w)))).about(About.jdk)
 
@@ -44,7 +44,7 @@ val aForkThatEndedStaysOut = Node.claim(
   "Once a function startThread handed a thread factory has completed on a thread, the thread is out of the " +
     "herd's set for good.")(
   forall((h: Obj[ThreadHerd], r: Obj[Runnable], code: Obj[Code], t: Obj[Thread]) =>
-    forall((i: Term[BigInt], ended: Term[Response], e: Term[BigInt], w: Term[BigInt], b: Term[BigInt]) =>
+    forall((i: Moment, ended: Term[Response], e: Moment, w: Moment, b: Moment) =>
       (ready(h, b) && forkFunction(r, h, code) && running(r).by(t).completed(i, ended, e) && e <= w) implies
         !elements(threads(h), w).contains(t.asValue))))
   .from(anElementEntersOnlyWhenAdded, aForkFunctionRemovesItsThread, currentThreadIsAnObject,
@@ -54,10 +54,10 @@ val aForkThatEndedStaysOut = Node.claim(
 
 val anInterruptedForkLeavesForGood = Node.claim(
   "A thread added to a herd's set is out of it for good from some moment on, once it has been interrupted.")(
-  forall((h: Obj[ThreadHerd], t: Obj[Thread], code: Obj[Code], made: Term[BigInt]) =>
+  forall((h: Obj[ThreadHerd], t: Obj[Thread], code: Obj[Code], made: Moment) =>
     (madeToRun(t, h, code, made) && interrupted(t)) implies
-      exists((e: Term[BigInt]) =>
-        forall((w: Term[BigInt]) => (e <= w) implies !elements(threads(h), w).contains(t.asValue)))))
+      exists((e: Moment) =>
+        forall((w: Moment) => (e <= w) implies !elements(threads(h), w).contains(t.asValue)))))
   .from(startThreadStartsWhatItAdded, aStartedThreadRunsItsFunction, aForkFunctionCompletesOnceItsCodeDoes,
     forkCodeCompletesOnceInterrupted, aForkThatEndedStaysOut, onlyStartThreadAddsToTheSet, startThreadAddsWhileItRuns,
     startThreadAddsWhatItsFactoryMade, herdsAreConstructed)

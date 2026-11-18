@@ -14,26 +14,26 @@ val closingEndsOnceFoundEmpty = Node.claim(
   "Closing a herd completes only after a call it made, asking whether the herd's set is empty, was answered yes.")(
   forall((h: Obj[ThreadHerd]) =>
     closing(h).by(owner(h)).everyCall((from, _, to) =>
-      exists((a: Term[BigInt], b: Term[BigInt]) =>
+      exists((a: Moment, b: Moment) =>
         from < a && b <= to && threads(h).isEmpty().by(owner(h)).completed(a, Returned(True), b)))))
   .from(isEmptyReturns, closingsTraversalsReturn, setReturns, herdsAreMade, aHerdKeepsItsFields,
     currentThreadIsTheCaller)
 
 /** The function is one closing passed to a traversal of the herd's set, before the moment. */
-val traversedWith = stated { (f: Obj[Consumer[AnyRef]], h: Obj[ThreadHerd], w: Term[BigInt]) =>
-  exists((from: Term[BigInt], a: Term[BigInt]) =>
+val traversedWith = stated { (f: Obj[Consumer[AnyRef]], h: Obj[ThreadHerd], w: Moment) =>
+  exists((from: Moment, a: Moment) =>
     a < w && closing(h).by(owner(h)).called(from) && threads(h).forEach(f).by(owner(h)).calledInside(from, a)) }
 
 val closingTraversesWithAFunction = Node.claim("What closing passes to a traversal of the herd's set is no null.")(
-  forall((h: Obj[ThreadHerd], f: Obj[Consumer[AnyRef]], w: Term[BigInt]) =>
+  forall((h: Obj[ThreadHerd], f: Obj[Consumer[AnyRef]], w: Moment) =>
     traversedWith(f, h, w) implies (f.asValue =!= noObject)))
   .from(herdsAreMade)
 
 val whatClosingsFunctionsApplyReturns = Node.claim(
   "The function that the functions closing passes to its traversals apply, to interrupt a thread once, returns.")(
   forall((h: Obj[ThreadHerd], f: Obj[Consumer[AnyRef]], x: Obj[AnyRef], c: Obj[Thread]) =>
-    forall((k: Term[BigInt], g: Term[Value], t: Term[Value], a: Term[BigInt], r: Term[Response]) =>
-      forall((b: Term[BigInt]) =>
+    forall((k: Moment, g: Term[Value], t: Term[Value], a: Moment, r: Term[Response]) =>
+      forall((b: Moment) =>
         (traversedWith(f, h, k) && f.accept(x).by(c).called(k) &&
           applicationOf[Unit](g, t).by(c).calledInside(k, a) &&
           applicationOf[Unit](g, t).by(c).completed(a, r, b)) implies (r === Returned(()))))))
@@ -51,13 +51,13 @@ val closingKeepsItsVariableToItself = Node.assumption(
 val closingsVariablesAreWrittenByItsFunctions = Node.assumption(
   "What a call of closing itself makes is written only by a function closing has passed to a traversal, or by " +
     "a function such a function applies, itself.")(
-  forall((h: Obj[ThreadHerd], from: Term[BigInt], made: Term[Value]) =>
-    forall((by: Term[Value], inside: Term[Option[BigInt]], w: Term[BigInt]) =>
+  forall((h: Obj[ThreadHerd], from: Moment, made: Term[Value]) =>
+    forall((by: Term[Value], inside: Term[Option[BigInt]], w: Moment) =>
       (closing(h).by(owner(h)).called(from) && itselfCreates(made, owner(h).asValue, from) &&
         writesAt(made, by, inside, w)) implies
-        exists((f: Obj[Consumer[AnyRef]], x: Obj[AnyRef], k: Term[BigInt]) =>
+        exists((f: Obj[Consumer[AnyRef]], x: Obj[AnyRef], k: Moment) =>
           traversedWith(f, h, k) && f.accept(x).by(owner(h)).called(k) &&
-            (inside === some(k) || exists((g: Term[Value], t: Term[Value], j: Term[BigInt]) =>
+            (inside === some(k) || exists((g: Term[Value], t: Term[Value], j: Moment) =>
               inside === some(j) && applicationOf[Unit](g, t).by(owner(h)).calledInside(k, j)))))))
     .about(About.variables)
 
@@ -66,14 +66,14 @@ val closingsVariablesAreWrittenByItsFunctions = Node.assumption(
 // alone made and writes, and that thread doing nothing between the two.
 val closingsFunctionsReturn = Node.claim("A function closing passes to a traversal of the herd's set returns.")(
   forall((h: Obj[ThreadHerd], f: Obj[Consumer[AnyRef]], x: Obj[AnyRef], c: Obj[Thread]) =>
-    forall((k: Term[BigInt], r: Term[Response], b: Term[BigInt]) =>
+    forall((k: Moment, r: Term[Response], b: Moment) =>
       (traversedWith(f, h, k) && f.accept(x).by(c).completed(k, r, b)) implies (r === Returned(())))))
   .from(whatClosingsFunctionsApplyReturns, closingKeepsItsVariableToItself, joinThrowsOnlyAnInterruption,
     addSuppressedReturns, aThreadDoesOneThingAtATime, herdsAreMade)
 
 val closingsTraversalsReturn = Node.claim(
   "A traversal of the herd's set that closing makes itself does not throw.")(
-  forall((h: Obj[ThreadHerd], f: Obj[Consumer[AnyRef]], from: Term[BigInt], a: Term[BigInt], b: Term[BigInt]) =>
+  forall((h: Obj[ThreadHerd], f: Obj[Consumer[AnyRef]], from: Moment, a: Moment, b: Moment) =>
     forall((r: Term[Response]) =>
       (closing(h).by(owner(h)).called(from) && threads(h).forEach(f).by(owner(h)).calledInside(from, a) &&
         threads(h).forEach(f).by(owner(h)).completed(a, r, b)) implies (r === Returned(())))))
@@ -85,6 +85,6 @@ val closingsTraversalsReturn = Node.claim(
 // its forks rests on it, until the patched code is what the model reads.
 val nothingIsAddedDuringTheLastCheck = Node.assumption(
   "While a call closing makes asks whether the herd's set is empty and is answered yes, nothing is added to it.")(
-  forall((h: Obj[ThreadHerd], a: Term[BigInt], b: Term[BigInt]) =>
+  forall((h: Obj[ThreadHerd], a: Moment, b: Moment) =>
     threads(h).isEmpty().by(owner(h)).completed(a, Returned(True), b) implies !addedDuring(threads(h), a, b)))
     .about(About.falseOfOx)

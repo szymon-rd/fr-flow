@@ -26,14 +26,14 @@ def ofAnAtomicBoolean(made: Term[Invocation]): Term[Boolean] =
 // reflection. No rule here says so of a private field in general.
 val aHerdKeepsItsFlagToItself = Node.assumption(
   "What a herd holds as its flag is called on only by the herd's own methods, themselves.")(
-  forall((h: Obj[ThreadHerd], w: Term[BigInt]) =>
+  forall((h: Obj[ThreadHerd], w: Moment) =>
     ready(h, w) implies h.keepsToItself(shutdown(h).asValue)((_, _) => False))).about(About.privateField)
 
 val anAtomicBooleanHasOnlyItsMethods = Node.assumption(
   "On what `new AtomicBoolean` returned, only methods of an atomic boolean are called.")(
-  forall((b: Obj[AtomicBoolean], x: Term[Boolean], from: Term[BigInt], to: Term[BigInt]) =>
+  forall((b: Obj[AtomicBoolean], x: Term[Boolean], from: Moment, to: Moment) =>
     call(new AtomicBoolean(x)).completed(from, Returned(b), to) implies
-      forall((method: Term[String], w: Term[BigInt]) =>
+      forall((method: Term[String], w: Moment) =>
         calledOn(b.asValue, method, w) implies methodsOf[AtomicBoolean].map(method === _).reduce(_ || _))))
     .about(About.jdk)
 
@@ -61,7 +61,7 @@ val theMembershipCheckCallsContains = Node.claim(
 
 val aHerdsMethodsOnlyGetAndSetAFlag = Node.claim(
   "Of the methods of an atomic boolean, a method of a herd itself calls only get, and closing set to true.")(
-  forall((h: Obj[ThreadHerd], c: Obj[Thread], i: Term[BigInt], made: Term[Invocation], w: Term[BigInt]) =>
+  forall((h: Obj[ThreadHerd], c: Obj[Thread], i: Moment, made: Term[Invocation], w: Moment) =>
     (h.isCalledBy(c.asValue, i) && itselfMakes(made, c.asValue, i, w) && ofAnAtomicBoolean(made)) implies
       (exists((b: Obj[AtomicBoolean]) => b.get().isCall(made)) ||
         (closing(h).by(c).called(i) && exists((b: Obj[AtomicBoolean]) => b.set(true).isCall(made))))))

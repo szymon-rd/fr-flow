@@ -13,15 +13,15 @@ import ox.threads.*
 
 val whatIsInAHerdsSetWasMadeToRun = Node.claim(
   "A thread in a herd's set was made to run code: it was added during a call of startThread on the herd.")(
-  forall((h: Obj[ThreadHerd], x: Obj[Thread], w: Term[BigInt], b: Term[BigInt]) =>
+  forall((h: Obj[ThreadHerd], x: Obj[Thread], w: Moment, b: Moment) =>
     (ready(h, b) && elements(threads(h), w).contains(x.asValue)) implies
-      exists((code: Obj[Code], made: Term[BigInt]) => madeToRun(x, h, code, made))))
+      exists((code: Obj[Code], made: Moment) => madeToRun(x, h, code, made))))
   .from(anElementWasAdded, onlyStartThreadAddsToTheSet, startThreadAddsWhileItRuns, aHerdsSetIsPlain)
 
 val closingsTraversalsRespond = Node.claim(
   "A traversal of the herd's set that closing makes itself is responded to in time, once nothing more is " +
     "added to the set.")(
-  forall((h: Obj[ThreadHerd], f: Obj[Consumer[AnyRef]], from: Term[BigInt], a: Term[BigInt]) =>
+  forall((h: Obj[ThreadHerd], f: Obj[Consumer[AnyRef]], from: Moment, a: Moment) =>
     (closing(h).by(owner(h)).called(from) && threads(h).forEach(f).by(owner(h)).calledInside(from, a) &&
       addingStops(threads(h))) implies threads(h).forEach(f).by(owner(h)).respondedTo(a)))
   .from(closingsFunctionsRespond, aTraversalRespondsOnceItsFunctionDoes, aTraversalAppliesItsFunctionToElements,
@@ -29,7 +29,7 @@ val closingsTraversalsRespond = Node.claim(
 
 val addingStopsOnceTheFlagIsSet = Node.claim(
   "From some moment on, nothing is added to the set of a herd whose flag is set.")(
-  forall((h: Obj[ThreadHerd], w: Term[BigInt]) =>
+  forall((h: Obj[ThreadHerd], w: Moment) =>
     (ready(h, w) && flag(shutdown(h), w)) implies addingStops(threads(h))))
   .from(theExecutionBegins, startThreadAddsOnce, theFlagStaysSet, startThreadFirstSeesTheFlagUnset,
     onlyStartThreadAddsToTheSet)
@@ -38,6 +38,6 @@ val addingStopsOnceTheFlagIsSet = Node.claim(
 // when each call that adds is over.
 val addingEndsOnceTheFlagIsSet = Node.claim(
   "From some moment on, no call that adds to the set of a herd whose flag is set is in progress.")(
-  forall((h: Obj[ThreadHerd], w: Term[BigInt]) =>
+  forall((h: Obj[ThreadHerd], w: Moment) =>
     (ready(h, w) && flag(shutdown(h), w)) implies addingEnds(threads(h))))
   .from(addingStopsOnceTheFlagIsSet, addingResponds, theExecutionBegins)

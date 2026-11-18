@@ -13,10 +13,10 @@ import ox.threads.*
 
 /** The herd's set comes to rest empty, once closing has traversed it with no call adding to it in progress. */
 val emptiesOnceTraversed = stated { (h: Obj[ThreadHerd]) =>
-  forall((f: Obj[Consumer[AnyRef]], from: Term[BigInt], a: Term[BigInt], r: Term[Response], b: Term[BigInt]) =>
+  forall((f: Obj[Consumer[AnyRef]], from: Moment, a: Moment, r: Term[Response], b: Moment) =>
     (closing(h).by(owner(h)).called(from) && threads(h).forEach(f).by(owner(h)).calledInside(from, a) &&
       threads(h).forEach(f).by(owner(h)).completed(a, r, b) &&
-      forall((y: Obj[AnyRef], w: Term[BigInt]) => (a <= w) implies !threads(h).add(y).inProgress(w))) implies
+      forall((y: Obj[AnyRef], w: Moment) => (a <= w) implies !threads(h).add(y).inProgress(w))) implies
       restsEmpty(threads(h))) }
 
 val theOwnerCheckResponds = Node.claim("A call of assertOnOwnerThread on a herd is responded to, in time.")(
@@ -26,7 +26,7 @@ val theOwnerCheckResponds = Node.claim("A call of assertOnOwnerThread on a herd 
 val closingCompletesOnceItsHerdEmpties = Node.claim(
   "A call of closing on a herd by its owner is responded to in time, if the herd's set comes to rest empty once " +
     "closing has traversed it with no call adding to it in progress.")(
-  forall((h: Obj[ThreadHerd], from: Term[BigInt]) =>
+  forall((h: Obj[ThreadHerd], from: Moment) =>
     (closing(h).by(owner(h)).called(from) && emptiesOnceTraversed(h)) implies
       closing(h).by(owner(h)).respondedTo(from)))
   .from(closingsTraversalsRespond, addingStopsOnceTheFlagIsSet, addingEndsOnceTheFlagIsSet, theOwnerCheckResponds,

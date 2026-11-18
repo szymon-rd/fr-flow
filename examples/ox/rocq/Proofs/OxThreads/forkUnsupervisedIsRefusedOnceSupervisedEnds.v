@@ -7,8 +7,6 @@ From Stdlib Require Import ZArith Lia.
 Lemma forkUnsupervisedIsRefusedOnceSupervisedEnds_Proofs_complete :
   forkUnsupervisedIsRefusedOnceSupervisedEnds_Obl_complete.
 Proof.
-  intros history heldIn _ Hcloses Hrefuses c s from to code d m fork w [[Hmade Hle] Hcalled].
-  apply (Hrefuses code s d m fork w). split; [| exact Hcalled].
-  destruct (Hcloses c s from to Hmade) as (f0 & e0 & t0 & Ht0 & Hclosed).
-  exists f0, e0, t0. split; [lia | exact Hclosed].
+  intros ? ? _ Hcloses Hlaw c s from to Hmade.
+  exact (Hlaw _ to (Hcloses c s from to Hmade)).
 Qed.

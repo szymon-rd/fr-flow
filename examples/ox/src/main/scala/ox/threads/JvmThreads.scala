@@ -20,7 +20,7 @@ val aTraversalThrowsOnlyWhatItsFunctionThrew = Node.assumption(
   forall((s: Obj[ConcurrentSet], f: Obj[Consumer[AnyRef]], c: Obj[Thread]) =>
     (f.asValue =!= noObject) implies
       s.forEach(f).by(c).everyCall((from, r, to) =>
-        r === Returned(()) || exists((x: Obj[AnyRef], e: Term[Value], a: Term[BigInt], b: Term[BigInt]) =>
+        r === Returned(()) || exists((x: Obj[AnyRef], e: Term[Value], a: Moment, b: Moment) =>
           from < a && b <= to && r === make[Response.Threw](e) && f.accept(x).by(c).calledInside(from, a) &&
             f.accept(x).by(c).completed(a, make[Response.Threw](e), b))))).about(About.jdk)
 

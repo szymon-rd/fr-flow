@@ -16,7 +16,7 @@ import ox.threads.*
 
 val aHerdsMethodsProceed = Node.assumption(
   "A call of a method of a herd, pending and waiting for no call it made, makes its next event in time.")(
-  forall((h: Obj[ThreadHerd], c: Obj[Thread], i: Term[BigInt]) =>
+  forall((h: Obj[ThreadHerd], c: Obj[Thread], i: Moment) =>
     h.isCalledBy(c.asValue, i) implies proceedsFrom(c.asValue, i))).about(About.time)
 
 val aForkFunctionProceeds = Node.assumption(
@@ -39,33 +39,33 @@ val discardResponds = Node.assumption("A call of Ox's `discard` is responded to,
 val aStartedThreadRunsItsFunction = Node.assumption(
   "A thread a factory made for a function calls the function in time, once start is called on it.")(
   forall((f: Obj[ThreadFactory], r: Obj[Runnable], t: Obj[Thread]) =>
-    forall((a: Term[BigInt], b: Term[BigInt], s: Term[BigInt]) =>
+    forall((a: Moment, b: Moment, s: Moment) =>
       (f.newThread(r).completed(a, Returned(t), b) && t.start().called(s)) implies
-        exists((i: Term[BigInt]) => a < i && running(r).by(t).called(i))))).about(About.time)
+        exists((i: Moment) => a < i && running(r).by(t).called(i))))).about(About.time)
 
 // Of who uses Ox: the code given to a fork ends when its thread is interrupted, whenever that was.
 val forkCodeCompletesOnceInterrupted = Node.assumption(
   "The code a fork was made to run, called by the fork, is responded to in time, once the fork has been " +
     "interrupted.")(
-  forall((h: Obj[ThreadHerd], t: Obj[Thread], code: Obj[Code], made: Term[BigInt], m: Term[BigInt]) =>
+  forall((h: Obj[ThreadHerd], t: Obj[Thread], code: Obj[Code], made: Moment, m: Moment) =>
     (madeToRun(t, h, code, made) && code().by(t).called(m) && interrupted(t)) implies
       code().by(t).respondedTo(m))).about(About.forkCode)
 
 val closingsFunctionsProceed = Node.assumption(
   "A call of a function closing has passed to a traversal, pending and waiting for no call it made, makes its " +
     "next event in time.")(
-  forall((h: Obj[ThreadHerd], f: Obj[Consumer[AnyRef]], x: Obj[AnyRef], c: Obj[Thread], k: Term[BigInt]) =>
+  forall((h: Obj[ThreadHerd], f: Obj[Consumer[AnyRef]], x: Obj[AnyRef], c: Obj[Thread], k: Moment) =>
     (traversedWith(f, h, k) && f.accept(x).by(c).called(k)) implies proceedsFrom(c.asValue, k))).about(About.time)
 
 val whatClosingsFunctionsApplyProceeds = Node.assumption(
   "A call of a function that such a function itself makes, pending and waiting for no call it made, makes its " +
     "next event in time.")(
   forall((h: Obj[ThreadHerd], f: Obj[Consumer[AnyRef]], x: Obj[AnyRef], c: Obj[Thread]) =>
-    forall((k: Term[BigInt], g: Term[Value], t: Term[Value], a: Term[BigInt]) =>
+    forall((k: Moment, g: Term[Value], t: Term[Value], a: Moment) =>
       (traversedWith(f, h, k) && f.accept(x).by(c).called(k) &&
         applicationOf[Unit](g, t).by(c).calledInside(k, a)) implies proceedsFrom(c.asValue, a)))).about(About.time)
 
 // Of an execution: it has a first moment.
 val theExecutionBegins = Node.assumption("Nothing is called before the execution begins.")(
-  forall((made: Term[Invocation], by: Term[Value], w: Term[BigInt]) =>
-    (w < (BigInt(0): Term[BigInt])) implies !calledBy(made, by, w))).about(About.time)
+  forall((made: Term[Invocation], by: Term[Value], w: Moment) =>
+    (w < (BigInt(0): Moment)) implies !calledBy(made, by, w))).about(About.time)

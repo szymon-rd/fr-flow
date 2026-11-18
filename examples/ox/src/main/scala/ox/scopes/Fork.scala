@@ -33,7 +33,7 @@ def withoutErrorMode(s: Obj[Scope]): Call[Scope] = Call.of[Scope](methodOf[Ox](_
 
 /** The scope is an object of the class of scopes: one made, at some moment, as an object of that class. */
 val scopeMade = stated { (s: Obj[Scope]) =>
-  exists((w: Term[BigInt]) => madeBefore(s.asValue, classOf[OxError[?, ?]].getName, w)) }
+  exists((w: Moment) => madeBefore(s.asValue, classOf[OxError[?, ?]].getName, w)) }
 
 // Of Scala: the `apply` the compiler writes for a case class makes the object by the class's constructor.
 val aScopeIsConstructed = Node.assumption(
@@ -49,12 +49,12 @@ val aScopeKeepsItsFields = Node.assumption("Each val of a scope is read as what 
 
 val aConstructedScopeIsMade = Node.claim(
   "A scope that a call of its class's constructor has returned is an object of that class.")(
-  forall((s: Obj[Scope], w: Term[BigInt]) => s.isConstructed(w) implies scopeMade(s)))
+  forall((s: Obj[Scope], w: Moment) => s.isConstructed(w) implies scopeMade(s)))
 
 val aScopeMadeIsAnObject = Node.claim(
   "What making a scope returns is an object of the class of scopes.")(
   forall((supervisor: Term[Value], errorMode: Term[Value], parent: Term[Value], locals: Term[Value]) =>
-    forall((s: Obj[Scope], from: Term[BigInt], to: Term[BigInt]) =>
+    forall((s: Obj[Scope], from: Moment, to: Moment) =>
       makingAScope(supervisor, errorMode, parent, locals).completed(from, Returned(s), to) implies
         scopeMade(s))))
   .from(aConstructedScopeIsMade, aScopeIsConstructed)
@@ -62,7 +62,7 @@ val aScopeMadeIsAnObject = Node.claim(
 val asNoErrorModeKeepsTheHerd = Node.claim(
   "A scope asked for itself without an error mode gives a scope, an object of the class of scopes, that " +
     "holds the same herd.")(
-  forall((s: Obj[Scope], from: Term[BigInt], other: Obj[Scope], to: Term[BigInt]) =>
+  forall((s: Obj[Scope], from: Moment, other: Obj[Scope], to: Moment) =>
     (scopeMade(s) && withoutErrorMode(s).completed(from, Returned(other), to)) implies
       (scopeMade(other) && (herdOf(other) === herdOf(s)))))
   .from(aConstructedScopeIsMade, aScopeIsConstructed, aScopeKeepsItsFields, aScopeHoldsTheHerdItIsMadeWith)
@@ -71,9 +71,9 @@ val forkErrorStartsAThread = Node.claim(
   "A call of forkError in a scope returns only after a call of startThread on the scope's herd, that it made " +
     "itself, has returned.")(
   forall((code: Term[Value], s: Obj[Scope], c: Obj[Thread]) =>
-    forall((from: Term[BigInt], fork: Term[Value], to: Term[BigInt]) =>
+    forall((from: Moment, fork: Term[Value], to: Moment) =>
       (scopeMade(s) && forkingError(s, code).by(c).completed(from, make[Response.Returned](fork), to)) implies
-        exists((run: Obj[Code], a: Term[BigInt], b: Term[BigInt]) =>
+        exists((run: Obj[Code], a: Moment, b: Moment) =>
           from < a && b <= to && starting(herdOf(s), run).by(c).calledInside(from, a) &&
             starting(herdOf(s), run).by(c).completed(a, Returned(()), b)))))
   .from(aScopeKeepsItsFields)
@@ -82,28 +82,25 @@ val forkStartsAThread = Node.claim(
   "A call of fork in a scope returns only after a call of startThread on the scope's herd, made during it by " +
     "its thread, has returned.")(
   forall((code: Term[Value], s: Obj[Scope], c: Obj[Thread]) =>
-    forall((from: Term[BigInt], fork: Term[Value], to: Term[BigInt]) =>
+    forall((from: Moment, fork: Term[Value], to: Moment) =>
       (scopeMade(s) && forking(code, s).by(c).completed(from, make[Response.Returned](fork), to)) implies
-        exists((run: Obj[Code], a: Term[BigInt], b: Term[BigInt]) =>
+        exists((run: Obj[Code], a: Moment, b: Moment) =>
           from < a && b <= to && starting(herdOf(s), run).by(c).completed(a, Returned(()), b)))))
   .from(forkErrorStartsAThread, asNoErrorModeKeepsTheHerd)
 
 val forkIsRefusedOnceSupervisedEnds = Node.claim(
   "After a call of supervised has completed, a call of fork in the scope it made does not return.")(
-  forall((c: Obj[Thread], s: Obj[Scope], from: Term[BigInt], to: Term[BigInt]) =>
-    forall((code: Term[Value], d: Obj[Thread], m: Term[BigInt], fork: Term[Value], w: Term[BigInt]) =>
-      (supervisedMade(c, s, from, to) && to <= m && forking(code, s).by(d).called(m)) implies
-        !forking(code, s).by(d).completed(m, make[Response.Returned](fork), w))))
+  onceSupervisedEnds(refusesFrom(forking)))
   .from(supervisedClosesItsScopesHerd, forkStartsAThread, aScopeMadeIsAnObject, aClosedHerdRefusesToStart)
 
 val forkUserErrorStartsAThread = Node.claim(
   "A call of forkUserError in a scope returns only after a call of startThread on the scope's herd, that it " +
     "made itself, has returned.")(
   forall((code: Term[Value], s: Obj[Scope], c: Obj[Thread]) =>
-    forall((from: Term[BigInt], fork: Term[Value], to: Term[BigInt]) =>
+    forall((from: Moment, fork: Term[Value], to: Moment) =>
       (scopeMade(s) &&
         forkingUserError(s, code).by(c).completed(from, make[Response.Returned](fork), to)) implies
-        exists((run: Obj[Code], a: Term[BigInt], b: Term[BigInt]) =>
+        exists((run: Obj[Code], a: Moment, b: Moment) =>
           from < a && b <= to && starting(herdOf(s), run).by(c).calledInside(from, a) &&
             starting(herdOf(s), run).by(c).completed(a, Returned(()), b)))))
   .from(aScopeKeepsItsFields)
@@ -112,16 +109,13 @@ val forkUserStartsAThread = Node.claim(
   "A call of forkUser in a scope returns only after a call of startThread on the scope's herd, made during it " +
     "by its thread, has returned.")(
   forall((code: Term[Value], s: Obj[Scope], c: Obj[Thread]) =>
-    forall((from: Term[BigInt], fork: Term[Value], to: Term[BigInt]) =>
+    forall((from: Moment, fork: Term[Value], to: Moment) =>
       (scopeMade(s) && forkingUser(code, s).by(c).completed(from, make[Response.Returned](fork), to)) implies
-        exists((run: Obj[Code], a: Term[BigInt], b: Term[BigInt]) =>
+        exists((run: Obj[Code], a: Moment, b: Moment) =>
           from < a && b <= to && starting(herdOf(s), run).by(c).completed(a, Returned(()), b)))))
   .from(forkUserErrorStartsAThread, asNoErrorModeKeepsTheHerd)
 
 val forkUserIsRefusedOnceSupervisedEnds = Node.claim(
   "After a call of supervised has completed, a call of forkUser in the scope it made does not return.")(
-  forall((c: Obj[Thread], s: Obj[Scope], from: Term[BigInt], to: Term[BigInt]) =>
-    forall((code: Term[Value], d: Obj[Thread], m: Term[BigInt], fork: Term[Value], w: Term[BigInt]) =>
-      (supervisedMade(c, s, from, to) && to <= m && forkingUser(code, s).by(d).called(m)) implies
-        !forkingUser(code, s).by(d).completed(m, make[Response.Returned](fork), w))))
+  onceSupervisedEnds(refusesFrom(forkingUser)))
   .from(supervisedClosesItsScopesHerd, forkUserStartsAThread, aScopeMadeIsAnObject, aClosedHerdRefusesToStart)

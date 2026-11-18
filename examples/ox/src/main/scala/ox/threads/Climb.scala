@@ -15,7 +15,7 @@ import ox.internal.ThreadHerd
 
 /** The function is the walk up the scopes that a call of a herd's tree check applies itself. */
 val walksUp = stated { (g: Term[Value]) =>
-  exists((h: Obj[ThreadHerd], c: Obj[Thread], scope: Term[Value], k: Term[BigInt], a: Term[BigInt]) =>
+  exists((h: Obj[ThreadHerd], c: Obj[Thread], scope: Term[Value], k: Moment, a: Moment) =>
     treeCheck(h).by(c).called(k) && applicationOf[Unit](g, scope).by(c).calledInside(k, a)) }
 
 val theWalkUpCallsFour = Node.claim(

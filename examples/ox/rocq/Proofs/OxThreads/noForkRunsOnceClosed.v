@@ -5,10 +5,12 @@ Require Export Proofs.OxThreads.Lemmas.
     when it left. *)
 Lemma noForkRunsOnceClosed_Proofs_complete : noForkRunsOnceClosed_Obl_complete.
 Proof.
-  intros heldIn history _ Hleft Hcode h t code w [Hclosed Hmade].
+  intros heldIn history _ Hleft Hcode h from Hfrom t code w [Hle Hmade].
+  assert (closed heldIn history h w) as Hclosed.
+  { destruct Hfrom as (f0 & e0 & t0 & Ht0 & H). exists f0, e0, t0. split; [lia | exact H]. }
   assert (hasLeft heldIn history t h w) as (r & Hr & who & Hrem).
-  { apply Hleft. split; [exact Hclosed |]. destruct Hmade as (c & from & added & to & [Hto Hdone] & _).
-    exists from, added, to. split; [exact Hto | exists c; exact Hdone]. }
+  { apply Hleft. split; [exact Hclosed |]. destruct Hmade as (c & from1 & added & to & [Hto Hdone] & _).
+    exists from1, added, to. split; [exact Hto | exists c; exact Hdone]. }
   destruct (Hcode h t code w r Hmade) as [_ Hnotpending].
   split.
   - intros (m1 & Hm1 & Hbegun & Hpending).

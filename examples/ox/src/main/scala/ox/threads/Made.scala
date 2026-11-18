@@ -27,14 +27,14 @@ val herdsAreMade = Node.claim("A method of a herd is called only on a herd that 
 
 val aHerdsFlagIsNew = Node.claim(
   "What a ready herd holds as its flag is what a call of `new AtomicBoolean(false)` returned.")(
-  forall((h: Obj[ThreadHerd], w: Term[BigInt]) =>
-    ready(h, w) implies exists((a: Term[BigInt], b: Term[BigInt]) =>
+  forall((h: Obj[ThreadHerd], w: Moment) =>
+    ready(h, w) implies exists((a: Moment, b: Moment) =>
       call(new AtomicBoolean(false)).completed(a, Returned(shutdown(h)), b))))
   .from(aScopeHoldsTheHerdItIsMadeWith, aHerdHoldsWhatItWasGiven)
 
 val aHerdsSetIsNew = Node.claim(
   "What a ready herd holds as its set is what a call of `ConcurrentHashMap.newKeySet()` returned.")(
-  forall((h: Obj[ThreadHerd], w: Term[BigInt]) =>
-    ready(h, w) implies exists((a: Term[BigInt], b: Term[BigInt]) =>
+  forall((h: Obj[ThreadHerd], w: Moment) =>
+    ready(h, w) implies exists((a: Moment, b: Moment) =>
       ConcurrentHashMap.newKeySet[AnyRef]().completed(a, Returned(threads(h)), b))))
   .from(aScopeHoldsTheHerdItIsMadeWith, aHerdHoldsWhatItWasGiven)

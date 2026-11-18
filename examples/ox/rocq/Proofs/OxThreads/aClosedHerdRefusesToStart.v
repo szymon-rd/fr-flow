@@ -5,8 +5,9 @@ Require Export Proofs.OxThreads.Lemmas.
     neither adds a thread nor returns. *)
 Lemma aClosedHerdRefusesToStart_Proofs_complete : aClosedHerdRefusesToStart_Obl_complete.
 Proof.
-  intros heldIn history flag [N C] Hsets Hstays Hsees Hmade h code c t from w
-    [(from' & response' & to' & Hle & Hclosed) Hstart].
+  intros heldIn history flag [N C] Hsets Hstays Hsees Hmade h at_
+    (from' & response' & to' & Hat_ & Hclosed) code c t from w [Hfrom Hstart].
+  assert (to' <= from) as Hle by lia.
   pose proof (completed_after C Hclosed) as Hlt'.
   pose proof (completed_was_called _ _ _ _ _ _ Hclosed) as Hc.
   pose proof (Hmade h from' ltac:(unfold calledOn; eauto 14)) as Hherd.

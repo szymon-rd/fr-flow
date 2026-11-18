@@ -1,7 +1,7 @@
 package frflow.code
 
 import frflow.{Call as _, *}
-import frflow.executions.{Call, World}
+import frflow.executions.{Call, Moment}
 import frflow.values.{Obj, Value}
 
 // What an object holds. A field is named as the tree read from its class's TASTy names it; what it holds is a
@@ -28,11 +28,11 @@ extension [C](on: Obj[C])
   inline def isMadeWhenCalled(using st: Stating): Term[Boolean] = ${ FieldMacros.madeWhenCalled[C]('on, 'st) }
 
   /** A completed call of the constructor of the object's class has returned the object by the moment. */
-  inline def isConstructed(w: World)(using st: Stating): Term[Boolean] =
+  inline def isConstructed(w: Moment)(using st: Stating): Term[Boolean] =
     ${ FieldMacros.constructed[C]('on, 'w, 'st) }
 
   /** Whenever a method of the object's class is called on it, `holds` of the moment. */
-  inline def whenCalled(inline holds: World => Term[Boolean])(using st: Stating): Term[Boolean] =
+  inline def whenCalled(inline holds: Moment => Term[Boolean])(using st: Stating): Term[Boolean] =
     ${ FieldMacros.whenCalled[C]('on, 'holds, 'st) }
 
   /** Each `val` of the object's class holds what it is given when the object is made: every write of one writes
@@ -41,13 +41,13 @@ extension [C](on: Obj[C])
   inline def holdsWhatItsValsAreGiven(using st: Stating): Term[Boolean] = ${ FieldMacros.givenVals[C]('on, 'st) }
 
   /** A call of a method of the object's class on the object is made at the moment by `by`. */
-  inline def isCalledBy(by: Term[Value], w: World)(using st: Stating): Term[Boolean] =
+  inline def isCalledBy(by: Term[Value], w: Moment)(using st: Stating): Term[Boolean] =
     ${ FieldMacros.calledBy[C]('on, 'by, 'w, 'st) }
 
   /** What the object keeps to itself: every call on `kept` is made itself by a call of a method of the object's
     * class on the object, or by a call `also` says (of a function the object handed out).
     */
-  inline def keepsToItself(kept: Term[Value])(also: (Term[Value], World) => Term[Boolean])(using st: Stating)
+  inline def keepsToItself(kept: Term[Value])(also: (Term[Value], Moment) => Term[Boolean])(using st: Stating)
       : Term[Boolean] = ${ FieldMacros.keeps[C]('on, 'kept, 'also, 'st) }
 
   /** A call of the method of the object's class named `name`, given `arguments`: a statement may name a method

@@ -24,6 +24,21 @@ The roots, of a scope: after a call of `unsupervised` has completed, and the sam
 The last is the nesting of scopes: a scope a fork opened, by `unsupervised` or by `supervised`, is a call the
 fork began while running its code, so it has ended by the time the scope the fork is of has.
 
+Each of these is written as a law of a closed herd, said from the moment the scope's call completed
+(`src/main/scala/ox/scopes/Unsupervised.scala`):
+
+```scala
+val noThreadIsStartedOnceUnsupervisedEnds = Node.claim(
+  "After a call of unsupervised has completed, a call of startThread of the herd of the scope it made does not " +
+    "return, and adds no thread itself.")(
+  onceUnsupervisedEnds((s, to) => refusesToStartFrom(herdOf(s), to)))
+  .from(unsupervisedClosesItsScopesHerd, aClosedHerdRefusesToStart)
+```
+
+`onceUnsupervisedEnds` is "of every scope `s` a completed call of `unsupervised` made, `to` the moment it
+completed"; `refusesToStartFrom(h, from)` is the law (`threads/Words.scala`), which the herd's own statement
+says of a closed herd: `closed(h, from) implies refusesToStartFrom(h, from)` (`aClosedHerdRefusesToStart`).
+
 That a fork is refused is what a user of Ox sees of the third: `forkUnsupervised`, read from Ox's code, returns
 only after a call of `startThread` on the herd of its scope, that it made itself, has returned
 (`forkUnsupervisedStartsAThread`, proven of its tree), and that call does not return once the herd is closed.

@@ -43,7 +43,7 @@ val theCurrentScopeIsReadAndSet = Node.assumption("Reading a thread's current sc
 val aScopesHerdIsItsMakers = Node.claim(
   "The herd a scope holds is one whose owner is the thread that made the scope.")(
   forall((supervisor: Term[Value], errorMode: Term[Value], parent: Term[Value], locals: Term[Value]) =>
-    forall((c: Obj[Thread], s: Obj[Scope], from: Term[BigInt], to: Term[BigInt]) =>
+    forall((c: Obj[Thread], s: Obj[Scope], from: Moment, to: Moment) =>
       makingAScope(supervisor, errorMode, parent, locals).by(c).completed(from, Returned(s), to) implies
         (owner(herdOf(s)) === c))))
   .from(aScopeHoldsTheHerdItIsMadeWith, aHerdHoldsWhatItWasGiven, currentThreadIsTheCaller)
@@ -51,8 +51,8 @@ val aScopesHerdIsItsMakers = Node.claim(
 val aScopeEndsAfterItsHerdIsClosed = Node.claim(
   "Running code in a scope completes only after a call it made, closing the scope's herd, has completed.")(
   forall((s: Obj[Scope], code: Term[Value], c: Obj[Thread]) =>
-    forall((from: Term[BigInt], ended: Term[Response], to: Term[BigInt]) =>
+    forall((from: Moment, ended: Term[Response], to: Moment) =>
       runningIn(s, code).by(c).completed(from, ended, to) implies
-        exists((a: Term[BigInt], closed: Term[Response], b: Term[BigInt]) =>
+        exists((a: Moment, closed: Term[Response], b: Moment) =>
           from < a && b <= to && closing(herdOf(s)).by(c).completed(a, closed, b)))))
   .from(aScopeGivesTheHerdItHolds, theCurrentScopeIsReadAndSet)

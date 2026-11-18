@@ -29,7 +29,7 @@ val aHerdsValsAreReadByItsCode = Node.assumption(
 
 val aReadyHerdsValsAreWritten = Node.claim(
   "Once a herd is ready, none of its vals is being written, and none is marked or written again.")(
-  forall((h: Obj[ThreadHerd], w: Term[BigInt]) => ready(h, w) implies h.valsAreSettled(w)))
+  forall((h: Obj[ThreadHerd], w: Moment) => ready(h, w) implies h.valsAreSettled(w)))
   .from(aHerdsValsAreAssignedWhereItIsMade, aScopeHoldsTheHerdItIsMadeWith)
 
 val aHerdsValsAreReadOnceItIsReady = Node.claim("A val of a herd is read only once the herd is ready.")(
@@ -46,7 +46,7 @@ val noRaceOnAHerdsVals = Node.claim(
 val noRaceOnClosingsVariables = Node.claim(
   "No thread reads, marks or writes a variable that a call of closing itself made while another thread is " +
     "writing it.")(
-  forall((h: Obj[ThreadHerd], c: Obj[Thread], from: Term[BigInt], made: Term[Value], field: Term[String]) =>
+  forall((h: Obj[ThreadHerd], c: Obj[Thread], from: Moment, made: Term[Value], field: Term[String]) =>
     (closing(h).by(c).called(from) && itselfCreates(made, c.asValue, from)) implies unraced(made, field)))
   .from(closingKeepsItsVariableToItself, herdsAreMade)
 

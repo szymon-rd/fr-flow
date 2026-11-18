@@ -19,15 +19,15 @@ extension [C](on: Obj[C])
   /** Each `val` of the object's class is read only by a call of a method of the class on the object, itself, or
     * by a call `also` says (of a function the object handed out): one made before the read.
     */
-  inline def readsItsValsItself(also: (Term[Value], World) => Term[Boolean])(using st: Stating): Term[Boolean] =
+  inline def readsItsValsItself(also: (Term[Value], Moment) => Term[Boolean])(using st: Stating): Term[Boolean] =
     ${ ValMacros.readItself[C]('on, 'also, 'st) }
 
   /** Each `val` of the object's class is read only at a moment of which `holds`. */
-  inline def readsItsValsOnlyWhen(holds: World => Term[Boolean])(using st: Stating): Term[Boolean] =
+  inline def readsItsValsOnlyWhen(holds: Moment => Term[Boolean])(using st: Stating): Term[Boolean] =
     ${ ValMacros.readWhen[C]('on, 'holds, 'st) }
 
   /** From the moment on, no `val` of the object's class is being written, marked or written. */
-  inline def valsAreSettled(w: World)(using st: Stating): Term[Boolean] = ${ ValMacros.settled[C]('on, 'w, 'st) }
+  inline def valsAreSettled(w: Moment)(using st: Stating): Term[Boolean] = ${ ValMacros.settled[C]('on, 'w, 'st) }
 
   /** No `val` of the object's class has a data race. */
   inline def hasNoRaceOnItsVals(using st: Stating): Term[Boolean] = ${ ValMacros.unraced[C]('on, 'st) }
@@ -38,15 +38,15 @@ object ValMacros:
   def assigned[C: Type](on: Expr[Obj[C]], st: Expr[Stating])(using Quotes): Expr[Term[Boolean]] =
     '{ Vals.assigned(${ Expr(vals[C]) }, $on.asValue)(using $st) }
 
-  def readItself[C: Type](on: Expr[Obj[C]], also: Expr[(Term[Value], World) => Term[Boolean]], st: Expr[Stating])(
+  def readItself[C: Type](on: Expr[Obj[C]], also: Expr[(Term[Value], Moment) => Term[Boolean]], st: Expr[Stating])(
       using Quotes): Expr[Term[Boolean]] =
     '{ Vals.readItself(${ Expr(vals[C]) }, ${ Expr(taking[C]) }, $on.asValue, $also)(using $st) }
 
-  def readWhen[C: Type](on: Expr[Obj[C]], holds: Expr[World => Term[Boolean]], st: Expr[Stating])(using Quotes)
+  def readWhen[C: Type](on: Expr[Obj[C]], holds: Expr[Moment => Term[Boolean]], st: Expr[Stating])(using Quotes)
       : Expr[Term[Boolean]] =
     '{ Vals.readWhen(${ Expr(vals[C]) }, $on.asValue, $holds)(using $st) }
 
-  def settled[C: Type](on: Expr[Obj[C]], w: Expr[World], st: Expr[Stating])(using Quotes): Expr[Term[Boolean]] =
+  def settled[C: Type](on: Expr[Obj[C]], w: Expr[Moment], st: Expr[Stating])(using Quotes): Expr[Term[Boolean]] =
     '{ Vals.settled(${ Expr(vals[C]) }, $on.asValue, $w)(using $st) }
 
   def unraced[C: Type](on: Expr[Obj[C]], st: Expr[Stating])(using Quotes): Expr[Term[Boolean]] =
@@ -63,17 +63,17 @@ object Vals:
           m < w && history(m) === make[Event.Make](by, inside, on, cls, holding)))
 
   def readItself(names: List[String], methods: List[(String, Int)], on: Term[Value],
-      also: (Term[Value], World) => Term[Boolean])(using Stating): Term[Boolean] =
+      also: (Term[Value], Moment) => Term[Boolean])(using Stating): Term[Boolean] =
     forall((field: Term[String], by: Term[Value], inside: Term[Option[BigInt]], w: Term[BigInt]) =>
       (among(names, field) && readsField(on, field, by, inside, w)) implies
         exists((i: Term[BigInt]) =>
           inside === some(i) && i < w && (Fields.calledBy(methods, on, by, i) || also(by, i))))
 
-  def readWhen(names: List[String], on: Term[Value], holds: World => Term[Boolean])(using Stating): Term[Boolean] =
+  def readWhen(names: List[String], on: Term[Value], holds: Moment => Term[Boolean])(using Stating): Term[Boolean] =
     forall((field: Term[String], by: Term[Value], inside: Term[Option[BigInt]], w: Term[BigInt]) =>
       (among(names, field) && readsField(on, field, by, inside, w)) implies holds(w))
 
-  def settled(names: List[String], on: Term[Value], w: World)(using Stating): Term[Boolean] =
+  def settled(names: List[String], on: Term[Value], w: Moment)(using Stating): Term[Boolean] =
     forall((field: Term[String], by: Term[Value], inside: Term[Option[BigInt]], later: Term[BigInt]) =>
       (among(names, field) && w <= later) implies
         (!writing(on, field, by, later) && !assigns(on, field, by, inside, later)))

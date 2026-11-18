@@ -2,6 +2,7 @@ package ox.scopes
 
 import frflow.*
 import frflow.code.*
+import frflow.executions.Moment
 import frflow.values.*
 import ox.threads.{About, Scope}
 
@@ -25,7 +26,7 @@ val aScopesValsAreReadOnceItIsConstructed = Node.assumption(
 val aConstructedScopesValsAreWritten = Node.claim(
   "Once a call of its class's constructor has returned a scope, none of its vals is being written, and none is " +
     "marked or written again.")(
-  forall((s: Obj[Scope], w: Term[BigInt]) => s.isConstructed(w) implies s.valsAreSettled(w)))
+  forall((s: Obj[Scope], w: Moment) => s.isConstructed(w) implies s.valsAreSettled(w)))
   .from(aScopesValsAreAssignedWhereItIsMade)
 
 val noRaceOnAScopesVals = Node.claim(

@@ -5,8 +5,6 @@ From Stdlib Require Import ZArith Lia.
 (** The herd of the scope is closed by the moment unsupervised completes: so nothing is added to its set from then on. *)
 Lemma nothingIsAddedOnceUnsupervisedEnds_Proofs_complete : nothingIsAddedOnceUnsupervisedEnds_Obl_complete.
 Proof.
-  intros heldIn history _ Hcloses Honce c s from to t w [Hmade Hle].
-  apply (Honce (heldIn L.OxError_herd s) t w).
-  destruct (Hcloses c s from to Hmade) as (f0 & e0 & t0 & Ht0 & Hclosed).
-  exists f0, e0, t0. split; [lia | exact Hclosed].
+  intros ? ? _ Hcloses Hlaw c s from to Hmade.
+  exact (Hlaw _ to (Hcloses c s from to Hmade)).
 Qed.

@@ -14,8 +14,8 @@ import ox.threads.*
 val whatClosingsFunctionsApplyInterrupts = Node.claim(
   "Once the function that closing's functions apply to a thread has completed, the thread has been interrupted.")(
   forall((h: Obj[ThreadHerd], f: Obj[Consumer[AnyRef]], x: Obj[AnyRef], c: Obj[Thread]) =>
-    forall((k: Term[BigInt], g: Term[Value], t: Obj[Thread], a: Term[BigInt], r: Term[Response]) =>
-      forall((b: Term[BigInt]) =>
+    forall((k: Moment, g: Term[Value], t: Obj[Thread], a: Moment, r: Term[Response]) =>
+      forall((b: Moment) =>
         (traversedWith(f, h, k) && f.accept(x).by(c).called(k) &&
           applicationOf[Unit](g, t.asValue).by(c).calledInside(k, a) &&
           applicationOf[Unit](g, t.asValue).by(c).completed(a, r, b)) implies
@@ -27,7 +27,7 @@ val closingsFunctionsRespond = Node.claim(
   "A call of a function closing has passed to a traversal, on a thread that was added to the herd's set, is " +
     "responded to in time.")(
   forall((h: Obj[ThreadHerd], f: Obj[Consumer[AnyRef]], x: Obj[Thread], c: Obj[Thread]) =>
-    forall((k: Term[BigInt], code: Obj[Code], made: Term[BigInt]) =>
+    forall((k: Moment, code: Obj[Code], made: Moment) =>
       (traversedWith(f, h, k) && f.accept(x.seenAs[AnyRef]).by(c).called(k) && madeToRun(x, h, code, made)) implies
         f.accept(x.seenAs[AnyRef]).by(c).respondedTo(k))))
   .from(whatClosingsFunctionsApplyInterrupts, aForkEndsOnceInterrupted, joinRespondsOnceItsThreadHasRun,

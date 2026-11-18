@@ -13,21 +13,21 @@ import ox.internal.ThreadHerd
 val startThreadIsCalledFromInside = Node.assumption(
   "A thread of a herd is started only by a thread inside its scope: its owner before closing, or a fork that " +
     "has not left.")(
-  forall((h: Obj[ThreadHerd], code: Obj[Code], c: Obj[Thread], w: Term[BigInt]) =>
+  forall((h: Obj[ThreadHerd], code: Obj[Code], c: Obj[Thread], w: Moment) =>
     starting(h, code).by(c).called(w) implies inside(c, h, w))).about(About.use)
 
 val onlyStartThreadAddsToTheSet = Node.claim(
   "A thread is added to a herd's set only by a call of startThread on the herd, itself.")(
-  forall((h: Obj[ThreadHerd], t: Obj[Thread], c: Obj[Thread], w: Term[BigInt], b: Term[BigInt]) =>
+  forall((h: Obj[ThreadHerd], t: Obj[Thread], c: Obj[Thread], w: Moment, b: Moment) =>
     (ready(h, b) && threads(h).add(t).by(c).called(w)) implies
-      exists((code: Obj[Code], from: Term[BigInt]) =>
+      exists((code: Obj[Code], from: Moment) =>
         starting(h, code).by(c).called(from) && threads(h).add(t).by(c).calledInside(from, w))))
   .from(aHerdKeepsItsSetToItself, whatAHerdsCodeCallsOfASet)
 
 val startThreadAddsWhileItRuns = Node.claim(
   "A call of startThread that itself adds a thread has not completed when it does.")(
   forall((h: Obj[ThreadHerd], code: Obj[Code], c: Obj[Thread], t: Obj[Thread]) =>
-    forall((from: Term[BigInt], w: Term[BigInt]) =>
+    forall((from: Moment, w: Moment) =>
       (starting(h, code).by(c).called(from) && threads(h).add(t).by(c).calledInside(from, w)) implies
         starting(h, code).by(c).pendingAt(w))))
   .from(herdsAreMade)
@@ -35,7 +35,7 @@ val startThreadAddsWhileItRuns = Node.claim(
 val startThreadIsPendingWhileItAdds = Node.claim(
   "A call of startThread has not completed while an add it itself made is pending.")(
   forall((h: Obj[ThreadHerd], code: Obj[Code], c: Obj[Thread], t: Obj[Thread]) =>
-    forall((from: Term[BigInt], a: Term[BigInt], w: Term[BigInt]) =>
+    forall((from: Moment, a: Moment, w: Moment) =>
       (starting(h, code).by(c).called(from) && threads(h).add(t).by(c).calledInside(from, a) &&
         threads(h).add(t).by(c).pendingSince(a, w)) implies starting(h, code).by(c).pendingSince(from, w))))
   .from(herdsAreMade)
@@ -43,7 +43,7 @@ val startThreadIsPendingWhileItAdds = Node.claim(
 val aHerdsSetIsPlain = Node.claim(
   "A herd's set is one made by newKeySet, on which nothing but add, remove, contains, isEmpty and forEach is " +
     "called.")(
-  forall((h: Obj[ThreadHerd], w: Term[BigInt]) => ready(h, w) implies plainSet(threads(h))))
+  forall((h: Obj[ThreadHerd], w: Moment) => ready(h, w) implies plainSet(threads(h))))
   .from(aHerdKeepsItsSetToItself, aKeySetHasOnlyItsMethods, whatAHerdsCodeCallsOfASet, aHerdsSetIsNew)
 
 // With capture checking this would be what the compiler says: the thread is a local of startThread, given to
@@ -51,14 +51,14 @@ val aHerdsSetIsPlain = Node.claim(
 val onlyItsMakerStartsAThread = Node.assumption(
   "A thread that a factory made for a call of startThread is started only by that call, itself.")(
   forall((h: Obj[ThreadHerd], code: Obj[Code], c: Obj[Thread], t: Obj[Thread]) =>
-    forall((from: Term[BigInt], b: Term[BigInt], m: Term[BigInt], other: Obj[Thread]) =>
+    forall((from: Moment, b: Moment, m: Moment, other: Obj[Thread]) =>
       (starting(h, code).by(c).called(from) && madeFor(t, c, from, b) && t.start().by(other).called(m)) implies
         t.start().by(c).calledInside(from, m)))).about(About.reach)
 
 val startThreadAddsWhatItsFactoryMade = Node.claim(
   "A call of startThread itself adds to the herd's set only a thread that a factory has made for it.")(
   forall((h: Obj[ThreadHerd], code: Obj[Code], c: Obj[Thread], t: Obj[Thread]) =>
-    forall((from: Term[BigInt], w: Term[BigInt]) =>
+    forall((from: Moment, w: Moment) =>
       (starting(h, code).by(c).called(from) && threads(h).add(t).by(c).calledInside(from, w)) implies
         madeFor(t, c, from, w))))
   .from(herdsAreMade)
@@ -66,29 +66,29 @@ val startThreadAddsWhatItsFactoryMade = Node.claim(
 val startThreadAddsBeforeItStarts = Node.claim(
   "A call of startThread itself adds a thread only before it itself starts one.")(
   forall((h: Obj[ThreadHerd], code: Obj[Code], c: Obj[Thread], t: Obj[Thread]) =>
-    forall((from: Term[BigInt], w: Term[BigInt], m: Term[BigInt], started: Obj[Thread]) =>
+    forall((from: Moment, w: Moment, m: Moment, started: Obj[Thread]) =>
       (starting(h, code).by(c).called(from) && threads(h).add(t).by(c).calledInside(from, w) &&
         started.start().by(c).calledInside(from, m)) implies (w < m))))
   .from(herdsAreMade)
 
 val anAddedThreadHasNotBeenStarted = Node.claim("A thread has not been started when it is added to a herd's set.")(
-  forall((h: Obj[ThreadHerd], t: Obj[Thread], c: Obj[Thread], w: Term[BigInt], b: Term[BigInt]) =>
+  forall((h: Obj[ThreadHerd], t: Obj[Thread], c: Obj[Thread], w: Moment, b: Moment) =>
     (ready(h, b) && threads(h).add(t).by(c).called(w)) implies !t.start().calledBefore(w)))
   .from(onlyStartThreadAddsToTheSet, onlyItsMakerStartsAThread, startThreadAddsWhatItsFactoryMade,
     startThreadAddsBeforeItStarts)
 
 val onlyStartThreadAdds = Node.claim(
   "A thread is added to a herd's set only during a call of startThread, by its caller, and has not been started.")(
-  forall((h: Obj[ThreadHerd], t: Obj[Thread], c: Obj[Thread], w: Term[BigInt], b: Term[BigInt]) =>
+  forall((h: Obj[ThreadHerd], t: Obj[Thread], c: Obj[Thread], w: Moment, b: Moment) =>
     (ready(h, b) && threads(h).add(t).by(c).called(w)) implies
       (exists((code: Obj[Code]) => starting(h, code).by(c).pendingAt(w)) && !t.start().calledBefore(w))))
   .from(onlyStartThreadAddsToTheSet, startThreadAddsWhileItRuns, anAddedThreadHasNotBeenStarted)
 
 val onlyAForkFunctionRemoves = Node.claim(
   "A thread is removed from a herd's set only by a function that startThread handed the herd's factory, itself.")(
-  forall((h: Obj[ThreadHerd], t: Obj[Thread], c: Obj[Thread], w: Term[BigInt], b: Term[BigInt]) =>
+  forall((h: Obj[ThreadHerd], t: Obj[Thread], c: Obj[Thread], w: Moment, b: Moment) =>
     (ready(h, b) && threads(h).remove(t).by(c).called(w)) implies
-      exists((r: Obj[Runnable], i: Term[BigInt]) =>
+      exists((r: Obj[Runnable], i: Moment) =>
         handedOver(r, h, i) && running(r).by(c).called(i) && threads(h).remove(t).by(c).calledInside(i, w))))
   .from(aHerdKeepsItsSetToItself, whatAHerdsCodeCallsOfASet)
 
@@ -96,14 +96,14 @@ val theForkFunctionRemovesTheCurrentThread = Node.claim(
   "The function startThread hands the factory removes from the herd's set, itself, only the thread that " +
     "`Thread.currentThread()` has just given it.")(
   forall((h: Obj[ThreadHerd], r: Obj[Runnable], c: Obj[Thread], t: Obj[Thread]) =>
-    forall((i: Term[BigInt], w: Term[BigInt]) =>
+    forall((i: Moment, w: Moment) =>
       (handedOver(r, h, i) && running(r).by(c).called(i) && threads(h).remove(t).by(c).calledInside(i, w)) implies
-        exists((a: Term[BigInt], b: Term[BigInt]) =>
+        exists((a: Moment, b: Moment) =>
           i < a && b <= w && Thread.currentThread().by(c).completed(a, Returned(t), b)))))
   .from(herdsAreMade, aHerdKeepsItsFields)
 
 val aForkRemovesOnlyItself = Node.claim("A thread is removed from a herd's set only by itself.")(
-  forall((h: Obj[ThreadHerd], t: Obj[Thread], c: Obj[Thread], w: Term[BigInt], b: Term[BigInt]) =>
+  forall((h: Obj[ThreadHerd], t: Obj[Thread], c: Obj[Thread], w: Moment, b: Moment) =>
     (ready(h, b) && threads(h).remove(t).by(c).called(w)) implies (c === t)))
   .from(onlyAForkFunctionRemoves, theForkFunctionRemovesTheCurrentThread, currentThreadIsTheCaller)
 
@@ -111,16 +111,16 @@ val aForkRemovesOnlyItself = Node.claim("A thread is removed from a herd's set o
 // With capture checking this would be what the compiler says: what startThread is given by name is its own.
 val onlyAForkFunctionCallsTheCode = Node.assumption(
   "The code given to startThread is called only by a function that startThread handed the herd's factory, itself.")(
-  forall((h: Obj[ThreadHerd], code: Obj[Code], t: Obj[Thread], m: Term[BigInt], w: Term[BigInt]) =>
+  forall((h: Obj[ThreadHerd], code: Obj[Code], t: Obj[Thread], m: Moment, w: Moment) =>
     (starting(h, code).called(m) && code().by(t).called(w)) implies
-      exists((r: Obj[Runnable], i: Term[BigInt]) =>
+      exists((r: Obj[Runnable], i: Moment) =>
         handedOver(r, h, i) && running(r).by(t).called(i) && code().by(t).calledInside(i, w)))).about(About.reach)
 
 // Of the thread a factory makes: it runs the function it was made for, once.
 val aThreadRunsOneForkFunctionOnce = Node.assumption(
   "A thread runs a function that startThread handed a herd's factory at most once, and no other such function.")(
   forall((h: Obj[ThreadHerd], g: Obj[ThreadHerd], r: Obj[Runnable], q: Obj[Runnable], t: Obj[Thread]) =>
-    forall((i: Term[BigInt], j: Term[BigInt]) =>
+    forall((i: Moment, j: Moment) =>
       (handedOver(r, h, i) && running(r).by(t).called(i) && handedOver(q, g, j) &&
         running(q).by(t).called(j)) implies (i === j)))).about(About.factory)
 
@@ -128,14 +128,14 @@ val aForkFunctionRemovesAfterTheCode = Node.claim(
   "The function startThread hands the factory removes from the herd's set, itself, only after the call of code " +
     "it made has completed.")(
   forall((h: Obj[ThreadHerd], r: Obj[Runnable], c: Obj[Thread], code: Obj[Code], x: Obj[Thread]) =>
-    forall((i: Term[BigInt], w: Term[BigInt], k: Term[BigInt]) =>
+    forall((i: Moment, w: Moment, k: Moment) =>
       (handedOver(r, h, i) && running(r).by(c).called(i) && code().by(c).calledInside(i, w) &&
         threads(h).remove(x).by(c).calledInside(i, k)) implies (w < k && !code().by(c).pendingSince(w, k)))))
   .from(herdsAreMade)
 
 val codeRunsBeforeLeaving = Node.claim(
   "A fork calls the code it was made to run only before it leaves, and leaves only when no such call is pending.")(
-  forall((h: Obj[ThreadHerd], t: Obj[Thread], code: Obj[Code], made: Term[BigInt], w: Term[BigInt]) =>
+  forall((h: Obj[ThreadHerd], t: Obj[Thread], code: Obj[Code], made: Moment, w: Moment) =>
     madeToRun(t, h, code, made) implies
       ((code().by(t).called(w) implies !hasLeft(t, h, w)) &&
         (threads(h).remove(t).called(w) implies !code().by(t).pendingAt(w)))))
@@ -146,5 +146,5 @@ val closingEndsOnEmpty = Node.claim(
   "Closing a herd completes only after a moment, during it, at which the herd's set is empty.")(
   forall((h: Obj[ThreadHerd]) =>
     closing(h).by(owner(h)).everyCall((from, _, to) =>
-      exists((m: Term[BigInt]) => from < m && m <= to && empty(h, m)))))
+      exists((m: Moment) => from < m && m <= to && empty(h, m)))))
   .from(closingEndsOnceFoundEmpty, isEmptyFindsItEmptyUnlessAdded, nothingIsAddedDuringTheLastCheck)
