@@ -49,7 +49,7 @@ class CompletenessSuite extends munit.FunSuite:
     val ill = Obligation(ObligationName.Made("free"), Prop.Formula(misread, Map.empty), Discharge.Auto, "…")
     assertEquals(WellFormed.of(a.decided, List(ill)), List.fill(2)(ill.name ->
       IrError.Mistyped(Expr.Sym(SymbolName("free"), big))))
-    val gone = without(a.modules, Layout(a.decided.theory.name), NodeId("storeWhenNoOverlap"), "impl")
+    val gone = without(a.modules, Layout(a.decided.theory.name), NodeId("removedCodeLeadsNowhere"), "impl")
     List(() => Audit.checked(a.decided, ill :: built, a.modules), () => Audit.checked(a.decided, built, gone))
       .map(laid => intercept[IllegalStateException](laid())).foreach(e => assert(e.getMessage.startsWith("FrFlow bug")))
     assertEquals(Audit.checked(a.decided, built, a.modules), a.modules)
