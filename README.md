@@ -222,9 +222,9 @@ Statements are about two kinds of values:
 
 | Value | Written | What it is |
 |---|---|---|
-| Declaration | `Declaration[A](means)` | a word of the model: what statements speak of and code calls. One nothing defines is known only by what the statements say of it, such as `booked` |
-| Structure | `Declaration[Trait](means)`, of a trait of the developer's | a value with members: a service, a store. Its members are called on terms as the trait declares them: `limits.authorise(p).result` is what the call gives, `.after` the structure after it, `.in(state)` the same from a given state, `limits.current` the structure as it stands, `.amongOthers(run => …)` every step of the call among other calls. A claim on a class that holds it asks it as the holder has it: `ledger.total.in(handler.handle(p).after)` |
-| Definition | `d.define(…)` of a Declaration, listed in the model beside the nodes; or `define { … }`, declared and defined at once | a Declaration with a meaning, such as `book`: a class that implements a structure's trait (`d.define(lifted[Class])`, compiled from its TASTy and proven), a `define` (`d.define`, proven), plain Scala (`d.defineTested`, tested), or a value (`d.defineValue`, `d.provided`) |
+| Declaration | `Declaration[A](means)` | a word of the model: what statements speak of and code calls. One nothing defines is known only by what the statements say of it |
+| Structure | `Declaration[Trait](means)`, of a trait of the developer's | a value with members: a service, a store. Its members are called on terms as the trait declares them: `shortener.shorten(u).result` is what the call gives, `.after` the structure after it, `.in(state)` the same from a given state, `shortener.current` the structure as it stands, `.following(c)`, `.andThen`, `.isIdempotent` and the like what calls say of each other, `.amongOthers(run => …)` every step of the call among other calls. A claim on a class that holds it asks it as the holder has it: `shortener.resolve(c).following(service.shortenAndLog(u))`, of a service holding the shortener |
+| Definition | `d.define(…)` of a Declaration, listed in the model beside the nodes; or `define { … }`, declared and defined at once | a Declaration with a meaning, such as `shortener`: a class that implements a structure's trait (`d.define(lifted[Class])`, compiled from its TASTy and proven), a `define` (`d.define`, proven), plain Scala (`d.defineTested`, tested), or a value (`d.defineValue`, `d.provided`) |
 
 They use two quantifiers: `forall`, every possible value, and `always`, every value of a type the code FrFlow covers
 can produce (`always[T](x => …)`). A claim on a structure is said of the structure in every state.
@@ -237,11 +237,11 @@ statement can refine several others, and there can be several roots, so the stat
 The code at the bottom of the graph is in one of three states, and `status` reports which:
 
 - **Proven** code is one of two things. A class that implements a structure's trait, lifted by its type
-  (`limits.define(lifted[RecordedLimits])`): it is compiled from its TASTy as the model is built, and each member is
+  (`shortener.define(lifted[RetiringLinks])`): it is compiled from its TASTy as the model is built, and each member is
   proven to meet every claim on it, alone and among other calls. Or a `define` written in the DSL.
   [docs/LIFTED.md](docs/LIFTED.md) lists the Scala that is read.
 - **Tested** code is plain Scala. It is tested against its claims with property-based testing on generated cases.
-- **Assumed** code is known only by the assumptions about it, such as an outside system's search: Rocq takes them as
+- **Assumed** code is known only by the assumptions about it, such as an outside system's API: Rocq takes them as
   given, and its Scala is tested against them. A structure with no class is known
   the same way (`pricing.provided`); a model that holds one is valid, and the prover does not build it yet.
 
@@ -253,7 +253,7 @@ Nothing is checked when the code runs: FrFlow is for testing before production a
 not cover, and so trusts:
 
 - The assumptions and the design decisions the developer accepted. A design node is decided, not proven: that
-  each call of a store is one transaction, that a log delivers again what was not committed.
+  each call of a store is one transaction, that a database keeps what was written.
 - FrFlow's reading of the code. The terms it compiles from a class's TASTy, and the Rocq it prints from them, are
   tested and not proven. `check` runs the examples on those terms and in Rocq; it does not run the class itself.
   FrFlow's own suite does, for classes that cover each kind of Scala it reads: each member is run on the JVM on
