@@ -23,5 +23,3 @@ Proof.
   - intros Hc. destruct (Hcode h t code w w Hmade) as [Hbefore _]. apply (Hbefore Hc).
     exists r. split; [exact Hr | exists who; exact Hrem].
 Qed.
-
-(** Its parts can hold together: a run in which nothing happens meets each. *)

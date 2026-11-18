@@ -24,5 +24,3 @@ Proof.
   - exists inside, field, v. left. right. exact Ha.
   - exists inside, field, v. left. left. exact Ha.
 Qed.
-
-(** Its parts can hold together: an execution in which nothing happens meets each. *)

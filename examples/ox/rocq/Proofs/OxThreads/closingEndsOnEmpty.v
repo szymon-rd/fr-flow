@@ -11,5 +11,3 @@ Proof.
     (conj eq_refl (Hquiet h a b Hask))) as (m & [Hm1 Hm2] & Hnone).
   exists m. split; [lia | exact Hnone].
 Qed.
-
-(** Its parts can hold together: an execution in which nothing happens meets each. *)

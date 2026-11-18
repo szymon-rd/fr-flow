@@ -19,5 +19,3 @@ Proof.
   - destruct Hst as [[(ins & sp & Hat) _] | [Hbegun _]]; [| left; exact Hbegun].
     right. exists (Response_Returned Value_Unit_), ins, sp. exact Hat.
 Qed.
-
-(** Its parts can hold together: an execution in which nothing happens meets each. *)

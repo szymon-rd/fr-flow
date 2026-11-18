@@ -59,5 +59,3 @@ Proof.
   all: destruct a as [made | thrown]; [| contradiction]; rewrite (one_name N _ _ _ Hyt Hgives).
   all: apply args_none in Hysc as ->; exists wc, wd; (split; [lia | exact (done_completed Hcur)]).
 Qed.
-
-(** Its parts can hold together: an execution in which nothing happens meets each. *)

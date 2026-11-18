@@ -39,5 +39,3 @@ Proof.
   split; [split; [split; [exact Hcons | exact Hfork] |] | exact Hw].
   right. split; [exact Hbegun |]. exists sp. replace (k + 1 - 1) with k by lia. exact Hended.
 Qed.
-
-(** What it is from can hold: an execution in which nothing happens, of sets that hold nothing, meets each. *)

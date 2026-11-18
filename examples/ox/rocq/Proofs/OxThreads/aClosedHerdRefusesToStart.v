@@ -21,5 +21,3 @@ Proof.
   - destruct (Hsees h code c t from w (conj Hstart (or_introl Hthen))) as (m & [Hm _] & Hunset).
     apply Hunset, Hset, Hm.
 Qed.
-
-(** Its parts can hold together: a run in which nothing happens, of flags never set, meets each. *)

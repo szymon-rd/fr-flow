@@ -30,5 +30,3 @@ Proof.
   pose proof (Hpast m' ltac:(lia) (makes_direct Hst)) as Hin. cbn [In] in Hin.
   repeat (destruct Hin as [<- | Hin]); try contradiction; revert Hst; miss.
 Qed.
-
-(** What it is from can hold: an execution in which nothing happens meets it. *)

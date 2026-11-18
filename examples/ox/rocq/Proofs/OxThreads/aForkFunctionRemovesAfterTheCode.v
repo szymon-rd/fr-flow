@@ -74,5 +74,3 @@ Proof.
   split; [exact Hwk |]. intros (_ & [ins Hbegun] & Hnotover). apply Hnotover. apply (HB _ x Hrem code w Hwk).
   destruct Hcode as [Eat | (? & ? & Eat)]; [exact Eat | rewrite Eat in Hbegun; discriminate Hbegun].
 Qed.
-
-(** What it is from can hold: an execution in which nothing happens meets it. *)

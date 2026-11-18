@@ -22,5 +22,3 @@ Proof.
       exists c0, f0, added, t0. split; [split; [exact Ht0 | exact Hadd] | exact Hstarting]. }
     apply Hnot. exists m0. split; [exact Hm0 | split; [exact Hbegun | exact Hpending]].
 Qed.
-
-(** Its parts can hold together: an execution in which nothing happens meets each. *)

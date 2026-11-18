@@ -19,5 +19,3 @@ Proof.
   - exfalso. pose proof (Hconstructed s field other inside w (conj Hfield Hreads)) as Hr.
     destruct (Hsettled s w Hr field by_ inside w (conj Hfield (Z.le_refl w))) as [Hnot _]. exact (Hnot Hwriting).
 Qed.
-
-(** Its parts can hold together: an execution in which nothing happens meets each. *)

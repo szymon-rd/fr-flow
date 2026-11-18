@@ -42,5 +42,3 @@ Proof.
   { split; [exact Hwith |]. right. split; [exact Hbegun |]. exists sp. replace (k + 1 - 1) with k by lia. exact Hresp. }
   exists (k + 1), ifrom, value, ito. split; [exact Hito | exists who; exact Hint].
 Qed.
-
-(** What it is from can hold: an execution in which nothing happens, of sets that hold nothing, meets each. *)

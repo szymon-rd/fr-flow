@@ -34,5 +34,3 @@ Proof.
   apply (Hfunctions h f x _ m code made). split; [split; [| exact Hacc] | exact Hmr].
   exists from, a. split; [split; [exact Hlt | exact Hcalled] | exact Hmakes].
 Qed.
-
-(** What it is from can hold: an execution in which nothing happens, of sets with nothing in them, meets each. *)

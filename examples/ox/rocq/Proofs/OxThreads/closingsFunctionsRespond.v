@@ -176,5 +176,3 @@ Proof.
   (* then the next turn *)
   apply IH; lia.
 Qed.
-
-(** What it is from can hold: an execution in which nothing happens meets each. *)

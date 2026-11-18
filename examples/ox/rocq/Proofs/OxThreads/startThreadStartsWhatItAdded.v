@@ -92,5 +92,3 @@ Proof.
   lstep_done. intros w7 ys7 Hw7 Hq7 Hys7 Hmk7. apply args_one in Hys7 as (y7 & -> & Hy7).
   pose proof (one_name N _ _ _ Hy7 Hyt) as ->. exists w7. exact Hmk7.
 Qed.
-
-(** What it is from can hold: an execution in which nothing happens meets it. *)

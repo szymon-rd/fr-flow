@@ -10,5 +10,3 @@ Proof.
   destruct (Hcloses c s from to Hmade) as (f0 & e0 & t0 & Ht0 & Hclosed).
   exists f0, e0, t0. split; [lia | exact Hclosed].
 Qed.
-
-(** Its parts can hold together: an execution in which nothing happens meets each. *)

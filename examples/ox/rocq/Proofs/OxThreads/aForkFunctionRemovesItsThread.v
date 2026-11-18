@@ -67,5 +67,3 @@ Proof.
   all: exists wc, wd; (split; [exact (done_completed Hcur) |]); exists wm, rrm, wmd.
   all: split; [split; lia | exact (done_completed Hrem)].
 Qed.
-
-(** Its parts can hold together: an execution in which nothing happens meets each. *)

@@ -22,5 +22,3 @@ Proof.
     | exact (proj1 (proj2 (Hjdk t t t) h1 x) who m w Hunder Hcalled)
     | exact (proj2 (proj2 (Hjdk t t t) h1 x) who m w Hunder Hcalled) ].
 Qed.
-
-(** Its parts can hold together: an execution in which nothing happens meets each. *)

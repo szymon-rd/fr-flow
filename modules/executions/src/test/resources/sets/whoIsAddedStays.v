@@ -16,5 +16,3 @@ Proof.
       + exists m'. split; [lia | exists who; left; exact Hb]. }
   apply Hstays; lia.
 Qed.
-
-(** Its parts can hold together: a run in which nothing happens, of sets with nothing in them, meets each. *)

@@ -10,5 +10,3 @@ Proof.
   apply (Hcompletes h from). split; [exact Hcalled |].
   apply (Hempties h from). apply (Hcons h from). left. left. left. left. right. unfold calledOn. eauto 14.
 Qed.
-
-(** What it is from can hold: an execution in which nothing happens meets each. *)

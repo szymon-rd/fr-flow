@@ -11,5 +11,3 @@ Proof.
   - destruct (Honly h t c a b (conj Hherd (or_introl Hbegun))) as (code & from & Hc & Hit). exists code, from.
     exact (Hpending h code c t from a w (conj (conj Hc Hit) (conj Ha (conj Hbegun Hnotover)))).
 Qed.
-
-(** Its parts can hold together: an execution in which nothing happens meets each. *)

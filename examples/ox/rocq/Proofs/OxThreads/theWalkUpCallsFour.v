@@ -68,5 +68,3 @@ Proof.
   split; [intros inner Hitmk; rewrite <- (makes_one (or_introl Hinvrec) Hitmk); right; eauto |].
   intros; repeat pass.
 Qed.
-
-(** What it is from can hold: an execution in which nothing happens meets it. *)

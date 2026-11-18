@@ -49,5 +49,3 @@ Proof.
   intros wu2 rt2 xt2 Hwu2 _ _ _. meets_head; [pass |].
   apply IH; lia.
 Qed.
-
-(** What it is from can hold: an execution in which nothing happens meets it. *)

@@ -30,5 +30,3 @@ Proof.
   destruct (Z.eq_dec a a2) as [E | Hne]; [exact E | exfalso].
   exact (Hall a (makes_direct Hadds) s t Hadds s2 t2 a2 ltac:(lia) Hadds2).
 Qed.
-
-(** What it is from can hold: an execution in which nothing happens meets it. *)

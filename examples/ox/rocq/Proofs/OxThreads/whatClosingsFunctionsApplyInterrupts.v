@@ -347,5 +347,3 @@ Proof.
   apply (proj2 (Hin (b - 1) ltac:(rewrite Hend; cbn; auto)) r spd Hend).
   intros yo k' b' ins' fld' y' _ Hw' Hcell. exact (Hinv yo Hcell k' b' ins' fld' y' Hw').
 Qed.
-
-(** What it is from can hold: an execution in which nothing happens meets each. *)

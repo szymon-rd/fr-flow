@@ -116,5 +116,3 @@ Proof.
   (* then the next turn *)
   apply IH; lia.
 Qed.
-
-(** Its parts can hold together: an execution in which nothing happens meets each. *)

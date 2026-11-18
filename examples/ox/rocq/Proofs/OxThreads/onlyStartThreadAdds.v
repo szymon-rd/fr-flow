@@ -10,5 +10,3 @@ Proof.
   destruct (Honly h t c w b Hadd) as (code & from & Hstart & Hitself).
   exists code. exact (Hruns h code c t from w (conj Hstart Hitself)).
 Qed.
-
-(** Its parts can hold together: an execution in which nothing happens meets each. *)

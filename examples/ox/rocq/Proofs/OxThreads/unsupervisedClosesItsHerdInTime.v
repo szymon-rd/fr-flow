@@ -18,5 +18,3 @@ Proof.
       exact (Hends locals code c from s g k m (conj (conj (conj (conj Hcalled Hrun) (Hcode s)) Hfm) Hm')). }
   exists s, k'. split; [split; [lia | exact Hclosing] | exact Hresp].
 Qed.
-
-(** Its parts can hold together: an execution in which nothing happens meets each. *)

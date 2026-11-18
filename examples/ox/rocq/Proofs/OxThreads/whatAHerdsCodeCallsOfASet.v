@@ -30,5 +30,3 @@ Proof.
     1, 2, 4: exfalso; repeat (destruct Hof as [Hof | Hof]; [| discriminate Hof]); discriminate Hof.
     right. split; [exists r; split; assumption | exists s, t; reflexivity].
 Qed.
-
-(** Its parts can hold together: an execution in which nothing happens meets each. *)

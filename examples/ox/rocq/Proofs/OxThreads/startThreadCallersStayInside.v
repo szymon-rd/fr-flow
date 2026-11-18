@@ -40,5 +40,3 @@ Proof.
         pose proof (Honly h c who k m (conj (Hconstructed h m ltac:(unfold calledOn; eauto 14)) Hrem)) as ->.
         exact (Hnoleave Hrem).
 Qed.
-
-(** Its parts can hold together: a run in which nothing happens meets each. *)

@@ -57,5 +57,3 @@ Proof.
     as (run & a & b & [[Ha Hb] Hmakes] & Hst).
   exists run, a, b. split; [split; [split; [exact Ha | lia] | exact Hmakes] | exact Hst].
 Qed.
-
-(** Its part can hold: an execution in which nothing happens meets it. *)

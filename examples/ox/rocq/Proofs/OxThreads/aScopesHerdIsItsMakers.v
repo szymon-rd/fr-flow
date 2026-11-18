@@ -75,5 +75,3 @@ Proof.
     replace (wmkd + 1 - 1) with wmkd by lia. exact Hrespmk. }
   exact (Hall (to - 1) ltac:(rewrite Hend; cbn; auto) sp Hend).
 Qed.
-
-(** Its parts can hold together: an execution in which nothing happens meets each. *)

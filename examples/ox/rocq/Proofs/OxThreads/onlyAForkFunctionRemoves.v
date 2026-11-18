@@ -15,5 +15,3 @@ Proof.
   all: try discriminate E.
   exists r, i. split; [split; assumption | assumption].
 Qed.
-
-(** Its parts can hold together: an execution in which nothing happens meets each. *)

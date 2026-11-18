@@ -37,5 +37,3 @@ Proof.
   - exact (proj1 (Hall _ scope who from w (le_n _) Hpending)).
   - exact (proj2 (Hall _ scope who from w (le_n _) Hpending)).
 Qed.
-
-(** Its parts can hold together: an execution in which nothing happens meets each. *)

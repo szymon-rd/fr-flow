@@ -18,6 +18,3 @@ Proof.
   destruct Hin as [[_ Hnot] | Hfork]; [exact (Hnot Hclosing) |].
   apply (Hempty c). apply (Hlive h c m). split; [exact Hherd | exact Hfork].
 Qed.
-
-(** Its parts can hold together: an execution in which nothing happens, of sets with nothing in them, meets
-    each. *)

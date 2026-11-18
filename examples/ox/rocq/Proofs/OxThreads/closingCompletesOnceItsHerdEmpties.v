@@ -161,5 +161,3 @@ Proof.
     - apply IH; [exact HL | lia | lia]. }
   destruct Hending as [L HL]. apply (Hstopped L (Z.to_nat (L - wv2 + 1))); [exact HL | lia | lia].
 Qed.
-
-(** What it is from can hold: an execution in which nothing happens, of flags never set, meets each. *)

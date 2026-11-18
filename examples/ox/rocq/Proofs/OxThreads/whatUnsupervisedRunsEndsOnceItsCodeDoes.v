@@ -74,5 +74,3 @@ Proof.
     all: apply meets_ret; intros rr Hk Hpast Hrr Hgives s0 g0 E; rewrite Hrr in E; discriminate E. }
   exact (Hall k ltac:(rewrite Hinvk; cbn; auto) s g Hinvk m Hfm Happ Hmoves Hcode).
 Qed.
-
-(** Its part can hold: an execution in which nothing happens meets it. *)

@@ -36,5 +36,3 @@ Proof.
   exists w2, w3. split; [lia |]. exists who. unfold completedBy, doneAtOnce, begun.
   destruct Hget as [(sp' & Hat & ->) | (Hinv & _ & sp' & Hresp)]; [left | right]; eauto.
 Qed.
-
-(** An execution in which nothing happens meets what the step is from. *)

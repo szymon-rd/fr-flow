@@ -11,5 +11,3 @@ Proof.
   pose proof (Hmaker h code c t from w m who (conj (conj Hcalled Hfor) Hstart)) as Hown.
   pose proof (Hbefore h code c t from w m t (conj (conj Hcalled Hitself) Hown)). lia.
 Qed.
-
-(** What it is from can hold: an execution in which nothing happens meets it. *)

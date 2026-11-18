@@ -25,5 +25,3 @@ Proof.
   - pose proof (Howner h i _ w (ex_intro _ c (conj Hb Hmk))) as H.
     inversion H; subst; exfalso; repeat (destruct Hof as [Hof | Hof]; [| discriminate Hof]); discriminate Hof.
 Qed.
-
-(** Its parts can hold together: an execution in which nothing happens meets each. *)

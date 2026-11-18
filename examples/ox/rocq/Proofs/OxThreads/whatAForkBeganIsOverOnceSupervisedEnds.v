@@ -10,5 +10,3 @@ Proof.
   apply (Hover (heldIn L.OxError_herd s) t forked inner m to).
   split; [split; [split; [exact (Hcloses c s from to Hmade) | exact Hfork] | exact Hrunning] | exact Hinner].
 Qed.
-
-(** Its parts can hold together: an execution in which nothing happens meets each. *)

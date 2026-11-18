@@ -10,5 +10,3 @@ Proof.
   destruct (Hfunction h r c t i w (conj Hrun Hitself)) as (a & b & _ & Hgave).
   pose proof (Hcurrent c a _ b Hgave) as E. injection E. auto.
 Qed.
-
-(** Its parts can hold together: an execution in which nothing happens meets each. *)

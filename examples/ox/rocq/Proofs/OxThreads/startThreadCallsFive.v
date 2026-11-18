@@ -41,5 +41,3 @@ Proof.
   split; [intros inner Hmk; rewrite <- (makes_one Hmk5 Hmk); eauto 8 |]. intros wstarted rstart xstart _ _ _ Hretstart.
   pass.
 Qed.
-
-(** What it is from can hold: an execution in which nothing happens meets it. *)

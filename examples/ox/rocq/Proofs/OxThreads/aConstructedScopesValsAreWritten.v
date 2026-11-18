@@ -57,5 +57,3 @@ Proof.
       Hbegun ltac:(vm_compute; reflexivity) eq_refl Hend Hx)
     Hmarks (fun b i x Ha => Hassigned s field b i x (conj Hfield Ha)) by_ inside later Hlt).
 Qed.
-
-(** What it is from can hold: an execution in which nothing happens meets it. *)

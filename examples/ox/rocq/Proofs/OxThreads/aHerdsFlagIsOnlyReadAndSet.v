@@ -15,5 +15,3 @@ Proof.
     (conj (conj Hby Hmk) (ex_intro _ method (ex_intro _ _ (conj eq_refl Hof)))))
     as [(flag & E) | [_ (flag & E)]]; inversion E; subst; [left | right]; reflexivity.
 Qed.
-
-(** Its parts can hold together: an execution in which nothing happens meets each. *)

@@ -25,5 +25,3 @@ Proof.
   exact (method_over C (Member "ox.internal.ThreadHerd" "startThread" "scala.Function0:scala.Unit") Hcall Hh
     eq_refl Hresp Hk Hdirect).
 Qed.
-
-(** What it is from can hold: an execution in which nothing happens meets it. *)

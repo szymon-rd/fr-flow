@@ -16,5 +16,3 @@ Proof.
   pose proof (completed_was_called _ _ _ _ _ _ Hdone) as Hc.
   refine (herd_constructed_later history h from _ _ (Hmade h from ltac:(unfold calledOn; eauto 14))). lia.
 Qed.
-
-(** Its parts can hold together: an execution in which nothing happens, of flags never set, meets each. *)

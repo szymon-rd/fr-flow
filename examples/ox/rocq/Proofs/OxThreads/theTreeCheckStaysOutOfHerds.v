@@ -33,5 +33,3 @@ Proof.
   - exact (proj2 (proj2 (proj1 (Hjdk t who who)) h1 x) who m w Hunder Hcalled).
   - exact (proj2 (Hwalk f scope (Hwalks f scope eq_refl) h1 x) who m w Hunder Hcalled).
 Qed.
-
-(** Its parts can hold together: an execution in which nothing happens meets each. *)

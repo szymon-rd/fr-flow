@@ -38,5 +38,3 @@ Proof.
     destruct Hm as [E | (rs & sps & E)]; [left; exists (Some i); exact E |].
     right. exists rs, (Some i), sps. exact E.
 Qed.
-
-(** What it is from can hold: an execution in which nothing happens meets each. *)

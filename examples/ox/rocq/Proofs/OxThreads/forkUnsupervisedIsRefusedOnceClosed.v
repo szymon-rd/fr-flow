@@ -13,5 +13,3 @@ Proof.
   - destruct Hclosed as (f0 & e0 & t0 & Ht0 & H). exists f0, e0, t0. split; [lia | exact H].
   - destruct Hmakes as [H | (r & sp & H)]; [left; exists (Some m); exact H | right; exists r, (Some m), sp; exact H].
 Qed.
-
-(** Its parts can hold together: an execution in which nothing happens meets each. *)

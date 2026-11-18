@@ -58,5 +58,3 @@ Proof.
   destruct (Z_lt_le_dec w 0) as [Hneg | Hpos]; [exfalso; exact (Hbegins _ _ w Hneg (or_introl Hb)) |].
   exact (over_later history who w E1 (Z.max empty E1) ltac:(lia) (HE1 w ltac:(lia) who y Hb)).
 Qed.
-
-(** What it is from can hold: an execution in which nothing happens, of sets that hold nothing, meets each. *)

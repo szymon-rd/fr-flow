@@ -40,5 +40,3 @@ Proof.
     split; [intros inner Hmk; rewrite <- (makes_one (or_introl Hinv) Hmk); eauto 8 |].
     intros wapp' rapp spapp xapp _ _ _. pass.
 Qed.
-
-(** What it is from can hold: an execution in which nothing happens meets it. *)

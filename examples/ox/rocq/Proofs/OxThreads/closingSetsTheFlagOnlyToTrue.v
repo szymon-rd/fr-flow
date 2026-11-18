@@ -33,5 +33,3 @@ Proof.
   intros. repeat pass. apply meets_iter with (J := fun _ _ _ => True); [| exact I]. intros tr1 wt s1 _ IH.
   repeat pass. apply IH; [lia | exact I].
 Qed.
-
-(** What it is from can hold: an execution in which nothing happens meets it. *)

@@ -68,5 +68,3 @@ Proof.
   destruct (Hall (to - 1) ltac:(rewrite Hend; cbn; auto) response spawns Hend) as (a & b & [Ha Hb] & Hd).
   exists a, b. split; [lia | exact Hd].
 Qed.
-
-(** Its parts can hold together: an execution in which nothing happens meets each. *)

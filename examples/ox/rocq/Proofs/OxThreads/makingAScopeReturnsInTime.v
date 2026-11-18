@@ -122,5 +122,3 @@ Proof.
   exists yr, (wr + 1). right. split; [exists inside; exact Hcall |]. exists [].
   replace (wr + 1 - 1) with wr by lia. exact Hrr.
 Qed.
-
-(** Its parts can hold together: an execution in which nothing happens meets each. *)

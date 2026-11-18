@@ -84,5 +84,3 @@ Proof.
   destruct (Hall (to - 1) ltac:(rewrite Hend; cbn; auto) ended sp Hend) as (a & closed & b & [Ha Hb] & Hclosed).
   exists a, closed, b. split; [split; [exact Ha | lia] | exact Hclosed].
 Qed.
-
-(** Its parts can hold together: an execution in which nothing happens meets each. *)

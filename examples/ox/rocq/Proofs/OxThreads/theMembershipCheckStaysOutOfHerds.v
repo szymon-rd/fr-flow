@@ -14,5 +14,3 @@ Proof.
   - exact (Hclose who m w Hunder Hcalled).
   - exact (Hremove who m w Hunder Hcalled).
 Qed.
-
-(** Its parts can hold together: an execution in which nothing happens meets each. *)

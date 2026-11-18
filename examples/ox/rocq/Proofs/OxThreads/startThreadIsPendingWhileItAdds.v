@@ -49,5 +49,3 @@ Proof.
   all: repeat (destruct Hin as [<- | Hin]); try contradiction;
     first [apply (Hover _ s' t'); [lia | exact Ha''] | revert Ha''; miss].
 Qed.
-
-(** What it is from can hold: an execution in which nothing happens meets it. *)

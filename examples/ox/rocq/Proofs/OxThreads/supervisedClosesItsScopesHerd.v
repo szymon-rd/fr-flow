@@ -14,5 +14,3 @@ Proof.
   pose proof (Howner supervisor errorMode parent locals c s a b Hmk) as Eowner.
   exists a3, closing, b3. split; [lia | rewrite Eowner; exact Hclosing].
 Qed.
-
-(** Its parts can hold together: an execution in which nothing happens meets each. *)

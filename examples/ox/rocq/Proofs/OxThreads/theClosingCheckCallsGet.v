@@ -23,5 +23,3 @@ Proof.
   split; [intros inner Hmk; rewrite <- (makes_one Hmk1 Hmk); eauto |]. intros wgot rget xget _ _ _ Hretget.
   pass.
 Qed.
-
-(** What it is from can hold: an execution in which nothing happens meets it. *)

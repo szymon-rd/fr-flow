@@ -79,5 +79,3 @@ Proof.
     pose proof (one_name N _ _ _ Hyclose Hgivesherd) as ->;
     exists wclose; (split; [lia | left; exists (Some wapp); exact Hinvclose]).
 Qed.
-
-(** Its parts can hold together: an execution in which nothing happens meets each. *)

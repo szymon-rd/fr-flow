@@ -57,5 +57,3 @@ Proof.
   destruct (Hall (to - 1) ltac:(rewrite Hend; cbn; auto) _ sp Hend fork eq_refl) as (run & a & b & [Ha Hb] & Hst).
   exists run, a, b. split; [split; [exact Ha | lia] | exact Hst].
 Qed.
-
-(** Its parts can hold together: an execution in which nothing happens meets each. *)

@@ -62,5 +62,3 @@ Proof.
     apply args_one in Hysdis as (ydis & -> & _);
     (split; [intros made Hitmk; rewrite <- (makes_one Hmkdis Hitmk); right; eauto | intros; repeat pass]).
 Qed.
-
-(** What it is from can hold: an execution in which nothing happens meets it. *)

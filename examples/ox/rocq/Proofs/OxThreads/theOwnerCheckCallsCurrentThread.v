@@ -21,5 +21,3 @@ Proof.
   split; [intros inner Hmk; rewrite <- (makes_one Hmk1 Hmk); reflexivity |]. intros wgot rcur xcur _ _ _ Hretcur.
   repeat pass.
 Qed.
-
-(** What it is from can hold: an execution in which nothing happens meets it. *)

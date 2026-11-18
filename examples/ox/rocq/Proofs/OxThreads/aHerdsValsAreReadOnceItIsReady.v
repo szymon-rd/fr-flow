@@ -30,5 +30,3 @@ Proof.
     assert (from <= i) as Hle by lia. apply (herd_constructed_later history h from i Hle).
     apply (Hconstructed h from). do 5 left. exact Hon.
 Qed.
-
-(** Its parts can hold together: an execution in which nothing happens meets each. *)

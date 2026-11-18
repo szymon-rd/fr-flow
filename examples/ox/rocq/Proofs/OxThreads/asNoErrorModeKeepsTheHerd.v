@@ -68,5 +68,3 @@ Proof.
       | exact (Hholds _ _ _ _ _ _ other wmk _ (wmkd + 1) Hdonemk eq_refl) ]. }
   exact (Hall (to - 1) ltac:(rewrite Hend; cbn; auto) sp Hend).
 Qed.
-
-(** Its parts can hold together: an execution in which nothing happens meets each. *)

@@ -125,5 +125,3 @@ Proof.
         eq_refl eq_refl ltac:(vm_compute; reflexivity) Hend Hx)
       Hmarks (fun b i x Ha => Hassigned h field b i x (conj Hfield Ha)) by_ inside later Hlt).
 Qed.
-
-(** Its parts can hold together: an execution in which nothing happens meets each. *)

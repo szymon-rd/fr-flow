@@ -84,5 +84,3 @@ Proof.
     destruct (Hall (to - 1) ltac:(rewrite Hend; cbn; auto) sp Hend) as (m & b & ins & hs & Hm & Hmade).
     exists m, b, ins, hs. split; [lia | exact Hmade].
 Qed.
-
-(** What it is from can hold: an execution in which nothing happens meets it. *)

@@ -33,5 +33,3 @@ Proof.
     (ex_intro _ who (ex_intro _ code (ex_intro _ y (conj Hcalled Hadds))))) as Hlt.
   lia.
 Qed.
-
-(** What it is from can hold: an execution in which nothing happens, of flags never set, meets each. *)

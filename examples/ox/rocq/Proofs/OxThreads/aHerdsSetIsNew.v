@@ -111,5 +111,3 @@ Proof.
       exists wnew, wgot, c. exact (done_completed Hdonenew). }
     exact (Hall (to - 1) ltac:(rewrite Hend; cbn; auto) sp Hend).
 Qed.
-
-(** What it is from can hold: an execution in which nothing happens meets it. *)

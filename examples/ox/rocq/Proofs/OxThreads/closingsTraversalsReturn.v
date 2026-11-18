@@ -13,5 +13,3 @@ Proof.
     as [-> | (x & e & a' & b' & [[[[Ha' _] ->] _] Hthrew])]; [reflexivity |].
   pose proof (Hreturn h f x _ a' _ b' (conj (Hwith a' Ha') Hthrew)) as E. discriminate E.
 Qed.
-
-(** Its parts can hold together: an execution in which nothing happens meets each. *)

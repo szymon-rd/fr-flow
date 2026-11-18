@@ -18,5 +18,3 @@ Proof.
     as [[[[_ (s & t & E)] | [_ [(s & E) | (s & f & E)]]] | [_ (s & y & E)]] | [_ (s & t & E)]];
     inversion E; subst; repeat (first [reflexivity | right; reflexivity | left]).
 Qed.
-
-(** Its parts can hold together: an execution in which nothing happens meets each. *)

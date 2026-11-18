@@ -33,5 +33,3 @@ Proof.
       as (k' & a' & sp' & Hk' & Hresp').
     exists k', a', sp'. split; [lia | exact Hresp'].
 Qed.
-
-(** Its parts can hold together: an execution in which nothing happens meets each. *)

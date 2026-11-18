@@ -9,5 +9,3 @@ Proof.
   destruct (Hget _ False a _ b Hcall eq_refl) as (m & [Hm1 Hm2] & Hflag).
   exists m. split; [lia |]. rewrite Hflag. intros [].
 Qed.
-
-(** Its parts can hold together: an execution in which nothing happens meets each. *)

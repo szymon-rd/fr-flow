@@ -13,5 +13,3 @@ Proof.
   exists k. split; [split; [exact Hk | exact Hclosing] |].
   rewrite <- Eowner in Hclosing |- *. exact (Hcompletes (heldIn L.OxError_herd s) k Hclosing).
 Qed.
-
-(** Its parts can hold together: an execution in which nothing happens meets each. *)

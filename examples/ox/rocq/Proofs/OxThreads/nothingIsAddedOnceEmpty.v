@@ -28,5 +28,3 @@ Proof.
       destruct (still_pending m C Hdone Hlt' Hlt) as (Ham & Hb & Hn).
       apply (Hnow h who m (conj Hclosing Hempty)). right. exists a. split; [exact Ham | exists who'; split; assumption].
 Qed.
-
-(** Its parts can hold together: a run in which nothing happens meets each. *)

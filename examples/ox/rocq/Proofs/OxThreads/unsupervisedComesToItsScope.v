@@ -54,5 +54,3 @@ Proof.
   right. split; [exists (Some from); exact Hinvapp |]. exists spapp.
   replace (wappd + 1 - 1) with wappd by lia. exact Hrespapp.
 Qed.
-
-(** Its parts can hold together: an execution in which nothing happens meets each. *)

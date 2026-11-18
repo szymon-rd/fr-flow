@@ -26,5 +26,3 @@ Proof.
     destruct (Z_lt_le_dec m 0) as [Hneg | Hpos]; [exact (Hbegins _ _ m Hneg (or_introl Hb)) |].
     apply Hpending. exact (over_later history who m E w ltac:(lia) (HE m ltac:(lia) who y Hb)).
 Qed.
-
-(** What it is from can hold: an execution in which nothing happens, of flags never set, meets each. *)

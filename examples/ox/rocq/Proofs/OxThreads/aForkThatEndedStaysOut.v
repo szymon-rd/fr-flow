@@ -45,5 +45,3 @@ Proof.
     intros Hov. apply Hno2. exact (over_later history c2 w2 ms k ltac:(lia) Hov). }
   apply (Hstays w). lia.
 Qed.
-
-(** What it is from can hold: an execution in which nothing happens, of sets that hold nothing, meets each. *)

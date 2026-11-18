@@ -40,5 +40,3 @@ Proof.
     - exists (wadded - 1), radd, sp. split; [lia | exact Hresp]. }
   repeat (destruct Hin as [<- | Hin]); try contradiction; revert Hadd'; miss.
 Qed.
-
-(** What it is from can hold: an execution in which nothing happens meets it. *)

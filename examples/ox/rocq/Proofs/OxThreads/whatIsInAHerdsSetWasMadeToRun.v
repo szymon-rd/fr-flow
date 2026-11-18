@@ -14,5 +14,3 @@ Proof.
   exists code, to. exists c, from, added, to. split; [split; [lia | exact Hdone] |].
   exact (Hwhile h code c x from' from (conj Hcalled Hadds)).
 Qed.
-
-(** What it is from can hold: an execution in which nothing happens, of sets with nothing in them, meets each. *)

@@ -25,5 +25,3 @@ Proof.
     destruct (Hafter h r1 t code t i2 m w (conj (conj (conj Hh1 Hr1) Hit1) Hit2)) as [Hmw Hnot].
     apply Hnot. split; [exact Hmw | split; [exact Hb | exact Hn]].
 Qed.
-
-(** Its parts can hold together: an execution in which nothing happens meets each. *)

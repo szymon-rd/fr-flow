@@ -80,5 +80,3 @@ Proof.
   all: leads_head.
   all: lstep_rule; intros w9 r9 Hw9 Hq9 He9 Hg9; exists (w9 + 1), w9, r9, []; (split; [lia | exact He9]).
 Qed.
-
-(** What it is from can hold: an execution in which nothing happens meets it. *)

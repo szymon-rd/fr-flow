@@ -33,5 +33,3 @@ Proof.
   apply args_two in Hysn as (f & rr & -> & _ & _).
   exists f, rr, wn, wd. split; [split; [lia | exact (done_made Hnew)] | exact (done_completed Hnew)].
 Qed.
-
-(** What it is from can hold: an execution in which nothing happens meets it. *)
