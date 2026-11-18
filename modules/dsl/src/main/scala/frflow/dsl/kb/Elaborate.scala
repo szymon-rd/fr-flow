@@ -39,7 +39,7 @@ object Elaborate:
     (kb.nodes.traverse(node(stating, _)), attached).tupled.run.andThen { case (declared, (ns, code)) =>
       vocabulary(declared).map { (all, v) =>
         val theory = IrCheck.checked(Theory(kb.name, v, ns.map(_._1), ns.flatMap(_._2),
-          CodeTable(code.toMap, kb.members, kb.reached), kb.writtenIn, Own(all.written, all.referred)))
+          CodeTable(code.toMap, kb.members, kb.reached), kb.writtenIn, Own(all.written, all.referred), kb.about))
         Elaborated(theory, all.types.collect { case (n, d :: _) => n -> d.rep }, kb.generators)
       }
     }

@@ -33,7 +33,7 @@ class CommandsSuite extends munit.CatsEffectSuite:
       List(Right(true), Right(true), Right(false)))
     parse("accept a b --revisit c -m why --yes") match
       case Right((Command.Decision(make, about, asked), _)) =>
-        assertEquals((make("why"), about, asked), (Decide.Accept(List(NodeId("a"), NodeId("b")), "why",
+        assertEquals((make("why"), about, asked), (Decide.Accept(List(NodeId("a"), NodeId("b")),
           List(NodeId("c")), Map.empty), None, Asked(Some("why"), None, true)))
       case other                                            => fail(other.toString)
     assert(List("nope", "tree a b", "show", "deciders").forall(parse(_).left.exists(_.errors.nonEmpty)))
@@ -165,8 +165,8 @@ class CommandsSuite extends munit.CatsEffectSuite:
       ports         <- Opened.ports()
       _             <- Opened.over(Opened.before, ports).flatMap(Cli.accepted)
       fewer         <- Opened.over(Opened.project(Shelves.Fewer.kb), ports)
-      (codes, text) <- Cli.all(fewer, decide(n => Decide.Accept(List(sameAbove), n, Nil, Map.empty), Some(sameAbove),
-                         why), decide(Decide.Reject(sameAbove, _, None), Some(sameAbove), why))
+      (codes, text) <- Cli.all(fewer, decide(_ => Decide.Accept(List(sameAbove), Nil, Map.empty), Some(sameAbove),
+                         None), decide(Decide.Reject(sameAbove, _, None), Some(sameAbove), why))
       view          <- fewer.reading.view
     yield
       assertEquals(codes, List(ExitCode(1), ExitCode(0)))

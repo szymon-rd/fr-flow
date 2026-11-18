@@ -30,22 +30,24 @@ class StandingsSuite extends munit.FunSuite:
     "what is below rests on its meaning") {
     val l = acceptAll(shelf)
     def ra(n: Subject) = (standing(replacing(shelf, n), l)("R"), standing(replacing(shelf, n), l)("A"))
-    // A field outside its meaning, likewise.
+    // How it is checked names its parts: it is not what the node says, and brings nothing back.
     assertEquals(ra(r.said("checking", texts("proven from its parts (A)"))),
-      (ReviewState.Review -> List(Cause.Self), ReviewState.Accepted -> Nil))
+      (ReviewState.Accepted -> Nil, ReviewState.Accepted -> Nil))
     assertEquals(ra(r.restated("A reader finds each book they ask for.")),
       (ReviewState.Review -> List(Cause.Self), ReviewState.Accepted -> Nil))
     // What it says changed too: what is below moves.
     assertEquals(ra(r.remeant("A reader finds each book."))._2, ReviewState.Review -> List(Cause.Above))
   }
 
-  test("a part added reviews its parent for its parts; the new part is proposed and waits for it") {
+  test("a part added leaves its parent as decided, and is proposed; a part replaced reviews the parent") {
     val l = acceptAll(shelf)
     val c = node("C", "Each shelf is labelled.", List("A"), Nil)
     val s = Subjects(List(r, a.said("parts", texts("B", "C")), b, c))
-    assertEquals(standing(s, l)("A"), ReviewState.Review -> List(Cause.Parts))
+    assertEquals(standing(s, l)("A"), ReviewState.Accepted -> Nil)
     assertEquals(standing(s, l)("C"), ReviewState.Proposed -> Nil)
-    assertEquals(Reading(s, l).waitsFor(c), Some(id("A")))
+    assertEquals(Reading(s, l).waitsFor(c), None)
+    val replaced = Subjects(List(r, a.said("parts", texts("C")), b, c))
+    assertEquals(standing(replaced, l)("A"), ReviewState.Review -> List(Cause.Parts))
     // In another order, the same parts: nothing moved.
     val both = Subjects(List(r, a.said("parts", texts("B", "C")), b, c))
     val reordered = Subjects(List(r, a.said("parts", texts("C", "B")), b, c))
@@ -112,9 +114,9 @@ class StandingsSuite extends munit.FunSuite:
     val failing = replacing(s, a.copy(proof = unproven(List(Unproven.Check))))
     assertEquals(Reading(failing, after).notMechanical(id("A")), Some(Mechanical.Not.NotProven(List(Unproven.Check))))
     // Its parts changed and Rocq does not prove they make it.
-    val parted = replacing(shelf, a.said("parts", texts("B", "C")))
+    val parted = replacing(shelf, a.said("parts", texts("C")))
     assertEquals(Reading(parted, l).notMechanical(id("A")), Some(Mechanical.Not.PartsNotProven))
-    val made = a.said("parts", texts("B", "C")).copy(proof = ProofStanding(Nil, true, false))
+    val made = a.said("parts", texts("C")).copy(proof = ProofStanding(Nil, true, false))
     assertEquals(Reading(replacing(parted, made), l).notMechanical(id("A")), None)
   }
 

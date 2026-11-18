@@ -3,6 +3,10 @@ package frflow.web.json
 import cats.syntax.all.*
 import frflow.api.view.*
 import frflow.api.view.diff.*
+import frflow.api.view.source.*
+import frflow.api.view.vocab.*
+import frflow.core.ty.Field
+import frflow.core.vocab.{SymbolType, ValueKind}
 import frflow.api.view.whole.*
 import frflow.core.analysis.Problem
 import frflow.core.consistency.{Picked, Vacuity, Witness}
@@ -39,6 +43,7 @@ object ViewCodecs:
   given Encoder.AsObject[Uncounted] = ConfiguredEncoder.derived
   given Encoder.AsObject[NotMade] = ConfiguredEncoder.derived
   given Encoder.AsObject[Warning] = ConfiguredEncoder.derived
+  given Encoder.AsObject[SystemView] = ConfiguredEncoder.derived
   given Encoder.AsObject[View] = ConfiguredEncoder.derived
   given Encoder.AsObject[DiffLine] = ConfiguredEncoder.derived
   given Encoder.AsObject[FieldDiff] = ConfiguredEncoder.derived
@@ -46,6 +51,22 @@ object ViewCodecs:
   given Encoder.AsObject[Parts] = ConfiguredEncoder.derived
   given Encoder.AsObject[NodeDiff] = ConfiguredEncoder.derived
   given Encoder.AsObject[Found] = ConfiguredEncoder.derived
+  given Encoder.AsObject[MeantBy] = ConfiguredEncoder.derived
+  given Encoder.AsObject[Meaning] = ConfiguredEncoder.derived
+  given Encoder.AsObject[FilePart] = ConfiguredEncoder.derived
+  given Encoder.AsObject[SourceFile] = ConfiguredEncoder.derived
+  given Encoder.AsObject[RocqText] = ConfiguredEncoder.derived
+  given Encoder.AsObject[Sources] = ConfiguredEncoder.derived
+  given Encoder.AsObject[CheckEvent] = ConfiguredEncoder.derived
+  given Encoder[ValueKind] = Encoder.encodeString.contramap(_.toString)
+  given Encoder.AsObject[SymbolType] = ConfiguredEncoder.derived
+  given Encoder.AsObject[Field] = ConfiguredEncoder.derived
+  given Encoder.AsObject[Word] = ConfiguredEncoder.derived
+  given Encoder.AsObject[Defined] = ConfiguredEncoder.derived
+  given Encoder.AsObject[Case] = ConfiguredEncoder.derived
+  given Encoder.AsObject[Shape] = ConfiguredEncoder.derived
+  given Encoder.AsObject[DomainType] = ConfiguredEncoder.derived
+  given Encoder.AsObject[Vocab] = ConfiguredEncoder.derived
   given Encoder.AsObject[Scaffolded] = ConfiguredEncoder.derived
   given Encoder.AsObject[Rebased] = ConfiguredEncoder.derived
   given Encoder.AsObject[Refusal] = ConfiguredEncoder.derived

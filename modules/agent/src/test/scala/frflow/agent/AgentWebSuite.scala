@@ -22,7 +22,8 @@ class AgentWebSuite extends munit.CatsEffectSuite:
       api     <- Opened.api(Opened.before)
       a       <- AgentApi.inMemory[IO](api.reading)
       part    <- AgentLayer(_ => IO.pure(a)).part(Cli.host(api), "ann")
-      app     <- api.reading.modelFingerprint.map(f => Routes(api, "ann", Gate("t", f), List(part)).app)
+      live     = frflow.web.Live("t", java.nio.file.Path.of("."), false)
+      app     <- api.reading.modelFingerprint.map(f => Routes(api, "ann", Gate("t", f), live, List(part)).app)
       asked   <- app.run(req(Method.POST, "/api/agent/ask").withEntity(Json.obj("node" -> "nonNegative".asJson,
                    "text" -> "name the number plainly".asJson))).flatMap(_.as[Json])
       _       <- a.asked("Can a number be negative?", "No, never.")

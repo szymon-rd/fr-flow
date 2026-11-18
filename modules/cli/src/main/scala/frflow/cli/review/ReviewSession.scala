@@ -55,10 +55,8 @@ final class ReviewSession(api: FrFlowApi[IO], term: Terminal, st: Style, added: 
     val done = p.copy(batchOffered = true)
     val title = s"${ms.size} mechanical decision(s): Rocq proves them again, and nothing in them is a choice"
     ms.flatTraverse(changed).flatMap(lines => term.out("" :: st.bold(title) :: lines)) >>
-      ask.choose("[a]ccept all, with one reason  [s]kip  [q]uit: ", Set("a", "s", "q")).flatMap {
-        case Some("a") => ask.reason("Why do they hold (e.g. a new field no rule reads)? ").flatMap(_.fold(
-            loop(dev, done))(why => decisions.take(Decide.Confirm(why), dev, _ => false).flatMap(recorded(dev, done,
-            None))))
+      ask.choose("[a]ccept all  [s]kip  [q]uit: ", Set("a", "s", "q")).flatMap {
+        case Some("a") => decisions.take(Decide.Confirm, dev, _ => false).flatMap(recorded(dev, done, None))
         case Some("s") => loop(dev, done)
         case _         => quit(p)
       }
@@ -86,13 +84,11 @@ final class ReviewSession(api: FrFlowApi[IO], term: Terminal, st: Style, added: 
         case _                  => quit(p)
       }
 
-  /** Which decisions below to revisit, and why; what it records shown first when that is more than the node. */
+  /** Which decisions below to revisit; what it records shown first when that is more than the node. */
   private def accept(dev: String, n: NodeView, p: Pass): IO[ExitCode] =
     ask.revisit(n.id, n.review.moves.below).flatMap(_.fold(loop(dev, p))(revisit =>
-      ask.reason(s"Why ${n.id}? ").flatMap(_.fold(loop(dev, p)) { why =>
-        val c = Decide.Accept(List(n.id), why, revisit, Map(n.id -> n.review.version))
-        decisions.take(c, dev, _.recorded.size > 1).flatMap(recorded(dev, p, Some(n.id)))
-      })))
+      decisions.take(Decide.Accept(List(n.id), revisit, Map(n.id -> n.review.version)), dev, _.recorded.size > 1)
+        .flatMap(recorded(dev, p, Some(n.id)))))
 
   private def gone(dev: String, id: NodeId, p: Pass): IO[ExitCode] =
     term.out(List("", s"${st.bold(id.value)} ${st.red("is gone from the model")}: it was decided, and the model no " +

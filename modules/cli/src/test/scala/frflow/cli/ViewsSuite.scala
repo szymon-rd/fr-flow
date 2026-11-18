@@ -51,12 +51,11 @@ class ViewsSuite extends munit.CatsEffectSuite:
     }
   }
 
-  test("a node not decided shows no why section; one decided shows the reason it was decided with") {
+  test("no why section on a node not decided, nor on one accepted: an acceptance is only that") {
     (shown(Opened.before, Command.Show(nonNegative, Depth.Normal)),
       moved(Opened.before, Command.Show(nonNegative, Depth.Normal))).tupled.map { (proposal, accepted) =>
       assert(!proposal.contains("Why it holds"), proposal)
-      assert(accepted.contains("Why it holds (the reason it was decided with)\n  it says what the service must do " +
-        " (accepted by ann, "), accepted)
+      assert(!accepted.contains("Why it holds"), accepted)
     }
   }
 

@@ -6,13 +6,13 @@ import frflow.decision.ledger.{Action, Authorship, Decision, Ledger, Reason}
 import frflow.decision.review.*
 
 /** Accepting nodes, parents first: chosen or confirmed, rivals rejected, what moved only with them confirmed. */
-final class Accepting(r: Reading, by: Authorship, reason: String):
+final class Accepting(r: Reading, by: Authorship):
   def nodes(ids: List[NodeId], revisit: List[NodeId], seen: Map[NodeId, String]): Either[Refusal, Ledger] =
     for
       _ <- Either.cond(ids.nonEmpty, (), Refusal.NoNodes)
       _ <- notBelow(ids, revisit).map(Refusal.NotBelow(ids.head, _)).toLeft(())
       _ <- ids.traverse_(id => r.subjects.get(id).traverse_(s => unmoved(s, seen.get(id))))
-      l <- each(ids, true, (now, s, l) => Below(now, by, reason).settle(s, revisit, l))
+      l <- each(ids, true, (now, s, l) => Below(now, by).settle(s, revisit, l))
     yield l
 
   /** The mechanical batch, each node accepted on its own, choosing among no rivals: what is below it is in the batch
@@ -47,9 +47,9 @@ final class Accepting(r: Reading, by: Authorship, reason: String):
       now.causes(s.id).contains(Cause.Self) && now.ledger.binding(s.id).forall(Meaning.decisionMoved(_, s))
     val confirms = now.state(s.id) == ReviewState.Review && !meaningMoved && rivals.isEmpty
     val action = if confirms then Action.Confirm else Action.Accept
-    val chosen = now.ledger.add(s.id, Decision.taken(action, by, Reason(reason, rivals), now.bound(s)))
+    val chosen = now.ledger.add(s.id, Decision.taken(action, by, Reason("", rivals), now.bound(s)))
     rivals.flatMap(now.subjects.get).foldLeft(chosen)((l, x) => l.add(x.id, Decision.taken(Action.Reject, by,
-      Reason(s"${s.id.value} was chosen instead: $reason", Nil), now.bound(x))))
+      Reason(s"${s.id.value} was chosen instead", Nil), now.bound(x))))
 
   /** The nodes named to revisit that are not among the decisions below the nodes accepted. */
   private def notBelow(ids: List[NodeId], revisit: List[NodeId]): Option[List[NodeId]] =

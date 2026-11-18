@@ -16,6 +16,11 @@ object Meaning:
   def own(c: Content): Content =
     c.without(shown ++ (if c.text("kind") == "design" then Set("parts") else Set("parts", "parents")))
 
+  /** What it says itself, cause `self`: its own content without how it is checked, which names its parts (parts
+    * added below a node do not change what it says).
+    */
+  def said(c: Content): Hash = own(c).without(_ == "checking").hash
+
   /** Without its reason, examples or parents' names. */
   def of(c: Content): Hash = c.only(meaningful).hash
 

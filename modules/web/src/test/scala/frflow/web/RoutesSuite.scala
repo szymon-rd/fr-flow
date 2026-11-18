@@ -20,7 +20,8 @@ import org.typelevel.ci.CIString
 class RoutesSuite extends munit.CatsEffectSuite:
   private val token = "t0k3n"
   private def routes(api: FrFlowApi[IO], parts: List[WebPart] = Nil) =
-    api.reading.modelFingerprint.map(f => Routes(api, "ann", Gate(token, f), parts).app)
+    api.reading.modelFingerprint.map(f =>
+      Routes(api, "ann", Gate(token, f), Live("test", java.nio.file.Path.of("."), false), parts).app)
   private def get(path: String, tok: Option[String] = Some(token)) =
     Request[IO](Method.GET, Uri.unsafeFromString(path)).putHeaders(tok.toList.map(Header.Raw(CIString(Routes
       .TokenHeader), _)))
