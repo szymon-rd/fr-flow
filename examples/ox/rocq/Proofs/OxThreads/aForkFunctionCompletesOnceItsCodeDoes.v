@@ -34,7 +34,7 @@ Proof.
   (* what startThread is given by name is a function *)
   inversion Hpassed as [| p v ps vs Hp _]; subst. lazy in Hp. destruct Hp as (body & sc0 & ->).
   (* the two checks; the factory is read *)
-  pass. pass. pass.
+  pass_to L.ThreadFactory_newThread.
   (* and handed a function: the one written here; what follows hands over none *)
   step. intros wn ysn _ _ Hysn Hmk. split; [| intros; pass; pass; pass; pass].
   intros f r' Hit t i Hrun Hcode Hgoes. pose proof (makes_one Hmk Hit) as E. injection E as ->.

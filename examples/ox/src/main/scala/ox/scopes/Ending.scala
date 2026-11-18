@@ -6,6 +6,7 @@ import frflow.code.InCode.given
 import frflow.executions.*
 import frflow.values.*
 import ox.OxUnsupervised
+import ox.live.closingCompletes
 import ox.threads.*
 
 // What happens in time, of a scope: the call that runs code in it comes to closing the scope's herd, once the
@@ -47,6 +48,8 @@ val aScopesClosingIsReached = Node.claim(
   forall((s: Obj[Scope], g: Term[Value], c: Obj[Thread], from: Term[BigInt]) =>
     (runningIn(s, g).by(c).called(from) && codeEndsIn(g, s, c, from)) implies
       exists((k: Term[BigInt]) => from < k && closing(herdOf(s)).by(c).called(k))))
+  .from(runningInAScopeProceeds, whatRunningInAScopeAppliesProceeds, theCurrentScopeResponds, aScopesHerdResponds,
+    aScopeGivesTheHerdItHolds, theCurrentScopeIsReadAndSet)
 
 val aScopesHerdIsClosedInTime = Node.claim(
   "A call running code in a scope, by the thread that made the scope, closes the scope's herd in time, if " +
@@ -59,3 +62,4 @@ val aScopesHerdIsClosedInTime = Node.claim(
           runningIn(s, g).by(c).called(from) && codeEndsIn(g, s, c, from)) implies
           exists((k: Term[BigInt]) =>
             from < k && closing(herdOf(s)).by(c).called(k) && closing(herdOf(s)).by(c).respondedTo(k))))))
+  .from(closingCompletes, aScopesClosingIsReached, aScopesHerdIsItsMakers)

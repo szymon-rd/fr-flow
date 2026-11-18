@@ -20,7 +20,7 @@ Proof.
     (makes_direct Hadds) _ t Hadds).
   intros args k Hargs _. apply vals_one in Hargs as (vcode & -> & _).
   (* the two checks; the factory is read *)
-  pass. pass. pass.
+  pass_to L.ThreadFactory_newThread.
   (* and asked for a thread *)
   step. intros wn ysn _ _ Hysn Hmk. split; [miss |]. intros wd rn x Hwd Hnew Hgives Hty.
   (* the set is read *)

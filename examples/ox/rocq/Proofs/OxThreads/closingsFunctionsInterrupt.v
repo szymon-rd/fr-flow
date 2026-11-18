@@ -20,7 +20,7 @@ Proof.
     Hcall Hh eq_refl _).
   intros args k0 Hargs _. apply vals_none in Hargs as ->.
   (* the owner is checked and the flag set; closing's variables are made; then it loops *)
-  pass. pass. pass. pass. pass.
+  pass_to_loop.
   meets_head. apply meets_iter with (J := fun _ _ _ => True); [| exact I].
   intros tr1 wt s1 HJ IH.
   pass. pass. meets_head; [pass | repeat pass |].

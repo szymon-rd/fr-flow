@@ -225,6 +225,10 @@ program does next (computing only that); `pass` does the same at an event the cl
 `miss` shows that it says nothing. What a call of another method of the code gives is a lemma of that method,
 proven the same way and used where it is called (`assertNotShuttingDown_returns`).
 
+A proof does not count the events it passes: `pass_to L.KeySetView_add` passes each event before the program's
+next call of the label named (a method of the code, or what is outside it), and `pass_to_loop` each before its
+next loop. A change to what a method does before that call then leaves the proof as it is.
+
 `enterReadsItOpen` is proven so of `Latch.enter`'s tree; of Ox's `ThreadHerd`, as its jar has it
 (`examples/ox/rocq/Proofs/OxThreads`): `startThreadReadsTheFlagUnset`, `closingSetsTheFlagItself`,
 `startThreadAddsWhatItsFactoryMade`, `startThreadAddsBeforeItStarts`,

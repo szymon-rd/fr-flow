@@ -19,7 +19,7 @@ Proof.
   { refine (method_meets _ C (Member "ox.internal.ThreadHerd" "startThread" "scala.Function0:scala.Unit") Hcall Hh eq_refl _).
     intros args k Hargs _. apply vals_one in Hargs as (vcode & -> & _).
     (* the two checks; the factory is read, and asked for a thread; the set is read *)
-    pass. pass. pass. pass. pass.
+    pass_to L.KeySetView_add.
     (* and the thread is added to it; what follows adds nothing *)
     step. intros wa ysa _ Hpast _ Hadd. split; [| intros; pass; pass].
     intros s0 t0 _ s' t' w' Hlt Hearlier.

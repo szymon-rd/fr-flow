@@ -27,6 +27,7 @@ val theWalkUpCallsFour = Node.claim(
         exists((s: Obj[OxUnsupervised]) => s.parent.isCall(made)) ||
         exists((h: Obj[ThreadHerd], t: Obj[Thread]) => h.isOwnerOrHerdThread(t).isCall(made)) ||
         exists((s: Term[Value]) => applicationOf[Unit](g, s).isCall(made)))))
+  .from(herdsAreMade)
 
 // Of Ox's scopes, whose classes are not read here: herd and parent are what a scope was made with.
 val aScopesHerdAndParentStayOutOfHerds = Node.assumption(
@@ -46,9 +47,12 @@ val theMembershipCheckStaysOutOfHerds = Node.claim(
   "While a thread is calling isOwnerOrHerdThread of a herd, it neither closes a herd nor removes a thread from " +
     "a herd's set.")(
   forall((h: Obj[ThreadHerd], t: Obj[Thread]) => staysOutOfHerds(h.isOwnerOrHerdThread(t))))
+  .from(theMembershipCheckCallsContains, whatTheChecksAskOfTheJdkStaysOutOfHerds, aThreadDoesOneThingAtATime)
 
 val theWalkUpStaysOutOfHerds = Node.claim(
   "While a thread is running the function the tree check applies, it neither closes a herd nor removes a " +
     "thread from a herd's set.")(
   forall((g: Term[Value], scope: Term[Value]) =>
     walksUp(g) implies staysOutOfHerds(applicationOf[Unit](g, scope))))
+  .from(theWalkUpCallsFour, aScopesHerdAndParentStayOutOfHerds, theMembershipCheckStaysOutOfHerds,
+    aThreadDoesOneThingAtATime)

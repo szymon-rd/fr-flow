@@ -57,6 +57,7 @@ val aScopeMadeIsAnObject = Node.claim(
     forall((s: Obj[Scope], from: Term[BigInt], to: Term[BigInt]) =>
       makingAScope(supervisor, errorMode, parent, locals).completed(from, Returned(s), to) implies
         scopeMade(s))))
+  .from(aConstructedScopeIsMade, aScopeIsConstructed)
 
 val asNoErrorModeKeepsTheHerd = Node.claim(
   "A scope asked for itself without an error mode gives a scope, an object of the class of scopes, that " +
@@ -64,6 +65,7 @@ val asNoErrorModeKeepsTheHerd = Node.claim(
   forall((s: Obj[Scope], from: Term[BigInt], other: Obj[Scope], to: Term[BigInt]) =>
     (scopeMade(s) && withoutErrorMode(s).completed(from, Returned(other), to)) implies
       (scopeMade(other) && (herdOf(other) === herdOf(s)))))
+  .from(aConstructedScopeIsMade, aScopeIsConstructed, aScopeKeepsItsFields, aScopeHoldsTheHerdItIsMadeWith)
 
 val forkErrorStartsAThread = Node.claim(
   "A call of forkError in a scope returns only after a call of startThread on the scope's herd, that it made " +
@@ -74,6 +76,7 @@ val forkErrorStartsAThread = Node.claim(
         exists((run: Obj[Code], a: Term[BigInt], b: Term[BigInt]) =>
           from < a && b <= to && starting(herdOf(s), run).by(c).calledInside(from, a) &&
             starting(herdOf(s), run).by(c).completed(a, Returned(()), b)))))
+  .from(aScopeKeepsItsFields)
 
 val forkStartsAThread = Node.claim(
   "A call of fork in a scope returns only after a call of startThread on the scope's herd, made during it by " +
@@ -83,6 +86,7 @@ val forkStartsAThread = Node.claim(
       (scopeMade(s) && forking(code, s).by(c).completed(from, make[Response.Returned](fork), to)) implies
         exists((run: Obj[Code], a: Term[BigInt], b: Term[BigInt]) =>
           from < a && b <= to && starting(herdOf(s), run).by(c).completed(a, Returned(()), b)))))
+  .from(forkErrorStartsAThread, asNoErrorModeKeepsTheHerd)
 
 val forkIsRefusedOnceSupervisedEnds = Node.claim(
   "After a call of supervised has completed, a call of fork in the scope it made does not return.")(
@@ -90,6 +94,7 @@ val forkIsRefusedOnceSupervisedEnds = Node.claim(
     forall((code: Term[Value], d: Obj[Thread], m: Term[BigInt], fork: Term[Value], w: Term[BigInt]) =>
       (supervisedMade(c, s, from, to) && to <= m && forking(code, s).by(d).called(m)) implies
         !forking(code, s).by(d).completed(m, make[Response.Returned](fork), w))))
+  .from(supervisedClosesItsScopesHerd, forkStartsAThread, aScopeMadeIsAnObject, aClosedHerdRefusesToStart)
 
 val forkUserErrorStartsAThread = Node.claim(
   "A call of forkUserError in a scope returns only after a call of startThread on the scope's herd, that it " +
@@ -101,6 +106,7 @@ val forkUserErrorStartsAThread = Node.claim(
         exists((run: Obj[Code], a: Term[BigInt], b: Term[BigInt]) =>
           from < a && b <= to && starting(herdOf(s), run).by(c).calledInside(from, a) &&
             starting(herdOf(s), run).by(c).completed(a, Returned(()), b)))))
+  .from(aScopeKeepsItsFields)
 
 val forkUserStartsAThread = Node.claim(
   "A call of forkUser in a scope returns only after a call of startThread on the scope's herd, made during it " +
@@ -110,6 +116,7 @@ val forkUserStartsAThread = Node.claim(
       (scopeMade(s) && forkingUser(code, s).by(c).completed(from, make[Response.Returned](fork), to)) implies
         exists((run: Obj[Code], a: Term[BigInt], b: Term[BigInt]) =>
           from < a && b <= to && starting(herdOf(s), run).by(c).completed(a, Returned(()), b)))))
+  .from(forkUserErrorStartsAThread, asNoErrorModeKeepsTheHerd)
 
 val forkUserIsRefusedOnceSupervisedEnds = Node.claim(
   "After a call of supervised has completed, a call of forkUser in the scope it made does not return.")(
@@ -117,3 +124,4 @@ val forkUserIsRefusedOnceSupervisedEnds = Node.claim(
     forall((code: Term[Value], d: Obj[Thread], m: Term[BigInt], fork: Term[Value], w: Term[BigInt]) =>
       (supervisedMade(c, s, from, to) && to <= m && forkingUser(code, s).by(d).called(m)) implies
         !forkingUser(code, s).by(d).completed(m, make[Response.Returned](fork), w))))
+  .from(supervisedClosesItsScopesHerd, forkUserStartsAThread, aScopeMadeIsAnObject, aClosedHerdRefusesToStart)

@@ -87,7 +87,8 @@ A model imports one facade, `import frflow.*`. There are three kinds of node (ow
 | design | `Node.design(statement)(files*)` | none: a decision about code no proof covers; a change to the files it governs brings it back |
 
 Edges: `.refines(parents*)` makes a node a part of each parent (several parents, several roots: a directed acyclic
-graph); `.assuming(assumptions*)` lists the assumptions its check rests on, which FrFlow derives and checks
+graph), and `.from(parts*)` on a claim says the same from the other side, where the claim is stated ("this is
+proven from these"; a part may be declared after the claim); `.assuming(assumptions*)` lists the assumptions its check rests on, which FrFlow derives and checks
 (`PremiseMissing`, `PremiseNotNeeded`); `.replaces(other)` marks an alternative, so accepting one rejects the other.
 `.about(kind)` says what an assumption is about, in the model's own words (the JDK, who uses the code): nothing is
 checked by it, and a model lists its assumptions by it (`examples/ox` writes its README's list from it). `stands

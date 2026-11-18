@@ -34,7 +34,7 @@ Proof.
     ltac:(rewrite Hresp; cbn; auto) resp sp Hresp _ t a Hak Hbegun).
   intros args k' Hargs _. apply vals_one in Hargs as (vcode & -> & _).
   (* the two checks; the factory is read, and asked for a thread; the set is read *)
-  pass. pass. pass. pass. pass.
+  pass_to L.KeySetView_add.
   (* the add, and the response to it: from there on it is over *)
   step. intros wa ysa _ _ _ Hadd. split; [miss |]. intros wd rr x Hwd Hdn _ _.
   assert (forall j s t, wd <= j -> history wa = Event_Invoke c (Some from) (Invocation_mk

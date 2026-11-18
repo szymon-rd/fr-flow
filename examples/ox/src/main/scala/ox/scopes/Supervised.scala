@@ -36,6 +36,7 @@ val supervisedClosesItsScopesHerd = Node.claim(
   "Once a call of supervised has completed, closing the herd of the scope it made has completed.")(
   forall((c: Obj[Thread], s: Obj[Scope], from: Term[BigInt], to: Term[BigInt]) =>
     supervisedMade(c, s, from, to) implies closed(herdOf(s), to)))
+  .from(supervisedRunsInTheScopeItMade, aScopeEndsAfterItsHerdIsClosed, aScopesHerdIsItsMakers)
 
 val noForkRunsOnceSupervisedEnds = Node.claim(
   "After a call of supervised has completed, no fork of the herd of the scope it made runs the code it was " +
@@ -44,12 +45,14 @@ val noForkRunsOnceSupervisedEnds = Node.claim(
     forall((t: Obj[Thread], forked: Obj[Code], w: Term[BigInt]) =>
       (supervisedMade(c, s, from, to) && to <= w && madeToRun(t, herdOf(s), forked, w)) implies
         (!forked().by(t).pendingAt(w) && !forked().by(t).called(w)))))
+  .from(supervisedClosesItsScopesHerd, noForkRunsOnceClosed)
 
 val nothingIsAddedOnceSupervisedEnds = Node.claim(
   "After a call of supervised has completed, no thread is added to the set of the herd of the scope it made.")(
   forall((c: Obj[Thread], s: Obj[Scope], from: Term[BigInt], to: Term[BigInt]) =>
     forall((t: Obj[Thread], w: Term[BigInt]) =>
       (supervisedMade(c, s, from, to) && to <= w) implies !threads(herdOf(s)).add(t).called(w))))
+  .from(supervisedClosesItsScopesHerd, nothingIsAddedOnceClosed)
 
 val noThreadIsStartedOnceSupervisedEnds = Node.claim(
   "After a call of supervised has completed, a call of startThread of the herd of the scope it made does not " +
@@ -59,3 +62,4 @@ val noThreadIsStartedOnceSupervisedEnds = Node.claim(
       (supervisedMade(c, s, from, to) && to <= m && starting(herdOf(s), code).by(d).called(m)) implies
         (!starting(herdOf(s), code).by(d).completed(m, Returned(()), w) &&
           !threads(herdOf(s)).add(t).by(d).calledInside(m, w)))))
+  .from(supervisedClosesItsScopesHerd, aClosedHerdRefusesToStart)

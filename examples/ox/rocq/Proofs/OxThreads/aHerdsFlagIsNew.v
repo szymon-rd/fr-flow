@@ -30,7 +30,7 @@ Proof.
         inversion Hpassed as [| pf vfactory psf vsf Hfactory Hrest]; subst. inversion Hrest; subst. typed Hfactory.
         (* the object is made; its factory and its owner are written *)
         step. intros wmade xmade Hwmade _ Hop. typed_all. split; [miss |].
-        pass. pass. pass. pass. pass.
+        pass_to L.AtomicBoolean_new.
         (* `new AtomicBoolean(false)` is called, and what it returns written to the flag *)
         step. intros wnew ysnew Hwnew _ Hysnew Hmknew. apply args_one in Hysnew as (yfalse & -> & Hyfalse).
         split; [miss |]. intros wgot rnew xnew Hwgot Hdonenew Hgivesnew _.

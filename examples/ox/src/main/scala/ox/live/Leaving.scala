@@ -47,6 +47,10 @@ val aForkThatEndedStaysOut = Node.claim(
     forall((i: Term[BigInt], ended: Term[Response], e: Term[BigInt], w: Term[BigInt], b: Term[BigInt]) =>
       (ready(h, b) && forkFunction(r, h, code) && running(r).by(t).completed(i, ended, e) && e <= w) implies
         !elements(threads(h), w).contains(t.asValue))))
+  .from(anElementEntersOnlyWhenAdded, aForkFunctionRemovesItsThread, currentThreadIsAnObject,
+    removingTakesTheElementOut, aThreadActsOnlyOnceStarted, startThreadStartsAfterItsAddIsOver,
+    onlyStartThreadAddsToTheSet, anAddedThreadHasNotBeenStarted, onlyItsMakerStartsAThread,
+    startThreadAddsWhatItsFactoryMade, startThreadAddsBeforeItStarts, aHerdsSetIsPlain)
 
 val anInterruptedForkLeavesForGood = Node.claim(
   "A thread added to a herd's set is out of it for good from some moment on, once it has been interrupted.")(
@@ -54,3 +58,6 @@ val anInterruptedForkLeavesForGood = Node.claim(
     (madeToRun(t, h, code, made) && interrupted(t)) implies
       exists((e: Term[BigInt]) =>
         forall((w: Term[BigInt]) => (e <= w) implies !elements(threads(h), w).contains(t.asValue)))))
+  .from(startThreadStartsWhatItAdded, aStartedThreadRunsItsFunction, aForkFunctionCompletesOnceItsCodeDoes,
+    forkCodeCompletesOnceInterrupted, aForkThatEndedStaysOut, onlyStartThreadAddsToTheSet, startThreadAddsWhileItRuns,
+    startThreadAddsWhatItsFactoryMade, herdsAreConstructed)

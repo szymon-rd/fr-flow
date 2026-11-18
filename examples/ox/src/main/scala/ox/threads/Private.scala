@@ -45,16 +45,19 @@ val closingCallsFour = Node.claim(
       ownerCheck(h).isCall(made) || exists((b: Obj[AtomicBoolean]) => b.set(true).isCall(made)) ||
         exists((s: Obj[ConcurrentSet]) => s.isEmpty().isCall(made)) ||
         exists((s: Obj[ConcurrentSet], f: Obj[Consumer[AnyRef]]) => s.forEach(f).isCall(made)))))
+  .from(herdsAreMade)
 
 val theOwnerCheckCallsCurrentThread = Node.claim(
   "A call of assertOnOwnerThread itself calls only Thread.currentThread.")(
   forall((h: Obj[ThreadHerd]) => ownerCheck(h).itselfCallsOnly(made => Thread.currentThread().isCall(made))))
+  .from(herdsAreMade)
 
 val theMembershipCheckCallsContains = Node.claim(
   "A call of isOwnerOrHerdThread itself calls only contains of a set.")(
   forall((h: Obj[ThreadHerd], t: Obj[Thread]) =>
     h.isOwnerOrHerdThread(t).itselfCallsOnly(made =>
       exists((s: Obj[ConcurrentSet], x: Obj[AnyRef]) => s.contains(x).isCall(made)))))
+  .from(herdsAreMade)
 
 val aHerdsMethodsOnlyGetAndSetAFlag = Node.claim(
   "Of the methods of an atomic boolean, a method of a herd itself calls only get, and closing set to true.")(
@@ -62,3 +65,5 @@ val aHerdsMethodsOnlyGetAndSetAFlag = Node.claim(
     (h.isCalledBy(c.asValue, i) && itselfMakes(made, c.asValue, i, w) && ofAnAtomicBoolean(made)) implies
       (exists((b: Obj[AtomicBoolean]) => b.get().isCall(made)) ||
         (closing(h).by(c).called(i) && exists((b: Obj[AtomicBoolean]) => b.set(true).isCall(made))))))
+  .from(closingCallsFour, theOwnerCheckCallsCurrentThread, theMembershipCheckCallsContains, startThreadCallsFive,
+    theClosingCheckCallsGet, theTreeCheckCallsFour)

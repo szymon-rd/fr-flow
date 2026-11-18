@@ -30,7 +30,7 @@ Proof.
     (makes_direct Hhand) _ r Hhand).
   intros args k Hargs Hpassed. apply vals_one in Hargs as (vcode & -> & _).
   inversion Hpassed as [| p v ps vs Hp _]; subst. lazy in Hp. destruct Hp as (body & sc0 & ->).
-  pass. pass. pass.
+  pass_to L.ThreadFactory_newThread.
   step. intros wn ysn _ _ Hysn Hmk. split; [| intros; pass; pass; pass; pass].
   intros f r' Hit c i made w Hrun Hmakes. pose proof (makes_one Hmk Hit) as E. injection E as ->.
   apply args_two in Hysn as (yf & yr & E & _ & Hr). injection E as <- <-.

@@ -26,14 +26,14 @@ val aConstructedScopesValsAreWritten = Node.claim(
   "Once a call of its class's constructor has returned a scope, none of its vals is being written, and none is " +
     "marked or written again.")(
   forall((s: Obj[Scope], w: Term[BigInt]) => s.isConstructed(w) implies s.valsAreSettled(w)))
+  .from(aScopesValsAreAssignedWhereItIsMade)
 
 val noRaceOnAScopesVals = Node.claim(
   "No thread reads, marks or writes a val of a scope while another thread is writing it.")(
   forall((s: Obj[Scope]) => s.hasNoRaceOnItsVals))
+  .from(aConstructedScopesValsAreWritten, aScopesValsAreReadOnceItIsConstructed, aScopesValsAreAssignedWhereItIsMade)
 
-/** That a scope's fields have no data race, and what it is from. */
+/** That a scope's fields have no data race, with the statements it is from. */
 val scopesWithoutRaces: List[FrModel.Part] = List(
-  noRaceOnAScopesVals,
-  aConstructedScopesValsAreWritten.refines(noRaceOnAScopesVals),
-  aScopesValsAreReadOnceItIsConstructed.refines(noRaceOnAScopesVals),
-  aScopesValsAreAssignedWhereItIsMade.refines(noRaceOnAScopesVals, aConstructedScopesValsAreWritten))
+  noRaceOnAScopesVals, aConstructedScopesValsAreWritten, aScopesValsAreReadOnceItIsConstructed,
+  aScopesValsAreAssignedWhereItIsMade)

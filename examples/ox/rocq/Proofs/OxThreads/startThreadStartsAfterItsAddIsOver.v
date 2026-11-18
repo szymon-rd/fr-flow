@@ -25,7 +25,7 @@ Proof.
     (makes_direct Hstarts) started Hstarts _ t w Hadds Hwm Hbegun).
   intros args k Hargs _. apply vals_one in Hargs as (vcode & -> & _).
   (* the two checks; the factory is read, and asked for a thread; the set is read *)
-  pass. pass. pass. pass. pass.
+  pass_to L.KeySetView_add.
   (* the thread is added to it: no start; the call goes on once the add is responded to *)
   step. intros wa ysa _ _ _ Hadd. split.
   { intros started' Hst. pose proof (makes_one Hadd Hst) as E. discriminate E. }

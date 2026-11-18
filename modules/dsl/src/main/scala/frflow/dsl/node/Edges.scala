@@ -5,13 +5,16 @@ import frflow.core.graph.Edge
 import frflow.core.name.NodeId
 import frflow.dsl.build.{Deferred, Fault, Site}
 
-/** A node's links as edges of the graph; a link to a node declared after it is an error on this node. */
+/** A node's links as edges of the graph; a link to a node declared after it is an error on this node (but a part
+  * it says it is from, which is read here).
+  */
 object Edges:
   def of(h: Head): Deferred[List[Edge]] =
     val (l, to) = (h.links, target(h.id))
     (l.refines.traverse(to).map(_.map(Edge.PartOf(h.id, _))),
+      l.parts.flatMap(_().toList).traverse(p => to(Parent.of(p))).map(_.map(Edge.PartOf(_, h.id))),
       l.assumes.traverse(to).map(_.map(Edge.Assumes(h.id, _))),
-      l.replaces.traverse(to).map(_.map(Edge.Replaces(h.id, _)).toList)).mapN(_ ++ _ ++ _)
+      l.replaces.traverse(to).map(_.map(Edge.Replaces(h.id, _)).toList)).mapN(_ ++ _ ++ _ ++ _)
 
   private def target(id: NodeId)(p: Parent): Deferred[NodeId] = p match
     case Parent.Declared(t)   => Deferred.pure(t)

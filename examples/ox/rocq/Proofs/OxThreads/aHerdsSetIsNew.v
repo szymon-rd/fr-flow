@@ -30,7 +30,7 @@ Proof.
         inversion Hpassed as [| pf vfactory psf vsf Hfactory Hrest]; subst. inversion Hrest; subst. typed Hfactory.
         (* the object is made; its factory, its owner and its flag are written *)
         step. intros wmade xmade Hwmade _ Hop. typed_all. split; [miss |].
-        pass. pass. pass. pass. pass. pass. pass. pass.
+        pass_to L.ConcurrentHashMap_newKeySet.
         (* `newKeySet()` is called, and what it returns written to the set; the call returns the object *)
         step. intros wnew ysnew Hwnew _ Hysnew Hmknew. apply args_none in Hysnew as ->.
         split; [miss |]. intros wgot rnew xnew Hwgot Hdonenew Hgivesnew _.

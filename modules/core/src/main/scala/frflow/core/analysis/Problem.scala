@@ -11,6 +11,8 @@ enum Problem:
   case NoRoot
   case AboveItself(id: NodeId)
   case ParentOutside(id: NodeId, parent: NodeId)
+  /** A part a node says it is from (`.from`) that the model does not list. */
+  case PartOutside(id: NodeId, part: NodeId)
   case DesignWithoutParent(id: NodeId)
   case UnderDesign(id: NodeId, design: NodeId)
   /** A premise that is no assumption (2.4): `.assuming` lists what the check trusts; a claim of `always` is placed

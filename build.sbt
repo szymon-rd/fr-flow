@@ -219,16 +219,19 @@ lazy val shop = exampleApp("shop", shopModel, layers = Nil).settings(checked)
 lazy val paymentsModel = exampleModel("payments").settings(checked)
 lazy val payments = exampleApp("payments", paymentsModel, layers = Nil).settings(checked)
 
+val oxCore = "com.softwaremill.ox" %% "core" % "1.1.0"
+
 /** Ox's threads: what holds of a scope's herd once `unsupervised` or `supervised` has completed, stated over the
   * executions of Ox's own code, read from its jar (`examples/ox/README.md`).
   */
 lazy val oxModel = exampleModel("ox").dependsOn(executions % "compile->compile;test->test")
   // The model of Ox's threads speaks of Ox's own classes, read from this jar.
-  .settings(libraryDependencies += "com.softwaremill.ox" %% "core" % "1.1.0")
-lazy val ox = exampleApp("ox", oxModel, layers = Nil)
+  .settings(libraryDependencies += oxCore)
+// The command line names the model, whose statements name Ox's classes: it has the jar too.
+lazy val ox = exampleApp("ox", oxModel, layers = Nil).settings(libraryDependencies += oxCore)
 
 /** Programs that run Ox 1.1.0 to see what the model's statements about it predict (`examples/ox/probe`): compiled
   * with the build, and each run by hand, as its file says (`sbt "oxProbe/runMain IsEmptyProbe 30 2"`).
   */
 lazy val oxProbe = Project("oxProbe", file("examples/ox/probe"))
-  .settings(libraryDependencies += "com.softwaremill.ox" %% "core" % "1.1.0", fork := true, publish / skip := true)
+  .settings(libraryDependencies += oxCore, fork := true, publish / skip := true)

@@ -154,7 +154,7 @@ them.
   leading `forall` variables is a claim about its calls: the code given the Definition is checked against it, and
   code calling it is proven from it. When a claim holds only of some inputs (a room's bookings never overlap), give
   them a domain type whose `always` says so, rather than a precondition.
-- **Edges.** `.refines(parent)`: a part (or a rule). `.assuming(assumption)`: a premise; FrFlow derives which a
+- **Edges.** `.refines(parent)`: a part (or a rule); `whole.from(parts*)` says the same where the whole is stated. `.assuming(assumption)`: a premise; FrFlow derives which a
   check rests on and refuses a list missing one or naming one not needed.
 - **Examples are tests**, not nodes: `class GrantedExamples extends FrFlowExamples(rooms):` then
   `example("back to back: granted"):` with a closed fact (`granted(…) is true`). `check` evaluates each against the

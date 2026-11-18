@@ -511,3 +511,13 @@ is an object like any other. A handler for every `Throwable` takes whatever is t
 ```bash
 sbt "oxModel/Rocq/testOnly ox.threads.ThreadsSuite"
 ```
+
+What a claim is proven from is said where the claim is stated, in the Scala (`.from(parts)`, under
+`src/main/scala/ox`). What a node stands on, down to the assumptions, is listed by:
+
+```bash
+bin/frflow ox stands noThreadIsStartedOnceUnsupervisedEnds
+```
+
+It lists the assumptions below the node, and the claims below it not proven. A claim of the code itself is listed
+as not proven until `bin/frflow ox check` has recorded its proof (the suite above proves them without recording).

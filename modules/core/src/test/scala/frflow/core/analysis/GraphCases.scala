@@ -17,6 +17,7 @@ object GraphCases:
     ProblemCase(Kb.of(root, plain("a"), plain("b")).linking(partOf("a", "b"), partOf("b", "a")),
       List(Problem.AboveItself(id("a")), Problem.AboveItself(id("b")))),
     ProblemCase(Kb.of(root, plain("a")).linking(partOf("a", "gone")), List(Problem.ParentOutside(id("a"), id("gone")))),
+    ProblemCase(Kb.of(root).linking(partOf("gone", "root")), List(Problem.PartOutside(id("root"), id("gone")))),
     ProblemCase(Kb.of(root, design("layout")), List(Problem.DesignWithoutParent(id("layout")))),
     ProblemCase(Kb.of(root, design("layout"), plain("below")).linking(partOf("layout", "root"),
       partOf("below", "layout")), List(Problem.UnderDesign(id("below"), id("layout")))),

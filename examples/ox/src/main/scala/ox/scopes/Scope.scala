@@ -46,6 +46,7 @@ val aScopesHerdIsItsMakers = Node.claim(
     forall((c: Obj[Thread], s: Obj[Scope], from: Term[BigInt], to: Term[BigInt]) =>
       makingAScope(supervisor, errorMode, parent, locals).by(c).completed(from, Returned(s), to) implies
         (owner(herdOf(s)) === c))))
+  .from(aScopeHoldsTheHerdItIsMadeWith, aHerdHoldsWhatItWasGiven, currentThreadIsTheCaller)
 
 val aScopeEndsAfterItsHerdIsClosed = Node.claim(
   "Running code in a scope completes only after a call it made, closing the scope's herd, has completed.")(
@@ -54,3 +55,4 @@ val aScopeEndsAfterItsHerdIsClosed = Node.claim(
       runningIn(s, code).by(c).completed(from, ended, to) implies
         exists((a: Term[BigInt], closed: Term[Response], b: Term[BigInt]) =>
           from < a && b <= to && closing(herdOf(s)).by(c).completed(a, closed, b)))))
+  .from(aScopeGivesTheHerdItHolds, theCurrentScopeIsReadAndSet)

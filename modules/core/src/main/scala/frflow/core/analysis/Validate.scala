@@ -28,6 +28,7 @@ object Validate:
       Option.when(r.roots.isEmpty && t.nodes.nonEmpty)(Problem.NoRoot) ++
       r.nodes.filter(n => r.ancestors(n.id).contains(n.id)).map(n => Problem.AboveItself(n.id)) ++
       r.nodes.flatMap(n => r.parents(n.id).filterNot(ids.contains).map(Problem.ParentOutside(n.id, _))) ++
+      r.edges.collect { case Edge.PartOf(p, w) if !ids.contains(p) => Problem.PartOutside(w, p) }.distinct ++
       r.nodes.collect { case n if n.statement.kind == NodeKind.Design && r.parents(n.id).isEmpty =>
         Problem.DesignWithoutParent(n.id) } ++
       underDesign(t) ++ premises(t) ++ below(t))

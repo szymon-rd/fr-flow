@@ -7,6 +7,7 @@ import frflow.values.*
 import java.util.concurrent.ConcurrentHashMap
 import java.util.concurrent.atomic.AtomicBoolean
 import ox.internal.ThreadHerd
+import ox.scopes.aScopeHoldsTheHerdItIsMadeWith
 
 // How a herd is made: what its constructor, as Ox's jar has it, gives each of its fields.
 
@@ -22,15 +23,18 @@ val aHerdHoldsWhatItWasGiven = Node.assumption("Each val of a herd holds what it
 
 val herdsAreMade = Node.claim("A method of a herd is called only on a herd that has been made.")(
   forall((h: Obj[ThreadHerd]) => h.isMadeWhenCalled))
+  .from(aScopeHoldsTheHerdItIsMadeWith, herdsAreConstructed)
 
 val aHerdsFlagIsNew = Node.claim(
   "What a ready herd holds as its flag is what a call of `new AtomicBoolean(false)` returned.")(
   forall((h: Obj[ThreadHerd], w: Term[BigInt]) =>
     ready(h, w) implies exists((a: Term[BigInt], b: Term[BigInt]) =>
       call(new AtomicBoolean(false)).completed(a, Returned(shutdown(h)), b))))
+  .from(aScopeHoldsTheHerdItIsMadeWith, aHerdHoldsWhatItWasGiven)
 
 val aHerdsSetIsNew = Node.claim(
   "What a ready herd holds as its set is what a call of `ConcurrentHashMap.newKeySet()` returned.")(
   forall((h: Obj[ThreadHerd], w: Term[BigInt]) =>
     ready(h, w) implies exists((a: Term[BigInt], b: Term[BigInt]) =>
       ConcurrentHashMap.newKeySet[AnyRef]().completed(a, Returned(threads(h)), b))))
+  .from(aScopeHoldsTheHerdItIsMadeWith, aHerdHoldsWhatItWasGiven)

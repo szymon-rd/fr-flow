@@ -12,6 +12,7 @@ object Problems:
     case Problem.NoRoot                     => "no root statement: every node refines another (state the purpose)"
     case Problem.AboveItself(id)            => s"$id is above itself: its parents lead back to it"
     case Problem.ParentOutside(id, parent)  => s"$id refines $parent, which is not in the FrModel"
+    case Problem.PartOutside(id, part)      => s"$id is from $part, which is not in the FrModel"
     case Problem.DesignWithoutParent(id)    => s"the design $id refines nothing: a design is under the claim it serves"
     case Problem.UnderDesign(id, design)    => s"$id refines the design $design: nothing refines a design"
     case Problem.PremiseNotAssumed(id, p)   => s"$id assumes $p, which is no assumption: place a claim of always " +

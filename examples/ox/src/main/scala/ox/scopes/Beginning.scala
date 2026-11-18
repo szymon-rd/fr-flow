@@ -8,6 +8,7 @@ import frflow.values.*
 import java.util.concurrent.ConcurrentHashMap
 import java.util.concurrent.atomic.{AtomicBoolean, AtomicReference}
 import ox.internal.ThreadHerd
+import ox.live.currentThreadResponds
 import ox.threads.*
 
 // What happens in time, of `unsupervised`: it makes a scope and comes to running its code in it; so, once the
@@ -60,6 +61,8 @@ val makingAScopeReturnsInTime = Node.claim("A call making a scope returns a scop
       makingAScope(supervisor, errorMode, parent, locals).by(c).called(from) implies
         exists((s: Obj[Scope], to: Term[BigInt]) =>
           makingAScope(supervisor, errorMode, parent, locals).by(c).completed(from, Returned(s), to)))))
+  .from(makingAScopeProceeds, makingAFlagReturnsInTime, makingASetReturnsInTime, makingAReferenceReturnsInTime,
+    aScopeIsMadeInTime, currentThreadResponds, currentThreadIsTheCaller)
 
 val unsupervisedComesToItsScope = Node.claim(
   "A call of unsupervised makes a scope and itself calls running a function in it, in time.")(
@@ -69,6 +72,7 @@ val unsupervisedComesToItsScope = Node.claim(
         exists((g: Term[Value], a: Term[BigInt], b: Term[BigInt], k: Term[BigInt]) =>
           makingAScope(supervisor, errorMode, parent, locals).by(c).completed(a, Returned(s), b) &&
             from < k && runningIn(s, g).by(c).calledInside(from, k)))))
+  .from(makingAScopeReturnsInTime, unsupervisedProceeds, theCurrentScopeResponds, theCurrentScopeIsReadAndSet)
 
 // The function `unsupervised` runs in its scope is one it writes: it applies the code to the scope.
 val whatUnsupervisedRunsProceeds = Node.assumption(
@@ -87,6 +91,7 @@ val whatUnsupervisedRunsEndsOnceItsCodeDoes = Node.claim(
       (unsupervisedWith(locals, code).by(c).called(from) && runningIn(s, g).by(c).calledInside(from, k) &&
         codeEndsIn(code, s, c, from) && from < m && applicationOf[Any](g, s.asValue).by(c).called(m)) implies
         applicationOf[Any](g, s.asValue).by(c).respondedTo(m))))
+  .from(whatUnsupervisedRunsProceeds)
 
 val unsupervisedClosesItsHerdInTime = Node.claim(
   "A call of unsupervised closes the herd of a scope it makes in time, if each call of its code on a scope " +
@@ -96,3 +101,4 @@ val unsupervisedClosesItsHerdInTime = Node.claim(
       forall((s: Obj[Scope]) => codeEndsIn(code, s, c, from))) implies
       exists((s: Obj[Scope], k: Term[BigInt]) =>
         from < k && closing(herdOf(s)).by(c).called(k) && closing(herdOf(s)).by(c).respondedTo(k))))
+  .from(aScopesHerdIsClosedInTime, unsupervisedComesToItsScope, whatUnsupervisedRunsEndsOnceItsCodeDoes)

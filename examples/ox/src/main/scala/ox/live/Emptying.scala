@@ -35,6 +35,7 @@ val closingsFunctionsInterrupt = Node.claim(
     forall((k: Term[BigInt], r: Term[Response], b: Term[BigInt]) =>
       (traversedWith(f, h, k) && f.accept(x.seenAs[AnyRef]).by(c).completed(k, r, b)) implies
         x.interrupt().returnedBefore(b))))
+  .from(whatClosingsFunctionsApplyInterrupts, joinThrowsOnlyAnInterruption, herdsAreMade)
 
 val whatStaysInATraversedSetIsInterrupted = Node.claim(
   "A thread in a herd's set after closing has traversed it, with no call adding to it in progress, has been " +
@@ -43,11 +44,16 @@ val whatStaysInATraversedSetIsInterrupted = Node.claim(
     forall((made: Term[BigInt]) =>
       (ready(h, made) && traversedWithNoneAdding(h, a, b) && b <= w &&
         elements(threads(h), w).contains(x.asValue)) implies interrupted(x))))
+  .from(closingsFunctionsRespond, whatIsInAHerdsSetWasMadeToRun, anElementEntersOnlyWhenAdded,
+    aTraversalReachesWhatStays, closingsFunctionsInterrupt, closingsTraversalsReturn, aHerdsSetIsPlain)
 
 val aHerdsSetEmptiesOnceTraversed = Node.claim(
   "A herd's set comes to rest empty, once closing has traversed it with no call adding to it in progress.")(
   forall((h: Obj[ThreadHerd], made: Term[BigInt]) => ready(h, made) implies emptiesOnceTraversed(h)))
+  .from(whatIsInAHerdsSetWasMadeToRun, anElementWasAdded, theExecutionBegins, removingResponds,
+    whatStaysInATraversedSetIsInterrupted, anInterruptedForkLeavesForGood, aHerdsSetIsPlain)
 
 val closingCompletes = Node.claim("A call of closing on a herd by its owner is responded to, in time.")(
   forall((h: Obj[ThreadHerd], from: Term[BigInt]) =>
     closing(h).by(owner(h)).called(from) implies closing(h).by(owner(h)).respondedTo(from)))
+  .from(closingCompletesOnceItsHerdEmpties, aHerdsSetEmptiesOnceTraversed, herdsAreConstructed)

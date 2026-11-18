@@ -42,7 +42,7 @@ Proof.
     step. intros wherd xherd Hwherd _ Hopherd. cbn [op_event] in Hopherd.
     destruct Hopherd as (rherd & yherd & hsherd & -> & Hclassherd & Hyherd & Hholdingherd & Heherd).
     split; [miss |].
-    pass. pass.
+    pass_to L.Thread_currentThread.
     (* the current thread is asked for: the caller *)
     step. intros wcur yscur Hwcur _ Hyscur Hmkcur. apply args_none in Hyscur as ->. split; [miss |].
     intros wcurd rcur xcur Hwcurd Hdonecur Hgivescur Hretcur.

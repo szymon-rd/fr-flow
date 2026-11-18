@@ -22,7 +22,7 @@ Proof.
     (makes_direct Hsets) _ v Hsets).
   intros args k Hargs _. apply vals_none in Hargs as ->.
   (* the check; the flag is read *)
-  pass. pass.
+  pass_to L.AtomicBoolean_set.
   (* and set: to true *)
   step. intros ws yss _ _ Hyss Hmk. split.
   { intros s v' Hit. pose proof (makes_one Hmk Hit) as E. injection E as ->.

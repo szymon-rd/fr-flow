@@ -698,10 +698,45 @@ Ltac miss := aside_clear; cbv beta; miss_goal.
 
 (** The rule of what the program does next, at an event the claim says nothing of; then on. A loop is left
     as it is, for `meets_iter`. *)
-Ltac pass :=
-  meets_head;
+Ltac pass_here :=
   lazymatch goal with
   | |- meets _ _ _ _ _ _ _ _ _ (Running (Ret _)) _ => apply meets_ret; intros ? ? ? ? ?; miss
   | |- meets _ _ _ _ _ _ _ _ _ (Running (Iter _ _ _)) _ => idtac
   | |- _ => step_rule; intros; typed_all; (split; [miss | intros; typed_all])
+  end.
+
+Ltac pass := meets_head; pass_here.
+
+(** ** Events the claim says nothing of, up to one named *)
+
+(** What the program does next is a call of the label named: of a method of the code, or of what is outside it. *)
+Ltac next_calls m :=
+  let named := eval lazy in m in
+  lazymatch goal with
+  | |- meets _ _ _ _ _ _ _ _ _ (Running (Call (Method ?s) _ _)) _ =>
+      let said := eval lazy in (label_of s) in constr_eq said named
+  | |- meets _ _ _ _ _ _ _ _ _ (Running (Vis (ExtCall _ ?l _) _)) _ =>
+      let said := eval lazy in l in constr_eq said named
+  end.
+
+(** `pass` at each event before the next call of the label named. A proof says which call it goes to and counts no
+    step, so a change to what the method does before that call leaves the proof as it is. Where the program
+    branches before it, each branch goes to its own call of the label, or returns at an event the claim says
+    nothing of. *)
+Ltac pass_to_call m :=
+  meets_head;
+  tryif next_calls m then idtac
+  else lazymatch goal with
+       | |- meets _ _ _ _ _ _ _ _ _ (Running (Iter _ _ _)) _ => fail "a loop comes before a call of" m
+       | |- _ => pass_here; pass_to_call m
+       end.
+
+Tactic Notation "pass_to" constr(m) := pass_to_call m.
+
+(** `pass` at each event before the program's next loop. *)
+Ltac pass_to_loop :=
+  meets_head;
+  lazymatch goal with
+  | |- meets _ _ _ _ _ _ _ _ _ (Running (Iter _ _ _)) _ => idtac
+  | |- _ => pass_here; pass_to_loop
   end.

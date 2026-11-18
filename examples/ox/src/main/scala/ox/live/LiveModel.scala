@@ -1,62 +1,28 @@
 package ox.live
 
 import frflow.*
-import ox.scopes.makingAScopeReturnsInTime
 
-// What happens in time, as the model has it: each statement under what it helps prove.
+// What happens in time, as the model has it. What each claim is from is said where it is stated (`.from`).
 
 val inTime: List[FrModel.Part] = List(
   // What happens in time: closing's loop ends, once the herd's set rests empty.
-  closingsTraversalsRespond.refines(closingCompletesOnceItsHerdEmpties),
-  addingStopsOnceTheFlagIsSet.refines(closingCompletesOnceItsHerdEmpties, addingEndsOnceTheFlagIsSet),
-  addingEndsOnceTheFlagIsSet.refines(closingCompletesOnceItsHerdEmpties),
-  addingResponds.refines(addingEndsOnceTheFlagIsSet), theOwnerCheckResponds.refines(closingCompletesOnceItsHerdEmpties),
-  settingResponds.refines(closingCompletesOnceItsHerdEmpties),
-  isEmptyResponds.refines(closingCompletesOnceItsHerdEmpties),
-  isEmptyFindsARestingSetEmpty.refines(closingCompletesOnceItsHerdEmpties),
+  closingsTraversalsRespond, addingStopsOnceTheFlagIsSet, addingEndsOnceTheFlagIsSet, addingResponds,
+  theOwnerCheckResponds, settingResponds, isEmptyResponds, isEmptyFindsARestingSetEmpty,
 
   // What happens in time: closing's traversals are responded to, and adding stops.
-  closingsFunctionsRespond.refines(closingsTraversalsRespond, whatStaysInATraversedSetIsInterrupted),
-  aTraversalRespondsOnceItsFunctionDoes.refines(closingsTraversalsRespond),
-  aTraversalAppliesItsFunctionToElements.refines(closingsTraversalsRespond),
-  whatIsInAHerdsSetWasMadeToRun.refines(closingsTraversalsRespond, whatStaysInATraversedSetIsInterrupted,
-    aHerdsSetEmptiesOnceTraversed),
-  anElementWasAdded.refines(whatIsInAHerdsSetWasMadeToRun, aHerdsSetEmptiesOnceTraversed),
-  theExecutionBegins.refines(addingStopsOnceTheFlagIsSet, addingEndsOnceTheFlagIsSet,
-    aHerdsSetEmptiesOnceTraversed),
+  closingsFunctionsRespond, aTraversalRespondsOnceItsFunctionDoes, aTraversalAppliesItsFunctionToElements,
+  whatIsInAHerdsSetWasMadeToRun, anElementWasAdded, theExecutionBegins,
 
   // What happens in time: closing's functions are responded to.
-  whatClosingsFunctionsApplyInterrupts.refines(closingsFunctionsRespond, closingsFunctionsInterrupt),
-  aForkEndsOnceInterrupted.refines(closingsFunctionsRespond),
-  joinRespondsOnceItsThreadHasRun.refines(closingsFunctionsRespond),
-  closingsFunctionsProceed.refines(closingsFunctionsRespond),
-  whatClosingsFunctionsApplyProceeds.refines(closingsFunctionsRespond),
-  interruptResponds.refines(closingsFunctionsRespond),
-  addSuppressedResponds.refines(closingsFunctionsRespond),
+  whatClosingsFunctionsApplyInterrupts, aForkEndsOnceInterrupted, joinRespondsOnceItsThreadHasRun,
+  closingsFunctionsProceed, whatClosingsFunctionsApplyProceeds, interruptResponds, addSuppressedResponds,
 
   // What happens in time: a fork ends once interrupted.
-  startThreadStartsWhatItAdded.refines(aForkEndsOnceInterrupted, anInterruptedForkLeavesForGood),
-  aStartedThreadRunsItsFunction.refines(aForkEndsOnceInterrupted, anInterruptedForkLeavesForGood),
-  aForkFunctionCompletesOnceItsCodeDoes.refines(aForkEndsOnceInterrupted, anInterruptedForkLeavesForGood),
-  forkCodeCompletesOnceInterrupted.refines(aForkEndsOnceInterrupted, anInterruptedForkLeavesForGood),
-  startThreadAddsOnce.refines(startThreadStartsWhatItAdded, addingStopsOnceTheFlagIsSet),
-  aHerdsMethodsProceed.refines(startThreadStartsWhatItAdded, theOwnerCheckResponds,
-    closingCompletesOnceItsHerdEmpties),
-  aForkFunctionProceeds.refines(aForkFunctionCompletesOnceItsCodeDoes),
-  currentThreadResponds.refines(aForkFunctionCompletesOnceItsCodeDoes, theOwnerCheckResponds,
-    makingAScopeReturnsInTime),
-  removingResponds.refines(aForkFunctionCompletesOnceItsCodeDoes, aHerdsSetEmptiesOnceTraversed),
-  discardResponds.refines(aForkFunctionCompletesOnceItsCodeDoes),
+  startThreadStartsWhatItAdded, aStartedThreadRunsItsFunction, aForkFunctionCompletesOnceItsCodeDoes,
+  forkCodeCompletesOnceInterrupted, startThreadAddsOnce, aHerdsMethodsProceed, aForkFunctionProceeds,
+  currentThreadResponds, removingResponds, discardResponds,
   // What happens in time: the herd's set empties, so closing completes.
-  aHerdsSetEmptiesOnceTraversed.refines(closingCompletes),
-  whatStaysInATraversedSetIsInterrupted.refines(aHerdsSetEmptiesOnceTraversed),
-  anInterruptedForkLeavesForGood.refines(aHerdsSetEmptiesOnceTraversed),
-  anElementEntersOnlyWhenAdded.refines(whatStaysInATraversedSetIsInterrupted, aForkThatEndedStaysOut),
-  aTraversalReachesWhatStays.refines(whatStaysInATraversedSetIsInterrupted),
-  closingsFunctionsInterrupt.refines(whatStaysInATraversedSetIsInterrupted),
-  aForkThatEndedStaysOut.refines(anInterruptedForkLeavesForGood),
-  aForkFunctionRemovesItsThread.refines(aForkThatEndedStaysOut),
-  currentThreadIsAnObject.refines(aForkThatEndedStaysOut),
-  removingTakesTheElementOut.refines(aForkThatEndedStaysOut),
-  aThreadActsOnlyOnceStarted.refines(aForkThatEndedStaysOut),
-  startThreadStartsAfterItsAddIsOver.refines(aForkThatEndedStaysOut))
+  aHerdsSetEmptiesOnceTraversed, whatStaysInATraversedSetIsInterrupted, anInterruptedForkLeavesForGood,
+  anElementEntersOnlyWhenAdded, aTraversalReachesWhatStays, closingsFunctionsInterrupt, aForkThatEndedStaysOut,
+  aForkFunctionRemovesItsThread, currentThreadIsAnObject, removingTakesTheElementOut, aThreadActsOnlyOnceStarted,
+  startThreadStartsAfterItsAddIsOver)

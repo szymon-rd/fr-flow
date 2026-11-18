@@ -48,6 +48,7 @@ val theForkFunctionCallsFour = Node.claim(
         (exists((code: Obj[Code]) => code().isCall(made)) || Thread.currentThread().isCall(made) ||
           exists((s: Obj[ConcurrentSet], t: Obj[Thread]) => s.remove(t).isCall(made)) ||
           exists((x: Obj[AnyRef]) => ox.discard(x).isCall(made))))))
+  .from(herdsAreMade)
 
 val whatAHerdsCodeCallsOfASet = Node.claim(
   "Of the methods of a key set, startThread itself calls only add, closing isEmpty and forEach, the membership " +
@@ -63,3 +64,5 @@ val whatAHerdsCodeCallsOfASet = Node.claim(
           exists((s: Obj[ConcurrentSet], x: Obj[AnyRef]) => s.contains(x).isCall(made))) ||
         (aForkFunctionRuns(h, c.asValue, i) &&
           exists((s: Obj[ConcurrentSet], t: Obj[Thread]) => s.remove(t).isCall(made))))))
+  .from(closingCallsFour, theOwnerCheckCallsCurrentThread, theMembershipCheckCallsContains, theForkFunctionCallsFour,
+    startThreadCallsFive, theClosingCheckCallsGet, theTreeCheckCallsFour)

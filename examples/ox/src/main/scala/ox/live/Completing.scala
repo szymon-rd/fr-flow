@@ -21,6 +21,7 @@ val emptiesOnceTraversed = stated { (h: Obj[ThreadHerd]) =>
 
 val theOwnerCheckResponds = Node.claim("A call of assertOnOwnerThread on a herd is responded to, in time.")(
   forall((h: Obj[ThreadHerd]) => ownerCheck(h).responds))
+  .from(aHerdsMethodsProceed, currentThreadResponds, herdsAreMade)
 
 val closingCompletesOnceItsHerdEmpties = Node.claim(
   "A call of closing on a herd by its owner is responded to in time, if the herd's set comes to rest empty once " +
@@ -28,3 +29,6 @@ val closingCompletesOnceItsHerdEmpties = Node.claim(
   forall((h: Obj[ThreadHerd], from: Term[BigInt]) =>
     (closing(h).by(owner(h)).called(from) && emptiesOnceTraversed(h)) implies
       closing(h).by(owner(h)).respondedTo(from)))
+  .from(closingsTraversalsRespond, addingStopsOnceTheFlagIsSet, addingEndsOnceTheFlagIsSet, theOwnerCheckResponds,
+    settingResponds, isEmptyResponds, isEmptyFindsARestingSetEmpty, aHerdsMethodsProceed, settingIsAtomic,
+    herdsAreConstructed, herdsAreMade, aHerdKeepsItsFields)

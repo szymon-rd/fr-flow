@@ -26,6 +26,7 @@ val callsNest = Node.claim(
     forall((m: Term[BigInt], e: Term[BigInt]) =>
       (begun(outer, by.asValue, from) && from < m && !overBy(by.asValue, from, m) &&
         begun(inner, by.asValue, m) && overBy(by.asValue, from, e)) implies overBy(by.asValue, m, e))))
+  .from(aCallEndsAfterTheCallsItMade, aThreadDoesOneThingAtATime)
 
 val whatAForkBeganIsOverOnceClosed = Node.claim(
   "After closing a herd has completed, each call that a fork of it began while running the code it was made " +
@@ -34,6 +35,7 @@ val whatAForkBeganIsOverOnceClosed = Node.claim(
     forall((m: Term[BigInt], w: Term[BigInt]) =>
       (closed(h, w) && madeToRun(t, h, forked, m) && forked().by(t).pendingAt(m) &&
         begun(inner, t.asValue, m)) implies overBy(t.asValue, m, w))))
+  .from(noForkRunsOnceClosed, callsNest)
 
 val whatAForkBeganIsOverOnceUnsupervisedEnds = Node.claim(
   "After a call of unsupervised has completed, each call that a fork of the scope it made began while running " +
@@ -42,6 +44,7 @@ val whatAForkBeganIsOverOnceUnsupervisedEnds = Node.claim(
     forall((t: Obj[Thread], forked: Obj[Code], inner: Term[Invocation], m: Term[BigInt]) =>
       (unsupervisedMade(c, s, from, to) && madeToRun(t, herdOf(s), forked, m) && forked().by(t).pendingAt(m) &&
         begun(inner, t.asValue, m)) implies overBy(t.asValue, m, to))))
+  .from(unsupervisedClosesItsScopesHerd, whatAForkBeganIsOverOnceClosed)
 
 val whatAForkBeganIsOverOnceSupervisedEnds = Node.claim(
   "After a call of supervised has completed, each call that a fork of the scope it made began while running " +
@@ -50,3 +53,4 @@ val whatAForkBeganIsOverOnceSupervisedEnds = Node.claim(
     forall((t: Obj[Thread], forked: Obj[Code], inner: Term[Invocation], m: Term[BigInt]) =>
       (supervisedMade(c, s, from, to) && madeToRun(t, herdOf(s), forked, m) && forked().by(t).pendingAt(m) &&
         begun(inner, t.asValue, m)) implies overBy(t.asValue, m, to))))
+  .from(supervisedClosesItsScopesHerd, whatAForkBeganIsOverOnceClosed)

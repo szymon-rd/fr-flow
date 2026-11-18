@@ -32,10 +32,12 @@ val startThreadCallsFive = Node.claim(
         exists((f: Obj[ThreadFactory], r: Obj[Runnable]) => f.newThread(r).isCall(made)) ||
         exists((s: Obj[ConcurrentSet], t: Obj[Thread]) => s.add(t).isCall(made)) ||
         exists((t: Obj[Thread]) => t.start().isCall(made)))))
+  .from(herdsAreMade)
 
 val theClosingCheckCallsGet = Node.claim("A call of assertNotShuttingDown itself calls only get of an atomic flag.")(
   forall((h: Obj[ThreadHerd]) =>
     closingCheck(h).itselfCallsOnly(made => exists((b: Obj[AtomicBoolean]) => b.get().isCall(made)))))
+  .from(herdsAreMade)
 
 // Of the JDK: none of the three calls back into Ox. Adding a thread asks its hashCode and equals, which are
 // `Object`'s.
@@ -56,6 +58,7 @@ val theClosingCheckStaysOutOfHerds = Node.claim(
   "While a thread is calling assertNotShuttingDown of a herd, it neither closes a herd nor removes a thread " +
     "from a herd's set.")(
   forall((h: Obj[ThreadHerd]) => staysOutOfHerds(closingCheck(h))))
+  .from(theClosingCheckCallsGet, theJdkStaysOutOfHerds, aThreadDoesOneThingAtATime)
 
 val theTreeCheckCallsFour = Node.claim(
   "A call of verifyCurrentThreadInScopeTree itself calls only Thread.currentThread, get of the current scope, " +
@@ -65,14 +68,19 @@ val theTreeCheckCallsFour = Node.claim(
       Thread.currentThread().isCall(made) || ox.internal.currentScope.get().isCall(made) ||
         exists((t: Obj[Thread]) => t.getName().isCall(made)) ||
         exists((f: Term[Value], scope: Term[Value]) => applicationOf[Unit](f, scope).isCall(made)))))
+  .from(herdsAreMade)
 
 // What the check calls itself is proven (above); what the function it applies does, in `Climb.scala`.
 val theTreeCheckStaysOutOfHerds = Node.claim(
   "While a thread is calling verifyCurrentThreadInScopeTree of a herd, it neither closes a herd nor removes a " +
     "thread from a herd's set.")(
   forall((h: Obj[ThreadHerd]) => staysOutOfHerds(treeCheck(h))))
+  .from(theTreeCheckCallsFour, theWalkUpStaysOutOfHerds, whatTheChecksAskOfTheJdkStaysOutOfHerds,
+    aThreadDoesOneThingAtATime)
 
 val startThreadStaysOutOfHerds = Node.claim(
   "While a thread is calling startThread of a herd, it neither closes a herd nor removes a thread from a herd's " +
     "set.")(
   forall((h: Obj[ThreadHerd], code: Obj[Code]) => staysOutOfHerds(starting(h, code))))
+  .from(startThreadCallsFive, theClosingCheckStaysOutOfHerds, theTreeCheckStaysOutOfHerds, aFactoryStaysOutOfHerds,
+    theJdkStaysOutOfHerds, aThreadDoesOneThingAtATime)

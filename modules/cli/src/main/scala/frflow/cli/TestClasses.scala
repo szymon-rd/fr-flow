@@ -28,9 +28,12 @@ object TestClasses:
     .map(dir.relativize(_).toString).filter(_.endsWith(".class")).sorted
     .map(_.stripSuffix(".class").replace(java.io.File.separatorChar, '.'))
 
-  /** The class, if it is a concrete class of examples. */
+  /** The class, if it is a concrete class of examples. A test class of another kind may not load here (a suite of
+    * a test framework the command line does not have): it is none.
+    */
   private def examplesClass(name: String): Option[Class[?]] =
-    Either.catchNonFatal(Class.forName(name, false, getClass.getClassLoader)).toOption
+    (try Some(Class.forName(name, false, getClass.getClassLoader))
+    catch case _: LinkageError | _: ClassNotFoundException => None)
       .filter(c => classOf[FrFlowExamples].isAssignableFrom(c) && !Modifier.isAbstract(c.getModifiers))
 
   private def made(c: Class[?]): Either[NotMade, FrFlowExamples] =
