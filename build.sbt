@@ -175,6 +175,8 @@ def commandLine(p: Project, layers: Seq[ClasspathDep[ProjectReference]], tests: 
     libraryDependencies ++= Seq(munit, inspector), publish / skip := true, run / fork := true, Test / fork := true,
     run / javaOptions ++= Seq("-Dstdout.encoding=UTF-8", "-Dstderr.encoding=UTF-8", "-Dfile.encoding=UTF-8"),
     run / javaOptions += "-Dfrflow.tests=" + tests.value.getAbsolutePath,
+    // A plain IPv4 socket: WSL2 forwards Windows' localhost only to those, not to Java's default IPv6 one.
+    run / javaOptions += "-Djava.net.preferIPv4Stack=true",
     Compile / run := Defaults.runTask(Test / fullClasspath, Compile / run / mainClass, Compile / run / runner)
       .evaluated,
     Compile / runMain := Defaults.runMainTask(Test / fullClasspath, Compile / run / runner).evaluated,

@@ -11,8 +11,9 @@ import frflow.project.port.Records
 import frflow.project.program.{DecideProgram, RebaseProgram, Decided as Recorded}
 import frflow.wire.ledger.LedgerBaseFile
 
-/** `Deciding` over a session: who decides, and `DecideProgram` on the subjects analysed now; an acceptance (`Accept`,
-  * `Confirm`) on what this process checked and tested afresh (`Fresh`), never on the records on disk alone.
+/** `Deciding` over a session: who decides, and `DecideProgram` on the subjects analysed now; an acceptance on what this
+  * process tested afresh, a confirmation on what it checked and tested afresh (`Fresh`), never on the records on disk
+  * alone.
   */
 private[api] final class Decides[F[_]: Async](s: Session[F], fresh: Fresh[F]) extends Deciding[F]:
   private val program = DecideProgram(s.ports)
@@ -37,7 +38,8 @@ private[api] final class Decides[F[_]: Async](s: Session[F], fresh: Fresh[F]) ex
     s.guarded(RebaseProgram(s.ports)(by)).map(_.map(b => Rebased(Decides.base, b.ledger)))
 
   private def on(c: Command): F[Analysis] = c match
-    case Command.Accept(_, _, _, _) | Command.Confirm(_) => fresh.analysis
+    case Command.Accept(_, _, _) => fresh.tested
+    case Command.Confirm         => fresh.analysis
     case _                                               => s.analysis
 
   private def view(d: Recorded): Decided = Decided(d.recorded)

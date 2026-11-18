@@ -58,23 +58,23 @@ class ReviewSuite extends munit.CatsEffectSuite:
   }
 
   test("on a terminal a decision shows what it records and asks first") {
-    val accept = Command.Decision(n => Decide.Accept(List(nonNegative), n, Nil, Map.empty), Some(nonNegative),
+    val accept = Command.Decision(_ => Decide.Accept(List(nonNegative), Nil, Map.empty), Some(nonNegative),
       Asked(None, None, yes = false))
     for
       api  <- Opened.api(Opened.before)
-      term <- Scripted(List("it says what the service must do", "y"))
+      term <- Scripted(List("y"))
       code <- Cli.run(api, term, accept)
       t    <- term.text
     yield
       assertEquals(code, ExitCode.Success)
-      assert(t.contains("Why (kept as part of the theory)? it says what the service must do"), t)
+      assert(!t.contains("Why"), t)
       assert(t.contains("This records, as ann:\n  - accepted nonNegative\nRecord it? [y/N] y"), t)
       assert(t.contains("Recorded, signed by ann:\n  - accepted nonNegative"), t)
   }
 
   test("a refused decision exits 1 and says why") {
-    val accept = Command.Decision(n => Decide.Accept(List(sameAbove), n, Nil, Map.empty), Some(sameAbove),
-      Asked(Some("it says what the service must do"), None, yes = true))
+    val accept = Command.Decision(_ => Decide.Accept(List(sameAbove), Nil, Map.empty), Some(sameAbove),
+      Asked(None, None, yes = true))
     Opened.api(Opened.before).flatMap(Cli.all(_, accept)).map { (codes, t) =>
       assertEquals(codes, List(ExitCode(1)))
       assert(t.contains("refused: decide nonNegative first: what rests on it is decided after it"), t)
@@ -92,8 +92,8 @@ class ReviewSuite extends munit.CatsEffectSuite:
       assertEquals(t.linesIterator.count(_.contains("decide nonNegative first")), 1, t)
   }
 
-  test("a mistyped name at the revisit prompt is asked again: the reason and the node are kept") {
-    val typed = List("a", "nope", "sameAbove", "a stricter bound is what the service needs", "y", "q")
+  test("a mistyped name at the revisit prompt is asked again: the node is kept") {
+    val typed = List("a", "nope", "sameAbove", "y", "q")
     for
       api       <- moved(Opened.after)
       (_, t)    <- review(api, typed)
@@ -110,7 +110,7 @@ class ReviewSuite extends munit.CatsEffectSuite:
     for
       api      <- moved(Opened.after)
       (_, box) <- Cli.all(api, Command.Inbox)
-      (_, t)   <- review(api, List("a", "", "the bound says the same, in other words", "y", "q"))
+      (_, t)   <- review(api, List("a", "", "y", "q"))
       part     <- state(api, sameAbove)
     yield
       assert(box.contains("    decide nonNegative first: what rests on it is decided after it"), box)
@@ -118,11 +118,11 @@ class ReviewSuite extends munit.CatsEffectSuite:
       assertEquals(part, Some(ReviewState.Accepted -> Some(Action.Confirm)))
   }
 
-  test("the mechanical batch: a node whose new part Rocq proves makes it is confirmed with one reason") {
+  test("the mechanical batch: a node whose part was replaced by one Rocq proves makes it is confirmed") {
     for
       api    <- moved(Opened.project(frflow.api.fixture.Shelf.Grown.kb))
       _      <- Opened.checked(api.proving.check(None))
-      (_, t) <- review(api, List("a", "a new part makes it as before", "q"))
+      (_, t) <- review(api, List("a", "q", "q"))
       claim  <- state(api, nonNegative)
     yield
       assert(t.contains("1 mechanical decision(s): Rocq proves them again, and nothing in them is a choice"), t)

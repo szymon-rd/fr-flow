@@ -47,7 +47,7 @@ object Opened:
 
   /** Every node checked (its code tested: untested code is not accepted), then accepted at once, parents first. */
   def acceptAll(api: FrFlowApi[IO]): IO[Unit] = checked(api.proving.check(None)).flatMap(v =>
-    api.deciding.decide(Command.Accept(v.nodes.map(_.id), "it says what the service must do", Nil, Map.empty), "ann")
+    api.deciding.decide(Command.Accept(v.nodes.map(_.id), Nil, Map.empty), "ann")
       .flatMap(out => IO.raiseUnless(out.isRight)(AssertionError(out.toString))))
 
   /** A check run to its end: its events. */

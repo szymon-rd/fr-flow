@@ -4,7 +4,10 @@ import frflow.core.name.NodeId
 import frflow.decision.content.Chain
 import frflow.decision.ledger.{Action, Decision, Ledger}
 
-/** The review states: a fold of the ledger over the subjects, parents first (a parent rejected moves its parts). */
+/** The review states: a fold of the ledger over the subjects, parents first (a parent rejected moves its parts). A
+  * node refined further stays as decided: parts added below it bring nothing back (the developer decided what it
+  * says, and that has not moved); a part it was decided with gone or replaced does (`Cause.Parts`).
+  */
 final class Standings(subjects: Subjects, ledger: Ledger):
   lazy val all: Map[NodeId, Standing] =
     val chains = Chains.of(subjects)
@@ -21,9 +24,9 @@ final class Standings(subjects: Subjects, ledger: Ledger):
     val (was, now) = (d.bound.content, s.content)
     val moved = was.hash != now.hash
     List(
-      Cause.Self  -> (moved && Meaning.own(was).hash != Meaning.own(now).hash),
+      Cause.Self  -> (moved && Meaning.said(was) != Meaning.said(now)),
       Cause.Above -> (aboveMoved(s, d, above) || parentRejected(s, done)),
-      Cause.Parts -> (moved && was.texts("parts").toSet != now.texts("parts").toSet),
+      Cause.Parts -> (moved && !was.texts("parts").toSet.subsetOf(now.texts("parts").toSet)),
       Cause.Code  -> !sameCode(d, s)
     ).collect { case (c, true) => c }
 

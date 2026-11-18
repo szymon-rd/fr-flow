@@ -7,10 +7,11 @@ import frflow.core.vocab.Vocabulary
 
 /** A FrModel after elaboration: plain data, nothing computed yet; `writtenIn`, the file the FrModel
   * itself is assembled in (as each node records its own), when the front end says; `own`, what of its vocabulary
-  * is written where, and what its programs' bodies refer to (`Own`).
+  * is written where, and what its programs' bodies refer to (`Own`); `about`, what the system is, in a sentence or
+  * two, when the model says (the front ends show it as the system everything else is about; nothing checks it).
   */
 final case class Theory(name: KbName, vocabulary: Vocabulary, nodes: List[Sited], edges: List[Edge], code: CodeTable,
-    writtenIn: Option[RelPath] = None, own: Own = Own.none):
+    writtenIn: Option[RelPath] = None, own: Own = Own.none, about: Option[String] = None):
   lazy val refinement: Refinement = Refinement(nodes.map(_.node), edges)
   def node(id: NodeId): Option[spec.Node] = refinement.node(id)
   /** The files that hold the model itself (owner §38): where its nodes are written, where code is given its

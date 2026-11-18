@@ -21,10 +21,11 @@ import org.typelevel.ci.CIString
 
 /** One route per operation of the API, its views as JSON, all behind the session's token (`Gate`); what writes a
   * file is a `POST`. Decisions are `developer`'s, signed by the API as the CLI's are (an acceptance checked and
-  * tested afresh first), and refused once the model's sources moved since `serve` started. `layers`: what the layers
-  * on top add (their routes, behind the same token; their scripts, served as `/ext.js`).
+  * tested afresh first), and refused once the model's sources moved since `serve` started. `live`: what the page polls
+  * to know when to read the project again. `layers`: what the layers on top add (their routes, behind the same token;
+  * their scripts, served as `/ext.js`).
   */
-final class Routes(api: FrFlowApi[IO], developer: String, gate: Gate, layers: List[WebPart]):
+final class Routes(api: FrFlowApi[IO], developer: String, gate: Gate, live: Live, layers: List[WebPart]):
   import Routes.*
 
   /** Every answer tells the browser to send no `Referer` (the page's link holds the token). */
@@ -39,16 +40,21 @@ final class Routes(api: FrFlowApi[IO], developer: String, gate: Gate, layers: Li
     case req @ GET -> Root                     =>
       StaticFile.fromResource[IO]("/frflow/web/index.html", Some(req)).getOrElseF(error(Status.NotFound, "no page"))
     case GET -> Root / "ext.js"                => script
-    case GET -> Root / "api" / "serving"       => modelChanged.flatMap(c => Ok(Serving(developer, c)))
+    case GET -> Root / "api" / "serving"       => modelChanged.flatMap(c => Ok(Serving(developer, c, live.reloads)))
+    case GET -> Root / "api" / "version"       => live.version.flatMap(v => Ok(Json.obj("version" -> v.asJson)))
     case GET -> Root / "api" / "view"          => api.reading.view.flatMap(Ok(_))
     case GET -> Root / "api" / "tree" :? From(from) => api.reading.view.flatMap(v =>
         Ok(Views.tree(v, from).map((depth, id) => Json.obj("depth" -> depth.asJson, "node" -> id.asJson))))
     case GET -> Root / "api" / "inbox"         => api.reading.view.flatMap(v => Ok(Views.inbox(v, Set.empty)))
     case GET -> Root / "api" / "diff" / id     => api.reading.diff(NodeId(id)).flatMap(_.fold(error(Status.NotFound,
         s"unknown node $id"))(Ok(_)))
+    case GET -> Root / "api" / "sources" / id  => api.reading.sources(NodeId(id)).flatMap(_.fold(error(Status.NotFound,
+        s"unknown node $id"))(Ok(_)))
+    case GET -> Root / "api" / "vocabulary"   => api.reading.vocabulary.flatMap(Ok(_))
     case GET -> Root / "api" / "find" :? Words(q) => api.reading.find(q).flatMap(Ok(_))
     case POST -> Root / "api" / "status"       => api.proving.status.flatMap(Ok(_))
     case POST -> Root / "api" / "render"       => api.proving.render.flatMap(Ok(_))
+    case POST -> Root / "api" / "check" / "live" :? From(node) => live(api.proving.check(node))
     case POST -> Root / "api" / "check" :? From(node) => api.proving.check(node).compile.toList.flatMap(events =>
         events.collectFirst { case CheckEvent.Done(ids, v) =>
           Ok(Json.obj("checked" -> ids.asJson, "view" -> v.asJson))
@@ -59,6 +65,14 @@ final class Routes(api: FrFlowApi[IO], developer: String, gate: Gate, layers: Li
     case req @ POST -> Root / "api" / "decide"  => req.as[Command].flatMap(c => modelChanged.ifM(
         error(Status.Conflict, ModelChanged), api.deciding.decide(c, developer).flatMap(answer)))
   }
+
+  /** A check as it goes: each event a line of JSON (`{"type": "Level", …}`, then `{"type": "Done", …}`), or, should it
+    * stop, a last line saying why (`{"type": "Stopped", "stop": …}` or `{"type": "Failed", "error": …}`).
+    */
+  private def live(events: fs2.Stream[IO, CheckEvent]): IO[Response[IO]] =
+    val lines = events.map(_.asJson).handleErrorWith(e => fs2.Stream.emit(stopped(e))).map(_.noSpaces + "\n")
+    IO.pure(Response[IO](Status.Ok).withEntity(lines.through(fs2.text.utf8.encode))
+      .withContentType(`Content-Type`(MediaType.unsafeParse("application/x-ndjson"))))
 
   /** The layers' scripts, as text (the JSON encoder in scope would quote it). */
   private def script: IO[Response[IO]] = IO.pure(Response[IO](Status.Ok)
@@ -73,6 +87,12 @@ object Routes:
   private given QueryParamDecoder[NodeId] = QueryParamDecoder[String].map(NodeId(_))
   private object From extends OptionalQueryParamDecoderMatcher[NodeId]("node")
   private object Words extends QueryParamDecoderMatcher[String]("q")
+
+  /** Why a stream stopped, as its last line. */
+  def stopped(e: Throwable): Json = e match
+    case s: Stop => Json.obj("type" -> "Stopped".asJson, "stop" -> s.asJson)
+    case other   =>
+      Json.obj("type" -> "Failed".asJson, "error" -> Option(other.getMessage).getOrElse(other.toString).asJson)
 
   /** `{"error": message}`, the body of a failure in words. */
   def error(status: Status, message: String): IO[Response[IO]] =

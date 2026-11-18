@@ -12,9 +12,11 @@ import frflow.cli.term.{Exit, Style, Terminal}
 import frflow.cli.text.{Depth, NodeText}
 import frflow.core.name.NodeId
 import io.circe.syntax.*
+import scala.concurrent.duration.FiniteDuration
 
 /** The agent layer's commands: the developer asks and closes (`ask`, `close`); the agent records the conversation
-  * (`said`, `asked`, `replied`), reads what it needs (`context`, `conversation`) and answers (`answer`). None decides.
+  * (`said`, `asked`, `replied`), reads what it needs (`context`, `conversation`), answers (`answer`) and waits for
+  * the developer to decide or ask (`wait`). None decides.
   * `open` gives the layer's API over a project; `layer` is the layer itself, whose view `context` shows.
   */
 final class AgentCommands(open: Host[IO] => IO[AgentApi[IO]], layer: CliExtension):
@@ -62,6 +64,10 @@ final class AgentCommands(open: Host[IO] => IO[AgentApi[IO]], layer: CliExtensio
         a.replied(q, t).flatMap(done(term)(x => List(s"recorded the reply to [${x.id}]")))))),
     Commands.layer("context", "show --full: everything needed to work on NODE, with its requests")(
       node().map(context)),
+    Commands.layer("wait", "block until the developer decides a node or asks for something; print what moved")(
+      Opts.option[Int]("minutes", "give up after this long (30 by default)").withDefault(30)
+        .validate("minutes must be positive")(_ > 0).map(m => run((a, host, term, st) =>
+          Waiting.run(Waiting.Watched(a, host), term, st, FiniteDuration(m.toLong, "minutes"))))),
     Commands.layer("answer", "reply to the developer's request; with a NODE instead, tell them of work they did not " +
       "ask for")((Opts.argument[String]("REQUEST|NODE"), words("TEXT")).mapN((to, t) => run((a, _, term, _) =>
         a.answer(to, t).flatMap(done(term)(id => List(s"answered ${id.value}")))))))

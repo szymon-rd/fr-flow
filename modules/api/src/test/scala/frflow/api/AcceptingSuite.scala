@@ -23,8 +23,8 @@ import java.util.Base64
   */
 class AcceptingSuite extends munit.CatsEffectSuite:
   private val (nonNegative, sameAbove) = (id("nonNegative"), id("sameAbove"))
-  private val accept = Command.Accept(List(nonNegative, sameAbove), "it says what the service must do", Nil, Map.empty)
-  private def one(seen: String) = Command.Accept(List(nonNegative), "it says what the service must do", Nil,
+  private val accept = Command.Accept(List(nonNegative, sameAbove), Nil, Map.empty)
+  private def one(seen: String) = Command.Accept(List(nonNegative), Nil,
     Map(nonNegative -> seen))
 
   test("an acceptance is tested afresh: a failing report written over as passing is not trusted") {
@@ -54,7 +54,7 @@ class AcceptingSuite extends munit.CatsEffectSuite:
   }
 
   test("a confirmation is checked afresh: proofs recorded by another run are not trusted") {
-    val confirm = Command.Confirm("a new part makes it as before")
+    val confirm = Command.Confirm
     for
       ports   <- Opened.ports()
       _       <- Opened.over(Opened.before, ports).flatMap(Opened.acceptAll)

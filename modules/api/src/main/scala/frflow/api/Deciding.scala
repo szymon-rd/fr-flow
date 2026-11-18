@@ -6,9 +6,9 @@ import frflow.decision.rules.{Command, Refusal}
 /** What a front end decides with: who decides (`as`, else `FRFLOW_AS`, else the name the developer's key is listed
   * under in the committed deciders' list), what a decision would record, recording it, signed, and accepting the
   * ledger as it reads now as the start of its committed history (`rebase`, refused unless the key is listed under
-  * `by`). An acceptance (`Accept`, `Confirm`) is decided on what this process checked and tested afresh, never on the
-  * records on disk alone. Laws: `preview` records nothing and gives what `decide` then records; a refused decision
-  * records nothing.
+  * `by`). An acceptance is decided on what this process tested afresh (it is refused only for code that fails or is
+  * not tested), a confirmation on what it also had Lean check afresh; never on the records on disk alone. Laws:
+  * `preview` records nothing and gives what `decide` then records; a refused decision records nothing.
   */
 trait Deciding[F[_]]:
   def developer(as: Option[String]): F[Either[Refusal, String]]

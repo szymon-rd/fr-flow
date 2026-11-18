@@ -56,12 +56,13 @@ object Shelf:
   object Careless:
     val kb = FrModel("Shelf")(Before.nonNegative, Before.sameAbove).defining(d.defineTested(_ => n => -n.abs - 1))
 
-  /** `Before` with a part added under the claim: its parts moved, its meaning did not (deciding it again is
-    * mechanical once Rocq proves its parts make it).
+  /** `Before` with the claim's part replaced by another: a part it was decided with is gone, its meaning did not
+    * move (deciding it again is mechanical once Rocq proves its parts make it). A part only added would leave it as
+    * decided.
     */
   object Grown:
     val zeroGivesZero = Node.claim("At zero, the service gives zero.")(d(0) === 0).refines(Before.nonNegative)
-    val kb = FrModel("Shelf")(Before.nonNegative, Before.sameAbove, zeroGivesZero)
+    val kb = FrModel("Shelf")(Before.nonNegative, zeroGivesZero)
       .defining(d.defineTested(_ => n => n.abs))
 
   object After:

@@ -11,12 +11,15 @@ import frflow.dsl.term.RocqType
 import frflow.dsl.vocab.{Definition, Held}
 
 /** The nodes as the model writes them, what gives each Definition its meaning, the generators given for the tests,
-  * the file it is assembled in (`FrModel("Rooms")(…)`, made relative as a node's is), and the Definitions that are
-  * members of a structure given a class: their code is theirs whether or not a statement mentions them.
+  * the file it is assembled in (`FrModel("Rooms")(…)`, made relative as a node's is), the Definitions that are
+  * members of a structure given a class (their code is theirs whether or not a statement mentions them), and what
+  * the system is, in a sentence or two (`FrModel("Payments", "Users … pay each other.")(…)`): the system its nodes
+  * are about, which nothing checks.
   */
 final case class FrModel(name: KbName, nodes: List[Node], meanings: List[(SymbolName, Deferred[Attachment])],
     generators: List[Generator[?]], writtenIn: Option[RelPath], members: Set[SymbolName] = Set.empty,
-    holdings: List[FrModel.Holding] = Nil, executed: Set[SymbolName] = Set.empty):
+    holdings: List[FrModel.Holding] = Nil, executed: Set[SymbolName] = Set.empty,
+    about: Option[String] = None):
   /** Which structures hold each structure, by their words (`Stating.held`). */
   def held: Held = Held(holdings.groupMap(_.part)(h => h.holder -> h.via).view.mapValues(_.toMap).toMap)
   /** What each word of "what a structure holds" gives: the held structure's members' words (`CodeTable.held`). */
@@ -68,6 +71,10 @@ object FrModel:
 
   inline def apply(name: String)(parts: Part*): FrModel =
     of(FrModel(KbName(name), Nil, Nil, Nil, Some(Spans.relative(Source.file))), parts.toList)
+
+  /** The system named and said in a sentence or two, then its parts. */
+  inline def apply(name: String, about: String)(parts: Part*): FrModel =
+    of(FrModel(KbName(name), Nil, Nil, Nil, Some(Spans.relative(Source.file)), about = Some(about)), parts.toList)
 
   /** A model of nothing, for what a Definition gives one (`Defined.gives`). */
   private[kb] def part: FrModel = FrModel(KbName(""), Nil, Nil, Nil, None)

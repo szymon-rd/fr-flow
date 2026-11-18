@@ -39,7 +39,7 @@ configuration, say) would place them wrongly: `status` would warn of the model's
 | | `inbox`, `find WORDS\|PATH` | what waits for the developer, in the order to decide it; the nodes that govern a file, or mention some words |
 | | `stands [NODE]` | what the node, or each root, stands on at the bottom: the assumptions it is proven from, and the claims below it that are not proven |
 | decide | `review` | decide what waits, node by node: `[a]ccept [r]eject [s]kip [v]iew [q]uit` |
-| | `accept NODE... [--revisit NODE...]`, `reject NODE`, `confirm`, `revisit NODE`, `gone NODE` | one decision, with `-m REASON`; asked to confirm on a terminal, `--yes` without one |
+| | `accept NODE... [--revisit NODE...]`, `reject NODE`, `confirm`, `revisit NODE`, `gone NODE` | one decision: an acceptance takes no reason; reject, revisit and gone say why with `-m REASON`; asked to confirm on a terminal, `--yes` without one |
 | | `deciders --as NAME`, `rebase` | list your key as the project's first decider; accept the ledger as it reads now as where its history starts |
 | prove | `render`, `check [NODE]`, `scaffold NODE` | write the Rocq; prove each node and test its code, recording the results; stubs for what the last check left open |
 | | `status`, `ci`, `export` | the tree, the warnings and the summary (exit 1 unless complete); `check` then `status`; the snapshot `.frflow/kb.json` |
@@ -283,9 +283,10 @@ signature, and the decision before it.
   what assumes it.
 - **Mechanical decisions.** A node under review whose own content did not change, that Rocq proves again: one batch,
   `confirm`.
-- **Refused.** A decision on a node that moved since the developer saw it; a reason of fewer than three words; code
-  that fails a generated case, or is not tested since it moved; a decider not listed; a ledger whose committed
-  history was rewritten (a listed decider runs `rebase`).
+- **Refused.** A decision on a node that moved since the developer saw it; a rejection, a revisit or agreeing a node
+  is gone without a reason of at least three words (an acceptance needs none); code that fails a generated case, or
+  is not tested since it moved; a decider not listed; a ledger whose committed history was rewritten (a listed
+  decider runs `rebase`).
 
 A decision binds the reason to the hash of what the developer saw. Whatever moves under it brings the node back, with
 the cause:
@@ -353,6 +354,15 @@ which every route asks for. A layer on top adds its routes, behind the same toke
 The page is a client of the same API as the CLI (`FrFlowApi`), so a decision is signed and recorded as `accept`
 records it, and the CLI can run beside it. Once the model's sources change, the page says so and refuses decisions
 until it is restarted.
+
+`bin/frflow-web PROJECT [--port N] [--as NAME]` serves the same page and follows the model: whenever a source changes
+it rebuilds the project through the project's sbt server (as `bin/frflow` does), and starts the server again on the
+same port with the same link. The page polls `GET /api/version` (this server's start and the files under
+`.frflow/`) and, when it moves, reads the project again without a reload: a decision taken in the CLI, a request, a
+node the agent added. What is new is drawn as it arrives: each new node's line grows from its parent to its place,
+then the node appears; a node just accepted fills. Accepted nodes are filled green; nodes to review are hollow. The
+system the model describes (`FrModel("Payments", "Users hold accounts … and pay each other.")(…)`) is drawn as the
+root every root statement hangs from: its name and what it is, not a node anyone decides.
 
 ### Modules
 
@@ -422,9 +432,12 @@ object toyCli extends frflow.cli.FrFlowApp(frModel, root = "examples/toy", exten
 | agent | `said TEXT`, `asked QUESTION --assume ANSWER`, `replied QUESTION TEXT` | record the conversation the idea comes from |
 | | `context NODE` | everything on a node (`show --full`), with its requests |
 | | `answer REQUEST\|NODE TEXT` | reply to a request, or tell the developer of work they did not ask for |
+| | `wait [--minutes N]` | block until the developer decides a node or asks for something, then print what moved |
 
 A node asked of the agent waits with the agent, not in the developer's queue, until it answers or the node changes.
-A rejected node, and a revisit, are listed for the agent in `inbox`.
+A rejected node, and a revisit, are listed for the agent in `inbox`. `wait` is the agent's hook on the developer: run
+in the background, it ends once a node is accepted, rejected (with the reason) or sent back to be revisited, or a
+request is asked, so the agent is woken to carry on.
 
 ### Starting a project with the agent
 
@@ -439,4 +452,4 @@ A rejected node, and a revisit, are listed for the agent in `inbox`.
 
 With the layer, the page lists the agent's open questions (answered in chat) and the requests, offers to ask the
 agent for a change on a node or on the whole idea, and shows the nodes with the agent. Agents use the CLI, not the web
-view.
+view; they `wait` for what the developer decides there.

@@ -53,10 +53,9 @@ object Shelf:
   def at(i: Int): Instant = Instant.parse(f"2026-01-01T00:00:$i%02dZ")
   def by(i: Int): Authorship = Authorship("dev", at(i), None)
 
-  /** Accepting `node`, for a reason of its own unless one is given. */
-  def accept(node: String, reason: String = "", revisit: List[String] = Nil, seen: Option[String] = None): Command =
-    Command.Accept(ids(node), if reason.isEmpty then s"$node holds for this reason" else reason, ids(revisit*),
-      seen.map(id(node) -> _).toMap)
+  /** Accepting `node`: an acceptance takes no reason. */
+  def accept(node: String, revisit: List[String] = Nil, seen: Option[String] = None): Command =
+    Command.Accept(ids(node), ids(revisit*), seen.map(id(node) -> _).toMap)
 
   def right[A](e: Either[Refusal, A]): A = e.fold(r => throw AssertionError(r.toString), identity)
 
