@@ -1,0 +1,293 @@
+---
+title: "FrFlow"
+subtitle: "Ownership and responsibility in AI-assisted software engineering"
+author: "Szymon Rodziewicz"
+---
+
+## A month ago, at ScalaDays
+
+- Nada Amin's talk: **Future of programming**
+- The opportunities and issues of agentic coding
+
+## Risks of agentic coding
+
+- Increasing entropy (analysis vs synthesis)
+- Lost ownership (lost theory)
+- Issues with software quality
+
+## Those are not new problems
+
+Remember the times before AI?
+
+- When we were talking about legacy, confusing code bases...
+- When taking ownership was one of the most important skills...
+- When good testing practices were hard to come by...
+
+## How we dealt with those issues before AI
+
+As engineers, we developed a culture that kept our work to high standards:
+
+- Testing, ownership, review processes, requirements tracking
+- Those practices gave us understanding of, and confidence in, the quality and function of our software.
+
+## Trap of AI
+
+- AI makes it possible to execute our vision much faster.
+- AI *seems* to take responsibility for the code.
+- We always look for ways to avoid the discomfort of intellectual struggle.
+
+## It is us, not the AI
+
+- AI is just a tool, and it does not make sense to delegate ownership to it - we are paid for that.
+- Problems with agentic coding stem from us giving up on ownership and understanding.
+- We must adapt our workflows and engineering culture to keep the responsibility and ownership.
+
+## What are we missing
+
+- We lack artifacts of the context-forming process that comes from writing the code.
+- We lack tools to track, with confidence, requirements and conformity of software to those requirements.
+
+## Proposed tool: Formal modeling framework for Scala
+
+Let's imagine we can build a complete, formal view of the software that:
+
+- Is compiled from the code itself, so it can never drift from it.
+- Is an ordinary Scala value, so we can query it and build on it.
+- Holds our formal requirements and proves them against the code.
+
+## How could we build a model like that?
+
+## Step 1: Build the claims tree
+
+Write a tree of formal statements about components of software, analogously to requirements.
+
+1. Tree roots are formalized requirements about the general idea of the project.
+2. Lower nodes explain properties of modules and subcomponents.
+3. Leaves directly describe properties of code.
+
+## Step 2: Compile the model in a theorem prover
+
+1. Generate the tree of claims as theorems in Rocq.
+2. **Compile the entire relevant Scala code to Rocq.**
+3. Generate or write (with an LLM) the proofs:
+   - Of leaf nodes, directly from the Scala compiled to the Rocq model.
+   - Of parent nodes, from their children.
+
+## Step 3: Operate on the model
+
+Use the built model to:
+
+- Reason about functional correctness of the code.
+- See the purpose of each part of the code:
+  - If code is used in some proof, it serves the purpose of that requirement.
+  - If code is used in no proof, it is detached from the requirements tree.
+
+## How this solves issues with agentic coding
+
+- Quality:
+  - Very high confidence in formal correctness of software, with respect to the signed-off requirements.
+- Responsibility:
+  - Developer signs off on requirements.
+  - Developer is sure of the functional relevance of AI-generated code.
+- Entropy:
+  - Claim tree assigns code to the requirements, by using it in proofs.
+
+## FrFlow is an implementation of that flow
+
+```{dot}
+//| fig-width: 10
+//| fig-height: 4
+digraph frflow {
+  rankdir=LR;
+  bgcolor="transparent";
+  nodesep=0.6;
+  ranksep=0.9;
+  node [shape=box, style="rounded,filled", fontname="Helvetica", fontsize=16,
+        margin="0.25,0.18", color="#2a76dd", fillcolor="#eaf2fd", penwidth=1.5];
+  edge [color="#555555", penwidth=1.5, arrowsize=0.9];
+
+  claims [label="Logical claims"];
+  code   [label="Code representation\nin Rocq"];
+  model  [label="Rocq model\nand proofs"];
+  view   [label="Logical view\nof software", fillcolor="#2a76dd", fontcolor="white"];
+
+  claims -> model;
+  code   -> model;
+  model  -> view;
+}
+```
+
+## Example of formally specified service: URL Shortener {.code-columns}
+
+:::: {.columns}
+
+::: {.column width="44%"}
+The service:
+
+```scala
+trait Links extends Mutable:
+
+  update def shorten(url: Url): Code
+
+  def resolve(code: Code): Option[Url]
+
+  update def remove(code: Code): Unit
+```
+:::
+
+::: {.column width="56%"}
+In the companion object:
+
+```scala
+object Links:
+  val shortener = Declaration[Links](
+    "The link shortener")
+
+  val shortenIsIdempotent = Node.claim(
+    "URL shortener is idempotent")(
+    forall((u: Term[Url]) =>
+      shortener.shorten(u).isIdempotent))
+
+  val shortenedCodeResolves = Node.claim(
+    "The code a URL is given leads to " +
+      "that URL.")(
+    forall((u: Term[Url]) => shortener.shorten(u)
+        .andThen(code => shortener.resolve(code)) === some(u)))
+
+  // etc.
+```
+:::
+
+::::
+
+## Implementation
+
+```
+final class RetiringLinks(var issued: List[Link], var retired: List[Code]) extends Links:
+  update def shorten(url: Url): Code =
+    val held = issued
+    val known = held.find(l => Issued.leadsTo(held, l.code) == Some(url)).map(l => l.code)
+    val code = known.getOrElse(Code(Issued.above(held, retired)))
+    if known.isEmpty then issued = Link(code, url) :: held
+    code
+
+  def resolve(code: Code): Option[Url] = Issued.leadsTo(issued, code)
+
+  update def remove(code: Code): Unit =
+    issued = issued.filter(l => l.code != code)
+    retired = code :: retired
+```
+
+## Composing the model
+
+```scala
+val links: FrModel = FrModel("Shortener")(
+  Links.claims,
+  Links.shortener.define(lifted[RetiringLinks]))
+```
+
+## Actual refinement flow
+
+## 1. Start with the root statements {.code-wide}
+
+```scala
+val givenLinkKeepsLeading = Node.claim(
+  "A link given for a URL leads to that URL until the link is removed.")(
+  forall((u: Term[Url], v: Term[Url], d: Term[Code]) =>
+    val first = shortener.shorten(u)
+    (shortener.resolve(first.result).following(shortener.shorten(v).in(first.after)) === some(u)) &&
+      ((d =!= first.result) implies
+        (shortener.resolve(first.result).following(shortener.remove(d).in(first.after)) === some(u)))))
+
+val removedLinkStaysRemoved = Node.claim(
+  "A removed link does not start leading somewhere new when the next URL is shortened.")(
+  forall((c: Term[Code], u: Term[Url]) =>
+    shortener.resolve(c).following(shortener.shorten(u).in(shortener.remove(c).after)).isEmpty))
+
+val shortenIsIdempotent = Node.claim(
+  "Shortening a URL again gives the same link and changes nothing.")(
+  forall((u: Term[Url]) => shortener.shorten(u).isIdempotent))
+```
+
+## 2. Refine statements down to the code {.code-wide}
+
+(Or let AI do that for you)
+
+```scala
+// What the members do: each claim is proven of the class.
+val removedCodeLeadsNowhere = Node.claim("A removed code leads nowhere.")(
+  forall((c: Term[Code]) => shortener.resolve(c).following(shortener.remove(c)).isEmpty))
+
+val removedCodeNotReissued = Node.claim("A code just removed is not given to the next URL shortened.")(
+  forall((c: Term[Code], u: Term[Url]) => shortener.shorten(u).following(shortener.remove(c)) =!= c))
+
+val shortenChangesOnlyItsCode = Node.claim(
+  "Shortening a URL changes where no code leads but the one it gives.")(
+  forall((u: Term[Url], d: Term[Code]) =>
+    (d =!= shortener.shorten(u).result) implies shortener.resolve(d).unchangedBy(shortener.shorten(u))))
+
+// Each is placed under the root it helps prove; the class gives the service its meaning.
+val fullShortener: FrModel = FrModel("FullShortener")(
+  removedLinkStaysRemoved,
+  Links.removedCodeLeadsNowhere.refines(removedLinkStaysRemoved),
+  Links.removedCodeNotReissued.refines(removedLinkStaysRemoved),
+  Links.shortenChangesOnlyItsCode.refines(removedLinkStaysRemoved),
+  // ... the other two roots and their parts
+  Links.shortener.define(lifted[RetiringLinks]))
+```
+
+## 3. Generate model and prove it {.code-wide}
+
+The root, as FrFlow generates it in Rocq (reformatted):
+
+```coq
+Definition removedLinkStaysRemoved_claim shortener_resolve shortener_shorten shortener_remove : Prop :=
+  forall (shortener : Links) (c : Code) (u : Url),
+    match shortener_resolve (snd (shortener_shorten (snd (shortener_remove shortener c)) u)) c with
+    | None => True
+    | Some a => False
+    end.
+```
+
+Its proof, from the three claims below it:
+
+```coq
+Lemma removedLinkStaysRemoved_Proofs_impl : removedLinkStaysRemoved_Obl_impl.
+Proof.
+  unfold removedLinkStaysRemoved_Obl_impl, removedLinkStaysRemoved_claim, removedCodeLeadsNowhere_claim,
+    removedCodeNotReissued_claim, shortenChangesOnlyItsCode_claim.
+  intros nowhere notGiven only s c u.
+  rewrite only.
+  - exact (nowhere s c).
+  - intros e. apply (notGiven s c u). symmetry. exact e.
+Qed.
+```
+
+## 4. Review the claims tree {.code-wide}
+
+<!-- TODO: replace this text tree with a screenshot of the web view:
+     sbt "fullshortener/serve --as NAME", save it as img/fullshortener-tree.png, then use
+     ![](img/fullshortener-tree.png) -->
+
+```text
+givenLinkKeepsLeading      A link given for a URL leads to that URL until the link is removed.
+  shortenedCodeResolves      The code a URL is given leads to that URL.
+  shortenKeepsExistingLinks  Shortening a URL never changes where an existing code leads.
+  removeKeepsOtherCodes      Removing a code never changes where any other code leads.
+
+removedLinkStaysRemoved    A removed link does not start leading somewhere new when the next URL is shortened.
+  removedCodeLeadsNowhere    A removed code leads nowhere.
+  removedCodeNotReissued     A code just removed is not given to the next URL shortened.
+  shortenChangesOnlyItsCode  Shortening a URL changes where no code leads but the one it gives.
+  codesAreNeverReused        (design) A new code is a number above every code given and every code removed.
+
+shortenIsIdempotent        Shortening a URL again gives the same link and changes nothing.
+```
+
+
+## Real use case: Proving Ox
+
+1.
+
+## Future I would like
+
