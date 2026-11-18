@@ -29,6 +29,7 @@ import scala.concurrent.duration.*
   private val models: List[(String, FrModel, () => FrFlowExamples)] = List(
     ("links", links.links, () => links.LinksExamples()),
     ("auth", auth.knowledge, () => auth.DecisionExamples()),
+    ("payments", payments.payments, () => payments.PaymentsExamples()),
     ("prices", PricesModel.model, () => PricesExamples()),
     ("counter", CounterModel.model, () => CounterExamples()),
     ("rates", RatesModel.model, () => RatesExamples()),
@@ -38,6 +39,7 @@ import scala.concurrent.duration.*
   private val expected: Map[String, (String, String)] = Map(
     "links" -> ("36a72ae084aa9ca8", "53f4eaeeeb532e21"),
     "auth" -> ("43438775ed73d05d", "5ef1cc0961bcd7fe"),
+    "payments" -> ("555080996518efa8", "9f236695fc96643d"),
     "prices" -> ("4a623e791825ebd0", "c55df6f055a7bc15"),
     "counter" -> ("fb5d27bb6aa4b3e0", "6ce488dd43988124"),
     "rates" -> ("1b59be6fbbfa16c8", "f74274715f6497e0"),

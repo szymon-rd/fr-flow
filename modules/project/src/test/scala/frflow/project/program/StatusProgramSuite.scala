@@ -7,8 +7,8 @@ import frflow.project.port.Records
 import frflow.wire.file.Files
 import frflow.wire.snapshot.{Body, Snapshot}
 
-/** `status` and `export` on the link shortener in memory: the Rocq and the snapshot written, the snapshot reading back in
-  * decision order.
+/** `status` and `export` on the link shortener in memory: the Rocq and the snapshot written, the snapshot reading back
+  * in decision order.
   */
 class StatusProgramSuite extends munit.CatsEffectSuite:
   test("status writes the Rocq and the snapshot: every node proposed, in decision order") {

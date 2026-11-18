@@ -18,8 +18,9 @@ import frflow.proof.reading.RocqReport
 import frflow.proof.rocq.RocqProject
 import frflow.proof.verdict.*
 
-/** `check` on the link shortener, Rocq scripted and the project in memory: nodes checked parts first and judged theorem by
-  * theorem, each kept while current, the theory's own check recorded with its key; and each way a check ends early.
+/** `check` on the link shortener, Rocq scripted and the project in memory: nodes checked parts first and judged
+  * theorem by theorem, each kept while current, the theory's own check recorded with its key; and each way a check
+  * ends early.
   */
 class CheckProgramSuite extends munit.CatsEffectSuite:
   private def checked(only: Option[NodeId] = None)(say: Analysis => ModuleName => ProverRun)

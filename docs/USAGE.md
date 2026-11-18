@@ -18,7 +18,7 @@ reported of its lemma. `FRFLOW_ROCQ_JOBS` compiles run at once (one fewer than t
 given). `bin/frflow PROJECT COMMAND`
 runs a project's CLI on the terminal, with colors and the interactive review, compiling with sbt on first use and
 after a change; `sbt "PROJECT/run COMMAND"` runs it through sbt, plain. `--help` lists the commands. A project is
-`examples/PROJECT`; FrFlow's own (`links`, `auth`, `ox`) are there too.
+`examples/PROJECT`; FrFlow's own (`links`, `auth`, `payments`, `ox`) are there too.
 
 FrFlow's own tests: `sbt test` runs the fast ones (under a minute); the ones that run Rocq end to end (tagged `Rocq`)
 run with `sbt rocqTest`; `sbt testAll` runs both. Per module, `sbt core/test`, `sbt project/test` and so on; eval's
@@ -390,7 +390,8 @@ One sbt project each, under `modules/`, each with its own top package (`frflow.<
 FrFlow's examples are projects under `examples/<name>`, each in two sbt projects so FrFlow's suites can test it
 with no cycle in the build: its model (`<name>Model`: `src/main`, its examples in `src/test`, its proofs in
 `rocq/Proofs`), which testing's tests depend on, and its command line (`<name>`, its main object in `app`). The
-shortener is checked whole in Rocq by `LinksRocqSuite` (project's tests, `sbt rocqTest`).
+shortener and the payment stream are checked whole in Rocq by `LinksRocqSuite` and `PaymentsRocqSuite` (project's
+tests, `sbt rocqTest`).
 
 ## With an AI agent
 

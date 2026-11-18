@@ -76,7 +76,7 @@ A lemma `<node>_Proofs_<obligation>` stating `<node>_Obl_<obligation>` proves th
 ## Where the examples stand
 
 What `frflow check` gives of each example, from cold, with Rocq 9.3 (`sbt rocqTest` asserts it:
-`LinksRocqSuite`, `AuthPortSuite`):
+`LinksRocqSuite`, `PaymentsRocqSuite`, `AuthPortSuite`):
 
 - `examples/links`: everything. Its seven claims are proven of the class by the proof files in
   `examples/links/rocq/Proofs/Shortener` (a few lines each over shared lemmas on lists, `Lemmas.v`: the tactic does
@@ -85,6 +85,11 @@ What `frflow check` gives of each example, from cold, with Rocq 9.3 (`sbt rocqTe
 - `examples/auth`: its nine claims are proven, each node from its parts by its proof file
   (`examples/auth/rocq/Proofs/Auth`), and the consistency groups; the one condition FrFlow finds no values for
   (`grantLetsIn`'s) is shown possible of the values `Proofs/Auth/Whole.v` gives.
+- `examples/payments`: everything. Its 29 claims are proven, 27 of the code obligations by `frflow_auto` and two
+  by proof files (`redeliveryChangesNothing`, `neverCommitsAhead`), and the roots follow. Each of the 22
+  conditions is shown possible: 14 by the witnesses FrFlow finds and eight by the values
+  `Proofs/Payments/Whole.v` gives. The eight examples are shown by running the code, and none is contradicted.
+  About 7 minutes.
 - The test models (`PricesRocqSuite`, one of them a structure reached through the one that holds its holder;
   `SeededSuite`): proven, their examples shown from the claims.
 

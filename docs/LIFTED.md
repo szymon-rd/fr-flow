@@ -176,7 +176,8 @@ A service method that changes state is read the way Aeneas reads `&mut`: the sta
 state monad. [SEPARATION-SPIKE.md](SEPARATION-SPIKE.md) records the spike that tried it. A service is written as a
 structure: a Declaration of a trait, defined by a class.
 [The link shortener](../examples/links/README.md) is one such structure, three members with claims on each and on
-how they relate. The files compile with capture and separation
+how they relate; [the payment stream](../examples/payments/README.md) is a processor over three services, proven
+through redelivery, a crash at any step and a second instance. The files compile with capture and separation
 checking; what uses the checkers is experimental (`-experimental` for the project, or `@experimental` on the
 definitions).
 
@@ -308,3 +309,4 @@ Rocq, and the property proven is not a contract annotation on the function but t
 | The prover's syntax, the lowering into it, its interpreters | `modules/proof/src/main/scala/frflow/proof/prover/` (`ast`, `term`, `lower`) and `proof/rocq/` |
 | A structure's Declaration, `Call`, `State` | `modules/dsl/src/main/scala/frflow/dsl/structure/`; `StructureSuite`, `FrSpecSuite` |
 | A service proven of its claims | `examples/links/`; `LinksSuite`; `LinksRocqSuite` and the other Rocq suites in `frflow.project.services` |
+| Services proven among other calls | `examples/payments/`; `PaymentsSuite`; `PaymentsRocqSuite` |

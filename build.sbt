@@ -50,7 +50,7 @@ val inspector = "org.scala-lang" %% "scala3-tasty-inspector" % "3.10.0"
 
 lazy val root = project.in(file("."))
   .aggregate(core, dsl, proof, eval, executions, testing, decision, wire, shell, api, cli, web, agent,
-    linksModel, links, authModel, auth, oxModel, ox, oxProbe)
+    linksModel, links, authModel, auth, paymentsModel, payments, oxModel, ox, oxProbe)
   .configs(RocqTest).settings(rocqTagged)
   .settings(publish / skip := true)
 
@@ -85,7 +85,8 @@ lazy val executions = module("executions", cats).dependsOn(eval, shell % "test->
 lazy val testing = module("testing", cats, "org.scala-sbt" % "test-interface" % "1.0")
   .settings(libraryDependencies ++= lawTests :+ "org.typelevel" %% "cats-laws" % "2.13.0" % Test,
     testFrameworks += TestFramework("frflow.testing.examples.ExamplesFramework"))
-  .dependsOn(eval % "compile->compile;test->test", linksModel % "test->test", authModel % "test->test")
+  .dependsOn(eval % "compile->compile;test->test", linksModel % "test->test", authModel % "test->test",
+    paymentsModel % "test->test")
 
 /** The developer's decisions: content, the ledger, the deciders, review, the rules of each command. */
 lazy val decision = module("decision", cats).dependsOn(core)
@@ -204,6 +205,14 @@ lazy val links = exampleApp("links", linksModel, layers = Nil).settings(checked)
 /** Access control: who can access what, refined through grants, sessions and requests to proven code. */
 lazy val authModel = exampleModel("auth")
 lazy val auth = exampleApp("auth", authModel)
+
+/** A payment stream: a handler of card payments from a log, over card limits, a ledger and the consumer's offsets.
+  * Proven to apply each payment once through redelivery, a crash at any step, and two instances at once. Its classes
+  * are read from their TASTy as the model is built, so the compiler keeps nothing for it; what capture and
+  * separation checking need is marked experimental.
+  */
+lazy val paymentsModel = exampleModel("payments").settings(checked)
+lazy val payments = exampleApp("payments", paymentsModel, layers = Nil).settings(checked)
 
 val oxCore = "com.softwaremill.ox" %% "core" % "1.1.0"
 

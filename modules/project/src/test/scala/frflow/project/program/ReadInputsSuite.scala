@@ -64,8 +64,8 @@ class ReadInputsSuite extends munit.CatsEffectSuite:
     val strays = List(at("Shortener/sub/grantWhenFree.v"), at("Shortener/not-a-node.v"), at("Other/grantWhenFree.v"),
       at("Stray.v"))
     for
-      p <- Projects.inMemory((at("Shortener/grantWhenFree.v") :: strays).map(_ -> "Lemma x : True.\nProof. auto. Qed.\n")
-             .toMap)
+      p <- Projects.inMemory((at("Shortener/grantWhenFree.v") :: strays)
+             .map(_ -> "Lemma x : True.\nProof. auto. Qed.\n").toMap)
       a <- Projects.analysed(p, Projects.links, Nil)
     yield
       assertEquals(a.inputs.proofs.files.keySet, Set(NodeId("grantWhenFree")))

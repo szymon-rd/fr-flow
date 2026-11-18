@@ -310,7 +310,7 @@ sbt "frflowInit toy --as NAME"       # an empty project in examples/toy, NAME it
 sbt reload
 bin/frflow toy status                # compiles on first use
 sbt "toy/serve --as NAME"            # the web view on localhost, deciding as NAME
-bin/frflow links status              # an example: links, auth, ox
+bin/frflow links status              # an example: links, auth, payments, ox
 ```
 
 `sbt "frflowInitAgent toy --as NAME"` creates one with the agent layer enabled. `sbt test` runs FrFlow's fast tests;
@@ -321,12 +321,14 @@ bin/frflow links status              # an example: links, auth, ox
 Each example is a project in `examples/<name>`: its statements and code in `src/main`, its examples in `src/test`,
 its proofs by hand in `rocq/Proofs`, and its command line in `app`
 (`bin/frflow <name> COMMAND`). No decision counts in any of them: `auth` keeps a ledger from an earlier shape of its
-model, and `links` and `ox` have none.
+model, and `links`, `payments` and `ox` have none.
 FrFlow's own suites test them whole (`sbt rocqTest`).
 
 - `links` is the example above: a link shortener, one service with three members, its claims on each and on how
   they relate, proven of its class.
 - `auth` is access control by a table of grants, and the smallest example.
+- `payments` is a payment stream handler over three services, each a structure, proven through redelivery, a crash
+  at any step and a second instance ([its README](examples/payments/README.md)).
 - `ox` states what holds of a scope's threads once Ox's `unsupervised` or `supervised` has completed, over the
   executions of Ox's own code ([its README](examples/ox/README.md)).
 

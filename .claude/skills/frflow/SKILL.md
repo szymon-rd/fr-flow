@@ -232,7 +232,7 @@ error.
 
 A service with state is a structure: write its interface as a trait (a `caps.Mutable` when a member changes it),
 its claims on the `Declaration` of that trait, and its code as a class that implements it; `lifted[Class]` reads the
-class. `examples/links` is one.
+class. `examples/links` is one service; `examples/payments` one made of several structures.
 
 - **An outside system known only by its promises** is a structure given no class (`pricing.provided`), its promises
   assumptions on its members.

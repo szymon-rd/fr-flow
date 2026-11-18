@@ -12,9 +12,9 @@ import frflow.project.port.{Records, RunCode}
 import frflow.wire.file.Files
 import frflow.wire.ledger.LedgerFile
 
-/** `decide` on the link shortener in memory, with a key made for the run and listed as `ann`'s: refused to a name the key is not
-  * listed under, before any rule; recorded, signed and counted for a decider; stored after the decisions the ledger
-  * keeps that do not count; and `preview` records nothing.
+/** `decide` on the link shortener in memory, with a key made for the run and listed as `ann`'s: refused to a name the
+  * key is not listed under, before any rule; recorded, signed and counted for a decider; stored after the decisions
+  * the ledger keeps that do not count; and `preview` records nothing.
   */
 class DecideProgramSuite extends munit.CatsEffectSuite:
   private def first(a: Analysis): NodeId = a.subjects.inOrder.headOption.fold(fail("no subject"))(_.id)
@@ -63,7 +63,8 @@ class DecideProgramSuite extends munit.CatsEffectSuite:
       assertEquals(third.reading.state(first(a)), ReviewState.Accepted)
   }
 
-  test("every node of the shortener is accepted one at a time, in the order decisions are taken, none waiting on another") {
+  test("every node of the shortener is accepted one at a time, in the order decisions are taken, none waiting on " +
+    "another") {
     for
       p      <- Projects.inMemory(Map.empty)
       a      <- Projects.analysed(p, Projects.links, Projects.linksExamples)
