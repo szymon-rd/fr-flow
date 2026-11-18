@@ -7,9 +7,9 @@ import cats.syntax.all.*
 import fs2.io.process.Processes
 import frflow.decision.content.Sha
 import frflow.project.port.Prover
-import frflow.project.process.{Command, Exited}
+import frflow.project.process.{Command, Exited, Output}
 import frflow.proof.prover.ast.ModuleName
-import frflow.proof.reading.{RocqReport, RocqSource}
+import frflow.proof.reading.{RocqOutput, RocqReport, RocqSource}
 import frflow.proof.rocq.RocqProject
 import frflow.proof.verdict.ProverRun
 import java.nio.charset.StandardCharsets.UTF_8
@@ -40,6 +40,9 @@ object RocqProver:
   /** How a module is built and what is kept of it: a change to it builds every module again. */
   val Version: String = "1"
 
+  /** The module a question of what proofs rest on is asked in. */
+  private val Uses: String = "FrFlowUses"
+
   /** How long `rocq --version` may take. */
   val Probe: FiniteDuration = FiniteDuration(30, "seconds")
 
@@ -51,6 +54,19 @@ object RocqProver:
     private def version: F[Exited] =
       Command.run(rocq.command.copy(timeout = Probe), List("--version"), dirs.project, Map.empty)
     def available: F[Boolean] = version.map(_.ok).handleError(_ => false)
+
+    def uses(lemmas: List[(ModuleName, String)]): F[List[String]] =
+      val asked = lemmas.map(_._1).distinct.map(m => s"Require Import ${RocqProject.logical(m)}.\n").mkString +
+        lemmas.map((_, lemma) => s"Print All Dependencies $lemma.\n").mkString
+      val file = dirs.out.resolve("scratch").resolve(s"$Uses.v")
+      val (command, args) = rocq.limited(List("compile", "-q", "-noglob") ++ dirs.loadPath ++
+        List("-top", Uses, "-o", file.resolveSibling(s"$Uses.vo").toString, file.toString))
+      if lemmas.isEmpty then List.empty[String].pure[F]
+      else Async[F].blocking { Files.createDirectories(file.getParent); Files.writeString(file, asked, UTF_8) } >>
+        Command.run(command.copy(output = Output.Standard), args, dirs.out, Map.empty).map {
+          case Exited.Code(0, out) => RocqOutput.dependencies(out)
+          case _                   => Nil
+        }.handleError(_ => Nil)
 
     def build(targets: NonEmptyList[ModuleName]): F[ProverRun] =
       (version.map(_.output), Ref.of[F, Map[String, RocqBuilt]](Map.empty)).flatMapN { (v, done) =>

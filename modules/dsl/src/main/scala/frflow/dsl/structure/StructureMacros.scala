@@ -91,13 +91,23 @@ object StructureMacros:
     val state = constructor(TypeRepr.of[State["s"]]).appliedTo(ConstantType(StringConstant(t.typeSymbol.name)))
     t.asType match
       case '[a] =>
-        val typed = Refinement(TypeRepr.of[StructureDeclaration[a]], "Is", TypeBounds(state, state))
+        val is = Refinement(TypeRepr.of[StructureDeclaration[a]], "Is", TypeBounds(state, state))
+        val typed = Refinement(is, "Did", TypeBounds(did(t), did(t)))
         members(t).foldLeft(typed) { case (parent, (m, inputs, result)) =>
           val gives = call.appliedTo(List(state, result))
           if inputs.isEmpty then Refinement(parent, m.name, gives)
           else Refinement(parent, m.name, MethodType(inputs.indices.toList.map(i => s"x$i"))(
             _ => inputs.map(i => term.appliedTo(i)), _ => gives))
         }
+
+  /** One call that changes the structure (`History`): its input, or an `Either` over the members that change it. */
+  private def did(using Quotes)(t: quotes.reflect.TypeRepr): quotes.reflect.TypeRepr =
+    import quotes.reflect.*
+    val given_ = members(t).filter(_._1.flags.is(Flags.Mutable)).map(_._2 match
+      case Nil      => TypeRepr.of[Unit]
+      case i :: Nil => i
+      case is       => defn.TupleClass(is.size).typeRef.appliedTo(is))
+    given_.reduceRightOption((a, rest) => TypeRepr.of[Either].appliedTo(List(a, rest))).getOrElse(TypeRepr.of[Unit])
 
   private def constructor(using Quotes)(applied: quotes.reflect.TypeRepr): quotes.reflect.TypeRepr =
     import quotes.reflect.*

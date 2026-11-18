@@ -1296,7 +1296,7 @@ const Code = (() => {
   function spans(text, names) {
     const ls = text.split("\n"), on = new Set(), ind = l => l.match(/^\s*/)[0].length;
     names.forEach(nm => {
-      const head = new RegExp(`^\\s*(?:(?:private|override|final|inline|lazy|implicit|protected)\\s+)*` +
+      const head = new RegExp(`^\\s*(?:(?:private|override|final|inline|lazy|implicit|protected|update)\\s+)*` +
         `(?:val|def|given|object|class|enum|type|trait|case class)\\s+${nm.replace(/[^\w]/g, "")}\\b`);
       ls.forEach((l, i) => { if (!head.test(l)) return;
         on.add(i); let j = i + 1;
@@ -1331,6 +1331,9 @@ function entries(n, src) {
   src.files.forEach(f => out.push({ key: "f:" + f.path, group: "Scala", label: f.path.split("/").pop(), lang: "scala",
     title: f.path, note: f.part.type === "Named" ? `only ${f.part.names.join(", ")} of it` : "whole file",
     text: f.text, focus: f.part.type === "Named" && f.text ? Code.spans(f.text, f.part.names) : null }));
+  (src.used || []).forEach(f => out.push({ key: "u:" + f.path, group: "Scala its proof rests on", label: f.path.split("/").pop(),
+    lang: "scala", title: f.path, note: `${f.part.names.join(", ")}: what Rocq's proof of it, and of what is below it, refers to`,
+    text: f.text, focus: f.text ? Code.spans(f.text, f.part.names) : null }));
   if (src.proof) out.push({ key: "p", group: "Rocq, your proof", label: src.proof.file.split("/").pop(), lang: "rocq",
     title: src.proof.file, note: src.proof.module, text: src.proof.text, notes: notesOf(src.proof.file) });
   src.generated.forEach(g => out.push({ key: "g:" + g.module, group: "Rocq, generated", label: g.module.split(".").slice(-2).join("."),

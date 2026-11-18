@@ -28,7 +28,7 @@ Remember the times before AI?
 As engineers, we developed a culture that kept our work to high standards:
 
 - Testing, ownership, review processes, requirements tracking
-- Those practices gave us understanding of, and confidence in, the quality and function of our software.
+- That gave us confidence and understanding.
 
 ## Trap of AI
 
@@ -38,34 +38,40 @@ As engineers, we developed a culture that kept our work to high standards:
 
 ## It is us, not the AI
 
-- AI is just a tool, and it does not make sense to delegate ownership to it - we are paid for that.
-- Problems with agentic coding stem from us giving up on ownership and understanding.
-- We must adapt our workflows and engineering culture to keep the responsibility and ownership.
+- AI is a tool. Ownership cannot be delegated to it.
+- The problems come from us giving up ownership and understanding.
+- Our workflows and culture have to change so that we keep both.
 
 ## What are we missing
 
-- We lack artifacts of the context-forming process that comes from writing the code.
-- We lack tools to track, with confidence, requirements and conformity of software to those requirements.
+- **A record of the understanding** we used to build by writing the code ourselves.
+- **A way to track requirements**, and to know the software meets them.
 
 ## Proposed tool: Formal modeling framework for Scala
 
 Let's imagine we can build a complete, formal view of the software that:
 
-- Is compiled from the code itself, so it can never drift from it.
-- Is an ordinary Scala value, so we can query it and build on it.
-- Holds our formal requirements and proves them against the code.
+- **Is compiled from the code itself**, so it can never drift from it.
+- **Is an ordinary Scala value**, so we can query it and build on it.
+- **Holds our formal requirements** and proves them against the code.
 
-## How could we build a model like that?
+## How could we build a model like that? {.center}
 
 ## Step 1: Build the claims tree
 
-Write a tree of formal statements about components of software, analogously to requirements.
+Write a **tree of formal statements** about components of software, analogously to requirements.
 
-1. Tree roots are formalized requirements about the general idea of the project.
-2. Lower nodes explain properties of modules and subcomponents.
-3. Leaves directly describe properties of code.
+1. *Tree roots* are formalized requirements about the general idea of the project.
+2. *Lower nodes* explain properties of modules and subcomponents.
+3. *Leaves* directly describe properties of code.
 
-## Step 2: Compile the model in a theorem prover
+## Logical relations in the tree
+
+1. Children of a node together must imply their parent.
+2. Children of a node cannot contradict one another.
+3. There must exist a system that fulfills a level of the tree (*non-vacuity*).
+
+## Step 2: Generate the model for a theorem prover
 
 1. Generate the tree of claims as theorems in Rocq.
 2. **Compile the entire relevant Scala code to Rocq.**
@@ -102,7 +108,7 @@ digraph frflow {
   bgcolor="transparent";
   nodesep=0.6;
   ranksep=0.9;
-  node [shape=box, style="rounded,filled", fontname="Helvetica", fontsize=16,
+  node [shape=box, style="rounded,filled", fontname="Jost", fontsize=16,
         margin="0.25,0.18", color="#2a76dd", fillcolor="#eaf2fd", penwidth=1.5];
   edge [color="#555555", penwidth=1.5, arrowsize=0.9];
 
@@ -149,10 +155,9 @@ object Links:
       shortener.shorten(u).isIdempotent))
 
   val shortenedCodeResolves = Node.claim(
-    "The code a URL is given leads to " +
-      "that URL.")(
-    forall((u: Term[Url]) => shortener.shorten(u)
-        .andThen(code => shortener.resolve(code)) === some(u)))
+    "The code a URL is given leads to that URL.")(
+    forall((u: Term[Url]) => shortener.shorten(u).andThen(
+      code => shortener.resolve(code)) === some(u)))
 
   // etc.
 ```
@@ -160,13 +165,15 @@ object Links:
 
 ::::
 
-## Implementation
+## Implementation {.code-mid}
 
-```
+```scala
 final class RetiringLinks(var issued: List[Link], var retired: List[Code]) extends Links:
   update def shorten(url: Url): Code =
     val held = issued
-    val known = held.find(l => Issued.leadsTo(held, l.code) == Some(url)).map(l => l.code)
+    val known = held.find(
+        l => Issued.leadsTo(held, l.code) == Some(url)
+    ).map(l => l.code)
     val code = known.getOrElse(Code(Issued.above(held, retired)))
     if known.isEmpty then issued = Link(code, url) :: held
     code
@@ -186,27 +193,28 @@ val links: FrModel = FrModel("Shortener")(
   Links.shortener.define(lifted[RetiringLinks]))
 ```
 
-## Actual refinement flow
+## Actual refinement flow {.center}
 
 ## 1. Start with the root statements {.code-wide}
 
 ```scala
-val givenLinkKeepsLeading = Node.claim(
-  "A link given for a URL leads to that URL until the link is removed.")(
-  forall((u: Term[Url], v: Term[Url], d: Term[Code]) =>
-    val first = shortener.shorten(u)
-    (shortener.resolve(first.result).following(shortener.shorten(v).in(first.after)) === some(u)) &&
-      ((d =!= first.result) implies
-        (shortener.resolve(first.result).following(shortener.remove(d).in(first.after)) === some(u)))))
+val linkLeadsUntilRemoved = Node.claim("A link leads to its URL until it is removed.")(
+  forall((code: Term[Code], url: Term[Url], later: shortener.History) =>
+    val link = shortener.resolve(code)
+    ((link === some(url)) && later.never(shortener.remove(code))) implies
+      (link.following(later) === some(url))))
 
-val removedLinkStaysRemoved = Node.claim(
-  "A removed link does not start leading somewhere new when the next URL is shortened.")(
-  forall((c: Term[Code], u: Term[Url]) =>
-    shortener.resolve(c).following(shortener.shorten(u).in(shortener.remove(c).after)).isEmpty))
+val shortenedCodeResolves = Node.claim("The code a URL is given leads to that URL.")(
+  forall((url: Term[Url]) =>
+    shortener.shorten(url).andThen(code => shortener.resolve(code)) === some(url)))
+
+val removedLinkStaysRemoved = Node.claim("A removed link never leads anywhere again.")(
+  forall((code: Term[Code], later: shortener.History) =>
+    shortener.resolve(code).following(shortener.remove(code)).following(later).isEmpty))
 
 val shortenIsIdempotent = Node.claim(
   "Shortening a URL again gives the same link and changes nothing.")(
-  forall((u: Term[Url]) => shortener.shorten(u).isIdempotent))
+  forall((url: Term[Url]) => shortener.shorten(url).isIdempotent))
 ```
 
 ## 2. Refine statements down to the code {.code-wide}
@@ -215,16 +223,15 @@ val shortenIsIdempotent = Node.claim(
 
 ```scala
 // What the members do: each claim is proven of the class.
-val removedCodeLeadsNowhere = Node.claim("A removed code leads nowhere.")(
-  forall((c: Term[Code]) => shortener.resolve(c).following(shortener.remove(c)).isEmpty))
-
-val removedCodeNotReissued = Node.claim("A code just removed is not given to the next URL shortened.")(
-  forall((c: Term[Code], u: Term[Url]) => shortener.shorten(u).following(shortener.remove(c)) =!= c))
+val removedCodeNotReissued = Node.claim("A removed code is never given to a URL again.")(
+  forall((code: Term[Code], url: Term[Url], later: shortener.History) =>
+    shortener.shorten(url).following(shortener.remove(code)).following(later) =!= code))
 
 val shortenChangesOnlyItsCode = Node.claim(
   "Shortening a URL changes where no code leads but the one it gives.")(
-  forall((u: Term[Url], d: Term[Code]) =>
-    (d =!= shortener.shorten(u).result) implies shortener.resolve(d).unchangedBy(shortener.shorten(u))))
+  forall((url: Term[Url], other: Term[Code]) =>
+    (other =!= shortener.shorten(url).result) implies
+      shortener.resolve(other).unchangedBy(shortener.shorten(url))))
 
 // Each is placed under the root it helps prove; the class gives the service its meaning.
 val fullShortener: FrModel = FrModel("FullShortener")(
@@ -232,62 +239,120 @@ val fullShortener: FrModel = FrModel("FullShortener")(
   Links.removedCodeLeadsNowhere.refines(removedLinkStaysRemoved),
   Links.removedCodeNotReissued.refines(removedLinkStaysRemoved),
   Links.shortenChangesOnlyItsCode.refines(removedLinkStaysRemoved),
-  // ... the other two roots and their parts
+  Links.removeKeepsOtherCodes.refines(linkLeadsUntilRemoved, removedLinkStaysRemoved),
+  // ... the other roots and their parts
   Links.shortener.define(lifted[RetiringLinks]))
 ```
 
-## 3. Generate model and prove it {.code-wide}
+## 3. Generate the model… {.code-wide}
 
-The root, as FrFlow generates it in Rocq (reformatted):
+The root, as FrFlow generates it in Rocq (reformatted): every list of later calls, each a URL shortened or a code removed.
 
 ```coq
-Definition removedLinkStaysRemoved_claim shortener_resolve shortener_shorten shortener_remove : Prop :=
-  forall (shortener : Links) (c : Code) (u : Url),
-    match shortener_resolve (snd (shortener_shorten (snd (shortener_remove shortener c)) u)) c with
-    | None => True
-    | Some a => False
-    end.
+Definition removedLinkStaysRemoved_claim
+    shortener_resolve shortener_shorten shortener_remove : Prop :=
+  forall (shortener : Links) (code : Code) (later : list (Except Url Code)),
+    match shortener_resolve
+      (List_foldl (fun state call => match call with
+                                     | Except_error given => snd (shortener_shorten state given)
+                                     | Except_ok other => snd (shortener_remove state other)
+                                     end)
+        (snd (shortener_remove shortener code)) later) code
+    with None => True | Some a => False end.
 ```
 
-Its proof, from the three claims below it:
+## 3. …and prove it {.code-wide}
+
+Its proof, from the four claims below it, by induction over the later calls:
 
 ```coq
 Lemma removedLinkStaysRemoved_Proofs_impl : removedLinkStaysRemoved_Obl_impl.
 Proof.
-  unfold removedLinkStaysRemoved_Obl_impl, removedLinkStaysRemoved_claim, removedCodeLeadsNowhere_claim,
+  unfold removedLinkStaysRemoved_Obl_impl, removedLinkStaysRemoved_claim,
+    removeKeepsOtherCodes_claim, removedCodeLeadsNowhere_claim,
     removedCodeNotReissued_claim, shortenChangesOnlyItsCode_claim.
-  intros nowhere notGiven only s c u.
-  rewrite only.
-  - exact (nowhere s c).
-  - intros e. apply (notGiven s c u). symmetry. exact e.
+  intros others nowhere notGiven only s code later.
+  induction later as [| call earlier ih] using rev_ind.
+  - exact (nowhere s code).
+  - rewrite List_foldl_app. rewrite List_foldl_cons. rewrite List_foldl_nil.
+    destruct call as [given | other].
+    + rewrite only; [exact ih |].
+      intros e. apply (notGiven s code given earlier). symmetry. exact e.
+    + destruct (classic (other = code)) as [e | e].
+      * subst other. apply nowhere.
+      * rewrite others; [exact ih | exact e].
 Qed.
 ```
 
-## 4. Review the claims tree {.code-wide}
+## 4. Review the claims tree {background-color="#12151a"}
 
-<!-- TODO: replace this text tree with a screenshot of the web view:
-     sbt "fullshortener/serve --as NAME", save it as img/fullshortener-tree.png, then use
-     ![](img/fullshortener-tree.png) -->
+![](img/claims-tree.png)
 
-```text
-givenLinkKeepsLeading      A link given for a URL leads to that URL until the link is removed.
-  shortenedCodeResolves      The code a URL is given leads to that URL.
-  shortenKeepsExistingLinks  Shortening a URL never changes where an existing code leads.
-  removeKeepsOtherCodes      Removing a code never changes where any other code leads.
+## Trace claim to code {background-color="#12151a"}
 
-removedLinkStaysRemoved    A removed link does not start leading somewhere new when the next URL is shortened.
-  removedCodeLeadsNowhere    A removed code leads nowhere.
-  removedCodeNotReissued     A code just removed is not given to the next URL shortened.
-  shortenChangesOnlyItsCode  Shortening a URL changes where no code leads but the one it gives.
-  codesAreNeverReused        (design) A new code is a number above every code given and every code removed.
+![](img/claim-to-code.png)
 
-shortenIsIdempotent        Shortening a URL again gives the same link and changes nothing.
+## FrFlow architecture
+
+```{dot}
+//| fig-width: 10
+//| fig-height: 3.3
+digraph architecture {
+  rankdir=LR;
+  bgcolor="transparent";
+  nodesep=0.45;
+  ranksep=0.35;
+  node [fontname="Jost", fontsize=18, margin="0.14,0.1", penwidth=1.5];
+  edge [color="#555555", penwidth=1.5, arrowsize=0.9];
+
+  // What is read: pages.
+  node [shape=note, style="filled", color="#888888", fillcolor="#ffffff"];
+  claims  [group=main,  label=<<b>Claims</b><br/><font point-size="14">in the Scala DSL</font>>];
+  classes [group=below, label=<<b>Classes</b><br/><font point-size="14">compiled Scala</font>>];
+  proofs  [label=<<b>Proofs</b><br/><font point-size="14">tactics, LLM, by hand</font>>];
+
+  // What does the work: boxes.
+  node [shape=box, style="rounded,filled", color="#2a76dd", fillcolor="#eaf2fd"];
+  elaborate [group=main,  label=<<b>Elaboration</b><br/><font point-size="14">claims to formulas</font>>];
+  compiler  [group=below, label=<<b>Scala compiler</b><br/><font point-size="14">classes to terms</font>>];
+  printer   [group=main,  label=<<b>Rocq printer</b><br/><font point-size="14">writes the theorems</font>>];
+  rocq      [group=main,  label=<<b>Rocq</b><br/><font point-size="14">checks every proof</font>>, color="#c98a00", fillcolor="#fff4d6"];
+  view      [group=main,  label=<<b>Web view, CLI</b><br/><font point-size="14">a verdict per node</font>>];
+
+  { rank=same; claims; classes; }
+  { rank=same; elaborate; compiler; }
+  { rank=same; rocq; proofs; }
+
+  claims -> elaborate -> printer -> rocq -> view [weight=10];
+  classes -> compiler [weight=10];
+  compiler -> printer;
+  proofs -> rocq;
+}
 ```
 
+## Real use case: Ox's structured concurrency
 
-## Real use case: Proving Ox
+- A library for structured concurrency in Scala.
+- Claim: A scope starts forks, and must not end before them.
 
-1.
+## What it took
 
-## Future I would like
+- Ox compiled to Rocq.
+- A semantics and assumptions of the JVM in Rocq.
+- A DSL to describe "any trace of JVM execution".
+
+## What was proven*
+
+After `supervised` or `unsupervised` has completed:
+
+- No fork of the scope runs.
+- No thread is added or started.
+- Forking in that scope is refused.
+- No data race on the scope's fields.
+
+## What it found {background-color="#0d1117"}
+
+![](img/ox-issue.png)
+
+## Future I would like {.center}
 

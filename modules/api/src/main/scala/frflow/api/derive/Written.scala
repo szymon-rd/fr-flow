@@ -16,9 +16,30 @@ import frflow.proof.rocq.RocqProject
   */
 private[api] object Written:
   /** None when the model has no such node. */
-  def of(a: Analysis, id: NodeId): Option[Sources] =
+  def of(a: Analysis, id: NodeId, rest: List[String]): Option[Sources] =
     val t = a.decided.theory
-    t.node(id).map(_ => Sources(meanings(t, id), files(a, id), generated(a, id), proof(a, id)))
+    t.node(id).map(_ => Sources(meanings(t, id), files(a, id), used(a, rest), generated(a, id), proof(a, id)))
+
+  /** The proofs of the node's code and of every node below it, each by its module and its lemma: what
+    * `Prover.uses` is asked of.
+    */
+  def proofs(a: Analysis, id: NodeId): List[(ModuleName, String)] =
+    val (t, l) = (a.decided.theory, Layout(a.decided.theory.name))
+    def below(n: NodeId): List[NodeId] = n :: t.refinement.parts(n).toList.flatMap(below)
+    below(id).distinct.map(n => l.ofNode(n, NodePart.Impl) -> s"${n.value}_Impl_impl")
+      .filter((m, _) => a.rocq.text(m).isDefined)
+
+  /** The members of the model's classes among what the proofs rest on (`rest`), in their classes' files: a member's
+    * define is named after its class and itself (`retiringLinks_remove`).
+    */
+  private def used(a: Analysis, rest: List[String]): List[SourceFile] =
+    val defines = a.decided.theory.code.attached.values.flatMap(_.code.proven).map(_.value).toSet
+    val members = rest.filter(defines).map(_.stripSuffix("_among").split("_", 2).toList).collect {
+      case cls :: member :: Nil => cls.capitalize -> member }
+    val files = a.inputs.sources.toList.sortBy(_._1.value)
+    members.groupMap(_._1)(_._2).toList.sortBy(_._1).flatMap((cls, ms) =>
+      files.find((_, text) => s"(class|object)\\s+$cls\\b".r.findFirstIn(text).isDefined)
+        .map((path, text) => SourceFile(path, FilePart.Named(ms.distinct.sorted), Some(text))))
 
   private def meanings(t: Theory, id: NodeId): List[Meaning] =
     Constrained.of(t, id).sortBy(_.value).flatMap(s => t.code.attached.get(s).map(c => Meaning(s, by(t, c.code))))

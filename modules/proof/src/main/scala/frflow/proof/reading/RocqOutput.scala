@@ -14,6 +14,11 @@ object RocqOutput:
     */
   def lastSentence(timed: String): Option[Int] = Timed.findAllMatchIn(timed).toList.lastOption.map(_.group(1).toInt)
 
+  private val Dependency = """(?m)^([A-Za-z_][A-Za-z0-9_.']*) :""".r
+
+  /** The names `Print All Dependencies` printed: each constant it lists, before its type. */
+  def dependencies(output: String): List[String] = Dependency.findAllMatchIn(output).map(_.group(1)).toList.distinct
+
   /** What each `Print Assumptions` printed, in order: the names of what the lemma rests on, none of one closed
     * under the global context.
     */

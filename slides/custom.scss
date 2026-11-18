@@ -1,0 +1,37 @@
+/*-- scss:defaults --*/
+// Text: one size for every slide; headings small enough that most titles take one line.
+$presentation-font-size-root: 38px;
+$presentation-h2-font-size: 1.3em;
+$presentation-heading-font-weight: 600;
+// The web view's fonts (fonts.css), so the slides and its screenshots read as one.
+$font-family-sans-serif: "Jost", "Futura", "Century Gothic", system-ui, sans-serif;
+$font-family-monospace: "JetBrains Mono", ui-monospace, "Cascadia Mono", Menlo, Consolas, monospace;
+// Code: one size for every slide (lines of up to 96 characters fit), whatever the text's.
+$code-block-font-size: 17.5px;
+
+/*-- scss:rules --*/
+.reveal .slide-number {
+  font-size: 0.5em;
+}
+
+.reveal pre code {
+  max-height: none;
+}
+
+// A line of text beside code: a little smaller than a slide of text's.
+.reveal .code-wide p,
+.reveal .code-mid p,
+.reveal .code-columns .column > p {
+  font-size: 0.75em;
+  margin: 0.3em 0;
+}
+
+// Two code panels side by side: the one exception to the code's size.
+.reveal .code-columns pre {
+  font-size: 15.5px;
+}
+
+// A slide that is only its title: the title in the middle of the page.
+.reveal .slides section.center h2 {
+  text-align: center;
+}

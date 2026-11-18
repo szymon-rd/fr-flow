@@ -1,0 +1,14 @@
+project:
+  type: default
+  output-dir: _output
+
+format:
+  revealjs:
+    theme: [default, custom.scss]
+    css: fonts.css
+    slide-number: true
+    hash: true
+    transition: none
+    code-line-numbers: false
+    highlight-style: github
+    embed-resources: true

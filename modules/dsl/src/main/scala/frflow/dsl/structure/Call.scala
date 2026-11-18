@@ -39,6 +39,11 @@ final class Call[T, R] private (made: Call.Made[T], ran: Call.Ran[T, R])
   /** The same, after a call of the structure that holds this one (`ledger.total.following(handler.handle(p))`). */
   def following[H <: String](earlier: Call[State[H], ?])(using NotGiven[State[H] =:= T]): Call[T, R] =
     in(earlier.after)
+  /** The same call made once every call of `later` has been, in order (`later: links.History`). */
+  def following[D](later: Term[List[D]]): Call[T, R] = in(History.after(made, later.asInstanceOf[Term[List[Any]]]))
+  /** This call is none of the calls of `later` (`later.never(call)`). */
+  private[structure] def notAmong[D](later: Term[List[D]]): Term[Boolean] =
+    History.never(made, later.asInstanceOf[Term[List[Any]]])
   /** The same call made a second time, on the structure as this one left it: `in(after)`. */
   def again: Call[T, R] = in(after)
   /** The call made with what this one gives, on the structure as this one left it: `next(result).in(after)`
@@ -82,7 +87,7 @@ object Call:
   /** A call as written: the structure's Definition, the member, the state it is made on, what it is given, and,
     * made among other calls, their schedule. `T` is what the structure's states are typed by (`State`).
     */
-  private final case class Made[T](structure: StructureDeclaration[?], called: String, state: Term[T],
+  private[structure] final case class Made[T](structure: StructureDeclaration[?], called: String, state: Term[T],
       args: List[Term[?]], held: Held, between: Option[Term[Map[BigInt, T]]] = None):
     given RocqType[T] = structure.rocqType.asInstanceOf[RocqType[T]] // the structure's type, by its name
     val steps: RocqType[List[(T, T)]] = RocqType[List[(T, T)]]
@@ -104,7 +109,7 @@ object Call:
       case other      => throw IllegalStateException(s"FrFlow bug: $called given $other, which is no term")
     }, st.held))
 
-  private def over[T, R](made: Made[T]): Call[T, R] =
+  private[structure] def over[T, R](made: Made[T]): Call[T, R] =
     import made.given
     given RocqType[R] = made.member.result.asInstanceOf[RocqType[R]]
     val args = made.state :: made.args

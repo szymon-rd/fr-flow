@@ -50,7 +50,7 @@ val inspector = "org.scala-lang" %% "scala3-tasty-inspector" % "3.10.0"
 
 lazy val root = project.in(file("."))
   .aggregate(core, dsl, proof, eval, executions, testing, decision, wire, shell, api, cli, web, agent,
-    linksModel, links, authModel, auth, paymentsModel, payments, oxModel, ox, oxProbe)
+    linksModel, links, fullshortenerModel, fullshortener, authModel, auth, paymentsModel, payments, oxModel, ox, oxProbe)
   .configs(RocqTest).settings(rocqTagged)
   .settings(publish / skip := true)
 
@@ -203,6 +203,12 @@ val checked = Seq(scalacOptions += "-experimental")
   */
 lazy val linksModel = exampleModel("links").settings(checked)
 lazy val links = exampleApp("links", linksModel, layers = Nil).settings(checked)
+
+/** The link shortener again, from its promises down: three roots in the words of whoever holds a link, each proven
+  * from the claims on the members, which are proven of the class.
+  */
+lazy val fullshortenerModel = exampleModel("fullshortener").settings(checked)
+lazy val fullshortener = exampleApp("fullshortener", fullshortenerModel, layers = Nil).settings(checked)
 
 /** Access control: who can access what, refined through grants, sessions and requests to proven code. */
 lazy val authModel = exampleModel("auth")

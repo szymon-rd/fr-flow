@@ -38,6 +38,7 @@ export frflow.dsl.lifted.{Contract, FrSpec}
 export frflow.dsl.lifted.LiftSyntax.*
 export frflow.dsl.compiled.steps.ClassSyntax.*
 export frflow.dsl.structure.{Call, StructureDeclaration}
+export frflow.dsl.structure.HistorySyntax.*
 /** What a state of the structure whose trait is named `N` is typed by (`Term[StateOf[N]]`): for what a model says
   * of any structure's state (`def applied[H <: String](id: Term[PaymentId], in: Term[StateOf[H]])`).
   */

@@ -41,6 +41,12 @@ final class StructureDeclaration[T] @publicInBinary private[dsl] (val name: Symb
   type Is
   /** The structure whole, as a statement names it (`(before: limits.State) => …`): one of its states. */
   type State = Term[Is]
+  /** One call that changes the structure, as a history has it: the member and what it was given (`History`). */
+  type Did
+  /** Calls that change the structure, made one after another (`(later: links.History) => …`): what a statement
+    * says of them it says of every such sequence (`q.following(later)`, `call.notAmong(later)`).
+    */
+  type History = Term[List[Did]]
   /** How other calls leave the structure before each step of a call, by the step's number (`Call.among`). */
   type Schedule = Term[Map[BigInt, Is]]
 

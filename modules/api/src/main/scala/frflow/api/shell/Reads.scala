@@ -22,7 +22,8 @@ private[api] final class Reads[F[_]: Async](s: Session[F]) extends Reading[F]:
       .map(d => Option.when(d.nonEmpty)(d))).map(Diffs.of(a, id, _))
   }
 
-  def sources(id: NodeId): F[Option[Sources]] = s.analysis.map(Written.of(_, id))
+  def sources(id: NodeId): F[Option[Sources]] = s.analysis.flatMap(a =>
+    s.prover(a).flatMap(_.uses(Written.proofs(a, id))).map(Written.of(a, id, _)))
 
   def vocabulary: F[Vocab] = s.analysis.map(Glossary.of)
 

@@ -13,3 +13,8 @@ import frflow.proof.verdict.ProverRun
 trait Prover[F[_]]:
   def available: F[Boolean]
   def build(targets: NonEmptyList[ModuleName]): F[ProverRun]
+  /** What the proofs of `lemmas` rest on, each lemma named with the module it is in: the names of the definitions
+    * and lemmas Rocq's proofs of them refer to, however far down (`Print All Dependencies`), read off the last
+    * build. None when Rocq does not read them: a module not built, a lemma not proven.
+    */
+  def uses(lemmas: List[(ModuleName, String)]): F[List[String]]

@@ -24,4 +24,5 @@ object Asked:
       case "confirm" => Right(Command.Confirm)
       case "revisit" => (c.get[NodeId]("node"), why).mapN(Command.Revisit(_, _))
       case "gone"    => (c.get[NodeId]("node"), why).mapN(Command.Gone(_, _))
-      case other     => Left(DecodingFailure(s"no decision $other: accept, reject, confirm, revisit or gone", c.history))
+      case other     =>
+        Left(DecodingFailure(s"no decision $other: accept, reject, confirm, revisit or gone", c.history))

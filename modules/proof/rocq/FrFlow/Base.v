@@ -14,6 +14,13 @@ Proof. intro H. unfold ite. destruct (excluded_middle_informative P); [reflexivi
 Lemma ite_false {A : Type} (P : Prop) (a b : A) : ~ P -> ite P a b = b.
 Proof. intro H. unfold ite. destruct (excluded_middle_informative P); [contradiction | reflexivity]. Qed.
 
+(** A value of one of two types (a model's `Either`): the first, `error`, or the second, `ok`. *)
+Inductive Except (E A : Type) : Type :=
+  | Except_error : E -> Except E A
+  | Except_ok : A -> Except E A.
+Arguments Except_error {E A} _.
+Arguments Except_ok {E A} _.
+
 (** Lists, with the inputs in the order the generated terms give them. *)
 Definition List_filter {A : Type} (p : A -> Prop) (xs : list A) : list A :=
   filter (fun x => if excluded_middle_informative (p x) then true else false) xs.

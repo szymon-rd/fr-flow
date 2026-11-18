@@ -20,6 +20,8 @@ final class ScriptedProver[F[_]: Monad] private (answer: ModuleName => ProverRun
   def build(targets: NonEmptyList[ModuleName]): F[ProverRun] =
     asked.update(_ ++ targets.toList).as(ScriptedProver.worst(targets.map(answer)))
 
+  def uses(lemmas: List[(ModuleName, String)]): F[List[String]] = List.empty[String].pure[F]
+
   def built: F[List[ModuleName]] = asked.get.map(_.toList)
 
 object ScriptedProver:
