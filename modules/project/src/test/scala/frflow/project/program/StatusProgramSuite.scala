@@ -32,11 +32,11 @@ class StatusProgramSuite extends munit.CatsEffectSuite:
       text <- ExportProgram(p.files)(a)
     yield
       val s = Files.read(Snapshot.format, text).fold(e => fail(e.toString), identity)
-      val grant = s.nodes.find(_.header.id == "answerWhenNoOverlap").map(_.body)
+      val grant = s.nodes.find(_.header.id == "removeKeepsOtherCodes").map(_.body)
       assert(grant.exists {
         case Body.Stated(checking, _, code, _) =>
-          checking.nonEmpty && code.exists(_.proven.contains("storedBookings_book"))
+          checking.nonEmpty && code.exists(_.proven.contains("retiringLinks_remove"))
         case _                                 => false
       }, grant)
-      assertEquals(s.examples.map(_.onCode), List("holds", "holds"))
+      assertEquals(s.examples.map(_.onCode), List.fill(3)("holds"))
   }

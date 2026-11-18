@@ -26,8 +26,8 @@ class ContentsSuite extends munit.FunSuite:
   }
 
   test("a formula is what it means, as Rocq is given it; what the developer wrote is shown beside it") {
-    val c = Contents.of(lowered(Projects.links), NodeId("answerWhenNoOverlap"))
-    assert(c.text("written").contains("bookings.book(request).result"), c.text("written"))
-    assert(c.text("formula").startsWith("(∀ (x : Bookings), (∀ (x_1 : Booking),") &&
-      c.text("formula").contains("Rooms.noOverlap"), c.text("formula"))
+    val c = Contents.of(lowered(Projects.links), NodeId("removeKeepsOtherCodes"))
+    assert(c.text("written").contains("shortener.resolve(d).unchangedBy(shortener.remove(c))"), c.text("written"))
+    assert(c.text("formula").startsWith("(∀ (x : Links), (∀ (x_1 : Code), (∀ (x_2 : Code),") &&
+      c.text("formula").contains("shortener_remove"), c.text("formula"))
   }
