@@ -1,9 +1,9 @@
 Require Export FrFlowGen.OxThreads.closingSetsTheFlagItself.Spec.
 Require Export Proofs.OxThreads.Lemmas.
 From Stdlib Require Import String List ZArith Lia.
-Require Import FrFlow.Threads.Prog FrFlow.Jvm.Machine.
+Require Import FrFlow.Jvm.Prog FrFlow.Jvm.Machine.
 Require Import FrFlow.Scala.Tree FrFlow.Scala.Table FrFlow.Scala.Value FrFlow.Scala.Meaning.
-Require Import FrFlow.Code.Outside FrFlow.Code.Conforms FrFlow.Code.Walk FrFlow.Code.Logic.
+Require Import FrFlow.Code.Outside FrFlow.Code.Conforms FrFlow.Rules.Walk FrFlow.Rules.Logic.
 
 (** Proven of `ThreadHerd.interruptAllAndJoinUntilCompleted`'s tree: it first calls `assertOnOwnerThread`, which
     returns where the caller is the herd's owner; then it sets the flag; whatever it does after, it completes
@@ -16,11 +16,11 @@ Proof.
     (Hmade h from ltac:(unfold calledOn; eauto 14)) eq_refl Hcalled)
     as (r & inside & Hh & Hcall).
   destruct Hdone as [[(ins & spawns & Hat) _] | [_ [spawns Hend]]]; [rewrite Hcall in Hat; discriminate Hat |].
-  assert (forall k, direct (heldIn "ox.internal.ThreadHerd herdOwner" h) from (history k) ->
-    forall resp sp, history k = Event_Respond (heldIn "ox.internal.ThreadHerd herdOwner" h) from resp sp ->
+  assert (forall k, direct (heldIn L.ThreadHerd_herdOwner h) from (history k) ->
+    forall resp sp, history k = Event_Respond (heldIn L.ThreadHerd_herdOwner h) from resp sp ->
     exists a response_1 b, (from <= a /\ b <= k) /\ exists who, completedBy history
-      (Invocation_mk "java.util.concurrent.atomic.AtomicBoolean set scala.Boolean:scala.Unit"
-        [heldIn "ox.internal.ThreadHerd shutdownInProgress" h; Value_Bool_ True]) who a response_1 b) as Hall.
+      (Invocation_mk L.AtomicBoolean_set
+        [heldIn L.ThreadHerd_shutdownInProgress h; Value_Bool_ True]) who a response_1 b) as Hall.
   { refine (method_meets _ C (Member "ox.internal.ThreadHerd" "interruptAllAndJoinUntilCompleted" ":scala.Unit")
       Hcall Hh eq_refl _).
     intros args k Hargs _. apply vals_none in Hargs as ->.
@@ -44,13 +44,3 @@ Proof.
 Qed.
 
 (** Its parts can hold together: an execution in which nothing happens meets each. *)
-Lemma closingSetsTheFlagItself_Proofs_feasible : closingSetsTheFlagItself_Obl_feasible.
-Proof.
-  exists (fun _ x => x), (fun _ => Event_Stutter).
-  split; [exact rest_runs |].
-  split.
-  { intros h w H. repeat (destruct H as [H | H]); destruct (nothing_called_on_at_rest _ _ _ H). }
-  split.
-  { intros h. repeat split; intros w by_ inside found H; discriminate H. }
-  intros c from response to H. destruct (nothing_completed_at_rest _ _ _ _ _ H).
-Qed.

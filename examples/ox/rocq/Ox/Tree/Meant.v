@@ -21,7 +21,7 @@
     computes. *)
 
 From Stdlib Require Import String List.
-Require Import FrFlow.Threads.Prog FrFlow.Jvm.Machine.
+Require Import FrFlow.Jvm.Prog FrFlow.Jvm.Machine.
 Require Import FrFlow.Scala.Tree FrFlow.Scala.Program FrFlow.Scala.Table FrFlow.Scala.Value FrFlow.Scala.Meaning.
 Require Import FrFlow.Scala.Library FrFlow.Scala.Gaps.
 Require Import Ox.Tree.All Ox.Tree.Surface Ox.Tree.Kernel.

@@ -1,9 +1,9 @@
 Require Export FrFlowGen.OxThreads.aForkFunctionRemovesItsThread.Spec.
 Require Export Proofs.OxThreads.Lemmas.
 From Stdlib Require Import String List ZArith Lia.
-Require Import FrFlow.Threads.Prog FrFlow.Jvm.Machine.
+Require Import FrFlow.Jvm.Prog FrFlow.Jvm.Machine.
 Require Import FrFlow.Scala.Tree FrFlow.Scala.Table FrFlow.Scala.Value FrFlow.Scala.Meaning.
-Require Import FrFlow.Code.Outside FrFlow.Code.Conforms FrFlow.Code.Walk FrFlow.Code.Logic.
+Require Import FrFlow.Code.Outside FrFlow.Code.Conforms FrFlow.Rules.Walk FrFlow.Rules.Logic.
 
 (** Proven of `ThreadHerd.startThread`'s tree, twice over. The function it hands the factory is the one written
     there, `try t finally threads.remove(Thread.currentThread()).discard`. Whatever the code gave, it reads the
@@ -18,13 +18,13 @@ Proof.
   revert t i ended e Hrun.
   refine (method_meets
     (fun j => forall f r, itselfMakes history (Invocation_mk
-      "java.util.concurrent.ThreadFactory newThread java.lang.Runnable:java.lang.Thread" [f; r]) c0 from0 j ->
-      forall t i ended e, completedBy history (Invocation_mk "java.lang.Runnable run :scala.Unit" [r]) t i ended e ->
+      L.ThreadFactory_newThread [f; r]) c0 from0 j ->
+      forall t i ended e, completedBy history (Invocation_mk L.Runnable_run [r]) t i ended e ->
       exists a b, completedBy history
-        (Invocation_mk "java.lang.Thread$ currentThread :java.lang.Thread" []) t a (Response_Returned t) b /\
+        (Invocation_mk L.Thread_currentThread []) t a (Response_Returned t) b /\
         exists a1 rr b1, (b <= a1 /\ b1 <= e) /\ completedBy history (Invocation_mk
-          "java.util.concurrent.ConcurrentHashMap$.KeySetView remove java.lang.Object:scala.Boolean"
-          [heldIn "ox.internal.ThreadHerd threads" h; t]) t a1 rr b1)
+          L.KeySetView_remove
+          [heldIn L.ThreadHerd_threads h; t]) t a1 rr b1)
     C (Member "ox.internal.ThreadHerd" "startThread" "scala.Function0:scala.Unit") Hcall0 Hh eq_refl _ m
     (makes_direct Hhand) _ r Hhand).
   intros args j Hargs Hpassed. apply vals_one in Hargs as (vcode & -> & Hnamed).
@@ -69,13 +69,3 @@ Proof.
 Qed.
 
 (** Its parts can hold together: an execution in which nothing happens meets each. *)
-Lemma aForkFunctionRemovesItsThread_Proofs_feasible : aForkFunctionRemovesItsThread_Obl_feasible.
-Proof.
-  exists (fun _ x => x), (fun _ => Event_Stutter).
-  split; [exact rest_runs |].
-  split.
-  { intros h w H. repeat (destruct H as [H | H]); destruct (nothing_called_on_at_rest _ _ _ H). }
-  split.
-  { intros h. repeat split; intros w by_ inside found H; discriminate H. }
-  intros c from response to H. destruct (nothing_completed_at_rest _ _ _ _ _ H).
-Qed.

@@ -4,11 +4,11 @@
     said as a relation between moments (`steps`): the call goes from a stage to a later one by its own events,
     each the event of what its program does next (`takes_read`, `takes_outside`, `takes_method_call`, …), other
     events leaving it where it is. `method_steps` and `function_steps` say it of a call in an execution of the
-    code. The rules a proof of a claim uses are built on these (`FrFlow.Code.Logic`). *)
+    code. The rules a proof of a claim uses are built on these (`FrFlow.Rules.Logic`). *)
 
 From FrFlow Require Import Executions.
 From Stdlib Require Import String List ZArith Bool Ascii Lia Classical_Prop ProofIrrelevanceFacts.
-Require Import FrFlow.Threads.Prog FrFlow.Jvm.Machine.
+Require Import FrFlow.Jvm.Prog FrFlow.Jvm.Machine.
 Require Import FrFlow.Scala.Tree FrFlow.Scala.Program FrFlow.Scala.Table FrFlow.Scala.Equal FrFlow.Scala.Value.
 Require Import FrFlow.Scala.Meaning FrFlow.Scala.Library FrFlow.Code.Outside FrFlow.Code.Conforms.
 Require Export FrFlow.Code.Classes.

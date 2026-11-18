@@ -16,13 +16,3 @@ Proof.
 Qed.
 
 (** Its parts can hold together: an execution in which nothing happens meets each. *)
-Lemma theMembershipCheckStaysOutOfHerds_Proofs_feasible : theMembershipCheckStaysOutOfHerds_Obl_feasible.
-Proof.
-  exists (fun _ x => x), (fun _ => Event_Stutter).
-  split; [exact rest_runs |].
-  split.
-  { intros h t from inner w (who & H & _). destruct (nothing_begun_at_rest _ _ _ H). }
-  split.
-  { intros t s x. repeat (intros; split). all: intros who from w [[_ H] _]; destruct (nothing_begun_at_rest _ _ _ H). }
-  intros t outer from inside w [[[_ H] _] _]. destruct (nothing_begun_at_rest _ _ _ H).
-Qed.

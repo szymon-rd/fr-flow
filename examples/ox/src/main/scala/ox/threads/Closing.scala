@@ -40,7 +40,7 @@ val whatClosingsFunctionsApplyReturns = Node.claim(
 // thread that called it, and hands it to nothing. So only closing's caller touches the variable.
 val closingKeepsItsVariableToItself = Node.assumption(
   "What a call of closing itself makes, only the thread that called closing reads, marks and writes.")(
-  forall((h: Obj[ThreadHerd]) => closing(h).keepsWhatItMakesToItself))
+  forall((h: Obj[ThreadHerd]) => closing(h).keepsWhatItMakesToItself)).about(About.variables)
 
 // Assumed, not derived from the code, as the last: the two variables closing makes are held only by the functions
 // it writes, so nothing else writes them.
@@ -55,6 +55,7 @@ val closingsVariablesAreWrittenByItsFunctions = Node.assumption(
           traversedWith(f, h, k) && f.accept(x).by(owner(h)).called(k) &&
             (inside === some(k) || exists((g: Term[Value], t: Term[Value], j: Term[BigInt]) =>
               inside === some(j) && applicationOf[Unit](g, t).by(owner(h)).calledInside(k, j)))))))
+    .about(About.variables)
 
 // The second function, catching an interruption, reads closing's variable, finds it holds an exception, and
 // reads it again to add to it: the second read finds what the first did, the variable being one that one thread
@@ -79,3 +80,4 @@ val nothingIsAddedDuringTheLastCheck = Node.assumption(
   "While a call closing makes asks whether the herd's set is empty and is answered yes, nothing is added to it.")(
   forall((h: Obj[ThreadHerd], a: Term[BigInt], b: Term[BigInt]) =>
     threads(h).isEmpty().by(owner(h)).completed(a, Returned(True), b) implies !addedDuring(threads(h), a, b)))
+    .about(About.falseOfOx)

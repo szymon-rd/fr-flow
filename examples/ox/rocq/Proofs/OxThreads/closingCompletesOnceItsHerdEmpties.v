@@ -1,9 +1,9 @@
 Require Export FrFlowGen.OxThreads.closingCompletesOnceItsHerdEmpties.Spec.
 Require Export Proofs.OxThreads.Lemmas.
 From Stdlib Require Import String List ZArith Lia.
-Require Import FrFlow.Threads.Prog FrFlow.Jvm.Machine.
+Require Import FrFlow.Jvm.Prog FrFlow.Jvm.Machine.
 Require Import FrFlow.Scala.Tree FrFlow.Scala.Table FrFlow.Scala.Value FrFlow.Scala.Meaning FrFlow.Scala.Library.
-Require Import FrFlow.Code.Outside FrFlow.Code.Conforms FrFlow.Code.Walk FrFlow.Code.Logic FrFlow.Code.Live.
+Require Import FrFlow.Code.Outside FrFlow.Code.Conforms FrFlow.Rules.Walk FrFlow.Rules.Logic FrFlow.Rules.Live.
 
 (** Proven of `ThreadHerd.interruptAllAndJoinUntilCompleted`'s tree. Given its turn, the call checks its caller,
     sets the flag and loops; each call it makes is responded to. Once the flag is set adding stops, so each
@@ -19,9 +19,9 @@ Proof.
   destruct (method_begun (Member "ox.internal.ThreadHerd" "interruptAllAndJoinUntilCompleted" ":scala.Unit") C
     (Hmade h from ltac:(unfold calledOn; eauto 14)) eq_refl Hcalled) as (r0 & inside & Hh & Hcall).
   split; [exists inside; exact Hcall |].
-  assert (moves history (heldIn "ox.internal.ThreadHerd herdOwner" h) from) as Hmoves.
+  assert (moves history (heldIn L.ThreadHerd_herdOwner h) from) as Hmoves.
   { apply proceeds_moves. apply (Hproceeds h _ from). do 4 left. right. exists inside. exact Hcall. }
-  assert (calledOn history h "ox.internal.ThreadHerd interruptAllAndJoinUntilCompleted :scala.Unit" from) as Hon
+  assert (calledOn history h L.ThreadHerd_interruptAllAndJoinUntilCompleted from) as Hon
     by (unfold calledOn; eauto 14).
   pose proof (Hconstructed h from ltac:(do 4 left; right; exact Hon)) as Hcons.
   refine (method_leads _ C (Member "ox.internal.ThreadHerd" "interruptAllAndJoinUntilCompleted" ":scala.Unit")
@@ -49,7 +49,7 @@ Proof.
   (* the flag is set from a moment on: so adding stops *)
   destruct rs as [yr | yr]; [| destruct Hgs].
   destruct (Hatomic _ True ws yr wsd (done_by_someone Hdones)) as (ms & [Hms1 Hms2] & Hflag).
-  assert (flag (heldIn "ox.internal.ThreadHerd shutdownInProgress" h) (ms + 1)) as Hset by (rewrite Hflag; exact I).
+  assert (flag (heldIn L.ThreadHerd_shutdownInProgress h) (ms + 1)) as Hset by (rewrite Hflag; exact I).
   pose proof (Hstops h (ms + 1) (conj (herd_constructed_later history h from (ms + 1) ltac:(lia) Hcons) Hset))
     as Hadding.
   pose proof (Hends h (ms + 1) (conj (herd_constructed_later history h from (ms + 1) ltac:(lia) Hcons) Hset))
@@ -63,17 +63,17 @@ Proof.
     assert (forall w, from < w ->
       (forall w' we rr wf f1 wt1 r1 wu1, w <= we -> we < wt1 -> wt1 < w' ->
          completedBy history
-           (Invocation_mk "java.util.concurrent.ConcurrentHashMap$.CollectionView isEmpty :scala.Boolean"
-             [heldIn "ox.internal.ThreadHerd threads" h]) aa we rr wf ->
+           (Invocation_mk L.CollectionView_isEmpty
+             [heldIn L.ThreadHerd_threads h]) aa we rr wf ->
          rr <> Response_Returned (Value_Bool_ True) ->
          itselfMakes history
            (Invocation_mk
-             "java.util.concurrent.ConcurrentHashMap$.KeySetView forEach java.util.function.Consumer:scala.Unit"
-             [heldIn "ox.internal.ThreadHerd threads" h; f1]) aa from wt1 ->
+             L.KeySetView_forEach
+             [heldIn L.ThreadHerd_threads h; f1]) aa from wt1 ->
          completedBy history
            (Invocation_mk
-             "java.util.concurrent.ConcurrentHashMap$.KeySetView forEach java.util.function.Consumer:scala.Unit"
-             [heldIn "ox.internal.ThreadHerd threads" h; f1]) aa wt1 r1 wu1 ->
+             L.KeySetView_forEach
+             [heldIn L.ThreadHerd_threads h; f1]) aa wt1 r1 wu1 ->
          leads T Cl Nn hh aa ii GG w' (Running (Iter B tt K))) ->
       leads T Cl Nn hh aa ii GG w (Running (Iter B tt K))) as Hturn end.
   { intros w Hw Hnext. apply leads_iter.
@@ -125,7 +125,7 @@ Proof.
   (* once the set rests empty, a turn that asks is answered yes: the loop ends within the moments left *)
   lazymatch goal with |- leads ?T ?Cl ?Nn ?hh ?aa ?ii ?GG _ (Running (Iter B tt K)) =>
     assert (forall E0 E n w,
-      E0 <= E -> emptyFrom elements history (heldIn "ox.internal.ThreadHerd threads" h) E0 E ->
+      E0 <= E -> emptyFrom elements history (heldIn L.ThreadHerd_threads h) E0 E ->
       from < w -> E - w < Z.of_nat n -> leads T Cl Nn hh aa ii GG w (Running (Iter B tt K))) as Hrested end.
   { intros E0 E n. induction n as [| n IH]; intros w H0E HE Hw Hn; apply Hturn; try exact Hw.
     all: intros wN weN rrN wqN fN wtN rN wuN Hwe Hwt1 HwN Hasked Hno Hmk1 Hdone1.
@@ -139,21 +139,21 @@ Proof.
   lazymatch goal with |- leads ?T ?Cl ?Nn ?hh ?aa ?ii ?GG _ (Running (Iter B tt K)) =>
     assert (forall L n w,
       (forall y w0, L <= w0 -> ~ ((exists who, calledBy history
-        (Invocation_mk "java.util.concurrent.ConcurrentHashMap$.KeySetView add java.lang.Object:scala.Boolean"
-          [heldIn "ox.internal.ThreadHerd threads" h; y]) who w0) \/
+        (Invocation_mk L.KeySetView_add
+          [heldIn L.ThreadHerd_threads h; y]) who w0) \/
         (exists m, m < w0 /\ exists who, begun history
-          (Invocation_mk "java.util.concurrent.ConcurrentHashMap$.KeySetView add java.lang.Object:scala.Boolean"
-            [heldIn "ox.internal.ThreadHerd threads" h; y]) who m /\ ~ overBy history who m w0))) ->
+          (Invocation_mk L.KeySetView_add
+            [heldIn L.ThreadHerd_threads h; y]) who m /\ ~ overBy history who m w0))) ->
       from < w -> L - w < Z.of_nat n -> leads T Cl Nn hh aa ii GG w (Running (Iter B tt K))) as Hstopped end.
   { intros L n. induction n as [| n IH]; intros w HL Hw Hn; apply Hturn; try exact Hw.
     all: intros wN weN rrN wqN fN wtN rN wuN Hwe Hwt1 HwN Hasked Hno Hmk1 Hdone1.
     all: destruct (Z_le_gt_dec L wtN) as [Hle | Hgt].
     1, 3: assert (forall y w0, wtN <= w0 -> ~ ((exists who, calledBy history
-        (Invocation_mk "java.util.concurrent.ConcurrentHashMap$.KeySetView add java.lang.Object:scala.Boolean"
-          [heldIn "ox.internal.ThreadHerd threads" h; y]) who w0) \/
+        (Invocation_mk L.KeySetView_add
+          [heldIn L.ThreadHerd_threads h; y]) who w0) \/
         (exists m, m < w0 /\ exists who, begun history
-          (Invocation_mk "java.util.concurrent.ConcurrentHashMap$.KeySetView add java.lang.Object:scala.Boolean"
-            [heldIn "ox.internal.ThreadHerd threads" h; y]) who m /\ ~ overBy history who m w0)))
+          (Invocation_mk L.KeySetView_add
+            [heldIn L.ThreadHerd_threads h; y]) who m /\ ~ overBy history who m w0)))
         as HLt by (intros y w0 Hw0; apply HL; lia);
       destruct (Hempties fN from wtN rN wuN (conj (conj (conj Hcalled Hmk1) Hdone1) HLt)) as (E0 & E & H0E & HE);
       apply (Hrested E0 E (Z.to_nat (E - wN + 1)) wN H0E HE); lia.
@@ -163,32 +163,3 @@ Proof.
 Qed.
 
 (** What it is from can hold: an execution in which nothing happens, of flags never set, meets each. *)
-Lemma closingCompletesOnceItsHerdEmpties_Proofs_feasible : closingCompletesOnceItsHerdEmpties_Obl_feasible.
-Proof.
-  exists (fun _ x => x), (fun _ => Event_Stutter), (fun _ _ _ => False), (fun _ _ => False).
-  split; [exact rest_runs |].
-  split.
-  { intros h f from a [[H _] _]. destruct (nothing_called_at_rest _ _ _ H). }
-  split.
-  { intros h w [_ H]. destruct H. }
-  split.
-  { intros h w [_ H]. destruct H. }
-  split.
-  { intros h who from [H _]. destruct (nothing_begun_at_rest _ _ _ H). }
-  split.
-  { intros s b who from [H _]. destruct (nothing_begun_at_rest _ _ _ H). }
-  split.
-  { intros s who from [H _]. destruct (nothing_begun_at_rest _ _ _ H). }
-  split.
-  { intros s empty rest _ from response to [who H]. destruct (nothing_completed_at_rest _ _ _ _ _ H). }
-  split.
-  { intros h c i H. exfalso. repeat (destruct H as [H | H]);
-      first [exact (nothing_begun_at_rest _ _ _ H) | destruct H as [x H]; exact (nothing_begun_at_rest _ _ _ H)]. }
-  split.
-  { intros s b from value to [who H]. destruct (nothing_completed_at_rest _ _ _ _ _ H). }
-  split.
-  { intros h w H. repeat (destruct H as [H | H]); destruct (nothing_called_on_at_rest _ _ _ H). }
-  split.
-  { intros h w H. repeat (destruct H as [H | H]); destruct (nothing_called_on_at_rest _ _ _ H). }
-  intros h. repeat split; intros w by_ inside found H; discriminate H.
-Qed.

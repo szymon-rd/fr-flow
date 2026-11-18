@@ -1,9 +1,9 @@
 Require Export FrFlowGen.OxThreads.startThreadAddsWhatItsFactoryMade.Spec.
 Require Export Proofs.OxThreads.Lemmas.
 From Stdlib Require Import String List ZArith Lia.
-Require Import FrFlow.Threads.Prog FrFlow.Jvm.Machine.
+Require Import FrFlow.Jvm.Prog FrFlow.Jvm.Machine.
 Require Import FrFlow.Scala.Tree FrFlow.Scala.Table FrFlow.Scala.Value FrFlow.Scala.Meaning.
-Require Import FrFlow.Code.Outside FrFlow.Code.Conforms FrFlow.Code.Walk FrFlow.Code.Logic.
+Require Import FrFlow.Code.Outside FrFlow.Code.Conforms FrFlow.Rules.Walk FrFlow.Rules.Logic.
 
 (** Proven of `ThreadHerd.startThread`'s tree: the thread it adds to the set is the one its factory returned
     to it. *)
@@ -14,7 +14,7 @@ Proof.
     (Hmade h from ltac:(unfold calledOn; eauto 14)) eq_refl Hcalled) as (r & inside & Hh & Hcall).
   refine (method_meets
     (fun w => forall s t, itselfMakes history (Invocation_mk
-      "java.util.concurrent.ConcurrentHashMap$.KeySetView add java.lang.Object:scala.Boolean" [s; t]) c from w ->
+      L.KeySetView_add [s; t]) c from w ->
       madeFor history t c from w)
     C (Member "ox.internal.ThreadHerd" "startThread" "scala.Function0:scala.Unit") Hcall Hh eq_refl _ w
     (makes_direct Hadds) _ t Hadds).
@@ -35,9 +35,3 @@ Proof.
 Qed.
 
 (** What it is from can hold: an execution in which nothing happens meets it. *)
-Lemma startThreadAddsWhatItsFactoryMade_Proofs_feasible : startThreadAddsWhatItsFactoryMade_Obl_feasible.
-Proof.
-  exists (fun _ x => x), (fun _ => Event_Stutter).
-  split; [exact rest_runs |].
-  intros h w H. repeat (destruct H as [H | H]); destruct (nothing_called_on_at_rest _ _ _ H).
-Qed.

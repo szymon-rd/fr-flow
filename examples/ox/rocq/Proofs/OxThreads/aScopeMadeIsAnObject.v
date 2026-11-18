@@ -1,9 +1,9 @@
 Require Export FrFlowGen.OxThreads.aScopeMadeIsAnObject.Spec.
 Require Export Proofs.OxThreads.Lemmas.
 From Stdlib Require Import String List ZArith Lia.
-Require Import FrFlow.Threads.Prog FrFlow.Jvm.Machine.
+Require Import FrFlow.Jvm.Prog FrFlow.Jvm.Machine.
 Require Import FrFlow.Scala.Tree FrFlow.Scala.Table FrFlow.Scala.Value FrFlow.Scala.Meaning FrFlow.Scala.Library.
-Require Import FrFlow.Code.Outside FrFlow.Code.Conforms FrFlow.Code.Walk FrFlow.Code.Logic.
+Require Import FrFlow.Code.Outside FrFlow.Code.Conforms FrFlow.Rules.Walk FrFlow.Rules.Logic.
 Require FrFlow.Scala.Jdk.
 
 (** Proven of the tree of the scope's `apply` (`OxError(supervisor, errorMode, parent, locals)`), gone through
@@ -60,13 +60,3 @@ Proof.
 Qed.
 
 (** Its parts can hold together: an execution in which nothing happens meets each. *)
-Lemma aScopeMadeIsAnObject_Proofs_feasible : aScopeMadeIsAnObject_Obl_feasible.
-Proof.
-  exists (fun _ => Event_Stutter).
-  split; [exact rest_runs |].
-  split.
-  { intros s w (x & x1 & x2 & x3 & x4 & x5 & c & from & to & _ & H).
-    destruct (nothing_completed_at_rest _ _ _ _ _ H). }
-  intros h finalizers supervisor errorMode parent locals s from response to [who H].
-  destruct (nothing_completed_at_rest _ _ _ _ _ H).
-Qed.

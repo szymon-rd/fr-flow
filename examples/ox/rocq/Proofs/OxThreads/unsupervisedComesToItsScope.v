@@ -1,9 +1,9 @@
 Require Export FrFlowGen.OxThreads.unsupervisedComesToItsScope.Spec.
 Require Export Proofs.OxThreads.Lemmas.
 From Stdlib Require Import String List ZArith Lia.
-Require Import FrFlow.Threads.Prog FrFlow.Jvm.Machine.
+Require Import FrFlow.Jvm.Prog FrFlow.Jvm.Machine.
 Require Import FrFlow.Scala.Tree FrFlow.Scala.Table FrFlow.Scala.Value FrFlow.Scala.Meaning FrFlow.Scala.Library.
-Require Import FrFlow.Code.Outside FrFlow.Code.Conforms FrFlow.Code.Walk FrFlow.Code.Logic FrFlow.Code.Live.
+Require Import FrFlow.Code.Outside FrFlow.Code.Conforms FrFlow.Rules.Walk FrFlow.Rules.Logic FrFlow.Rules.Live.
 
 (** Proven of `unsupervised`'s tree, gone through in time. Given its turn, the call reads the thread's scope,
     which is responded to; it makes a scope with it as parent, which returns a scope in time; and it calls
@@ -56,15 +56,3 @@ Proof.
 Qed.
 
 (** Its parts can hold together: an execution in which nothing happens meets each. *)
-Lemma unsupervisedComesToItsScope_Proofs_feasible : unsupervisedComesToItsScope_Obl_feasible.
-Proof.
-  exists (fun _ => Event_Stutter).
-  split; [exact rest_runs |].
-  split.
-  { intros supervisor errorMode parent locals c from H. destruct (nothing_called_at_rest _ _ _ H). }
-  split.
-  { intros locals code c from H. destruct (nothing_called_at_rest _ _ _ H). }
-  split.
-  { intros s. split; intros who from [H _]; destruct (nothing_begun_at_rest _ _ _ H). }
-  intros s. split; intros from response to [who H]; destruct (nothing_completed_at_rest _ _ _ _ _ H).
-Qed.

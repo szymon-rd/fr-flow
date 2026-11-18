@@ -27,10 +27,10 @@ class ProofRulesSuite extends munit.FunSuite:
   test("a claim of code read may use the code's trees, their meaning and what an execution of them is") {
     assertEquals(refused("""Require Import FrFlowGen.Latch.Code.
       |Require Import FrFlowGen.Latch.Code.frflow_executions_latch_Latch.
-      |Require Import FrFlow.Threads.Prog FrFlow.Jvm.Machine.
+      |Require Import FrFlow.Jvm.Prog FrFlow.Jvm.Machine.
       |Require Import FrFlow.Scala.Tree FrFlow.Scala.Meaning.
       |From FrFlow Require Import Executions.
-      |Require Import FrFlow.Code.Conforms FrFlow.Code.Walk.
+      |Require Import FrFlow.Code.Conforms FrFlow.Rules.Walk.
       |""".stripMargin), Nil)
     assertEquals(refused("Require Import FrFlow.Jvm.Wp."), List(NotAllowed.Import("FrFlow.Jvm.Wp")))
   }

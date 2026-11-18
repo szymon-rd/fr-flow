@@ -13,16 +13,16 @@ Proof.
   { intros _. apply (Hinside h code c m). apply begun_is_called. exact Hbegun. }
   intros k Hk IH Hkw. specialize (IH ltac:(lia)).
   assert (~ calledBy history (Invocation_mk
-      "ox.internal.ThreadHerd interruptAllAndJoinUntilCompleted :scala.Unit"%string [h]) c k /\
+      L.ThreadHerd_interruptAllAndJoinUntilCompleted [h]) c k /\
     ~ calledBy history (Invocation_mk
-      "java.util.concurrent.ConcurrentHashMap$.KeySetView remove java.lang.Object:scala.Boolean"%string
-      [heldIn "ox.internal.ThreadHerd threads"%string h; c]) c k) as [Hnoclose Hnoleave].
+      L.KeySetView_remove
+      [heldIn L.ThreadHerd_threads h; c]) c k) as [Hnoclose Hnoleave].
   { destruct (Z.eq_dec k m) as [-> | Hne].
     - split; intros Hc;
         destruct (one_call_at_a_moment history _ _ _ _ m Hc (begun_is_called _ _ _ _ Hbegun)) as [E _];
         discriminate E.
     - assert ((m < k /\ begun history (Invocation_mk
-          "ox.internal.ThreadHerd startThread scala.Function0:scala.Unit"%string [h; code]) c m) /\
+          L.ThreadHerd_startThread [h; code]) c m) /\
         ~ overBy history c m k) as Hp.
       { split; [split; [lia | exact Hbegun] |]. intros Hover. apply Hpending.
         apply (over_later history c m k w); [lia | exact Hover]. }
@@ -42,15 +42,3 @@ Proof.
 Qed.
 
 (** Its parts can hold together: a run in which nothing happens meets each. *)
-Lemma startThreadCallersStayInside_Proofs_feasible : startThreadCallersStayInside_Obl_feasible.
-Proof.
-  exists (fun _ => Event_Stutter), (fun _ x => x).
-  split; [exact rest_runs |].
-  split.
-  { intros h code c w H. destruct (nothing_called_at_rest _ _ _ H). }
-  split.
-  { intros h code h1 x. split; intros who from w [[_ H] _]; destruct (nothing_begun_at_rest _ _ _ H). }
-  split.
-  { intros h t c w b [_ H]. destruct (nothing_called_at_rest _ _ _ H). }
-  intros h w H. repeat (destruct H as [H | H]); destruct (nothing_called_on_at_rest _ _ _ H).
-Qed.

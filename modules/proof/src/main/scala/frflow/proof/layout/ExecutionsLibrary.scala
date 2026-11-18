@@ -11,6 +11,9 @@ import frflow.proof.prover.ast.{ModuleName, Names, Preamble, ProverModule}
 object ExecutionsLibrary:
   val module: ModuleName = ModuleName(Names.path("FrFlow", "Executions"))
 
+  /** The library's module of the execution in which nothing happens: `frflow_feasible` is its. */
+  val rest: ModuleName = ModuleName(Names.path("FrFlow", "Rules", "Rest"))
+
   /** Whether a type is the vocabulary's: by where Scala declares it. */
   def has(d: DataType): Boolean = scalaName(d).startsWith("frflow.values.") ||
     scalaName(d).startsWith("frflow.executions.")

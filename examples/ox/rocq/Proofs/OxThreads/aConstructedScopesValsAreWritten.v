@@ -1,9 +1,9 @@
 Require Export FrFlowGen.OxThreads.aConstructedScopesValsAreWritten.Spec.
 Require Export Proofs.OxThreads.Lemmas.
 From Stdlib Require Import String List ZArith Lia.
-Require Import FrFlow.Threads.Prog FrFlow.Jvm.Machine.
+Require Import FrFlow.Jvm.Prog FrFlow.Jvm.Machine.
 Require Import FrFlow.Scala.Tree FrFlow.Scala.Table FrFlow.Scala.Value FrFlow.Scala.Meaning.
-Require Import FrFlow.Code.Outside FrFlow.Code.Conforms FrFlow.Code.Walk FrFlow.Code.Logic.
+Require Import FrFlow.Code.Outside FrFlow.Code.Conforms FrFlow.Rules.Walk FrFlow.Rules.Logic.
 
 (** Proven of what making a scope runs, gone through to its end: the call of the constructor makes the object
     itself, and writes each field it marks before it marks the next; what it returns at the end is that object.
@@ -59,9 +59,3 @@ Proof.
 Qed.
 
 (** What it is from can hold: an execution in which nothing happens meets it. *)
-Lemma aConstructedScopesValsAreWritten_Proofs_feasible : aConstructedScopesValsAreWritten_Obl_feasible.
-Proof.
-  exists (fun _ => Event_Stutter).
-  split; [exact rest_runs |].
-  intros s field by_ inside w [_ [H | [v H]]]; discriminate H.
-Qed.

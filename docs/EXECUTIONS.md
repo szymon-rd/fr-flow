@@ -4,8 +4,7 @@ A model of threaded code, or of any code where what holds depends on when, is wr
 `modules/executions`: its packages `frflow.values` (what code handles), `frflow.executions` (an execution and the
 words of a call) and `frflow.code` (real code written in a statement). This page says what a statement speaks
 of, how one is written, how real code is named in it, and what is built and what is not.
-`examples/ox/src/main/scala/ox/threads` is a model written this way; `docs/sketch/ox-threads-model.md` is the
-fuller model it is growing into.
+`examples/ox/src/main/scala/ox` is a model written this way (`examples/ox/README.md`).
 
 The names are the literature's: an execution is the Java Language Specification's word for a program as it
 runs; its history is a sequence of invocation and response events (Herlihy and Wing); an event that is neither
@@ -63,14 +62,12 @@ A `Call[A]` names which calls of the execution are meant. `call.by(t)` is those 
 | `call.pendingAt(w)`, `call.pendingSince(from, w)` | A call made before `w`, or the call made at `from`, has not completed by `w`. |
 | `call.inProgress(w)` | A call is made at `w`, or is pending at `w`. |
 | `call.calledWithin(from, to)`, `call.completedWithin(from, to)`, `call.returnedWithin(v, from, to)` | Within the two moments. |
-| `call.settles(w)` | There is a moment after `w` at which no call is pending. |
 | `call.spawned(w)` | The event into `w` spawns the call for its actor, to make on its own. |
 | `outer.calls(inner, w)` | At `w` a pending call of `outer` makes the call `inner` itself. |
 | `call.itselfCallsOnly(made => p)` | Each call that a call itself makes is one `p` says; `other.isCall(made)` says it is a call of `other`. |
 | `call.excludes(other)` | While a call is pending, its caller makes no call of `other`. |
 | `oneAtATime(t)` | The actor does one thing at a time: what it does (a call, an object made, a field read or written) while a call of its own is pending, that call does itself, or the actor does while a call that call itself made is pending. A model assumes it of its threads. |
 | `call.keepsWhatItMakesToItself` | What a call itself makes, only its caller reads and writes: a variable of the call's own. |
-| `eventually(w)(later => p)` | `p` at `w` or at some later moment. |
 
 ## Real code in a statement
 
@@ -139,8 +136,17 @@ code's methods and the assumptions (on the JDK, on who calls the code, on the ex
 - of each claim about the execution with no part, the claim itself of every execution of the code (the same
   name, with no part to take): with no proof it stands unproven (`it is not proven of the code's executions`),
   and the model is not complete. Such a claim never counts as saying what a Declaration is, whatever it mentions;
-- of each hand-proven step, that its parts can hold together (`<node>_Obl_feasible`);
+- of each hand-proven step, that its parts can hold together (`<node>_Obl_feasible`). FrFlow tries it itself, with
+  the execution in which nothing happens (`frflow_feasible`, `FrFlow/Rules/Rest.v`): parts that say what follows an
+  event hold of it. A proof file gives it only where that does not go through;
 - of the model, that what it states at the bottom can hold together (`Whole_Obl_consistent_0`).
+
+A statement names a method or a field of the code by its label (`owner name signature`, `owner name`), a text.
+A proof does not paste it: FrFlow writes a name for each label the model's statements hold
+(`FrFlowGen/<Model>/Labels.v`, a module `L` of abbreviations, imported with the model's `Domain`), and a proof
+writes `L.ThreadHerd_startThread`, `L.KeySetView_add`, `L.ThreadHerd_threads`. A name is its class's last name
+and the definition's own (a constructor is `new`), with how many things it takes where two would share a name.
+To Rocq an abbreviation is the text itself, so a statement and a proof that names it read the same.
 
 An execution in which nothing happens meets every statement of the form "after a call, …", so it proves the last two.
 That shows the statements do not contradict each other, and no more. An execution in which things happen shows
@@ -148,11 +154,10 @@ more, and is written out: its events as a list (`FrFlow.Code.Witness`: `history_
 of its references is (`naming_of`), and each call of it shown to follow its program one event after another
 (`goes`, with `own_at`, `answer_at` and `rests`); which method a call is of is found by its label
 (`impl_labelled`, `module_labelled`, `constructor_labelled`), and what a statement says of the execution is
-taken apart down to the events written (`reveal`, `absent`, `scan`). The events need not be written by hand:
-`FrFlow.Code.Replay` goes through the code as an execution of it would, given the calls made from outside, the
-moments each thread acts at and what each call of what is outside answers (`trace` prints the events, `replay`
-gives which value each reference is), and `conforms_written` then shows the execution to be one of the code,
-law by law, following each call to where it rests (`go`). Ox's model shows what it states at the bottom of one
+taken apart down to the events written (`reveal`, `absent`, `scan`); `conforms_written` then shows the
+execution to be one of the code, law by law, following each call to where it rests (`go`). The events need not
+be written by hand either: the machine writes its run out as an execution, with a theorem that it is one of
+the code (`FrFlow.Bridge.Frames`, `FrFlow.Bridge.Executed`). Ox's model shows what it states at the bottom of one
 such execution, in which a herd is made and closed (`examples/ox/rocq/Proofs/OxThreads/Whole.v`). A proof so
 made writes the program left at each step into its term: one of 27 events is light, one of 80 (a fork still
 running when its herd is closed) outgrows the memory FrFlow gives a compile, and is not kept.
@@ -197,7 +202,7 @@ What it is for an execution to be one of some code is said once, in FrFlow's Roc
 
 A claim of the code is then a claim with parts like any other: its parts are the assumptions it needs, and its
 step is proven in its proof file. The proof says what holds at every event the call makes itself, and goes
-through the method's program once, by one rule for each thing a program does next (`FrFlow/Code/Logic.v`):
+through the method's program once, by one rule for each thing a program does next (`FrFlow/Rules/Logic.v`):
 
 | the program | the rule | what the rule gives the rest of the proof |
 |---|---|---|
@@ -242,9 +247,23 @@ What a model must still say itself, as assumptions:
   of the class): the JVM's type safety, where nothing outside the code extends the class;
 - that a `val` is read as what it holds (`l.readsItsValsAsHeld`, of every `val` of the class), and holds what
   it is given when the object is made (`l.holdsWhatItsValsAreGiven`);
-- that a method of a class is called only on an object a call of its constructor returned
-  (`l.isConstructedWhenCalled`), where what the constructor does matters;
+- that a method of a class is called only on an object that is ready for it, where what makes the object
+  matters (`l.whenCalled(w => l.isConstructed(w))`: a call of its constructor has returned it);
 - what each method of the JDK it speaks of does.
+
+## Where the library says it
+
+FrFlow's Rocq library (`modules/proof/rocq/FrFlow`), by what each directory is about:
+
+| directory | what it holds |
+|---|---|
+| `Scala/` | the trees read from TASTy, the table of what they define, and their meaning as programs |
+| `Jvm/` | the program a call runs (`Prog.v`), the machine that runs programs (`Machine.v`), a data race (`Races.v`) |
+| `Code/` | what an execution of code is (`Conforms.v`, `Outside.v`), what its classes have (`Classes.v`), and an execution written out and shown to be one (`Witness.v`) |
+| `Rules/` | the rules a proof of a claim uses: a call from one moment to a later one (`Walk.v`), what holds at each event of a call (`Logic.v`), what a call does in time (`Live.v`), the execution in which nothing happens (`Rest.v`) |
+| `Bridge/` | that a run of the machine is an execution of the code (`Executed.v`: `machine_conforms`) |
+
+A proof file imports from `Scala/`, `Code/` and `Rules/`, and `Jvm/Prog.v` and `Jvm/Machine.v`.
 
 ## What is not built
 
@@ -288,13 +307,13 @@ What a model must still say itself, as assumptions:
   nested in its calls (`oneAtATime`), that a call nobody calls
   begins only once handed over: a model that needs one states it as an assumption.
 - **That an object of the code is made only by its constructor** is not said of an execution: a model states
-  it as an assumption (`o.isConstructedWhenCalled`).
+  it as an assumption (`o.whenCalled(w => o.isConstructed(w))`).
 - **No claim of no data race** is generated.
 - **Nothing happens in time** unless a model assumes it. An execution in which every thread stops for good is
   one of the code. A model says what moves, as assumptions: of a call of code, that pending and waiting for no
   call it made, it makes its next event (`call.proceeds`: its thread is given its turn); of a call of what is
   outside the code, that it is responded to (`call.responds`). What a call of code then comes to is proven by
-  going through its program (`FrFlow.Code.Live`: `leads`, with a rule for each thing a program does next, as
+  going through its program (`FrFlow.Rules.Live`: `leads`, with a rule for each thing a program does next, as
   `Logic` has for what holds at each event). A call that is seen to make an event has been responded to in each
   call it made before it.
 - **The old vocabulary of a structure's calls** (`.result`, `.after`, `.in`, `.steps`, `.amongOthers`) is still

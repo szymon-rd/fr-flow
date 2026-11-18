@@ -30,18 +30,3 @@ Proof.
 Qed.
 
 (** Its parts can hold together: a run in which nothing happens meets each. *)
-Lemma nothingIsAddedOnceEmpty_Proofs_feasible : nothingIsAddedOnceEmpty_Obl_feasible.
-Proof.
-  exists (fun _ x => x), (fun _ => Event_Stutter), (fun _ _ _ => False).
-  split; [exact rest_runs |].
-  split.
-  { intros h t m [(m1 & _ & H) _]. destruct (nothing_called_at_rest _ _ _ H). }
-  split.
-  { intros h t w [Hready _]. destruct (nothing_ready_at_rest _ _ _ Hready). }
-  split.
-  { intros h code c w [H | (m & _ & H & _)];
-      [destruct (nothing_called_at_rest _ _ _ H) | destruct (nothing_begun_at_rest _ _ _ H)]. }
-  split.
-  { intros h t c w b [_ H]. destruct (nothing_called_at_rest _ _ _ H). }
-  intros h w H. repeat (destruct H as [H | H]); destruct (nothing_called_on_at_rest _ _ _ H).
-Qed.

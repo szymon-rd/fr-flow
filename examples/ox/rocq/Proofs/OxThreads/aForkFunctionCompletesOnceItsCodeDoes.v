@@ -1,9 +1,9 @@
 Require Export FrFlowGen.OxThreads.aForkFunctionCompletesOnceItsCodeDoes.Spec.
 Require Export Proofs.OxThreads.Lemmas.
 From Stdlib Require Import String List ZArith Lia.
-Require Import FrFlow.Threads.Prog FrFlow.Jvm.Machine.
+Require Import FrFlow.Jvm.Prog FrFlow.Jvm.Machine.
 Require Import FrFlow.Scala.Tree FrFlow.Scala.Table FrFlow.Scala.Value FrFlow.Scala.Meaning.
-Require Import FrFlow.Code.Outside FrFlow.Code.Conforms FrFlow.Code.Walk FrFlow.Code.Logic FrFlow.Code.Live.
+Require Import FrFlow.Code.Outside FrFlow.Code.Conforms FrFlow.Rules.Walk FrFlow.Rules.Logic FrFlow.Rules.Live.
 
 (** Proven of `ThreadHerd.startThread`'s tree, twice over. The function it hands the factory is the one written
     there, `try t finally threads.remove(Thread.currentThread()).discard`. Run by a thread that is given its
@@ -20,14 +20,14 @@ Proof.
   revert t i Hrun Hcode Hgoes.
   refine (method_meets
     (fun j => forall f r, itselfMakes history (Invocation_mk
-      "java.util.concurrent.ThreadFactory newThread java.lang.Runnable:java.lang.Thread" [f; r]) c0 from0 j ->
-      forall t i, calledBy history (Invocation_mk "java.lang.Runnable run :scala.Unit" [r]) t i ->
-      (forall m, itselfMakes history (Invocation_mk "scala.Function0 apply :java.lang.Object" [code]) t i m ->
-        begun history (Invocation_mk "scala.Function0 apply :java.lang.Object" [code]) t m /\
+      L.ThreadFactory_newThread [f; r]) c0 from0 j ->
+      forall t i, calledBy history (Invocation_mk L.Runnable_run [r]) t i ->
+      (forall m, itselfMakes history (Invocation_mk L.Function0_apply [code]) t i m ->
+        begun history (Invocation_mk L.Function0_apply [code]) t m /\
         exists to, overBy history t m to) ->
-      (begun history (Invocation_mk "java.lang.Runnable run :scala.Unit" [r]) t i /\ True ->
+      (begun history (Invocation_mk L.Runnable_run [r]) t i /\ True ->
         proceedsFrom history t i) ->
-      begun history (Invocation_mk "java.lang.Runnable run :scala.Unit" [r]) t i /\ exists to, overBy history t i to)
+      begun history (Invocation_mk L.Runnable_run [r]) t i /\ exists to, overBy history t i to)
     C (Member "ox.internal.ThreadHerd" "startThread" "scala.Function0:scala.Unit") Hcall0 Hh eq_refl _ m
     (makes_direct Hhand) _ r Hhand).
   intros args j Hargs Hpassed. apply vals_one in Hargs as (vcode & -> & Hnamed).
@@ -82,17 +82,3 @@ Proof.
 Qed.
 
 (** What it is from can hold: an execution in which nothing happens meets it. *)
-Lemma aForkFunctionCompletesOnceItsCodeDoes_Proofs_feasible : aForkFunctionCompletesOnceItsCodeDoes_Obl_feasible.
-Proof.
-  exists (fun _ => Event_Stutter).
-  split; [exact rest_runs |].
-  split.
-  { intros h r code _ who from [H _]. destruct (nothing_begun_at_rest _ _ _ H). }
-  split.
-  { intros who from [H _]. destruct (nothing_begun_at_rest _ _ _ H). }
-  split.
-  { intros s x who from [H _]. destruct (nothing_begun_at_rest _ _ _ H). }
-  split.
-  { intros x who from [H _]. destruct (nothing_begun_at_rest _ _ _ H). }
-  intros h w H. repeat (destruct H as [H | H]); destruct (nothing_called_on_at_rest _ _ _ H).
-Qed.

@@ -9,11 +9,11 @@
 
 From FrFlow Require Import Executions.
 From Stdlib Require Import String List ZArith Bool Lia.
-Require Import FrFlow.Threads.Prog FrFlow.Jvm.Machine.
+Require Import FrFlow.Jvm.Prog FrFlow.Jvm.Machine.
 Require Import FrFlow.Scala.Tree FrFlow.Scala.Program FrFlow.Scala.Table FrFlow.Scala.Value.
 Require Import FrFlow.Scala.Meaning FrFlow.Scala.Library FrFlow.Scala.Run.
-Require Import FrFlow.Code.Outside FrFlow.Code.Conforms FrFlow.Code.Classes FrFlow.Code.Walk FrFlow.Code.Witness.
-Require Import FrFlow.Code.Names FrFlow.Code.Checks FrFlow.Code.Frames.
+Require Import FrFlow.Code.Outside FrFlow.Code.Conforms FrFlow.Code.Classes FrFlow.Rules.Walk FrFlow.Code.Witness.
+Require Import FrFlow.Bridge.Names FrFlow.Bridge.Checks FrFlow.Bridge.Frames.
 Import ListNotations.
 Local Open Scope string_scope.
 Local Open Scope list_scope.
@@ -58,12 +58,6 @@ Section Steps.
     end.
 
   (** ** The event stays as the references grow *)
-
-  Lemma names_more (R more : list (Z * val)) (vs : list val) :
-    (forall v, In v vs -> has_name R v) -> map (name_of (R ++ more)) vs = map (name_of R) vs.
-  Proof.
-    intros H. apply map_ext_in. intros v Hv. apply name_of_more, H, Hv.
-  Qed.
 
   Lemma render_more (R more : list (Z * val)) (act : action) :
     (forall v, In v (mentions act) -> has_name R v) -> render (R ++ more) act = render R act.

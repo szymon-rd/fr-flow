@@ -32,7 +32,7 @@ val theWalkUpCallsFour = Node.claim(
 val aScopesHerdAndParentStayOutOfHerds = Node.assumption(
   "While a thread asks a scope for its herd or for its parent, it neither closes a herd nor removes a thread " +
     "from a herd's set.")(
-  forall((s: Obj[OxUnsupervised]) => staysOutOfHerds(s.herd) && staysOutOfHerds(s.parent)))
+  forall((s: Obj[OxUnsupervised]) => staysOutOfHerds(s.herd) && staysOutOfHerds(s.parent))).about(About.scopes)
 
 // Of the JDK: none of the four calls back into Ox.
 val whatTheChecksAskOfTheJdkStaysOutOfHerds = Node.assumption(
@@ -40,7 +40,7 @@ val whatTheChecksAskOfTheJdkStaysOutOfHerds = Node.assumption(
     "contains an object, it neither closes a herd nor removes a thread from a herd's set.")(
   forall((t: Obj[Thread], s: Obj[ConcurrentSet], x: Obj[AnyRef]) =>
     staysOutOfHerds(Thread.currentThread()) && staysOutOfHerds(ox.internal.currentScope.get()) &&
-      staysOutOfHerds(t.getName()) && staysOutOfHerds(s.contains(x))))
+      staysOutOfHerds(t.getName()) && staysOutOfHerds(s.contains(x)))).about(About.jdk)
 
 val theMembershipCheckStaysOutOfHerds = Node.claim(
   "While a thread is calling isOwnerOrHerdThread of a herd, it neither closes a herd nor removes a thread from " +

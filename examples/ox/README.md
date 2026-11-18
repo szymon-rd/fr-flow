@@ -193,7 +193,8 @@ weakest of its assumptions is:
 - That no fork runs, that what a fork began is over, and that nothing is added (`noForkRunsOnce…`,
   `whatAForkBeganIsOverOnce…`, `nothingIsAddedOnce…`) rest, beside the platform, on every other kind below,
   and among them on `nothingIsAddedDuringTheLastCheck`, **which is false of Ox 1.1.0**: a defect that can be
-  reproduced, for which its owner has a patch. They are proven from it, and hold of Ox once the patched code
+  reproduced (`probe/EmptyProbe.scala` on Ox, `probe/IsEmptyProbe.scala` on the JDK alone; the build compiles
+  them, and each is run by hand as its file says), for which its owner has a patch. They are proven from it, and hold of Ox once the patched code
   is what the model reads; of Ox 1.1.0 they are not shown.
 - That a scope's herd is closed in time (`unsupervisedClosesItsHerdInTime`) rests on what is assumed to happen in
   time, and on the code a fork is given ending once interrupted; it does not rest on the assumption false of
@@ -288,16 +289,47 @@ turns. A turn after that traverses the set with no call adding to it, so by the 
 empty; until it rests there are finitely many turns again; and a turn after it is answered yes (assumed of the
 JDK, of a set that holds nothing, once each call that was removing from it before it emptied is over).
 
-What is assumed, by what it is about (each statement about the JDK is set beside what the JDK says, its
-documentation or its code, in [`JDK.md`](JDK.md)):
+What is assumed, by what it is about. Each assumption of the model says what it is about where it is stated
+(`.about(…)`); the list below is written from the model, and the suite fails when it differs. Each statement
+about the JDK and the JVM is set beside what the JDK says, its documentation or its code, in [`JDK.md`](JDK.md);
+the suite checks that none is left out there.
 
-- **The JDK and the JVM** (30): `addingIsAtomic`, `anElementLeavesOnlyWhenRemoved`,
-  `isEmptyFindsItEmptyUnlessAdded`, `isEmptyReturns`, `getGivesTheFlag`, `settingIsAtomic`,
-  `aFlagBecomesOnlyWhatIsSet`, `setReturns`, `currentThreadIsTheCaller`, `theJdkStaysOutOfHerds`,
-  `whatTheChecksAskOfTheJdkStaysOutOfHerds`, `aThreadDoesOneThingAtATime`,
-  `aTraversalThrowsOnlyWhatItsFunctionThrew`, `joinThrowsOnlyAnInterruption`, `interruptReturns`,
-  `addSuppressedReturns`, `anAtomicBooleanHasOnlyItsMethods`, `aKeySetHasOnlyItsMethods`,
-  `theCurrentScopeIsReadAndSet`, `aTraversalAppliesItsFunctionToElements` (a traversal applies its function
+<!-- assumed: written from the model by ThreadsSuite -->
+- **The JDK and the JVM** (30): `aHerdsValsAreAssignedWhereItIsMade`, `aScopesValsAreAssignedWhereItIsMade`,
+  `isEmptyFindsARestingSetEmpty`, `aTraversalAppliesItsFunctionToElements`, `anElementWasAdded`,
+  `anElementEntersOnlyWhenAdded`, `aTraversalReachesWhatStays`, `currentThreadIsAnObject`,
+  `removingTakesTheElementOut`, `aThreadActsOnlyOnceStarted`, `aCallEndsAfterTheCallsItMade`,
+  `theCurrentScopeIsReadAndSet`, `isEmptyFindsItEmptyUnlessAdded`, `isEmptyReturns`,
+  `aTraversalThrowsOnlyWhatItsFunctionThrew`, `joinThrowsOnlyAnInterruption`, `addSuppressedReturns`,
+  `interruptReturns`, `aFlagBecomesOnlyWhatIsSet`, `anAtomicBooleanHasOnlyItsMethods`, `aKeySetHasOnlyItsMethods`,
+  `getGivesTheFlag`, `settingIsAtomic`, `setReturns`, `theJdkStaysOutOfHerds`,
+  `whatTheChecksAskOfTheJdkStaysOutOfHerds`, `aThreadDoesOneThingAtATime`, `currentThreadIsTheCaller`,
+  `addingIsAtomic`, `anElementLeavesOnlyWhenRemoved`.
+- **Scala's objects** (7): `aScopeIsConstructed`, `aScopeKeepsItsFields`, `aScopeGivesTheHerdItHolds`,
+  `aScopeHoldsTheHerdItIsMadeWith`, `herdsAreConstructed`, `aHerdHoldsWhatItWasGiven`, `aHerdKeepsItsFields`.
+- **Who uses a herd** (1): `startThreadIsCalledFromInside`.
+- **The thread factory a herd is given** (2): `aThreadRunsOneForkFunctionOnce`, `aFactoryStaysOutOfHerds`.
+- **That a private field stays private** (2): `aHerdKeepsItsFlagToItself`, `aHerdKeepsItsSetToItself`.
+- **Who reads a val** (2): `aHerdsValsAreReadByItsCode`, `aScopesValsAreReadOnceItIsConstructed`.
+- **That a variable stays its call's** (2): `closingKeepsItsVariableToItself`,
+  `closingsVariablesAreWrittenByItsFunctions`.
+- **Who reaches a thread and the code startThread is given** (2): `onlyAForkFunctionCallsTheCode`,
+  `onlyItsMakerStartsAThread`.
+- **Ox's scopes, which are not read** (1): `aScopesHerdAndParentStayOutOfHerds`.
+- **What happens in time** (27): `whatUnsupervisedRunsProceeds`, `unsupervisedProceeds`, `makingAScopeProceeds`,
+  `makingAFlagReturnsInTime`, `makingASetReturnsInTime`, `makingAReferenceReturnsInTime`, `aScopeIsMadeInTime`,
+  `runningInAScopeProceeds`, `whatRunningInAScopeAppliesProceeds`, `theCurrentScopeResponds`, `aScopesHerdResponds`,
+  `addingResponds`, `settingResponds`, `isEmptyResponds`, `aTraversalRespondsOnceItsFunctionDoes`,
+  `theExecutionBegins`, `joinRespondsOnceItsThreadHasRun`, `closingsFunctionsProceed`,
+  `whatClosingsFunctionsApplyProceeds`, `interruptResponds`, `addSuppressedResponds`, `aStartedThreadRunsItsFunction`,
+  `aHerdsMethodsProceed`, `aForkFunctionProceeds`, `currentThreadResponds`, `removingResponds`, `discardResponds`.
+- **The code a fork is given** (1): `forkCodeCompletesOnceInterrupted`.
+- **Ox itself, false of Ox 1.1.0** (1): `nothingIsAddedDuringTheLastCheck`.
+<!-- /assumed -->
+
+What some of them say, and why they are assumed:
+
+- **The JDK and the JVM.** `aTraversalAppliesItsFunctionToElements` (a traversal applies its function
   only to what is in the set at a moment from its call to the application), `anElementWasAdded` (what is in a
   set is there by a call that adds it, and returns), `isEmptyFindsARestingSetEmpty` (a set that holds nothing
   from a moment on answers that it is empty to a call made once each call that was removing from it before that
@@ -313,7 +345,7 @@ documentation or its code, in [`JDK.md`](JDK.md)):
   `aScopesValsAreAssignedWhereItIsMade` (a val of a herd, or of a scope, is marked and written only by the
   thread that makes the object, inside the call that makes it: a val is a final field, which the JVM lets be
   assigned only in a constructor of its class, run once, where the object is made).
-- **Scala's objects** (7): `herdsAreConstructed` (a method of a herd is called only on a herd that is ready: one
+- **Scala's objects.** `herdsAreConstructed` (a method of a herd is called only on a herd that is ready: one
   that a call of its constructor has returned, or one held by a scope that a call making a scope has returned.
   The scope's `apply`, as read, makes its herd in place, by no call of the constructor from outside the code;
   a herd leaves neither before it is ready), `aHerdKeepsItsFields`, `aHerdHoldsWhatItWasGiven`,
@@ -321,10 +353,10 @@ documentation or its code, in [`JDK.md`](JDK.md)):
   made with a herd holds that herd), `aScopeIsConstructed` (and it is one that a call of the class's
   constructor has returned), `aScopeKeepsItsFields` (each val of a scope is read as what the scope holds),
   `aScopeGivesTheHerdItHolds` (a scope's herd is a val, asked for through the trait that declares it).
-- **Who uses a herd** (1): `startThreadIsCalledFromInside`. It is stricter than Ox's own check: it leaves out a
+- **Who uses a herd.** `startThreadIsCalledFromInside`. It is stricter than Ox's own check: it leaves out a
   fork of a nested scope starting a fork in an enclosing one.
-- **The thread factory a herd is given** (2): `aThreadRunsOneForkFunctionOnce`, `aFactoryStaysOutOfHerds`.
-- **That a private field stays private** (2): `aHerdKeepsItsFlagToItself`, `aHerdKeepsItsSetToItself`. What a
+- **The thread factory a herd is given.** `aThreadRunsOneForkFunctionOnce`, `aFactoryStaysOutOfHerds`.
+- **That a private field stays private.** `aHerdKeepsItsFlagToItself`, `aHerdKeepsItsSetToItself`. What a
   herd holds as its flag is called on only by the herd's own methods, themselves; what it holds as its set, only
   by those and by the functions `startThread` handed its factory. Each is a private val, made in the constructor
   and handed to nothing; that then nothing else reaches it is what the JVM and Scala make of a private field
@@ -334,26 +366,26 @@ documentation or its code, in [`JDK.md`](JDK.md)):
   `remove`, `contains`, `isEmpty` and `forEach` are called on the set (`aHerdsSetIsPlain`), that only
   `startThread` adds to it (`onlyStartThreadAddsToTheSet`) and only a fork function removes from it
   (`onlyAForkFunctionRemoves`).
-- **Who reads a val** (2): `aHerdsValsAreReadByItsCode`: a val of a herd is read only by a method of the herd
+- **Who reads a val.** `aHerdsValsAreReadByItsCode`: a val of a herd is read only by a method of the herd
   called on it, or by a function `startThread` handed its factory, themselves, after the call was made. The
   fields are private, so only code of the class is let read them (JVMS 5.4.4); in Ox's bytecode the reads are
   in the six methods and in that function, and nowhere else. `aScopesValsAreReadOnceItIsConstructed`: a val of
   a scope is read only once a call of the class's constructor has returned the scope. The constructor hands
   the scope to nothing, so it is in other hands only then; it is what the JVM asks of a final field for its
   readers to see it assigned (JLS 17.5). Both are assumed, and not derived from the code.
-- **That a variable stays its call's** (2): `closingKeepsItsVariableToItself`. What a call of closing itself
+- **That a variable stays its call's.** `closingKeepsItsVariableToItself`. What a call of closing itself
   makes (the variable it keeps what interrupted it in, and the one it keeps the threads it has interrupted in),
   only the thread that called closing reads, marks and writes. The functions closing hands its traversals hold the
   variables; the JDK's traversal applies them on the thread that called it and hands them to nothing.
   `closingsVariablesAreWrittenByItsFunctions`: and they are written only by such a function, or by the function
   it applies, itself. Both are assumed, and not derived from the code.
-- **Who reaches a thread and the code startThread is given** (2): `onlyItsMakerStartsAThread`,
+- **Who reaches a thread and the code startThread is given.** `onlyItsMakerStartsAThread`,
   `onlyAForkFunctionCallsTheCode`. These are statements about Ox, of a local value and of a parameter, not yet
   derived from its code.
-- **Ox's scopes, which are not read** (1): `aScopesHerdAndParentStayOutOfHerds`. Asking a scope for its herd or
+- **Ox's scopes, which are not read.** `aScopesHerdAndParentStayOutOfHerds`. Asking a scope for its herd or
   its parent neither closes a herd nor removes from a herd's set. Both are vals of a scope; the classes of
   scopes are not read here, so this is an assumption about code of Ox, the one of its kind.
-- **What happens in time** (27). Nothing happens in time unless it is assumed that threads are given their turn
+- **What happens in time.** Nothing happens in time unless it is assumed that threads are given their turn
   and that calls of what is outside the code are responded to: an execution in which every thread stops for
   good is one of the code. `aHerdsMethodsProceed`, `aForkFunctionProceeds`: a call of this code that is pending
   and waits for no call it made makes its next event (`aHerdsMethodsProceed` is of every method of a herd).
@@ -377,12 +409,12 @@ documentation or its code, in [`JDK.md`](JDK.md)):
   `unsupervised` runs in its scope, proceed. `makingAFlagReturnsInTime`, `makingASetReturnsInTime`,
   `makingAReferenceReturnsInTime`, `aScopeIsMadeInTime`: a call that makes an atomic boolean, a concurrent
   set, an atomic reference, or a scope of a herd by the `apply` the compiler wrote, returns, in time.
-- **The code a fork is given** (1): `forkCodeCompletesOnceInterrupted`. The code a fork was made to run is
+- **The code a fork is given.** `forkCodeCompletesOnceInterrupted`. The code a fork was made to run is
   responded to in time, once the fork has been interrupted, whenever that was. It is a restriction on who uses
   Ox: code that ignores interruption and never ends keeps its scope from ending. And it takes something of the
   JVM: closing can interrupt a thread before it is started, and the JDK's documentation lets such an
   interruption be lost; OpenJDK keeps it (`JDK.md`).
-- **Ox itself, false of Ox 1.1.0** (1): `nothingIsAddedDuringTheLastCheck`. `isEmpty` on a concurrent set is no
+- **Ox itself, false of Ox 1.1.0.** `nothingIsAddedDuringTheLastCheck`. `isEmpty` on a concurrent set is no
   snapshot; a fork that starts another and leaves while closing asks can make it answer yes of a set that was
   never empty. That no fork runs and that nothing is added rest on it; that no thread is started does not.
 
@@ -452,8 +484,8 @@ is an object like any other. A handler for every `Throwable` takes whatever is t
   two functions closing writes, which is not modelled. And the statement is of executions, not of the machine
   that is run against the JVM: that machine stops at a racing step, and that it never stops so on these fields
   would follow, but is not written out as a theorem.
-- The link to the JVM is a theorem and a test. The theorem (`FrFlow/Code/Executed.v`, `machine_conforms`): the
-  events a run of the machine writes out (`FrFlow/Code/Frames.v`) are an execution in the model's sense, for any
+- The link to the JVM is a theorem and a test. The theorem (`FrFlow/Bridge/Executed.v`, `machine_conforms`): the
+  events a run of the machine writes out (`FrFlow/Bridge/Frames.v`) are an execution in the model's sense, for any
   code, any library of what is outside it and any order of the threads' turns; the machine stops where a step
   would not be one an execution has. The test: 25 programs written against Ox are run on that machine and give
   what they give on the JVM, none stopping (`rocq/Ox/README.md`). Not proven: that the machine does what the
@@ -470,8 +502,9 @@ is an object like any other. A handler for every `Throwable` takes whatever is t
   shown to follow the code read from Ox, event by event, and each of the 81 statements is shown of it. It has
   no fork, no thread started and no scope: of what is assumed of those it shows only that it does not
   contradict what happens to a herd alone. An execution with a fork is the next one to write out. That each
-  step's parts can hold together is still shown by the execution in which nothing happens; it follows from the
-  whole's and the steps, which a proof file may not use.
+  step's parts can hold together is still shown by the execution in which nothing happens: FrFlow tries it of
+  every hand-proven step itself (`frflow_feasible`), and no proof file gives it. It follows from the whole's and
+  the steps, which a proof file may not use.
 
 ## Checking it
 

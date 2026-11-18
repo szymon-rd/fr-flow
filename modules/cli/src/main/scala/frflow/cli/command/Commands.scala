@@ -42,6 +42,8 @@ object Commands:
       node().map(Command.Diff(_))),
     command("inbox", "what waits for the developer, in the order to decide it, and the decided nodes gone")(
       Opts(Command.Inbox)),
+    command("stands", "what NODE (or each root) stands on at the bottom: the assumptions it is proven from, and " +
+      "the claims below it that are not proven")(node().orNone.map(Command.Stands(_))),
     command("find", "the nodes that govern a file, or whose words mention some words")(
       words("WORDS|PATH").map(Command.Find(_))))
 

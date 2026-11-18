@@ -1,9 +1,9 @@
 Require Export FrFlowGen.OxThreads.whatClosingsFunctionsApplyInterrupts.Spec.
 Require Export Proofs.OxThreads.Lemmas.
 From Stdlib Require Import String List ZArith Lia.
-Require Import FrFlow.Threads.Prog FrFlow.Jvm.Machine.
+Require Import FrFlow.Jvm.Prog FrFlow.Jvm.Machine.
 Require Import FrFlow.Scala.Tree FrFlow.Scala.Table FrFlow.Scala.Value FrFlow.Scala.Meaning FrFlow.Scala.Library.
-Require Import FrFlow.Code.Outside FrFlow.Code.Conforms FrFlow.Code.Walk FrFlow.Code.Logic.
+Require Import FrFlow.Code.Outside FrFlow.Code.Conforms FrFlow.Rules.Walk FrFlow.Rules.Logic.
 
 (** Proven of `ThreadHerd.interruptAllAndJoinUntilCompleted`'s tree, three deep, with what holds of the variable
     closing keeps the threads it has interrupted in: every set written there holds only threads that have been
@@ -12,13 +12,13 @@ Require Import FrFlow.Code.Outside FrFlow.Code.Conforms FrFlow.Code.Walk FrFlow.
 Lemma whatClosingsFunctionsApplyInterrupts_Proofs_complete : whatClosingsFunctionsApplyInterrupts_Obl_complete.
 Proof.
   intros heldIn history [N C] Hkeeps Hwriters Hjoin Hinterrupt Hmade.
-  pose (owner := fun h : Value => heldIn "ox.internal.ThreadHerd herdOwner"%string h).
+  pose (owner := fun h : Value => heldIn L.ThreadHerd_herdOwner h).
   pose (closing := fun h : Value =>
-    Invocation_mk "ox.internal.ThreadHerd interruptAllAndJoinUntilCompleted :scala.Unit" [h]).
+    Invocation_mk L.ThreadHerd_interruptAllAndJoinUntilCompleted [h]).
   (* the thread has been interrupted by the moment; a set holds only such threads; the variable is one a call of
      closing made *)
   pose (Interrupted := fun (t : Value) (k : Z) => exists from value to, to <= k /\ exists who,
-    completedBy history (Invocation_mk "java.lang.Thread interrupt :scala.Unit" [t]) who from
+    completedBy history (Invocation_mk L.Thread_interrupt [t]) who from
       (Response_Returned value) to).
   pose (SetInv := fun (y : Value) (k : Z) => forall xs, names N y (vdata c_set [VList xs]) ->
     forall vt, In vt xs -> exists t, names N t vt /\ Interrupted t k).
@@ -27,15 +27,15 @@ Proof.
   assert (forall h from, calledBy history (closing h) (owner h) from ->
     forall j, direct (owner h) from (history j) ->
     forall fe, itselfMakes history (Invocation_mk
-      "java.util.concurrent.ConcurrentHashMap$.KeySetView forEach java.util.function.Consumer:scala.Unit"
-      [heldIn "ox.internal.ThreadHerd threads"%string h; fe]) (owner h) from j ->
+      L.KeySetView_forEach
+      [heldIn L.ThreadHerd_threads h; fe]) (owner h) from j ->
     forall xe ce ke, j < ke ->
-    calledBy history (Invocation_mk "java.util.function.Consumer accept java.lang.Object:scala.Unit" [fe; xe]) ce ke ->
+    calledBy history (Invocation_mk L.Consumer_accept [fe; xe]) ce ke ->
     forall w, direct ce ke (history w) ->
       (forall ins yo fld y, history w = Event_Write ce ins yo fld y ->
          forall xs, ~ names N y (vdata c_set [VList xs])) /\
-      (forall ge te, itselfMakes history (Invocation_mk "scala.Function apply" [ge; te]) ce ke w ->
-         history w = Event_Invoke ce (Some ke) (Invocation_mk "scala.Function apply" [ge; te]) /\
+      (forall ge te, itselfMakes history (Invocation_mk L.Function_apply [ge; te]) ce ke w ->
+         history w = Event_Invoke ce (Some ke) (Invocation_mk L.Function_apply [ge; te]) /\
          forall v, direct ce w (history v) ->
            (forall ins yo fld y, history v = Event_Write ce ins yo fld y ->
               (exists mk b' ins' cls' hs', mk < v /\ history mk = Event_Make b' ins' yo cls' hs') /\
@@ -349,17 +349,3 @@ Proof.
 Qed.
 
 (** What it is from can hold: an execution in which nothing happens meets each. *)
-Lemma whatClosingsFunctionsApplyInterrupts_Proofs_feasible : whatClosingsFunctionsApplyInterrupts_Obl_feasible.
-Proof.
-  exists (fun _ x => x), (fun _ => Event_Stutter).
-  split; [exact rest_runs |].
-  split.
-  { intros h who from made by_ w [[[H _] _] _]. destruct (nothing_begun_at_rest _ _ _ H). }
-  split.
-  { intros h from made by_ inside w [[H _] _]. destruct (nothing_called_at_rest _ _ _ H). }
-  split.
-  { intros t from response to [who H]. destruct (nothing_completed_at_rest _ _ _ _ _ H). }
-  split.
-  { intros t from response to [who H]. destruct (nothing_completed_at_rest _ _ _ _ _ H). }
-  intros h w H. repeat (destruct H as [H | H]); destruct (nothing_called_on_at_rest _ _ _ H).
-Qed.

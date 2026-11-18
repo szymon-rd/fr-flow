@@ -21,10 +21,11 @@ object VocabularyModules:
   def of(r: frflow.core.analysis.resolution.Resolved): List[ProverModule] =
     of(Lowering(r, frflow.proof.terms.TermTable.of(r)))
 
-  def of(l: Lowering): List[ProverModule] =
+  /** `beside`: the modules the domain's module brings with it beside the types and the defines (the labels'). */
+  def of(l: Lowering, beside: List[ModuleName] = Nil): List[ProverModule] =
     val v = l.resolved.theory.vocabulary
     (types(l) :: v.defines.map(define(l, _))) ++ v.defines.filter(d => l.ruleSide.twice(d.name))
-      .map(guardedTwin(l, _)) :+ domain(l)
+      .map(guardedTwin(l, _)) :+ domain(l, beside)
 
   private def module(l: Lowering, name: ModuleName, decls: List[Decl]): ProverModule =
     Imports.onto(l, ProverModule(name, Nil, Preamble.generated, Names.path(l.kb.value), Nil, decls))
@@ -49,10 +50,11 @@ object VocabularyModules:
     case DataType.Sum(n, _, cs)     => Decl.Inductive(Names.ident(n.value), cs.toList.map(c =>
       Names.ident(c.name.value) -> c.fields.map(f => LBinder.Explicit(Names.ident(f.name), LowerType(f.ty)))))
 
-  private def domain(l: Lowering): ProverModule =
+  private def domain(l: Lowering, beside: List[ModuleName]): ProverModule =
     val defines = l.resolved.theory.vocabulary.defines.map(d => l.layout.define(d.name)) ++
       l.ruleSide.twice.toList.sortBy(_.value).map(d => l.layout.define(LowerEnv.guarded(d)))
-    ProverModule(l.layout.domain, l.layout.types :: defines, Preamble.generated, Names.path(l.kb.value), Nil, Nil)
+    ProverModule(l.layout.domain, l.layout.types :: beside ::: defines, Preamble.generated, Names.path(l.kb.value),
+      Nil, Nil)
 
   private def define(l: Lowering, d: Define): ProverModule =
     module(l, l.layout.define(d.name), List(declared(l, d), Decl.MatchEqns))

@@ -7,10 +7,10 @@
 
 From FrFlow Require Import Executions.
 From Stdlib Require Import String List ZArith Bool Lia.
-Require Import FrFlow.Threads.Prog FrFlow.Jvm.Machine.
+Require Import FrFlow.Jvm.Prog FrFlow.Jvm.Machine.
 Require Import FrFlow.Scala.Tree FrFlow.Scala.Program FrFlow.Scala.Table FrFlow.Scala.Value.
 Require Import FrFlow.Scala.Meaning FrFlow.Scala.Library.
-Require Import FrFlow.Code.Outside FrFlow.Code.Conforms FrFlow.Code.Classes FrFlow.Code.Walk FrFlow.Code.Witness.
+Require Import FrFlow.Code.Outside FrFlow.Code.Conforms FrFlow.Code.Classes FrFlow.Rules.Walk FrFlow.Code.Witness.
 Import ListNotations.
 Local Open Scope string_scope.
 Local Open Scope Z_scope.
@@ -135,10 +135,6 @@ Proof.
     apply in_map. exact Hkv.
   - rewrite map_app. apply in_or_app. right. left. reflexivity.
 Qed.
-
-Lemma extend_keeps (refs : list (Z * val)) (vs : list val) (v : val) :
-  has_name refs v -> has_name (extend refs vs) v.
-Proof. intros H. destruct (extend_more refs vs) as [more ->]. apply has_name_more, H. Qed.
 
 (** ** What an event wrote stays the name *)
 

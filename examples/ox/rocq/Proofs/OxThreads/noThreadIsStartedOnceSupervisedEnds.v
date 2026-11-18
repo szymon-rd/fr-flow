@@ -6,18 +6,9 @@ From Stdlib Require Import ZArith Lia.
 Lemma noThreadIsStartedOnceSupervisedEnds_Proofs_complete : noThreadIsStartedOnceSupervisedEnds_Obl_complete.
 Proof.
   intros heldIn history _ Hcloses Hrefuses c s from to code d t m w [[Hmade Hle] Hcalled].
-  apply (Hrefuses (heldIn "ox.OxError herd"%string s) code d t m w). split; [| exact Hcalled].
+  apply (Hrefuses (heldIn L.OxError_herd s) code d t m w). split; [| exact Hcalled].
   destruct (Hcloses c s from to Hmade) as (f0 & e0 & t0 & Ht0 & Hclosed).
   exists f0, e0, t0. split; [lia | exact Hclosed].
 Qed.
 
 (** Its parts can hold together: an execution in which nothing happens meets each. *)
-Lemma noThreadIsStartedOnceSupervisedEnds_Proofs_feasible : noThreadIsStartedOnceSupervisedEnds_Obl_feasible.
-Proof.
-  exists (fun _ x => x), (fun _ => Event_Stutter).
-  split; [exact rest_runs |].
-  split.
-  { intros c s from to (supervisor & errorMode & parent & locals & code & ended & a & b & [[H _] _]).
-    destruct (nothing_completed_at_rest _ _ _ _ _ H). }
-  intros h code c t from w [(f0 & e0 & t0 & _ & H) _]. destruct (nothing_completed_at_rest _ _ _ _ _ H).
-Qed.

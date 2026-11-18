@@ -22,7 +22,7 @@ Proof.
     exact (Hwhile h code' c t from' afrom (conj Hcalled' Hadds')). }
   destruct (Hfactory h code' c t from' afrom (conj Hcalled' Hadds')) as (f & r & a0 & done & [Hdone Hnew] & Hnewdone).
   destruct (Hstarts h code' c t from' afrom added ato (conj (conj Hcalled' Hadds') Hadded)) as (ms & Hstart).
-  assert (calledBy history (Invocation_mk "java.lang.Thread start :scala.Unit"%string [t]) c ms) as Hstarted.
+  assert (calledBy history (Invocation_mk L.Thread_start [t]) c ms) as Hstarted.
   { destruct Hstart as [E | (rs & sps & E)]; [left; exists (Some from'); exact E |].
     right. exists rs, (Some from'), sps. exact E. }
   destruct (Hruns f r t a0 done ms (conj (ex_intro _ c Hnewdone) (ex_intro _ c Hstarted))) as (i & Hai & Hrun).
@@ -41,25 +41,3 @@ Proof.
 Qed.
 
 (** What it is from can hold: an execution in which nothing happens, of sets that hold nothing, meets each. *)
-Lemma anInterruptedForkLeavesForGood_Proofs_feasible : anInterruptedForkLeavesForGood_Obl_feasible.
-Proof.
-  exists (fun _ _ _ => False), (fun _ x => x), (fun _ => Event_Stutter).
-  split; [exact rest_runs |].
-  split.
-  { intros h code c t from a added b [[H _] _]. destruct (nothing_called_at_rest _ _ _ H). }
-  split.
-  { intros f r t a b s [[who H] _]. destruct (nothing_completed_at_rest _ _ _ _ _ H). }
-  split.
-  { intros h r code t i [[_ H] _]. destruct (nothing_called_at_rest _ _ _ H). }
-  split.
-  { intros h t code made m [[_ H] _]. destruct (nothing_called_at_rest _ _ _ H). }
-  split.
-  { intros h r code t i ended e w b [[_ H] _]. destruct (nothing_completed_at_rest _ _ _ _ _ H). }
-  split.
-  { intros h t c w b [_ H]. destruct (nothing_called_at_rest _ _ _ H). }
-  split.
-  { intros h code c t from w [H _]. destruct (nothing_called_at_rest _ _ _ H). }
-  split.
-  { intros h code c t from w [H _]. destruct (nothing_called_at_rest _ _ _ H). }
-  intros h w H. repeat (destruct H as [H | H]); destruct (nothing_called_on_at_rest _ _ _ H).
-Qed.

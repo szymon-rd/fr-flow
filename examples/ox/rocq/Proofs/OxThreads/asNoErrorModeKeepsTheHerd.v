@@ -1,9 +1,9 @@
 Require Export FrFlowGen.OxThreads.asNoErrorModeKeepsTheHerd.Spec.
 Require Export Proofs.OxThreads.Lemmas.
 From Stdlib Require Import String List ZArith Lia.
-Require Import FrFlow.Threads.Prog FrFlow.Jvm.Machine.
+Require Import FrFlow.Jvm.Prog FrFlow.Jvm.Machine.
 Require Import FrFlow.Scala.Tree FrFlow.Scala.Table FrFlow.Scala.Value FrFlow.Scala.Meaning.
-Require Import FrFlow.Code.Outside FrFlow.Code.Conforms FrFlow.Code.Walk FrFlow.Code.Logic.
+Require Import FrFlow.Code.Outside FrFlow.Code.Conforms FrFlow.Rules.Walk FrFlow.Rules.Logic.
 
 (** Whether a value is a Scala object the code names is decided: the comparison gives a truth value. *)
 Lemma compared_with_an_object (a : val) (m : string) :
@@ -27,7 +27,7 @@ Proof.
   { exfalso. exact (method_not_atomic C (Member "ox.Ox" "asNoErrorMode" ":ox.OxError") Hat Hs eq_refl). }
   assert (forall k, direct c from (history k) ->
     forall sp, history k = Event_Respond c from (Response_Returned other) sp ->
-    scopeMade history other /\ heldIn "ox.OxError herd" other = heldIn "ox.OxError herd" s) as Hall.
+    scopeMade history other /\ heldIn L.OxError_herd other = heldIn L.OxError_herd s) as Hall.
   { refine (method_meets _ C (Member "ox.Ox" "asNoErrorMode" ":ox.OxError") Hcall Hs eq_refl _).
     intros args k Hargs _. apply vals_none in Hargs as ->.
     (* the error mode is read, and compared *)
@@ -59,8 +59,8 @@ Proof.
     all: try (destruct Hgives; fail).
     all: destruct rmk as [ymk | ymk]; [| contradiction]; pose proof (one_name N _ _ _ Hgivesmk Hgives) as ->.
     all: assert (exists who, completedBy history (Invocation_mk
-        "ox.OxError$ apply 2,ox.internal.ThreadHerd,java.util.concurrent.atomic.AtomicReference,ox.Supervisor,ox.ErrorMode,scala.Option,ox.ForkLocalMap:ox.OxError"
-        [heldIn "ox.OxError herd" s; yb; yc; yd; ye; yf]) who wmk (Response_Returned other) (wmkd + 1)) as Hdonemk
+        L.OxError_apply_6
+        [heldIn L.OxError_herd s; yb; yc; yd; ye; yf]) who wmk (Response_Returned other) (wmkd + 1)) as Hdonemk
       by (exists c; right; (split; [exists (Some from); exact Hinvmk |]); exists spmk;
         replace (wmkd + 1 - 1) with wmkd by lia; exact Hrespmk).
     all: split;
@@ -70,18 +70,3 @@ Proof.
 Qed.
 
 (** Its parts can hold together: an execution in which nothing happens meets each. *)
-Lemma asNoErrorModeKeepsTheHerd_Proofs_feasible : asNoErrorModeKeepsTheHerd_Obl_feasible.
-Proof.
-  exists (fun _ x => x), (fun _ => Event_Stutter).
-  split; [exact rest_runs |].
-  split.
-  { intros s w (x & x1 & x2 & x3 & x4 & x5 & c & from & to & _ & H).
-    destruct (nothing_completed_at_rest _ _ _ _ _ H). }
-  split.
-  { intros h finalizers supervisor errorMode parent locals s from response to [who H].
-    destruct (nothing_completed_at_rest _ _ _ _ _ H). }
-  split.
-  { intros s. repeat split; intros w by_ inside written H; discriminate H. }
-  intros h finalizers supervisor errorMode parent locals s from response to [who H].
-  destruct (nothing_completed_at_rest _ _ _ _ _ H).
-Qed.

@@ -7,7 +7,7 @@
     against what the same program gives on the JVM. It proves nothing of the other runs. *)
 
 From Stdlib Require Import String List ZArith NArith Bool Lia.
-Require Import FrFlow.Threads.Prog FrFlow.Jvm.Machine.
+Require Import FrFlow.Jvm.Prog FrFlow.Jvm.Machine.
 Require Import FrFlow.Scala.Tree FrFlow.Scala.Program FrFlow.Scala.Table FrFlow.Scala.Value FrFlow.Scala.Meaning.
 Import ListNotations.
 Open Scope string_scope.

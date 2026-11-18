@@ -3,9 +3,9 @@ import java.util.concurrent.atomic.AtomicInteger
 
 /** What a thread does that reads a `lazy val` another thread is evaluating and is interrupted while it waits, and
   * what a second read gives after an evaluation that threw: of a member of an object, and of one written inside
-  * a method. `FrFlow/Threads/Jdk.v` states both as the contract of `LazyEnter`.
+  * a method. The machine does both where a lazy value is entered (`Enter`, `FrFlow/Jvm/Machine.v`).
   *
-  *   cd examples/ox/probe && sbt "runMain LazyProbe"
+  *   sbt "oxProbe/runMain LazyProbe"
   */
 object LazyHolder:
   val started = CountDownLatch(1)

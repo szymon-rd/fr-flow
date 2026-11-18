@@ -13,6 +13,8 @@ enum Command:
   case Show(node: NodeId, depth: Depth)
   case Diff(node: NodeId)
   case Inbox
+  /** What a node, or each root, stands on at the bottom. */
+  case Stands(node: Option[NodeId])
   case Find(query: String)
   case Review(as: Option[String])
   /** What it records, given the reason; the node it is about, when one (a gone node is said so). */

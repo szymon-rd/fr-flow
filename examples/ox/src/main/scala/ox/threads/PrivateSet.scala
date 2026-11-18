@@ -29,6 +29,7 @@ val aHerdKeepsItsSetToItself = Node.assumption(
     "handed its factory, themselves.")(
   forall((h: Obj[ThreadHerd], w: Term[BigInt]) =>
     ready(h, w) implies h.keepsToItself(threads(h).asValue)((by, i) => aForkFunctionRuns(h, by, i))))
+    .about(About.privateField)
 
 val aKeySetHasOnlyItsMethods = Node.assumption(
   "On what `ConcurrentHashMap.newKeySet` returned, only methods of a key set are called.")(
@@ -36,6 +37,7 @@ val aKeySetHasOnlyItsMethods = Node.assumption(
     ConcurrentHashMap.newKeySet[AnyRef]().completed(from, Returned(s), to) implies
       forall((method: Term[String], w: Term[BigInt]) =>
         calledOn(s.asValue, method, w) implies methodsOf[ConcurrentSet].map(method === _).reduce(_ || _))))
+    .about(About.jdk)
 
 val theForkFunctionCallsFour = Node.claim(
   "The function startThread hands the factory itself calls only the code, Thread.currentThread, remove of a " +

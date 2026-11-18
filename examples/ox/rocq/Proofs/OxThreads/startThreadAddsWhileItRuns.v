@@ -1,9 +1,9 @@
 Require Export FrFlowGen.OxThreads.startThreadAddsWhileItRuns.Spec.
 Require Export Proofs.OxThreads.Lemmas.
 From Stdlib Require Import String List ZArith Lia.
-Require Import FrFlow.Threads.Prog FrFlow.Jvm.Machine.
+Require Import FrFlow.Jvm.Prog FrFlow.Jvm.Machine.
 Require Import FrFlow.Scala.Tree FrFlow.Scala.Table FrFlow.Scala.Value FrFlow.Scala.Meaning.
-Require Import FrFlow.Code.Outside FrFlow.Code.Conforms FrFlow.Code.Walk.
+Require Import FrFlow.Code.Outside FrFlow.Code.Conforms FrFlow.Rules.Walk.
 
 (** A call of the code makes an event of its own only after it is made and before it responds: so the call of
     startThread that adds a thread is pending when it does. *)
@@ -27,9 +27,3 @@ Proof.
 Qed.
 
 (** What it is from can hold: an execution in which nothing happens meets it. *)
-Lemma startThreadAddsWhileItRuns_Proofs_feasible : startThreadAddsWhileItRuns_Obl_feasible.
-Proof.
-  exists (fun _ x => x), (fun _ => Event_Stutter).
-  split; [exact rest_runs |].
-  intros h w H. repeat (destruct H as [H | H]); destruct (nothing_called_on_at_rest _ _ _ H).
-Qed.

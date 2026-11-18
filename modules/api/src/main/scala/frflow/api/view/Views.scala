@@ -3,6 +3,7 @@ package frflow.api.view
 import cats.syntax.all.*
 import frflow.api.node.{CodeView, NodeView, Relation}
 import frflow.api.view.whole.WholeView
+import frflow.core.graph.StandsOn
 import frflow.core.name.NodeId
 import frflow.decision.review.ReviewState
 
@@ -60,6 +61,11 @@ object Views:
       case n :: rest if seen.contains(n) => go(rest, seen)
       case n :: rest                     => go(v.node(n).toList.flatMap(under) ++ rest, n :: seen)
     v.node(id).fold(Nil)(_ => go(List(id), Nil))
+
+  /** What a node stands on at the bottom (`StandsOn`), read off the view: its parts, and what of each is not proven. */
+  def standsOn(v: View, id: NodeId): StandsOn =
+    StandsOn.over(n => v.node(n).toList.flatMap(_.place(Relation.Part)), n => v.node(n).map(_.says.kind),
+      n => v.node(n).exists(_.proof.unproven.nonEmpty))(id)
 
   /** What waits for the developer, in the order decisions are taken: each node proposed or under review whose parents
     * are none of them rejected (it waits to be moved under the node chosen instead), less those `aside` (held back by

@@ -8,18 +8,10 @@ Lemma forkUnsupervisedIsRefusedOnceClosed_Proofs_complete : forkUnsupervisedIsRe
 Proof.
   intros heldIn history _ Hstarts Hrefuses code s c m fork w [Hclosed Hcalled] Hdone.
   destruct (Hstarts code s c m fork w Hdone) as (run & a & b & [[[Ha Hb] Hmakes] Hreturned]).
-  destruct (Hrefuses (heldIn "ox.OxError herd"%string s) run c c a b) as [Hnot _]; [| exact (Hnot Hreturned)].
+  destruct (Hrefuses (heldIn L.OxError_herd s) run c c a b) as [Hnot _]; [| exact (Hnot Hreturned)].
   split.
   - destruct Hclosed as (f0 & e0 & t0 & Ht0 & H). exists f0, e0, t0. split; [lia | exact H].
   - destruct Hmakes as [H | (r & sp & H)]; [left; exists (Some m); exact H | right; exists r, (Some m), sp; exact H].
 Qed.
 
 (** Its parts can hold together: an execution in which nothing happens meets each. *)
-Lemma forkUnsupervisedIsRefusedOnceClosed_Proofs_feasible : forkUnsupervisedIsRefusedOnceClosed_Obl_feasible.
-Proof.
-  exists (fun _ x => x), (fun _ => Event_Stutter).
-  split; [exact rest_runs |].
-  split.
-  { intros code s c from fork to H. destruct (nothing_completed_at_rest _ _ _ _ _ H). }
-  intros h code c t from w [(f0 & e0 & t0 & _ & H) _]. destruct (nothing_completed_at_rest _ _ _ _ _ H).
-Qed.

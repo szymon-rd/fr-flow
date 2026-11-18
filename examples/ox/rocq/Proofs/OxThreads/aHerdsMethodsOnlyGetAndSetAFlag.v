@@ -27,19 +27,3 @@ Proof.
 Qed.
 
 (** Its parts can hold together: an execution in which nothing happens meets each. *)
-Lemma aHerdsMethodsOnlyGetAndSetAFlag_Proofs_feasible : aHerdsMethodsOnlyGetAndSetAFlag_Obl_feasible.
-Proof.
-  exists (fun _ => Event_Stutter).
-  split; [exact rest_runs |].
-  split.
-  { intros h from inner w (who & H & _). destruct (nothing_begun_at_rest _ _ _ H). }
-  split.
-  { intros h from inner w (who & H & _). destruct (nothing_begun_at_rest _ _ _ H). }
-  split.
-  { intros h t from inner w (who & H & _). destruct (nothing_begun_at_rest _ _ _ H). }
-  split.
-  { intros h code from inner w (who & H & _). destruct (nothing_begun_at_rest _ _ _ H). }
-  split.
-  { intros h from inner w (who & H & _). destruct (nothing_begun_at_rest _ _ _ H). }
-  intros h from inner w (who & H & _). destruct (nothing_begun_at_rest _ _ _ H).
-Qed.

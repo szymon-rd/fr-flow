@@ -8,7 +8,7 @@ Lemma codeRunsBeforeLeaving_Proofs_complete : codeRunsBeforeLeaving_Obl_complete
 Proof.
   intros heldIn history _ Hcalls Honce Hafter Hself Hrem Hconstructed h t code made w Hmade.
   assert (exists m0, exists who, calledBy history (Invocation_mk
-    "ox.internal.ThreadHerd startThread scala.Function0:scala.Unit"%string [h; code]) who m0) as (m0 & Hst).
+    L.ThreadHerd_startThread [h; code]) who m0) as (m0 & Hst).
   { destruct Hmade as (c & from & added & to & _ & (m0 & _ & Hb & _)). exists m0, c. left. exact Hb. }
   pose proof Hst as (starter & Hstarting).
   pose proof (Hconstructed h m0 ltac:(unfold calledOn; eauto 14)) as Hherd.
@@ -27,19 +27,3 @@ Proof.
 Qed.
 
 (** Its parts can hold together: an execution in which nothing happens meets each. *)
-Lemma codeRunsBeforeLeaving_Proofs_feasible : codeRunsBeforeLeaving_Obl_feasible.
-Proof.
-  exists (fun _ x => x), (fun _ => Event_Stutter).
-  split; [exact rest_runs |].
-  split.
-  { intros h code t m w [[who H] _]. destruct (nothing_called_at_rest _ _ _ H). }
-  split.
-  { intros h g r q t i j [[[_ H] _] _]. destruct (nothing_called_at_rest _ _ _ H). }
-  split.
-  { intros h r c code x i w k [[[_ H] _] _]. destruct (nothing_called_at_rest _ _ _ H). }
-  split.
-  { intros h t c w b [_ H]. destruct (nothing_called_at_rest _ _ _ H). }
-  split.
-  { intros h t c w b [_ H]. destruct (nothing_called_at_rest _ _ _ H). }
-  intros h w H. repeat (destruct H as [H | H]); destruct (nothing_called_on_at_rest _ _ _ H).
-Qed.

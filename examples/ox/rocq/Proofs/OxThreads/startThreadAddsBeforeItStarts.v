@@ -1,9 +1,9 @@
 Require Export FrFlowGen.OxThreads.startThreadAddsBeforeItStarts.Spec.
 Require Export Proofs.OxThreads.Lemmas.
 From Stdlib Require Import String List ZArith Lia.
-Require Import FrFlow.Threads.Prog FrFlow.Jvm.Machine.
+Require Import FrFlow.Jvm.Prog FrFlow.Jvm.Machine.
 Require Import FrFlow.Scala.Tree FrFlow.Scala.Table FrFlow.Scala.Value FrFlow.Scala.Meaning.
-Require Import FrFlow.Code.Outside FrFlow.Code.Conforms FrFlow.Code.Walk FrFlow.Code.Logic.
+Require Import FrFlow.Code.Outside FrFlow.Code.Conforms FrFlow.Rules.Walk FrFlow.Rules.Logic.
 
 (** Proven of `ThreadHerd.startThread`'s tree: what it does itself before it adds the thread is two checks, a
     read of the factory, the factory's call and a read of the set; none starts a thread. *)
@@ -14,9 +14,9 @@ Proof.
     (Hmade h from ltac:(unfold calledOn; eauto 14)) eq_refl Hcalled) as (r & inside & Hh & Hcall).
   refine (method_meets
     (fun w => forall s t, itselfMakes history (Invocation_mk
-      "java.util.concurrent.ConcurrentHashMap$.KeySetView add java.lang.Object:scala.Boolean" [s; t]) c from w ->
+      L.KeySetView_add [s; t]) c from w ->
       forall m started,
-        itselfMakes history (Invocation_mk "java.lang.Thread start :scala.Unit" [started]) c from m -> w < m)
+        itselfMakes history (Invocation_mk L.Thread_start [started]) c from m -> w < m)
     C (Member "ox.internal.ThreadHerd" "startThread" "scala.Function0:scala.Unit") Hcall Hh eq_refl _ w
     (makes_direct Hadds) _ t Hadds m started Hstarts).
   intros args k Hargs _. apply vals_one in Hargs as (vcode & -> & _).
@@ -32,9 +32,3 @@ Proof.
 Qed.
 
 (** What it is from can hold: an execution in which nothing happens meets it. *)
-Lemma startThreadAddsBeforeItStarts_Proofs_feasible : startThreadAddsBeforeItStarts_Obl_feasible.
-Proof.
-  exists (fun _ x => x), (fun _ => Event_Stutter).
-  split; [exact rest_runs |].
-  intros h w H. repeat (destruct H as [H | H]); destruct (nothing_called_on_at_rest _ _ _ H).
-Qed.

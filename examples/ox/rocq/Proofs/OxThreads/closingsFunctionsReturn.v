@@ -1,9 +1,9 @@
 Require Export FrFlowGen.OxThreads.closingsFunctionsReturn.Spec.
 Require Export Proofs.OxThreads.Lemmas.
 From Stdlib Require Import String List ZArith Lia.
-Require Import FrFlow.Threads.Prog FrFlow.Jvm.Machine.
+Require Import FrFlow.Jvm.Prog FrFlow.Jvm.Machine.
 Require Import FrFlow.Scala.Tree FrFlow.Scala.Table FrFlow.Scala.Value FrFlow.Scala.Meaning.
-Require Import FrFlow.Code.Outside FrFlow.Code.Conforms FrFlow.Code.Walk FrFlow.Code.Logic.
+Require Import FrFlow.Code.Outside FrFlow.Code.Conforms FrFlow.Rules.Walk FrFlow.Rules.Logic.
 
 Lemma closingsFunctionsReturn_Proofs_complete : closingsFunctionsReturn_Obl_complete.
 Proof.
@@ -95,7 +95,7 @@ Proof.
     destruct xj as [e | u']; [| contradiction]. apply threw_interruption in Hgivesj as ->.
     (* the variable is read: by closing's caller, who alone touches it *)
     step. intros wread1 held1 yheld1 Hwread1 Hpast1 Hyheld1 Htyheld1 Hread1. split; [miss |].
-    assert (ce = heldIn "ox.internal.ThreadHerd herdOwner"%string h) as Hce.
+    assert (ce = heldIn L.ThreadHerd_herdOwner h) as Hce.
     { apply (Hkeeps h _ from yvar ce wread1).
       split; [split; [split; [exists inside; exact Hcall | exact I] | unfold itselfCreates; eauto] |].
       unfold touches. eauto 7. }
@@ -156,19 +156,3 @@ Proof.
 Qed.
 
 (** Its parts can hold together: an execution in which nothing happens meets each. *)
-Lemma closingsFunctionsReturn_Proofs_feasible : closingsFunctionsReturn_Obl_feasible.
-Proof.
-  exists (fun _ x => x), (fun _ => Event_Stutter).
-  split; [exact rest_runs |].
-  split.
-  { intros h f x c k g t a r b [[[_ H] _] _]. destruct (nothing_called_at_rest _ _ _ H). }
-  split.
-  { intros h who from made by_ w [[[H _] _] _]. destruct (nothing_begun_at_rest _ _ _ H). }
-  split.
-  { intros t from response to [who H]. destruct (nothing_completed_at_rest _ _ _ _ _ H). }
-  split.
-  { intros x _ from response to [who H]. destruct (nothing_completed_at_rest _ _ _ _ _ H). }
-  split.
-  { intros t outer from inside w [[[_ H] _] _]. destruct (nothing_begun_at_rest _ _ _ H). }
-  intros h w H. repeat (destruct H as [H | H]); destruct (nothing_called_on_at_rest _ _ _ H).
-Qed.

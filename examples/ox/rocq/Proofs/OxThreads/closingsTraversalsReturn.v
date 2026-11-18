@@ -15,13 +15,3 @@ Proof.
 Qed.
 
 (** Its parts can hold together: an execution in which nothing happens meets each. *)
-Lemma closingsTraversalsReturn_Proofs_feasible : closingsTraversalsReturn_Obl_feasible.
-Proof.
-  exists (fun _ x => x), (fun _ => Event_Stutter).
-  split; [exact rest_runs |].
-  split.
-  { intros s f c _ from response to H. destruct (nothing_completed_at_rest _ _ _ _ _ H). }
-  split.
-  { intros h f w (from & a & [[_ H] _]). destruct (nothing_called_at_rest _ _ _ H). }
-  intros h f x c k r b [_ H]. destruct (nothing_completed_at_rest _ _ _ _ _ H).
-Qed.

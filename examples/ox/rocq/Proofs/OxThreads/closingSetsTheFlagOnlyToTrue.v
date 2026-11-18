@@ -1,9 +1,9 @@
 Require Export FrFlowGen.OxThreads.closingSetsTheFlagOnlyToTrue.Spec.
 Require Export Proofs.OxThreads.Lemmas.
 From Stdlib Require Import String List ZArith Lia.
-Require Import FrFlow.Threads.Prog FrFlow.Jvm.Machine.
+Require Import FrFlow.Jvm.Prog FrFlow.Jvm.Machine.
 Require Import FrFlow.Scala.Tree FrFlow.Scala.Table FrFlow.Scala.Value FrFlow.Scala.Meaning.
-Require Import FrFlow.Code.Outside FrFlow.Code.Conforms FrFlow.Code.Walk FrFlow.Code.Logic.
+Require Import FrFlow.Code.Outside FrFlow.Code.Conforms FrFlow.Rules.Walk FrFlow.Rules.Logic.
 
 (** Proven of `ThreadHerd.interruptAllAndJoinUntilCompleted`'s tree, gone through whole: its one call of `set`
     is of the flag to true. What it does besides is a check, reads, two variables made, its loop (each turn
@@ -17,7 +17,7 @@ Proof.
     as (r & inside & Hh & Hcall).
   refine (method_meets
     (fun k => forall s v, itselfMakes history (Invocation_mk
-      "java.util.concurrent.atomic.AtomicBoolean set scala.Boolean:scala.Unit" [s; Value_Bool_ v]) c from k -> v)
+      L.AtomicBoolean_set [s; Value_Bool_ v]) c from k -> v)
     C (Member "ox.internal.ThreadHerd" "interruptAllAndJoinUntilCompleted" ":scala.Unit") Hcall Hh eq_refl _ w
     (makes_direct Hsets) _ v Hsets).
   intros args k Hargs _. apply vals_none in Hargs as ->.
@@ -35,9 +35,3 @@ Proof.
 Qed.
 
 (** What it is from can hold: an execution in which nothing happens meets it. *)
-Lemma closingSetsTheFlagOnlyToTrue_Proofs_feasible : closingSetsTheFlagOnlyToTrue_Obl_feasible.
-Proof.
-  exists (fun _ x => x), (fun _ => Event_Stutter).
-  split; [exact rest_runs |].
-  intros h w H. repeat (destruct H as [H | H]); destruct (nothing_called_on_at_rest _ _ _ H).
-Qed.

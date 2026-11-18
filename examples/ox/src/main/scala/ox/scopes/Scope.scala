@@ -26,19 +26,19 @@ val aScopeHoldsTheHerdItIsMadeWith = Node.assumption("A scope made with a herd h
   forall((h: Obj[ThreadHerd], finalizers: Term[Value], supervisor: Term[Value], errorMode: Term[Value]) =>
     forall((parent: Term[Value], locals: Term[Value], s: Obj[Scope]) =>
       makingAScopeOf(h, finalizers, supervisor, errorMode, parent, locals).everyCall((_, reply, _) =>
-        (reply === Returned(s)) implies (herdOf(s) === h)))))
+        (reply === Returned(s)) implies (herdOf(s) === h))))).about(About.objects)
 
 // Of Scala: `herd` is a val of a scope, asked for through the trait it is declared in.
 val aScopeGivesTheHerdItHolds = Node.assumption("A scope asked for its herd gives the herd it holds.")(
   forall((s: Obj[Scope]) =>
-    s.seenAs[OxUnsupervised].herd.everyCall((_, reply, _) => reply === Returned(herdOf(s)))))
+    s.seenAs[OxUnsupervised].herd.everyCall((_, reply, _) => reply === Returned(herdOf(s))))).about(About.objects)
 
 // Of the JDK: a thread's current scope is kept in a `ThreadLocal`.
 val theCurrentScopeIsReadAndSet = Node.assumption("Reading a thread's current scope, and setting it, return.")(
   forall((s: Obj[OxUnsupervised]) =>
     ox.internal.currentScope.get().everyCall((_, reply, _) => exists((x: Term[Value]) =>
       reply === make[Response.Returned](x))) &&
-      ox.internal.currentScope.set(s).everyCall((_, reply, _) => reply === Returned(()))))
+      ox.internal.currentScope.set(s).everyCall((_, reply, _) => reply === Returned(())))).about(About.jdk)
 
 val aScopesHerdIsItsMakers = Node.claim(
   "The herd a scope holds is one whose owner is the thread that made the scope.")(

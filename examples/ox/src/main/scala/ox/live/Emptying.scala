@@ -27,7 +27,7 @@ val aTraversalReachesWhatStays = Node.assumption(
     forall((from: Term[BigInt], to: Term[BigInt]) =>
       (s.forEach(f).by(c).completed(from, Returned(()), to) &&
         forall((w: Term[BigInt]) => (from <= w && w <= to) implies elements(s, w).contains(x.asValue))) implies
-        exists((m: Term[BigInt]) => from < m && f.accept(x).by(c).calledInside(from, m)))))
+        exists((m: Term[BigInt]) => from < m && f.accept(x).by(c).calledInside(from, m))))).about(About.jdk)
 
 val closingsFunctionsInterrupt = Node.claim(
   "Once a function closing has passed to a traversal has completed on a thread, the thread has been interrupted.")(

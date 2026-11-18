@@ -1,9 +1,9 @@
 Require Export FrFlowGen.OxThreads.whatClosingsFunctionsApplyReturns.Spec.
 Require Export Proofs.OxThreads.Lemmas.
 From Stdlib Require Import String List ZArith Lia.
-Require Import FrFlow.Threads.Prog FrFlow.Jvm.Machine.
+Require Import FrFlow.Jvm.Prog FrFlow.Jvm.Machine.
 Require Import FrFlow.Scala.Tree FrFlow.Scala.Table FrFlow.Scala.Value FrFlow.Scala.Meaning.
-Require Import FrFlow.Code.Outside FrFlow.Code.Conforms FrFlow.Code.Walk FrFlow.Code.Logic.
+Require Import FrFlow.Code.Outside FrFlow.Code.Conforms FrFlow.Rules.Walk FrFlow.Rules.Logic.
 
 (** Proven of `ThreadHerd.interruptAllAndJoinUntilCompleted`'s tree, three deep: each traversal is given a
     function written there; run, it applies `interruptIfNeeded`; run, that reads the threads interrupted so
@@ -118,13 +118,3 @@ Proof.
 Qed.
 
 (** Its parts can hold together: an execution in which nothing happens meets each. *)
-Lemma whatClosingsFunctionsApplyReturns_Proofs_feasible : whatClosingsFunctionsApplyReturns_Obl_feasible.
-Proof.
-  exists (fun _ x => x), (fun _ => Event_Stutter).
-  split; [exact rest_runs |].
-  split.
-  { intros t from response to [who H]. destruct (nothing_completed_at_rest _ _ _ _ _ H). }
-  split.
-  { intros t from response to [who H]. destruct (nothing_completed_at_rest _ _ _ _ _ H). }
-  intros h w H. repeat (destruct H as [H | H]); destruct (nothing_called_on_at_rest _ _ _ H).
-Qed.

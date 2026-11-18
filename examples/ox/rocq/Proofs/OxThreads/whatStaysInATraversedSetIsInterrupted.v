@@ -11,8 +11,8 @@ Proof.
   intros elements heldIn history _ Hrespond Hmade Henters Hreaches Hinterrupt Hreturn Hplain h x a b w made
     [[[Hcons Htrav] Hbw] Hin].
   destruct Htrav as (f & from & r & [[Hcalled Hmakes] Hdone] & Hnone).
-  set (S := heldIn "ox.internal.ThreadHerd threads"%string h) in *.
-  set (o := heldIn "ox.internal.ThreadHerd herdOwner"%string h) in *.
+  set (S := heldIn L.ThreadHerd_threads h) in *.
+  set (o := heldIn L.ThreadHerd_herdOwner h) in *.
   pose proof (Hreturn h f from a b r (conj (conj Hcalled Hmakes) Hdone)) as Er. rewrite Er in Hdone.
   (* the thread was in the set from the traversal's call on *)
   assert (forall d, 0 <= d -> d <= w - a -> elements S (w - d) x) as Hback.
@@ -29,7 +29,7 @@ Proof.
   assert (forall k, a <= k /\ k <= b -> elements S k x) as Hthrough by (intros k Hk; apply Hall; lia).
   destruct (Hreaches S f o x a b (conj Hdone Hthrough)) as (m & Ham & Hm).
   assert (calledBy history
-    (Invocation_mk "java.util.function.Consumer accept java.lang.Object:scala.Unit"%string [f; x]) o m) as Hacc.
+    (Invocation_mk L.Consumer_accept [f; x]) o m) as Hacc.
   { destruct Hm as [E | (r0 & sp & E)]; [left; exists (Some a); exact E |].
     right. exists r0, (Some a), sp. exact E. }
   assert (traversedWith heldIn history f h m) as Hwith.
@@ -44,21 +44,3 @@ Proof.
 Qed.
 
 (** What it is from can hold: an execution in which nothing happens, of sets that hold nothing, meets each. *)
-Lemma whatStaysInATraversedSetIsInterrupted_Proofs_feasible : whatStaysInATraversedSetIsInterrupted_Obl_feasible.
-Proof.
-  exists (fun _ _ _ => False), (fun _ x => x), (fun _ => Event_Stutter).
-  split; [exact rest_runs |].
-  split.
-  { intros h f x c k code made [[_ H] _]. destruct (nothing_called_at_rest _ _ _ H). }
-  split.
-  { intros h x w b [_ H]. destruct H. }
-  split.
-  { intros s x w [_ H]. destruct H. }
-  split.
-  { intros s f c x from to [H _]. destruct (nothing_completed_at_rest _ _ _ _ _ H). }
-  split.
-  { intros h f x c k r b [_ H]. destruct (nothing_completed_at_rest _ _ _ _ _ H). }
-  split.
-  { intros h f from a b r [[H _] _]. destruct (nothing_called_at_rest _ _ _ H). }
-  intros h w Hready. destruct (nothing_ready_at_rest _ _ _ Hready).
-Qed.

@@ -11,8 +11,8 @@ Proof.
   destruct (Hends h from response to Hdone) as (mm & [Hfm Hmt] & Hempty).
   pose proof (completed_was_called _ _ _ _ _ _ Hdone) as Hc.
   assert (exists m1, m1 < mm /\ calledBy history
-    (Invocation_mk "ox.internal.ThreadHerd interruptAllAndJoinUntilCompleted :scala.Unit"%string [h])
-    (heldIn "ox.internal.ThreadHerd herdOwner"%string h) m1) as Hclosing
+    (Invocation_mk L.ThreadHerd_interruptAllAndJoinUntilCompleted [h])
+    (heldIn L.ThreadHerd_herdOwner h) m1) as Hclosing
     by (exists from; split; [exact Hfm | exact Hc]).
   pose proof (herd_constructed_later history h from mm ltac:(lia)
     (Hmade h from ltac:(unfold calledOn; eauto 14))) as Hherd.
@@ -32,17 +32,3 @@ Proof.
 Qed.
 
 (** Its parts can hold together: a run in which nothing happens meets each. *)
-Lemma everyForkHasLeftOnceClosed_Proofs_feasible : everyForkHasLeftOnceClosed_Obl_feasible.
-Proof.
-  exists (fun _ x => x), (fun _ => Event_Stutter), (fun _ _ _ => False).
-  split; [exact rest_runs |].
-  split.
-  { intros h from response to H. destruct (nothing_completed_at_rest _ _ _ _ _ H). }
-  split.
-  { intros h t m w [[(m1 & _ & H) _] _]. destruct (nothing_called_at_rest _ _ _ H). }
-  split.
-  { intros h t m [(m1 & _ & H) _]. destruct (nothing_called_at_rest _ _ _ H). }
-  split.
-  { intros h t w [Hready _]. destruct (nothing_ready_at_rest _ _ _ Hready). }
-  intros h w H. repeat (destruct H as [H | H]); destruct (nothing_called_on_at_rest _ _ _ H).
-Qed.

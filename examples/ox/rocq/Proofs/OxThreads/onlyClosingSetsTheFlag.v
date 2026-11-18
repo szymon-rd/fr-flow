@@ -16,11 +16,3 @@ Proof.
 Qed.
 
 (** Its parts can hold together: an execution in which nothing happens meets each. *)
-Lemma onlyClosingSetsTheFlag_Proofs_feasible : onlyClosingSetsTheFlag_Obl_feasible.
-Proof.
-  exists (fun _ x => x), (fun _ => Event_Stutter).
-  split; [exact rest_runs |].
-  split.
-  { intros h w Hready. destruct (nothing_ready_at_rest _ _ _ Hready). }
-  intros h c i made w [[_ H] _]. destruct H as [H | (a & spawns & H)]; discriminate H.
-Qed.

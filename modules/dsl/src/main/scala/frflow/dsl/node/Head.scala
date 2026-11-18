@@ -3,8 +3,9 @@ package frflow.dsl.node
 import frflow.core.name.{NodeId, Span}
 
 /** What every node has as written, whatever its kind: its id and sentence (no reason: that is its decision's); its
-  * statement is built later (`Node.statement`). */
-final case class Head(id: NodeId, says: String, at: Span, links: Links)
+  * statement is built later (`Node.statement`). `about` is what an assumption is about, where the model says
+  * (`.about(…)`): the model's own word for its kind, by which its assumptions are listed. */
+final case class Head(id: NodeId, says: String, at: Span, links: Links, about: Option[String] = None)
 
 object Head:
   /** A head from what a constructor was given: its id its val's name as written (`grantWhenFree`; renaming the val

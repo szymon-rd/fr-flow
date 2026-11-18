@@ -1,6 +1,6 @@
 Require Export FrFlowGen.Latch.Whole.Spec.
 From Stdlib Require Import ZArith Lia.
-Require Import FrFlow.Code.Walk.
+Require Import FrFlow.Rules.Walk.
 
 (** An execution in which nothing happens is one of the code, and meets every assumption. *)
 Lemma Whole_Proofs_consistent_0 : Whole_Obl_consistent_0.

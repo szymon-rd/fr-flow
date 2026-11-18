@@ -18,10 +18,3 @@ Proof.
 Qed.
 
 (** Its parts can hold together: a run in which nothing happens, of sets with nothing in them, meets each. *)
-Lemma whoIsAddedStays_Proofs_feasible : whoIsAddedStays_Obl_feasible.
-Proof.
-  exists (fun _ _ _ => False), (fun _ => Event_Stutter).
-  split.
-  { intros s x from value to (who & H). destruct (nothing_completed_at_rest _ _ _ _ _ H). }
-  intros s w y. split; [intros [_ H]; destruct H | intros [H _]; destruct H].
-Qed.

@@ -21,28 +21,29 @@ private def returns(reply: Term[Response]): Term[Boolean] =
 val unsupervisedProceeds = Node.assumption(
   "A call of unsupervised, pending and waiting for no call it made, makes its next event in time.")(
   forall((locals: Term[Value], code: Term[Value], c: Obj[Thread], from: Term[BigInt]) =>
-    unsupervisedWith(locals, code).by(c).called(from) implies proceedsFrom(c.asValue, from)))
+    unsupervisedWith(locals, code).by(c).called(from) implies proceedsFrom(c.asValue, from))).about(About.time)
 
 val makingAScopeProceeds = Node.assumption(
   "A call making a scope, pending and waiting for no call it made, makes its next event in time.")(
   forall((supervisor: Term[Value], errorMode: Term[Value], parent: Term[Value], locals: Term[Value]) =>
     forall((c: Obj[Thread], from: Term[BigInt]) =>
       makingAScope(supervisor, errorMode, parent, locals).by(c).called(from) implies
-        proceedsFrom(c.asValue, from))))
+        proceedsFrom(c.asValue, from)))).about(About.time)
 
 // Of the JDK: these make an object, and neither block nor throw.
 val makingAFlagReturnsInTime = Node.assumption("A call that makes an atomic boolean returns, in time.")(
   forall((b: Term[Boolean]) =>
     call(new AtomicBoolean(b)).responds && call(new AtomicBoolean(b)).everyCall((_, reply, _) => returns(reply))))
+    .about(About.time)
 
 val makingASetReturnsInTime = Node.assumption("A call that makes a concurrent set returns, in time.")(
   ConcurrentHashMap.newKeySet[AnyRef]().responds &&
-    ConcurrentHashMap.newKeySet[AnyRef]().everyCall((_, reply, _) => returns(reply)))
+    ConcurrentHashMap.newKeySet[AnyRef]().everyCall((_, reply, _) => returns(reply))).about(About.time)
 
 val makingAReferenceReturnsInTime = Node.assumption("A call that makes an atomic reference returns, in time.")(
   forall((x: Obj[AnyRef]) =>
     call(new AtomicReference[AnyRef](x)).responds &&
-      call(new AtomicReference[AnyRef](x)).everyCall((_, reply, _) => returns(reply))))
+      call(new AtomicReference[AnyRef](x)).everyCall((_, reply, _) => returns(reply)))).about(About.time)
 
 // Of Scala: the `apply` the compiler writes for a case class makes the object, and neither blocks nor throws.
 val aScopeIsMadeInTime = Node.assumption(
@@ -51,7 +52,7 @@ val aScopeIsMadeInTime = Node.assumption(
     forall((parent: Term[Value], locals: Term[Value]) =>
       makingAScopeOf(h, finalizers, supervisor, errorMode, parent, locals).responds &&
         makingAScopeOf(h, finalizers, supervisor, errorMode, parent, locals).everyCall((_, reply, _) =>
-          returns(reply)))))
+          returns(reply))))).about(About.time)
 
 val makingAScopeReturnsInTime = Node.claim("A call making a scope returns a scope, in time.")(
   forall((supervisor: Term[Value], errorMode: Term[Value], parent: Term[Value], locals: Term[Value]) =>
@@ -76,7 +77,7 @@ val whatUnsupervisedRunsProceeds = Node.assumption(
   forall((locals: Term[Value], code: Term[Value], c: Obj[Thread], from: Term[BigInt]) =>
     forall((s: Obj[Scope], g: Term[Value], k: Term[BigInt], m: Term[BigInt]) =>
       (unsupervisedWith(locals, code).by(c).called(from) && runningIn(s, g).by(c).calledInside(from, k) &&
-        applicationOf[Any](g, s.asValue).by(c).called(m)) implies proceedsFrom(c.asValue, m))))
+        applicationOf[Any](g, s.asValue).by(c).called(m)) implies proceedsFrom(c.asValue, m)))).about(About.time)
 
 val whatUnsupervisedRunsEndsOnceItsCodeDoes = Node.claim(
   "A call of the function unsupervised runs in its scope is responded to in time, if each call of the code on " +

@@ -37,6 +37,7 @@ configuration, say) would place them wrongly: `status` would warn of the model's
 | read | `tree [NODE]` | the graph from the roots (or from NODE): each node's mark, kind, review state and statement |
 | | `show NODE [--full]`, `diff NODE` | a node in about a screen (`--full`: all of it); what moved since it was decided |
 | | `inbox`, `find WORDS\|PATH` | what waits for the developer, in the order to decide it; the nodes that govern a file, or mention some words |
+| | `stands [NODE]` | what the node, or each root, stands on at the bottom: the assumptions it is proven from, and the claims below it that are not proven |
 | decide | `review` | decide what waits, node by node: `[a]ccept [r]eject [s]kip [v]iew [q]uit` |
 | | `accept NODE... [--revisit NODE...]`, `reject NODE`, `confirm`, `revisit NODE`, `gone NODE` | one decision, with `-m REASON`; asked to confirm on a terminal, `--yes` without one |
 | | `deciders --as NAME`, `rebase` | list your key as the project's first decider; accept the ledger as it reads now as where its history starts |
@@ -88,6 +89,10 @@ A model imports one facade, `import frflow.*`. There are three kinds of node (ow
 Edges: `.refines(parents*)` makes a node a part of each parent (several parents, several roots: a directed acyclic
 graph); `.assuming(assumptions*)` lists the assumptions its check rests on, which FrFlow derives and checks
 (`PremiseMissing`, `PremiseNotNeeded`); `.replaces(other)` marks an alternative, so accepting one rejects the other.
+`.about(kind)` says what an assumption is about, in the model's own words (the JDK, who uses the code): nothing is
+checked by it, and a model lists its assumptions by it (`examples/ox` writes its README's list from it). `stands
+[NODE]` prints what a node, or each root, stands on at the bottom: the assumptions it is proven from, and the
+claims below it that are not proven.
 A claim of `always` placed with `.refines` is a **rule** below the statement it serves, not a part of its step: Rocq
 has its rule of every value already, and `show` lists it under "Rules it uses". A node has no reason field: why it
 holds is the reason given with its signed decision.

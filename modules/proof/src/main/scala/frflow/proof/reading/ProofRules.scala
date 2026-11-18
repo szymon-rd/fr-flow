@@ -21,7 +21,7 @@ object ProofRules:
   val AllowedImports: Regex = List("""FrFlowGen\.\w+\.Domain""", """FrFlowGen\.\w+\.\w+\.Spec""",
     """FrFlowGen\.\w+\.Whole\.Spec""", """FrFlow\.Base|Base""", """Stdlib(\..*)?""",
     """Proofs\.\w+\.Lemmas""", """FrFlowGen\.\w+\.Code(\.\w+)?""", """FrFlow\.Executions|Executions""",
-    """FrFlow\.(Code|Scala)\.\w+""", """FrFlow\.Jvm\.Machine""", """FrFlow\.Threads\.Prog""").mkString("|").r
+    """FrFlow\.(Code|Rules|Scala)\.\w+""", """FrFlow\.Jvm\.(Machine|Prog)""").mkString("|").r
 
   /** The obligations the file's lemmas prove, by name: a lemma `<node>_Proofs_<obligation>` proves that one. */
   def theorems(f: ProofFile): List[ObligationName] =

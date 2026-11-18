@@ -14,6 +14,10 @@ object NodeSyntax:
     def assuming(premises: (Node | Null)*): Node =
       linked(n)(l => l.copy(assumes = l.assumes ++ premises.map(Parent.of)))
     def replaces(other: Node | Null): Node = linked(n)(_.copy(replaces = Some(Parent.of(other))))
+    /** What an assumption is about, in the model's own words (the JDK, who uses the code, what happens in time):
+      * its kind. Nothing is proven or checked by it; a model lists its assumptions by it.
+      */
+    def about(kind: String): Node = n.copy(head = n.head.copy(about = Some(kind)))
 
     /** The claim fixes a word the nodes above leave open: they do not rely on it for that word. */
     def leftOpenAbove: Node = n.copy(statement = st => n.statement(st).andThen {

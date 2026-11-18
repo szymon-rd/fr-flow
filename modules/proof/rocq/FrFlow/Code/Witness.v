@@ -12,10 +12,10 @@
 
 From FrFlow Require Import Executions.
 From Stdlib Require Import String List ZArith Bool Lia Classical PropExtensionality.
-Require Import FrFlow.Threads.Prog FrFlow.Jvm.Machine.
+Require Import FrFlow.Jvm.Prog FrFlow.Jvm.Machine.
 Require Import FrFlow.Scala.Tree FrFlow.Scala.Program FrFlow.Scala.Table FrFlow.Scala.Value.
 Require Import FrFlow.Scala.Meaning FrFlow.Scala.Library.
-Require Import FrFlow.Code.Outside FrFlow.Code.Conforms FrFlow.Code.Classes FrFlow.Code.Walk.
+Require Import FrFlow.Code.Outside FrFlow.Code.Conforms FrFlow.Code.Classes FrFlow.Rules.Walk.
 Import ListNotations.
 Open Scope string_scope.
 Open Scope Z_scope.
@@ -731,69 +731,4 @@ Ltac responded :=
       respond_of evs c' i' n 400%nat ltac:(fun r =>
         let r1 := eval lazy in (r + 1) in
         exists r1; autounfold with frflow_defs; exists r; do 2 eexists; split; [lia | reflexivity])
-  end.
-
-(** A call that is responded to makes its next event in time: its response, where it makes no other. *)
-Ltac proceeds_written :=
-  lazymatch goal with
-  | |- _ (history_of ?evs) ?c ?i =>
-      let c' := eval lazy in c in let i' := eval lazy in i in let n := eval lazy in (i' + 1) in
-      respond_of evs c' i' n 400%nat ltac:(fun r =>
-        let w := fresh "w" in let Hw := fresh "Hw" in let Hover := fresh "Hover" in
-        let Hle := fresh "Hle" in let Hgt := fresh "Hgt" in
-        autounfold with frflow_defs; intros w [[Hw Hover] _]; destruct (Z_le_gt_dec w r) as [Hle | Hgt];
-        [ exists r; split; [exact Hle | right; do 2 eexists; reflexivity]
-        | exfalso; apply Hover; exists r; do 2 eexists; split; [lia | reflexivity] ])
-  end.
-
-(** A truth value is not the one said. *)
-Ltac untrue :=
-  exfalso; learn;
-  match goal with
-  | H : (false = true) = True |- _ => assert (X : false = true) by (rewrite H; exact I); discriminate X
-  | H : True = (false = true) |- _ => assert (X : false = true) by (rewrite <- H; exact I); discriminate X
-  | H : (true = true) = False |- _ => rewrite <- H; reflexivity
-  | H : False = (true = true) |- _ => rewrite H; reflexivity
-  | H : (true = true) = (false = true) |- _ => exact (truths_differ (eq_sym H))
-  | H : (false = true) = (true = true) |- _ => exact (truths_differ H)
-  end.
-
-(** Each moment `w` from `n` on, one after another (`tac`), then those past them (`last`). *)
-Ltac each_moment w n fuel tac last :=
-  lazymatch fuel with
-  | O => last
-  | S ?f =>
-      let E := fresh "E" in
-      destruct (Z.eq_dec w n) as [E | E];
-      [ subst w; tac | let n' := eval lazy in (n + 1) in each_moment w n' f tac last ]
-  end.
-
-(** Some call the pending call itself made, before now, is not over. *)
-Ltac between_from n fuel :=
-  eexists; seek n fuel ltac:(split; [split; [lia | reflexivity] |];
-    let H := fresh "H" in intros (? & ? & ? & ? & H); scan H; lia).
-
-(** What a thread does at a moment written, while a call of its own is pending, is the call's own, or inside a
-    call the call made that is not over: `Hlt` says the call was made before, `Hover` that it is not over,
-    `Hdoes` what the thread does. *)
-Ltac one_at Hdoes n fuel :=
-  autounfold with frflow_defs in Hdoes; lazy in Hdoes;
-  first
-    [ solve [destruct Hdoes]
-    | let Ht := fresh "Ht" in let Hi := fresh "Hi" in
-      destruct Hdoes as [Ht Hi];
-      first [ discriminate Ht | subst; first [left; reflexivity | right; between_from n fuel] ] ].
-Ltac one_at_a_time Hlt Hover Hdoes :=
-  lazymatch type of Hlt with
-  | ?from < ?w =>
-      lazymatch type of Hover with
-      | ~ _ (history_of ?evs) ?t _ _ =>
-          let t' := eval lazy in t in let n := eval lazy in (from + 1) in
-          respond_of evs t' from n 400%nat ltac:(fun r =>
-            let fuel := eval lazy in (Z.to_nat (r - from)) in
-            each_moment w n fuel
-              ltac:(one_at Hdoes n fuel)
-              ltac:(exfalso; apply Hover; autounfold with frflow_defs; exists r; do 2 eexists;
-                    split; [lia | reflexivity]))
-      end
   end.

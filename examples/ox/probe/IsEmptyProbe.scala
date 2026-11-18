@@ -6,7 +6,7 @@ import java.util.concurrent.atomic.{AtomicBoolean, AtomicLong}
   * and removes itself); and a thread that asks `isEmpty` over and over. The set is never empty: does `isEmpty`
   * ever answer `true`?
   *
-  *   sbt "runMain IsEmptyProbe 30 2"
+  *   sbt "oxProbe/runMain IsEmptyProbe 30 2"
   */
 object IsEmptyProbe:
   private val set = ConcurrentHashMap.newKeySet[Object]()

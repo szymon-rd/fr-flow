@@ -18,7 +18,7 @@ val anElementEntersOnlyWhenAdded = Node.assumption(
   "An element enters a plain concurrent set only at a moment during a call that adds it.")(
   forall((s: Obj[ConcurrentSet], x: Obj[AnyRef], w: Term[BigInt]) =>
     (plainSet(s) && !elements(s, w).contains(x.asValue) && elements(s, w + 1).contains(x.asValue)) implies
-      s.add(x).inProgress(w)))
+      s.add(x).inProgress(w))).about(About.jdk)
 
 // Of an object: `remove(null)` throws, and takes nothing out.
 val removingTakesTheElementOut = Node.assumption(
@@ -27,7 +27,7 @@ val removingTakesTheElementOut = Node.assumption(
   forall((s: Obj[ConcurrentSet], x: Obj[AnyRef]) =>
     (x.asValue =!= noObject) implies s.remove(x).everyCall((from, _, to) =>
       exists((m: Term[BigInt]) => from <= m && m < to && forall((y: Term[Value]) =>
-        elements(s, m + 1).contains(y) === ((y =!= x.asValue) && elements(s, m).contains(y)))))))
+        elements(s, m + 1).contains(y) === ((y =!= x.asValue) && elements(s, m).contains(y))))))).about(About.jdk)
 
 // The JVM: a thread begins to run when `start` is called on it (`Thread.start`), and not before.
 val aThreadActsOnlyOnceStarted = Node.assumption(
@@ -35,10 +35,10 @@ val aThreadActsOnlyOnceStarted = Node.assumption(
   forall((f: Obj[ThreadFactory], r: Obj[Runnable], t: Obj[Thread]) =>
     forall((a: Term[BigInt], b: Term[BigInt], made: Term[Invocation], w: Term[BigInt]) =>
       (f.newThread(r).completed(a, Returned(t), b) && calledBy(made, t.asValue, w)) implies
-        t.start().calledBefore(w))))
+        t.start().calledBefore(w)))).about(About.jdk)
 
 val currentThreadIsAnObject = Node.assumption("`Thread.currentThread()` gives no null.")(
-  Thread.currentThread().everyCall((_, a, _) => a =!= make[Response.Returned](noObject)))
+  Thread.currentThread().everyCall((_, a, _) => a =!= make[Response.Returned](noObject))).about(About.jdk)
 
 val aForkThatEndedStaysOut = Node.claim(
   "Once a function startThread handed a thread factory has completed on a thread, the thread is out of the " +

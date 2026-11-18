@@ -18,7 +18,7 @@
     (`examples/ox/probe/IsEmptyProbe.scala`). What is proven of Ox's scopes rests on this row. *)
 
 From Stdlib Require Import String List ZArith Bool.
-Require Import FrFlow.Threads.Prog FrFlow.Jvm.Machine FrFlow.Scala.Tree FrFlow.Scala.Value.
+Require Import FrFlow.Jvm.Prog FrFlow.Jvm.Machine FrFlow.Scala.Tree FrFlow.Scala.Value.
 Import ListNotations.
 Open Scope string_scope.
 

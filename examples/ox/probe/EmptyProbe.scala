@@ -7,7 +7,7 @@ import java.util.concurrent.atomic.{AtomicBoolean, AtomicInteger, AtomicLong}
   * program control"). A fork that starts a short-lived fork adds one to a counter of its own; the short-lived
   * fork, ending, takes one from another. A sum that reads the first before and the second after is one short.
   *
-  *   sbt "runMain EmptyProbe 200000 4"
+  *   sbt "oxProbe/runMain EmptyProbe 200000 4"
   */
 object EmptyProbe:
   private val leaks, lingered, interrupted = new AtomicInteger(0)

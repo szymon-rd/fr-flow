@@ -1,8 +1,9 @@
 (** What a program takes from outside itself: the JDK's classes and Scala's library, as the meaning of a call of
     each (`Meaning.primitive`).
 
-    - A member of the JDK is the operation of its contract (`FrFlow.Threads.Jdk`): one step among the steps of
-      other threads, and nothing else is assumed of it. An object of the JDK is a reference with its class.
+    - A member of the JDK is one operation, named by the definition called: one step among the steps of other
+      threads. What the machine runs for it is said in `FrFlow.Scala.Jdk`; an execution of the code says nothing
+      of it, and a model assumes what it needs. An object of the JDK is a reference with its class.
     - Scala's data (an option, a tuple, a list, an `Either`, a vector, a set, a map) is data, and a method of
       it is the function it is. A method that takes a function calls it.
     - A text built from values is not known (`Text`); a number wraps as the JVM's does.
@@ -10,7 +11,7 @@
     A definition that is not here has no meaning: a call of it is `stuck`. *)
 
 From Stdlib Require Import String List ZArith Bool Ascii.
-Require Import FrFlow.Threads.Prog FrFlow.Jvm.Machine.
+Require Import FrFlow.Jvm.Prog FrFlow.Jvm.Machine.
 Require Import FrFlow.Scala.Tree FrFlow.Scala.Program FrFlow.Scala.Table FrFlow.Scala.Value FrFlow.Scala.Meaning.
 Require Import FrFlow.Scala.Jdk.
 Import ListNotations.
@@ -78,9 +79,6 @@ Definition supers (cls : string) : list string :=
   else [].
 
 (** ** Values read as what an operation takes *)
-
-Definition nullable (v : val) : option val := match v with VObj Null => None | _ => Some v end.
-Definition of_nullable (o : option val) : val := match o with Some v => v | None => vnull end.
 
 (** An exception of a class of the JDK, made. *)
 Definition made_exn (cls : string) : exn :=

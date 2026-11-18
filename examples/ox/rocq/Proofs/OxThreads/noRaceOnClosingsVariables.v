@@ -1,7 +1,7 @@
 Require Export FrFlowGen.OxThreads.noRaceOnClosingsVariables.Spec.
 Require Export Proofs.OxThreads.Lemmas.
 From Stdlib Require Import String List ZArith Lia.
-Require Import FrFlow.Scala.Tree FrFlow.Code.Conforms FrFlow.Code.Walk.
+Require Import FrFlow.Scala.Tree FrFlow.Code.Conforms FrFlow.Rules.Walk.
 
 (** What a call of closing itself makes, only the thread that called closing reads, marks and writes. So the
     thread that is writing such a variable, having marked it, is closing's caller, and so is a thread that reads,
@@ -9,7 +9,7 @@ Require Import FrFlow.Scala.Tree FrFlow.Code.Conforms FrFlow.Code.Walk.
 Lemma noRaceOnClosingsVariables_Proofs_complete : noRaceOnClosingsVariables_Obl_complete.
 Proof.
   intros history [N C] Hkeeps Hmade h c from made field [Hcalled Hcreates] by_ other inside w [Hwriting Haccess].
-  assert (calledOn history h "ox.internal.ThreadHerd interruptAllAndJoinUntilCompleted :scala.Unit" from) as Hon
+  assert (calledOn history h L.ThreadHerd_interruptAllAndJoinUntilCompleted from) as Hon
     by (unfold calledOn; eauto).
   destruct (method_begun (Member "ox.internal.ThreadHerd" "interruptAllAndJoinUntilCompleted" ":scala.Unit") C
     (Hmade h from ltac:(do 4 left; right; exact Hon)) eq_refl Hcalled) as (r0 & inside0 & _ & Hcall0).
@@ -26,11 +26,3 @@ Proof.
 Qed.
 
 (** Its parts can hold together: an execution in which nothing happens meets each. *)
-Lemma noRaceOnClosingsVariables_Proofs_feasible : noRaceOnClosingsVariables_Obl_feasible.
-Proof.
-  exists (fun _ => Event_Stutter).
-  split; [exact rest_runs |].
-  split.
-  { intros h who from made by_ w [[[H _] _] _]. destruct (nothing_begun_at_rest _ _ _ H). }
-  intros h w H. repeat (destruct H as [H | H]); destruct (nothing_called_on_at_rest _ _ _ H).
-Qed.

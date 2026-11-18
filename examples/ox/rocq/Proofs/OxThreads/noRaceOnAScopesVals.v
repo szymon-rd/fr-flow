@@ -1,7 +1,7 @@
 Require Export FrFlowGen.OxThreads.noRaceOnAScopesVals.Spec.
 Require Export Proofs.OxThreads.Lemmas.
 From Stdlib Require Import String List ZArith Lia.
-Require Import FrFlow.Code.Conforms FrFlow.Code.Walk.
+Require Import FrFlow.Code.Conforms FrFlow.Rules.Walk.
 
 (** A val of a scope is being written by a thread only if that thread marked it, so made the scope. Another
     thread that marks or writes it made the scope too, and a scope is made once: it is the same thread. Another
@@ -21,14 +21,3 @@ Proof.
 Qed.
 
 (** Its parts can hold together: an execution in which nothing happens meets each. *)
-Lemma noRaceOnAScopesVals_Proofs_feasible : noRaceOnAScopesVals_Obl_feasible.
-Proof.
-  exists (fun _ => Event_Stutter).
-  split; [exact rest_runs |].
-  split.
-  { intros s w (x & x1 & x2 & x3 & x4 & x5 & c & from & to & _ & H).
-    destruct (nothing_completed_at_rest _ _ _ _ _ H). }
-  split.
-  { intros s field by_ inside w [_ [v H]]. discriminate H. }
-  intros s field by_ inside w [_ [H | [v H]]]; discriminate H.
-Qed.

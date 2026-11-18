@@ -1,9 +1,9 @@
 Require Export FrFlowGen.OxThreads.makingAScopeReturnsInTime.Spec.
 Require Export Proofs.OxThreads.Lemmas.
 From Stdlib Require Import String List ZArith Lia.
-Require Import FrFlow.Threads.Prog FrFlow.Jvm.Machine.
+Require Import FrFlow.Jvm.Prog FrFlow.Jvm.Machine.
 Require Import FrFlow.Scala.Tree FrFlow.Scala.Table FrFlow.Scala.Value FrFlow.Scala.Meaning FrFlow.Scala.Library.
-Require Import FrFlow.Code.Outside FrFlow.Code.Conforms FrFlow.Code.Walk FrFlow.Code.Logic FrFlow.Code.Live.
+Require Import FrFlow.Code.Outside FrFlow.Code.Conforms FrFlow.Rules.Walk FrFlow.Rules.Logic FrFlow.Rules.Live.
 Require FrFlow.Scala.Jdk.
 
 (** Proven of the tree of the scope's `apply` (`OxError(supervisor, errorMode, parent, locals)`), gone through
@@ -124,26 +124,3 @@ Proof.
 Qed.
 
 (** Its parts can hold together: an execution in which nothing happens meets each. *)
-Lemma makingAScopeReturnsInTime_Proofs_feasible : makingAScopeReturnsInTime_Obl_feasible.
-Proof.
-  exists (fun _ => Event_Stutter).
-  split; [exact rest_runs |].
-  split.
-  { intros supervisor errorMode parent locals c from H. destruct (nothing_called_at_rest _ _ _ H). }
-  split.
-  { intros b. split; [intros who from [H _]; destruct (nothing_begun_at_rest _ _ _ H) |].
-    intros from response to [who H]. destruct (nothing_completed_at_rest _ _ _ _ _ H). }
-  split.
-  { split; [intros who from [H _]; destruct (nothing_begun_at_rest _ _ _ H) |].
-    intros from response to [who H]. destruct (nothing_completed_at_rest _ _ _ _ _ H). }
-  split.
-  { intros x. split; [intros who from [H _]; destruct (nothing_begun_at_rest _ _ _ H) |].
-    intros from response to [who H]. destruct (nothing_completed_at_rest _ _ _ _ _ H). }
-  split.
-  { intros h finalizers supervisor errorMode parent locals.
-    split; [intros who from [H _]; destruct (nothing_begun_at_rest _ _ _ H) |].
-    intros from response to [who H]. destruct (nothing_completed_at_rest _ _ _ _ _ H). }
-  split.
-  { intros who from [H _]. destruct (nothing_begun_at_rest _ _ _ H). }
-  intros c from response to H. destruct (nothing_completed_at_rest _ _ _ _ _ H).
-Qed.

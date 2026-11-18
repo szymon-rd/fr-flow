@@ -18,7 +18,7 @@
 
 From FrFlow Require Import Executions.
 From Stdlib Require Import String List ZArith Bool Ascii.
-Require Import FrFlow.Threads.Prog FrFlow.Jvm.Machine.
+Require Import FrFlow.Jvm.Prog FrFlow.Jvm.Machine.
 Require Import FrFlow.Scala.Tree FrFlow.Scala.Program FrFlow.Scala.Table FrFlow.Scala.Value.
 Require Import FrFlow.Scala.Meaning FrFlow.Scala.Library FrFlow.Code.Outside.
 Require FrFlow.Scala.Jdk.

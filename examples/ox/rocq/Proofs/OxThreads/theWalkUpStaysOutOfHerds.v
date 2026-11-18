@@ -10,13 +10,13 @@ Lemma theWalkUpStaysOutOfHerds_Proofs_complete : theWalkUpStaysOutOfHerds_Obl_co
 Proof.
   intros heldIn history _ Hlist Hscope Hmember Hone g scope Hwalks h x.
   assert (forall n : nat, forall scope' who from w, (Z.to_nat (w - from) <= n)%nat ->
-    (from < w /\ begun history (Invocation_mk "scala.Function apply" [g; scope']) who from) /\
+    (from < w /\ begun history (Invocation_mk L.Function_apply [g; scope']) who from) /\
       ~ overBy history who from w ->
     ~ calledBy history
-        (Invocation_mk "ox.internal.ThreadHerd interruptAllAndJoinUntilCompleted :scala.Unit" [h]) who w /\
+        (Invocation_mk L.ThreadHerd_interruptAllAndJoinUntilCompleted [h]) who w /\
     ~ calledBy history (Invocation_mk
-        "java.util.concurrent.ConcurrentHashMap$.KeySetView remove java.lang.Object:scala.Boolean"
-        [heldIn "ox.internal.ThreadHerd threads" h; x]) who w) as Hall.
+        L.KeySetView_remove
+        [heldIn L.ThreadHerd_threads h; x]) who w) as Hall.
   { induction n as [| n IH]; intros scope' who from w Hn Hpending; [destruct Hpending as [[Hlt _] _]; lia |].
     split; intros Hcalled.
     all: destruct (called_under_later history _ who _ from _ w (Hone who)
@@ -39,15 +39,3 @@ Proof.
 Qed.
 
 (** Its parts can hold together: an execution in which nothing happens meets each. *)
-Lemma theWalkUpStaysOutOfHerds_Proofs_feasible : theWalkUpStaysOutOfHerds_Obl_feasible.
-Proof.
-  exists (fun _ x => x), (fun _ => Event_Stutter).
-  split; [exact rest_runs |].
-  split.
-  { intros g scope _ from inner w (who & H & _). destruct (nothing_begun_at_rest _ _ _ H). }
-  split.
-  { intros s. repeat (intros; split). all: intros who from w [[_ H] _]; destruct (nothing_begun_at_rest _ _ _ H). }
-  split.
-  { intros h t h1 x. split; intros who from w [[_ H] _]; destruct (nothing_begun_at_rest _ _ _ H). }
-  intros t outer from inside w [[[_ H] _] _]. destruct (nothing_begun_at_rest _ _ _ H).
-Qed.

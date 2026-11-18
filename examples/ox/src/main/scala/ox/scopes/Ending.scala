@@ -21,7 +21,7 @@ val codeEndsIn = stated { (g: Term[Value], s: Obj[Scope], c: Obj[Thread], from: 
 val runningInAScopeProceeds = Node.assumption(
   "A call running code in a scope, pending and waiting for no call it made, makes its next event in time.")(
   forall((s: Obj[Scope], g: Term[Value], c: Obj[Thread], from: Term[BigInt]) =>
-    runningIn(s, g).by(c).called(from) implies proceedsFrom(c.asValue, from)))
+    runningIn(s, g).by(c).called(from) implies proceedsFrom(c.asValue, from))).about(About.time)
 
 val whatRunningInAScopeAppliesProceeds = Node.assumption(
   "A call of a function that such a call itself makes, pending and waiting for no call it made, makes its " +
@@ -29,17 +29,17 @@ val whatRunningInAScopeAppliesProceeds = Node.assumption(
   forall((s: Obj[Scope], g: Term[Value], c: Obj[Thread], from: Term[BigInt]) =>
     forall((own: Term[Value], a: Term[BigInt]) =>
       (runningIn(s, g).by(c).called(from) && applicationOf[Any](own).by(c).calledInside(from, a)) implies
-        proceedsFrom(c.asValue, a))))
+        proceedsFrom(c.asValue, a)))).about(About.time)
 
 // Of the JDK: a thread's current scope is kept in a `ThreadLocal`, whose `get` and `set` do not block.
 val theCurrentScopeResponds = Node.assumption(
   "Reading a thread's current scope, and setting it, are responded to, in time.")(
   forall((s: Obj[OxUnsupervised]) =>
-    ox.internal.currentScope.get().responds && ox.internal.currentScope.set(s).responds))
+    ox.internal.currentScope.get().responds && ox.internal.currentScope.set(s).responds)).about(About.time)
 
 // Of Scala: `herd` is a val of a scope.
 val aScopesHerdResponds = Node.assumption("A scope asked for its herd is responded to, in time.")(
-  forall((s: Obj[Scope]) => s.seenAs[OxUnsupervised].herd.responds))
+  forall((s: Obj[Scope]) => s.seenAs[OxUnsupervised].herd.responds)).about(About.time)
 
 val aScopesClosingIsReached = Node.claim(
   "A call running code in a scope calls closing on the scope's herd in time, if each call of the code on the " +

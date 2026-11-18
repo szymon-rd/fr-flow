@@ -16,7 +16,7 @@ import ox.internal.ThreadHerd
 // the code makes a herd, the constructor's events are the making call's own.
 val aHerdsValsAreAssignedWhereItIsMade = Node.assumption(
   "A val of a herd is marked and written only by the thread that makes the herd, inside the call that makes it.")(
-  forall((h: Obj[ThreadHerd]) => h.assignsItsValsWhereMade))
+  forall((h: Obj[ThreadHerd]) => h.assignsItsValsWhereMade)).about(About.jdk)
 
 // Assumed, of the JVM and of the code. The fields are private: only code of the herd's class is let read them
 // (JVMS 5.4.4). That code is the herd's methods, which read the fields of the herd they are called on, and the
@@ -24,7 +24,7 @@ val aHerdsValsAreAssignedWhereItIsMade = Node.assumption(
 val aHerdsValsAreReadByItsCode = Node.assumption(
   "A val of a herd is read only by a method of the herd called on it, or by a function startThread handed its " +
     "factory, themselves.")(
-  forall((h: Obj[ThreadHerd]) => h.readsItsValsItself((by, i) => aForkFunctionRuns(h, by, i))))
+  forall((h: Obj[ThreadHerd]) => h.readsItsValsItself((by, i) => aForkFunctionRuns(h, by, i)))).about(About.readers)
 
 val aReadyHerdsValsAreWritten = Node.claim(
   "Once a herd is ready, none of its vals is being written, and none is marked or written again.")(

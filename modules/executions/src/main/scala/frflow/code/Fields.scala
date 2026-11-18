@@ -21,13 +21,6 @@ extension [C](on: Obj[C])
     ${ FieldMacros.field[C]('on, 'name, 'st) }
 
 extension [C](on: Obj[C])
-  /** The object has been made, of its class, before the moment: by the code read. */
-  inline def isMade(w: World)(using st: Stating): Term[Boolean] = ${ FieldMacros.made[C]('on, 'w, 'st) }
-
-  /** Every read of the field finds what it holds (`field`): what Scala says of a `val`. */
-  inline def readsAsHeld(inline name: String)(using st: Stating): Term[Boolean] =
-    ${ FieldMacros.reads[C]('on, 'name, 'st) }
-
   /** Every read of a `val` of the object's class finds what it holds: each field the class assigns once. */
   inline def readsItsValsAsHeld(using st: Stating): Term[Boolean] = ${ FieldMacros.readsVals[C]('on, 'st) }
 
@@ -37,10 +30,6 @@ extension [C](on: Obj[C])
   /** A completed call of the constructor of the object's class has returned the object by the moment. */
   inline def isConstructed(w: World)(using st: Stating): Term[Boolean] =
     ${ FieldMacros.constructed[C]('on, 'w, 'st) }
-
-  /** A method of the object's class is called on it only once a call of the class's constructor has returned it. */
-  inline def isConstructedWhenCalled(using st: Stating): Term[Boolean] =
-    ${ FieldMacros.constructedWhenCalled[C]('on, 'st) }
 
   /** Whenever a method of the object's class is called on it, `holds` of the moment. */
   inline def whenCalled(inline holds: World => Term[Boolean])(using st: Stating): Term[Boolean] =

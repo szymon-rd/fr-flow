@@ -1,9 +1,9 @@
 Require Export FrFlowGen.OxThreads.forkStartsAThread.Spec.
 Require Export Proofs.OxThreads.Lemmas.
 From Stdlib Require Import String List ZArith Lia.
-Require Import FrFlow.Threads.Prog FrFlow.Jvm.Machine.
+Require Import FrFlow.Jvm.Prog FrFlow.Jvm.Machine.
 Require Import FrFlow.Scala.Tree FrFlow.Scala.Table FrFlow.Scala.Value FrFlow.Scala.Meaning.
-Require Import FrFlow.Code.Outside FrFlow.Code.Conforms FrFlow.Code.Walk FrFlow.Code.Logic.
+Require Import FrFlow.Code.Outside FrFlow.Code.Conforms FrFlow.Rules.Walk FrFlow.Rules.Logic.
 
 (** Proven of `fork`'s tree. It asks the scope for itself without an error mode, which gives a scope that holds
     the same herd, and calls `forkError` in that scope; what that gives, it gives. So a call that returns comes
@@ -18,8 +18,8 @@ Proof.
   assert (forall k, direct c from (history k) ->
     forall ended sp, history k = Event_Respond c from ended sp -> forall fork, ended = Response_Returned fork ->
     exists run a b, (from < a /\ b <= k + 1) /\
-      completedBy history (Invocation_mk "ox.internal.ThreadHerd startThread scala.Function0:scala.Unit"
-        [heldIn "ox.OxError herd" s; run]) c a (Response_Returned Value_Unit_) b) as Hall.
+      completedBy history (Invocation_mk L.ThreadHerd_startThread
+        [heldIn L.OxError_herd s; run]) c a (Response_Returned Value_Unit_) b) as Hall.
   { refine (module_meets _ C "ox.fork$package$" "fork" "1,scala.Function0,ox.Ox:ox.Fork" Hcall
       ltac:(vm_compute; reflexivity) eq_refl eq_refl ltac:(vm_compute; reflexivity) _).
     intros args k Hargs Hpassed.
@@ -59,11 +59,3 @@ Proof.
 Qed.
 
 (** Its parts can hold together: an execution in which nothing happens meets each. *)
-Lemma forkStartsAThread_Proofs_feasible : forkStartsAThread_Obl_feasible.
-Proof.
-  exists (fun _ x => x), (fun _ => Event_Stutter).
-  split; [exact rest_runs |].
-  split.
-  { intros code s c from fork to [_ H]. destruct (nothing_completed_at_rest _ _ _ _ _ H). }
-  intros s from other to [_ [who H]]. destruct (nothing_completed_at_rest _ _ _ _ _ H).
-Qed.

@@ -14,7 +14,7 @@
     starts (`start`), where the JVM makes it when it is first used. *)
 
 From Stdlib Require Import String List ZArith Bool Ascii.
-Require Import FrFlow.Threads.Prog FrFlow.Jvm.Machine.
+Require Import FrFlow.Jvm.Prog FrFlow.Jvm.Machine.
 Require Import FrFlow.Scala.Tree FrFlow.Scala.Program FrFlow.Scala.Table FrFlow.Scala.Value.
 Import ListNotations.
 Open Scope string_scope.

@@ -13,12 +13,12 @@
 
 From FrFlow Require Import Executions.
 From Stdlib Require Import String List ZArith Bool Lia.
-Require Import FrFlow.Threads.Prog FrFlow.Jvm.Machine.
+Require Import FrFlow.Jvm.Prog FrFlow.Jvm.Machine.
 Require Import FrFlow.Scala.Tree FrFlow.Scala.Program FrFlow.Scala.Table FrFlow.Scala.Value.
 Require Import FrFlow.Scala.Meaning FrFlow.Scala.Library FrFlow.Scala.Run.
-Require Import FrFlow.Code.Outside FrFlow.Code.Conforms FrFlow.Code.Classes FrFlow.Code.Walk FrFlow.Code.Witness.
-Require Import FrFlow.Code.Names FrFlow.Code.Checks FrFlow.Code.Frames FrFlow.Code.Steps FrFlow.Code.Kept.
-Require Import FrFlow.Code.Stages FrFlow.Code.Heap.
+Require Import FrFlow.Code.Outside FrFlow.Code.Conforms FrFlow.Code.Classes FrFlow.Rules.Walk FrFlow.Code.Witness.
+Require Import FrFlow.Bridge.Names FrFlow.Bridge.Checks FrFlow.Bridge.Frames FrFlow.Bridge.Steps FrFlow.Bridge.Kept.
+Require Import FrFlow.Bridge.Stages FrFlow.Bridge.Heap.
 Import ListNotations.
 Local Open Scope string_scope.
 Local Open Scope list_scope.
@@ -44,13 +44,6 @@ Lemma descending_below (b : Z) (under : list (call * (res -> program))) (c : cal
 Proof.
   revert b. induction under as [| [c0 k] rest IH]; intros b H Hin; [destruct Hin |].
   destruct H as [Hc Hrest]. destruct Hin as [<- | Hin]; [exact Hc |]. pose proof (IH _ Hrest Hin). lia.
-Qed.
-
-(** Each call a thread is in was made before now. *)
-Lemma frames_before (w : Z) (th : thread) (c : call) : stacked w th -> In c (frames th) -> made c < w.
-Proof.
-  destruct th as [t top p under | t x]; [| intros _ []]. intros [Htop Hdesc] [<- | Hin]; [exact Htop |].
-  pose proof (descending_below _ _ _ Hdesc Hin). lia.
 Qed.
 
 Section Bridge.

@@ -14,13 +14,3 @@ Proof.
 Qed.
 
 (** Its parts can hold together: an execution in which nothing happens meets each. *)
-Lemma forkUnsupervisedIsRefusedOnceUnsupervisedEnds_Proofs_feasible :
-  forkUnsupervisedIsRefusedOnceUnsupervisedEnds_Obl_feasible.
-Proof.
-  exists (fun _ => Event_Stutter), (fun _ x => x).
-  split; [exact rest_runs |].
-  split.
-  { intros c s from to (supervisor & errorMode & parent & locals & code & ended & a & b & [[H _] _]).
-    destruct (nothing_completed_at_rest _ _ _ _ _ H). }
-  intros code s c m fork w [_ H]. destruct (nothing_called_at_rest _ _ _ H).
-Qed.

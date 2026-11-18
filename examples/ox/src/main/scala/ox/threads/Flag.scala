@@ -11,7 +11,7 @@ import ox.internal.ThreadHerd
 // TASTy; what that gives once the herd is closed follows from what is assumed of an atomic boolean.
 
 val aHerdKeepsItsFields = Node.assumption("Each val of a herd is read as what the herd holds.")(
-  forall((h: Obj[ThreadHerd]) => h.readsItsValsAsHeld))
+  forall((h: Obj[ThreadHerd]) => h.readsItsValsAsHeld)).about(About.objects)
 
 val startThreadReadsTheFlagUnset = Node.claim(
   "A call of startThread adds a thread, or returns, only after it has read the herd's flag as unset.")(

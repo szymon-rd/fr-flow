@@ -15,10 +15,10 @@ import ox.internal.ThreadHerd
 val herdsAreConstructed = Node.assumption(
   "A method of a herd is called only on a herd that is ready: one that a call of its constructor has " +
     "returned, or that a scope returned by a call making a scope holds.")(
-  forall((h: Obj[ThreadHerd]) => h.whenCalled(w => ready(h, w))))
+  forall((h: Obj[ThreadHerd]) => h.whenCalled(w => ready(h, w)))).about(About.objects)
 
 val aHerdHoldsWhatItWasGiven = Node.assumption("Each val of a herd holds what it was given when the herd was made.")(
-  forall((h: Obj[ThreadHerd]) => h.holdsWhatItsValsAreGiven))
+  forall((h: Obj[ThreadHerd]) => h.holdsWhatItsValsAreGiven)).about(About.objects)
 
 val herdsAreMade = Node.claim("A method of a herd is called only on a herd that has been made.")(
   forall((h: Obj[ThreadHerd]) => h.isMadeWhenCalled))

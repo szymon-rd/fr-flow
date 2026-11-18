@@ -11,17 +11,7 @@ Proof.
   destruct (Hreached s g c from (conj Hcalled Hcode)) as (k & Hk & Hclosing).
   pose proof (Howner supervisor errorMode parent locals c s a b Hmade) as Eowner.
   exists k. split; [split; [exact Hk | exact Hclosing] |].
-  rewrite <- Eowner in Hclosing |- *. exact (Hcompletes (heldIn "ox.OxError herd"%string s) k Hclosing).
+  rewrite <- Eowner in Hclosing |- *. exact (Hcompletes (heldIn L.OxError_herd s) k Hclosing).
 Qed.
 
 (** Its parts can hold together: an execution in which nothing happens meets each. *)
-Lemma aScopesHerdIsClosedInTime_Proofs_feasible : aScopesHerdIsClosedInTime_Obl_feasible.
-Proof.
-  exists (fun _ x => x), (fun _ => Event_Stutter).
-  split; [exact rest_runs |].
-  split.
-  { intros h from H. destruct (nothing_called_at_rest _ _ _ H). }
-  split.
-  { intros s g c from [H _]. destruct (nothing_called_at_rest _ _ _ H). }
-  intros supervisor errorMode parent locals c s from to H. destruct (nothing_completed_at_rest _ _ _ _ _ H).
-Qed.

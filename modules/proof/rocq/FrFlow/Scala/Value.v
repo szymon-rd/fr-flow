@@ -13,7 +13,7 @@
       body runs is found when it is called, from the class of what it is called on. *)
 
 From Stdlib Require Import String List ZArith Bool DecimalString.
-Require Import FrFlow.Threads.Prog FrFlow.Jvm.Machine FrFlow.Scala.Tree FrFlow.Scala.Equal.
+Require Import FrFlow.Jvm.Prog FrFlow.Jvm.Machine FrFlow.Scala.Tree FrFlow.Scala.Equal.
 Import ListNotations.
 Open Scope string_scope.
 Set Warnings "-register-all".
@@ -80,12 +80,6 @@ Proof. apply val_eqb_eq. reflexivity. Qed.
 (** Whether two threads, or two places of the heap, are the same: named, so that a proof that walks a program
     is asked the question rather than shown how it is computed. *)
 Definition same_place (a b : nat) : bool := Nat.eqb a b.
-
-Lemma same_place_refl a : same_place a a = true.
-Proof. apply Nat.eqb_refl. Qed.
-
-Lemma same_place_other a b : a <> b -> same_place a b = false.
-Proof. intros H. apply Nat.eqb_neq. exact H. Qed.
 
 (** What running a piece of code gives: a value, or an exception thrown, or a `return` on its way out of the
     method `from`. *)

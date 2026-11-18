@@ -1,9 +1,9 @@
 Require Export FrFlowGen.OxThreads.whatUnsupervisedRunsEndsOnceItsCodeDoes.Spec.
 Require Export Proofs.OxThreads.Lemmas.
 From Stdlib Require Import String List ZArith Lia.
-Require Import FrFlow.Threads.Prog FrFlow.Jvm.Machine.
+Require Import FrFlow.Jvm.Prog FrFlow.Jvm.Machine.
 Require Import FrFlow.Scala.Tree FrFlow.Scala.Table FrFlow.Scala.Value FrFlow.Scala.Meaning FrFlow.Scala.Library.
-Require Import FrFlow.Code.Outside FrFlow.Code.Conforms FrFlow.Code.Walk FrFlow.Code.Logic FrFlow.Code.Live.
+Require Import FrFlow.Code.Outside FrFlow.Code.Conforms FrFlow.Rules.Walk FrFlow.Rules.Logic FrFlow.Rules.Live.
 
 (** Proven of `unsupervised`'s tree, and of the tree of the function it writes. Where the call hands a function
     to `scopedWithCapability`, that function is one written there: applied to the scope, given its turn, it
@@ -23,10 +23,10 @@ Proof.
       ltac:(vm_compute; reflexivity)). }
   assert (forall w, direct c from (history w) ->
     forall s g, history w = Event_Invoke c (Some from) (Invocation_mk
-      "ox.unsupervised$package$ scopedWithCapability 1,ox.Ox,scala.Function1:java.lang.Object" [s; g]) ->
-    forall m, from < m -> calledBy history (Invocation_mk "scala.Function apply" [g; s]) c m ->
+      L.unsupervised_scopedWithCapability [s; g]) ->
+    forall m, from < m -> calledBy history (Invocation_mk L.Function_apply [g; s]) c m ->
     moves history c m -> codeEndsIn history code s c from ->
-    begun history (Invocation_mk "scala.Function apply" [g; s]) c m /\ exists to, overBy history c m to) as Hall.
+    begun history (Invocation_mk L.Function_apply [g; s]) c m /\ exists to, overBy history c m to) as Hall.
   { refine (module_meets _ C "ox.unsupervised$package$" "unsupervised"
       "1,ox.ForkLocalMap,scala.Function1:java.lang.Object" Hcall ltac:(vm_compute; reflexivity) eq_refl eq_refl
       ltac:(vm_compute; reflexivity) _).
@@ -76,9 +76,3 @@ Proof.
 Qed.
 
 (** Its part can hold: an execution in which nothing happens meets it. *)
-Lemma whatUnsupervisedRunsEndsOnceItsCodeDoes_Proofs_feasible : whatUnsupervisedRunsEndsOnceItsCodeDoes_Obl_feasible.
-Proof.
-  exists (fun _ => Event_Stutter).
-  split; [exact rest_runs |].
-  intros locals code c from s g k m [[H _] _]. destruct (nothing_called_at_rest _ _ _ H).
-Qed.

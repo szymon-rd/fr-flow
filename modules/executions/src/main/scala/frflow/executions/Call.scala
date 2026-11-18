@@ -66,10 +66,6 @@ final class Call[A](val method: String, val arguments: List[Term[Value]], val ac
   def returnedWithin(value: Term[A], from: World, to: World)(using Stating, AsValue[A]): Term[Boolean] =
     exists((a: Term[BigInt], b: Term[BigInt]) => from <= a && b <= to && completed(a, Returned(value), b))
 
-  /** There is a moment after `w` at which no call is pending. */
-  def settles(w: World)(using Stating): Term[Boolean] =
-    exists((later: Term[BigInt]) => w < later && !pendingAt(later))
-
   /** The event into `w` spawns the call for its actor, to make on its own. */
   def spawned(w: World)(using Stating): Term[Boolean] = some(spawnedTo(invocation, _, w))
 
@@ -140,10 +136,6 @@ def noObject: Term[Value] = make[Value.Null.type]().asInstanceOf[Term[Value]]
 /** An exception of the class as the JDK throws it: known by its class alone (`Value.Thrown`). */
 def thrown[C <: Throwable](using c: scala.reflect.ClassTag[C]): Obj[C] =
   make[Value.Thrown](c.runtimeClass.getName).asInstanceOf[Obj[C]]
-
-/** `holds` at `w` or at some later moment. */
-def eventually(w: World)(holds: World => Term[Boolean]): Term[Boolean] =
-  exists((later: Term[BigInt]) => w <= later && holds(later))
 
 /** What has a value at each moment, read at one with `at`. */
 final class Changing[A](read: World => Term[A]):

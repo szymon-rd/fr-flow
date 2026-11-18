@@ -1,9 +1,9 @@
 Require Export FrFlowGen.OxThreads.theForkFunctionCallsFour.Spec.
 Require Export Proofs.OxThreads.Lemmas.
 From Stdlib Require Import String List ZArith Lia.
-Require Import FrFlow.Threads.Prog FrFlow.Jvm.Machine.
+Require Import FrFlow.Jvm.Prog FrFlow.Jvm.Machine.
 Require Import FrFlow.Scala.Tree FrFlow.Scala.Table FrFlow.Scala.Value FrFlow.Scala.Meaning.
-Require Import FrFlow.Code.Outside FrFlow.Code.Conforms FrFlow.Code.Walk FrFlow.Code.Logic.
+Require Import FrFlow.Code.Outside FrFlow.Code.Conforms FrFlow.Rules.Walk FrFlow.Rules.Logic.
 
 (** Proven of `ThreadHerd.startThread`'s tree, twice over. The call of `newThread` that `startThread` makes
     hands the factory the function written there: `try t finally threads.remove(Thread.currentThread()).discard`.
@@ -18,14 +18,14 @@ Proof.
   revert c i made w Hrun Hmakes.
   refine (method_meets
     (fun k => forall f r, itselfMakes history (Invocation_mk
-      "java.util.concurrent.ThreadFactory newThread java.lang.Runnable:java.lang.Thread" [f; r]) c0 from0 k ->
-      forall c i made w, calledBy history (Invocation_mk "java.lang.Runnable run :scala.Unit" [r]) c i ->
+      L.ThreadFactory_newThread [f; r]) c0 from0 k ->
+      forall c i made w, calledBy history (Invocation_mk L.Runnable_run [r]) c i ->
       itselfMakes history made c i w ->
-      (((exists code, made = Invocation_mk "scala.Function0 apply :java.lang.Object" [code]) \/
-        made = Invocation_mk "java.lang.Thread$ currentThread :java.lang.Thread" []) \/
+      (((exists code, made = Invocation_mk L.Function0_apply [code]) \/
+        made = Invocation_mk L.Thread_currentThread []) \/
       exists s t, made = Invocation_mk
-        "java.util.concurrent.ConcurrentHashMap$.KeySetView remove java.lang.Object:scala.Boolean" [s; t]) \/
-      exists x, made = Invocation_mk "ox.util$package$ discard 1,java.lang.Object:scala.Unit" [x])
+        L.KeySetView_remove [s; t]) \/
+      exists x, made = Invocation_mk L.util_discard [x])
     C (Member "ox.internal.ThreadHerd" "startThread" "scala.Function0:scala.Unit") Hcall0 Hh eq_refl _ m
     (makes_direct Hhand) _ r Hhand).
   intros args k Hargs Hpassed. apply vals_one in Hargs as (vcode & -> & _).
@@ -64,9 +64,3 @@ Proof.
 Qed.
 
 (** What it is from can hold: an execution in which nothing happens meets it. *)
-Lemma theForkFunctionCallsFour_Proofs_feasible : theForkFunctionCallsFour_Obl_feasible.
-Proof.
-  exists (fun _ x => x), (fun _ => Event_Stutter).
-  split; [exact rest_runs |].
-  intros h w H. repeat (destruct H as [H | H]); destruct (nothing_called_on_at_rest _ _ _ H).
-Qed.

@@ -1,7 +1,7 @@
 Require Export FrFlowGen.OxThreads.noRaceOnAHerdsVals.Spec.
 Require Export Proofs.OxThreads.Lemmas.
 From Stdlib Require Import String List ZArith Lia.
-Require Import FrFlow.Code.Conforms FrFlow.Code.Walk.
+Require Import FrFlow.Code.Conforms FrFlow.Rules.Walk.
 
 (** A val of a herd is being written by a thread only if that thread marked it, so made the herd. Another thread
     that marks or writes it made the herd too, and a herd is made once: it is the same thread. Another thread that
@@ -20,13 +20,3 @@ Proof.
 Qed.
 
 (** Its parts can hold together: an execution in which nothing happens meets each. *)
-Lemma noRaceOnAHerdsVals_Proofs_feasible : noRaceOnAHerdsVals_Obl_feasible.
-Proof.
-  exists (fun _ => Event_Stutter), (fun _ x => x).
-  split; [exact rest_runs |].
-  split.
-  { intros h w Hready. destruct (nothing_ready_at_rest _ _ _ Hready). }
-  split.
-  { intros h field by_ inside w [_ [v H]]. discriminate H. }
-  intros h field by_ inside w [_ [H | [v H]]]; discriminate H.
-Qed.

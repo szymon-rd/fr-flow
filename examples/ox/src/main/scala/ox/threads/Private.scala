@@ -27,7 +27,7 @@ def ofAnAtomicBoolean(made: Term[Invocation]): Term[Boolean] =
 val aHerdKeepsItsFlagToItself = Node.assumption(
   "What a herd holds as its flag is called on only by the herd's own methods, themselves.")(
   forall((h: Obj[ThreadHerd], w: Term[BigInt]) =>
-    ready(h, w) implies h.keepsToItself(shutdown(h).asValue)((_, _) => False)))
+    ready(h, w) implies h.keepsToItself(shutdown(h).asValue)((_, _) => False))).about(About.privateField)
 
 val anAtomicBooleanHasOnlyItsMethods = Node.assumption(
   "On what `new AtomicBoolean` returned, only methods of an atomic boolean are called.")(
@@ -35,6 +35,7 @@ val anAtomicBooleanHasOnlyItsMethods = Node.assumption(
     call(new AtomicBoolean(x)).completed(from, Returned(b), to) implies
       forall((method: Term[String], w: Term[BigInt]) =>
         calledOn(b.asValue, method, w) implies methodsOf[AtomicBoolean].map(method === _).reduce(_ || _))))
+    .about(About.jdk)
 
 val closingCallsFour = Node.claim(
   "A call of closing itself calls only the herd's check of its owner, set of an atomic flag to true, and " +

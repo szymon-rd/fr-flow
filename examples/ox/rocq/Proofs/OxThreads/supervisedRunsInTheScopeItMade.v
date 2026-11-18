@@ -1,9 +1,9 @@
 Require Export FrFlowGen.OxThreads.supervisedRunsInTheScopeItMade.Spec.
 Require Export Proofs.OxThreads.Lemmas.
 From Stdlib Require Import String List ZArith Lia.
-Require Import FrFlow.Threads.Prog FrFlow.Jvm.Machine.
+Require Import FrFlow.Jvm.Prog FrFlow.Jvm.Machine.
 Require Import FrFlow.Scala.Tree FrFlow.Scala.Table FrFlow.Scala.Value FrFlow.Scala.Meaning.
-Require Import FrFlow.Code.Outside FrFlow.Code.Conforms FrFlow.Code.Walk FrFlow.Code.Logic.
+Require Import FrFlow.Code.Outside FrFlow.Code.Conforms FrFlow.Rules.Walk FrFlow.Rules.Logic.
 
 (** Proven of `unsupervised`'s tree, gone through whole: it reads the thread's scope, makes a scope with it as
     parent, and calls `scopedWithCapability` with the scope made; what that gives, it gives. The call that made
@@ -19,8 +19,8 @@ Proof.
   assert (forall k, direct c from (history k) ->
     forall ended sp, history k = Event_Respond c from ended sp ->
     exists g a2 ran b2, (itselfMakes history (Invocation_mk
-      "ox.unsupervised$package$ scopedWithCapability 1,ox.Ox,scala.Function1:java.lang.Object" [s; g]) c from a2 /\ completedBy history (Invocation_mk
-      "ox.unsupervised$package$ scopedWithCapability 1,ox.Ox,scala.Function1:java.lang.Object" [s; g]) c a2 ran b2) /\ b2 <= k)
+      L.unsupervised_scopedWithCapability [s; g]) c from a2 /\ completedBy history (Invocation_mk
+      L.unsupervised_scopedWithCapability [s; g]) c a2 ran b2) /\ b2 <= k)
     as Hall.
   { (* the call that made the scope is an event of this call, before its response *)
     assert (forall k tr rr, history k = Event_Respond c from rr [] -> past history c from k tr -> In a tr)

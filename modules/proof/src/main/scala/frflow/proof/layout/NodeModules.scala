@@ -95,7 +95,15 @@ object NodeModules:
     val others = o.required.filterNot(x => x.name == ObligationName.Complete || x.name == ObligationName.Impl)
     val proven = others.flatMap(x => List(theorem(l, o.node, x), audit(l, o.node, NodePart.Checks,
       LowerObligation.name(x.name).text)))
-    Option.when(proven.nonEmpty)(module(l, o.node, NodePart.Checks, proven))
+    val rest = Option.when(others.exists(atRest(l, _)))(ExecutionsLibrary.rest).toList
+    Option.when(proven.nonEmpty)(module(l, o.node, NodePart.Checks, proven)).map(m =>
+      m.copy(imports = m.imports ++ rest))
+
+  /** A `feasible` FrFlow tries of a model about executions: the execution in which nothing happens meets parts
+    * that say what follows an event (`frflow_feasible`, the library's).
+    */
+  private def atRest(l: Lowering, x: Obligation): Boolean = x.name == ObligationName.Feasible &&
+    x.discharge == Discharge.Auto && l.resolved.theory.vocabulary.types.exists(ExecutionsLibrary.has)
 
   private def tries(l: Lowering, o: NodeObligations): Option[ProverModule] =
     val tried = o.tried.map(x => x.discharge match
@@ -107,7 +115,7 @@ object NodeModules:
   private def theorem(l: Lowering, n: NodeId, x: Obligation): Decl =
     val name = LowerObligation.name(x.name)
     val proof = if x.discharge == Discharge.Authored then Proof.Below(path(l, n, "Proofs", name.text))
-      else Proof.Tactics(List("frflow_auto"))
+      else Proof.Tactics(List(if atRest(l, x) then "frflow_feasible" else "frflow_auto"))
     Decl.Theorem(Nil, name, Nil, LExpr.Const(List(Names.builtin("Obl"), name)), proof, Break.SameLine)
 
   private def audit(l: Lowering, n: NodeId, part: NodePart, name: String): Decl =

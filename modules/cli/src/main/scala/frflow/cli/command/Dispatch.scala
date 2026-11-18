@@ -33,6 +33,8 @@ final class Dispatch(api: FrFlowApi[IO], host: Host[IO], term: Terminal, st: Sty
     case Command.Diff(id)          => viewed((v, _) => v.node(id).fold(gone(v, id))(n => api.reading.diff(id)
         .flatMap(d => ok(DiffText.lines(id, d, n.review.decisions.binding.isDefined, st)))))
     case Command.Inbox             => viewed((v, x) => ok(InboxText.lines(v, st, x)))
+    case Command.Stands(None)      => viewed((v, _) => ok(StandsText.roots(v, st)))
+    case Command.Stands(Some(id))  => viewed((v, _) => v.node(id).fold(gone(v, id))(_ => ok(StandsText.of(v, id, st))))
     case Command.Find(q)           => (api.reading.find(q), api.reading.view).flatMapN((f, v) =>
         ok(ReportText.found(q, f, v, st)))
 

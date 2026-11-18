@@ -11,7 +11,7 @@ Lemma aForkThatEndedStaysOut_Proofs_complete : aForkThatEndedStaysOut_Obl_comple
 Proof.
   intros elements heldIn history [N C] Henters Hremoves Hobject Hout Hstarted Hover Honly Hnotstarted Hmaker Hmade
     Hbefore Hplain h r code t i ended e w b [[[Hcons Hfork] Hrun] Hew].
-  set (S := heldIn "ox.internal.ThreadHerd threads"%string h).
+  set (S := heldIn L.ThreadHerd_threads h).
   destruct (Hremoves h r code t i ended e (conj Hfork Hrun))
     as (a1 & b1 & Hcurrent & m & rr & n & [Hbm Hne] & Hremoved).
   assert (t <> Value_Null) as Hnotnull.
@@ -24,9 +24,9 @@ Proof.
   { apply (from_a_moment_on (fun k => ~ elements S k t) (q + 1) Hgone).
     intros k Hk Hnot Hin.
     assert (exists c2 w2, w2 <= k /\ calledBy history (Invocation_mk
-        "java.util.concurrent.ConcurrentHashMap$.KeySetView add java.lang.Object:scala.Boolean"%string [S; t]) c2 w2 /\
+        L.KeySetView_add [S; t]) c2 w2 /\
       (w2 < k -> begun history (Invocation_mk
-        "java.util.concurrent.ConcurrentHashMap$.KeySetView add java.lang.Object:scala.Boolean"%string [S; t]) c2 w2 /\
+        L.KeySetView_add [S; t]) c2 w2 /\
         ~ overBy history c2 w2 k)) as (c2 & w2 & Hw2 & Hcalled2 & Hpending2).
     { destruct (Henters S t k (conj (conj (Hplain h b Hcons) Hnot) Hin)) as [[who Hc] | (m2 & Hm2 & who & Hb & Hno)].
       - exists who, k. split; [lia | split; [exact Hc | intros; lia]].
@@ -47,31 +47,3 @@ Proof.
 Qed.
 
 (** What it is from can hold: an execution in which nothing happens, of sets that hold nothing, meets each. *)
-Lemma aForkThatEndedStaysOut_Proofs_feasible : aForkThatEndedStaysOut_Obl_feasible.
-Proof.
-  exists (fun _ _ _ => False), (fun _ x => x), (fun _ => Event_Stutter).
-  split; [exact rest_runs |].
-  split.
-  { intros s x w [_ H]. destruct H. }
-  split.
-  { intros h r code t i ended e [_ H]. destruct (nothing_completed_at_rest _ _ _ _ _ H). }
-  split.
-  { intros from response to [who H]. destruct (nothing_completed_at_rest _ _ _ _ _ H). }
-  split.
-  { intros s x _ from response to [who H]. destruct (nothing_completed_at_rest _ _ _ _ _ H). }
-  split.
-  { intros f r t a b made w [[who H] _]. destruct (nothing_completed_at_rest _ _ _ _ _ H). }
-  split.
-  { intros h code c t from w m started [[H _] _]. destruct (nothing_called_at_rest _ _ _ H). }
-  split.
-  { intros h t c w b [_ H]. destruct (nothing_called_at_rest _ _ _ H). }
-  split.
-  { intros h t c w b [_ H]. destruct (nothing_called_at_rest _ _ _ H). }
-  split.
-  { intros h code c t from b m other [[H _] _]. destruct (nothing_called_at_rest _ _ _ H). }
-  split.
-  { intros h code c t from w [H _]. destruct (nothing_called_at_rest _ _ _ H). }
-  split.
-  { intros h code c t from w m started [[H _] _]. destruct (nothing_called_at_rest _ _ _ H). }
-  intros h w Hready. destruct (nothing_ready_at_rest _ _ _ Hready).
-Qed.

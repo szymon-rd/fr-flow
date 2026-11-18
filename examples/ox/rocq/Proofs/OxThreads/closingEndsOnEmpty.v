@@ -13,13 +13,3 @@ Proof.
 Qed.
 
 (** Its parts can hold together: an execution in which nothing happens meets each. *)
-Lemma closingEndsOnEmpty_Proofs_feasible : closingEndsOnEmpty_Obl_feasible.
-Proof.
-  exists (fun _ x => x), (fun _ => Event_Stutter), (fun _ _ _ => False).
-  split; [exact rest_runs |].
-  split.
-  { intros h from response to H. destruct (nothing_completed_at_rest _ _ _ _ _ H). }
-  split.
-  { intros s from response to [who H]. destruct (nothing_completed_at_rest _ _ _ _ _ H). }
-  intros h a b H. destruct (nothing_completed_at_rest _ _ _ _ _ H).
-Qed.

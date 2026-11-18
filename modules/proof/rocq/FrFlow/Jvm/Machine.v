@@ -1,7 +1,7 @@
 (** The JVM as a program meets it: threads, the heap of the program's objects, and objects of classes from
     outside the program, each known by its protocol.
 
-    A program (`FrFlow.Threads.Prog`) calls operations. An operation is one step of its thread, taken among the
+    A program (`FrFlow.Jvm.Prog`) calls operations. An operation is one step of its thread, taken among the
     steps of other threads: that a field read or a method of a concurrent class is one step is what the memory
     model gives a program with no data race (JLS 17.4.5) and what the classes' documentation says of them.
 
@@ -22,7 +22,7 @@
     `StackOverflowError`), an exception's message, stack and suppressed exceptions. *)
 
 From Stdlib Require Import ZArith List Bool String.
-Require Import FrFlow.Threads.Prog.
+Require Import FrFlow.Jvm.Prog.
 Import ListNotations.
 
 Set Implicit Arguments.

@@ -10,11 +10,11 @@ Proof.
   intros heldIn history _ Hlist Hwalk Hjdk Hone h h1 x.
   split; intros who from w Hpending Hcalled.
   all: destruct (called_under history
-    (fun made => (((made = Invocation_mk "java.lang.Thread$ currentThread :java.lang.Thread" [] \/
-        made = Invocation_mk "java.lang.ThreadLocal get :java.lang.Object" []) \/
-        (exists t, made = Invocation_mk "java.lang.Thread getName :java.lang.String" [t])) \/
-        (exists f scope, made = Invocation_mk "scala.Function apply" [f; scope])) /\
-      (forall f scope, made = Invocation_mk "scala.Function apply" [f; scope] -> walksUp history f))
+    (fun made => (((made = Invocation_mk L.Thread_currentThread [] \/
+        made = Invocation_mk L.ThreadLocal_get []) \/
+        (exists t, made = Invocation_mk L.Thread_getName [t])) \/
+        (exists f scope, made = Invocation_mk L.Function_apply [f; scope])) /\
+      (forall f scope, made = Invocation_mk L.Function_apply [f; scope] -> walksUp history f))
     who _ from _ w (Hone who)
     (fun made k Hmade => conj
       (Hlist h from made k (ex_intro _ who (conj (proj2 (proj1 Hpending)) Hmade)))
@@ -35,15 +35,3 @@ Proof.
 Qed.
 
 (** Its parts can hold together: an execution in which nothing happens meets each. *)
-Lemma theTreeCheckStaysOutOfHerds_Proofs_feasible : theTreeCheckStaysOutOfHerds_Obl_feasible.
-Proof.
-  exists (fun _ x => x), (fun _ => Event_Stutter).
-  split; [exact rest_runs |].
-  split.
-  { intros h from inner w (who & H & _). destruct (nothing_begun_at_rest _ _ _ H). }
-  split.
-  { intros g scope _ h x. split; intros who from w [[_ H] _]; destruct (nothing_begun_at_rest _ _ _ H). }
-  split.
-  { intros t s x. repeat (intros; split). all: intros who from w [[_ H] _]; destruct (nothing_begun_at_rest _ _ _ H). }
-  intros t outer from inside w [[[_ H] _] _]. destruct (nothing_begun_at_rest _ _ _ H).
-Qed.

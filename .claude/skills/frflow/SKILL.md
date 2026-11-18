@@ -109,6 +109,7 @@ output is plain ASCII and not cut; `--json` on `check` and `status` prints JSON.
 | `context NODE` | Everything on a node (`show NODE --full`), with its requests. |
 | `tree [NODE]`, `show NODE`, `diff NODE` | The DAG; a node in about a screen; what moved since it was decided. |
 | `find WORDS\|PATH` | The nodes that govern a file, or mention some words. |
+| `stands [NODE]` | What the node, or each root, stands on at the bottom: its assumptions, and the claims not proven. |
 | `render` | Rebuild from the Scala; elaboration errors and the model's problems come back here. |
 | `check [NODE]` | Prove what changed, test the code, evaluate the examples. Slow. A `timeout` is not a failure: run it again. |
 | `status` | The tree, the summary and the warnings; exits 1 unless the FrModel is complete. |

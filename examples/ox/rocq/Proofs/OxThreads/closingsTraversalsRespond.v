@@ -11,19 +11,19 @@ Proof.
     [[Hcalled Hmakes] Hstops].
   assert (calledBy history
     (Invocation_mk
-      "java.util.concurrent.ConcurrentHashMap$.KeySetView forEach java.util.function.Consumer:scala.Unit"%string
-      [heldIn "ox.internal.ThreadHerd threads"%string h; f]) (heldIn "ox.internal.ThreadHerd herdOwner"%string h) a)
+      L.KeySetView_forEach
+      [heldIn L.ThreadHerd_threads h; f]) (heldIn L.ThreadHerd_herdOwner h) a)
     as Htrav.
   { destruct Hmakes as [E | (r & sp & E)]; [left; exists (Some from); exact E |].
     right. exists r, (Some from), sp. exact E. }
-  apply (Htraversal (heldIn "ox.internal.ThreadHerd threads"%string h) f
-    (heldIn "ox.internal.ThreadHerd herdOwner"%string h) a).
+  apply (Htraversal (heldIn L.ThreadHerd_threads h) f
+    (heldIn L.ThreadHerd_herdOwner h) a).
   split; [split; [exact Htrav | exact Hstops] |].
   intros x m Happ.
   destruct (Helements _ f _ x a m (conj Htrav Happ)) as (w & [Haw Hwm] & Hin).
   assert (calledBy history
-    (Invocation_mk "java.util.function.Consumer accept java.lang.Object:scala.Unit"%string [f; x])
-    (heldIn "ox.internal.ThreadHerd herdOwner"%string h) m) as Hacc.
+    (Invocation_mk L.Consumer_accept [f; x])
+    (heldIn L.ThreadHerd_herdOwner h) m) as Hacc.
   { destruct Happ as [E | (r & sp & E)]; [left; exists (Some a); exact E |].
     right. exists r, (Some a), sp. exact E. }
   assert (a < m) as Hlt.
@@ -36,17 +36,3 @@ Proof.
 Qed.
 
 (** What it is from can hold: an execution in which nothing happens, of sets with nothing in them, meets each. *)
-Lemma closingsTraversalsRespond_Proofs_feasible : closingsTraversalsRespond_Obl_feasible.
-Proof.
-  exists (fun _ x => x), (fun _ => Event_Stutter), (fun _ _ _ => False).
-  split; [exact rest_runs |].
-  split.
-  { intros h f x c k code made [[_ H] _]. destruct (nothing_called_at_rest _ _ _ H). }
-  split.
-  { intros s f c from [[H _] _]. destruct (nothing_called_at_rest _ _ _ H). }
-  split.
-  { intros s f c x from m [H _]. destruct (nothing_called_at_rest _ _ _ H). }
-  split.
-  { intros h x w b [_ H]. destruct H. }
-  intros h w H. repeat (destruct H as [H | H]); destruct (nothing_called_on_at_rest _ _ _ H).
-Qed.

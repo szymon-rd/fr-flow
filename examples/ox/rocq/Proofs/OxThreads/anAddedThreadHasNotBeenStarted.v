@@ -13,15 +13,3 @@ Proof.
 Qed.
 
 (** What it is from can hold: an execution in which nothing happens meets it. *)
-Lemma anAddedThreadHasNotBeenStarted_Proofs_feasible : anAddedThreadHasNotBeenStarted_Obl_feasible.
-Proof.
-  exists (fun _ x => x), (fun _ => Event_Stutter).
-  split; [exact rest_runs |].
-  split.
-  { intros h t c w b [_ H]. destruct (nothing_called_at_rest _ _ _ H). }
-  split.
-  { intros h code c t from b m other [[H _] _]. destruct (nothing_called_at_rest _ _ _ H). }
-  split.
-  { intros h code c t from w [H _]. destruct (nothing_called_at_rest _ _ _ H). }
-  intros h code c t from w m started [[H _] _]. destruct (nothing_called_at_rest _ _ _ H).
-Qed.

@@ -8,12 +8,12 @@ From Stdlib Require Import Classical PropExtensionality.
 Lemma theFlagStaysSet_Proofs_complete : theFlagStaysSet_Obl_complete.
 Proof.
   intros flag heldIn history _ Hbecomes Hplain Honly Htrue h a b [[Hmade Hab] Hset].
-  set (s := heldIn "ox.internal.ThreadHerd shutdownInProgress"%string h) in *.
+  set (s := heldIn L.ThreadHerd_shutdownInProgress h) in *.
   assert (forall k, a <= k -> k <= b -> flag s k) as Hall; [| apply Hall; lia].
   apply (from_a_moment_on (fun k => k <= b -> flag s k)); [intros _; exact Hset |].
   intros k Hk IH Hkb. destruct (classic (flag s (k + 1))) as [H | Hout]; [exact H | exfalso].
   assert (exists who m, calledBy history (Invocation_mk
-    "java.util.concurrent.atomic.AtomicBoolean set scala.Boolean:scala.Unit"%string [s; Value_Bool_ False]) who m)
+    L.AtomicBoolean_set [s; Value_Bool_ False]) who m)
     as (who & m & Hcall).
   { destruct (Hbecomes s False k) as [[who Hc] | (m & _ & who & Hb & _)].
     - split; [split; [exact (Hplain h b Hmade) |] |].
@@ -23,18 +23,4 @@ Proof.
     - exists who, m. left. exact Hb. }
   destruct (Honly h False who m b (conj Hmade Hcall)) as (from & Hclosing & Hitself).
   exact (Htrue h False who from m (conj Hclosing Hitself)).
-Qed.
-
-(** Its parts can hold together: an execution in which nothing happens, of flags never set, meets each. *)
-Lemma theFlagStaysSet_Proofs_feasible : theFlagStaysSet_Obl_feasible.
-Proof.
-  exists (fun _ _ => False), (fun _ x => x), (fun _ => Event_Stutter).
-  split; [exact rest_runs |].
-  split.
-  { intros s v w [[_ H1] H2]. destruct (H1 H2). }
-  split.
-  { intros h w Hready. destruct (nothing_ready_at_rest _ _ _ Hready). }
-  split.
-  { intros h v c w b [_ H]. destruct (nothing_called_at_rest _ _ _ H). }
-  intros h v c from w [H _]. destruct (nothing_called_at_rest _ _ _ H).
 Qed.

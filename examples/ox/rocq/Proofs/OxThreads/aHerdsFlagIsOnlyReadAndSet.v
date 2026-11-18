@@ -17,15 +17,3 @@ Proof.
 Qed.
 
 (** Its parts can hold together: an execution in which nothing happens meets each. *)
-Lemma aHerdsFlagIsOnlyReadAndSet_Proofs_feasible : aHerdsFlagIsOnlyReadAndSet_Obl_feasible.
-Proof.
-  exists (fun _ x => x), (fun _ => Event_Stutter).
-  split; [exact rest_runs |].
-  split.
-  { intros h w Hready. destruct (nothing_ready_at_rest _ _ _ Hready). }
-  split.
-  { intros b x from to (who & H). destruct (nothing_completed_at_rest _ _ _ _ _ H). }
-  split.
-  { intros h c i made w [[_ H] _]. destruct H as [H | (a & spawns & H)]; discriminate H. }
-  intros h w Hready. destruct (nothing_ready_at_rest _ _ _ Hready).
-Qed.

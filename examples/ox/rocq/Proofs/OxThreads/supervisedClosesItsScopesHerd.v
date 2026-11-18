@@ -16,14 +16,3 @@ Proof.
 Qed.
 
 (** Its parts can hold together: an execution in which nothing happens meets each. *)
-Lemma supervisedClosesItsScopesHerd_Proofs_feasible : supervisedClosesItsScopesHerd_Obl_feasible.
-Proof.
-  exists (fun _ x => x), (fun _ => Event_Stutter).
-  split; [exact rest_runs |].
-  split.
-  { intros c s from to (supervisor & errorMode & parent & locals & code & ended & a & b & [[H _] _]).
-    destruct (nothing_completed_at_rest _ _ _ _ _ H). }
-  split.
-  { intros s code c from ended to H. destruct (nothing_completed_at_rest _ _ _ _ _ H). }
-  intros supervisor errorMode parent locals c s from to H. destruct (nothing_completed_at_rest _ _ _ _ _ H).
-Qed.

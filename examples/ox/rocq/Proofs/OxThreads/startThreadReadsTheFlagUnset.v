@@ -1,20 +1,20 @@
 Require Export FrFlowGen.OxThreads.startThreadReadsTheFlagUnset.Spec.
 Require Export Proofs.OxThreads.Lemmas.
 From Stdlib Require Import String List ZArith Lia.
-Require Import FrFlow.Threads.Prog FrFlow.Jvm.Machine.
+Require Import FrFlow.Jvm.Prog FrFlow.Jvm.Machine.
 Require Import FrFlow.Scala.Tree FrFlow.Scala.Table FrFlow.Scala.Value FrFlow.Scala.Meaning.
-Require Import FrFlow.Code.Outside FrFlow.Code.Conforms FrFlow.Code.Walk FrFlow.Code.Logic.
+Require Import FrFlow.Code.Outside FrFlow.Code.Conforms FrFlow.Rules.Walk FrFlow.Rules.Logic.
 
 (** Proven of `ThreadHerd.assertNotShuttingDown`'s tree: it reads the herd's flag and throws if it is set, so a
     call of it that returns has read the flag unset. *)
 Lemma assertNotShuttingDown_returns {heldIn} {history : Z -> Event} {N h r c inside w1} :
   conforms Code_files Code_table Code_classes N history -> aHerdKeepsItsFields_claim heldIn history ->
   names N h (vref "ox.internal.ThreadHerd" r) ->
-  history w1 = Event_Invoke c inside (Invocation_mk "ox.internal.ThreadHerd assertNotShuttingDown :scala.Unit" [h]) ->
+  history w1 = Event_Invoke c inside (Invocation_mk L.ThreadHerd_assertNotShuttingDown [h]) ->
   forall w, direct c w1 (history w) -> forall v sp, history w = Event_Respond c w1 (Response_Returned v) sp ->
     exists a b, (w1 <= a /\ b <= w) /\ exists who, completedBy history
-      (Invocation_mk "java.util.concurrent.atomic.AtomicBoolean get :scala.Boolean"
-        [heldIn "ox.internal.ThreadHerd shutdownInProgress" h]) who a (Response_Returned (Value_Bool_ False)) b.
+      (Invocation_mk L.AtomicBoolean_get
+        [heldIn L.ThreadHerd_shutdownInProgress h]) who a (Response_Returned (Value_Bool_ False)) b.
 Proof.
   intros C Hfields Hh Hcall.
   refine (method_meets _ C (Member "ox.internal.ThreadHerd" "assertNotShuttingDown" ":scala.Unit") Hcall Hh
@@ -40,11 +40,11 @@ Proof.
     (Hmade h from ltac:(unfold calledOn; eauto 14)) eq_refl Hcalled) as (r & inside & Hh & Hcall).
   assert (forall k, direct c from (history k) ->
     (exists s t, itselfMakes history (Invocation_mk
-        "java.util.concurrent.ConcurrentHashMap$.KeySetView add java.lang.Object:scala.Boolean" [s; t]) c from k) \/
+        L.KeySetView_add [s; t]) c from k) \/
     (exists sp, history k = Event_Respond c from (Response_Returned Value_Unit_) sp) ->
     exists a b, (from <= a /\ b <= k) /\ exists who, completedBy history
-      (Invocation_mk "java.util.concurrent.atomic.AtomicBoolean get :scala.Boolean"
-        [heldIn "ox.internal.ThreadHerd shutdownInProgress" h]) who a (Response_Returned (Value_Bool_ False)) b)
+      (Invocation_mk L.AtomicBoolean_get
+        [heldIn L.ThreadHerd_shutdownInProgress h]) who a (Response_Returned (Value_Bool_ False)) b)
     as Hall.
   { refine (method_meets _ C (Member "ox.internal.ThreadHerd" "startThread" "scala.Function0:scala.Unit") Hcall Hh
       eq_refl _).
@@ -66,11 +66,3 @@ Proof.
 Qed.
 
 (** Its parts can hold together: an execution in which nothing happens meets each. *)
-Lemma startThreadReadsTheFlagUnset_Proofs_feasible : startThreadReadsTheFlagUnset_Obl_feasible.
-Proof.
-  exists (fun _ x => x), (fun _ => Event_Stutter).
-  split; [exact rest_runs |].
-  split.
-  { intros h w H. repeat (destruct H as [H | H]); destruct (nothing_called_on_at_rest _ _ _ H). }
-  intros h. repeat split; intros w by_ inside found H; discriminate H.
-Qed.

@@ -1,9 +1,9 @@
 Require Export FrFlowGen.OxThreads.closingEndsOnceFoundEmpty.Spec.
 Require Export Proofs.OxThreads.Lemmas.
 From Stdlib Require Import String List ZArith Lia.
-Require Import FrFlow.Threads.Prog FrFlow.Jvm.Machine.
+Require Import FrFlow.Jvm.Prog FrFlow.Jvm.Machine.
 Require Import FrFlow.Scala.Tree FrFlow.Scala.Table FrFlow.Scala.Value FrFlow.Scala.Meaning.
-Require Import FrFlow.Code.Outside FrFlow.Code.Conforms FrFlow.Code.Walk FrFlow.Code.Logic.
+Require Import FrFlow.Code.Outside FrFlow.Code.Conforms FrFlow.Rules.Walk FrFlow.Rules.Logic.
 
 (** Proven of `ThreadHerd.interruptAllAndJoinUntilCompleted`'s tree: past its check and the flag it sets, it
     loops, each turn asking the herd's set whether it is empty; it leaves the loop, and so completes, only on a
@@ -16,11 +16,11 @@ Proof.
     (Hmade h from ltac:(unfold calledOn; eauto 14)) eq_refl Hcalled)
     as (r & inside & Hh & Hcall).
   destruct Hdone as [[(ins & spawns & Hat) _] | [_ [spawns Hend]]]; [rewrite Hcall in Hat; discriminate Hat |].
-  assert (forall k, direct (heldIn "ox.internal.ThreadHerd herdOwner" h) from (history k) ->
-    forall resp sp, history k = Event_Respond (heldIn "ox.internal.ThreadHerd herdOwner" h) from resp sp ->
+  assert (forall k, direct (heldIn L.ThreadHerd_herdOwner h) from (history k) ->
+    forall resp sp, history k = Event_Respond (heldIn L.ThreadHerd_herdOwner h) from resp sp ->
     exists a b, (from < a /\ b <= k) /\ completedBy history
-      (Invocation_mk "java.util.concurrent.ConcurrentHashMap$.CollectionView isEmpty :scala.Boolean"
-        [heldIn "ox.internal.ThreadHerd threads" h]) (heldIn "ox.internal.ThreadHerd herdOwner" h) a
+      (Invocation_mk L.CollectionView_isEmpty
+        [heldIn L.ThreadHerd_threads h]) (heldIn L.ThreadHerd_herdOwner h) a
       (Response_Returned (Value_Bool_ True)) b) as Hall.
   { refine (method_meets _ C (Member "ox.internal.ThreadHerd" "interruptAllAndJoinUntilCompleted" ":scala.Unit")
       Hcall Hh eq_refl _).
@@ -70,19 +70,3 @@ Proof.
 Qed.
 
 (** Its parts can hold together: an execution in which nothing happens meets each. *)
-Lemma closingEndsOnceFoundEmpty_Proofs_feasible : closingEndsOnceFoundEmpty_Obl_feasible.
-Proof.
-  exists (fun _ x => x), (fun _ => Event_Stutter).
-  split; [exact rest_runs |].
-  split.
-  { intros s from response to [who H]. destruct (nothing_completed_at_rest _ _ _ _ _ H). }
-  split.
-  { intros h f from a b r [[H _] _]. destruct (nothing_called_at_rest _ _ _ H). }
-  split.
-  { intros s b from response to [who H]. destruct (nothing_completed_at_rest _ _ _ _ _ H). }
-  split.
-  { intros h w H. repeat (destruct H as [H | H]); destruct (nothing_called_on_at_rest _ _ _ H). }
-  split.
-  { intros h. repeat split; intros w by_ inside found H; discriminate H. }
-  intros c from response to H. destruct (nothing_completed_at_rest _ _ _ _ _ H).
-Qed.

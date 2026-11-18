@@ -1,9 +1,9 @@
 Require Export FrFlowGen.OxThreads.aScopesClosingIsReached.Spec.
 Require Export Proofs.OxThreads.Lemmas.
 From Stdlib Require Import String List ZArith Lia.
-Require Import FrFlow.Threads.Prog FrFlow.Jvm.Machine.
+Require Import FrFlow.Jvm.Prog FrFlow.Jvm.Machine.
 Require Import FrFlow.Scala.Tree FrFlow.Scala.Table FrFlow.Scala.Value FrFlow.Scala.Meaning FrFlow.Scala.Library.
-Require Import FrFlow.Code.Outside FrFlow.Code.Conforms FrFlow.Code.Walk FrFlow.Code.Logic FrFlow.Code.Live.
+Require Import FrFlow.Code.Outside FrFlow.Code.Conforms FrFlow.Rules.Walk FrFlow.Rules.Logic FrFlow.Rules.Live.
 
 (** Proven of `scopedWithCapability`'s tree, and of the tree of the function it applies. Given its turn, the call
     reads the thread's scope and sets it, each responded to, and applies a function of its own. That function,
@@ -81,19 +81,3 @@ Proof.
 Qed.
 
 (** Its parts can hold together: an execution in which nothing happens meets each. *)
-Lemma aScopesClosingIsReached_Proofs_feasible : aScopesClosingIsReached_Obl_feasible.
-Proof.
-  exists (fun _ x => x), (fun _ => Event_Stutter).
-  split; [exact rest_runs |].
-  split.
-  { intros s g c from H. destruct (nothing_called_at_rest _ _ _ H). }
-  split.
-  { intros s g c from own a [H _]. destruct (nothing_called_at_rest _ _ _ H). }
-  split.
-  { intros s. split; intros who from [H _]; destruct (nothing_begun_at_rest _ _ _ H). }
-  split.
-  { intros s who from [H _]. destruct (nothing_begun_at_rest _ _ _ H). }
-  split.
-  { intros s from response to [who H]. destruct (nothing_completed_at_rest _ _ _ _ _ H). }
-  intros s. split; intros from response to [who H]; destruct (nothing_completed_at_rest _ _ _ _ _ H).
-Qed.

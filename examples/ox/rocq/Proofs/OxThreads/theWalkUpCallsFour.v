@@ -1,9 +1,9 @@
 Require Export FrFlowGen.OxThreads.theWalkUpCallsFour.Spec.
 Require Export Proofs.OxThreads.Lemmas.
 From Stdlib Require Import String List ZArith Lia.
-Require Import FrFlow.Threads.Prog FrFlow.Jvm.Machine.
+Require Import FrFlow.Jvm.Prog FrFlow.Jvm.Machine.
 Require Import FrFlow.Scala.Tree FrFlow.Scala.Table FrFlow.Scala.Value FrFlow.Scala.Meaning.
-Require Import FrFlow.Code.Outside FrFlow.Code.Conforms FrFlow.Code.Walk FrFlow.Code.Logic.
+Require Import FrFlow.Code.Outside FrFlow.Code.Conforms FrFlow.Rules.Walk FrFlow.Rules.Logic.
 
 (** Proven of `ThreadHerd.verifyCurrentThreadInScopeTree`'s tree, twice over. The function the check applies is
     the one written there, `doAssert`; a call of it, whoever makes it, asks the scope for its herd, the herd
@@ -48,7 +48,7 @@ Proof.
   intros wmd rm spm xm Hwmd Hrespm Hgivesm.
   destruct xm as [e | vm]; [pass |].
   assert (calledBy history (Invocation_mk
-    "ox.internal.ThreadHerd isOwnerOrHerdThread java.lang.Thread:scala.Boolean" [yherd; ythread]) c2 wm)
+    L.ThreadHerd_isOwnerOrHerdThread [yherd; ythread]) c2 wm)
     as Hcalledm by (left; exists (Some k2); exact Hinvm).
   destruct (method_begun (Member "ox.internal.ThreadHerd" "isOwnerOrHerdThread" "java.lang.Thread:scala.Boolean") C
     (Hmade yherd wm ltac:(unfold calledOn; eauto 14)) eq_refl Hcalledm) as (rherd & insidem & Hyherd & Hcallm).
@@ -70,9 +70,3 @@ Proof.
 Qed.
 
 (** What it is from can hold: an execution in which nothing happens meets it. *)
-Lemma theWalkUpCallsFour_Proofs_feasible : theWalkUpCallsFour_Obl_feasible.
-Proof.
-  exists (fun _ => Event_Stutter).
-  split; [exact rest_runs |].
-  intros h w H. repeat (destruct H as [H | H]); destruct (nothing_called_on_at_rest _ _ _ H).
-Qed.

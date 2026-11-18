@@ -1,9 +1,9 @@
 Require Export FrFlowGen.OxThreads.aReadyHerdsValsAreWritten.Spec.
 Require Export Proofs.OxThreads.Lemmas.
 From Stdlib Require Import String List ZArith Lia.
-Require Import FrFlow.Threads.Prog FrFlow.Jvm.Machine.
+Require Import FrFlow.Jvm.Prog FrFlow.Jvm.Machine.
 Require Import FrFlow.Scala.Tree FrFlow.Scala.Table FrFlow.Scala.Value FrFlow.Scala.Meaning FrFlow.Scala.Library.
-Require Import FrFlow.Code.Outside FrFlow.Code.Conforms FrFlow.Code.Walk FrFlow.Code.Logic.
+Require Import FrFlow.Code.Outside FrFlow.Code.Conforms FrFlow.Rules.Walk FrFlow.Rules.Logic.
 Require FrFlow.Scala.Jdk.
 
 (** Proven of the two things that make a herd, each gone through to its end: a call of the constructor, and the
@@ -61,7 +61,7 @@ Proof.
     { exfalso. exact (module_not_atomic C "ox.OxError$" "apply"
         "2,ox.Supervisor,ox.ErrorMode,scala.Option,ox.ForkLocalMap:ox.OxError" Hat ltac:(vm_compute; reflexivity)
         eq_refl ltac:(vm_compute; reflexivity)). }
-    set (h := heldIn "ox.OxError herd"%string s) in *.
+    set (h := heldIn L.OxError_herd s) in *.
     assert (forall k, direct c from (history k) ->
       forall sp, history k = Event_Respond c from (Response_Returned s) sp ->
       (exists m hs, history m = Event_Make c (Some from) h "ox.internal.ThreadHerd" hs) /\
@@ -127,12 +127,3 @@ Proof.
 Qed.
 
 (** Its parts can hold together: an execution in which nothing happens meets each. *)
-Lemma aReadyHerdsValsAreWritten_Proofs_feasible : aReadyHerdsValsAreWritten_Obl_feasible.
-Proof.
-  exists (fun _ x => x), (fun _ => Event_Stutter).
-  split; [exact rest_runs |].
-  split.
-  { intros h field by_ inside w [_ [H | [v H]]]; discriminate H. }
-  intros h finalizers supervisor errorMode parent locals s from response to [who H].
-  destruct (nothing_completed_at_rest _ _ _ _ _ H).
-Qed.

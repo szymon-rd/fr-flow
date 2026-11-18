@@ -30,6 +30,15 @@ class ViewsSuite extends munit.CatsEffectSuite:
     }
   }
 
+  test("stands: what a node stands on at the bottom, and of each root; a claim not proven stands on itself") {
+    (shown(Opened.before, Command.Stands(None)), shown(Opened.before, Command.Stands(Some(sameAbove)))).tupled.map {
+      (roots, one) =>
+        assert(roots.startsWith("! nonNegative  claim  proposed  The service never gives a negative number."), roots)
+        assert(roots.contains("stands on 0 assumption(s), and on 1 claim(s) not proven"), roots)
+        assert(one.contains("Not proven, for a reason of its own\n  ! sameAbove"), one)
+    }
+  }
+
   test("show: a node under review, with what moved and what deciding it acts on; a proposal waiting for its parent") {
     (moved(Opened.after, Command.Show(nonNegative, Depth.Normal), Command.Show(sameAbove, Depth.Normal)),
       shown(Opened.before, Command.Show(sameAbove, Depth.Normal))).tupled.map { (review, proposal) =>

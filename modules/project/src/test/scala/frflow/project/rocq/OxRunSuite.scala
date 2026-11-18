@@ -8,7 +8,7 @@ import scala.jdk.CollectionConverters.*
 
 /** Programs written against Ox (`clients`), read into trees as Ox itself is, and the meaning of the trees run in
   * Rocq as the programs an execution of the code is of (`FrFlow/Code/Outside.v`), by the machine that writes its
-  * run out as an execution (`FrFlow/Code/Frames.v`): each must give there what the same method gives on the JVM.
+  * run out as an execution (`FrFlow/Bridge/Frames.v`): each must give there what the same method gives on the JVM.
   * It is how the meaning given to Scala's trees and to the JDK is tested. `FRFLOW_ROCQ_WRITE=1` writes the files
   * anew.
   */
@@ -50,11 +50,11 @@ class OxRunSuite extends munit.FunSuite:
     (names.filter(n => n.startsWith("ox_") && n.endsWith(".v")).sorted :+ "All.v").map(n =>
       s"Ox/Tree/$n" -> Files.readString(trees.resolve(n)))
 
-  private val library = List("Base", "Executions", "Threads/Prog", "Jvm/Machine", "Jvm/Races", "Scala/Tree",
+  private val library = List("Base", "Executions", "Jvm/Prog", "Jvm/Machine", "Jvm/Races", "Scala/Tree",
     "Scala/Program", "Scala/Table", "Scala/Equal", "Scala/Value", "Scala/Meaning", "Scala/Jdk", "Scala/Library",
-    "Scala/Run", "Code/Outside", "Code/Conforms", "Code/Classes", "Code/Walk", "Code/Witness", "Code/Names",
-    "Code/Checks", "Code/Frames", "Code/Steps", "Code/Kept", "Code/Stages", "Code/Heap", "Code/Bridge",
-    "Code/Executed")
+    "Scala/Run", "Code/Outside", "Code/Conforms", "Code/Classes", "Rules/Walk", "Code/Witness", "Bridge/Names",
+    "Bridge/Checks", "Bridge/Frames", "Bridge/Steps", "Bridge/Kept", "Bridge/Stages", "Bridge/Heap", "Bridge/Bridge",
+    "Bridge/Executed")
 
   test("Rocq runs the meaning of each program over Ox's trees, and it gives what the JVM gave".tag(Rocq)) {
     val (lemmas, before) = files.partition((name, _) => OxClients.together(name))

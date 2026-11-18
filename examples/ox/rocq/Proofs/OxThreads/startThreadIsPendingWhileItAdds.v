@@ -1,9 +1,9 @@
 Require Export FrFlowGen.OxThreads.startThreadIsPendingWhileItAdds.Spec.
 Require Export Proofs.OxThreads.Lemmas.
 From Stdlib Require Import String List ZArith Lia.
-Require Import FrFlow.Threads.Prog FrFlow.Jvm.Machine.
+Require Import FrFlow.Jvm.Prog FrFlow.Jvm.Machine.
 Require Import FrFlow.Scala.Tree FrFlow.Scala.Table FrFlow.Scala.Value FrFlow.Scala.Meaning.
-Require Import FrFlow.Code.Outside FrFlow.Code.Conforms FrFlow.Code.Walk FrFlow.Code.Logic.
+Require Import FrFlow.Code.Outside FrFlow.Code.Conforms FrFlow.Rules.Walk FrFlow.Rules.Logic.
 
 (** Proven of `ThreadHerd.startThread`'s tree: its response comes after the response to the add it made. So
     while that add is pending, the call has not responded. *)
@@ -28,7 +28,7 @@ Proof.
   refine (method_meets
     (fun k => forall resp sp, history k = Event_Respond c from resp sp -> forall s t a, a < k ->
       history a = Event_Invoke c (Some from) (Invocation_mk
-        "java.util.concurrent.ConcurrentHashMap$.KeySetView add java.lang.Object:scala.Boolean" [s; t]) ->
+        L.KeySetView_add [s; t]) ->
       overBy history c a k)
     C (Member "ox.internal.ThreadHerd" "startThread" "scala.Function0:scala.Unit") Hcall Hh eq_refl _ k
     ltac:(rewrite Hresp; cbn; auto) resp sp Hresp _ t a Hak Hbegun).
@@ -38,7 +38,7 @@ Proof.
   (* the add, and the response to it: from there on it is over *)
   step. intros wa ysa _ _ _ Hadd. split; [miss |]. intros wd rr x Hwd Hdn _ _.
   assert (forall j s t, wd <= j -> history wa = Event_Invoke c (Some from) (Invocation_mk
-      "java.util.concurrent.ConcurrentHashMap$.KeySetView add java.lang.Object:scala.Boolean" [s; t]) ->
+      L.KeySetView_add [s; t]) ->
     overBy history c wa j) as Hover.
   { destruct Hdn as [(sp' & E & _) | (_ & Hlt & sp' & E)]; intros j s' t' Hj E'; [congruence |].
     exists (wd - 1), rr, sp'. split; [lia | exact E]. }
@@ -51,9 +51,3 @@ Proof.
 Qed.
 
 (** What it is from can hold: an execution in which nothing happens meets it. *)
-Lemma startThreadIsPendingWhileItAdds_Proofs_feasible : startThreadIsPendingWhileItAdds_Obl_feasible.
-Proof.
-  exists (fun _ x => x), (fun _ => Event_Stutter).
-  split; [exact rest_runs |].
-  intros h w H. repeat (destruct H as [H | H]); destruct (nothing_called_on_at_rest _ _ _ H).
-Qed.

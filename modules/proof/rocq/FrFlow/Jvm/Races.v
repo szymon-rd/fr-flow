@@ -5,7 +5,7 @@
     step goes wrong. *)
 
 From Stdlib Require Import String List.
-Require Import FrFlow.Threads.Prog FrFlow.Jvm.Machine.
+Require Import FrFlow.Jvm.Prog FrFlow.Jvm.Machine.
 Import ListNotations.
 Open Scope string_scope.
 

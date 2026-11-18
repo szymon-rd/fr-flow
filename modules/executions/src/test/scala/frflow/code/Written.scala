@@ -39,8 +39,8 @@ val addAnswersWhetherNew = Node.assumption("Adding to a set answers whether the 
 val aRingIsCounted = Node.assumption("Ringing on a till calls its count, and the count is not what it was.")(
   forall((till: Obj[Till], item: Obj[Item], w: Term[BigInt]) =>
     (till.ring(item, 1).calls(till.count(), w) && till.field("drawer") =!= item) implies
-      eventually(w)(later => till.field("rings").at(later) =!= till.field("rings").at(w) &&
-        till.open().by(till).spawned(later))))
+      exists((later: Term[BigInt]) => w <= later &&
+        till.field("rings").at(later) =!= till.field("rings").at(w) && till.open().by(till).spawned(later))))
 
 val noStartAfterAStart = Node.claim("A thread that was started is not started again.")(
   forall((t: Obj[Thread], w: Term[BigInt]) => t.start().calledBefore(w) implies !t.start().called(w)))

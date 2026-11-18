@@ -1,11 +1,7 @@
 Require Export FrFlowGen.OxThreads.Domain.
-Require Import FrFlow.Threads.Prog FrFlow.Jvm.Machine.
+Require Import FrFlow.Jvm.Prog FrFlow.Jvm.Machine.
 Require Import FrFlow.Scala.Tree FrFlow.Scala.Table FrFlow.Scala.Value FrFlow.Scala.Meaning.
-Require Import FrFlow.Code.Outside FrFlow.Code.Conforms FrFlow.Code.Walk FrFlow.Code.Logic FrFlow.Code.Live.
-
-(** An execution in which nothing happens is one of the code. *)
-Lemma rest_runs : Code_runs (fun _ => Event_Stutter).
-Proof. apply nothing_runs. Qed.
+Require Import FrFlow.Code.Outside FrFlow.Code.Conforms FrFlow.Rules.Walk FrFlow.Rules.Logic FrFlow.Rules.Live.
 
 (** ** Calls of the herd's methods in an execution of the code *)
 
@@ -43,15 +39,15 @@ Proof. intros H. exists c. exact (done_completed H). Qed.
     owner and throws if they differ, so a call of it by the owner does not throw. *)
 Lemma assertOnOwnerThread_returns {heldIn} {history : Z -> Event} {N h r inside w1} :
   conforms Code_files Code_table Code_classes N history ->
-  readAs history h "ox.internal.ThreadHerd herdOwner" (heldIn "ox.internal.ThreadHerd herdOwner" h) ->
+  readAs history h L.ThreadHerd_herdOwner (heldIn L.ThreadHerd_herdOwner h) ->
   (forall c from response to, completedBy history
-    (Invocation_mk "java.lang.Thread$ currentThread :java.lang.Thread" []) c from response to ->
+    (Invocation_mk L.Thread_currentThread []) c from response to ->
     response = Response_Returned c) ->
   names N h (vref "ox.internal.ThreadHerd" r) ->
-  history w1 = Event_Invoke (heldIn "ox.internal.ThreadHerd herdOwner" h) inside
-    (Invocation_mk "ox.internal.ThreadHerd assertOnOwnerThread :scala.Unit" [h]) ->
-  forall w, direct (heldIn "ox.internal.ThreadHerd herdOwner" h) w1 (history w) -> forall y sp,
-    history w = Event_Respond (heldIn "ox.internal.ThreadHerd herdOwner" h) w1 (Response_Threw y) sp -> False.
+  history w1 = Event_Invoke (heldIn L.ThreadHerd_herdOwner h) inside
+    (Invocation_mk L.ThreadHerd_assertOnOwnerThread [h]) ->
+  forall w, direct (heldIn L.ThreadHerd_herdOwner h) w1 (history w) -> forall y sp,
+    history w = Event_Respond (heldIn L.ThreadHerd_herdOwner h) w1 (Response_Threw y) sp -> False.
 Proof.
   intros C Howner Hcurrent Hh Hcall.
   refine (method_meets _ C (Member "ox.internal.ThreadHerd" "assertOnOwnerThread" ":scala.Unit") Hcall Hh
@@ -73,7 +69,7 @@ Lemma isOwnerOrHerdThread_returns {history : Z -> Event} {N h r t c inside w1} :
   conforms Code_files Code_table Code_classes N history ->
   names N h (vref "ox.internal.ThreadHerd" r) ->
   history w1 = Event_Invoke c inside
-    (Invocation_mk "ox.internal.ThreadHerd isOwnerOrHerdThread java.lang.Thread:scala.Boolean" [h; t]) ->
+    (Invocation_mk L.ThreadHerd_isOwnerOrHerdThread [h; t]) ->
   forall w, direct c w1 (history w) -> forall resp sp x,
     history w = Event_Respond c w1 resp sp -> gives N resp (inr x) -> exists b, x = VBool b.
 Proof.
@@ -142,20 +138,6 @@ Proof. intros [[Hdone _] | [Hbegun _]]; [right; exists response; exact Hdone | l
 
 Lemma over_later (history : Z -> Event) who from a b : a <= b -> overBy history who from a -> overBy history who from b.
 Proof. intros Hab (k & ans & spawns & Hk & Hs). exists k, ans, spawns. split; [lia | exact Hs]. Qed.
-
-(** A call made before a moment and not pending at it has completed by it. *)
-Lemma called_and_over_completed (history : Z -> Event) c who w :
-  (exists m, m < w /\ calledBy history c who m) ->
-  ~ (exists m, m < w /\ begun history c who m /\ ~ overBy history who m w) ->
-  exists from response to, completedBy history c who from response to /\ from < w /\ to <= w.
-Proof.
-  intros (m & Hm & [Hbegun | (a & Hdone)]) Hnot.
-  - destruct (classic (overBy history who m w)) as [(k & a & spawns & Hk & Hs) | Hpending].
-    + exists m, a, (k + 1). split; [| lia].
-      right. split; [exact Hbegun |]. exists spawns. replace (k + 1 - 1) with k by lia. exact Hs.
-    + exfalso. apply Hnot. exists m. split; [exact Hm | split; [exact Hbegun | exact Hpending]].
-  - exists m, a, (m + 1). split; [left; split; [exact Hdone | reflexivity] | lia].
-Qed.
 
 (** A response that gives unit is the return of unit. *)
 Lemma returned_unit (N : naming) (r : Response) : gives N r (inr VUnit) -> r = Response_Returned Value_Unit_.
@@ -255,35 +237,6 @@ Proof.
   - intros Ha. destruct (Hwho by_ inside later Ha) as [-> ->].
     apply (Hover later Hlater). destruct Ha as [Ha | [v Ha]]; rewrite Ha; cbn; auto.
 Qed.
-
-(** ** A run in which nothing happens
-
-    It meets every statement that says what follows a call: what shows that statements can hold together. *)
-
-Lemma nothing_begun_at_rest c who w : ~ begun (fun _ => Event_Stutter) c who w.
-Proof. intros (inside & H). discriminate. Qed.
-
-Lemma nothing_called_at_rest c who w : ~ calledBy (fun _ => Event_Stutter) c who w.
-Proof. intros [(inside & H) | (a & inside & spawns & H)]; discriminate. Qed.
-
-Lemma nothing_called_on_at_rest on method w : ~ calledOn (fun _ => Event_Stutter) on method w.
-Proof. intros (rest & by_ & H). exact (nothing_called_at_rest _ _ _ H). Qed.
-
-Lemma nothing_completed_at_rest c who from a to : ~ completedBy (fun _ => Event_Stutter) c who from a to.
-Proof. intros [[(inside & spawns & H) _] | [(inside & H) _]]; discriminate. Qed.
-
-(** At rest no herd is ready. *)
-Lemma nothing_ready_at_rest heldIn h w : ~ ready heldIn (fun _ => Event_Stutter) h w.
-Proof.
-  intros [(x & by_ & from & to & _ & H) | (su & em & pa & lo & s & from & to & [[_ [who H]] _])];
-    exact (nothing_completed_at_rest _ _ _ _ _ H).
-Qed.
-
-Lemma no_fork_at_rest heldIn t h w : ~ forkOf heldIn (fun _ => Event_Stutter) t h w.
-Proof. intros (from & value & to & _ & who & H). exact (nothing_completed_at_rest _ _ _ _ _ H). Qed.
-
-Lemma none_made_to_run_at_rest heldIn t h code w : ~ madeToRun heldIn (fun _ => Event_Stutter) t h code w.
-Proof. intros (c & from & added & to & [_ H] & _). exact (nothing_completed_at_rest _ _ _ _ _ H). Qed.
 
 (** ** What happens in time *)
 

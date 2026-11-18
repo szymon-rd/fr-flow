@@ -92,10 +92,6 @@ Fixpoint owners (ss : list sym) : list string :=
   | _ :: rest => owners rest
   end.
 
-(** The variables of the classes named. *)
-Definition variables_of (names : list string) (files : list tree) : list (sym * list string) :=
-  flat_map (fun c => if existsb (String.eqb (fst c)) names then variables (snd c) else []) (classes files).
-
 (** The variables of a tree that a function made inside it reads or assigns, and does not itself declare: those a
     closure captures. Only such a variable, or a field, can be reached by a second thread. *)
 Definition captured (t : tree) : list sym :=

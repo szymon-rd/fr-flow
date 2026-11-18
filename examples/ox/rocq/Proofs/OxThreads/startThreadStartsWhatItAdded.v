@@ -1,9 +1,9 @@
 Require Export FrFlowGen.OxThreads.startThreadStartsWhatItAdded.Spec.
 Require Export Proofs.OxThreads.Lemmas.
 From Stdlib Require Import String List ZArith Lia.
-Require Import FrFlow.Threads.Prog FrFlow.Jvm.Machine.
+Require Import FrFlow.Jvm.Prog FrFlow.Jvm.Machine.
 Require Import FrFlow.Scala.Tree FrFlow.Scala.Table FrFlow.Scala.Value FrFlow.Scala.Meaning.
-Require Import FrFlow.Code.Outside FrFlow.Code.Conforms FrFlow.Code.Walk FrFlow.Code.Logic FrFlow.Code.Live.
+Require Import FrFlow.Code.Outside FrFlow.Code.Conforms FrFlow.Rules.Walk FrFlow.Rules.Logic FrFlow.Rules.Live.
 
 (** Proven of `ThreadHerd.startThread`'s tree. A call that is seen to add a thread has got there: each call it
     made before was responded to. The call that adds is responded to in time, and the thread that runs
@@ -94,14 +94,3 @@ Proof.
 Qed.
 
 (** What it is from can hold: an execution in which nothing happens meets it. *)
-Lemma startThreadStartsWhatItAdded_Proofs_feasible : startThreadStartsWhatItAdded_Obl_feasible.
-Proof.
-  exists (fun _ x => x), (fun _ => Event_Stutter).
-  split; [exact rest_runs |].
-  split.
-  { intros h code c from s t a s2 t2 a2 [[H _] _]. destruct (nothing_called_at_rest _ _ _ H). }
-  split.
-  { intros h c i H. exfalso. repeat (destruct H as [H | H]);
-      first [exact (nothing_begun_at_rest _ _ _ H) | destruct H as [x H]; exact (nothing_begun_at_rest _ _ _ H)]. }
-  intros h w H. repeat (destruct H as [H | H]); destruct (nothing_called_on_at_rest _ _ _ H).
-Qed.

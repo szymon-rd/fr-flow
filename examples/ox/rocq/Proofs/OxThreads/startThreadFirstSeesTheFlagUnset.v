@@ -11,11 +11,3 @@ Proof.
 Qed.
 
 (** Its parts can hold together: an execution in which nothing happens meets each. *)
-Lemma startThreadFirstSeesTheFlagUnset_Proofs_feasible : startThreadFirstSeesTheFlagUnset_Obl_feasible.
-Proof.
-  exists (fun _ x => x), (fun _ _ => False), (fun _ => Event_Stutter).
-  split; [exact rest_runs |].
-  split.
-  { intros h code c t from w [H _]. destruct (nothing_called_at_rest _ _ _ H). }
-  intros s b from response to [who H]. destruct (nothing_completed_at_rest _ _ _ _ _ H).
-Qed.

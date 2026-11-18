@@ -2,7 +2,7 @@
 
 Scala is read into Rocq whole: each TASTy file as the tree the compiler typed (`FrFlow/Scala/Tree.v`), with
 nothing chosen in the reading. This page is about the meaning those trees are given. Each tree is given the
-program it runs (`FrFlow/Threads/Prog.v`: it returns, does one operation, loops, or calls a closure), and the
+program it runs (`FrFlow/Jvm/Prog.v`: it returns, does one operation, loops, or calls a closure), and the
 machine of `FrFlow/Jvm/Machine.v` says what a step of a thread may do. The model of Ox's threads
 (`docs/EXECUTIONS.md`) is stated over the same programs ("What the proofs are about", below).
 
@@ -160,23 +160,23 @@ JDK is one operation named by the definition called (`FrFlow/Code/Outside.v`), a
 model's assumptions.
 
 The machine the 25 programs are run on is over those same programs, and writes its run out as an execution
-(`FrFlow/Code/Frames.v`). A thread is a stack of calls, each with what is left of its program. A call of a method
+(`FrFlow/Bridge/Frames.v`). A thread is a stack of calls, each with what is left of its program. A call of a method
 or a function of the code is an event, the caller waiting under it; a call named by its label is an event too,
 and on top of it runs what the library says of the definition (`Library.of_label`), whose steps are the JDK's own
 and are no events; an operation on an object of the code is its event; a call that ends responds. So the
 comparison with the JVM is of the programs the proofs are about, with the library as what the JDK does, on a
 machine whose every step is an event of an execution or none.
 
-That the events such a run writes out are an execution is proven (`FrFlow/Code/Executed.v`,
+That the events such a run writes out are an execution is proven (`FrFlow/Bridge/Executed.v`,
 `machine_conforms`): for every table of code, every library of what is outside it, every order of the threads'
 turns and every length of run, the events `execute_frames` gives satisfy `Conforms.runs`, the hypothesis every
 statement of a model about the code is proven from. It rests on two axioms, `classic` and
-`constructive_definite_description`. The proof is in `FrFlow/Code`: what one step is (`Steps.v`), what every
+`constructive_definite_description`. The proof is in `FrFlow/Bridge`: what one step is (`Steps.v`), what every
 step keeps (`Kept.v`), where a call is and that a step takes it there by the rule `Conforms.takes` has for the
 step's event (`Stages.v`), the heap and the events that speak of it (`Heap.v`), the laws (`Bridge.v`).
 
 The machine takes a step only where an execution of the code has one, and a run that would take another stops,
-saying why (`FrFlow/Code/Checks.v`, `Frames.v`). What it checks of a step:
+saying why (`FrFlow/Bridge/Checks.v`, `Frames.v`). What it checks of a step:
 
 - the arguments of a method or a function of the code are of its parameters' types, what a call gives is of
   the type its signature says, and what a call of the code reads of a field is of the field's class;

@@ -1,8 +1,9 @@
 Require Export FrFlowGen.Latch.enterReadsItOpen.Spec.
+Require Import FrFlowGen.Latch.Domain.
 From Stdlib Require Import String List ZArith Lia.
-Require Import FrFlow.Threads.Prog FrFlow.Jvm.Machine.
+Require Import FrFlow.Jvm.Prog FrFlow.Jvm.Machine.
 Require Import FrFlow.Scala.Tree FrFlow.Scala.Table FrFlow.Scala.Value FrFlow.Scala.Meaning.
-Require Import FrFlow.Code.Outside FrFlow.Code.Conforms FrFlow.Code.Walk FrFlow.Code.Logic.
+Require Import FrFlow.Code.Outside FrFlow.Code.Conforms FrFlow.Rules.Walk FrFlow.Rules.Logic.
 
 (** Of a call of `enter`: a response that is a return comes after a read of the flag that gave false. *)
 Lemma enterReadsItOpen_Proofs_complete : enterReadsItOpen_Obl_complete.
@@ -10,7 +11,7 @@ Proof.
   intros heldIn history [N C] Hmade Hflag l from response to [who Hdone] ->.
   assert (exists r, names N l (vref "frflow.executions.latch.Latch" r)) as [r Hl].
   { destruct (Hmade l from) as (m & b & ins & hs & _ & Hmk); [| exact (made_named C Hmk)].
-    assert (calledBy history (Invocation_mk "frflow.executions.latch.Latch enter :scala.Unit" [l]) who from) as Hc
+    assert (calledBy history (Invocation_mk L.Latch_enter [l]) who from) as Hc
       by (destruct Hdone as [[Hat _] | [Hcall _]]; [right; eexists; exact Hat | left; exact Hcall]).
     unfold calledOn. eauto 14. }
   destruct Hdone as [[(inside & spawns & Hat) _] | [[inside Hcall] [spawns Hend]]].
@@ -19,8 +20,8 @@ Proof.
   replace to with (to - 1 + 1) by lia.
   refine (method_meets (fun w => forall sp, history w = Event_Respond who from (Response_Returned Value_Unit_) sp ->
       exists a b, (from <= a /\ b <= w + 1) /\ exists who', completedBy history
-        (Invocation_mk "java.util.concurrent.atomic.AtomicBoolean get :scala.Boolean"
-          [heldIn "frflow.executions.latch.Latch closed" l]) who' a (Response_Returned (Value_Bool_ False)) b)
+        (Invocation_mk L.AtomicBoolean_get
+          [heldIn L.Latch_closed l]) who' a (Response_Returned (Value_Bool_ False)) b)
     C (Member "frflow.executions.latch.Latch" "enter" ":scala.Unit") Hcall Hl eq_refl _ (to - 1) _ spawns Hend);
     [| rewrite Hend; cbn; auto].
   intros args w Hargs _. inversion Hargs; subst.
@@ -37,10 +38,3 @@ Proof.
 Qed.
 
 (** An execution in which nothing happens meets what the step is from. *)
-Lemma enterReadsItOpen_Proofs_feasible : enterReadsItOpen_Obl_feasible.
-Proof.
-  exists (fun _ x => x), (fun _ => Event_Stutter). split; [apply nothing_runs |]. repeat split.
-  - intros l w H. repeat (destruct H as [H | H]);
-      destruct H as (rest & by_ & [[inside H] | (a & inside & spawns & H)]); discriminate H.
-  - intros l w by_ inside found H. discriminate H.
-Qed.

@@ -10,6 +10,8 @@ final case class Layout(kb: KbName):
   /** The code read for a model that speaks of its execution: its files as trees, and what an execution of it is. */
   def code: ModuleName = generated("Code")
   def codeUnit(name: String): ModuleName = generated("Code", name)
+  /** The names of what the statements call by a label (`rocq.LabelModules`). */
+  def labels: ModuleName = generated("Labels")
   /** Every define's module: what a proof file imports to state things about the domain. */
   def domain: ModuleName = generated("Domain")
   def define(d: DefName): ModuleName = generated("Domain", s"Def_${d.value}")

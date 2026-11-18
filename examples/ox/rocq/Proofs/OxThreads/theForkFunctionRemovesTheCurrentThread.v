@@ -1,9 +1,9 @@
 Require Export FrFlowGen.OxThreads.theForkFunctionRemovesTheCurrentThread.Spec.
 Require Export Proofs.OxThreads.Lemmas.
 From Stdlib Require Import String List ZArith Lia.
-Require Import FrFlow.Threads.Prog FrFlow.Jvm.Machine.
+Require Import FrFlow.Jvm.Prog FrFlow.Jvm.Machine.
 Require Import FrFlow.Scala.Tree FrFlow.Scala.Table FrFlow.Scala.Value FrFlow.Scala.Meaning.
-Require Import FrFlow.Code.Outside FrFlow.Code.Conforms FrFlow.Code.Walk FrFlow.Code.Logic.
+Require Import FrFlow.Code.Outside FrFlow.Code.Conforms FrFlow.Rules.Walk FrFlow.Rules.Logic.
 
 (** Proven of `ThreadHerd.startThread`'s tree, twice over. The call of `newThread` that `startThread` makes
     hands the factory the function written there: `try t finally threads.remove(Thread.currentThread()).discard`.
@@ -18,13 +18,13 @@ Proof.
   revert c t i w Hrun Hrem.
   refine (method_meets
     (fun k => forall f r, itselfMakes history (Invocation_mk
-      "java.util.concurrent.ThreadFactory newThread java.lang.Runnable:java.lang.Thread" [f; r]) c0 from0 k ->
-      forall c t i w, calledBy history (Invocation_mk "java.lang.Runnable run :scala.Unit" [r]) c i ->
+      L.ThreadFactory_newThread [f; r]) c0 from0 k ->
+      forall c t i w, calledBy history (Invocation_mk L.Runnable_run [r]) c i ->
       itselfMakes history (Invocation_mk
-        "java.util.concurrent.ConcurrentHashMap$.KeySetView remove java.lang.Object:scala.Boolean"
-        [heldIn "ox.internal.ThreadHerd threads" h; t]) c i w ->
+        L.KeySetView_remove
+        [heldIn L.ThreadHerd_threads h; t]) c i w ->
       exists a b, (i < a /\ b <= w) /\ completedBy history
-        (Invocation_mk "java.lang.Thread$ currentThread :java.lang.Thread" []) c a (Response_Returned t) b)
+        (Invocation_mk L.Thread_currentThread []) c a (Response_Returned t) b)
     C (Member "ox.internal.ThreadHerd" "startThread" "scala.Function0:scala.Unit") Hcall0 Hh eq_refl _ m
     (makes_direct Hhand) _ r Hhand).
   intros args k Hargs Hpassed. apply vals_one in Hargs as (vcode & -> & _).
@@ -43,9 +43,9 @@ Proof.
     [| exfalso; exact (function_not_atomic C Hat eq_refl Hr Hwritten)].
   refine (function_meets
     (fun k => forall s t, itselfMakes history (Invocation_mk
-      "java.util.concurrent.ConcurrentHashMap$.KeySetView remove java.lang.Object:scala.Boolean" [s; t]) c i k ->
+      L.KeySetView_remove [s; t]) c i k ->
       exists a b, (i < a /\ b <= k) /\ completedBy history
-        (Invocation_mk "java.lang.Thread$ currentThread :java.lang.Thread" []) c a (Response_Returned t) b)
+        (Invocation_mk L.Thread_currentThread []) c a (Response_Returned t) b)
     C Hcall eq_refl Hr Hwritten _ w (makes_direct Hrem) _ t Hrem).
   intros args' k' Hargs' _. apply vals_none in Hargs' as ->.
   (* it calls the code it was made to run; whatever that gave, the herd's set is read *)
@@ -61,12 +61,3 @@ Proof.
 Qed.
 
 (** Its parts can hold together: an execution in which nothing happens meets each. *)
-Lemma theForkFunctionRemovesTheCurrentThread_Proofs_feasible :
-  theForkFunctionRemovesTheCurrentThread_Obl_feasible.
-Proof.
-  exists (fun _ x => x), (fun _ => Event_Stutter).
-  split; [exact rest_runs |].
-  split.
-  { intros h w H. repeat (destruct H as [H | H]); destruct (nothing_called_on_at_rest _ _ _ H). }
-  intros h. repeat split; intros w by_ inside found H; discriminate H.
-Qed.

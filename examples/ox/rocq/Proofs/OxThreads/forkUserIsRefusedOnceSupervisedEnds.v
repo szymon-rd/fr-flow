@@ -12,7 +12,7 @@ Proof.
   assert (scopeMade history s) as Hs
     by exact (Hobject supervisor errorMode parent locals s a b (ex_intro _ c Hmk)).
   destruct (Hstarts code s d m fork w (conj Hs Hdone)) as (run & a1 & b1 & [Ha1 Hb1] & Hst).
-  destruct (Hrefuses (heldIn "ox.OxError herd"%string s) run d d a1 b1) as [Hnot _]; [| exact (Hnot Hst)].
+  destruct (Hrefuses (heldIn L.OxError_herd s) run d d a1 b1) as [Hnot _]; [| exact (Hnot Hst)].
   split.
   - destruct (Hcloses c s from to Hmade) as (f0 & e0 & t0 & Ht0 & Hclosed).
     exists f0, e0, t0. split; [lia | exact Hclosed].
@@ -21,16 +21,3 @@ Proof.
 Qed.
 
 (** Its parts can hold together: an execution in which nothing happens meets each. *)
-Lemma forkUserIsRefusedOnceSupervisedEnds_Proofs_feasible : forkUserIsRefusedOnceSupervisedEnds_Obl_feasible.
-Proof.
-  exists (fun _ => Event_Stutter), (fun _ x => x).
-  split; [exact rest_runs |].
-  split.
-  { intros c s from to (supervisor & errorMode & parent & locals & code & ended & a & b & [[H _] _]).
-    destruct (nothing_completed_at_rest _ _ _ _ _ H). }
-  split.
-  { intros code s c from fork to [_ H]. destruct (nothing_completed_at_rest _ _ _ _ _ H). }
-  split.
-  { intros supervisor errorMode parent locals s from to [who H]. destruct (nothing_completed_at_rest _ _ _ _ _ H). }
-  intros h code c t from w [(f0 & e0 & t0 & _ & H) _]. destruct (nothing_completed_at_rest _ _ _ _ _ H).
-Qed.

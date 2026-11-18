@@ -20,9 +20,6 @@ object FieldMacros:
   def constructed[C: Type](on: Expr[Obj[C]], w: Expr[World], st: Expr[Stating])(using Quotes): Expr[Term[Boolean]] =
     '{ Fields.constructed($on.asValue, ${ Expr(constructor[C]) }, $w)(using $st) }
 
-  def constructedWhenCalled[C: Type](on: Expr[Obj[C]], st: Expr[Stating])(using Quotes): Expr[Term[Boolean]] =
-    '{ Fields.constructedWhenCalled(${ Expr(methods[C]) }, ${ Expr(constructor[C]) }, $on.asValue)(using $st) }
-
   def whenCalled[C: Type](on: Expr[Obj[C]], holds: Expr[World => Term[Boolean]], st: Expr[Stating])(using Quotes)
       : Expr[Term[Boolean]] =
     '{ Fields.whenCalled(${ Expr(methods[C]) }, $on.asValue, $holds)(using $st) }
@@ -51,12 +48,7 @@ object FieldMacros:
     val made = TypeRepr.of[C].typeSymbol.primaryConstructor
     MemberName.of(made).mkString(" ") -> made.paramSymss.flatten.count(!_.isTypeParam)
 
-  private def methods[C: Type](using Quotes): List[String] =
-    import quotes.reflect.*
-    val found = TypeRepr.of[C].typeSymbol.declaredMethods.filterNot(m =>
-      m.isClassConstructor || m.flags.is(Flags.Synthetic))
-    if found.isEmpty then report.errorAndAbort(s"${TypeRepr.of[C].show} has no method")
-    found.map(MemberName.of(_).mkString(" "))
+  private def methods[C: Type](using Quotes): List[String] = taking[C].map(_._1)
 
   private[code] def vals[C: Type](using Quotes): List[String] =
     import quotes.reflect.*
@@ -78,22 +70,6 @@ object FieldMacros:
       case found => report.errorAndAbort(s"${TypeRepr.of[C].show} has ${found.size} methods ${name.valueOrAbort}")
     '{ Call.of[A]($named, ($on.asValue +: $arguments)*) }
 
-  def made[C: Type](on: Expr[Obj[C]], w: Expr[World], st: Expr[Stating])(using Quotes): Expr[Term[Boolean]] =
-    import quotes.reflect.*
-    val cls = Expr(MemberName.ofClass(TypeRepr.of[C].typeSymbol))
-    '{ Fields.made($on.asValue, $cls, $w)(using $st) }
-
-  def reads[C: Type](on: Expr[Obj[C]], name: Expr[String], st: Expr[Stating])(using Quotes): Expr[Term[Boolean]] =
-    val named = Expr(label[C](name))
-    '{ Fields.reads($named, $on.asValue)(using $st) }
-
-  /** The field as the tree read names it: its class and its name. */
-  private def label[C: Type](name: Expr[String])(using Quotes): String =
-    import quotes.reflect.*
-    val member = TypeRepr.of[C].typeSymbol.fieldMember(name.valueOrAbort)
-    if !member.exists then report.errorAndAbort(s"${TypeRepr.of[C].show} has no field ${name.valueOrAbort}")
-    MemberName.of(member).mkString(" ").trim
-
   def field[C: Type](on: Expr[Obj[C]], name: Expr[String], st: Expr[Stating])(using Quotes): Expr[Any] =
     import quotes.reflect.*
     val cls = TypeRepr.of[C]
@@ -112,8 +88,6 @@ object Fields:
 
   def changing[F](name: String, on: Term[Value])(using Stating): Changing[Ref[F]] =
     new Changing(w => heldAt(name, on, w).asInstanceOf[Obj[F]])
-
-  def made(on: Term[Value], cls: String, w: World)(using Stating): Term[Boolean] = madeBefore(on, cls, w)
 
   def readsAll(names: List[String], on: Term[Value])(using Stating): Term[Boolean] =
     names.map(reads(_, on)).reduce(_ && _)
@@ -154,8 +128,3 @@ object Fields:
 
   def givenAll(names: List[String], on: Term[Value])(using Stating): Term[Boolean] =
     names.map(n => writtenAs(on, n, heldIn(n, on))).reduce(_ && _)
-
-  def constructedWhenCalled(methods: List[String], constructor: (String, Int), on: Term[Value])(using Stating)
-      : Term[Boolean] =
-    forall((w: Term[BigInt]) =>
-      methods.map(m => calledOn(on, m, w)).reduce(_ || _) implies constructed(on, constructor, w))

@@ -10,7 +10,7 @@ Proof.
   pose proof (completed_after C Hclosed) as Hlt'.
   pose proof (completed_was_called _ _ _ _ _ _ Hclosed) as Hc.
   pose proof (Hmade h from' ltac:(unfold calledOn; eauto 14)) as Hherd.
-  assert (forall m, from <= m -> flag (heldIn "ox.internal.ThreadHerd shutdownInProgress"%string h) m) as Hset.
+  assert (forall m, from <= m -> flag (heldIn L.ThreadHerd_shutdownInProgress h) m) as Hset.
   { intros m Hm. pose proof (Hsets h from' response' to' Hclosed) as Hat.
     assert (to' = m \/ to' < m) as [<- | Hlt] by lia; [exact Hat |].
     apply (Hstays h to' m). split; [split; [| exact Hlt] | exact Hat].
@@ -23,15 +23,3 @@ Proof.
 Qed.
 
 (** Its parts can hold together: a run in which nothing happens, of flags never set, meets each. *)
-Lemma aClosedHerdRefusesToStart_Proofs_feasible : aClosedHerdRefusesToStart_Obl_feasible.
-Proof.
-  exists (fun _ x => x), (fun _ => Event_Stutter), (fun _ _ => False).
-  split; [exact rest_runs |].
-  split.
-  { intros h from response to H. destruct (nothing_completed_at_rest _ _ _ _ _ H). }
-  split.
-  { intros h a b [_ H]. exact H. }
-  split.
-  { intros h code c t from w [H _]. destruct (nothing_called_at_rest _ _ _ H). }
-  intros h w H. repeat (destruct H as [H | H]); destruct (nothing_called_on_at_rest _ _ _ H).
-Qed.

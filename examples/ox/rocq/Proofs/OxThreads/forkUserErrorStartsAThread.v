@@ -1,9 +1,9 @@
 Require Export FrFlowGen.OxThreads.forkUserErrorStartsAThread.Spec.
 Require Export Proofs.OxThreads.Lemmas.
 From Stdlib Require Import String List ZArith Lia.
-Require Import FrFlow.Threads.Prog FrFlow.Jvm.Machine.
+Require Import FrFlow.Jvm.Prog FrFlow.Jvm.Machine.
 Require Import FrFlow.Scala.Tree FrFlow.Scala.Table FrFlow.Scala.Value FrFlow.Scala.Meaning.
-Require Import FrFlow.Code.Outside FrFlow.Code.Conforms FrFlow.Code.Walk FrFlow.Code.Logic.
+Require Import FrFlow.Code.Outside FrFlow.Code.Conforms FrFlow.Rules.Walk FrFlow.Rules.Logic.
 
 (** Proven of `forkUserError`'s tree. It makes a future, tells the scope's supervisor that a fork starts, reads the
     scope's herd, which is the herd the scope holds, and calls `startThread` on that herd. If one of them throws, so
@@ -18,9 +18,9 @@ Proof.
   assert (forall k, direct c from (history k) ->
     forall ended sp, history k = Event_Respond c from ended sp -> forall fork, ended = Response_Returned fork ->
     exists run a b, ((from < a /\ b <= k + 1) /\ itselfMakes history (Invocation_mk
-      "ox.internal.ThreadHerd startThread scala.Function0:scala.Unit" [heldIn "ox.OxError herd" s; run]) c from a) /\
-      completedBy history (Invocation_mk "ox.internal.ThreadHerd startThread scala.Function0:scala.Unit"
-        [heldIn "ox.OxError herd" s; run]) c a (Response_Returned Value_Unit_) b) as Hall.
+      L.ThreadHerd_startThread [heldIn L.OxError_herd s; run]) c from a) /\
+      completedBy history (Invocation_mk L.ThreadHerd_startThread
+        [heldIn L.OxError_herd s; run]) c a (Response_Returned Value_Unit_) b) as Hall.
   { refine (module_meets _ C "ox.fork$package$" "forkUserError" "3,ox.OxError,scala.Function0:ox.Fork" Hcall
       ltac:(vm_compute; reflexivity) eq_refl eq_refl ltac:(vm_compute; reflexivity) _).
     intros args k Hargs Hpassed.
@@ -66,9 +66,3 @@ Proof.
 Qed.
 
 (** Its part can hold: an execution in which nothing happens meets it. *)
-Lemma forkUserErrorStartsAThread_Proofs_feasible : forkUserErrorStartsAThread_Obl_feasible.
-Proof.
-  exists (fun _ x => x), (fun _ => Event_Stutter).
-  split; [exact rest_runs |].
-  intros s. repeat split; intros w by_ inside written H; discriminate H.
-Qed.

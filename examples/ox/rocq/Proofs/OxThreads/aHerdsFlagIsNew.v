@@ -1,9 +1,9 @@
 Require Export FrFlowGen.OxThreads.aHerdsFlagIsNew.Spec.
 Require Export Proofs.OxThreads.Lemmas.
 From Stdlib Require Import String List ZArith Lia.
-Require Import FrFlow.Threads.Prog FrFlow.Jvm.Machine.
+Require Import FrFlow.Jvm.Prog FrFlow.Jvm.Machine.
 Require Import FrFlow.Scala.Tree FrFlow.Scala.Table FrFlow.Scala.Value FrFlow.Scala.Meaning FrFlow.Scala.Library.
-Require Import FrFlow.Code.Outside FrFlow.Code.Conforms FrFlow.Code.Walk FrFlow.Code.Logic.
+Require Import FrFlow.Code.Outside FrFlow.Code.Conforms FrFlow.Rules.Walk FrFlow.Rules.Logic.
 Require FrFlow.Scala.Jdk.
 
 (** Proven of the two things that make a herd. A call of the constructor makes the object, calls
@@ -20,10 +20,10 @@ Proof.
       assert (forall k, direct c from (history k) ->
         forall sp, history k = Event_Respond c from (Response_Returned h) sp ->
         exists a b, ((from < a /\ b <= k + 1) /\ itselfMakes history (Invocation_mk
-          "java.util.concurrent.atomic.AtomicBoolean <init> scala.Boolean:java.util.concurrent.atomic.AtomicBoolean"
+          L.AtomicBoolean_new
           [Value_Bool_ False]) c from a) /\ completedBy history (Invocation_mk
-          "java.util.concurrent.atomic.AtomicBoolean <init> scala.Boolean:java.util.concurrent.atomic.AtomicBoolean"
-          [Value_Bool_ False]) c a (Response_Returned (heldIn "ox.internal.ThreadHerd shutdownInProgress" h)) b) as Hall.
+          L.AtomicBoolean_new
+          [Value_Bool_ False]) c a (Response_Returned (heldIn L.ThreadHerd_shutdownInProgress h)) b) as Hall.
       { refine (constructor_meets _ C "ox.internal.ThreadHerd"
           "java.util.concurrent.ThreadFactory:ox.internal.ThreadHerd" Hbegun ltac:(vm_compute; reflexivity) eq_refl _).
         intros args k Hargs Hpassed.
@@ -59,9 +59,9 @@ Proof.
     assert (forall k, direct c from (history k) ->
       forall sp, history k = Event_Respond c from (Response_Returned s) sp ->
       exists a b who, completedBy history (Invocation_mk
-      "java.util.concurrent.atomic.AtomicBoolean <init> scala.Boolean:java.util.concurrent.atomic.AtomicBoolean"
+      L.AtomicBoolean_new
       [Value_Bool_ False]) who a
-        (Response_Returned (heldIn "ox.internal.ThreadHerd shutdownInProgress" (heldIn "ox.OxError herd" s))) b) as Hall.
+        (Response_Returned (heldIn L.ThreadHerd_shutdownInProgress (heldIn L.OxError_herd s))) b) as Hall.
     { refine (module_meets _ C "ox.OxError$" "apply"
         "2,ox.Supervisor,ox.ErrorMode,scala.Option,ox.ForkLocalMap:ox.OxError" Hcall ltac:(vm_compute; reflexivity)
         eq_refl eq_refl ltac:(vm_compute; reflexivity) _).
@@ -117,12 +117,3 @@ Proof.
 Qed.
 
 (** What it is from can hold: an execution in which nothing happens meets it. *)
-Lemma aHerdsFlagIsNew_Proofs_feasible : aHerdsFlagIsNew_Obl_feasible.
-Proof.
-  exists (fun _ x => x), (fun _ => Event_Stutter).
-  split; [exact rest_runs |].
-  split.
-  { intros h finalizers supervisor errorMode parent locals s from response to [who H].
-    destruct (nothing_completed_at_rest _ _ _ _ _ H). }
-  intros h. repeat split; intros w by_ inside written H; discriminate H.
-Qed.

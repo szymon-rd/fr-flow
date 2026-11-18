@@ -2,7 +2,7 @@
     is not asked it of each value. *)
 
 From Stdlib Require Import String List Bool.
-Require Import FrFlow.Threads.Prog FrFlow.Jvm.Machine.
+Require Import FrFlow.Jvm.Prog FrFlow.Jvm.Machine.
 Require Import FrFlow.Scala.Tree FrFlow.Scala.Program FrFlow.Scala.Table FrFlow.Scala.Value FrFlow.Scala.Meaning.
 Import ListNotations.
 
@@ -62,17 +62,3 @@ Qed.
 Definition unnamed (T : table) (name : string) : bool :=
   forallb (fun k => match named T k name with None => true | Some _ => false end)
     (map fst (lines_of T) ++ map fst (classes_of T)).
-
-Lemma named_none (T : table) (name cls : string) : unnamed T name = true -> named T cls name = None.
-Proof.
-  intros H. unfold unnamed in H. rewrite forallb_forall in H.
-  destruct (in_dec string_dec cls (map fst (lines_of T) ++ map fst (classes_of T))) as [Hin | Hout].
-  - specialize (H cls Hin). destruct (named T cls name); [discriminate | reflexivity].
-  - rewrite in_app_iff in Hout. unfold named, own.
-    assert (line_in T cls = None) as ->.
-    { destruct (line_in T cls) eqn:E; [| reflexivity]. exfalso. apply Hout. left. exact (line_in_known _ _ _ E). }
-    assert (class_of T cls = None) as Hc.
-    { unfold class_of. destruct (foreign cls); [reflexivity |].
-      destruct (class_in T cls) eqn:E; [| reflexivity]. exfalso. apply Hout. right. exact (class_in_known _ _ _ E). }
-    destruct (foreign cls); cbn; rewrite Hc; reflexivity.
-Qed.

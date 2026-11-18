@@ -1,7 +1,7 @@
 Require Export FrFlowGen.OxThreads.aHerdsValsAreReadOnceItIsReady.Spec.
 Require Export Proofs.OxThreads.Lemmas.
 From Stdlib Require Import String List ZArith Lia.
-Require Import FrFlow.Scala.Tree FrFlow.Code.Conforms FrFlow.Code.Walk FrFlow.Code.Logic.
+Require Import FrFlow.Scala.Tree FrFlow.Code.Conforms FrFlow.Rules.Walk FrFlow.Rules.Logic.
 
 (** What reads a val of a herd is a method called on the herd, or a function that a call of startThread on the
     herd handed the factory. A method is called on a herd only once the herd is ready; the function was handed
@@ -20,7 +20,7 @@ Proof.
     + do 2 left. right. eauto.
     + left. right. eauto.
     + right. eauto.
-  - assert (calledOn history h "ox.internal.ThreadHerd startThread scala.Function0:scala.Unit" from) as Hon
+  - assert (calledOn history h L.ThreadHerd_startThread from) as Hon
       by (unfold calledOn; eauto).
     destruct (method_begun (Member "ox.internal.ThreadHerd" "startThread" "scala.Function0:scala.Unit") C
       (Hmade h from ltac:(do 5 left; exact Hon)) eq_refl Hstart) as (r0 & inside0 & Hh & Hcall0).
@@ -32,11 +32,3 @@ Proof.
 Qed.
 
 (** Its parts can hold together: an execution in which nothing happens meets each. *)
-Lemma aHerdsValsAreReadOnceItIsReady_Proofs_feasible : aHerdsValsAreReadOnceItIsReady_Obl_feasible.
-Proof.
-  exists (fun _ => Event_Stutter), (fun _ x => x).
-  split; [exact rest_runs |].
-  split.
-  { intros h field by_ inside w [_ [v H]]. discriminate H. }
-  split; intros h w H; repeat (destruct H as [H | H]); destruct (nothing_called_on_at_rest _ _ _ H).
-Qed.

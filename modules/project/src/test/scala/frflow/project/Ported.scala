@@ -8,7 +8,7 @@ import frflow.core.name.{NodeId, RelPath}
 import frflow.core.spec.NodeKind
 import frflow.decision.ledger.Ledger
 import frflow.project.check.CheckProgram
-import frflow.project.pipeline.{Analysis, ReadProof, StandsOn}
+import frflow.project.pipeline.{Analysis, ReadProof, StandsOnAll}
 import frflow.project.port.*
 import frflow.project.port.memory.*
 import frflow.project.port.rocq.{RocqProver, RocqTool}
@@ -90,6 +90,10 @@ object Ported:
       case NodeKind.Claim      => checked.fold(status)(_ => "tested")
     List(n.statement.kind.toString.toLowerCase, standing, status, checked.fold("")(_.cases.toString))
 
+  /** The model's assumptions, by name. */
+  def assumptions(e: Elaborated): Set[String] =
+    e.theory.nodes.map(_.node).filter(_.statement.kind == NodeKind.Assumption).map(_.id.value).toSet
+
   /** What of each node is not proven, as `status` reads it: none of a node that stands. */
   def unproven(a: Analysis): Map[String, List[String]] =
     a.decided.theory.nodes.map(_.node).map(n => n.id.value -> ReadProof.of(a, n).unproven.map(_.toString))
@@ -97,14 +101,15 @@ object Ported:
 
   /** Of each root, the claims below it that are not proven, and how many assumptions it is proven from. */
   def standsOn(a: Analysis): Map[String, (List[String], Int)] =
-    StandsOn.roots(a).map((id, s) => id.value -> (s.unproven.map(_.value), s.assumed.size))
+    val all = StandsOnAll.of(a)
+    a.decided.theory.refinement.roots.map(n => n.id.value -> (all(n.id).unproven.map(_.value), all(n.id).assumed.size))
+      .toMap
 
   /** Of each claim, the assumptions it is proven from and the claims below it not proven: what it stands on. */
   def standing(a: Analysis): Map[String, (List[String], List[String])] =
-    a.decided.theory.nodes.map(_.node).filter(_.statement.kind == NodeKind.Claim).map { n =>
-      val on = StandsOn.of(a, n.id)
-      n.id.value -> (on.assumed.map(_.value), on.unproven.map(_.value))
-    }.toMap
+    val all = StandsOnAll.of(a)
+    a.decided.theory.nodes.map(_.node).filter(_.statement.kind == NodeKind.Claim).map(n =>
+      n.id.value -> (all(n.id).assumed.map(_.value), all(n.id).unproven.map(_.value))).toMap
 
   /** Each node's standing and, where its check found something, what: for a failing suite's message. */
   def table(a: Analysis): String =

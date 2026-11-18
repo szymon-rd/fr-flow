@@ -41,11 +41,11 @@ val aScopeIsConstructed = Node.assumption(
   forall((h: Obj[ThreadHerd], finalizers: Term[Value], supervisor: Term[Value], errorMode: Term[Value]) =>
     forall((parent: Term[Value], locals: Term[Value], s: Obj[Scope]) =>
       makingAScopeOf(h, finalizers, supervisor, errorMode, parent, locals).everyCall((_, reply, to) =>
-        (reply === Returned(s)) implies s.isConstructed(to)))))
+        (reply === Returned(s)) implies s.isConstructed(to))))).about(About.objects)
 
 // Of Scala: a val is assigned once, when the object is made.
 val aScopeKeepsItsFields = Node.assumption("Each val of a scope is read as what the scope holds.")(
-  forall((s: Obj[Scope]) => s.readsItsValsAsHeld))
+  forall((s: Obj[Scope]) => s.readsItsValsAsHeld)).about(About.objects)
 
 val aConstructedScopeIsMade = Node.claim(
   "A scope that a call of its class's constructor has returned is an object of that class.")(

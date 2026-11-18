@@ -8,9 +8,11 @@
 
     - of the JDK: its atomics, futures, concurrent sets, semaphores, queues and thread locals synchronise their
       own state, and `Thread.start` and `Thread.join` order what comes before and after them (their
-      documentation, and the "Memory Consistency Properties" of `java.util.concurrent`). Taken with the
-      contracts of `FrFlow.Threads.Jdk`.
-    - of Ox: its own code shares no variable between threads. This half is checked below, on Ox's trees.
+      documentation, and the "Memory Consistency Properties" of `java.util.concurrent`). Taken with what the
+      model assumes of each (`examples/ox/JDK.md`).
+    - of Ox: its own code shares no variable between threads. This half is checked below, on Ox's trees. That
+      no field of a herd or of a scope has a data race is proven in the model (`noRaceOnAHerdsVals`,
+      `noRaceOnAScopesVals`).
 
     `kernel_variables` is every variable the classes of the kernel declare: nine, of the 126 in all of Ox. Each
     is one of:
@@ -18,8 +20,9 @@
     - `Unshared`: a variable of one call of a method, which no function made inside the method reads or assigns
       (`captured`): only the thread making the call reaches it.
     - `CallersThread`: captured, by a function the calling thread itself runs before the method goes on: a
-      concurrent set's `forEach` runs its function on its caller (`TsNext`, `EsNext`, `VsNext` are the caller's
-      steps).
+      concurrent set's `forEach` runs its function on its caller. Of the two in `ThreadHerd` the model assumes
+      it (`closingKeepsItsVariableToItself`), and proves from it that they have no data race
+      (`noRaceOnClosingsVariables`); the supervisor's is in code the model does not read.
     - `SetOnce`: a field. Trusted: it is assigned before any scope is opened.
 
     Rocq checks that the list is exact and which of them are captured. Every other field of the kernel's classes

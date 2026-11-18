@@ -43,14 +43,14 @@ val theJdkStaysOutOfHerds = Node.assumption(
   "While a thread reads an atomic flag, adds a thread to a concurrent set or starts a thread, it neither closes " +
     "a herd nor removes a thread from a herd's set.")(
   forall((b: Obj[AtomicBoolean], s: Obj[ConcurrentSet], t: Obj[Thread]) =>
-    staysOutOfHerds(b.get()) && staysOutOfHerds(s.add(t)) && staysOutOfHerds(t.start())))
+    staysOutOfHerds(b.get()) && staysOutOfHerds(s.add(t)) && staysOutOfHerds(t.start()))).about(About.jdk)
 
 // Of the factory a herd is given: it makes a thread, and neither runs the function it is handed nor reaches
 // a herd.
 val aFactoryStaysOutOfHerds = Node.assumption(
   "While a thread factory is making a thread, its caller neither closes a herd nor removes a thread from a " +
     "herd's set.")(
-  forall((f: Obj[ThreadFactory], r: Obj[Runnable]) => staysOutOfHerds(f.newThread(r))))
+  forall((f: Obj[ThreadFactory], r: Obj[Runnable]) => staysOutOfHerds(f.newThread(r)))).about(About.factory)
 
 val theClosingCheckStaysOutOfHerds = Node.claim(
   "While a thread is calling assertNotShuttingDown of a herd, it neither closes a herd nor removes a thread " +

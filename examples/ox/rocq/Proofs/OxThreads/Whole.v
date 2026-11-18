@@ -1,9 +1,9 @@
 Require Export FrFlowGen.OxThreads.Whole.Spec.
 Require Export Proofs.OxThreads.Lemmas.
 From Stdlib Require Import String List ZArith Lia Classical PropExtensionality.
-Require Import FrFlow.Threads.Prog FrFlow.Jvm.Machine.
+Require Import FrFlow.Jvm.Prog FrFlow.Jvm.Machine.
 Require Import FrFlow.Scala.Tree FrFlow.Scala.Table FrFlow.Scala.Value FrFlow.Scala.Meaning FrFlow.Scala.Library.
-Require Import FrFlow.Code.Outside FrFlow.Code.Conforms FrFlow.Code.Walk FrFlow.Code.Logic FrFlow.Code.Witness.
+Require Import FrFlow.Code.Outside FrFlow.Code.Conforms FrFlow.Rules.Walk FrFlow.Rules.Logic FrFlow.Code.Witness.
 
 (** An execution of the code in which things happen: one thread (reference 0) makes a herd (2) with a factory (1),
     and closes it. The herd's constructor (the call made at the moment 0) writes its four fields: the factory,
@@ -13,58 +13,58 @@ Require Import FrFlow.Code.Outside FrFlow.Code.Conforms FrFlow.Code.Walk FrFlow.
 Lemma made_and_closed_runs :
   Code_runs (history_of
     [ Event_Invoke (Value_Reference 0) None (Invocation_mk
-        "ox.internal.ThreadHerd <init> java.util.concurrent.ThreadFactory:ox.internal.ThreadHerd"
+        L.ThreadHerd_new
         [Value_Reference 1]);
       Event_Make (Value_Reference 0) (Some 0) (Value_Reference 2) "ox.internal.ThreadHerd"
-        [Held_mk "ox.internal.ThreadHerd threadFactory" Value_Null;
-         Held_mk "ox.internal.ThreadHerd herdOwner" Value_Null;
-         Held_mk "ox.internal.ThreadHerd shutdownInProgress" Value_Null;
-         Held_mk "ox.internal.ThreadHerd threads" Value_Null];
-      Event_Mark (Value_Reference 0) (Some 0) (Value_Reference 2) "ox.internal.ThreadHerd threadFactory";
-      Event_Write (Value_Reference 0) (Some 0) (Value_Reference 2) "ox.internal.ThreadHerd threadFactory"
+        [Held_mk L.ThreadHerd_threadFactory Value_Null;
+         Held_mk L.ThreadHerd_herdOwner Value_Null;
+         Held_mk L.ThreadHerd_shutdownInProgress Value_Null;
+         Held_mk L.ThreadHerd_threads Value_Null];
+      Event_Mark (Value_Reference 0) (Some 0) (Value_Reference 2) L.ThreadHerd_threadFactory;
+      Event_Write (Value_Reference 0) (Some 0) (Value_Reference 2) L.ThreadHerd_threadFactory
         (Value_Reference 1);
       Event_Atomic (Value_Reference 0) (Some 0)
-        (Invocation_mk "java.lang.Thread$ currentThread :java.lang.Thread" [])
+        (Invocation_mk L.Thread_currentThread [])
         (Response_Returned (Value_Reference 0)) [];
-      Event_Mark (Value_Reference 0) (Some 0) (Value_Reference 2) "ox.internal.ThreadHerd herdOwner";
-      Event_Write (Value_Reference 0) (Some 0) (Value_Reference 2) "ox.internal.ThreadHerd herdOwner"
+      Event_Mark (Value_Reference 0) (Some 0) (Value_Reference 2) L.ThreadHerd_herdOwner;
+      Event_Write (Value_Reference 0) (Some 0) (Value_Reference 2) L.ThreadHerd_herdOwner
         (Value_Reference 0);
       Event_Atomic (Value_Reference 0) (Some 0) (Invocation_mk
-        "java.util.concurrent.atomic.AtomicBoolean <init> scala.Boolean:java.util.concurrent.atomic.AtomicBoolean"
+        L.AtomicBoolean_new
         [Value_Bool_ (false = true)]) (Response_Returned (Value_Reference 3)) [];
-      Event_Mark (Value_Reference 0) (Some 0) (Value_Reference 2) "ox.internal.ThreadHerd shutdownInProgress";
-      Event_Write (Value_Reference 0) (Some 0) (Value_Reference 2) "ox.internal.ThreadHerd shutdownInProgress"
+      Event_Mark (Value_Reference 0) (Some 0) (Value_Reference 2) L.ThreadHerd_shutdownInProgress;
+      Event_Write (Value_Reference 0) (Some 0) (Value_Reference 2) L.ThreadHerd_shutdownInProgress
         (Value_Reference 3);
       Event_Atomic (Value_Reference 0) (Some 0) (Invocation_mk
-        "java.util.concurrent.ConcurrentHashMap$ newKeySet 1:java.util.concurrent.ConcurrentHashMap$.KeySetView"
+        L.ConcurrentHashMap_newKeySet
         []) (Response_Returned (Value_Reference 4)) [];
-      Event_Mark (Value_Reference 0) (Some 0) (Value_Reference 2) "ox.internal.ThreadHerd threads";
-      Event_Write (Value_Reference 0) (Some 0) (Value_Reference 2) "ox.internal.ThreadHerd threads"
+      Event_Mark (Value_Reference 0) (Some 0) (Value_Reference 2) L.ThreadHerd_threads;
+      Event_Write (Value_Reference 0) (Some 0) (Value_Reference 2) L.ThreadHerd_threads
         (Value_Reference 4);
       Event_Respond (Value_Reference 0) 0 (Response_Returned (Value_Reference 2)) [];
       Event_Invoke (Value_Reference 0) None (Invocation_mk
-        "ox.internal.ThreadHerd interruptAllAndJoinUntilCompleted :scala.Unit" [Value_Reference 2]);
+        L.ThreadHerd_interruptAllAndJoinUntilCompleted [Value_Reference 2]);
       Event_Invoke (Value_Reference 0) (Some 14) (Invocation_mk
-        "ox.internal.ThreadHerd assertOnOwnerThread :scala.Unit" [Value_Reference 2]);
+        L.ThreadHerd_assertOnOwnerThread [Value_Reference 2]);
       Event_Atomic (Value_Reference 0) (Some 15)
-        (Invocation_mk "java.lang.Thread$ currentThread :java.lang.Thread" [])
+        (Invocation_mk L.Thread_currentThread [])
         (Response_Returned (Value_Reference 0)) [];
-      Event_Read (Value_Reference 0) (Some 15) (Value_Reference 2) "ox.internal.ThreadHerd herdOwner"
+      Event_Read (Value_Reference 0) (Some 15) (Value_Reference 2) L.ThreadHerd_herdOwner
         (Value_Reference 0);
       Event_Respond (Value_Reference 0) 15 (Response_Returned Value_Unit_) [];
-      Event_Read (Value_Reference 0) (Some 14) (Value_Reference 2) "ox.internal.ThreadHerd shutdownInProgress"
+      Event_Read (Value_Reference 0) (Some 14) (Value_Reference 2) L.ThreadHerd_shutdownInProgress
         (Value_Reference 3);
       Event_Atomic (Value_Reference 0) (Some 14) (Invocation_mk
-        "java.util.concurrent.atomic.AtomicBoolean set scala.Boolean:scala.Unit"
+        L.AtomicBoolean_set
         [Value_Reference 3; Value_Bool_ (true = true)]) (Response_Returned Value_Unit_) [];
       Event_Make (Value_Reference 0) (Some 14) (Value_Reference 5) "<var>:scala.collection.immutable.Set"
         [Held_mk "value" (Value_Reference 7)];
       Event_Make (Value_Reference 0) (Some 14) (Value_Reference 6) "<var>:java.lang.InterruptedException"
         [Held_mk "value" Value_Null];
-      Event_Read (Value_Reference 0) (Some 14) (Value_Reference 2) "ox.internal.ThreadHerd threads"
+      Event_Read (Value_Reference 0) (Some 14) (Value_Reference 2) L.ThreadHerd_threads
         (Value_Reference 4);
       Event_Atomic (Value_Reference 0) (Some 14) (Invocation_mk
-        "java.util.concurrent.ConcurrentHashMap$.CollectionView isEmpty :scala.Boolean" [Value_Reference 4])
+        L.CollectionView_isEmpty [Value_Reference 4])
         (Response_Returned (Value_Bool_ (true = true))) [];
       Event_Read (Value_Reference 0) (Some 14) (Value_Reference 6) "value" Value_Null;
       Event_Respond (Value_Reference 0) 14 (Response_Returned Value_Unit_) [] ]).
@@ -95,10 +95,10 @@ Proof.
   pose (held := fun (f : string) (h : Value) =>
     match h with
     | Value_Reference 2 =>
-        if String.eqb f "ox.internal.ThreadHerd threadFactory" then Value_Reference 1
-        else if String.eqb f "ox.internal.ThreadHerd herdOwner" then Value_Reference 0
-        else if String.eqb f "ox.internal.ThreadHerd shutdownInProgress" then Value_Reference 3
-        else if String.eqb f "ox.internal.ThreadHerd threads" then Value_Reference 4
+        if String.eqb f L.ThreadHerd_threadFactory then Value_Reference 1
+        else if String.eqb f L.ThreadHerd_herdOwner then Value_Reference 0
+        else if String.eqb f L.ThreadHerd_shutdownInProgress then Value_Reference 3
+        else if String.eqb f L.ThreadHerd_threads then Value_Reference 4
         else Value_Null
     | _ => Value_Null
     end).
@@ -257,7 +257,7 @@ Proof.
   { intros h w [(x & by_ & from & to & Hto & Hctor) |
       (su & em & pa & lo & s & from & to & [[_ [who H]] _])]; [| absent H].
     intros method rest by2 w1 Hcall. reveal Hctor.
-    change (held "ox.internal.ThreadHerd shutdownInProgress"%string (Value_Reference 2))
+    change (held L.ThreadHerd_shutdownInProgress (Value_Reference 2))
       with (Value_Reference 3) in *.
     reveal Hcall. exists 14. split; [right; eexists; eexists; reflexivity |].
     somewhere ltac:(eexists; reflexivity). }
@@ -267,7 +267,7 @@ Proof.
   { intros h w [(x & by_ & from & to & Hto & Hctor) |
       (su & em & pa & lo & s & from & to & [[_ [who H]] _])]; [| absent H].
     intros method rest by2 w1 Hcall. reveal Hctor.
-    change (held "ox.internal.ThreadHerd threads"%string (Value_Reference 2)) with (Value_Reference 4) in *.
+    change (held L.ThreadHerd_threads (Value_Reference 2)) with (Value_Reference 4) in *.
     reveal Hcall. exists 14. split; [right; eexists; eexists; reflexivity |].
     somewhere ltac:(eexists; reflexivity). }
   split.
@@ -297,7 +297,7 @@ Proof.
       [ exfalso; apply Hover; exists 13; eexists; eexists; split; [lia | reflexivity]
       | exfalso; apply Hover; exists 18; eexists; eexists; split; [lia | reflexivity]
       | exfalso; apply Hover; exists 26; eexists; eexists; split; [lia | reflexivity]
-      | right; exists (Invocation_mk "ox.internal.ThreadHerd assertOnOwnerThread :scala.Unit" [Value_Reference 2]),
+      | right; exists (Invocation_mk L.ThreadHerd_assertOnOwnerThread [Value_Reference 2]),
           15; split; [split; [lia | reflexivity] |];
         intros (k & a & sp & Hk & Hr); scan Hr; lia ]. }
   split.

@@ -14,7 +14,7 @@ val startThreadIsCalledFromInside = Node.assumption(
   "A thread of a herd is started only by a thread inside its scope: its owner before closing, or a fork that " +
     "has not left.")(
   forall((h: Obj[ThreadHerd], code: Obj[Code], c: Obj[Thread], w: Term[BigInt]) =>
-    starting(h, code).by(c).called(w) implies inside(c, h, w)))
+    starting(h, code).by(c).called(w) implies inside(c, h, w))).about(About.use)
 
 val onlyStartThreadAddsToTheSet = Node.claim(
   "A thread is added to a herd's set only by a call of startThread on the herd, itself.")(
@@ -49,7 +49,7 @@ val onlyItsMakerStartsAThread = Node.assumption(
   forall((h: Obj[ThreadHerd], code: Obj[Code], c: Obj[Thread], t: Obj[Thread]) =>
     forall((from: Term[BigInt], b: Term[BigInt], m: Term[BigInt], other: Obj[Thread]) =>
       (starting(h, code).by(c).called(from) && madeFor(t, c, from, b) && t.start().by(other).called(m)) implies
-        t.start().by(c).calledInside(from, m))))
+        t.start().by(c).calledInside(from, m)))).about(About.reach)
 
 val startThreadAddsWhatItsFactoryMade = Node.claim(
   "A call of startThread itself adds to the herd's set only a thread that a factory has made for it.")(
@@ -102,7 +102,7 @@ val onlyAForkFunctionCallsTheCode = Node.assumption(
   forall((h: Obj[ThreadHerd], code: Obj[Code], t: Obj[Thread], m: Term[BigInt], w: Term[BigInt]) =>
     (starting(h, code).called(m) && code().by(t).called(w)) implies
       exists((r: Obj[Runnable], i: Term[BigInt]) =>
-        handedOver(r, h, i) && running(r).by(t).called(i) && code().by(t).calledInside(i, w))))
+        handedOver(r, h, i) && running(r).by(t).called(i) && code().by(t).calledInside(i, w)))).about(About.reach)
 
 // Of the thread a factory makes: it runs the function it was made for, once.
 val aThreadRunsOneForkFunctionOnce = Node.assumption(
@@ -110,7 +110,7 @@ val aThreadRunsOneForkFunctionOnce = Node.assumption(
   forall((h: Obj[ThreadHerd], g: Obj[ThreadHerd], r: Obj[Runnable], q: Obj[Runnable], t: Obj[Thread]) =>
     forall((i: Term[BigInt], j: Term[BigInt]) =>
       (handedOver(r, h, i) && running(r).by(t).called(i) && handedOver(q, g, j) &&
-        running(q).by(t).called(j)) implies (i === j))))
+        running(q).by(t).called(j)) implies (i === j)))).about(About.factory)
 
 val aForkFunctionRemovesAfterTheCode = Node.claim(
   "The function startThread hands the factory removes from the herd's set, itself, only after the call of code " +

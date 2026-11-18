@@ -6,7 +6,7 @@
     a model assumes of it, in the model's own words. *)
 
 From Stdlib Require Import String List ZArith Bool.
-Require Import FrFlow.Threads.Prog FrFlow.Jvm.Machine.
+Require Import FrFlow.Jvm.Prog FrFlow.Jvm.Machine.
 Require Import FrFlow.Scala.Tree FrFlow.Scala.Table FrFlow.Scala.Value FrFlow.Scala.Meaning FrFlow.Scala.Library.
 Import ListNotations.
 Open Scope string_scope.

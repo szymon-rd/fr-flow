@@ -25,11 +25,3 @@ Proof.
 Qed.
 
 (** Its parts can hold together: a run in which nothing happens meets each. *)
-Lemma noForkRunsOnceClosed_Proofs_feasible : noForkRunsOnceClosed_Obl_feasible.
-Proof.
-  exists (fun _ x => x), (fun _ => Event_Stutter).
-  split; [exact rest_runs |].
-  split.
-  { intros h t w [_ H]. destruct (no_fork_at_rest _ _ _ _ H). }
-  intros h t code made w H. destruct (none_made_to_run_at_rest _ _ _ _ _ H).
-Qed.

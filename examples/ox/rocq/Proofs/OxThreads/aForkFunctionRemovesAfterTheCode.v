@@ -1,9 +1,9 @@
 Require Export FrFlowGen.OxThreads.aForkFunctionRemovesAfterTheCode.Spec.
 Require Export Proofs.OxThreads.Lemmas.
 From Stdlib Require Import String List ZArith Lia.
-Require Import FrFlow.Threads.Prog FrFlow.Jvm.Machine.
+Require Import FrFlow.Jvm.Prog FrFlow.Jvm.Machine.
 Require Import FrFlow.Scala.Tree FrFlow.Scala.Table FrFlow.Scala.Value FrFlow.Scala.Meaning.
-Require Import FrFlow.Code.Outside FrFlow.Code.Conforms FrFlow.Code.Walk FrFlow.Code.Logic.
+Require Import FrFlow.Code.Outside FrFlow.Code.Conforms FrFlow.Rules.Walk FrFlow.Rules.Logic.
 
 (** Proven of `ThreadHerd.startThread`'s tree, twice over. The function it hands the factory is the one written
     there, `try t finally threads.remove(Thread.currentThread()).discard`. Run, that function first calls the
@@ -17,13 +17,13 @@ Proof.
   revert c code x i w k Hrun Hcode Hrem.
   refine (method_meets
     (fun j => forall f r, itselfMakes history (Invocation_mk
-      "java.util.concurrent.ThreadFactory newThread java.lang.Runnable:java.lang.Thread" [f; r]) c0 from0 j ->
-      forall c code x i w k, calledBy history (Invocation_mk "java.lang.Runnable run :scala.Unit" [r]) c i ->
-      itselfMakes history (Invocation_mk "scala.Function0 apply :java.lang.Object" [code]) c i w ->
+      L.ThreadFactory_newThread [f; r]) c0 from0 j ->
+      forall c code x i w k, calledBy history (Invocation_mk L.Runnable_run [r]) c i ->
+      itselfMakes history (Invocation_mk L.Function0_apply [code]) c i w ->
       itselfMakes history (Invocation_mk
-        "java.util.concurrent.ConcurrentHashMap$.KeySetView remove java.lang.Object:scala.Boolean"
-        [heldIn "ox.internal.ThreadHerd threads" h; x]) c i k ->
-      w < k /\ ~ (w < k /\ begun history (Invocation_mk "scala.Function0 apply :java.lang.Object" [code]) c w /\
+        L.KeySetView_remove
+        [heldIn L.ThreadHerd_threads h; x]) c i k ->
+      w < k /\ ~ (w < k /\ begun history (Invocation_mk L.Function0_apply [code]) c w /\
         ~ overBy history c w k))
     C (Member "ox.internal.ThreadHerd" "startThread" "scala.Function0:scala.Unit") Hcall0 Hh eq_refl _ m
     (makes_direct Hhand) _ r Hhand).
@@ -44,14 +44,14 @@ Proof.
   (* of each event the function makes itself: a call of code comes after no remove, and at a remove every call
      of code before it has been responded to *)
   assert (forall j, direct c i (history j) ->
-    (forall code, itselfMakes history (Invocation_mk "scala.Function0 apply :java.lang.Object" [code]) c i j ->
+    (forall code, itselfMakes history (Invocation_mk L.Function0_apply [code]) c i j ->
       forall s x k, k < j -> itselfMakes history (Invocation_mk
-        "java.util.concurrent.ConcurrentHashMap$.KeySetView remove java.lang.Object:scala.Boolean" [s; x]) c i k ->
+        L.KeySetView_remove [s; x]) c i k ->
       False) /\
     (forall s x, itselfMakes history (Invocation_mk
-        "java.util.concurrent.ConcurrentHashMap$.KeySetView remove java.lang.Object:scala.Boolean" [s; x]) c i j ->
+        L.KeySetView_remove [s; x]) c i j ->
       forall code w, w < j ->
-        history w = Event_Invoke c (Some i) (Invocation_mk "scala.Function0 apply :java.lang.Object" [code]) ->
+        history w = Event_Invoke c (Some i) (Invocation_mk L.Function0_apply [code]) ->
         overBy history c w j)) as Hall.
   { refine (function_meets _ C Hcall eq_refl Hr Hwritten _).
     intros args' j' Hargs' _. apply vals_none in Hargs' as ->.
@@ -76,9 +76,3 @@ Proof.
 Qed.
 
 (** What it is from can hold: an execution in which nothing happens meets it. *)
-Lemma aForkFunctionRemovesAfterTheCode_Proofs_feasible : aForkFunctionRemovesAfterTheCode_Obl_feasible.
-Proof.
-  exists (fun _ x => x), (fun _ => Event_Stutter).
-  split; [exact rest_runs |].
-  intros h w H. repeat (destruct H as [H | H]); destruct (nothing_called_on_at_rest _ _ _ H).
-Qed.

@@ -18,7 +18,7 @@ val aCallEndsAfterTheCallsItMade = Node.assumption(
   forall((by: Term[Value], from: Term[BigInt], a: Term[Response], spawns: Term[List[Spawn]]) =>
     forall((k: Term[BigInt], inner: Term[Invocation], m: Term[BigInt]) =>
       (history(k) === make[Event.Respond](by, from, a, spawns) && m < k &&
-        history(m) === make[Event.Invoke](by, some(from), inner)) implies overBy(by, m, k))))
+        history(m) === make[Event.Invoke](by, some(from), inner)) implies overBy(by, m, k)))).about(About.jdk)
 
 val callsNest = Node.claim(
   "A call that a thread begins while a call of its own is pending is over before that call is.")(

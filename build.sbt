@@ -50,7 +50,7 @@ val inspector = "org.scala-lang" %% "scala3-tasty-inspector" % "3.10.0"
 
 lazy val root = project.in(file("."))
   .aggregate(core, dsl, proof, eval, executions, testing, decision, wire, shell, api, cli, web, agent,
-    roomsModel, rooms, authModel, auth, shopModel, shop, paymentsModel, payments, oxModel, ox)
+    roomsModel, rooms, authModel, auth, shopModel, shop, paymentsModel, payments, oxModel, ox, oxProbe)
   .configs(RocqTest).settings(rocqTagged)
   .settings(publish / skip := true)
 
@@ -226,3 +226,9 @@ lazy val oxModel = exampleModel("ox").dependsOn(executions % "compile->compile;t
   // The model of Ox's threads speaks of Ox's own classes, read from this jar.
   .settings(libraryDependencies += "com.softwaremill.ox" %% "core" % "1.1.0")
 lazy val ox = exampleApp("ox", oxModel, layers = Nil)
+
+/** Programs that run Ox 1.1.0 to see what the model's statements about it predict (`examples/ox/probe`): compiled
+  * with the build, and each run by hand, as its file says (`sbt "oxProbe/runMain IsEmptyProbe 30 2"`).
+  */
+lazy val oxProbe = Project("oxProbe", file("examples/ox/probe"))
+  .settings(libraryDependencies += "com.softwaremill.ox" %% "core" % "1.1.0", fork := true, publish / skip := true)

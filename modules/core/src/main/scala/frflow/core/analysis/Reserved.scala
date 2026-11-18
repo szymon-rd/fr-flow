@@ -9,4 +9,5 @@ object Reserved:
     "frflow_match_eqns", "frflow_give", "frflow_case", "frflow_split", "frflow_simpl", "frflow_close",
     "frflow_example", "frflow_evaluate", "frflow_values", "frflow_rewrite", "frflow_backward", "Frflow_def",
     "frflow_def", "frflow_true", "frflow_false", "frflow_run", "frflow_cbv", "frflow_code", "frflow_alone",
-    "frflow_refuted")
+    "frflow_refuted", "frflow_feasible", "frflow_at_rest", "frflow_rest_witness", "frflow_rest_break",
+    "frflow_rest_part")

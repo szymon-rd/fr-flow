@@ -22,7 +22,8 @@ class CommandsSuite extends munit.CatsEffectSuite:
     Command.Decision(make, about, Asked(why, None, yes = true))
 
   test("every command parses, --plain before or after it; a usage error is the help with errors") {
-    List("tree", "tree root", "show decide --full", "diff decide", "inbox", "review --as dev", "reject expiry -m no",
+    List("tree", "tree root", "show decide --full", "diff decide", "inbox", "stands", "stands root",
+      "review --as dev", "reject expiry -m no",
       "confirm -m same", "revisit root -m look", "gone old -m renamed --yes", "rebase --as ann --yes",
       "deciders --as ann", "render", "check", "check pick --json", "status --json", "ci", "export",
       "find some words", "scaffold pick").foreach(a => assert(parse(a).isRight, a))
