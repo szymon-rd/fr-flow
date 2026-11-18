@@ -7,14 +7,14 @@ import frflow.project.port.Records
 import frflow.wire.file.Files
 import frflow.wire.snapshot.{Body, Snapshot}
 
-/** `status` and `export` on rooms in memory: the Rocq and the snapshot written, the snapshot reading back in
+/** `status` and `export` on the link shortener in memory: the Rocq and the snapshot written, the snapshot reading back in
   * decision order.
   */
 class StatusProgramSuite extends munit.CatsEffectSuite:
   test("status writes the Rocq and the snapshot: every node proposed, in decision order") {
     for
       p      <- Projects.inMemory(Map.empty)
-      a      <- Projects.analysed(p, Projects.rooms, Projects.roomsExamples)
+      a      <- Projects.analysed(p, Projects.links, Projects.linksExamples)
       _      <- StatusProgram(p.files)(a)
       held   <- p.files.all
     yield
@@ -28,7 +28,7 @@ class StatusProgramSuite extends munit.CatsEffectSuite:
   test("the snapshot says how each claim is checked, the code it is proven of, and its examples as checked") {
     for
       p    <- Projects.inMemory(Map.empty)
-      a    <- Projects.analysed(p, Projects.rooms, Projects.roomsExamples)
+      a    <- Projects.analysed(p, Projects.links, Projects.linksExamples)
       text <- ExportProgram(p.files)(a)
     yield
       val s = Files.read(Snapshot.format, text).fold(e => fail(e.toString), identity)

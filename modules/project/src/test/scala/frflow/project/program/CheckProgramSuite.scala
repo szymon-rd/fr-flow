@@ -18,13 +18,13 @@ import frflow.proof.reading.RocqReport
 import frflow.proof.rocq.RocqProject
 import frflow.proof.verdict.*
 
-/** `check` on rooms, Rocq scripted and the project in memory: nodes checked parts first and judged theorem by
+/** `check` on the link shortener, Rocq scripted and the project in memory: nodes checked parts first and judged theorem by
   * theorem, each kept while current, the theory's own check recorded with its key; and each way a check ends early.
   */
 class CheckProgramSuite extends munit.CatsEffectSuite:
   private def checked(only: Option[NodeId] = None)(say: Analysis => ModuleName => ProverRun)
       : IO[(List[NodeCheck], Analysis, ScriptedProver[IO], Projects.InMemory)] =
-    checkedOf(Projects.rooms, Projects.roomsExamples, only)(say)
+    checkedOf(Projects.links, Projects.linksExamples, only)(say)
 
   private lazy val auth = Projects.elaborated(_root_.auth.knowledge)
 
@@ -49,23 +49,26 @@ class CheckProgramSuite extends munit.CatsEffectSuite:
   private def broken(file: String, why: String): String =
     RocqReport.print(List(RocqReport.File(file, Map.empty, Map.empty, Some(why))))
 
-  private val stated = List("bookWhenFree", "acceptWhenFree", "neverOverlap", "storeWhenNoOverlap",
-    "answerWhenNoOverlap").map(NodeId(_))
+  private val stated = List("shortenIsIdempotent", "shortenedCodeResolves", "shortenKeepsExistingLinks",
+    "removeChangesOnlyThatCode", "removedCodeLeadsNowhere", "removeKeepsOtherCodes", "removedCodeNotReissued")
+    .map(NodeId(_))
 
   test("every node Rocq is asked of is checked, parts first, proven when Rocq proves each obligation") {
     checked()(proving).map { (done, a, _, _) =>
       assertEquals(done.map(_.node).toSet, stated.toSet)
       assertEquals(done.filter(_.status != CheckStatus.Proven).map(c => c.node -> c.findings), Nil)
       val order = done.map(_.node)
-      assert(order.indexOf(NodeId("storeWhenNoOverlap")) < order.indexOf(NodeId("bookWhenFree")), order)
-      assert(order.indexOf(NodeId("answerWhenNoOverlap")) < order.indexOf(NodeId("acceptWhenFree")), order)
+      assert(order.indexOf(NodeId("removedCodeLeadsNowhere")) < order.indexOf(NodeId("removeChangesOnlyThatCode")),
+        order)
+      assert(order.indexOf(NodeId("removeKeepsOtherCodes")) < order.indexOf(NodeId("removeChangesOnlyThatCode")),
+        order)
       assert(a.inputs.recorded.checks.whole.exists(_.key == a.keys.whole))
     }
   }
 
   test("a try Rocq does not prove shows nothing; the obligations there hold") {
     checked()(proving).map { (done, _, _, _) =>
-      val book = done.find(_.node == NodeId("bookWhenFree")).getOrElse(fail("not checked"))
+      val book = done.find(_.node == NodeId("removeChangesOnlyThatCode")).getOrElse(fail("not checked"))
       assert(book.results.exists(_.name == ObligationName.Impl), book.results)
       assert(book.results.collect { case Result(ObligationName.Tried(_), s, _) => s }
         .forall(_ == ObligationStatus.NotShown), book.results)
@@ -85,15 +88,15 @@ class CheckProgramSuite extends munit.CatsEffectSuite:
   }
 
   test("a model that does not build ends that node's check (ModelError); the nodes above wait for it") {
-    val bad = NodeId("storeWhenNoOverlap")
+    val bad = NodeId("removedCodeLeadsNowhere")
     checked() { a => m =>
       if m == a.lowering.layout.ofNode(bad, NodePart.Spec) then ProverRun.Failed(
-        broken("FrFlowGen/Rooms/storeWhenNoOverlap/Spec.v", "The reference x was not found."))
+        broken("FrFlowGen/Shortener/removedCodeLeadsNowhere/Spec.v", "The reference x was not found."))
       else proving(a)(m)
     }.map { (done, _, _, _) =>
       val status = done.map(c => c.node -> c.status).toMap
       assertEquals(status(bad), CheckStatus.ModelError)
-      assertEquals(status(NodeId("bookWhenFree")), CheckStatus.Waiting)
+      assertEquals(status(NodeId("removeChangesOnlyThatCode")), CheckStatus.Waiting)
     }
   }
 
@@ -105,9 +108,9 @@ class CheckProgramSuite extends munit.CatsEffectSuite:
   }
 
   test("a module Rocq did not run (one it imports did not go through) proves and shows nothing: the check is open") {
-    val node = NodeId("storeWhenNoOverlap")
+    val node = NodeId("removedCodeLeadsNowhere")
     checked(Some(node))(a => m => if m == a.lowering.layout.ofNode(node, NodePart.Impl) then
-      ProverRun.Failed(broken("FrFlowGen/Rooms/Types.v", "oops"))
+      ProverRun.Failed(broken("FrFlowGen/Shortener/Types.v", "oops"))
       else proving(a)(m)).map { (done, _, _, _) =>
       val c = done.find(_.node == node).getOrElse(fail("not checked"))
       assertEquals(c.status, CheckStatus.Open)
@@ -119,7 +122,7 @@ class CheckProgramSuite extends munit.CatsEffectSuite:
   }
 
   test("a proof whose audit Rocq did not print is not checked (fail closed): the node is open") {
-    val node = NodeId("storeWhenNoOverlap")
+    val node = NodeId("removedCodeLeadsNowhere")
     checked(Some(node))(a => m => if m == a.lowering.layout.ofNode(node, NodePart.Impl) then
       unaudited(proving(a)(m)) else proving(a)(m)).map { (done, _, _, _) =>
       val c = done.find(_.node == node).getOrElse(fail("not checked"))
@@ -147,10 +150,10 @@ class CheckProgramSuite extends munit.CatsEffectSuite:
   }
 
   test("a .v file under rocq/Proofs/ that is no node's proof: the check is refused") {
-    val stray = RelPath.fromIdentifiers("rocq", "Proofs/Rooms/sub/grantWhenFree.v")
+    val stray = RelPath.fromIdentifiers("rocq", "Proofs/Shortener/sub/grantWhenFree.v")
     for
       p    <- Projects.inMemory(Map(stray -> "Lemma x : True.\nProof.\n  auto.\nQed.\n"))
-      a    <- Projects.analysed(p, Projects.rooms, Nil)
+      a    <- Projects.analysed(p, Projects.links, Nil)
       lake <- ScriptedProver[IO](proving(a), installed = true)
       out  <- CheckProgram(p.files, lake, RunCode.inline[IO])(a, None).attempt
       held <- lake.built
@@ -158,8 +161,8 @@ class CheckProgramSuite extends munit.CatsEffectSuite:
   }
 
   test("a build that times out ends the check (Timeout); only that node is checked when it is named") {
-    val node = NodeId("answerWhenNoOverlap")
-    checked(Some(node))(a => m => if m.dotted.contains(".answerWhenNoOverlap.") then ProverRun.TimedOut("") else
+    val node = NodeId("removeKeepsOtherCodes")
+    checked(Some(node))(a => m => if m.dotted.contains(".removeKeepsOtherCodes.") then ProverRun.TimedOut("") else
       proving(a)(m)).map { (done, _, _, _) =>
       assertEquals(done.map(c => c.node -> c.status), List(node -> CheckStatus.Timeout))
     }
@@ -168,7 +171,7 @@ class CheckProgramSuite extends munit.CatsEffectSuite:
   test("no Rocq: the check is refused; a node the model does not have, too") {
     for
       p    <- Projects.inMemory(Map.empty)
-      a    <- Projects.analysed(p, Projects.rooms, Nil)
+      a    <- Projects.analysed(p, Projects.links, Nil)
       none <- ScriptedProver[IO](_ => ProverRun.Built(""), installed = false)
       lake <- ScriptedProver[IO](_ => ProverRun.Built(""), installed = true)
       no   <- CheckProgram(p.files, none, RunCode.inline[IO])(a, None).attempt
@@ -180,10 +183,10 @@ class CheckProgramSuite extends munit.CatsEffectSuite:
 
   test("the Rocq written: where an editor finds what is compiled, every module; a module the model no longer has is " +
     "deleted") {
-    val stale = RelPath.fromIdentifiers("rocq", "FrFlowGen/Rooms/gone/Spec.v")
+    val stale = RelPath.fromIdentifiers("rocq", "FrFlowGen/Shortener/gone/Spec.v")
     for
       p    <- Projects.inMemory(Map(stale -> "(* gone *)"))
-      a    <- Projects.analysed(p, Projects.rooms, Nil)
+      a    <- Projects.analysed(p, Projects.links, Nil)
       _    <- Render(p.files)(a)
       held <- p.files.all
     yield

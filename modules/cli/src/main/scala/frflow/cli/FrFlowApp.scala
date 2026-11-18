@@ -13,7 +13,7 @@ import java.nio.file.Path
 /** The command line of a FrModel, which a project's main object extends: the composition root, where the project is
   * put together and `IO` chosen.
   * {{{
-  * object roomsCli extends frflow.cli.FrFlowApp(rooms, root = "examples/rooms")
+  * object linksCli extends frflow.cli.FrFlowApp(links, root = "examples/links")
   * }}}
   * `root` is the project's directory (`FRFLOW_ROOT` overrides it); `extensions`, the layers on top it uses (their
   * commands follow FrFlow's). Its examples are

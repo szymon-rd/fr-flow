@@ -24,17 +24,17 @@ class ReadSubjectsSuite extends munit.FunSuite:
     assertEquals(p.map(s => (s.place.parents, s.place.restsOn)), Some((Nil, Nil)))
   }
 
-  test("rooms: each claim before the parts below it") {
-    val order = Projects.bare(Projects.rooms).subjects.inOrder.map(_.id.value)
+  test("links: each claim before the parts below it") {
+    val order = Projects.bare(Projects.links).subjects.inOrder.map(_.id.value)
     def before(x: String, y: String) = assert(order.indexOf(x) < order.indexOf(y), order)
-    before("bookWhenFree", "storeWhenNoOverlap")
-    before("neverOverlap", "storeWhenNoOverlap")
-    before("acceptWhenFree", "answerWhenNoOverlap")
+    before("removeChangesOnlyThatCode", "removedCodeLeadsNowhere")
+    before("removeChangesOnlyThatCode", "removeKeepsOtherCodes")
   }
 
   test("a node proven of code rests on what its code calls, but on none of its own parts: those come after it") {
-    val subjects = Projects.bare(Projects.rooms).subjects
-    val book = subjects.get(NodeId("bookWhenFree")).map(_.place.restsOn).getOrElse(fail("no bookWhenFree"))
-    assert(!book.contains(NodeId("storeWhenNoOverlap")), book)
-    assert(Projects.bare(Projects.rooms).decided.reliesOn(NodeId("bookWhenFree")).isEmpty)
+    val subjects = Projects.bare(Projects.links).subjects
+    val remove = subjects.get(NodeId("removeChangesOnlyThatCode")).map(_.place.restsOn)
+      .getOrElse(fail("no removeChangesOnlyThatCode"))
+    assert(!remove.contains(NodeId("removedCodeLeadsNowhere")), remove)
+    assert(Projects.bare(Projects.links).decided.reliesOn(NodeId("removeChangesOnlyThatCode")).isEmpty)
   }

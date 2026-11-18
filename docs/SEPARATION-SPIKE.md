@@ -101,15 +101,15 @@ what is read.
 
 ## Since the spike
 
-[The shop example](../examples/shop/README.md) takes the next steps. A port may be a service class
+The shop example (since removed from the repository) took the next steps. A port may be a service class
 holding a store in a field. A service's call of a store's method is read as a call of the Definition of that name
 in the store's companion, so the service is proven from the store's contracts. And `interleaving` reads a method
 among other calls: before each step after the first, a schedule may replace the store's state with one a rely
 admits, and the reading gives every step taken; contracts proven for every schedule rule out the check-then-act
 race the example's second service has.
 
-[The shop](../examples/shop/README.md) takes the step this spike named next: a service holding several ports.
-([The payment stream](../examples/payments/README.md) is written the way that followed: each service a
+The shop took the step this spike named next: a service holding several ports.
+(The payment stream, also since removed, was written the way that followed: each service a
 structure, a `Declaration` of a trait defined by the class that implements it; [LIFTED.md](LIFTED.md) "A
 structure: a value with members".) Its state is a case class its companion names (`type State`),
 one field per port, and a call on a port leaves the state with that field replaced; that two ports are two

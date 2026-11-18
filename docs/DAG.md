@@ -11,8 +11,7 @@ and in them.
    and relating them too, kept concise by its author: each states one idea, and together they are the purpose (§11).
    A root is stated as *exactly* (what users can do and what must never happen, together), so that a system that
    does nothing does not meet it; the `idle` try asks it of the roots together. Where the purpose is more general
-   than the code, it is stated over Declarations, and claims at the bottom say what each is in terms of the code
-   (rooms' `bookedAfterIsStored`).
+   than the code, it is stated over Declarations, and claims at the bottom say what each is in terms of the code.
 2. **A graph of refinements.** Every other node refines the nodes above it, and may refine several, so the nodes form
    a directed acyclic graph. Every step is proven, every node is decided: a model of why the system is as it is.
 3. **Granular and understandable.** One node says one thing, in the developer's domain words, in one sentence; no
@@ -131,7 +130,7 @@ open while a rule it takes is open, for any reason (its `made_`, its tests, noth
 
 ## 3b. Examples written as tests
 
-Examples are ordinary tests (`class GrantedExamples extends FrFlowExamples(rooms)`, `example(name): fact`), read by
+Examples are ordinary tests (`class LinksExamples extends FrFlowExamples(links)`, `example(name): fact`), read by
 `check`, evaluated against the code and in Rocq against the claims (`example_<set>_<i>`, the `i`th of its class). Nothing depends on them (§18): the
 theory and its Rocq are the same without them. An example whose values break a rule on their type is refused.
 

@@ -7,16 +7,16 @@ import frflow.dsl.kb.FrModel
   * round.
   */
 class ExamplesSuite extends munit.FunSuite:
-  private val all: List[(String, FrModel)] = List("rooms" -> rooms.rooms, "auth" -> auth.knowledge)
+  private val all: List[(String, FrModel)] = List("links" -> links.links, "auth" -> auth.knowledge)
 
   test("each example elaborates, with no error") {
     assertEquals(all.map((name, kb) => name -> Theories.errors(kb)), all.map(_._1 -> Nil))
   }
 
   test("each example's examples elaborate, with no error") {
-    val written = List(rooms.GrantedExamples(), auth.DecisionExamples())
+    val written = List(links.LinksExamples(), auth.DecisionExamples())
     assertEquals(written.map(_.elaborated.fold(_.iterator.toList, _ => Nil)), List.fill(written.size)(Nil))
-    assertEquals(written.map(_.examples.size), List(2, 5))
+    assertEquals(written.map(_.examples.size), List(3, 5))
   }
 
   test("the examples are valid as written") {

@@ -9,7 +9,7 @@ import scala.util.Try
   * one the search follows for a type of the developer's.
   */
 object Specs:
-  /** The spec in the companion of the type named `scala` (`payments.Payment`, `shop.Stock.Item`), loaded by
+  /** The spec in the companion of the type named `scala` (`links.Url`, `auth.Grant`), loaded by
     * `from`; none if it has no companion or the companion gives none. A type written at the top level of a file
     * beside other definitions (an opaque type) has its companion in the file's own object (`Ids$package`).
     */

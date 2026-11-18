@@ -34,8 +34,8 @@ follows the method of stepwise refinement (Wirth, 1971) and the refinement calcu
    - **Lifted**: a class that implements the trait, written as ordinary Scala. FrFlow compiles the class into the
      model from the TASTy the Scala compiler wrote for it, and the prover shows that it meets every claim, alone
      and among other calls ([docs/LIFTED.md](docs/LIFTED.md);
-     [examples/payments](examples/payments/README.md): a stream handler proven to apply each payment once, through
-     redelivery, a crash at any step and a second instance).
+     [examples/links](examples/links/README.md): a link shortener proven to meet the claims on its three members
+     and on how they relate).
    - **Assumed**: no implementation is given. The trait is known by the assumptions about it, as an outside
      system or a library is.
    - **Tested**: plain Scala, which FrFlow tests with property-based testing on generated cases, whose shape and
@@ -70,115 +70,99 @@ The value of FrFlow is not limited to agentic coding, and it does not need to be
 of building software with this approach, as it makes it much easier to achieve confidence about the quality of the
 developed software.
 
-## Example: handling card payments
+## Example: a link shortener
 
-A consumer reads card payments from a log and, for each, checks the card's daily limit, posts the money and commits
-its offset. Below is the core of the example; the whole of it is in [`examples/payments`](examples/payments/README.md).
+A link shortener gives a URL a short code, tells where a code leads, and removes a code. Below is the core of the
+example; the whole of it is in [`examples/links`](examples/links/README.md).
 
 ### The code
 
-An id is a type of its own over a string, so one is never given where another is meant:
+A service is an ordinary trait, with the members such a service has and nothing added for the proofs:
 
 ```scala
-opaque type PaymentId = String
-object PaymentId extends FrSpec.Opaque[PaymentId, String]
+final case class Url(address: String) derives FrSpec
+final case class Code(number: BigInt) derives FrSpec
+final case class Link(code: Code, url: Url) derives FrSpec
+
+trait Links extends Mutable:
+  update def shorten(url: Url): Code
+  def resolve(code: Code): Option[Url]
+  update def remove(code: Code): Unit
 ```
 
-A service is an ordinary trait, with the members such a service has and nothing added for the proofs. Its
-specification is in its companion: a `Declaration` of the trait, which is the value the claims speak of, and the
-claims, written through the trait's members.
+Its specification is in its companion: a `Declaration` of the trait, which is the value the claims speak of, and the
+claims, written through the trait's members. Each member has a contract, and most of them say how two members
+relate:
 
 ```scala
-/** The consumer's offsets in the log: the committed offset is that of the next payment to handle. */
-trait ConsumerOffsets extends Mutable:
-  /** Commits a payment's offset: the committed offset moves one past it, if it is at it. */
-  update def commit(offset: BigInt): Unit
-  /** The offset of the next payment to handle: every payment before it has been handled. */
-  def committed: BigInt
+object Links:
+  val shortener = Declaration[Links]("the link shortener: the codes it has given and the URLs they lead to")
 
-object ConsumerOffsets:
-  val offsets = Declaration[ConsumerOffsets]("the consumer's offsets: the offset of the next payment to handle")
+  val shortenIsIdempotent = Node.claim("Shortening a URL a second time gives the code it gave the first time " +
+      "and changes nothing.")(
+    forall((u: Term[Url]) => shortener.shorten(u).isIdempotent))
 
-  val commitMovesPast = Node.claim("Committing the offset that is committed moves it one past.")(
-    forall((offset: Term[BigInt]) =>
-      (offsets.committed === offset) implies
-        (offsets.committed.in(offsets.commit(offset).after) === offset + 1)))
+  val shortenedCodeResolves = Node.claim("The code a URL is given leads to that URL.")(
+    forall((u: Term[Url]) => shortener.shorten(u).andThen(code => shortener.resolve(code)) === some(u)))
 
-  val commitElsewhereChangesNothing = Node.claim("Committing any other offset changes nothing.")(
-    forall((offset: Term[BigInt]) =>
-      (offsets.committed =!= offset) implies (offsets.commit(offset).after === offsets.current)))
+  val shortenKeepsExistingLinks = Node.claim("Shortening never changes where a code that leads somewhere leads.")(
+    forall((u: Term[Url], c: Term[Code]) =>
+      shortener.resolve(c).isDefined implies shortener.resolve(c).unchangedBy(shortener.shorten(u))))
+
+  val removedCodeNotReissued = Node.claim("A code just removed is not given to the next URL shortened.")(
+    forall((c: Term[Code], u: Term[Url]) => shortener.shorten(u).following(shortener.remove(c)) =!= c))
 ```
+
+A call in a claim is made on the structure as it stands; `.in(state)` makes it on another state, `.after` is the
+state it leaves, and `.result` what it gives. The shorthands above are built of those: `q.following(c)` is
+`q.in(c.after)`, `c.andThen(r => d(r))` is `d(c).in(c.after)`, `q.unchangedBy(c)` is `q.following(c) === q`, and
+`c.isIdempotent` is `(c.again === c) && (c.again.after === c.after)`, where `c.again` is `c.in(c.after)`.
 
 An implementation is a class, as it would be written without FrFlow:
 
 ```scala
-final class CommittedOffset(var committed: BigInt) extends ConsumerOffsets:
-  update def commit(offset: BigInt): Unit =
-    if committed == offset then committed = offset + BigInt(1)
+final class RetiringLinks(var issued: List[Link], var retired: List[Code]) extends Links:
+  update def shorten(url: Url): Code =
+    val held = issued
+    val known = held.find(l => Issued.leadsTo(held, l.code) == Some(url)).map(l => l.code)
+    val code = known.getOrElse(Code(Issued.above(held, retired)))
+    if known.isEmpty then issued = Link(code, url) :: held
+    code
+
+  def resolve(code: Code): Option[Url] = Issued.leadsTo(issued, code)
+
+  update def remove(code: Code): Unit =
+    issued = issued.filter(l => l.code != code)
+    retired = code :: retired
 ```
 
-The handler has one method and holds three services. Its claims are said through the interfaces of what it holds
-(`ledger.total`, as the handler has the ledger after the call), so no trait has a member for a proof's sake:
+The model lists the claims, the parts each is proven from, and the class given for the trait:
 
 ```scala
-trait PaymentHandler extends Mutable:
-  /** Handles one payment: has it authorised, posts it if it is approved, and commits its offset. */
-  update def handle(payment: Payment): Boolean
-
-object PaymentHandler:
-  val handler = Declaration[PaymentHandler]("the payment handler: it handles one payment from the log")
-
-  val moneyIsConserved = Node.claim("Handling a payment makes no money and destroys none.")(
-    forall((p: Term[Payment]) => ledger.total.in(handler.handle(p).after) === ledger.total))
-
-  val redeliveryChangesNothing = Node.claim("A payment handled again gets the answer it got and changes " +
-      "nothing.")(
-    forall((p: Term[Payment]) =>
-      (handler.handle(p).in(handler.handle(p).after).result === handler.handle(p).result) &&
-        (handler.handle(p).in(handler.handle(p).after).after === handler.handle(p).after)))
-
-  // Every step of the call, whatever other calls do between the steps: a second instance after a rebalance.
-  val noStepMakesMoney = Node.claim("No step of handling a payment makes money or destroys it.")(
-    forall((p: Term[Payment]) =>
-      handler.handle(p).amongOthers(run => run.steps.forall(step =>
-        ledger.total.in(step._2) === ledger.total.in(step._1)))))
-
-final class StreamPaymentHandler(limits: CardLimits^, ledger: Ledger^, offsets: ConsumerOffsets^)
-    extends PaymentHandler:
-  update def handle(payment: Payment): Boolean =
-    val approved = limits.authorise(payment)
-    if approved then ledger.post(payment)
-    offsets.commit(payment.offset)
-    approved
+val links: FrModel = FrModel("Shortener")(
+  Links.shortenIsIdempotent, Links.shortenedCodeResolves, Links.shortenKeepsExistingLinks, // …
+  Links.removeChangesOnlyThatCode,
+  Links.removedCodeLeadsNowhere.refines(Links.removeChangesOnlyThatCode),
+  Links.removeKeepsOtherCodes.refines(Links.removeChangesOnlyThatCode),
+  Links.removedCodeNotReissued,
+  Links.shortener.define(lifted[RetiringLinks]))
 ```
 
-The model lists the claims, which claim refines which, and the class given for each trait:
+The examples state facts of the code at work, on objects of the class:
 
 ```scala
-val payments: FrModel = FrModel("Payments")(
-  PaymentHandler.moneyIsConserved, PaymentHandler.redeliveryChangesNothing, PaymentHandler.noStepMakesMoney, // …
-  Ledger.postKeepsTotal.refines(PaymentHandler.moneyIsConserved, PaymentHandler.noStepMakesMoney),
-  ConsumerOffsets.commitMovesPast.refines(PaymentHandler.redeliveryChangesNothing), // …
-  offsets.define(lifted[CommittedOffset]),
-  handler.define(lifted[StreamPaymentHandler](limits, ledger, offsets)))
-```
+class LinksExamples extends FrFlowExamples(links):
+  private val one = shortener.holding(RetiringLinks(List(Link(Code(0), home)), Nil))
 
-The examples state facts of the code at work, on objects of the classes:
-
-```scala
-class PaymentsExamples extends FrFlowExamples(payments):
-  private val start = handler.holding(
-    StreamPaymentHandler(RecordedLimits(BigInt(100), Nil), PostingLedger(Nil, Nil), CommittedOffset(BigInt(0))))
-
-  example("a payment within the limit: approved, posted, its offset committed"):
-    val done = handler.handle(coffee).in(start)
-    done.result && (ledger.postingsOf(p1).in(done.after) is charged) &&
-      (offsets.committed.in(done.after) is BigInt(1))
+  example("a removed code: it leads nowhere, and is not given again"):
+    val removed = shortener.remove(Code(0)).in(one)
+    (shortener.resolve(Code(0)).following(removed) is None) &&
+      (shortener.shorten(home).following(removed).result is Code(1))
 ```
 
 ### From a class to a proof
 
-`lifted[CommittedOffset]` is an ordinary call that runs when the model is built. It is a compiler, with no macro
+`lifted[RetiringLinks]` is an ordinary call that runs when the model is built. It is a compiler, with no macro
 and no second Scala compilation in it:
 
 1. The Scala compiler writes, beside each class file, a `.tasty` file: the class as it was typed, bodies included.
@@ -188,116 +172,41 @@ and no second Scala compilation in it:
 3. The prover's printer prints each term as a definition, and the prover shows it meets each claim that names the
    member.
 
-A class that holds services is proven from the claims on them, not from their classes: `handle` is a function of
-any card limits, ledger and offsets that meet their claims. That is what `.refines` says in the model, and why a
-service can be replaced by another that meets the same claims. Each `update` member is also compiled as its steps
-among other calls (`amongOthers`): before each step but the first, the others may have left any state.
+A claim holds of the structure in every state, not only in those the class reaches from an empty one, so the class
+must be right in all of them: a new code is a number above every code given and every code removed, not a counter
+a state could hold below a code already given. A class that holds other services is proven from the claims on
+them, not from their classes, and each `update` member is also compiled as its steps among other calls
+(`amongOthers`): before each step but the first, the others may have left any state ([docs/LIFTED.md](docs/LIFTED.md)).
 
-Of the example's 29 claims, Rocq proves 27 by FrFlow's tactic and 2 from proofs by hand. Each of the 22
-conditions the claims are stated under is shown possible, and Rocq shows each of the 8 examples by running the
-generated definitions on the values it gives ([docs/ROCQ.md](docs/ROCQ.md)). What is proven is the classes of the
-example, which keep their state in memory, with each call of a service taken as one step.
-
-## A second example: booking meeting rooms
-
-[`examples/rooms`](examples/rooms) is the smallest model with code: people book meeting rooms for a stretch of
-time, and a room holds one meeting at a time. It has one service, `Bookings`, and three claims that say its
-purpose in the words of the domain: a room is free for a request when no moment would be booked twice.
-
-```scala
-val acceptWhenFree = Node.claim("A request is accepted exactly when its room is free for its whole time.")(
-  forall((request: Term[Booking]) =>
-    wellFormed(bookings.booked, request) implies
-      (bookings.book(request).result === free(bookings.booked, request))))
-```
-
-The code does not look at moments. It compares when bookings start and end:
-
-```scala
-final class StoredBookings(var booked: List[Booking]) extends Bookings:
-  update def book(request: Booking): Boolean =
-    val fits = booked.forall(b => b.room != request.room || b.end <= request.start || request.end <= b.start)
-    if fits then booked = booked :+ request
-    fits
-```
-
-So the model has a step between the two. Two claims say what the code does as it checks it
-(`answerWhenNoOverlap`, `storeWhenNoOverlap`), and the prover shows the class meets them by itself. The three
-claims of the purpose refine into those, and each is proven from them by a short proof by hand: for bookings
-that end after they start, sharing no moment and not overlapping are the same
-([`rocq/Proofs/Rooms`](examples/rooms/rocq/Proofs/Rooms)).
+Rocq proves all seven claims of the example, each from a short proof by hand over shared lemmas on lists
+(`rocq/Proofs/Shortener`); each of the two conditions the claims are stated under is shown possible, and Rocq shows
+each of the three examples by running the generated definitions on the values it gives ([docs/ROCQ.md](docs/ROCQ.md)).
 
 ### How a change is caught
 
-That step is where a change is caught. `bin/frflow rooms check` writes the model as Rocq, proves each node, and
-has the examples checked against the code and against the claims (the outputs below leave out the lines of the
-tries, `vacuous: not shown` and the like):
-
-```text
-+ storeWhenNoOverlap: proven
-+ answerWhenNoOverlap: proven
-+ bookWhenFree: proven
-+ acceptWhenFree: proven
-+ neverOverlap: proven
-
-Shown possible
-  condition 1 of bookWhenFree can hold: proven
-  condition 1 of acceptWhenFree can hold: proven
-  condition 1 of neverOverlap can hold: proven
-
-Examples
-  + back to back: granted  Rocq: shown
-  + overlapping: refused  Rocq: shown
-```
-
-The code forgets one of its two comparisons. Its own claims are no longer proven of it, so nothing above them is:
+`bin/frflow links check` writes the model as Rocq, proves each node, and has the examples checked against the code
+and against the claims. The class forgets to keep the codes it removes:
 
 ```diff
--    val fits = booked.forall(b => b.room != request.room || b.end <= request.start || request.end <= b.start)
-+    val fits = booked.forall(b => b.room != request.room || b.end <= request.start)
+   update def remove(code: Code): Unit =
+     issued = issued.filter(l => l.code != code)
+-    retired = code :: retired
 ```
+
+What removing leaves is no longer what the proofs rest on, so none of them goes through, and the example fails on
+the code: removing code 0 and shortening a URL gives code 0 again.
 
 ```text
-o storeWhenNoOverlap: open
-  impl: open
-    FrFlowGen/Rooms/storeWhenNoOverlap/Impl.v:6: No applicable tactic.
-  not proven: its code is not proven
-o answerWhenNoOverlap: open
-  impl: open
-    FrFlowGen/Rooms/answerWhenNoOverlap/Impl.v:6: No applicable tactic.
-  not proven: its code is not proven
-o bookWhenFree: open
-  root_impl: open
-  not proven: the roots of the code are not proven (root_impl)
-```
-
-An agent takes meetings that touch to overlap, and changes the code and the definition its claims are written
-with to match. The code meets its claims again. The purpose speaks of the moments bookings cover, which did not
-change, so the lemma that carries the step no longer holds, and the first example fails on the code:
-
-```diff
- val noOverlap = define { (a: Term[Booking], b: Term[Booking]) =>
--  a.room =!= b.room || a.end <= b.start || b.end <= a.start }
-+  a.room =!= b.room || a.end < b.start || b.end < a.start }
-```
-
-```text
-+ storeWhenNoOverlap: proven
-+ answerWhenNoOverlap: proven
-o bookWhenFree: open
+o removedCodeNotReissued: open
   not proven: it imports the shared lemmas, which are not proven (the error is theirs, not its own proof's)
-    Proofs/Rooms/Lemmas.v:7: Lemmas_apart_noOverlap: In environment
-o acceptWhenFree: open
-  …
-
+    Proofs/Shortener/Lemmas.v:87: Lemmas_remove: In environment
+…
 Examples
-  x back to back: granted  Rocq: not shown, not decided by the claims; the code does not hold it
+  x a removed code: it leads nowhere, and is not given again  Rocq: the claims contradict it; the code does not hold it
 ```
 
-If the misreading is carried into the purpose itself (`covers` taking in the end) and the proofs are written
-again, every proof passes, but the purpose changed, so its claims go back to the developer for review with the
-diff: only a signed decision accepts them. `RoomsWalkthroughSuite` replays the first two changes through the
-check (`sbt "project/Rocq/testOnly frflow.project.services.RoomsWalkthroughSuite"`).
+A change to a claim instead (the shortener allowed to give a removed code again, say) proves again, but the claim
+changed, so it goes back to the developer for review with the diff: only a signed decision accepts it.
 
 ## Statements
 
@@ -401,7 +310,7 @@ sbt "frflowInit toy --as NAME"       # an empty project in examples/toy, NAME it
 sbt reload
 bin/frflow toy status                # compiles on first use
 sbt "toy/serve --as NAME"            # the web view on localhost, deciding as NAME
-bin/frflow rooms status              # an example: rooms, auth, payments, shop
+bin/frflow links status              # an example: links, auth, ox
 ```
 
 `sbt "frflowInitAgent toy --as NAME"` creates one with the agent layer enabled. `sbt test` runs FrFlow's fast tests;
@@ -411,16 +320,15 @@ bin/frflow rooms status              # an example: rooms, auth, payments, shop
 
 Each example is a project in `examples/<name>`: its statements and code in `src/main`, its examples in `src/test`,
 its proofs by hand in `rocq/Proofs`, and its command line in `app`
-(`bin/frflow <name> COMMAND`). No decision counts in any of them: `rooms` and `auth` keep a ledger from an earlier
-shape of their models, and `payments` and `shop` have none.
+(`bin/frflow <name> COMMAND`). No decision counts in any of them: `auth` keeps a ledger from an earlier shape of its
+model, and `links` and `ox` have none.
 FrFlow's own suites test them whole (`sbt rocqTest`).
 
-- `payments` is the example above: a payment stream handler over three services, each a structure, proven
-  through redelivery, a crash at any step and a second instance.
-- `rooms` books meeting rooms: the second example above, one service.
+- `links` is the example above: a link shortener, one service with three members, its claims on each and on how
+  they relate, proven of its class.
 - `auth` is access control by a table of grants, and the smallest example.
-- `shop` is a checkout over two services and an order book, each over a store of its own: structures made of
-  structures, two levels deep ([its README](examples/shop/README.md)).
+- `ox` states what holds of a scope's threads once Ox's `unsupervised` or `supervised` has completed, over the
+  executions of Ox's own code ([its README](examples/ox/README.md)).
 
 ## References
 

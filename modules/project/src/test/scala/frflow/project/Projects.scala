@@ -43,9 +43,9 @@ object Projects:
       .nextOption().getOrElse(throw IllegalStateException(s"no ${file.value} under $base"))
 
   def elaborated(kb: FrModel): Elaborated = kb.elaborated.fold(e => throw AssertionError(e.toString), identity)
-  lazy val rooms: Elaborated = elaborated(_root_.rooms.rooms)
-  lazy val roomsExamples: List[Example] =
-    _root_.rooms.GrantedExamples().elaborated.fold(e => throw AssertionError(e.toString), identity)
+  lazy val links: Elaborated = elaborated(_root_.links.links)
+  lazy val linksExamples: List[Example] =
+    _root_.links.LinksExamples().elaborated.fold(e => throw AssertionError(e.toString), identity)
 
   /** The ports in memory, the files holding `files`; the key made for the run listed as `ann`'s. */
   final case class InMemory(ports: Ports[IO], files: MemoryFiles[IO], keys: MemoryKeys[IO], git: MemoryGit[IO])

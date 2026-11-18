@@ -76,26 +76,17 @@ A lemma `<node>_Proofs_<obligation>` stating `<node>_Obl_<obligation>` proves th
 ## Where the examples stand
 
 What `frflow check` gives of each example, from cold, with Rocq 9.3 (`sbt rocqTest` asserts it:
-`PaymentsRocqSuite`, `AuthPortSuite`, `RoomsWalkthroughSuite`):
+`LinksRocqSuite`, `AuthPortSuite`):
 
-- `examples/rooms`: everything. Its five claims are proven (the class meets the two that say what it checks by
-  `frflow_auto`; the three of the purpose follow by the proof files in `examples/rooms/rocq/Proofs/Rooms`), the
-  three conditions are shown possible, and both examples are shown from the claims. About 30 seconds.
+- `examples/links`: everything. Its seven claims are proven of the class by the proof files in
+  `examples/links/rocq/Proofs/Shortener` (a few lines each over shared lemmas on lists, `Lemmas.v`: the tactic does
+  not do the induction they need); `removeChangesOnlyThatCode` is also proven from its two parts. The two
+  conditions are shown possible, and the three examples are shown by running the code.
 - `examples/auth`: its nine claims are proven, each node from its parts by its proof file
   (`examples/auth/rocq/Proofs/Auth`), and the consistency groups; the one condition FrFlow finds no values for
   (`grantLetsIn`'s) is shown possible of the values `Proofs/Auth/Whole.v` gives.
-- `examples/payments`: everything. Its 29 claims are proven, 27 of the code obligations by `frflow_auto` and two
-  by proof files (`redeliveryChangesNothing`, `neverCommitsAhead`), and the roots follow. Each of the 22
-  conditions is shown possible: 14 by the witnesses FrFlow finds and eight by the values
-  `Proofs/Payments/Whole.v` gives. The eight examples are shown by running the code, and none is contradicted.
-  About 7 minutes.
 - The test models (`PricesRocqSuite`, one of them a structure reached through the one that holds its holder;
   `SeededSuite`): proven, their examples shown from the claims.
-- `examples/shop`: everything. Its 50 claims are proven, 40 by `frflow_auto` and ten from proof files
-  (`examples/shop/rocq/Proofs/Shop`: four by hand, six the tactic given more time). Each of the 41 conditions is
-  shown possible, fifteen by the values `Proofs/Shop/Whole.v` gives, and the five examples are shown by running
-  the code. About 25 minutes. The steps of a charge are claimed apart from the steps of the checkout, under what a
-  charge takes of other calls (`othersHonourClaims`, a design decision).
 
 ## Rocq on a machine
 

@@ -15,7 +15,7 @@ class OnCodeSuite extends munit.FunSuite:
     written.elaborated.fold(es => fail(es.iterator.mkString), identity).map(x => x.name -> run.of(x))
 
   test("every example of the five that gives the values it reads holds of the code it is about") {
-    List(rooms.GrantedExamples(), auth.DecisionExamples()).foreach { written =>
+    List(links.LinksExamples(), auth.DecisionExamples()).foreach { written =>
       onCode(written).foreach((name, verdict) => assertEquals(verdict, OnCode.Holds, name))
     }
   }

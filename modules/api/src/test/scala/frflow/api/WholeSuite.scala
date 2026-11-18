@@ -6,13 +6,13 @@ import frflow.api.view.whole.{ExampleOutcome, ExampleView, OnClaims}
 import frflow.eval.run.OnCode
 
 /** The theory as a whole in the view, each obligation with Rocq's outcome and messages: the states each store starts
-  * in (rooms has two), the consistency groups, what is shown possible, and the examples, which pass when the code
+  * in (the shortener has one), the consistency groups, what is shown possible, and the examples, which pass when the code
   * holds them and Rocq shows them, fail when it does not or the claims contradict them, and are reported apart when
   * the claims do not decide them.
   */
 class WholeSuite extends munit.CatsEffectSuite:
   test("each consistency group and each thing shown possible carries Rocq's outcome of its theorem") {
-    Opened.api(Opened.rooms).flatMap(api => Opened.checked(api.proving.check(None))).map { v =>
+    Opened.api(Opened.links).flatMap(api => Opened.checked(api.proving.check(None))).map { v =>
       assert(v.whole.groups.forall(_.check.theorem.startsWith("consistent_")), v.whole)
       assert(v.whole.possible.forall((_, c) => c.state != ObligationState.Unchecked), v.whole.possible)
     }

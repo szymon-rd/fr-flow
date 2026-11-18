@@ -5,8 +5,8 @@ import cats.effect.{ExitCode, IO, IOApp}
 import cats.syntax.all.*
 import frflow.api.{FrFlowApi, FrFlowProject, Host}
 
-/** The web view of a project, run by its sbt task: `sbt "rooms/serve --port 8765 --as NAME"`. The task passes the
-  * project's main object (`rooms.roomsCli`, a `FrFlowProject`) first; the rest are the task's arguments. Who decides
+/** The web view of a project, run by its sbt task: `sbt "links/serve --port 8765 --as NAME"`. The task passes the
+  * project's main object (`links.linksCli`, a `FrFlowProject`) first; the rest are the task's arguments. Who decides
   * is `--as`, else `FRFLOW_AS`, else the name the developer's key is listed under.
   */
 object Serve extends IOApp:

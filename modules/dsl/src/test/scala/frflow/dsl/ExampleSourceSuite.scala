@@ -32,7 +32,7 @@ class ExampleSourceSuite extends munit.FunSuite:
   }
 
   test("a class's name with letters not ASCII is a Rocq identifier with a hash of its full name, two kept apart") {
-    assertEquals(FrFlowExamples.identifier("GrantedExamples", "rooms.GrantedExamples"), "GrantedExamples")
+    assertEquals(FrFlowExamples.identifier("LinksExamples", "links.LinksExamples"), "LinksExamples")
     val (one, two) = (FrFlowExamples.identifier("例", "a.例"), FrFlowExamples.identifier("例", "b.例"))
     assert(one.startsWith("Examples") && one != two && (one + two).forall(c => c.isLetterOrDigit && c < 128),
       s"$one $two")

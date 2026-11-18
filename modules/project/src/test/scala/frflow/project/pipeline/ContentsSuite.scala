@@ -11,7 +11,7 @@ class ContentsSuite extends munit.FunSuite:
   // Two examples analysed and lowered: beside the other suites, some seconds.
   override val munitTimeout: scala.concurrent.duration.Duration = scala.concurrent.duration.Duration(2, "minutes")
   private def lowered(e: Elaborated) = Projects.bare(e).canonical
-  private val examples = List(Projects.rooms, Projects.elaborated(auth.knowledge))
+  private val examples = List(Projects.links, Projects.elaborated(auth.knowledge))
   private val order = List("kind", "parents", "parts", "assumes", "statement", "formula", "written", "vocabulary",
     "checking", "governs", "call", "replaces", "reliance", "implementation")
 
@@ -26,7 +26,7 @@ class ContentsSuite extends munit.FunSuite:
   }
 
   test("a formula is what it means, as Rocq is given it; what the developer wrote is shown beside it") {
-    val c = Contents.of(lowered(Projects.rooms), NodeId("answerWhenNoOverlap"))
+    val c = Contents.of(lowered(Projects.links), NodeId("answerWhenNoOverlap"))
     assert(c.text("written").contains("bookings.book(request).result"), c.text("written"))
     assert(c.text("formula").startsWith("(∀ (x : Bookings), (∀ (x_1 : Booking),") &&
       c.text("formula").contains("Rooms.noOverlap"), c.text("formula"))

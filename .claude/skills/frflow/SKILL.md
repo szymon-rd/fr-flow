@@ -8,7 +8,8 @@ description: >-
   `Node.claim`, `Node.assumption`, `Node.design`, `Declaration`, `Definition`, `define`, `stated`, `lifted`,
   `FrSpec`, `contractOf`, `forall`, `exists`, `always`, `FrModel`, `FrFlowExamples`, `.refines`, `.assuming`,
   `.replaces`, `.define`, `.defineTested`, `.defineValue`, `.provided`, `.defining`, `withGenerator`, `.holding`,
-  `.current`, `.in`, `.after`, `.result`, `.steps` or `.amongOthers`.
+  `.current`, `.in`, `.after`, `.result`, `.following`, `.again`, `.andThen`, `.changesNothing`, `.unchangedBy`,
+  `.isIdempotent`, `.steps` or `.amongOthers`.
 ---
 
 # Developing with FrFlow
@@ -60,8 +61,7 @@ requests. Do not add it to a project whose developer set it up without the layer
 4. **2 to 5 parts per parent, as a rule.** More asks for an intermediate node.
 5. **The roots are stated as exactly**: what users can do and what must never happen, as one relation (`===`,
    "exactly when"), so that a system doing nothing does not meet them. Where the purpose is more general than the
-   code, state it over `Declaration`s, and say at the bottom what each is in terms of the code (rooms'
-   `bookedAfterIsStored`).
+   code, state it over `Declaration`s, and say at the bottom what each is in terms of the code.
 6. **The first split is ⇒/⇐** (safety and capability) **or state/reads**, not one part per conjunct.
 7. **Introduce the domain as it is needed**: a domain type (a case class or an enum deriving `RocqType`) where the
    idea needs one, a `Declaration` for each word of the model: a concept known only by what is said of it, or one
@@ -149,15 +149,20 @@ them.
   `bookings.booked.in(bookings.book(request).after)` a member read after it, `bookings.current` the structure as it
   stands. A claim on a structure holds of it in every state, so state an invariant as what each call keeps. Its
   Definition is the class that implements the trait, `bookings.define(lifted[StoredBookings])`, compiled from its
-  TASTy and proven. "Eventually" cannot be stated.
+  TASTy and proven. "Eventually" cannot be stated. What calls say of each other has shorthands, each built of `.in`
+  and `.after`: `q.following(c)` is `q.in(c.after)`, `c.again` is `c.in(c.after)`, `c.andThen(r => d(r))` is
+  `d(c).in(c.after)`, `c.changesNothing` is `c.after` equal to the state `c` is made on, `q.unchangedBy(c)` is
+  `q.following(c) === q`, and `c.isIdempotent` is `(c.again === c) && (c.again.after === c.after)`
+  (`examples/links`).
 - **A claim constrains every Definition and Declaration it mentions.** One applying a Definition to exactly its
   leading `forall` variables is a claim about its calls: the code given the Definition is checked against it, and
   code calling it is proven from it. When a claim holds only of some inputs (a room's bookings never overlap), give
   them a domain type whose `always` says so, rather than a precondition.
 - **Edges.** `.refines(parent)`: a part (or a rule); `whole.from(parts*)` says the same where the whole is stated. `.assuming(assumption)`: a premise; FrFlow derives which a
   check rests on and refuses a list missing one or naming one not needed.
-- **Examples are tests**, not nodes: `class GrantedExamples extends FrFlowExamples(rooms):` then
-  `example("back to back: granted"):` with a closed fact (`granted(…) is true`). `check` evaluates each against the
+- **Examples are tests**, not nodes: `class LinksExamples extends FrFlowExamples(links):` then
+  `example("a URL shortened again: its code"):` with a closed fact (`shortener.shorten(home).in(one).result is
+  Code(0)`). `check` evaluates each against the
   code and, in Rocq, against the claims. Nothing rests on them.
 - **Consistency gates the proof.** Rocq must prove that some meaning of every open value makes the statements at the
   bottom hold, group by group; a group not proven makes the model red. Give an open value an equation or a bound a
@@ -165,31 +170,30 @@ them.
 
 ## Writing nodes
 
-From rooms (`examples/rooms`):
+From the link shortener (`examples/links`):
 
 ```scala
-trait Bookings extends Mutable:
-  update def book(request: Booking): Boolean
-  def booked: List[Booking]
+trait Links extends Mutable:
+  update def shorten(url: Url): Code
+  def resolve(code: Code): Option[Url]
+  update def remove(code: Code): Unit
 
-val bookings = Declaration[Bookings]("the bookings of the meeting rooms")
+val shortener = Declaration[Links]("the link shortener: the codes it has given and the URLs they lead to")
 
-val acceptWhenFree = Node.claim("A request is accepted exactly when its room is free for its whole time.")(
-  forall((request: Term[Booking]) =>
-    wellFormed(bookings.booked, request) implies
-      (bookings.book(request).result === free(bookings.booked, request))))
+val shortenedCodeResolves = Node.claim("The code a URL is given leads to that URL.")(
+  forall((u: Term[Url]) => shortener.shorten(u).andThen(code => shortener.resolve(code)) === some(u)))
 
-val neverOverlap = Node.claim("Booking a request leaves bookings that do not overlap not overlapping.")(
-  forall((request: Term[Booking]) =>
-    (wellFormed(bookings.booked, request) && bookings.booked.pairwise(apart)) implies
-      bookings.booked.in(bookings.book(request).after).pairwise(apart)))
+val removeChangesOnlyThatCode = Node.claim("Once a code is removed, every code leads where it led before, but " +
+    "the removed one, which leads nowhere.")(
+  forall((c: Term[Code], d: Term[Code]) =>
+    shortener.resolve(d).following(shortener.remove(c)) ===
+      when(d === c)(none[Url]).otherwise(shortener.resolve(d))))
 
-val answerWhenNoOverlap = Node.claim("A request is answered booked exactly when it overlaps no booking.")(
-  forall((request: Term[Booking]) =>
-    bookings.book(request).result === bookings.booked.forall(b => noOverlap(b, request))))
+val removedCodeLeadsNowhere = Node.claim("A removed code leads nowhere.")(
+  forall((c: Term[Code]) => shortener.resolve(c).following(shortener.remove(c)).isEmpty))
 
-val rooms: FrModel = FrModel("Rooms")(acceptWhenFree, neverOverlap,
-  answerWhenNoOverlap.refines(acceptWhenFree), bookings.define(lifted[StoredBookings]))
+val links: FrModel = FrModel("Shortener")(shortenedCodeResolves, removeChangesOnlyThatCode,
+  removedCodeLeadsNowhere.refines(removeChangesOnlyThatCode), /* … */ shortener.define(lifted[RetiringLinks]))
 ```
 
 And from the others:
@@ -228,7 +232,7 @@ error.
 
 A service with state is a structure: write its interface as a trait (a `caps.Mutable` when a member changes it),
 its claims on the `Declaration` of that trait, and its code as a class that implements it; `lifted[Class]` reads the
-class. `examples/rooms` is the smallest one, `examples/payments` one made of several structures.
+class. `examples/links` is one.
 
 - **An outside system known only by its promises** is a structure given no class (`pricing.provided`), its promises
   assumptions on its members.
@@ -247,7 +251,7 @@ with `object PaymentId extends FrSpec.Opaque[PaymentId, String]`, both at the to
 reads as the string it is over. The contract enters the model only when a node states it
 (`Node.assumption("…")(contractOf[T])`, the developer's to decide).
 
-A service can be proven as written. Write it as a structure, a value with members (`examples/payments`,
+A service can be proven as written. Write it as a structure, a value with members (`examples/links`,
 `docs/LIFTED.md` "A structure: a value with members"): a trait of its members; when a member changes it, the trait
 extends `caps.Mutable`, with what changes it marked `update`, in a file with capture and separation checking; when
 none does, a plain trait that is not sealed, its members over domain types; in the trait's companion `val limits = Declaration[CardLimits]("…")` and the claims,
@@ -270,7 +274,7 @@ model.
 A class made of other structures is given their words where it is lifted
 (`checkout.define(lifted[ShopCheckout](inventory, payments, orders))`), and its claims are said through what those
 expose (`inventory.available(sku)`, as the checkout has it): a structure held two levels down is not read through
-its holder's holder, so give the one between a member for what the claim needs (`examples/shop`). State what the
+its holder's holder, so give the one between a member for what the claim needs. State what the
 reading takes for granted as design nodes (each member of a store that changes it is one transaction). Bind a value
 whose type has a contract last in a `forall`.
 
