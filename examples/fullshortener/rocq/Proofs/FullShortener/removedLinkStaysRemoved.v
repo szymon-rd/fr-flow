@@ -7,7 +7,7 @@ Lemma removedLinkStaysRemoved_Proofs_impl : removedLinkStaysRemoved_Obl_impl.
 Proof.
   unfold removedLinkStaysRemoved_Obl_impl, removedLinkStaysRemoved_claim, removeKeepsOtherCodes_claim,
     removedCodeLeadsNowhere_claim, removedCodeNotReissued_claim, shortenChangesOnlyItsCode_claim.
-  intros others nowhere notGiven only s code later.
+  intros only nowhere others notGiven s code later.
   induction later as [| call earlier ih] using rev_ind.
   - exact (nowhere s code).
   - rewrite List_foldl_app. rewrite List_foldl_cons. rewrite List_foldl_nil.

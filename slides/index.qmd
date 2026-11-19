@@ -59,17 +59,52 @@ Let's imagine we can build a complete, formal view of the software that:
 
 ## Step 1: Build the claims tree
 
-Write a **tree of formal statements** about components of software, analogously to requirements.
+Write a **tree of formal statements** about the software, analogous to requirements.
 
-1. *Tree roots* are formalized requirements about the general idea of the project.
-2. *Lower nodes* explain properties of modules and subcomponents.
-3. *Leaves* directly describe properties of code.
+```{=html}
+<svg viewBox="0 0 1080 396" width="100%" role="img"
+     aria-label="A tree of claims: a root, lower nodes, and leaves, each leaf attached to code.">
+  <rect x="40" y="8" width="632" height="72" rx="14" fill="#f3f6fb"/><rect x="40" y="130" width="632" height="72" rx="14" fill="#f3f6fb"/><rect x="40" y="284" width="632" height="72" rx="14" fill="#f3f6fb"/>
+  <path d="M318,64 L222,142" stroke="#8a8a8a" stroke-width="2" fill="none"/><path d="M382,64 L478,142" stroke="#8a8a8a" stroke-width="2" fill="none"/>
+  <path d="M124,298 L172,188" stroke="#8a8a8a" stroke-width="2" fill="none"/><path d="M256,298 L208,188" stroke="#8a8a8a" stroke-width="2" fill="none"/><path d="M444,298 L492,188" stroke="#8a8a8a" stroke-width="2" fill="none"/><path d="M576,298 L528,188" stroke="#8a8a8a" stroke-width="2" fill="none"/>
+  <rect x="308.0" y="23" width="84" height="42" rx="9" fill="#eaf2fd" stroke="#2a76dd" stroke-width="2"/><text x="350" y="52" font-family="'STIX Two Math', 'Cambria Math', 'Noto Sans Math', 'DejaVu Serif', serif" font-size="24" text-anchor="middle" fill="#1b1b1b">R</text><rect x="148.0" y="145" width="84" height="42" rx="9" fill="#eaf2fd" stroke="#2a76dd" stroke-width="2"/><text x="190" y="174" font-family="'STIX Two Math', 'Cambria Math', 'Noto Sans Math', 'DejaVu Serif', serif" font-size="24" text-anchor="middle" fill="#1b1b1b">A</text><rect x="468.0" y="145" width="84" height="42" rx="9" fill="#eaf2fd" stroke="#2a76dd" stroke-width="2"/><text x="510" y="174" font-family="'STIX Two Math', 'Cambria Math', 'Noto Sans Math', 'DejaVu Serif', serif" font-size="24" text-anchor="middle" fill="#1b1b1b">B</text>
+  <rect x="68.0" y="299" width="84" height="42" rx="9" fill="#eaf2fd" stroke="#2a76dd" stroke-width="2"/><text x="110" y="328" font-family="'STIX Two Math', 'Cambria Math', 'Noto Sans Math', 'DejaVu Serif', serif" font-size="24" text-anchor="middle" fill="#1b1b1b">A₁</text><rect x="228.0" y="299" width="84" height="42" rx="9" fill="#eaf2fd" stroke="#2a76dd" stroke-width="2"/><text x="270" y="328" font-family="'STIX Two Math', 'Cambria Math', 'Noto Sans Math', 'DejaVu Serif', serif" font-size="24" text-anchor="middle" fill="#1b1b1b">A₂</text><rect x="388.0" y="299" width="84" height="42" rx="9" fill="#eaf2fd" stroke="#2a76dd" stroke-width="2"/><text x="430" y="328" font-family="'STIX Two Math', 'Cambria Math', 'Noto Sans Math', 'DejaVu Serif', serif" font-size="24" text-anchor="middle" fill="#1b1b1b">B₁</text><rect x="548.0" y="299" width="84" height="42" rx="9" fill="#eaf2fd" stroke="#2a76dd" stroke-width="2"/><text x="590" y="328" font-family="'STIX Two Math', 'Cambria Math', 'Noto Sans Math', 'DejaVu Serif', serif" font-size="24" text-anchor="middle" fill="#1b1b1b">B₂</text>
+  <path d="M110,341 L110,362" stroke="#8a8a8a" stroke-width="1.5" stroke-dasharray="3 3"/><rect x="84" y="362" width="52" height="26" rx="5" fill="#ffffff" stroke="#8a8a8a" stroke-width="1.5"/><text x="110" y="380" font-family="JetBrains Mono, monospace" font-size="14" text-anchor="middle" fill="#555">{ }</text><path d="M270,341 L270,362" stroke="#8a8a8a" stroke-width="1.5" stroke-dasharray="3 3"/><rect x="244" y="362" width="52" height="26" rx="5" fill="#ffffff" stroke="#8a8a8a" stroke-width="1.5"/><text x="270" y="380" font-family="JetBrains Mono, monospace" font-size="14" text-anchor="middle" fill="#555">{ }</text><path d="M430,341 L430,362" stroke="#8a8a8a" stroke-width="1.5" stroke-dasharray="3 3"/><rect x="404" y="362" width="52" height="26" rx="5" fill="#ffffff" stroke="#8a8a8a" stroke-width="1.5"/><text x="430" y="380" font-family="JetBrains Mono, monospace" font-size="14" text-anchor="middle" fill="#555">{ }</text><path d="M590,341 L590,362" stroke="#8a8a8a" stroke-width="1.5" stroke-dasharray="3 3"/><rect x="564" y="362" width="52" height="26" rx="5" fill="#ffffff" stroke="#8a8a8a" stroke-width="1.5"/><text x="590" y="380" font-family="JetBrains Mono, monospace" font-size="14" text-anchor="middle" fill="#555">{ }</text>
+  <path d="M672,44 L700,44" stroke="#c3cfe2" stroke-width="2"/><text x="712" y="41" font-family="Jost, sans-serif" font-size="23" font-weight="600" fill="#1b1b1b">Roots</text><text x="712" y="66" font-family="Jost, sans-serif" font-size="17" fill="#666">requirements on the whole system</text>
+  <path d="M672,166 L700,166" stroke="#c3cfe2" stroke-width="2"/><text x="712" y="163" font-family="Jost, sans-serif" font-size="23" font-weight="600" fill="#1b1b1b">Lower nodes</text><text x="712" y="188" font-family="Jost, sans-serif" font-size="17" fill="#666">properties of modules and components</text>
+  <path d="M672,320 L700,320" stroke="#c3cfe2" stroke-width="2"/><text x="712" y="317" font-family="Jost, sans-serif" font-size="23" font-weight="600" fill="#1b1b1b">Leaves</text><text x="712" y="342" font-family="Jost, sans-serif" font-size="17" fill="#666">properties of the code itself</text>
+</svg>
+```
 
 ## Logical relations in the tree
 
-1. Children of a node together must imply their parent.
-2. Children of a node cannot contradict one another.
-3. There must exist a system that fulfills a level of the tree (*non-vacuity*).
+```{=html}
+<svg viewBox="0 0 1080 400" width="100%" role="img"
+     aria-label="A tree: a root R, its children A and B, and their children. Three relations are marked on it.">
+  <defs>
+    <marker id="rel-imp" markerWidth="9" markerHeight="9" refX="7" refY="4.5" orient="auto">
+      <path d="M0,0 L9,4.5 L0,9 z" fill="#2a76dd"/></marker>
+  </defs>
+
+  <!-- Non-vacuity: the whole lowest level. -->
+  <rect x="52" y="287" width="596" height="66" rx="20" fill="#eef8f1" stroke="#2e9e5b" stroke-width="2.5" stroke-dasharray="8 6"/>
+
+  <!-- The tree. -->
+  <path d="M318,64 L222,142" stroke="#8a8a8a" stroke-width="2" fill="none"/><path d="M382,64 L478,142" stroke="#8a8a8a" stroke-width="2" fill="none"/>
+  <path d="M124,298 L172,190" stroke="#2a76dd" stroke-width="3.5" fill="none" marker-end="url(#rel-imp)"/><path d="M256,298 L208,190" stroke="#2a76dd" stroke-width="3.5" fill="none" marker-end="url(#rel-imp)"/>
+  <path d="M444,298 L492,188" stroke="#8a8a8a" stroke-width="2" fill="none"/><path d="M576,298 L528,188" stroke="#8a8a8a" stroke-width="2" fill="none"/>
+  <rect x="308.0" y="23" width="84" height="42" rx="9" fill="#eaf2fd" stroke="#2a76dd" stroke-width="2"/><text x="350" y="52" font-family="'STIX Two Math', 'Cambria Math', 'Noto Sans Math', 'DejaVu Serif', serif" font-size="24" text-anchor="middle" fill="#1b1b1b">R</text><rect x="148.0" y="145" width="84" height="42" rx="9" fill="#eaf2fd" stroke="#2a76dd" stroke-width="2"/><text x="190" y="174" font-family="'STIX Two Math', 'Cambria Math', 'Noto Sans Math', 'DejaVu Serif', serif" font-size="24" text-anchor="middle" fill="#1b1b1b">A</text><rect x="468.0" y="145" width="84" height="42" rx="9" fill="#eaf2fd" stroke="#2a76dd" stroke-width="2"/><text x="510" y="174" font-family="'STIX Two Math', 'Cambria Math', 'Noto Sans Math', 'DejaVu Serif', serif" font-size="24" text-anchor="middle" fill="#1b1b1b">B</text>
+  <rect x="68.0" y="299" width="84" height="42" rx="9" fill="#eaf2fd" stroke="#2a76dd" stroke-width="2"/><text x="110" y="328" font-family="'STIX Two Math', 'Cambria Math', 'Noto Sans Math', 'DejaVu Serif', serif" font-size="24" text-anchor="middle" fill="#1b1b1b">A₁</text><rect x="228.0" y="299" width="84" height="42" rx="9" fill="#eaf2fd" stroke="#2a76dd" stroke-width="2"/><text x="270" y="328" font-family="'STIX Two Math', 'Cambria Math', 'Noto Sans Math', 'DejaVu Serif', serif" font-size="24" text-anchor="middle" fill="#1b1b1b">A₂</text><rect x="388.0" y="299" width="84" height="42" rx="9" fill="#eaf2fd" stroke="#2a76dd" stroke-width="2"/><text x="430" y="328" font-family="'STIX Two Math', 'Cambria Math', 'Noto Sans Math', 'DejaVu Serif', serif" font-size="24" text-anchor="middle" fill="#1b1b1b">B₁</text><rect x="548.0" y="299" width="84" height="42" rx="9" fill="#eaf2fd" stroke="#2a76dd" stroke-width="2"/><text x="590" y="328" font-family="'STIX Two Math', 'Cambria Math', 'Noto Sans Math', 'DejaVu Serif', serif" font-size="24" text-anchor="middle" fill="#1b1b1b">B₂</text>
+
+  <!-- No contradiction: between two children of one node. -->
+  <path d="M474,320 L546,320" stroke="#d6453d" stroke-width="3" stroke-dasharray="7 5"/>
+
+  <!-- The three relations, said. -->
+  <circle cx="712" cy="88" r="8" fill="#2a76dd"/><text x="734" y="96" font-family="'STIX Two Math', 'Cambria Math', 'Noto Sans Math', 'DejaVu Serif', serif" font-size="26" fill="#1b1b1b">A₁ ∧ A₂ ⟹ A</text><text x="734" y="122" font-family="Jost, sans-serif" font-size="17" fill="#666">children together imply their parent</text>
+  <circle cx="712" cy="198" r="8" fill="#d6453d"/><text x="734" y="206" font-family="'STIX Two Math', 'Cambria Math', 'Noto Sans Math', 'DejaVu Serif', serif" font-size="26" fill="#1b1b1b">B₁ ∧ B₂ ⊬ ⊥</text><text x="734" y="232" font-family="Jost, sans-serif" font-size="17" fill="#666">children do not contradict one another</text>
+  <circle cx="712" cy="308" r="8" fill="#2e9e5b"/><text x="734" y="316" font-family="'STIX Two Math', 'Cambria Math', 'Noto Sans Math', 'DejaVu Serif', serif" font-size="26" fill="#1b1b1b">∃ S.  S ⊨ A₁ ∧ A₂ ∧ B₁ ∧ B₂</text><text x="734" y="342" font-family="Jost, sans-serif" font-size="17" fill="#666">some system fulfils the whole level</text>
+</svg>
+```
 
 ## Step 2: Generate the model for a theorem prover
 
@@ -84,19 +119,15 @@ Write a **tree of formal statements** about components of software, analogously 
 Use the built model to:
 
 - Reason about functional correctness of the code.
-- See the purpose of each part of the code:
+- **See the purpose of each part of the code**:
   - If code is used in some proof, it serves the purpose of that requirement.
   - If code is used in no proof, it is detached from the requirements tree.
 
 ## How this solves issues with agentic coding
 
-- Quality:
-  - Very high confidence in formal correctness of software, with respect to the signed-off requirements.
-- Responsibility:
-  - Developer signs off on requirements.
-  - Developer is sure of the functional relevance of AI-generated code.
-- Entropy:
-  - Claim tree assigns code to the requirements, by using it in proofs.
+- **Entropy:** code is linked to the requirement it is used to prove.
+- **Ownership:** the developer decides and signs off the requirements.
+- **Quality:** the code is proven to meet them.
 
 ## FrFlow is an implementation of that flow
 
@@ -206,11 +237,15 @@ val linkLeadsUntilRemoved = Node.claim("A link leads to its URL until it is remo
 
 val shortenedCodeResolves = Node.claim("The code a URL is given leads to that URL.")(
   forall((url: Term[Url]) =>
-    shortener.shorten(url).andThen(code => shortener.resolve(code)) === some(url)))
+    shortener.shorten(url).andThen(
+      code => shortener.resolve(code)) === some(url)
+    ))
 
 val removedLinkStaysRemoved = Node.claim("A removed link never leads anywhere again.")(
   forall((code: Term[Code], later: shortener.History) =>
-    shortener.resolve(code).following(shortener.remove(code)).following(later).isEmpty))
+    val removal = shortener.remove(code)
+    val whereItLeads = shortener.resolve(code).following(removal).following(later)
+    whereItLeads.isEmpty))
 
 val shortenIsIdempotent = Node.claim(
   "Shortening a URL again gives the same link and changes nothing.")(
@@ -227,11 +262,9 @@ val removedCodeNotReissued = Node.claim("A removed code is never given to a URL 
   forall((code: Term[Code], url: Term[Url], later: shortener.History) =>
     shortener.shorten(url).following(shortener.remove(code)).following(later) =!= code))
 
-val shortenChangesOnlyItsCode = Node.claim(
-  "Shortening a URL changes where no code leads but the one it gives.")(
-  forall((url: Term[Url], other: Term[Code]) =>
-    (other =!= shortener.shorten(url).result) implies
-      shortener.resolve(other).unchangedBy(shortener.shorten(url))))
+val removedCodeLeadsNowhere = Node.claim("A removed code leads nowhere.")(
+  forall((code: Term[Code]) =>
+    shortener.resolve(code).following(shortener.remove(code)).isEmpty))
 
 // Each is placed under the root it helps prove; the class gives the service its meaning.
 val fullShortener: FrModel = FrModel("FullShortener")(
@@ -354,5 +387,13 @@ After `supervised` or `unsupervised` has completed:
 
 ![](img/ox-issue.png)
 
-## Future I would like {.center}
+## Limitation of FrFlow
 
+- It is a PoC.
+- A rework and synthesis of DSL is planned.
+- Tasty -> Rocq translation layer requires further verification.
+
+## Future of programming I would like to see
+
+- AI is used to grow confidence and quality of code.
+- Developers learn and apply new advanced verification approaches.
