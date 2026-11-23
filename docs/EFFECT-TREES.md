@@ -1,0 +1,420 @@
+# Scala as trees of effects: the representation and the translation
+
+This page is the design of one representation of compiled Scala for the prover, and of the translation that
+produces it. A first slice is built and tested against the JVM; the rest is designed here and marked as such.
+The section [What is built](#what-is-built) is the exact list.
+
+- The representation: a method is a **tree of effects**. What the code only computes is a term of the prover;
+  what it does (a field read or written, an object made, a call) is a node of the tree, typed by what it gives.
+- The translation: FrFlow reads the class's TASTy and does the symbolic evaluation **in Scala**, once, when the
+  tree is emitted: a local variable becomes the value it has, a loop's state becomes the variables it assigns.
+  The prover receives the result and evaluates nothing to find out what the code is.
+
+It does not replace anything yet. The Ox model is proven over the trees of `FrFlow/Scala` and the executions of
+`FrFlow/Executions.v` ([EXECUTIONS.md](EXECUTIONS.md)), and `lifted[Class]` structures over terms
+([LIFTED.md](LIFTED.md)). Moving them onto this representation is the later stages below.
+
+## What it has to serve
+
+One representation, used four ways:
+
+1. **Algebra and assumed laws.** Proofs about algebraic structures and about code written against a library
+   known by its laws (cats-effect), with assumptions on how its operations evaluate and relate.
+2. **JVM semantics.** The same code under a machine: threads, a heap, the memory model.
+3. **Induction.** Proofs by induction on data and on a loop's turns.
+4. **Separation logic.** Iris, with a rule per effect.
+
+And two requirements from the work on Ox:
+
+- **Symbolic evaluation at the Scala level.** Today Rocq recomputes what a method does from its tree at every
+  proof step (`denote`), which is where the Ox proofs spend their time.
+- **No strings for names.** Today a field, a method and a label are strings: a misspelt one is a valid term,
+  what a field read gives has no type, and comparing two is comparing lists of characters.
+
+## Prior work, and what is taken from it
+
+- **Charon** (Rust) separates a front end that cleans the compiler's tree (structured control flow, resolved
+  traits) from the tools that give it meaning. Taken: the emitter is its own stage with its own data type
+  (`core.effect.Program`), separate from printing and from any meaning.
+- **Aeneas** (Rust) evaluates symbolically outside the prover and emits pure functions in a result monad;
+  loops become a body that says "again with this state" or "leave with this result". Taken: evaluation at
+  emission, and that loop form. Not taken: memory disappearing altogether. That rests on Rust's ownership;
+  Scala has aliasing and threads, so the heap stays, as effects.
+- **DOT** is a calculus for Scala's types, in let-normal form; it has no classes, mutation, exceptions or
+  threads. gDOT gives its types a meaning as Iris predicates over an untyped language. Taken: let-normal
+  form (every effect's result is named once), and that Scala's types are not embedded in the prover's.
+- **Program Logics à la Carte** builds Iris program logics over interaction trees, one signature of effects at
+  a time. Taken: the tree is parametric in its effects, so a logic, a machine and a library's laws are each an
+  interpretation of the same tree.
+
+## The representation
+
+The Rocq library is `modules/proof/rocq/FrFlow/Effect`. It depends on nothing else in FrFlow.
+
+### Trees (`Tree.v`)
+
+```coq
+Inductive tree (E : Type -> Type) (A : Type) : Type :=
+  | Ret (a : A)
+  | Vis (X : Type) (e : E X) (k : X -> tree A)
+  | Iter (St B : Type) (body : St -> tree (St + B)) (s : St) (k : B -> tree A).
+```
+
+- `Ret a` gives a value.
+- `Vis e k` does one effect `e`, which gives an `X`, and goes on with `k`. The continuation is a function of the
+  prover, so everything the code computes between two effects is ordinary Rocq: arithmetic, a test, a `match`.
+- `Iter body s k` loops over a state: each turn gives the next state or what the loop gives.
+- `E` is a parameter. A tree says which effects are done and in what order, and nothing of what they do.
+
+The tree is inductive: a loop is a node, not an infinite unfolding, so the trees themselves admit induction and
+structural recursion. `bind` is sequencing; `bind_ret` and `bind_bind` are proven (they take function
+extensionality as a hypothesis, which the library already allows as an axiom).
+
+### Code that may throw
+
+```coq
+Definition prog (A : Type) : Type := tree E (exn + A).
+```
+
+`ret`, `throw`, `then_` (sequencing that stops at a throw), `try_catch`, `try_finally`, `loop`, `again` and
+`leave` are functions on trees. `try`/`catch`/`finally` therefore need no node of their own, and a throw that
+leaves a loop is a loop that ends. The notations are `x <- p ;; k`, `'(x, y) <- p ;; k` and `p ;;; k`.
+
+### Names and typed effects (`Sig.v`)
+
+Each program comes with four finite types of its own, generated with it: its classes, fields, methods, and what
+it calls of code that is not read (`outside`). A field's type and a method's inputs and result are functions of
+the name. The effects are typed by them:
+
+```coq
+Inductive eff : Type -> Type :=
+  | Get (o : ref) (f : field) : eff (field_ty f)
+  | Put (o : ref) (f : field) (v : field_ty f) : eff unit
+  | New (c : class) : eff ref
+  | Call (m : method) (given : method_in m) : eff (exn + method_out m)
+  | Ext (m : outside) (given : outside_in m) : eff (exn + outside_out m).
+```
+
+- A name that does not exist is not a term; two names are told apart by computation on constructors.
+- Reading a field of numbers gives a `Z` with no step to recover the type, and writing a truth value into it
+  does not type-check.
+- `Call` is a method whose tree was read; `Ext` is anything else (the JDK, a library), about which the tree
+  says nothing. The Scala name of an outside member is kept only as a label for people.
+- The library is proven once over any such name types; a program instantiates it.
+
+### Values
+
+| Scala | In a tree | Note |
+|---|---|---|
+| `Int` | `Z`, operations `iadd`, `isub`, `imul`, `ineg` (`Int32.v`) | wrapped to 32 bits as the JVM does |
+| `Boolean` | `bool` | |
+| `Unit` | `unit` | |
+| an object of any class | `ref`: `null` or `at_ n` | which class it is, the heap says |
+| `a eq b`, `a ne b` | `same a b`, its negation | |
+
+A reference carries no class in its type: Scala's subtyping, variance and path-dependent types are not embedded
+in Rocq's type system. They are resolved by the compiler before the tree is read and shape the tree without
+being in it. Case classes and enums that are data are designed to be Rocq inductive types, as `RocqType`
+derives them today (later stage).
+
+### What a generated file looks like
+
+`modules/project/src/test/resources/effects/Samples.v` is the emitter's output for the six sample classes,
+kept in the repository. Its parts, in order:
+
+```coq
+Inductive field : Type := | F_Account_opening | F_Account_balance | F_Account_refused | F_Bank_from | ...
+Definition field_ty (f : field) : Type := match f with | F_Account_balance => Z | F_Bank_from => ref | ... end.
+Definition method_in (m : method) : Type := match m with | M_Bank_transfer => (ref * Z)%type | ... end.
+Abbreviation prog := (Tree.prog eff exn).          (* the library at this program's names *)
+
+Definition Bank_transfer (this : ref) (n : Z) : prog bool := ...   (* one definition per method *)
+
+Definition body (m : method) : method_in m -> prog (method_out m) :=   (* what a Call runs *)
+  match m with | M_Bank_transfer => fun '(this, n) => Bank_transfer this n | ... end.
+```
+
+Three methods and their trees, exactly as emitted:
+
+```scala
+def transfer(n: Int): Boolean =          // class Bank(from: Account, to: Account)
+  val ok = from.withdraw(n)
+  if ok then to.deposit(n)
+  ok
+```
+
+```coq
+Definition Bank_transfer (this : ref) (n : Z) : prog bool :=
+  from <- get this F_Bank_from ;;
+  ok <- call M_Account_withdraw (from, n) ;;
+  (if ok then
+        to <- get this F_Bank_to ;;
+        call M_Account_deposit (to, n) ;;;
+        ret tt
+      else
+        ret tt) ;;;
+  ret ok.
+```
+
+```scala
+def sumTo(n: Int): Int =
+  var i = 0
+  var s = 0
+  while i < n do
+    s = s + i
+    i = i + 1
+  s
+```
+
+```coq
+Definition Counter_sumTo (this : ref) (n : Z) : prog Z :=
+  '(i, s) <- loop (fun '(i, s) =>
+      if i <? n then
+        let s1 := iadd s i in
+        let i1 := iadd i 1 in
+        again (i1, s1)
+      else
+        leave (i, s)) (0, 0) ;;
+  ret s.
+```
+
+```scala
+def largest(a: Int, b: Int, c: Int): Int =
+  var best = a
+  if b > best then best = b
+  if c > best then best = c
+  best
+```
+
+```coq
+Definition Numbers_largest (this : ref) (a : Z) (b : Z) (c : Z) : prog Z :=
+  let test := b >? a in
+  let best := if test then b else a in
+  let test1 := c >? best in
+  let best1 := if test1 then c else best in
+  ret best1.
+```
+
+The second has no heap access although the Scala has two `var`s; the third has no effect at all.
+
+## The translation flow
+
+```text
+Scala source
+   │  scalac: types, overloads, givens and inlining resolved
+   ▼
+class file ───────────────────────────────► the JVM                    (what runs; what tests compare with)
+TASTy (the class as typed, bodies included)
+   │  the emitter, `frflow.dsl.compiled.effect`: symbolic evaluation, one pass per method;
+   │  `NotRead` with file and line at anything it does not read
+   ▼
+`frflow.core.effect.Program`: name lists, typings, one `Tree` per method   (plain data; no prover in it)
+   │  the printer, `frflow.proof.effect`
+   ▼
+one Rocq file over `FrFlow/Effect`
+   ├──► `Run.v`: the tree run on a heap, one thread                     (built: the reference for tests)
+   ├──► the pure view: a function, proven equal to the run              (designed)
+   ├──► a machine with threads; executions                              (designed)
+   ├──► Iris: a weakest precondition, a rule per effect                 (designed)
+   └──► a library's signature and laws                                  (designed)
+```
+
+The stages are separate on purpose. The emitter knows Scala and no prover. `Program` knows neither. The
+printer knows Rocq's syntax and nothing of Scala; a Lean printer would be a second one beside it.
+
+### How the emitter evaluates
+
+The emitter walks the typed tree in continuation-passing style. `expr(t, env)(next)` reads the expression `t`
+and hands `next` two things: the expression's **value**, a pure term, and the **environment** as the expression
+left it. `next` gives the rest of the tree. Effects are emitted in the order Scala evaluates, in front of what
+follows; what is only computed stays inside the term.
+
+The environment holds, for each variable in scope, the value it has now. That is the symbolic evaluation:
+
+- A `val` or `var` of a method is not a place in memory. Reading it is its current value; assigning a `var`
+  replaces that value in the environment. Every name in a tree is bound once (fresh names `i1`, `s1`).
+- A choice whose two ways assign variables gives the variables' values together with its own.
+- A loop's state is exactly the variables its test and body assign. Each turn takes their values and gives
+  the next ones (`again`) or the ones the loop leaves with (`leave`).
+- The name the code gives a value (`val ok = …`) is the name its binder gets in the tree.
+
+### The rules that are implemented
+
+Write `⟦e⟧ k` for the tree of `e` followed by `k`, where `k` receives `e`'s value.
+
+| Scala | Tree |
+|---|---|
+| a literal, `this`, a local, a parameter | no node: the term itself is passed to `k` |
+| `a + b`, `a < b`, `!a`, `a == b` on `Int`/`Boolean` | `⟦a⟧`, then `⟦b⟧`; the value is the term `iadd a b`, `a <? b`, … |
+| `a && b`, `a \|\| b` with `b` only computing | the term `andb a b`, `orb a b` |
+| `a && b`, `a \|\| b` where `b` has an effect | the choice it means: `if a then b else false`, `if a then true else b` |
+| `val x = e; rest` | `⟦e⟧`, a `let x := …` if the value is not a name or a constant, then `rest` with `x` |
+| `x = e` on a `var` of the method | `⟦e⟧`; the environment's value for `x` is replaced; no node |
+| `o.f` on a field of the code read | `⟦o⟧`, then `v <- get o F ;;` |
+| `o.f = e` | `⟦o⟧`, `⟦e⟧`, then `put o F v ;;;` |
+| `o.m(a, b)`, `m` a method of the code read | `⟦o⟧`, `⟦a⟧`, `⟦b⟧` in that order, then `r <- call M (o, a, b) ;;` |
+| `o.m(a, b)`, `m` anything else | the same with `ext O (o, a, b)`; `O` is named when first met |
+| `new C(a)` | `c <- new C_C ;;`, `⟦a⟧`, `call M_C_new (c, a) ;;;`; the value is `c` |
+| `a eq b`, `a ne b` | the term `same a b`, `negb (same a b)` |
+| `if c then a else b`, both ways only computing | `let`s of `if c then … else …` terms, one per value that differs |
+| `if c then a else b` otherwise | `'(v, x…) <- (if c then ⟦a⟧ else ⟦b⟧) ;;`, `x…` the variables either way assigns |
+| `while c do b` | `'(x…) <- loop (fun '(x…) => ⟦c⟧ (if c then ⟦b⟧ again else leave)) (x… now) ;;` |
+| a class's constructor | the method `new`: a `put` of each parameter that is a field, then the body in order |
+| a method | `Definition C_m (this : ref) (inputs…) : prog T`, and a case of `body` |
+
+Decisions the rules contain, each covered by a scenario:
+
+- **Order.** What a call is on is evaluated first, then its arguments left to right; the object is made
+  before the constructor's arguments are evaluated, as the JVM does.
+- **Fields before they are written** hold zero, `false` or `null` (`initial`), as on the JVM.
+- **A pure choice evaluates both ways as terms.** This is sound here because no operation read so far can
+  fail. Division can; when it is read it must be an effect or a partial operation, not a term under `if`.
+- **Names.** A method is `Class_method`, the second of a name `method_2`. A second class of one simple name is
+  refused. A local named as a Rocq keyword or a name of the library gets a trailing `_` (`left_`), so no
+  binding hides a definition (`core.effect.Idents`).
+
+### What is refused
+
+Anything else is refused with its file and line (`NotRead`), never skipped or approximated: traits, objects,
+abstract or generic classes, classes with a parent, types other than `Int`, `Boolean`, `Unit` and classes
+(`Long`, `String`, functions, tuples), lambdas and by-name arguments, `match`, `throw` and `try`, `return`,
+`lazy val`, nested methods, secondary constructors, generic methods. `EmitRefusalsSuite` checks four of these.
+
+### The rules that are designed, not implemented
+
+| Scala | Tree | Needs |
+|---|---|---|
+| `throw e` | `throw v` | exception values as objects; `exn := ref` is already in the generated file |
+| `try b catch h finally f` | `try_finally (try_catch ⟦b⟧ ⟦h⟧) ⟦f⟧` | the library functions exist |
+| `return e` in nested code | a leave of the method's tree, as a throw of a private kind | |
+| `e match` on case classes, enums, literals | a Rocq `match`; no case is `throw MatchError` | data as inductive types |
+| a virtual call on code read | `call` with the tree chosen by the receiver's class | `class_of` in the heap; a dispatch table |
+| a lambda, a by-name argument | a closure: a Rocq function to a tree; applying it is a call | function values in `field_ty` |
+| a `var` a closure captures | a cell: `new`, `get`, `put` | escape analysis in the emitter |
+| `lazy val`, a Scala `object` | an effect "initialise once", then the initialiser's tree | as `Enter` in executions today |
+| a method with no effect | also a plain Rocq function, `prog` only at its call sites | purity recorded per method |
+| `Long`, `String`, arrays | their own value types and operations | decided one by one, each tested |
+
+## One representation, four uses
+
+All four are interpretations of the same generated definitions. Only the first paragraph of the second is built.
+
+### Induction and pure views
+
+- Code with no effect is already a term: `Numbers_largest` above is `ret` of a Rocq expression, and proofs
+  about it are proofs about that expression.
+- A loop is `loop body start`. The rule for it takes an invariant over the state, which is a tuple of the
+  variables the Scala assigns, with their Scala names.
+- **Pure view** (designed): for a class that passes capture and separation checking, so that its fields are not
+  aliased, each method gets a function `state -> inputs -> result * state` and a lemma that running the tree
+  on a heap holding that state gives the function's result. This is what `lifted[Class]` produces today by a
+  separate compiler; here it would be derived from the tree and proven, so both views are of one definition.
+
+### The JVM
+
+- **Built:** `Run.v` runs a tree on a typed heap, one thread, with fuel: `Get`/`Put` read and write an object's
+  field, `New` appends an object whose fields hold `initial`, `Call` runs `body m`, `Ext` asks a parameter. It
+  is the reference the emitter is tested against, not a model of threads.
+- **Designed:** the frame machine of `FrFlow/Jvm/Machine.v` over these trees. Each `Vis` is one step of one
+  thread and one event of an execution, so the executions model carries over: an invocation's events are a
+  path through its method's tree, which the proof rules `step`/`pass` already walk. `Thread.start`, monitors
+  and `AtomicBoolean` are `Ext` names given their meaning by the machine and assumed of it as today
+  (`examples/ox/JDK.md`). What changes for the Ox proofs: the tree is a definition to unfold, not a value
+  Rocq computes from syntax at each step, and a label is a constructor, not a string.
+
+### Libraries known by their laws (designed)
+
+Three levels, chosen per library:
+
+1. **Opaque.** An outside member is an `Ext` name with a typed input and result. What is assumed of it is a
+   statement about what it gives, as with the JDK today.
+2. **Pure by declaration.** A library signature may declare a member pure (a monoid's `combine`). It is then a
+   function parameter of the generated file, not an effect, and its laws are hypotheses over that parameter.
+   Proofs are algebra on terms and hold for every instance that meets the laws.
+3. **A signature of effects.** For cats-effect, an `IO[A]` value is itself a tree over a signature `CatsE`
+   (`RefModify`, `Start`, `Join`, …): `flatMap` is `then_`, `IO.pure` is `ret`, so the monad laws are
+   `bind_ret` and `bind_bind`, proven, not assumed. What cats-effect promises beyond them ("`Ref.modify` is
+   atomic") is assumed of any handler of `CatsE`. A handler into JVM effects (a `Ref` as an `AtomicReference`)
+   can later replace those assumptions with proofs.
+
+`tree` is already parametric in `E`. What is missing is the sum of two signatures with its injections, and the
+signature files themselves.
+
+### Iris (designed)
+
+A weakest precondition defined by recursion on the tree, with one rule per effect: `Get o f` needs
+`o.f ↦ v` and gives `v`, typed by `field_ty f`; `Put` updates it; `New` gives the new object's fields; `Call`
+unfolds `body`; `Iter` is by an invariant. Adequacy is stated against the machine. Because points-to facts
+are typed by the field, a proof does not carry "this value is a number" side conditions. The existing Iris
+language (`FrFlow/Bridge`) is over the old trees and would be re-stated.
+
+## How it corresponds to Scala
+
+| | |
+|---|---|
+| **Exact in what is built** | evaluation order; field reads and writes; object creation and constructor order; calls; `Int` arithmetic with wrapping; `eq`; loops; short-circuit `&&`/`\|\|` |
+| **By a rewriting the emitter does, so tested** | locals as values (no heap cell); loop state; choices returning assigned variables |
+| **By a rewriting, not built** | pattern matching, dynamic dispatch, closures, initialise-once, exceptions |
+| **Not represented** | Scala's types beyond the erased shape of values. They constrain which trees can be emitted; they are not in the trees |
+| **Not modelled** | allocation failure, stack depth, time. A tree's run takes fuel; a run that would overflow the JVM's stack is a run here |
+
+## What is trusted, and how it is tested
+
+In this stage the emitter and the printer are trusted, and tested as follows.
+
+- **Against the JVM** (`EffectRunSuite`, tagged Rocq). Six scenarios over the sample classes are run on the
+  JVM by reflection. For each, a Rocq lemma states that the run of the scenario's emitted tree gives the same
+  number and is proven by `vm_compute`. The scenarios cover: fields read and written, two objects of one
+  class, one object reached by two references, constructor order, calls across objects, a loop over two
+  variables, a loop inside a loop, a loop whose test has an effect, `&&` over a call, choices that assign
+  variables, and wrapping (`7^20 + (-3)^31` as `Int`).
+- **Kept output.** The generated file is in the repository and compared on every run, so any change to what
+  is emitted appears in review as a diff of Rocq.
+- **Refusals** (`EmitRefusalsSuite`), and the printer on a hand-built program (`EffectPrintSuite`).
+
+Limits of this testing, stated plainly:
+
+- It is testing, not proof. It covers the constructs above on the inputs the scenarios use.
+- It compares final results of single-threaded runs. It does not compare heaps, and there are no schedules
+  because there are no threads yet.
+- Nothing ties these trees to `FrFlow/Scala`'s `denote`. An earlier description of this design said Rocq would
+  check `emitted = denote tree` once per method. That does not hold as stated: `denote` is over strings and one
+  untyped value type, the emitted tree over generated names and typed values, so the two are not the same
+  term. A link needs an erasure of names and values and a simulation proof, which is not built.
+
+How trust is reduced later, in order of cost:
+
+1. Each construct added arrives with a sample class and a scenario, and with programs that differ only in
+   evaluation order.
+2. Generated programs: random code in the supported fragment, compiled and compared the same way.
+3. The emitter's rules written a second time in Rocq as a function on the reader's trees, proven to agree
+   with `denote` under the erasure, and its output compared with the Scala emitter's per method. The Scala
+   emitter is then checked, not trusted. Whether this is cheap enough on Ox's largest methods is not measured.
+
+## What is built
+
+| Part | Where | State |
+|---|---|---|
+| Trees, exceptions, loops, notations | `modules/proof/rocq/FrFlow/Effect/Tree.v` | built |
+| `Int` as the JVM computes it | `…/Effect/Int32.v` | `+`, `-`, `*`, unary `-`, comparisons |
+| Names and typed effects | `…/Effect/Sig.v` | built |
+| Typed heap, reference run | `…/Effect/Run.v` | one thread |
+| Program data | `frflow.core.effect` | built |
+| Emitter | `frflow.dsl.compiled.effect` (`EmitEffects(cls, keep)`) | the rules listed as implemented |
+| Printer | `frflow.proof.effect` (`PrintProgram`) | Rocq |
+| Tests | `frflow.project.effects`, `frflow.proof.prover.EffectPrintSuite` | six scenarios, four refusals |
+
+Not built: exceptions in the emitter, traits and dispatch, closures, data types, `match`, the pure view, the
+machine and executions over these trees, library signatures, Iris, the link to `denote`, a model's use of any
+of it (`lifted`, `Code_runs`). The emitter is called only by its tests.
+
+## Stages
+
+1. **Sequential Scala in full**: exceptions, `match` and data, traits and dispatch, closures, `String` and
+   `Long`. Each with scenarios. Measure: the share of Ox's four files and of the examples' classes read.
+2. **Pure view** for separation-checked classes, and `lifted[Class]` moved onto it. One compiler remains.
+3. **Machine and executions** over these trees; Ox's generated code and proof rules moved; proof time compared
+   with today's 30 CPU-minutes of hand proofs.
+4. **Library signatures**: the JDK's as `Ext` names with today's assumptions; cats-effect as a signature.
+5. **Iris** over the machine of stage 3.
+6. **The checked emitter** (item 3 of the previous section).
