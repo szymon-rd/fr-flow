@@ -444,8 +444,8 @@ FrFlow's own suites test them whole (`sbt rocqTest`).
   yet.
 - [docs/ROCQ.md](docs/ROCQ.md) describes the prover: how a model reads in Rocq, how a check runs it, what is
   proven of the examples, and what is left.
-- [docs/EFFECT-TREES.md](docs/EFFECT-TREES.md) is the design of compiled Scala as trees of typed effects, emitted
-  from TASTy with the symbolic evaluation done in Scala: the representation, the translation rules, what is
-  built of it and what is not.
+- [docs/EFFECT-TREES.md](docs/EFFECT-TREES.md) is the design of compiled Scala for the prover: a program is a
+  sequence of operations over values, and statements give the operations their meaning. The theory, what is
+  built of it, and what is read of Scala.
 - [docs/redesign/](docs/redesign/ARCHITECTURE.md) is the design record of the library as it was rebuilt, and the
   owner's decisions the sources cite.

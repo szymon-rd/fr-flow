@@ -44,3 +44,8 @@ class EffectRunSuite extends munit.FunSuite:
       List("banking", "computing", "counters", "draining", "edges", "naming", "ordering", "sharing", "wrapping"))
     assertEquals(ThreadsRocq.failing(List("Effects/Samples.v" -> text, "Effects/Runs.v" -> runs), library), None)
   }
+
+  test("the worked examples of the design are proven: threads, cats' laws, a value that is run later".tag(Live)) {
+    val worked = Files.readString(kept.resolveSibling("Worked.v"))
+    assertEquals(ThreadsRocq.failing(List("Effects/Worked.v" -> worked), List("Effect/Tree")), None)
+  }

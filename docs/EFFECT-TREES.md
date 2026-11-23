@@ -1,181 +1,359 @@
-# Scala as trees of effects: the representation and the translation
+# Scala in the prover: one execution, values, and vocabularies
 
-This page is the design of one representation of compiled Scala for the prover, and of the translation that
-produces it. A first slice is built and tested against the JVM; the rest is designed here and marked as such.
-The section [What is built](#what-is-built) is the exact list, [The review](#the-review) what an independent
-review found wrong in the first version and what was done about it, and [Open decisions](#open-decisions) what
-the review says should be settled in the representation before more is built on it.
+## 1. Introduction
 
-- The representation: a method is a **tree of effects**. What the code only computes is a term of the prover;
-  what it does (a field read or written, an object made, a call) is a node of the tree, typed by what it gives.
-- The translation: FrFlow reads the class's TASTy and does the symbolic evaluation **in Scala**, once, when the
-  tree is emitted: a local variable becomes the value it has, a loop's state becomes the variables it assigns.
-  The prover receives the result and evaluates nothing to find out what the code is.
+FrFlow proves statements about real Scala. For that, the prover needs the code in a form that is faithful to
+how Scala runs, small enough to reason about, and the same for every kind of proof: algebra over a library's
+laws, induction, threads on the JVM, separation logic.
 
-It does not replace anything yet. The Ox model is proven over the trees of `FrFlow/Scala` and the executions of
-`FrFlow/Executions.v` ([EXECUTIONS.md](EXECUTIONS.md)), and `lifted[Class]` structures over terms
-([LIFTED.md](LIFTED.md)). Moving them onto this representation is the later stages below.
+This page describes that form and the translation that produces it. In one sentence: **a program is a
+sequence of operations over values, and the only thing that gives an operation meaning is what is stated
+about it.**
 
-## What it has to serve
+How to read it:
 
-One representation, used four ways:
+- **Section 2** is the whole theory on one page.
+- **Section 3** takes each idea of section 2 in turn, in the same order.
+- **Section 4** is what exists in the repository and how it differs from the theory.
+- **Section 5** is coverage: which Scala is read, which parts of the theory are built, what is open.
 
-1. **Algebra and assumed laws.** Proofs about algebraic structures and about code written against a library
-   known by its laws (cats-effect), with assumptions on how its operations evaluate and relate.
-2. **JVM semantics.** The same code under a machine: threads, a heap, the memory model.
-3. **Induction.** Proofs by induction on data and on a loop's turns.
-4. **Separation logic.** Iris, with a rule per effect.
+Status in brief: a first slice of the translation is built and tested against the JVM (plain classes, fields,
+loops, calls). The theory is ahead of it. Each chapter ends with a **Status** line saying which of three it
+is: *built* (in the library, tested), *proven on an example* (in
+`modules/project/src/test/resources/effects/Worked.v`, compiled by a test), or *designed* (written here only).
 
-And two requirements from the work on Ox:
+## 2. The theory on one page
 
-- **Symbolic evaluation at the Scala level.** Today Rocq recomputes what a method does from its tree at every
-  proof step (`denote`), which is where the Ox proofs spend their time.
-- **No strings for names.** Today a field, a method and a label are strings: a misspelt one is a valid term,
-  what a field read gives has no type, and comparing two is comparing lists of characters.
+Five ideas.
 
-## Prior work, and what is taken from it
+1. **One execution.** There is one notion of running: Scala's own, one step after another. A method is a
+   *program*: a tree that says which operations happen and in what order. What the code only computes
+   (arithmetic, a test) is not a step; it is an ordinary term of the prover between the steps.
+2. **Everything else is a value.** A number, an object reference, a lambda, an `IO` built with cats-effect:
+   each is a value, and a value does nothing by existing. Building an `IO` is not running it; a lambda is code
+   that has not run.
+3. **Vocabularies.** Operations come in small groups: memory (read and write a field), calls, a monitor, cats'
+   `Ref`, an outside system. A program is over exactly the vocabularies it uses, and its type says which. Code
+   that mutates nothing has no memory operation; code that starts nothing has no thread operation.
+4. **Meaning comes from statements.** A program says nothing about what an operation does. That is given by
+   *laws* (assumed, or proven one layer down), by *definitions* (the operation's meaning as a program over
+   lower vocabularies), and it is used by *claims*. These are FrFlow's assumptions, definitions and claims.
+5. **Parallelism is interleaving of operations.** A method's program never changes. Running several at once
+   means their operations interleave; other code can only get in between two operations. Whether a law may
+   still be used then depends on a condition the law states.
 
-- **Charon** (Rust) separates a front end that cleans the compiler's tree (structured control flow, resolved
-  traits) from the tools that give it meaning. Taken: the emitter is its own stage with its own data type
-  (`core.effect.Program`), separate from printing and from any meaning.
-- **Aeneas** (Rust) evaluates symbolically outside the prover and emits pure functions in a result monad;
-  loops become a body that says "again with this state" or "leave with this result". Taken: evaluation at
-  emission, and that loop form. Not taken: memory disappearing altogether. That rests on Rust's ownership;
-  Scala has aliasing and threads, so the heap stays, as effects.
-- **DOT** is a calculus for Scala's types, in let-normal form; it has no classes, mutation, exceptions or
-  threads. gDOT gives its types a meaning as Iris predicates over an untyped language. Taken: let-normal
-  form (every effect's result is named once), and that Scala's types are not embedded in the prover's.
-- **Program Logics à la Carte** builds Iris program logics over interaction trees, one signature of effects at
-  a time. Taken: the tree is parametric in its effects, so a logic, a machine and a library's laws are each an
-  interpretation of the same tree.
+One example through all five:
 
-## The representation
+```scala
+final class Counter:
+  private var count = 0
+  def bump(): Unit = count = count + 1
+```
 
-The Rocq library is `modules/proof/rocq/FrFlow/Effect`. It depends on nothing else in FrFlow.
+```coq
+Definition bump : tree mem unit := x <~ Get ;; _ <~ Put (S x) ;; Ret tt.
+```
 
-### Trees (`Tree.v`)
+- **Execution:** two steps, a read and a write. The `+ 1` is a term, not a step.
+- **Values:** the number read, `x`.
+- **Vocabulary:** memory only (`mem`). Nothing about threads, cats or the JVM is in the definition.
+- **Meaning:** stated separately: a read gives what is there, a write leaves what was written.
+- **Parallelism:** the same `bump`, unchanged, supports three proven claims:
+  - alone, it adds one;
+  - two at once can lose an update (both read, then both write);
+  - two at once, each holding a monitor, always count both.
+
+What follows from the five ideas:
+
+- **Minimal.** A proof sees only the vocabularies its program mentions, with their laws. A proof about cats code
+  that touches no field never mentions an object.
+- **Layered, per operation.** A proof goes down a layer (from cats laws to memory, from memory to the JVM) only
+  at the operations where the code itself does.
+- **One definition for every proof.** The generated program is the same whether it is reasoned about alone,
+  interleaved, by rewriting with laws, or in a program logic.
+
+## 3. The theory in detail
+
+### 3.1 Programs
 
 ```coq
 Inductive tree (E : Type -> Type) (A : Type) : Type :=
-  | Ret (a : A)
-  | Vis (X : Type) (e : E X) (k : X -> tree A)
-  | Iter (St B : Type) (body : St -> tree (St + B)) (s : St) (k : B -> tree A).
+  | Ret (a : A)                                                    (* gives a value *)
+  | Vis (X : Type) (e : E X) (k : X -> tree A)                     (* one operation, then the rest *)
+  | Iter (St B : Type) (body : St -> tree (St + B)) (s : St) (k : B -> tree A).   (* a loop over a state *)
 ```
 
-- `Ret a` gives a value.
-- `Vis e k` does one effect `e`, which gives an `X`, and goes on with `k`. The continuation is a function of the
-  prover, so everything the code computes between two effects is ordinary Rocq: arithmetic, a test, a `match`.
-- `Iter body s k` loops over a state: each turn gives the next state or what the loop gives.
-- `E` is a parameter. A tree says which effects are done and in what order, and nothing of what they do.
+- `E` is the vocabulary: `E X` is an operation that gives an `X`. The tree is parametric in it.
+- The continuation `k` is a function of the prover. Everything the code computes between two operations is
+  inside it, as ordinary terms.
+- A loop is one node: each turn gives the next state or the loop's result. The tree is inductive, so programs
+  admit structural recursion and induction.
+- Sequencing is `bind`. Its laws are proven: `bind_ret`, `bind_bind`.
+- **Exceptions.** Code that may throw gives an exception or a value: `prog E exn A := tree E (exn + A)`.
+  `throw`, sequencing that stops at a throw (`then_`), `try_catch`, `try_finally` and `loop` are functions on
+  trees, with the laws `ret_then`, `then_ret`, `then_then` proven.
 
-The tree is inductive: a loop is a node, not an infinite unfolding, so the trees themselves admit induction and
-structural recursion. `bind` is sequencing; `bind_ret` and `bind_bind` are proven (they take function
-extensionality as a hypothesis, which the library already allows as an axiom).
+Notation used below: `x <~ e ;; rest` is `Vis e (fun x => rest)`.
 
-### Code that may throw
+**Status:** built (`FrFlow/Effect/Tree.v`).
 
-```coq
-Definition prog (A : Type) : Type := tree E (exn + A).
-```
+### 3.2 Values
 
-`ret`, `throw`, `then_` (sequencing that stops at a throw), `try_catch`, `try_finally`, `loop`, `again` and
-`leave` are functions on trees. `try`/`catch`/`finally` therefore need no node of their own, and a throw that
-leaves a loop is a loop that ends. The notations are `x <- p ;; k`, `'(x, y) <- p ;; k` and `p ;;; k`.
+| Scala | Value in the prover |
+|---|---|
+| `Int` | a 32-bit number: operations wrap as the JVM's do |
+| `Boolean`, `Unit` | `bool`, `unit` |
+| case classes, enums | inductive types of the prover |
+| an object | a *reference*: a type with an equality test and nothing else |
+| a lambda, a by-name argument | a *function value*, made from what it captures (3.7) |
+| a library's value, such as `IO[A]` | a type of the library's vocabulary, with the functions that build it (3.8) |
 
-### Names and typed effects (`Sig.v`)
+- A reference is abstract. Where an object is stored is not part of the theory; it appears only inside a
+  model (3.6).
+- A class, a field and a method are named by generated finite types, one constructor each. A name that does
+  not exist is not a term, and what a field holds is a function of its name, so reading a field of numbers
+  gives a number.
+- Scala's types beyond this (subtyping, variance, path-dependent types, givens) are resolved by the compiler
+  before the code is read. They decide which program is emitted and are not in it.
 
-Each program comes with four finite types of its own, generated with it: its classes, fields, methods, and what
-it calls of code that is not read (`outside`). A field's type and a method's inputs and result are functions of
-the name. The effects are typed by them:
+**Status:** numbers, truth values, references and generated names are built, with one difference: the
+reference is still a concrete type (4.5). Data types, function values and library values are designed.
 
-```coq
-Inductive eff : Type -> Type :=
-  | Get (o : ref) (f : field) : eff (field_ty f)
-  | Put (o : ref) (f : field) (v : field_ty f) : eff unit
-  | New (c : class) : eff ref
-  | Call (o : ref) (m : method) (given : method_in m) : eff (exn + method_out m)
-  | Ext (m : outside) (given : outside_in m) : eff (exn + outside_out m).
-```
+### 3.3 Vocabularies
 
-- A name that does not exist is not a term; two names are told apart by computation on constructors.
-- Reading a field of numbers gives a `Z` with no step to recover the type, and writing a truth value into it
-  does not type-check.
-- `Call` is a method whose tree was read, called on an object. What it is called on is apart from what it is
-  given, so that a call on no object is told from a call. `Ext` is anything else (the JDK, a library), about
-  which the tree says nothing. The Scala name of an outside member is kept only as a label for people.
-- The library is proven once over any such name types; a program instantiates it.
+A vocabulary is a family of operations, each typed by what it gives.
 
-### Values
+| Vocabulary | Operations |
+|---|---|
+| memory | read a field, write a field, make an object |
+| calls | call a method of the code that was read |
+| function values | apply one |
+| monitor | enter, leave |
+| cats `Ref` | `get`, `set`, `modify` with a pure function |
+| cats `IO` | run a built value |
+| fibers, threads | start a body, join |
+| an outside system | one operation per member that is called |
 
-| Scala | In a tree | Note |
-|---|---|---|
-| `Int` | `Z`, operations `iadd`, `isub`, `imul`, `ineg` (`Int32.v`) | wrapped to 32 bits as the JVM does |
-| `Boolean` | `bool` | |
-| `Unit` | `unit` | |
-| an object of any class | `ref`: `null` or `at_ n` | which class it is, the heap says |
-| `a eq b`, `a ne b` (`Object`'s) | `same a b`, its negation | a method of the code named `eq` is a call |
+- **Programs combine vocabularies.** A program over two is a tree over their sum; each node belongs to one:
 
-- Any type of objects is a `ref`, also one that is not read (`String`, an array, a tuple): what is done with
-  such a value is a call outside the code. A literal of one is refused.
-- A `Z` in a tree is not confined to the range of `Int`. What the operations give is in range (`wrap`), but a
-  method's inputs and what an outside call gives are any `Z`. A statement over all inputs is therefore about
-  more inputs than the JVM has, which is sound; a statement that some input exists is not. See
-  [Open decisions](#open-decisions).
+  ```coq
+  (* a cats Ref read, then a field read and written *)
+  Definition counting_read : tree (sum1 ref mem) nat :=
+    x <~ inl1 Read ;; seen <~ inr1 Get ;; _ <~ inr1 (Put (S seen)) ;; Ret x.
+  ```
+- **The minimality rule.** A program is over exactly the vocabularies its code uses. A proof about it has the
+  laws of those vocabularies and no others.
+- **An operation can say what its argument may do.** `start(body)` records the vocabulary of `body`. A law
+  about fibers whose bodies touch no memory then cannot be applied to a body that does: it does not type-check.
 
-A reference carries no class in its type: Scala's subtyping, variance and path-dependent types are not embedded
-in Rocq's type system. They are resolved by the compiler before the tree is read and shape the tree without
-being in it. Case classes and enums that are data are designed to be Rocq inductive types, as `RocqType`
-derives them today (later stage).
+**Status:** one fixed vocabulary is built (memory, calls and outside calls together). Sums and the minimality
+rule are proven on an example (`counting_read`); the body vocabulary was type-checked outside the repository.
 
-### What a generated file looks like
+### 3.4 Statements
 
-`modules/project/src/test/resources/effects/Samples.v` is the emitter's output for the eight sample classes,
-kept in the repository. Its parts, in order:
+| FrFlow | Here |
+|---|---|
+| Declaration: a word known by what is said of it | an operation |
+| Assumption | a law, taken as given |
+| Claim | a law or a property of a program, proven |
+| Definition | an operation's meaning as a program over lower vocabularies |
 
-```coq
-Inductive field : Type := | F_Account_opening | F_Account_balance | F_Account_refused | F_Bank_from | ...
-Definition field_of (f : field) : class := match f with | F_Account_balance => C_Account | ... end.
-Definition field_ty (f : field) : Type := match f with | F_Account_balance => Z | F_Bank_from => ref | ... end.
-Definition method_in (m : method) : Type := match m with | M_Bank_transfer => Z | ... end.
-Abbreviation prog := (Tree.prog eff exn).          (* the library at this program's names *)
+- **A law** says how operations relate or what one does. Three forms are used:
+  - an equation between programs ("reading after `update f` is updating after reading, with `f` applied");
+  - what an operation does to a state ("a monitor is entered only when nobody holds it");
+  - a specification of a method (what it needs, what it guarantees).
+- **A definition** gives an operation a meaning one layer down. A method call is defined by the method's
+  program. A cats `Ref` can be defined as a field holding an `AtomicReference`.
+- **A claim** is proven from the laws of the vocabularies its program mentions.
+- **Laws are local.** A law quantifies over programs of its own vocabulary. It says nothing about a program
+  that also has other operations, so mixing vocabularies never silently extends a law. To move an operation of
+  one vocabulary past one of another, independence must be stated ("this `Ref` does not touch that field").
 
-Definition Bank_transfer (this : ref) (n : Z) : prog bool := ...   (* one definition per method *)
+**Status:** designed. Three cats laws and one claim from them are proven on an example (3.9).
 
-Definition body (m : method) : ref -> method_in m -> prog (method_out m) :=   (* what a Call runs *)
-  match m with | M_Bank_transfer => fun this n => Bank_transfer this n | ... end.
-```
+### 3.5 "Does the same"
 
-Three methods and their trees, exactly as emitted:
+Two different programs can do the same thing (`par a b` and "`a`, then `b`"), so the prover's own equality is
+not the relation to use. There are two definitions and one theorem between them.
+
+- **At a layer, with no model:** what the laws make equal, and nothing else. It is the smallest relation that
+  is an equivalence, is kept by what comes before and after, and contains each law. This is an inductive
+  definition with no semantics in it.
+- **In a model:** no surrounding program can tell the two apart: placed before, after or *alongside* anything,
+  they lead to the same results and final states. "Alongside" matters: `bump` and a single atomic increment
+  have the same outcomes alone and different ones next to another thread.
+- **The theorem:** a model satisfies a vocabulary when each law holds in the second sense; then everything
+  derived in the first sense holds in that model. It is proven once per model.
+
+Two practical points:
+
+- A root claim is better stated about outcomes ("every run of this ends with …"). "Does the same" is the tool
+  for rewriting inside proofs.
+- With real choice between outcomes, the useful relation is one-directional: "does nothing that the other does
+  not".
+
+**Status:** the first definition is proven on an example (`same`, `adds_two`). The second and the theorem are
+designed.
+
+### 3.6 Models
+
+A model gives every operation of a vocabulary something concrete to do and makes its laws true. It has three
+uses, and a proof at a layer needs none of them:
+
+- **Consistency:** laws that have a model do not contradict each other.
+- **Testing:** an executable model runs a program, and its result is compared with the JVM's.
+- **Discharging a layer:** a law assumed at one layer is proven in the model below it.
+
+The executable model of memory is a list of objects. Three things live only there: a reference as a position
+in that list; the bound on steps that an executable interpreter needs (*fuel*); and the outcome "stuck", for
+an access that the laws say nothing about (a field of `null`). It is proven that a run that ended gives the
+same result with any more fuel (`run_more`), so no statement needs to mention fuel.
+
+**Status:** the executable model is built (`FrFlow/Effect/Run.v`). That it satisfies the laws of memory is
+designed: those laws are not yet written down.
+
+### 3.7 Function values and method calls
+
+- **A lambda is a value.** It is made from what it captures. Applying it is an operation; the definition of
+  that operation, for this lambda, is the lambda's body. Function values are first-order: a value holds what
+  was captured, not a program. This is what the JVM does, and it avoids a real limit: in a prover, a program
+  cannot be a value handled by programs of the same vocabulary (a universe constraint).
+- **A method call is an operation** on a reference. Its definition is the method's program. Its specification
+  is a law: a proof about a caller uses the callee's specification, and each method's program is proven to
+  meet its own. Without specifications, a proof must unfold the callee, which never ends for recursion.
+- **Purity is in the type.** Where a library requires a pure function (cats may run the function given to
+  `Ref.modify` more than once), the operation takes a function of the prover. A lambda that does anything
+  cannot be emitted as one, so the code is refused where it is written.
+
+**Status:** calls and their definitions are built (the `body` table). Specifications and function values are
+designed; `running_read` (3.8) is proven with a lambda in this form.
+
+### 3.8 Values that are run later
+
+With cats-effect or ZIO, Scala code builds a value and something else runs it. The theory has no second kind
+of execution for this.
+
+- **Building is a function on values.** `IO.pure(a)` and `io.flatMap(f)` return a value and do nothing.
+- **Running is one operation,** and what it does is stated:
+  - running `pure(a)` gives `a`;
+  - running `io.flatMap(f)` runs `io`, applies `f` to what it gave, and runs the value that gave.
+- **What happens when is then visible.** `IO.pure(next())` calls `next()` while building; `IO.delay(next())`
+  puts the call in a function value. An `IO` that gives an `IO` is a value holding a value.
 
 ```scala
-def transfer(n: Int): Boolean =          // class Bank(from: Account, to: Account)
-  val ok = from.withdraw(n)
-  if ok then to.deposit(n)
-  ok
+def read(io: IO[Int]): IO[Int] = io.flatMap { x => seen = seen + 1; IO.pure(x) }
 ```
+
+`read` is a program that builds a value and does nothing else. From the two statements above and the lambda's
+definition it is proven (`running_read`) that running that value runs `io`, then reads and writes `seen`, and
+gives what `io` gave. The flat sequence is a consequence, obtained by rewriting; it is not assumed by the
+translation.
+
+**Status:** proven on an example. No library vocabulary is in the library.
+
+### 3.9 Several programs at once
+
+Programs running at once interleave at their operations.
+
+- **The rule for the translation:** every operation on state that other code could touch is its own node.
+  Operations are never merged at emission. A local variable becomes a value, which is safe because no other
+  thread sees it, unless a lambda captures it.
+- **Three cases,** read off the program:
+  1. no operations: nothing can interleave; every sequential proof holds unchanged;
+  2. operations on state nobody else touches: the sequential laws hold once that is shown;
+  3. operations on shared state: the sequential laws do not apply.
+- **Laws carry their condition.** The law of memory is "a read gives the last write". Alone, the last write is
+  one's own, which is the sequential law. A monitor's law gives exclusivity, which restores it.
+
+Threads of the JVM, proven by an invariant over all interleavings ("the number is what the two threads have
+added so far"):
 
 ```coq
-Definition Bank_transfer (this : ref) (n : Z) : prog bool :=
-  from <- get this F_Bank_from ;;
-  ok <- call from M_Account_withdraw n ;;
-  (if ok then
-        to <- get this F_Bank_to ;;
-        call to M_Account_deposit n ;;;
-        ret tt
-      else
-        ret tt) ;;;
-  ret ok.
+Lemma   bump_loses_one : ends jvm bump bump (0, None) tt tt (1, None).
+Theorem guarded_counts_both x y s' : ends jvm guarded guarded (0, None) x y s' -> s' = (2, None).
 ```
 
-```scala
-def sumTo(n: Int): Int =
-  var i = 0
-  var s = 0
-  while i < n do
-    s = s + i
-    i = i + 1
-  s
+cats-effect, proven by three rewrites with three laws, mentioning no thread and no object:
+
+```coq
+(* (ref.update(_ + 1), ref.update(_ + 1)).parTupled *> ref.get  gives what the Ref held plus two *)
+Theorem both_then_read_adds_two :
+  both_then_read ~~ bind read (fun x => bind (update (fun n => S (S n))) (fun _ => Ret (S (S x)))).
 ```
+
+One layer down, the first of those laws is a theorem of the interleaving (`par_updates_holds`). Code that
+reads and then sets is two operations; the law does not match it, and it provably loses an update
+(`read_then_set_loses_one`).
+
+**Status:** proven on an example, for two programs without loops. The general machine, and the theorem that
+lifts a sequential claim to any execution under non-interference, are designed.
+
+### 3.10 How proofs go
+
+No proof about a program runs it or mentions fuel.
+
+| Situation | Method |
+|---|---|
+| a sequence of operations | one step per node, by that operation's law |
+| a loop | an invariant over its state (the variables the Scala assigns, by name) |
+| a call | the callee's specification |
+| library code | rewriting with the library's laws |
+| programs at once | an invariant over all interleavings, or laws about running together |
+| termination | a measure that decreases each turn |
+
+**Status:** the Ox proofs use the first and fifth methods over the older trees (`step`, `pass`). For these
+trees the methods exist only as used in `Worked.v`; general rules and their soundness are designed.
+
+## 4. The implementation
+
+### 4.1 Pipeline
+
+```text
+Scala source
+   │  scalac
+   ▼
+class file ───────────────► the JVM                         (what runs; what tests compare with)
+TASTy (the class as typed)
+   │  emitter, `frflow.dsl.compiled.effect`: reads each method once; refuses what it does not read
+   ▼
+`frflow.core.effect.Program`: names, typings, one tree per method         (plain data)
+   │  printer, `frflow.proof.effect`
+   ▼
+one Rocq file over `modules/proof/rocq/FrFlow/Effect`
+```
+
+The emitter knows Scala and no prover; the printer knows Rocq's syntax and no Scala. Nothing in FrFlow uses the
+result yet except its tests: the Ox model and `lifted[Class]` are on the older representations.
+
+### 4.2 The emitter
+
+The emitter walks a method's typed tree with, for each variable in scope, the value it has now. This is the
+symbolic evaluation, done once in Scala instead of at every proof step in the prover.
+
+- A `val` or `var` of a method is the value it has; assigning a `var` replaces it. No memory is involved.
+- A choice whose branches assign variables gives their values with its own.
+- A loop's state is the variables its test and body assign.
+- Operations are emitted in Scala's order of evaluation; what is only computed stays a term.
+- Binders take the names the code gives (`val ok = …`).
+
+| Scala | Emitted |
+|---|---|
+| literal, `this`, local, parameter | a term |
+| `+ - *`, comparisons, `!`, `==` on `Int`/`Boolean` | a term (`iadd a b`, `a <? b`, …) |
+| `a && b`, `a \|\| b` | a term; a choice when `b` does something |
+| `val x = e`, `x = e` on a local | `e`, then the value under the name `x` |
+| `o.f`, `o.f = e` | `get o F`, `put o F v` |
+| `o.c`, `c` a `final val` of a literal's type | the literal, as Scala reads it |
+| `o.m(a, b)`, `m(a, b)` of the code read | `o`, then `a`, `b`, then `call o M (a, b)` |
+| `o.m(a, b)` of other code, `o` written | `ext O (o, a, b)` |
+| `new C(a)` | `new C_C`, then `a`, then `call c M_C_new a` |
+| `a eq b`, `a ne b` (`Object`'s) | a term |
+| `if`, both branches only computing | terms |
+| `if` otherwise | a branch, giving its value and the variables assigned |
+| `while c do b` | `loop` over the assigned variables |
+| a constructor | the method `new`: each parameter that is a field is written, then the body in order |
+
+`Counter.sumTo`, with two `var`s and a `while`, is emitted with no memory operation:
 
 ```coq
 Definition Counter_sumTo (this : ref) (n : Z) : prog Z :=
@@ -189,355 +367,142 @@ Definition Counter_sumTo (this : ref) (n : Z) : prog Z :=
   ret s.
 ```
 
-```scala
-def largest(a: Int, b: Int, c: Int): Int =
-  var best = a
-  if b > best then best = b
-  if c > best then best = c
-  best
-```
+### 4.3 What is refused
 
-```coq
-Definition Numbers_largest (this : ref) (a : Z) (b : Z) (c : Z) : prog Z :=
-  let test := b >? a in
-  let best := if test then b else a in
-  let test1 := c >? best in
-  let best1 := if test1 then c else best in
-  ret best1.
-```
+Scala the emitter does not read is refused with its file and line, never skipped and never approximated.
 
-The second has no heap access although the Scala has two `var`s; the third has no effect at all.
+- **Declarations:** traits, objects, abstract or generic classes, classes with a parent, classes that are not
+  `final`, nested classes and methods, type members, generic methods.
+- **Members:** a `lazy val` or `inline` field, an `inline` method, a parameter passed by name or repeated.
+- **Types:** numbers other than `Int`, `Char`, functions; literals other than `Int`, `Boolean`, `Unit`, `null`.
+- **Expressions:** lambdas, `match`, `throw`, `try`, `return`, casts, `synchronized`, `/`, bit operations,
+  `==` on objects, a call of an `inline` method, a call outside the code on no written object, a call of a
+  setter by name, a used choice between two types.
+- **Names:** two things that would be written alike in the generated file.
 
-## The translation flow
+### 4.4 The generated file
 
-```text
-Scala source
-   │  scalac: types, overloads, givens and inlining resolved
-   ▼
-class file ───────────────────────────────► the JVM                    (what runs; what tests compare with)
-TASTy (the class as typed, bodies included)
-   │  the emitter, `frflow.dsl.compiled.effect`: symbolic evaluation, one pass per method;
-   │  `NotRead` with file and line at anything it does not read
-   ▼
-`frflow.core.effect.Program`: name lists, typings, one `Tree` per method   (plain data; no prover in it)
-   │  the printer, `frflow.proof.effect`
-   ▼
-one Rocq file over `FrFlow/Effect`
-   ├──► `Run.v`: the tree run on a heap, one thread                     (built: the reference for tests)
-   ├──► the pure view: a function, proven equal to the run              (designed)
-   ├──► a machine with threads; executions                              (designed)
-   ├──► Iris: a weakest precondition, a rule per effect                 (designed)
-   └──► a library's signature and laws                                  (designed)
-```
+One file per program: the name types; the typing tables (what each field holds and belongs to, what each
+method takes and gives); one definition per method; and the table `body` from a method's name to its program.
+`modules/project/src/test/resources/effects/Samples.v` is the emitter's output for the test classes, kept in
+the repository and compared on every run.
 
-The stages are separate on purpose. The emitter knows Scala and no prover. `Program` knows neither. The
-printer knows Rocq's syntax and nothing of Scala; a Lean printer would be a second one beside it.
+### 4.5 The prover library
 
-### How the emitter evaluates
-
-The emitter walks the typed tree in continuation-passing style. `expr(t, env)(next)` reads the expression `t`
-and hands `next` two things: the expression's **value**, a pure term, and the **environment** as the expression
-left it. `next` gives the rest of the tree. Effects are emitted in the order Scala evaluates, in front of what
-follows; what is only computed stays inside the term.
-
-The environment holds, for each variable in scope, the value it has now. That is the symbolic evaluation:
-
-- A `val` or `var` of a method is not a place in memory. Reading it is its current value; assigning a `var`
-  replaces that value in the environment. Every name in a tree is bound once (fresh names `i1`, `s1`), but
-  for a loop's state, named in its turn and again after the loop.
-- A choice whose two ways assign variables gives the variables' values together with its own.
-- A loop's state is exactly the variables its test and body assign. Each turn takes their values and gives
-  the next ones (`again`) or the ones the loop leaves with (`leave`).
-- The name the code gives a value (`val ok = …`) is the name its binder gets in the tree.
-- A statement's value is dropped: what it gave is not named, and a choice in that place gives no value.
-
-### The rules that are implemented
-
-Write `⟦e⟧ k` for the tree of `e` followed by `k`, where `k` receives `e`'s value.
-
-| Scala | Tree |
+| File | Contents |
 |---|---|
-| a literal, `this`, a local, a parameter | no node: the term itself is passed to `k` |
-| `a + b`, `a < b`, `!a`, `a == b` on `Int`/`Boolean` | `⟦a⟧`, then `⟦b⟧`; the value is the term `iadd a b`, `a <? b`, … |
-| `a && b`, `a \|\| b` with `b` only computing | the term `andb a b`, `orb a b` |
-| `a && b`, `a \|\| b` where `b` has an effect | the choice it means: `if a then b else false`, `if a then true else b` |
-| `val x = e; rest` | `⟦e⟧`, a `let x := …` if the value is not a name or a constant, then `rest` with `x` |
-| `x = e` on a `var` of the method | `⟦e⟧`; the environment's value for `x` is replaced; no node |
-| `o.f` on a field of the code read | `⟦o⟧`, then `v <- get o F ;;` |
-| `o.c`, `c` a `final val` of a literal's type | `⟦o⟧`; the value is the literal, as Scala reads it, also before the field is written |
-| `o.f = e` | `⟦o⟧`, `⟦e⟧`, then `put o F v ;;;` |
-| `o.m(a, b)`, `m` a method of the code read | `⟦o⟧`, `⟦a⟧`, `⟦b⟧` in that order, then `r <- call o M (a, b) ;;` |
-| `m(a, b)` on no written object, `m` of the code read | the same on `this` |
-| `o.m(a, b)`, `m` anything else, `o` written | `⟦o⟧`, `⟦a⟧`, `⟦b⟧`, then `ext O (o, a, b)`; `O` is named when first met |
-| `new C(a)` | `c <- new C_C ;;`, `⟦a⟧`, `call c M_C_new a ;;;`; the value is `c` |
-| `a eq b`, `a ne b`, `Object`'s own | the term `same a b`, `negb (same a b)` |
-| `if c then a else b`, both ways only computing | `let`s of `if c then … else …` terms, one per value that differs |
-| `if c then a else b` otherwise | `'(v, x…) <- (if c then ⟦a⟧ else ⟦b⟧) ;;`, `x…` the variables either way assigns |
-| `while c do b` | `'(x…) <- loop (fun '(x…) => ⟦c⟧ (if c then ⟦b⟧ again else leave)) (x… now) ;;` |
-| a class's constructor | the method `new`: a `put` of each parameter that is a field, then the body in order |
-| a method | `Definition C_m (this : ref) (inputs…) : prog T`, and a case of `body` |
+| `Tree.v` | programs, sequencing and its laws, exceptions, loops |
+| `Int32.v` | `Int` as a whole number with the JVM's wrapping |
+| `Sig.v` | the vocabulary: `Get`, `Put`, `New`, `Call`, `Ext`, typed by the generated names |
+| `Run.v` | the executable model: objects, a run that `Gave`, is `Stuck` or `Spent`, `run_more` |
 
-Decisions the rules contain, and the scenario that covers each:
+How it differs from section 3:
 
-- **Order.** What a call is on is evaluated first, then its arguments left to right; operands left to right;
-  what a field is written on before what is written (`ordering`, `edges`). The object is made before the
-  constructor's arguments are evaluated, as the JVM does; no scenario can see that, since making an object has
-  no other effect.
-- **Fields before they are written** hold zero, `false` or `null` (`initial`), as on the JVM (`naming`: a
-  field initialised from one declared after it).
-- **A constant** (`final val c = 5`) is read as its literal, as Scala does, also before its field is written
-  (`edges`).
-- **A pure choice evaluates both ways as terms.** This is sound here because no operation read so far can
-  fail. Division can; when it is read it must be an effect or a partial operation, not a term under `if`.
-- **Names.** A method is `Class_method`, the second of a name `method_2` (`naming`). A local named as a Rocq
-  keyword, a constructor or a name the file or the library defines gets a trailing `_` (`left_`). Two things
-  that would be written alike (classes `A_b` with a field `c` and `A` with a field `b_c`), or a method written
-  as a name the file defines, are refused (`Program.clashes`).
+- There is one vocabulary for every program, not one per use, and no sum.
+- A reference is the concrete type `null | at_ n`, not an abstract one.
+- No law is written down; the meaning of memory is only the executable model.
+- Function values, data types, library vocabularies and specifications do not exist.
 
-### What is refused
+### 4.6 Tests, and what is trusted
 
-The rule is that Scala the emitter does not read is refused with its file and line (`NotRead`), never skipped
-and never approximated. The first version broke this rule in eight places ([The review](#the-review)); each is
-now a refusal or a correct reading, with a test. Refused:
+- **Against the JVM** (`EffectRunSuite`). Nine scenarios run on the JVM and, as emitted programs, in the
+  executable model; Rocq proves each result equal by computation. They cover fields, aliasing, calls, loops
+  (nested, with an operation in the test), choices that assign, wrapping, evaluation order, a field and a
+  constant read before they are written, a variable assigned inside a receiver, overloads, user methods named
+  `eq`. Two lemmas show that a call on `null`, and on an object of another class, is stuck.
+- **Kept output,** compared on every run, so a change in emission shows as a diff.
+- **Refusals** (ten) and the printer on a hand-built program.
+- **Worked examples** (`Worked.v`): every claim marked *proven on an example* in section 3, with no axiom.
 
-- **Declarations:** traits, objects (so also a class with a companion in the files read), abstract or generic
-  classes, classes with a parent, classes that are not `final` (a call of their method may run another's),
-  nested classes and methods, type members, generic methods.
-- **Members:** a `lazy val` or `inline` field, an `inline` method, a parameter passed by name or several as one
-  (`Int*`).
-- **Types:** `Long` and the other numbers, `Char`, functions; a literal of any type but `Int`, `Boolean`,
-  `Unit` and `null`.
-- **Expressions:** lambdas, `match`, `throw` and `try`, `return`, casts, `synchronized`, `/` and the bit
-  operations, `==` on objects, a call of an `inline` method, a call outside the code on no object that is
-  written (`require(…)`, a member of an `object`), a call of a setter by its name, a choice between values of
-  two types whose value is used.
+What this does not give:
 
-`EmitRefusalsSuite` checks ten of these. A secondary constructor is read (a method of the class).
+- The emitter and printer are tested, not proven. An independent review of the first version found eight kinds
+  of accepted Scala whose program differed from the JVM while all tests passed. Each is now refused or read
+  correctly, with a test.
+- The tests compare final results of single-threaded runs.
+- Nothing links these programs to the older trees and their meaning (`denote`).
+- TASTy is the code as typed, before inlining and erasure; the emitter refuses what those phases change.
 
-### The rules that are designed, not implemented
+### 4.7 From the implementation to the theory
 
-| Scala | Tree | Needs |
+In order; each step is usable on its own.
+
+1. Make the reference abstract; keep positions inside `Run.v`.
+2. Split the vocabulary (memory, calls, outside) and add sums; the emitter computes each method's vocabulary.
+3. Write the laws of memory; prove the executable model satisfies them.
+4. Rules for steps and loops, method specifications, and their soundness.
+5. Function values: lambdas and by-name arguments.
+6. Data types, `match`, exceptions, dispatch.
+7. Library vocabularies, cats-effect first: builders, running, laws.
+8. The general interleaving of programs, the lifting theorem, and the Ox proofs moved onto it.
+9. "Does the same" in a model, and the theorem of 3.5.
+
+## 5. Coverage
+
+### 5.1 Scala
+
+| Construct | State | How |
 |---|---|---|
-| `throw e` | `throw v` | exception values as objects; `exn := ref` is already in the generated file |
-| an access or call on `null` | `throw` of a `NullPointerException`, tested before the access | the same; today such a run is `Stuck` |
-| `try b catch h finally f` | `try_finally (try_catch ⟦b⟧ ⟦h⟧) ⟦f⟧` | the library functions exist |
-| `return e` in nested code | a leave of the method's tree, as a throw of a private kind | |
-| `e match` on case classes, enums, literals | a Rocq `match`; no case is `throw MatchError` | data as inductive types |
-| a virtual call on code read | `call` with the tree chosen by the receiver's class | `class_of` in the heap; a dispatch table |
-| a lambda, a by-name argument | an object of a generated class holding what it captures, with `apply` in the method table | dispatch; see below |
-| a `var` a closure captures | a cell: `new`, `get`, `put` | escape analysis in the emitter |
-| `lazy val`, a Scala `object` | an effect "initialise once", then the initialiser's tree | as `Enter` in executions today |
-| a method with no effect | also a plain Rocq function, `prog` only at its call sites | purity recorded per method |
-| `Long`, `String`, arrays | their own value types and operations | decided one by one, each tested |
+| final classes, fields, constructors, methods | read | 4.2 |
+| `Int`, `Boolean`, `Unit`, references | read | 3.2 |
+| `if`, `while`, `&&`, `\|\|`, local `val` and `var` | read | 4.2 |
+| calls of read code and of outside code | read | 4.2 |
+| lambdas, by-name arguments | refused | function values (3.7) |
+| case classes, enums, `match` | refused | data types of the prover |
+| `throw`, `try`, `finally`, `return` | refused | the functions of 3.1 exist; emission does not |
+| traits, inheritance, dynamic dispatch | refused | open (5.4) |
+| generics | refused | open (5.4) |
+| objects, `lazy val` | refused | an operation "initialise once" |
+| `Long`, `String`, arrays, `/` | refused | each needs its value type and operations |
+| `synchronized`, threads | refused | monitor and thread vocabularies (3.9) |
+| cats-effect, ZIO | refused | library vocabularies (3.8) |
 
-A closure cannot be "a Rocq function to a tree" kept as a value, which an earlier version of this page said. A
-tree over `E` quantifies over the types of `E`'s results, so it lives one universe above them: no effect of `E`
-can give a tree over `E`, and no field can hold one (checked in Rocq; universe polymorphism does not change
-it). Closures are therefore first-order, as on the JVM: an object and a method.
+### 5.2 The theory
 
-## One representation, four uses
-
-All four are interpretations of the same generated definitions. Only the reference run of the second is built.
-Each has an obstacle the first version of this page did not state; they are stated here.
-
-### Induction and pure views
-
-- Code with no effect and no call is already a term: `Numbers_largest` above is `ret` of a Rocq expression,
-  and proofs about it are proofs about that expression.
-- A method that calls another, however pure, is a tree with `call` nodes. A proof about it unfolds `body`, or
-  uses what is proven of the callee. The second needs a table of specifications per method, which is not
-  built ([Open decisions](#open-decisions)).
-- A loop is `loop body start`. The rule for it takes an invariant over the state, which is a tuple of the
-  variables the Scala assigns, with their Scala names. The rule is not built; `Run.v` has the lemmas it would
-  rest on (`run_step`, `run_more`).
-- **Pure view** (designed): for a class that passes capture and separation checking, so that its fields are not
-  aliased, each method gets a function `state -> inputs -> result * state` and a lemma that running the tree
-  on a heap holding that state gives the function's result. This is what `lifted[Class]` produces today by a
-  separate compiler; here it would be derived from the tree and proven, so both views are of one definition.
-  A function of Rocq must end; a loop that Rocq cannot see end (`gcd` by subtraction) has a relation, not a
-  function.
-
-### The JVM
-
-- **Built:** `Run.v` runs a tree on a typed heap, one thread, with fuel. `Get`/`Put` read and write a field of
-  an object of the field's class, `New` appends an object whose fields hold `initial`, `Call` runs `body m` on
-  an object of the method's class, `Ext` asks a parameter. A run ends one of three ways: `Gave` a value or a
-  throw; `Stuck`, at an access or call on no object (where the JVM throws `NullPointerException`, which the
-  trees do not have yet) or on an object of another class (which typed code does not do); `Spent`, out of
-  fuel. A run that did not run out ends the same way with any more fuel (`run_more`, proven). It is the
-  reference the emitter is tested against, not a model of threads.
-- **Designed:** the frame machine of `FrFlow/Jvm/Machine.v` over these trees. A `Get`, `Put`, `New` or `Ext`
-  is one step of one thread and one event of an execution. A `Call` is not one step: it pushes a frame, and
-  its result is the callee's whole run, so the machine keeps a stack of continuations. A turn of a loop with
-  no effect is a step with no event. With that, an invocation's events are a path through its method's tree,
-  which the proof rules `step`/`pass` already walk. `Thread.start`, monitors and `AtomicBoolean` are `Ext`
-  names given their meaning by the machine and assumed of it as today (`examples/ox/JDK.md`). What changes
-  for the Ox proofs: the tree is a definition to unfold, not a value Rocq computes from syntax at each step,
-  and a label is a constructor, not a string.
-- **Missing for it:** whether a field is `volatile` or `final` is not recorded in `Program`, and the memory
-  model needs it. `Ext` in `Run.v` cannot call back into the code read (a `Runnable`'s `run`).
-
-### Libraries known by their laws (designed)
-
-Three levels, chosen per library:
-
-1. **Opaque.** An outside member is an `Ext` name with a typed input and result. What is assumed of it is a
-   statement about what it gives, as with the JDK today.
-2. **Pure by declaration.** A library signature may declare a member pure (a monoid's `combine`). It is then a
-   function parameter of the generated file, not an effect, and its laws are hypotheses over that parameter.
-   Proofs are algebra on terms and hold for every instance that meets the laws.
-3. **A signature of effects.** For cats-effect, a method that gives an `IO[A]` is read as a tree over a
-   signature `CatsE` (`RefModify`, `Start`, `Join`, …): `flatMap` is `then_`, `IO.pure` is `ret`, so the monad
-   laws are `ret_then`, `then_ret` and `then_then`, proven in `Tree.v`, not assumed. What cats-effect promises
-   beyond them ("`Ref.modify` is atomic") is assumed of any handler of `CatsE`. A handler into JVM effects (a
-   `Ref` as an `AtomicReference`) can later replace those assumptions with proofs.
-
-Obstacles:
-
-- An `IO[A]` is a tree only where it is written. It cannot be the result of an effect or held in a field (the
-  universe limit above), so an `IO` passed around as data needs a first-order form, as closures do.
-- The typing tables go from a name to a `Type`, with no place for a type argument. Code over a type class
-  (`combineAll[A: Monoid]`) has no type in `Sig` until generics either erase to `ref` or index the tables.
-- `tree` is parametric in `E`, but the sum of two signatures, its injections and the interpretation of one
-  signature into another are not built.
-
-### Iris (designed)
-
-A weakest precondition with one rule per effect: `Get o f` needs `o.f ↦ v` and gives `v`, typed by
-`field_ty f`; `Put` updates it; `New` gives the new object's fields; `Iter` is by an invariant. Adequacy is
-stated against the machine. Because points-to facts are typed by the field, a proof does not carry "this
-value is a number" side conditions. The existing Iris language (`FrFlow/Bridge`) is over the old trees and
-would be re-stated.
-
-Obstacles:
-
-- It is a recursion on the tree for `Vis` and `Iter`, not for `Call`: `body m` is no part of the caller's
-  tree. Calls need the table of specifications, or Iris's step-indexing with a later at each call.
-- A typed `catch`, `isInstanceOf` and dispatch need the class of a reference, which is only in the heap; a
-  handler `exn -> prog A` cannot see it ([Open decisions](#open-decisions)).
-
-## How it corresponds to Scala
-
-| | |
+| Part | State |
 |---|---|
-| **Exact in what is built** | evaluation order; field reads and writes and calls on an object; object creation and constructor order; `Int` arithmetic with wrapping; `eq`; loops; short-circuit `&&`/`\|\|` |
-| **No run where the JVM throws** | a field read or written, or a method called, on `null`: `Stuck`, no result |
-| **By a rewriting the emitter does, so tested** | locals as values (no heap cell); loop state; choices returning assigned variables |
-| **By a rewriting, not built** | pattern matching, dynamic dispatch, closures, initialise-once, exceptions |
-| **Not represented** | Scala's types beyond the erased shape of values. They constrain which trees can be emitted; they are not in the trees |
-| **Not modelled** | exceptions the JVM raises itself, class initialisation, allocation failure, stack depth, time. A tree's run takes fuel; a run that would overflow the JVM's stack is a run here |
-| **Wider than the JVM** | a `Z` input or outside result outside the range of `Int` |
+| programs, sequencing, exceptions (3.1) | built |
+| numbers, references, typed names (3.2) | built; reference not yet abstract |
+| executable model, fuel confined to it (3.6) | built |
+| calls defined by the method's program (3.7) | built |
+| programs over several vocabularies (3.3) | proven on an example |
+| "does the same" from laws (3.5) | proven on an example |
+| a value run later, a lambda as a value (3.7, 3.8) | proven on an example |
+| interleaving: threads with a monitor, cats laws, a law proven one layer down (3.9) | proven on an example |
+| laws of memory; the model satisfies them (3.4, 3.6) | designed |
+| specifications for calls; step and loop rules (3.7, 3.10) | designed |
+| "does the same" in a model; its theorem (3.5) | designed |
+| lifting a sequential claim to any execution (3.9) | designed |
 
-## What is trusted, and how it is tested
+### 5.3 The four uses
 
-In this stage the emitter and the printer are trusted, and tested as follows.
-
-- **Against the JVM** (`EffectRunSuite`, tagged Rocq). Nine scenarios over the sample classes are run on the
-  JVM by reflection. For each, a Rocq lemma states that the run of the scenario's emitted tree gives the same
-  number and is proven by `vm_compute`. The scenarios cover: fields read and written, two objects of one
-  class, one object reached by two references, calls across objects, a loop over two variables, a loop inside
-  a loop, a loop whose test has an effect, `&&` over a call, choices that assign variables, wrapping
-  (`7^20 + (-3)^31` as `Int`), evaluation order as the digits of a number, a field read before it is written,
-  a constant read before its field is written, a variable assigned in what a field is written on (in a choice
-  and in a loop), a public `var` written from another class, methods named `eq` and `ne`, two methods of one
-  name. Two more lemmas state that a call on `null`, and on an object of another class, is `Stuck`.
-- **Kept output.** The generated file is in the repository and compared on every run, so any change to what
-  is emitted appears in review as a diff of Rocq.
-- **Refusals** (`EmitRefusalsSuite`, ten), and the printer on a hand-built program (`EffectPrintSuite`).
-
-Limits of this testing, stated plainly:
-
-- It is testing, not proof. It covers the constructs above on the inputs the scenarios use. The first version
-  passed its six scenarios and was wrong in eight other places.
-- TASTy is read as the compiler typed it, before inlining and erasure: the tree is of the code as written,
-  and the emitter refuses what those later phases change (`inline`, by-name, `lazy`).
-- It compares final results of single-threaded runs. It does not compare heaps, and there are no schedules
-  because there are no threads yet.
-- Nothing ties these trees to `FrFlow/Scala`'s `denote`. An earlier description of this design said Rocq would
-  check `emitted = denote tree` once per method. That does not hold as stated: `denote` is over strings and one
-  untyped value type, the emitted tree over generated names and typed values, so the two are not the same
-  term. A link needs an erasure of names and values and a simulation proof, which is not built.
-
-How trust is reduced later, in order of cost:
-
-1. Each construct added arrives with a sample class and a scenario, and with programs that differ only in
-   evaluation order.
-2. Generated programs: random code in the supported fragment, compiled and compared the same way.
-3. The emitter's rules written a second time in Rocq as a function on the reader's trees, proven to agree
-   with `denote` under the erasure, and its output compared with the Scala emitter's per method. The Scala
-   emitter is then checked, not trusted. Whether this is cheap enough on Ox's largest methods is not measured.
-
-## What is built
-
-| Part | Where | State |
+| Use | What the theory gives | State |
 |---|---|---|
-| Trees, exceptions, loops, notations | `modules/proof/rocq/FrFlow/Effect/Tree.v` | built |
-| Laws of sequencing | `Tree.v`: `bind_ret`, `bind_bind`, `ret_then`, `then_ret`, `then_then` | proven, over function extensionality |
-| `Int` as the JVM computes it | `…/Effect/Int32.v` | `+`, `-`, `*`, unary `-`, comparisons |
-| Names and typed effects | `…/Effect/Sig.v` | built |
-| Typed heap, reference run | `…/Effect/Run.v` | one thread; `Gave`/`Stuck`/`Spent`; `run_more` proven |
-| Program data | `frflow.core.effect` | built |
-| Emitter | `frflow.dsl.compiled.effect` (`EmitEffects(cls, keep)`) | the rules listed as implemented |
-| Printer | `frflow.proof.effect` (`PrintProgram`) | Rocq |
-| Tests | `frflow.project.effects`, `frflow.proof.prover.EffectPrintSuite` | nine scenarios, ten refusals |
+| algebra and assumed laws | library operations with laws; rewriting; no objects in the proof | on an example |
+| JVM semantics | interleaving of the same programs under JVM-level laws | on an example; Ox not moved |
+| induction | inductive trees, loop invariants, specifications | designed |
+| separation logic | one rule per operation over the same programs | designed |
 
-Not built: exceptions in the emitter, traits and dispatch, closures, data types, `match`, the pure view, the
-machine and executions over these trees, library signatures, Iris, the link to `denote`, a model's use of any
-of it (`lifted`, `Code_runs`). The emitter is called only by its tests.
+### 5.4 Open questions
 
-## The review
+- **Dispatch and typed `catch`.** Both need the class of an object. It can be an operation of its own
+  vocabulary, or part of the reference. Not decided.
+- **Exceptions the JVM raises itself** (`NullPointerException`). Either operations may fail, or the emitter
+  writes the test before each access. The second keeps operations simple.
+- **The range of `Int` in Rocq.** A method's inputs are any whole number there. Statements over all inputs are
+  sound; statements that some input exists are not, until inputs are confined. A prover with a 32-bit type
+  does not have the problem.
+- **Generics.** Typing tables go from a name to a type, with no place for a type argument.
+- **Fibers that start fibers.** The body's vocabulary would have to contain itself.
+- **Field flags** (`volatile`, `final`) are not recorded; the JVM layer needs them.
+- **Another prover.** The representation does not depend on Rocq. A Lean printer would be a second printer;
+  the examples of 3.3 and 3.8 were type-checked in Lean by hand.
 
-An independent review of the first version (commit `a1f80f0`) rated it 2 of 10 for completeness against the
-purpose above (6 of 10 as a first slice) and 5 of 10 for formal correctness. It emitted its own Scala and ran
-both sides. It found the Rocq definitions right as far as they go (the laws of `bind` and `then_`,
-`try_finally` in all throw cases, `Int32` at `Int.MinValue`), the core of the translation equal to the JVM on
-31 comparisons, and these defects:
+### Sources
 
-| Finding | Was | Now |
-|---|---|---|
-| A call on `null` gave the method's result | wrong | `Stuck`: `Call` carries its object, `Run.v` checks it; lemma in the run file |
-| A by-name parameter read as a value | wrong | refused |
-| An `inline` parameter read as a value | wrong | `inline` methods and calls of them refused |
-| A `lazy val` field evaluated in the constructor | wrong | refused |
-| A variable assigned in what a field is written on was not seen | wrong | seen; scenario `edges` |
-| A method named `eq` or `ne` read as identity | wrong | only `Object`'s is; scenario `edges` |
-| The setter of a public `var` emitted as doing nothing | wrong | not emitted; a call of it by name refused |
-| A constant read before its field is written gave zero | wrong | the literal; scenario `edges` |
-| Rocq that does not compile: branches of two types, locals `andb`/`orb`, names written alike | no refusal | refused, or renamed |
-| `require(…)` given `this` as what it is called on | wrong shape | refused |
-| A class another may extend, its calls bound to itself | unsound if extended | refused |
-| `(if c then 1 else 0) + x` refused as "a value of type 1 \| 0" | too narrow | read |
-| `Run.v`: one `None` for three ends; any object held any field | loose | three ends; class checked; `run_more` |
-| A tree as a value in a tree (closures, `IO` values) | not realisable | design corrected above |
-
-Not done, and listed next: the range of `Z`, the class in the reference, specifications for calls, field
-flags, generics.
-
-## Open decisions
-
-The review recommends settling these in the representation before more is built on it. None is decided.
-
-1. **The class of an object in its reference** (`at_ c n`) instead of only in the heap. Dispatch, a typed
-   `catch` and `isInstanceOf` then compute on the reference; a points-to fact can be typed by class. Cost:
-   references to objects of classes not read need a constructor of their own.
-2. **A table of specifications per method**, so that a proof about a caller (by induction, or in Iris) uses
-   what is proven of the callee and not `body`. Without it neither is a recursion on the tree.
-3. **The range of `Int`.** Either a type of `Z` in range, or a generated hypothesis per `Z` input and per
-   outside result. Until then only statements over all inputs are sound.
-4. **Implicit exceptions.** Whether `Get`, `Put` and `Call` give `exn + …`, or the emitter writes a test for
-   `null` before each. The second keeps the effects simple and is what the table of designed rules assumes.
-5. **A relation beside the fuel.** A big-step `runs t h r` with `runs t h r <-> exists fuel, run fuel t h =
-   Gave r` gives proofs a statement with no fuel in it; `run_more` is the lemma it needs.
-6. **Generics**: erased to `ref`, or type arguments indexing the typing tables.
-7. **Field flags** (`volatile`, `final`, `val`) in `Program`, for the machine.
-
-## Stages
-
-1. **Sequential Scala in full**: exceptions, `match` and data, traits and dispatch, closures, `String` and
-   `Long`. Each with scenarios. Measure: the share of Ox's four files and of the examples' classes read.
-2. **Pure view** for separation-checked classes, and `lifted[Class]` moved onto it. One compiler remains.
-3. **Machine and executions** over these trees; Ox's generated code and proof rules moved; proof time compared
-   with today's 30 CPU-minutes of hand proofs.
-4. **Library signatures**: the JDK's as `Ext` names with today's assumptions; cats-effect as a signature.
-5. **Iris** over the machine of stage 3.
-6. **The checked emitter** (item 3 of the previous section).
+- Charon and Aeneas (Rust): a front end separate from meaning; evaluation outside the prover; closures as
+  plain values.
+- Plotkin and Power, algebraic effects: a vocabulary with laws is a theory, and what satisfies it is a model.
+- Interaction trees, and *Program Logics à la Carte*: programs as trees over a vocabulary, one logic per
+  vocabulary.
+- DOT and gDOT: Scala's types are not embedded in the prover's.
