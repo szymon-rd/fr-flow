@@ -23,20 +23,33 @@ private[effect] trait EmitCalls extends EmitControl:
 
   def applied(t: Term, env: Env)(next: Next): Emitted = t match
     case Apply(Select(New(made), _), args) if classes.contains(made.tpe.typeSymbol) => constructed(t, args, env)(next)
-    case Called(c) if isPrimitive(c.method)                              => primitive(c, env)(next)
-    case Called(c) if sameness(c.method.name) && c.given_.sizeIs == 1    => sameObject(c, env)(next)
-    case Called(c) if methods.contains(c.method)                         => receiver(c.named, env)((on, e) =>
-      all(c.given_, e)((xs, after) =>
-        effect(Effect.Call(methods(c.method), on :: xs), t, after.hinted(env.hint))(next)))
-    case Called(c)                                                       => receiver(c.named, env)((on, e) =>
-      all(c.given_, e)((xs, after) => effect(Effect.Ext(known(c), on :: xs), t, after.hinted(env.hint))(next)))
-    case other                                                           => refuse(s"`${other.show}`", other)
+    case Called(c) if isPrimitive(c.method)       => primitive(c, env)(next)
+    case Called(c) if sameness(c.method)          => sameObject(c, env)(next)
+    case Called(c) if methods.contains(c.method)  => receiver(c.named, env)((on, e) =>
+      all(c.given_, e)((xs, after) => effect(Effect.Call(methods(c.method), on, xs), t, after.like(env))(next)))
+    case Called(c)                                => outer(c, env)(next)
+    case other                                    => refuse(s"`${other.show}`", other)
 
-  private val sameness = Set("eq", "ne")
+  /** Scala's `eq` and `ne`, which every object has: whether two are one. A method that only shares the name
+    * is a method.
+    */
+  private def sameness(m: Symbol): Boolean = (m.name == "eq" || m.name == "ne") && m.owner == defn.ObjectClass
 
-  /** An effect done, what it gave named unless it gives nothing. */
+  /** A call of what is outside the code, on an object that is written. A member of the code read that has no
+    * tree, a method Scala puts in place where it is called (its inputs are not values), and a call on no
+    * written object are none.
+    */
+  private def outer(c: Calling, env: Env)(next: Next): Emitted =
+    if classes.contains(c.method.owner) then refuse("a member of the code read that has no tree", c.whole)
+    if c.method.flags.is(Flags.Inline) then refuse("a call Scala puts in place where it is written", c.whole)
+    c.named match
+      case Select(_, _) => receiver(c.named, env)((on, e) => all(c.given_, e)((xs, after) =>
+        effect(Effect.Ext(known(c), on :: xs), c.whole, after.like(env))(next)))
+      case _            => refuse("a call outside the code on no object that is written", c.whole)
+
+  /** An effect done, what it gave named unless it gives nothing or the code drops it. */
   private def effect(e: Effect, whole: Term, env: Env)(next: Next): Emitted =
-    if isUnit(whole.tpe) then Emitted.Do(None, e, next(Pure.Nothing, env.plain))
+    if isUnit(whole.tpe) || env.dropped then Emitted.Do(None, e, next(Pure.Nothing, env.plain))
     else
       val x = env.name(whole.symbol.name)
       Emitted.Do(Some(x), e, next(Pure.Local(x), env.plain))
@@ -45,7 +58,7 @@ private[effect] trait EmitCalls extends EmitControl:
     val made = env.name(t.tpe.typeSymbol.name)
     val init = methods.getOrElse(t.symbol, refuse("a constructor that is not the class's first", t))
     Emitted.Do(Some(made), Effect.New(classes(t.tpe.typeSymbol)), all(args, env.plain)((given_, e) =>
-      Emitted.Do(None, Effect.Call(init, Pure.Local(made) :: given_), next(Pure.Local(made), e))))
+      Emitted.Do(None, Effect.Call(init, Pure.Local(made), given_), next(Pure.Local(made), e))))
 
   private def sameObject(c: Calling, env: Env)(next: Next): Emitted =
     receiver(c.named, env)((a, e) => expr(c.given_.head, e) { (b, after) =>

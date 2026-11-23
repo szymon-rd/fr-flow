@@ -28,3 +28,25 @@ class EmitRefusalsSuite extends munit.FunSuite:
     assert(refusal("Throws").contains("is not read into a tree of effects"), refusal("Throws"))
     assert(refusal("Throws").contains("Throws.scala:5"), refusal("Throws"))
   }
+
+  test("what is passed by name, and a method put in place where it is called, are refused") {
+    assert(refusal("ByName").contains("what is passed by name"), refusal("ByName"))
+    assert(refusal("Inlines").contains("a method Scala puts in place where it is called"), refusal("Inlines"))
+  }
+
+  test("a field evaluated when it is first read is refused") {
+    assert(refusal("Later").contains("a field evaluated when or where it is read"), refusal("Later"))
+  }
+
+  test("a class another may extend is refused: a call of its method may run another's") {
+    assert(refusal("Open").contains("a class another may extend"), refusal("Open"))
+  }
+
+  test("a call outside the code on no written object is refused, and not given the method's own") {
+    assert(refusal("Bare").contains("on no object that is written"), refusal("Bare"))
+    assert(refusal("Bare").contains("Bare.scala:6"), refusal("Bare"))
+  }
+
+  test("a choice between values of two types is refused when its value is used") {
+    assert(refusal("Mixed").contains("a choice between values of two types"), refusal("Mixed"))
+  }

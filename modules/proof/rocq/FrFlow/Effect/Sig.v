@@ -7,7 +7,8 @@
 
     - `Get`, `Put`: a field of an object is read, written.
     - `New`: an object of a class is made, its fields holding what a field holds before it is written.
-    - `Call`: a method of the code is called: it gives what the method's tree gives, or throws what it throws.
+    - `Call`: a method of the code is called on an object: it gives what the method's tree gives, or throws
+      what it throws. What it is called on is apart from what it is given: a call on no object is no call.
     - `Ext`: something outside the code is called. Nothing here says what it does. *)
 
 From FrFlow.Effect Require Import Tree.
@@ -36,13 +37,14 @@ Section Sig.
     | Get (o : ref) (f : field) : eff (field_ty f)
     | Put (o : ref) (f : field) (v : field_ty f) : eff unit
     | New (c : class) : eff ref
-    | Call (m : method) (given : method_in m) : eff (exn + method_out m)
+    | Call (o : ref) (m : method) (given : method_in m) : eff (exn + method_out m)
     | Ext (m : outside) (given : outside_in m) : eff (exn + outside_out m).
 
   Definition get (o : ref) (f : field) : prog eff exn (field_ty f) := perform (Get o f).
   Definition put (o : ref) (f : field) (v : field_ty f) : prog eff exn unit := perform (Put o f v).
   Definition new (c : class) : prog eff exn ref := perform (New c).
-  Definition call (m : method) (given : method_in m) : prog eff exn (method_out m) := attempt (Call m given).
+  Definition call (o : ref) (m : method) (given : method_in m) : prog eff exn (method_out m) :=
+    attempt (Call o m given).
   Definition ext (m : outside) (given : outside_in m) : prog eff exn (outside_out m) := attempt (Ext m given).
 
 End Sig.
@@ -50,5 +52,5 @@ End Sig.
 Arguments Get {class field method outside field_ty method_in method_out outside_in outside_out exn} o f.
 Arguments Put {class field method outside field_ty method_in method_out outside_in outside_out exn} o f v.
 Arguments New {class field method outside field_ty method_in method_out outside_in outside_out exn} c.
-Arguments Call {class field method outside field_ty method_in method_out outside_in outside_out exn} m given.
+Arguments Call {class field method outside field_ty method_in method_out outside_in outside_out exn} o m given.
 Arguments Ext {class field method outside field_ty method_in method_out outside_in outside_out exn} m given.

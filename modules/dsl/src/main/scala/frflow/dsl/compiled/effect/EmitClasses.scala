@@ -13,7 +13,8 @@ private[effect] trait EmitClasses extends EmitCalls:
   /** The classes a file declares, in order. Anything else it declares is refused. */
   def declared(t: Tree): List[ClassDef] = t match
     case PackageClause(_, stats)                  => stats.flatMap(declared)
-    case c: ClassDef if plainClass(c)             => List(c)
+    case c: ClassDef if plainClass(c)             =>
+      if c.symbol.flags.is(Flags.Final) then List(c) else refuse("a class another may extend", c)
     case _: Import | _: Export                    => Nil
     case other                                    => refuse("what is no class with a body of its own", other)
 
@@ -30,17 +31,30 @@ private[effect] trait EmitClasses extends EmitCalls:
     classes(c.symbol) = cls
     methods(c.constructor.symbol) = MethodName(cls, "new")
     c.body.foreach:
-      case v: ValDef => fields(v.symbol) = FieldOf(FieldName(cls, v.name), ty(v.tpt.tpe, v))
-      case d: DefDef => methods(d.symbol) = MethodName(cls, unshared(cls, d.name))
-      case _         => ()
+      case v: ValDef if unread(v.symbol) => refuse("a field evaluated when or where it is read", v)
+      case v: ValDef                     =>
+        fields(v.symbol) = FieldOf(FieldName(cls, v.name), ty(v.tpt.tpe, v))
+        constant(v).foreach(constants(v.symbol) = _)
+      case d: DefDef if d.symbol.flags.is(Flags.FieldAccessor) => ()
+      case d: DefDef if unread(d.symbol) => refuse("a method Scala puts in place where it is called", d)
+      case d: DefDef                     => methods(d.symbol) = MethodName(cls, unshared(cls, d.name))
+      case _                             => ()
 
-  /** A method's name in its class: one of several of a name is numbered after the first. */
+  /** What has no value or tree of its own where it is declared: `lazy` or `inline`. */
+  private def unread(s: Symbol): Boolean = s.flags.is(Flags.Lazy) || s.flags.is(Flags.Inline)
+
+  /** What a `final val` of a literal's type is: Scala reads it as the literal, also before the field is written. */
+  private def constant(v: ValDef): Option[Pure] = v.tpt.tpe match
+    case ConstantType(c) if v.symbol.flags.is(Flags.Final) => Some(literal(c, v))
+    case _                                                 => None
+
+  /** A method's name in its class: the first of a name has it, the next ones are numbered. */
   private def unshared(cls: ClassName, name: String): String =
-    val before = methods.values.count(m => m.cls == cls && (m.name == name || m.name.startsWith(name + "_")))
-    if before == 0 then name else s"${name}_${before + 1}"
+    val taken = methods.values.filter(_.cls == cls).map(_.name).toSet
+    (name #:: LazyList.from(2).map(i => s"${name}_$i")).find(!taken(_)).get
 
   def trees(c: ClassDef): List[MethodOf] =
-    constructor(c) :: c.body.collect { case d: DefDef => method(d) }
+    constructor(c) :: c.body.collect { case d: DefDef if methods.contains(d.symbol) => method(d) }
 
   private def inputs(d: DefDef, fresh: Fresh): List[(Symbol, String, EType)] =
     if d.leadingTypeParams.nonEmpty then refuse("a method that takes types", d)
@@ -69,7 +83,7 @@ private[effect] trait EmitClasses extends EmitCalls:
         Emitted.Do(None, Effect.Put(env.self, fields(v.symbol).name, x), from(rest)))
       case (v @ ValDef(_, _, Some(rhs))) :: rest         => expr(rhs, env)((p, _) =>
         Emitted.Do(None, Effect.Put(env.self, fields(v.symbol).name, p), from(rest)))
-      case (t: Term) :: rest                             => expr(t, env)((_, _) => from(rest))
+      case (t: Term) :: rest                             => expr(t, env.dropping)((_, _) => from(rest))
       case (_: DefDef) :: rest                           => from(rest)
       case other :: _                                    => refuse("a class's member that is no field or method", other)
     MethodOf(methods(c.constructor.symbol), takes, EType.Unit, Emitted.simplified(from(c.body)))

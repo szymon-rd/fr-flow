@@ -2,6 +2,7 @@ package frflow.dsl.compiled.effect
 
 import frflow.core.effect.Program
 import frflow.dsl.compiled.Inspect
+import frflow.dsl.lifted.NotRead
 import scala.quoted.Quotes
 
 /** Compiled Scala read as trees of effects (`docs/EFFECT-TREES.md`): the classes of the TASTy files a class was
@@ -19,5 +20,8 @@ object EmitEffects:
       val all = files.flatMap((_, tree) => declared(tree))
       all.foreach(name)
       val trees_ = all.flatMap(trees)
-      Program(all.map(_.symbol.fullName), classes.values.toList, fields.values.toList, trees_,
+      val read = Program(all.map(_.symbol.fullName), classes.values.toList, fields.values.toList, trees_,
         outside.values.toList)
+      read.clashes.headOption.foreach(name => NotRead.raise(using q)(
+        s"FrFlow: two things of the code would be written `$name`, so it is not read into trees of effects", None))
+      read

@@ -38,3 +38,11 @@ final class Scenarios:
   def wrapping(): Int =
     val n = Numbers()
     n.power(7, 20) + n.power(-3, 31)
+
+  def edges(): Int =
+    val e = Edges()
+    e.first + e.receiver() * 10 + e.looping() * 1000 + e.cells() * 100000
+
+  def naming(): Int = Edges().overloads()
+
+  def ordering(): Int = Edges().ordering()

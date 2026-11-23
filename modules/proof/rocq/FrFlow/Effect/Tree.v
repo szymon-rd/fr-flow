@@ -65,6 +65,28 @@ Section Tree.
   Definition try_catch {A : Type} (p : prog A) (handler : exn -> prog A) : prog A :=
     bind p (fun r => match r with inl e => handler e | inr a => Ret (inr a) end).
 
+  (** Sequencing that stops at a throw is a monad's: Scala's `flatMap` on what may throw. *)
+  Section Laws.
+
+    Hypothesis ext : forall X Y (f g : X -> Y), (forall x, f x = g x) -> f = g.
+
+    Lemma ret_then {A B : Type} (a : A) (k : A -> prog B) : then_ (ret a) k = k a.
+    Proof. reflexivity. Qed.
+
+    Lemma then_ret {A : Type} (p : prog A) : then_ p (fun a => ret a) = p.
+    Proof.
+      unfold then_, ret. transitivity (bind p (fun r => Ret r)); [| exact (bind_ret p ext) ].
+      f_equal. apply ext. intros [e | a]; reflexivity.
+    Qed.
+
+    Lemma then_then {A B C : Type} (p : prog A) (k : A -> prog B) (j : B -> prog C) :
+      then_ (then_ p k) j = then_ p (fun a => then_ (k a) j).
+    Proof.
+      unfold then_. rewrite (bind_bind _ _ _ ext). f_equal. apply ext. intros [e | a]; reflexivity.
+    Qed.
+
+  End Laws.
+
   (** `last` runs however `p` ends; what `p` gave or threw is then given or thrown, unless `last` throws. *)
   Definition try_finally {A : Type} (p : prog A) (last : prog unit) : prog A :=
     bind p (fun r => then_ last (fun _ => Ret r)).

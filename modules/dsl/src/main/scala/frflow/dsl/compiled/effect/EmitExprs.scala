@@ -41,7 +41,7 @@ private[effect] trait EmitExprs extends EmitTypes:
       val name = env.fresh(base)
       Emitted.Name(name, value, next(Pure.Local(name)))
 
-  private def literal(c: Constant, at: Term): Pure = c match
+  def literal(c: Constant, at: Tree): Pure = c match
     case IntConstant(i)     => Pure.Whole(BigInt(i))
     case BooleanConstant(b) => Pure.Truth(b)
     case UnitConstant()     => Pure.Nothing
@@ -53,9 +53,9 @@ private[effect] trait EmitExprs extends EmitTypes:
     case Nil                                => expr(last, env)(next)
     case (v @ ValDef(name, _, Some(rhs))) :: rest if !v.symbol.flags.is(Flags.Lazy) =>
       expr(rhs, env.hinted(Some(name)))((p, e) => named(p, name, e)(x =>
-        block(rest, last, e.declaring(v.symbol, x).hinted(env.hint))(next)))
+        block(rest, last, e.declaring(v.symbol, x).like(env))(next)))
     case (t: Term) :: rest                  =>
-      expr(t, env.plain)((_, e) => block(rest, last, e.hinted(env.hint))(next))
+      expr(t, env.dropping)((_, e) => block(rest, last, e.like(env))(next))
     case other :: _                         => refuse("a statement that is no value, variable or expression", other)
 
   /** The object a member is read, written or called on: what is written before it, or `this`. */
@@ -63,10 +63,13 @@ private[effect] trait EmitExprs extends EmitTypes:
     case Select(on, _) => expr(on, env.plain)(next)
     case _             => next(env.self, env.plain)
 
+  /** A field read. A constant's is the constant, as Scala reads it: what it is read on is still evaluated. */
   private def read(t: Term, env: Env)(next: Next): Emitted = receiver(t, env) { (on, e) =>
-    val field = fields(t.symbol)
-    val x = e.hinted(env.hint).name(field.name.name)
-    Emitted.Do(Some(x), Effect.Get(on, field.name), next(Pure.Local(x), e))
+    constants.get(t.symbol).fold {
+      val field = fields(t.symbol)
+      val x = e.hinted(env.hint).name(field.name.name)
+      Emitted.Do(Some(x), Effect.Get(on, field.name), next(Pure.Local(x), e))
+    }(next(_, e))
   }
 
   private def assigned(to: Term, value: Term, env: Env)(next: Next): Emitted =

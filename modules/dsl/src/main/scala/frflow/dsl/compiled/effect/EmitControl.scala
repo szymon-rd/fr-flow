@@ -13,7 +13,7 @@ private[effect] trait EmitControl extends EmitExprs:
   private def changedBy(env: Env, code: Term*): List[Symbol] =
     val found = new TreeAccumulator[Set[Symbol]]:
       def foldTree(seen: Set[Symbol], t: Tree)(owner: Symbol): Set[Symbol] = t match
-        case Assign(to, value) => foldTree(seen + to.symbol, value)(owner)
+        case Assign(to, value) => foldTree(foldTree(seen + to.symbol, to)(owner), value)(owner)
         case _                 => foldOverTree(seen, t)(owner)
     code.foldLeft(Set.empty[Symbol])((seen, t) => found.foldTree(seen, t)(Symbol.spliceOwner))
       .filter(env.vars).toList.sortBy(_.name)
@@ -21,10 +21,10 @@ private[effect] trait EmitControl extends EmitExprs:
   def chosen(choice: If, env: Env)(next: Next): Emitted = expr(choice.cond, env.plain) { (test, e) =>
     val (yes, no) = (choice.thenp, choice.elsep)
     val changed = changedBy(e, yes, no)
-    val gives = if isUnit(yes.tpe) && isUnit(no.tpe) then None else Some(e.hinted(env.hint).name("chosen"))
+    val gives = Option.when(valued(choice, env))(e.hinted(env.hint).name("chosen"))
     val names = gives.toList ++ changed.map(s => e.fresh(s.name))
     val follows = joined(gives.isDefined, changed, e, next)
-    def way(t: Term): Emitted = expr(t, e)((p, after) =>
+    def way(t: Term): Emitted = expr(t, if gives.isDefined then e else e.dropping)((p, after) =>
       Emitted.Give(Pure.Several(gives.map(_ => p).toList ++ changed.map(after.values))))
     (way(yes), way(no)) match
       case (Emitted.Give(Pure.Several(a)), Emitted.Give(Pure.Several(b))) => named(test, "test", e) { t =>
@@ -33,6 +33,15 @@ private[effect] trait EmitControl extends EmitExprs:
       }
       case (a, b) => Emitted.After(Emitted.Branch(test, a, b), names, follows(names.map(Pure.Local(_))))
   }
+
+  /** Whether a choice's value is used: the code does not drop it and it is no `Unit`. Its two ways then give
+    * values of one type.
+    */
+  private def valued(choice: If, env: Env): Boolean =
+    val (yes, no) = (choice.thenp, choice.elsep)
+    if env.dropped || (isUnit(yes.tpe) && isUnit(no.tpe)) then false
+    else if ty(yes.tpe, yes) == ty(no.tpe, no) then true
+    else refuse("a choice between values of two types", choice)
 
   /** What follows a choice, given what it gave: its own value first, if it has one, then each variable's. */
   private def joined(valued: Boolean, changed: List[Symbol], env: Env, next: Next): List[Pure] => Emitted =
@@ -51,7 +60,8 @@ private[effect] trait EmitControl extends EmitExprs:
     val names = state.map(s => env.fresh(s.name))
     val inside = env.havingAll(state.zip(names.map(Pure.Local(_))))
     val turn = expr(c, inside.plain)((test, e) => Emitted.Branch(test,
-      expr(body, e)((_, after) => Emitted.Again(state.map(after.values))), Emitted.Leave(state.map(e.values))))
+      expr(body, e.dropping)((_, after) => Emitted.Again(state.map(after.values))),
+      Emitted.Leave(state.map(e.values))))
     Emitted.Loop(names, state.map(env.values), turn, next(Pure.Nothing, inside.plain))
 
   /** Whether an expression only computes: no field, no call of code, no assignment, no loop. */

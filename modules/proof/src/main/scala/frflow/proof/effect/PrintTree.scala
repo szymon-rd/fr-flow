@@ -38,5 +38,5 @@ object PrintTree:
     case Effect.Get(on, f)        => s"get ${PrintPure.arg(on)} ${Named.field(f)}"
     case Effect.Put(on, f, v)     => s"put ${PrintPure.arg(on)} ${Named.field(f)} ${PrintPure.arg(v)}"
     case Effect.New(c)            => s"new ${Named.cls(c)}"
-    case Effect.Call(m, to)       => s"call ${Named.method(m)} ${state(to)}"
+    case Effect.Call(m, on, to)   => s"call ${PrintPure.arg(on)} ${Named.method(m)} ${state(to)}"
     case Effect.Ext(m, to)        => s"ext ${Named.outside(m)} ${state(to)}"

@@ -15,9 +15,13 @@ object Idents:
 
   private val library = Set("ret", "throw", "loop", "again", "leave", "get", "put", "new", "call", "ext", "same",
     "prog", "eff", "class", "field", "method", "outside", "body", "exn", "initial", "iadd", "isub", "imul", "ineg",
-    "wrap", "negb", "fst", "snd", "ref", "bool", "unit", "Z", "nat", "list", "option")
+    "wrap", "negb", "andb", "orb", "fst", "snd", "ref", "bool", "unit", "Z", "nat", "list", "option", "field_ty",
+    "field_eq", "class_eq", "field_of", "method_of", "method_in", "method_out", "outside_in", "outside_out")
 
   private val taken = keywords ++ constructors ++ library
+
+  /** Whether a generated file or the library it is over defines `name`. */
+  def defined(name: String): Boolean = library(name)
 
   /** `name` in the letters Rocq allows a name, not starting with a digit. */
   def plain(name: String): String =

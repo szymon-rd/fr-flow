@@ -27,6 +27,7 @@ object PrintProgram:
     inductive("class", p.classes.map(Named.cls)), inductive("field", p.fields.map(f => Named.field(f.name))),
     inductive("method", p.methods.map(m => Named.method(m.name))),
     inductive("outside", p.outside.map(o => Named.outside(o.name))),
+    "Definition class_eq (c d : class) : {c = d} + {c <> d}. Proof. decide equality. Defined.",
     "Definition field_eq (f g : field) : {f = g} + {f <> g}. Proof. decide equality. Defined.").mkString("\n\n")
 
   private def inductive(name: String, constructors: List[String]): String =
@@ -43,6 +44,9 @@ object PrintProgram:
     byCases("field_ty (f : field) : Type", "f", p.fields.map(f => Named.field(f.name) -> PrintPure.ty(f.ty))),
     byCases("initial (f : field) : field_ty f", "f",
       p.fields.map(f => Named.field(f.name) -> PrintPure.initial(f.ty))),
+    byCases("field_of (f : field) : class", "f", p.fields.map(f => Named.field(f.name) -> Named.cls(f.name.cls))),
+    byCases("method_of (m : method) : class", "m",
+      p.methods.map(m => Named.method(m.name) -> Named.cls(m.name.cls))),
     byCases("method_in (m : method) : Type", "m", p.methods.map(m => Named.method(m.name) -> inputs(m))),
     byCases("method_out (m : method) : Type", "m",
       p.methods.map(m => Named.method(m.name) -> PrintPure.ty(m.gives))),
@@ -52,7 +56,8 @@ object PrintProgram:
       p.outside.map(o => Named.outside(o.name) -> PrintPure.ty(o.gives))),
     "Definition exn : Type := ref.").mkString("\n\n")
 
-  private def inputs(m: MethodOf): String = PrintPure.ty(EType.Several(m.inputs.map(_._2)))
+  /** What a call of the method is given, apart from the object it is called on (its first input). */
+  private def inputs(m: MethodOf): String = PrintPure.ty(EType.Several(m.inputs.drop(1).map(_._2)))
 
   private def prelude: String =
     (s"Abbreviation eff := (Sig.eff $signature)." :: "Abbreviation prog := (Tree.prog eff exn)." ::
@@ -64,12 +69,17 @@ object PrintProgram:
     (s"Definition ${Named.tree(m.name)} $binders : prog ${PrintPure.ty(m.gives)} :=" :: lines.init)
       .mkString("\n") + "\n" + lines.last + "."
 
-  /** A method's tree applied to what a call of it is given: several inputs come as one value, taken apart. */
+  /** A method's tree applied to what a call of it is on and is given: several inputs come as one value, taken
+    * apart; none as a value that says nothing.
+    */
   private def called(m: MethodOf): String =
     val names = m.inputs.map(_._1)
-    val taken = if names.sizeIs == 1 then names.head else names.mkString("'(", ", ", ")")
-    s"fun $taken => ${Named.tree(m.name)} ${names.mkString(" ")}"
+    val taken = names.drop(1) match
+      case Nil        => "_"
+      case one :: Nil => one
+      case several    => several.mkString("'(", ", ", ")")
+    s"fun ${names.head} $taken => ${Named.tree(m.name)} ${names.mkString(" ")}"
 
   private def table(p: Program): String =
-    byCases("body (m : method) : method_in m -> prog (method_out m)", "m",
+    byCases("body (m : method) : ref -> method_in m -> prog (method_out m)", "m",
       p.methods.map(m => Named.method(m.name) -> called(m)))

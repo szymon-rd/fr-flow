@@ -16,4 +16,11 @@ final case class OutsideOf(name: OutsideName, takes: List[EType], gives: EType, 
   * with for this code, and each method's tree.
   */
 final case class Program(sources: List[String], classes: List[ClassName], fields: List[FieldOf],
-    methods: List[MethodOf], outside: List[OutsideOf])
+    methods: List[MethodOf], outside: List[OutsideOf]):
+  /** The names a generated file would write twice: two classes, fields, methods or outside members written
+    * alike, or a method's tree written as something the file or the library defines. Such a program has no file.
+    */
+  def clashes: List[String] =
+    def twice(names: List[String]): List[String] = names.diff(names.distinct).distinct
+    twice(classes.map(_.written)) ++ twice(fields.map(_.name.written)) ++ twice(outside.map(_.name.written)) ++
+      twice(methods.map(_.name.written)) ++ methods.map(_.name.written).filter(Idents.defined)

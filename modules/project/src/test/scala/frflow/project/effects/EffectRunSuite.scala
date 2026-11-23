@@ -32,7 +32,7 @@ class EffectRunSuite extends munit.FunSuite:
 
   test("every class, field and method of the samples has its name, and nothing outside them is called") {
     assertEquals(program.classes.map(_.value).sorted,
-      List("Account", "Bank", "Counter", "Numbers", "Pair", "Scenarios"))
+      List("Account", "Bank", "Cell", "Counter", "Edges", "Numbers", "Pair", "Scenarios"))
     assertEquals(program.outside, Nil)
     assertEquals(program.methods.count(_.name.name == "new"), program.classes.size)
   }
@@ -40,6 +40,7 @@ class EffectRunSuite extends munit.FunSuite:
   test("Rocq runs each scenario's tree, and it gives what the JVM gave".tag(Live)) {
     val runs = EffectRuns.file("Effects.Samples", ClassName("Scenarios"), onTheJvm)
     val library = List("Effect/Tree", "Effect/Int32", "Effect/Sig", "Effect/Run")
-    assertEquals(onTheJvm.map(_._1), List("banking", "computing", "counters", "draining", "sharing", "wrapping"))
+    assertEquals(onTheJvm.map(_._1),
+      List("banking", "computing", "counters", "draining", "edges", "naming", "ordering", "sharing", "wrapping"))
     assertEquals(ThreadsRocq.failing(List("Effects/Samples.v" -> text, "Effects/Runs.v" -> runs), library), None)
   }

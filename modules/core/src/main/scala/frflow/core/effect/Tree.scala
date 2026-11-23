@@ -1,13 +1,13 @@
 package frflow.core.effect
 
 /** One effect of code read, typed by what it gives (`FrFlow/Effect/Sig.v`): a field read or written, an object
-  * made, a method of the code called, something outside the code called.
+  * made, a method of the code called on an object, something outside the code called.
   */
 enum Effect:
   case Get(on: Pure, field: FieldName)
   case Put(on: Pure, field: FieldName, value: Pure)
   case New(cls: ClassName)
-  case Call(method: MethodName, to: List[Pure])
+  case Call(method: MethodName, on: Pure, to: List[Pure])
   case Ext(member: OutsideName, to: List[Pure])
 
 /** Code as a tree of effects (`FrFlow/Effect/Tree.v`): it gives a value; or does an effect and goes on, what the

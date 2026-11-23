@@ -18,6 +18,8 @@ private[effect] trait EmitBase:
   val fields: mutable.LinkedHashMap[Symbol, FieldOf] = mutable.LinkedHashMap.empty
   val methods: mutable.LinkedHashMap[Symbol, MethodName] = mutable.LinkedHashMap.empty
   val outside: mutable.LinkedHashMap[Symbol, OutsideOf] = mutable.LinkedHashMap.empty
+  /** The fields that are constants: a `final val` of a literal's type, which Scala reads as the literal. */
+  val constants: mutable.Map[Symbol, Pure] = mutable.Map.empty
 
   /** Scala the emitter does not read, with its place. */
   def refuse(what: String, at: Tree): Nothing =
@@ -35,13 +37,18 @@ private[effect] trait EmitBase:
       chosen
 
   /** Where an expression is read: the object the method is called on, the value each variable in scope has now
-    * (a `var`'s is its last one), which of them are `var`s, the method's names, and the name the code gives the
-    * expression's value, if it gives one (`val total = …`): what the expression gave is then named so in the tree.
+    * (a `var`'s is its last one), which of them are `var`s, the method's names; and what is done with the
+    * expression's value: the name the code gives it, if it gives one (`val total = …`), which it then has in
+    * the tree, or that the code drops it (a statement). What follows an expression is read in a place that says
+    * neither (`plain`).
     */
   final case class Env(self: Pure, values: Map[Symbol, Pure], vars: Set[Symbol], fresh: Fresh,
-      hint: Option[String] = None):
-    def plain: Env = copy(hint = None)
-    def hinted(name: Option[String]): Env = copy(hint = name)
+      hint: Option[String] = None, dropped: Boolean = false):
+    def plain: Env = copy(hint = None, dropped = false)
+    def hinted(name: Option[String]): Env = copy(hint = name, dropped = false)
+    def dropping: Env = copy(hint = None, dropped = true)
+    /** This place, with what is done with the value as `other` says. */
+    def like(other: Env): Env = copy(hint = other.hint, dropped = other.dropped)
     /** A name not bound yet: the one the code gives the value, or `otherwise`. */
     def name(otherwise: String): String = fresh(hint.getOrElse(otherwise))
     def having(s: Symbol, value: Pure): Env = copy(values = values + (s -> value))
