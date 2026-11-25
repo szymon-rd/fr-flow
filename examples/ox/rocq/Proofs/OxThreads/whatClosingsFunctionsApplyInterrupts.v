@@ -68,7 +68,7 @@ Proof.
     { intros fe Hit xe ce ke Hlt Haccept.
       pose proof (makes_one Hmk1 Hit) as E'. injection E' as _ ->.
       lazymatch type of Hyfun1 with names _ _ (VCode ?fn) =>
-        assert (written Code_files fn) as Hwritten by (apply written_function; vm_compute; reflexivity) end.
+        assert (written Code_files Code_classes fn) as Hwritten by (apply written_function; vm_compute; reflexivity) end.
       destruct Haccept as [[inside1 Hcall1] | (a1 & inside1 & sp1 & Hat1)];
         [| exfalso; exact (function_not_atomic C Hat1 eq_refl Hyfun1 Hwritten)].
       refine (function_meets _ C Hcall1 eq_refl Hyfun1 Hwritten _).
@@ -82,7 +82,7 @@ Proof.
       intros gg tg Hitg. pose proof (makes_one (or_introl Hinv) Hitg) as Eg. injection Eg as -> ->.
       split; [exact Hinv |].
       lazymatch type of Hyg with names _ _ (VCode ?fn) =>
-        assert (written Code_files fn) as Hwritteng by (apply written_function; vm_compute; reflexivity) end.
+        assert (written Code_files Code_classes fn) as Hwritteng by (apply written_function; vm_compute; reflexivity) end.
       refine (function_meets _ C Hinv eq_refl Hyg Hwritteng _).
       intros argsg kg Hargsg Hgiveng. apply vals_one in Hargsg as (vthreadg & -> & Hvthreadg).
       cbv beta iota delta [given] in Hgiveng. inversion Hgiveng as [| pi vi psi vsi Hthreadg _]; subst.
@@ -181,7 +181,7 @@ Proof.
     { intros fe Hit xe ce ke Hlt Haccept.
       pose proof (makes_one Hmk2 Hit) as E'. injection E' as _ ->.
       lazymatch type of Hyfun2 with names _ _ (VCode ?fn) =>
-        assert (written Code_files fn) as Hwritten by (apply written_function; vm_compute; reflexivity) end.
+        assert (written Code_files Code_classes fn) as Hwritten by (apply written_function; vm_compute; reflexivity) end.
       destruct Haccept as [[inside1 Hcall1] | (a1 & inside1 & sp1 & Hat1)];
         [| exfalso; exact (function_not_atomic C Hat1 eq_refl Hyfun2 Hwritten)].
       refine (function_meets _ C Hcall1 eq_refl Hyfun2 Hwritten _).
@@ -209,7 +209,7 @@ Proof.
       intros gg tg Hitg. pose proof (makes_one (or_introl Hinv) Hitg) as Eg. injection Eg as -> ->.
       split; [exact Hinv |].
       lazymatch type of Hyg with names _ _ (VCode ?fn) =>
-        assert (written Code_files fn) as Hwritteng by (apply written_function; vm_compute; reflexivity) end.
+        assert (written Code_files Code_classes fn) as Hwritteng by (apply written_function; vm_compute; reflexivity) end.
       refine (function_meets _ C Hinv eq_refl Hyg Hwritteng _).
       intros argsg kg Hargsg Hgiveng. apply vals_one in Hargsg as (vthreadg & -> & Hvthreadg).
       cbv beta iota delta [given] in Hgiveng. inversion Hgiveng as [| pi vi psi vsi Hthreadg _]; subst.

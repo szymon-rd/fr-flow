@@ -1,6 +1,7 @@
 package frflow.proof.rocq
 
 import frflow.core.code.{ClassFacts, ReadUnit}
+import frflow.core.staged.Stage
 import frflow.proof.layout.Lowering
 import frflow.proof.prover.ast.*
 
@@ -12,7 +13,11 @@ import frflow.proof.prover.ast.*
 object CodeModules:
   def of(l: Lowering): List[ProverModule] = l.resolved.theory.code.read match
     case Nil => Nil
-    case us  => us.map(unit(l, _)) :+ raw(l, l.layout.code, together(l, us))
+    case us  => (us.map(unit(l, _)) :+ raw(l, programs(l), StagedModule(Stage(us.map(_.tree))))) :+
+      raw(l, l.layout.code, together(l, us))
+
+  /** The module of the code's programs: each method staged (`core.staged.Stage`), where it could be. */
+  private def programs(l: Lowering): ModuleName = l.layout.codeUnit("Programs")
 
   private def raw(l: Lowering, name: ModuleName, text: String): ProverModule =
     ProverModule(name, Nil, Preamble.generated, Names.path(l.kb.value), Nil, List(Decl.Rocq(text)))
@@ -36,16 +41,21 @@ object CodeModules:
        |    ${texts(known.functions)}
        |    ${texts(known.heirs)}
        |    ${texts(known.objects)}
-       |    (fun _ _ => None).""".stripMargin
+       |    (Staged.bodies Code_table (Code_units Code_table)).""".stripMargin
 
-  private def together(l: Lowering, us: List[ReadUnit]): String =
+  private def requires(l: Lowering, us: List[ReadUnit]): String =
     val logical = (u: ReadUnit) => RocqProject.logical(l.layout.codeUnit(u.name))
     s"""From FrFlow Require Import Executions.
        |From Stdlib Require Import String List.
        |Require Import FrFlow.Scala.Tree FrFlow.Scala.Table FrFlow.Code.Conforms.
+       |Require FrFlow.Code.Staged.
+       |Require Import ${RocqProject.logical(programs(l))}.
        |${us.map(u => s"Require Import ${logical(u)}.").mkString("\n")}
        |Import ListNotations.
-       |Open Scope string_scope.
+       |Open Scope string_scope.""".stripMargin
+
+  private def together(l: Lowering, us: List[ReadUnit]): String =
+    s"""${requires(l, us)}
        |
        |(** The files of the code read. *)
        |Definition Code_files : list tree := [${us.map(tree).mkString("; ")}].

@@ -49,7 +49,7 @@ Proof.
       L.ThreadHerd_interruptAllAndJoinUntilCompleted [heldIn L.OxError_herd s]) c a closed b)
       as (a & closed & b & [Ha Hb] & Hclosed).
     { lazymatch type of Hyg with names _ _ (VCode ?fn) =>
-        assert (written Code_files fn) as Hwritten by (apply written_function; vm_compute; reflexivity) end.
+        assert (written Code_files Code_classes fn) as Hwritten by (apply written_function; vm_compute; reflexivity) end.
       assert (direct c wapp (history wappd)) as Hdirapp by (rewrite Hrespapp; cbn; auto).
       refine (function_meets (fun w => forall r sp, history w = Event_Respond c wapp r sp ->
         exists a closed b, (wapp < a /\ b <= w) /\ completedBy history (Invocation_mk

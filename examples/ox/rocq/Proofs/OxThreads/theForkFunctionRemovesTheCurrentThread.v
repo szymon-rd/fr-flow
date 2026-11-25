@@ -38,7 +38,7 @@ Proof.
   apply args_two in Hysn as (yf & yr & E & _ & Hr). injection E as <- <-.
   (* a thread runs it *)
   lazymatch type of Hr with names _ _ (VCode ?fn) =>
-    assert (written Code_files fn) as Hwritten by (apply written_function; vm_compute; reflexivity) end.
+    assert (written Code_files Code_classes fn) as Hwritten by (apply written_function; vm_compute; reflexivity) end.
   destruct Hrun as [[inside Hcall] | (a & inside & sp & Hat)];
     [| exfalso; exact (function_not_atomic C Hat eq_refl Hr Hwritten)].
   refine (function_meets

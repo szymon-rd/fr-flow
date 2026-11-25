@@ -36,7 +36,7 @@ Proof.
   intros f r' Hit t i ended e Hrun. pose proof (makes_one Hmk Hit) as E. injection E as ->.
   apply args_two in Hysn as (yf & yr & E & _ & Hr). injection E as <- <-.
   lazymatch type of Hr with names _ _ (VCode ?fn) =>
-    assert (written Code_files fn) as Hwritten by (apply written_function; vm_compute; reflexivity) end.
+    assert (written Code_files Code_classes fn) as Hwritten by (apply written_function; vm_compute; reflexivity) end.
   destruct Hrun as [[(ins1 & sp1 & Hat1) _] | [[inside1 Hcall1] [sp1 Hend1]]];
     [exfalso; exact (function_not_atomic C Hat1 eq_refl Hr Hwritten) |].
   assert (direct t i (history (e - 1))) as Hdir1 by (rewrite Hend1; cbn; auto).

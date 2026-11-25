@@ -29,7 +29,7 @@ Proof.
   intros g scope0 Hit scope c2 k2 inside2 Hcall2.
   pose proof (makes_one (or_introl Hinv) Hit) as Esame. injection Esame as -> ->.
   lazymatch type of Hyf with names _ _ (VCode ?fn) =>
-    assert (written Code_files fn) as Hwritten by (apply written_function; vm_compute; reflexivity) end.
+    assert (written Code_files Code_classes fn) as Hwritten by (apply written_function; vm_compute; reflexivity) end.
   (* a call of that function *)
   refine (function_meets _ C Hcall2 eq_refl Hyf Hwritten _).
   intros args' k' Hargs' Hgiven. apply vals_one in Hargs' as (vscope & -> & _).

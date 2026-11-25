@@ -4,7 +4,9 @@ A FrFlow model of `unsupervised` and `supervised`, of the scope class (`ox.OxErr
 a fork (`fork`, `forkUser`, `forkUnsupervised`, `forkCancellable`), and of the class Ox keeps a scope's threads
 in, `ox.internal.ThreadHerd`. The code is read from Ox's jar as it is compiled (its TASTy), unchanged. The
 statements are Scala (`src/main/scala/ox/scopes`, `src/main/scala/ox/threads`, `src/main/scala/ox/live`); each
-step is proven in Rocq (`rocq/Proofs/OxThreads`), the claims at the bottom against the trees read.
+step is proven in Rocq (`rocq/Proofs/OxThreads`), the claims at the bottom against the trees read: against the
+program each method's tree is staged into when the model is built (`docs/EFFECT-TREES.md`, 4.8), which is what
+"proven of a tree" means below.
 
 ## What is stated
 
@@ -438,7 +440,8 @@ from TASTy, a call: the model has it as a call of a method outside the code, whe
 in place.
 
 Beside the nodes, four things are taken of Scala and the JVM: what an execution of the code is (the meaning of
-its trees in Rocq, written by hand and tested against the JVM, `docs/EXECUTIONS.md`); that the events of
+its trees in Rocq, written by hand, and the staging of the trees into programs, written in Scala; both tested
+against the JVM and against each other, and neither proven, `docs/EXECUTIONS.md`, `docs/EFFECT-TREES.md` 4.8); that the events of
 threads come one after another; that what a thread reads of a variable is what was last written there, where
 that thread alone made the variable and writes it (the order of one thread's own actions, JLS 17.4.5; nothing
 is taken of a variable two threads write, nor of what a read of a field finds, which is assumed of a val by a

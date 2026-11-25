@@ -46,8 +46,9 @@ object OxClients:
   val all: List[Program] = joins ++ failures ++ scopes ++ observed
 
   private val said: String =
-    """(** Programs written against Ox 1.1.0 (`frflow.project.rocq.clients`), run: the meaning of their trees and of
-      |    Ox's (`FrFlow.Scala.Meaning`), executed by the machine that keeps calls apart and writes its run out as
+    """(** Programs written against Ox 1.1.0 (`frflow.project.rocq.clients`), run: their code and Ox's, staged into
+      |    programs (`Programs.v`, by `frflow.core.staged.Stage`; what is not staged is the meaning of its tree,
+      |    `FrFlow.Scala.Meaning`), executed by the machine that keeps calls apart and writes its run out as
       |    an execution (`FrFlow.Bridge.Frames`). The programs run are those an execution of the code is of
       |    (`FrFlow.Code.Outside`): a call of the JDK is one operation named by the definition called, and the
       |    machine runs for it what the library says of that definition (`Library.of_label`).
@@ -55,6 +56,8 @@ object OxClients:
       |    thread gives the number the same method gave on the JVM when the files were generated, and that every
       |    thread ended, with the threads taking turns in each of four orders. Four runs of each are checked: the
       |    runs under other orders, and with the JDK doing another of the things its contracts allow, are not.
+      |    A second lemma for each says that the run of the staged programs, each thread in turn, makes the events
+      |    that the run of the meaning of the trees makes, one for one: the staging is tested against that meaning.
       |    The machine takes a step only where an execution of the code has one (`FrFlow.Bridge.Checks`), and stops
       |    otherwise: so each run that ends here took only such steps, and what it did is an execution of the
       |    code (`executions`, by `FrFlow.Bridge.Executed`).
@@ -68,8 +71,9 @@ object OxClients:
        |Require Import FrFlow.Scala.Tree FrFlow.Scala.Program FrFlow.Scala.Table FrFlow.Scala.Value.
        |Require Import FrFlow.Scala.Meaning FrFlow.Scala.Library FrFlow.Scala.Run.
        |Require Import FrFlow.Code.Conforms FrFlow.Bridge.Frames.
-       |Require FrFlow.Code.Witness FrFlow.Bridge.Executed.
+       |Require FrFlow.Code.Witness FrFlow.Code.Staged FrFlow.Bridge.Executed.
        |Require Import Ox.Tree.All.
+       |Require Ox.Client.Programs.
        |${files.map(n => s"Require Ox.Client.$n.").mkString("\n")}
        |Import ListNotations.
        |Open Scope string_scope.""".stripMargin
@@ -84,16 +88,22 @@ object OxClients:
        |Definition Ox : table := Eval vm_compute in build files.
        |Definition T : table := Eval vm_compute in extend Ox (build_after Ox programs).""".stripMargin
 
-  /** What is known of the classes they mention. */
+  /** What is known of the classes they mention: with the programs the code was staged into, and without. */
   private def classes(known: ClassFacts): String =
-    s"""(** What is known of the classes Ox and the programs mention, from their class files. *)
-       |Definition known : classes :=
-       |  Classes ${texts(known.identities)}
-       |    ${texts(known.throwables)}
-       |    ${texts(known.functions)}
-       |    ${texts(known.heirs)}
-       |    ${texts(known.objects)}
-       |    (fun _ _ => None).""".stripMargin
+    def of(name: String, bodies: String): String =
+      s"""Definition $name : classes :=
+         |  Classes ${texts(known.identities)}
+         |    ${texts(known.throwables)}
+         |    ${texts(known.functions)}
+         |    ${texts(known.heirs)}
+         |    ${texts(known.objects)}
+         |    $bodies.""".stripMargin
+    s"""(** What is known of the classes Ox and the programs mention, from their class files; and the programs
+       |    their code was staged into. *)
+       |${of("known", "(Staged.bodies T (Programs.Code_units T))")}
+       |
+       |(** The same, with no program in the place of a tree: what is called is the meaning of its tree. *)
+       |${of("by_trees", "(fun _ => None)")}""".stripMargin
 
   /** How a program is run, and that what a run does is an execution of the code. */
   private val running: String =
@@ -108,6 +118,10 @@ object OxClients:
       |    | Some (inr (VObj (Int m))) => Z.eqb m n
       |    | _ => false
       |    end) orders.
+      |
+      |(** The events of a run, each thread in turn, where calls run what `known` says. *)
+      |Definition events (known : classes) (owner name : string) :=
+      |  snd (fst (execute_frames T known of_label (fun turn => turn) 100000 (Member owner name ":scala.Int"))).
       |
       |(** What a run does, under any order and for any length, is an execution of the code. *)
       |Lemma executions (order : nat -> nat) (fuel : nat) (main : sym) v es refs :
@@ -131,7 +145,8 @@ object OxClients:
 
   /** One file of lemmas, over `Runs.v`. */
   private def part(gave: List[(Program, Int)]): String =
-    val head = """(** What some of the programs give, run as `Runs.v` says: the number the same method gave on the JVM.
+    val head = """(** What some of the programs give, run as `Runs.v` says: the number the same method gave on the JVM;
+                 |    and that their staged programs make the events the meaning of their trees makes.
                  |    Generated by FrFlow (`OxRunSuite`): do not edit. *)
                  |
                  |From Stdlib Require Import String List ZArith.
@@ -141,4 +156,8 @@ object OxClients:
 
   private def lemma(p: Program, gave: Int): String =
     s"""Lemma ${p.lemma} : gives ${quoted(p.owner)} ${quoted(p.name)} ($gave)%Z = true.
+       |Proof. vm_compute. reflexivity. Qed.
+       |
+       |Lemma ${p.lemma}_as_its_trees :
+       |  events known ${quoted(p.owner)} ${quoted(p.name)} = events by_trees ${quoted(p.owner)} ${quoted(p.name)}.
        |Proof. vm_compute. reflexivity. Qed.""".stripMargin

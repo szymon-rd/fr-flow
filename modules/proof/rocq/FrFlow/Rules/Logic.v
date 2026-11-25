@@ -424,7 +424,7 @@ Section Logic.
   (** A call of a function the code wrote. *)
   Lemma function_meets inside m c y ys :
     history i = Event_Invoke a inside (Invocation_mk m (y :: ys)) ->
-    applies known m = true -> names N y (VCode c) -> written files c ->
+    applies known m = true -> names N y (VCode c) -> written files known c ->
     (forall args w, Forall2 (names N) ys args -> given known c args ->
        meets [] (i + 1) (Running (run T known c (VList args))) w) ->
     forall w, direct a i (history w) -> claim w.

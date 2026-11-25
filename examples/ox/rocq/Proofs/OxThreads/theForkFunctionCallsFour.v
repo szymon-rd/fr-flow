@@ -35,7 +35,7 @@ Proof.
   intros f r' Hit c i made w Hrun Hmakes. pose proof (makes_one Hmk Hit) as E. injection E as ->.
   apply args_two in Hysn as (yf & yr & E & _ & Hr). injection E as <- <-.
   lazymatch type of Hr with names _ _ (VCode ?fn) =>
-    assert (written Code_files fn) as Hwritten by (apply written_function; vm_compute; reflexivity) end.
+    assert (written Code_files Code_classes fn) as Hwritten by (apply written_function; vm_compute; reflexivity) end.
   destruct Hrun as [[inside Hcall] | (a & inside & sp & Hat)];
     [| exfalso; exact (function_not_atomic C Hat eq_refl Hr Hwritten)].
   pose proof (makes_direct Hmakes) as Hdirect. revert made Hmakes. revert w Hdirect.

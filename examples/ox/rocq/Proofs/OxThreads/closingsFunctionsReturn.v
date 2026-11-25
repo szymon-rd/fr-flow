@@ -32,7 +32,7 @@ Proof.
   { intros fe Hit xe ce ke re be Hlt Hdone.
     pose proof (makes_one Hmk1 Hit) as E'. injection E' as _ ->.
     lazymatch type of Hyfun1 with names _ _ (VCode ?fn) =>
-      assert (written Code_files fn) as Hwritten by (apply written_function; vm_compute; reflexivity) end.
+      assert (written Code_files Code_classes fn) as Hwritten by (apply written_function; vm_compute; reflexivity) end.
     destruct Hdone as [[(ins1 & sp1 & Hat1) _] | [[inside1 Hcall1] [sp1 Hend1]]];
       [exfalso; exact (function_not_atomic C Hat1 eq_refl Hyfun1 Hwritten) |].
     assert (direct ce ke (history (be - 1))) as Hdir1 by (rewrite Hend1; cbn; auto).
@@ -63,7 +63,7 @@ Proof.
   { intros fe Hit xe ce ke re be Hlt Hdone.
     pose proof (makes_one Hmk2 Hit) as E'. injection E' as _ ->.
     lazymatch type of Hyfun2 with names _ _ (VCode ?fn) =>
-      assert (written Code_files fn) as Hwritten by (apply written_function; vm_compute; reflexivity) end.
+      assert (written Code_files Code_classes fn) as Hwritten by (apply written_function; vm_compute; reflexivity) end.
     destruct Hdone as [[(ins1 & sp1 & Hat1) _] | [[inside1 Hcall1] [sp1 Hend1]]];
       [exfalso; exact (function_not_atomic C Hat1 eq_refl Hyfun2 Hwritten) |].
     assert (direct ce ke (history (be - 1))) as Hdir1 by (rewrite Hend1; cbn; auto).

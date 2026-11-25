@@ -30,7 +30,7 @@ Proof.
   { intros fe Hit xe ce ke ge te ae re be Haccept Happlies Hdone.
     pose proof (makes_one Hmk1 Hit) as E'. injection E' as _ ->.
     lazymatch type of Hyfun1 with names _ _ (VCode ?fn) =>
-      assert (written Code_files fn) as Hwritten by (apply written_function; vm_compute; reflexivity) end.
+      assert (written Code_files Code_classes fn) as Hwritten by (apply written_function; vm_compute; reflexivity) end.
     destruct Haccept as [[inside1 Hcall1] | (a1 & inside1 & sp1 & Hat1)];
       [| exfalso; exact (function_not_atomic C Hat1 eq_refl Hyfun1 Hwritten)].
     pose proof (makes_direct Happlies) as Hdirect1. revert ge te Happlies re be Hdone. revert ae Hdirect1.
@@ -43,7 +43,7 @@ Proof.
     split; [| intros; repeat pass].
     intros gg tg Hitg rg bg Hdoneg. pose proof (makes_one (or_introl Hinv) Hitg) as Eg. injection Eg as -> ->.
     lazymatch type of Hyg with names _ _ (VCode ?fn) =>
-      assert (written Code_files fn) as Hwritteng by (apply written_function; vm_compute; reflexivity) end.
+      assert (written Code_files Code_classes fn) as Hwritteng by (apply written_function; vm_compute; reflexivity) end.
     destruct Hdoneg as [[(insg & spg & Hatg) _] | [_ [spg Hendg]]]; [rewrite Hinv in Hatg; discriminate Hatg |].
     assert (direct ce wapp (history (bg - 1))) as Hdirg by (rewrite Hendg; cbn; auto).
     revert rg spg Hendg. revert Hdirg. generalize (bg - 1).
@@ -72,7 +72,7 @@ Proof.
   { intros fe Hit xe ce ke ge te ae re be Haccept Happlies Hdone.
     pose proof (makes_one Hmk2 Hit) as E'. injection E' as _ ->.
     lazymatch type of Hyfun2 with names _ _ (VCode ?fn) =>
-      assert (written Code_files fn) as Hwritten by (apply written_function; vm_compute; reflexivity) end.
+      assert (written Code_files Code_classes fn) as Hwritten by (apply written_function; vm_compute; reflexivity) end.
     destruct Haccept as [[inside1 Hcall1] | (a1 & inside1 & sp1 & Hat1)];
       [| exfalso; exact (function_not_atomic C Hat1 eq_refl Hyfun2 Hwritten)].
     pose proof (makes_direct Happlies) as Hdirect1. revert ge te Happlies re be Hdone. revert ae Hdirect1.
@@ -91,7 +91,7 @@ Proof.
       | destruct xj as [e | u]; [| contradiction]; apply threw_interruption in Hgivesj as ->; repeat pass ]].
     intros gg tg Hitg rg bg Hdoneg. pose proof (makes_one (or_introl Hinv) Hitg) as Eg. injection Eg as -> ->.
     lazymatch type of Hyg with names _ _ (VCode ?fn) =>
-      assert (written Code_files fn) as Hwritteng by (apply written_function; vm_compute; reflexivity) end.
+      assert (written Code_files Code_classes fn) as Hwritteng by (apply written_function; vm_compute; reflexivity) end.
     destruct Hdoneg as [[(insg & spg & Hatg) _] | [_ [spg Hendg]]]; [rewrite Hinv in Hatg; discriminate Hatg |].
     assert (direct ce wapp (history (bg - 1))) as Hdirg by (rewrite Hendg; cbn; auto).
     revert rg spg Hendg. revert Hdirg. generalize (bg - 1).

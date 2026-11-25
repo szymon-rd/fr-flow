@@ -50,7 +50,7 @@ Proof.
     split.
     { intros s0 g0 E m0 Hfm0 Happ0 Hmoves0 Hcode0. rewrite Hinvsc in E. injection E as <- <-.
       lazymatch type of Hyg with names _ _ (VCode ?fn) =>
-        assert (written Code_files fn) as Hwritten by (apply written_function; vm_compute; reflexivity) end.
+        assert (written Code_files Code_classes fn) as Hwritten by (apply written_function; vm_compute; reflexivity) end.
       destruct Happ0 as [[inside0 Happ0] | (a1 & inside1 & sp1 & Hat1)];
         [| exfalso; exact (function_not_atomic C Hat1 eq_refl Hyg Hwritten)].
       split; [exists inside0; exact Happ0 |].

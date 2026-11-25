@@ -13,7 +13,8 @@ from a library's laws, proofs by induction, proofs about threads on the JVM, and
 
 - Section 2 defines the terms and summarises the model.
 - Section 3 specifies each part of the model.
-- Section 4 specifies the translation pipeline and describes its implementation in the repository.
+- Section 4 specifies the translation pipeline and describes its implementation in the repository. Section 4.8
+  specifies the translation used by the Ox model, which gives programs to the existing JVM machine.
 - Section 5 lists coverage: the Scala that is read, the parts of the model that are implemented, the order of
   remaining work, and open questions.
 
@@ -27,8 +28,9 @@ Each subsection of section 3 ends with a status. The terms are:
 | on an example | Proven without axioms for a small hand-written program in `modules/project/src/test/resources/effects/Worked.v`. A test compiles that file. |
 | designed | Specified in this document only. |
 
-The implementation covers classes, fields, loops and calls, and is tested against the JVM. The rest of the
-model is on an example or designed.
+The implementation of sections 4.1 to 4.6 covers classes, fields, loops and calls, and is tested against the
+JVM. The translation of section 4.8 covers the Scala of Ox 1.1.0 and is used by the Ox proofs. The rest of
+the model is on an example or designed.
 
 ### 1.4 Notation
 
@@ -480,8 +482,9 @@ Requirements on the stages:
 - A construct that a stage does not translate is rejected with its file and line. It is not omitted or
   approximated.
 
-Status: built for the constructs of 5.1. No other part of FrFlow uses the output. The Ox model and `lifted[Class]` structures use
-earlier representations ([EXECUTIONS.md](EXECUTIONS.md), [LIFTED.md](LIFTED.md)).
+Status: built for the constructs of 5.1. No other part of FrFlow uses the output of this pipeline. The Ox
+model uses the translation of 4.8. `lifted[Class]` structures use an earlier representation
+([LIFTED.md](LIFTED.md)).
 
 ### 4.2 Normalised Scala
 
@@ -698,11 +701,153 @@ Limits.
   classes of accepted Scala whose program differed from the JVM while all tests passed. Each is now rejected
   or translated correctly, with a test.
 - The tests compare the final results of single-threaded executions.
-- There is no proven relation between these programs and the earlier representation.
+- There is no proven relation between the programs of 4.1 to 4.6 and the earlier representations. Section
+  4.8 lists the tests that relate staged programs to the meaning of trees.
 - TASTy contains the code as typed, before inlining and erasure. The emitter rejects constructs that those
   phases change.
 - The worked examples are hand-written programs over a single number. They are not emitter output and
   contain no objects.
+
+### 4.8 Staged programs for the JVM machine
+
+The Ox model ([EXECUTIONS.md](EXECUTIONS.md)) reads code as the tree its TASTy holds and defines the meaning
+of a tree in Rocq (`FrFlow/Scala/Meaning.v`, `denote`). A proof about a method evaluated `denote` on the
+method's tree at each step. This section specifies a translation that performs that evaluation once, when
+the code is read, and gives the prover one program per unit of code. The programs are over the operations of
+the existing machine (`FrFlow/Jvm/Machine.v`); values are the machine's untyped values. The typed pipeline
+of 4.1 to 4.6 is separate.
+
+Terms:
+
+| Term | Definition |
+|---|---|
+| unit | A method, the initialiser of a class, a function written in the code (a lambda or a local `def`), or an argument passed by name. |
+| staged program | The program of a unit: a Rocq function from the unit's inputs to a program of the machine. |
+| kept scope | The variables a function value, a by-name argument or an object of a local class holds, as a list of pairs of a key and a value. |
+
+Translation (`frflow.core.staged.Stage`):
+
+- Input: the trees of the files read (`frflow.core.code.Datum`), the same data the generated Rocq files
+  `Code/<file>.v` hold. The translation does not use the Scala compiler interface.
+- Output: `frflow.core.staged.StagedCode`. It holds the units, the units that were not translated with the
+  reason for each, and the definitions from outside the code that the units call.
+- A unit that is not translated keeps the meaning of its tree. Units that are translated and units that are
+  not can call each other.
+
+The translation follows `Meaning.denote` case by case. The following is decided when the code is read:
+
+| Decided when the code is read | Left to the program |
+|---|---|
+| what a name refers to: a local value, a variable of a kept scope, a field, a method, an object, a definition from outside | the value read |
+| which arguments a method of the code takes by name | evaluation of the argument |
+| the order of evaluation of receiver and arguments | the operations |
+| the cases of a `match` and what each binds | which case takes the value |
+| the fields a constructor assigns, and the order of parents and member initialisers | the writes |
+| the class of an object made by `new` | the object |
+
+The following is not decided when the code is read, and is an operation of `FrFlow/Code/Staged.v`: equality
+of values, type tests, the method an object's class has for a call, whether a definition from outside takes
+an argument by name, and every operation on objects, variables and threads.
+
+Inputs of a staged program:
+
+| Unit | Inputs |
+|---|---|
+| method, initialiser | the object, the list of arguments |
+| function | the kept scope, the list of arguments |
+| by-name argument | the kept scope |
+
+Function values. A function value made by staged code is `Fn d sc []`, where `d` is the function's definition
+with the name of its unit in the place of its body, and `sc` is the kept scope. A by-name argument is
+`Thunk (Ident u) sc`, where `u` is the name of its unit. The name of a function's unit is the class the
+function is written in together with the function's local name; a local name is unique within a file, and a
+class is in one file.
+
+Connection to the machine and to executions (`FrFlow/Code/Conforms.v`):
+
+1. The record `classes` has the field `bodies : code -> option (val -> program)`.
+2. `run known c arg` is `f arg` if `bodies known c = Some f`, and the meaning of the tree of `c` otherwise.
+3. A function value is the code's (`written`) if its tree is among the trees read or `bodies` has a program
+   for it.
+4. `Staged.bodies T units` finds a method's unit by the class of the receiver, as `Meaning.run_method`
+   does. No other definition of the machine, of executions or of the bridge between them
+   (`machine_conforms`) refers to staged programs.
+
+Generated file. `Code/Programs.v` holds one definition per unit, the table `Code_units`, and the list
+`Code_outside` with the lemma `Code_outside_agrees` (see Tests below). Example, from
+`ox.internal.ThreadHerd`:
+
+```scala
+private def assertOnOwnerThread(): Unit =
+  val current = Thread.currentThread()
+  if current ne herdOwner then throw new IllegalStateException("...")
+```
+
+```coq
+Definition m_ThreadHerd_assertOnOwnerThread_86 (this : val) (args : list val) : D :=
+  sc <~ Staged.captured T this ;;
+  match args with
+  | [] =>
+      current_2 <~ (on_1 <~ Staged.out T (Member "java.lang" "Thread" "") VUnit [] [] ;;
+         Staged.out T (Member "java.lang.Thread$" "currentThread" ":java.lang.Thread") on_1 [] []) ;;
+      test_4 <~ (arg_3 <~ Staged.get_field T this "herdOwner" ;;
+         Staged.ne_ T current_2 arg_3) ;;
+      match test_4 with
+      | VBool true =>
+          arg_5 <~ Staged.out T (Member "java.lang.IllegalStateException" "<init>" "...") VUnit [] [(vstr "...")] ;;
+          Staged.out T (Member "<special-ops>" "throw" "java.lang.Throwable:scala.Nothing") VUnit [] [arg_5]
+      | VBool false => Staged.give VUnit
+      | _ => stuck "a condition that gave no truth value"
+      end
+  | _ => stuck "a call given other than what the definition takes"
+  end.
+```
+
+Coverage:
+
+| Code | Units | Not translated |
+|---|---|---|
+| the five files of Ox the Ox model reads | 107 | 0 |
+| Ox 1.1.0, 116 files | 3054 | 3 methods that make a `lazy val` inside a method |
+
+Tests:
+
+1. Proofs. The 121 proof files of the Ox model compile against the staged programs. The only change to
+   them is one more argument of `written`.
+2. Comparison with the JVM (`OxRunSuite`). Ox and 25 client programs are staged. The machine that writes its
+   run as an execution runs each client program under four orders of thread turns. Rocq proves by
+   computation that each run ends and gives the number the JVM gave.
+3. Comparison with the meaning of the trees (`OxRunSuite`). For each of the 25 programs, under one order,
+   Rocq proves by computation that the run of the staged programs and the run of the meaning of the trees
+   make the same list of events.
+4. Definitions from outside. The translation decides how each argument of a call from outside is given from
+   a table of the library members that take an argument by name. `Code_outside` lists each definition from
+   outside that the code calls with what the translation took. `Code_outside_agrees` proves by computation
+   that the library (`FrFlow/Scala/Library.v`) says the same of each.
+5. Printer (`StagedPrintSuite`), stored output for sample classes and the two counts above
+   (`StagedSuite`).
+
+Translating and running the whole of Ox found three defects in earlier versions of the translation that the
+121 proof files did not detect: function units named by a name that is unique only within a file (test 2);
+a table of by-name library members that disagreed with the library for `Either.fold` (test 2; test 4 was
+added for it); a unit value whose type Rocq could not infer (compilation of the generated file).
+
+Limits:
+
+- The translation is tested and not proven. There is no proof that a staged program equals the meaning of
+  the tree. Computing the meaning of one method's tree to a normal form in Rocq exceeded the memory limit.
+- Tests 2 and 3 cover the units that the 25 client programs reach.
+- The staged programs are Rocq functions. A property of the text of a program, such as the fields it reads,
+  cannot be computed from them in Rocq.
+- This translation and the typed pipeline of 4.1 are separate implementations. Their correspondence:
+
+| | 4.1 to 4.6 | 4.8 |
+|---|---|---|
+| input | TASTy through the compiler interface | the trees as data |
+| intermediate form | normalised Scala | none |
+| values | typed by generated names | the machine's values |
+| Scala covered | 5.1 | what `Meaning.denote` covers |
+| used by | tests | the Ox model |
 
 ## 5. Coverage
 
@@ -762,7 +907,7 @@ same name in the generated file.
 | Proof kind | Provided by the model | Status |
 |---|---|---|
 | library laws | library operations with laws; rewriting; no reference to objects | on an example |
-| JVM | interleaving of the same programs under JVM-level laws | on an example; the Ox proofs are not migrated |
+| JVM | interleaving of the same programs under JVM-level laws | on an example for the model of section 3; the Ox proofs are over staged programs (4.8) and the executions of [EXECUTIONS.md](EXECUTIONS.md) |
 | induction | inductive programs, loop invariants, specifications | designed |
 | separation logic | one rule per operation over the same programs | designed |
 
@@ -795,6 +940,65 @@ Each step can be used independently of the later ones.
 - Monitor re-entry. The law in the worked example does not permit re-entry. JVM monitors do.
 - Field modifiers (`volatile`, `final`) are not recorded. The JVM layer requires them.
 - Other provers. The representation does not depend on Rocq. Output for Lean requires a second printer.
+
+### 5.6 Absence of data races, from the code
+
+Status: designed. No part of this subsection is implemented.
+
+Present state. The Ox model proves three statements of the form "no thread reads, marks or writes X while
+another thread is writing it" (`noRaceOnAHerdsVals`, `noRaceOnAScopesVals`, `noRaceOnClosingsVariables`).
+The proofs rest on five assumptions that are specific to Ox and are justified by reading Ox's code:
+
+| Assumption | Content |
+|---|---|
+| `aHerdsValsAreAssignedWhereItIsMade`, `aScopesValsAreAssignedWhereItIsMade` | a `val` is written only by the thread that makes the object, inside the call that makes it |
+| `aHerdsValsAreReadByItsCode` | a `val` of a herd is read only by a method of the herd called on it, or by the function `startThread` hands its factory |
+| `aScopesValsAreReadOnceItIsConstructed` | a `val` of a scope is read only after its constructor has returned it |
+| `closingKeepsItsVariableToItself` | a variable that `closing` makes is touched only by the thread that called `closing` |
+
+Target. Each assumption is replaced by a rule of the JVM that holds for every class, and a statement about
+Ox's code that is proven on the staged programs (4.8).
+
+| Rule of the JVM, for every class | Source |
+|---|---|
+| R1. A `val` is written only inside the constructor of its class, by the thread that makes the object. | JVMS 6.5 `putfield`; 4.10.2.4 |
+| R2. A field of a class is read and written only by code written in that class. A local variable is read and written only by the method that declares it and the functions written in that method. | JVMS 5.4.4; Scala compiles every field as private and a captured variable as a private reference |
+| R3. A function value exists only after the code that writes it has evaluated it, and holds the variables that code had. | no reference is forged |
+
+| Statement about the code, per unit | Proven by |
+|---|---|
+| S1. The fields a unit reads and writes, and on which object: the object it was called on, or one it made. | a walk of the staged program |
+| S2. The values a unit hands to other code: arguments, results, values written to fields. | a walk of the staged program |
+
+From R2 and S1, a read of a herd's `val` is made by a unit written in `ThreadHerd`, on the herd that unit
+belongs to. From R3 and S2, that unit is a method called on the herd or a function made by such a method.
+This gives `aHerdsValsAreReadByItsCode` and `closingKeepsItsVariableToItself` as proven statements. The
+other three follow in the same way from R1 to R3 and S2 for the constructors.
+
+Obstacles found:
+
+1. Statements are over the history of events. A function of the code appears in the history as an opaque
+   value. R2 and R3 cannot be stated over the history alone. The naming of values that conformance
+   (`FrFlow/Code/Conforms.v`) quantifies existentially must be available to statements.
+2. R2 and R3 are rules of an execution. They belong in `conforms`, with a check in the machine that writes
+   its run as an execution and a proof in the bridge (`machine_conforms`) that a checked run satisfies
+   them. The JVM comparison of 4.8 then tests that Ox's runs pass the checks.
+3. A call whose program reaches `stuck` may make any event. S1 and S2 therefore hold of a unit only together
+   with a proof that the unit does not reach `stuck` for inputs of the types conformance gives. The existing
+   rules (`FrFlow/Rules`) prove this along one walk; S1 and S2 require the walk of every branch.
+4. A staged program is a Rocq function, so S1 and S2 cannot be computed from it. Either each is proven by a
+   walk, or the translation also emits the staged form as data with a function that gives the program, and
+   S1 and S2 are computed from the data with one proof that the computation is sound.
+
+Order of work:
+
+1. Naming available to statements; `frflow.code` words for "a unit written in class C" and "a function
+   holding the object".
+2. R2 and R3 in `conforms`; checks in the machine; bridge proofs; JVM comparison.
+3. Staged form as data, the function to programs, and the lemma that the generated programs equal it.
+4. S1 and S2 computed per unit; soundness lemma including obstacle 3.
+5. The five assumptions restated as R1 to R3 for `ThreadHerd`, the scope class and `closing`; the three
+   race statements re-proven.
 
 ## References
 

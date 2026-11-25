@@ -177,13 +177,16 @@ val latch: FrModel = FrModel("Latch")(
   history.executing(Read.of(classOf[Latch], _.endsWith("latch/Latch.tasty"))))
 ```
 
-FrFlow then generates, beside the model's statements, the trees (`FrFlowGen/<Model>/Code/<file>.v`) and
+FrFlow then generates, beside the model's statements, the trees (`FrFlowGen/<Model>/Code/<file>.v`), the
+programs the trees are staged into (`Code/Programs.v`: one for each method, initialiser, function and argument
+passed by name; [EFFECT-TREES.md](EFFECT-TREES.md), 4.8), and
 `Code.v`: the files, the table of what they define, and `Code_runs history`, "the execution is one of this code".
 Every statement that binds `history` takes that as a hypothesis (`o_history_0`), and consistency is asked of an
 execution of the code.
 
 What it is for an execution to be one of some code is said once, in FrFlow's Rocq library, for any trees
-(`FrFlow/Code/Conforms.v`), over the meaning of the trees (`FrFlow/Scala/Meaning.v`):
+(`FrFlow/Code/Conforms.v`). The program a call runs is the one its unit was staged into, where there is one,
+and the meaning of its tree (`FrFlow/Scala/Meaning.v`) otherwise:
 
 - A call of a method of the code on an object the code made, or of a function the code wrote, is made by one
   actor. The events that actor makes directly inside the call are the steps of the method's program, in order:
@@ -234,7 +237,8 @@ next loop. A change to what a method does before that call then leaves the proof
 `startThreadAddsWhatItsFactoryMade`, `startThreadAddsBeforeItStarts`,
 `theForkFunctionRemovesTheCurrentThread`, `closingEndsOnceFoundEmpty` and `closingSetsTheFlagOnlyToTrue`. The
 fifth goes through a function the code wrote, the one `startThread` hands the thread factory, known to be the
-code's by finding its tree among the trees read. The sixth goes through a `while` loop, by `meets_iter`: what
+code's because the staged programs have one for it (or, where code is not staged, by finding its tree among the
+trees read). The sixth goes through a `while` loop, by `meets_iter`: what
 holds from each turn on is that the turn comes after the call; a turn asks the set whether it is empty, and on a
 yes the claim holds from there on. The last goes through all of closing: its loop, and past it the read of a
 local variable that is thrown if it holds an exception.
@@ -263,7 +267,7 @@ FrFlow's Rocq library (`modules/proof/rocq/FrFlow`), by what each directory is a
 |---|---|
 | `Scala/` | the trees read from TASTy, the table of what they define, and their meaning as programs |
 | `Jvm/` | the program a call runs (`Prog.v`), the machine that runs programs (`Machine.v`), a data race (`Races.v`) |
-| `Code/` | what an execution of code is (`Conforms.v`, `Outside.v`), what its classes have (`Classes.v`), and an execution written out and shown to be one (`Witness.v`) |
+| `Code/` | what an execution of code is (`Conforms.v`, `Outside.v`), what its classes have (`Classes.v`), what staged programs are written with (`Staged.v`), and an execution written out and shown to be one (`Witness.v`) |
 | `Rules/` | the rules a proof of a claim uses: a call from one moment to a later one (`Walk.v`), what holds at each event of a call (`Logic.v`), what a call does in time (`Live.v`), the execution in which nothing happens (`Rest.v`) |
 | `Bridge/` | that a run of the machine is an execution of the code (`Executed.v`: `machine_conforms`) |
 

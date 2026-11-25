@@ -496,7 +496,7 @@ Section Live.
   (** A call of a function the code wrote. *)
   Lemma function_leads inside m c y ys :
     history i = Event_Invoke a inside (Invocation_mk m (y :: ys)) ->
-    applies known m = true -> names N y (VCode c) -> written files c -> moves ->
+    applies known m = true -> names N y (VCode c) -> written files known c -> moves ->
     (forall args, Forall2 (names N) ys args -> given known c args -> leads (i + 1) (Running (run T known c (VList args)))) ->
     G.
   Proof.

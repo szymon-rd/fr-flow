@@ -149,13 +149,24 @@ Proof.
   destruct o; try (rewrite Hne by discriminate; reflexivity). rewrite val_eqb_refl. reflexivity.
 Qed.
 
-(** ** A function the code wrote, decided by looking for its tree among the code's *)
-Definition among (files : list tree) (t : tree) : bool :=
-  if in_dec tree_eq_dec t (over_list nodes files) then true else false.
+(** ** A function the code wrote, decided: the programs given have one for it, or its tree is among the code's *)
+Definition among (files : list tree) (known : classes) (c : code) : bool :=
+  match c with
+  | Fn d _ _ | Thunk d _ =>
+      match bodies known c with
+      | Some _ => true
+      | None => if in_dec tree_eq_dec d (over_list nodes files) then true else false
+      end
+  | _ => false
+  end.
 
-Lemma written_function (files : list tree) (d : tree) (sc : scope) (group : list tree) :
-  among files d = true -> written files (Fn d sc group).
-Proof. unfold among. destruct (in_dec tree_eq_dec d (over_list nodes files)); [auto | discriminate]. Qed.
+Lemma written_function (files : list tree) (known : classes) (c : code) :
+  among files known c = true -> written files known c.
+Proof.
+  unfold among, written. destruct c as [d sc g | d sc | | |]; try discriminate.
+  all: destruct (bodies known _); [intros _; right; discriminate |].
+  all: destruct (in_dec tree_eq_dec d (over_list nodes files)); [auto | discriminate].
+Qed.
 
 (** A call of what is outside the code. *)
 Definition outside_call {X : Type} (o : Machine.op code obj X) : Prop :=
@@ -544,7 +555,7 @@ Section Walk.
   (** A call of a function the code wrote. *)
   Lemma function_steps a inside m c y ys from :
     history from = Event_Invoke a inside (Invocation_mk m (y :: ys)) ->
-    applies known m = true -> names N y (VCode c) -> written files c ->
+    applies known m = true -> names N y (VCode c) -> written files known c ->
     exists args (at_ : Z -> stage), Forall2 (names N) ys args /\ given known c args /\
       (forall w, direct a from (history w) -> from < w) /\
       (forall w, from < w -> steps a from (from + 1) (Running (run T known c (VList args))) w (at_ w)) /\
@@ -558,7 +569,7 @@ Section Walk.
   (** A call of a function the code wrote makes no event of its own once it has responded. *)
   Lemma function_over a inside m c y ys from k w resp spawns :
     history from = Event_Invoke a inside (Invocation_mk m (y :: ys)) ->
-    applies known m = true -> names N y (VCode c) -> written files c ->
+    applies known m = true -> names N y (VCode c) -> written files known c ->
     history k = Event_Respond a from resp spawns -> k < w -> ~ direct a from (history w).
   Proof.
     intros He Hm Hy Hw Hk Hlt.
@@ -613,7 +624,7 @@ Section Walk.
   (** A call of a function the code wrote is no event made and responded to at once. *)
   Lemma function_not_atomic w a inside m c y ys resp spawns :
     history w = Event_Atomic a inside (Invocation_mk m (y :: ys)) resp spawns ->
-    applies known m = true -> names N y (VCode c) -> written files c -> False.
+    applies known m = true -> names N y (VCode c) -> written files known c -> False.
   Proof.
     intros He Hm Hy Hw.
     exact (proj2 (proj2 (proj1 (proj2 (proj2 (proj2 conformed))) _ _ _ _ _ _ _ He)) c y ys Hm eq_refl Hy Hw).

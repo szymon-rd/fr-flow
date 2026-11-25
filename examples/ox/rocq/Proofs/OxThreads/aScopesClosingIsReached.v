@@ -46,7 +46,7 @@ Proof.
   lstep_done. intros wapp m yg ysg Hwapp Hqapp Hm Hyg Hysg Hinv. cbv [called_as] in Hm. subst m.
   cbn in Hysg. apply args_none in Hysg as ->.
   lazymatch type of Hyg with names _ _ (VCode ?fn) =>
-    assert (written Code_files fn) as Hwritten by (apply written_function; vm_compute; reflexivity) end.
+    assert (written Code_files Code_classes fn) as Hwritten by (apply written_function; vm_compute; reflexivity) end.
   pose proof (proceeds_moves _ _ _ (Happproceeds s g c from yg wapp
     (conj (or_introl (ex_intro _ inside Hcall)) (or_introl Hinv)))) as Hmoves2.
   refine (function_leads _ C Hinv eq_refl Hyg Hwritten Hmoves2 _).

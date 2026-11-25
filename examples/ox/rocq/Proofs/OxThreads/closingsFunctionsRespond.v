@@ -52,7 +52,7 @@ Proof.
   { intros fe Hit xe ce ke Hlt Haccept Hmoves Happmoves Hleft Hjoined.
     pose proof (makes_one Hmk1 Hit) as E'. injection E' as _ ->.
     lazymatch type of Hyfun1 with names _ _ (VCode ?fn) =>
-      assert (written Code_files fn) as Hwritten by (apply written_function; vm_compute; reflexivity) end.
+      assert (written Code_files Code_classes fn) as Hwritten by (apply written_function; vm_compute; reflexivity) end.
     destruct Haccept as [[inside1 Hcall1] | (a1 & inside1 & sp1 & Hat1)];
       [| exfalso; exact (function_not_atomic C Hat1 eq_refl Hyfun1 Hwritten)].
     split; [exists inside1; exact Hcall1 |].
@@ -64,7 +64,7 @@ Proof.
     apply args_one in Hysg as (ythread & -> & Hythread).
     pose proof (one_name N _ _ _ Hythread Hvthread) as ->.
     lazymatch type of Hyg with names _ _ (VCode ?fn) =>
-      assert (written Code_files fn) as Hwritteng by (apply written_function; vm_compute; reflexivity) end.
+      assert (written Code_files Code_classes fn) as Hwritteng by (apply written_function; vm_compute; reflexivity) end.
     split.
     { (* the function it applies is responded to: it reads the threads interrupted, interrupts the thread if it
          is not among them, writes it among them, and returns *)
@@ -99,7 +99,7 @@ Proof.
   { intros fe Hit xe ce ke Hlt Haccept Hmoves Happmoves Hleft Hjoined.
     pose proof (makes_one Hmk2 Hit) as E'. injection E' as _ ->.
     lazymatch type of Hyfun2 with names _ _ (VCode ?fn) =>
-      assert (written Code_files fn) as Hwritten by (apply written_function; vm_compute; reflexivity) end.
+      assert (written Code_files Code_classes fn) as Hwritten by (apply written_function; vm_compute; reflexivity) end.
     destruct Haccept as [[inside1 Hcall1] | (a1 & inside1 & sp1 & Hat1)];
       [| exfalso; exact (function_not_atomic C Hat1 eq_refl Hyfun2 Hwritten)].
     split; [exists inside1; exact Hcall1 |].
@@ -111,7 +111,7 @@ Proof.
     apply args_one in Hysg as (ythread & -> & Hythread).
     pose proof (one_name N _ _ _ Hythread Hvthread) as ->.
     lazymatch type of Hyg with names _ _ (VCode ?fn) =>
-      assert (written Code_files fn) as Hwritteng by (apply written_function; vm_compute; reflexivity) end.
+      assert (written Code_files Code_classes fn) as Hwritteng by (apply written_function; vm_compute; reflexivity) end.
     split.
     { (* the function it applies is responded to: it reads the threads interrupted, interrupts the thread if it
          is not among them, writes it among them, and returns *)
