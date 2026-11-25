@@ -4,6 +4,7 @@ import frflow.core.term.language.Sym
 import frflow.dsl.term.{RocqType, Lift, Term, Terms, TermSyntax}
 import frflow.dsl.build.{Failure, Fault}
 import frflow.dsl.vocab.{Called, Definition, Held, Stating}
+import frflow.dsl.term.TermSyntax.{===, &&}
 import scala.util.NotGiven
 
 /** A member of a structure called in a statement (`limits.authorise(p)`). As a term it is what the call gives
@@ -30,6 +31,31 @@ final class Call[T, R] private (made: Call.Made[T], ran: Call.Ran[T, R])
     */
   def in[H <: String](holder: Term[State[H]])(using NotGiven[State[H] =:= T]): Call[T, R] =
     in(Call.heldIn[T](made.structure, holder, made.held))
+
+  /** The same call made once `earlier` has been: `in(earlier.after)` (`links.resolve(c).following(links.remove(c))`).
+    * Only this call is moved: a call written among its arguments is made where it was.
+    */
+  def following(earlier: Call[T, ?]): Call[T, R] = in(earlier.after)
+  /** The same, after a call of the structure that holds this one (`ledger.total.following(handler.handle(p))`). */
+  def following[H <: String](earlier: Call[State[H], ?])(using NotGiven[State[H] =:= T]): Call[T, R] =
+    in(earlier.after)
+  /** The same call made a second time, on the structure as this one left it: `in(after)`. */
+  def again: Call[T, R] = in(after)
+  /** The call made with what this one gives, on the structure as this one left it: `next(result).in(after)`
+    * (`links.shorten(u).andThen(code => links.resolve(code))`). Only the call `next` gives is moved.
+    */
+  def andThen[S](next: Term[R] => Call[T, S]): Call[T, S] = next(this).in(after)
+  /** The call leaves the structure as it found it: `after` is the state it was made on. */
+  def changesNothing: Term[Boolean] = after === made.state
+  /** What this call gives is what it gives once `earlier` has been made: `following(earlier) === this`. */
+  def unchangedBy(earlier: Call[T, ?]): Term[Boolean] = following(earlier) === this
+  /** The same, by a call of the structure that holds this one. */
+  def unchangedBy[H <: String](earlier: Call[State[H], ?])(using NotGiven[State[H] =:= T]): Term[Boolean] =
+    following(earlier) === this
+  /** Made a second time, the call gives what it gave and leaves the structure as it left it:
+    * `(again === this) && (again.after === after)`.
+    */
+  def isIdempotent: Term[Boolean] = (again === this) && (again.after === after)
   /** The same call made among other calls: `between` says how they left the structure before a step, by the step's
     * number (the second step's is 2); before a step it does not name, they did nothing. A claim over every
     * `between` holds however the call's steps interleave with other calls'.

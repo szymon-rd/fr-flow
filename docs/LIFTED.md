@@ -175,9 +175,9 @@ way: only the operations in the table are. Anything else is a `NotRead` at the c
 A service method that changes state is read the way Aeneas reads `&mut`: the state passed in and returned, with no
 state monad. [SEPARATION-SPIKE.md](SEPARATION-SPIKE.md) records the spike that tried it. A service is written as a
 structure: a Declaration of a trait, defined by a class.
-[The payment stream](../examples/payments/README.md) is a processor over three services, proven through
-redelivery, a crash at any step and a second instance; [the shop](../examples/shop/README.md) is a checkout over
-two services and an order book, each over a store of its own. The files compile with capture and separation
+[The link shortener](../examples/links/README.md) is one such structure, three members with claims on each and on
+how they relate; [the payment stream](../examples/payments/README.md) is a processor over three services, proven
+through redelivery, a crash at any step and a second instance. The files compile with capture and separation
 checking; what uses the checkers is experimental (`-experimental` for the project, or `@experimental` on the
 definitions).
 
@@ -189,18 +189,19 @@ implements the trait is its Definition. The word is logic's: the trait is a sign
 it, the class a structure the theory is proven of. A service is written as one.
 
 ```scala
-trait CardLimits extends caps.Mutable:                                 // the members: nothing of FrFlow's
-  update def authorise(p: Payment): Boolean
-  def decided(id: String): Boolean
+trait Links extends caps.Mutable:                                      // the members: nothing of FrFlow's
+  update def shorten(url: Url): Code
+  def resolve(code: Code): Option[Url]
+  update def remove(code: Code): Unit
 
-object Limits:
-  val limits = Declaration[CardLimits]("the card limits: …")         // the structure in the model
-  val authorisedIsRecorded = Node.claim("A payment authorised is decided.")(
-    forall((p: Term[Payment]) => limits.decided(p.id).in(limits.authorise(p).after)))
+object Links:
+  val shortener = Declaration[Links]("the link shortener: …")         // the structure in the model
+  val shortenedCodeResolves = Node.claim("The code a URL is given leads to that URL.")(
+    forall((u: Term[Url]) => shortener.shorten(u).andThen(code => shortener.resolve(code)) === some(u)))
 
-final class RecordedLimits(val dailyLimit: BigInt, var decisions: List[Decision]) extends CardLimits: …   // a value for it
+final class RetiringLinks(var issued: List[Link], var retired: List[Code]) extends Links: …   // a value for it
 
-FrModel("Payments")(…, limits.define(lifted[RecordedLimits]))
+FrModel("Shortener")(…, shortener.define(lifted[RetiringLinks]))
 ```
 
 - `Declaration[T]` of a trait of the developer's is typed by the trait's members: each is called in a statement
@@ -307,4 +308,5 @@ Rocq, and the property proven is not a contract annotation on the function but t
 | The term language and its interpreters | `modules/core/src/main/scala/frflow/core/term/` (`algebra`, `language`, `interpret`, `optimize`) |
 | The prover's syntax, the lowering into it, its interpreters | `modules/proof/src/main/scala/frflow/proof/prover/` (`ast`, `term`, `lower`) and `proof/rocq/` |
 | A structure's Declaration, `Call`, `State` | `modules/dsl/src/main/scala/frflow/dsl/structure/`; `StructureSuite`, `FrSpecSuite` |
-| Services proven among other calls | `examples/payments/`, `examples/shop/`; `PaymentsSuite`, `ShopSuite`; the Rocq suites in `frflow.project.services` |
+| A service proven of its claims | `examples/links/`; `LinksSuite`; `LinksRocqSuite` and the other Rocq suites in `frflow.project.services` |
+| Services proven among other calls | `examples/payments/`; `PaymentsSuite`; `PaymentsRocqSuite` |

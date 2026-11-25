@@ -9,7 +9,7 @@ import frflow.proof.prover.lower.LowerObligation
   * `FRFLOW_GOLDEN=write` writes the lists afresh, to be reviewed as any change to them is.
   */
 class ObligationNamesSuite extends munit.FunSuite:
-  private val examples: List[(String, FrModel)] = List("rooms" -> _root_.rooms.rooms, "auth" -> _root_.auth.knowledge)
+  private val examples: List[(String, FrModel)] = List("links" -> _root_.links.links, "auth" -> _root_.auth.knowledge)
 
   examples.foreach { (name, kb) =>
     test(s"$name: the obligations asked are the committed list") {

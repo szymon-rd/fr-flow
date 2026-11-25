@@ -12,7 +12,7 @@ import scala.concurrent.duration.*
 class InitialisationSuite extends munit.FunSuite:
   /** Each example's vals, from its first words to its FrModel, each read by touching it. */
   private val examples: List[(String, List[() => Any])] = List(
-    "rooms" -> List(() => rooms.free, () => rooms.Bookings.bookWhenFree, () => rooms.rooms),
+    "links" -> List(() => links.Links.shortener, () => links.Links.shortenIsIdempotent, () => links.links),
     "auth" -> List(() => auth.knowledge))
 
   test("each example's files initialise from two threads at once, one from its words, one from its FrModel") {

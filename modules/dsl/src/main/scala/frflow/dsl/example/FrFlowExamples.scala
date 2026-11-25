@@ -14,9 +14,9 @@ import scala.collection.mutable.ListBuffer
 
 /** A model's examples, written as an ordinary test file writes them, as today's library does (owner §18):
   * {{{
-  * class GrantedExamples extends FrFlowExamples(rooms):
-  *   example("back to back: granted"):
-  *     granted(RoomBookings(List(Booking("Oak", 9, 10))), Booking("Oak", 10, 11)) is true
+  * class LinksExamples extends FrFlowExamples(links):
+  *   example("a URL shortened again: its code"):
+  *     shortener.shorten(home).in(shortener.holding(RetiringLinks(List(Link(Code(0), home)), Nil))).result is Code(0)
   * }}}
   * Each `example` registers one as the class is built, as a test suite registers its tests; FrFlow reads them beside
   * the FrModel, checks each against the code and, where it sets no value, against the claims in Rocq. They

@@ -11,7 +11,7 @@ import scala.util.Using
 
 /** A project under a directory of the build (`examples/NAME`, as `init` makes it): the files its model records are
   * read relative to the build, made relative to the project, so its own model file is not warned ungoverned; nor is
-  * a file holding only its vocabulary (rooms' `Domain.scala`, `Book.scala`).
+  * a file holding only its vocabulary (the shortener's `Domain.scala`).
   */
 class RelocateSuite extends munit.CatsEffectSuite:
   private val e = Opened.before.model
@@ -42,15 +42,15 @@ class RelocateSuite extends munit.CatsEffectSuite:
       assertEquals(asIs, List(Warning.Ungoverned(file)))
   }
 
-  test("status over examples/rooms, its files as on disk, every node proven: no warning") {
-    val dir = Projects.base.resolve("examples/rooms")
+  test("status over examples/links, its files as on disk, every node proven: no warning") {
+    val dir = Projects.base.resolve("examples/links")
     val files = List("src/main").flatMap(d => Using.resource(Files.walk(dir.resolve(d)))(
       _.iterator.asScala.filter(Files.isRegularFile(_)).toList)).map(f =>
       RelPath.parse(dir.relativize(f).toString).getOrElse(fail(s"no path: $f")) -> Files.readString(f))
-    val rooms = Opened.rooms.copy(model = Relocate(Projects.rooms, Projects.base, dir))
+    val links = Opened.links.copy(model = Relocate(Projects.links, Projects.base, dir))
     for
       ports    <- Opened.ports(files.toMap)
-      api      <- Opened.over(rooms, ports)
+      api      <- Opened.over(links, ports)
       checked  <- Opened.checked(api.proving.check(None))
       warnings <- api.reading.view.map(_.warnings)
     yield

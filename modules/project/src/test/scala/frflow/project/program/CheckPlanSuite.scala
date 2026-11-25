@@ -10,7 +10,7 @@ import frflow.project.check.CheckPlan
 class CheckPlanSuite extends munit.FunSuite:
   // Elaborating and laying out a model takes seconds; past munit's 30 s when the whole build runs at once.
   override val munitTimeout: scala.concurrent.duration.Duration = scala.concurrent.duration.Duration(2, "minutes")
-  private val models: List[(String, () => Elaborated)] = List("rooms" -> (() => Projects.rooms))
+  private val models: List[(String, () => Elaborated)] = List("links" -> (() => Projects.links))
 
   models.foreach { (name, e) =>
     test(s"$name: every node checked after what is below it, its parts among them: no circle") {

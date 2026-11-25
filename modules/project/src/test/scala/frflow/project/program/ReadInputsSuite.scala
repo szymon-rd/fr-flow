@@ -17,14 +17,14 @@ class ReadInputsSuite extends munit.CatsEffectSuite:
   test("a decision taken out of the ledger since the commit: the node counts none of its decisions") {
     for
       p         <- Projects.inMemory(Map.empty)
-      a         <- Projects.analysed(p, Projects.rooms, Nil)
+      a         <- Projects.analysed(p, Projects.links, Nil)
       id         = a.subjects.inOrder.headOption.fold(fail("no subject"))(_.id)
       _         <- DecideProgram(p.ports)(a.subjects, Command.Accept(List(id), "it says what is trusted", Nil,
                      Map.empty), "ann")
       working   <- p.ports.ledger.load
       committed  = working.add(id, working.current(id).fold(fail("none"))(_.copy(reason = Reason("revised", Nil))))
       _         <- p.git.commit(Map(Records.path(LedgerFile.format) -> Files.print(LedgerFile.format, committed)))
-      read      <- Projects.analysed(p, Projects.rooms, Nil)
+      read      <- Projects.analysed(p, Projects.links, Nil)
     yield
       assertEquals(read.inputs.ledger.others.map(x => (x._1, x._3)), List(id -> Uncounted.Rewritten))
       assertEquals(read.reading.state(id), ReviewState.Proposed)
@@ -33,25 +33,25 @@ class ReadInputsSuite extends munit.CatsEffectSuite:
   test("with the committed ledger where the working one starts, every decision a decider signed counts") {
     for
       p    <- Projects.inMemory(Map.empty)
-      a    <- Projects.analysed(p, Projects.rooms, Nil)
+      a    <- Projects.analysed(p, Projects.links, Nil)
       id    = a.subjects.inOrder.headOption.fold(fail("no subject"))(_.id)
       _    <- p.git.commit(Map(Records.path(LedgerFile.format) -> Files.print(LedgerFile.format,
                 frflow.decision.ledger.Ledger.empty)))
       _    <- DecideProgram(p.ports)(a.subjects, Command.Accept(List(id), "it says what is trusted", Nil, Map.empty),
                 "ann")
-      read <- Projects.analysed(p, Projects.rooms, Nil)
+      read <- Projects.analysed(p, Projects.links, Nil)
     yield assertEquals((read.inputs.ledger.others, read.reading.state(id)), (Nil, ReviewState.Accepted))
   }
 
   test("a committed version of the ledger that does not read: no decision counts, and none is taken") {
     for
       p    <- Projects.inMemory(Map.empty)
-      a    <- Projects.analysed(p, Projects.rooms, Nil)
+      a    <- Projects.analysed(p, Projects.links, Nil)
       id    = a.subjects.inOrder.headOption.fold(fail("no subject"))(_.id)
       _    <- DecideProgram(p.ports)(a.subjects, Command.Accept(List(id), "it says what is trusted", Nil, Map.empty),
                 "ann")
       _    <- p.git.commit(Map(Records.path(LedgerFile.format) -> "{ not a ledger"))
-      read <- Projects.analysed(p, Projects.rooms, Nil)
+      read <- Projects.analysed(p, Projects.links, Nil)
       out  <- DecideProgram(p.ports)(read.subjects, Command.Accept(List(id), "again", Nil, Map.empty), "ann")
     yield
       assertEquals(read.inputs.ledger.others.map(x => (x._1, x._3)), List(id -> Uncounted.Unreadable))
@@ -61,12 +61,12 @@ class ReadInputsSuite extends munit.CatsEffectSuite:
 
   test("a proof is rocq/Proofs/<Model>/<node>.v, directly there and named by an identifier; any other a stray") {
     def at(path: String) = RelPath.fromIdentifiers("rocq", s"Proofs/$path")
-    val strays = List(at("Rooms/sub/grantWhenFree.v"), at("Rooms/not-a-node.v"), at("Other/grantWhenFree.v"),
+    val strays = List(at("Shortener/sub/grantWhenFree.v"), at("Shortener/not-a-node.v"), at("Other/grantWhenFree.v"),
       at("Stray.v"))
     for
-      p <- Projects.inMemory((at("Rooms/grantWhenFree.v") :: strays).map(_ -> "Lemma x : True.\nProof. auto. Qed.\n")
-             .toMap)
-      a <- Projects.analysed(p, Projects.rooms, Nil)
+      p <- Projects.inMemory((at("Shortener/grantWhenFree.v") :: strays)
+             .map(_ -> "Lemma x : True.\nProof. auto. Qed.\n").toMap)
+      a <- Projects.analysed(p, Projects.links, Nil)
     yield
       assertEquals(a.inputs.proofs.files.keySet, Set(NodeId("grantWhenFree")))
       assertEquals(a.inputs.proofs.strays.toSet, strays.toSet)

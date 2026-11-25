@@ -13,8 +13,8 @@ import scala.collection.mutable.ListBuffer
 class ExamplesRunnerSuite extends munit.FunSuite:
   private def verdicts(written: FrFlowExamples): List[(String, Verdict)] = Verdicts.of(written)
 
-  test("every example of rooms and auth holds of the code, in the order written") {
-    assertEquals(verdicts(rooms.GrantedExamples()).map(_._2), List.fill(2)(Verdict.Ran(OnCode.Holds)))
+  test("every example of links and auth holds of the code, in the order written") {
+    assertEquals(verdicts(links.LinksExamples()).map(_._2), List.fill(3)(Verdict.Ran(OnCode.Holds)))
     assertEquals(verdicts(auth.DecisionExamples()).map(_._1).headOption,
       Some("Alice's token and a grant for /a: she gets in"))
     assert(verdicts(auth.DecisionExamples()).forall(_._2 == Verdict.Ran(OnCode.Holds)))

@@ -4,8 +4,6 @@ import frflow.*
 import frflow.core.analysis.Problem
 import frflow.proof.layout.{Laid, Notation}
 
-import rooms.Booking
-
 /** The review's probes on the whole pipeline (elaborated, validated, laid out): no false statement prints as a
   * tautology, a FrModel named as a record is refused, and a fact about the outside is no part of a formula.
   */
@@ -28,6 +26,7 @@ class CaptureSuite extends munit.FunSuite:
   private val probed = FrModel("Probe")(everyIsSome, everyIsPositive, underLimit)
 
   /** A define making a booking with its start and end swapped, in a FrModel named as the record. */
+  private final case class Booking(room: String, start: BigInt, end: BigInt) derives FrSpec
   private val swapped = define { (r: Term[String], s: Term[BigInt], e: Term[BigInt]) => make[Booking](r, e, s) }
   private val startIsGiven = Node.claim("A swapped booking starts where it was asked to.")(
     forall((r: Term[String], s: Term[BigInt], e: Term[BigInt]) => swapped(r, s, e).start === s))

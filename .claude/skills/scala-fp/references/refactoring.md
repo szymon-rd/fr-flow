@@ -23,7 +23,6 @@ python3 -I .claude/skills/scala-fp/references/measure.py > "$BASE/measure.txt"
 `$BASE` is a directory in your scratchpad. The outputs users see are pinned by
 golden files in the modules' test resources: each example's Rocq
 (`modules/proof/src/test/resources/<example>`, `modules/project/src/test/resources`),
-the CLI's walk-through of rooms (`modules/cli/src/test/resources/rooms/walkthrough`)
 and the files under `.frflow/` (`modules/wire/src/test/resources`), all checked by
 `sbt test` and `sbt rocqTest`; each example's `PortSuite` compares it with
 `reference/`. If the type you change has a JSON form that is written to disk

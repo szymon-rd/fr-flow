@@ -12,8 +12,8 @@ import java.time.Instant
   * test, but a shortfall of cases on a checked one is.
   */
 class ReadProofSuite extends munit.FunSuite:
-  private val a = Projects.bare(Projects.rooms)
-  private val (book, grant) = (NodeId("storeWhenNoOverlap"), NodeId("answerWhenNoOverlap"))
+  private val a = Projects.bare(Projects.links)
+  private val (book, grant) = (NodeId("removedCodeLeadsNowhere"), NodeId("removeKeepsOtherCodes"))
 
   private def checked(id: NodeId, key: CheckKey, results: Result*): Analysis =
     a.withRecorded(Recorded(Checks(Map(id -> NodeCheck(id, key, CheckStatus.Proven, results.toList, Nil,

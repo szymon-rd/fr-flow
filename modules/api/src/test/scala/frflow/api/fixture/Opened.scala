@@ -24,8 +24,8 @@ object Opened:
   def project(kb: FrModel, examples: List[Example] = Nil): Project =
     Project(Projects.elaborated(kb), examples, List(sources), Path.of("../../rocq"))
 
-  lazy val rooms: Project =
-    Project(Projects.rooms, Projects.roomsExamples, List(sources), Path.of("../../rocq"))
+  lazy val links: Project =
+    Project(Projects.links, Projects.linksExamples, List(sources), Path.of("../../rocq"))
 
   lazy val before: Project = project(Shelf.Before.kb)
   lazy val after: Project = project(Shelf.After.kb)

@@ -7,14 +7,14 @@ import frflow.project.port.Records
 import frflow.wire.file.Files
 import frflow.wire.snapshot.{Body, Snapshot}
 
-/** `status` and `export` on rooms in memory: the Rocq and the snapshot written, the snapshot reading back in
-  * decision order.
+/** `status` and `export` on the link shortener in memory: the Rocq and the snapshot written, the snapshot reading back
+  * in decision order.
   */
 class StatusProgramSuite extends munit.CatsEffectSuite:
   test("status writes the Rocq and the snapshot: every node proposed, in decision order") {
     for
       p      <- Projects.inMemory(Map.empty)
-      a      <- Projects.analysed(p, Projects.rooms, Projects.roomsExamples)
+      a      <- Projects.analysed(p, Projects.links, Projects.linksExamples)
       _      <- StatusProgram(p.files)(a)
       held   <- p.files.all
     yield
@@ -28,15 +28,15 @@ class StatusProgramSuite extends munit.CatsEffectSuite:
   test("the snapshot says how each claim is checked, the code it is proven of, and its examples as checked") {
     for
       p    <- Projects.inMemory(Map.empty)
-      a    <- Projects.analysed(p, Projects.rooms, Projects.roomsExamples)
+      a    <- Projects.analysed(p, Projects.links, Projects.linksExamples)
       text <- ExportProgram(p.files)(a)
     yield
       val s = Files.read(Snapshot.format, text).fold(e => fail(e.toString), identity)
-      val grant = s.nodes.find(_.header.id == "answerWhenNoOverlap").map(_.body)
+      val grant = s.nodes.find(_.header.id == "removeKeepsOtherCodes").map(_.body)
       assert(grant.exists {
         case Body.Stated(checking, _, code, _) =>
-          checking.nonEmpty && code.exists(_.proven.contains("storedBookings_book"))
+          checking.nonEmpty && code.exists(_.proven.contains("retiringLinks_remove"))
         case _                                 => false
       }, grant)
-      assertEquals(s.examples.map(_.onCode), List("holds", "holds"))
+      assertEquals(s.examples.map(_.onCode), List.fill(3)("holds"))
   }

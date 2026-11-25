@@ -10,7 +10,7 @@ The exceptions are the scala-fp skill's (its "Size budgets"), each read off the 
   define's (`Stated`) function type, taking one parameter per input of that type (ARCHITECTURE.md section 11, rule 4), may take more than four;
 - the facade package `frflow` (`modules/eval/src/main/scala/frflow`) may hold fewer than three files;
 - an example's app and tests (`examples/NAME/app/src/…`, `examples/NAME/src/test/…`) may hold fewer than three
-  files a package: they are its model's package (`rooms`), which the layout splits across the example's projects.
+  files a package: they are its model's package (`links`), which the layout splits across the example's projects.
 Parameters are counted over every list of a def but `using` ones, as the skill's `measure.py` counts them. The
 one-`match` rule does not check that the match is over an ADT.
 """

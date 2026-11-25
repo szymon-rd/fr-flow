@@ -27,10 +27,9 @@ import scala.concurrent.duration.*
     }
 
   private val models: List[(String, FrModel, () => FrFlowExamples)] = List(
-    ("rooms", rooms.rooms, () => rooms.GrantedExamples()),
+    ("links", links.links, () => links.LinksExamples()),
     ("auth", auth.knowledge, () => auth.DecisionExamples()),
     ("payments", payments.payments, () => payments.PaymentsExamples()),
-    ("shop", shop.shop, () => shop.ShopExamples()),
     ("prices", PricesModel.model, () => PricesExamples()),
     ("counter", CounterModel.model, () => CounterExamples()),
     ("rates", RatesModel.model, () => RatesExamples()),
@@ -38,10 +37,9 @@ import scala.concurrent.duration.*
 
   /** Each model's digests: of its Rocq, and of its nodes' content. */
   private val expected: Map[String, (String, String)] = Map(
-    "rooms" -> ("faa233bec66e7844", "dbbe847152fce9cf"),
+    "links" -> ("36a72ae084aa9ca8", "53f4eaeeeb532e21"),
     "auth" -> ("43438775ed73d05d", "5ef1cc0961bcd7fe"),
     "payments" -> ("555080996518efa8", "9f236695fc96643d"),
-    "shop" -> ("2970b8ab303886f6", "036de7a27a4323a6"),
     "prices" -> ("4a623e791825ebd0", "c55df6f055a7bc15"),
     "counter" -> ("fb5d27bb6aa4b3e0", "6ce488dd43988124"),
     "rates" -> ("1b59be6fbbfa16c8", "f74274715f6497e0"),

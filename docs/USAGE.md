@@ -18,7 +18,7 @@ reported of its lemma. `FRFLOW_ROCQ_JOBS` compiles run at once (one fewer than t
 given). `bin/frflow PROJECT COMMAND`
 runs a project's CLI on the terminal, with colors and the interactive review, compiling with sbt on first use and
 after a change; `sbt "PROJECT/run COMMAND"` runs it through sbt, plain. `--help` lists the commands. A project is
-`examples/PROJECT`; FrFlow's own (`rooms`, `auth`, `payments`, `shop`) are there too.
+`examples/PROJECT`; FrFlow's own (`links`, `auth`, `payments`, `ox`) are there too.
 
 FrFlow's own tests: `sbt test` runs the fast ones (under a minute); the ones that run Rocq end to end (tagged `Rocq`)
 run with `sbt rocqTest`; `sbt testAll` runs both. Per module, `sbt core/test`, `sbt project/test` and so on; eval's
@@ -154,7 +154,7 @@ properties: "eventually" is out of scope for now.
 ### Giving a Declaration its meaning
 
 Each is a Definition of the Declaration, listed in the FrModel beside its nodes
-(`FrModel("Rooms")(bookWhenFree, …, book.define(bookIfGranted), …)`); `kb.defining(…)` is the same model with more
+(`FrModel("Shortener")(shortenIsIdempotent, …, shortener.define(lifted[RetiringLinks]))`); `kb.defining(…)` is the same model with more
 listed.
 
 | Written | Code | Claims mentioning it are |
@@ -184,7 +184,7 @@ members (a `caps.Mutable` when a member changes it, a plain trait when none does
 by them (`limits.authorise(p).result`, `.after`, `.in(state)`,
 `.steps`, `.amongOthers(run => …)`), claims on that word, and its Definition `limits.define(lifted[Class])`,
 the class that implements it, compiled from its TASTy as the model is built, which Rocq proves meets them
-([the payment stream](../examples/payments/README.md), [LIFTED.md](LIFTED.md) "A structure: a value with members").
+([the link shortener](../examples/links/README.md), [LIFTED.md](LIFTED.md) "A structure: a value with members").
 
 **Values from outside.** Statements are about values, never about a function's inputs. What comes from outside has a
 type, and what is trusted of it is an assumption of `always` on that type
@@ -239,9 +239,12 @@ Examples are ordinary tests beside the model, read by `check` and checked agains
 claims:
 
 ```scala
-class GrantedExamples extends FrFlowExamples(rooms):
-  example("back to back: granted"):
-    granted(RoomBookings("Oak", List(Booking("Oak", 9, 10))), Booking("Oak", 10, 11)) is true
+class LinksExamples extends FrFlowExamples(links):
+  private val one = shortener.holding(RetiringLinks(List(Link(Code(0), home)), Nil))
+
+  example("a URL shortened again: its code, and nothing changed"):
+    val asked = shortener.shorten(home).in(one)
+    (asked.result is Code(0)) && asked.changesNothing
 ```
 
 `example(name, d := v)` sets a provided Definition's value; such an example is checked in Scala only. An example
@@ -264,9 +267,8 @@ parametrised set, for a variant of the model) turns `status` red: give it a cons
 the model as written, or keep it out of the test classes `check` reads (a suite's own test sources, not the
 model's). Two classes of one
 model of one name are refused (their theorems would be one). In a project `init` made, the examples also run with `sbt PROJECT/test` (FrFlow's test framework,
-which `init` adds). FrFlow's own four are not run that way: their model projects (`roomsModel`, …) have no test
-framework, since testing's tests depend on them; their examples run in testing's `ExamplesSuite` and in each one's
-`PortSuite` (`sbt test`).
+which `init` adds). FrFlow's own are not run that way: their model projects (`linksModel`, …) have no test
+framework, since testing's tests depend on them; their examples run in testing's `ExamplesSuite` (`sbt test`).
 
 ### Decisions
 
@@ -387,9 +389,9 @@ One sbt project each, under `modules/`, each with its own top package (`frflow.<
 
 FrFlow's examples are projects under `examples/<name>`, each in two sbt projects so FrFlow's suites can test it
 with no cycle in the build: its model (`<name>Model`: `src/main`, its examples in `src/test`, its proofs in
-`rocq/Proofs`), which testing's tests depend on, and its command line (`<name>`, its main object in `app`). Each is
-checked whole by its `PortSuite` (project's tests) against what the library before the rebuild recorded
-(`reference/`), and rooms' walk-through by `WalkthroughSuite` (cli's tests).
+`rocq/Proofs`), which testing's tests depend on, and its command line (`<name>`, its main object in `app`). The
+shortener and the payment stream are checked whole in Rocq by `LinksRocqSuite` and `PaymentsRocqSuite` (project's
+tests, `sbt rocqTest`).
 
 ## With an AI agent
 
