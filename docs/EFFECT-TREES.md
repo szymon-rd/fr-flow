@@ -506,6 +506,7 @@ class   ::= name, fields, methods, initialiser
 method  ::= name, parameters, result type, block
 block   ::= stmt* atom
 stmt    ::= val x = rhs
+          | var x = atom                               declaration of a local var
           | x = atom                                   assignment to a local var
           | atom.f = atom                              field write
           | while (block) block
