@@ -72,7 +72,8 @@ Record classes := Classes {
   throwables : list string;    (* classes of what is thrown *)
   functions : list string;     (* the one method of each interface a function is taken as: its class and name *)
   heirs : list string;         (* classes outside the JDK below one known by its identity, or functions *)
-  objects : list string }.     (* classes above an object the code names: a Scala `object` is a value of them *)
+  objects : list string;       (* classes above an object the code names: a Scala `object` is a value of them *)
+  bodies : code -> val -> option program }.   (* the program of what is called, where the code is given as programs *)
 
 Definition reference (known : classes) (cls : string) : bool := existsb (String.eqb cls) (identities known).
 
@@ -182,7 +183,13 @@ Section Conforms.
   Variable files : list tree.
   Variable T : table.
   Variable known : classes.
-  Definition run : code -> val -> program := Meaning.interp T Outside.outside Library.supers.
+  (** What a call runs: the program given for it, where the code is given as programs (`bodies`: one per
+      method, evaluated where the code is read); otherwise the meaning of its tree. *)
+  Definition run (c : code) (arg : val) : program :=
+    match bodies known c arg with
+    | Some p => p
+    | None => Meaning.interp T Outside.outside Library.supers c arg
+    end.
 
   Variable N : naming.
 

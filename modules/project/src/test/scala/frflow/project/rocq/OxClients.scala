@@ -92,7 +92,8 @@ object OxClients:
        |    ${texts(known.throwables)}
        |    ${texts(known.functions)}
        |    ${texts(known.heirs)}
-       |    ${texts(known.objects)}.""".stripMargin
+       |    ${texts(known.objects)}
+       |    (fun _ _ => None).""".stripMargin
 
   /** How a program is run, and that what a run does is an execution of the code. */
   private val running: String =

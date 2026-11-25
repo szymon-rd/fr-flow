@@ -35,7 +35,8 @@ object CodeModules:
        |    ${texts(known.throwables)}
        |    ${texts(known.functions)}
        |    ${texts(known.heirs)}
-       |    ${texts(known.objects)}.""".stripMargin
+       |    ${texts(known.objects)}
+       |    (fun _ _ => None).""".stripMargin
 
   private def together(l: Lowering, us: List[ReadUnit]): String =
     val logical = (u: ReadUnit) => RocqProject.logical(l.layout.codeUnit(u.name))

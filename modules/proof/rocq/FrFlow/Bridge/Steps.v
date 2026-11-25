@@ -92,23 +92,23 @@ Section Steps.
       values it shows, what the laws are asked of it (`act`), the program it runs, and what follows it. *)
   Inductive calls (p : program) : kind -> string -> list val -> option intent -> program -> (res -> program) -> Prop :=
     | calls_outside m args k lp :
-        settles T p (Vis (ExtCall 0 m args) k) -> named m args = Some lp ->
+        settles T known p (Vis (ExtCall 0 m args) k) -> named m args = Some lp ->
         calls p (Outer m) m args None lp k
     | calls_method s on args k :
-        settles T p (Call (Method s) (VList (on :: args)) k) ->
+        settles T known p (Call (Method s) (VList (on :: args)) k) ->
         calls p (Meth s) (label_of s) (receiver on ++ args) (Some (method_act known s on args))
-          (does T (method_act known s on args)) k
+          (does T known (method_act known s on args)) k
     | calls_function c arg k m :
-        settles T p (Call c arg k) -> applied c arg -> called_as c arg m ->
+        settles T known p (Call c arg k) -> applied c arg -> called_as c arg m ->
         calls p Func m (VCode c :: arguments arg) (Some (AsFunction c (arguments arg)))
-          (does T (AsFunction c (arguments arg))) k.
+          (does T known (AsFunction c (arguments arg))) k.
 
   (** One step of the thread `t`, in its call `top` with `p` left of it and the calls `under` waiting, at the
       moment `w`: what it did, what the thread becomes, the state, and the threads started. *)
   Inductive shape (w : Z) (nxt : nat) (σ : state) (t : tid) (top : call) (p : program)
       (under : list (call * (res -> program))) : action -> thread -> state -> list thread -> Prop :=
     | shape_respond x :
-        settles T p (Ret x) -> answer_ok known top under x = true ->
+        settles T known p (Ret x) -> answer_ok known top under x = true ->
         shape w nxt σ t top p under (Responds t (made top) x)
           (match under with [] => Done t x | (c, k) :: rest => Active t c (k x) rest end)
           (match under with [] => terminate σ t | _ :: _ => σ end) []
@@ -117,7 +117,7 @@ Section Steps.
         shape w nxt σ t top p under (Calls t (made top) m shown)
           (Active t (CallOf w kd) lp ((top, k) :: under)) σ []
     | shape_op X (o : op X) k x σ' :
-        settles T p (Vis o k) -> (outside_ top || is_said o) = true ->
+        settles T known p (Vis o k) -> (outside_ top || is_said o) = true ->
         oprun t nxt o σ = Did x σ' -> op_ok T known top σ o x = true ->
         shape w nxt σ t top p under (Does t (made top) o x σ') (Active t top (k x) under) σ' (started σ o).
 
@@ -162,8 +162,8 @@ Section Steps.
     exists act, shape w nxt σ t top p under act th' σ' new /\ refs' = extend refs0 (mentions act) /\
       placed_in σ' (mentions act) = true /\ e = render refs' act.
   Proof.
-    cbn [step_thread]. pose proof (settle_settles T 1000 p) as Hs. set (refs := extend refs0 [VTid t]).
-    destruct (settle T 1000 p) as [x | X o k | S B body s0 k | c arg k]; intros H.
+    cbn [step_thread]. pose proof (settle_settles T known 1000 p) as Hs. set (refs := extend refs0 [VTid t]).
+    destruct (settle T known 1000 p) as [x | X o k | S B body s0 k | c arg k]; intros H.
     - apply guard_stepped in H as [Hans H]. apply guard_stepped in H as [Hp H].
       exists (Responds t (made top) x).
       destruct under as [| [c k] rest]; injection H as <- <- <- <- <-; subst refs;
@@ -205,7 +205,7 @@ Section Steps.
   Qed.
 
   (** A call the laws are asked of runs what they are asked: not the library's program. *)
-  Lemma calls_does (p : program) kd m shown x lp k : calls p kd m shown (Some x) lp k -> lp = does T x.
+  Lemma calls_does (p : program) kd m shown x lp k : calls p kd m shown (Some x) lp k -> lp = does T known x.
   Proof. intros H. inversion H; subst; reflexivity. Qed.
 
   (** Such a call is kept as one of the code: its steps are events. *)

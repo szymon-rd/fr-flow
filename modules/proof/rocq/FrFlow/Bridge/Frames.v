@@ -45,7 +45,7 @@ Section Frames.
 
   Local Abbreviation program := Conforms.program.
   Local Abbreviation res := Conforms.res.
-  Local Abbreviation run := (Conforms.run T).
+  Local Abbreviation run := (Conforms.run T known).
 
   (** ** Threads *)
 
@@ -103,7 +103,7 @@ Section Frames.
         end
     end.
 
-  Lemma settle_settles (fuel : nat) (p : program) : settles T p (settle fuel p).
+  Lemma settle_settles (fuel : nat) (p : program) : settles T known p (settle fuel p).
   Proof.
     revert p. induction fuel as [| fuel IH]; intros p; cbn; [apply settled |].
     destruct p as [x | X o k | S B body s k | c arg k]; try apply settled.
@@ -296,14 +296,14 @@ Section Frames.
                 let act := method_act s on args in
                 guard (agreed T known (label_of s) (receiver on ++ args) (Some act))
                   (disagreement T known (label_of s) (receiver on ++ args) (Some act))
-                  (push w σ refs t a top under (Meth s) (does T act) k (label_of s) (receiver on ++ args))
+                  (push w σ refs t a top under (Meth s) (does T known act) k (label_of s) (receiver on ++ args))
             | Thunk _ _, VList [] => Stuck "an argument by name that was not evaluated where it stands"
             | Fn _ _ _, _ | Thunk _ _, _ =>
                 let m := match c, arg with Thunk _ _, VUnit => by_name_apply | _, _ => function_apply end in
                 let act := AsFunction c (arguments arg) in
                 guard (agreed T known m (VCode c :: arguments arg) (Some act))
                   (disagreement T known m (VCode c :: arguments arg) (Some act))
-                  (push w σ refs t a top under Func (does T act) k m (VCode c :: arguments arg))
+                  (push w σ refs t a top under Func (does T known act) k m (VCode c :: arguments arg))
             | _, _ => Stuck "a call of what is no method and no function"
             end
         | Iter _ _ _ => Stuck "a loop that makes no event"

@@ -270,7 +270,7 @@ Lemma its_waiting called (typed : res -> Prop) (k : res -> program) a i e :
 Proof. intros [H | H]; [left; exact H | right; destruct e; exact H]. Qed.
 
 Lemma takes_returned T known N a i w e p m args (k : res -> program) ys y v spawns :
-  settles T p (Vis (ExtCall 0 m args) k) ->
+  settles T known p (Vis (ExtCall 0 m args) k) ->
   e = Event_Atomic a (Some i) (Invocation_mk m ys) (Response_Returned y) spawns ->
   Forall2 (names N) ys args -> names N y v -> returns known m (inr v) ->
   takes T known N a i w e (Running p) (Running (k (inr v))).
@@ -284,9 +284,9 @@ Proof. intros He Hy Ht. eapply takes_response; [exact He | exact Hy | exact Ht].
 (** What a program does next, past what makes no event. *)
 Ltac settle :=
   lazymatch goal with
-  | |- settles ?T ?p ?q =>
+  | |- settles ?T ?K ?p ?q =>
       let p' := eval lazy head beta iota zeta delta in p in
-      change (settles T p' q);
+      change (settles T K p' q);
       lazymatch p' with
       | Iter _ _ _ => apply settles_iter; settle
       | Call (Init _) _ _ => apply settles_init; settle

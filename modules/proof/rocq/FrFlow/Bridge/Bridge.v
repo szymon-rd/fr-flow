@@ -368,7 +368,7 @@ Section Bridge.
   (** ** A call the machine made of the code follows its program *)
 
   (** The thread at the place `n`, the thread `t`, made a call at `j` that the laws are asked of: it runs
-      `does T x`, and from then on it is where the machine has it. *)
+      `does T known x`, and from then on it is where the machine has it. *)
   Lemma called_follows (j n : nat) (t : tid) (top : call) (lp : program) (k : res -> program)
       (under : list (call * (res -> program))) (kd : kind) :
     (j < len)%nat -> has_name R (VTid t) -> outside_ (CallOf (Z.of_nat j) kd) = false ->

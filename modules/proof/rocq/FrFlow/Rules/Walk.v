@@ -170,7 +170,7 @@ Section Walk.
   Variable history : Z -> Event.
 
   Abbreviation takes := (takes T known N).
-  Abbreviation settles := (settles T).
+  Abbreviation settles := (settles T known).
   Abbreviation follows := (follows T known N history).
 
   (** ** What a program does next *)
@@ -485,7 +485,7 @@ Section Walk.
     exists args (at_ : Z -> stage), Forall2 (names N) ys args /\ passed known d args /\
       (forall w, direct a from (history w) -> from < w) /\
       (forall w, from < w ->
-        steps a from (from + 1) (Running (run T (Method s) (VList (vref cls r :: args)))) w (at_ w)) /\
+        steps a from (from + 1) (Running (run T known (Method s) (VList (vref cls r :: args)))) w (at_ w)) /\
       (forall w, from < w -> its (at_ w) a from (history w) -> takes a from w (history w) (at_ w) (at_ (w + 1))).
   Proof.
     intros He Hy Hd. destruct (proj1 conformed _ _ _ _ _ _ _ _ _ He Hy Hd) as (args & Hys & Hp & Hf).
@@ -500,7 +500,7 @@ Section Walk.
     exists args (at_ : Z -> stage), Forall2 (names N) ys args /\ passed known d args /\
       (forall w, direct a from (history w) -> from < w) /\
       (forall w, from < w -> steps a from (from + 1)
-        (Running (run T (Method (Member owner name signature)) (VList (module_val T owner :: args)))) w (at_ w)) /\
+        (Running (run T known (Method (Member owner name signature)) (VList (module_val T owner :: args)))) w (at_ w)) /\
       (forall w, from < w -> its (at_ w) a from (history w) -> takes a from w (history w) (at_ w) (at_ (w + 1))).
   Proof.
     intros He Hc Hm Ha Hd.
@@ -547,7 +547,7 @@ Section Walk.
     applies known m = true -> names N y (VCode c) -> written files c ->
     exists args (at_ : Z -> stage), Forall2 (names N) ys args /\ given known c args /\
       (forall w, direct a from (history w) -> from < w) /\
-      (forall w, from < w -> steps a from (from + 1) (Running (run T c (VList args))) w (at_ w)) /\
+      (forall w, from < w -> steps a from (from + 1) (Running (run T known c (VList args))) w (at_ w)) /\
       (forall w, from < w -> its (at_ w) a from (history w) -> takes a from w (history w) (at_ w) (at_ (w + 1))).
   Proof.
     intros He Hm Hy Hw.

@@ -252,8 +252,8 @@ Section Logic.
   Qed.
 
   Lemma settles_turn S B (body : S -> Machine.P code obj (S + B)) s (k : B -> program) q :
-    settles T (Iter body s k) q -> (match q with Iter _ _ _ => False | _ => True end) ->
-    settles T (unfold_iter body s k) q.
+    settles T known (Iter body s k) q -> (match q with Iter _ _ _ => False | _ => True end) ->
+    settles T known (unfold_iter body s k) q.
   Proof.
     intros H Hn. remember (Iter body s k) as p eqn:E.
     destruct H as [p | S' B' body' s' k' p H | cls arg k' p H | b sc k' p H];
@@ -298,8 +298,8 @@ Section Logic.
 
   (** An initialiser run where an object is made makes no event of its own: what it runs is what comes next. *)
   Lemma settles_made cls arg (k : res -> program) q :
-    settles T (Call (Init cls) arg k) q -> (match q with Call (Init _) _ _ => False | _ => True end) ->
-    settles T (pbind (run T (Init cls) arg) k) q.
+    settles T known (Call (Init cls) arg k) q -> (match q with Call (Init _) _ _ => False | _ => True end) ->
+    settles T known (pbind (run T known (Init cls) arg) k) q.
   Proof.
     intros H Hn. remember (Call (Init cls) arg k) as p eqn:E.
     destruct H as [p | S' B' body' s' k' p H | cls' arg' k' p H | b sc k' p H];
@@ -309,9 +309,9 @@ Section Logic.
 
   (** An argument that a primitive takes by name is evaluated where it stands: no event of its own either. *)
   Lemma settles_stood b sc (k : res -> program) q :
-    settles T (Call (Thunk b sc) (VList []) k) q ->
+    settles T known (Call (Thunk b sc) (VList []) k) q ->
     (match q with Call (Thunk _ _) (VList []) _ => False | _ => True end) ->
-    settles T (pbind (run T (Thunk b sc) (VList [])) k) q.
+    settles T known (pbind (run T known (Thunk b sc) (VList [])) k) q.
   Proof.
     intros H Hn. remember (Call (Thunk b sc) (VList []) k) as p eqn:E.
     destruct H as [p | S' B' body' s' k' p H | cls' arg' k' p H | b' sc' k' p H];
@@ -320,7 +320,7 @@ Section Logic.
   Qed.
 
   Lemma takes_made cls arg (k : res -> program) w e st :
-    takes w e (Running (Call (Init cls) arg k)) st -> takes w e (Running (pbind (run T (Init cls) arg) k)) st.
+    takes w e (Running (Call (Init cls) arg k)) st -> takes w e (Running (pbind (run T known (Init cls) arg) k)) st.
   Proof.
     intros H. inversion H; subst.
     - eapply takes_op; [apply settles_made; [eassumption | exact I] | eassumption].
@@ -336,12 +336,12 @@ Section Logic.
   Qed.
 
   Lemma meets_made tr w0 cls arg (k : res -> program) w :
-    meets tr w0 (Running (pbind (run T (Init cls) arg) k)) w -> meets tr w0 (Running (Call (Init cls) arg k)) w.
+    meets tr w0 (Running (pbind (run T known (Init cls) arg) k)) w -> meets tr w0 (Running (Call (Init cls) arg k)) w.
   Proof. apply meets_alike. intros v e st. apply takes_made. Qed.
 
   Lemma takes_stood b sc (k : res -> program) w e st :
     takes w e (Running (Call (Thunk b sc) (VList []) k)) st ->
-    takes w e (Running (pbind (run T (Thunk b sc) (VList [])) k)) st.
+    takes w e (Running (pbind (run T known (Thunk b sc) (VList [])) k)) st.
   Proof.
     intros H. inversion H; subst.
     - eapply takes_op; [apply settles_stood; [eassumption | exact I] | eassumption].
@@ -359,7 +359,7 @@ Section Logic.
   Qed.
 
   Lemma meets_stood tr w0 b sc (k : res -> program) w :
-    meets tr w0 (Running (pbind (run T (Thunk b sc) (VList [])) k)) w ->
+    meets tr w0 (Running (pbind (run T known (Thunk b sc) (VList [])) k)) w ->
     meets tr w0 (Running (Call (Thunk b sc) (VList []) k)) w.
   Proof. apply meets_alike. intros v e st. apply takes_stood. Qed.
 
@@ -391,7 +391,7 @@ Section Logic.
     history i = Event_Invoke a inside (Invocation_mk (label_of s) (y :: ys)) ->
     names N y (vref cls r) -> impl T cls s = Some d ->
     (forall args w, Forall2 (names N) ys args -> passed known d args ->
-       meets [] (i + 1) (Running (run T (Method s) (VList (vref cls r :: args)))) w) ->
+       meets [] (i + 1) (Running (run T known (Method s) (VList (vref cls r :: args)))) w) ->
     forall w, direct a i (history w) -> claim w.
   Proof.
     intros He Hy Hd H w Hdir.
@@ -409,7 +409,7 @@ Section Logic.
     impl T owner (Member owner name signature) = Some d ->
     (forall args w, Forall2 (names N) ys args -> passed known d args ->
        meets [] (i + 1)
-         (Running (run T (Method (Member owner name signature)) (VList (module_val T owner :: args)))) w) ->
+         (Running (run T known (Method (Member owner name signature)) (VList (module_val T owner :: args)))) w) ->
     forall w, direct a i (history w) -> claim w.
   Proof.
     intros He Hc Hm Ha Hd H w Hdir.
@@ -426,7 +426,7 @@ Section Logic.
     history i = Event_Invoke a inside (Invocation_mk m (y :: ys)) ->
     applies known m = true -> names N y (VCode c) -> written files c ->
     (forall args w, Forall2 (names N) ys args -> given known c args ->
-       meets [] (i + 1) (Running (run T c (VList args))) w) ->
+       meets [] (i + 1) (Running (run T known c (VList args))) w) ->
     forall w, direct a i (history w) -> claim w.
   Proof.
     intros He Hm Hy Hc H w Hdir.

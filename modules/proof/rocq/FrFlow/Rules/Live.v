@@ -441,11 +441,11 @@ Section Live.
   Proof. apply leads_alike. intros v e st. apply takes_iter. Qed.
 
   Lemma leads_made w0 cls arg (k : res -> program) :
-    leads w0 (Running (pbind (run T (Init cls) arg) k)) -> leads w0 (Running (Call (Init cls) arg k)).
+    leads w0 (Running (pbind (run T known (Init cls) arg) k)) -> leads w0 (Running (Call (Init cls) arg k)).
   Proof. apply leads_alike. intros v e st. apply takes_made. Qed.
 
   Lemma leads_stood w0 b sc (k : res -> program) :
-    leads w0 (Running (pbind (run T (Thunk b sc) (VList [])) k)) ->
+    leads w0 (Running (pbind (run T known (Thunk b sc) (VList [])) k)) ->
     leads w0 (Running (Call (Thunk b sc) (VList []) k)).
   Proof. apply leads_alike. intros v e st. apply takes_stood. Qed.
 
@@ -467,7 +467,7 @@ Section Live.
     history i = Event_Invoke a inside (Invocation_mk (label_of s) (y :: ys)) ->
     names N y (vref cls r) -> impl T cls s = Some d -> moves ->
     (forall args, Forall2 (names N) ys args -> passed known d args ->
-       leads (i + 1) (Running (run T (Method s) (VList (vref cls r :: args))))) ->
+       leads (i + 1) (Running (run T known (Method s) (VList (vref cls r :: args))))) ->
     G.
   Proof.
     intros He Hy Hd Hm H. destruct conformed as (Hcalls & _).
@@ -484,7 +484,7 @@ Section Live.
     moves ->
     (forall args, Forall2 (names N) ys args -> passed known d args ->
        leads (i + 1)
-         (Running (run T (Method (Member owner name signature)) (VList (module_val T owner :: args))))) ->
+         (Running (run T known (Method (Member owner name signature)) (VList (module_val T owner :: args))))) ->
     G.
   Proof.
     intros He Hc Hmod Hat Hd Hm H. destruct conformed as (_ & Hcalls & _).
@@ -497,7 +497,7 @@ Section Live.
   Lemma function_leads inside m c y ys :
     history i = Event_Invoke a inside (Invocation_mk m (y :: ys)) ->
     applies known m = true -> names N y (VCode c) -> written files c -> moves ->
-    (forall args, Forall2 (names N) ys args -> given known c args -> leads (i + 1) (Running (run T c (VList args)))) ->
+    (forall args, Forall2 (names N) ys args -> given known c args -> leads (i + 1) (Running (run T known c (VList args)))) ->
     G.
   Proof.
     intros He Hap Hy Hw Hm H. destruct conformed as (_ & _ & Hcalls & _).

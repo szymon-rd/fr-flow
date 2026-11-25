@@ -240,8 +240,8 @@ Section Checks.
 
   Definition does (x : intent) : program :=
     match x with
-    | AsMethod s on args => run T (Method s) (VList (on :: args))
-    | AsFunction c args => run T c (VList args)
+    | AsMethod s on args => run T known (Method s) (VList (on :: args))
+    | AsFunction c args => run T known c (VList args)
     end.
 
   Definition intent_eqb (x y : intent) : bool :=
