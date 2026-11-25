@@ -13,7 +13,7 @@ from a library's laws, proofs by induction, proofs about threads on the JVM, and
 
 - Section 2 defines the terms and summarises the model.
 - Section 3 specifies each part of the model.
-- Section 4 describes the implementation in the repository.
+- Section 4 specifies the translation pipeline and describes its implementation in the repository.
 - Section 5 lists coverage: the Scala that is read, the parts of the model that are implemented, the order of
   remaining work, and open questions.
 
@@ -41,7 +41,7 @@ Code blocks are Rocq unless marked otherwise.
 | `S x`, `tt` | `x + 1`; the unit value. |
 | `t ~~ u` | Programs `t` and `u` are equivalent (3.8). |
 
-The programs in sections 2 and 3 are written by hand and simplified: memory is a single number. Section 4.2
+The programs in sections 2 and 3 are written by hand and simplified: memory is a single number. Section 4.4
 shows emitted code.
 
 ## 2. Overview
@@ -82,7 +82,19 @@ corresponds to a declaration.
 A proof proceeds along the program, one operation at a time, using the laws of that operation. A proof at a
 layer does not execute the program.
 
-### 2.3 Example
+### 2.3 Translation
+
+Translation has two stages and two intermediate representations (4.1).
+
+1. Normalisation. Compiled Scala (TASTy) is rewritten to *normalised Scala*: a typed form in which evaluation
+   order, pattern matching, closures and dispatch are explicit. No meaning is assigned.
+2. Evaluation. Normalised Scala is evaluated symbolically to a *program representation*: one program per
+   method, as defined in 2.1.
+
+A printer writes the program representation in the syntax of a prover. The two stages correspond to Charon
+and Aeneas in the Rust toolchain (References).
+
+### 2.4 Example
 
 ```scala
 final class Counter:
@@ -108,7 +120,7 @@ Three claims are proven about this definition (3.9):
 - Two concurrent executions can end with one added (both read before either writes).
 - Two concurrent executions, each between entering and leaving a monitor, end with two added.
 
-### 2.4 Properties
+### 2.5 Properties
 
 - A proof refers only to the vocabularies of its program and their laws. A proof about cats-effect code that
   accesses no field does not refer to objects.
@@ -162,7 +174,7 @@ Status: built (`FrFlow/Effect/Tree.v`).
   They determine which program is produced and are not represented in it.
 
 Status: integers, booleans, references and names are built. Two deviations: the reference type is concrete
-(4.4), and integer inputs of a method are not restricted to 32 bits (5.5). Inductive types, function values
+(4.6), and integer inputs of a method are not restricted to 32 bits (5.5). Inductive types, function values
 and library values are designed.
 
 ### 3.3 Function values and method calls
@@ -249,7 +261,7 @@ A vocabulary is a family of operations indexed by result type.
 | external system | one operation per member that is called |
 
 Sums. A program over two vocabularies is a program over their sum. Each operation is tagged as belonging to
-the first (`inl1`) or the second (`inr1`). In the example of 2.3, `bump` is over memory. The guarded program
+the first (`inl1`) or the second (`inr1`). In the example of 2.4, `bump` is over memory. The guarded program
 contains `bump` between the monitor operations. `within` maps a program over memory to the same program over
 the sum:
 
@@ -414,7 +426,7 @@ the theorem that lifts a sequential claim to concurrent execution under non-inte
 
 ### 3.10 Proof methods
 
-A proof at a layer does not execute the program and does not refer to fuel. The tests of 4.5 do both.
+A proof at a layer does not execute the program and does not refer to fuel. The tests of 4.7 do both.
 
 | Program construct | Method |
 |---|---|
@@ -448,30 +460,142 @@ Scala source
    ▼
 class file ───────────────► JVM                     (reference for tests)
 TASTy
-   │  emitter: `frflow.dsl.compiled.effect`
+   │  stage 1: normalisation                        (designed)
    ▼
-`frflow.core.effect.Program`                        (names, typing tables, one program per method)
-   │  printer: `frflow.proof.effect`
+normalised Scala (4.2)
+   │  stage 2: evaluation, `frflow.dsl.compiled.effect`
+   ▼
+program representation (4.3), `frflow.core.effect.Program`
+   │  printer, `frflow.proof.effect`
    ▼
 Rocq file over `modules/proof/rocq/FrFlow/Effect`
 ```
 
-The emitter depends on Scala's compiler interface and not on a prover. The printer depends on Rocq's syntax
-and not on Scala. No other part of FrFlow uses the output. The Ox model and `lifted[Class]` structures use
+Requirements on the stages:
+
+- Each representation is plain data. It does not refer to the Scala compiler or to a prover.
+- Stage 1 depends on the Scala compiler interface. Stage 2 and the printer do not.
+- The printer depends on the syntax of one prover. Output for another prover is another printer over the same
+  program representation.
+- A construct that a stage does not translate is rejected with its file and line. It is not omitted or
+  approximated.
+
+Status: stage 1 and normalised Scala are designed. The implemented emitter performs both stages in one pass
+over TASTy (4.4). No other part of FrFlow uses the output. The Ox model and `lifted[Class]` structures use
 earlier representations ([EXECUTIONS.md](EXECUTIONS.md), [LIFTED.md](LIFTED.md)).
 
-### 4.2 Emitter
+### 4.2 Normalised Scala
 
-The emitter traverses the typed tree of each method once. It maintains, for each variable in scope, the
-variable's current value as a term. This is symbolic evaluation, performed during translation.
+Normalised Scala is the code after the rewrites that Scala's definition prescribes, and before any
+interpretation. It has the role of Charon's LLBC for Rust.
+
+Properties:
+
+- Typed. Each local, parameter, field and method has a type. Each reference to a class, field or method is
+  resolved to its name.
+- Statement form. A method body is a block of statements. A local `var` is assigned by a statement. Locals
+  are not replaced by values.
+- Explicit evaluation order. The operands of a call, an operation or a field access are atoms: a local, a
+  literal, or `this`. Each intermediate result is bound to a local.
+- Executable. The representation has an interpreter written in Scala, used for testing (4.7).
+
+Grammar:
+
+```text
+class   ::= name, fields, methods, initialiser
+method  ::= name, parameters, result type, block
+block   ::= stmt* atom
+stmt    ::= val x = rhs
+          | x = atom                                   assignment to a local var
+          | atom.f = atom                              field write
+          | while (block) block
+          | return atom
+          | throw atom
+rhs     ::= atom
+          | primitive(atom*)
+          | atom.f                                     field read
+          | new C
+          | call(kind, atom, m, atom*)
+          | closure(code, atom*)                       code name and captured values
+          | apply(atom, atom*)
+          | isInstance(atom, C) | field(atom, i)       tests and projections for matching
+          | initialise(O)                              object or lazy val, once
+          | if atom then block else block
+          | try block catch (x) block finally block
+atom    ::= local | literal | this
+kind    ::= static(m) | virtual(m) | external(m)
+```
+
+Normalisation is a sequence of passes. Each pass maps normalised Scala, or TASTy for the first, to normalised
+Scala with one construct removed:
+
+| Pass | Removes | Produces |
+|---|---|---|
+| N1 | nested expressions with operations | bindings to locals, in evaluation order |
+| N2 | `&&`, `\|\|` with an operation on the right | conditionals |
+| N3 | `match` | `isInstance`, `field`, conditionals; `throw` of `MatchError` |
+| N4 | lambdas | `closure` with the captured locals; the body as a named code unit |
+| N5 | captured `var`s | a cell object, with field reads and writes |
+| N6 | by-name arguments | closures |
+| N7 | calls | the call kind: static, virtual with the declared method, or external |
+| N8 | `lazy val`, `object` references | `initialise` |
+| N9 | `return` inside nested blocks | a structured exit of the method |
+
+Requirement: a pass preserves the result of the interpreter on every test program.
+
+Status: designed. The repository has a reader for TASTy that the Ox proofs use
+(`frflow.dsl.compiled.source`). It preserves the structure of TASTy, resolves names, and writes untyped data
+for the Rocq type `FrFlow/Scala/Tree.v`. It performs none of the passes above and has no interpreter.
+
+### 4.3 Program representation
+
+The program representation is the result of stage 2. It has the role of the output of Aeneas for Rust, with
+one difference: operations on objects remain, because Scala does not exclude aliasing.
+
+| Part | Contents |
+|---|---|
+| `Program` | source class names, class names, fields, methods, external members |
+| `MethodOf` | name, inputs with types, result type, body |
+| `Tree` | `Give` a value; `Do` an effect and continue; `Name` a value; `Branch`; `After` (run a tree, bind its results); `Loop`, `Again`, `Leave` |
+| `Effect` | `Get`, `Put`, `New`, `Call` with its receiver, `Ext` |
+| `Pure` | local name, integer, boolean, unit, null, primitive applied to arguments, conditional term, tuple |
+| `EType` | `Int`, `Bool`, `Unit`, `Ref`, tuple |
+
+Properties:
+
+- A local is a value. There is no assignment.
+- Pure computation (`Pure`) is separate from operations (`Effect`).
+- The state of a loop is explicit.
+
+Planned extensions, in the order of 5.4:
+
+| Extension | For |
+|---|---|
+| the vocabularies of each method; each effect tagged with its vocabulary | 3.5 |
+| code units for lambdas, with captured values; an `Apply` effect | 3.3 |
+| inductive type declarations; a match on constructors in `Pure` and `Tree` | 3.2 |
+| `Throw` and `Try` nodes | 3.1 |
+| applications of pure library functions in `Pure` | 3.4 |
+
+Laws and specifications are not part of the program representation. They are FrFlow statements about its
+names.
+
+Status: built (`frflow.core.effect`), without the extensions.
+
+### 4.4 Evaluation
+
+Stage 2 evaluates each method symbolically. It maintains, for each variable in scope, the variable's current
+value as a term.
 
 - A local `val` or `var` is represented by its current value. An assignment to a `var` replaces the value. No
   memory operation is emitted.
 - A conditional whose branches assign variables gives the values of those variables together with its own
   value.
 - The state of a loop is the set of variables assigned in its condition and body.
-- Operations are emitted in Scala's evaluation order.
+- Operations are emitted in evaluation order.
 - Bound names in the output are the names used in the source.
+
+The implemented emitter applies these rules to TASTy directly:
 
 | Scala | Output |
 |---|---|
@@ -490,8 +614,7 @@ variable's current value as a term. This is symbolic evaluation, performed durin
 | `while c do b` | `loop` over the assigned variables |
 | constructor | method `new`: writes each parameter that is a field, then the class body in order |
 
-The emitter rejects Scala that it does not translate, and reports the file and line. It does not omit or
-approximate a construct. Section 5.1 lists the rejected constructs.
+Section 5.1 lists the rejected constructs.
 
 Example of output, for a method with two `var`s and a `while`. `prog Z` is a program whose result is an
 integer or an exception. `x <- p ;; rest` sequences programs. `again` and `leave` end an iteration. `iadd` is
@@ -509,7 +632,10 @@ Definition Counter_sumTo (this : ref) (n : Z) : prog Z :=
   ret s.
 ```
 
-### 4.3 Generated file
+Status: built for the constructs in the table, as a single pass that also performs the part of N1 and N2
+those constructs need.
+
+### 4.5 Generated file
 
 The printer produces one file per program. It contains:
 
@@ -522,7 +648,7 @@ The printer produces one file per program. It contains:
 `modules/project/src/test/resources/effects/Samples.v` is the output for the test classes. It is stored in
 the repository and compared with the emitter's output on each test run.
 
-### 4.4 Prover library
+### 4.6 Prover library
 
 | File | Contents |
 |---|---|
@@ -533,7 +659,7 @@ the repository and compared with the emitter's output on each test run.
 
 Section 5.2 lists the differences between the library and section 3.
 
-### 4.5 Tests and trust
+### 4.7 Tests and trust
 
 Tests.
 
@@ -548,6 +674,15 @@ Tests.
 - Printer. Tested on a hand-built program.
 - Worked examples. `Worked.v` contains everything section 3 marks as on an example.
 
+Planned tests for the two-stage pipeline (designed):
+
+- Stage 1. The interpreter of normalised Scala is compared with the JVM on the test programs. Each pass is
+  tested by running the interpreter before and after it.
+- Stage 2. The executable model of the program is compared with the interpreter of normalised Scala, in
+  addition to the JVM.
+- Normalised Scala can be printed for the prover with a meaning defined there. The correctness of stage 2 can
+  then be stated in the prover as a relation between that meaning and the program.
+
 Limits.
 
 - The emitter and the printer are tested and not proven correct. A review of the first version found eight
@@ -555,6 +690,7 @@ Limits.
   or translated correctly, with a test.
 - The tests compare the final results of single-threaded executions.
 - There is no proven relation between these programs and the earlier representation.
+- Normalised Scala and its interpreter do not exist, so the two stages are tested together.
 - TASTy contains the code as typed, before inlining and erasure. The emitter rejects constructs that those
   phases change.
 - The worked examples are hand-written programs over a single number. They are not emitter output and
@@ -600,6 +736,8 @@ same name in the generated file.
 | integers, references, typed names (3.2) | built; reference type is concrete; integer inputs are unbounded |
 | calls defined by the method's program (3.3) | built |
 | executable model; fuel confined to it (3.7) | built |
+| program representation; evaluation of the constructs of 4.4 (4.3, 4.4) | built, in one pass over TASTy |
+| normalised Scala, its passes and interpreter (4.2) | designed |
 | function values; deferred values (3.3, 3.4) | on an example |
 | separate vocabularies, sums, argument vocabularies (3.5) | on an example; the library has one vocabulary |
 | equivalence at a layer (3.8) | on an example |
@@ -624,15 +762,17 @@ same name in the generated file.
 Each step can be used independently of the later ones.
 
 1. Make the reference type abstract. Keep indices inside `Run.v`.
-2. Split the vocabulary into memory, calls and external calls. Add sums. The emitter computes the
-   vocabularies of each method.
+2. Split the vocabulary into memory, calls and external calls. Add sums. Stage 2 computes the vocabularies
+   of each method.
 3. State the laws of memory. Prove that the executable model satisfies them.
 4. Rules for steps and loops, method specifications, and their soundness.
-5. Function values for lambdas and by-name arguments.
-6. Inductive types, `match`, exceptions, dispatch.
-7. Library vocabularies, starting with cats-effect: building functions, `Run`, laws.
-8. Interleaving of an arbitrary number of programs, the lifting theorem, and migration of the Ox proofs.
-9. Equivalence in a model and the soundness theorem of 3.8.
+5. Normalised Scala for the constructs translated today, with its interpreter. Stage 2 reads it instead of
+   TASTy.
+6. Passes N4 to N6 and function values in the program representation.
+7. Passes N3, N7 to N9; inductive types, exceptions and dispatch in the program representation.
+8. Library vocabularies, starting with cats-effect: building functions, `Run`, laws.
+9. Interleaving of an arbitrary number of programs, the lifting theorem, and migration of the Ox proofs.
+10. Equivalence in a model and the soundness theorem of 3.8.
 
 ### 5.5 Open questions
 
@@ -649,8 +789,10 @@ Each step can be used independently of the later ones.
 
 ## References
 
-- Charon and Aeneas (Rust): separation of the front end from semantics; symbolic evaluation outside the
-  prover; closures as values.
+- Charon and Aeneas (Rust). Charon produces LLBC, a normalised, typed, statement-level form of a Rust crate
+  with structured control flow and explicit trait resolution. Aeneas evaluates LLBC symbolically and produces
+  pure functions for a prover. Normalised Scala (4.2) corresponds to LLBC. The program representation (4.3)
+  corresponds to the output of Aeneas, with operations on objects retained.
 - Plotkin and Power, algebraic effects: operations with equations form a theory; a model is an interpretation
   that satisfies the equations.
 - Interaction trees, and "Program Logics à la Carte": programs as trees over a signature of operations; one
