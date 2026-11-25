@@ -88,8 +88,18 @@ object NodeModules:
       val holds = Decl.Documented(s"${o.node.value} holds of every world meeting what is below it.",
         Decl.Theorem(Nil, Names.builtin("holds"), Nil, l.props.statement(c.holds(o.node)),
           Proof.Below(c.holdsProof(o.node, complete, x.goal)), Break.SameLine))
-      module(l, o.node, NodePart.Theorems, List(holds, audit(l, o.node, NodePart.Theorems, "holds")))
+      module(l, o.node, NodePart.Theorems, List(holds, composed, audit(l, o.node, NodePart.Theorems, "composed")))
     }
+
+  /** What is audited once `holds` is read: a lemma of nothing (`0 = 0`, which names nothing a domain term could
+    * be named as), so that the audit says Rocq read the composition whole and costs nothing. `holds` itself is
+    * not audited: its proof is `complete`, audited in `Auto`, applied to its parts' `holds`, and an audit of it
+    * reads every proof below the node again, at each node above them. What those proofs rest on is judged where
+    * each is checked, and a node is proven only once its parts are.
+    */
+  private val composed: Decl = Decl.Documented("Rocq read the composition whole.",
+    Decl.Theorem(Nil, Names.builtin("composed"), Nil, LExpr.Infix(LOp.Eq, LExpr.Num(0), LExpr.Num(0)), Proof.Rfl,
+      Break.SameLine))
 
   private def checks(l: Lowering, o: NodeObligations): Option[ProverModule] =
     val others = o.required.filterNot(x => x.name == ObligationName.Complete || x.name == ObligationName.Impl)

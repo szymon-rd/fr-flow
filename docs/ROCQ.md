@@ -35,6 +35,11 @@ what is proven of the examples, and what is left of the move from Lean.
     reported not accepted ("out of memory") and given up, and the rest of the file is read.
   - Each proof is audited: the generated modules end a lemma with `Print Assumptions`, and what Rocq prints is
     read. A lemma is proven only with its audit, and only when it rests on nothing but the axioms below.
+    A node's `holds` (its claim from everything below it) is its `complete` applied to its parts' `holds`. It is
+    not audited itself, since that would read every proof below the node again at each node above: `complete`
+    is audited, each part's proofs are audited where the part is checked, and a node is proven only once its
+    parts are. The module that states `holds` ends with a lemma of `0 = 0` that is audited, so that the node is
+    proven only when Rocq read the composition whole.
 - **The rules of a proof file** (`proof.reading.ProofRules`): imports and lemmas with their proofs, nothing else.
 
 ## How a model reads in Rocq

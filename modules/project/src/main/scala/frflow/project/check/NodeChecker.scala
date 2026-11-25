@@ -94,8 +94,11 @@ final class NodeChecker[F[_]: Monad: Clock](prover: Prover[F], files: ProjectFil
     rocq.required(name).filter(_ => rocq.has(NodePart.Impl)).fold(none)(o =>
       run(rocq.module(NodePart.Impl)).map(r => audited(rocq, o, rocq.elaborated(NodePart.Impl, r))))
 
-  /** `holds`, composed once `complete` is proven, with the axioms it rests on: a composition Rocq does not accept
-    * fails the check, but while a part is not proven yet (its theorem may be what does not build), the node waits.
+  /** `holds`, composed once `complete` is proven: a composition Rocq does not accept fails the check, but while a
+    * part is not proven yet (its theorem may be what does not build), the node waits. What is audited is the lemma
+    * after it (`composed`), which says Rocq read the module whole: `holds` adds no axiom to what the node rests
+    * on, its proof being `complete`, whose audit is the `Auto` module's, applied to the parts' `holds`; what those
+    * rest on is judged where each part is checked, which this node waits for (`Judge.node`).
     */
   private def composed(rocq: NodeRocq, done: List[Result], parts: List[CheckStatus]): Step[List[String]] =
     if !rocq.has(NodePart.Theorems) || !done.forall(_.status == ObligationStatus.Proven) then EitherT.pure(Nil)
@@ -106,7 +109,7 @@ final class NodeChecker[F[_]: Monad: Clock](prover: Prover[F], files: ProjectFil
           EitherT.leftT(Judged(CheckStatus.Waiting, done, Nil))
         case ProverRun.Failed(_) => EitherT.leftT(Judged(CheckStatus.Failed, done,
           List(Finding.NotProven(e.toList.flatMap(_.diagnostics.filter(_.error))))))
-        case _                   => e.flatMap(_.axiomsOf("holds")).fold(
+        case _                   => e.flatMap(_.axiomsOf("composed")).fold(
           EitherT.leftT[F, List[String]](Judged(CheckStatus.Open, done, List(Finding.NotProven(Nil)))))(
           EitherT.pure(_))
     }

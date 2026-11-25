@@ -38,7 +38,7 @@ import scala.concurrent.duration.*
   /** Each model's digests: of its Rocq, and of its nodes' content. */
   private val expected: Map[String, (String, String)] = Map(
     "links" -> ("36a72ae084aa9ca8", "53f4eaeeeb532e21"),
-    "auth" -> ("43438775ed73d05d", "5ef1cc0961bcd7fe"),
+    "auth" -> ("6eb320733900aeb5", "5ef1cc0961bcd7fe"),
     "payments" -> ("555080996518efa8", "9f236695fc96643d"),
     "prices" -> ("4a623e791825ebd0", "c55df6f055a7bc15"),
     "counter" -> ("fb5d27bb6aa4b3e0", "6ce488dd43988124"),

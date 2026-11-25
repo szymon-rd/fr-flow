@@ -35,10 +35,11 @@ class EmittedNamesSuite extends munit.FunSuite:
   private val own: Set[String] = """\bfrflow_\w+""".r.findAllIn(text).toSet
   /** Bound or declared by the generated Lean itself, inside a namespace of its own or a binder whose body names no
     * domain term unqualified: a lowering helper (`Naming.helper` avoids every taken name), a declaration of a node's
-    * namespace (`claim`, `holds`), a named argument of FrFlow's library (`ε`, `init`), a hypothesis of fixed tactics.
+    * namespace (`claim`, `holds`, `composed`), a named argument of FrFlow's library (`ε`, `init`), a hypothesis of
+    * fixed tactics.
     */
-  private val local: Set[String] = Set("x", "s", "w", "k", "h", "_", "init", "ε", "claim", "holds", "complete",
-    "impl", "root_impl", "refutes", "answer")
+  private val local: Set[String] = Set("x", "s", "w", "k", "h", "_", "init", "ε", "claim", "holds", "composed",
+    "complete", "impl", "root_impl", "refutes", "answer")
 
   test("every name written unescaped is a keyword, renamed, reserved, or bound by the generated Lean only") {
     val unsafe = (made ++ own)
