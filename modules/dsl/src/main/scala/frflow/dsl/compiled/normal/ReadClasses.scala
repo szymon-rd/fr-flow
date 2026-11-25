@@ -67,6 +67,11 @@ private[normal] trait ReadClasses extends ReadCalls:
     }
     (b, params)
 
+  /** A method read whether or not its class gave it a name. */
+  def tried(d: DefDef): NormalMethod =
+    if !methods.contains(d.symbol) then methods(d.symbol) = MethodName(ClassName(d.symbol.owner.name), d.name)
+    method(d)
+
   private def method(d: DefDef): NormalMethod =
     val (b, params) = entered(d)
     val body = b.block(expr(d.rhs.getOrElse(refuse("a method with no body", d)), Use.Plain)(using b))
