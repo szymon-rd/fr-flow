@@ -1,11 +1,11 @@
-package frflow.dsl.compiled.effect
+package frflow.dsl.compiled.normal
 
 import frflow.core.effect.EType
 
-/** The type a value of the code has in a tree: Scala's `Int`, `Boolean` and `Unit` as themselves, an object of
-  * any class as where it is. Any other type is refused: a tree has no value of it yet.
+/** The type a value of the code has: Scala's `Int`, `Boolean` and `Unit` as themselves, an object of any class
+  * as a reference. Any other type is refused: there is no value of it yet.
   */
-private[effect] trait EmitTypes extends EmitBase:
+private[normal] trait ReadTypes extends ReadBase:
   import q.reflect.*
 
   def ty(t: TypeRepr, at: Tree): EType =
@@ -18,7 +18,7 @@ private[effect] trait EmitTypes extends EmitBase:
     else refuse(s"a value of type ${is.show}", at)
 
   /** A type of values: one evaluated where it is written, once. What is passed by name, or several at once,
-    * is none: a tree has what it is given as a value.
+    * is none.
     */
   private def strict(t: TypeRepr, at: Tree): TypeRepr = t match
     case ByNameType(_)                                         => refuse("what is passed by name", at)

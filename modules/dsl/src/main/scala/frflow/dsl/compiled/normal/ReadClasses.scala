@@ -1,13 +1,13 @@
-package frflow.dsl.compiled.effect
+package frflow.dsl.compiled.normal
 
-import frflow.core.effect.{ClassName, Effect, EType, FieldName, FieldOf, MethodName, MethodOf, Pure}
-import frflow.core.effect.Tree as Emitted
+import frflow.core.effect.{ClassName, EType, FieldName, FieldOf, MethodName}
+import frflow.core.normal.{Atom, Local, NormalMethod, Stmt}
 
-/** The classes of the files read, each with its fields and its methods' trees. A class's constructor is a
-  * method, `new`, called on the object just made: it writes what the class is given into its fields, then runs
-  * the class's body in order, a field's value written where the field is declared.
+/** The classes of the files read, each with its fields and its methods. A class's constructor is a method,
+  * `new`, called on the object just made: it writes what the class is given into its fields, then runs the
+  * class's body in order, a field's value written where the field is declared.
   */
-private[effect] trait EmitClasses extends EmitCalls:
+private[normal] trait ReadClasses extends ReadCalls:
   import q.reflect.*
 
   /** The classes a file declares, in order. Anything else it declares is refused. */
@@ -44,7 +44,7 @@ private[effect] trait EmitClasses extends EmitCalls:
   private def unread(s: Symbol): Boolean = s.flags.is(Flags.Lazy) || s.flags.is(Flags.Inline)
 
   /** What a `final val` of a literal's type is: Scala reads it as the literal, also before the field is written. */
-  private def constant(v: ValDef): Option[Pure] = v.tpt.tpe match
+  private def constant(v: ValDef): Option[Atom] = v.tpt.tpe match
     case ConstantType(c) if v.symbol.flags.is(Flags.Final) => Some(literal(c, v))
     case _                                                 => None
 
@@ -53,37 +53,37 @@ private[effect] trait EmitClasses extends EmitCalls:
     val taken = methods.values.filter(_.cls == cls).map(_.name).toSet
     (name #:: LazyList.from(2).map(i => s"${name}_$i")).find(!taken(_)).get
 
-  def trees(c: ClassDef): List[MethodOf] =
+  def routines(c: ClassDef): List[NormalMethod] =
     constructor(c) :: c.body.collect { case d: DefDef if methods.contains(d.symbol) => method(d) }
 
-  private def inputs(d: DefDef, fresh: Fresh): List[(Symbol, String, EType)] =
+  /** A method's body about to be read: what the method is given, each a local. */
+  private def entered(d: DefDef): (Body, List[(Local, EType)]) =
     if d.leadingTypeParams.nonEmpty then refuse("a method that takes types", d)
-    d.termParamss.flatMap(_.params).map(p => (p.symbol, fresh(p.name), ty(p.tpt.tpe, p)))
+    val b = Body()
+    val params = d.termParamss.flatMap(_.params).map { p =>
+      val made = b.local(p.name, ty(p.tpt.tpe, p))
+      b.bound(p.symbol) = Atom.Of(made)
+      made -> b.types(made)
+    }
+    (b, params)
 
-  /** The place a method's body is read in: `this`, and what the method is given. */
-  private def entered(d: DefDef): (Env, List[(String, EType)]) =
-    val fresh = Fresh()
-    val self = fresh("this")
-    val given_ = inputs(d, fresh)
-    (Env(Pure.Local(self), given_.map((s, x, _) => s -> Pure.Local(x)).toMap, Set.empty, fresh),
-      (self -> EType.Ref) :: given_.map((_, x, t) => x -> t))
+  private def method(d: DefDef): NormalMethod =
+    val (b, params) = entered(d)
+    val body = b.block(expr(d.rhs.getOrElse(refuse("a method with no body", d)), Use.Plain)(using b))
+    NormalMethod(methods(d.symbol), params, ty(d.returnTpt.tpe, d), body)
 
-  private def method(d: DefDef): MethodOf =
-    val (env, takes) = entered(d)
-    val body = d.rhs.getOrElse(refuse("a method with no body", d))
-    val tree = Emitted.simplified(expr(body, env)((p, _) => Emitted.Give(p)))
-    MethodOf(methods(d.symbol), takes, ty(d.returnTpt.tpe, d), tree)
+  private def constructor(c: ClassDef): NormalMethod =
+    val (b, params) = entered(c.constructor)
+    given Body = b
+    val given_ = c.constructor.termParamss.flatMap(_.params).map(p => p.name -> b.bound(p.symbol)).toMap
+    val body = b.block { c.body.foreach(member(_, given_)); Atom.Nothing }
+    NormalMethod(methods(c.constructor.symbol), params, EType.Unit, body)
 
-  private def constructor(c: ClassDef): MethodOf =
-    val (env, takes) = entered(c.constructor)
-    val given_ = c.constructor.termParamss.flatMap(_.params).map(p => p.name -> env.values(p.symbol)).toMap
-    def from(stats: List[Statement]): Emitted = stats match
-      case Nil                                           => Emitted.Give(Pure.Nothing)
-      case (v: ValDef) :: rest if v.rhs.isEmpty          => given_.get(v.name).fold(from(rest))(x =>
-        Emitted.Do(None, Effect.Put(env.self, fields(v.symbol).name, x), from(rest)))
-      case (v @ ValDef(_, _, Some(rhs))) :: rest         => expr(rhs, env)((p, _) =>
-        Emitted.Do(None, Effect.Put(env.self, fields(v.symbol).name, p), from(rest)))
-      case (t: Term) :: rest                             => expr(t, env.dropping)((_, _) => from(rest))
-      case (_: DefDef) :: rest                           => from(rest)
-      case other :: _                                    => refuse("a class's member that is no field or method", other)
-    MethodOf(methods(c.constructor.symbol), takes, EType.Unit, Emitted.simplified(from(c.body)))
+  /** A member in the class's body, as the constructor runs it. */
+  private def member(s: Statement, given_ : Map[String, Atom])(using b: Body): Unit = s match
+    case v: ValDef if v.rhs.isEmpty  =>
+      given_.get(v.name).foreach(x => b.add(Stmt.Write(Atom.Self, fields(v.symbol).name, x)))
+    case v @ ValDef(_, _, Some(rhs)) => b.add(Stmt.Write(Atom.Self, fields(v.symbol).name, expr(rhs, Use.Plain)))
+    case t: Term                     => expr(t, Use.Dropped): Unit
+    case _: DefDef                   => ()
+    case other                       => refuse("a class's member that is no field or method", other)

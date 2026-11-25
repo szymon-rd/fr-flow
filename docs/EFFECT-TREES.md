@@ -460,9 +460,9 @@ Scala source
    ▼
 class file ───────────────► JVM                     (reference for tests)
 TASTy
-   │  stage 1: normalisation                        (designed)
+   │  stage 1: normalisation, `frflow.dsl.compiled.normal`
    ▼
-normalised Scala (4.2)
+normalised Scala (4.2), `frflow.core.normal.NormalProgram`
    │  stage 2: evaluation, `frflow.dsl.compiled.effect`
    ▼
 program representation (4.3), `frflow.core.effect.Program`
@@ -480,8 +480,7 @@ Requirements on the stages:
 - A construct that a stage does not translate is rejected with its file and line. It is not omitted or
   approximated.
 
-Status: stage 1 and normalised Scala are designed. The implemented emitter performs both stages in one pass
-over TASTy (4.4). No other part of FrFlow uses the output. The Ox model and `lifted[Class]` structures use
+Status: built for the constructs of 5.1. No other part of FrFlow uses the output. The Ox model and `lifted[Class]` structures use
 earlier representations ([EXECUTIONS.md](EXECUTIONS.md), [LIFTED.md](LIFTED.md)).
 
 ### 4.2 Normalised Scala
@@ -544,9 +543,16 @@ Scala with one construct removed:
 
 Requirement: a pass preserves the result of the interpreter on every test program.
 
-Status: designed. The repository has a reader for TASTy that the Ox proofs use
-(`frflow.dsl.compiled.source`). It preserves the structure of TASTy, resolves names, and writes untyped data
-for the Rocq type `FrFlow/Scala/Tree.v`. It performs none of the passes above and has no interpreter.
+Status: built for the constructs of 5.1 (`frflow.core.normal`: the data, `Show`, `Interpret`). Of the passes,
+N1 and N2 are built; N3 to N9 are designed, and the constructs they remove are rejected. The grammar's
+`closure`, `apply`, `isInstance`, `field`, `initialise`, `try`, `return` and `throw` are not in the data yet. A
+binding carries a flag saying whether the code or the normalisation named it, and `val x = y` for a local `var`
+`y` is a copy. `modules/project/src/test/resources/effects/Samples.normal` is the normalised form of the test
+classes, stored and compared on each test run.
+
+The repository has a second reader for TASTy, which the Ox proofs use (`frflow.dsl.compiled.source`). It
+preserves the structure of TASTy, resolves names, and writes untyped data for the Rocq type
+`FrFlow/Scala/Tree.v`. It performs none of the passes and has no interpreter.
 
 ### 4.3 Program representation
 
@@ -596,7 +602,7 @@ value as a term.
 - Operations are emitted in evaluation order.
 - Bound names in the output are the names used in the source.
 
-The implemented emitter applies these rules to TASTy directly:
+The rules, shown on the source construct each normalised statement comes from:
 
 | Scala | Output |
 |---|---|
@@ -633,8 +639,8 @@ Definition Counter_sumTo (this : ref) (n : Z) : prog Z :=
   ret s.
 ```
 
-Status: built for the constructs in the table, as a single pass that also performs the part of N1 and N2
-those constructs need.
+Status: built for the constructs in the table (`Evaluate`). Replacing the earlier one-pass emitter by the two
+stages left the generated file for the test classes unchanged.
 
 ### 4.5 Generated file
 
@@ -675,10 +681,12 @@ Tests.
 - Printer. Tested on a hand-built program.
 - Worked examples. `Worked.v` contains everything section 3 marks as on an example.
 
-Planned tests for the two-stage pipeline (designed):
+- Stage 1 (`NormalisedSuite`). The interpreter of normalised Scala gives the JVM's result on the nine
+  scenarios. The normalised form of the test classes is stored and compared.
 
-- Stage 1. The interpreter of normalised Scala is compared with the JVM on the test programs. Each pass is
-  tested by running the interpreter before and after it.
+Planned tests (designed):
+
+- Each pass N3 to N9 is tested by running the interpreter before and after it.
 - Stage 2. The executable model of the program is compared with the interpreter of normalised Scala, in
   addition to the JVM.
 - Normalised Scala can be printed for the prover with a meaning defined there. The correctness of stage 2 can
@@ -691,7 +699,6 @@ Limits.
   or translated correctly, with a test.
 - The tests compare the final results of single-threaded executions.
 - There is no proven relation between these programs and the earlier representation.
-- Normalised Scala and its interpreter do not exist, so the two stages are tested together.
 - TASTy contains the code as typed, before inlining and erasure. The emitter rejects constructs that those
   phases change.
 - The worked examples are hand-written programs over a single number. They are not emitter output and
@@ -737,8 +744,9 @@ same name in the generated file.
 | integers, references, typed names (3.2) | built; reference type is concrete; integer inputs are unbounded |
 | calls defined by the method's program (3.3) | built |
 | executable model; fuel confined to it (3.7) | built |
-| program representation; evaluation of the constructs of 4.4 (4.3, 4.4) | built, in one pass over TASTy |
-| normalised Scala, its passes and interpreter (4.2) | designed |
+| program representation; evaluation of the constructs of 4.4 (4.3, 4.4) | built |
+| normalised Scala and its interpreter; passes N1, N2 (4.2) | built |
+| passes N3 to N9 (4.2) | designed |
 | function values; deferred values (3.3, 3.4) | on an example |
 | separate vocabularies, sums, argument vocabularies (3.5) | on an example; the library has one vocabulary |
 | equivalence at a layer (3.8) | on an example |
@@ -768,7 +776,7 @@ Each step can be used independently of the later ones.
 3. State the laws of memory. Prove that the executable model satisfies them.
 4. Rules for steps and loops, method specifications, and their soundness.
 5. Normalised Scala for the constructs translated today, with its interpreter. Stage 2 reads it instead of
-   TASTy.
+   TASTy. (Done.)
 6. Passes N4 to N6 and function values in the program representation.
 7. Passes N3, N7 to N9; inductive types, exceptions and dispatch in the program representation.
 8. Library vocabularies, starting with cats-effect: building functions, `Run`, laws.

@@ -1,0 +1,573 @@
+method Account.new(opening#1: Int): Unit
+  this.opening = opening#1
+  tmp opening#2: Int = this.opening
+  this.balance = opening#2
+  this.refused = 0
+  ()
+
+method Account.withdraw(n#1: Int): Boolean
+  tmp balance#2: Int = this.balance
+  tmp t#3: Boolean = MoreEq(balance#2, n#1)
+  tmp t#4: Boolean = More(n#1, 0)
+  tmp t#5: Boolean = And(t#3, t#4)
+  tmp chosen#10: Boolean = if t#5 then {
+    tmp balance#6: Int = this.balance
+    tmp t#7: Int = Sub(balance#6, n#1)
+    this.balance = t#7
+    true
+  } else {
+    tmp refused#8: Int = this.refused
+    tmp t#9: Int = Add(refused#8, 1)
+    this.refused = t#9
+    false
+  }
+  chosen#10
+
+method Account.deposit(n#1: Int): Unit
+  tmp t#2: Boolean = More(n#1, 0)
+  if t#2 then {
+    tmp balance#3: Int = this.balance
+    tmp t#4: Int = Add(balance#3, n#1)
+    this.balance = t#4
+    ()
+  } else {
+    ()
+  }
+  ()
+
+method Account.total(): Int
+  tmp balance#1: Int = this.balance
+  balance#1
+
+method Account.refusals(): Int
+  tmp refused#1: Int = this.refused
+  refused#1
+
+method Bank.new(from#1: Ref, to#2: Ref): Unit
+  this.from = from#1
+  this.to = to#2
+  ()
+
+method Bank.transfer(n#1: Int): Boolean
+  tmp from#2: Ref = this.from
+  val ok#3: Boolean = call(static Account.withdraw, from#2, n#1)
+  if ok#3 then {
+    tmp to#4: Ref = this.to
+    call(static Account.deposit, to#4, n#1)
+    ()
+  } else {
+    ()
+  }
+  ok#3
+
+method Bank.drain(step#1: Int): Int
+  var moved#2: Int = 0
+  while {
+    tmp from#3: Ref = this.from
+    tmp withdraw#4: Boolean = call(static Account.withdraw, from#3, step#1)
+    withdraw#4
+  } do {
+    tmp to#5: Ref = this.to
+    call(static Account.deposit, to#5, step#1)
+    tmp moved#6: Int = Add(moved#2, step#1)
+    moved#2 = moved#6
+    ()
+  }
+  moved#2
+
+method Bank.drainAtMost(step#1: Int, times#2: Int): Int
+  var done#3: Int = 0
+  while {
+    tmp t#4: Boolean = Less(done#3, times#2)
+    tmp chosen#7: Boolean = if t#4 then {
+      tmp from#5: Ref = this.from
+      tmp withdraw#6: Boolean = call(static Account.withdraw, from#5, step#1)
+      withdraw#6
+    } else {
+      false
+    }
+    chosen#7
+  } do {
+    tmp to#8: Ref = this.to
+    call(static Account.deposit, to#8, step#1)
+    tmp done#9: Int = Add(done#3, 1)
+    done#3 = done#9
+    ()
+  }
+  done#3
+
+method Cell.new(start#1: Int): Unit
+  this.start = start#1
+  tmp start#2: Int = this.start
+  this.held = start#2
+  ()
+
+method Cell.eq(other#1: Ref): Boolean
+  tmp held#2: Int = this.held
+  tmp held#3: Int = other#1.held
+  tmp t#4: Boolean = SameInt(held#2, held#3)
+  t#4
+
+method Cell.ne(other#1: Ref): Boolean
+  false
+
+method Cell.add(n#1: Int): Int
+  tmp held#2: Int = this.held
+  tmp t#3: Int = Add(held#2, n#1)
+  this.held = t#3
+  tmp held#4: Int = this.held
+  held#4
+
+method Cell.add_2(n#1: Int, times#2: Int): Int
+  var left#3: Int = times#2
+  while {
+    tmp t#4: Boolean = More(left#3, 0)
+    t#4
+  } do {
+    tmp held#5: Int = this.held
+    tmp t#6: Int = Add(held#5, n#1)
+    this.held = t#6
+    tmp left#7: Int = Sub(left#3, 1)
+    left#3 = left#7
+    ()
+  }
+  tmp held#8: Int = this.held
+  held#8
+
+method Counter.new(start#1: Int): Unit
+  this.start = start#1
+  tmp start#2: Int = this.start
+  this.count = start#2
+  ()
+
+method Counter.increment(by#1: Int): Int
+  tmp count#2: Int = this.count
+  tmp t#3: Int = Add(count#2, by#1)
+  this.count = t#3
+  tmp count#4: Int = this.count
+  count#4
+
+method Counter.current(): Int
+  tmp count#1: Int = this.count
+  count#1
+
+method Counter.sumTo(n#1: Int): Int
+  var i#2: Int = 0
+  var s#3: Int = 0
+  while {
+    tmp t#4: Boolean = Less(i#2, n#1)
+    t#4
+  } do {
+    tmp s#5: Int = Add(s#3, i#2)
+    s#3 = s#5
+    tmp i#6: Int = Add(i#2, 1)
+    i#2 = i#6
+    ()
+  }
+  s#3
+
+method Edges.new(): Unit
+  tmp t#1: Int = Add(5, 1)
+  this.first = t#1
+  this.second = 5
+  tmp late#2: Int = this.late
+  tmp t#3: Int = Add(late#2, 1)
+  this.early = t#3
+  this.late = 7
+  this.log = 0
+  ()
+
+method Edges.keep(c#1: Ref, mark#2: Int): Ref
+  c#1.held = mark#2
+  c#1
+
+method Edges.receiver(): Int
+  val c#1: Ref = new Cell
+  call(static Cell.new, c#1, 0)
+  var i#2: Int = 1
+  tmp held#3: Int = c#1.held
+  tmp t#4: Boolean = SameInt(held#3, 0)
+  if t#4 then {
+    i#2 = 5
+    tmp keep#5: Ref = call(static Edges.keep, this, c#1, i#2)
+    keep#5.held = 2
+    ()
+  } else {
+    ()
+  }
+  tmp held#6: Int = c#1.held
+  tmp t#7: Int = Mul(held#6, 10)
+  tmp t#8: Int = Add(i#2, t#7)
+  t#8
+
+method Edges.looping(): Int
+  val c#1: Ref = new Cell
+  call(static Cell.new, c#1, 0)
+  var i#2: Int = 0
+  while {
+    tmp t#3: Boolean = Less(i#2, 3)
+    t#3
+  } do {
+    tmp i#4: Int = Add(i#2, 1)
+    i#2 = i#4
+    tmp keep#5: Ref = call(static Edges.keep, this, c#1, i#2)
+    keep#5.held = i#2
+    ()
+  }
+  tmp t#6: Int = Mul(i#2, 10)
+  tmp held#7: Int = c#1.held
+  tmp t#8: Int = Add(t#6, held#7)
+  t#8
+
+method Edges.cells(): Int
+  val a#1: Ref = new Cell
+  call(static Cell.new, a#1, 1)
+  val b#2: Ref = new Cell
+  call(static Cell.new, b#2, 1)
+  a#1.held = 7
+  b#2.held = 7
+  tmp eq#3: Boolean = call(static Cell.eq, a#1, b#2)
+  tmp chosen#4: Int = if eq#3 then {
+    1
+  } else {
+    0
+  }
+  tmp ne#5: Boolean = call(static Cell.ne, a#1, b#2)
+  tmp chosen#6: Int = if ne#5 then {
+    10
+  } else {
+    0
+  }
+  tmp t#7: Int = Add(chosen#4, chosen#6)
+  tmp held#8: Int = a#1.held
+  tmp t#9: Int = Mul(held#8, 100)
+  tmp t#10: Int = Add(t#7, t#9)
+  t#10
+
+method Edges.overloads(): Int
+  val c#1: Ref = new Cell
+  call(static Cell.new, c#1, 1)
+  tmp add#2: Int = call(static Cell.add, c#1, 2)
+  tmp add#3: Int = call(static Cell.add_2, c#1, 3, 4)
+  tmp t#4: Int = Mul(add#3, 100)
+  tmp t#5: Int = Add(add#2, t#4)
+  tmp early#6: Int = this.early
+  tmp t#7: Int = Mul(early#6, 10000)
+  tmp t#8: Int = Add(t#5, t#7)
+  tmp late#9: Int = this.late
+  tmp t#10: Int = Mul(late#9, 100000)
+  tmp t#11: Int = Add(t#8, t#10)
+  t#11
+
+method Edges.mark(d#1: Int): Int
+  tmp log#2: Int = this.log
+  tmp t#3: Int = Mul(log#2, 10)
+  tmp t#4: Int = Add(t#3, d#1)
+  this.log = t#4
+  d#1
+
+method Edges.pick(c#1: Ref, d#2: Int): Ref
+  tmp log#3: Int = this.log
+  tmp t#4: Int = Mul(log#3, 10)
+  tmp t#5: Int = Add(t#4, d#2)
+  this.log = t#5
+  c#1
+
+method Edges.ordering(): Int
+  val c#1: Ref = new Cell
+  tmp mark#2: Int = call(static Edges.mark, this, 1)
+  call(static Cell.new, c#1, mark#2)
+  tmp pick#3: Ref = call(static Edges.pick, this, c#1, 2)
+  tmp mark#4: Int = call(static Edges.mark, this, 3)
+  tmp mark#5: Int = call(static Edges.mark, this, 4)
+  val added#6: Int = call(static Cell.add_2, pick#3, mark#4, mark#5)
+  tmp mark#7: Int = call(static Edges.mark, this, 5)
+  tmp mark#8: Int = call(static Edges.mark, this, 6)
+  tmp mark#9: Int = call(static Edges.mark, this, 7)
+  tmp t#10: Int = Mul(mark#8, mark#9)
+  tmp t#11: Int = Add(mark#7, t#10)
+  c#1.held = t#11
+  tmp t#12: Boolean = More(added#6, 0)
+  tmp chosen#14: Int = if t#12 then {
+    tmp log#13: Int = this.log
+    log#13
+  } else {
+    0
+  }
+  chosen#14
+
+method Numbers.new(): Unit
+  ()
+
+method Numbers.largest(a#1: Int, b#2: Int, c#3: Int): Int
+  var best#4: Int = a#1
+  tmp t#5: Boolean = More(b#2, best#4)
+  if t#5 then {
+    best#4 = b#2
+    ()
+  } else {
+    ()
+  }
+  tmp t#6: Boolean = More(c#3, best#4)
+  if t#6 then {
+    best#4 = c#3
+    ()
+  } else {
+    ()
+  }
+  best#4
+
+method Numbers.power(base#1: Int, n#2: Int): Int
+  var result#3: Int = 1
+  var left#4: Int = n#2
+  while {
+    tmp t#5: Boolean = More(left#4, 0)
+    t#5
+  } do {
+    tmp result#6: Int = Mul(result#3, base#1)
+    result#3 = result#6
+    tmp left#7: Int = Sub(left#4, 1)
+    left#4 = left#7
+    ()
+  }
+  result#3
+
+method Numbers.gcd(a#1: Int, b#2: Int): Int
+  var x#3: Int = a#1
+  var y#4: Int = b#2
+  while {
+    tmp t#5: Boolean = SameInt(x#3, y#4)
+    tmp t#6: Boolean = Not(t#5)
+    t#6
+  } do {
+    tmp t#7: Boolean = More(x#3, y#4)
+    if t#7 then {
+      tmp x#8: Int = Sub(x#3, y#4)
+      x#3 = x#8
+      ()
+    } else {
+      tmp y#9: Int = Sub(y#4, x#3)
+      y#4 = y#9
+      ()
+    }
+    ()
+  }
+  x#3
+
+method Numbers.triangle(rows#1: Int): Int
+  var total#2: Int = 0
+  var row#3: Int = 1
+  while {
+    tmp t#4: Boolean = LessEq(row#3, rows#1)
+    t#4
+  } do {
+    var column#5: Int = 0
+    while {
+      tmp t#6: Boolean = Less(column#5, row#3)
+      t#6
+    } do {
+      tmp total#7: Int = Add(total#2, 1)
+      total#2 = total#7
+      tmp column#8: Int = Add(column#5, 1)
+      column#5 = column#8
+      ()
+    }
+    tmp row#9: Int = Add(row#3, 1)
+    row#3 = row#9
+    ()
+  }
+  total#2
+
+method Numbers.signOf(n#1: Int): Int
+  tmp t#2: Boolean = Less(n#1, 0)
+  tmp chosen#5: Int = if t#2 then {
+    -1
+  } else {
+    tmp t#3: Boolean = SameInt(n#1, 0)
+    tmp chosen#4: Int = if t#3 then {
+      0
+    } else {
+      1
+    }
+    chosen#4
+  }
+  chosen#5
+
+method Numbers.either(a#1: Boolean, b#2: Boolean): Boolean
+  tmp t#3: Boolean = Or(a#1, b#2)
+  tmp t#4: Boolean = And(a#1, b#2)
+  tmp t#5: Boolean = Not(t#4)
+  tmp t#6: Boolean = And(t#3, t#5)
+  t#6
+
+method Pair.new(left#1: Ref, right#2: Ref): Unit
+  this.left = left#1
+  this.right = right#2
+  ()
+
+method Pair.bump(): Int
+  tmp left#1: Ref = this.left
+  tmp increment#2: Int = call(static Counter.increment, left#1, 1)
+  tmp right#3: Ref = this.right
+  tmp increment#4: Int = call(static Counter.increment, right#3, 2)
+  tmp t#5: Int = Add(increment#2, increment#4)
+  t#5
+
+method Pair.same(): Boolean
+  tmp left#1: Ref = this.left
+  tmp right#2: Ref = this.right
+  tmp t#3: Boolean = SameRef(left#1, right#2)
+  t#3
+
+method Scenarios.new(): Unit
+  ()
+
+method Scenarios.counters(): Int
+  val pair#1: Ref = new Pair
+  tmp Counter#2: Ref = new Counter
+  call(static Counter.new, Counter#2, 10)
+  tmp Counter#3: Ref = new Counter
+  call(static Counter.new, Counter#3, 20)
+  call(static Pair.new, pair#1, Counter#2, Counter#3)
+  tmp bump#4: Int = call(static Pair.bump, pair#1)
+  tmp left#5: Ref = pair#1.left
+  tmp sumTo#6: Int = call(static Counter.sumTo, left#5, 5)
+  tmp t#7: Int = Add(bump#4, sumTo#6)
+  tmp right#8: Ref = pair#1.right
+  tmp current#9: Int = call(static Counter.current, right#8)
+  tmp t#10: Int = Add(t#7, current#9)
+  t#10
+
+method Scenarios.sharing(): Int
+  val one#1: Ref = new Counter
+  call(static Counter.new, one#1, 1)
+  val pair#2: Ref = new Pair
+  call(static Pair.new, pair#2, one#1, one#1)
+  val bumped#3: Int = call(static Pair.bump, pair#2)
+  tmp same#4: Boolean = call(static Pair.same, pair#2)
+  tmp chosen#7: Int = if same#4 then {
+    tmp current#5: Int = call(static Counter.current, one#1)
+    tmp t#6: Int = Add(bumped#3, current#5)
+    t#6
+  } else {
+    0
+  }
+  chosen#7
+
+method Scenarios.banking(): Int
+  val a#1: Ref = new Account
+  call(static Account.new, a#1, 100)
+  val b#2: Ref = new Account
+  call(static Account.new, b#2, 5)
+  val bank#3: Ref = new Bank
+  call(static Bank.new, bank#3, a#1, b#2)
+  tmp transfer#4: Boolean = call(static Bank.transfer, bank#3, 30)
+  val moved#5: Int = if transfer#4 then {
+    1
+  } else {
+    0
+  }
+  tmp transfer#6: Boolean = call(static Bank.transfer, bank#3, 500)
+  val again#7: Int = if transfer#6 then {
+    1
+  } else {
+    0
+  }
+  tmp t#8: Int = Mul(again#7, 10)
+  tmp t#9: Int = Add(moved#5, t#8)
+  tmp total#10: Int = call(static Account.total, a#1)
+  tmp t#11: Int = Mul(total#10, 100)
+  tmp t#12: Int = Add(t#9, t#11)
+  tmp total#13: Int = call(static Account.total, b#2)
+  tmp t#14: Int = Mul(total#13, 10000)
+  tmp t#15: Int = Add(t#12, t#14)
+  tmp refusals#16: Int = call(static Account.refusals, a#1)
+  tmp t#17: Int = Mul(refusals#16, 1000000)
+  tmp t#18: Int = Add(t#15, t#17)
+  t#18
+
+method Scenarios.draining(): Int
+  val a#1: Ref = new Account
+  call(static Account.new, a#1, 50)
+  val b#2: Ref = new Account
+  call(static Account.new, b#2, 0)
+  val bank#3: Ref = new Bank
+  call(static Bank.new, bank#3, a#1, b#2)
+  val some#4: Int = call(static Bank.drainAtMost, bank#3, 7, 3)
+  val rest#5: Int = call(static Bank.drain, bank#3, 7)
+  tmp t#6: Int = Mul(rest#5, 100)
+  tmp t#7: Int = Add(some#4, t#6)
+  tmp total#8: Int = call(static Account.total, a#1)
+  tmp t#9: Int = Mul(total#8, 10000)
+  tmp t#10: Int = Add(t#7, t#9)
+  tmp total#11: Int = call(static Account.total, b#2)
+  tmp t#12: Int = Mul(total#11, 100000)
+  tmp t#13: Int = Add(t#10, t#12)
+  tmp refusals#14: Int = call(static Account.refusals, a#1)
+  tmp t#15: Int = Mul(refusals#14, 10000000)
+  tmp t#16: Int = Add(t#13, t#15)
+  t#16
+
+method Scenarios.computing(): Int
+  val n#1: Ref = new Numbers
+  call(static Numbers.new, n#1)
+  tmp either#2: Boolean = call(static Numbers.either, n#1, true, false)
+  tmp chosen#5: Boolean = if either#2 then {
+    tmp either#3: Boolean = call(static Numbers.either, n#1, true, true)
+    tmp t#4: Boolean = Not(either#3)
+    t#4
+  } else {
+    false
+  }
+  val truths#6: Int = if chosen#5 then {
+    1
+  } else {
+    0
+  }
+  tmp largest#7: Int = call(static Numbers.largest, n#1, 3, 9, 4)
+  tmp gcd#8: Int = call(static Numbers.gcd, n#1, 84, 36)
+  tmp t#9: Int = Mul(gcd#8, 10)
+  tmp t#10: Int = Add(largest#7, t#9)
+  tmp triangle#11: Int = call(static Numbers.triangle, n#1, 6)
+  tmp t#12: Int = Mul(triangle#11, 1000)
+  tmp t#13: Int = Add(t#10, t#12)
+  tmp signOf#14: Int = call(static Numbers.signOf, n#1, -5)
+  tmp t#15: Int = Add(t#13, signOf#14)
+  tmp t#16: Int = Mul(truths#6, 100000)
+  tmp t#17: Int = Add(t#15, t#16)
+  t#17
+
+method Scenarios.wrapping(): Int
+  val n#1: Ref = new Numbers
+  call(static Numbers.new, n#1)
+  tmp power#2: Int = call(static Numbers.power, n#1, 7, 20)
+  tmp power#3: Int = call(static Numbers.power, n#1, -3, 31)
+  tmp t#4: Int = Add(power#2, power#3)
+  t#4
+
+method Scenarios.edges(): Int
+  val e#1: Ref = new Edges
+  call(static Edges.new, e#1)
+  tmp first#2: Int = e#1.first
+  tmp receiver#3: Int = call(static Edges.receiver, e#1)
+  tmp t#4: Int = Mul(receiver#3, 10)
+  tmp t#5: Int = Add(first#2, t#4)
+  tmp looping#6: Int = call(static Edges.looping, e#1)
+  tmp t#7: Int = Mul(looping#6, 1000)
+  tmp t#8: Int = Add(t#5, t#7)
+  tmp cells#9: Int = call(static Edges.cells, e#1)
+  tmp t#10: Int = Mul(cells#9, 100000)
+  tmp t#11: Int = Add(t#8, t#10)
+  t#11
+
+method Scenarios.naming(): Int
+  tmp Edges#1: Ref = new Edges
+  call(static Edges.new, Edges#1)
+  tmp overloads#2: Int = call(static Edges.overloads, Edges#1)
+  overloads#2
+
+method Scenarios.ordering(): Int
+  tmp Edges#1: Ref = new Edges
+  call(static Edges.new, Edges#1)
+  tmp ordering#2: Int = call(static Edges.ordering, Edges#1)
+  ordering#2
